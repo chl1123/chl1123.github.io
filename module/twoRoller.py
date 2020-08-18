@@ -166,7 +166,7 @@ class Module(BasicModule):
                     self.status = MoveStatus.RUNNING
             else:
                 # 如果是不支持的operation则报错
-                r.setError(53000, "Operation: " + self.operaton + " doesn't support")
+                r.setError(53000, "Operation: " + self.operation + " doesn't support")
                 self.status = MoveStatus.FAILED
             #发送速度
             if self.status is not MoveStatus.FAILED and self.status is not MoveStatus.FINISHED:
