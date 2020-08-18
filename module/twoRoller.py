@@ -2,6 +2,16 @@ import json
 import time
 from rbk import MoveStatus, BasicModule
 
+####BEGIN DEFAULT ARGS####
+{
+    "operation": {
+        "value": "",
+        "tips": "FrontRollerLoad/FrontRollerUnLoad/BackRollerLoad/BackRollerUnLoad/FrontBackLoad/AllRollerLoad/AllRollerUnLoad",
+        "type": "string"
+    }
+}
+####END DEFAULT ARGS####
+
 class Module(BasicModule):
     def __init__(self, r, args):
         super(Module, self).__init__()
@@ -27,7 +37,7 @@ class Module(BasicModule):
         r.logInfo(str(args))
         self.status = MoveStatus.RUNNING
         if "operation" in args:
-            self.operation = args["operation"]
+            self.operation = args["operation"]["value"]
         if self.operation is not "":
             r.logDebug(self.operation)
             if self.operation == "FrontRollerLoad":
@@ -166,7 +176,7 @@ class Module(BasicModule):
                     self.status = MoveStatus.RUNNING
             else:
                 # 如果是不支持的operation则报错
-                r.setError(53000, "Operation: " + self.operaton + " doesn't support")
+                r.setError(53000, "Operation: " + self.operation + " doesn't support")
                 self.status = MoveStatus.FAILED
             #发送速度
             if self.status is not MoveStatus.FAILED and self.status is not MoveStatus.FINISHED:
