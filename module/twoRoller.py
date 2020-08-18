@@ -2,6 +2,16 @@ import json
 import time
 from rbk import MoveStatus, BasicModule
 
+####BEGIN DEFAULT ARGS####
+{
+    "operation": {
+        "value": "",
+        "tips": "FrontRollerLoad/FrontRollerUnLoad/BackRollerLoad/BackRollerUnLoad/FrontBackLoad/AllRollerLoad/AllRollerUnLoad",
+        "type": "string"
+    }
+}
+####END DEFAULT ARGS####
+
 class Module(BasicModule):
     def __init__(self, r, args):
         super(Module, self).__init__()
@@ -27,7 +37,7 @@ class Module(BasicModule):
         r.logInfo(str(args))
         self.status = MoveStatus.RUNNING
         if "operation" in args:
-            self.operation = args["operation"]
+            self.operation = args["operation"]["value"]
         if self.operation is not "":
             r.logDebug(self.operation)
             if self.operation == "FrontRollerLoad":
