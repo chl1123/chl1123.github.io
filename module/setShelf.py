@@ -23,3 +23,12 @@ class Module(BasicModule):
             r.setError(53000, "args doesn't have object")
             self.status = MoveStatus.FAILED
         return self.status.value
+
+if __name__ == '__main__':
+    import rbkSim
+    r = rbkSim.SimModule()
+    m = Module(r,None)
+    data = dict()
+    data["object"] = dict()
+    data["object"]["value"] = "hello"
+    m.run(r, data)
