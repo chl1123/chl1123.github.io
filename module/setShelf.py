@@ -15,13 +15,17 @@ from rbk import MoveStatus, BasicModule
 class Module(BasicModule):
     def __init__(self, r, args):
         super(Module, self).__init__()
+        self.status = MoveStatus.RUNNING
     def run(self, r,args):
-        if "object" in args:
-            r.setLocalShelfArea(args["object"]["value"])
-            self.status = MoveStatus.FINISHED
-        else:
-            r.setError(53000, "args doesn't have object")
-            self.status = MoveStatus.FAILED
+        if self.status is not MoveStatus.FINISHED:
+            if "object" in args:
+                if r.setLocalShelfArea(args["object"]["value"]):
+                    self.status = MoveStatus.FINISHED
+                else:
+                    self.status = MoveStatus.FAILED
+            else:
+                r.setError(53000, "args doesn't have object")
+                self.status = MoveStatus.FAILED
         return self.status.value
 
 if __name__ == '__main__':
