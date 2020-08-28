@@ -136,10 +136,10 @@ class SimModule:
         return True  
     @check
     def publishSpeed(self)->bool:
-        """将当前控制方案，进行速度规划然后下发
+        """将当前电机控制方案，进行速度规划然后下发
 
         Returns:
-            bool: 如果规划速度失败则返回False
+            bool: 如果规划电机速度失败则返回False
         """
         print("func: {0}".format(get_function_name()))
         return True
@@ -421,6 +421,36 @@ class SimModule:
             ss (str): 脚本调试信息
         """
         print("func: {0} info: {1}".format(get_function_name(), ss))
+    def getNextSpeed(self)->dict:
+        """获取当前NavSpeed的速度
+
+        Returns:
+            dict: 返回一个字典包含NavSpeed中所有的速度
+        """
+        print("func: {0}".format(get_function_name()))
+    def setNextSpeed(self, nav:str)->bool:
+        """设置准备下发的速度
+
+        Args:
+            nav (str): 下发的速度，格式与从getNextSpeed或者navSpeed获得的格式相同
+
+        Returns:
+            bool: 如果成功转成下发速度则返回True
+        """
+        print("func: {0} nav: {1}".format(get_function_name(), nav))
+        return True
+    def speedDecomposition(self, nav:str)->dict:
+        """将导航速度速度分解，目前只有单舵轮和双舵轮有效
+
+        Args:
+            nav (str): 导航速度，格式与从getNextSpeed或者navSpeed获得的格式相同
+
+        Returns:
+            dict: 返回速度分解后的速度
+        """
+        print("func: {0} nav: {1}".format(get_function_name(), nav))
+        return dict()        
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -462,6 +492,8 @@ if __name__ == '__main__':
     r.goPath()
     r.resetPath()
     r.stopRobot(True)
+    r.getNextSpeed()
+    r.setNextSpeed(json.dumps({"x":0.3}))
     print("Success!!!")
 
 
