@@ -17,145 +17,384 @@ def check(fn):
         cc = fn(*args, **kwargs)
         return cc
     return wrapper
+#TODO 加入当前要下发的速度，以及发送下发速度
 class SimModule:
     def __init__(self):
         pass
     @check
     def setDO(self, id:int, status:bool)->bool:
+        """控制DO的开关
+
+        Args:
+            id (int): DO的id
+            status (bool): 是否打开这个DO
+
+        Returns:
+            bool: 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
+        """
         print("func: {0} id: {1}  status: {2} ".format(get_function_name(), id, status))
         return True
     @check
     def setMotorSpeed(self, name:str, vel:float, stopDI:int)->bool:
+        """让电机以某个速度运行，比如滚筒电机
+
+        Args:
+            name (str): 电机名称
+            vel (float): 电机速度
+            stopDI (int): 到位DI
+
+        Returns:
+            bool: 如果不存在这个电机，则返回False
+        """
         print("func: {0} name: {1}  vel: {2} stopDI {3}".format(get_function_name(), name, vel, stopDI))
         return True
     @check
     def setMotorPosition(self, motor_name:str, pos:float, maxVel:float, stopDI:int)->bool:
+        """控制线性电机到特定位置
+
+        Args:
+            motor_name (str): 模型文件中的电机名称
+            pos (float): 发送目标点位置也可能是角度
+            maxVel (float): 运行过程中的最大速度不能超过模型文件中的最大速度
+            stopDI (int): 如果这个StopDI触发则表示运动到位
+
+        Returns:
+            bool: 如果不存在这个电机，则返回False
+        """
         print("func: {0} name: {1}  pos: {2} maxVel: {3} stopDI: {4}".format(get_function_name(), motor_name, pos, maxVel, stopDI))
         return True
     @check
     def setLocalShelfArea(self, object_model_path:str)->bool:
+        """加载顶升上的货物模型
+
+        Args:
+            object_model_path (str): 货架模型文件名称
+
+        Returns:
+            bool: 如果不存在这个货架模型则报错
+        """
         print("func: {0} object_model_path: {1}".format(get_function_name(), object_model_path))
         return True
     @check
     def resetMotor(self, motor_name:str)->bool:
+        """将电机重置为不启用状态
+
+        Args:
+            motor_name (str): 电机名称
+
+        Returns:
+            bool: 如果不存在这个电机则报错
+        """
         print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
         return True
     @check
     def isAllMotorsReached(self)->bool:
+        """所有电机是否到位
+
+        Returns:
+            bool: 如果所有电机到位则为True
+        """
         print("func: {0}".format(get_function_name()))
         return True
     @check
     def isMotorReached(self, motor_name:str)->bool:
+        """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
+
+        Args:
+            motor_name (str): 电机名称
+
+        Returns:
+            bool: 如果到位则返回True
+        """
         print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
         return True  
     @check
     def isMotorPositionReached(self, motor_name:str, pos:float, stopDI:int)->bool:
+        """电机是否到达特定位置
+
+        Args:
+            motor_name (str): 电机名称
+            pos (float): 位置
+            stopDI (int): 到位DI
+
+        Returns:
+            bool: 如果到位则返回True
+        """
         print("func: {0} name: {1}  pos: {2} stopDI: {3}".format(get_function_name(), motor_name, pos, stopDI))
         return True
     @check
     def isMotorStop(self, motor_name:str)->bool:
+        """控制电机停止
+
+        Args:
+            motor_name (str): 电机名称
+
+        Returns:
+            bool: 如果电机不存在则返回False
+        """
         print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
         return True  
     @check
     def publishSpeed(self)->bool:
+        """将当前控制方案，进行速度规划然后下发
+
+        Returns:
+            bool: 如果规划速度失败则返回False
+        """
         print("func: {0}".format(get_function_name()))
         return True
     @check
     def resetLocalShelfArea(self)->bool:
+        """取消顶升上的货架
+
+        Returns:
+            bool: [description]
+        """
         print("func: {0}".format(get_function_name()))
         return True
     @check
     def getMsg(self, type_name:str)->dict:
+        """获取消息名称
+
+        Args:
+            type_name (str): 消息名称
+
+        Returns:
+            dict: 以字典的类型返回消息
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check 
     def getCount(self)->int:
+        """获得当前任务已经循环的次数
+
+        Returns:
+            int: 循环的次数
+        """
         print("func: {0}".format(get_function_name()))
         return 0
     @check
     def odo(self)->dict:
+        """获得里程数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def loc(self)->dict:
+        """获得定位数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def navSpeed(self)->dict:
+        """获得当前速度数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def battery(self)->dict:
+        """获得电池数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def rfid(self)->dict:
+        """获得rfid数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def magnetic(self)->dict:
+        """获得磁条数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def Di(self)->dict:
+        """获得Di数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def Do(self)->dict:
+        """获得Do数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def pgv(self)->dict:
+        """获得pgv数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def sound(self)->dict:
+        """获得音频数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def controller(self)->dict:
+        """获得控制器数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
     def logInfo(self, ss:str):
+        """将字符串输出到log文件中，等级为Info
+
+        Args:
+            ss (str): 输入的字符串
+        """
         print("func: {0} content: {1}".format(get_function_name(), ss))
     @check
     def logWarn(self, ss:str):
+        """将字符串输出到log文件中，等级为Warning
+
+        Args:
+            ss (str): 输入的字符串
+        """        
         print("func: {0} content: {1}".format(get_function_name(), ss))
     @check
     def logError(self, ss:str):
+        """将字符串输出到log文件中，等级为Error
+
+        Args:
+            ss (str): 输入的字符串
+        """ 
         print("func: {0} content: {1}".format(get_function_name(), ss))
     @check
     def logDebug(self, ss:str):
+        """将字符串输出到log文件中，等级为Debug
+
+        Args:
+            ss (str): 输入的字符串
+        """ 
         print("func: {0} content: {1}".format(get_function_name(), ss))
     @check
-    def setError(self, code:int, ss:str):
-        print("func: {0} code: {1} content: {2}".format(get_function_name(), code, ss))
+    def setError(self, ss:str):
+        """输出53000的Error
+
+        Args:
+            ss (str): 注释字符串
+        """ 
+        print("func: {0} content: {1}".format(get_function_name(), ss))
     @check
-    def setWarning(self, code:int, ss:str):
-        print("func: {0} code: {1} content: {2}".format(get_function_name(), code, ss))
+    def setWarning(self, ss:str):
+        """输出55300的Warning
+
+        Args:
+            ss (str): 注释字符串
+        """ 
+        print("func: {0} content: {1}".format(get_function_name(), ss))
+    @check
+    def setNotice(self, ss:str):
+        """输出57300的Notice
+
+        Args:
+            ss (str): 注释字符串
+        """ 
+        print("func: {0} content: {1}".format(get_function_name(), ss))
     @check
     def clearError(self, code:int):
+        """清除特定编号的Error
+
+        Args:
+            code (int): Error的编号
+        """
         print("func: {0} code: {1}".format(get_function_name(), code))
     @check
     def clearWarning(self, code:int):
+        """清除特定编号的Warning
+
+        Args:
+            code (int): Warning的编号
+        """
         print("func: {0} code: {1}".format(get_function_name(), code))
     @check
     def errorExits(self, code:int)->bool:
+        """查询特定编号的Error是否存在
+
+        Args:
+            code (int): Error编号
+
+        Returns:
+            bool: 如果存在则返回True
+        """
         print("func: {0} code: {1}".format(get_function_name(), code))
         return True
     @check
     def warningExits(self, code:int)->bool:
+        """查询特定编号的Warning是否存在
+
+        Args:
+            code (int): Warning编号
+
+        Returns:
+            bool: 如果存在则返回True
+        """        
         print("func: {0} code: {1}".format(get_function_name(), code))
         return True     
     @check
     def setPathOnRobot(self,x:list, y:list, angle:float):
+        """让agv在agv坐标系下以特定线路行走
+
+        Args:
+            x (list): 线路的x坐标
+            y (list): 线路的y坐标
+            angle (float): 终点的朝向
+        """
         print("func: {0} x: {1} y:{2} angle:{3}".format(get_function_name(), x, y, angle))
     @check
     def setPathOnWorld(self,x:list, y:list, angle:float):
+        """让agv在世界坐标系下以特定线路行走
+
+        Args:
+            x (list): 线路的x坐标
+            y (list): 线路的y坐标
+            angle (float): 终点的朝向
+        """        
         print("func: {0} x: {1} y:{2} angle:{3}".format(get_function_name(), x, y, angle))
     @check
     def isPathReached(self)->bool:
+        """agv是否完成线路
+
+        Returns:
+            bool: 如果完成则返回True
+        """
         print("func: {0}".format(get_function_name()))
         return True
     @check
@@ -164,12 +403,24 @@ class SimModule:
         return True
     @check
     def resetPath(self):
+        """让agv沿着规划的线路行驶
+        """
         print("func: {0}".format(get_function_name()))
-        return True
     @check
     def stopRobot(self, flag:bool):
-        print("func: {0} stop: {1}".format(get_function_name(), flag))
+        """让agv停下来
 
+        Args:
+            flag (bool): 如果是True就是急停，如果是False则以StopAcc停下来
+        """
+        print("func: {0} stop: {1}".format(get_function_name(), flag))
+    def setInfo(self, ss:str):
+        """输出脚本调试信息
+
+        Args:
+            ss (str): 脚本调试信息
+        """
+        print("func: {0} info: {1}".format(get_function_name(), ss))
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -199,8 +450,8 @@ if __name__ == '__main__':
     r.logWarn("data")
     r.logError("data")
     r.logDebug("data")
-    r.setError(111111, "data")
-    r.setWarning(111111, "data")
+    r.setError("data")
+    r.setWarning("data")
     r.clearError(111111)
     r.clearWarning(111111)
     r.errorExits(111111)
@@ -211,6 +462,7 @@ if __name__ == '__main__':
     r.goPath()
     r.resetPath()
     r.stopRobot(True)
+    print("Success!!!")
 
 
         

@@ -1,6 +1,7 @@
 import json
 import time
 from rbk import MoveStatus, BasicModule
+from rbkSim import SimModule
 
 ####BEGIN DEFAULT ARGS####
 {
@@ -13,7 +14,7 @@ from rbk import MoveStatus, BasicModule
 ####END DEFAULT ARGS####
 
 class Module(BasicModule):
-    def __init__(self, r, args):
+    def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
         self.front_di1 = 5
         self.front_di2 = 4
@@ -33,7 +34,7 @@ class Module(BasicModule):
         self.over_time = 120.0
         self.init = True
 
-    def operationCheck(self, r, args):
+    def operationCheck(self, r:SimModule, args):
         r.logInfo(str(args))
         self.status = MoveStatus.RUNNING
         if "operation" in args:
@@ -97,7 +98,7 @@ class Module(BasicModule):
                 pass
         return self.status
                            
-    def run(self, r,args):
+    def run(self, r:SimModule,args):
         dt = time.time() - self.start_time
         if dt > self.over_time:
             self.status = MoveStatus.FAILED
@@ -186,7 +187,7 @@ class Module(BasicModule):
             self.status = MoveStatus.FINISHED
         return self.status.value
     
-    def SingleRollerLoad(self, r, di1, di2, di3, roller_motor, block_motor):
+    def SingleRollerLoad(self, r:SimModule, di1, di2, di3, roller_motor, block_motor):
         #单个滚筒进货
         status = MoveStatus.RUNNING
         di = r.Di()
@@ -217,7 +218,7 @@ class Module(BasicModule):
             status = MoveStatus.RUNNING
         return status
 
-    def SingleRollerUnLoad(self, r, di1, di2, di3, roller_motor, block_motor):
+    def SingleRollerUnLoad(self, r:SimModule, di1, di2, di3, roller_motor, block_motor):
         #单个滚筒卸货
         status = MoveStatus.RUNNING
         di = r.Di()
@@ -242,7 +243,7 @@ class Module(BasicModule):
                 status = MoveStatus.RUNNING
         return status
     
-    def isRollerMotorStopped(self, r, motor_name):
+    def isRollerMotorStopped(self, r:SimModule, motor_name):
         speed = r.navSpeed()
         for iterm in speed['motor_cmd']:
             r.logInfo(str(iterm['motor_name']) + " : " + str(iterm['value']) + " " + motor_name)

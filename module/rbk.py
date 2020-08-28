@@ -1,5 +1,6 @@
 from enum import Enum
 import time
+from rbkSim import SimModule
 class MoveStatus(Enum):
     NONE = 0
     RUNNING = 1
@@ -12,13 +13,13 @@ class BasicModule:
     def __init__(self):
         self.status = MoveStatus.NONE
         self.start_time = time.time()
-    def run(self, r, args):
+    def run(self, r:SimModule, args):
         self.status = MoveStatus.FINISHED
         return self.status.value
-    def suspend(self, r):
+    def suspend(self, r:SimModule):
         self.start_time = time.time()
         r.logInfo("script suspend")
         self.status = MoveStatus.SUSPENDED
-    def cancel(self, r):
+    def cancel(self, r:SimModule):
         r.logInfo("script cancel")
         self.status = MoveStatus.NONE

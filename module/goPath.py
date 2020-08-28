@@ -1,14 +1,15 @@
 import json
 import time
 from rbk import MoveStatus, BasicModule
+from rbkSim import SimModule
 
 class Module(BasicModule):
-    def __init__(self, r, args):
+    def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
         self.goal = [0,0,0]
         self.init = False
         self.status = MoveStatus.RUNNING
-    def run(self, r,args):
+    def run(self, r:SimModule,args):
         self.status = MoveStatus.RUNNING
         if not self.init:
             self.init = True

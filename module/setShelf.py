@@ -1,7 +1,7 @@
 import json
 import time
 from rbk import MoveStatus, BasicModule
-
+from rbkSim import SimModule
 ####BEGIN DEFAULT ARGS####
 {
     "object": {
@@ -13,10 +13,10 @@ from rbk import MoveStatus, BasicModule
 ####END DEFAULT ARGS####
 
 class Module(BasicModule):
-    def __init__(self, r, args):
+    def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
         self.status = MoveStatus.RUNNING
-    def run(self, r,args):
+    def run(self, r:SimModule,args):
         if self.status is not MoveStatus.FINISHED:
             if "object" in args:
                 if r.setLocalShelfArea(args["object"]["value"]):
