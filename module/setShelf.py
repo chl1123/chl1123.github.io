@@ -24,7 +24,7 @@ class Module(BasicModule):
                 else:
                     self.status = MoveStatus.FAILED
             else:
-                r.setError(53000, "args doesn't have object")
+                r.setError("args doesn't have object")
                 self.status = MoveStatus.FAILED
         return self.status.value
 

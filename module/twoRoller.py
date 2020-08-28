@@ -46,11 +46,11 @@ class Module(BasicModule):
                 r.setMotorSpeed(self.mid_block_motor, 1.0, -1)
                 if not r.isMotorReached(self.mid_block_motor):
                     self.status = MoveStatus.FAILED
-                    r.setError(53000, "mid block is not in the up cannot load")
+                    r.setError("mid block is not in the up cannot load")
                 r.setMotorSpeed(self.front_block_motor, -1.0, -1)
                 if not r.isMotorReached(self.front_block_motor):
                     self.status = MoveStatus.FAILED
-                    r.setError(53000, "front block is not in the bottom cannot load")
+                    r.setError("front block is not in the bottom cannot load")
             elif self.operation == "FrontRollerUnLoad":
                 #2前滚筒卸货
                 pass
@@ -59,11 +59,11 @@ class Module(BasicModule):
                 r.setMotorSpeed(self.mid_block_motor, 1.0, -1)
                 if not r.isMotorReached(self.mid_block_motor):
                     self.status = MoveStatus.FAILED
-                    r.setError(53000, "mid block is not in the up cannot load")
+                    r.setError("mid block is not in the up cannot load")
                 r.setMotorSpeed(self.back_block_motor, -1.0, -1)
                 if not r.isMotorReached(self.back_block_motor):
                     self.status = MoveStatus.FAILED
-                    r.setError(53000, "front block is not in the bottom cannot load")
+                    r.setError("front block is not in the bottom cannot load")
                 pass
             elif self.operation == "BackRollerUnLoad":
                 #4后滚筒卸货
@@ -73,11 +73,11 @@ class Module(BasicModule):
                 r.setMotorSpeed(self.back_block_motor, -1.0, -1)
                 if not r.isMotorReached(self.back_block_motor):
                     self.status = MoveStatus.FAILED
-                    r.setError(53000, "back block is not in the up cannot load")
+                    r.setError( "back block is not in the up cannot load")
                 r.setMotorSpeed(self.front_block_motor, -1.0, -1)
                 if not r.isMotorReached(self.front_block_motor):
                     self.status = MoveStatus.FAILED
-                    r.setError(53000, "front block is not in the bottom cannot load")
+                    r.setError("front block is not in the bottom cannot load")
             elif self.operation == "FrontBackUnLoad":
                 #6前后滚筒分开卸货
                 pass
@@ -86,11 +86,11 @@ class Module(BasicModule):
                 r.setMotorSpeed(self.back_block_motor, -1.0, -1)
                 if not r.isMotorReached(self.back_block_motor):
                     self.status = MoveStatus.FAILED
-                    r.setError(53000, "back block is not in the bottom cannot load")
+                    r.setError("back block is not in the bottom cannot load")
                 r.setMotorSpeed(self.front_block_motor, -1.0, -1)
                 if not r.isMotorReached(self.front_block_motor):
                     self.status = MoveStatus.FAILED
-                    r.setError(53000, "front block is not in the bottom cannot load")
+                    r.setError("front block is not in the bottom cannot load")
             elif self.operation == "AllRollerUnLoad":
                 #8所有滚筒一起卸货
                 pass
@@ -102,7 +102,7 @@ class Module(BasicModule):
         dt = time.time() - self.start_time
         if dt > self.over_time:
             self.status = MoveStatus.FAILED
-            r.setError(53000, "Roller is over Time")
+            r.setError("Roller is over Time")
             return self.status.value
         self.status = MoveStatus.RUNNING
         if self.init:
@@ -177,7 +177,7 @@ class Module(BasicModule):
                     self.status = MoveStatus.RUNNING
             else:
                 # 如果是不支持的operation则报错
-                r.setError(53000, "Operation: " + self.operation + " doesn't support")
+                r.setError("Operation: " + self.operation + " doesn't support")
                 self.status = MoveStatus.FAILED
             #发送速度
             if self.status is not MoveStatus.FAILED and self.status is not MoveStatus.FINISHED:
