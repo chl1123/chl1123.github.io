@@ -2,7 +2,25 @@ import json
 import time
 from rbk import MoveStatus, BasicModule
 from rbkSim import SimModule
-
+####BEGIN DEFAULT ARGS####
+{
+    "x": {
+      "value": 1,
+	  "tips":"x",
+      "type":"double"
+	  },
+	"y": {
+      "value": 1,
+	  "tips":"x",
+      "type":"double"
+    },
+	"theta": {
+      "value": 1,
+	  "tips":"x",
+      "type":"double"
+ }
+}
+####END DEFAULT ARGS####
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
