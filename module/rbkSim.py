@@ -428,6 +428,7 @@ class SimModule:
             dict: 返回一个字典包含NavSpeed中所有的速度
         """
         print("func: {0}".format(get_function_name()))
+        return dict()
     def setNextSpeed(self, nav:str)->bool:
         """设置准备下发的速度
 
@@ -439,7 +440,7 @@ class SimModule:
         """
         print("func: {0} nav: {1}".format(get_function_name(), nav))
         return True
-    def speedDecomposition(self, nav:str)->dict:
+    def speedDecomposition(self, nav:str)->str:
         """将导航速度速度分解，目前只有单舵轮和双舵轮有效
 
         Args:
@@ -449,7 +450,7 @@ class SimModule:
             dict: 返回速度分解后的速度
         """
         print("func: {0} nav: {1}".format(get_function_name(), nav))
-        return dict()        
+        return nav      
 
 if __name__ == '__main__':
     r = SimModule()
@@ -494,6 +495,7 @@ if __name__ == '__main__':
     r.stopRobot(True)
     r.getNextSpeed()
     r.setNextSpeed(json.dumps({"x":0.3}))
+    r.speedDecomposition(json.dumps({"x":0.3}))
     print("Success!!!")
 
 
