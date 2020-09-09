@@ -26,7 +26,7 @@ class Module(BasicModule):
         super(Module, self).__init__()
         self.goal = [0,0,0]
         self.init = False
-        self.status = MoveStatus.RUNNING
+        self.status = MoveStatus.NONE
     def run(self, r:SimModule,args):
         self.status = MoveStatus.RUNNING
         if not self.init:
@@ -46,3 +46,6 @@ class Module(BasicModule):
         else:
             self.status = MoveStatus.RUNNING
         return self.status.value
+    def reset(self):
+        self.status = MoveStatus.NONE
+        self.init = False

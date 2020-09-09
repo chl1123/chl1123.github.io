@@ -34,8 +34,8 @@ class ModuleState(IntEnum):
     ERROR = 4
 
 class TargetType(IntEnum):
-    SHELF = 0
-    BOX = 1
+    SHELF = 1
+    BOX = 2
 
 class BinType(IntEnum):
     DM_MARKED = 0
@@ -140,8 +140,12 @@ class Hairou:
                 if ind + 32 <= len(total_hex):
                     head_hex = total_hex[ind:ind+32]
                     fmt = "@IIII"
-                    usMagic, usSize, crcBody, crcHead = struct.unpack(fmt, bytes.fromhex(head_hex))
-                    print(hex(usMagic), hex(usSize), hex(crcBody), hex(crcHead), usSize)
+                    try:
+                        usMagic, usSize, crcBody, crcHead = struct.unpack(fmt, bytes.fromhex(head_hex))
+                    except:
+                        out = dict()
+                        out["error"] =  "length head {}".format(len(head_hex))
+                        return out
                     last_info = total_hex[ind+32:]
                     print("ind ", ind , "usSize", usSize, len(last_info))
                     if usSize * 2 <= len(last_info):
@@ -165,12 +169,15 @@ class Hairou:
     def getReport(self):
         msg = self.getMsg()
         count = 0
-        while 'msgType' in msg and msg['msgType'] != MessageType.ROBOT_INFO_REPORT:
+        while 'msgType' not in msg or msg['msgType'] != MessageType.ROBOT_INFO_REPORT:
             msg = self.getMsg()
             count = count + 1
+            msg["flag"] = True
             if count > self.max_try_times:
                 print(" no report!!!")
                 msg = dict()
+                msg["flag"] = False
+                msg["error"] = "no report!!!"
                 break
         return msg    
     def sendMessage(self, msg):
@@ -197,11 +204,12 @@ class Hairou:
             while 'msgType' not in res_msg or res_msg['msgType'] != MessageType.ROBOT_COMM_RESP:
                 count = count + 1
                 if count > self.max_try_times:
-                    return False, dict({"error": "no response!!!"})
+                    return dict({"error": "no response!!!", "flag":False})
                 res_msg = self.getMsg()
-            return True, res_msg
+            res_msg["flag"] = True
+            return res_msg
         else:
-            return False, dict({"error": "connect first!!!"})
+            return dict({"error": "connect first!!!", "flag":False})
     def liftReset(self):
         msg = self.msg_lift_reset
         self.seqNum_req = self.seqNum_req + 1
@@ -245,7 +253,8 @@ class Hairou:
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
         msg["position"] = value
-        return self.sendMessage(msg)
+        self.sendMessage(msg)
+        return msg
     def visionReset(self):
         msg = self.msg_vision_reset
         self.seqNum_req = self.seqNum_req + 1

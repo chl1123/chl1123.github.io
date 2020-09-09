@@ -1,8 +1,8 @@
-from enum import Enum
+from enum import Enum, IntEnum
 import time
 from rbkSim import SimModule
 import math
-class MoveStatus(Enum):
+class MoveStatus(IntEnum):
     NONE = 0
     RUNNING = 1
     NEARTOGOAL = 2
