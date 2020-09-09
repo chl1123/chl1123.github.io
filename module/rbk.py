@@ -1,6 +1,7 @@
 from enum import Enum
 import time
 from rbkSim import SimModule
+import math
 class MoveStatus(Enum):
     NONE = 0
     RUNNING = 1
@@ -8,6 +9,17 @@ class MoveStatus(Enum):
     FINISHED = 3
     FAILED = 4
     SUSPENDED = 5
+
+def normalize_theta(theta):
+    if theta >= -math.pi and theta < math.pi:
+        return theta
+    multiplier = math.floor(theta / (2 * math.pi))
+    theta = theta - multiplier * 2 * math.pi
+    if theta >= math.pi:
+        theta = theta - 2 * math.pi
+    if theta < -math.pi:
+        theta = theta + 2 * math.pi
+    return theta
 
 class BasicModule:
     def __init__(self):
