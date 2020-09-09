@@ -27,6 +27,7 @@ class RunMode(IntEnum):
     ROBOT_RESERVED = 4
 
 class ModuleState(IntEnum):
+    INIT = 0,
     RESET = 1
     IDLE = 2
     WORKING = 3
@@ -69,36 +70,38 @@ class Hairou:
         self.isconnect = False
         self.tcp_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.tcp_client.settimeout(10.0)
+        self.max_try_times = 20
+        self.seqNum_req = 0
         self.msg_init = {"msgType":MessageType.ROBOT_INIT_REQ.value,
         "seqNum":0}
         self.msg_lift_reset = {"msgType":MessageType.ROBOT_LIFT_RESET.value,
-        "seqNum":30}
+        "seqNum":0}
         self.msg_lift_req = {"msgType":MessageType.ROBOT_LIFT_REQ.value,
-        "seqNum":31,
+        "seqNum":0,
         "liftPosition":0.0}
         self.msg_rot_rest = {"msgType":MessageType.ROBOT_ROTATE_RESET.value,
-        "seqNum":40}
+        "seqNum":0}
         self.msg_rot_req = {"msgType":MessageType.ROBOT_ROTATE_REQ.value,
-        "seqNum":41,
+        "seqNum":0,
         "rotatePosition":0.0}
         self.msg_stretch_reset = {"msgType":MessageType.ROBOT_STRETCH_RESET.value,
-        "seqNum":50}
-        self.msg_stretch_req = {"msgType":MessageType.ROBOT_STRETCH_RESET.value,
-        "seqNum":51,
+        "seqNum":0}
+        self.msg_stretch_req = {"msgType":MessageType.ROBOT_STRETCH_REQ.value,
+        "seqNum":0,
         "stretchPosition":0.0}
         self.msg_finger_reset = {"msgType":MessageType.ROBOT_FINGER_RESET.value,
-        "seqNum":60}
+        "seqNum":0}
         self.msg_finger_req = {"msgType":MessageType.ROBOT_FINGER_REQ.value,
-        "seqNum":61,
+        "seqNum":0,
         "position":0}      
         self.msg_vision_reset = {"msgType":MessageType.ROBOT_VISION_RESET.value,
-        "seqNum":70}
+        "seqNum":0}
         self.msg_vision_req = {"msgType":MessageType.ROBOT_VISION_REQ.value,
-        "seqNum":71,
+        "seqNum":0,
         "targetType":0,
         "binType":0}
         self.msg_indicator_req = {"msgType":MessageType.ROBOT_INDICATOR_REQ.value,
-        "seqNum":80,
+        "seqNum":0,
         "chassisLedFront":0,
         "chassisLedBack":0,
         "buzzer":0,
@@ -122,7 +125,7 @@ class Hairou:
     def getMsg(self):
         total_data=b""
         rec_times = 0
-        while rec_times < 10:
+        while rec_times < self.max_try_times:
             rec_times = rec_times + 1
             try:
                 data = self.tcp_client.recv(1024)
@@ -149,7 +152,6 @@ class Hairou:
                         try:
                             out = json.loads(body[0])
                         except:
-                            out = ""
                             print("loads error!!!", body)
                             return out
                         else:
@@ -159,9 +161,22 @@ class Hairou:
                 else:
                     continue
     def initDevice(self):
+        return self.sendMessage(self.msg_init)
+    def getReport(self):
+        msg = self.getMsg()
+        count = 0
+        while 'msgType' in msg and msg['msgType'] != MessageType.ROBOT_INFO_REPORT:
+            msg = self.getMsg()
+            count = count + 1
+            if count > self.max_try_times:
+                print(" no report!!!")
+                msg = dict()
+                break
+        return msg    
+    def sendMessage(self, msg):
         if self.isconnect:
             usMagic = 0xFACEDEAD
-            str_data = json.dumps(self.msg_init,separators=(',',':'))
+            str_data = json.dumps(msg,separators=(',',':'))
             byte_data = str_data.encode()
 
             usSize = len(byte_data)
@@ -177,37 +192,111 @@ class Hairou:
             sends = struct.pack(fmt,usMagic,usSize,crcBody,crcHead,byte_data)
             # print(sends.hex())
             self.tcp_client.sendall(sends)
-            msg = self.getMsg()
+            res_msg = self.getMsg()
             count = 0
-            print(msg['msgType'], MessageType.ROBOT_COMM_RESP)
-            while msg['msgType'] != MessageType.ROBOT_COMM_RESP:
-                print(count, msg['msgType'], MessageType.ROBOT_COMM_RESP)
-                msg = self.getMsg()
+            while 'msgType' not in res_msg or res_msg['msgType'] != MessageType.ROBOT_COMM_RESP:
                 count = count + 1
-                if count > 10:
-                    print(" no response!!!")
-                    break
-            return True
+                if count > self.max_try_times:
+                    return False, dict({"error": "no response!!!"})
+                res_msg = self.getMsg()
+            return True, res_msg
         else:
-            print("connect first!!!")
-            return False
-    def getReport(self):
-        msg = self.getMsg()
-        count = 0
-        print(count, msg['msgType'], MessageType.ROBOT_INFO_REPORT)
-        while msg['msgType'] != MessageType.ROBOT_INFO_REPORT:
-            print(count, msg['msgType'], MessageType.ROBOT_INFO_REPORT)
-            msg = self.getMsg()
-            count = count + 1
-            if count > 10:
-                print(" no report!!!")
-                break
-        return msg    
+            return False, dict({"error": "connect first!!!"})
+    def liftReset(self):
+        msg = self.msg_lift_reset
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        return self.sendMessage(msg)
+    def liftPos(self, height):
+        msg = self.msg_lift_req
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        msg["liftPosition"] = height
+        return self.sendMessage(msg)
+    def rotateReset(self):
+        msg = self.msg_rot_rest
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        return self.sendMessage(msg)
+    def rotateAngle(self, theta):
+        msg = self.msg_rot_req
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        msg["rotatePosition"] = theta
+        return self.sendMessage(msg)
+    def stretchReset(self):
+        msg = self.msg_stretch_reset
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        return self.sendMessage(msg)
+    def stretchPos(self, value):
+        msg = self.msg_stretch_req
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        msg["stretchPosition"] = value
+        return self.sendMessage(msg)
+    def fingerReset(self):
+        msg = self.msg_finger_reset
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        return self.sendMessage(msg)
+    def fingerPos(self,value):
+        msg = self.msg_finger_req
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        msg["position"] = value
+        return self.sendMessage(msg)
+    def visionReset(self):
+        msg = self.msg_vision_reset
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        return self.sendMessage(msg)
+    def visionReq(self, targetType, binType):
+        msg = self.msg_vision_req
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        msg["targetType"] = targetType
+        msg["binType"] = binType
+        return self.sendMessage(msg)
+    def indicatorReq(self, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None):
+        msg = self.msg_indicator_req
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        if chassisLedFront is not None: 
+            msg["chassisLedFront"] = chassisLedFront
+        else:
+            del msg["chassisLedFront"]
+        if chassisLedBack is not None:
+            msg["chassisLedBack"] = chassisLedBack
+        else:
+            del msg["chassisLedBack"]
+        if buzzer is not None:
+            msg["buzzer"] = buzzer
+        else:
+            del msg["buzzer"]
+        if headLedRed is not None:
+            msg["headLedRed"] = headLedRed
+        else:
+            del msg["headLedRed"]
+        if headLedYellow is not None:
+            msg["headLedYellow"] = headLedYellow
+        else:
+            del msg["headLedYellow"]
+        if headLedGreen is not None:
+            msg["headLedGreen"] = headLedGreen
+        else:
+            del msg["headLedGreen"]
+        if headLedFreq is not None:
+            msg["headLedFreq"] = headLedFreq
+        else:
+            del msg["headLedFreq"]
+        return self.sendMessage(msg)
 
 if __name__ == "__main__":
     h = Hairou("192.168.192.20",4172)
     if h.connect():
         h.initDevice()
+        h.indicatorReq(headLedRed = 1)
         state = h.getReport()
         print(state)
         h.disconnect()
