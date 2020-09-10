@@ -180,16 +180,12 @@ class Module(BasicModule):
             self.state["task"] = self.task
             if "operation" in self.task and self.task["operation"] == "load":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task and "selfPosition" in self.task:
-                    if "rec" not in self.task:
-                        self.vision_status = MoveStatus.FINISHED
                     self.load(r)
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
             elif "operation" in self.task and self.task["operation"] == "unload":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task and "selfPosition" in self.task:
-                    if "rec" not in self.task:
-                        self.vision_status = MoveStatus.FINISHED
                     self.unload(r)
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
@@ -460,6 +456,7 @@ class Module(BasicModule):
                     r.setError("task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
             else:
+                self.vision_status = MoveStatus.FINISHED
                 self.task_list = [
                     preGoods(self.task["lift"], self.task["rotate"]),
                     getGoods(self.task["stretch"]),
@@ -489,6 +486,7 @@ class Module(BasicModule):
                     r.setError("task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
             else:
+                self.vision_status = MoveStatus.FINISHED
                 self.task_list = [
                     preGoods(self.goodsPosFromId[int(self.task["selfPosition"])], 0),
                     getGoods(self.stretchDist),
@@ -547,7 +545,7 @@ class recAdjust:
         self.max_rec_times = 10
         self.max_adjust_time = 2
         self.rec_count = 0
-        self.offz_box = 0
+        self.offz_box = -120
         self.offz_shelf = 0
         self.lift_pos = 0
         self.rot_theta = 0
@@ -579,12 +577,18 @@ class recAdjust:
                         self.dtheta = -res[method]["pitch"] * math.pi /180.0
                         self.dz = res[method]["dz"]
                         self.dy = res[method]["dy"]
-
-                        self.lift_pos = ctu.state["lift"]["position"]
-                        if self.visionType == "shelf":
-                            self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_shelf
-                        elif self.visionType == "box":
-                            self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_box
+                        if self.adjust_count + 1 >= self.max_adjust_time:
+                            self.lift_pos = ctu.state["lift"]["position"]
+                            if self.visionType == "shelf":
+                                self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_shelf
+                            elif self.visionType == "box":
+                                self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_box
+                        else:
+                            self.lift_pos = ctu.state["lift"]["position"]
+                            if self.visionType == "shelf":
+                                self.lift_pos = self.lift_pos + self.dz * 1000
+                            elif self.visionType == "box":
+                                self.lift_pos = self.lift_pos + self.dz * 1000                           
                         self.go_args["x"] = self.dy * math.sin(ctu.state["rotate"]["position"])
                         self.go_args["y"] = 0
                         self.go_args["theta"] = 0
@@ -639,6 +643,8 @@ class recAdjust:
         cur_state["go_args"] = self.go_args
         cur_state["rot_theta"] = self.rot_theta
         cur_state["adj_count"] = self.adjust_count
+        cur_state["visionType"] = self.visionType
+        cur_state["status"] = self.status
         ctu.state["recAdjStatus"] = cur_state
 
 class preGoods:
