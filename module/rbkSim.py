@@ -414,6 +414,7 @@ class SimModule:
             flag (bool): 如果是True就是急停，如果是False则以StopAcc停下来
         """
         print("func: {0} stop: {1}".format(get_function_name(), flag))
+    @check
     def setInfo(self, ss:str):
         """输出脚本调试信息
 
@@ -421,6 +422,7 @@ class SimModule:
             ss (str): 脚本调试信息
         """
         print("func: {0} info: {1}".format(get_function_name(), ss))
+    @check
     def getNextSpeed(self)->dict:
         """获取当前NavSpeed的速度
 
@@ -429,6 +431,7 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
         return dict()
+    @check
     def setNextSpeed(self, nav:str)->bool:
         """设置准备下发的速度
 
@@ -440,6 +443,7 @@ class SimModule:
         """
         print("func: {0} nav: {1}".format(get_function_name(), nav))
         return True
+    @check
     def speedDecomposition(self, nav:str)->str:
         """将导航速度速度分解，目前只有单舵轮和双舵轮有效
 
@@ -450,8 +454,19 @@ class SimModule:
             dict: 返回速度分解后的速度
         """
         print("func: {0} nav: {1}".format(get_function_name(), nav))
-        return nav      
-
+        return nav 
+    @check     
+    def setPathReachDist(self, a:float):
+        return a
+    @check
+    def setPathReachAngle(self, a:float):
+        return a
+    @check
+    def setPathUseOdo(self, a:bool):
+        return a
+    @check
+    def setPathBackMode(self, a:bool):
+        return a
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -496,6 +511,10 @@ if __name__ == '__main__':
     r.getNextSpeed()
     r.setNextSpeed(json.dumps({"x":0.3}))
     r.speedDecomposition(json.dumps({"x":0.3}))
+    r.setPathReachAngle(1.0)
+    r.setPathReachDist(1.0)
+    r.setPathUseOdo(True)
+    r.setPathBackMode(True)
     print("Success!!!")
 
 
