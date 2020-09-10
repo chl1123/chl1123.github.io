@@ -155,7 +155,9 @@ class Module(BasicModule):
         self.stretch_reach_dist = 0.5
         self.init = True
         self.task = dict()
-        self.goodsPosFromId = dict({0:390, 1:840, 2:1290})
+        self.goodsPosFromId = dict({0:390, 1:840, 2:1290}) #mm
+        self.rec_offz_box = -120 #mm
+        self.rec_offz_shelf = 0 #mm
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -431,7 +433,7 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
-                recAdjust(self.task["visionType"])
+                recAdjust(self.task["visionType"], self.rec_offz_box, self.rec_offz_shelf)
             ]
             self.task_id = 0
         else:
@@ -447,7 +449,7 @@ class Module(BasicModule):
                 if "visionType" in self.task and self.task["visionType"] == "box":
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"]),
+                        recAdjust(self.task["visionType"], self.rec_offz_box, self.rec_offz_shelf),
                         getGoods(self.task["stretch"]),
                         prePutGoods(self.goodsPosFromId[int(self.task["selfPosition"])],0),
                         putGoods(self.stretchDist)
@@ -479,7 +481,7 @@ class Module(BasicModule):
                         preGoods(self.goodsPosFromId[int(self.task["selfPosition"])], 0),
                         getGoods(self.stretchDist),
                         prePutGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"]),
+                        recAdjust(self.task["visionType"], self.rec_offz_box, self.rec_offz_shelf),
                         putGoods(self.task["stretch"])
                     ]
                 else:
@@ -536,7 +538,7 @@ class Module(BasicModule):
 
 
 class recAdjust:
-    def __init__(self, visionType):
+    def __init__(self, visionType, rec_offz_box, rec_offz_shelf):
         self.status = MoveStatus.NONE
         self.visionType = visionType
         self.dtheta = 0 #角度方向
@@ -545,8 +547,8 @@ class recAdjust:
         self.max_rec_times = 10
         self.max_adjust_time = 2
         self.rec_count = 0
-        self.offz_box = -120
-        self.offz_shelf = 0
+        self.offz_box = rec_offz_box
+        self.offz_shelf = rec_offz_shelf
         self.lift_pos = 0
         self.rot_theta = 0
         self.go_args = dict()
