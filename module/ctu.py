@@ -37,7 +37,7 @@ import goPath
     "visionType": {
         "value": "shelf",
         "default_value":[
-        "shelf","box"
+        "shelf","box","reset"
         ],
         "tips": "tips",
         "type": "complex"
@@ -156,8 +156,9 @@ class Module(BasicModule):
         self.init = True
         self.task = dict()
         self.goodsPosFromId = dict({0:390, 1:840, 2:1290}) #mm
+        self.stretchDist = 740  #mm
         self.rec_offz_box = -120 #mm
-        self.rec_offz_shelf = 0 #mm
+        self.rec_offz_shelf = 10 #mm
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -169,7 +170,8 @@ class Module(BasicModule):
         self.task_id = 0
         self.state = dict()
         self.goPath = goPath.Module(r, args)
-        self.stretchDist = 740
+        self.waitVision = waitVision()
+        self.waitVision.status = MoveStatus.NONE
         if self.h.connect():
             self.h.initDevice(r)
     def run(self, r:SimModule,args):
@@ -370,45 +372,58 @@ class Module(BasicModule):
             self.vision_status = MoveStatus.RUNNING
             if "vision" in self.state:
                 device_state = self.state["vision"]
-                if "state" in device_state:
-                    if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
-                        self.h.visionReset(r)
-                    elif device_state["state"] == Hairou.ModuleState.IDLE:
-                        res = dict()
-                        if vtype == "shelf":
-                            res = self.h.visionReq(Hairou.TargetType.SHELF.value,Hairou.BinType.DM_MARKED.value,r)
-                        elif vtype == "box":
-                            res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.DM_MARKED.value,r)
-                        else:
-                            res["error"] = "wrong type {}".format(vtype)
-                            res["flag"] = False
-                            self.vision_status = MoveStatus.FAILED
-                        self.state["res"] = res
-                        if res["flag"]:
-                            if "positionMatrix" in res:
-                                self.vision_status = MoveStatus.FINISHED
-                                yaw, pitch, roll, dx , dy, dz = getYPRZYX(res["positionMatrix"])
-                                out1 = dict()
-                                out1["yaw"] = yaw * 180.0/math.pi
-                                out1["pitch"] = pitch * 180.0/math.pi
-                                out1["roll"] = roll * 180.0/math.pi
-                                out1["dx"] = dx
-                                out1["dy"] = dy
-                                out1["dz"] = dz
-                                self.state["vout1"] = out1
-                                yaw2, pitch2, roll2, dx2, dy2, dz2 = getYPRZYXV2(res["positionMatrix"])
-                                out2 = dict()
-                                out2["yaw"] = yaw2 * 180.0/math.pi
-                                out2["pitch"] = pitch2 * 180.0/math.pi
-                                out2["roll"] = roll2 * 180.0/math.pi
-                                out2["dx"] = dx2
-                                out2["dy"] = dy2
-                                out2["dz"] = dz2
-                                self.state["vout2"] = out2   
-                                res["vout1"] = out1
-                                res["vout2"] = out2                           
-                                r.setNotice(json.dumps(res))
-                                return res
+                if vtype == "reset":
+                    res = self.h.visionReset(r)
+                    self.state["res"] = res
+                    self.vision_status = MoveStatus.FINISHED
+                else :
+                    if "state" in device_state:
+                        if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
+                            self.h.visionReset(r)
+                        elif device_state["state"] == Hairou.ModuleState.IDLE:
+                            if self.waitVision.status == MoveStatus.NONE:
+                                self.waitVision.reset()
+                            self.waitVision.run(r,self)
+                            if self.waitVision.status == MoveStatus.FINISHED:
+                                res = dict()
+                                if vtype == "shelf":
+                                    res = self.h.visionReq(Hairou.TargetType.SHELF.value,Hairou.BinType.DM_MARKED.value,r)
+                                elif vtype == "box":
+                                    res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.DM_MARKED.value,r)
+                                else:
+                                    res["error"] = "wrong type {}".format(vtype)
+                                    res["flag"] = False
+                                    self.vision_status = MoveStatus.FAILED
+                                self.state["res"] = res
+                                if res["flag"]:
+                                    if "positionMatrix" in res:
+                                        self.vision_status = MoveStatus.FINISHED
+                                        self.waitVision.status = MoveStatus.NONE
+                                        yaw, pitch, roll, dx , dy, dz = getYPRZYX(res["positionMatrix"])
+                                        out1 = dict()
+                                        out1["yaw"] = yaw * 180.0/math.pi
+                                        out1["pitch"] = pitch * 180.0/math.pi
+                                        out1["roll"] = roll * 180.0/math.pi
+                                        out1["dx"] = dx
+                                        out1["dy"] = dy
+                                        out1["dz"] = dz
+                                        self.state["vout1"] = out1
+                                        yaw2, pitch2, roll2, dx2, dy2, dz2 = getYPRZYXV2(res["positionMatrix"])
+                                        out2 = dict()
+                                        out2["yaw"] = yaw2 * 180.0/math.pi
+                                        out2["pitch"] = pitch2 * 180.0/math.pi
+                                        out2["roll"] = roll2 * 180.0/math.pi
+                                        out2["dx"] = dx2
+                                        out2["dy"] = dy2
+                                        out2["dz"] = dz2
+                                        self.state["vout2"] = out2   
+                                        res["vout1"] = out1
+                                        res["vout2"] = out2                           
+                                        r.setNotice(json.dumps(res))
+                                        return res
+                                else:
+                                    self.vision_status = MoveStatus.FAILED
+                                    r.setNotice("no results. {}".format(json.dumps(res)))
         return dict()       
     def indicator(self, r, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None):
         res = self.h.indicatorReq(chassisLedFront,chassisLedBack,buzzer,headLedRed,headLedYellow,headLedGreen,headLedFreq,r)
@@ -522,12 +537,17 @@ class Module(BasicModule):
     def zero(self,r):
         self.operation_status = MoveStatus.RUNNING
         if self.finger_status is not MoveStatus.FINISHED:
+            self.h.visionReset(r)
+            self.h.fingerReset(r)
             self.finger(r, 0)
         elif self.stretch_status is not MoveStatus.FINISHED:
+            self.h.stretchReset(r)
             self.stretch(r,0)
         elif self.rotate_status is not MoveStatus.FINISHED:
+            self.h.rotateReset(r)
             self.rotate(r, 0)
         elif self.lift_status is not MoveStatus.FINISHED:
+            self.h.liftReset(r)
             self.lift(r, 385)
         else:
             self.operation_status = MoveStatus.FINISHED
@@ -571,7 +591,8 @@ class recAdjust:
         self.status = MoveStatus.RUNNING
         if ctu.vision_status is not MoveStatus.FINISHED:
             if self.rec_count < self.max_rec_times:
-                self.rec_count = self.rec_count + 1
+                if ctu.vision_status == MoveStatus.FAILED:
+				    self.rec_count = self.rec_count + 1
                 res = ctu.vision(r, self.visionType)
                 if "vout1" in res and "vout2" in res:
                     method = "vout2"
@@ -802,7 +823,22 @@ class putGoods:
         cur_state["task_id"] = self.task_id
         cur_state["status"] = self.status
         ctu.state["putGoods"] = cur_state
-
+class waitVision:
+    def __init__(self):
+        self.status = MoveStatus.NONE
+        self.wtime = 0.5
+        self.start_time = time.time()
+    def reset(self):
+        self.status = MoveStatus.RUNNING
+        self.start_time = time.time()
+    def run(self, r, ctu):
+        if self.status is not MoveStatus.FINISHED:
+            t = time.time()
+            dt = t - self.start_time
+            if dt > self.wtime:
+                self.status = MoveStatus.FINISHED
+            else:
+                self.status = MoveStatus.RUNNING
 if __name__ == '__main__':
     import rbkSim
     r = rbkSim.SimModule()
