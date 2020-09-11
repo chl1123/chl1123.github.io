@@ -17,6 +17,7 @@ class MessageType(IntEnum):
     ROBOT_FINGER_REQ = 51
     ROBOT_VISION_RESET = 60
     ROBOT_VISION_REQ = 61
+    ROBOT_VISION_RECORD = 62
     ROBOT_INDICATOR_REQ = 70
     ROBOT_COMM_RESP = 255
 
@@ -100,6 +101,9 @@ class Hairou:
         "seqNum":0,
         "targetType":0,
         "binType":0}
+        self.msg_vision_record = {"msgType":MessageType.ROBOT_VISION_RECORD.value,
+        "seqNum":0,
+        "imageId":"last"}
         self.msg_indicator_req = {"msgType":MessageType.ROBOT_INDICATOR_REQ.value,
         "seqNum":0,
         "chassisLedFront":0,
@@ -166,6 +170,7 @@ class Hairou:
                         continue       
                 else:
                     continue
+        return dict()
     def initDevice(self, r):
         return self.sendMessage(self.msg_init, r)
     def getReport(self, r):
@@ -269,6 +274,11 @@ class Hairou:
         msg["seqNum"] = self.seqNum_req
         msg["targetType"] = targetType
         msg["binType"] = binType
+        return self.sendMessage(msg, r)
+    def visionRecord(self, r):
+        msg = self.msg_vision_record
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
         return self.sendMessage(msg, r)
     def indicatorReq(self, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None, r= None):
         msg = self.msg_indicator_req
