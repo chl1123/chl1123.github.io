@@ -52,6 +52,9 @@ class Module(BasicModule):
         self.status = MoveStatus.NONE
     def run(self, r:SimModule,args):
         self.status = MoveStatus.RUNNING
+        if r.errorExits(52111):
+            self.status = MoveStatus.FAILED
+            return self.status.value
         if not self.init:
             self.init = True
             r.resetPath()

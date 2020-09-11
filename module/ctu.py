@@ -107,7 +107,14 @@ import goPath
         "min_value":0       
     },
     "recAdjust":{
-        "value":0,
+        "value":1,
+        "tips":"",
+        "type":"int",
+        "max_value":1,
+        "min_value":1
+    },
+    "useLoc":{
+        "value":1,
         "tips":"",
         "type":"int",
         "max_value":1,
@@ -155,7 +162,8 @@ class Module(BasicModule):
         self.stretch_reach_dist = 0.5
         self.init = True
         self.task = dict()
-        self.goodsPosFromId = dict({0:390, 1:840, 2:1290}) #mm
+        self.high = dict({0:390, 1:840, 2:1280}) #mm
+        self.low = dict({0:410, 1:860, 2:1310}) #mm
         self.stretchDist = 740  #mm
         self.rec_offz_box = -120 #mm
         self.rec_offz_shelf = 10 #mm
@@ -175,6 +183,9 @@ class Module(BasicModule):
         if self.h.connect():
             self.h.initDevice(r)
     def run(self, r:SimModule,args):
+        if r.errorExits(52111):
+            self.status = MoveStatus.FAILED
+            return self.status.value
         if self.init:
             self.init = False
             self.status = MoveStatus.RUNNING
@@ -299,9 +310,12 @@ class Module(BasicModule):
             if "stretch" in self.state and self.state["stretch"]["position"] < 10:
                 device_state = self.state["lift"]
                 if "position" in device_state and "state" in device_state:
-                    if abs(device_state["position"] - height) < self.lift_reach_dist  and device_state["state"] != Hairou.ModuleState.ERROR:
-                        self.lift_status = MoveStatus.FINISHED
-                        return True
+                    if abs(device_state["position"] - height) < self.lift_reach_dist  \
+                        and device_state["state"] != Hairou.ModuleState.ERROR \
+                            and device_state["state"] != Hairou.ModuleState.INIT \
+                                and device_state["state"] != Hairou.ModuleState.RESET:
+                                self.lift_status = MoveStatus.FINISHED
+                                return True
                 if "state" in device_state:
                     if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.liftReset(r)
@@ -319,9 +333,11 @@ class Module(BasicModule):
                 device_state = self.state["rotate"]
                 if "position" in device_state and "state" in device_state:
                     if abs(normalize_theta(device_state["position"] - theta)) < self.rotate_reach_angle \
-                        and device_state["state"] != Hairou.ModuleState.ERROR and device_state["state"] != Hairou.ModuleState.RESET:
-                        self.rotate_status = MoveStatus.FINISHED
-                        return True
+                        and device_state["state"] != Hairou.ModuleState.ERROR \
+                            and device_state["state"] != Hairou.ModuleState.INIT \
+                                and device_state["state"] != Hairou.ModuleState.RESET:
+                                self.rotate_status = MoveStatus.FINISHED
+                                return True
                 if "state" in device_state:
                     if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.rotateReset(r)
@@ -337,9 +353,12 @@ class Module(BasicModule):
         if "stretch" in self.state:
             device_state = self.state["stretch"]
             if "position" in device_state and "state" in device_state:
-                if abs(device_state["position"] - pos) < self.stretch_reach_dist and device_state["state"] != Hairou.ModuleState.ERROR:
-                    self.stretch_status = MoveStatus.FINISHED
-                    return True
+                if abs(device_state["position"] - pos) < self.stretch_reach_dist \
+                    and device_state["state"] != Hairou.ModuleState.ERROR \
+                        and device_state["state"] != Hairou.ModuleState.INIT \
+                            and device_state["state"] != Hairou.ModuleState.RESET:
+                            self.stretch_status = MoveStatus.FINISHED
+                            return True
             if "state" in device_state:
                 if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.stretchReset(r)
@@ -352,13 +371,16 @@ class Module(BasicModule):
         self.finger_status = MoveStatus.RUNNING
         if "finger" in self.state:
             device_state = self.state["finger"]
-            if "leftStatus" in device_state and "state" in device_state and device_state["state"] != Hairou.ModuleState.ERROR:
-                if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] + 1) < 0.1 and abs(device_state["rightStatus"] + 1) < 0.1:
-                    self.finger_status = MoveStatus.FINISHED
-                    return True
-                elif abs(pos) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1:
-                    self.finger_status = MoveStatus.FINISHED
-                    return True                    
+            if "leftStatus" in device_state and "state" in device_state \
+                    and device_state["state"] != Hairou.ModuleState.ERROR \
+                        and device_state["state"] != Hairou.ModuleState.INIT \
+                            and device_state["state"] != Hairou.ModuleState.RESET:
+                            if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] + 1) < 0.1 and abs(device_state["rightStatus"] + 1) < 0.1:
+                                self.finger_status = MoveStatus.FINISHED
+                                return True
+                            elif abs(pos) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1:
+                                self.finger_status = MoveStatus.FINISHED
+                                return True                    
             if "state" in device_state:
                 if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.fingerReset(r)
@@ -366,7 +388,10 @@ class Module(BasicModule):
                 elif device_state["state"] == Hairou.ModuleState.IDLE:
                     res = self.h.fingerPos(pos,r)
                     self.state["res"] = res
-        return False            
+        return False
+    def record_vision(self, r):
+        res = self.h.visionRecord(r)
+        self.state["record_vision_res"] = res            
     def vision(self, r, vtype):
         if self.vision_status is not MoveStatus.FINISHED:
             self.vision_status = MoveStatus.RUNNING
@@ -440,6 +465,8 @@ class Module(BasicModule):
                 self.task_list[self.task_id].reset(self)
             elif self.task_list[self.task_id].status == MoveStatus.FINISHED:
                 self.task_id = self.task_id + 1
+            elif self.task_list[self.task_id].status == MoveStatus.FAILED:
+                self.operation_status = MoveStatus.FAILED
             else:
                 self.task_list[self.task_id].run(r, self)
         else:
@@ -466,7 +493,7 @@ class Module(BasicModule):
                         preGoods(self.task["lift"], self.task["rotate"]),
                         recAdjust(self.task["visionType"], self.rec_offz_box, self.rec_offz_shelf),
                         getGoods(self.task["stretch"]),
-                        prePutGoods(self.goodsPosFromId[int(self.task["selfPosition"])],0),
+                        prePutGoods(self.high[int(self.task["selfPosition"])],0),
                         putGoods(self.stretchDist)
                     ]
                 else:
@@ -477,7 +504,7 @@ class Module(BasicModule):
                 self.task_list = [
                     preGoods(self.task["lift"], self.task["rotate"]),
                     getGoods(self.task["stretch"]),
-                    prePutGoods(self.goodsPosFromId[int(self.task["selfPosition"])],0),
+                    prePutGoods(self.high[int(self.task["selfPosition"])],0),
                     putGoods(self.stretchDist)
                 ]
             self.task_id = 0
@@ -493,7 +520,7 @@ class Module(BasicModule):
             if "recAdjust" in self.task:
                 if "visionType" in self.task and self.task["visionType"] == "shelf":
                     self.task_list = [
-                        preGoods(self.goodsPosFromId[int(self.task["selfPosition"])], 0),
+                        preGoods(self.low[int(self.task["selfPosition"])], 0),
                         getGoods(self.stretchDist),
                         prePutGoods(self.task["lift"], self.task["rotate"]),
                         recAdjust(self.task["visionType"], self.rec_offz_box, self.rec_offz_shelf),
@@ -505,7 +532,7 @@ class Module(BasicModule):
             else:
                 self.vision_status = MoveStatus.FINISHED
                 self.task_list = [
-                    preGoods(self.goodsPosFromId[int(self.task["selfPosition"])], 0),
+                    preGoods(self.low[int(self.task["selfPosition"])], 0),
                     getGoods(self.stretchDist),
                     prePutGoods(self.task["lift"], self.task["rotate"]),
                     putGoods(self.task["stretch"])
@@ -521,9 +548,9 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
-                preGoods(self.goodsPosFromId[int(self.task["changePosition0"])], 0),
+                preGoods(self.low[int(self.task["changePosition0"])], 0),
                 getGoods(self.stretchDist),
-                prePutGoods(self.goodsPosFromId[int(self.task["changePosition1"])], 0),
+                prePutGoods(self.high[int(self.task["changePosition1"])], 0),
                 putGoods(self.stretchDist)
             ]
             self.task_id = 0
@@ -565,7 +592,7 @@ class recAdjust:
         self.dy = 0 #侧向
         self.dz = 0 #垂直方向
         self.max_rec_times = 10
-        self.max_adjust_time = 2
+        self.max_adjust_time = 10
         self.rec_count = 0
         self.offz_box = rec_offz_box
         self.offz_shelf = rec_offz_shelf
@@ -573,6 +600,7 @@ class recAdjust:
         self.rot_theta = 0
         self.go_args = dict()
         self.adjust_count = 0
+        self.ok = False
     def reset(self, ctu):
         ctu.vision_status = MoveStatus.NONE
         ctu.rotate_status = MoveStatus.NONE
@@ -587,6 +615,7 @@ class recAdjust:
         self.rot_theta = 0
         self.go_args = dict()
         self.adjust_count = 0
+        self.ok = False
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.vision_status is not MoveStatus.FINISHED:
@@ -600,37 +629,43 @@ class recAdjust:
                         self.dtheta = -res[method]["pitch"] * math.pi /180.0
                         self.dz = res[method]["dz"]
                         self.dy = res[method]["dy"]
-                        if self.adjust_count + 1 >= self.max_adjust_time:
-                            self.lift_pos = ctu.state["lift"]["position"]
-                            if self.visionType == "shelf":
-                                self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_shelf
-                            elif self.visionType == "box":
-                                self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_box
+                        if self.adjust_count >= self.max_adjust_time:
+                            self.operation_status = MoveStatus.FAILED
+                            r.setError("recAdjust fails!!! reach max times.")
                         else:
-                            self.lift_pos = ctu.state["lift"]["position"]
-                            if self.visionType == "shelf":
-                                self.lift_pos = self.lift_pos + self.dz * 1000
-                            elif self.visionType == "box":
-                                self.lift_pos = self.lift_pos + self.dz * 1000                           
-                        self.go_args["x"] = self.dy * math.sin(ctu.state["rotate"]["position"])
-                        self.go_args["y"] = 0
-                        self.go_args["theta"] = 0
-                        self.go_args["reachAngle"] = math.pi
-                        self.go_args["useOdo"] = 1
-                        self.go_args["reachDist"] = 0.002
-                        if self.go_args["x"] < 0:
-                            self.go_args["backMode"] = 1
-
-                        self.rot_theta = ctu.state["rotate"]["position"] + self.dtheta
+                            self.go_args["x"] = self.dy * math.sin(ctu.state["rotate"]["position"])
+                            self.go_args["y"] = 0
+                            self.go_args["theta"] = 0
+                            self.go_args["reachAngle"] = math.pi
+                            if "useLoc" not in ctu.task:
+                                self.go_args["useOdo"] = 1
+                            self.go_args["reachDist"] = 0.002
+                            if self.go_args["x"] < 0:
+                                self.go_args["backMode"] = 1
+                            self.rot_theta = ctu.state["rotate"]["position"] + self.dtheta
+                            if abs(self.go_args["x"]) < 0.006 and abs(self.dtheta) < 0.02:
+                                self.ok = True 
+                                self.lift_pos = ctu.state["lift"]["position"]
+                                if self.visionType == "shelf":
+                                    self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_shelf
+                                elif self.visionType == "box":
+                                    self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_box
+                            else:
+                                self.lift_pos = ctu.state["lift"]["position"]
+                                if self.visionType == "shelf":
+                                    self.lift_pos = self.lift_pos + self.dz * 1000
+                                elif self.visionType == "box":
+                                    self.lift_pos = self.lift_pos + self.dz * 1000                           
                     else:
+                        ctu.record_vision(r)
                         r.setNotice(" pitch is too large: {}".format(res[method]["pitch"]))
                         ctu.vision_status = MoveStatus.FAILED
-                        ctu.operation_status = MoveStatus.FAILED
+                        self.status = MoveStatus.FAILED
                 else:
                     ctu.vision_status = MoveStatus.NONE
             else:
                 r.setError("rec fails!!! reach max times.")
-                ctu.operation_status = MoveStatus.FAILED
+                self.status = MoveStatus.FAILED
         else:
             if ctu.lift_status is not MoveStatus.FINISHED:
                 ctu.lift(r,self.lift_pos)
@@ -641,9 +676,11 @@ class recAdjust:
                     ctu.goPath.run(r,self.go_args)
             if ctu.rotate_status is not MoveStatus.FINISHED:
                 ctu.rotate(r,self.rot_theta)
-            if ctu.lift_status is MoveStatus.FINISHED and ctu.goPath.status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
+            if ctu.lift_status is MoveStatus.FAILED or ctu.goPath.status is MoveStatus.FAILED or ctu.rotate_status is MoveStatus.FAILED:
+                self.status = MoveStatus.FAILED
+            elif ctu.lift_status is MoveStatus.FINISHED and ctu.goPath.status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
                 self.adjust_count = self.adjust_count + 1
-                if self.adjust_count < self.max_adjust_time:
+                if not self.ok:
                     ctu.vision_status = MoveStatus.NONE
                     ctu.rotate_status = MoveStatus.NONE
                     ctu.lift_status = MoveStatus.NONE
