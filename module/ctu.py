@@ -667,20 +667,29 @@ class recAdjust:
                 r.setError("rec fails!!! reach max times.")
                 self.status = MoveStatus.FAILED
         else:
-            if ctu.lift_status is not MoveStatus.FINISHED:
-                ctu.lift(r,self.lift_pos)
-            if ctu.goPath.status is not MoveStatus.FINISHED:
-                if abs(self.go_args["x"]) < 0.003:
+            if self.ok:
+                if ctu.lift_status is not MoveStatus.FINISHED:
+                    ctu.lift(r,self.lift_pos)
+                if ctu.lift_status is MoveStatus.FAILED:
+                    self.status = MoveStatus.FAILED
+                elif ctu.lift_status is MoveStatus.FINISHED:
+                    ctu.rotate_status = MoveStatus.FINISHED
                     ctu.goPath.status = MoveStatus.FINISHED
-                else:
-                    ctu.goPath.run(r,self.go_args)
-            if ctu.rotate_status is not MoveStatus.FINISHED:
-                ctu.rotate(r,self.rot_theta)
-            if ctu.lift_status is MoveStatus.FAILED or ctu.goPath.status is MoveStatus.FAILED or ctu.rotate_status is MoveStatus.FAILED:
-                self.status = MoveStatus.FAILED
-            elif ctu.lift_status is MoveStatus.FINISHED and ctu.goPath.status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
-                self.adjust_count = self.adjust_count + 1
-                if not self.ok:
+                    self.status = MoveStatus.FINISHED
+            else:
+                if ctu.lift_status is not MoveStatus.FINISHED:
+                    ctu.lift(r,self.lift_pos)
+                if ctu.goPath.status is not MoveStatus.FINISHED:
+                    if abs(self.go_args["x"]) < 0.003:
+                        ctu.goPath.status = MoveStatus.FINISHED
+                    else:
+                        ctu.goPath.run(r,self.go_args)
+                if ctu.rotate_status is not MoveStatus.FINISHED:
+                    ctu.rotate(r,self.rot_theta)
+                if ctu.lift_status is MoveStatus.FAILED or ctu.goPath.status is MoveStatus.FAILED or ctu.rotate_status is MoveStatus.FAILED:
+                    self.status = MoveStatus.FAILED
+                elif ctu.lift_status is MoveStatus.FINISHED and ctu.goPath.status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
+                    self.adjust_count = self.adjust_count + 1
                     ctu.vision_status = MoveStatus.NONE
                     ctu.rotate_status = MoveStatus.NONE
                     ctu.lift_status = MoveStatus.NONE
@@ -693,8 +702,6 @@ class recAdjust:
                     self.lift_pos = 0
                     self.rot_theta = 0
                     self.go_args = dict()
-                else:
-                    self.status = MoveStatus.FINISHED
         cur_state = dict()
         cur_state["dz"] = self.dz
         cur_state["dy"] = self.dy
