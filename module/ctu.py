@@ -162,8 +162,8 @@ class Module(BasicModule):
         self.stretch_reach_dist = 0.5
         self.init = True
         self.task = dict()
-        self.high = dict({0:390, 1:840, 2:1280}) #mm
-        self.low = dict({0:410, 1:860, 2:1310}) #mm
+        self.low = dict({0:390, 1:840, 2:1285}) #mm
+        self.high = dict({0:420, 1:870, 2:1320}) #mm
         self.stretchDist = 740  #mm
         self.rec_offz_box = -120 #mm
         self.rec_offz_shelf = 10 #mm
@@ -643,7 +643,7 @@ class recAdjust:
                             if self.go_args["x"] < 0:
                                 self.go_args["backMode"] = 1
                             self.rot_theta = ctu.state["rotate"]["position"] + self.dtheta
-                            if abs(self.go_args["x"]) < 0.006 and abs(self.dtheta) < 0.02:
+                            if abs(self.go_args["x"]) < 0.006 and abs(self.dtheta) < 0.03:
                                 self.ok = True 
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
