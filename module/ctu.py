@@ -592,7 +592,7 @@ class recAdjust:
         if ctu.vision_status is not MoveStatus.FINISHED:
             if self.rec_count < self.max_rec_times:
                 if ctu.vision_status == MoveStatus.FAILED:
-				    self.rec_count = self.rec_count + 1
+                    self.rec_count = self.rec_count + 1
                 res = ctu.vision(r, self.visionType)
                 if "vout1" in res and "vout2" in res:
                     method = "vout2"
@@ -631,32 +631,33 @@ class recAdjust:
             else:
                 r.setError("rec fails!!! reach max times.")
                 ctu.operation_status = MoveStatus.FAILED
-        elif ctu.lift_status is not MoveStatus.FINISHED:
-            ctu.lift(r,self.lift_pos)
-        elif ctu.goPath.status is not MoveStatus.FINISHED:
-            if abs(self.go_args["x"]) < 0.003:
-                ctu.goPath.status = MoveStatus.FINISHED
-            else:
-                ctu.goPath.run(r,self.go_args)
-        elif ctu.rotate_status is not MoveStatus.FINISHED:
-            ctu.rotate(r,self.rot_theta)
         else:
-            self.adjust_count = self.adjust_count + 1
-            if self.adjust_count < self.max_adjust_time:
-                ctu.vision_status = MoveStatus.NONE
-                ctu.rotate_status = MoveStatus.NONE
-                ctu.lift_status = MoveStatus.NONE
-                self.dtheta = 0
-                self.dy = 0
-                self.dz = 0
-                self.rec_count = 0
-                ctu.goPath.reset()
-                self.status = MoveStatus.RUNNING
-                self.lift_pos = 0
-                self.rot_theta = 0
-                self.go_args = dict()
-            else:
-                self.status = MoveStatus.FINISHED
+            if ctu.lift_status is not MoveStatus.FINISHED:
+                ctu.lift(r,self.lift_pos)
+            if ctu.goPath.status is not MoveStatus.FINISHED:
+                if abs(self.go_args["x"]) < 0.003:
+                    ctu.goPath.status = MoveStatus.FINISHED
+                else:
+                    ctu.goPath.run(r,self.go_args)
+            if ctu.rotate_status is not MoveStatus.FINISHED:
+                ctu.rotate(r,self.rot_theta)
+            if ctu.lift_status is MoveStatus.FINISHED and ctu.goPath.status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
+                self.adjust_count = self.adjust_count + 1
+                if self.adjust_count < self.max_adjust_time:
+                    ctu.vision_status = MoveStatus.NONE
+                    ctu.rotate_status = MoveStatus.NONE
+                    ctu.lift_status = MoveStatus.NONE
+                    self.dtheta = 0
+                    self.dy = 0
+                    self.dz = 0
+                    self.rec_count = 0
+                    ctu.goPath.reset()
+                    self.status = MoveStatus.RUNNING
+                    self.lift_pos = 0
+                    self.rot_theta = 0
+                    self.go_args = dict()
+                else:
+                    self.status = MoveStatus.FINISHED
         cur_state = dict()
         cur_state["dz"] = self.dz
         cur_state["dy"] = self.dy
@@ -684,11 +685,11 @@ class preGoods:
         self.status = MoveStatus.RUNNING
         if ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 1)
-        elif ctu.lift_status is not MoveStatus.FINISHED:
+        if ctu.lift_status is not MoveStatus.FINISHED:
             ctu.lift(r, self.liftPos)
-        elif ctu.rotate_status is not MoveStatus.FINISHED:
+        if ctu.rotate_status is not MoveStatus.FINISHED:
             ctu.rotate(r,self.rotAngle)
-        else:
+        if ctu.finger_status is MoveStatus.FINISHED and ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
             self.status = MoveStatus.FINISHED
 
 class getGoodsS1:
@@ -760,9 +761,9 @@ class prePutGoods:
         self.status = MoveStatus.RUNNING
         if ctu.lift_status is not MoveStatus.FINISHED:
             ctu.lift(r, self.liftPos)
-        elif ctu.rotate_status is not MoveStatus.FINISHED:
+        if ctu.rotate_status is not MoveStatus.FINISHED:
             ctu.rotate(r,self.rotAngle)
-        else:
+        if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
             self.status = MoveStatus.FINISHED      
 
 class putGoodsS1:
