@@ -273,6 +273,15 @@ class SimModule:
         print("func: {0}".format(get_function_name()))
         return dict()
     @check
+    def fork(self)->dict:
+        """获得货叉数据
+
+        Returns:
+            dict: 具体数据已字典类型返回
+        """
+        print("func: {0}".format(get_function_name()))
+        return dict()        
+    @check
     def logInfo(self, ss:str):
         """将字符串输出到log文件中，等级为Info
 
@@ -456,17 +465,61 @@ class SimModule:
         print("func: {0} nav: {1}".format(get_function_name(), nav))
         return nav 
     @check     
-    def setPathReachDist(self, a:float):
-        return a
+    def setPathReachDist(self, a:float)->None:
+        """路径导航的到点精度
+
+        Args:
+            a (float): 单位m
+        """
+        print("func: {0} reach_dist: {1}".format(get_function_name(), a))
     @check
     def setPathReachAngle(self, a:float):
-        return a
+        """路径导航的到点角度精度
+
+        Args:
+            a (float): 单位rad
+
+        """
+        print("func: {0} reach_angle: {1}".format(get_function_name(), a))
     @check
     def setPathUseOdo(self, a:bool):
-        return a
+        """路径导航是否用里程定位
+
+        Args:
+            a (bool): 如果用里程定位则为True
+        """
+        print("func: {0} usdOdo: {1}".format(get_function_name(), a))
     @check
-    def setPathBackMode(self, a:bool):
-        return a
+    def setPathBackMode(self, a:bool)->None:
+        """路径导航是否倒走
+
+        Args:
+            a (bool): 如果倒走则为True
+        """
+        print("func: {0} backMode: {1}".format(get_function_name(), a))     
+    @check
+    def setSound(self, name:str, flag:bool)->None:
+        """播放音乐
+
+        Args:
+            name (str): 音频名称
+            flag (bool): 是否循环播放
+        """
+        print("func: {0} sound name: {1} loop: {2}".format(get_function_name(), name, flag))
+    def stopSound(self, flag:bool)->None:
+        """停止播放音乐
+
+        Args:
+            flag (bool): 如果为True则为停止播放音乐
+        """
+        print("func: {0} stop sound: {1}".format(get_function_name(), flag))
+    def setForkHeight(self, h:float)->None:
+        """设置货叉高度
+
+        Args:
+            h (double): 货叉高度，单位m
+        """
+        print("func: {0} fork height: {1}".format(get_function_name(), h))
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -492,6 +545,7 @@ if __name__ == '__main__':
     r.Do()
     r.pgv()
     r.controller()
+    r.fork()
     r.logInfo("data")
     r.logWarn("data")
     r.logError("data")
@@ -515,6 +569,9 @@ if __name__ == '__main__':
     r.setPathReachDist(1.0)
     r.setPathUseOdo(True)
     r.setPathBackMode(True)
+    r.setSound("hello", True)
+    r.stopSound(True)
+    r.setForkHeight(1.0)
     print("Success!!!")
 
 
