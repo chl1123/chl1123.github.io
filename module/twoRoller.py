@@ -1,6 +1,6 @@
 import json
 import time
-from rbk import MoveStatus, BasicModule
+from rbk import MoveStatus, BasicModule, ParamServer
 from rbkSim import SimModule
 
 ####BEGIN DEFAULT ARGS####
@@ -16,29 +16,30 @@ from rbkSim import SimModule
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
-        self.front_di1 = 5
-        self.front_di2 = 4
-        self.front_di3 = 3
-        self.back_di1 = 8
-        self.back_di2 = 7
-        self.back_di3 = 6
-        self.front_block_motor = "frontDOMotor"
-        self.back_block_motor = "backDOMotor"
-        self.mid_block_motor = "midDOMotor"
-        self.front_roller = "frontMotor"
-        self.back_roller = "backMotor"
+        p = ParamServer(__file__)
+        self.front_di1 = p.loadParam("front_di1", type="int", default = 5, maxValue = 100, minValue = 0, comment = "di id")
+        self.front_di2 = p.loadParam("front_di2", type="int", default = 4, maxValue = 100, minValue = 0, comment = "di id")
+        self.front_di3 = p.loadParam("front_di3", type="int", default = 3, maxValue = 100, minValue = 0, comment = "di id")
+        self.back_di1 = p.loadParam("back_di1", type="int", default = 8, maxValue = 100, minValue = 0, comment = "di id")
+        self.back_di2 = p.loadParam("back_di2", type="int", default = 7, maxValue = 100, minValue = 0, comment = "di id")
+        self.back_di3 = p.loadParam("back_di3", type="int", default = 6, maxValue = 100, minValue = 0, comment = "di id")
+        self.front_block_motor = p.loadParam("front_block_motor", type="str", default = "frontDOMotor", comment = "motor name")
+        self.back_block_motor = p.loadParam("back_block_motor", type="str", default = "backDOMotor", comment = "motor name")
+        self.mid_block_motor = p.loadParam("mid_block_motor", type="str", default = "midDOMotor", comment = "motor name")
+        self.front_roller = p.loadParam("front_roller", type="str", default = "frontMotor", comment = "motor name")
+        self.back_roller = p.loadParam("back_roller", type="str", default = "backMotor", comment = "motor name")
         self.operation = ""
-        self.load_vel = 1.0
-        self.unload_vel = -1.0
+        self.load_vel = p.loadParam("load_vel", type="float", default = 1.0, maxValue = 2.0, minValue = -2.0, unit = "m/s", comment = "speed")
+        self.unload_vel = p.loadParam("unload_vel", type="float", default = -1.0, maxValue = 2.0, minValue = -2.0, unit = "m/s", comment = "speed")
         self.start_time = time.time()
-        self.over_time = 120.0
+        self.over_time = p.loadParam("over_time", type="float", default = 120.0, maxValue = 36000.0, minValue = 1.0, unit = "s", comment = "time")
         self.init = True
 
     def operationCheck(self, r:SimModule, args):
         r.logInfo(str(args))
         self.status = MoveStatus.RUNNING
         if "operation" in args:
-            self.operation = args["operation"]["value"]
+            self.operation = args["operation"]
         if self.operation is not "":
             r.logDebug(self.operation)
             if self.operation == "FrontRollerLoad":
@@ -253,3 +254,12 @@ class Module(BasicModule):
                 else:
                     return False
         return False
+
+if __name__ == '__main__':
+    import rbkSim
+    r = rbkSim.SimModule()
+    m = Module(r,None)
+    data = dict()
+    data["operation"] = "RollerLoad"
+    data["direction"] = "Right"
+    print(m.run(r, data))
