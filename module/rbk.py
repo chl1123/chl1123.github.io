@@ -52,44 +52,52 @@ class ParamServer:
     param = p.loadParam("motor_name", "str", default = "motor1")
     """
     def __init__(self, file):
-        isExists=os.path.exists("params")
+        param_dir = os.path.dirname(file) + '/params'
+        isExists=os.path.exists(param_dir)
         if not isExists:
-            os.makedirs("params")
+            os.makedirs(param_dir)
         base_f = os.path.basename(file)
-        self.file = "params/"+base_f.split('.')[0] + '.json'
+        self.file = param_dir + '/'+base_f.split('.')[0] + '.json'
         self.data = dict()
         try:
             with open(self.file, 'r', encoding="utf-8") as f:
                 self.data = json.load( f)
         except:
             pass
-    def loadParam(self, name:str, type:str, **kw):
-        updateFile = True    
+    def loadParam(self, name:str, type:str = "", default = None, **kw):
+        def updateKey(data, key, value):
+            if (key not in data)  or (key in data and data[key] != value):
+                return True
+            else:
+                return False
+        updateFile = False    
         if type is "float" or type is "str" or type is "int":
-            if "default" in kw: 
-                if type is "str":
-                    if name in self.data and "value" in self.data[name]:
-                        updateFile = False
-                    else:
-                        self.data[name] = dict()
-                        self.data[name]["value"] = str(kw["default"])
-                elif "maxValue" in kw and "minValue" in kw:
-                    if name in self.data:
-                        updateFile = False
-                    else:
-                        self.data[name] = dict()
-                        self.data[name]["value"] = eval(type)(kw["default"])   
-                        self.data[name]["maxValue"] = eval(type)(kw["maxValue"])
-                        self.data[name]["minValue"] = eval(type)(kw["minValue"])
-                if "comment" in kw:
-                    if "comment" in self.data[name] and self.data[name]["comment"] == kw["comment"]:
-                        updateFile = False
-                    else:
+            if default is not None: 
+                if name not in self.data:
+                    updateFile = True
+                    self.data[name] = dict()
+                if "value" not in self.data[name]:
+                    updateFile = True
+                    self.data[name]["value"] = eval(type)(default)
+                if updateKey(self.data[name], "default", default):
+                    updateFile = True
+                    self.data[name]["default"] = default
+                if type is "float" or type is "int":
+                    if "maxValue" in kw and updateKey(self.data[name], "maxValue", kw["maxValue"]):
+                        updateFile = True
+                        self.data[name]["maxValue"] = kw["maxValue"]
+                    if "minValue" in kw and updateKey(self.data[name], "minValue", kw["minValue"]):
+                        updateFile = True
+                        self.data[name]["minValue"] = kw["minValue"]                    
+                if "comment" in kw and updateKey(self.data[name], "comment", kw["comment"]):
                         updateFile = True
                         self.data[name]["comment"] = kw["comment"]
+                if "unit" in kw and updateKey(self.data[name], "unit", kw["unit"]):
+                        updateFile = True
+                        self.data[name]["unit"] = kw["unit"]
                 if updateFile:
                     with open(self.file, 'w', encoding="utf-8") as f: 
-                        json.dump(self.data, f)        
+                        json.dump(self.data, f, indent=4)        
                 return self.data[name]["value"]
             else:
                 raise Exception("loadParam no default key")
