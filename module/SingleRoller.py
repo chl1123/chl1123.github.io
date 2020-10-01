@@ -1,7 +1,7 @@
 #广州望月
 import json
 import time
-from rbk import MoveStatus, BasicModule
+from rbk import MoveStatus, BasicModule, ParamServer
 from rbkSim import SimModule
 
 ####BEGIN DEFAULT ARGS####
@@ -28,24 +28,25 @@ from rbkSim import SimModule
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
-        self.di1 = 23 #right
-        self.di2 = 24 #mid
-        self.di3 = 25 #left
-        self.left_block_motor = "motor3"
-        self.right_block_motor = "motor2"
-        self.block_vel = 1.0
-        self.left_roller_load_do = 24
-        self.left_roller_unload_do = 23
-        self.left_roller_slow_do = 25
-        self.right_roller_load_do = 23
-        self.right_roller_unload_do = 24
-        self.right_roller_slow_do = 25 #全关都是停
+        p = ParamServer(__file__)
+        self.di1 = p.loadParam("di1", type="int", default = 23, maxValue = 100, minValue = 0, comment = "right di") #right
+        self.di2 = p.loadParam("di2", type="int", default = 24, maxValue = 100, minValue = 0, comment = "mid di") #mid
+        self.di3 = p.loadParam("di3", type="int", default = 25, maxValue = 100, minValue = 0, comment = "left di") #left
+        self.left_block_motor = p.loadParam("left_block_motor", type="str", default = "motor3", comment = "motor_name")
+        self.right_block_motor = p.loadParam("right_block_motor", type="str", default = "motor2", comment = "motor_name")
+        self.block_vel = p.loadParam("block_vel", type="float", default = 1.0, maxValue = 2.0, minValue = 0.01, unit = "m/s", comment = "speed")
+        self.left_roller_load_do = p.loadParam("left_roller_load_do", type="int", default = 24, maxValue = 100, minValue = 0, comment = "do id")
+        self.left_roller_unload_do = p.loadParam("left_roller_unload_do", type="int", default = 23, maxValue = 100, minValue = 0, comment = "do id")
+        self.left_roller_slow_do = p.loadParam("left_roller_slow_do", type="int", default = 25, maxValue = 100, minValue = 0, comment = "do id")
+        self.right_roller_load_do = p.loadParam("right_roller_load_do", type="int", default = 23, maxValue = 100, minValue = 0, comment = "do id")
+        self.right_roller_unload_do = p.loadParam("right_roller_unload_do", type="int", default = 24, maxValue = 100, minValue = 0, comment = "do id")
+        self.right_roller_slow_do = p.loadParam("right_roller_slow_do", type="int", default = 25, maxValue = 100, minValue = 0, comment = "do id")
         self.operation = ""
         self.direction = ""
         self.task_list = []
         self.task_id = 0
         self.start_time = time.time()
-        self.over_time = 120.0
+        self.over_time = p.loadParam("over_time", type="float", default = 120.0, maxValue = 3600.0, minValue = 0.0, unit = "s", comment = "time")
         self.init = True
         self.operation_status = MoveStatus.NONE
         self.state = dict()
