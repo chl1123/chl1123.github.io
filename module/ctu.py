@@ -1,7 +1,7 @@
 import Hairou
 import json
 import time
-from rbk import MoveStatus, BasicModule, normalize_theta
+from rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 from rbkSim import SimModule
 import math
 import goPath
@@ -156,17 +156,26 @@ class Module(BasicModule):
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
         self.status = MoveStatus.RUNNING
-        self.h = Hairou.Hairou("192.168.192.20",4172)
-        self.lift_reach_dist = 0.5
-        self.rotate_reach_angle = 0.01
-        self.stretch_reach_dist = 0.5
+        p = ParamServer(__file__)
+        ip = p.loadParam("ip", type="str", default = "192.168.192.20", comment = "ip addr")
+        port = p.loadParam("port", type="int", default = 4172, maxValue = 999999, minValue = 0, comment = "port")
+        self.h = Hairou.Hairou(ip,port)
+        self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default = 0.5, maxValue = 10.0, minValue = 0.0, unit = "mm", comment = "lift_reach_dist")
+        self.rotate_reach_angle = p.loadParam("rotate_reach_angle", type="float", default = 0.01, maxValue = 10.0, minValue = 0.0, unit = "rad", comment = "rotate_reach_angle")
+        self.stretch_reach_dist = p.loadParam("stretch_reach_dist", type="float", default = 0.5, maxValue = 10.0, minValue = 0.0, unit = "mm", comment = "stretch_reach_dist")
         self.init = True
         self.task = dict()
         self.low = dict({0:390, 1:840, 2:1285}) #mm
+        self.low[0] = p.loadParam("low0", type="float", default = 390.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "下降时，第0层高度")
+        self.low[1] = p.loadParam("low1", type="float", default = 840.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "下降时，第1层高度")
+        self.low[2] = p.loadParam("low2", type="float", default = 1285.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "下降时，第2层高度")
         self.high = dict({0:420, 1:870, 2:1320}) #mm
-        self.stretchDist = 740  #mm
-        self.rec_offz_box = -120 #mm
-        self.rec_offz_shelf = 10 #mm
+        self.high[0] = p.loadParam("high0", type="float", default = 420.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "上升时，第0层高度")
+        self.high[1] = p.loadParam("high1", type="float", default = 870.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "上升时，第1层高度")
+        self.high[2] = p.loadParam("high2", type="float", default = 1320.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "上升时，第2层高度")
+        self.stretchDist = p.loadParam("stretchDist", type="float", default = 740.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
+        self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default = -120.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货物后，抓货物时高度的调整距离")
+        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 10.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -591,8 +600,9 @@ class recAdjust:
         self.dtheta = 0 #角度方向
         self.dy = 0 #侧向
         self.dz = 0 #垂直方向
-        self.max_rec_times = 10
-        self.max_adjust_time = 10
+        p = ParamServer(__file__)
+        self.max_rec_times = p.loadParam("max_rec_times", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "最多识别次数")
+        self.max_adjust_time = p.loadParam("max_adjust_time", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "最多调整次数")
         self.rec_count = 0
         self.offz_box = rec_offz_box
         self.offz_shelf = rec_offz_shelf
