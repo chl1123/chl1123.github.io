@@ -1,7 +1,6 @@
-
 import json
 import time
-from rbk import MoveStatus, BasicModule
+from rbk import MoveStatus, BasicModule, ParamServer
 from rbkSim import SimModule
 
 ####BEGIN DEFAULT ARGS####
@@ -23,12 +22,13 @@ class Module(BasicModule):
     """
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
-        self.fork_motor = "motor2" #需要配置fork电机的名称
-        self.max_vel = 0.1 #货叉电机的最大速度
+        p = ParamServer(__file__)
+        self.fork_motor = p.loadParam("fork_motor", type="str", default = "motor2", comment = "motor name") #需要配置fork电机的名称
+        self.max_vel = p.loadParam("max_vel", type="float", default = 0.1, maxValue = 2.0, minValue = 0.01, unit = "m/s", comment = "fork max speed")
         self.init = True
         self.height = 0
                            
-    def run(self, r:SimModule,args:json):
+    def run(self, r:SimModule,args:dict):
         """主函数，没有运行周期都会执行run函数
 
         Args:

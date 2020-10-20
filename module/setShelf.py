@@ -19,7 +19,7 @@ class Module(BasicModule):
     def run(self, r:SimModule,args):
         if self.status is not MoveStatus.FINISHED:
             if "object" in args:
-                if r.setLocalShelfArea(args["object"]["value"]):
+                if r.setLocalShelfArea(args["object"]):
                     self.status = MoveStatus.FINISHED
                 else:
                     self.status = MoveStatus.FAILED
@@ -34,5 +34,5 @@ if __name__ == '__main__':
     m = Module(r,None)
     data = dict()
     data["object"] = dict()
-    data["object"]["value"] = "hello"
+    data["object"] = "hello"
     m.run(r, data)
