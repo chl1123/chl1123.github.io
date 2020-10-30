@@ -19,8 +19,8 @@ import math
     },
     "theta": {
       "value": 1,
-      "tips":"theta",
-      "type":"世界坐标系下的朝向",
+      "tips":"世界坐标系下的朝向",
+      "type":"double",
       "unit": "rad"
     },
     "reachAngle": {
