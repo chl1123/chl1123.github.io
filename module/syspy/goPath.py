@@ -2,45 +2,56 @@ import json
 import time
 from rbk import MoveStatus, BasicModule
 from rbkSim import SimModule
+import math
 ####BEGIN DEFAULT ARGS####
 {
     "x": {
       "value": 1,
-      "tips":"x",
+      "tips":"x 必填",
       "type":"double",
       "unit": "m"
       },
     "y": {
       "value": 1,
-      "tips":"x",
+      "tips":"y 必填",
       "type":"double",
       "unit": "m"
     },
     "theta": {
       "value": 1,
-      "tips":"x",
-      "type":"double",
+      "tips":"theta",
+      "type":"世界坐标系下的朝向",
       "unit": "rad"
     },
     "reachAngle": {
       "value": 3.14,
-      "tips":"x",
+      "tips":"到点角度精度",
       "type":"double",
       "unit": "rad"
     },
     "reachDist": {
       "value": 0.005,
-      "tips":"x",
+      "tips":"到点距离精度",
       "type":"double",
       "unit": "m"
     },
     "useOdo": {
       "value": 1,
+      "tips":"是否使用里程定位，默认为否",
       "type":"int"
     },
     "backMode":{
       "value": 1,
+      "tips":"是否倒走",
       "type":"int"
+    },
+    "coordinate":{
+      "value": "robot",
+      "default_value":[
+      "robot","world"
+      ],
+      "tips": "目标点的坐标系",
+      "type": "complex"  
     }
 }
 ####END DEFAULT ARGS####
@@ -58,13 +69,17 @@ class Module(BasicModule):
         if not self.init:
             self.init = True
             r.resetPath()
-            if "x" in args and "y" in args and "theta" in args:
+            if "x" in args and "y" in args and "coordinate" in args:
                 if "x" in args:
                     self.goal[0] = float(args["x"])
                 if "y" in args:
                     self.goal[1] = float(args["y"])
                 if "theta" in args:
                     self.goal[2] = float(args["theta"])
+                    if "reachAngle" in args:
+                        r.setPathReachAngle(float(args["reachAngle"]))
+                else:
+                    r.setPathReachAngle(math.pi)
                 if "reachAngle" in args:
                     r.setPathReachAngle(float(args["reachAngle"]))
                 if "reachDist" in args:
@@ -74,7 +89,13 @@ class Module(BasicModule):
                 if "backMode" in args:
                     r.setPathBackMode(bool(int(args["backMode"])))
                 r.logInfo("goal: " + str(self.goal))
-                r.setPathOnRobot([0,self.goal[0]], [0, self.goal[1]], self.goal[2])
+                if args["coordinate"] == "robot":
+                    r.setPathOnRobot([0,self.goal[0]], [0, self.goal[1]], self.goal[2])
+                elif args["coordinate"] == "world":
+                    r.setPathOnWorld([0,self.goal[0]], [0, self.goal[1]], self.goal[2])
+                else:
+                    r.setError("coordinate only support robot and world. Input is {}".format(args["coordinate"]))
+                    self.status = MoveStatus.FAILED
             else:
                 r.setError("args error: {}".format(json.dumps(args)))
                 self.status = MoveStatus.FAILED
