@@ -1,10 +1,10 @@
 import Hairou
 import json
 import time
-from rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
-from rbkSim import SimModule
+from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
+from syspy.rbkSim import SimModule
 import math
-import goPath
+import syspy.goPath
 ####BEGIN DEFAULT ARGS####
 {
     "lift": {
@@ -895,8 +895,8 @@ class waitVision:
             else:
                 self.status = MoveStatus.RUNNING
 if __name__ == '__main__':
-    import rbkSim
-    r = rbkSim.SimModule()
+    import syspy.rbkSim
+    r = syspy.rbkSim.SimModule()
     m = Module(r,None)
     data = dict()
     data["headLedFreq"] = dict()

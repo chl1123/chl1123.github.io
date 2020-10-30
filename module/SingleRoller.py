@@ -1,8 +1,8 @@
 #广州望月
 import json
 import time
-from rbk import MoveStatus, BasicModule, ParamServer
-from rbkSim import SimModule
+from syspy.rbk import MoveStatus, BasicModule, ParamServer
+from syspy.rbkSim import SimModule
 
 ####BEGIN DEFAULT ARGS####
 {
@@ -247,8 +247,8 @@ class RollerMotor:
         roller.state["RollerMotor"] = state
 
 if __name__ == '__main__':
-    import rbkSim
-    r = rbkSim.SimModule()
+    import syspy.rbkSim
+    r = syspy.rbkSim.SimModule()
     m = Module(r,None)
     data = dict()
     data["operation"] = "RollerLoad"

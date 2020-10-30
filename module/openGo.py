@@ -1,7 +1,7 @@
 import json
 import time
-from rbk import MoveStatus, BasicModule
-from rbkSim import SimModule
+from syspy.rbk import MoveStatus, BasicModule
+from syspy.rbkSim import SimModule
 ####BEGIN DEFAULT ARGS####
 {
     "vx": {
@@ -48,8 +48,8 @@ class Module(BasicModule):
         return self.status.value
 
 if __name__ == '__main__':
-    import rbkSim
-    r = rbkSim.SimModule()
+    import syspy.rbkSim
+    r = syspy.rbkSim.SimModule()
     m = Module(r,None)
     data = dict()
     data["vx"] = dict()

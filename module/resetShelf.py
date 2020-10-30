@@ -1,7 +1,7 @@
 import json
 import time
-from rbk import MoveStatus, BasicModule
-from rbkSim import SimModule
+from syspy.rbk import MoveStatus, BasicModule
+from syspy.rbkSim import SimModule
 
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
