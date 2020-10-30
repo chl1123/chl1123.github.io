@@ -50,7 +50,7 @@ import math
       "default_value":[
       "robot","world"
       ],
-      "tips": "目标点的坐标系",
+      "tips": "目标点的坐标系，必填",
       "type": "complex"  
     }
 }
