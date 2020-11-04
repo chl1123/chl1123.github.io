@@ -43,7 +43,7 @@ class Module(BasicModule):
         self.status = MoveStatus.RUNNING
         if self.init:
             if "do" in args:
-                self.id = json.loads(args["do"])
+                self.id = args["do"]
             if "status" in args:
                 self.id_status = bool(args['status'])
             self.init = False
