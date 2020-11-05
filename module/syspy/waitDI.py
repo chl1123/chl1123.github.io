@@ -29,19 +29,21 @@ class Module(BasicModule):
             return self.status
         self.status = MoveStatus.RUNNING
         if self.init:
-            for key in args.keys():
-                if key is not "timeout":
-                    self.id.append(int(key))
-                    self.id_status.append(args.get(key,True))
-                else:
-                    self.timeout = args.get("timeout")
+            dis = args.get("DI",[])
+            self.id = [v.get("id") for v in dis]
+            self.id_status = [v.get("status") for v in dis]
+            self.timeout = args.get("timeout",None)
             self.start = time.time()
             self.init = False
         dis = r.Di()
         wait_flag = False
         for tmp_id, tmp_v in zip(self.id, self.id_status):
             for di in dis:
-                if tmp_id == di.get('id') and tmp_v == di.get('status', True):
+                cur_id = di.get('id', None)
+                cur_status = di.get('status', None)
+                if cur_id is None or cur_status is None:
+                    continue
+                elif tmp_id == cur_status and tmp_v is not cur_status:
                     wait_flag = True
                     break
         if not wait_flag:
@@ -57,5 +59,5 @@ if __name__ == '__main__':
     import rbkSim
     r = rbkSim.SimModule()
     m = Module(r,None)
-    data = {"6":True,"8":False}
+    data = {"DI": [{"id":1, "status":True},{"id":2, "status":False}]}
     print(m.run(r, data))
