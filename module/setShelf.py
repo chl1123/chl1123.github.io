@@ -2,6 +2,7 @@ import json
 import time
 from syspy.rbk import MoveStatus, BasicModule
 from syspy.rbkSim import SimModule
+"""
 ####BEGIN DEFAULT ARGS####
 {
     "object": {
@@ -11,7 +12,7 @@ from syspy.rbkSim import SimModule
     }
 }
 ####END DEFAULT ARGS####
-
+"""
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()

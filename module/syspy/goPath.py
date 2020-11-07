@@ -3,6 +3,7 @@ import time
 from rbk import MoveStatus, BasicModule
 from rbkSim import SimModule
 import math
+"""
 ####BEGIN DEFAULT ARGS####
 {
     "x": {
@@ -55,6 +56,7 @@ import math
     }
 }
 ####END DEFAULT ARGS####
+"""
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()

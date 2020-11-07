@@ -3,7 +3,7 @@ import json
 import time
 from rbk import MoveStatus, BasicModule, ParamServer
 from rbkSim import SimModule
-
+"""
 ####BEGIN DEFAULT ARGS####
 {
     "name": {
@@ -24,7 +24,7 @@ from rbkSim import SimModule
     }   
 }
 ####END DEFAULT ARGS####
-
+"""
 class Module(BasicModule):
     """让音乐响起来,默认只播放一遍
     """

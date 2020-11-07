@@ -3,6 +3,7 @@ import time
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
 from syspy.rbkSim import SimModule
 
+"""
 ####BEGIN DEFAULT ARGS####
 {
     "height": {
@@ -12,7 +13,8 @@ from syspy.rbkSim import SimModule
         "type": "double"
     }
 }
-####END DEFAULT ARGS####
+####END DEFAULT ARGS##### 
+"""
 
 class Module(BasicModule):
     """控制货叉抬升到指定高度
