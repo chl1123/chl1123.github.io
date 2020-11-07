@@ -3,7 +3,7 @@ import json
 import time
 from rbk import MoveStatus, BasicModule, ParamServer
 from rbkSim import SimModule
-
+"""
 ####BEGIN DEFAULT ARGS####
 {
     "do": {
@@ -19,7 +19,7 @@ from rbkSim import SimModule
     }
 }
 ####END DEFAULT ARGS####
-
+"""
 class Module(BasicModule):
     """让音乐响起来,默认只播放一遍
     """
@@ -27,7 +27,8 @@ class Module(BasicModule):
         super(Module, self).__init__()
         self.init = True    
         self.id = []        
-        self.id_status = True
+        self.id_status = []
+        self.status = MoveStatus.NONE
     def run(self, r:SimModule,args:json):
         """主函数，每个运行周期都会执行run函数
 
@@ -42,13 +43,13 @@ class Module(BasicModule):
             return self.status.value
         self.status = MoveStatus.RUNNING
         if self.init:
-            if "do" in args:
-                self.id = args["do"]
-            if "status" in args:
-                self.id_status = bool(args['status'])
+            if "DO" in args:
+                data = args["DO"]
+                self.id = [v.get('id') for v in data]
+                self.id_status = [v.get('status') for v in data]
             self.init = False
-        for id in self.id:
-            r.setDO(id, self.id_status)
+        for id, status in zip(self.id, self.id_status):
+            r.setDO(id, status)
         self.status = MoveStatus.FINISHED
         return self.status
 
@@ -56,7 +57,5 @@ if __name__ == '__main__':
     import rbkSim
     r = rbkSim.SimModule()
     m = Module(r,None)
-    data = dict()
-    data["do"] = [1,2,3,4]
-    data["status"] = 2
+    data = {"DO": [{"id":1, "status":True},{"id":2, "status":False},{"id":3, "status":False}]}
     print(m.run(r, data))
