@@ -38,12 +38,13 @@ class Module(BasicModule):
         dis = r.Di()
         wait_flag = False
         for tmp_id, tmp_v in zip(self.id, self.id_status):
-            for di in dis:
+            nodes = dis.get('node', [])
+            for di in nodes:
                 cur_id = di.get('id', None)
                 cur_status = di.get('status', None)
                 if cur_id is None or cur_status is None:
                     continue
-                elif tmp_id == cur_status and tmp_v is not cur_status:
+                elif tmp_id == cur_id and tmp_v is not cur_status:
                     wait_flag = True
                     break
         if not wait_flag:
