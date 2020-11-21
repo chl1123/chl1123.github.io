@@ -3,7 +3,18 @@ import json
 import time
 from rbk import MoveStatus, BasicModule, ParamServer
 from rbkSim import SimModule
-
+"""
+####BEGIN DEFAULT ARGS####
+{
+    "soundName": {
+        "value": "",
+        "tips": "等待DI时，音频名称",
+        "unit": "",
+        "type": "string"
+    }
+}
+####END DEFAULT ARGS####
+"""
 class Module(BasicModule):
     """让音乐响起来,默认只播放一遍
     """
@@ -15,6 +26,7 @@ class Module(BasicModule):
         self.timeout = None
         self.start = time.time()
         self.status = MoveStatus.NONE
+        self.soudnName = ""
     def run(self, r:SimModule,args):
         """主函数，每个运行周期都会执行run函数
 
@@ -33,6 +45,7 @@ class Module(BasicModule):
             self.id = [v.get("id") for v in dis]
             self.id_status = [v.get("status") for v in dis]
             self.timeout = args.get("timeout",None)
+            self.soudnName = args.get("soundName","")
             self.start = time.time()
             self.init = False
         dis = r.Di()
@@ -54,6 +67,8 @@ class Module(BasicModule):
                 dt = time.time() - self.start_time
                 if dt > self.timeout:
                     self.status = MoveStatus.FINISHED
+        if self.status is not MoveStatus.FINISHED:
+            r.setSound(self.soudnName, True)
         return self.status
 
 if __name__ == '__main__':
