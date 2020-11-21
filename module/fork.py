@@ -42,7 +42,6 @@ class Module(BasicModule):
         """
         if self.status == MoveStatus.FINISHED:
             return self.status.value
-        self.status = MoveStatus.RUNNING
         if self.init:
             if "height" in args:
                 self.height = float(args["height"])
@@ -51,12 +50,26 @@ class Module(BasicModule):
                 r.setError("params error: {}".format(json.dumps(args)))
                 self.status = MoveStatus.FAILED
             self.init = False
+        if self.status == MoveStatus.SUSPENDED:
+            r.setForkHeight(self.height)
+        self.status = MoveStatus.RUNNING
         if self.status is not MoveStatus.FAILED:
             fork_message = r.fork()
             if "height" in fork_message and "height_in_place" in fork_message:
                 if abs(fork_message["height"] - self.height) < 0.01 and fork_message["height_in_place"]:
                     self.status = MoveStatus.FINISHED
         return self.status
+
+    def suspend(self, r:SimModule):
+        self.start_time = time.time()
+        r.logInfo("script suspend")
+        r.stopFork()
+        self.status = MoveStatus.SUSPENDED
+
+    def cancel(self, r:SimModule):
+        r.logInfo("script cancel")
+        r.stopFork()
+        self.status = MoveStatus.NONE
 
 if __name__ == '__main__':
     import syspy.rbkSim

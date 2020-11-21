@@ -506,6 +506,7 @@ class SimModule:
             flag (bool): 是否循环播放
         """
         print("func: {0} sound name: {1} loop: {2}".format(get_function_name(), name, flag))
+    @check
     def stopSound(self, flag:bool)->None:
         """停止播放音乐
 
@@ -513,6 +514,7 @@ class SimModule:
             flag (bool): 如果为True则为停止播放音乐
         """
         print("func: {0} stop sound: {1}".format(get_function_name(), flag))
+    @check
     def setForkHeight(self, h:float)->None:
         """设置货叉高度
 
@@ -520,6 +522,60 @@ class SimModule:
             h (double): 货叉高度，单位m
         """
         print("func: {0} fork height: {1}".format(get_function_name(), h))
+    @check
+    def stopFork(self)->None:
+        """设置货叉高度
+
+        Args:
+            h (double): 货叉高度，单位m
+        """
+        print("func: {0} ".format(get_function_name()))
+    @check
+    def switchMap(self, map:str)->int:
+        """切换地图
+
+        Args:
+            map (str): 地图名称
+        
+        Returns:
+            int: 2没有进行切换，1切换中，0切换成功，-1不存在地图，-2切换失败
+        """
+        print("func: {0}: {1}".format(get_function_name(), map))
+        return 0
+    @check
+    def getTriggleScriptName(self)->str:
+        """获取TriggleScript的名称
+
+        Args:
+            map (str): 地图名称
+        
+        Returns:
+            str: scriptName
+        """
+        print("func: {0}".format(get_function_name()))
+        return "scriptName"
+    @check
+    def getTriggleScriptArgs(self)->str:
+        """获取TriggleScript的参数
+        
+        Returns:
+            str: args
+        """
+        print("func: {0}".format(get_function_name()))
+        return "{}"
+    @check
+    def hasTriggleScript(self)->bool:
+        """监测是否有TriggleScript触发
+        Returns:
+            bool: scriptArgs
+        """
+        print("func: {0}".format(get_function_name()))
+        return True
+    @check
+    def resetTriggleScript(self):
+        """重置Triggle信息
+        """
+        print("func: {0}".format(get_function_name())) 
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -572,6 +628,12 @@ if __name__ == '__main__':
     r.setSound("hello", True)
     r.stopSound(True)
     r.setForkHeight(1.0)
+    r.stopFork()
+    r.switchMap("hello")
+    r.getTriggleScriptArgs()
+    r.getTriggleScriptName()
+    r.hasTriggleScript()
+    r.resetTriggleScript()
     print("Success!!!")
 
 
