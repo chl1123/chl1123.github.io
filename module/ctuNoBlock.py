@@ -4,7 +4,8 @@ import time
 from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 from syspy.rbkSim import SimModule
 import math
-import syspy.goPath
+import syspy.goPath as goPath
+"""
 ####BEGIN DEFAULT ARGS####
 {
     "lift": {
@@ -122,6 +123,7 @@ import syspy.goPath
     }
 }
 ####END DEFAULT ARGS####
+"""
 def getYPRZYX(p):
     yaw = math.atan2(p[4],p[0])
     pitch = math.atan2(-p[8],math.sqrt(p[9]*p[9] + p[10]*p[10]))
@@ -326,10 +328,12 @@ class Module(BasicModule):
                             and device_state["state"] != Hairou.ModuleState.INIT \
                                 and device_state["state"] != Hairou.ModuleState.RESET:
                                 self.lift_status = MoveStatus.FINISHED
+                                self.h.reset_liftPos()
                                 return True
                 if "state" in device_state:
                     if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.liftReset(r)
+                        self.h.reset_liftPos()
                         self.state["res"] = res
                     elif device_state["state"] == Hairou.ModuleState.IDLE:
                         res = self.h.liftPos(height,r)
@@ -348,10 +352,12 @@ class Module(BasicModule):
                             and device_state["state"] != Hairou.ModuleState.INIT \
                                 and device_state["state"] != Hairou.ModuleState.RESET:
                                 self.rotate_status = MoveStatus.FINISHED
+                                self.h.reset_rotateAngle()
                                 return True
                 if "state" in device_state:
                     if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.rotateReset(r)
+                        self.h.reset_rotateAngle()
                         self.state["res"] = res
                     elif device_state["state"] == Hairou.ModuleState.IDLE:
                         res = self.h.rotateAngle(theta,r)
@@ -369,10 +375,12 @@ class Module(BasicModule):
                         and device_state["state"] != Hairou.ModuleState.INIT \
                             and device_state["state"] != Hairou.ModuleState.RESET:
                             self.stretch_status = MoveStatus.FINISHED
+                            self.h.reset_stretchPos()
                             return True
             if "state" in device_state:
                 if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.stretchReset(r)
+                    self.h.reset_stretchPos()
                     self.state["res"] = res
                 elif device_state["state"] == Hairou.ModuleState.IDLE:
                     res = self.h.stretchPos(pos,r)
@@ -388,13 +396,16 @@ class Module(BasicModule):
                             and device_state["state"] != Hairou.ModuleState.RESET:
                             if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] + 1) < 0.1 and abs(device_state["rightStatus"] + 1) < 0.1:
                                 self.finger_status = MoveStatus.FINISHED
+                                self.h.reset_fingerPos()
                                 return True
                             elif abs(pos) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1:
                                 self.finger_status = MoveStatus.FINISHED
+                                self.h.reset_fingerPos()
                                 return True                    
             if "state" in device_state:
                 if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.fingerReset(r)
+                    self.h.reset_fingerPos()
                     self.state["res"] = res
                 elif device_state["state"] == Hairou.ModuleState.IDLE:
                     res = self.h.fingerPos(pos,r)
@@ -402,7 +413,8 @@ class Module(BasicModule):
         return False
     def record_vision(self, r):
         res = self.h.visionRecord(r)
-        self.state["record_vision_res"] = res            
+        self.state["record_vision_res"] = res    
+        self.h.reset_visionRecord()        
     def vision(self, r, vtype):
         if self.vision_status is not MoveStatus.FINISHED:
             self.vision_status = MoveStatus.RUNNING
@@ -416,6 +428,7 @@ class Module(BasicModule):
                     if "state" in device_state:
                         if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                             self.h.visionReset(r)
+                            self.h.reset_visionReq()
                         elif device_state["state"] == Hairou.ModuleState.IDLE:
                             if self.waitVision.status == MoveStatus.NONE:
                                 self.waitVision.reset()
@@ -431,8 +444,10 @@ class Module(BasicModule):
                                     res["flag"] = False
                                     self.vision_status = MoveStatus.FAILED
                                 self.state["res"] = res
-                                if res["flag"]:
-                                    if "positionMatrix" in res:
+                                if res.get("status", Hairou.Action.INIT) is Hairou.Action.FINISHED:
+                                    self.h.reset_visionReq()
+                                    if "positionMatrix" in res['res']:
+                                        res = res['res']
                                         self.vision_status = MoveStatus.FINISHED
                                         self.waitVision.status = MoveStatus.NONE
                                         yaw, pitch, roll, dx , dy, dz = getYPRZYX(res["positionMatrix"])
@@ -443,7 +458,6 @@ class Module(BasicModule):
                                         out1["dx"] = dx
                                         out1["dy"] = dy
                                         out1["dz"] = dz
-                                        self.state["vout1"] = out1
                                         yaw2, pitch2, roll2, dx2, dy2, dz2 = getYPRZYXV2(res["positionMatrix"])
                                         out2 = dict()
                                         out2["yaw"] = yaw2 * 180.0/math.pi
@@ -452,19 +466,18 @@ class Module(BasicModule):
                                         out2["dx"] = dx2
                                         out2["dy"] = dy2
                                         out2["dz"] = dz2
-                                        self.state["vout2"] = out2   
                                         res["vout1"] = out1
                                         res["vout2"] = out2                           
                                         r.setNotice(json.dumps(res))
                                         return res
-                                else:
-                                    self.vision_status = MoveStatus.FAILED
-                                    r.setNotice("no results. {}".format(json.dumps(res)))
+                                    else:
+                                        self.vision_status = MoveStatus.FAILED
+                                        r.setNotice("no results. {}".format(json.dumps(res)))
         return dict()       
     def indicator(self, r, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None):
         res = self.h.indicatorReq(chassisLedFront,chassisLedBack,buzzer,headLedRed,headLedYellow,headLedGreen,headLedFreq,r)
         self.state["res"] = res
-        if not res["flag"]:
+        if res['status'] is not Hairou.Action.FINISHED:
             self.indicator_status = MoveStatus.RUNNING
             return False
         else :
@@ -645,6 +658,7 @@ class recAdjust:
                             self.operation_status = MoveStatus.FAILED
                             r.setError("recAdjust fails!!! reach max times.")
                         else:
+                            self.go_args["coordinate"] = "robot"
                             self.go_args["x"] = self.dy * math.sin(ctu.state["rotate"]["position"])
                             self.go_args["y"] = 0
                             self.go_args["theta"] = 0
@@ -680,27 +694,31 @@ class recAdjust:
                 self.status = MoveStatus.FAILED
         else:
             if self.ok:
-                if ctu.lift_status is not MoveStatus.FINISHED:
+                if ctu.lift_status != MoveStatus.FINISHED:
                     ctu.lift(r,self.lift_pos)
-                if ctu.lift_status is MoveStatus.FAILED:
+                if ctu.lift_status == MoveStatus.FAILED:
                     self.status = MoveStatus.FAILED
-                elif ctu.lift_status is MoveStatus.FINISHED:
+                elif ctu.lift_status == MoveStatus.FINISHED:
                     ctu.rotate_status = MoveStatus.FINISHED
                     ctu.goPath.status = MoveStatus.FINISHED
                     self.status = MoveStatus.FINISHED
             else:
                 if ctu.lift_status is not MoveStatus.FINISHED:
                     ctu.lift(r,self.lift_pos)
-                if ctu.goPath.status is not MoveStatus.FINISHED:
-                    if abs(self.go_args["x"]) < 0.003:
-                        ctu.goPath.status = MoveStatus.FINISHED
-                    else:
-                        ctu.goPath.run(r,self.go_args)
-                if ctu.rotate_status is not MoveStatus.FINISHED:
+                if ctu.goPath.status != MoveStatus.FINISHED and ctu.goPath.status != MoveStatus.FAILED:
+                        if abs(self.go_args["x"]) < 0.003:
+                            ctu.goPath.status = MoveStatus.FINISHED
+                        else:
+                            ctu.goPath.run(r,self.go_args)
+                if ctu.rotate_status != MoveStatus.FINISHED:
                     ctu.rotate(r,self.rot_theta)
-                if ctu.lift_status is MoveStatus.FAILED or ctu.goPath.status is MoveStatus.FAILED or ctu.rotate_status is MoveStatus.FAILED:
+                if ctu.lift_status == MoveStatus.FAILED \
+                    or ctu.goPath.status == MoveStatus.FAILED \
+                        or ctu.rotate_status == MoveStatus.FAILED:
                     self.status = MoveStatus.FAILED
-                elif ctu.lift_status is MoveStatus.FINISHED and ctu.goPath.status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
+                elif ctu.lift_status == MoveStatus.FINISHED \
+                    and ctu.goPath.status == MoveStatus.FINISHED \
+                        and ctu.rotate_status == MoveStatus.FINISHED:
                     self.adjust_count = self.adjust_count + 1
                     ctu.vision_status = MoveStatus.NONE
                     ctu.rotate_status = MoveStatus.NONE

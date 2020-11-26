@@ -42,6 +42,11 @@ class BinType(IntEnum):
     DM_MARKED = 0
     MARKERLESS = 10
 
+class Action(IntEnum):
+    INIT = 0
+    RUNNING = 1
+    FINISHED = 2
+
 class ErrorMessage:
     def __init__(self):
         self.errorcode = dict()
@@ -114,6 +119,77 @@ class Hairou:
         "headLedGreen":0,
         "headLedFreq":0
         }
+        self.report = dict()
+        self.liftReset_res = dict()
+        self.resetAction(self.liftReset_res)
+        self.liftPos_res = dict()
+        self.resetAction(self.liftPos_res)
+        self.rotateReset_res = dict()
+        self.resetAction(self.rotateReset_res)
+        self.rotateAngle_res = dict()
+        self.resetAction(self.rotateAngle_res)
+        self.stretchReset_res = dict()
+        self.resetAction(self.stretchReset_res)
+        self.stretchPos_res = dict()
+        self.resetAction(self.stretchPos_res)
+        self.fingerReset_res = dict()
+        self.resetAction(self.fingerReset_res)
+        self.fingerPos_res = dict()
+        self.resetAction(self.fingerPos_res)
+        self.visionReset_res = dict()
+        self.resetAction(self.visionReset_res)
+        self.visionReq_res = dict()
+        self.resetAction(self.visionReq_res)
+        self.visionRecord_res = dict()
+        self.resetAction(self.visionRecord_res)
+        self.indicatorReq_res = dict()
+        self.resetAction(self.indicatorReq_res)
+        self.total_hex = ""
+    def resetAction(self, data):
+        data['status'] = Action.INIT
+        data['seqNum'] = -1
+        data['res'] = dict()
+    def finishAction(self, data, res):
+        if data['status'] is not Action.INIT:
+            data['status'] = Action.FINISHED
+            data['res'] = res
+    def resetAll(self):
+        self.liftReset_res['status'] = Action.INIT
+        self.liftPos_res['status'] = Action.INIT
+        self.rotateReset_res['status'] = Action.INIT
+        self.rotateAngle_res['status'] = Action.INIT
+        self.stretchReset_res['status'] = Action.INIT
+        self.stretchPos_res['status'] = Action.INIT
+        self.fingerReset_res['status'] = Action.INIT
+        self.fingerPos_res['status'] = Action.INIT
+        self.visionReset_res['status'] = Action.INIT
+        self.visionReq_res['status'] = Action.INIT
+        self.visionRecord_res['status'] = Action.INIT
+        self.indicatorReq_res['status'] = Action.INIT
+    def reset_liftReset(self):
+        self.liftReset_res['status'] = Action.INIT
+    def reset_liftPos(self):
+        self.liftPos_res['status'] = Action.INIT
+    def reset_rotateReset(self):
+        self.rotateReset_res['status'] = Action.INIT
+    def reset_rotateAngle(self):
+        self.rotateAngle_res['status'] = Action.INIT
+    def reset_stretchReset(self):
+        self.stretchReset_res['status'] = Action.INIT
+    def reset_stretchPos(self):
+        self.stretchPos_res['status'] = Action.INIT
+    def reset_fingerReset(self):
+        self.fingerReset_res['status'] = Action.INIT
+    def reset_fingerPos(self):
+        self.fingerPos_res['status'] = Action.INIT
+    def reset_visionReset(self):
+        self.visionReset_res['status'] = Action.INIT
+    def reset_visionReq(self):
+        self.visionReq_res["status"] = Action.INIT
+    def reset_visionRecord(self):
+        self.visionRecord_res['status'] = Action.INIT
+    def reset_indcatorReq(self):
+        self.indicatorReq_res['status'] = Action.INIT
     def connect(self):
         try:
             self.tcp_client.connect((self.ip, self.port))
@@ -127,167 +203,256 @@ class Hairou:
             total_data = self.tcp_client.recv(1024)
         except:
             if r is not None: r.logDebug("ctu recv error!!!")
+            self.total_hex = ""
             return dict()                
         else:
-            total_hex = total_data.hex()
-            ind = total_hex.find("addecefa")
-            if ind + 32 <= len(total_hex):
-                head_hex = total_hex[ind:ind+32]
-                fmt = "@IIII"
-                try:
-                    usMagic, usSize, crcBody, crcHead = struct.unpack(fmt, bytes.fromhex(head_hex))
-                except:
-                    out = dict()
-                    out["error"] =  "length head {}".format(len(head_hex))
-                    return out
-                last_info = total_hex[ind+32:]
-                # print("ind ", ind , "usSize", usSize, len(last_info))
-                if usSize * 2 <= len(last_info):
-                    body_hex = last_info[0:usSize*2]
-                    fmt = "@"+str(usSize)+"s"
-                    body = struct.unpack(fmt,bytes.fromhex(body_hex))
-                    out = dict()
+            self.total_hex = self.total_hex+total_data.hex()
+            while True:
+                ind = self.total_hex.find("addecefa")
+                if ind >= 0 and ind + 32 <= len(self.total_hex):
+                    head_hex = self.total_hex[ind:ind+32]
+                    fmt = "@IIII"
                     try:
-                        out = json.loads(body[0])
+                        usMagic, usSize, crcBody, crcHead = struct.unpack(fmt, bytes.fromhex(head_hex))
                     except:
-                        print("loads error!!!", body)
-                        if r is not None: r.logDebug("ctu loads error!!! {}".format(body))
-                        return out
-                    else:
-                        return out
-        return dict()
+                        out = dict()
+                        out["error"] =  "length head {}".format(len(head_hex))
+                        if r is not None: r.logDebug(out["error"])
+                        self.total_hex = self.total_hex[ind+32:]
+                        continue
+                    last_info = self.total_hex[ind+32:]
+                    if usSize * 2 <= len(last_info):
+                        body_hex = last_info[0:usSize*2]
+                        self.total_hex = last_info[usSize*2:]
+                        fmt = "@"+str(usSize)+"s"
+                        body = struct.unpack(fmt,bytes.fromhex(body_hex))
+                        out = dict()
+                        try:
+                            out = json.loads(body[0])
+                        except:
+                            print("loads error!!!", body)
+                            if r is not None: r.logDebug("ctu loads error!!! {}".format(body))
+                            continue
+                        else:
+                            self.updateRes(out, r)
+                else:
+                    break
+    def updateRes(self, res_msg, r):
+        if 'msgType' in res_msg and "seqNum" in res_msg:
+            if res_msg['msgType'] == MessageType.ROBOT_COMM_RESP:
+                seqNum =  res_msg.get("seqNum")
+                if self.liftReset_res["seqNum"] == seqNum:
+                    self.finishAction(self.liftReset_res, res_msg)
+                elif self.liftPos_res['seqNum'] == seqNum:
+                    self.finishAction(self.liftPos_res, res_msg)
+                elif self.rotateReset_res['seqNum'] == seqNum:
+                    self.finishAction(self.rotateReset_res, res_msg)
+                elif self.rotateAngle_res['seqNum'] == seqNum:
+                    self.finishAction(self.rotateAngle_res, res_msg)
+                elif self.stretchReset_res['seqNum'] == seqNum:
+                    self.finishAction(self.stretchReset_res, res_msg)
+                elif self.stretchPos_res['seqNum'] == seqNum:
+                    self.finishAction(self.stretchPos_res, res_msg)
+                elif self.fingerReset_res['seqNum'] == seqNum:
+                    self.finishAction(self.fingerReset_res, res_msg)
+                elif self.fingerPos_res['seqNum'] == seqNum:
+                    self.finishAction(self.fingerPos_res,res_msg)
+                elif self.visionReset_res['seqNum'] == seqNum:
+                    self.finishAction(self.visionReset_res, res_msg)
+                elif self.visionRecord_res['seqNum'] == seqNum:
+                    self.finishAction(self.visionRecord_res, res_msg)
+                elif self.visionReq_res['seqNum'] == seqNum:
+                    self.finishAction(self.visionReq_res, res_msg)
+                elif self.indicatorReq_res['seqNum'] == seqNum:
+                    self.finishAction(self.indicatorReq_res, res_msg)
+            elif res_msg['msgType'] == MessageType.ROBOT_INFO_REPORT:
+                self.report = res_msg
     def initDevice(self, r):
         res =  self.sendMessage(self.msg_init, r)
         self.isconnect = res["flag"]
     def getReport(self, r):
-        msg = self.getMsg(r)
-        if 'msgType' not in msg or msg['msgType'] != MessageType.ROBOT_INFO_REPORT:
-            print(" no report!!!")
-            if r is not None: r.logDebug("ctu no report!!!")
-            msg = dict()
-            msg["flag"] = False
-            msg["error"] = "no report!!!"
-        return msg    
+        self.getMsg(r)
+        return self.report
     def sendMessage(self, msg, r):
-            usMagic = 0xFACEDEAD
-            str_data = json.dumps(msg,separators=(',',':'))
-            byte_data = str_data.encode()
+        usMagic = 0xFACEDEAD
+        str_data = json.dumps(msg,separators=(',',':'))
+        byte_data = str_data.encode()
 
-            usSize = len(byte_data)
-            crcBody = crc.crcbytes(byte_data)
-            # print(byte_data, byte_data.hex())
-            head_fmt = "@III"
-            head_bytes = struct.pack(head_fmt, usMagic, usSize,crcBody)
-            # print(head_bytes.hex())
-            crcHead = crc.crcbytes(head_bytes)
+        usSize = len(byte_data)
+        crcBody = crc.crcbytes(byte_data)
+        # print(byte_data, byte_data.hex())
+        head_fmt = "@III"
+        head_bytes = struct.pack(head_fmt, usMagic, usSize,crcBody)
+        # print(head_bytes.hex())
+        crcHead = crc.crcbytes(head_bytes)
 
-            fmt = "@IIII"+str(usSize)+"s"
-            # print(fmt)
-            sends = struct.pack(fmt,usMagic,usSize,crcBody,crcHead,byte_data)
-            if r is not None: r.logDebug(sends.hex())
-            res_msg = dict()
-            try:
-                self.tcp_client.sendall(sends)
-                res_msg["flag"] = True
-            except:
-                res_msg["flag"] = False
-                res_msg["content"] = "send fail"
-            return res_msg
+        fmt = "@IIII"+str(usSize)+"s"
+        # print(fmt)
+        sends = struct.pack(fmt,usMagic,usSize,crcBody,crcHead,byte_data)
+        if r is not None: r.logDebug(sends.hex())
+        res_msg = dict()
+        try:
+            self.tcp_client.sendall(sends)
+            res_msg["flag"] = True
+        except:
+            res_msg["flag"] = False
+            res_msg["content"] = "send fail"
+        return res_msg
     def liftReset(self, r):
-        msg = self.msg_lift_reset
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        return self.sendMessage(msg, r)
+        if self.liftReset_res['status'] is Action.INIT:
+            msg = self.msg_lift_reset
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            self.liftReset_res["seqNum"] = self.seqNum_req
+            self.liftReset_res["status"] = Action.RUNNING
+            self.liftReset_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.liftReset_res
     def liftPos(self, height, r):
-        msg = self.msg_lift_req
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        msg["liftPosition"] = height
-        return self.sendMessage(msg, r)
+        if self.liftPos_res['status'] is Action.INIT:
+            msg = self.msg_lift_req
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            msg["liftPosition"] = height
+            self.liftPos_res["seqNum"] = self.seqNum_req
+            self.liftPos_res["status"] = Action.RUNNING
+            self.liftPos_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.liftPos_res
     def rotateReset(self, r):
-        msg = self.msg_rot_rest
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        return self.sendMessage(msg, r)
+        if self.rotateReset_res['status'] is Action.INIT:
+            msg = self.msg_rot_rest
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            self.rotateReset_res["seqNum"] = self.seqNum_req
+            self.rotateReset_res["status"] = Action.RUNNING
+            self.rotateReset_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.rotateReset_res
     def rotateAngle(self, theta, r):
-        msg = self.msg_rot_req
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        msg["rotatePosition"] = theta
-        return self.sendMessage(msg, r)
+        if self.rotateAngle_res['status'] is Action.INIT:
+            msg = self.msg_rot_req
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            msg["rotatePosition"] = theta
+            self.rotateAngle_res["seqNum"] = self.seqNum_req
+            self.rotateAngle_res["status"] = Action.RUNNING
+            self.rotateAngle_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.rotateAngle_res
     def stretchReset(self, r):
-        msg = self.msg_stretch_reset
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        return self.sendMessage(msg, r)
+        if self.stretchReset_res["status"] is Action.INIT:
+            msg = self.msg_stretch_reset
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            self.stretchReset_res["seqNum"] = self.seqNum_req
+            self.stretchReset_res["status"] = Action.RUNNING
+            self.stretchReset_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.stretchReset_res
     def stretchPos(self, value, r):
-        msg = self.msg_stretch_req
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        msg["stretchPosition"] = value
-        return self.sendMessage(msg, r)
+        if self.stretchPos_res["status"] is Action.INIT:
+            msg = self.msg_stretch_req
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            msg["stretchPosition"] = value
+            self.stretchPos_res["seqNum"] = self.seqNum_req
+            self.stretchPos_res["status"] = Action.RUNNING
+            self.stretchPos_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.stretchPos_res
     def fingerReset(self, r):
-        msg = self.msg_finger_reset
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        return self.sendMessage(msg, r)
+        if self.fingerReset_res["status"] is Action.INIT:
+            msg = self.msg_finger_reset
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            self.fingerReset_res["seqNum"] = self.seqNum_req
+            self.fingerReset_res["status"] = Action.RUNNING
+            self.fingerReset_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.fingerReset_res
     def fingerPos(self,value, r):
-        msg = self.msg_finger_req
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        msg["position"] = value
-        self.sendMessage(msg, r)
-        return msg
+        if self.fingerPos_res["status"] is Action.INIT:
+            msg = self.msg_finger_req
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            msg["position"] = value
+            self.fingerPos_res["seqNum"] = self.seqNum_req
+            self.fingerPos_res["status"] = Action.RUNNING
+            self.fingerPos_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.fingerPos_res
     def visionReset(self, r):
-        msg = self.msg_vision_reset
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        return self.sendMessage(msg, r)
+        if self.visionReset_res["status"] is Action.INIT:
+            msg = self.msg_vision_reset
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            self.visionReset_res["seqNum"] = self.seqNum_req
+            self.visionReset_res["status"] = Action.RUNNING
+            self.visionReset_res["res"] = dict()
+            self.visionReq_res["status"] = Action.INIT
+            self.sendMessage(msg, r)
+        return self.visionReset_res
     def visionReq(self, targetType, binType, r):
-        msg = self.msg_vision_req
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        msg["targetType"] = targetType
-        msg["binType"] = binType
-        return self.sendMessage(msg, r)
+        if self.visionReq_res["status"] is Action.INIT:
+            msg = self.msg_vision_req
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            msg["targetType"] = targetType
+            msg["binType"] = binType
+            self.visionReq_res["seqNum"] = self.seqNum_req
+            self.visionReq_res["status"] = Action.RUNNING
+            self.visionReq_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.visionReq_res
     def visionRecord(self, r):
-        msg = self.msg_vision_record
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        return self.sendMessage(msg, r)
+        if self.visionRecord_res["status"] is Action.INIT:
+            msg = self.msg_vision_record
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            self.visionRecord_res["seqNum"] = self.seqNum_req
+            self.visionRecord_res["status"] = Action.RUNNING
+            self.visionRecord_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.visionRecord_res
     def indicatorReq(self, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None, r= None):
-        msg = self.msg_indicator_req
-        self.seqNum_req = self.seqNum_req + 1
-        msg["seqNum"] = self.seqNum_req
-        if chassisLedFront is not None: 
-            msg["chassisLedFront"] = chassisLedFront
-        else:
-            del msg["chassisLedFront"]
-        if chassisLedBack is not None:
-            msg["chassisLedBack"] = chassisLedBack
-        else:
-            del msg["chassisLedBack"]
-        if buzzer is not None:
-            msg["buzzer"] = buzzer
-        else:
-            del msg["buzzer"]
-        if headLedRed is not None:
-            msg["headLedRed"] = headLedRed
-        else:
-            del msg["headLedRed"]
-        if headLedYellow is not None:
-            msg["headLedYellow"] = headLedYellow
-        else:
-            del msg["headLedYellow"]
-        if headLedGreen is not None:
-            msg["headLedGreen"] = headLedGreen
-        else:
-            del msg["headLedGreen"]
-        if headLedFreq is not None:
-            msg["headLedFreq"] = headLedFreq
-        else:
-            del msg["headLedFreq"]
-        return self.sendMessage(msg, r)
+        if self.indicatorReq_res["status"] is Action.INIT:
+            msg = self.msg_indicator_req
+            self.seqNum_req = self.seqNum_req + 1
+            msg["seqNum"] = self.seqNum_req
+            if chassisLedFront is not None: 
+                msg["chassisLedFront"] = chassisLedFront
+            else:
+                del msg["chassisLedFront"]
+            if chassisLedBack is not None:
+                msg["chassisLedBack"] = chassisLedBack
+            else:
+                del msg["chassisLedBack"]
+            if buzzer is not None:
+                msg["buzzer"] = buzzer
+            else:
+                del msg["buzzer"]
+            if headLedRed is not None:
+                msg["headLedRed"] = headLedRed
+            else:
+                del msg["headLedRed"]
+            if headLedYellow is not None:
+                msg["headLedYellow"] = headLedYellow
+            else:
+                del msg["headLedYellow"]
+            if headLedGreen is not None:
+                msg["headLedGreen"] = headLedGreen
+            else:
+                del msg["headLedGreen"]
+            if headLedFreq is not None:
+                msg["headLedFreq"] = headLedFreq
+            else:
+                del msg["headLedFreq"]
+            self.indicatorReq_res["seqNum"] = self.seqNum_req
+            self.indicatorReq_res["status"] = Action.RUNNING
+            self.indicatorReq_res["res"] = dict()
+            self.sendMessage(msg, r)
+        return self.indicatorReq_res
 
 if __name__ == "__main__":
     h = Hairou("192.168.192.20",4172)
