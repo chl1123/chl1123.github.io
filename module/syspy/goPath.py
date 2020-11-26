@@ -108,7 +108,7 @@ class Module(BasicModule):
             else:
                 self.status = MoveStatus.RUNNING
         r.setInfo(json.dumps(args))
-        return self.status.value
+        return self.status
     def reset(self):
         self.status = MoveStatus.NONE
         self.init = False
