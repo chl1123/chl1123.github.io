@@ -4,7 +4,8 @@ import time
 from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 from syspy.rbkSim import SimModule
 import math
-import syspy.goPath
+import syspy.goPath as goPath
+"""
 ####BEGIN DEFAULT ARGS####
 {
     "lift": {
@@ -122,6 +123,7 @@ import syspy.goPath
     }
 }
 ####END DEFAULT ARGS####
+"""
 def getYPRZYX(p):
     yaw = math.atan2(p[4],p[0])
     pitch = math.atan2(-p[8],math.sqrt(p[9]*p[9] + p[10]*p[10]))
@@ -643,6 +645,7 @@ class recAdjust:
                             self.operation_status = MoveStatus.FAILED
                             r.setError("recAdjust fails!!! reach max times.")
                         else:
+                            self.go_args["coordinate"] = "robot"
                             self.go_args["x"] = self.dy * math.sin(ctu.state["rotate"]["position"])
                             self.go_args["y"] = 0
                             self.go_args["theta"] = 0
@@ -689,7 +692,7 @@ class recAdjust:
             else:
                 if ctu.lift_status is not MoveStatus.FINISHED:
                     ctu.lift(r,self.lift_pos)
-                if ctu.goPath.status is not MoveStatus.FINISHED:
+                if ctu.goPath.status is not MoveStatus.FINISHED and ctu.goPath.status is not MoveStatus.FAILED:
                     if abs(self.go_args["x"]) < 0.003:
                         ctu.goPath.status = MoveStatus.FINISHED
                     else:
