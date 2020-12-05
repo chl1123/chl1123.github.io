@@ -33,13 +33,13 @@ class BasicModule:
     def reset(self, r:SimModule):
         self.status = MoveStatus.RUNNING
         self.start_time = time.time()
-        r.logInfo("script reset")
+        # r.logInfo("script reset")
     def suspend(self, r:SimModule):
         self.start_time = time.time()
-        r.logInfo("script suspend")
+        # r.logInfo("script suspend")
         self.status = MoveStatus.SUSPENDED
     def cancel(self, r:SimModule):
-        r.logInfo("script cancel")
+        # r.logInfo("script cancel")
         self.status = MoveStatus.NONE
 
 class ParamServer:
