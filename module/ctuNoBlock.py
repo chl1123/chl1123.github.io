@@ -1,8 +1,10 @@
 import HairouNoBlock as Hairou
 import json
 import time
-from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
+import sys
+sys.path.append("syspy")
 from syspy.rbkSim import SimModule
+from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 import math
 import syspy.goPath as goPath
 """
@@ -161,6 +163,8 @@ class Module(BasicModule):
         p = ParamServer(__file__)
         ip = p.loadParam("ip", type="str", default = "192.168.192.20", comment = "ip addr")
         port = p.loadParam("port", type="int", default = 4172, maxValue = 999999, minValue = 0, comment = "port")
+        self.start_connect_time = time.time()
+        self.max_connect_time = p.loadParam("max_connect_time", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "链接等待最长时间s")
         self.h = Hairou.Hairou(ip,port)
         self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default = 0.5, maxValue = 10.0, minValue = 0.0, unit = "mm", comment = "lift_reach_dist")
         self.rotate_reach_angle = p.loadParam("rotate_reach_angle", type="float", default = 0.01, maxValue = 10.0, minValue = 0.0, unit = "rad", comment = "rotate_reach_angle")
@@ -202,9 +206,28 @@ class Module(BasicModule):
             self.task = args
         if not self.h.isconnect:
             self.h.initDevice(r)
+            self.state["warning"] = "ctu is connecting!!!!"
+            str_state = json.dumps(self.state)
+            r.setInfo(str_state)
+            r.logDebug(str_state)
+            dtime = time.time() - self.start_connect_time
+            if dtime > self.max_connect_time:
+                r.setError("ctu connect is overtime: {}".format(self.max_connect_time))
+                self.status = MoveStatus.FAILED
             return self.status
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
+            if "connect_error" in self.state:
+                dtime = time.time() - self.start_connect_time
+                if dtime > self.max_connect_time:
+                    r.setError("ctu connect is overtime: {}".format(self.max_connect_time))
+                    self.status = MoveStatus.FAILED
+                    str_state = json.dumps(self.state)
+                    r.setInfo(str_state)
+                    r.logDebug(str_state)
+                    return self.status    
+            else:
+                self.start_connect_time = time.time()
             self.state["task"] = self.task
             if "operation" in self.task and self.task["operation"] == "load":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task and "selfPosition" in self.task:

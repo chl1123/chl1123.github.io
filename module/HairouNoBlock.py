@@ -203,6 +203,7 @@ class Hairou:
             total_data = self.tcp_client.recv(1024)
         except:
             if r is not None: r.logDebug("ctu recv error!!!")
+            self.report["connect_error"] = "ctu recv error!!!"
             self.total_hex = ""
             return dict()                
         else:

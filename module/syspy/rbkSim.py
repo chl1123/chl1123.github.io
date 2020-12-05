@@ -514,22 +514,22 @@ class SimModule:
             flag (bool): 如果为True则为停止播放音乐
         """
         print("func: {0} stop sound: {1}".format(get_function_name(), flag))
-    @check
-    def setForkHeight(self, h:float)->None:
-        """设置货叉高度
+    # @check
+    # def setForkHeight(self, h:float)->None:
+    #     """设置货叉高度
 
-        Args:
-            h (double): 货叉高度，单位m
-        """
-        print("func: {0} fork height: {1}".format(get_function_name(), h))
-    @check
-    def stopFork(self)->None:
-        """设置货叉高度
+    #     Args:
+    #         h (double): 货叉高度，单位m
+    #     """
+    #     print("func: {0} fork height: {1}".format(get_function_name(), h))
+    # @check
+    # def stopFork(self)->None:
+    #     """设置货叉高度
 
-        Args:
-            h (double): 货叉高度，单位m
-        """
-        print("func: {0} ".format(get_function_name()))
+    #     Args:
+    #         h (double): 货叉高度，单位m
+    #     """
+    #     print("func: {0} ".format(get_function_name()))
     @check
     def switchMap(self, map:str)->int:
         """切换地图
@@ -627,8 +627,8 @@ if __name__ == '__main__':
     r.setPathBackMode(True)
     r.setSound("hello", True)
     r.stopSound(True)
-    r.setForkHeight(1.0)
-    r.stopFork()
+    # r.setForkHeight(1.0)
+    # r.stopFork()
     r.switchMap("hello")
     r.getTriggleScriptArgs()
     r.getTriggleScriptName()
