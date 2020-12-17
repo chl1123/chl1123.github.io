@@ -417,11 +417,11 @@ class Module(BasicModule):
                     and device_state["state"] != Hairou.ModuleState.ERROR \
                         and device_state["state"] != Hairou.ModuleState.INIT \
                             and device_state["state"] != Hairou.ModuleState.RESET:
-                            if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] + 1) < 0.1 and abs(device_state["rightStatus"] + 1) < 0.1:
+                            if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1:
                                 self.finger_status = MoveStatus.FINISHED
                                 self.h.reset_fingerPos()
                                 return True
-                            elif abs(pos) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1:
+                            elif abs(pos) < 0.1 and abs(device_state["leftStatus"]) < 0.1 and abs(device_state["rightStatus"]) < 0.1:
                                 self.finger_status = MoveStatus.FINISHED
                                 self.h.reset_fingerPos()
                                 return True                    
