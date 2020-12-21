@@ -278,8 +278,8 @@ class Module(BasicModule):
         self.high[1] = p.loadParam("high1", type="float", default = 870.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "上升时，第1层高度")
         self.high[2] = p.loadParam("high2", type="float", default = 1320.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "上升时，第2层高度")
         self.stretchDist = p.loadParam("stretchDist", type="float", default = 740.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
-        self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default = -120.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货物后，抓货物时高度的调整距离")
-        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 10.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")
+        self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default = -80.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货物后，抓货物时高度的调整距离")
+        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 30.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -353,7 +353,9 @@ class Module(BasicModule):
                 self.stretch_status = MoveStatus.FINISHED
                 self.finger_status = MoveStatus.FINISHED
                 self.indicator_status = MoveStatus.FINISHED
-                if "visionType" in self.task and "visionBinType" in self.task:
+                if "visionType" in self.task:
+                    if "visionBinType" not in self.task:
+                        self.task["visionBinType"] = "code"
                     self.rec(r)
                 else:
                     r.setError("rec task is wrong : {}".format(json.dumps(self.task)))
@@ -376,7 +378,9 @@ class Module(BasicModule):
                     self.finger(r,self.task["finger"])
                 else:
                     self.finger_status = MoveStatus.FINISHED
-                if "visionType" in self.task and "visionBinType" in self.task:
+                if "visionType" in self.task:
+                    if "visionBinType" not in self.task:
+                        self.task["visionBinType"] = "code"
                     self.vision(r, self.task["visionType"], self.task["visionBinType"])
                 else:
                     self.vision_status = MoveStatus.FINISHED
@@ -645,6 +649,8 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
                 if "visionType" in self.task and self.task["visionType"] == "box":
+                    if "visionBinType" not in self.task:
+                        self.task["visionBinType"] = "code"
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
                         recAdjust(self.task["visionType"], self.task["visionBinType"], self.rec_offz_box, self.rec_offz_shelf),
@@ -675,6 +681,8 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
                 if "visionType" in self.task and self.task["visionType"] == "shelf":
+                    if "visionBinType" not in self.task:
+                        self.task["visionBinType"] = "code"
                     self.task_list = [
                         preGoods(self.low[int(self.task["selfPosition"])], 0),
                         getGoods(self.stretchDist),
@@ -796,7 +804,7 @@ class recAdjust:
                         r.setError(" binType error: {}".format(self.visionBinType))
                         ctu.vision_status = MoveStatus.FAILED
                         self.status = MoveStatus.FAILED
-                    if abs(dtheta) < 15:
+                    if abs(dtheta) < 8:
                         self.dtheta = dtheta * math.pi /180.0
                         self.dz = dz
                         self.dist = dist
@@ -815,8 +823,8 @@ class recAdjust:
                             if self.go_args["x"] < 0:
                                 self.go_args["backMode"] = 1
                             self.rot_theta = ctu.state["rotate"]["position"] + self.dtheta
-                            ok_x = 0.006
-                            ok_theta = 0.01
+                            ok_x = 0.01
+                            ok_theta = 0.015
                             if self.visionBinType == "markerless":
                                 ok_x = 0.01
                                 ok_theta = 0.017
