@@ -40,7 +40,8 @@ class TargetType(IntEnum):
 
 class BinType(IntEnum):
     DM_MARKED = 0
-    MARKERLESS = 10
+    MARKERLESS = 10,
+    BARCODE = 20
 
 class Action(IntEnum):
     INIT = 0

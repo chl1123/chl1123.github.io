@@ -45,6 +45,14 @@ import syspy.goPath as goPath
         "tips": "tips",
         "type": "complex"
     },
+    "visionBinType":{
+        "value": "code",
+        "default_value":[
+            "code","markerless"
+        ],
+        "tips":"货物识别类型",
+        "type": "complex"
+    },
     "chassisLedFront": {
         "value": 0,
         "tips": "1: open, 0: close",
@@ -126,6 +134,77 @@ import syspy.goPath as goPath
 }
 ####END DEFAULT ARGS####
 """
+
+def matrixDot(a,b, m, l, n):
+    """ c = a * b
+
+    Args:
+        a ([type]): 2d matrix m * l
+        b ([type]): 2d matrix l * n
+        m ([type]): row
+        l ([type]): col
+        n ([type]): row
+
+    Returns:
+        [type]: 2d matrix
+    """
+    out = [[0] * n for i in range(m)]
+    for i in range(m):
+        for j in range(n):
+            v = 0
+            for k in range(l):
+                v = v + a[i][k] * b[k][j]
+            out[i][j] = v
+    return out
+
+def matrixReshape(a, m, n):
+    """[summary]
+
+    Args:
+        a ([type]): input matrix
+        m ([type]): row num
+        n ([type]): col num
+
+    Returns:
+        [type]: 2d matrix
+    """
+    out = [[0]*n for i in range(m)]
+    mid = []
+    for i in range(len(a)):
+        for j in range(len(a[i])):
+            mid.append(a[i][j])
+    for i in range(m):
+        for j in range(n):
+            out[i][j] = mid [i*n + j]
+    return out
+
+def TMatrixReverse(a):
+    """transition matrix reverse
+
+    Args:
+        a ([type]): 2d 4 * 4 transition matrix
+
+    Returns:
+        [type]: 2d  4 * 4 transitionmatrix
+    """
+    rMatrix = [[0]*3 for i in range(3)]
+    for i in range(3):
+        for j in range(3):
+            rMatrix[i][j] = a[j][i]
+    org_t = [[a[i][3]] for i in range(3)]
+    tMatrix = [[0]for i in range(3)]
+    tMatrix = matrixDot(rMatrix, org_t, 3, 3, 1)
+    for i in range(3):
+        tMatrix[i][0] = -tMatrix[i][0]
+    out = [[0]*4 for i in range(4)]
+    for i in range(3):
+        for j in range(3):
+            out[i][j] = rMatrix[i][j]
+    for i in range(3):
+        out[i][3] = tMatrix[i][0]
+    out[3][3] = 1
+    return out
+
 def getYPRZYX(p):
     yaw = math.atan2(p[4],p[0])
     pitch = math.atan2(-p[8],math.sqrt(p[9]*p[9] + p[10]*p[10]))
@@ -135,26 +214,45 @@ def getYPRZYX(p):
     dz = p [11]
     return yaw, pitch, roll, dz, dy, dx
 
-def getYPRZYXV2(p):
-    sy = math.sqrt(p[0] * p[0] + p[4] * p[4])
-    if sy >= 1e-6:
-        yaw = math.atan2(p[4], p[0])
-        c = math.cos(yaw)
-        s = math.sin(yaw)
-        pitch = math.atan2(-p[8], c * p[0] + s * p[4])
-        roll = math.atan2(p[2] * s - p[6] * c, - p[1] * s + p[5] *c)
-        dx = p[3]
-        dy = p[7]
-        dz = p [11]
-        return yaw, pitch, roll, dz, dy, dx 
-    else:
-        yaw = 0
-        pitch = math.atan2(-p[8], sy)
-        roll = math.atan2(-p[6],p[5])
-        dx = p[3]
-        dy = p[7]
-        dz = p [11]
-        return yaw, pitch, roll, dz, dy, dx 
+def getYPRZYX_code(p, theta):
+    Tagv2f = [[math.cos(theta), -math.sin(theta), 0., 0.],
+              [math.sin(theta), math.cos(theta), 0., 0.],
+              [0.,0.,1.,0.],
+              [0.,0.,0.,1.]]
+    Tf2c = [[0.,0.,1.,0.262],
+            [0.,-1.,0.,0.],
+            [1.,0.,0.,-0.029],
+            [0.,0.,0.,1.]]
+    Tc2m_now = matrixReshape(p, 4, 4)
+    Tf2m_now = matrixDot(Tf2c,Tc2m_now, 4, 4, 4)
+    newp = matrixReshape(Tf2m_now, 1, 16)[0]
+    yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
+    Tagv2m_now = matrixDot(Tagv2f,Tf2m_now, 4, 4, 4)
+    #pf2m 二维码在货叉坐标系中的位置
+    pf2m = [[dx],[0],[dz],[1]]
+    pagv2m = matrixDot(Tagv2f, pf2m, 4 ,4 ,1)
+    dist = Tagv2m_now[0][3] - pagv2m[0][0]
+    return  yaw, pitch, roll, dz, dy, dx, dist
+
+def getYPRZYX_markerless(p, theta): 
+    Tagv2f = [[math.cos(theta), -math.sin(theta), 0., 0.],
+              [math.sin(theta), math.cos(theta), 0., 0.],
+              [0.,0.,1.,0.],
+              [0.,0.,0.,1.]]    
+    Tf2ifm = [[1.,0.,0.,-0.281],
+              [0.,1.,0.,0.],
+              [0.,0.,1.,0.218],
+              [0.,0.,0.,1.]]
+    Tifm2box = matrixReshape(p, 4,4)
+    Tf2box = matrixDot(Tf2ifm,Tifm2box, 4, 4, 4)
+    newp = matrixReshape(Tf2box, 1,16)[0]
+    yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
+    Tagv2box = matrixDot(Tagv2f,Tf2box, 4, 4, 4)
+    #pf2box， box在货叉坐标系中的位置
+    pf2box = [[dx],[0],[dz],[1]]
+    pagv2m = matrixDot(Tagv2f, pf2box, 4 ,4 ,1)
+    dist = Tagv2box[0][3] - pagv2m[0][0] 
+    return yaw, pitch, roll, dz, dy, dx, dist
 
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
@@ -255,7 +353,7 @@ class Module(BasicModule):
                 self.stretch_status = MoveStatus.FINISHED
                 self.finger_status = MoveStatus.FINISHED
                 self.indicator_status = MoveStatus.FINISHED
-                if "visionType" in self.task:
+                if "visionType" in self.task and "visionBinType" in self.task:
                     self.rec(r)
                 else:
                     r.setError("rec task is wrong : {}".format(json.dumps(self.task)))
@@ -278,8 +376,8 @@ class Module(BasicModule):
                     self.finger(r,self.task["finger"])
                 else:
                     self.finger_status = MoveStatus.FINISHED
-                if "visionType" in self.task:
-                    self.vision(r, self.task["visionType"])
+                if "visionType" in self.task and "visionBinType" in self.task:
+                    self.vision(r, self.task["visionType"], self.task["visionBinType"])
                 else:
                     self.vision_status = MoveStatus.FINISHED
 
@@ -438,7 +536,7 @@ class Module(BasicModule):
         res = self.h.visionRecord(r)
         self.state["record_vision_res"] = res    
         self.h.reset_visionRecord()        
-    def vision(self, r, vtype):
+    def vision(self, r, vtype, binType):
         if self.vision_status is not MoveStatus.FINISHED:
             self.vision_status = MoveStatus.RUNNING
             if "vision" in self.state:
@@ -459,9 +557,16 @@ class Module(BasicModule):
                             if self.waitVision.status == MoveStatus.FINISHED:
                                 res = dict()
                                 if vtype == "shelf":
+                                    binType = "code"
                                     res = self.h.visionReq(Hairou.TargetType.SHELF.value,Hairou.BinType.DM_MARKED.value,r)
                                 elif vtype == "box":
-                                    res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.DM_MARKED.value,r)
+                                    if binType == "code":
+                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.DM_MARKED.value,r)
+                                    elif binType == "markerless":
+                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.MARKERLESS.value,r)
+                                    else:
+                                        r.setError("visionBinType Type is wrong: {}".format(binType))
+                                        self.vision_status = MoveStatus.FAILED
                                 else:
                                     res["error"] = "wrong type {}".format(vtype)
                                     res["flag"] = False
@@ -473,7 +578,17 @@ class Module(BasicModule):
                                         res = res['res']
                                         self.vision_status = MoveStatus.FINISHED
                                         self.waitVision.status = MoveStatus.NONE
-                                        yaw, pitch, roll, dx , dy, dz = getYPRZYX(res["positionMatrix"])
+                                        yaw, pitch, roll, dx , dy, dz, dist = 0, 0, 0, 0, 0, 0, 0
+                                        positionMatrix = [res["positionMatrix"]] 
+                                        if vtype == "shelf" or (vtype == "box" and binType == "code"):
+                                            yaw, pitch, roll, dz , dy, dx, dist = getYPRZYX_code(positionMatrix, self.state["rotate"]["position"])
+                                            yaw = yaw + math.pi/2.0
+                                            roll = roll - math.pi/2.0
+                                        elif vtype == "box" and binType == "markerless":
+                                            yaw, pitch, roll, dz , dy, dx, dist = getYPRZYX_markerless(positionMatrix, self.state["rotate"]["position"])
+                                        else:
+                                            r.setError("visionBinType Type is wrong: {}".format(binType))
+                                            self.vision_status = MoveStatus.FAILED
                                         out1 = dict()
                                         out1["yaw"] = yaw * 180.0/math.pi
                                         out1["pitch"] = pitch * 180.0/math.pi
@@ -481,16 +596,10 @@ class Module(BasicModule):
                                         out1["dx"] = dx
                                         out1["dy"] = dy
                                         out1["dz"] = dz
-                                        yaw2, pitch2, roll2, dx2, dy2, dz2 = getYPRZYXV2(res["positionMatrix"])
-                                        out2 = dict()
-                                        out2["yaw"] = yaw2 * 180.0/math.pi
-                                        out2["pitch"] = pitch2 * 180.0/math.pi
-                                        out2["roll"] = roll2 * 180.0/math.pi
-                                        out2["dx"] = dx2
-                                        out2["dy"] = dy2
-                                        out2["dz"] = dz2
-                                        res["vout1"] = out1
-                                        res["vout2"] = out2                           
+                                        out1["dist"] = dist
+                                        res["vout"] = out1
+                                        res["targetType"] = vtype
+                                        res["binType"] = binType                          
                                         r.setNotice(json.dumps(res))
                                         return res
                                     else:
@@ -522,7 +631,7 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
-                recAdjust(self.task["visionType"], self.rec_offz_box, self.rec_offz_shelf)
+                recAdjust(self.task["visionType"], self.task["visionBinType"], self.rec_offz_box, self.rec_offz_shelf)
             ]
             self.task_id = 0
         else:
@@ -538,7 +647,7 @@ class Module(BasicModule):
                 if "visionType" in self.task and self.task["visionType"] == "box":
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.rec_offz_box, self.rec_offz_shelf),
+                        recAdjust(self.task["visionType"], self.task["visionBinType"], self.rec_offz_box, self.rec_offz_shelf),
                         getGoods(self.task["stretch"]),
                         prePutGoods(self.high[int(self.task["selfPosition"])],0),
                         putGoods(self.stretchDist)
@@ -570,7 +679,7 @@ class Module(BasicModule):
                         preGoods(self.low[int(self.task["selfPosition"])], 0),
                         getGoods(self.stretchDist),
                         prePutGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.rec_offz_box, self.rec_offz_shelf),
+                        recAdjust(self.task["visionType"], self.task["visionBinType"], self.rec_offz_box, self.rec_offz_shelf),
                         putGoods(self.task["stretch"])
                     ]
                 else:
@@ -632,11 +741,12 @@ class Module(BasicModule):
 
 
 class recAdjust:
-    def __init__(self, visionType, rec_offz_box, rec_offz_shelf):
+    def __init__(self, visionType, visionBinType, rec_offz_box, rec_offz_shelf):
         self.status = MoveStatus.NONE
         self.visionType = visionType
+        self.visionBinType = visionBinType
         self.dtheta = 0 #角度方向
-        self.dy = 0 #侧向
+        self.dist = 0 #侧向
         self.dz = 0 #垂直方向
         p = ParamServer(__file__)
         self.max_rec_times = p.loadParam("max_rec_times", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "最多识别次数")
@@ -654,7 +764,7 @@ class recAdjust:
         ctu.rotate_status = MoveStatus.NONE
         ctu.lift_status = MoveStatus.NONE
         self.dtheta = 0
-        self.dy = 0
+        self.dist = 0
         self.dz = 0
         self.rec_count = 0
         ctu.goPath.reset()
@@ -670,19 +780,32 @@ class recAdjust:
             if self.rec_count < self.max_rec_times:
                 if ctu.vision_status == MoveStatus.FAILED:
                     self.rec_count = self.rec_count + 1
-                res = ctu.vision(r, self.visionType)
-                if "vout1" in res and "vout2" in res:
-                    method = "vout2"
-                    if abs(res[method]["pitch"] < 8) :
-                        self.dtheta = -res[method]["pitch"] * math.pi /180.0
-                        self.dz = res[method]["dz"]
-                        self.dy = res[method]["dy"]
+                res = ctu.vision(r, self.visionType, self.visionBinType)
+                method = "vout"
+                if ctu.vision_status == MoveStatus.FINISHED:
+                    dist, dz, dtheta = 0, 0, 0
+                    if self.visionBinType == "code":
+                        dz = res[method]["dz"]
+                        dist = res[method]["dist"]
+                        dtheta = res[method]["yaw"]
+                    elif self.visionBinType == "markerless":
+                        dz = 0
+                        dist = res[method]["dist"]
+                        dtheta = res[method]["yaw"]
+                    else:
+                        r.setError(" binType error: {}".format(self.visionBinType))
+                        ctu.vision_status = MoveStatus.FAILED
+                        self.status = MoveStatus.FAILED
+                    if abs(dtheta) < 15:
+                        self.dtheta = dtheta * math.pi /180.0
+                        self.dz = dz
+                        self.dist = dist
                         if self.adjust_count >= self.max_adjust_time:
                             self.operation_status = MoveStatus.FAILED
                             r.setError("recAdjust fails!!! reach max times.")
                         else:
                             self.go_args["coordinate"] = "robot"
-                            self.go_args["x"] = self.dy * math.sin(ctu.state["rotate"]["position"])
+                            self.go_args["x"] = self.dist
                             self.go_args["y"] = 0
                             self.go_args["theta"] = 0
                             self.go_args["reachAngle"] = math.pi
@@ -692,26 +815,33 @@ class recAdjust:
                             if self.go_args["x"] < 0:
                                 self.go_args["backMode"] = 1
                             self.rot_theta = ctu.state["rotate"]["position"] + self.dtheta
-                            if abs(self.go_args["x"]) < 0.006 and abs(self.dtheta) < 0.03:
+                            ok_x = 0.006
+                            ok_theta = 0.01
+                            if self.visionBinType == "markerless":
+                                ok_x = 0.01
+                                ok_theta = 0.017
+                            if abs(self.go_args["x"]) < ok_x and abs(self.dtheta) < ok_theta:
                                 self.ok = True 
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
                                     self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_shelf
-                                elif self.visionType == "box":
+                                elif self.visionType == "box" and self.visionBinType == "code":
                                     self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_box
+                                elif self.visionType == "box" and self.visionBinType == "markerless":
+                                    ctu.lift_status = MoveStatus.FINISHED
                             else:
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
                                     self.lift_pos = self.lift_pos + self.dz * 1000
-                                elif self.visionType == "box":
-                                    self.lift_pos = self.lift_pos + self.dz * 1000                           
+                                elif self.visionType == "box" and self.visionBinType == "code":
+                                    self.lift_pos = self.lift_pos + self.dz * 1000
+                                elif self.visionType == "box" and self.visionBinType == "markerless":
+                                    ctu.lift_status = MoveStatus.FINISHED                           
                     else:
                         ctu.record_vision(r)
-                        r.setNotice(" pitch is too large: {}".format(res[method]["pitch"]))
+                        r.setNotice(" pitch is too large: {}".format(res[method]["yaw"]))
                         ctu.vision_status = MoveStatus.FAILED
                         self.status = MoveStatus.FAILED
-                else:
-                    ctu.vision_status = MoveStatus.NONE
             else:
                 r.setError("rec fails!!! reach max times.")
                 self.status = MoveStatus.FAILED
@@ -747,7 +877,7 @@ class recAdjust:
                     ctu.rotate_status = MoveStatus.NONE
                     ctu.lift_status = MoveStatus.NONE
                     self.dtheta = 0
-                    self.dy = 0
+                    self.dist = 0
                     self.dz = 0
                     self.rec_count = 0
                     ctu.goPath.reset()
@@ -757,7 +887,7 @@ class recAdjust:
                     self.go_args = dict()
         cur_state = dict()
         cur_state["dz"] = self.dz
-        cur_state["dy"] = self.dy
+        cur_state["dist"] = self.dist
         cur_state["dtheta"] = self.dtheta
         cur_state["goaPathStatus"] = ctu.goPath.status
         cur_state["lift_pos"] = self.lift_pos
@@ -765,6 +895,7 @@ class recAdjust:
         cur_state["rot_theta"] = self.rot_theta
         cur_state["adj_count"] = self.adjust_count
         cur_state["visionType"] = self.visionType
+        cur_state["binType"] = self.visionBinType
         cur_state["status"] = self.status
         ctu.state["recAdjStatus"] = cur_state
 
