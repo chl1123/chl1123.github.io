@@ -40,7 +40,7 @@ import syspy.goPath as goPath
     "visionType": {
         "value": "shelf",
         "default_value":[
-        "shelf","box","reset"
+        "shelf","box", "reset"
         ],
         "tips": "tips",
         "type": "complex"
@@ -48,7 +48,7 @@ import syspy.goPath as goPath
     "visionBinType":{
         "value": "code",
         "default_value":[
-            "code","markerless"
+            "code","markerless", "barcode"
         ],
         "tips":"货物识别类型",
         "type": "complex"
@@ -568,6 +568,8 @@ class Module(BasicModule):
                                         res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.DM_MARKED.value,r)
                                     elif binType == "markerless":
                                         res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.MARKERLESS.value,r)
+                                    elif binType == "barcode":
+                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.BARCODE.value,r)
                                     else:
                                         r.setError("visionBinType Type is wrong: {}".format(binType))
                                         self.vision_status = MoveStatus.FAILED
@@ -578,7 +580,26 @@ class Module(BasicModule):
                                 self.state["res"] = res
                                 if res.get("status", Hairou.Action.INIT) is Hairou.Action.FINISHED:
                                     self.h.reset_visionReq()
-                                    if "positionMatrix" in res['res']:
+                                    if binType == "barcode" and "binId" in res['res']:
+                                        res = res['res']
+                                        self.vision_status = MoveStatus.FINISHED
+                                        self.waitVision.status = MoveStatus.NONE
+                                        out1 = dict()
+                                        yaw, pitch, roll, dx , dy, dz, dist = 0, 0, 0, 0, 0, 0, 0
+                                        out1["yaw"] = yaw * 180.0/math.pi
+                                        out1["pitch"] = pitch * 180.0/math.pi
+                                        out1["roll"] = roll * 180.0/math.pi
+                                        out1["dx"] = dx
+                                        out1["dy"] = dy
+                                        out1["dz"] = dz
+                                        out1["dist"] = dist
+                                        res["vout"] = out1
+                                        res["targetType"] = vtype
+                                        res["binType"] = binType   
+                                        res["binId"] = res['binId']
+                                        r.setNotice(json.dumps(res))
+                                        return res
+                                    elif "positionMatrix" in res['res']:
                                         res = res['res']
                                         self.vision_status = MoveStatus.FINISHED
                                         self.waitVision.status = MoveStatus.NONE
@@ -603,7 +624,8 @@ class Module(BasicModule):
                                         out1["dist"] = dist
                                         res["vout"] = out1
                                         res["targetType"] = vtype
-                                        res["binType"] = binType                          
+                                        res["binType"] = binType    
+                                        res["binId"] = ""                      
                                         r.setNotice(json.dumps(res))
                                         return res
                                     else:
@@ -767,6 +789,7 @@ class recAdjust:
         self.go_args = dict()
         self.adjust_count = 0
         self.ok = False
+        self.first_adj = True
     def reset(self, ctu):
         ctu.vision_status = MoveStatus.NONE
         ctu.rotate_status = MoveStatus.NONE
@@ -782,6 +805,7 @@ class recAdjust:
         self.go_args = dict()
         self.adjust_count = 0
         self.ok = False
+        self.first_adj = True
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.vision_status is not MoveStatus.FINISHED:
@@ -823,12 +847,9 @@ class recAdjust:
                             if self.go_args["x"] < 0:
                                 self.go_args["backMode"] = 1
                             self.rot_theta = ctu.state["rotate"]["position"] + self.dtheta
-                            ok_x = 0.01
-                            ok_theta = 0.015
-                            if self.visionBinType == "markerless":
-                                ok_x = 0.01
-                                ok_theta = 0.017
-                            if abs(self.go_args["x"]) < ok_x and abs(self.dtheta) < ok_theta:
+                            ok_x = 0.012
+                            ok_theta = 0.02
+                            if abs(self.go_args["x"]) < ok_x and abs(self.dtheta) < ok_theta and not self.first_adj:
                                 self.ok = True 
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
@@ -838,6 +859,7 @@ class recAdjust:
                                 elif self.visionType == "box" and self.visionBinType == "markerless":
                                     ctu.lift_status = MoveStatus.FINISHED
                             else:
+                                self.first_adj = False
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
                                     self.lift_pos = self.lift_pos + self.dz * 1000
