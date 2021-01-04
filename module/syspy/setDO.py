@@ -6,22 +6,16 @@ from rbkSim import SimModule
 """
 ####BEGIN DEFAULT ARGS####
 {
-    "do": {
-        "value": "",
+    "DO": {
+        "value": [{"id":1,"status":true}],
         "tips": "DO列表",
-        "unit": "",
-        "type": "string"
-    },
-    "status":{
-        "value":1,
-        "tips": "1: open, 0: close",
-        "type": "int"
+        "type": "json"
     }
 }
 ####END DEFAULT ARGS####
 """
 class Module(BasicModule):
-    """让音乐响起来,默认只播放一遍
+    """控制多个DO的开关
     """
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
@@ -45,7 +39,7 @@ class Module(BasicModule):
         if self.init:
             if "DO" in args:
                 data = args["DO"]
-                self.id = [v.get('id') for v in data]
+                self.id = [int(v.get('id')) for v in data]
                 self.id_status = [v.get('status') for v in data]
             self.init = False
         for id, status in zip(self.id, self.id_status):
