@@ -178,7 +178,7 @@ class SimModule:
         """获得里程数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -187,7 +187,7 @@ class SimModule:
         """获得定位数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -196,7 +196,7 @@ class SimModule:
         """获得当前速度数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -205,7 +205,7 @@ class SimModule:
         """获得电池数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -214,7 +214,7 @@ class SimModule:
         """获得rfid数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -223,7 +223,7 @@ class SimModule:
         """获得磁条数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -232,7 +232,7 @@ class SimModule:
         """获得Di数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -241,7 +241,7 @@ class SimModule:
         """获得Do数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -250,7 +250,7 @@ class SimModule:
         """获得pgv数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -259,7 +259,7 @@ class SimModule:
         """获得音频数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -268,7 +268,7 @@ class SimModule:
         """获得控制器数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()
@@ -277,10 +277,19 @@ class SimModule:
         """获得货叉数据
 
         Returns:
-            dict: 具体数据已字典类型返回
+            dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
         return dict()        
+    @check
+    def moveTask(self)->dict:
+        """获得任务信息以字典类型返回
+
+        Returns:
+            dict: 具体的任务信息
+        """
+        print("func: {0}".format(get_function_name()))
+        return dict()               
     @check
     def logInfo(self, ss:str):
         """将字符串输出到log文件中，等级为Info
