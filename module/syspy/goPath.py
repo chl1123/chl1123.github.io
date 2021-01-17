@@ -94,7 +94,8 @@ class Module(BasicModule):
                 if args["coordinate"] == "robot":
                     r.setPathOnRobot([0,self.goal[0]], [0, self.goal[1]], self.goal[2])
                 elif args["coordinate"] == "world":
-                    r.setPathOnWorld([0,self.goal[0]], [0, self.goal[1]], self.goal[2])
+                    loc = r.loc()
+                    r.setPathOnWorld([loc['x'],self.goal[0]], [loc['y'], self.goal[1]], self.goal[2])
                 else:
                     r.setError("coordinate only support robot and world. Input is {}".format(args["coordinate"]))
                     self.status = MoveStatus.FAILED
