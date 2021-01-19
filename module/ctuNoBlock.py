@@ -849,7 +849,7 @@ class recAdjust:
                             self.rot_theta = ctu.state["rotate"]["position"] + self.dtheta
                             ok_x = 0.012
                             ok_theta = 0.02
-                            if self.visionBinType == "markerless":
+                            if self.visionBinType == "markerless" or self.visionType == "shelf":
                                 ok_x = 0.02
                                 ok_theta = 0.035
                             if abs(self.go_args["x"]) < ok_x and abs(self.dtheta) < ok_theta and not self.first_adj:
