@@ -280,6 +280,15 @@ class SimModule:
             dict: 具体数据以字典类型返回
         """
         print("func: {0}".format(get_function_name()))
+        return dict()   
+    @check
+    def jack(self)->dict:
+        """获得货叉数据
+
+        Returns:
+            dict: 具体数据以字典类型返回
+        """
+        print("func: {0}".format(get_function_name()))
         return dict()        
     @check
     def moveTask(self)->dict:
