@@ -298,9 +298,9 @@ class Module(BasicModule):
         if r.errorExits(52111):
             self.status = MoveStatus.FAILED
             return self.status.value
+        self.status = MoveStatus.RUNNING
         if self.init:
             self.init = False
-            self.status = MoveStatus.RUNNING
             self.task = args
         if not self.h.isconnect:
             self.h.initDevice(r)
@@ -768,6 +768,14 @@ class Module(BasicModule):
         r.logInfo("script cancel")
         self.h.disconnect()
         self.status = MoveStatus.NONE
+    def suspend(self, r:SimModule):
+        r.logInfo("script suspended")
+        self.status = MoveStatus.SUSPENDED
+        self.start_connect_time = time.time()
+        self.state = self.h.getReport(r)
+        str_state = json.dumps(self.state)
+        r.setInfo(str_state)
+        r.logDebug(str_state)
 
 
 class recAdjust:
