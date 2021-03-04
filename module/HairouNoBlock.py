@@ -3,6 +3,7 @@ import struct
 import socket
 import json
 import crc
+import time
 
 class MessageType(IntEnum):
     ROBOT_INIT_REQ = 0
@@ -43,6 +44,10 @@ class BinType(IntEnum):
     MARKERLESS = 10,
     BARCODE = 20
 
+class BinModel(IntEnum):
+    CARTON = 0
+    PLASTICBOX = 1
+
 class Action(IntEnum):
     INIT = 0
     RUNNING = 1
@@ -80,7 +85,8 @@ class Hairou:
         self.seqNum_req = 0
         self.isconnect = False
         self.msg_init = {"msgType":MessageType.ROBOT_INIT_REQ.value,
-        "seqNum":0}
+        "seqNum":0,
+        "timeStamp":int(round(time.time() * 1000000))}
         self.msg_lift_reset = {"msgType":MessageType.ROBOT_LIFT_RESET.value,
         "seqNum":0}
         self.msg_lift_req = {"msgType":MessageType.ROBOT_LIFT_REQ.value,
@@ -106,7 +112,8 @@ class Hairou:
         self.msg_vision_req = {"msgType":MessageType.ROBOT_VISION_REQ.value,
         "seqNum":0,
         "targetType":0,
-        "binType":0}
+        "binType":0,
+        "binModel":0}
         self.msg_vision_record = {"msgType":MessageType.ROBOT_VISION_RECORD.value,
         "seqNum":0,
         "imageId":"last"}
@@ -270,6 +277,7 @@ class Hairou:
             elif res_msg['msgType'] == MessageType.ROBOT_INFO_REPORT:
                 self.report = res_msg
     def initDevice(self, r):
+        self.msg_init['timeStamp'] = int(round(time.time()*1000000))
         res =  self.sendMessage(self.msg_init, r)
         self.isconnect = res["flag"]
     def getReport(self, r):
@@ -395,13 +403,14 @@ class Hairou:
             self.visionReq_res["status"] = Action.INIT
             self.sendMessage(msg, r)
         return self.visionReset_res
-    def visionReq(self, targetType, binType, r):
+    def visionReq(self, targetType, binType, binModel, r):
         if self.visionReq_res["status"] is Action.INIT:
             msg = self.msg_vision_req
             self.seqNum_req = self.seqNum_req + 1
             msg["seqNum"] = self.seqNum_req
             msg["targetType"] = targetType
             msg["binType"] = binType
+            msg["binModel"] = binModel
             self.visionReq_res["seqNum"] = self.seqNum_req
             self.visionReq_res["status"] = Action.RUNNING
             self.visionReq_res["res"] = dict()

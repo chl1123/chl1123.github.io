@@ -53,6 +53,14 @@ import syspy.goPath as goPath
         "tips":"货物识别类型",
         "type": "complex"
     },
+    "binModel":{
+        "value":"plasticbox",
+        "default_value":[
+            "carton","plasticbox"
+        ],
+        "tips":"料箱种类，当visionBinType为markerless时需要填写这项",
+        "type": "complex"        
+    },
     "chassisLedFront": {
         "value": 0,
         "tips": "1: open, 0: close",
@@ -381,7 +389,8 @@ class Module(BasicModule):
                 if "visionType" in self.task:
                     if "visionBinType" not in self.task:
                         self.task["visionBinType"] = "code"
-                    self.vision(r, self.task["visionType"], self.task["visionBinType"])
+                    self.vision(r, self.task["visionType"], self.task["visionBinType"], 
+                                self.task.get("binModel", "plasticbox"))
                 else:
                     self.vision_status = MoveStatus.FINISHED
 
@@ -540,7 +549,7 @@ class Module(BasicModule):
         res = self.h.visionRecord(r)
         self.state["record_vision_res"] = res    
         self.h.reset_visionRecord()        
-    def vision(self, r, vtype, binType):
+    def vision(self, r, vtype, binType, binModel):
         if self.vision_status is not MoveStatus.FINISHED:
             self.vision_status = MoveStatus.RUNNING
             if "vision" in self.state:
@@ -562,14 +571,22 @@ class Module(BasicModule):
                                 res = dict()
                                 if vtype == "shelf":
                                     binType = "code"
-                                    res = self.h.visionReq(Hairou.TargetType.SHELF.value,Hairou.BinType.DM_MARKED.value,r)
+                                    res = self.h.visionReq(Hairou.TargetType.SHELF.value,
+                                                           Hairou.BinType.DM_MARKED.value, Hairou.BinModel.PLASTICBOX,r)
                                 elif vtype == "box":
                                     if binType == "code":
-                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.DM_MARKED.value,r)
+                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, 
+                                                               Hairou.BinType.DM_MARKED.value,Hairou.BinModel.PLASTICBOX, r)
                                     elif binType == "markerless":
-                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.MARKERLESS.value,r)
+                                        if binModel == "carton":
+                                            res = self.h.visionReq(Hairou.TargetType.BOX.value, 
+                                                                   Hairou.BinType.MARKERLESS.value,Hairou.BinModel.CARTON,r) 
+                                        else:
+                                            res = self.h.visionReq(Hairou.TargetType.BOX.value, 
+                                                                   Hairou.BinType.MARKERLESS.value,Hairou.BinModel.PLASTICBOX,r)
                                     elif binType == "barcode":
-                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.BARCODE.value,r)
+                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.BARCODE.value,
+                                                               Hairou.BinModel.PLASTICBOX,r)
                                     else:
                                         r.setError("visionBinType Type is wrong: {}".format(binType))
                                         self.vision_status = MoveStatus.FAILED
@@ -657,7 +674,8 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
-                recAdjust(self.task["visionType"], self.task["visionBinType"], self.rec_offz_box, self.rec_offz_shelf)
+                recAdjust(self.task["visionType"], self.task["visionBinType"], 
+                          self.task.get("binModel", "plasticbox"), self.rec_offz_box, self.rec_offz_shelf)
             ]
             self.task_id = 0
         else:
@@ -675,7 +693,8 @@ class Module(BasicModule):
                         self.task["visionBinType"] = "code"
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task["visionBinType"], self.rec_offz_box, self.rec_offz_shelf),
+                        recAdjust(self.task["visionType"], self.task["visionBinType"], 
+                                  self.task.get("binModel", "plasticbox"), self.rec_offz_box, self.rec_offz_shelf),
                         getGoods(self.task["stretch"]),
                         prePutGoods(self.high[int(self.task["selfPosition"])],0),
                         putGoods(self.stretchDist)
@@ -709,7 +728,8 @@ class Module(BasicModule):
                         preGoods(self.low[int(self.task["selfPosition"])], 0),
                         getGoods(self.stretchDist),
                         prePutGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task["visionBinType"], self.rec_offz_box, self.rec_offz_shelf),
+                        recAdjust(self.task["visionType"], self.task["visionBinType"], 
+                                  self.task.get("binModel", "plasticbox"), self.rec_offz_box, self.rec_offz_shelf),
                         putGoods(self.task["stretch"])
                     ]
                 else:
@@ -779,10 +799,11 @@ class Module(BasicModule):
 
 
 class recAdjust:
-    def __init__(self, visionType, visionBinType, rec_offz_box, rec_offz_shelf):
+    def __init__(self, visionType, visionBinType, binModel, rec_offz_box, rec_offz_shelf):
         self.status = MoveStatus.NONE
         self.visionType = visionType
         self.visionBinType = visionBinType
+        self.binModel = binModel
         self.dtheta = 0 #角度方向
         self.dist = 0 #侧向
         self.dz = 0 #垂直方向
@@ -820,7 +841,7 @@ class recAdjust:
             if self.rec_count < self.max_rec_times:
                 if ctu.vision_status == MoveStatus.FAILED:
                     self.rec_count = self.rec_count + 1
-                res = ctu.vision(r, self.visionType, self.visionBinType)
+                res = ctu.vision(r, self.visionType, self.visionBinType, self.binModel)
                 method = "vout"
                 if ctu.vision_status == MoveStatus.FINISHED:
                     dist, dz, dtheta = 0, 0, 0
