@@ -810,6 +810,7 @@ class recAdjust:
         p = ParamServer(__file__)
         self.max_rec_times = p.loadParam("max_rec_times", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "最多识别次数")
         self.max_adjust_time = p.loadParam("max_adjust_time", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "最多调整次数")
+        self.rec_shelf_shift = p.loadParam("rec_shelf_shift", type="float", default = 10.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架时相机距离二维码的z方向偏差")
         self.rec_count = 0
         self.offz_box = rec_offz_box
         self.offz_shelf = rec_offz_shelf
@@ -894,7 +895,7 @@ class recAdjust:
                                 self.first_adj = False
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
-                                    self.lift_pos = self.lift_pos + self.dz * 1000
+                                    self.lift_pos = self.lift_pos + self.dz * 1000 + self.rec_shelf_shift
                                 elif self.visionType == "box" and self.visionBinType == "code":
                                     self.lift_pos = self.lift_pos + self.dz * 1000
                                 elif self.visionType == "box" and self.visionBinType == "markerless":
