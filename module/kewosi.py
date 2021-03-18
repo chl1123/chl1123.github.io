@@ -60,6 +60,7 @@ class Module(BasicModule):
         r.logDebug('kewosi|{}|{}|{}'.format(d_time, self.time,openDO))
         if d_time >= self.time * 60:
             self.status = MoveStatus.FINISHED
+            r.setDO(self.do_id,False)
         else:
             self.status = MoveStatus.RUNNING
         return self.status
