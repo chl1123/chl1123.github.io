@@ -776,12 +776,12 @@ class Module(BasicModule):
         elif self.stretch_status is not MoveStatus.FINISHED:
             self.h.stretchReset(r)
             self.stretch(r,0)
-        elif self.rotate_status is not MoveStatus.FINISHED:
-            self.h.rotateReset(r)
-            self.rotate(r, 0)
         elif self.lift_status is not MoveStatus.FINISHED:
             self.h.liftReset(r)
             self.lift(r, 385)
+        elif self.rotate_status is not MoveStatus.FINISHED:
+            self.h.rotateReset(r)
+            self.rotate(r, 0)
         else:
             self.operation_status = MoveStatus.FINISHED
     def cancel(self, r:SimModule):
