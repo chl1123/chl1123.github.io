@@ -39,7 +39,14 @@ class Module(BasicModule):
         if self.init:
             self.task = args.get("task","")
             self.init = False
-        r.addMoveTask(str(self.task))
+        if type(self.task) == str:
+            r.logDebug('str')
+            r.addMoveTask(str(self.task))
+        elif type(self.task) == dict:
+            r.logDebug('dict')
+            r.addMoveTask(json.dumps(self.task))
+        else:
+            r.setError('args error {}'.format(json.dumps(args)))
         self.status = MoveStatus.FINISHED
         return self.status
 
