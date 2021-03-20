@@ -594,6 +594,28 @@ class SimModule:
         """重置Triggle信息
         """
         print("func: {0}".format(get_function_name())) 
+    @check
+    def addMoveTask(self, msg:str):
+        """增加任务，对应3051
+
+        Args:
+            msg (str): 任务
+        
+        Returns:
+        """
+        print("func: {0}: {1}".format(get_function_name(), msg))
+        return 0     
+    @check
+    def addMoveTaskList(self, msg:str):
+        """增加任务队列，对应3066
+
+        Args:
+            msg (str): 任务队列
+        
+        Returns:
+        """
+        print("func: {0}: {1}".format(get_function_name(), msg))
+        return 0      
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
