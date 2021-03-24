@@ -615,7 +615,39 @@ class SimModule:
         Returns:
         """
         print("func: {0}: {1}".format(get_function_name(), msg))
-        return 0      
+        return 0     
+    @check
+    def resetRec(self):
+        """重置识别模块
+        """
+        print("func: {0}".format(get_function_name()))
+    @check
+    def getRecResult(self)->dict:
+        """获取识别结果
+
+        Returns:
+            dict: 识别结果的结构体
+        """
+        print("func: {0}".format(get_function_name()))
+        return dict()      
+    @check 
+    def doRec(self, filename:str):
+        """进行识别
+
+        Args:
+            filename (str): 识别文件
+        """
+        print("func: {0}: {1}".format(get_function_name(), filename))
+    @check
+    def getRecStatus(self)->int:
+        """获取识别状态
+
+        Returns:
+            int: 0 刚刚初始化，1识别中，2识别结果，3识别出错
+        """
+        print("func: {0}".format(get_function_name()))
+        return 1
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -674,6 +706,10 @@ if __name__ == '__main__':
     r.getTriggleScriptName()
     r.hasTriggleScript()
     r.resetTriggleScript()
+    r.resetRec()
+    r.doRec("shelf.shelf")
+    r.getRecResult()
+    r.getRecStatus()
     print("Success!!!")
 
 
