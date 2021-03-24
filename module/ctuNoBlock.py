@@ -647,7 +647,7 @@ class Module(BasicModule):
                                         return res
                                     else:
                                         self.vision_status = MoveStatus.FAILED
-                                        r.setNotice("no results. {}".format(json.dumps(res)))
+                                        r.setError("rec no results. {}".format(json.dumps(res)))
         return dict()       
     def indicator(self, r, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None):
         res = self.h.indicatorReq(chassisLedFront,chassisLedBack,buzzer,headLedRed,headLedYellow,headLedGreen,headLedFreq,r)
@@ -902,9 +902,9 @@ class recAdjust:
                                     ctu.lift_status = MoveStatus.FINISHED                           
                     else:
                         ctu.record_vision(r)
-                        r.setNotice(" pitch is too large: {}".format(res[method]["yaw"]))
-                        ctu.vision_status = MoveStatus.FAILED
-                        self.status = MoveStatus.FAILED
+                        r.setNotice(" yaw is too large: {}".format(res[method]["yaw"]))
+                        ctu.vision_status = MoveStatus.NONE
+                        self.status = MoveStatus.RUNNING
             else:
                 r.setError("rec fails!!! reach max times.")
                 self.status = MoveStatus.FAILED

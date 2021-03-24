@@ -277,7 +277,7 @@ class Hairou:
             elif res_msg['msgType'] == MessageType.ROBOT_INFO_REPORT:
                 self.report = res_msg
     def initDevice(self, r):
-        self.msg_init['timeStamp'] = int(round(time.time()*1000000))
+        self.msg_init['timeStamp'] = int(round(time.time()*1000))
         res =  self.sendMessage(self.msg_init, r)
         self.isconnect = res["flag"]
     def getReport(self, r):
