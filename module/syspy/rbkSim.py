@@ -646,7 +646,7 @@ class SimModule:
             int: 0 刚刚初始化，1识别中，2识别结果，3识别出错
         """
         print("func: {0}".format(get_function_name()))
-        return 1
+        return 0
 
 if __name__ == '__main__':
     r = SimModule()
