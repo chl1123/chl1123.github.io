@@ -643,7 +643,7 @@ class SimModule:
         """获取识别状态
 
         Returns:
-            int: 0 刚刚初始化，1识别中，2识别结果，3识别出错
+            int: 0 刚刚初始化，1识别中，2.获得结果, 3识别出错, -1 未知错误
         """
         print("func: {0}".format(get_function_name()))
         return 0

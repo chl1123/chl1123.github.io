@@ -1,10 +1,9 @@
-import HairouNoBlock as Hairou
 import json
 import time
 import sys
 sys.path.append("syspy")
 from syspy.rbkSim import SimModule
-from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer, Pos2Base
+from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 import math
 import syspy.goPath as goPath
 """
@@ -19,25 +18,25 @@ import syspy.goPath as goPath
         "type": "complex"        
     },
     "lift": {
-        "value": 0.3,
+        "value": 0.,
         "tips": "lift hight",
         "type": "double",
         "unit": "m"
     },    
     "stretch": {
-        "value": 0.3,
+        "value": 0.,
         "tips": "stretch length",
         "type": "double",
         "unit": "m"
     },  
     "finger": {
-        "value": 0.5,
+        "value": 0.,
         "tips": "finger gap",
         "type": "double",
         "unit": "m"
     },
     "recfile": {
-        "value": "",
+        "value": "tag/t0001.tag",
         "tips": "识别文件",
         "unit": "",
         "type": "string"
@@ -45,6 +44,22 @@ import syspy.goPath as goPath
 }
 ####END DEFAULT ARGS####
 """
+def Pos2Base(pos2world, base2world):
+    """将基于世界坐标系的两个位姿，转换为基于base的位姿
+
+    Args:
+        pos2world ([3]): 被转换的位姿，基于世界坐标系,0:x, 1:y, 2: theta
+        base2world ([3]): 基准，基于世界坐标系,0:x, 1:y, 2: theta
+    Returns:
+        [3]: pos2base
+    """
+    pos2base = [0.,0.,0.]
+    x = pos2world[0] - base2world[0]
+    y = pos2world[1] - base2world[1]
+    pos2base[0] = x * math.cos(base2world[2]) + y * math.sin(base2world[2])
+    pos2base[1] = -x * math.sin(base2world[2]) + y * math.cos(base2world[2])
+    pos2base[2] = normalize_theta(pos2world[2] - base2world[2])
+    return pos2base
 class lift:
     def __init__(self, motor_name, dist):
         self.status = MoveStatus.NONE
@@ -52,13 +67,13 @@ class lift:
         self.dist = dist
     def run(self, r:SimModule, agv):
         self.status = MoveStatus.RUNNING
-        r.setMotorPosition(self.motor, self.dist, 1.0, -1)
+        r.setMotorPosition(self.motor, self.dist, 0.025, -1)
         if r.isMotorReached(self.motor):
             self.status = MoveStatus.FINISHED
         cur_state = dict()
         cur_state['lift_state'] = self.status
         cur_state['dist'] = self.dist
-        agv.state['lift'] = cur_state
+        agv.state['lift_org'] = cur_state
 
     def reset(self, r):
         r.resetMotor(self.motor)
@@ -71,13 +86,13 @@ class stretch:
         self.dist = dist
     def run(self, r:SimModule, agv):
         self.status = MoveStatus.RUNNING
-        r.setMotorPosition(self.motor, self.dist, 1.0, -1)
+        r.setMotorPosition(self.motor, self.dist, 0.1, -1)
         if r.isMotorReached(self.motor):
             self.status = MoveStatus.FINISHED
         cur_state = dict()
         cur_state['stretch_state'] = self.status
         cur_state['dist'] = self.dist
-        agv.state['stretch'] = cur_state
+        agv.state['stretch_org'] = cur_state
 
     def reset(self, r):
         r.resetMotor(self.motor)
@@ -90,13 +105,13 @@ class finger:
         self.dist = dist
     def run(self, r:SimModule, agv):
         self.status = MoveStatus.RUNNING
-        r.setMotorPosition(self.motor, self.dist, 1.0, -1)
+        r.setMotorPosition(self.motor, self.dist, 0.1, -1)
         if r.isMotorReached(self.motor):
             self.status = MoveStatus.FINISHED
         cur_state = dict()
         cur_state['finger_state'] = self.status
         cur_state['dist'] = self.dist
-        agv.state['finger'] = cur_state
+        agv.state['finger_org'] = cur_state
 
     def reset(self, r):
         r.resetMotor(self.motor)
@@ -106,20 +121,33 @@ class rec:
     def __init__(self, filename):
         self.status = MoveStatus.NONE
         self.filename = filename
+        self.rec_times = 0
+        self.max_rec_times = 10
         self.result = dict()
     def run(self, r:SimModule,agv):
         self.status = MoveStatus.RUNNING
         rec_status = r.getRecStatus()
-        if rec_status == 0 or rec_status == 3:
+        r.logDebug("rec_status: {}".format(rec_status))
+        if rec_status == 3:
+            self.rec_times = self.rec_times + 1
+            if self.rec_times > self.max_rec_times:
+                r.setError("rec fail. reach max times {}".format(self.max_rec_times))
+                self.status = MoveStatus.FAILED
+            else:
+                r.doRec(self.filename)
+        elif rec_status == 0 or rec_status == 1:
             r.doRec(self.filename)
         elif rec_status == 2:
             self.result = r.getRecResult()
+            r.logDebug("rec_result:{}".format(self.result))
             self.status = MoveStatus.FINISHED
         cur_state = dict()
+        cur_state['rec_result'] = self.result
         cur_state['rec_state'] = self.status
         cur_state['rec_status'] = rec_status
         cur_state['file'] = self.filename
-        agv.state['rec'] = cur_state
+        agv.state['rec_org'] = cur_state
+        r.logDebug(json.dumps(agv.state))
 
     def reset(self, r):
         r.resetRec()
@@ -176,6 +204,7 @@ class recAdjust:
                         self.status = MoveStatus.FAILED
                         r.setError("recAdjust fails!!! reach max times.")
                 self.plan_status = MoveStatus.FINISHED
+                self.rec.reset(r)
         elif self.status is not MoveStatus.FINISHED and self.status is not MoveStatus.FAILED:
             if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
                 if abs(self.go_args["x"]) < 0.003:
@@ -190,13 +219,15 @@ class recAdjust:
                 self.goPath.reset()
                 self.status = MoveStatus.RUNNING
                 self.go_args = dict()
+                self.plan_status = MoveStatus.NONE
         cur_state = dict()
         cur_state["goaPathStatus"] = self.goPath.status
+        cur_state["planStatus"] = self.plan_status
         cur_state["go_args"] = self.go_args
         cur_state["rec_fail_time"] = self.rec_fail_time
         cur_state["ajdust_time"] = self.adjust_count
         cur_state["status"] = self.status
-        agv.state["recAdjust"] = cur_state
+        agv.state["recAdjust_org"] = cur_state
 
     def reset(self, r):
         self.rec.reset(r)
@@ -209,16 +240,16 @@ class Module(BasicModule):
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
         p = ParamServer(__file__)
-        self.finger_open = 0.5
-        self.finger_close = 0.3
-        self.lift_down = 0.4
-        self.lift_up = 0.5
-        self.stretch_out = 1.0
-        self.stretch_in = 0.2
+        self.finger_open = -0.04
+        self.finger_close = 0.0
+        self.lift_down = 0
+        self.lift_up = 0.05
+        self.stretch_out = 0.5
+        self.stretch_in = 0.0
         self.status = MoveStatus.RUNNING
-        self.lift_motor = "motor1"
-        self.stretch_motor = "motor2"
-        self.finger_motor = "motor3"
+        self.lift_motor = "shengjiang"
+        self.stretch_motor = "shengsuo"
+        self.finger_motor = "baojia"
         self.rec_file = ""
         self.init = True
         self.task = dict()
@@ -232,27 +263,29 @@ class Module(BasicModule):
             self.rec_file = args.get("recfile","")
             self.operation_status = MoveStatus.NONE
         operation = self.task.get("operation","")
-        if operation is "":
+        if operation == "":
             self.status = MoveStatus.FINISHED
-        elif operation is "load":
+        elif operation == "load":
             self.load(r)
-        elif operation is "unload":
+        elif operation == "unload":
             self.unload(r)
-        elif operation is "zero":
+        elif operation == "zero":
             self.zero(r)
-        elif operation is "recAdjust":
+        elif operation == "recAdjust":
             self.recAdjust(r)
-        elif operation is "lift":
+        elif operation == "lift":
             self.lift(r)
-        elif operation is "stretch":
+        elif operation == "stretch":
             self.stretch(r)
-        elif operation is "finger":
+        elif operation == "finger":
             self.finger(r)
-        elif operation is "rec":
+        elif operation == "rec":
             self.rec(r)
         else:
             r.setError("operation is wrong {}".format(str(operation)))
             self.status = MoveStatus.FAILED
+        if self.operation_status == MoveStatus.FINISHED:
+            self.status = MoveStatus.FINISHED
         self.state["MoveStatus"] = self.status
         self.state["task"] = self.task
         str_state = json.dumps(self.state)
@@ -441,7 +474,7 @@ if __name__ == '__main__':
     r = syspy.rbkSim.SimModule()
     m = Module(r,None)
     data = dict()
-    data["operation"] = "zero"
+    data["operation"] = "rec"
     data["recfile"] = "s001.shelf"
     data["lift"] = 1.0
     data["stretch"] = 1.0
@@ -449,3 +482,6 @@ if __name__ == '__main__':
     print(m.run(r, data))
     print(m.run(r, data))
     print(m.run(r, data))
+    pos2world = [2,2,math.pi/2]
+    base2world = [1,1,math.pi/2]
+    print(Pos2Base(pos2world,base2world))
