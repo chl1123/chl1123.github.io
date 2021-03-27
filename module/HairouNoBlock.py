@@ -10,15 +10,20 @@ class MessageType(IntEnum):
     ROBOT_INFO_REPORT = 10
     ROBOT_LIFT_RESET = 20
     ROBOT_LIFT_REQ = 21
+    ROBOT_LIFT_STOP = 22
     ROBOT_ROTATE_RESET = 30
     ROBOT_ROTATE_REQ = 31
+    ROBOT_ROTATE_STOP = 32
     ROBOT_STRETCH_RESET = 40
     ROBOT_STRETCH_REQ = 41
+    ROBOT_STRETCH_STOP = 42
     ROBOT_FINGER_RESET = 50
     ROBOT_FINGER_REQ = 51
+    ROBOT_FINGER_STOP = 52
     ROBOT_VISION_RESET = 60
     ROBOT_VISION_REQ = 61
     ROBOT_VISION_RECORD = 62
+    ROBOT_VISION_STOP = 63
     ROBOT_INDICATOR_REQ = 70
     ROBOT_COMM_RESP = 255
 
@@ -89,26 +94,36 @@ class Hairou:
         "timeStamp":int(round(time.time() * 1000000))}
         self.msg_lift_reset = {"msgType":MessageType.ROBOT_LIFT_RESET.value,
         "seqNum":0}
+        self.msg_lift_stop = {"msgType":MessageType.ROBOT_LIFT_STOP.value,
+        "seqNum":0}
         self.msg_lift_req = {"msgType":MessageType.ROBOT_LIFT_REQ.value,
         "seqNum":0,
         "liftPosition":0.0}
         self.msg_rot_rest = {"msgType":MessageType.ROBOT_ROTATE_RESET.value,
         "seqNum":0}
+        self.msg_rot_stop = {"msgType":MessageType.ROBOT_ROTATE_STOP.value,
+        "seqNum":0}        
         self.msg_rot_req = {"msgType":MessageType.ROBOT_ROTATE_REQ.value,
         "seqNum":0,
         "rotatePosition":0.0}
         self.msg_stretch_reset = {"msgType":MessageType.ROBOT_STRETCH_RESET.value,
+        "seqNum":0}
+        self.msg_stretch_stop = {"msgType":MessageType.ROBOT_STRETCH_STOP.value,
         "seqNum":0}
         self.msg_stretch_req = {"msgType":MessageType.ROBOT_STRETCH_REQ.value,
         "seqNum":0,
         "stretchPosition":0.0}
         self.msg_finger_reset = {"msgType":MessageType.ROBOT_FINGER_RESET.value,
         "seqNum":0}
+        self.msg_finger_stop = {"msgType":MessageType.ROBOT_FINGER_STOP.value,
+        "seqNum":0}        
         self.msg_finger_req = {"msgType":MessageType.ROBOT_FINGER_REQ.value,
         "seqNum":0,
         "position":0}      
         self.msg_vision_reset = {"msgType":MessageType.ROBOT_VISION_RESET.value,
         "seqNum":0}
+        self.msg_vision_stop = {"msgType":MessageType.ROBOT_VISION_STOP.value,
+        "seqNum":0}        
         self.msg_vision_req = {"msgType":MessageType.ROBOT_VISION_REQ.value,
         "seqNum":0,
         "targetType":0,
@@ -318,6 +333,11 @@ class Hairou:
             self.liftReset_res["res"] = dict()
             self.sendMessage(msg, r)
         return self.liftReset_res
+    def liftStop(self, r):
+        msg = self.msg_lift_stop
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        self.sendMessage(msg, r)
     def liftPos(self, height, r):
         if self.liftPos_res['status'] is Action.INIT:
             msg = self.msg_lift_req
@@ -339,6 +359,11 @@ class Hairou:
             self.rotateReset_res["res"] = dict()
             self.sendMessage(msg, r)
         return self.rotateReset_res
+    def rotateStop(self,r):
+        msg = self.msg_rot_stop
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        self.sendMessage(msg, r)        
     def rotateAngle(self, theta, r):
         if self.rotateAngle_res['status'] is Action.INIT:
             msg = self.msg_rot_req
@@ -360,6 +385,11 @@ class Hairou:
             self.stretchReset_res["res"] = dict()
             self.sendMessage(msg, r)
         return self.stretchReset_res
+    def stretchStop(self,r):
+        msg = self.msg_stretch_stop
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        self.sendMessage(msg, r) 
     def stretchPos(self, value, r):
         if self.stretchPos_res["status"] is Action.INIT:
             msg = self.msg_stretch_req
@@ -381,6 +411,11 @@ class Hairou:
             self.fingerReset_res["res"] = dict()
             self.sendMessage(msg, r)
         return self.fingerReset_res
+    def fingerStop(self, r):
+        msg = self.msg_finger_stop
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        self.sendMessage(msg, r) 
     def fingerPos(self,value, r):
         if self.fingerPos_res["status"] is Action.INIT:
             msg = self.msg_finger_req
@@ -403,6 +438,11 @@ class Hairou:
             self.visionReq_res["status"] = Action.INIT
             self.sendMessage(msg, r)
         return self.visionReset_res
+    def visionStop(self,r):
+        msg = self.msg_vision_stop
+        self.seqNum_req = self.seqNum_req + 1
+        msg["seqNum"] = self.seqNum_req
+        self.sendMessage(msg, r) 
     def visionReq(self, targetType, binType, binModel, r):
         if self.visionReq_res["status"] is Action.INIT:
             msg = self.msg_vision_req

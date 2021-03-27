@@ -277,17 +277,26 @@ class Module(BasicModule):
         self.stretch_reach_dist = p.loadParam("stretch_reach_dist", type="float", default = 0.5, maxValue = 10.0, minValue = 0.0, unit = "mm", comment = "stretch_reach_dist")
         self.init = True
         self.task = dict()
-        self.low = dict({0:390, 1:840, 2:1285}) #mm
-        self.low[0] = p.loadParam("low0", type="float", default = 390.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "下降时，第0层高度")
-        self.low[1] = p.loadParam("low1", type="float", default = 840.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "下降时，第1层高度")
-        self.low[2] = p.loadParam("low2", type="float", default = 1285.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "下降时，第2层高度")
-        self.high = dict({0:420, 1:870, 2:1320}) #mm
-        self.high[0] = p.loadParam("high0", type="float", default = 420.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "上升时，第0层高度")
-        self.high[1] = p.loadParam("high1", type="float", default = 870.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "上升时，第1层高度")
-        self.high[2] = p.loadParam("high2", type="float", default = 1320.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "上升时，第2层高度")
-        self.stretchDist = p.loadParam("stretchDist", type="float", default = 740.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
+        self.low = dict({0:740, 1:1130, 2:1520, 3:1910, 4:2300}) #mm
+        #此处在背篓取货时需要略低于背篓的高度，此处所更改的数值为默认值，需要在"ctu.json"文件里修改才是最终执行的高度
+        self.low[0] = p.loadParam("low0", type="float", default = 740.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第0层高度")
+        self.low[1] = p.loadParam("low1", type="float", default = 1130.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第1层高度")
+        self.low[2] = p.loadParam("low2", type="float", default = 1520.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第2层高度")
+        self.low[3] = p.loadParam("low3", type="float", default = 1910.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第3层高度")
+        self.low[4] = p.loadParam("low4", type="float", default = 2300.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第4层高度")
+        self.high = dict({0:760, 1:1150, 2:1550, 3:1940, 4:2330}) #mm
+        #此处在背篓放货时需要略高于背娄的高度，此处所更改的数值为默认值，需要在"ctu.json"文件里修改才是最终执行的高度
+        self.high[0] = p.loadParam("high0", type="float", default = 760.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第0层高度")
+        self.high[1] = p.loadParam("high1", type="float", default = 1150.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第1层高度")
+        self.high[2] = p.loadParam("high2", type="float", default = 1550.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第2层高度")
+        self.high[3] = p.loadParam("high3", type="float", default = 1940.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第3层高度")
+        self.high[4] = p.loadParam("high4", type="float", default = 2320.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第4层高度")
+        #此处修改的是默认值，最终执行请在“ctu.json"里进行更改
+        self.stretchDist = p.loadParam("stretchDist", type="float", default = 750.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
+         #此处修改的是默认值，最终执行请在“ctu.json"里进行更改
         self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default = -80.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货物后，抓货物时高度的调整距离")
-        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 30.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")
+         #此处修改的是默认值，最终执行请在“ctu.json"里进行更改
+        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 40.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")        
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -474,6 +483,8 @@ class Module(BasicModule):
                         self.state["res"] = res
             else:
                 r.setError("stretch pos is not zero cannot lift.!!! {}".format(self.state["stretch"]["position"]))
+                self.lift_status = MoveStatus.FAILED
+                self.status = MoveStatus.FAILED
         return False
     def rotate(self, r, theta):
         self.rotate_status = MoveStatus.RUNNING
@@ -497,6 +508,8 @@ class Module(BasicModule):
                         res = self.h.rotateAngle(theta,r)
                         self.state["res"] = res
             else:
+                self.rotate_status = MoveStatus.FAILED
+                self.status = MoveStatus.FAILED
                 r.setError("stretch pos is not zero cannot rotate.!!! {}".format(self.state["stretch"]["position"]))
         return False       
     def stretch(self, r, pos):
@@ -784,15 +797,57 @@ class Module(BasicModule):
             self.rotate(r, 0)
         else:
             self.operation_status = MoveStatus.FINISHED
+    def stop(self,r):
+        if self.lift_status is MoveStatus.RUNNING:
+            self.h.liftStop(r)
+        if self.stretch_status is MoveStatus.RUNNING:
+            self.h.stretchStop(r)
+        if self.rotate_status is MoveStatus.RUNNING:
+            self.h.rotateStop(r)
+        if self.finger_status is MoveStatus.RUNNING:
+            self.h.fingerStop(r)
+        if self.vision_status is MoveStatus.RUNNING:
+            self.h.visionStop(r)
     def cancel(self, r:SimModule):
         r.logInfo("script cancel")
+        self.stop(r)
         self.h.disconnect()
         self.status = MoveStatus.NONE
     def suspend(self, r:SimModule):
+        self.stop(r)
+        if self.stretch_status is not MoveStatus.FINISHED \
+        and self.stretch_status is not MoveStatus.NONE:
+            self.stretch_status = MoveStatus.RUNNING
+        if self.lift_status is not MoveStatus.FINISHED \
+        and self.lift_status is not MoveStatus.NONE:
+            self.lift_status = MoveStatus.RUNNING
+        if self.rotate_status is not MoveStatus.FINISHED \
+        and self.rotate_status is not MoveStatus.NONE:
+            self.rotate_status = MoveStatus.RUNNING
+        if self.finger_status is not MoveStatus.FINISHED \
+        and self.finger_status is not MoveStatus.NONE:
+            self.finger_status = MoveStatus.RUNNING
+        if self.vision_status is not MoveStatus.FINISHED \
+        and self.vision_status is not MoveStatus.NONE:
+            self.vision_status = MoveStatus.RUNNING
+        if self.operation_status is not MoveStatus.FINISHED \
+        and self.operation_status is not MoveStatus.NONE:
+            self.operation_status = MoveStatus.RUNNING
+        self.h.resetAll()
         r.logInfo("script suspended")
         self.status = MoveStatus.SUSPENDED
         self.start_connect_time = time.time()
         self.state = self.h.getReport(r)
+        movestate = dict()
+        movestate["lift"] = self.lift_status
+        movestate["rotate"] = self.rotate_status
+        movestate["stretch"] = self.stretch_status
+        movestate["finger"] = self.finger_status
+        movestate["indicator"] = self.indicator_status
+        movestate["vision"] = self.vision_status
+        movestate["operation"] = self.operation_status
+        movestate["status"] = self.status
+        self.state["MoveStatus"] = movestate
         str_state = json.dumps(self.state)
         r.setInfo(str_state)
         r.logDebug(str_state)
@@ -1135,6 +1190,7 @@ if __name__ == '__main__':
     import syspy.rbkSim
     r = syspy.rbkSim.SimModule()
     m = Module(r,None)
+    m.suspend(r)
     data = dict()
     data["headLedFreq"] = dict()
     data["headLedFreq"]["value"] = "1"
