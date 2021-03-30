@@ -655,8 +655,10 @@ class Module(BasicModule):
                                         res["vout"] = out1
                                         res["targetType"] = vtype
                                         res["binType"] = binType    
-                                        res["binId"] = ""                      
+                                        res["binId"] = "" 
+                                        res["dist"] = dist                     
                                         r.setNotice(json.dumps(res))
+                                        self.state["vision"] = res
                                         return res
                                     else:
                                         self.vision_status = MoveStatus.FAILED
