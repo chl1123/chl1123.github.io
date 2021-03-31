@@ -99,7 +99,7 @@ import syspy.goPath as goPath
     "operation":{
         "value": "wait",
         "default_value":[
-        "load","unload","change","zero","wait"
+        "load","unload","change","zero","wait","getMarkerPos"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -231,16 +231,41 @@ def getYPRZYX_code(p, theta):
             [0.,-1.,0.,0.],
             [1.,0.,0.,-0.029],
             [0.,0.,0.,1.]]
+    Tm2box = [[0.,-1.,0.,0.],
+              [0.,0.,1.,0.],
+              [-1.,0.,0.,0.],
+              [0.,0.,0.,1.]]
     Tc2m_now = matrixReshape(p, 4, 4)
     Tf2m_now = matrixDot(Tf2c,Tc2m_now, 4, 4, 4)
-    newp = matrixReshape(Tf2m_now, 1, 16)[0]
-    yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
+    # newp = matrixReshape(Tf2m_now, 1, 16)[0]
+    # yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
     Tagv2m_now = matrixDot(Tagv2f,Tf2m_now, 4, 4, 4)
-    #pf2m 二维码在货叉坐标系中的位置
-    pf2m = [[dx],[0],[dz],[1]]
-    pagv2m = matrixDot(Tagv2f, pf2m, 4 ,4 ,1)
-    dist = Tagv2m_now[0][3] - pagv2m[0][0]
-    return  yaw, pitch, roll, dz, dy, dx, dist
+    Tagv2box = matrixDot(Tagv2m_now, Tm2box,4, 4, 4)
+    Tf2box = matrixDot(Tf2m_now, Tm2box, 4,4,4)
+    boxX = [[1.],[0.],[0.],[1.]]
+    boxX2agv = matrixDot(Tagv2box, boxX,4,4,1)
+    angle_agv = math.atan2(boxX2agv[1][0] - Tagv2box[1][3], boxX2agv[0][0] - Tagv2box[0][3])
+    dx = Tagv2box[0][3]
+    dy = Tagv2box[1][3]
+    dz = Tagv2box[2][3]
+    #pf2box， box在理想货叉坐标系中的位置
+    pf2box_ideal = [[Tf2box[0][3]],[0],[Tf2box[2][3]],[1]]
+    print(pf2box_ideal)
+    Tagv2f_ideal = [[math.cos(angle_agv), -math.sin(angle_agv), 0., 0.],
+                    [math.sin(angle_agv), math.cos(angle_agv), 0., 0.],
+                    [0.,0.,1.,0.],
+                    [0.,0.,0.,1.]] 
+    pagv2box_ideal = matrixDot(Tagv2f_ideal, pf2box_ideal, 4 ,4 ,1)
+    dist = Tagv2box[0][3] - pagv2box_ideal[0][0] 
+    return  angle_agv, dx, dy, dz, dist, Tagv2box
+
+def getMarkerInWorld(loc, Tagv2m):
+    Tw2agv = [[math.cos(loc[2]), -math.sin(loc[2]), 0., loc[0]],
+              [math.sin(loc[2]), math.cos(loc[2]), 0., loc[1]],
+              [0.,0.,1.,0.],
+              [0.,0.,0.,1.]]
+    Tw2m = matrixDot(Tw2agv, Tagv2m, 4, 4, 4)
+    return Tw2m
 
 def getYPRZYX_markerless(p, theta): 
     Tagv2f = [[math.cos(theta), -math.sin(theta), 0., 0.],
@@ -253,14 +278,24 @@ def getYPRZYX_markerless(p, theta):
               [0.,0.,0.,1.]]
     Tifm2box = matrixReshape(p, 4,4)
     Tf2box = matrixDot(Tf2ifm,Tifm2box, 4, 4, 4)
-    newp = matrixReshape(Tf2box, 1,16)[0]
-    yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
+    # newp = matrixReshape(Tf2box, 1,16)[0]
+    # yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
     Tagv2box = matrixDot(Tagv2f,Tf2box, 4, 4, 4)
-    #pf2box， box在货叉坐标系中的位置
-    pf2box = [[dx],[0],[dz],[1]]
-    pagv2m = matrixDot(Tagv2f, pf2box, 4 ,4 ,1)
-    dist = Tagv2box[0][3] - pagv2m[0][0] 
-    return yaw, pitch, roll, dz, dy, dx, dist
+    boxX = [[1.],[0.],[0.],[1.]]
+    boxX2agv = matrixDot(Tagv2box, boxX,4,4,1)
+    angle_agv = math.atan2(boxX2agv[1][0] - Tagv2box[1][3], boxX2agv[0][0] - Tagv2box[0][3])
+    dx = Tagv2box[0][3]
+    dy = Tagv2box[1][3]
+    dz = Tagv2box[2][3]
+    #pf2box， box在理想货叉坐标系中的位置
+    pf2box_ideal = [[Tf2box[0][3]],[0],[Tf2box[2][3]],[1]]
+    Tagv2f_ideal = [[math.cos(angle_agv), -math.sin(angle_agv), 0., 0.],
+                    [math.sin(angle_agv), math.cos(angle_agv), 0., 0.],
+                    [0.,0.,1.,0.],
+                    [0.,0.,0.,1.]] 
+    pagv2box_ideal = matrixDot(Tagv2f_ideal, pf2box_ideal, 4 ,4 ,1)
+    dist = Tagv2box[0][3] - pagv2box_ideal[0][0] 
+    return angle_agv, dx, dy, dz, dist, Tagv2box
 
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
@@ -304,6 +339,8 @@ class Module(BasicModule):
         self.vision_status = MoveStatus.NONE
         self.indicator_status = MoveStatus.NONE
         self.operation_status = MoveStatus.NONE
+        self.getMarkerPos_status = 0 # 0识别获得了位姿， 1获得id
+        self.getMarkerPos_data = dict()
         self.task_list = []
         self.task_id = 0
         self.state = dict()
@@ -366,6 +403,13 @@ class Module(BasicModule):
             elif "operation" in self.task and self.task["operation"] == "zero":
                 self.vision_status = MoveStatus.FINISHED
                 self.zero(r)
+            elif "operation" in self.task and self.task["operation"] == "getMarkerPos":
+                self.stretch_status = MoveStatus.FINISHED
+                self.lift_status = MoveStatus.FINISHED
+                self.rotate_status = MoveStatus.FINISHED
+                self.finger_status = MoveStatus.FINISHED
+                self.indicator_status = MoveStatus.FINISHED
+                self.getMarkerPos(r)
             elif "recAdjust" in self.task:
                 self.stretch_status = MoveStatus.FINISHED
                 self.finger_status = MoveStatus.FINISHED
@@ -625,8 +669,7 @@ class Module(BasicModule):
                                         out1["dist"] = dist
                                         res["vout"] = out1
                                         res["targetType"] = vtype
-                                        res["binType"] = binType   
-                                        res["binId"] = res['binId']
+                                        res["binType"] = binType
                                         r.setNotice(json.dumps(res))
                                         return res
                                     elif "positionMatrix" in res['res']:
@@ -634,36 +677,62 @@ class Module(BasicModule):
                                         self.vision_status = MoveStatus.FINISHED
                                         self.waitVision.status = MoveStatus.NONE
                                         yaw, pitch, roll, dx , dy, dz, dist = 0, 0, 0, 0, 0, 0, 0
-                                        positionMatrix = [res["positionMatrix"]] 
+                                        positionMatrix = [res["positionMatrix"]]
+                                        Tagv2box = [] 
                                         if vtype == "shelf" or (vtype == "box" and binType == "code"):
-                                            yaw, pitch, roll, dz , dy, dx, dist = getYPRZYX_code(positionMatrix, self.state["rotate"]["position"])
-                                            yaw = yaw + math.pi/2.0
-                                            roll = roll - math.pi/2.0
+                                            pass
+                                            yaw, dx , dy, dz,dist, Tagv2box = getYPRZYX_code(positionMatrix, self.state["rotate"]["position"])
+                                            # yaw = yaw + math.pi/2.0
+                                            # roll = roll - math.pi/2.0
                                         elif vtype == "box" and binType == "markerless":
-                                            yaw, pitch, roll, dz , dy, dx, dist = getYPRZYX_markerless(positionMatrix, self.state["rotate"]["position"])
+                                            yaw, dx , dy, dz, dist, Tagv2box = getYPRZYX_markerless(positionMatrix, self.state["rotate"]["position"])
                                         else:
                                             r.setError("visionBinType Type is wrong: {}".format(binType))
                                             self.vision_status = MoveStatus.FAILED
                                         out1 = dict()
                                         out1["yaw"] = yaw * 180.0/math.pi
-                                        out1["pitch"] = pitch * 180.0/math.pi
-                                        out1["roll"] = roll * 180.0/math.pi
                                         out1["dx"] = dx
                                         out1["dy"] = dy
                                         out1["dz"] = dz
                                         out1["dist"] = dist
+                                        out1["Ta2b"] = Tagv2box
                                         res["vout"] = out1
                                         res["targetType"] = vtype
                                         res["binType"] = binType    
                                         res["binId"] = "" 
-                                        res["dist"] = dist                     
+                                        if "operation" in self.task and self.task["operation"] == "getMarkerPos":  
+                                            loc_org = r.loc()
+                                            loc = [loc_org["x"],loc_org["y"],loc_org["angle"]]
+                                            Tw2box = getMarkerInWorld(loc, Tagv2box)
+                                            boxX = [[1],[0],[0],[1]]
+                                            boxX2w = matrixDot(Tw2box, boxX, 4, 4,1)
+                                            angle_world = math.atan2(boxX2w[1][0] -Tw2box[1][3], boxX2w[0][0]-Tw2box[0][3])
+                                            res["x"] = Tw2box[0][3]
+                                            res["y"] = Tw2box[1][3]
+                                            res["theta"] = angle_world       
                                         r.setNotice(json.dumps(res))
                                         self.state["vision"] = res
                                         return res
                                     else:
                                         self.vision_status = MoveStatus.FAILED
                                         r.setError("rec no results. {}".format(json.dumps(res)))
-        return dict()       
+        return dict()
+    def getMarkerPos(self, r):
+        self.operation_status = MoveStatus.RUNNING
+        if self.vision_status is not MoveStatus.FINISHED \
+            or self.vision_status is not MoveStatus.FAILED:
+            if self.getMarkerPos_status is 0:
+                res = self.vision(r, "shelf", "code", "plasticbox")
+                if self.vision_status is MoveStatus.FINISHED:
+                    self.getMarkerPos_data["x"] = res["x"]
+                    self.getMarkerPos_data["y"] = res["y"]
+                    self.getMarkerPos_data["theta"] = res["theta"]
+                    self.getMarkerPos_data["id"] = ""
+                    self.getMarkerPos_status = 1
+                    self.operation_status = MoveStatus.FINISHED
+        self.state["MarkerPos"] = self.getMarkerPos_data 
+
+
     def indicator(self, r, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None):
         res = self.h.indicatorReq(chassisLedFront,chassisLedBack,buzzer,headLedRed,headLedYellow,headLedGreen,headLedFreq,r)
         self.state["res"] = res
@@ -933,7 +1002,7 @@ class recAdjust:
                             self.go_args["reachDist"] = 0.002
                             if self.go_args["x"] < 0:
                                 self.go_args["backMode"] = 1
-                            self.rot_theta = ctu.state["rotate"]["position"] + self.dtheta
+                            self.rot_theta = self.dtheta
                             ok_x = 0.012
                             ok_theta = 0.02
                             if self.visionBinType == "markerless" or self.visionType == "shelf":
@@ -1197,3 +1266,40 @@ if __name__ == '__main__':
     data["headLedFreq"] = dict()
     data["headLedFreq"]["value"] = "1"
     print(m.run(r, data))
+    res = {"errorState": [], "finger": {"leftStatus": 0, "rightStatus": 0, "state": 2}, "lastUpdate": 1617158831859, "lift": {"position": 1080.0, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": 3.14, "speed": 0.000837758, "state": 2}, "seqNum": 312, "stretch": {"position": 0.00202406, "speed": -0.0, "state": 2}, "vision": {"state": 2}, "task": {"lift": 1080, "operation": "unload", "recAdjust": 1, "rotate": 3.14, "selfPosition": 4, "stretch": 920, "visionType": "shelf", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 9, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [0.006952662850518432, 0.9994862803590365, -0.03128635250943264, -0.0011537456705993368, 0.9997217528482572, -0.006242247049320415, 0.022747554457208153, -0.009452959932952022, 0.022540571450063593, -0.031435803247773245, -0.9992515763874841, 0.36582232699398454, 0.0, 0.0, 0.0, 1.0], "seqNum": 9, "vout": {"yaw": 1.2916202226565012, "pitch": -0.3983614471896319, "roll": 1.7929118725627855, "dx": 0.6278223269939845, "dy": 0.009452959932952022, "dz": -0.03015374567059934, "dist": -1.505528420664426e-05}, "targetType": "shelf", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": -0.03015374567059934, "dist": -1.505528420664426e-05, "dtheta": 0.022543025570698205, "goaPathStatus": 0, "lift_pos": 1059.8462543294006, "go_args": {"coordinate": "robot", "x": -1.505528420664426e-05, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": 3.1625430255706983, "adj_count": 0, "visionType": "shelf", "binType": "code", "status": 1}, "unload": {"state": 1, "task_id": 3}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 3, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
+    print(len(res["res"]["res"]["positionMatrix"]))
+    yaw, dx , dy, dz, dist, Tagv2box = getYPRZYX_code([res["res"]["res"]["positionMatrix"]], res["rotate"]["position"])
+    loc_org = {"x":-26.89989,"y":-1.768388,"angle":-0.228760}
+    loc = [loc_org["x"],loc_org["y"],loc_org["angle"]]
+    Tw2box = getMarkerInWorld(loc, Tagv2box)
+
+    print("Tw2box: ", Tw2box)
+    print("yaw", yaw)
+    boxX = [[1],[0],[0],[1]]
+    boxX2agv = matrixDot(Tagv2box, boxX,4,4,1)
+    boxX2w = matrixDot(Tw2box, boxX, 4, 4,1)
+    angle_agv = math.atan2(boxX2agv[1][0] - Tagv2box[1][3], boxX2agv[0][0] - Tagv2box[0][3])
+    angle_world = math.atan2(boxX2w[1][0] -Tw2box[1][3], boxX2w[0][0]-Tw2box[0][3])
+    out = dict()
+    out["x"] = Tw2box[0][3]
+    out["y"] = Tw2box[1][3]
+    out["theta"] = angle_world
+    print("box in world: ", out)      
+    print("box in agv: ", Tagv2box[0][3],Tagv2box[1][3],angle_agv)
+
+
+    # yaw = (yaw+math.pi/2)/math.pi*180.0
+    # pitch = pitch/math.pi*180
+    # roll = roll/math.pi *180
+    # print(dx, dy, dz, dist, yaw, pitch ,roll)
+
+
+
+
+
+
+
+    # yaw, p, r, z, y, x = getYPRZYX(one)
+    # print(yaw/math.pi*180,p/math.pi*180,r/math.pi*180,z,y,x)
+
+    
