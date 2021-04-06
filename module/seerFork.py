@@ -262,6 +262,10 @@ class Module(BasicModule):
             self.task = args
             self.rec_file = args.get("recfile","")
             self.operation_status = MoveStatus.NONE
+            if "operation" not in self.task:
+                r.setError("operation is empty!!!")
+                self.status = MoveStatus.FAILED
+                return self.status
         operation = self.task.get("operation","")
         if operation == "":
             self.status = MoveStatus.FINISHED

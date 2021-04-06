@@ -37,10 +37,14 @@ class Module(BasicModule):
             return self.status.value
         self.status = MoveStatus.RUNNING
         if self.init:
-            if "DO" in args:
+            if type(args) is dict and "DO" in args:
                 data = args["DO"]
                 self.id = [int(v.get('id')) for v in data]
                 self.id_status = [v.get('status') for v in data]
+            else:
+                r.setError(" No DO in task !!!")
+                self.status = MoveStatus.FAILED
+                return self.status
             self.init = False
         for id, status in zip(self.id, self.id_status):
             r.setDO(id, status)
