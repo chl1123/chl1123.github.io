@@ -528,7 +528,7 @@ class Module(BasicModule):
                 self.lift_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
             elif downLimit and device_state["position"] > height:
-                r.setError("fork upLimit DI is True. Cannot down!")
+                r.setError("fork downLimit DI is True. Cannot down!")
                 self.stop(r)
                 self.lift_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
