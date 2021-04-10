@@ -999,17 +999,18 @@ class recAdjust:
                     if self.visionBinType == "code":
                         dz = res[method]["dz"]
                         dist = res[method]["dist"]
-                        dtheta = res[method]["yaw"]
+                        dtheta = res[method]["yaw"] * math.pi /180.0
                     elif self.visionBinType == "markerless":
                         dz = 0
                         dist = res[method]["dist"]
-                        dtheta = res[method]["yaw"]
+                        dtheta = res[method]["yaw"] * math.pi /180.0
                     else:
                         r.setError(" binType error: {}".format(self.visionBinType))
                         ctu.vision_status = MoveStatus.FAILED
                         self.status = MoveStatus.FAILED
-                    if abs(dtheta) < 8:
-                        self.dtheta = dtheta * math.pi /180.0
+                    ddtheta = dtheta - ctu.state["rotate"]["position"]
+                    if abs(ddtheta) < 0.14:
+                        self.dtheta = dtheta
                         self.dz = dz
                         self.dist = dist
                         if self.adjust_count >= self.max_adjust_time:
@@ -1032,7 +1033,7 @@ class recAdjust:
                             if self.visionBinType == "markerless" or self.visionType == "shelf":
                                 ok_x = 0.02
                                 ok_theta = 0.035
-                            if abs(self.go_args["x"]) < ok_x and abs(self.dtheta) < ok_theta and not self.first_adj:
+                            if abs(self.go_args["x"]) < ok_x and abs(ddtheta) < ok_theta and not self.first_adj:
                                 self.ok = True 
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
