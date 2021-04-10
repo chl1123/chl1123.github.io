@@ -234,6 +234,7 @@ class Hairou:
             self.total_hex = self.total_hex+total_data.hex()
             while True:
                 ind = self.total_hex.find("addecefa")
+                # r.logDebug("ind: {}, total_hex {}".format(ind, self.total_hex))
                 if ind >= 0 and ind + 32 <= len(self.total_hex):
                     head_hex = self.total_hex[ind:ind+32]
                     fmt = "@IIII"
@@ -246,6 +247,7 @@ class Hairou:
                         self.total_hex = self.total_hex[ind+32:]
                         continue
                     last_info = self.total_hex[ind+32:]
+                    # r.logDebug("usSize: {} len_last_info {}".format(usSize, len(last_info)))
                     if usSize * 2 <= len(last_info):
                         body_hex = last_info[0:usSize*2]
                         self.total_hex = last_info[usSize*2:]
@@ -260,6 +262,8 @@ class Hairou:
                             continue
                         else:
                             self.updateRes(out, r)
+                    else:
+                        break
                 else:
                     break
     def updateRes(self, res_msg, r):
