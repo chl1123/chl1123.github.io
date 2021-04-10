@@ -4,6 +4,7 @@ import socket
 import json
 import crc
 import time
+import sys
 
 class MessageType(IntEnum):
     ROBOT_INIT_REQ = 0
@@ -91,7 +92,7 @@ class Hairou:
         self.isconnect = False
         self.msg_init = {"msgType":MessageType.ROBOT_INIT_REQ.value,
         "seqNum":0,
-        "timeStamp":int(round(time.time() * 1000000))}
+        "timeStamp":int(round(time.time() * 1000))}
         self.msg_lift_reset = {"msgType":MessageType.ROBOT_LIFT_RESET.value,
         "seqNum":0}
         self.msg_lift_stop = {"msgType":MessageType.ROBOT_LIFT_STOP.value,
@@ -295,6 +296,7 @@ class Hairou:
         self.msg_init['timeStamp'] = int(round(time.time()*1000))
         res =  self.sendMessage(self.msg_init, r)
         self.isconnect = res["flag"]
+        return res
     def getReport(self, r):
         self.getMsg(r)
         return self.report
@@ -317,11 +319,26 @@ class Hairou:
         if r is not None: r.logDebug(sends.hex())
         res_msg = dict()
         try:
-            self.tcp_client.sendall(sends)
-            res_msg["flag"] = True
+            msg_len = len(sends)
+            total_send = 0
+            t0 = time.time()
+            send_suc = True
+            while total_send < msg_len:
+                cur_sent = self.tcp_client.send(sends[total_send:])
+                if cur_sent == 0:
+                    r.logDebug("socket connection broken. send length is zero")
+                    send_suc = False
+                    break
+                total_send = total_send + cur_sent
+                t1 = time.time()
+                if (t1 - t0) > 0.1:
+                    r.logDebug("socket is too slow. ReTry!!!")
+                    send_suc = False
+                    break
+            res_msg["flag"] = send_suc
         except:
             res_msg["flag"] = False
-            res_msg["content"] = "send fail"
+            res_msg["content"] = str(sys.exc_info()[0])
         return res_msg
     def liftReset(self, r):
         if self.liftReset_res['status'] is Action.INIT:
@@ -331,7 +348,7 @@ class Hairou:
             self.liftReset_res["seqNum"] = self.seqNum_req
             self.liftReset_res["status"] = Action.RUNNING
             self.liftReset_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.liftReset_res["res"] = self.sendMessage(msg, r)
         return self.liftReset_res
     def liftStop(self, r):
         msg = self.msg_lift_stop
@@ -347,7 +364,7 @@ class Hairou:
             self.liftPos_res["seqNum"] = self.seqNum_req
             self.liftPos_res["status"] = Action.RUNNING
             self.liftPos_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.liftPos_res["res"] = self.sendMessage(msg, r)
         return self.liftPos_res
     def rotateReset(self, r):
         if self.rotateReset_res['status'] is Action.INIT:
@@ -357,7 +374,7 @@ class Hairou:
             self.rotateReset_res["seqNum"] = self.seqNum_req
             self.rotateReset_res["status"] = Action.RUNNING
             self.rotateReset_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.rotateReset_res["res"] = self.sendMessage(msg, r)
         return self.rotateReset_res
     def rotateStop(self,r):
         msg = self.msg_rot_stop
@@ -373,7 +390,7 @@ class Hairou:
             self.rotateAngle_res["seqNum"] = self.seqNum_req
             self.rotateAngle_res["status"] = Action.RUNNING
             self.rotateAngle_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.rotateAngle_res["res"] = self.sendMessage(msg, r)
         return self.rotateAngle_res
     def stretchReset(self, r):
         if self.stretchReset_res["status"] is Action.INIT:
@@ -383,7 +400,7 @@ class Hairou:
             self.stretchReset_res["seqNum"] = self.seqNum_req
             self.stretchReset_res["status"] = Action.RUNNING
             self.stretchReset_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.stretchReset_res["res"] = self.sendMessage(msg, r)
         return self.stretchReset_res
     def stretchStop(self,r):
         msg = self.msg_stretch_stop
@@ -399,7 +416,7 @@ class Hairou:
             self.stretchPos_res["seqNum"] = self.seqNum_req
             self.stretchPos_res["status"] = Action.RUNNING
             self.stretchPos_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.stretchPos_res["res"] = self.sendMessage(msg, r)
         return self.stretchPos_res
     def fingerReset(self, r):
         if self.fingerReset_res["status"] is Action.INIT:
@@ -409,7 +426,7 @@ class Hairou:
             self.fingerReset_res["seqNum"] = self.seqNum_req
             self.fingerReset_res["status"] = Action.RUNNING
             self.fingerReset_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.fingerReset_res["res"] = self.sendMessage(msg, r)
         return self.fingerReset_res
     def fingerStop(self, r):
         msg = self.msg_finger_stop
@@ -425,7 +442,7 @@ class Hairou:
             self.fingerPos_res["seqNum"] = self.seqNum_req
             self.fingerPos_res["status"] = Action.RUNNING
             self.fingerPos_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.fingerPos_res["res"] = self.sendMessage(msg, r)
         return self.fingerPos_res
     def visionReset(self, r):
         if self.visionReset_res["status"] is Action.INIT:
@@ -436,7 +453,7 @@ class Hairou:
             self.visionReset_res["status"] = Action.RUNNING
             self.visionReset_res["res"] = dict()
             self.visionReq_res["status"] = Action.INIT
-            self.sendMessage(msg, r)
+            self.visionReset_res["res"] = self.sendMessage(msg, r)
         return self.visionReset_res
     def visionStop(self,r):
         msg = self.msg_vision_stop
@@ -454,7 +471,7 @@ class Hairou:
             self.visionReq_res["seqNum"] = self.seqNum_req
             self.visionReq_res["status"] = Action.RUNNING
             self.visionReq_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.visionReq_res["res"] = self.sendMessage(msg, r)
         return self.visionReq_res
     def visionRecord(self, r):
         if self.visionRecord_res["status"] is Action.INIT:
@@ -464,7 +481,7 @@ class Hairou:
             self.visionRecord_res["seqNum"] = self.seqNum_req
             self.visionRecord_res["status"] = Action.RUNNING
             self.visionRecord_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.visionRecord_res["res"] = self.sendMessage(msg, r)
         return self.visionRecord_res
     def indicatorReq(self, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None, r= None):
         if self.indicatorReq_res["status"] is Action.INIT:
@@ -502,16 +519,19 @@ class Hairou:
             self.indicatorReq_res["seqNum"] = self.seqNum_req
             self.indicatorReq_res["status"] = Action.RUNNING
             self.indicatorReq_res["res"] = dict()
-            self.sendMessage(msg, r)
+            self.indicatorReq_res["res"] = self.sendMessage(msg, r)
         return self.indicatorReq_res
 
 if __name__ == "__main__":
     h = Hairou("192.168.192.20",4172)
     r = None
-    if h.connect():
-        h.initDevice(r)
-        h.indicatorReq(headLedRed = 1)
-        state = h.getReport(r)
-        print(state)
-        h.disconnect()
+    h.connect()
+    print(h.initDevice(r))
+    print(h.isconnect)
+    h.indicatorReq(headLedRed = 1)
+    h.initDevice(r)
+    print(h.isconnect)
+    state = h.getReport(r)
+    print(state)
+    h.disconnect()
 

@@ -359,7 +359,7 @@ class Module(BasicModule):
             self.init = False
             self.task = args
         if not self.h.isconnect:
-            self.h.initDevice(r)
+            self.state["init"] = self.h.initDevice(r)
             self.state["warning"] = "ctu is connecting!!!!"
             str_state = json.dumps(self.state)
             r.setInfo(str_state)
