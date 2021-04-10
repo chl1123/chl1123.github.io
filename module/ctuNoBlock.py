@@ -334,6 +334,7 @@ class Module(BasicModule):
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 40.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")        
         self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default = -1, maxValue = 100, minValue = -1, unit = "", comment = "货叉上限位DI")
         self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default = -1, maxValue = 100, minValue = -1, unit = "", comment = "货叉下限位DI")
+        self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=375.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最低高度")
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -508,6 +509,9 @@ class Module(BasicModule):
         return self.status.value
     def lift(self, r, height):
         self.lift_status = MoveStatus.RUNNING
+        if height < self.minLiftHeight:
+            r.logDebug("lift {} is set to {}".format(height, self.minLiftHeight))
+            height = self.minLiftHeight
         if "lift" in self.state:
             dis = r.Di()
             upLimit = False
@@ -556,6 +560,9 @@ class Module(BasicModule):
         return False
     def rotate(self, r, theta):
         self.rotate_status = MoveStatus.RUNNING
+        theta = normalize_theta(theta)
+        if theta < -3.0:
+            theta = 2 *math.pi + theta
         if "rotate" in self.state:
             if "stretch" in self.state and self.state["stretch"]["position"] < 10:
                 device_state = self.state["rotate"]
@@ -1008,7 +1015,7 @@ class recAdjust:
                         r.setError(" binType error: {}".format(self.visionBinType))
                         ctu.vision_status = MoveStatus.FAILED
                         self.status = MoveStatus.FAILED
-                    ddtheta = dtheta - ctu.state["rotate"]["position"]
+                    ddtheta = normalize_theta(dtheta - ctu.state["rotate"]["position"])
                     if abs(ddtheta) < 0.14:
                         self.dtheta = dtheta
                         self.dz = dz
