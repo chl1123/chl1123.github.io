@@ -334,7 +334,7 @@ class Module(BasicModule):
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 40.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")        
         self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default = -1, maxValue = 100, minValue = -1, unit = "", comment = "货叉上限位DI")
         self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default = -1, maxValue = 100, minValue = -1, unit = "", comment = "货叉下限位DI")
-        self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=375.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最低高度")
+        self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=380.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最低高度")
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -637,7 +637,7 @@ class Module(BasicModule):
         res = self.h.visionRecord(r)
         self.state["record_vision_res"] = res    
         self.h.reset_visionRecord()        
-    def vision(self, r, vtype, binType, binModel):
+    def vision(self, r, vtype, binType, binModel, recgo = False):
         if self.vision_status is not MoveStatus.FINISHED:
             self.vision_status = MoveStatus.RUNNING
             if "vision" in self.state:
@@ -746,7 +746,8 @@ class Module(BasicModule):
                                         return res
                                     else:
                                         self.vision_status = MoveStatus.FAILED
-                                        r.setError("rec no results. {}".format(json.dumps(res)))
+                                        if not recgo:
+                                            r.setError("rec no results. {}".format(json.dumps(res)))
         return dict()
     def getMarkerPos(self, r):
         self.operation_status = MoveStatus.RUNNING
@@ -843,6 +844,7 @@ class Module(BasicModule):
                         preGoods(self.low[int(self.task["selfPosition"])], 0),
                         getGoods(self.stretchDist),
                         prePutGoods(self.task["lift"], self.task["rotate"]),
+                        recBox(),
                         recAdjust(self.task["visionType"], self.task["visionBinType"], 
                                   self.task.get("binModel", "plasticbox"), self.rec_offz_box, self.rec_offz_shelf),
                         putGoods(self.task["stretch"])
@@ -955,6 +957,29 @@ class Module(BasicModule):
         r.logDebug(str_state)
 
 
+class recBox:
+    def __init__(self):
+        self.status = MoveStatus.NONE
+        self.visionType = "box"
+        self.visionBinType = "code"
+        self.binModel = "plasticbox"
+    def reset(self, ctu):
+        ctu.vision_status = MoveStatus.NONE
+        self.status = MoveStatus.RUNNING   
+    def run(self, r, ctu):
+        self.status = MoveStatus.RUNNING
+        if ctu.vision_status is not MoveStatus.FINISHED:
+            res = ctu.vision(r, self.visionType, self.visionBinType, self.binModel, True)
+            if ctu.vision_status == MoveStatus.FAILED:
+                self.status = MoveStatus.FINISHED
+                ctu.vision_status = MoveStatus.FINISHED
+            elif ctu.vision_status == MoveStatus.FINISHED:
+                self.status = MoveStatus.FAILED
+                r.setError("The shelf has box. Cannot unLoad!!")
+        cur_state = dict()
+        cur_state["status"] = self.status
+        ctu.state["recBox"] = cur_state
+        
 class recAdjust:
     def __init__(self, visionType, visionBinType, binModel, rec_offz_box, rec_offz_shelf):
         self.status = MoveStatus.NONE
