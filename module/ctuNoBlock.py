@@ -342,8 +342,10 @@ class Module(BasicModule):
         self.vision_status = MoveStatus.NONE
         self.indicator_status = MoveStatus.NONE
         self.operation_status = MoveStatus.NONE
-        self.getMarkerPos_status = 0 # 0识别获得了位姿， 1获得id
+        self.getMarkerPos_status = 0 # 0识别获得了位姿， 1获得id, 2保持结果TotTime
         self.getMarkerPos_data = dict()
+        self.getMarkerPosTotTime = 5.0
+        self.getMarkerStartTime = time.time()
         self.task_list = []
         self.task_id = 0
         self.state = dict()
@@ -761,6 +763,11 @@ class Module(BasicModule):
                     self.getMarkerPos_data["theta"] = res["theta"]
                     self.getMarkerPos_data["id"] = ""
                     self.getMarkerPos_status = 1
+                    self.getMarkerStartTime = time.time()
+            elif self.getMarkerPos_status is 1:
+                dt = time.time() - self.getMarkerStartTime
+                if dt > self.getMarkerPosTotTime:
+                    self.getMarkerPos_status =2
                     self.operation_status = MoveStatus.FINISHED
         self.state["MarkerPos"] = self.getMarkerPos_data 
 
