@@ -549,16 +549,16 @@ class SimModule:
     #     """
     #     print("func: {0} ".format(get_function_name()))
     @check
-    def switchMap(self, map:str)->int:
+    def switchMap(self, map:str, switchPoint:str)->int:
         """切换地图
 
         Args:
             map (str): 地图名称
-        
+            switchPoint (str): 重定位点位
         Returns:
             int: 2没有进行切换，1切换中，0切换成功，-1不存在地图，-2切换失败
         """
-        print("func: {0}: {1}".format(get_function_name(), map))
+        print("func: {0}: {1} {2}".format(get_function_name(), map, switchPoint))
         return 0
     @check
     def getTriggleScriptName(self)->str:

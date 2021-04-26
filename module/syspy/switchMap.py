@@ -11,6 +11,12 @@ from rbkSim import SimModule
         "tips": "地图名称，无需后缀",
         "unit": "",
         "type": "string"
+    },
+    "switchPoint":{
+        "value":"",
+        "tips":"切换地图后重定位的点位",
+        "unit":"",
+        "type":"string"
     }
 }
 ####END DEFAULT ARGS####
@@ -23,6 +29,7 @@ class Module(BasicModule):
         self.init = True    
         self.status = MoveStatus.NONE
         self.map = ""
+        self.switchPoint = ""
     def run(self, r:SimModule,args):
         """主函数，每个运行周期都会执行run函数
 
@@ -38,9 +45,10 @@ class Module(BasicModule):
         self.status = MoveStatus.RUNNING
         if self.init:
             self.map = args.get("map","")
+            self.switchPoint = args.get("switchPoint","")
             self.init = False
         if self.map is not "":
-            map_status = r.switchMap(self.map)
+            map_status = r.switchMap(self.map, self.switchPoint)
             if map_status is 0:
                 self.status = MoveStatus.FINISHED
             elif map_status is -1:
@@ -60,5 +68,5 @@ if __name__ == '__main__':
     import rbkSim
     r = rbkSim.SimModule()
     m = Module(r,None)
-    data = {"map":"hello"}
+    data = {"map":"hello", "switchPoint":"LM1"}
     print(m.run(r, data))
