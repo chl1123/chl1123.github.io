@@ -42,14 +42,14 @@ class testBattery(bb.batteryBase):
                     temperature = temp16_2
                 percetage = cu.merge2bytesTo1(self.data_buff[83],self.data_buff[84]) * 0.01
                 #创建一个电池信息的proto对象
-                battery_info = self.battery_utility.createBatteryMessage() 
+                battery_info = self.createBatteryMessage() 
                 #解析后塞入相应字段
                 battery_info.percetage = percetage  
                 battery_info.temperature = temperature
                 battery_info.charge_current = current
                 battery_info.charge_voltage = voltage
                 #发步电池数据给rbk
-                self.battery_utility.publish(battery_info)  
+                self.publish(battery_info)  
                 #清空缓冲区列表
                 self.data_buff = []
                 #标记该次数据接收完成且正确
@@ -69,7 +69,7 @@ class testBattery(bb.batteryBase):
             #判断是否收到整包
             if self.msg_ok:
                 #清除超时错误,重置标志位
-                self.battery_utility.clearTimeout()
+                self.clearTimeout()
                 self.msg_ok = False
                 connect_timeout_t.reset()
             #等待是否收到整包,若超时则报超时,并进入下次循环

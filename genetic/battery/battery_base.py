@@ -5,6 +5,9 @@ import lib.pass_through as pt
 import lib.rpc_client as rc
 import lib.rpc_server as rs
 
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/battery')
+import message_battery_pb2
+
 DEFAULT_PASS_ADDR = "ipc:///tmp/python2dsp_udp.ipc"
 DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_rpc.ipc"
 CODE_BATT_ERRO   = 54001
