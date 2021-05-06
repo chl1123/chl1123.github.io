@@ -39,12 +39,11 @@ class Module(BasicModule):
         if self.init:
             self.task = args.get("task","")
             self.init = False
+        r.logInfo(str(type(self.task)))
         if type(self.task) == str:
-            r.logDebug('str')
-            r.addMoveTask(str(self.task))
-        elif type(self.task) == dict:
-            r.logDebug('dict')
-            r.addMoveTask(json.dumps(self.task))
+            r.addMoveTaskList(str(self.task))
+        elif type(self.task) == dict or type(self.task) == list:
+            r.addMoveTaskList(json.dumps(self.task))
         else:
             r.setError('args error {}'.format(json.dumps(args)))
         self.status = MoveStatus.FINISHED
@@ -54,5 +53,5 @@ if __name__ == '__main__':
     import rbkSim
     r = rbkSim.SimModule()
     m = Module(r,None)
-    data = {"task":{"id":"LM1","source_id":"LM2"}}
+    data = {"task":[{"id":"LM1","source_id":"LM2","task_id":"1"}]}
     print(m.run(r, data))
