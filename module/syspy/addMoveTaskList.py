@@ -6,11 +6,11 @@ from rbkSim import SimModule
 """
 ####BEGIN DEFAULT ARGS####
 {
-    "task": {
+    "move_task_list": {
         "value": "",
         "tips": "任务",
         "unit": "",
-        "type": "string"
+        "type": "array"
     }
 }
 ####END DEFAULT ARGS####
@@ -37,7 +37,7 @@ class Module(BasicModule):
             return self.status
         self.status = MoveStatus.RUNNING
         if self.init:
-            self.task = args.get("task","")
+            self.task = args.get("move_task_list","")
             self.init = False
         r.logInfo(str(type(self.task)))
         if type(self.task) == str:
@@ -53,5 +53,5 @@ if __name__ == '__main__':
     import rbkSim
     r = rbkSim.SimModule()
     m = Module(r,None)
-    data = {"task":[{"id":"LM1","source_id":"LM2","task_id":"1"}]}
+    data = {"move_task_list":[{"id":"LM1","source_id":"LM2","task_id":"1"}]}
     print(m.run(r, data))
