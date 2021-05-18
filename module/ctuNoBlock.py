@@ -1024,6 +1024,8 @@ class recAdjust:
         self.go_args = dict()
         self.adjust_count = 0
         self.ok = False
+        self.ok_x = 0.012
+        self.ok_theta = 0.008
         self.first_adj = True
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
@@ -1067,12 +1069,18 @@ class recAdjust:
                             if self.go_args["x"] < 0:
                                 self.go_args["backMode"] = 1
                             self.rot_theta = self.dtheta
-                            ok_x = 0.012
-                            ok_theta = 0.02
-                            if self.visionBinType == "markerless" or self.visionType == "shelf":
-                                ok_x = 0.02
-                                ok_theta = 0.035
-                            if abs(self.go_args["x"]) < ok_x and abs(ddtheta) < ok_theta and not self.first_adj:
+                            self.ok_x = 0.012
+                            self.ok_theta = 0.008
+                            if self.visionBinType == "markerless":
+                                self.ok_x = 0.02
+                                self.ok_theta = 0.035
+                            elif self.visionType == "shelf" and self.rec_count + 3 > self.max_rec_times:
+                                self.ok_x = 0.02
+                                self.ok_theta = 0.035
+                            elif self.rec_count + 3 > self.max_rec_times:
+                                self.ok_x = 0.012
+                                self.ok_theta = 0.02
+                            if abs(self.go_args["x"]) < self.ok_x and abs(ddtheta) < self.ok_theta and not self.first_adj:
                                 self.ok = True 
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
@@ -1150,6 +1158,9 @@ class recAdjust:
         cur_state["visionType"] = self.visionType
         cur_state["binType"] = self.visionBinType
         cur_state["status"] = self.status
+        cur_state["ok"] = self.ok
+        cur_state["ok_x"] = self.ok_x
+        cur_state["ok_theta"] = self.ok_theta
         ctu.state["recAdjStatus"] = cur_state
 
 class preGoods:
