@@ -310,6 +310,7 @@ class Module(BasicModule):
         self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default = 0.5, maxValue = 10.0, minValue = 0.0, unit = "mm", comment = "lift_reach_dist")
         self.rotate_reach_angle = p.loadParam("rotate_reach_angle", type="float", default = 0.01, maxValue = 10.0, minValue = 0.0, unit = "rad", comment = "rotate_reach_angle")
         self.stretch_reach_dist = p.loadParam("stretch_reach_dist", type="float", default = 0.5, maxValue = 10.0, minValue = 0.0, unit = "mm", comment = "stretch_reach_dist")
+        self.maxStretchDist = p.loadParam("max_stretch_dist", type="float", default=920.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "stretch_max_dist")
         self.init = True
         self.task = dict()
         self.low = dict({0:740, 1:1130, 2:1520, 3:1910, 4:2300}) #mm
@@ -590,6 +591,11 @@ class Module(BasicModule):
                 r.setError("stretch pos is not zero cannot rotate.!!! {}".format(self.state["stretch"]["position"]))
         return False       
     def stretch(self, r, pos):
+        if pos > self.maxStretchDist:
+            r.setError("reach max stretch dist!")
+            self.stretch_status = MoveStatus.FAILED
+            self.stop(r)
+            return False
         self.stretch_status = MoveStatus.RUNNING
         if "stretch" in self.state:
             device_state = self.state["stretch"]
