@@ -1,12 +1,9 @@
 import sys
 from google.protobuf.json_format import MessageToJson
-
-import lib.pass_through as pt
-import lib.rpc_client as rc
-import lib.rpc_server as rs
-
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/battery')
-import message_battery_pb2
+import syspy.lib.pass_through as pt
+import syspy.lib.rpc_client as rc
+import syspy.lib.rpc_server as rs
+import syspy.battery.message_battery_pb2
 
 DEFAULT_PASS_ADDR = "ipc:///tmp/python2dsp_udp.ipc"
 DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_rpc.ipc"

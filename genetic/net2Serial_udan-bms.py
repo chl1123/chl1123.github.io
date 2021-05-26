@@ -2,11 +2,11 @@ import sys
 import os
 
 #导入电池基类
-import battery.battery_base as bb 
+import syspy.battery.battery_base as bb 
 #处理字符的工具类  
-import lib.char_utility as cu 
+import syspy.lib.char_utility as cu 
 #其他工具类,如定时器 
-import lib.misc_utility as mu 
+import syspy.lib.misc_utility as mu 
 
 class testBattery(bb.batteryBase):
     """
