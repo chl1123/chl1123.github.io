@@ -99,7 +99,7 @@ import syspy.goPath as goPath
     "operation":{
         "value": "wait",
         "default_value":[
-        "load","unload","change","zero","wait","getMarkerPos"
+        "load","unload","change","zero","wait","getMarkerPos","put"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -118,6 +118,13 @@ import syspy.goPath as goPath
         "max_value":2,
         "min_value":0       
     },
+    "putPosition":{
+        "value": 0,
+        "tips": "pos",
+        "type": "int",
+        "max_value":2,
+        "min_value":0       
+    },    
     "changePosition1":{
         "value": 0,
         "tips": "pos",
@@ -406,6 +413,13 @@ class Module(BasicModule):
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED  
+            elif "operation" in self.task and self.task["operation"] == "put":
+                if "putPosition" in self.task:
+                    self.vision_status = MoveStatus.FINISHED
+                    self.putPos(r)
+                else:
+                    r.setError("task is wrong : {}".format(json.dumps(self.task)))
+                    self.operation_status = MoveStatus.FAILED                
             elif "operation" in self.task and self.task["operation"] == "zero":
                 self.vision_status = MoveStatus.FINISHED
                 self.zero(r)
@@ -897,6 +911,21 @@ class Module(BasicModule):
         cur_state["task_id"] = self.task_id
         self.state["change"] = cur_state  
 
+    def putPos(self,r):
+        if self.operation_status == MoveStatus.NONE:
+            self.operation_status = MoveStatus.RUNNING
+            self.task_list = [
+                putGoodsS2(),
+                prePutGoods(self.high[int(self.task["putPosition"])], 0),
+                putGoods(self.stretchDist)
+            ]
+            self.task_id = 0
+        else:
+            self.runTakList(r)
+        cur_state = dict()
+        cur_state["state"] = self.operation_status
+        cur_state["task_id"] = self.task_id
+        self.state["change"] = cur_state  
     def zero(self,r):
         self.operation_status = MoveStatus.RUNNING
         if self.finger_status is not MoveStatus.FINISHED:
