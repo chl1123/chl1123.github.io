@@ -21,14 +21,15 @@ class testBattery(bb.batteryBase):
         self.msg_ok = False 
      
         self.buff_type=''
-        # Create a protocol object with battery information
-        self.battery_info = self.createBatteryMessage()
+        
         self.rec_flag=[False,False,False]
 
     def handleData(self, msg:list):
         """
         Handle the recive data
         """
+        # Create a protocol object with battery information
+        self.battery_info = self.createBatteryMessage()
         msghex=msg.hex()
         # change data type to init
         self.data_buff.append(int(msghex,16))
