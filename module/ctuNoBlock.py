@@ -145,6 +145,18 @@ import syspy.goPath as goPath
         "type":"int",
         "max_value":1,
         "min_value":1
+    },
+    "unLoadHeight":{
+        "value": 0,
+        "tips": "rec_offz_shelf",
+        "type": "double",
+        "unit": "mm"
+    },
+    "loadHeight":{
+        "value": 0,
+        "tips": "rec_offz_box",
+        "type": "double",
+        "unit": "mm"
     }
 }
 ####END DEFAULT ARGS####
@@ -360,6 +372,8 @@ class Module(BasicModule):
         self.goPath = goPath.Module(r, args)
         self.waitVision = waitVision()
         self.waitVision.status = MoveStatus.NONE
+        self.unLoadHeight = self.rec_offz_shelf
+        self.loadHeight = self.rec_offz_box
         self.h.connect()
     def run(self, r:SimModule,args):
         if r.errorExits(52111):
@@ -369,6 +383,10 @@ class Module(BasicModule):
         if self.init:
             self.init = False
             self.task = args
+            if "unLoadHeight" in self.task:
+                self.unLoadHeight = self.task["unLoadHeight"]
+            if "loadHeight" in self.task:
+                self.loadHeight = self.task["loadHeight"]
         if not self.h.isconnect:
             self.state["init"] = self.h.initDevice(r)
             self.state["warning"] = "ctu is connecting!!!!"
@@ -818,7 +836,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                          self.task.get("binModel", "plasticbox"), self.rec_offz_box, self.rec_offz_shelf)
+                          self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight)
             ]
             self.task_id = 0
         else:
@@ -837,13 +855,13 @@ class Module(BasicModule):
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
                         recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                                  self.task.get("binModel", "plasticbox"), self.rec_offz_box, self.rec_offz_shelf),
+                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
                         getGoods(self.task["stretch"]),
                         prePutGoods(self.high[int(self.task["selfPosition"])],0),
                         putGoods(self.stretchDist)
                     ]
                 else:
-                    r.setError("task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
+                    r.setError("task is wrong in load with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
             else:
                 self.vision_status = MoveStatus.FINISHED
@@ -873,7 +891,7 @@ class Module(BasicModule):
                         prePutGoods(self.task["lift"], self.task["rotate"]),
                         recBox(),
                         recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                                  self.task.get("binModel", "plasticbox"), self.rec_offz_box, self.rec_offz_shelf),
+                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
                         putGoods(self.task["stretch"])
                     ]
                 else:
@@ -1023,7 +1041,7 @@ class recBox:
         ctu.state["recBox"] = cur_state
         
 class recAdjust:
-    def __init__(self, visionType, visionBinType, binModel, rec_offz_box, rec_offz_shelf):
+    def __init__(self, visionType, visionBinType, binModel, loadHeight, unLoadHeight):
         self.status = MoveStatus.NONE
         self.visionType = visionType
         self.visionBinType = visionBinType
@@ -1036,8 +1054,8 @@ class recAdjust:
         self.max_adjust_time = p.loadParam("max_adjust_time", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "最多调整次数")
         self.rec_shelf_shift = p.loadParam("rec_shelf_shift", type="float", default = 10.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架时相机距离二维码的z方向偏差")
         self.rec_count = 0
-        self.offz_box = rec_offz_box
-        self.offz_shelf = rec_offz_shelf
+        self.offz_box = loadHeight
+        self.offz_shelf = unLoadHeight
         self.lift_pos = 0
         self.rot_theta = 0
         self.go_args = dict()
