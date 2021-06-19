@@ -1060,7 +1060,7 @@ class recAdjust:
         self.adjust_count = 0
         self.ok = False
         self.ok_x = 0.012
-        self.ok_theta = 0.008
+        self.ok_theta = 0.013
         self.first_adj = True
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
@@ -1105,14 +1105,14 @@ class recAdjust:
                                 self.go_args["backMode"] = 1
                             self.rot_theta = self.dtheta
                             self.ok_x = 0.012
-                            self.ok_theta = 0.008
+                            self.ok_theta = 0.013
                             if self.visionBinType == "markerless":
                                 self.ok_x = 0.02
                                 self.ok_theta = 0.035
-                            elif self.visionType == "shelf" and self.rec_count + 3 > self.max_rec_times:
+                            elif self.visionType == "shelf" and self.adjust_count + 3 > self.max_adjust_time:
                                 self.ok_x = 0.02
                                 self.ok_theta = 0.035
-                            elif self.rec_count + 3 > self.max_rec_times:
+                            elif self.adjust_count + 3 > self.max_adjust_time:
                                 self.ok_x = 0.012
                                 self.ok_theta = 0.02
                             if abs(self.go_args["x"]) < self.ok_x and abs(ddtheta) < self.ok_theta and not self.first_adj:
