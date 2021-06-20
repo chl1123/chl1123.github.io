@@ -518,6 +518,7 @@ class Module(BasicModule):
                                 self.vision_status == MoveStatus.FAILED or \
                                     self.operation_status == MoveStatus.FAILED:
                                     self.status = MoveStatus.FAILED
+                                    self.stop(r)
             elif self.lift_status == MoveStatus.FINISHED and \
                 self.rotate_status == MoveStatus.FINISHED and \
                     self.stretch_status == MoveStatus.FINISHED and \
@@ -553,7 +554,7 @@ class Module(BasicModule):
         except Exception as e:
             r.logDebug("Other error in print hairou state")
         return self.status.value
-    def lift(self, r, height):
+    def lift(self, r, height, clear_error = False):
         self.lift_status = MoveStatus.RUNNING
         if height < self.minLiftHeight:
             r.logDebug("lift {} is set to {}".format(height, self.minLiftHeight))
@@ -574,12 +575,10 @@ class Module(BasicModule):
             device_state = self.state["lift"]
             if upLimit and device_state["position"] < height:
                 r.setError("fork upLimit DI is True. Cannot up!")
-                self.stop(r)
                 self.lift_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
             elif downLimit and device_state["position"] > height:
                 r.setError("fork downLimit DI is True. Cannot down!")
-                self.stop(r)
                 self.lift_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
             elif "stretch" in self.state and self.state["stretch"]["position"] < 10:
@@ -590,19 +589,27 @@ class Module(BasicModule):
                             self.h.reset_liftPos()
                             return True
                 if "state" in device_state:
-                    if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
+                    if device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.liftReset(r)
                         self.h.reset_liftPos()
                         self.state["res"] = res
                     elif device_state["state"] == Hairou.ModuleState.IDLE:
                         res = self.h.liftPos(height,r)
                         self.state["res"] = res
+                    elif device_state["state"] == Hairou.ModuleState.ERROR:
+                        if clear_error:
+                            res = self.h.liftReset(r)
+                            self.h.reset_liftPos()
+                            self.state["res"] = res
+                        else:
+                            r.setError("Lift has error. Please zero the machine!")
+                            self.stretch_status = MoveStatus.FAILED                          
             else:
                 r.setError("stretch pos is not zero cannot lift.!!! {}".format(self.state["stretch"]["position"]))
                 self.lift_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
         return False
-    def rotate(self, r, theta):
+    def rotate(self, r, theta, clear_error = False):
         self.rotate_status = MoveStatus.RUNNING
         theta = normalize_theta(theta)
         if theta < -3.0:
@@ -617,23 +624,30 @@ class Module(BasicModule):
                             self.h.reset_rotateAngle()
                             return True
                 if "state" in device_state:
-                    if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
+                    if device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.rotateReset(r)
                         self.h.reset_rotateAngle()
                         self.state["res"] = res
                     elif device_state["state"] == Hairou.ModuleState.IDLE:
                         res = self.h.rotateAngle(theta,r)
                         self.state["res"] = res
+                    elif device_state["state"] == Hairou.ModuleState.ERROR:
+                        if clear_error:
+                            res = self.h.rotateReset(r)
+                            self.h.reset_rotateAngle()
+                            self.state["res"] = res
+                        else:
+                            r.setError("Rotate has error. Please zero the machine!")
+                            self.stretch_status = MoveStatus.FAILED                           
             else:
                 self.rotate_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
                 r.setError("stretch pos is not zero cannot rotate.!!! {}".format(self.state["stretch"]["position"]))
         return False       
-    def stretch(self, r, pos):
+    def stretch(self, r, pos, clear_error = False):
         if pos > self.maxStretchDist:
             r.setError("reach max stretch dist!")
             self.stretch_status = MoveStatus.FAILED
-            self.stop(r)
             return False
         self.stretch_status = MoveStatus.RUNNING
         if "stretch" in self.state:
@@ -645,13 +659,21 @@ class Module(BasicModule):
                         self.h.reset_stretchPos()
                         return True
             if "state" in device_state:
-                if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
+                if device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.stretchReset(r)
                     self.h.reset_stretchPos()
                     self.state["res"] = res
                 elif device_state["state"] == Hairou.ModuleState.IDLE:
                     res = self.h.stretchPos(pos,r)
                     self.state["res"] = res
+                elif device_state["state"] == Hairou.ModuleState.ERROR:
+                    if clear_error:
+                        res = self.h.stretchReset(r)
+                        self.h.reset_stretchPos()
+                        self.state["res"] = res
+                    else:
+                        r.setError("Stretch has error. Please zero the machine!")
+                        self.stretch_status = MoveStatus.FAILED      
         return False 
     def checkFingerStatus(self,r, state):
         if "finger" in self.state:
@@ -675,7 +697,7 @@ class Module(BasicModule):
             r.setError(f"No finger in message! Ctu cannot lift or rotate or stretch!")
             self.finger_status = MoveStatus.FAILED
             return False            
-    def finger(self, r, pos):
+    def finger(self, r, pos, clear_error = False):
         self.finger_status = MoveStatus.RUNNING
         if "finger" in self.state:
             device_state = self.state["finger"]
@@ -698,13 +720,21 @@ class Module(BasicModule):
                                 self.h.reset_fingerPos()
                                 return True                    
             if "state" in device_state:
-                if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
+                if  device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.fingerReset(r)
                     self.h.reset_fingerPos()
                     self.state["res"] = res
                 elif device_state["state"] == Hairou.ModuleState.IDLE:
                     res = self.h.fingerPos(pos,r)
                     self.state["res"] = res
+                elif device_state["state"] == Hairou.ModuleState.ERROR:
+                    if clear_error:
+                        res = self.h.fingerReset(r)
+                        self.h.reset_fingerPos()   
+                        self.state["res"] = res  
+                    else:
+                        r.setError("Finger has error. Please zero the machine!")
+                        self.finger_status = MoveStatus.FAILED
         return False
     def record_vision(self, r):
         res = self.h.visionRecord(r)
@@ -982,16 +1012,16 @@ class Module(BasicModule):
         if self.finger_status is not MoveStatus.FINISHED:
             self.h.visionReset(r)
             self.h.fingerReset(r)
-            self.finger(r, 0)
+            self.finger(r, 0, True)
         elif self.stretch_status is not MoveStatus.FINISHED:
             self.h.stretchReset(r)
-            self.stretch(r,0)
+            self.stretch(r,0, True)
         elif self.lift_status is not MoveStatus.FINISHED:
             self.h.liftReset(r)
-            self.lift(r, 385)
+            self.lift(r, 385, True)
         elif self.rotate_status is not MoveStatus.FINISHED:
             self.h.rotateReset(r)
-            self.rotate(r, 0)
+            self.rotate(r, 0, True)
         else:
             self.operation_status = MoveStatus.FINISHED
     def stop(self,r):
