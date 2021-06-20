@@ -541,6 +541,17 @@ class Module(BasicModule):
         str_state = json.dumps(self.state)
         r.setInfo(str_state)
         r.logDebug(str_state)
+        try:
+            r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
+            self.state["lift"]["position"],self.state["lift"]["state"], self.state["lift"]["speed"],
+            self.state["rotate"]["position"],self.state["rotate"]["state"], self.state["rotate"]["speed"],
+            self.state["stretch"]["position"],self.state["stretch"]["state"], self.state["stretch"]["speed"],
+            self.state["finger"]["leftStatus"],self.state["finger"]["rightStatus"], self.state["finger"]["state"],
+            self.state["vision"]["state"]))
+        except KeyError as e:
+            r.logDebug("KeyError: "+str(e))
+        except Exception as e:
+            r.logDebug("Other error in print hairou state")
         return self.status.value
     def lift(self, r, height):
         self.lift_status = MoveStatus.RUNNING
@@ -574,12 +585,10 @@ class Module(BasicModule):
             elif "stretch" in self.state and self.state["stretch"]["position"] < 10:
                 if "position" in device_state and "state" in device_state:
                     if abs(device_state["position"] - height) < self.lift_reach_dist  \
-                        and device_state["state"] != Hairou.ModuleState.ERROR \
-                            and device_state["state"] != Hairou.ModuleState.INIT \
-                                and device_state["state"] != Hairou.ModuleState.RESET:
-                                self.lift_status = MoveStatus.FINISHED
-                                self.h.reset_liftPos()
-                                return True
+                        and device_state["state"] == Hairou.ModuleState.IDLE:
+                            self.lift_status = MoveStatus.FINISHED
+                            self.h.reset_liftPos()
+                            return True
                 if "state" in device_state:
                     if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.liftReset(r)
@@ -603,12 +612,10 @@ class Module(BasicModule):
                 device_state = self.state["rotate"]
                 if "position" in device_state and "state" in device_state:
                     if abs(normalize_theta(device_state["position"] - theta)) < self.rotate_reach_angle \
-                        and device_state["state"] != Hairou.ModuleState.ERROR \
-                            and device_state["state"] != Hairou.ModuleState.INIT \
-                                and device_state["state"] != Hairou.ModuleState.RESET:
-                                self.rotate_status = MoveStatus.FINISHED
-                                self.h.reset_rotateAngle()
-                                return True
+                        and device_state["state"] == Hairou.ModuleState.IDLE:
+                            self.rotate_status = MoveStatus.FINISHED
+                            self.h.reset_rotateAngle()
+                            return True
                 if "state" in device_state:
                     if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.rotateReset(r)
@@ -633,12 +640,10 @@ class Module(BasicModule):
             device_state = self.state["stretch"]
             if "position" in device_state and "state" in device_state:
                 if abs(device_state["position"] - pos) < self.stretch_reach_dist \
-                    and device_state["state"] != Hairou.ModuleState.ERROR \
-                        and device_state["state"] != Hairou.ModuleState.INIT \
-                            and device_state["state"] != Hairou.ModuleState.RESET:
-                            self.stretch_status = MoveStatus.FINISHED
-                            self.h.reset_stretchPos()
-                            return True
+                    and device_state["state"] == Hairou.ModuleState.IDLE:
+                        self.stretch_status = MoveStatus.FINISHED
+                        self.h.reset_stretchPos()
+                        return True
             if "state" in device_state:
                 if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.stretchReset(r)
@@ -647,7 +652,29 @@ class Module(BasicModule):
                 elif device_state["state"] == Hairou.ModuleState.IDLE:
                     res = self.h.stretchPos(pos,r)
                     self.state["res"] = res
-        return False    
+        return False 
+    def checkFingerStatus(self,r, state):
+        if "finger" in self.state:
+            device_state = self.state["finger"]
+            if device_state.get("state",-1) != Hairou.ModuleState.IDLE:
+                r.setError("Finger status is not idle. Ctu cannot lift or rotate or stretch!")
+                self.finger_status = MoveStatus.FAILED
+                return False
+            if device_state.get("leftStatus",-1) != device_state.get("rightStatus",-1):
+                r.setError("Finger left and right status is not same. Ctu cannot  lift or rotate or stretch! {}, {}".format(
+                    device_state.get("leftStatus",-1), device_state.get("rightStatus",-1)
+                ))
+                self.finger_status = MoveStatus.FAILED
+                return False
+            if abs(device_state.get("leftStatus",-1)- state) > 0.1 \
+            or abs(device_state.get("rightStatus",-1) - state) > 0.1:
+                r.setError(f"Finger left and right status is not right! Ctu cannot lift or rotate or stretch! {state}")
+                self.finger_status = MoveStatus.FAILED
+                return False
+        else:
+            r.setError(f"No finger in message! Ctu cannot lift or rotate or stretch!")
+            self.finger_status = MoveStatus.FAILED
+            return False            
     def finger(self, r, pos):
         self.finger_status = MoveStatus.RUNNING
         if "finger" in self.state:
@@ -656,11 +683,17 @@ class Module(BasicModule):
                     and device_state["state"] != Hairou.ModuleState.ERROR \
                         and device_state["state"] != Hairou.ModuleState.INIT \
                             and device_state["state"] != Hairou.ModuleState.RESET:
-                            if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1:
+                            if abs(pos - 1) < 0.1 \
+                            and abs(device_state["leftStatus"] - 1) < 0.1 \
+                            and abs(device_state["rightStatus"] - 1) < 0.1 \
+                            and device_state["state"] == Hairou.ModuleState.IDLE:
                                 self.finger_status = MoveStatus.FINISHED
                                 self.h.reset_fingerPos()
                                 return True
-                            elif abs(pos) < 0.1 and abs(device_state["leftStatus"]) < 0.1 and abs(device_state["rightStatus"]) < 0.1:
+                            elif abs(pos) < 0.1 \
+                            and abs(device_state["leftStatus"]) < 0.1 \
+                            and abs(device_state["rightStatus"]) < 0.1 \
+                            and device_state["state"] == Hairou.ModuleState.IDLE:
                                 self.finger_status = MoveStatus.FINISHED
                                 self.h.reset_fingerPos()
                                 return True                    
@@ -1249,6 +1282,7 @@ class getGoodsS1:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, self.stretchDist)
+            ctu.checkFingerStatus(r,1)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 0)
         else:
@@ -1264,6 +1298,7 @@ class getGoodsS2:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, 0)
+            ctu.checkFingerStatus(r,0)
         else:
             self.status = MoveStatus.FINISHED  
 
@@ -1323,6 +1358,7 @@ class putGoodsS1:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, self.stretchDist)
+            ctu.checkFingerStatus(r,0)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 1)
         else:
@@ -1420,6 +1456,21 @@ if __name__ == '__main__':
     print("box in world: ", out)      
     print("box in agv: ", Tagv2box[0][3],Tagv2box[1][3],angle_agv)
 
+    res = {"errorState": [], "finger": {"rightStatus": 1, "state": 2}, "lastUpdate": 1617774196313, "lift": {"position": 1150.08, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": 3.13999, "speed": 0.00753982, "state": 2}, "seqNum": 97, "stretch": {"position": 0.00202406, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 1080, "operation": "load", "recAdjust": 1, "rotate": 3.14, "selfPosition": 0, "stretch": 920, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 6, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.009344127654362655, 0.9982044929080618, 0.05916483428979484, 0.02896389952587754, 0.9998971162527275, 0.009971164304003799, -0.010311779279186539, -0.008335600717951527, -0.010883206690082945, 0.059062392608007996, -0.9981949657214058, 0.39888548170899063, 0.0, 0.0, 0.0, 1.0], "seqNum": 6, "vout": {"yaw": -0.6236013469464964, "pitch": 0.5353868690333142, "roll": -3.3920243909026055, "dx": 0.6608854817089906, "dy": 0.008335600717951527, "dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05, "dtheta": -0.01088389672408785, "goaPathStatus": 0, "lift_pos": 1070.0438995258776, "go_args": {"coordinate": "robot", "x": -1.3359074694907491e-05, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": 3.1291061032759124, "adj_count": 1, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
+    try:
+        r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
+        res["lift"]["position"],res["lift"]["state"], res["lift"]["speed"],
+        res["rotate"]["position"],res["rotate"]["state"], res["rotate"]["speed"],
+        res["stretch"]["position"],res["stretch"]["state"], res["stretch"]["speed"],
+        res["finger"]["leftStatus"],res["finger"]["rightStatus"], res["finger"]["state"],
+        res["vision"]["state"]))   
+    except KeyError as e:
+        print("KeyError: "+str(e))
+    except Exception as e:
+        print("others error")
+    
+    print(m.checkFingerStatus(r,1))
+    print("DONE")
 
     # yaw = (yaw+math.pi/2)/math.pi*180.0
     # pitch = pitch/math.pi*180
