@@ -18,6 +18,14 @@ import syspy.goPath as goPath
         "min_value":380,
         "unit": "mm"
     },
+    "recBoxLift":{
+        "value": 0,
+        "tips": "卸货时，识别料箱时，货叉的高度",
+        "type": "int",
+        "max_value":1850,
+        "min_value":380,
+        "unit": "mm"        
+    },
     "rotate": {
         "value": 0,
         "tips": "theta",
@@ -751,9 +759,15 @@ class Module(BasicModule):
                     self.vision_status = MoveStatus.FINISHED
                 else :
                     if "state" in device_state:
-                        if device_state["state"] == Hairou.ModuleState.ERROR or device_state["state"] == Hairou.ModuleState.INIT:
+                        if device_state["state"] == Hairou.ModuleState.INIT:
                             self.h.visionReset(r)
                             self.h.reset_visionReq()
+                        elif device_state["state"] == Hairou.ModuleState.ERROR:
+                            self.h.visionReset(r)
+                            self.h.reset_visionReq()
+                            self.vision_status = MoveStatus.FAILED
+                            if not recgo:
+                                r.setError("rec no results.")
                         elif device_state["state"] == Hairou.ModuleState.IDLE:
                             if self.waitVision.status == MoveStatus.NONE:
                                 self.waitVision.reset()
@@ -948,15 +962,27 @@ class Module(BasicModule):
                 if "visionType" in self.task and self.task["visionType"] == "shelf":
                     if "visionBinType" not in self.task:
                         self.task["visionBinType"] = "code"
-                    self.task_list = [
-                        preGoods(self.low[int(self.task["selfPosition"])], 0),
-                        getGoods(self.stretchDist),
-                        prePutGoods(self.task["lift"], self.task["rotate"]),
-                        recBox(),
-                        recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
-                        putGoods(self.task["stretch"])
-                    ]
+                    if "recBoxLift" in self.task:
+                        self.task_list = [
+                            preGoods(self.low[int(self.task["selfPosition"])], 0),
+                            getGoods(self.stretchDist),
+                            preRecBox(self.task["recBoxLift"], self.task["rotate"]),
+                            recBox(),
+                            prePutGoods(self.task["lift"], self.task["rotate"]),
+                            recAdjust(self.task["visionType"], self.task["visionBinType"], 
+                                    self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
+                            putGoods(self.task["stretch"])
+                        ]
+                    else:
+                        self.task_list = [
+                            preGoods(self.low[int(self.task["selfPosition"])], 0),
+                            getGoods(self.stretchDist),
+                            prePutGoods(self.task["lift"], self.task["rotate"]),
+                            recBox(),
+                            recAdjust(self.task["visionType"], self.task["visionBinType"], 
+                                    self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
+                            putGoods(self.task["stretch"])
+                        ]                        
                 else:
                     r.setError("task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -1357,6 +1383,24 @@ class getGoods:
         cur_state["task_id"] = self.task_id
         cur_state["status"] = self.status
         ctu.state["getGoods"] = cur_state
+
+class preRecBox:
+    def __init__(self, liftPos, rotAngle):
+        self.status = MoveStatus.NONE
+        self.liftPos = liftPos
+        self.rotAngle = rotAngle
+    def reset(self, ctu):
+        ctu.rotate_status = MoveStatus.NONE
+        ctu.lift_status = MoveStatus.NONE
+        self.status = MoveStatus.RUNNING
+    def run(self, r, ctu):
+        self.status = MoveStatus.RUNNING
+        if ctu.lift_status is not MoveStatus.FINISHED:
+            ctu.lift(r, self.liftPos)
+        if ctu.rotate_status is not MoveStatus.FINISHED:
+            ctu.rotate(r,self.rotAngle)
+        if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
+            self.status = MoveStatus.FINISHED      
 
 class prePutGoods:
     def __init__(self, liftPos, rotAngle):
