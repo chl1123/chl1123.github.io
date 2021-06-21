@@ -690,17 +690,17 @@ class Module(BasicModule):
                 r.setError("Finger status is not idle. Ctu cannot lift or rotate or stretch!")
                 self.finger_status = MoveStatus.FAILED
                 return False
-            if device_state.get("leftStatus",-1) != device_state.get("rightStatus",-1):
-                r.setError("Finger left and right status is not same. Ctu cannot  lift or rotate or stretch! {}, {}".format(
-                    device_state.get("leftStatus",-1), device_state.get("rightStatus",-1)
-                ))
-                self.finger_status = MoveStatus.FAILED
-                return False
-            if abs(device_state.get("leftStatus",-1)- state) > 0.1 \
-            or abs(device_state.get("rightStatus",-1) - state) > 0.1:
-                r.setError(f"Finger left and right status is not right! Ctu cannot lift or rotate or stretch! {state}")
-                self.finger_status = MoveStatus.FAILED
-                return False
+            # if device_state.get("leftStatus",-1) != device_state.get("rightStatus",-1):
+            #     r.setError("Finger left and right status is not same. Ctu cannot  lift or rotate or stretch! {}, {}".format(
+            #         device_state.get("leftStatus",-1), device_state.get("rightStatus",-1)
+            #     ))
+            #     self.finger_status = MoveStatus.FAILED
+            #     return False
+            # if abs(device_state.get("leftStatus",-1)- state) > 0.1 \
+            # or abs(device_state.get("rightStatus",-1) - state) > 0.1:
+            #     r.setError(f"Finger left and right status is not right! Ctu cannot lift or rotate or stretch! {state}")
+            #     self.finger_status = MoveStatus.FAILED
+            #     return False
         else:
             r.setError(f"No finger in message! Ctu cannot lift or rotate or stretch!")
             self.finger_status = MoveStatus.FAILED
