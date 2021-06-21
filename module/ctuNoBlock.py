@@ -1151,6 +1151,7 @@ class recAdjust:
         self.adjust_count = 0
         self.ok = False
         self.first_adj = True
+        self.last_ddtheta = 100
     def reset(self, ctu):
         ctu.vision_status = MoveStatus.NONE
         ctu.rotate_status = MoveStatus.NONE
@@ -1169,6 +1170,7 @@ class recAdjust:
         self.ok_x = 0.012
         self.ok_theta = 0.013
         self.first_adj = True
+        self.last_ddtheta = 100
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.vision_status is not MoveStatus.FINISHED:
@@ -1222,7 +1224,10 @@ class recAdjust:
                             elif self.adjust_count + 3 > self.max_adjust_time:
                                 self.ok_x = 0.012
                                 self.ok_theta = 0.02
-                            if abs(self.go_args["x"]) < self.ok_x and abs(ddtheta) < self.ok_theta and not self.first_adj:
+                            r.logDebug("[recAdjust][{}|{}|{}|{}|{}|{}]".format(
+                                self.go_args["x"],self.ok_x,ddtheta,self.ok_theta,self.last_ddtheta, self.first_adj))
+                            if (abs(ddtheta) < self.ok_theta or abs(ddtheta) > abs(self.last_ddtheta)) \
+                                and abs(self.go_args["x"]) < self.ok_x and not self.first_adj:
                                 self.ok = True 
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
@@ -1239,7 +1244,8 @@ class recAdjust:
                                 elif self.visionType == "box" and self.visionBinType == "code":
                                     self.lift_pos = self.lift_pos + self.dz * 1000
                                 elif self.visionType == "box" and self.visionBinType == "markerless":
-                                    ctu.lift_status = MoveStatus.FINISHED                           
+                                    ctu.lift_status = MoveStatus.FINISHED
+                            self.last_ddtheta = ddtheta                           
                     else:
                         ctu.record_vision(r)
                         r.setNotice(" yaw is too large: {}".format(res[method]["yaw"]))
