@@ -647,7 +647,34 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
         return 0
-
+    @check
+    def setGoodsShape(self, head:float, tail:float, width:float):
+        """设置货物形状，并且告诉rbk车上装载有货物了。
+           如果head,tail, width都小于等于0，则没有货物形状。
+           货物的0，0点与小车的0，0点一样
+        Args:
+            head (float): 货物头部长度
+            tail (float): 货物的尾部长度
+            width (float): 货物的宽度
+        Returns:
+        """
+        print("func: {0} {} {} {}".format(get_function_name(), head, tail, width))
+        return 0
+    @check
+    def hasGoods(self)->bool:
+        """获取身上是否有货物的状态
+        Returns:
+            bool: 是否有货物
+        """
+        print("func: {0}".format(get_function_name()))
+        return 0
+    @check
+    def clearGoodsShape(self)->bool:
+        """去除agv身上的状态
+        """
+        print("func: {0}".format(get_function_name()))
+        return 0   
+        
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
