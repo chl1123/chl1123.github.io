@@ -561,6 +561,33 @@ class Module(BasicModule):
             r.logDebug("KeyError: "+str(e))
         except Exception as e:
             r.logDebug("Other error in print hairou state")
+    
+        try:
+            if "forkDetect" in self.state :
+                log_key = "HaiRou_forkDetect"
+                log_str = ""
+                for fork in self.state["forkDetect"]:
+                    tmp_str = "{}|{}|{}|".format(fork["id"],fork["state"],fork["state"])
+                    log_str = log_str+tmp_str
+                r.logDebug("[{}][{}]".format(log_key, log_str))
+        except KeyError as e:
+            r.logDebug("KeyError: "+str(e))
+        except Exception as e:
+            r.logDebug("Other error in print hairou forkDetect state")
+    
+        try:
+            if "trays" in self.state:
+                log_key = "HaiRou_trays"
+                log_str = ""
+                for trays in self.state["trays"]:
+                    tmp_str = "{}|{}|{}|".format(trays["id"],trays["state"],trays["state"])
+                    log_str = log_str+tmp_str
+                r.logDebug("[{}][{}]".format(log_key, log_str))
+        except KeyError as e:
+            r.logDebug("KeyError: "+str(e))
+        except Exception as e:
+            r.logDebug("Other error in print hairou trays state")
+
         return self.status.value
     def lift(self, r, height, clear_error = False):
         self.lift_status = MoveStatus.RUNNING
@@ -762,9 +789,11 @@ class Module(BasicModule):
                         if device_state["state"] == Hairou.ModuleState.INIT:
                             self.h.visionReset(r)
                             self.h.reset_visionReq()
+                            self.waitVision.reset()
                         elif device_state["state"] == Hairou.ModuleState.ERROR:
                             self.h.visionReset(r)
                             self.h.reset_visionReq()
+                            self.waitVision.reset()
                             self.vision_status = MoveStatus.FAILED
                             if not recgo:
                                 r.setError("rec no results.")
@@ -1536,19 +1565,46 @@ if __name__ == '__main__':
     print("box in world: ", out)      
     print("box in agv: ", Tagv2box[0][3],Tagv2box[1][3],angle_agv)
 
-    res = {"errorState": [], "finger": {"rightStatus": 1, "state": 2}, "lastUpdate": 1617774196313, "lift": {"position": 1150.08, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": 3.13999, "speed": 0.00753982, "state": 2}, "seqNum": 97, "stretch": {"position": 0.00202406, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 1080, "operation": "load", "recAdjust": 1, "rotate": 3.14, "selfPosition": 0, "stretch": 920, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 6, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.009344127654362655, 0.9982044929080618, 0.05916483428979484, 0.02896389952587754, 0.9998971162527275, 0.009971164304003799, -0.010311779279186539, -0.008335600717951527, -0.010883206690082945, 0.059062392608007996, -0.9981949657214058, 0.39888548170899063, 0.0, 0.0, 0.0, 1.0], "seqNum": 6, "vout": {"yaw": -0.6236013469464964, "pitch": 0.5353868690333142, "roll": -3.3920243909026055, "dx": 0.6608854817089906, "dy": 0.008335600717951527, "dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05, "dtheta": -0.01088389672408785, "goaPathStatus": 0, "lift_pos": 1070.0438995258776, "go_args": {"coordinate": "robot", "x": -1.3359074694907491e-05, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": 3.1291061032759124, "adj_count": 1, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
+    res = {"errorState": [], "finger": {"leftStatus": 0, "rightStatus": 0, "state": 2}, "forkDetect": [{"binId": "", "id": 1, "state": 1, "type": 1}, {"binId": "", "id": 0, "state": 1, "type": 0}], "lastUpdate": 1624259373931, "lift": {"position": 1080.0, "speed": 0.548552, "state": 2}, "msgType": 10, "rotate": {"position": 3.14, "speed": 0.00167552, "state": 2}, "seqNum": 0, "stretch": {"position": -0.0, "speed": -0.0, "state": 2}, "trays": [{"binId": "", "id": 1, "state": 1, "type": 0}], "vision": {"state": 2}, "task": {"lift": 1080, "operation": "unload", "recAdjust": 1, "rotate": 3.14, "selfPosition": 1, "stretch": 920, "visionType": "shelf", "visionBinType": "code"}, "unload": {"state": 1, "task_id": 0}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 0, "indicator": 3, "vision": 0, "operation": 1, "status": 1}, "connect_error": "ctu recv error!!!"}
     try:
         r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
         res["lift"]["position"],res["lift"]["state"], res["lift"]["speed"],
         res["rotate"]["position"],res["rotate"]["state"], res["rotate"]["speed"],
         res["stretch"]["position"],res["stretch"]["state"], res["stretch"]["speed"],
         res["finger"]["leftStatus"],res["finger"]["rightStatus"], res["finger"]["state"],
-        res["vision"]["state"]))   
+        res["vision"]["state"]))
     except KeyError as e:
-        print("KeyError: "+str(e))
+        r.logDebug("KeyError: "+str(e))
     except Exception as e:
-        print("others error")
-    
+        r.logDebug("Other error in print hairou state")
+
+    try:
+        if "forkDetect" in res :
+            log_key = "HaiRou_forkDetect"
+            log_str = ""
+            for fork in res["forkDetect"]:
+                tmp_str = "{}|{}|{}|".format(fork["id"],fork["state"],fork["state"])
+                log_str = log_str+tmp_str
+            r.logDebug("[{}][{}]".format(log_key, log_str))
+    except KeyError as e:
+        r.logDebug("KeyError: "+str(e))
+    except Exception as e:
+        r.logDebug("Other error in print hairou forkDetect state")
+
+    try:
+        if "trays" in res:
+            log_key = "HaiRou_trays"
+            log_str = ""
+            for trays in res["trays"]:
+                tmp_str = "{}|{}|{}|".format(trays["id"],trays["state"],trays["state"])
+                log_str = log_str+tmp_str
+            if log_str != "":
+                r.logDebug("[{}][{}]".format(log_key, log_str))
+    except KeyError as e:
+        r.logDebug("KeyError: "+str(e))
+    except Exception as e:
+        r.logDebug("Other error in print hairou trays state")
+
     print(m.checkFingerStatus(r,1))
     print("DONE")
 
