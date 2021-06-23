@@ -638,6 +638,15 @@ class SimModule:
             filename (str): 识别文件
         """
         print("func: {0}: {1}".format(get_function_name(), filename))
+    @check 
+    def doRecWithAngle(self, filename:str, a:float):
+        """进行识别,包含识别机构在agv坐标系下的角度
+
+        Args:
+            filename (str): 识别文件
+            a(float): 识别机构在agv坐标系下的角度
+        """
+        print("func: {0}: {1}".format(get_function_name(), filename, a))
     @check
     def getRecStatus(self)->int:
         """获取识别状态
@@ -674,7 +683,7 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
         return 0   
-        
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
