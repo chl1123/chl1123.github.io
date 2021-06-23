@@ -78,8 +78,9 @@ class Module(BasicModule):
         self.task = dict()
         self.state = dict()
         self.task_list = []
-        self.task_id = []
+        self.task_id = 0
         self.operation_status = MoveStatus.NONE
+        
     def reset(self, r:SimModule):
         self.status = MoveStatus.RUNNING
         self.start_time = time.time()
