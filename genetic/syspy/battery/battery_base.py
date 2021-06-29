@@ -3,6 +3,7 @@ from google.protobuf.json_format import MessageToJson
 import syspy.lib.pass_through as pt
 import syspy.lib.rpc_client as rc
 import syspy.lib.rpc_server as rs
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery/')
 import message_battery_pb2
 
