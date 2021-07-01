@@ -337,7 +337,7 @@ class rotate:
             self.status = MoveStatus.FINISHED
         cur_state = dict()
         cur_state['rotate_state'] = self.status
-        cur_state['dist'] = self.dist
+        cur_state['angle'] = self.angle
         agv.state['rotate_org'] = cur_state
     def reset(self, r):
         r.resetMotor(self.motor)
@@ -367,12 +367,16 @@ if __name__ == '__main__':
     data["operation"] = "stretch"
     data["stretch"] = 1.0
     print(m.run(r, data))
+    print(m.run(r, data))
+    print(m.run(r, data))
 
     print(4)
     m.reset(r)
     data = dict()
     data["operation"] = "rotate"
     data["rotate"] = 1.0
+    print(m.run(r, data))
+    print(m.run(r, data))
     print(m.run(r, data))
 
     print(5)
