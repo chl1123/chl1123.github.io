@@ -24,9 +24,9 @@ from syspy.rbk import MoveStatus, BasicModule, ParamServer
     },    
     "stretch": {
         "value": 0.,
-        "tips": "stretch length",
-        "type": "double",
-        "unit": "m"
+        "tips": ">0 : out, <0 in",
+        "type": "int",
+        "unit": ""
     },  
     "rotate": {
         "value": 0.,
@@ -34,12 +34,6 @@ from syspy.rbk import MoveStatus, BasicModule, ParamServer
         "type": "double",
         "unit": "rad"
     },
-    "stretch_out": {
-        "value": 0.,
-        "tips": "stretch out length",
-        "type": "double",
-        "unit": "m"
-    },  
     "lift_up": {
         "value": 0.,
         "tips": "lift up height in unload",
@@ -55,6 +49,30 @@ from syspy.rbk import MoveStatus, BasicModule, ParamServer
 }
 ####END DEFAULT ARGS####
 """
+class DIFilter:
+    def __init__(self,id, size, status) -> None:
+        self.di_status = [status for i in range(size)]
+        self.id = id
+    def updateStatus(self,status):
+        tmp_status = []
+        for i in range(len(self.di_status)-1):
+            tmp_status.append(self.di_status[i+1])
+        self.di_status = tmp_status
+        self.di_status.append(status)
+    def reset(self, status):
+        self.di_status = [status for i in range(len(self.di_status))]
+    def status(self):
+        false_size = 0
+        true_size = 0
+        for d in self.di_status:
+            if d == False:
+                false_size = false_size + 1
+            else:
+                true_size = true_size + 1
+        if true_size > false_size:
+            return True
+        else:
+            return False
 
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
@@ -64,10 +82,10 @@ class Module(BasicModule):
         self.lift_motor = "shengjiang"
         self.stretch_motor = "shengsuo"
         self.rotate_motor = "rotate"
-        self.reachDI = 1
-        self.stretch_warn_dist = 0.2
+        self.stretch_out_DI = DIFilter(id = -1, size = 5, status = False)
+        self.stretch_in_DI = DIFilter(id = -1, size = 5, status = False)
+        self.reachDI = DIFilter(id = -1, size = 5, status = False)
         self.lift_warn_height = 0.2
-        self.stretch_msg = 0
         self.lift_msg = 0
         self.rotate_msg = 0
         self.stretch_zero = 0
@@ -99,8 +117,16 @@ class Module(BasicModule):
                 self.lift_msg = motor_info.get('position', 0)
             elif self.stretch_motor == motor_info.get('motor_name'):
                 self.stretch_msg = motor_info.get('position', 0)
-            elif self.rotate_motor == motor_info.get('motor_name'):
-                self.stretch_msg = motor_info.get('position', 0)
+        dis = r.Di()
+        r.logDebug(str(dis))
+        for d in dis.get('node',[]):
+            if self.stretch_in_DI.id == d.get('id', -1):
+                self.stretch_in_DI.updateStatus(bool(d.get('status', False)))
+            elif self.stretch_out_DI.id == d.get('id', -1):
+                self.stretch_out_DI.updateStatus(bool(d.get('status', False)))
+            elif self.reachDI.id == d.get('id', -1):
+                self.reachDI.updateStatus(bool(d.get('status', False)))
+
     def run(self, r:SimModule,args):
         self.status = MoveStatus.RUNNING
         if self.init:
@@ -111,6 +137,14 @@ class Module(BasicModule):
                 r.setError("operation is empty!!!")
                 self.status = MoveStatus.FAILED
                 return self.status
+            dis = r.Di()
+            for d in dis.get('node',[]):
+                if self.stretch_in_DI.id == d.get('id', -1):
+                    self.stretch_in_DI.reset(bool(d.get('status', False)))
+                elif self.stretch_out_DI.id == d.get('id', -1):
+                    self.stretch_out_DI.reset(bool(d.get('status', False)))
+                elif self.reachDI.id == d.get('id', -1):
+                    self.reachDI.reset(bool(d.get('status', False)))
         self.getMessage(r)
         operation = self.task.get("operation","")
         if operation == "":
@@ -140,8 +174,10 @@ class Module(BasicModule):
         if self.status is MoveStatus.FAILED:
             r.stopRobot(True)
         r.publishSpeed()
-        r.logDebug("[TianTian][{}|{}|{}|{}|{}|{}|{}]".format(
-        self.lift_msg, self.stretch_msg, self.rotate_msg, self.status, 
+        r.logDebug("[TianTian][{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
+        self.lift_msg, self.rotate_msg, 
+        self.stretch_in_DI.status(), self.stretch_out_DI.status(), 
+        self.reachDI.status(), self.status, 
         self.task_id, len(self.task_list), self.operation_status))
         return self.status
 
@@ -168,7 +204,7 @@ class Module(BasicModule):
         else:
             if self.operation_status == MoveStatus.NONE:
                 self.operation_status = MoveStatus.RUNNING
-                self.task_list = [stretch(self.stretch_motor, self.task["stretch"])]
+                self.task_list = [stretch(self.stretch_motor, self.task["stretch"], self.stretch_in_DI.id, self.stretch_out_DI.id)]
                 self.task_id = 0
             else:
                 self.runTakList(r)
@@ -197,10 +233,10 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
-                stretch(self.stretch_motor, self.task["stretch_out"], self.reachDI),
+                stretch(self.stretch_motor, 1.0, self.stretch_in_DI.id, self.stretch_out_DI.id),
                 lift(self.lift_motor, self.task["lift"]),
                 rotate(self.rotate_motor, self.task["rotate"]),
-                stretch(self.stretch_motor, self.stretch_zero)
+                stretch(self.stretch_motor, -1.0, self.stretch_in_DI.id, self.stretch_out_DI.id)
             ]
             self.task_id = 0
         else:
@@ -217,11 +253,11 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 lift(self.lift_motor, self.task["lift_up"]),
-                stretch(self.stretch_motor, self.task["stretch_out"]),
+                stretch(self.stretch_motor, 1.0, self.stretch_in_DI.id, self.stretch_out_DI.id),
                 lift(self.lift_motor, self.task["lift_mid"]),
                 rotate(self.rotate_motor, self.task["rotate"]),
                 lift(self.lift_motor, self.lift_zero),
-                stretch(self.stretch_motor, self.stretch_zero),
+                stretch(self.stretch_motor, -1.0, self.stretch_in_DI.id, self.stretch_out_DI.id),
             ]
         else:
             self.runTakList(r)
@@ -237,7 +273,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 rotate(self.rotate_motor, self.rotate_zero),
-                stretch(self.stretch_motor, self.stretch_zero),
+                stretch(self.stretch_motor, -1., self.stretch_in_DI.id, self.stretch_out_DI.id),
                 lift(self.lift_motor, self.lift_zero)
             ]
             self.task_id = 0
@@ -283,9 +319,9 @@ class lift:
         if self.init:
             self.init = False
             hasGoods = r.hasGoods()
-            if hasGoods and self.dist < agv.lift_warn_height and agv.stretch_msg < agv.stretch_warn_dist:
+            if hasGoods and self.dist < agv.lift_warn_height and agv.stretch_in_DI.status():
                 self.dist = agv.lift_warn_height
-                r.setWarning("Cannot lift to {} in load mode with stretch dist {}.".format(self.dist, agv.stretch_msg))
+                r.setWarning("Cannot lift to {} in load mode with stretch dist {}.".format(self.dist, agv.stretch_in_DI.status()))
         r.setMotorPosition(self.motor, self.dist, 0.025, -1)
         if r.isMotorReached(self.motor):
             self.status = MoveStatus.FINISHED
@@ -299,21 +335,33 @@ class lift:
         self.init = True
 
 class stretch:
-    def __init__(self, motor_name, dist, reachDI = -1):
+    def __init__(self, motor_name, dist, stretch_in_DI, stretch_out_DI):
         self.status = MoveStatus.NONE
         self.motor = motor_name
         self.dist = dist
-        self.reachDI = reachDI
+        self.inDI = stretch_in_DI
+        self.outDI = stretch_out_DI
         self.init = True
     def run(self, r:SimModule, agv:Module):
         self.status = MoveStatus.RUNNING
         if self.init:
             self.init = False
             hasGoods = r.hasGoods()
-            if hasGoods and agv.lift_msg < agv.lift_warn_height and self.dist < agv.stretch_warn_dist:
-                self.dist = agv.stretch_warn_dist
-                r.setWarning("Cannot stretch to {} in load mode with lift height {}.".format(self.dist, agv.lift_msg))
-        r.setMotorPosition(self.motor, self.dist, 0.1, self.reachDI)
+            if hasGoods and agv.lift_msg < agv.lift_warn_height and self.dist < 0:
+                r.setError("Cannot stretch to {} in load mode with lift height {}.".format(self.dist, agv.lift_msg))
+                self.status = MoveStatus.FAILED
+                cur_state = dict()
+                cur_state['stretch_state'] = self.status
+                cur_state['dist'] = self.dist
+                agv.state['stretch_org'] = cur_state
+                return
+        if self.dist > 0:
+            if agv.task.get("operation","") == "load"  and agv.reachDI.status():
+                r.setMotorSpeed(self.motor, 0)
+            else:
+                r.setMotorSpeed(self.motor, 0.05, self.outDI)
+        else:
+            r.setMotorSpeed(self.motor, 0.05, self.inDI)
         if r.isMotorReached(self.motor):
             self.status = MoveStatus.FINISHED
         cur_state = dict()
@@ -383,7 +431,6 @@ if __name__ == '__main__':
     m.reset(r)
     data = dict()
     data["operation"] = "load"
-    data["stretch_out"] = 1.0
     data["lift"] = 1.0
     data["rotate"] = 0.017
     print(m.run(r, data))
@@ -393,7 +440,6 @@ if __name__ == '__main__':
     data = dict()
     data["operation"] = "unload"
     data["lift_up"] = 1.0
-    data["stretch_out"] = 1.0
     data["lift_mid"] = 1.0
     data["rotate"] = 0.017
     print(m.run(r, data))
