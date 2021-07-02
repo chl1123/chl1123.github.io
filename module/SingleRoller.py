@@ -1,6 +1,8 @@
 #广州望月
 import json
 import time
+import sys
+sys.path.append("syspy")
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
 from syspy.rbkSim import SimModule
 """
