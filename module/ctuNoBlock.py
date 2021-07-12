@@ -1152,8 +1152,19 @@ class recBox:
                 self.status = MoveStatus.FINISHED
                 ctu.vision_status = MoveStatus.FINISHED
             elif ctu.vision_status == MoveStatus.FINISHED:
-                self.status = MoveStatus.FAILED
-                r.setError("The shelf has box. Cannot unLoad!!")
+                method = "vout"
+                dz = res[method]["dz"]
+                dx = res[method]["dx"]
+                dy = res[method]["dy"]
+                dist = res[method]["dist"]
+                dtheta = res[method]["yaw"] * math.pi /180.0
+                dist_stretch = abs(dx * math.cos(dtheta) + dy * math.sin(dtheta))
+                if dz < -0.2 or dist_stretch > 1.0:
+                    self.status = MoveStatus.FINISHED
+                    r.logDebug(f"Has shelf but not in here. dz {dz} dist {dist_stretch}")
+                else:
+                    self.status = MoveStatus.FAILED
+                    r.setError("The shelf has box. Cannot unLoad!!")
         cur_state = dict()
         cur_state["status"] = self.status
         ctu.state["recBox"] = cur_state
@@ -1566,6 +1577,9 @@ if __name__ == '__main__':
     print("box in agv: ", Tagv2box[0][3],Tagv2box[1][3],angle_agv)
 
     res = {"errorState": [], "finger": {"leftStatus": 0, "rightStatus": 0, "state": 2}, "forkDetect": [{"binId": "", "id": 1, "state": 1, "type": 1}, {"binId": "", "id": 0, "state": 1, "type": 0}], "lastUpdate": 1624259373931, "lift": {"position": 1080.0, "speed": 0.548552, "state": 2}, "msgType": 10, "rotate": {"position": 3.14, "speed": 0.00167552, "state": 2}, "seqNum": 0, "stretch": {"position": -0.0, "speed": -0.0, "state": 2}, "trays": [{"binId": "", "id": 1, "state": 1, "type": 0}], "vision": {"state": 2}, "task": {"lift": 1080, "operation": "unload", "recAdjust": 1, "rotate": 3.14, "selfPosition": 1, "stretch": 920, "visionType": "shelf", "visionBinType": "code"}, "unload": {"state": 1, "task_id": 0}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 0, "indicator": 3, "vision": 0, "operation": 1, "status": 1}, "connect_error": "ctu recv error!!!"}
+    dz = 0
+    dist_stretch = 0
+    r.logDebug(f"Has shelf but not in here. dz {dz} dist {dist_stretch}")
     try:
         r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
         res["lift"]["position"],res["lift"]["state"], res["lift"]["speed"],
