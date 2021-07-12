@@ -262,7 +262,7 @@ class Module(BasicModule):
         else:
             self.runTakList(r)
         if self.operation_status == MoveStatus.FINISHED:
-            r.clearGoodsShape(0,0,0)
+            r.clearGoodsShape()
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
@@ -361,7 +361,7 @@ class stretch:
             else:
                 r.setMotorSpeed(self.motor, 0.05, self.outDI)
         else:
-            r.setMotorSpeed(self.motor, 0.05, self.inDI)
+            r.setMotorSpeed(self.motor, -0.05, self.inDI)
         if r.isMotorReached(self.motor):
             self.status = MoveStatus.FINISHED
         cur_state = dict()
