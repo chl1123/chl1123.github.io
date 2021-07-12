@@ -23,6 +23,18 @@ import syspy.goPath as goPath
         "type": "double",
         "unit": "m"
     },    
+    "liftUpHeight":{
+        "value": 0.,
+        "tips": "load lift up hight",
+        "type": "double",
+        "unit": "m"
+    },
+    "liftDownHeight":{
+        "value": 0.,
+        "tips": "unload lift down hight",
+        "type": "double",
+        "unit": "m"
+    },
     "stretch": {
         "value": 0.,
         "tips": "stretch length",
@@ -97,7 +109,7 @@ class Module(BasicModule):
 
     def getMessage(self, r:SimModule):
         odo = r.odo()
-        r.logDebug(str(odo))
+        # r.logDebug(str(odo))
         for motor_info in odo.get('motor_info',[]):
             if self.lift_motor == motor_info.get('motor_name'):
                 self.lift_msg = motor_info.get('position', 0)
@@ -108,6 +120,8 @@ class Module(BasicModule):
 
     def run(self, r:SimModule,args):
         self.status = MoveStatus.RUNNING
+        self.state = dict()
+        self.getMessage(r)
         if self.init:
             self.init = False
             self.task = args
@@ -245,6 +259,7 @@ class Module(BasicModule):
                     rotate(self.rotate_motor, self.task["rotate"]),
                     lift(self.lift_motor, self.task["lift"]),
                     stretch(self.stretch_motor, self.task["stretch"], self.reachDI),
+                    lift(self.lift_motor, self.task["liftUpHeight"] + self.task["lift"]),
                     stretch(self.stretch_motor, self.stretch_zero),
                     lift(self.lift_motor, self.lift_zero),
                 ]
@@ -266,6 +281,7 @@ class Module(BasicModule):
                 rotate(self.rotate_motor, self.task["rotate"]),
                 lift(self.lift_motor, self.task['lift']),
                 stretch(self.stretch_motor, self.task["stretch"]),
+                lift(self.lift_motor, -self.task["liftDownHeight"] + self.task["lift"]),
                 stretch(self.stretch_motor, self.stretch_zero),
                 lift(self.lift_motor, self.lift_zero),
             ]
@@ -273,7 +289,7 @@ class Module(BasicModule):
         else:
             self.runTakList(r)
         if self.operation_status == MoveStatus.FINISHED:
-            r.clearGoodsShape(0,0,0)
+            r.clearGoodsShape()
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
@@ -331,9 +347,10 @@ class lift:
             .format(agv.stretch_msg,agv.stretch_warn_dist))
             self.status = MoveStatus.FAILED
         else:
-            r.setMotorPosition(self.motor, self.dist, 0.025, self.reachDI)
+            r.setMotorPosition(self.motor, self.dist, 0.025, -1)
             if r.isMotorReached(self.motor):
                 self.status = MoveStatus.FINISHED
+                r.resetMotor(self.motor)
         cur_state = dict()
         cur_state['lift_state'] = self.status
         cur_state['dist'] = self.dist
@@ -354,6 +371,7 @@ class stretch:
         r.setMotorPosition(self.motor, self.dist, 0.1, self.reachDI)
         if r.isMotorReached(self.motor):
             self.status = MoveStatus.FINISHED
+            r.resetMotor(self.motor)
         cur_state = dict()
         cur_state['stretch_state'] = self.status
         cur_state['dist'] = self.dist
@@ -378,6 +396,7 @@ class rotate:
             r.setMotorPosition(self.motor, self.angle, 0.1, -1)
             if r.isMotorReached(self.motor):
                 self.status = MoveStatus.FINISHED
+                r.resetMotor(self.motor)
         cur_state = dict()
         cur_state['rotate_state'] = self.status
         cur_state['angle'] = self.angle
@@ -604,6 +623,7 @@ if __name__ == '__main__':
     data["rotate"] = 1.57
     data["lift"] = 1.
     data["stretch"] = 1.
+    data["liftUpHeight"] = 0.01
     print(m.run(r, data))
 
     testNum(num)
@@ -613,6 +633,7 @@ if __name__ == '__main__':
     data["rotate"] = 1.57
     data["lift"] = 1.
     data["stretch"] = 1.
+    data["liftDownHeight"] = -0.01
     print(m.run(r, data))
 
     testNum(num)
