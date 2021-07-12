@@ -116,7 +116,7 @@ class Module(BasicModule):
             elif self.stretch_motor == motor_info.get('motor_name'):
                 self.stretch_msg = motor_info.get('position', 0)
             elif self.rotate_motor == motor_info.get('motor_name'):
-                self.stretch_msg = motor_info.get('position', 0)
+                self.rotate_msg = motor_info.get('position', 0)
 
     def run(self, r:SimModule,args):
         self.status = MoveStatus.RUNNING
