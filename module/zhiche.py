@@ -40,7 +40,13 @@ import syspy.goPath as goPath
         "tips": "stretch length",
         "type": "double",
         "unit": "m"
-    },  
+    }, 
+    "stretch_back": {
+        "value": 0.,
+        "tips": "stretch back length",
+        "type": "double",
+        "unit": "m"
+    }, 
     "rotate": {
         "value": 0.,
         "tips": "rotate angle",
@@ -251,7 +257,7 @@ class Module(BasicModule):
                     lift(self.lift_motor, self.task["lift"]),
                     recAdjust(r, self.task["recfile"]),
                     stretch(self.stretch_motor, self.task["stretch"], self.reachDI),
-                    stretch(self.stretch_motor, self.stretch_zero),
+                    stretch(self.stretch_motor, self.task["stretch_back"]),
                     lift(self.lift_motor, self.lift_zero),
                 ]
             else:
@@ -260,7 +266,7 @@ class Module(BasicModule):
                     lift(self.lift_motor, self.task["lift"]),
                     stretch(self.stretch_motor, self.task["stretch"], self.reachDI),
                     lift(self.lift_motor, self.task["liftUpHeight"] + self.task["lift"]),
-                    stretch(self.stretch_motor, self.stretch_zero),
+                    stretch(self.stretch_motor, self.task["stretch_back"]),
                     lift(self.lift_motor, self.lift_zero),
                 ]
             self.task_id = 0
@@ -282,7 +288,7 @@ class Module(BasicModule):
                 lift(self.lift_motor, self.task['lift']),
                 stretch(self.stretch_motor, self.task["stretch"]),
                 lift(self.lift_motor, -self.task["liftDownHeight"] + self.task["lift"]),
-                stretch(self.stretch_motor, self.stretch_zero),
+                stretch(self.stretch_motor, self.task["stretch_back"]),
                 lift(self.lift_motor, self.lift_zero),
             ]
             self.task_id = 0
@@ -614,6 +620,7 @@ if __name__ == '__main__':
     data["lift"] = 1.
     data["stretch"] = 1.
     data["recfile"] = "s001.pallet"
+    data["stretch_back"] = 0.1
     print(m.run(r, data))
 
     testNum(num)
@@ -624,6 +631,7 @@ if __name__ == '__main__':
     data["lift"] = 1.
     data["stretch"] = 1.
     data["liftUpHeight"] = 0.01
+    data["stretch_back"] = 0.1
     print(m.run(r, data))
 
     testNum(num)
@@ -634,6 +642,7 @@ if __name__ == '__main__':
     data["lift"] = 1.
     data["stretch"] = 1.
     data["liftDownHeight"] = -0.01
+    data["stretch_back"] = 0.1
     print(m.run(r, data))
 
     testNum(num)
