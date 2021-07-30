@@ -963,7 +963,7 @@ class Module(BasicModule):
                         recAdjust(self.task["visionType"], self.task["visionBinType"], 
                                   self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
                         getGoods(self.task["stretch"]),
-                        prePutGoods(self.high[int(self.task["selfPosition"])],0),
+                        prePutGoods(self.high[int(self.task["selfPosition"])],0,"load"),
                         putGoods(self.stretchDist)
                     ]
                 else:
@@ -974,7 +974,7 @@ class Module(BasicModule):
                 self.task_list = [
                     preGoods(self.task["lift"], self.task["rotate"]),
                     getGoods(self.task["stretch"]),
-                    prePutGoods(self.high[int(self.task["selfPosition"])],0),
+                    prePutGoods(self.high[int(self.task["selfPosition"])],0,"load"),
                     putGoods(self.stretchDist)
                 ]
             self.task_id = 0
@@ -997,7 +997,7 @@ class Module(BasicModule):
                             getGoods(self.stretchDist),
                             preRecBox(self.task["recBoxLift"], self.task["rotate"]),
                             recBox(),
-                            prePutGoods(self.task["lift"], self.task["rotate"]),
+                            prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
                             recAdjust(self.task["visionType"], self.task["visionBinType"], 
                                     self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
                             putGoods(self.task["stretch"])
@@ -1006,7 +1006,7 @@ class Module(BasicModule):
                         self.task_list = [
                             preGoods(self.low[int(self.task["selfPosition"])], 0),
                             getGoods(self.stretchDist),
-                            prePutGoods(self.task["lift"], self.task["rotate"]),
+                            prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
                             recBox(),
                             recAdjust(self.task["visionType"], self.task["visionBinType"], 
                                     self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
@@ -1020,7 +1020,7 @@ class Module(BasicModule):
                 self.task_list = [
                     preGoods(self.low[int(self.task["selfPosition"])], 0),
                     getGoods(self.stretchDist),
-                    prePutGoods(self.task["lift"], self.task["rotate"]),
+                    prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
                     putGoods(self.task["stretch"])
                 ]
             self.task_id = 0
@@ -1036,7 +1036,7 @@ class Module(BasicModule):
             self.task_list = [
                 preGoods(self.low[int(self.task["changePosition0"])], 0),
                 getGoods(self.stretchDist),
-                prePutGoods(self.high[int(self.task["changePosition1"])], 0),
+                prePutGoods(self.high[int(self.task["changePosition1"])], 0,"changePos"),
                 putGoods(self.stretchDist)
             ]
             self.task_id = 0
@@ -1052,7 +1052,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 putGoodsS2(),
-                prePutGoods(self.high[int(self.task["putPosition"])], 0),
+                prePutGoods(self.high[int(self.task["putPosition"])], 0, "putPos"),
                 putGoods(self.stretchDist)
             ]
             self.task_id = 0
@@ -1449,23 +1449,42 @@ class preRecBox:
             self.status = MoveStatus.FINISHED      
 
 class prePutGoods:
-    def __init__(self, liftPos, rotAngle):
+    def __init__(self, liftPos, rotAngle, operation):
         self.status = MoveStatus.NONE
         self.liftPos = liftPos
         self.rotAngle = rotAngle
+        self.seperate_height = 2000
+        self.operation = operation
     def reset(self, ctu):
         ctu.rotate_status = MoveStatus.NONE
         ctu.lift_status = MoveStatus.NONE
         self.status = MoveStatus.RUNNING
-    def run(self, r, ctu):
-        self.status = MoveStatus.RUNNING
-        if ctu.lift_status is not MoveStatus.FINISHED:
-            ctu.lift(r, self.liftPos)
-        if ctu.rotate_status is not MoveStatus.FINISHED:
-            ctu.rotate(r,self.rotAngle)
-        if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
-            self.status = MoveStatus.FINISHED      
-
+    def run(self, r, ctu:Module):
+        device_state = ctu.state["lift"]
+        self.status = MoveStatus.RUNNING 
+        r.logDebug("prePutGoods, {}, {}, {}".format(self.seperate_height, self.operation, device_state["position"]))
+        if self.seperate_height >= 0 and self.operation == "load" and device_state["position"] >= self.seperate_height:
+            self.status = MoveStatus.RUNNING
+            if ctu.lift_status is not MoveStatus.FINISHED:
+                ctu.lift(r, self.liftPos)
+            if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is not MoveStatus.FINISHED:
+                ctu.rotate(r,self.rotAngle)
+            if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
+                self.status = MoveStatus.FINISHED   
+        elif self.seperate_height >= 0 and self.operation == "unload" and self.liftPos >= self.seperate_height:
+            if ctu.rotate_status is not MoveStatus.FINISHED:
+                ctu.rotate(r,self.rotAngle)
+            if ctu.rotate_status is MoveStatus.FINISHED and ctu.lift_status is not MoveStatus.FINISHED:
+                ctu.lift(r, self.liftPos)
+            if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
+                self.status = MoveStatus.FINISHED  
+        else:
+            if ctu.lift_status is not MoveStatus.FINISHED:
+                ctu.lift(r, self.liftPos)
+            if ctu.rotate_status is not MoveStatus.FINISHED:
+                ctu.rotate(r,self.rotAngle)
+            if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
+                self.status = MoveStatus.FINISHED     
 class putGoodsS1:
     def __init__(self,stretchDist):
         self.status = MoveStatus.NONE
