@@ -168,6 +168,12 @@ class Hairou:
         self.resetAction(self.visionRecord_res)
         self.indicatorReq_res = dict()
         self.resetAction(self.indicatorReq_res)
+        self.reset_time = 5
+        self.rotate_reset_stime = -1
+        self.vision_reset_stime = -1
+        self.lift_reset_stime = -1
+        self.finger_reset_stime = -1
+        self.stretch_reset_stime = -1
         self.total_hex = ""
     def resetAction(self, data):
         data['status'] = Action.INIT
@@ -346,6 +352,7 @@ class Hairou:
         return res_msg
     def liftReset(self, r):
         if self.liftReset_res['status'] is Action.INIT:
+            self.lift_reset_stime = time.time()
             msg = self.msg_lift_reset
             self.seqNum_req = self.seqNum_req + 1
             msg["seqNum"] = self.seqNum_req
@@ -353,6 +360,10 @@ class Hairou:
             self.liftReset_res["status"] = Action.RUNNING
             self.liftReset_res["res"] = dict()
             self.liftReset_res["res"] = self.sendMessage(msg, r)
+        else:
+            dt = time.time() - self.lift_reset_stime
+            if dt > self.reset_time:
+                self.liftReset_res["status"] = Action.INIT
         return self.liftReset_res
     def liftStop(self, r):
         msg = self.msg_lift_stop
@@ -372,6 +383,7 @@ class Hairou:
         return self.liftPos_res
     def rotateReset(self, r):
         if self.rotateReset_res['status'] is Action.INIT:
+            self.rotate_reset_stime = time.time()
             msg = self.msg_rot_rest
             self.seqNum_req = self.seqNum_req + 1
             msg["seqNum"] = self.seqNum_req
@@ -379,6 +391,10 @@ class Hairou:
             self.rotateReset_res["status"] = Action.RUNNING
             self.rotateReset_res["res"] = dict()
             self.rotateReset_res["res"] = self.sendMessage(msg, r)
+        else:
+            dt = time.time() - self.rotate_reset_stime
+            if dt > self.reset_time:
+                self.rotateReset_res["status"] = Action.INIT
         return self.rotateReset_res
     def rotateStop(self,r):
         msg = self.msg_rot_stop
@@ -398,6 +414,7 @@ class Hairou:
         return self.rotateAngle_res
     def stretchReset(self, r):
         if self.stretchReset_res["status"] is Action.INIT:
+            self.stretch_reset_stime = time.time()
             msg = self.msg_stretch_reset
             self.seqNum_req = self.seqNum_req + 1
             msg["seqNum"] = self.seqNum_req
@@ -405,6 +422,10 @@ class Hairou:
             self.stretchReset_res["status"] = Action.RUNNING
             self.stretchReset_res["res"] = dict()
             self.stretchReset_res["res"] = self.sendMessage(msg, r)
+        else:
+            dt = time.time() - self.stretch_reset_stime
+            if dt > self.reset_time:
+                self.stretchReset_res["status"] = Action.INIT
         return self.stretchReset_res
     def stretchStop(self,r):
         msg = self.msg_stretch_stop
@@ -424,6 +445,7 @@ class Hairou:
         return self.stretchPos_res
     def fingerReset(self, r):
         if self.fingerReset_res["status"] is Action.INIT:
+            self.finger_reset_stime = time.time()
             msg = self.msg_finger_reset
             self.seqNum_req = self.seqNum_req + 1
             msg["seqNum"] = self.seqNum_req
@@ -431,6 +453,10 @@ class Hairou:
             self.fingerReset_res["status"] = Action.RUNNING
             self.fingerReset_res["res"] = dict()
             self.fingerReset_res["res"] = self.sendMessage(msg, r)
+        else:
+            dt = time.time() - self.finger_reset_stime
+            if dt > self.reset_time:
+                self.fingerReset_res["status"] = Action.INIT
         return self.fingerReset_res
     def fingerStop(self, r):
         msg = self.msg_finger_stop
@@ -450,6 +476,7 @@ class Hairou:
         return self.fingerPos_res
     def visionReset(self, r):
         if self.visionReset_res["status"] is Action.INIT:
+            self.vision_reset_stime = time.time()
             msg = self.msg_vision_reset
             self.seqNum_req = self.seqNum_req + 1
             msg["seqNum"] = self.seqNum_req
@@ -458,6 +485,10 @@ class Hairou:
             self.visionReset_res["res"] = dict()
             self.visionReq_res["status"] = Action.INIT
             self.visionReset_res["res"] = self.sendMessage(msg, r)
+        else:
+            dt = time.time() - self.vision_reset_stime
+            if dt > self.reset_time:
+                self.visionReset_res["status"] = Action.INIT
         return self.visionReset_res
     def visionStop(self,r):
         msg = self.msg_vision_stop
