@@ -63,6 +63,9 @@ class Module(BasicModule):
             r.stopSound(self.stop)
         self.status = MoveStatus.FINISHED
         return self.status
+    def cancel(self, r: SimModule):
+        r.stopSound(True)
+        self.status = MoveStatus.NONE
 
 if __name__ == '__main__':
     import rbkSim
