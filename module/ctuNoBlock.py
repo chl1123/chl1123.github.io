@@ -1215,9 +1215,10 @@ class recAdjust:
         self.status = MoveStatus.RUNNING
         if ctu.vision_status is not MoveStatus.FINISHED:
             if self.rec_count < self.max_rec_times:
+                res = ctu.vision(r, self.visionType, self.visionBinType, self.binModel)
                 if ctu.vision_status == MoveStatus.FAILED:
                     self.rec_count = self.rec_count + 1
-                res = ctu.vision(r, self.visionType, self.visionBinType, self.binModel)
+                    ctu.vision_status = MoveStatus.RUNNING
                 method = "vout"
                 if ctu.vision_status == MoveStatus.FINISHED:
                     dist, dz, dtheta = 0, 0, 0
@@ -1289,6 +1290,7 @@ class recAdjust:
                     else:
                         ctu.record_vision(r)
                         r.setNotice(" yaw is too large: {}".format(res[method]["yaw"]))
+                        self.rec_count = self.rec_count + 1
                         ctu.vision_status = MoveStatus.NONE
                         self.status = MoveStatus.RUNNING
             else:
