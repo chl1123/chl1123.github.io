@@ -683,7 +683,18 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
         return 0   
-
+    @check
+    def getForkPressure(self)->float:
+        """货叉测得重量
+        """
+        print("func: {0}".format(get_function_name()))
+        return 0 
+    @check
+    def getForkPressureADC(self)->float:
+        """货叉压力传感器adc值
+        """
+        print("func: {0}".format(get_function_name()))
+        return 0    
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -737,7 +748,7 @@ if __name__ == '__main__':
     r.stopSound(True)
     # r.setForkHeight(1.0)
     # r.stopFork()
-    r.switchMap("hello")
+    r.switchMap("hello","LM1")
     r.getTriggleScriptArgs()
     r.getTriggleScriptName()
     r.hasTriggleScript()
@@ -746,6 +757,8 @@ if __name__ == '__main__':
     r.doRec("shelf.shelf")
     r.getRecResult()
     r.getRecStatus()
+    r.getForkPressure()
+    r.getForkPressureADC()
     print("Success!!!")
 
 
