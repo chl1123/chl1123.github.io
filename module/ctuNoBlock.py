@@ -342,27 +342,30 @@ class Module(BasicModule):
         self.task = dict()
         self.low = dict({0:740, 1:1130, 2:1520, 3:1910, 4:2300}) #mm
         #此处在背篓取货时需要略低于背篓的高度，此处所更改的数值为默认值，需要在"ctuNoBlock.json"文件里修改才是最终执行的高度
-        self.low[0] = p.loadParam("low0", type="float", default = 740.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第0层高度")
-        self.low[1] = p.loadParam("low1", type="float", default = 1130.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第1层高度")
-        self.low[2] = p.loadParam("low2", type="float", default = 1520.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第2层高度")
-        self.low[3] = p.loadParam("low3", type="float", default = 1910.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第3层高度")
-        self.low[4] = p.loadParam("low4", type="float", default = 2300.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第4层高度")
-        self.high = dict({0:760, 1:1150, 2:1550, 3:1940, 4:2330}) #mm
+        self.low[0] = p.loadParam("low0", type="float", default = 397.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第0层高度")
+        self.low[1] = p.loadParam("low1", type="float", default = 907.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第1层高度")
+        self.low[2] = p.loadParam("low2", type="float", default = 1417.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第2层高度")
+        self.low[3] = p.loadParam("low3", type="float", default = 1927.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第3层高度")
+        self.low[4] = p.loadParam("low4", type="float", default = 2437.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第4层高度")
+        self.low[5] = p.loadParam("low5", type="float", default = 2947.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第5层高度")
+        self.high = dict({0:407, 1:917, 2:1427, 3:1937, 4:2447, 5:2957}) #mm
         #此处在背篓放货时需要略高于背娄的高度，此处所更改的数值为默认值，需要在"ctuNoBlock.json"文件里修改才是最终执行的高度
-        self.high[0] = p.loadParam("high0", type="float", default = 760.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第0层高度")
-        self.high[1] = p.loadParam("high1", type="float", default = 1150.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第1层高度")
-        self.high[2] = p.loadParam("high2", type="float", default = 1550.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第2层高度")
-        self.high[3] = p.loadParam("high3", type="float", default = 1940.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第3层高度")
-        self.high[4] = p.loadParam("high4", type="float", default = 2320.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第4层高度")
+        self.high[0] = p.loadParam("high0", type="float", default = 407.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第0层高度")
+        self.high[1] = p.loadParam("high1", type="float", default = 917.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第1层高度")
+        self.high[2] = p.loadParam("high2", type="float", default = 1427.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第2层高度")
+        self.high[3] = p.loadParam("high3", type="float", default = 1937.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第3层高度")
+        self.high[4] = p.loadParam("high4", type="float", default = 2447.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第4层高度")
+        self.high[5] = p.loadParam("high5", type="float", default = 2957.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第5层高度")
         #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
-        self.stretchDist = p.loadParam("stretchDist", type="float", default = 750.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
-         #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
+        self.stretchDist = p.loadParam("stretchDist", type="float", default = 716, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
+        #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default = -80.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货物后，抓货物时高度的调整距离")
          #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
-        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 40.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")        
-        self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default = -1, maxValue = 100, minValue = -1, unit = "", comment = "货叉上限位DI")
-        self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default = -1, maxValue = 100, minValue = -1, unit = "", comment = "货叉下限位DI")
-        self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=380.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最低高度")
+        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 50.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")
+        self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default = 4, maxValue = 100, minValue = -1, unit = "", comment = "货叉上限位DI")
+        self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default = 2, maxValue = 100, minValue = -1, unit = "", comment = "货叉下限位DI")
+        self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=400.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最低高度")
+        self.fork_limit = p.loadParam("fork_limit", type="int", default = 1, maxValue = 100, minValue = -1, unit = "", comment = "货叉机械限位限位DI")
         self.loadOffset = p.loadParam("loadOffset", type="float", default=0.0, maxValue = 500.0, minValue = -500.0, unit = "mm", comment = "load货物时，货叉额外伸出的距离")
         
         self.stretch_status = MoveStatus.NONE
@@ -600,6 +603,7 @@ class Module(BasicModule):
             dis = r.Di()
             upLimit = False
             downLimit = False
+            forkLimit = False
             for node in dis['node']:
                 if node['id'] == self.fork_up_limit:
                     status = node.get('status',False)
@@ -609,6 +613,10 @@ class Module(BasicModule):
                     status = node.get('status',False)
                     if status:
                         downLimit = True
+                elif node['id'] == self.fork_limit:
+                    status = node.get('status',False)
+                    if status:
+                        forkLimit = True
             device_state = self.state["lift"]
             if upLimit and device_state["position"] < height:
                 r.setError("fork upLimit DI is True. Cannot up!")
@@ -616,6 +624,11 @@ class Module(BasicModule):
                 self.status = MoveStatus.FAILED
             elif downLimit and device_state["position"] > height:
                 r.setError("fork downLimit DI is True. Cannot down!")
+                self.lift_status = MoveStatus.FAILED
+                self.status = MoveStatus.FAILED
+            elif forkLimit:
+                r.setError("fork limitDi is True.Cannot Move!")
+                self.stop(r)
                 self.lift_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
             elif "stretch" in self.state and self.state["stretch"]["position"] < 10:
