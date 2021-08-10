@@ -903,7 +903,7 @@ class Module(BasicModule):
                                             res["y"] = Tw2box[1][3]
                                             res["theta"] = angle_world       
                                         r.setNotice(json.dumps(res))
-                                        self.state["vision"] = res
+                                        self.state["res"] = res
                                         return res
                                     else:
                                         self.vision_status = MoveStatus.FAILED
@@ -1255,7 +1255,7 @@ class recAdjust:
                         self.dz = dz
                         self.dist = dist
                         if self.adjust_count >= self.max_adjust_time:
-                            self.operation_status = MoveStatus.FAILED
+                            self.status = MoveStatus.FAILED
                             r.setError("recAdjust fails!!! reach max times.")
                         else:
                             self.go_args["coordinate"] = "robot"
