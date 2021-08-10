@@ -16,6 +16,7 @@ class Module(BasicModule):
         self.sum_weight = 0
         self.measure_count = 0
         self.start_time = time.time()
+        self.max_weight = p.loadParam("max_weight", type="float", default = 1000, maxValue = 10000000., minValue = 0.01, unit = "kg", comment = "最大重量，超过这个重量报警")
                            
     def run(self, r:SimModule,args:dict):
         """主函数，没有运行周期都会执行run函数
@@ -31,15 +32,20 @@ class Module(BasicModule):
             return self.status.value
         if self.init:
             self.start_time = time.time()
+            self.init = False
         self.status = MoveStatus.RUNNING
         weight = r.getForkPressure()
         self.sum_weight = self.sum_weight + weight
         self.measure_count = self.measure_count + 1
         dtime = time.time() - self.start_time
         mean_weight = self.sum_weight/ (self.measure_count * 1.0)
-        r.logDebug("[ForkWeigth][{}|{}|{}|{}|{}]".format(
-                                weight,self.sum_weight,self.measure_count,dtime,mean_weight))
-        if dtime > self.mtime:
+        r.logDebug("[ForkWeigth][{}|{}|{}|{}|{}|{}]".format(
+                                weight,self.sum_weight,self.measure_count,dtime,mean_weight,
+                                self.max_weight))
+        if weight > self.max_weight:
+            r.setError("{} over max weight {} kg".format(mean_weight, self.max_weight))
+            self.status = MoveStatus.FAILED
+        elif dtime > self.mtime:
             self.status = MoveStatus.FINISHED
         js = dict()
         js["mean_weigth"] = mean_weight
@@ -48,8 +54,10 @@ class Module(BasicModule):
         return self.status
 
 if __name__ == '__main__':
-    import syspy.rbkSim
+    import syspy.rbkSim, time
     r = syspy.rbkSim.SimModule()
     m = Module(r,None)
     data = dict()
+    print(m.run(r, data))
+    time.sleep(2.0)
     print(m.run(r, data))
