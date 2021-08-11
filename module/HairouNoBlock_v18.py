@@ -8,6 +8,12 @@ import sys
 
 class MessageType(IntEnum):
     ROBOT_INIT_REQ = 0
+
+    ROBOT_MODE_REQ = 1         # 模式切换
+    ROBOT_RESUME_REQ = 2       # 任务恢复
+    ROBOT_RESET_REQ = 3        # 重置机构校零
+    ROBOT_PARAM_SET = 4        # 参数配置
+
     ROBOT_INFO_REPORT = 10
     ROBOT_LIFT_RESET = 20
     ROBOT_LIFT_REQ = 21
@@ -26,7 +32,43 @@ class MessageType(IntEnum):
     ROBOT_VISION_RECORD = 62
     ROBOT_VISION_STOP = 63
     ROBOT_INDICATOR_REQ = 70
+
+    ROBOT_INTERNAL_BIN_OP = 80         # 内部取放货
+    ROBOT_EXTERNAL_BIN_OP = 90         # 外部取放货
+    ROBOT_PREACTION_REQ = 100          # 预备动作
+
     ROBOT_COMM_RESP = 255
+
+
+class ModeType(IntEnum):
+    TASK = 0                            # 任务模式，该模式下不支持控制机构指令
+    MODULE = 1                          # 机构控制模式，该模式下不支持执行任务指令
+
+
+class PositionXYT:
+    def __init__(self):
+        self.x = 0.0                    # 位置坐标x值，单位:m
+        self.y = 0.0                    # 位置坐标y值，单位:m
+        self.theta = 0.0                # 位置坐标theta值，单位:rad
+
+
+class TrayType(IntEnum):
+    FORK = 0                               # 货叉
+    TRAY = 1                               # 背篓
+
+
+class BinOpType(IntEnum):
+    PUT = 0                                 # 放箱，将货叉上的料箱放至货架、输送线上
+    TAKE = 2                                # 取箱，将货架、输送线上的料箱取至货叉上
+    MOVE = 3                                # 移箱，机器人内部(货叉、背篓)之间移动
+    INSPECT = 4                             # 扫描，当前主要是识别一维码条码
+
+
+class LocationType(IntEnum):
+    STORAGE_SHELF = 0                       # 存储区货架(浅库位)
+    STORAGE_SHELF_DEEP1 = 1                 # 深库位(仅特定机型支持)
+    CONVEYOR = 10                           # 输送线
+
 
 class RunMode(IntEnum):
     ROBOT_WORKING = 1
@@ -35,7 +77,7 @@ class RunMode(IntEnum):
     ROBOT_RESERVED = 4
 
 class ModuleState(IntEnum):
-    INIT = 0,
+    INIT = 0
     RESET = 1
     IDLE = 2
     WORKING = 3
