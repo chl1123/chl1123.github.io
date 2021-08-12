@@ -3,7 +3,7 @@ import time
 import sys
 sys.path.append("syspy")
 from syspy.rbkSim import SimModule
-from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
+from syspy.rbk import MoveStatus, BasicModule, Pos2World, normalize_theta, ParamServer
 import math
 import syspy.goPath as goPath
 """
@@ -12,7 +12,7 @@ import syspy.goPath as goPath
     "operation":{
         "value": "zero",
         "default_value":[
-        "zero","unload","load","lift","rotate","stretch","rec","recAdjust"
+        "zero","unload","load","lift","rotate","stretch","rec","recAdjust", "safeCheck"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -103,6 +103,14 @@ class Module(BasicModule):
         self.task_list = []
         self.task_id = 0
         self.operation_status = MoveStatus.NONE
+
+        #识别调整相关的参数
+        self.rotate_yaw = 0.0  # 货叉0度,横移位置为0度时，货叉在小车坐标系下的角度
+        self.rotate_x0 = 0.0  #货叉0度,横移位置为0度时，货叉旋转中心，在小车坐标系下x
+        self.rotate_y0 = 0.0 #货叉0度,横移位置为0度时，货叉旋转中心，在小车坐标系下y
+        self.fork_L0 = 1.0 #货叉末端离旋转中心的距离
+        self.rec_offz = 0.0 #货叉高度的调整量
+
     def reset(self, r:SimModule):
         self.status = MoveStatus.RUNNING
         self.start_time = time.time()
@@ -156,6 +164,8 @@ class Module(BasicModule):
             self.rotate(r)
         elif operation == "rec":
             self.rec(r)
+        elif operation == "safeCheck":
+            self.safeCheck(r)
         else:
             r.setError("operation is wrong {}".format(str(operation)))
             self.status = MoveStatus.FAILED
@@ -233,6 +243,19 @@ class Module(BasicModule):
             cur_state["state"] = self.operation_status
             cur_state["task_id"] = self.task_id
             self.state["rec"] = cur_state
+    def safeCheck(self, r):
+        tor = 0.01
+        if (self.stretch_msg + tor > 1.8 and self.rotate_msg + tor > math.pi) \
+            or (self.stretch_msg - tor < 0.28 and self.rotate_msg - tor < 0):
+            self.status = MoveStatus.FINISHED
+            self.operation_status = MoveStatus.FINISHED
+        else:
+            self.status = MoveStatus.FAILED
+            self.operation_status = MoveStatus.FAILED
+            r.setError("The stretch position {} and rotation angle {} is not safe".format(self.stretch_msg, self.rotate_msg))
+        cur_state = dict()
+        cur_state["state"] = self.status
+        self.state["safeCheck"] = cur_state
     def recAdjust(self,r):
         if "recfile" not in self.task:
             r.setError("recfile is empty {}".format(json.dumps(self.task)))
@@ -257,6 +280,7 @@ class Module(BasicModule):
                     lift(self.lift_motor, self.task["lift"]),
                     recAdjust(r, self.task["recfile"]),
                     stretch(self.stretch_motor, self.task["stretch"], self.reachDI),
+                    lift(self.lift_motor, self.task["liftUpHeight"] + self.task["lift"]),
                     stretch(self.stretch_motor, self.task["stretch_back"]),
                     lift(self.lift_motor, self.lift_zero),
                 ]
@@ -422,6 +446,7 @@ class rec:
     def run(self, r:SimModule,agv:Module):
         self.status = MoveStatus.RUNNING
         rec_status = r.getRecStatus()
+        loc = r.loc()
         r.logDebug("rec_status: {}".format(rec_status))
         if rec_status == 3:
             self.rec_times = self.rec_times + 1
@@ -429,9 +454,9 @@ class rec:
                 r.setError("rec fail. reach max times {}".format(self.max_rec_times))
                 self.status = MoveStatus.FAILED
             else:
-                r.doRecWithAngle(self.filename, agv.rotate_msg)
+                r.doRecWithAngle(self.filename,0.0)
         elif rec_status == 0 or rec_status == 1:
-            r.doRecWithAngle(self.filename, agv.rotate_msg)
+            r.doRecWithAngle(self.filename,0.0)
         elif rec_status == 2:
             self.result = r.getRecResult()
             r.logDebug("rec_result:{}".format(self.result))
@@ -461,7 +486,6 @@ class recAdjust:
         self.ok = False
         self.plan_status = MoveStatus.NONE
         self.goPath = goPath.Module(r, dict())
-        self.offz = 0 # 用于补充识别高度的值
         self.lift_pos = 0
         self.rot_theta = 0
         self.init = True
@@ -482,21 +506,34 @@ class recAdjust:
                 r.setNotice("rec fail!!! {}".format(self.rec_fail_time))
             elif self.rec.status is MoveStatus.FINISHED:
                 self.rec_fail_time = 0
-                code2world = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]
-                loc = r.loc()
-                robot2world = [loc['x'], loc['y'], loc['angle']]
-                code2robot = Pos2Base(code2world, robot2world)
-                self.lift_pos = self.rec.result['z'] + self.offz
+                code2rotate = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]
+                rotate2robot = [agv.rotate_x0, agv.rotate_y0 + agv.stretch_msg, agv.rotate_yaw + agv.rotate_msg]
+                code2robot = Pos2World(code2rotate, rotate2robot)
+                self.lift_pos = self.rec.result['z'] + agv.rec_offz
                 self.rot_theta = normalize_theta(code2robot[2] + math.pi)
-                self.rotate = rotate(agv.rotate_motor, self.rot_theta)
-                self.lift = lift(agv.lift_motor, agv.lift_msg + self.lift_pos)
+
+                rot_goal = normalize_theta(self.rot_theta - agv.rotate_yaw)
+                self.rotate = rotate(agv.rotate_motor, rot_goal)
+                lift_goal = agv.lift_msg + self.lift_pos
+                self.lift = lift(agv.lift_motor, lift_goal)
+
+                forkHead2rotate = [agv.fork_L0, 0, 0]
+                idealRotate2robot = [agv.rotate_x0, agv.rotate_y0 + agv.stretch_msg, self.rot_theta]
+                forkHead2robot = Pos2World(forkHead2rotate, idealRotate2robot)
+                dx = code2robot[0] - forkHead2robot[0]
                 self.go_args["coordinate"] = "robot"
-                self.go_args["x"] = code2robot[0]
+                self.go_args["x"] = dx
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
                 self.go_args["useOdo"] = 1
                 self.go_args["reachDist"] = 0.002
+
+                r.logDebug("[recAdjust][{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
+                self.rot_theta, agv.rotate_yaw, rot_goal, 
+                self.lift_pos, agv.rec_offz, lift_goal, 
+                code2robot[0],forkHead2robot[0], dx))
+                
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
                 ok_x = 0.005
@@ -620,6 +657,7 @@ if __name__ == '__main__':
     data["lift"] = 1.
     data["stretch"] = 1.
     data["recfile"] = "s001.pallet"
+    data["liftUpHeight"] = 0.01
     data["stretch_back"] = 0.1
     print(m.run(r, data))
 
@@ -649,4 +687,10 @@ if __name__ == '__main__':
     m.reset(r)
     data = dict()
     data["operation"] = "zero"
+    print(m.run(r, data))
+
+    testNum(num)
+    m.reset(r)
+    data = dict()
+    data["operation"] = "safeCheck"
     print(m.run(r, data))
