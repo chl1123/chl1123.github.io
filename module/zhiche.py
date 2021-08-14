@@ -86,7 +86,7 @@ class Module(BasicModule):
         self.status = MoveStatus.RUNNING
         self.lift_motor = "shengjiang"
         self.stretch_motor = "shengsuo"
-        self.rotate_motor = "baojia"
+        self.rotate_motor = "xuanzhuan"
         self.stretch_warn_dist = 0.1
         self.reachDI = 1
         self.stretch_msg = 0.
