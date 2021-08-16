@@ -339,7 +339,7 @@ class Module(BasicModule):
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
-        self.state["unload"] = cur_state  
+        self.state["zero"] = cur_state  
 
     def runTakList(self, r):
         if self.task_id < len(self.task_list):
