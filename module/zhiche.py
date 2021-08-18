@@ -111,6 +111,13 @@ class Module(BasicModule):
         self.fork_L0 = 1.0 #货叉末端离旋转中心的距离
         self.rec_offz = 0.0 #货叉高度的调整量
 
+        p = ParamServer(__file__)
+        #此处修改的是默认值，最终执行请在“zhiche.json"里进行更改
+        self.lift_vel = p.loadParam("liftVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "m/s", comment = "升降电机最大速度")
+        self.stretch_vel = p.loadParam("stretchVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "m/s", comment = "伸缩电机最大速度")
+        self.rotate_vel = p.loadParam("rotateVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "rad/s", comment = "旋转电机最大速度")
+
+
     def reset(self, r:SimModule):
         self.status = MoveStatus.RUNNING
         self.start_time = time.time()
@@ -377,7 +384,7 @@ class lift:
             .format(agv.stretch_msg,agv.stretch_warn_dist))
             self.status = MoveStatus.FAILED
         else:
-            r.setMotorPosition(self.motor, self.dist, 0.025, -1)
+            r.setMotorPosition(self.motor, self.dist, agv.lift_vel, -1)
             if r.isMotorReached(self.motor):
                 self.status = MoveStatus.FINISHED
                 r.resetMotor(self.motor)
@@ -398,7 +405,7 @@ class stretch:
         self.reachDI = reachDI
     def run(self, r:SimModule, agv):
         self.status = MoveStatus.RUNNING
-        r.setMotorPosition(self.motor, self.dist, 0.1, self.reachDI)
+        r.setMotorPosition(self.motor, self.dist, agv.stretch_vel, self.reachDI)
         if r.isMotorReached(self.motor):
             self.status = MoveStatus.FINISHED
             r.resetMotor(self.motor)
@@ -423,7 +430,7 @@ class rotate:
             .format(agv.stretch_msg,agv.stretch_warn_dist))
             self.status = MoveStatus.FAILED
         else:
-            r.setMotorPosition(self.motor, self.angle, 0.1, -1)
+            r.setMotorPosition(self.motor, self.angle, agv.rotate_vel, -1)
             if r.isMotorReached(self.motor):
                 self.status = MoveStatus.FINISHED
                 r.resetMotor(self.motor)
