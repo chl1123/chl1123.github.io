@@ -154,7 +154,7 @@ import syspy.goPath as goPath
         "max_value":1,
         "min_value":1
     },
-    "unLoadHeight":{
+    "unloadHeight":{
         "value": 0,
         "tips": "rec_offz_shelf",
         "type": "double",
@@ -385,7 +385,7 @@ class Module(BasicModule):
         self.goPath = goPath.Module(r, args)
         self.waitVision = waitVision()
         self.waitVision.status = MoveStatus.NONE
-        self.unLoadHeight = self.rec_offz_shelf
+        self.unloadHeight = self.rec_offz_shelf
         self.loadHeight = self.rec_offz_box
         self.h.connect()
     def run(self, r:SimModule,args):
@@ -396,8 +396,8 @@ class Module(BasicModule):
         if self.init:
             self.init = False
             self.task = args
-            if "unLoadHeight" in self.task:
-                self.unLoadHeight = self.task["unLoadHeight"]
+            if "unloadHeight" in self.task:
+                self.unloadHeight = self.task["unloadHeight"]
             if "loadHeight" in self.task:
                 self.loadHeight = self.task["loadHeight"]
         if not self.h.isconnect:
@@ -957,7 +957,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                          self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight)
+                          self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight)
             ]
             self.task_id = 0
         else:
@@ -976,7 +976,7 @@ class Module(BasicModule):
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
                         recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
+                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                         getGoods(self.task["stretch"] + self.loadOffset),
                         prePutGoods(self.high[int(self.task["selfPosition"])],0,"load"),
                         putGoods(self.stretchDist)
@@ -1014,7 +1014,7 @@ class Module(BasicModule):
                             recBox(),
                             prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
                             recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                                    self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
+                                    self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]
                     else:
@@ -1024,7 +1024,7 @@ class Module(BasicModule):
                             prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
                             recBox(),
                             recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                                    self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
+                                    self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]                        
                 else:
@@ -1179,13 +1179,13 @@ class recBox:
                     r.logDebug(f"Has shelf but not in here. dz {dz} dist {dist_stretch}")
                 else:
                     self.status = MoveStatus.FAILED
-                    r.setError("The shelf has box. Cannot unLoad!!")
+                    r.setError("The shelf has box. Cannot unload!!")
         cur_state = dict()
         cur_state["status"] = self.status
         ctu.state["recBox"] = cur_state
         
 class recAdjust:
-    def __init__(self, visionType, visionBinType, binModel, loadHeight, unLoadHeight):
+    def __init__(self, visionType, visionBinType, binModel, loadHeight, unloadHeight):
         self.status = MoveStatus.NONE
         self.visionType = visionType
         self.visionBinType = visionBinType
@@ -1199,7 +1199,7 @@ class recAdjust:
         self.rec_shelf_shift = p.loadParam("rec_shelf_shift", type="float", default = 10.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架时相机距离二维码的z方向偏差")
         self.rec_count = 0
         self.offz_box = loadHeight
-        self.offz_shelf = unLoadHeight
+        self.offz_shelf = unloadHeight
         self.lift_pos = 0
         self.rot_theta = 0
         self.go_args = dict()
