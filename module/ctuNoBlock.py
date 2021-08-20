@@ -1094,6 +1094,27 @@ class Module(BasicModule):
             self.rotate(r, 0, True)
         else:
             self.operation_status = MoveStatus.FINISHED
+        rotate_state = -1
+        lift_state = -1
+        stretch_state = -1
+        finger_state = -1
+        if "rotate" in self.state and "state" in self.state["rotate"]:
+            rotate_state = self.state["rotate"]["state"]
+        if "lift" in self.state and "state" in self.state["lift"]:
+            lift_state = self.state["lift"]["state"]
+        if "stretch" in self.state and "state" in self.state["stretch"]:
+            stretch_state = self.state["stretch"]["state"]
+        if "finger" in self.state and "state" in self.state["finger"]:
+            finger_state = self.state["finger"]["state"]
+        if rotate_state == Hairou.ModuleState.ERROR \
+            or lift_state == Hairou.ModuleState.ERROR \
+                or stretch_state == Hairou.ModuleState.ERROR \
+                    or finger_state == Hairou.ModuleState.ERROR:
+                    r.setError("Picking robot has error in zero operation")
+        else:
+            if r.errorExits(53000):
+                r.clearError(53000)
+        r.logDebug("53000 error : {}".format(r.errorExits(53000)))
     def stop(self,r):
         if self.lift_status is MoveStatus.RUNNING:
             self.h.liftStop(r)
