@@ -1,4 +1,4 @@
-from enum import Enum, IntEnum
+from enum import IntEnum
 import struct
 import socket
 import json
@@ -6,13 +6,14 @@ import crc
 import time
 import sys
 
+
 class MessageType(IntEnum):
     ROBOT_INIT_REQ = 0
 
-    ROBOT_MODE_REQ = 1         # 模式切换
-    ROBOT_RESUME_REQ = 2       # 任务恢复
-    ROBOT_RESET_REQ = 3        # 重置机构校零
-    ROBOT_PARAM_SET = 4        # 参数配置
+    ROBOT_MODE_REQ = 1  # 模式切换
+    ROBOT_RESUME_REQ = 2  # 任务恢复
+    ROBOT_RESET_REQ = 3  # 重置机构校零
+    ROBOT_PARAM_SET = 4  # 参数配置
 
     ROBOT_INFO_REPORT = 10
     ROBOT_LIFT_RESET = 20
@@ -33,41 +34,41 @@ class MessageType(IntEnum):
     ROBOT_VISION_STOP = 63
     ROBOT_INDICATOR_REQ = 70
 
-    ROBOT_INTERNAL_BIN_OP = 80         # 内部取放货
-    ROBOT_EXTERNAL_BIN_OP = 90         # 外部取放货
-    ROBOT_PREACTION_REQ = 100          # 预备动作
+    ROBOT_INTERNAL_BIN_OP = 80  # 内部取放货
+    ROBOT_EXTERNAL_BIN_OP = 90  # 外部取放货
+    ROBOT_PREACTION_REQ = 100  # 预备动作
 
     ROBOT_COMM_RESP = 255
 
 
 class ModeType(IntEnum):
-    TASK = 0                            # 任务模式，该模式下不支持控制机构指令
-    MODULE = 1                          # 机构控制模式，该模式下不支持执行任务指令
+    TASK = 0  # 任务模式，该模式下不支持控制机构指令
+    MODULE = 1  # 机构控制模式，该模式下不支持执行任务指令
 
 
 class PositionXYT:
     def __init__(self):
-        self.x = 0.0                    # 位置坐标x值，单位:m
-        self.y = 0.0                    # 位置坐标y值，单位:m
-        self.theta = 0.0                # 位置坐标theta值，单位:rad
+        self.x = 0.0  # 位置坐标x值，单位:m
+        self.y = 0.0  # 位置坐标y值，单位:m
+        self.theta = 0.0  # 位置坐标theta值，单位:rad
 
 
 class TrayType(IntEnum):
-    FORK = 0                               # 货叉
-    TRAY = 1                               # 背篓
+    FORK = 0  # 货叉
+    TRAY = 1  # 背篓
 
 
 class BinOpType(IntEnum):
-    PUT = 0                                 # 放箱，将货叉上的料箱放至货架、输送线上
-    TAKE = 2                                # 取箱，将货架、输送线上的料箱取至货叉上
-    MOVE = 3                                # 移箱，机器人内部(货叉、背篓)之间移动
-    INSPECT = 4                             # 扫描，当前主要是识别一维码条码
+    PUT = 0  # 放箱，将货叉上的料箱放至货架、输送线上
+    TAKE = 2  # 取箱，将货架、输送线上的料箱取至货叉上
+    MOVE = 3  # 移箱，机器人内部(货叉、背篓)之间移动
+    INSPECT = 4  # 扫描，当前主要是识别一维码条码
 
 
 class LocationType(IntEnum):
-    STORAGE_SHELF = 0                       # 存储区货架(浅库位)
-    STORAGE_SHELF_DEEP1 = 1                 # 深库位(仅特定机型支持)
-    CONVEYOR = 10                           # 输送线
+    STORAGE_SHELF = 0  # 存储区货架(浅库位)
+    STORAGE_SHELF_DEEP1 = 1  # 深库位(仅特定机型支持)
+    CONVEYOR = 10  # 输送线
 
 
 class RunMode(IntEnum):
@@ -76,6 +77,7 @@ class RunMode(IntEnum):
     ROBOT_DEBUG = 3
     ROBOT_RESERVED = 4
 
+
 class ModuleState(IntEnum):
     INIT = 0
     RESET = 1
@@ -83,45 +85,50 @@ class ModuleState(IntEnum):
     WORKING = 3
     ERROR = 4
 
+
 class TargetType(IntEnum):
     SHELF = 1
     BOX = 2
+
 
 class BinType(IntEnum):
     DM_MARKED = 0
     MARKERLESS = 10,
     BARCODE = 20
 
+
 class BinModel(IntEnum):
     CARTON = 0
     PLASTICBOX = 1
+
 
 class Action(IntEnum):
     INIT = 0
     RUNNING = 1
     FINISHED = 2
 
+
 class ErrorMessage:
     def __init__(self):
         self.errorcode = dict()
-        self.errorcode[0] =["OK","成功，无错误"]
-        self.errorcode[0x80000001] = ["E_SEQUENCE","指令序号错误"]
-        self.errorcode[0x80000002] = ["E_PARSE","指令解析错误"]
+        self.errorcode[0] = ["OK", "成功，无错误"]
+        self.errorcode[0x80000001] = ["E_SEQUENCE", "指令序号错误"]
+        self.errorcode[0x80000002] = ["E_PARSE", "指令解析错误"]
         self.errorcode[0x80000003] = ["E_UNSUPPORT", "不支持的功能"]
         self.errorcode[0x80000004] = ["E_PARAMETER", "错误的参数"]
-        self.errorcode[0x80000005] = ["E_OVERLIMIT","目标超出限制"]
-        self.errorcode[0x80000006] = ["E_ABNORMAL","设备状态异常"]
-        self.errorcode[0x800000FF] = ["E_UNKNOWN","未知错误"]
-        self.errorcode[0x80000200] = ["E_SAFE_MANUAL","手动保护"]
+        self.errorcode[0x80000005] = ["E_OVERLIMIT", "目标超出限制"]
+        self.errorcode[0x80000006] = ["E_ABNORMAL", "设备状态异常"]
+        self.errorcode[0x800000FF] = ["E_UNKNOWN", "未知错误"]
+        self.errorcode[0x80000200] = ["E_SAFE_MANUAL", "手动保护"]
         self.errorcode[0x80000201] = ["E_SAFE_STOPPER", "限位保护"]
-        self.errorcode[0x80000202] = ["E_SAFE_LOCKING","限位保护"]
-        self.errorcode[0x80000203] = ["E_SAFE_LOCKING","锁定保护"]
-        self.errorcode[0x80000204] = ["E_SAFE_CONTROL","失控保护"]
-        self.errorcode[0x80000300] = ["E_DEV_COM","设备通讯错误"]
-        self.errorcode[0x80000301] = ["E_DEV_BUSY","设备已被占用"]
-        self.errorcode[0x80000302] = ["E_DEV_SUPPORT","设备不能支持"]
-        self.errorcode[0x80000303] = ["E_DEV_FAILURE","设备功能失效"]
-        self.errorcode[0x80000304] = ["E_DEV_ABNORMAL","设备数据异常"]
+        self.errorcode[0x80000202] = ["E_SAFE_LOCKING", "限位保护"]
+        self.errorcode[0x80000203] = ["E_SAFE_LOCKING", "锁定保护"]
+        self.errorcode[0x80000204] = ["E_SAFE_CONTROL", "失控保护"]
+        self.errorcode[0x80000300] = ["E_DEV_COM", "设备通讯错误"]
+        self.errorcode[0x80000301] = ["E_DEV_BUSY", "设备已被占用"]
+        self.errorcode[0x80000302] = ["E_DEV_SUPPORT", "设备不能支持"]
+        self.errorcode[0x80000303] = ["E_DEV_FAILURE", "设备功能失效"]
+        self.errorcode[0x80000304] = ["E_DEV_ABNORMAL", "设备数据异常"]
 
 
 class Hairou:
@@ -133,59 +140,59 @@ class Hairou:
         self.max_try_times = 20
         self.seqNum_req = 0
         self.isconnect = False
-        self.msg_init = {"msgType":MessageType.ROBOT_INIT_REQ.value,
-        "seqNum":0,
-        "timeStamp":int(round(time.time() * 1000))}
-        self.msg_lift_reset = {"msgType":MessageType.ROBOT_LIFT_RESET.value,
-        "seqNum":0}
-        self.msg_lift_stop = {"msgType":MessageType.ROBOT_LIFT_STOP.value,
-        "seqNum":0}
-        self.msg_lift_req = {"msgType":MessageType.ROBOT_LIFT_REQ.value,
-        "seqNum":0,
-        "liftPosition":0.0}
-        self.msg_rot_rest = {"msgType":MessageType.ROBOT_ROTATE_RESET.value,
-        "seqNum":0}
-        self.msg_rot_stop = {"msgType":MessageType.ROBOT_ROTATE_STOP.value,
-        "seqNum":0}        
-        self.msg_rot_req = {"msgType":MessageType.ROBOT_ROTATE_REQ.value,
-        "seqNum":0,
-        "rotatePosition":0.0}
-        self.msg_stretch_reset = {"msgType":MessageType.ROBOT_STRETCH_RESET.value,
-        "seqNum":0}
-        self.msg_stretch_stop = {"msgType":MessageType.ROBOT_STRETCH_STOP.value,
-        "seqNum":0}
-        self.msg_stretch_req = {"msgType":MessageType.ROBOT_STRETCH_REQ.value,
-        "seqNum":0,
-        "stretchPosition":0.0}
-        self.msg_finger_reset = {"msgType":MessageType.ROBOT_FINGER_RESET.value,
-        "seqNum":0}
-        self.msg_finger_stop = {"msgType":MessageType.ROBOT_FINGER_STOP.value,
-        "seqNum":0}        
-        self.msg_finger_req = {"msgType":MessageType.ROBOT_FINGER_REQ.value,
-        "seqNum":0,
-        "position":0}      
-        self.msg_vision_reset = {"msgType":MessageType.ROBOT_VISION_RESET.value,
-        "seqNum":0}
-        self.msg_vision_stop = {"msgType":MessageType.ROBOT_VISION_STOP.value,
-        "seqNum":0}        
-        self.msg_vision_req = {"msgType":MessageType.ROBOT_VISION_REQ.value,
-        "seqNum":0,
-        "targetType":0,
-        "binType":0,
-        "binModel":0}
-        self.msg_vision_record = {"msgType":MessageType.ROBOT_VISION_RECORD.value,
-        "seqNum":0,
-        "imageId":"last"}
-        self.msg_indicator_req = {"msgType":MessageType.ROBOT_INDICATOR_REQ.value,
-        "seqNum":0,
-        "chassisLedFront":0,
-        "chassisLedBack":0,
-        "buzzer":0,
-        "headLedRed":0,
-        "headLedYellow":0,
-        "headLedGreen":0,
-        "headLedFreq":0
-        }
+        self.msg_init = {"msgType": MessageType.ROBOT_INIT_REQ.value,
+                         "seqNum": 0,
+                         "timeStamp": int(round(time.time() * 1000))}
+        self.msg_lift_reset = {"msgType": MessageType.ROBOT_LIFT_RESET.value,
+                               "seqNum": 0}
+        self.msg_lift_stop = {"msgType": MessageType.ROBOT_LIFT_STOP.value,
+                              "seqNum": 0}
+        self.msg_lift_req = {"msgType": MessageType.ROBOT_LIFT_REQ.value,
+                             "seqNum": 0,
+                             "liftPosition": 0.0}
+        self.msg_rot_rest = {"msgType": MessageType.ROBOT_ROTATE_RESET.value,
+                             "seqNum": 0}
+        self.msg_rot_stop = {"msgType": MessageType.ROBOT_ROTATE_STOP.value,
+                             "seqNum": 0}
+        self.msg_rot_req = {"msgType": MessageType.ROBOT_ROTATE_REQ.value,
+                            "seqNum": 0,
+                            "rotatePosition": 0.0}
+        self.msg_stretch_reset = {"msgType": MessageType.ROBOT_STRETCH_RESET.value,
+                                  "seqNum": 0}
+        self.msg_stretch_stop = {"msgType": MessageType.ROBOT_STRETCH_STOP.value,
+                                 "seqNum": 0}
+        self.msg_stretch_req = {"msgType": MessageType.ROBOT_STRETCH_REQ.value,
+                                "seqNum": 0,
+                                "stretchPosition": 0.0}
+        self.msg_finger_reset = {"msgType": MessageType.ROBOT_FINGER_RESET.value,
+                                 "seqNum": 0}
+        self.msg_finger_stop = {"msgType": MessageType.ROBOT_FINGER_STOP.value,
+                                "seqNum": 0}
+        self.msg_finger_req = {"msgType": MessageType.ROBOT_FINGER_REQ.value,
+                               "seqNum": 0,
+                               "position": 0}
+        self.msg_vision_reset = {"msgType": MessageType.ROBOT_VISION_RESET.value,
+                                 "seqNum": 0}
+        self.msg_vision_stop = {"msgType": MessageType.ROBOT_VISION_STOP.value,
+                                "seqNum": 0}
+        self.msg_vision_req = {"msgType": MessageType.ROBOT_VISION_REQ.value,
+                               "seqNum": 0,
+                               "targetType": 0,
+                               "binType": 0,
+                               "binModel": 0}
+        self.msg_vision_record = {"msgType": MessageType.ROBOT_VISION_RECORD.value,
+                                  "seqNum": 0,
+                                  "imageId": "last"}
+        self.msg_indicator_req = {"msgType": MessageType.ROBOT_INDICATOR_REQ.value,
+                                  "seqNum": 0,
+                                  "chassisLedFront": 0,
+                                  "chassisLedBack": 0,
+                                  "buzzer": 0,
+                                  "headLedRed": 0,
+                                  "headLedYellow": 0,
+                                  "headLedGreen": 0,
+                                  "headLedFreq": 0
+                                  }
         self.report = dict()
         self.liftReset_res = dict()
         self.resetAction(self.liftReset_res)
@@ -218,14 +225,20 @@ class Hairou:
         self.finger_reset_stime = -1
         self.stretch_reset_stime = -1
         self.total_hex = ""
+
+        self.robot_mode = ModeType.TASK         # 默认为任务模式
+
+
     def resetAction(self, data):
         data['status'] = Action.INIT
         data['seqNum'] = -1
         data['res'] = dict()
+
     def finishAction(self, data, res):
         if data['status'] is not Action.INIT:
             data['status'] = Action.FINISHED
             data['res'] = res
+
     def resetAll(self):
         self.liftReset_res['status'] = Action.INIT
         self.liftPos_res['status'] = Action.INIT
@@ -239,37 +252,52 @@ class Hairou:
         self.visionReq_res['status'] = Action.INIT
         self.visionRecord_res['status'] = Action.INIT
         self.indicatorReq_res['status'] = Action.INIT
+
     def reset_liftReset(self):
         self.liftReset_res['status'] = Action.INIT
+
     def reset_liftPos(self):
         self.liftPos_res['status'] = Action.INIT
+
     def reset_rotateReset(self):
         self.rotateReset_res['status'] = Action.INIT
+
     def reset_rotateAngle(self):
         self.rotateAngle_res['status'] = Action.INIT
+
     def reset_stretchReset(self):
         self.stretchReset_res['status'] = Action.INIT
+
     def reset_stretchPos(self):
         self.stretchPos_res['status'] = Action.INIT
+
     def reset_fingerReset(self):
         self.fingerReset_res['status'] = Action.INIT
+
     def reset_fingerPos(self):
         self.fingerPos_res['status'] = Action.INIT
+
     def reset_visionReset(self):
         self.visionReset_res['status'] = Action.INIT
+
     def reset_visionReq(self):
         self.visionReq_res["status"] = Action.INIT
+
     def reset_visionRecord(self):
         self.visionRecord_res['status'] = Action.INIT
+
     def reset_indcatorReq(self):
         self.indicatorReq_res['status'] = Action.INIT
+
     def connect(self):
         try:
             self.tcp_client.connect((self.ip, self.port))
         except BlockingIOError:
             pass
+
     def disconnect(self):
         self.tcp_client.close()
+
     def getMsg(self, r):
         total_data = b""
         try:
@@ -278,30 +306,30 @@ class Hairou:
             if r is not None: r.logDebug("ctu recv error!!!")
             self.report["connect_error"] = "ctu recv error!!!"
             self.total_hex = ""
-            return dict()                
+            return dict()
         else:
-            self.total_hex = self.total_hex+total_data.hex()
+            self.total_hex = self.total_hex + total_data.hex()
             while True:
                 ind = self.total_hex.find("addecefa")
                 # r.logDebug("ind: {}, total_hex {}".format(ind, self.total_hex))
                 if ind >= 0 and ind + 32 <= len(self.total_hex):
-                    head_hex = self.total_hex[ind:ind+32]
+                    head_hex = self.total_hex[ind:ind + 32]
                     fmt = "@IIII"
                     try:
                         usMagic, usSize, crcBody, crcHead = struct.unpack(fmt, bytes.fromhex(head_hex))
                     except:
                         out = dict()
-                        out["error"] =  "length head {}".format(len(head_hex))
+                        out["error"] = "length head {}".format(len(head_hex))
                         if r is not None: r.logDebug(out["error"])
-                        self.total_hex = self.total_hex[ind+32:]
+                        self.total_hex = self.total_hex[ind + 32:]
                         continue
-                    last_info = self.total_hex[ind+32:]
+                    last_info = self.total_hex[ind + 32:]
                     # r.logDebug("usSize: {} len_last_info {}".format(usSize, len(last_info)))
                     if usSize * 2 <= len(last_info):
-                        body_hex = last_info[0:usSize*2]
-                        self.total_hex = last_info[usSize*2:]
-                        fmt = "@"+str(usSize)+"s"
-                        body = struct.unpack(fmt,bytes.fromhex(body_hex))
+                        body_hex = last_info[0:usSize * 2]
+                        self.total_hex = last_info[usSize * 2:]
+                        fmt = "@" + str(usSize) + "s"
+                        body = struct.unpack(fmt, bytes.fromhex(body_hex))
                         out = dict()
                         try:
                             out = json.loads(body[0])
@@ -315,10 +343,11 @@ class Hairou:
                         break
                 else:
                     break
+
     def updateRes(self, res_msg, r):
         if 'msgType' in res_msg and "seqNum" in res_msg:
             if res_msg['msgType'] == MessageType.ROBOT_COMM_RESP:
-                seqNum =  res_msg.get("seqNum")
+                seqNum = res_msg.get("seqNum")
                 if self.liftReset_res["seqNum"] == seqNum:
                     self.finishAction(self.liftReset_res, res_msg)
                 elif self.liftPos_res['seqNum'] == seqNum:
@@ -334,7 +363,7 @@ class Hairou:
                 elif self.fingerReset_res['seqNum'] == seqNum:
                     self.finishAction(self.fingerReset_res, res_msg)
                 elif self.fingerPos_res['seqNum'] == seqNum:
-                    self.finishAction(self.fingerPos_res,res_msg)
+                    self.finishAction(self.fingerPos_res, res_msg)
                 elif self.visionReset_res['seqNum'] == seqNum:
                     self.finishAction(self.visionReset_res, res_msg)
                 elif self.visionRecord_res['seqNum'] == seqNum:
@@ -345,30 +374,33 @@ class Hairou:
                     self.finishAction(self.indicatorReq_res, res_msg)
             elif res_msg['msgType'] == MessageType.ROBOT_INFO_REPORT:
                 self.report = res_msg
+
     def initDevice(self, r):
-        self.msg_init['timeStamp'] = int(round(time.time()*1000))
-        res =  self.sendMessage(self.msg_init, r)
+        self.msg_init['timeStamp'] = int(round(time.time() * 1000))
+        res = self.sendMessage(self.msg_init, r)
         self.isconnect = res["flag"]
         return res
+
     def getReport(self, r):
         self.getMsg(r)
         return self.report
+
     def sendMessage(self, msg, r):
         usMagic = 0xFACEDEAD
-        str_data = json.dumps(msg,separators=(',',':'))
+        str_data = json.dumps(msg, separators=(',', ':'))
         byte_data = str_data.encode()
 
         usSize = len(byte_data)
         crcBody = crc.crcbytes(byte_data)
         # print(byte_data, byte_data.hex())
         head_fmt = "@III"
-        head_bytes = struct.pack(head_fmt, usMagic, usSize,crcBody)
+        head_bytes = struct.pack(head_fmt, usMagic, usSize, crcBody)
         # print(head_bytes.hex())
         crcHead = crc.crcbytes(head_bytes)
 
-        fmt = "@IIII"+str(usSize)+"s"
+        fmt = "@IIII" + str(usSize) + "s"
         # print(fmt)
-        sends = struct.pack(fmt,usMagic,usSize,crcBody,crcHead,byte_data)
+        sends = struct.pack(fmt, usMagic, usSize, crcBody, crcHead, byte_data)
         if r is not None: r.logDebug(sends.hex())
         res_msg = dict()
         try:
@@ -393,6 +425,7 @@ class Hairou:
             res_msg["flag"] = False
             res_msg["content"] = str(sys.exc_info()[0])
         return res_msg
+
     def liftReset(self, r):
         if self.liftReset_res['status'] is Action.INIT:
             self.lift_reset_stime = time.time()
@@ -408,11 +441,13 @@ class Hairou:
             if dt > self.reset_time:
                 self.liftReset_res["status"] = Action.INIT
         return self.liftReset_res
+
     def liftStop(self, r):
         msg = self.msg_lift_stop
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
         self.sendMessage(msg, r)
+
     def liftPos(self, height, r):
         if self.liftPos_res['status'] is Action.INIT:
             msg = self.msg_lift_req
@@ -424,6 +459,7 @@ class Hairou:
             self.liftPos_res["res"] = dict()
             self.liftPos_res["res"] = self.sendMessage(msg, r)
         return self.liftPos_res
+
     def rotateReset(self, r):
         if self.rotateReset_res['status'] is Action.INIT:
             self.rotate_reset_stime = time.time()
@@ -439,11 +475,13 @@ class Hairou:
             if dt > self.reset_time:
                 self.rotateReset_res["status"] = Action.INIT
         return self.rotateReset_res
-    def rotateStop(self,r):
+
+    def rotateStop(self, r):
         msg = self.msg_rot_stop
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
-        self.sendMessage(msg, r)        
+        self.sendMessage(msg, r)
+
     def rotateAngle(self, theta, r):
         if self.rotateAngle_res['status'] is Action.INIT:
             msg = self.msg_rot_req
@@ -455,6 +493,7 @@ class Hairou:
             self.rotateAngle_res["res"] = dict()
             self.rotateAngle_res["res"] = self.sendMessage(msg, r)
         return self.rotateAngle_res
+
     def stretchReset(self, r):
         if self.stretchReset_res["status"] is Action.INIT:
             self.stretch_reset_stime = time.time()
@@ -470,11 +509,13 @@ class Hairou:
             if dt > self.reset_time:
                 self.stretchReset_res["status"] = Action.INIT
         return self.stretchReset_res
-    def stretchStop(self,r):
+
+    def stretchStop(self, r):
         msg = self.msg_stretch_stop
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
-        self.sendMessage(msg, r) 
+        self.sendMessage(msg, r)
+
     def stretchPos(self, value, r):
         if self.stretchPos_res["status"] is Action.INIT:
             msg = self.msg_stretch_req
@@ -486,6 +527,7 @@ class Hairou:
             self.stretchPos_res["res"] = dict()
             self.stretchPos_res["res"] = self.sendMessage(msg, r)
         return self.stretchPos_res
+
     def fingerReset(self, r):
         if self.fingerReset_res["status"] is Action.INIT:
             self.finger_reset_stime = time.time()
@@ -501,12 +543,14 @@ class Hairou:
             if dt > self.reset_time:
                 self.fingerReset_res["status"] = Action.INIT
         return self.fingerReset_res
+
     def fingerStop(self, r):
         msg = self.msg_finger_stop
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
-        self.sendMessage(msg, r) 
-    def fingerPos(self,value, r):
+        self.sendMessage(msg, r)
+
+    def fingerPos(self, value, r):
         if self.fingerPos_res["status"] is Action.INIT:
             msg = self.msg_finger_req
             self.seqNum_req = self.seqNum_req + 1
@@ -517,6 +561,7 @@ class Hairou:
             self.fingerPos_res["res"] = dict()
             self.fingerPos_res["res"] = self.sendMessage(msg, r)
         return self.fingerPos_res
+
     def visionReset(self, r):
         if self.visionReset_res["status"] is Action.INIT:
             self.vision_reset_stime = time.time()
@@ -533,11 +578,13 @@ class Hairou:
             if dt > self.reset_time:
                 self.visionReset_res["status"] = Action.INIT
         return self.visionReset_res
-    def visionStop(self,r):
+
+    def visionStop(self, r):
         msg = self.msg_vision_stop
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
-        self.sendMessage(msg, r) 
+        self.sendMessage(msg, r)
+
     def visionReq(self, targetType, binType, binModel, r):
         if self.visionReq_res["status"] is Action.INIT:
             msg = self.msg_vision_req
@@ -551,6 +598,7 @@ class Hairou:
             self.visionReq_res["res"] = dict()
             self.visionReq_res["res"] = self.sendMessage(msg, r)
         return self.visionReq_res
+
     def visionRecord(self, r):
         if self.visionRecord_res["status"] is Action.INIT:
             msg = self.msg_vision_record
@@ -561,12 +609,14 @@ class Hairou:
             self.visionRecord_res["res"] = dict()
             self.visionRecord_res["res"] = self.sendMessage(msg, r)
         return self.visionRecord_res
-    def indicatorReq(self, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None, r= None):
+
+    def indicatorReq(self, chassisLedFront=None, chassisLedBack=None, buzzer=None, headLedRed=None, headLedYellow=None,
+                     headLedGreen=None, headLedFreq=None, r=None):
         if self.indicatorReq_res["status"] is Action.INIT:
             msg = self.msg_indicator_req
             self.seqNum_req = self.seqNum_req + 1
             msg["seqNum"] = self.seqNum_req
-            if chassisLedFront is not None: 
+            if chassisLedFront is not None:
                 msg["chassisLedFront"] = chassisLedFront
             else:
                 del msg["chassisLedFront"]
@@ -600,16 +650,16 @@ class Hairou:
             self.indicatorReq_res["res"] = self.sendMessage(msg, r)
         return self.indicatorReq_res
 
+
 if __name__ == "__main__":
-    h = Hairou("192.168.192.20",4172)
+    h = Hairou("192.168.192.20", 4172)
     r = None
     h.connect()
     print(h.initDevice(r))
     print(h.isconnect)
-    h.indicatorReq(headLedRed = 1)
+    h.indicatorReq(headLedRed=1)
     h.initDevice(r)
     print(h.isconnect)
     state = h.getReport(r)
     print(state)
     h.disconnect()
-

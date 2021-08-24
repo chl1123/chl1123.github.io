@@ -1,12 +1,14 @@
-import HairouNoBlock as Hairou
+import pickingRobot_v18 as Hairou
 import json
 import time
 import sys
-sys.path.append("syspy")
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 import math
 import syspy.goPath as goPath
+sys.path.append("syspy")
+
+
 """
 ####BEGIN DEFAULT ARGS####
 {
@@ -170,7 +172,8 @@ import syspy.goPath as goPath
 ####END DEFAULT ARGS####
 """
 
-def matrixDot(a,b, m, l, n):
+
+def matrixDot(a, b, m, l, n):
     """ c = a * b
 
     Args:
@@ -192,6 +195,7 @@ def matrixDot(a,b, m, l, n):
             out[i][j] = v
     return out
 
+
 def matrixReshape(a, m, n):
     """[summary]
 
@@ -203,15 +207,16 @@ def matrixReshape(a, m, n):
     Returns:
         [type]: 2d matrix
     """
-    out = [[0]*n for i in range(m)]
+    out = [[0] * n for i in range(m)]
     mid = []
     for i in range(len(a)):
         for j in range(len(a[i])):
             mid.append(a[i][j])
     for i in range(m):
         for j in range(n):
-            out[i][j] = mid [i*n + j]
+            out[i][j] = mid[i * n + j]
     return out
+
 
 def TMatrixReverse(a):
     """transition matrix reverse
@@ -222,16 +227,16 @@ def TMatrixReverse(a):
     Returns:
         [type]: 2d  4 * 4 transitionmatrix
     """
-    rMatrix = [[0]*3 for i in range(3)]
+    rMatrix = [[0] * 3 for i in range(3)]
     for i in range(3):
         for j in range(3):
             rMatrix[i][j] = a[j][i]
     org_t = [[a[i][3]] for i in range(3)]
-    tMatrix = [[0]for i in range(3)]
+    tMatrix = [[0] for i in range(3)]
     tMatrix = matrixDot(rMatrix, org_t, 3, 3, 1)
     for i in range(3):
         tMatrix[i][0] = -tMatrix[i][0]
-    out = [[0]*4 for i in range(4)]
+    out = [[0] * 4 for i in range(4)]
     for i in range(3):
         for j in range(3):
             out[i][j] = rMatrix[i][j]
@@ -240,129 +245,155 @@ def TMatrixReverse(a):
     out[3][3] = 1
     return out
 
+
 def getYPRZYX(p):
-    yaw = math.atan2(p[4],p[0])
-    pitch = math.atan2(-p[8],math.sqrt(p[9]*p[9] + p[10]*p[10]))
-    roll = math.atan2(p[9],p[10])
+    yaw = math.atan2(p[4], p[0])
+    pitch = math.atan2(-p[8], math.sqrt(p[9] * p[9] + p[10] * p[10]))
+    roll = math.atan2(p[9], p[10])
     dx = p[3]
     dy = p[7]
-    dz = p [11]
+    dz = p[11]
     return yaw, pitch, roll, dz, dy, dx
+
 
 def getYPRZYX_code(p, theta):
     Tagv2f = [[math.cos(theta), -math.sin(theta), 0., 0.],
               [math.sin(theta), math.cos(theta), 0., 0.],
-              [0.,0.,1.,0.],
-              [0.,0.,0.,1.]]
-    Tf2c = [[0.,0.,1.,0.262],
-            [0.,-1.,0.,0.],
-            [1.,0.,0.,-0.029],
-            [0.,0.,0.,1.]]
-    Tm2box = [[0.,-1.,0.,0.],
-              [0.,0.,1.,0.],
-              [-1.,0.,0.,0.],
-              [0.,0.,0.,1.]]
+              [0., 0., 1., 0.],
+              [0., 0., 0., 1.]]
+    Tf2c = [[0., 0., 1., 0.262],
+            [0., -1., 0., 0.],
+            [1., 0., 0., -0.029],
+            [0., 0., 0., 1.]]
+    Tm2box = [[0., -1., 0., 0.],
+              [0., 0., 1., 0.],
+              [-1., 0., 0., 0.],
+              [0., 0., 0., 1.]]
     Tc2m_now = matrixReshape(p, 4, 4)
-    Tf2m_now = matrixDot(Tf2c,Tc2m_now, 4, 4, 4)
+    Tf2m_now = matrixDot(Tf2c, Tc2m_now, 4, 4, 4)
     # newp = matrixReshape(Tf2m_now, 1, 16)[0]
     # yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
-    Tagv2m_now = matrixDot(Tagv2f,Tf2m_now, 4, 4, 4)
-    Tagv2box = matrixDot(Tagv2m_now, Tm2box,4, 4, 4)
-    Tf2box = matrixDot(Tf2m_now, Tm2box, 4,4,4)
-    boxX = [[1.],[0.],[0.],[1.]]
-    boxX2agv = matrixDot(Tagv2box, boxX,4,4,1)
+    Tagv2m_now = matrixDot(Tagv2f, Tf2m_now, 4, 4, 4)
+    Tagv2box = matrixDot(Tagv2m_now, Tm2box, 4, 4, 4)
+    Tf2box = matrixDot(Tf2m_now, Tm2box, 4, 4, 4)
+    boxX = [[1.], [0.], [0.], [1.]]
+    boxX2agv = matrixDot(Tagv2box, boxX, 4, 4, 1)
     angle_agv = math.atan2(boxX2agv[1][0] - Tagv2box[1][3], boxX2agv[0][0] - Tagv2box[0][3])
     dx = Tagv2box[0][3]
     dy = Tagv2box[1][3]
     dz = Tagv2box[2][3]
-    #pf2box， box在理想货叉坐标系中的位置
-    pf2box_ideal = [[Tf2box[0][3]],[0],[Tf2box[2][3]],[1]]
+    # pf2box， box在理想货叉坐标系中的位置
+    pf2box_ideal = [[Tf2box[0][3]], [0], [Tf2box[2][3]], [1]]
     print(pf2box_ideal)
     Tagv2f_ideal = [[math.cos(angle_agv), -math.sin(angle_agv), 0., 0.],
                     [math.sin(angle_agv), math.cos(angle_agv), 0., 0.],
-                    [0.,0.,1.,0.],
-                    [0.,0.,0.,1.]] 
-    pagv2box_ideal = matrixDot(Tagv2f_ideal, pf2box_ideal, 4 ,4 ,1)
-    dist = Tagv2box[0][3] - pagv2box_ideal[0][0] 
-    return  angle_agv, dx, dy, dz, dist, Tagv2box
+                    [0., 0., 1., 0.],
+                    [0., 0., 0., 1.]]
+    pagv2box_ideal = matrixDot(Tagv2f_ideal, pf2box_ideal, 4, 4, 1)
+    dist = Tagv2box[0][3] - pagv2box_ideal[0][0]
+    return angle_agv, dx, dy, dz, dist, Tagv2box
+
 
 def getMarkerInWorld(loc, Tagv2m):
     Tw2agv = [[math.cos(loc[2]), -math.sin(loc[2]), 0., loc[0]],
               [math.sin(loc[2]), math.cos(loc[2]), 0., loc[1]],
-              [0.,0.,1.,0.],
-              [0.,0.,0.,1.]]
+              [0., 0., 1., 0.],
+              [0., 0., 0., 1.]]
     Tw2m = matrixDot(Tw2agv, Tagv2m, 4, 4, 4)
     return Tw2m
 
-def getYPRZYX_markerless(p, theta): 
+
+def getYPRZYX_markerless(p, theta):
     Tagv2f = [[math.cos(theta), -math.sin(theta), 0., 0.],
               [math.sin(theta), math.cos(theta), 0., 0.],
-              [0.,0.,1.,0.],
-              [0.,0.,0.,1.]]    
-    Tf2ifm = [[1.,0.,0.,-0.281],
-              [0.,1.,0.,0.],
-              [0.,0.,1.,0.218],
-              [0.,0.,0.,1.]]
-    Tifm2box = matrixReshape(p, 4,4)
-    Tf2box = matrixDot(Tf2ifm,Tifm2box, 4, 4, 4)
+              [0., 0., 1., 0.],
+              [0., 0., 0., 1.]]
+    Tf2ifm = [[1., 0., 0., -0.281],
+              [0., 1., 0., 0.],
+              [0., 0., 1., 0.218],
+              [0., 0., 0., 1.]]
+    Tifm2box = matrixReshape(p, 4, 4)
+    Tf2box = matrixDot(Tf2ifm, Tifm2box, 4, 4, 4)
     # newp = matrixReshape(Tf2box, 1,16)[0]
     # yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
-    Tagv2box = matrixDot(Tagv2f,Tf2box, 4, 4, 4)
-    boxX = [[1.],[0.],[0.],[1.]]
-    boxX2agv = matrixDot(Tagv2box, boxX,4,4,1)
+    Tagv2box = matrixDot(Tagv2f, Tf2box, 4, 4, 4)
+    boxX = [[1.], [0.], [0.], [1.]]
+    boxX2agv = matrixDot(Tagv2box, boxX, 4, 4, 1)
     angle_agv = math.atan2(boxX2agv[1][0] - Tagv2box[1][3], boxX2agv[0][0] - Tagv2box[0][3])
     dx = Tagv2box[0][3]
     dy = Tagv2box[1][3]
     dz = Tagv2box[2][3]
-    #pf2box， box在理想货叉坐标系中的位置
-    pf2box_ideal = [[Tf2box[0][3]],[0],[Tf2box[2][3]],[1]]
+    # pf2box， box在理想货叉坐标系中的位置
+    pf2box_ideal = [[Tf2box[0][3]], [0], [Tf2box[2][3]], [1]]
     Tagv2f_ideal = [[math.cos(angle_agv), -math.sin(angle_agv), 0., 0.],
                     [math.sin(angle_agv), math.cos(angle_agv), 0., 0.],
-                    [0.,0.,1.,0.],
-                    [0.,0.,0.,1.]] 
-    pagv2box_ideal = matrixDot(Tagv2f_ideal, pf2box_ideal, 4 ,4 ,1)
-    dist = Tagv2box[0][3] - pagv2box_ideal[0][0] 
+                    [0., 0., 1., 0.],
+                    [0., 0., 0., 1.]]
+    pagv2box_ideal = matrixDot(Tagv2f_ideal, pf2box_ideal, 4, 4, 1)
+    dist = Tagv2box[0][3] - pagv2box_ideal[0][0]
     return angle_agv, dx, dy, dz, dist, Tagv2box
 
+
 class Module(BasicModule):
-    def __init__(self, r:SimModule, args):
+    def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
         self.status = MoveStatus.RUNNING
         p = ParamServer(__file__)
-        ip = p.loadParam("ip", type="str", default = "192.168.192.20", comment = "ip addr")
-        port = p.loadParam("port", type="int", default = 4172, maxValue = 999999, minValue = 0, comment = "port")
+        ip = p.loadParam("ip", type="str", default="192.168.192.20", comment="ip addr")
+        port = p.loadParam("port", type="int", default=4172, maxValue=999999, minValue=0, comment="port")
         self.start_connect_time = time.time()
-        self.max_connect_time = p.loadParam("max_connect_time", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "链接等待最长时间s")
-        self.h = Hairou.Hairou(ip,port)
-        self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default = 0.5, maxValue = 10.0, minValue = 0.0, unit = "mm", comment = "lift_reach_dist")
-        self.rotate_reach_angle = p.loadParam("rotate_reach_angle", type="float", default = 0.01, maxValue = 10.0, minValue = 0.0, unit = "rad", comment = "rotate_reach_angle")
-        self.stretch_reach_dist = p.loadParam("stretch_reach_dist", type="float", default = 0.5, maxValue = 10.0, minValue = 0.0, unit = "mm", comment = "stretch_reach_dist")
-        self.maxStretchDist = p.loadParam("max_stretch_dist", type="float", default=920.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "stretch_max_dist")
+        self.max_connect_time = p.loadParam("max_connect_time", type="int", default=10, maxValue=999999, minValue=0,
+                                            comment="链接等待最长时间s")
+        self.h = Hairou.Hairou(ip, port)
+        self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default=0.5, maxValue=10.0, minValue=0.0,
+                                           unit="mm", comment="lift_reach_dist")
+        self.rotate_reach_angle = p.loadParam("rotate_reach_angle", type="float", default=0.01, maxValue=10.0,
+                                              minValue=0.0, unit="rad", comment="rotate_reach_angle")
+        self.stretch_reach_dist = p.loadParam("stretch_reach_dist", type="float", default=0.5, maxValue=10.0,
+                                              minValue=0.0, unit="mm", comment="stretch_reach_dist")
+        self.maxStretchDist = p.loadParam("max_stretch_dist", type="float", default=920.0, maxValue=10000.0,
+                                          minValue=0.0, unit="mm", comment="stretch_max_dist")
         self.init = True
         self.task = dict()
-        self.low = dict({0:740, 1:1130, 2:1520, 3:1910, 4:2300}) #mm
-        #此处在背篓取货时需要略低于背篓的高度，此处所更改的数值为默认值，需要在"ctu.json"文件里修改才是最终执行的高度
-        self.low[0] = p.loadParam("low0", type="float", default = 740.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第0层高度")
-        self.low[1] = p.loadParam("low1", type="float", default = 1130.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第1层高度")
-        self.low[2] = p.loadParam("low2", type="float", default = 1520.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第2层高度")
-        self.low[3] = p.loadParam("low3", type="float", default = 1910.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第3层高度")
-        self.low[4] = p.loadParam("low4", type="float", default = 2300.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第4层高度")
-        self.high = dict({0:760, 1:1150, 2:1550, 3:1940, 4:2330}) #mm
-        #此处在背篓放货时需要略高于背娄的高度，此处所更改的数值为默认值，需要在"ctu.json"文件里修改才是最终执行的高度
-        self.high[0] = p.loadParam("high0", type="float", default = 760.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第0层高度")
-        self.high[1] = p.loadParam("high1", type="float", default = 1150.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第1层高度")
-        self.high[2] = p.loadParam("high2", type="float", default = 1550.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第2层高度")
-        self.high[3] = p.loadParam("high3", type="float", default = 1940.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第3层高度")
-        self.high[4] = p.loadParam("high4", type="float", default = 2320.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第4层高度")
-        #此处修改的是默认值，最终执行请在“ctu.json"里进行更改
-        self.stretchDist = p.loadParam("stretchDist", type="float", default = 750.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
-         #此处修改的是默认值，最终执行请在“ctu.json"里进行更改
-        self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default = -80.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货物后，抓货物时高度的调整距离")
-         #此处修改的是默认值，最终执行请在“ctu.json"里进行更改
-        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 40.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")        
-        self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default = -1, maxValue = 100, minValue = -1, unit = "", comment = "货叉上限位DI")
-        self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default = -1, maxValue = 100, minValue = -1, unit = "", comment = "货叉下限位DI")
-        self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=380.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最低高度")
+        self.low = dict({0: 740, 1: 1130, 2: 1520, 3: 1910, 4: 2300})  # mm
+        # 此处在背篓取货时需要略低于背篓的高度，此处所更改的数值为默认值，需要在"ctu.json"文件里修改才是最终执行的高度
+        self.low[0] = p.loadParam("low0", type="float", default=740.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                  comment="取货时，第0层高度")
+        self.low[1] = p.loadParam("low1", type="float", default=1130.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                  comment="取货时，第1层高度")
+        self.low[2] = p.loadParam("low2", type="float", default=1520.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                  comment="取货时，第2层高度")
+        self.low[3] = p.loadParam("low3", type="float", default=1910.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                  comment="取货时，第3层高度")
+        self.low[4] = p.loadParam("low4", type="float", default=2300.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                  comment="取货时，第4层高度")
+        self.high = dict({0: 760, 1: 1150, 2: 1550, 3: 1940, 4: 2330})  # mm
+        # 此处在背篓放货时需要略高于背娄的高度，此处所更改的数值为默认值，需要在"ctu.json"文件里修改才是最终执行的高度
+        self.high[0] = p.loadParam("high0", type="float", default=760.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                   comment="放货时，第0层高度")
+        self.high[1] = p.loadParam("high1", type="float", default=1150.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                   comment="放货时，第1层高度")
+        self.high[2] = p.loadParam("high2", type="float", default=1550.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                   comment="放货时，第2层高度")
+        self.high[3] = p.loadParam("high3", type="float", default=1940.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                   comment="放货时，第3层高度")
+        self.high[4] = p.loadParam("high4", type="float", default=2320.0, maxValue=10000.0, minValue=0.0, unit="mm",
+                                   comment="放货时，第4层高度")
+        # 此处修改的是默认值，最终执行请在“ctu.json"里进行更改
+        self.stretchDist = p.loadParam("stretchDist", type="float", default=750.0, maxValue=10000.0, minValue=0.0,
+                                       unit="mm", comment="放在自己货架上，抽屉伸出长度")
+        # 此处修改的是默认值，最终执行请在“ctu.json"里进行更改
+        self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default=-80.0, maxValue=1000.0, minValue=-1000.0,
+                                        unit="mm", comment="识别货物后，抓货物时高度的调整距离")
+        # 此处修改的是默认值，最终执行请在“ctu.json"里进行更改
+        self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default=40.0, maxValue=1000.0,
+                                          minValue=-1000.0, unit="mm", comment="识别货架后，放货物时高度的调整距离")
+        self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default=-1, maxValue=100, minValue=-1, unit="",
+                                         comment="货叉上限位DI")
+        self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default=-1, maxValue=100, minValue=-1,
+                                           unit="", comment="货叉下限位DI")
+        self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=380.0, maxValue=10000.0, minValue=0.0,
+                                         unit="mm", comment="货叉最低高度")
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -370,7 +401,7 @@ class Module(BasicModule):
         self.vision_status = MoveStatus.NONE
         self.indicator_status = MoveStatus.NONE
         self.operation_status = MoveStatus.NONE
-        self.getMarkerPos_status = 0 # 0识别获得了位姿， 1获得id, 2保持结果TotTime
+        self.getMarkerPos_status = 0  # 0识别获得了位姿， 1获得id, 2保持结果TotTime
         self.getMarkerPos_data = dict()
         self.getMarkerPosTotTime = 5.0
         self.getMarkerStartTime = time.time()
@@ -383,7 +414,8 @@ class Module(BasicModule):
         self.unLoadHeight = self.rec_offz_shelf
         self.loadHeight = self.rec_offz_box
         self.h.connect()
-    def run(self, r:SimModule,args):
+
+    def run(self, r: SimModule, args):
         if r.errorExits(52111):
             self.status = MoveStatus.FAILED
             return self.status.value
@@ -416,7 +448,7 @@ class Module(BasicModule):
                     str_state = json.dumps(self.state)
                     r.setInfo(str_state)
                     r.logDebug(str_state)
-                    return self.status    
+                    return self.status
             else:
                 self.start_connect_time = time.time()
             self.state["task"] = self.task
@@ -438,14 +470,14 @@ class Module(BasicModule):
                     self.changePos(r)
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
-                    self.operation_status = MoveStatus.FAILED  
+                    self.operation_status = MoveStatus.FAILED
             elif "operation" in self.task and self.task["operation"] == "put":
                 if "putPosition" in self.task:
                     self.vision_status = MoveStatus.FINISHED
                     self.putPos(r)
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
-                    self.operation_status = MoveStatus.FAILED                
+                    self.operation_status = MoveStatus.FAILED
             elif "operation" in self.task and self.task["operation"] == "zero":
                 self.vision_status = MoveStatus.FINISHED
                 self.zero(r)
@@ -466,11 +498,11 @@ class Module(BasicModule):
                     self.rec(r)
                 else:
                     r.setError("rec task is wrong : {}".format(json.dumps(self.task)))
-                    self.operation_status = MoveStatus.FAILED                     
+                    self.operation_status = MoveStatus.FAILED
             else:
                 self.operation_status = MoveStatus.FINISHED
                 if "lift" in self.task:
-                    self.lift(r,self.task["lift"])
+                    self.lift(r, self.task["lift"])
                 else:
                     self.lift_status = MoveStatus.FINISHED
                 if "rotate" in self.task:
@@ -482,18 +514,18 @@ class Module(BasicModule):
                 else:
                     self.stretch_status = MoveStatus.FINISHED
                 if "finger" in self.task:
-                    self.finger(r,self.task["finger"])
+                    self.finger(r, self.task["finger"])
                 else:
                     self.finger_status = MoveStatus.FINISHED
                 if "visionType" in self.task:
                     if "visionBinType" not in self.task:
                         self.task["visionBinType"] = "code"
-                    self.vision(r, self.task["visionType"], self.task["visionBinType"], 
+                    self.vision(r, self.task["visionType"], self.task["visionBinType"],
                                 self.task.get("binModel", "plasticbox"))
                 else:
                     self.vision_status = MoveStatus.FINISHED
 
-            chassisLedFront, chassisLedBack, buzzer, headLedYellow, headLedRed, headLedGreen, headLedFreq = None, None, None, None, None, None,None
+            chassisLedFront, chassisLedBack, buzzer, headLedYellow, headLedRed, headLedGreen, headLedFreq = None, None, None, None, None, None, None
             if "chassisLedFront" in self.task:
                 chassisLedFront = self.task["chassisLedFront"]
             if "chassisLedBack" in self.task:
@@ -508,33 +540,34 @@ class Module(BasicModule):
                 headLedGreen = self.task["headLedGreen"]
             if "headLedFreq" in self.task:
                 headLedFreq = self.task["headLedFreq"]
-            if chassisLedFront is not None\
-                 or chassisLedBack is not None\
-                     or buzzer is not None \
-                         or headLedYellow is not None \
-                             or headLedRed is not None \
-                                 or headLedGreen is not None \
-                                     or headLedFreq is not None:
-                                     self.indicator(r, chassisLedFront, chassisLedBack, buzzer, headLedYellow, headLedRed, headLedGreen, headLedFreq)
+            if chassisLedFront is not None \
+                    or chassisLedBack is not None \
+                    or buzzer is not None \
+                    or headLedYellow is not None \
+                    or headLedRed is not None \
+                    or headLedGreen is not None \
+                    or headLedFreq is not None:
+                self.indicator(r, chassisLedFront, chassisLedBack, buzzer, headLedYellow, headLedRed, headLedGreen,
+                               headLedFreq)
             else:
                 self.indicator_status = MoveStatus.FINISHED
             if self.lift_status == MoveStatus.FAILED or \
-                self.rotate_status == MoveStatus.FAILED or \
+                    self.rotate_status == MoveStatus.FAILED or \
                     self.stretch_status == MoveStatus.FAILED or \
-                        self.finger_status == MoveStatus.FAILED or \
-                            self.indicator_status == MoveStatus.FAILED or \
-                                self.vision_status == MoveStatus.FAILED or \
-                                    self.operation_status == MoveStatus.FAILED:
-                                    self.status = MoveStatus.FAILED
-                                    self.stop(r)
+                    self.finger_status == MoveStatus.FAILED or \
+                    self.indicator_status == MoveStatus.FAILED or \
+                    self.vision_status == MoveStatus.FAILED or \
+                    self.operation_status == MoveStatus.FAILED:
+                self.status = MoveStatus.FAILED
+                self.stop(r)
             elif self.lift_status == MoveStatus.FINISHED and \
-                self.rotate_status == MoveStatus.FINISHED and \
+                    self.rotate_status == MoveStatus.FINISHED and \
                     self.stretch_status == MoveStatus.FINISHED and \
-                        self.finger_status == MoveStatus.FINISHED and \
-                            self.indicator_status == MoveStatus.FINISHED and \
-                                self.vision_status == MoveStatus.FINISHED and \
-                                    self.operation_status == MoveStatus.FINISHED:
-                                    self.status = MoveStatus.FINISHED
+                    self.finger_status == MoveStatus.FINISHED and \
+                    self.indicator_status == MoveStatus.FINISHED and \
+                    self.vision_status == MoveStatus.FINISHED and \
+                    self.operation_status == MoveStatus.FINISHED:
+                self.status = MoveStatus.FINISHED
             else:
                 self.status = MoveStatus.RUNNING
         movestate = dict()
@@ -552,44 +585,45 @@ class Module(BasicModule):
         r.logDebug(str_state)
         try:
             r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
-            self.state["lift"]["position"],self.state["lift"]["state"], self.state["lift"]["speed"],
-            self.state["rotate"]["position"],self.state["rotate"]["state"], self.state["rotate"]["speed"],
-            self.state["stretch"]["position"],self.state["stretch"]["state"], self.state["stretch"]["speed"],
-            self.state["finger"]["leftStatus"],self.state["finger"]["rightStatus"], self.state["finger"]["state"],
-            self.state["vision"]["state"]))
+                self.state["lift"]["position"], self.state["lift"]["state"], self.state["lift"]["speed"],
+                self.state["rotate"]["position"], self.state["rotate"]["state"], self.state["rotate"]["speed"],
+                self.state["stretch"]["position"], self.state["stretch"]["state"], self.state["stretch"]["speed"],
+                self.state["finger"]["leftStatus"], self.state["finger"]["rightStatus"], self.state["finger"]["state"],
+                self.state["vision"]["state"]))
         except KeyError as e:
-            r.logDebug("KeyError: "+str(e))
+            r.logDebug("KeyError: " + str(e))
         except Exception as e:
             r.logDebug("Other error in print hairou state")
-    
+
         try:
-            if "forkDetect" in self.state :
+            if "forkDetect" in self.state:
                 log_key = "HaiRou_forkDetect"
                 log_str = ""
                 for fork in self.state["forkDetect"]:
-                    tmp_str = "{}|{}|{}|".format(fork["id"],fork["state"],fork["state"])
-                    log_str = log_str+tmp_str
+                    tmp_str = "{}|{}|{}|".format(fork["id"], fork["state"], fork["state"])
+                    log_str = log_str + tmp_str
                 r.logDebug("[{}][{}]".format(log_key, log_str))
         except KeyError as e:
-            r.logDebug("KeyError: "+str(e))
+            r.logDebug("KeyError: " + str(e))
         except Exception as e:
             r.logDebug("Other error in print hairou forkDetect state")
-    
+
         try:
             if "trays" in self.state:
                 log_key = "HaiRou_trays"
                 log_str = ""
                 for trays in self.state["trays"]:
-                    tmp_str = "{}|{}|{}|".format(trays["id"],trays["state"],trays["state"])
-                    log_str = log_str+tmp_str
+                    tmp_str = "{}|{}|{}|".format(trays["id"], trays["state"], trays["state"])
+                    log_str = log_str + tmp_str
                 r.logDebug("[{}][{}]".format(log_key, log_str))
         except KeyError as e:
-            r.logDebug("KeyError: "+str(e))
+            r.logDebug("KeyError: " + str(e))
         except Exception as e:
             r.logDebug("Other error in print hairou trays state")
 
         return self.status.value
-    def lift(self, r, height, clear_error = False):
+
+    def lift(self, r, height, clear_error=False):
         self.lift_status = MoveStatus.RUNNING
         if height < self.minLiftHeight:
             r.logDebug("lift {} is set to {}".format(height, self.minLiftHeight))
@@ -600,11 +634,11 @@ class Module(BasicModule):
             downLimit = False
             for node in dis['node']:
                 if node['id'] == self.fork_up_limit:
-                    status = node.get('status',False)
+                    status = node.get('status', False)
                     if status:
                         upLimit = True
                 elif node['id'] == self.fork_down_limit:
-                    status = node.get('status',False)
+                    status = node.get('status', False)
                     if status:
                         downLimit = True
             device_state = self.state["lift"]
@@ -618,18 +652,18 @@ class Module(BasicModule):
                 self.status = MoveStatus.FAILED
             elif "stretch" in self.state and self.state["stretch"]["position"] < 10:
                 if "position" in device_state and "state" in device_state:
-                    if abs(device_state["position"] - height) < self.lift_reach_dist  \
-                        and device_state["state"] == Hairou.ModuleState.IDLE:
-                            self.lift_status = MoveStatus.FINISHED
-                            self.h.reset_liftPos()
-                            return True
+                    if abs(device_state["position"] - height) < self.lift_reach_dist \
+                            and device_state["state"] == Hairou.ModuleState.IDLE:
+                        self.lift_status = MoveStatus.FINISHED
+                        self.h.reset_liftPos()
+                        return True
                 if "state" in device_state:
                     if device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.liftReset(r)
                         self.h.reset_liftPos()
                         self.state["res"] = res
                     elif device_state["state"] == Hairou.ModuleState.IDLE:
-                        res = self.h.liftPos(height,r)
+                        res = self.h.liftPos(height, r)
                         self.state["res"] = res
                     elif device_state["state"] == Hairou.ModuleState.ERROR:
                         if clear_error:
@@ -638,33 +672,34 @@ class Module(BasicModule):
                             self.state["res"] = res
                         else:
                             r.setError("Lift has error. Please zero the machine!")
-                            self.stretch_status = MoveStatus.FAILED                          
+                            self.stretch_status = MoveStatus.FAILED
             else:
                 r.setError("stretch pos is not zero cannot lift.!!! {}".format(self.state["stretch"]["position"]))
                 self.lift_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
         return False
-    def rotate(self, r, theta, clear_error = False):
+
+    def rotate(self, r, theta, clear_error=False):
         self.rotate_status = MoveStatus.RUNNING
         theta = normalize_theta(theta)
         if theta < -3.0:
-            theta = 2 *math.pi + theta
+            theta = 2 * math.pi + theta
         if "rotate" in self.state:
             if "stretch" in self.state and self.state["stretch"]["position"] < 10:
                 device_state = self.state["rotate"]
                 if "position" in device_state and "state" in device_state:
                     if abs(normalize_theta(device_state["position"] - theta)) < self.rotate_reach_angle \
-                        and device_state["state"] == Hairou.ModuleState.IDLE:
-                            self.rotate_status = MoveStatus.FINISHED
-                            self.h.reset_rotateAngle()
-                            return True
+                            and device_state["state"] == Hairou.ModuleState.IDLE:
+                        self.rotate_status = MoveStatus.FINISHED
+                        self.h.reset_rotateAngle()
+                        return True
                 if "state" in device_state:
                     if device_state["state"] == Hairou.ModuleState.INIT:
                         res = self.h.rotateReset(r)
                         self.h.reset_rotateAngle()
                         self.state["res"] = res
                     elif device_state["state"] == Hairou.ModuleState.IDLE:
-                        res = self.h.rotateAngle(theta,r)
+                        res = self.h.rotateAngle(theta, r)
                         self.state["res"] = res
                     elif device_state["state"] == Hairou.ModuleState.ERROR:
                         if clear_error:
@@ -673,13 +708,14 @@ class Module(BasicModule):
                             self.state["res"] = res
                         else:
                             r.setError("Rotate has error. Please zero the machine!")
-                            self.stretch_status = MoveStatus.FAILED                           
+                            self.stretch_status = MoveStatus.FAILED
             else:
                 self.rotate_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
                 r.setError("stretch pos is not zero cannot rotate.!!! {}".format(self.state["stretch"]["position"]))
-        return False       
-    def stretch(self, r, pos, clear_error = False):
+        return False
+
+    def stretch(self, r, pos, clear_error=False):
         if pos > self.maxStretchDist:
             r.setError("reach max stretch dist!")
             self.stretch_status = MoveStatus.FAILED
@@ -689,17 +725,17 @@ class Module(BasicModule):
             device_state = self.state["stretch"]
             if "position" in device_state and "state" in device_state:
                 if abs(device_state["position"] - pos) < self.stretch_reach_dist \
-                    and device_state["state"] == Hairou.ModuleState.IDLE:
-                        self.stretch_status = MoveStatus.FINISHED
-                        self.h.reset_stretchPos()
-                        return True
+                        and device_state["state"] == Hairou.ModuleState.IDLE:
+                    self.stretch_status = MoveStatus.FINISHED
+                    self.h.reset_stretchPos()
+                    return True
             if "state" in device_state:
                 if device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.stretchReset(r)
                     self.h.reset_stretchPos()
                     self.state["res"] = res
                 elif device_state["state"] == Hairou.ModuleState.IDLE:
-                    res = self.h.stretchPos(pos,r)
+                    res = self.h.stretchPos(pos, r)
                     self.state["res"] = res
                 elif device_state["state"] == Hairou.ModuleState.ERROR:
                     if clear_error:
@@ -708,12 +744,13 @@ class Module(BasicModule):
                         self.state["res"] = res
                     else:
                         r.setError("Stretch has error. Please zero the machine!")
-                        self.stretch_status = MoveStatus.FAILED      
-        return False 
-    def checkFingerStatus(self,r, state):
+                        self.stretch_status = MoveStatus.FAILED
+        return False
+
+    def checkFingerStatus(self, r, state):
         if "finger" in self.state:
             device_state = self.state["finger"]
-            if device_state.get("state",-1) != Hairou.ModuleState.IDLE:
+            if device_state.get("state", -1) != Hairou.ModuleState.IDLE:
                 r.setError("Finger status is not idle. Ctu cannot lift or rotate or stretch!")
                 self.finger_status = MoveStatus.FAILED
                 return False
@@ -731,51 +768,54 @@ class Module(BasicModule):
         else:
             r.setError(f"No finger in message! Ctu cannot lift or rotate or stretch!")
             self.finger_status = MoveStatus.FAILED
-            return False            
-    def finger(self, r, pos, clear_error = False):
+            return False
+
+    def finger(self, r, pos, clear_error=False):
         self.finger_status = MoveStatus.RUNNING
         if "finger" in self.state:
             device_state = self.state["finger"]
             if "leftStatus" in device_state and "state" in device_state \
                     and device_state["state"] != Hairou.ModuleState.ERROR \
-                        and device_state["state"] != Hairou.ModuleState.INIT \
-                            and device_state["state"] != Hairou.ModuleState.RESET:
-                            if abs(pos - 1) < 0.1 \
-                            and abs(device_state["leftStatus"] - 1) < 0.1 \
-                            and abs(device_state["rightStatus"] - 1) < 0.1 \
-                            and device_state["state"] == Hairou.ModuleState.IDLE:
-                                self.finger_status = MoveStatus.FINISHED
-                                self.h.reset_fingerPos()
-                                return True
-                            elif abs(pos) < 0.1 \
-                            and abs(device_state["leftStatus"]) < 0.1 \
-                            and abs(device_state["rightStatus"]) < 0.1 \
-                            and device_state["state"] == Hairou.ModuleState.IDLE:
-                                self.finger_status = MoveStatus.FINISHED
-                                self.h.reset_fingerPos()
-                                return True                    
+                    and device_state["state"] != Hairou.ModuleState.INIT \
+                    and device_state["state"] != Hairou.ModuleState.RESET:
+                if abs(pos - 1) < 0.1 \
+                        and abs(device_state["leftStatus"] - 1) < 0.1 \
+                        and abs(device_state["rightStatus"] - 1) < 0.1 \
+                        and device_state["state"] == Hairou.ModuleState.IDLE:
+                    self.finger_status = MoveStatus.FINISHED
+                    self.h.reset_fingerPos()
+                    return True
+                elif abs(pos) < 0.1 \
+                        and abs(device_state["leftStatus"]) < 0.1 \
+                        and abs(device_state["rightStatus"]) < 0.1 \
+                        and device_state["state"] == Hairou.ModuleState.IDLE:
+                    self.finger_status = MoveStatus.FINISHED
+                    self.h.reset_fingerPos()
+                    return True
             if "state" in device_state:
-                if  device_state["state"] == Hairou.ModuleState.INIT:
+                if device_state["state"] == Hairou.ModuleState.INIT:
                     res = self.h.fingerReset(r)
                     self.h.reset_fingerPos()
                     self.state["res"] = res
                 elif device_state["state"] == Hairou.ModuleState.IDLE:
-                    res = self.h.fingerPos(pos,r)
+                    res = self.h.fingerPos(pos, r)
                     self.state["res"] = res
                 elif device_state["state"] == Hairou.ModuleState.ERROR:
                     if clear_error:
                         res = self.h.fingerReset(r)
-                        self.h.reset_fingerPos()   
-                        self.state["res"] = res  
+                        self.h.reset_fingerPos()
+                        self.state["res"] = res
                     else:
                         r.setError("Finger has error. Please zero the machine!")
                         self.finger_status = MoveStatus.FAILED
         return False
+
     def record_vision(self, r):
         res = self.h.visionRecord(r)
-        self.state["record_vision_res"] = res    
-        self.h.reset_visionRecord()        
-    def vision(self, r, vtype, binType, binModel, recgo = False):
+        self.state["record_vision_res"] = res
+        self.h.reset_visionRecord()
+
+    def vision(self, r, vtype, binType, binModel, recgo=False):
         if self.vision_status is not MoveStatus.FINISHED:
             self.vision_status = MoveStatus.RUNNING
             if "vision" in self.state:
@@ -784,7 +824,7 @@ class Module(BasicModule):
                     res = self.h.visionReset(r)
                     self.state["res"] = res
                     self.vision_status = MoveStatus.FINISHED
-                else :
+                else:
                     if "state" in device_state:
                         if device_state["state"] == Hairou.ModuleState.INIT:
                             self.h.visionReset(r)
@@ -800,27 +840,32 @@ class Module(BasicModule):
                         elif device_state["state"] == Hairou.ModuleState.IDLE:
                             if self.waitVision.status == MoveStatus.NONE:
                                 self.waitVision.reset()
-                            self.waitVision.run(r,self)
+                            self.waitVision.run(r, self)
                             if self.waitVision.status == MoveStatus.FINISHED:
                                 res = dict()
                                 if vtype == "shelf":
                                     binType = "code"
                                     res = self.h.visionReq(Hairou.TargetType.SHELF.value,
-                                                           Hairou.BinType.DM_MARKED.value, Hairou.BinModel.PLASTICBOX,r)
+                                                           Hairou.BinType.DM_MARKED.value, Hairou.BinModel.PLASTICBOX,
+                                                           r)
                                 elif vtype == "box":
                                     if binType == "code":
-                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, 
-                                                               Hairou.BinType.DM_MARKED.value,Hairou.BinModel.PLASTICBOX, r)
+                                        res = self.h.visionReq(Hairou.TargetType.BOX.value,
+                                                               Hairou.BinType.DM_MARKED.value,
+                                                               Hairou.BinModel.PLASTICBOX, r)
                                     elif binType == "markerless":
                                         if binModel == "carton":
-                                            res = self.h.visionReq(Hairou.TargetType.BOX.value, 
-                                                                   Hairou.BinType.MARKERLESS.value,Hairou.BinModel.CARTON,r) 
+                                            res = self.h.visionReq(Hairou.TargetType.BOX.value,
+                                                                   Hairou.BinType.MARKERLESS.value,
+                                                                   Hairou.BinModel.CARTON, r)
                                         else:
-                                            res = self.h.visionReq(Hairou.TargetType.BOX.value, 
-                                                                   Hairou.BinType.MARKERLESS.value,Hairou.BinModel.PLASTICBOX,r)
+                                            res = self.h.visionReq(Hairou.TargetType.BOX.value,
+                                                                   Hairou.BinType.MARKERLESS.value,
+                                                                   Hairou.BinModel.PLASTICBOX, r)
                                     elif binType == "barcode":
-                                        res = self.h.visionReq(Hairou.TargetType.BOX.value, Hairou.BinType.BARCODE.value,
-                                                               Hairou.BinModel.PLASTICBOX,r)
+                                        res = self.h.visionReq(Hairou.TargetType.BOX.value,
+                                                               Hairou.BinType.BARCODE.value,
+                                                               Hairou.BinModel.PLASTICBOX, r)
                                     else:
                                         r.setError("visionBinType Type is wrong: {}".format(binType))
                                         self.vision_status = MoveStatus.FAILED
@@ -836,10 +881,10 @@ class Module(BasicModule):
                                         self.vision_status = MoveStatus.FINISHED
                                         self.waitVision.status = MoveStatus.NONE
                                         out1 = dict()
-                                        yaw, pitch, roll, dx , dy, dz, dist = 0, 0, 0, 0, 0, 0, 0
-                                        out1["yaw"] = yaw * 180.0/math.pi
-                                        out1["pitch"] = pitch * 180.0/math.pi
-                                        out1["roll"] = roll * 180.0/math.pi
+                                        yaw, pitch, roll, dx, dy, dz, dist = 0, 0, 0, 0, 0, 0, 0
+                                        out1["yaw"] = yaw * 180.0 / math.pi
+                                        out1["pitch"] = pitch * 180.0 / math.pi
+                                        out1["roll"] = roll * 180.0 / math.pi
                                         out1["dx"] = dx
                                         out1["dy"] = dy
                                         out1["dz"] = dz
@@ -853,21 +898,25 @@ class Module(BasicModule):
                                         res = res['res']
                                         self.vision_status = MoveStatus.FINISHED
                                         self.waitVision.status = MoveStatus.NONE
-                                        yaw, pitch, roll, dx , dy, dz, dist = 0, 0, 0, 0, 0, 0, 0
+                                        yaw, pitch, roll, dx, dy, dz, dist = 0, 0, 0, 0, 0, 0, 0
                                         positionMatrix = [res["positionMatrix"]]
-                                        Tagv2box = [] 
+                                        Tagv2box = []
                                         if vtype == "shelf" or (vtype == "box" and binType == "code"):
                                             pass
-                                            yaw, dx , dy, dz,dist, Tagv2box = getYPRZYX_code(positionMatrix, self.state["rotate"]["position"])
+                                            yaw, dx, dy, dz, dist, Tagv2box = getYPRZYX_code(positionMatrix,
+                                                                                             self.state["rotate"][
+                                                                                                 "position"])
                                             # yaw = yaw + math.pi/2.0
                                             # roll = roll - math.pi/2.0
                                         elif vtype == "box" and binType == "markerless":
-                                            yaw, dx , dy, dz, dist, Tagv2box = getYPRZYX_markerless(positionMatrix, self.state["rotate"]["position"])
+                                            yaw, dx, dy, dz, dist, Tagv2box = getYPRZYX_markerless(positionMatrix,
+                                                                                                   self.state["rotate"][
+                                                                                                       "position"])
                                         else:
                                             r.setError("visionBinType Type is wrong: {}".format(binType))
                                             self.vision_status = MoveStatus.FAILED
                                         out1 = dict()
-                                        out1["yaw"] = yaw * 180.0/math.pi
+                                        out1["yaw"] = yaw * 180.0 / math.pi
                                         out1["dx"] = dx
                                         out1["dy"] = dy
                                         out1["dz"] = dz
@@ -875,18 +924,19 @@ class Module(BasicModule):
                                         out1["Ta2b"] = Tagv2box
                                         res["vout"] = out1
                                         res["targetType"] = vtype
-                                        res["binType"] = binType    
-                                        res["binId"] = "" 
-                                        if "operation" in self.task and self.task["operation"] == "getMarkerPos":  
+                                        res["binType"] = binType
+                                        res["binId"] = ""
+                                        if "operation" in self.task and self.task["operation"] == "getMarkerPos":
                                             loc_org = r.loc()
-                                            loc = [loc_org["x"],loc_org["y"],loc_org["angle"]]
+                                            loc = [loc_org["x"], loc_org["y"], loc_org["angle"]]
                                             Tw2box = getMarkerInWorld(loc, Tagv2box)
-                                            boxX = [[1],[0],[0],[1]]
-                                            boxX2w = matrixDot(Tw2box, boxX, 4, 4,1)
-                                            angle_world = math.atan2(boxX2w[1][0] -Tw2box[1][3], boxX2w[0][0]-Tw2box[0][3])
+                                            boxX = [[1], [0], [0], [1]]
+                                            boxX2w = matrixDot(Tw2box, boxX, 4, 4, 1)
+                                            angle_world = math.atan2(boxX2w[1][0] - Tw2box[1][3],
+                                                                     boxX2w[0][0] - Tw2box[0][3])
                                             res["x"] = Tw2box[0][3]
                                             res["y"] = Tw2box[1][3]
-                                            res["theta"] = angle_world       
+                                            res["theta"] = angle_world
                                         r.setNotice(json.dumps(res))
                                         self.state["vision"] = res
                                         return res
@@ -895,10 +945,11 @@ class Module(BasicModule):
                                         if not recgo:
                                             r.setError("rec no results. {}".format(json.dumps(res)))
         return dict()
+
     def getMarkerPos(self, r):
         self.operation_status = MoveStatus.RUNNING
         if self.vision_status is not MoveStatus.FINISHED \
-            or self.vision_status is not MoveStatus.FAILED:
+                or self.vision_status is not MoveStatus.FAILED:
             if self.getMarkerPos_status is 0:
                 res = self.vision(r, "shelf", "code", "plasticbox")
                 if self.vision_status is MoveStatus.FINISHED:
@@ -911,20 +962,22 @@ class Module(BasicModule):
             elif self.getMarkerPos_status is 1:
                 dt = time.time() - self.getMarkerStartTime
                 if dt > self.getMarkerPosTotTime:
-                    self.getMarkerPos_status =2
+                    self.getMarkerPos_status = 2
                     self.operation_status = MoveStatus.FINISHED
-        self.state["MarkerPos"] = self.getMarkerPos_data 
+        self.state["MarkerPos"] = self.getMarkerPos_data
 
-
-    def indicator(self, r, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None):
-        res = self.h.indicatorReq(chassisLedFront,chassisLedBack,buzzer,headLedRed,headLedYellow,headLedGreen,headLedFreq,r)
+    def indicator(self, r, chassisLedFront=None, chassisLedBack=None, buzzer=None, headLedRed=None, headLedYellow=None,
+                  headLedGreen=None, headLedFreq=None):
+        res = self.h.indicatorReq(chassisLedFront, chassisLedBack, buzzer, headLedRed, headLedYellow, headLedGreen,
+                                  headLedFreq, r)
         self.state["res"] = res
         if res['status'] is not Hairou.Action.FINISHED:
             self.indicator_status = MoveStatus.RUNNING
             return False
-        else :
+        else:
             self.indicator_status = MoveStatus.FINISHED
         return True
+
     def runTakList(self, r):
         if self.task_id < len(self.task_list):
             if self.task_list[self.task_id].status == MoveStatus.NONE:
@@ -937,11 +990,12 @@ class Module(BasicModule):
                 self.task_list[self.task_id].run(r, self)
         else:
             self.operation_status = MoveStatus.FINISHED
-    def rec(self,r):
+
+    def rec(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
-                recAdjust(self.task["visionType"], self.task["visionBinType"], 
+                recAdjust(self.task["visionType"], self.task["visionBinType"],
                           self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight)
             ]
             self.task_id = 0
@@ -951,7 +1005,8 @@ class Module(BasicModule):
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
         self.state["rec"] = cur_state
-    def load(self,r):
+
+    def load(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
@@ -960,10 +1015,10 @@ class Module(BasicModule):
                         self.task["visionBinType"] = "code"
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task["visionBinType"], 
+                        recAdjust(self.task["visionType"], self.task["visionBinType"],
                                   self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
                         getGoods(self.task["stretch"]),
-                        prePutGoods(self.high[int(self.task["selfPosition"])],0,"load"),
+                        prePutGoods(self.high[int(self.task["selfPosition"])], 0, "load"),
                         putGoods(self.stretchDist)
                     ]
                 else:
@@ -974,7 +1029,7 @@ class Module(BasicModule):
                 self.task_list = [
                     preGoods(self.task["lift"], self.task["rotate"]),
                     getGoods(self.task["stretch"]),
-                    prePutGoods(self.high[int(self.task["selfPosition"])],0,"load"),
+                    prePutGoods(self.high[int(self.task["selfPosition"])], 0, "load"),
                     putGoods(self.stretchDist)
                 ]
             self.task_id = 0
@@ -984,7 +1039,8 @@ class Module(BasicModule):
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
         self.state["load"] = cur_state
-    def unload(self,r):
+
+    def unload(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
@@ -997,21 +1053,21 @@ class Module(BasicModule):
                             getGoods(self.stretchDist),
                             preRecBox(self.task["recBoxLift"], self.task["rotate"]),
                             recBox(),
-                            prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
-                            recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                                    self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
+                            prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
+                            recAdjust(self.task["visionType"], self.task["visionBinType"],
+                                      self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
                             putGoods(self.task["stretch"])
                         ]
                     else:
                         self.task_list = [
                             preGoods(self.low[int(self.task["selfPosition"])], 0),
                             getGoods(self.stretchDist),
-                            prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
+                            prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
                             recBox(),
-                            recAdjust(self.task["visionType"], self.task["visionBinType"], 
-                                    self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
+                            recAdjust(self.task["visionType"], self.task["visionBinType"],
+                                      self.task.get("binModel", "plasticbox"), self.loadHeight, self.unLoadHeight),
                             putGoods(self.task["stretch"])
-                        ]                        
+                        ]
                 else:
                     r.setError("task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -1020,7 +1076,7 @@ class Module(BasicModule):
                 self.task_list = [
                     preGoods(self.low[int(self.task["selfPosition"])], 0),
                     getGoods(self.stretchDist),
-                    prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
+                    prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
                     putGoods(self.task["stretch"])
                 ]
             self.task_id = 0
@@ -1029,14 +1085,15 @@ class Module(BasicModule):
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
-        self.state["unload"] = cur_state             
-    def changePos(self,r):
+        self.state["unload"] = cur_state
+
+    def changePos(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 preGoods(self.low[int(self.task["changePosition0"])], 0),
                 getGoods(self.stretchDist),
-                prePutGoods(self.high[int(self.task["changePosition1"])], 0,"changePos"),
+                prePutGoods(self.high[int(self.task["changePosition1"])], 0, "changePos"),
                 putGoods(self.stretchDist)
             ]
             self.task_id = 0
@@ -1045,9 +1102,9 @@ class Module(BasicModule):
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
-        self.state["change"] = cur_state  
+        self.state["change"] = cur_state
 
-    def putPos(self,r):
+    def putPos(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
@@ -1061,8 +1118,9 @@ class Module(BasicModule):
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
-        self.state["change"] = cur_state  
-    def zero(self,r):
+        self.state["change"] = cur_state
+
+    def zero(self, r):
         self.operation_status = MoveStatus.RUNNING
         if self.finger_status is not MoveStatus.FINISHED:
             self.h.visionReset(r)
@@ -1070,7 +1128,7 @@ class Module(BasicModule):
             self.finger(r, 0, True)
         elif self.stretch_status is not MoveStatus.FINISHED:
             self.h.stretchReset(r)
-            self.stretch(r,0, True)
+            self.stretch(r, 0, True)
         elif self.lift_status is not MoveStatus.FINISHED:
             self.h.liftReset(r)
             self.lift(r, 385, True)
@@ -1079,7 +1137,8 @@ class Module(BasicModule):
             self.rotate(r, 0, True)
         else:
             self.operation_status = MoveStatus.FINISHED
-    def stop(self,r):
+
+    def stop(self, r):
         if self.lift_status is MoveStatus.RUNNING:
             self.h.liftStop(r)
         if self.stretch_status is MoveStatus.RUNNING:
@@ -1090,30 +1149,32 @@ class Module(BasicModule):
             self.h.fingerStop(r)
         if self.vision_status is MoveStatus.RUNNING:
             self.h.visionStop(r)
-    def cancel(self, r:SimModule):
+
+    def cancel(self, r: SimModule):
         r.logInfo("script cancel")
         self.stop(r)
         self.h.disconnect()
         self.status = MoveStatus.NONE
-    def suspend(self, r:SimModule):
+
+    def suspend(self, r: SimModule):
         self.stop(r)
         if self.stretch_status is not MoveStatus.FINISHED \
-        and self.stretch_status is not MoveStatus.NONE:
+                and self.stretch_status is not MoveStatus.NONE:
             self.stretch_status = MoveStatus.RUNNING
         if self.lift_status is not MoveStatus.FINISHED \
-        and self.lift_status is not MoveStatus.NONE:
+                and self.lift_status is not MoveStatus.NONE:
             self.lift_status = MoveStatus.RUNNING
         if self.rotate_status is not MoveStatus.FINISHED \
-        and self.rotate_status is not MoveStatus.NONE:
+                and self.rotate_status is not MoveStatus.NONE:
             self.rotate_status = MoveStatus.RUNNING
         if self.finger_status is not MoveStatus.FINISHED \
-        and self.finger_status is not MoveStatus.NONE:
+                and self.finger_status is not MoveStatus.NONE:
             self.finger_status = MoveStatus.RUNNING
         if self.vision_status is not MoveStatus.FINISHED \
-        and self.vision_status is not MoveStatus.NONE:
+                and self.vision_status is not MoveStatus.NONE:
             self.vision_status = MoveStatus.RUNNING
         if self.operation_status is not MoveStatus.FINISHED \
-        and self.operation_status is not MoveStatus.NONE:
+                and self.operation_status is not MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
         self.h.resetAll()
         r.logInfo("script suspended")
@@ -1141,9 +1202,11 @@ class recBox:
         self.visionType = "box"
         self.visionBinType = "code"
         self.binModel = "plasticbox"
+
     def reset(self, ctu):
         ctu.vision_status = MoveStatus.NONE
-        self.status = MoveStatus.RUNNING   
+        self.status = MoveStatus.RUNNING
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.vision_status is not MoveStatus.FINISHED:
@@ -1157,7 +1220,7 @@ class recBox:
                 dx = res[method]["dx"]
                 dy = res[method]["dy"]
                 dist = res[method]["dist"]
-                dtheta = res[method]["yaw"] * math.pi /180.0
+                dtheta = res[method]["yaw"] * math.pi / 180.0
                 dist_stretch = abs(dx * math.cos(dtheta) + dy * math.sin(dtheta))
                 if dz < -0.2 or dist_stretch > 1.0:
                     self.status = MoveStatus.FINISHED
@@ -1168,20 +1231,24 @@ class recBox:
         cur_state = dict()
         cur_state["status"] = self.status
         ctu.state["recBox"] = cur_state
-        
+
+
 class recAdjust:
     def __init__(self, visionType, visionBinType, binModel, loadHeight, unLoadHeight):
         self.status = MoveStatus.NONE
         self.visionType = visionType
         self.visionBinType = visionBinType
         self.binModel = binModel
-        self.dtheta = 0 #角度方向
-        self.dist = 0 #侧向
-        self.dz = 0 #垂直方向
+        self.dtheta = 0  # 角度方向
+        self.dist = 0  # 侧向
+        self.dz = 0  # 垂直方向
         p = ParamServer(__file__)
-        self.max_rec_times = p.loadParam("max_rec_times", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "最多识别次数")
-        self.max_adjust_time = p.loadParam("max_adjust_time", type="int", default = 10, maxValue = 999999, minValue = 0, comment = "最多调整次数")
-        self.rec_shelf_shift = p.loadParam("rec_shelf_shift", type="float", default = 10.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架时相机距离二维码的z方向偏差")
+        self.max_rec_times = p.loadParam("max_rec_times", type="int", default=10, maxValue=999999, minValue=0,
+                                         comment="最多识别次数")
+        self.max_adjust_time = p.loadParam("max_adjust_time", type="int", default=10, maxValue=999999, minValue=0,
+                                           comment="最多调整次数")
+        self.rec_shelf_shift = p.loadParam("rec_shelf_shift", type="float", default=10.0, maxValue=1000.0,
+                                           minValue=-1000.0, unit="mm", comment="识别货架时相机距离二维码的z方向偏差")
         self.rec_count = 0
         self.offz_box = loadHeight
         self.offz_shelf = unLoadHeight
@@ -1192,6 +1259,7 @@ class recAdjust:
         self.ok = False
         self.first_adj = True
         self.last_ddtheta = 100
+
     def reset(self, ctu):
         ctu.vision_status = MoveStatus.NONE
         ctu.rotate_status = MoveStatus.NONE
@@ -1211,6 +1279,7 @@ class recAdjust:
         self.ok_theta = 0.013
         self.first_adj = True
         self.last_ddtheta = 100
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.vision_status is not MoveStatus.FINISHED:
@@ -1224,11 +1293,11 @@ class recAdjust:
                     if self.visionBinType == "code":
                         dz = res[method]["dz"]
                         dist = res[method]["dist"]
-                        dtheta = res[method]["yaw"] * math.pi /180.0
+                        dtheta = res[method]["yaw"] * math.pi / 180.0
                     elif self.visionBinType == "markerless":
                         dz = 0
                         dist = res[method]["dist"]
-                        dtheta = res[method]["yaw"] * math.pi /180.0
+                        dtheta = res[method]["yaw"] * math.pi / 180.0
                     else:
                         r.setError(" binType error: {}".format(self.visionBinType))
                         ctu.vision_status = MoveStatus.FAILED
@@ -1265,10 +1334,11 @@ class recAdjust:
                                 self.ok_x = 0.012
                                 self.ok_theta = 0.02
                             r.logDebug("[recAdjust][{}|{}|{}|{}|{}|{}]".format(
-                                self.go_args["x"],self.ok_x,ddtheta,self.ok_theta,self.last_ddtheta, self.first_adj))
+                                self.go_args["x"], self.ok_x, ddtheta, self.ok_theta, self.last_ddtheta,
+                                self.first_adj))
                             if (abs(ddtheta) < self.ok_theta or abs(ddtheta) > abs(self.last_ddtheta)) \
-                                and abs(self.go_args["x"]) < self.ok_x and not self.first_adj:
-                                self.ok = True 
+                                    and abs(self.go_args["x"]) < self.ok_x and not self.first_adj:
+                                self.ok = True
                                 self.lift_pos = ctu.state["lift"]["position"]
                                 if self.visionType == "shelf":
                                     self.lift_pos = self.lift_pos + self.dz * 1000 + self.offz_shelf
@@ -1285,7 +1355,7 @@ class recAdjust:
                                     self.lift_pos = self.lift_pos + self.dz * 1000
                                 elif self.visionType == "box" and self.visionBinType == "markerless":
                                     ctu.lift_status = MoveStatus.FINISHED
-                            self.last_ddtheta = ddtheta                           
+                            self.last_ddtheta = ddtheta
                     else:
                         ctu.record_vision(r)
                         r.setNotice(" yaw is too large: {}".format(res[method]["yaw"]))
@@ -1297,7 +1367,7 @@ class recAdjust:
         else:
             if self.ok:
                 if ctu.lift_status != MoveStatus.FINISHED:
-                    ctu.lift(r,self.lift_pos)
+                    ctu.lift(r, self.lift_pos)
                 if ctu.lift_status == MoveStatus.FAILED:
                     self.status = MoveStatus.FAILED
                 elif ctu.lift_status == MoveStatus.FINISHED:
@@ -1306,20 +1376,20 @@ class recAdjust:
                     self.status = MoveStatus.FINISHED
             else:
                 if ctu.lift_status is not MoveStatus.FINISHED:
-                    ctu.lift(r,self.lift_pos)
+                    ctu.lift(r, self.lift_pos)
                 if ctu.goPath.status != MoveStatus.FINISHED and ctu.goPath.status != MoveStatus.FAILED:
-                        if abs(self.go_args["x"]) < 0.003:
-                            ctu.goPath.status = MoveStatus.FINISHED
-                        else:
-                            ctu.goPath.run(r,self.go_args)
+                    if abs(self.go_args["x"]) < 0.003:
+                        ctu.goPath.status = MoveStatus.FINISHED
+                    else:
+                        ctu.goPath.run(r, self.go_args)
                 if ctu.rotate_status != MoveStatus.FINISHED:
-                    ctu.rotate(r,self.rot_theta)
+                    ctu.rotate(r, self.rot_theta)
                 if ctu.lift_status == MoveStatus.FAILED \
-                    or ctu.goPath.status == MoveStatus.FAILED \
+                        or ctu.goPath.status == MoveStatus.FAILED \
                         or ctu.rotate_status == MoveStatus.FAILED:
                     self.status = MoveStatus.FAILED
                 elif ctu.lift_status == MoveStatus.FINISHED \
-                    and ctu.goPath.status == MoveStatus.FINISHED \
+                        and ctu.goPath.status == MoveStatus.FINISHED \
                         and ctu.rotate_status == MoveStatus.FINISHED:
                     self.adjust_count = self.adjust_count + 1
                     ctu.vision_status = MoveStatus.NONE
@@ -1351,16 +1421,19 @@ class recAdjust:
         cur_state["ok_theta"] = self.ok_theta
         ctu.state["recAdjStatus"] = cur_state
 
+
 class preGoods:
     def __init__(self, liftPos, rotAngle):
         self.status = MoveStatus.NONE
         self.liftPos = liftPos
         self.rotAngle = rotAngle
+
     def reset(self, ctu):
         ctu.finger_status = MoveStatus.NONE
         ctu.rotate_status = MoveStatus.NONE
         ctu.lift_status = MoveStatus.NONE
         self.status = MoveStatus.RUNNING
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.finger_status is not MoveStatus.FINISHED:
@@ -1368,52 +1441,61 @@ class preGoods:
         if ctu.lift_status is not MoveStatus.FINISHED:
             ctu.lift(r, self.liftPos)
         if ctu.rotate_status is not MoveStatus.FINISHED:
-            ctu.rotate(r,self.rotAngle)
+            ctu.rotate(r, self.rotAngle)
         if ctu.finger_status is MoveStatus.FINISHED and ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
             self.status = MoveStatus.FINISHED
+
 
 class getGoodsS1:
     def __init__(self, stretchDist):
         self.status = MoveStatus.NONE
         self.stretchDist = stretchDist
+
     def reset(self, ctu):
         ctu.finger_status = MoveStatus.NONE
         ctu.stretch_status = MoveStatus.NONE
-        self.status = MoveStatus.RUNNING    
+        self.status = MoveStatus.RUNNING
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, self.stretchDist)
-            ctu.checkFingerStatus(r,1)
+            ctu.checkFingerStatus(r, 1)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 0)
         else:
             self.status = MoveStatus.FINISHED
 
+
 class getGoodsS2:
     def __init__(self):
         self.status = MoveStatus.NONE
+
     def reset(self, ctu):
         ctu.stretch_status = MoveStatus.NONE
         self.status = MoveStatus.RUNNING
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, 0)
-            ctu.checkFingerStatus(r,0)
+            ctu.checkFingerStatus(r, 0)
         else:
-            self.status = MoveStatus.FINISHED  
+            self.status = MoveStatus.FINISHED
+
 
 class getGoods:
     def __init__(self, stretchDist):
         self.status = MoveStatus.NONE
         self.task_list = [getGoodsS1(stretchDist), getGoodsS2()]
         self.task_id = 0
+
     def reset(self, ctu):
         for task in self.task_list:
             task.status = MoveStatus.NONE
         self.task_id = 0
         self.status = MoveStatus.RUNNING
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if self.task_id < len(self.task_list):
@@ -1430,23 +1512,27 @@ class getGoods:
         cur_state["status"] = self.status
         ctu.state["getGoods"] = cur_state
 
+
 class preRecBox:
     def __init__(self, liftPos, rotAngle):
         self.status = MoveStatus.NONE
         self.liftPos = liftPos
         self.rotAngle = rotAngle
+
     def reset(self, ctu):
         ctu.rotate_status = MoveStatus.NONE
         ctu.lift_status = MoveStatus.NONE
         self.status = MoveStatus.RUNNING
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.lift_status is not MoveStatus.FINISHED:
             ctu.lift(r, self.liftPos)
         if ctu.rotate_status is not MoveStatus.FINISHED:
-            ctu.rotate(r,self.rotAngle)
+            ctu.rotate(r, self.rotAngle)
         if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
-            self.status = MoveStatus.FINISHED      
+            self.status = MoveStatus.FINISHED
+
 
 class prePutGoods:
     def __init__(self, liftPos, rotAngle, operation):
@@ -1455,80 +1541,92 @@ class prePutGoods:
         self.rotAngle = rotAngle
         self.seperate_height = 2000
         self.operation = operation
+
     def reset(self, ctu):
         ctu.rotate_status = MoveStatus.NONE
         ctu.lift_status = MoveStatus.NONE
         self.status = MoveStatus.RUNNING
-    def run(self, r, ctu:Module):
+
+    def run(self, r, ctu: Module):
         device_state = ctu.state["lift"]
-        self.status = MoveStatus.RUNNING 
+        self.status = MoveStatus.RUNNING
         r.logDebug("prePutGoods, {}, {}, {}".format(self.seperate_height, self.operation, device_state["position"]))
         if self.seperate_height >= 0 and self.operation == "load" and device_state["position"] >= self.seperate_height:
             self.status = MoveStatus.RUNNING
             if ctu.lift_status is not MoveStatus.FINISHED:
                 ctu.lift(r, self.liftPos)
             if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is not MoveStatus.FINISHED:
-                ctu.rotate(r,self.rotAngle)
+                ctu.rotate(r, self.rotAngle)
             if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
-                self.status = MoveStatus.FINISHED   
+                self.status = MoveStatus.FINISHED
         elif self.seperate_height >= 0 and self.operation == "unload" and self.liftPos >= self.seperate_height:
             if ctu.rotate_status is not MoveStatus.FINISHED:
-                ctu.rotate(r,self.rotAngle)
+                ctu.rotate(r, self.rotAngle)
             if ctu.rotate_status is MoveStatus.FINISHED and ctu.lift_status is not MoveStatus.FINISHED:
                 ctu.lift(r, self.liftPos)
             if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
-                self.status = MoveStatus.FINISHED  
+                self.status = MoveStatus.FINISHED
         else:
             if ctu.lift_status is not MoveStatus.FINISHED:
                 ctu.lift(r, self.liftPos)
             if ctu.rotate_status is not MoveStatus.FINISHED:
-                ctu.rotate(r,self.rotAngle)
+                ctu.rotate(r, self.rotAngle)
             if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
-                self.status = MoveStatus.FINISHED     
+                self.status = MoveStatus.FINISHED
+
+
 class putGoodsS1:
-    def __init__(self,stretchDist):
+    def __init__(self, stretchDist):
         self.status = MoveStatus.NONE
         self.stretchDist = stretchDist
+
     def reset(self, ctu):
         ctu.finger_status = MoveStatus.NONE
         ctu.stretch_status = MoveStatus.NONE
-        self.status = MoveStatus.RUNNING     
+        self.status = MoveStatus.RUNNING
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, self.stretchDist)
-            ctu.checkFingerStatus(r,0)
+            ctu.checkFingerStatus(r, 0)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 1)
         else:
-            self.status = MoveStatus.FINISHED 
+            self.status = MoveStatus.FINISHED
+
 
 class putGoodsS2:
     def __init__(self):
         self.status = MoveStatus.NONE
+
     def reset(self, ctu):
         ctu.finger_status = MoveStatus.NONE
         ctu.stretch_status = MoveStatus.NONE
-        self.status = MoveStatus.RUNNING    
-    def run(self, r ,ctu):
+        self.status = MoveStatus.RUNNING
+
+    def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, 0)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 0)
         else:
-            self.status = MoveStatus.FINISHED  
+            self.status = MoveStatus.FINISHED
+
 
 class putGoods:
     def __init__(self, stretchDist):
         self.status = MoveStatus.NONE
         self.task_list = [putGoodsS1(stretchDist), putGoodsS2()]
         self.task_id = 0
+
     def reset(self, ctu):
         for task in self.task_list:
             task.status = MoveStatus.NONE
         self.task_id = 0
         self.status = MoveStatus.RUNNING
+
     def run(self, r, ctu):
         self.status = MoveStatus.RUNNING
         if self.task_id < len(self.task_list):
@@ -1544,14 +1642,18 @@ class putGoods:
         cur_state["task_id"] = self.task_id
         cur_state["status"] = self.status
         ctu.state["putGoods"] = cur_state
+
+
 class waitVision:
     def __init__(self):
         self.status = MoveStatus.NONE
         self.wtime = 0.5
         self.start_time = time.time()
+
     def reset(self):
         self.status = MoveStatus.RUNNING
         self.start_time = time.time()
+
     def run(self, r, ctu):
         if self.status is not MoveStatus.FINISHED:
             t = time.time()
@@ -1560,10 +1662,13 @@ class waitVision:
                 self.status = MoveStatus.FINISHED
             else:
                 self.status = MoveStatus.RUNNING
+
+
 if __name__ == '__main__':
     import syspy.rbkSim
+
     r = syspy.rbkSim.SimModule()
-    m = Module(r,None)
+    m = Module(r, None)
     m.suspend(r)
     data = dict()
     data["headLedFreq"] = dict()
@@ -1573,54 +1678,106 @@ if __name__ == '__main__':
     # res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1616926319885, "lift": {"position": 485.755, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": -1.53436, "speed": -0.0167552, "state": 2}, "seqNum": 434, "stretch": {"position": -0.0, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 400, "operation": "load", "recAdjust": 1, "rotate": -1.57, "selfPosition": 3, "stretch": 860, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 24, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.007429246509390142, 0.999766852892183, 0.020274273214173785, 0.029153939962044777, 0.9997064956292621, 0.007893279536360431, -0.022904557075420436, 0.015400308396874191, -0.02305924745005849, 0.02009815902567019, -0.9995320580705833, 0.3421031880788719, 0.0, 0.0, 0.0, 1.0], "seqNum": 24, "vout": {"yaw": -1.3213511442478674, "pitch": 0.4256683857140494, "roll": -1.1617419484584592, "dx": 0.6041031880788719, "dy": -0.015400308396874191, "dz": 0.00015393996204477595, "dist": -0.015390086757584222}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": 0.00015393996204477595, "dist": -0.015390086757584222, "dtheta": -0.023061928042119817, "goaPathStatus": 0, "lift_pos": 485.90893996204477, "go_args": {"coordinate": "robot", "x": -0.015390086757584222, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": -1.5574219280421198, "adj_count": 9, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
     # res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1616926321457, "lift": {"position": 485.753, "speed": 0.274276, "state": 2}, "msgType": 10, "rotate": {"position": -1.55743, "speed": 0.00167552, "state": 2}, "seqNum": 465, "stretch": {"position": -0.0, "speed": -0.0, "state": 2}, "vision": {"state": 2}, "task": {"lift": 400, "operation": "load", "recAdjust": 1, "rotate": -1.57, "selfPosition": 3, "stretch": 860, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 26, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.007004054562370299, 0.9999739902400965, -0.0017210644922518769, 0.02916108667094663, 0.9999590953971117, 0.007013779326262126, 0.005710904670219258, -0.01148737215256884, 0.005722827297514875, -0.0016809946048815666, -0.999982211594217, 0.342662612258709, 0.0, 0.0, 0.0, 1.0], "seqNum": 26, "vout": {"yaw": 0.3279036839872235, "pitch": 0.4013060470792056, "roll": 0.09861219918784905, "dx": 0.604662612258709, "dy": 0.01148737215256884, "dz": 0.00016108667094662937, "dist": 0.011486346008404863}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": 0.00016108667094662937, "dist": 0.011486346008404863, "dtheta": 0.005722998914996058, "goaPathStatus": 0, "lift_pos": 0, "go_args": {}, "rot_theta": 0, "adj_count": 10, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
     # res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1617774196313, "lift": {"position": 1150.08, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": 3.13999, "speed": 0.00753982, "state": 2}, "seqNum": 97, "stretch": {"position": 0.00202406, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 1080, "operation": "load", "recAdjust": 1, "rotate": 3.14, "selfPosition": 0, "stretch": 920, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 6, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.009344127654362655, 0.9982044929080618, 0.05916483428979484, 0.02896389952587754, 0.9998971162527275, 0.009971164304003799, -0.010311779279186539, -0.008335600717951527, -0.010883206690082945, 0.059062392608007996, -0.9981949657214058, 0.39888548170899063, 0.0, 0.0, 0.0, 1.0], "seqNum": 6, "vout": {"yaw": -0.6236013469464964, "pitch": 0.5353868690333142, "roll": -3.3920243909026055, "dx": 0.6608854817089906, "dy": 0.008335600717951527, "dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05, "dtheta": -0.01088389672408785, "goaPathStatus": 0, "lift_pos": 1070.0438995258776, "go_args": {"coordinate": "robot", "x": -1.3359074694907491e-05, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": 3.1291061032759124, "adj_count": 1, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
-    res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1617774196313, "lift": {"position": 1150.08, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": 3.13999, "speed": 0.00753982, "state": 2}, "seqNum": 97, "stretch": {"position": 0.00202406, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 1080, "operation": "load", "recAdjust": 1, "rotate": 3.14, "selfPosition": 0, "stretch": 920, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 6, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.009344127654362655, 0.9982044929080618, 0.05916483428979484, 0.02896389952587754, 0.9998971162527275, 0.009971164304003799, -0.010311779279186539, -0.008335600717951527, -0.010883206690082945, 0.059062392608007996, -0.9981949657214058, 0.39888548170899063, 0.0, 0.0, 0.0, 1.0], "seqNum": 6, "vout": {"yaw": -0.6236013469464964, "pitch": 0.5353868690333142, "roll": -3.3920243909026055, "dx": 0.6608854817089906, "dy": 0.008335600717951527, "dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05, "dtheta": -0.01088389672408785, "goaPathStatus": 0, "lift_pos": 1070.0438995258776, "go_args": {"coordinate": "robot", "x": -1.3359074694907491e-05, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": 3.1291061032759124, "adj_count": 1, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
-    print(f"rotate: {res['rotate']['position']+res['recAdjStatus']['dtheta']}, dist: {res['recAdjStatus']['dist']}")
-    yaw, dx , dy, dz, dist, Tagv2box = getYPRZYX_code([res["res"]["res"]["positionMatrix"]], res["rotate"]["position"])
+    res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1617774196313,
+           "lift": {"position": 1150.08, "speed": -0.0, "state": 2}, "msgType": 10,
+           "rotate": {"position": 3.13999, "speed": 0.00753982, "state": 2}, "seqNum": 97,
+           "stretch": {"position": 0.00202406, "speed": 0.337344, "state": 2}, "vision": {"state": 2},
+           "task": {"lift": 1080, "operation": "load", "recAdjust": 1, "rotate": 3.14, "selfPosition": 0,
+                    "stretch": 920, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 6,
+                                                                                           "res": {"executionResult": 0,
+                                                                                                   "msgType": 255,
+                                                                                                   "positionMatrix": [
+                                                                                                       -0.009344127654362655,
+                                                                                                       0.9982044929080618,
+                                                                                                       0.05916483428979484,
+                                                                                                       0.02896389952587754,
+                                                                                                       0.9998971162527275,
+                                                                                                       0.009971164304003799,
+                                                                                                       -0.010311779279186539,
+                                                                                                       -0.008335600717951527,
+                                                                                                       -0.010883206690082945,
+                                                                                                       0.059062392608007996,
+                                                                                                       -0.9981949657214058,
+                                                                                                       0.39888548170899063,
+                                                                                                       0.0, 0.0, 0.0,
+                                                                                                       1.0],
+                                                                                                   "seqNum": 6,
+                                                                                                   "vout": {
+                                                                                                       "yaw": -0.6236013469464964,
+                                                                                                       "pitch": 0.5353868690333142,
+                                                                                                       "roll": -3.3920243909026055,
+                                                                                                       "dx": 0.6608854817089906,
+                                                                                                       "dy": 0.008335600717951527,
+                                                                                                       "dz": -3.610047412246076e-05,
+                                                                                                       "dist": -1.3359074694907491e-05},
+                                                                                                   "targetType": "box",
+                                                                                                   "binType": "code",
+                                                                                                   "binId": ""}},
+           "recAdjStatus": {"dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05,
+                            "dtheta": -0.01088389672408785, "goaPathStatus": 0, "lift_pos": 1070.0438995258776,
+                            "go_args": {"coordinate": "robot", "x": -1.3359074694907491e-05, "y": 0, "theta": 0,
+                                        "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002,
+                                        "backMode": 1}, "rot_theta": 3.1291061032759124, "adj_count": 1,
+                            "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1},
+           "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3,
+                          "operation": 1, "status": 1}}
+    print(f"rotate: {res['rotate']['position'] + res['recAdjStatus']['dtheta']}, dist: {res['recAdjStatus']['dist']}")
+    yaw, dx, dy, dz, dist, Tagv2box = getYPRZYX_code([res["res"]["res"]["positionMatrix"]], res["rotate"]["position"])
     print(f"yaw: {yaw}, dx: {dx}, dy: {dy}, dz: {dz}, dist: {dist}")
-    loc_org = {"x":-26.89989,"y":-1.768388,"angle":-0.228760}
-    loc = [loc_org["x"],loc_org["y"],loc_org["angle"]]
+    loc_org = {"x": -26.89989, "y": -1.768388, "angle": -0.228760}
+    loc = [loc_org["x"], loc_org["y"], loc_org["angle"]]
     Tw2box = getMarkerInWorld(loc, Tagv2box)
 
     print("Tw2box: ", Tw2box)
     print("yaw", yaw)
-    boxX = [[1],[0],[0],[1]]
-    boxX2agv = matrixDot(Tagv2box, boxX,4,4,1)
-    boxX2w = matrixDot(Tw2box, boxX, 4, 4,1)
+    boxX = [[1], [0], [0], [1]]
+    boxX2agv = matrixDot(Tagv2box, boxX, 4, 4, 1)
+    boxX2w = matrixDot(Tw2box, boxX, 4, 4, 1)
     angle_agv = math.atan2(boxX2agv[1][0] - Tagv2box[1][3], boxX2agv[0][0] - Tagv2box[0][3])
-    angle_world = math.atan2(boxX2w[1][0] -Tw2box[1][3], boxX2w[0][0]-Tw2box[0][3])
+    angle_world = math.atan2(boxX2w[1][0] - Tw2box[1][3], boxX2w[0][0] - Tw2box[0][3])
     out = dict()
     out["x"] = Tw2box[0][3]
     out["y"] = Tw2box[1][3]
     out["theta"] = angle_world
-    print("box in world: ", out)      
-    print("box in agv: ", Tagv2box[0][3],Tagv2box[1][3],angle_agv)
+    print("box in world: ", out)
+    print("box in agv: ", Tagv2box[0][3], Tagv2box[1][3], angle_agv)
 
-    res = {"errorState": [], "finger": {"leftStatus": 0, "rightStatus": 0, "state": 2}, "forkDetect": [{"binId": "", "id": 1, "state": 1, "type": 1}, {"binId": "", "id": 0, "state": 1, "type": 0}], "lastUpdate": 1624259373931, "lift": {"position": 1080.0, "speed": 0.548552, "state": 2}, "msgType": 10, "rotate": {"position": 3.14, "speed": 0.00167552, "state": 2}, "seqNum": 0, "stretch": {"position": -0.0, "speed": -0.0, "state": 2}, "trays": [{"binId": "", "id": 1, "state": 1, "type": 0}], "vision": {"state": 2}, "task": {"lift": 1080, "operation": "unload", "recAdjust": 1, "rotate": 3.14, "selfPosition": 1, "stretch": 920, "visionType": "shelf", "visionBinType": "code"}, "unload": {"state": 1, "task_id": 0}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 0, "indicator": 3, "vision": 0, "operation": 1, "status": 1}, "connect_error": "ctu recv error!!!"}
+    res = {"errorState": [], "finger": {"leftStatus": 0, "rightStatus": 0, "state": 2},
+           "forkDetect": [{"binId": "", "id": 1, "state": 1, "type": 1}, {"binId": "", "id": 0, "state": 1, "type": 0}],
+           "lastUpdate": 1624259373931, "lift": {"position": 1080.0, "speed": 0.548552, "state": 2}, "msgType": 10,
+           "rotate": {"position": 3.14, "speed": 0.00167552, "state": 2}, "seqNum": 0,
+           "stretch": {"position": -0.0, "speed": -0.0, "state": 2},
+           "trays": [{"binId": "", "id": 1, "state": 1, "type": 0}], "vision": {"state": 2},
+           "task": {"lift": 1080, "operation": "unload", "recAdjust": 1, "rotate": 3.14, "selfPosition": 1,
+                    "stretch": 920, "visionType": "shelf", "visionBinType": "code"},
+           "unload": {"state": 1, "task_id": 0},
+           "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 0, "indicator": 3, "vision": 0,
+                          "operation": 1, "status": 1}, "connect_error": "ctu recv error!!!"}
     dz = 0
     dist_stretch = 0
     r.logDebug(f"Has shelf but not in here. dz {dz} dist {dist_stretch}")
     try:
         r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
-        res["lift"]["position"],res["lift"]["state"], res["lift"]["speed"],
-        res["rotate"]["position"],res["rotate"]["state"], res["rotate"]["speed"],
-        res["stretch"]["position"],res["stretch"]["state"], res["stretch"]["speed"],
-        res["finger"]["leftStatus"],res["finger"]["rightStatus"], res["finger"]["state"],
-        res["vision"]["state"]))
+            res["lift"]["position"], res["lift"]["state"], res["lift"]["speed"],
+            res["rotate"]["position"], res["rotate"]["state"], res["rotate"]["speed"],
+            res["stretch"]["position"], res["stretch"]["state"], res["stretch"]["speed"],
+            res["finger"]["leftStatus"], res["finger"]["rightStatus"], res["finger"]["state"],
+            res["vision"]["state"]))
     except KeyError as e:
-        r.logDebug("KeyError: "+str(e))
+        r.logDebug("KeyError: " + str(e))
     except Exception as e:
         r.logDebug("Other error in print hairou state")
 
     try:
-        if "forkDetect" in res :
+        if "forkDetect" in res:
             log_key = "HaiRou_forkDetect"
             log_str = ""
             for fork in res["forkDetect"]:
-                tmp_str = "{}|{}|{}|".format(fork["id"],fork["state"],fork["state"])
-                log_str = log_str+tmp_str
+                tmp_str = "{}|{}|{}|".format(fork["id"], fork["state"], fork["state"])
+                log_str = log_str + tmp_str
             r.logDebug("[{}][{}]".format(log_key, log_str))
     except KeyError as e:
-        r.logDebug("KeyError: "+str(e))
+        r.logDebug("KeyError: " + str(e))
     except Exception as e:
         r.logDebug("Other error in print hairou forkDetect state")
 
@@ -1629,16 +1786,16 @@ if __name__ == '__main__':
             log_key = "HaiRou_trays"
             log_str = ""
             for trays in res["trays"]:
-                tmp_str = "{}|{}|{}|".format(trays["id"],trays["state"],trays["state"])
-                log_str = log_str+tmp_str
+                tmp_str = "{}|{}|{}|".format(trays["id"], trays["state"], trays["state"])
+                log_str = log_str + tmp_str
             if log_str != "":
                 r.logDebug("[{}][{}]".format(log_key, log_str))
     except KeyError as e:
-        r.logDebug("KeyError: "+str(e))
+        r.logDebug("KeyError: " + str(e))
     except Exception as e:
         r.logDebug("Other error in print hairou trays state")
 
-    print(m.checkFingerStatus(r,1))
+    print(m.checkFingerStatus(r, 1))
     print("DONE")
 
     # yaw = (yaw+math.pi/2)/math.pi*180.0
@@ -1646,13 +1803,5 @@ if __name__ == '__main__':
     # roll = roll/math.pi *180
     # print(dx, dy, dz, dist, yaw, pitch ,roll)
 
-
-
-
-
-
-
     # yaw, p, r, z, y, x = getYPRZYX(one)
     # print(yaw/math.pi*180,p/math.pi*180,r/math.pi*180,z,y,x)
-
-    
