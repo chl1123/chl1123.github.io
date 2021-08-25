@@ -193,6 +193,87 @@ class Hairou:
                                   "headLedGreen": 0,
                                   "headLedFreq": 0
                                   }
+
+        self.msg_mode_req = {"msgType": MessageType.ROBOT_MODE_REQ.value,
+                             "modeType": 0,
+                             "seqNum": 0}
+
+        self.msg_reset_req = {"msgType": MessageType.ROBOT_RESET_REQ.value,
+                              "timeStamp": 0,
+                              "seqNum": 0}
+
+        self.msg_resume_req = {"msgType": MessageType.ROBOT_RESUME_REQ.value,
+                               "robotId": 0,
+                               "seqNum": 0}
+        self.msg_param_set = {"msgType": MessageType.ROBOT_PARAM_SET.value,
+                              "seqNum": 0,
+                              "robotId": 0,
+                              "box_width": 0,
+                              "box_height": 0,
+                              "box_depth": 0,
+                              "box_tag_height": 0,
+                              "box_tag_depth": 0,
+                              "shelf_tag_height": 0,
+                              "conveyor_tag_height": 0,
+                              "gap_between_box": 0
+                              }
+
+        self.msg_internal_bin_op = {
+            "msgType": MessageType.ROBOT_INTERNAL_BIN_OP.value,
+            "seqNum": 0,
+            "robotId": '',
+            "opType": 0,    # BinOpType
+            "binId": '',
+            "binType": 0,
+            "binModel": 0,
+            "srcTray": {
+                "id": 0,
+                "type": 0
+            },
+            "dstTray": {
+                "id": 0,
+                "type": 0
+            },
+            "targetTray": {
+                "id": 0,
+                "type": 0
+            }
+        }
+
+        self.msg_external_bin_op = {
+            "msgType": MessageType.ROBOT_EXTERNAL_BIN_OP.value,
+            "seqNum": 0,
+            "robotId": '',
+            "opType": 0,   # BinOpType
+            "binId": '',
+            "binType": 0,
+            "binModel": 0,
+            "srcTray": {
+                "id": 0,
+                "type": 0
+            },
+            "dstTray": {
+                "id": 0,
+                "type": 0
+            },
+            "targetTray": {
+                "id": 0,
+                "type": 0
+            }
+        }
+
+        self.msg_preaction_req = {
+            "msgType": MessageType.ROBOT_PARAM_SET.value,
+            "seqNum": 0,
+            "robotId": '',
+            "preconditions": 0,
+            "liftPositionMax": 0,
+            "liftPositionMin": 0,
+            "forkRotationPositionMax": 0,
+            "forkRotationPositionMin": 0,
+            "fingerPosition": 0
+        }
+
         self.report = dict()
         self.liftReset_res = dict()
         self.resetAction(self.liftReset_res)
@@ -303,7 +384,8 @@ class Hairou:
         try:
             total_data = self.tcp_client.recv(1024)
         except:
-            if r is not None: r.logDebug("ctu recv error!!!")
+            if r is not None:
+                r.logDebug("ctu recv error!!!")
             self.report["connect_error"] = "ctu recv error!!!"
             self.total_hex = ""
             return dict()
@@ -335,7 +417,8 @@ class Hairou:
                             out = json.loads(body[0])
                         except:
                             print("loads error!!!", body)
-                            if r is not None: r.logDebug("ctu loads error!!! {}".format(body))
+                            if r is not None:
+                                r.logDebug("ctu loads error!!! {}".format(body))
                             continue
                         else:
                             self.updateRes(out, r)
