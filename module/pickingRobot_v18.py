@@ -248,30 +248,22 @@ class Hairou:
             "binId": '',
             "binType": 0,
             "binModel": 0,
-            "srcTray": {
-                "id": 0,
-                "type": 0
-            },
-            "dstTray": {
-                "id": 0,
-                "type": 0
-            },
-            "targetTray": {
-                "id": 0,
-                "type": 0
+            "locationType": 0,
+            "targetPosition": 0,
+            "targetHeight": 0
             }
-        }
 
         self.msg_preaction_req = {
             "msgType": MessageType.ROBOT_PARAM_SET.value,
             "seqNum": 0,
             "robotId": '',
-            "preconditions": 0,
-            "liftPositionMax": 0,
-            "liftPositionMin": 0,
-            "forkRotationPositionMax": 0,
-            "forkRotationPositionMin": 0,
-            "fingerPosition": 0
+            "preconditions": {
+                "liftPositionMax": 0,
+                "liftPositionMin": 0,
+                "forkRotationPositionMax": 0,
+                "forkRotationPositionMin": 0,
+                "fingerPosition": 0
+            }
         }
 
         self.report = dict()
@@ -299,6 +291,22 @@ class Hairou:
         self.resetAction(self.visionRecord_res)
         self.indicatorReq_res = dict()
         self.resetAction(self.indicatorReq_res)
+
+        self.switch_mode_res = dict()
+        self.resetAction(self.switch_mode_res)
+        self.reset_res = dict()
+        self.resetAction(self.reset_res)
+        self.resume_res = dict()
+        self.resetAction(self.resume_res)
+        self.param_set_res = dict()
+        self.resetAction(self.param_set_res)
+        self.internal_bin_op_res = dict()
+        self.resetAction(self.internal_bin_op_res)
+        self.external_bin_op_res = dict()
+        self.resetAction(self.external_bin_op_res)
+        self.preaction_res = dict()
+        self.resetAction(self.preaction_res)
+
         self.reset_time = 5
         self.rotate_reset_stime = -1
         self.vision_reset_stime = -1
@@ -380,7 +388,6 @@ class Hairou:
         self.tcp_client.close()
 
     def getMsg(self, r):
-        total_data = b""
         try:
             total_data = self.tcp_client.recv(1024)
         except:
@@ -396,7 +403,7 @@ class Hairou:
                 # r.logDebug("ind: {}, total_hex {}".format(ind, self.total_hex))
                 if ind >= 0 and ind + 32 <= len(self.total_hex):
                     head_hex = self.total_hex[ind:ind + 32]
-                    fmt = "@IIII"
+                    fmt = "@4I"
                     try:
                         usMagic, usSize, crcBody, crcHead = struct.unpack(fmt, bytes.fromhex(head_hex))
                     except:
@@ -412,7 +419,6 @@ class Hairou:
                         self.total_hex = last_info[usSize * 2:]
                         fmt = "@" + str(usSize) + "s"
                         body = struct.unpack(fmt, bytes.fromhex(body_hex))
-                        out = dict()
                         try:
                             out = json.loads(body[0])
                         except:
@@ -455,6 +461,22 @@ class Hairou:
                     self.finishAction(self.visionReq_res, res_msg)
                 elif self.indicatorReq_res['seqNum'] == seqNum:
                     self.finishAction(self.indicatorReq_res, res_msg)
+
+                elif self.switch_mode_res['seqNum'] == seqNum:
+                    self.finishAction(self.switch_mode_res, res_msg)
+                elif self.reset_res['seqNum'] == seqNum:
+                    self.finishAction(self.reset_res, res_msg)
+                elif self.resume_res['seqNum'] == seqNum:
+                    self.finishAction(self.resume_res, res_msg)
+                elif self.param_set_res['seqNum'] == seqNum:
+                    self.finishAction(self.param_set_res, res_msg)
+                elif self.internal_bin_op_res['seqNum'] == seqNum:
+                    self.finishAction(self.internal_bin_op_res, res_msg)
+                elif self.external_bin_op_res['seqNum'] == seqNum:
+                    self.finishAction(self.external_bin_op_res, res_msg)
+                elif self.preaction_res['seqNum'] == seqNum:
+                    self.finishAction(self.preaction_res, res_msg)
+
             elif res_msg['msgType'] == MessageType.ROBOT_INFO_REPORT:
                 self.report = res_msg
 
@@ -481,10 +503,11 @@ class Hairou:
         # print(head_bytes.hex())
         crcHead = crc.crcbytes(head_bytes)
 
-        fmt = "@IIII" + str(usSize) + "s"
+        fmt = "@4I" + str(usSize) + "s"
         # print(fmt)
         sends = struct.pack(fmt, usMagic, usSize, crcBody, crcHead, byte_data)
-        if r is not None: r.logDebug(sends.hex())
+        if r is not None:
+            r.logDebug(sends.hex())
         res_msg = dict()
         try:
             msg_len = len(sends)
@@ -508,6 +531,134 @@ class Hairou:
             res_msg["flag"] = False
             res_msg["content"] = str(sys.exc_info()[0])
         return res_msg
+
+    def switch_mode(self, r, mode: ModeType):
+        msg = self.msg_mode_req
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['modeType'] = mode
+        self.robot_mode = mode
+        self.switch_mode_res['seqNum'] = self.seqNum_req
+        self.switch_mode_res["status"] = Action.RUNNING
+        self.switch_mode_res['res'] = self.sendMessage(msg, r)
+        return self.switch_mode_res
+
+    def robot_reset(self, r):           # 所有机构重置校零
+        msg = self.msg_reset_req
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['timeStamp'] = int(round(time.time() * 1000))
+        self.reset_res['seqNum'] = self.seqNum_req
+        self.reset_res["status"] = Action.RUNNING
+        self.reset_res['res'] = self.sendMessage(msg, r)
+        return self.reset_res
+
+    def task_resume(self, r, robotId):
+        msg = self.msg_resume_req
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['robotId'] = robotId    # 料箱种类
+        self.resume_res['seqNum'] = self.seqNum_req
+        self.resume_res["status"] = Action.RUNNING
+        self.resume_res['res'] = self.sendMessage(msg, r)
+        return self.resume_res
+
+    def param_set(self, r, robotId, box_width, box_height, box_depth, box_tag_height, box_tag_depth, shelf_tag_height,
+                  conveyor_tag_height, gap_between_box):
+        msg = self.msg_param_set
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['robotId'] = robotId
+        msg['box_width'] = box_width
+        msg['box_height'] = box_height
+        msg['box_depth'] = box_depth
+        msg['box_tag_height'] = box_tag_height
+        msg['box_tag_depth'] = box_tag_depth
+        msg['shelf_tag_height'] = shelf_tag_height
+        msg['conveyor_tag_height'] = conveyor_tag_height
+        msg['gap_between_box'] = gap_between_box
+        self.param_set_res['seqNum'] = self.seqNum_req
+        self.param_set_res["status"] = Action.RUNNING
+        self.param_set_res['res'] = self.sendMessage(msg, r)
+        return self.param_set_res
+
+    def internal_bin_op(self, r, robotId, opType, binId='reserve', binType=None, binModel=None, srcTray=None, dstTray=None,
+                        targetTray=None):
+        msg = self.msg_internal_bin_op
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['robotId'] = robotId
+        msg['opType'] = opType
+        if opType == BinOpType.MOVE:
+            msg['binId'] = binId
+            msg['binType'] = binType
+            msg['binModel'] = binModel
+            msg['srcTray'] = srcTray
+            msg['dstTray'] = dstTray
+            if binType is None:
+                msg.pop('binType')
+            if binModel is None:
+                msg.pop('binModel')
+        else:
+            msg.pop('binId')
+            msg.pop('binType')
+            msg.pop('binModel')
+            msg.pop('srcTray')
+            msg.pop('dstTray')
+        if opType == BinOpType.INSPECT:
+            msg['targetTray'] = targetTray
+        else:
+            msg.pop('targetTray')
+        self.internal_bin_op_res['seqNum'] = self.seqNum_req
+        self.internal_bin_op_res["status"] = Action.RUNNING
+        self.internal_bin_op_res['res'] = self.sendMessage(msg, r)
+        return self.internal_bin_op_res
+
+    def external_bin_op(self, r, robotId, opType, binId='reserve', targetPosition=0, targetHeight=0, binType=None,
+                        binModel=None,  locationType=None):
+        msg = self.msg_external_bin_op
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['robotId'] = robotId
+        msg['opType'] = opType
+        msg['binId'] = binId
+        msg['targetPosition'] = targetPosition
+        msg['targetHeight'] = targetHeight
+        msg['binType'] = binType
+        msg['binModel'] = binModel
+        msg['locationType'] = locationType
+
+        if binType is None:
+            msg.pop('binType')
+        if binModel is None:
+            msg.pop('binModel')
+        if locationType is None:
+            msg.pop('locationType')
+        if opType not in [BinOpType.PUT, BinOpType.TAKE]:
+            msg.pop('binId')
+            msg.pop('binType')
+            msg.pop('binModel')
+
+        self.external_bin_op_res['seqNum'] = self.seqNum_req
+        self.external_bin_op_res["status"] = Action.RUNNING
+        self.external_bin_op_res['res'] = self.sendMessage(msg, r)
+        return self.external_bin_op_res
+
+    def preaction(self, r, robotId, preconditions=None):      # 仅在任务模式下使用
+        msg = self.msg_preaction_req
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['robotId'] = robotId
+        msg['preconditions'] = preconditions
+        if preconditions is None:
+            msg.pop('preconditions')
+
+        self.preaction_res['seqNum'] = self.seqNum_req
+        self.preaction_res["status"] = Action.RUNNING
+        self.preaction_res['res'] = self.sendMessage(msg, r)
+        return self.preaction_res
+
+
 
     def liftReset(self, r):
         if self.liftReset_res['status'] is Action.INIT:
