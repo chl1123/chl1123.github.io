@@ -388,7 +388,7 @@ class Module(BasicModule):
         # 此处修改的是默认值，最终执行请在“ctu.json"里进行更改
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default=40.0, maxValue=1000.0,
                                           minValue=-1000.0, unit="mm", comment="识别货架后，放货物时高度的调整距离")
-        self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default=-1, maxValue=100, minValue=-1, unit="",
+        self.fork_up_limit = p.loadParam("fork_up_limit", type="int", default=-1, maxValue=100, minValue=-1, unit="",
                                          comment="货叉上限位DI")
         self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default=-1, maxValue=100, minValue=-1,
                                            unit="", comment="货叉下限位DI")
@@ -419,6 +419,7 @@ class Module(BasicModule):
         if r.errorExits(52111):
             self.status = MoveStatus.FAILED
             return self.status.value
+
         self.status = MoveStatus.RUNNING
         if self.init:
             self.init = False
@@ -438,7 +439,11 @@ class Module(BasicModule):
                 r.setError("ctu connect is overtime: {}".format(self.max_connect_time))
                 self.status = MoveStatus.FAILED
             return self.status
-        if self.status is not MoveStatus.FINISHED:
+
+        if not self.h.mode == Hairou.ModeType.MODULE:
+            self.h.switch_mode(r, Hairou.ModeType.MODULE)
+
+        if self.status is not MoveStatus.FINISHED and self.h.mode == Hairou.ModeType.MODULE:
             self.state = self.h.getReport(r)
             if "connect_error" in self.state:
                 dtime = time.time() - self.start_connect_time

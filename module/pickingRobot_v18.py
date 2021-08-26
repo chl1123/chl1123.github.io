@@ -47,10 +47,10 @@ class ModeType(IntEnum):
 
 
 class PositionXYT:
-    def __init__(self):
-        self.x = 0.0  # 位置坐标x值，单位:m
-        self.y = 0.0  # 位置坐标y值，单位:m
-        self.theta = 0.0  # 位置坐标theta值，单位:rad
+    def __init__(self, x=0, y=0, theta=0):
+        self.x = x  # 位置坐标x值，单位:m
+        self.y = y  # 位置坐标y值，单位:m
+        self.theta = theta  # 位置坐标theta值，单位:rad
 
 
 class TrayType(IntEnum):
@@ -67,7 +67,7 @@ class BinOpType(IntEnum):
 
 class LocationType(IntEnum):
     STORAGE_SHELF = 0  # 存储区货架(浅库位)
-    STORAGE_SHELF_DEEP1 = 1  # 深库位(仅特定机型支持)
+    STORAGE_SHELF_DEEP = 1  # 深库位(仅特定机型支持)
     CONVEYOR = 10  # 输送线
 
 
@@ -315,7 +315,7 @@ class Hairou:
         self.stretch_reset_stime = -1
         self.total_hex = ""
 
-        self.robot_mode = ModeType.TASK         # 默认为任务模式
+        self.mode = ModeType.TASK         # 默认为任务模式
 
 
     def resetAction(self, data):
@@ -532,12 +532,12 @@ class Hairou:
             res_msg["content"] = str(sys.exc_info()[0])
         return res_msg
 
-    def switch_mode(self, r, mode: ModeType):
+    def switch_mode(self, r, mode):
         msg = self.msg_mode_req
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
         msg['modeType'] = mode
-        self.robot_mode = mode
+        self.mode = mode
         self.switch_mode_res['seqNum'] = self.seqNum_req
         self.switch_mode_res["status"] = Action.RUNNING
         self.switch_mode_res['res'] = self.sendMessage(msg, r)
