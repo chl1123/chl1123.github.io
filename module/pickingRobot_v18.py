@@ -532,11 +532,11 @@ class Hairou:
             res_msg["content"] = str(sys.exc_info()[0])
         return res_msg
 
-    def switch_mode(self, r, mode):
+    def switch_mode(self, r, mode: ModeType):
         msg = self.msg_mode_req
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
-        msg['modeType'] = mode
+        msg['modeType'] = mode.value
         self.mode = mode
         self.switch_mode_res['seqNum'] = self.seqNum_req
         self.switch_mode_res["status"] = Action.RUNNING
@@ -582,23 +582,25 @@ class Hairou:
         self.param_set_res['res'] = self.sendMessage(msg, r)
         return self.param_set_res
 
-    def internal_bin_op(self, r, robotId, opType, binId='reserve', binType=None, binModel=None, srcTray=None, dstTray=None,
+    def internal_bin_op(self, r, robotId, opType: BinOpType, binId='reserve', binType=None, binModel=None, srcTray=None, dstTray=None,
                         targetTray=None):
         msg = self.msg_internal_bin_op
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
         msg['robotId'] = robotId
-        msg['opType'] = opType
+        msg['opType'] = opType.value
         if opType == BinOpType.MOVE:
             msg['binId'] = binId
-            msg['binType'] = binType
-            msg['binModel'] = binModel
+            if binType is not None:
+                msg['binType'] = binType.value
+            else:
+                msg.pop('binType')
+            if binModel is not None:
+                msg['binModel'] = binModel.value
+            else:
+                msg.pop('binModel')
             msg['srcTray'] = srcTray
             msg['dstTray'] = dstTray
-            if binType is None:
-                msg.pop('binType')
-            if binModel is None:
-                msg.pop('binModel')
         else:
             msg.pop('binId')
             msg.pop('binType')
@@ -614,25 +616,27 @@ class Hairou:
         self.internal_bin_op_res['res'] = self.sendMessage(msg, r)
         return self.internal_bin_op_res
 
-    def external_bin_op(self, r, robotId, opType, binId='reserve', targetPosition=0, targetHeight=0, binType=None,
+    def external_bin_op(self, r, robotId, opType: BinOpType, binId='reserve', targetPosition=0, targetHeight=0, binType=None,
                         binModel=None,  locationType=None):
         msg = self.msg_external_bin_op
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
         msg['robotId'] = robotId
-        msg['opType'] = opType
+        msg['opType'] = opType.value
         msg['binId'] = binId
         msg['targetPosition'] = targetPosition
         msg['targetHeight'] = targetHeight
-        msg['binType'] = binType
-        msg['binModel'] = binModel
-        msg['locationType'] = locationType
-
-        if binType is None:
+        if binType is not None:
+            msg['binType'] = binType.value
+        else:
             msg.pop('binType')
-        if binModel is None:
+        if binModel is not None:
+            msg['binModel'] = binModel.value
+        else:
             msg.pop('binModel')
-        if locationType is None:
+        if locationType is not None:
+            msg['locationType'] = locationType.value
+        else:
             msg.pop('locationType')
         if opType not in [BinOpType.PUT, BinOpType.TAKE]:
             msg.pop('binId')
@@ -657,8 +661,6 @@ class Hairou:
         self.preaction_res["status"] = Action.RUNNING
         self.preaction_res['res'] = self.sendMessage(msg, r)
         return self.preaction_res
-
-
 
     def liftReset(self, r):
         if self.liftReset_res['status'] is Action.INIT:

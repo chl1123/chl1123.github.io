@@ -1,6 +1,6 @@
 from enum import Enum, IntEnum
 import time
-from rbkSim import SimModule
+from module.syspy.rbkSim import SimModule
 import math
 import os, json
 import math
