@@ -4,7 +4,7 @@ import time
 
 from syspy.rbkSim import SimModule
 from module.syspy.rbk import MoveStatus, BasicModule, ParamServer
-from pickingRobot_v18 import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType
+from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType
 
 """
 ####BEGIN DEFAULT ARGS####

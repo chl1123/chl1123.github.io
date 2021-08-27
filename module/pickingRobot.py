@@ -38,6 +38,9 @@ class MessageType(IntEnum):
     ROBOT_EXTERNAL_BIN_OP = 90  # 外部取放货
     ROBOT_PREACTION_REQ = 100  # 预备动作
 
+    ROBOT_SRC_POS_REQ = 200  # 导航请求
+    ROBOT_SRC_POS_RESP = 201
+
     ROBOT_COMM_RESP = 255
 
 
@@ -194,6 +197,10 @@ class Hairou:
                                   "headLedFreq": 0
                                   }
 
+        self.msg_src_pos_req = {"msgType": MessageType.ROBOT_SRC_POS_REQ.value,
+                                "modeType": 0,
+                                "seqNum": 0}
+
         self.msg_mode_req = {"msgType": MessageType.ROBOT_MODE_REQ.value,
                              "modeType": 0,
                              "seqNum": 0}
@@ -306,6 +313,8 @@ class Hairou:
         self.resetAction(self.external_bin_op_res)
         self.preaction_res = dict()
         self.resetAction(self.preaction_res)
+        self.src_pos_res = dict()
+        self.resetAction(self.src_pos_res)
 
         self.reset_time = 5
         self.rotate_reset_stime = -1
@@ -476,6 +485,8 @@ class Hairou:
                     self.finishAction(self.external_bin_op_res, res_msg)
                 elif self.preaction_res['seqNum'] == seqNum:
                     self.finishAction(self.preaction_res, res_msg)
+                elif self.src_pos_res['seqNum'] == seqNum:
+                    self.finishAction(self.src_pos_res, res_msg)
 
             elif res_msg['msgType'] == MessageType.ROBOT_INFO_REPORT:
                 self.report = res_msg
@@ -654,7 +665,7 @@ class Hairou:
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
         msg['robotId'] = robotId
-        msg['preconditions'] = preconditions
+        msg['preconditions'] = preconditions   # type: json
         if preconditions is None:
             msg.pop('preconditions')
 
@@ -662,6 +673,17 @@ class Hairou:
         self.preaction_res["status"] = Action.RUNNING
         self.preaction_res['res'] = self.sendMessage(msg, r)
         return self.preaction_res
+
+    def src_pos(self, r, position: PositionXYT):
+        msg = self.msg_src_pos_req
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['position'] = position
+        self.msg_src_pos_req['seqNum'] = self.seqNum_req
+        self.msg_src_pos_req["status"] = Action.RUNNING
+        self.msg_src_pos_req['res'] = self.sendMessage(msg, r)
+        return self.msg_src_pos_req
+
 
     def liftReset(self, r):
         if self.liftReset_res['status'] is Action.INIT:
