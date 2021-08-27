@@ -5,6 +5,7 @@ import math
 import os, json
 import math
 
+
 class MoveStatus(IntEnum):
     NONE = 0
     RUNNING = 1
@@ -12,6 +13,7 @@ class MoveStatus(IntEnum):
     FINISHED = 3
     FAILED = 4
     SUSPENDED = 5
+
 
 def normalize_theta(theta):
     if theta >= -math.pi and theta < math.pi:
@@ -24,6 +26,7 @@ def normalize_theta(theta):
         theta = theta + 2 * math.pi
     return theta
 
+
 def Pos2World(pos2base, base2world):
     """将位姿转换为世界坐标系
 
@@ -34,13 +37,15 @@ def Pos2World(pos2base, base2world):
     Returns:
         [type]: pos2world
     """
-    pos2world = [0.,0.,0.]
+    pos2world = [0., 0., 0.]
     x = pos2base[0] * math.cos(base2world[2]) - pos2base[1] * math.sin(base2world[2])
     y = pos2base[0] * math.sin(base2world[2]) + pos2base[1] * math.cos(base2world[2])
     pos2world[0] = x + base2world[0]
     pos2world[1] = y + base2world[1]
     pos2world[2] = normalize_theta(pos2base[2] + base2world[2])
     return pos2world
+
+
 def Pos2Base(pos2world, base2world):
     """将基于世界坐标系的两个位姿，转换为基于base的位姿
 
@@ -50,31 +55,38 @@ def Pos2Base(pos2world, base2world):
     Returns:
         [3]: pos2base
     """
-    pos2base = [0.,0.,0.]
+    pos2base = [0., 0., 0.]
     x = pos2world[0] - base2world[0]
     y = pos2world[1] - base2world[1]
     pos2base[0] = x * math.cos(base2world[2]) + y * math.sin(base2world[2])
     pos2base[1] = -x * math.sin(base2world[2]) + y * math.cos(base2world[2])
     pos2base[2] = normalize_theta(pos2world[2] - base2world[2])
     return pos2base
+
+
 class BasicModule:
     def __init__(self):
         self.status = MoveStatus.NONE
         self.start_time = time.time()
-    def run(self, r:SimModule, args):
+
+    def run(self, r: SimModule, args):
         self.status = MoveStatus.FINISHED
         return self.status.value
-    def reset(self, r:SimModule):
+
+    def reset(self, r: SimModule):
         self.status = MoveStatus.RUNNING
         self.start_time = time.time()
         # r.logInfo("script reset")
-    def suspend(self, r:SimModule):
+
+    def suspend(self, r: SimModule):
         self.start_time = time.time()
         # r.logInfo("script suspend")
         self.status = MoveStatus.SUSPENDED
-    def cancel(self, r:SimModule):
+
+    def cancel(self, r: SimModule):
         # r.logInfo("script cancel")
         self.status = MoveStatus.NONE
+
 
 class ParamServer:
     """
@@ -85,28 +97,31 @@ class ParamServer:
     p = ParamServer(__file__)
     param = p.loadParam("motor_name", "str", default = "motor1")
     """
+
     def __init__(self, file):
         param_dir = os.path.dirname(file) + '/params'
-        isExists=os.path.exists(param_dir)
+        isExists = os.path.exists(param_dir)
         if not isExists:
             os.makedirs(param_dir)
         base_f = os.path.basename(file)
-        self.file = param_dir + '/'+base_f.split('.')[0] + '.json'
+        self.file = param_dir + '/' + base_f.split('.')[0] + '.json'
         self.data = dict()
         try:
             with open(self.file, 'r', encoding="utf-8") as f:
-                self.data = json.load( f)
+                self.data = json.load(f)
         except:
             pass
-    def loadParam(self, name:str, type:str = "", default = None, **kw):
+
+    def loadParam(self, name: str, type: str = "", default=None, **kw):
         def updateKey(data, key, value):
-            if (key not in data)  or (key in data and data[key] != value):
+            if (key not in data) or (key in data and data[key] != value):
                 return True
             else:
                 return False
-        updateFile = False    
+
+        updateFile = False
         if type is "float" or type is "str" or type is "int":
-            if default is not None: 
+            if default is not None:
                 if name not in self.data:
                     updateFile = True
                     self.data[name] = dict()
@@ -122,16 +137,16 @@ class ParamServer:
                         self.data[name]["maxValue"] = kw["maxValue"]
                     if "minValue" in kw and updateKey(self.data[name], "minValue", kw["minValue"]):
                         updateFile = True
-                        self.data[name]["minValue"] = kw["minValue"]                    
+                        self.data[name]["minValue"] = kw["minValue"]
                 if "comment" in kw and updateKey(self.data[name], "comment", kw["comment"]):
-                        updateFile = True
-                        self.data[name]["comment"] = kw["comment"]
+                    updateFile = True
+                    self.data[name]["comment"] = kw["comment"]
                 if "unit" in kw and updateKey(self.data[name], "unit", kw["unit"]):
-                        updateFile = True
-                        self.data[name]["unit"] = kw["unit"]
+                    updateFile = True
+                    self.data[name]["unit"] = kw["unit"]
                 if updateFile:
-                    with open(self.file, 'w', encoding="utf-8") as f: 
-                        json.dump(self.data, f, indent=4)        
+                    with open(self.file, 'w', encoding="utf-8") as f:
+                        json.dump(self.data, f, indent=4)
                 return self.data[name]["value"]
             else:
                 raise Exception("loadParam no default key")

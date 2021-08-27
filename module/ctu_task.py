@@ -9,6 +9,12 @@ from pickingRobot_v18 import ModeType, Hairou, BinOpType, BinType, BinModel, Loc
 """
 ####BEGIN DEFAULT ARGS####
 {
+    "operation": {
+        "value": "reset",
+        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode", "task_resume"],
+        "tips": "动作指令",
+        "type": "complex"
+    },
     "mode": {
         "value": "task",
         "default_value": ["task", "module"],
@@ -189,6 +195,8 @@ class Module(BasicModule):
         self.conveyor_tag_height = p.loadParam("conveyor_tag_height", type="float", default=0, comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
 
+        r.setNotice(f"===init=== {json.dumps(args)}")
+
         self.init = True
         self.state = dict()
         # self.task = dict()
@@ -196,11 +204,12 @@ class Module(BasicModule):
         self.h.connect()
 
     def run(self, r: SimModule, args):
+        # 驱动器连接故障，通信超时
         if r.errorExits(52111):
             return MoveStatus.FAILED
 
         self.status = MoveStatus.RUNNING
-        r.setNotice(f"===args=== {json.dumps(args)}")
+        r.setNotice(f"===run=== {json.dumps(args)}")
         if self.init:
             self.init = False
             self.update_param(r, args)
@@ -217,17 +226,13 @@ class Module(BasicModule):
                 self.status = MoveStatus.FAILED
             return self.status
 
-        if not self.h.mode == ModeType.TASK:
-            r.setWarning("mode error!")
-            self.h.switch_mode(r, ModeType.TASK)
-            return self.status
-
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
+            r.setInfo(json.dumps(self.state))
             if "connect_error" in self.state:
-                dtime = time.time() - self.start_connect_time
-                if dtime > self.max_connect_time:
-                    r.setError("ctu connect is overtime: {}".format(self.max_connect_time))
+                d_time = time.time() - self.start_connect_time
+                if d_time > self.max_connect_time:
+                    r.setError(f"ctu connect is overtime: {self.max_connect_time}")
                     self.status = MoveStatus.FAILED
                     str_state = json.dumps(self.state)
                     r.setInfo(str_state)
@@ -236,9 +241,80 @@ class Module(BasicModule):
             else:
                 self.start_connect_time = time.time()
 
-                
+            if not self.h.mode == ModeType.TASK:
+                r.setWarning("mode error!")
+                self.h.switch_mode(r, ModeType.TASK)
+                return self.status
+
+            # ======================================动作指令类型========================================================
+            # ["switch_mode", "preaction", "robot_reset", "param_set", "internal_opt", "external_opt", "task_resume"]
+            if "operation" in args:
+                if args['operation'] == 'switch_mode':
+                    try:
+                        self.h.switch_mode(r, self.mode)
+                        self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"switch_mode exception: {e}")
+                        self.h.task_resume(r, self.robotId)
+                elif args['operation'] == 'preaction':
+                    try:
+                        self.h.preaction(r, self.robotId, self.preconditions)
+                        self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"preaction exception: {e}")
+                        self.h.task_resume(r, self.robotId)
+                elif args['operation'] == 'robot_reset':
+                    try:
+                        self.h.robot_reset(r)
+                        self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"robot_reset exception: {e}")
+                        self.h.task_resume(r, self.robotId)
+                elif args['operation'] == 'param_set':
+                    try:
+                        self.h.param_set(r, self.robotId, self.box_width, self.box_height, self.box_depth, self.box_tag_height,
+                                         self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height, self.gap_between_box)
+                        self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"param_set exception: {e}")
+                        self.h.task_resume(r, self.robotId)
+                elif args['operation'] == 'internal_opt':
+                    try:
+                        self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel,
+                                               self.srcTray, self.dstTray, self.targetTray)
+                        self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"internal_opt exception: {e}")
+                        self.h.task_resume(r, self.robotId)
+                elif args['operation'] == 'external_opt':
+                    try:
+                        self.h.external_bin_op(r, self.robotId, self.opType, self.binId, self.targetPosition,
+                                               self.targetHeight, self.binType, self.binModel,  self.locationType)
+                        self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"external_opt exception: {e}")
+                        self.h.task_resume(r, self.robotId)
+                elif args['operation'] == 'task_resume':
+                    try:
+                        self.h.task_resume(r, self.robotId)
+                        self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"task_resume exception: {e}")
+                        return MoveStatus.FAILED
+            else:
+                r.setError("operation must be checked!")
+                return MoveStatus.FAILED
+            return self.status
                 
     def update_param(self, r, args):
+        r.setNotice(f"===update_param==={json.dumps(args)}")
         # ==============================================================================================================
         # params = ['mode', 'robotId', 'opType', 'binId', 'binType', 'binModel', 'srcTray', 'dstTray', 'targetTray', 
         #           'targetPosition', 'targetHeight', 'locationType', 'preconditions', 'box_width', 'box_height', 'box_depth',
@@ -334,59 +410,11 @@ class Module(BasicModule):
 
 if __name__ == "__main__":
     r = SimModule()
-    args = dict()
+    args = dict({
+        'ip': '127.0.1.1',
+        'port': 9999,
+        'robotId': '123456',
+        'operation': 'robot_reset'
+    })
     m = Module(r, args)
     m.run(r, args)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

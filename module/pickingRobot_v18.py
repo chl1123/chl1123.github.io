@@ -561,6 +561,7 @@ class Hairou:
         self.resume_res['seqNum'] = self.seqNum_req
         self.resume_res["status"] = Action.RUNNING
         self.resume_res['res'] = self.sendMessage(msg, r)
+        r.setNotice(f"task is resuming...")
         return self.resume_res
 
     def param_set(self, r, robotId, box_width, box_height, box_depth, box_tag_height, box_tag_depth, shelf_tag_height,
