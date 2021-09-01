@@ -134,6 +134,13 @@ class ErrorMessage:
         self.errorcode[0x80000304] = ["E_DEV_ABNORMAL", "设备数据异常"]
 
 
+def del_dict_item(_dict, key):
+    if key in _dict:
+        _dict.pop('key')
+        return _dict['key']
+    return None
+
+
 class Hairou:
     def __init__(self, ip, port):
         self.ip = ip
@@ -543,11 +550,11 @@ class Hairou:
             res_msg["content"] = str(sys.exc_info()[0])
         return res_msg
 
-    def switch_mode(self, r, mode: ModeType):
+    def switch_mode(self, r, mode):
         msg = self.msg_mode_req
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
-        msg['modeType'] = mode.value
+        msg['modeType'] = mode
         self.mode = mode
         self.switch_mode_res['seqNum'] = self.seqNum_req
         self.switch_mode_res["status"] = Action.RUNNING
@@ -594,21 +601,21 @@ class Hairou:
         self.param_set_res['res'] = self.sendMessage(msg, r)
         return self.param_set_res
 
-    def internal_bin_op(self, r, robotId, opType: BinOpType, binId='reserve', binType=None, binModel=None, srcTray=None, dstTray=None,
+    def internal_bin_op(self, r, robotId, opType, binId='reserve', binType=None, binModel=None, srcTray=None, dstTray=None,
                         targetTray=None):
         msg = self.msg_internal_bin_op
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
         msg['robotId'] = robotId
-        msg['opType'] = opType.value
+        msg['opType'] = opType
         if opType == BinOpType.MOVE:
             msg['binId'] = binId
             if binType is not None:
-                msg['binType'] = binType.value
+                msg['binType'] = binType
             else:
                 msg.pop('binType')
             if binModel is not None:
-                msg['binModel'] = binModel.value
+                msg['binModel'] = binModel
             else:
                 msg.pop('binModel')
             msg['srcTray'] = srcTray
@@ -628,26 +635,26 @@ class Hairou:
         self.internal_bin_op_res['res'] = self.sendMessage(msg, r)
         return self.internal_bin_op_res
 
-    def external_bin_op(self, r, robotId, opType: BinOpType, binId='reserve', targetPosition=0, targetHeight=0, binType=None,
+    def external_bin_op(self, r, robotId, opType, binId='reserve', targetPosition=0, targetHeight=0, binType=None,
                         binModel=None,  locationType=None):
         msg = self.msg_external_bin_op
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
         msg['robotId'] = robotId
-        msg['opType'] = opType.value
+        msg['opType'] = opType
         msg['binId'] = binId
         msg['targetPosition'] = targetPosition
         msg['targetHeight'] = targetHeight
         if binType is not None:
-            msg['binType'] = binType.value
+            msg['binType'] = binType
         else:
             msg.pop('binType')
         if binModel is not None:
-            msg['binModel'] = binModel.value
+            msg['binModel'] = binModel
         else:
             msg.pop('binModel')
         if locationType is not None:
-            msg['locationType'] = locationType.value
+            msg['locationType'] = locationType
         else:
             msg.pop('locationType')
         if opType not in [BinOpType.PUT, BinOpType.TAKE]:
@@ -657,7 +664,9 @@ class Hairou:
 
         self.external_bin_op_res['seqNum'] = self.seqNum_req
         self.external_bin_op_res["status"] = Action.RUNNING
+        r.setWarning(f"=================external_bin_op:{msg}")
         self.external_bin_op_res['res'] = self.sendMessage(msg, r)
+
         return self.external_bin_op_res
 
     def preaction(self, r, robotId, preconditions=None):      # 仅在任务模式下使用

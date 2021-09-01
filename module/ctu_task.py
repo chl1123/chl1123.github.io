@@ -3,15 +3,15 @@ import json
 import time
 
 from syspy.rbkSim import SimModule
-from module.syspy.rbk import MoveStatus, BasicModule, ParamServer
-from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType
+from syspy.rbk import MoveStatus, BasicModule, ParamServer
+from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType, Action
 
 """
 ####BEGIN DEFAULT ARGS####
 {
     "operation": {
         "value": "reset",
-        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode", "task_resume"],
+        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode"],
         "tips": "动作指令",
         "type": "complex"
     },
@@ -27,7 +27,7 @@ from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, Locatio
         "type": "string"
     },
     "opType": {
-        "value": "take",
+        "value": "inspect",
         "default_value": ["put", "take", "move", "inspect"],
         "tips": "操作类型",
         "type": "complex"
@@ -170,16 +170,16 @@ class Module(BasicModule):
         self.max_connect_time = p.loadParam("max_connect_time", type="int", default=10, maxValue=999999, minValue=0,
                                             comment="链接等待最长时间s")
         self.mode = p.loadParam("mode", type="str", default="task", comment="交互模式")
-        self.robotId = p.loadParam("robotId", type="str", default="12345", comment="")
-        self.opType = p.loadParam("opType", type="str", default="put", comment="操作类型")
+        self.robotId = p.loadParam("robotId", type="str", default="1", comment="")
+        self.opType = p.loadParam("opType", type="str", default="inspect", comment="操作类型")
         self.binId = p.loadParam("binId", type="str", default="reserve", comment="预留参数")
         self.binType = p.loadParam("binType", type="str", default="markerless", comment="货物识别类型")
-        self.binModel = p.loadParam("binModel", type="str", default="carton", comment="料箱种类")
+        self.binModel = p.loadParam("binModel", type="str", default="plasticbox", comment="料箱种类")
 
         self.srcTray = p.loadParam("srcTray", type="str", default='{"id": 0, "type": 0}', comment="源托盘, 托盘id, 托盘类型")
-        self.dstTray = p.loadParam("dstTray", type="str", default='{"id": 0, "type": 0}', comment="目标托盘, 托盘id, 托盘类型")
+        self.dstTray = p.loadParam("dstTray", type="str", default='{"id": 1, "type": 0}', comment="目标托盘, 托盘id, 托盘类型")
         self.targetTray = p.loadParam("targetTray", type="str", default='{"id": 0, "type": 0}', comment="扫描对象托盘, 托盘id, 托盘类型")
-        self.targetPosition = p.loadParam("targetPosition", type="str", default='{"x": 0, "y": 0, "theta": 0}', comment="位置定义")
+        self.targetPosition = p.loadParam("targetPosition", type="str", default='{"x": 71.1, "y": 26.3, "theta": 1.5708}', comment="位置定义")
 
         self.targetHeight = p.loadParam("targetHeight", type="float", default=0, comment="库位高度")
         self.locationType = p.loadParam("locationType", type="str", default="storage_shelf", comment="库位类型")
@@ -196,6 +196,7 @@ class Module(BasicModule):
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
 
         r.setNotice(f"===init=== {json.dumps(args)}")
+        r.setNotice(f"===init==={self.srcTray},{self.dstTray}")
 
         self.init = True
         self.state = dict()
@@ -205,8 +206,8 @@ class Module(BasicModule):
 
     def run(self, r: SimModule, args):
         # 驱动器连接故障，通信超时
-        if r.errorExits(52111):
-            return MoveStatus.FAILED
+        # if r.errorExits(52111):
+        #     return MoveStatus.FAILED
 
         self.status = MoveStatus.RUNNING
         r.setNotice(f"===run=== {json.dumps(args)}")
@@ -228,7 +229,7 @@ class Module(BasicModule):
 
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
-            r.setInfo(json.dumps(self.state))
+            r.setWarning(json.dumps(self.state))
             if "connect_error" in self.state:
                 d_time = time.time() - self.start_connect_time
                 if d_time > self.max_connect_time:
@@ -252,6 +253,8 @@ class Module(BasicModule):
                 if args['operation'] == 'switch_mode':
                     try:
                         self.h.switch_mode(r, self.mode)
+                        r.setNotice(json.dumps(self.h.switch_mode_res))
+
                         self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
@@ -260,6 +263,8 @@ class Module(BasicModule):
                 elif args['operation'] == 'preaction':
                     try:
                         self.h.preaction(r, self.robotId, self.preconditions)
+                        r.setNotice(json.dumps(self.h.preaction_res))
+
                         self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
@@ -268,6 +273,7 @@ class Module(BasicModule):
                 elif args['operation'] == 'robot_reset':
                     try:
                         self.h.robot_reset(r)
+                        r.setNotice(json.dumps(self.h.reset_res))
                         self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
@@ -277,6 +283,8 @@ class Module(BasicModule):
                     try:
                         self.h.param_set(r, self.robotId, self.box_width, self.box_height, self.box_depth, self.box_tag_height,
                                          self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height, self.gap_between_box)
+                        r.setNotice(json.dumps(self.h.param_set_res))
+
                         self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
@@ -286,37 +294,34 @@ class Module(BasicModule):
                     try:
                         self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel,
                                                self.srcTray, self.dstTray, self.targetTray)
-                        self.status = MoveStatus.FINISHED
+                        r.setNotice(json.dumps(self.h.internal_bin_op_res))
+                        r.setWarning(f"srcTray:{self.srcTray}, dstTray:{self.dstTray}")
+                        if self.h.internal_bin_op_res['status'] == Action.FINISHED:
+                            self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
-                        r.setWarning(f"internal_opt exception: {e}")
+                        r.setWarning(f"internal_opt exception: {e}{self.h.seqNum_req}")
                         self.h.task_resume(r, self.robotId)
                 elif args['operation'] == 'external_opt':
                     try:
+                        r.setWarning(f"##########2222222###########targetHeight: {self.targetHeight}")
                         self.h.external_bin_op(r, self.robotId, self.opType, self.binId, self.targetPosition,
                                                self.targetHeight, self.binType, self.binModel,  self.locationType)
+                        r.setNotice(json.dumps(self.h.external_bin_op_res))
                         self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
                         r.setWarning(f"external_opt exception: {e}")
                         self.h.task_resume(r, self.robotId)
-                elif args['operation'] == 'task_resume':
-                    try:
-                        self.h.task_resume(r, self.robotId)
-                        self.status = MoveStatus.FINISHED
-                        return self.status
-                    except Exception as e:
-                        r.setWarning(f"task_resume exception: {e}")
-                        return MoveStatus.FAILED
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
             return self.status
-                
+
     def update_param(self, r, args):
-        r.setNotice(f"===update_param==={json.dumps(args)}")
+
         # ==============================================================================================================
-        # params = ['mode', 'robotId', 'opType', 'binId', 'binType', 'binModel', 'srcTray', 'dstTray', 'targetTray', 
+        # params = ['mode', 'robotId', 'opType', 'binId', 'binType', 'binModel', 'srcTray', 'dstTray', 'targetTray',
         #           'targetPosition', 'targetHeight', 'locationType', 'preconditions', 'box_width', 'box_height', 'box_depth',
         #           'box_tag_height', 'box_tag_depth', 'shelf_tag_height', 'conveyor_tag_height', 'gap_between_box']
         # ========================================= 更新参数 ============================================================
@@ -330,13 +335,23 @@ class Module(BasicModule):
             self.binId = args['binId']
         if 'binType' in args:
             self.binType = args['binType']
+        else:
+            self.binType = None
         if 'binModel' in args:
             self.binModel = args['binModel']
+        else:
+            self.binModel = None
         if 'srcTray' in args:
+            args['srcTray']['id'] = int(args['srcTray']['id'])
+            args['srcTray']['type'] = int(args['srcTray']['type'])
             self.srcTray = args['srcTray']
         else:
             self.srcTray = json.loads(self.srcTray)
+        # self.srcTray['id'] = int(self.srcTray['id'])
+        # self.srcTray['type'] = int(self.srcTray['type'])
         if 'dstTray' in args:
+            args['dstTray']['id'] = int(args['dstTray']['id'])
+            args['dstTray']['type'] = int(args['dstTray']['type'])
             self.dstTray = args['dstTray']
         else:
             self.dstTray = json.loads(self.dstTray)
@@ -344,6 +359,8 @@ class Module(BasicModule):
             self.targetTray = args['targetTray']
         else:
             self.targetTray = json.loads(self.targetTray)
+        self.targetTray['id'] = int(self.srcTray['id'])
+        self.targetTray['type'] = int(self.srcTray['type'])
         if 'targetPosition' in args:
             self.targetPosition = args['targetPosition']
         else:
@@ -352,6 +369,8 @@ class Module(BasicModule):
             self.targetHeight = args['targetHeight']
         if 'locationType' in args:
             self.locationType = args['locationType']
+        else:
+            self.locationType = None
         if 'preconditions' in args:
             self.preconditions = args['preconditions']
         else:
@@ -375,37 +394,39 @@ class Module(BasicModule):
 
         # =================更新参数数据格式======================
         if self.mode == 'task':
-            self.mode = ModeType.TASK
+            self.mode = ModeType.TASK.value
         elif self.mode == 'module':
-            self.mode = ModeType.MODULE
+            self.mode = ModeType.MODULE.value
 
         if self.opType == 'put':
-            self.opType = BinOpType.PUT
+            self.opType = BinOpType.PUT.value
         elif self.opType == 'take':
-            self.opType = BinOpType.TAKE
+            self.opType = BinOpType.TAKE.value
         elif self.opType == 'move':
-            self.opType = BinOpType.MOVE
+            self.opType = BinOpType.MOVE.value
         elif self.opType == 'inspect':
-            self.opType = BinOpType.INSPECT
+            self.opType = BinOpType.INSPECT.value
 
         if self.binType == 'dm_market':
-            self.binType = BinType.DM_MARKED
+            self.binType = BinType.DM_MARKED.value
         elif self.binType == 'markerless':
-            self.binType = BinType.MARKERLESS
+            self.binType = BinType.MARKERLESS.value
         elif self.binType == 'barcode':
-            self.binType = BinType.BARCODE
+            self.binType = BinType.BARCODE.value
 
         if self.binModel == 'carton':
-            self.binModel = BinModel.CARTON
+            self.binModel = BinModel.CARTON.value
         elif self.binModel == 'plasticbox':
-            self.binModel = BinModel.PLASTICBOX
+            self.binModel = BinModel.PLASTICBOX.value
 
         if self.locationType == 'storage_shelf':
-            self.locationType = LocationType.STORAGE_SHELF
-        if self.locationType == 'storage_shelf_deep':
-            self.locationType = LocationType.STORAGE_SHELF_DEEP
-        if self.locationType == 'conveyor':
-            self.locationType = LocationType.CONVEYOR
+            self.locationType = LocationType.STORAGE_SHELF.value
+        elif self.locationType == 'storage_shelf_deep':
+            self.locationType = LocationType.STORAGE_SHELF_DEEP.value
+        elif self.locationType == 'conveyor':
+            self.locationType = LocationType.CONVEYOR.value
+
+        r.setWarning(f"########1111111#############targetHeight: {self.targetHeight}")
 
 
 if __name__ == "__main__":
@@ -414,7 +435,17 @@ if __name__ == "__main__":
         'ip': '127.0.1.1',
         'port': 9999,
         'robotId': '123456',
-        'operation': 'robot_reset'
+        'operation': 'external_opt',
+        "dstTray": {
+            "id": 2,
+            "type": 1
+        },
+        "opType": "move",
+        'targetHeight': 888,
+        "srcTray": {
+            "id": 1,
+            "type": 0
+        }
     })
     m = Module(r, args)
     m.run(r, args)
