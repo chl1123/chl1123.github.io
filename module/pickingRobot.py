@@ -207,6 +207,10 @@ class Hairou:
                                 "modeType": 0,
                                 "seqNum": 0}
 
+        self.msg_src_pos_resp = {"msgType": MessageType.ROBOT_SRC_POS_RESP.value,
+                                 "modeType": 0,
+                                 "seqNum": 0}
+
         self.msg_mode_req = {"msgType": MessageType.ROBOT_MODE_REQ.value,
                              "modeType": 0,
                              "seqNum": 0}
@@ -331,6 +335,7 @@ class Hairou:
         self.total_hex = ""
 
         self.mode = ModeType.TASK         # 默认为任务模式
+        self.req_position = dict()        # 反向导航请求
 
 
     def resetAction(self, data):
@@ -496,6 +501,9 @@ class Hairou:
 
             elif res_msg['msgType'] == MessageType.ROBOT_INFO_REPORT:
                 self.report = res_msg
+
+            elif res_msg['msgType'] == MessageType.ROBOT_SRC_POS_REQ:
+                self.req_position = res_msg
 
     def initDevice(self, r):
         self.msg_init['timeStamp'] = int(round(time.time() * 1000))
@@ -682,15 +690,15 @@ class Hairou:
         self.preaction_res['res'] = self.sendMessage(msg, r)
         return self.preaction_res
 
-    def src_pos(self, r, position: PositionXYT):
-        msg = self.msg_src_pos_req
+    def src_pos_resp(self, r, position):
+        msg = self.msg_src_pos_resp
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
         msg['position'] = position
-        self.msg_src_pos_req['seqNum'] = self.seqNum_req
-        self.msg_src_pos_req["status"] = Action.RUNNING
-        self.msg_src_pos_req['res'] = self.sendMessage(msg, r)
-        return self.msg_src_pos_req
+        self.msg_src_pos_resp['seqNum'] = self.seqNum_req
+        self.msg_src_pos_resp["status"] = Action.RUNNING
+        self.msg_src_pos_resp['res'] = self.sendMessage(msg, r)
+        return self.msg_src_pos_resp
 
 
     def liftReset(self, r):

@@ -242,9 +242,9 @@ class Module(BasicModule):
                 self.start_connect_time = time.time()
 
             if not self.h.mode == ModeType.TASK:
-                r.setWarning("mode error!")
-                self.h.switch_mode(r, ModeType.TASK)
-                return self.status
+                r.setError("mode error!")
+                # self.h.switch_mode(r, ModeType.TASK)
+                # return self.status
 
             # ======================================动作指令类型========================================================
             # ["switch_mode", "preaction", "robot_reset", "param_set", "internal_opt", "external_opt", "task_resume"]
@@ -255,7 +255,7 @@ class Module(BasicModule):
                             self.h.switch_mode(r, self.mode)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.switch_mode_res))
-                        if self.h.preaction_res['status'] == Action.FINISHED:
+                        if self.h.switch_mode_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
                         return self.status
@@ -325,6 +325,17 @@ class Module(BasicModule):
                             self.h.external_bin_op(r, self.robotId, self.opType, self.binId, self.targetPosition,
                                                    self.targetHeight, self.binType, self.binModel,  self.locationType)
                             self.msg_send = True
+
+                        # 监听位置请求 msgType(200)
+                        if self.h.req_position:
+                            r.setError(f"req_position: {self.h.req_position}")
+                            posi = {
+                                'x': 1,
+                                'y': 1,
+                                'theta': 1
+                            }
+                            self.h.src_pos_resp(r, posi)
+
                         if self.h.external_bin_op_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
