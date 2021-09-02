@@ -136,8 +136,7 @@ class ErrorMessage:
 
 def del_dict_item(_dict, key):
     if key in _dict:
-        _dict.pop('key')
-        return _dict['key']
+        return _dict.pop(key)
     return None
 
 
@@ -613,23 +612,23 @@ class Hairou:
             if binType is not None:
                 msg['binType'] = binType
             else:
-                msg.pop('binType')
+                del_dict_item(msg, 'binType')
             if binModel is not None:
                 msg['binModel'] = binModel
             else:
-                msg.pop('binModel')
+                del_dict_item(msg, 'binModel')
             msg['srcTray'] = srcTray
             msg['dstTray'] = dstTray
         else:
-            msg.pop('binId')
-            msg.pop('binType')
-            msg.pop('binModel')
-            msg.pop('srcTray')
-            msg.pop('dstTray')
+            del_dict_item(msg, 'binId')
+            del_dict_item(msg, 'binType')
+            del_dict_item(msg, 'binModel')
+            del_dict_item(msg, 'srcTray')
+            del_dict_item(msg, 'dstTray')
         if opType == BinOpType.INSPECT:
             msg['targetTray'] = targetTray
         else:
-            msg.pop('targetTray')
+            del_dict_item(msg, 'targetTray')
         self.internal_bin_op_res['seqNum'] = self.seqNum_req
         self.internal_bin_op_res["status"] = Action.RUNNING
         self.internal_bin_op_res['res'] = self.sendMessage(msg, r)
@@ -648,19 +647,19 @@ class Hairou:
         if binType is not None:
             msg['binType'] = binType
         else:
-            msg.pop('binType')
+            del_dict_item(msg, 'binType')
         if binModel is not None:
             msg['binModel'] = binModel
         else:
-            msg.pop('binModel')
+            del_dict_item(msg, 'binModel')
         if locationType is not None:
             msg['locationType'] = locationType
         else:
-            msg.pop('locationType')
+            del_dict_item(msg, 'locationType')
         if opType not in [BinOpType.PUT, BinOpType.TAKE]:
-            msg.pop('binId')
-            msg.pop('binType')
-            msg.pop('binModel')
+            del_dict_item(msg, 'binId')
+            del_dict_item(msg, 'binType')
+            del_dict_item(msg, 'binModel')
 
         self.external_bin_op_res['seqNum'] = self.seqNum_req
         self.external_bin_op_res["status"] = Action.RUNNING
@@ -676,7 +675,7 @@ class Hairou:
         msg['robotId'] = robotId
         msg['preconditions'] = preconditions   # type: json
         if preconditions is None:
-            msg.pop('preconditions')
+            del_dict_item(msg, 'preconditions')
 
         self.preaction_res['seqNum'] = self.seqNum_req
         self.preaction_res["status"] = Action.RUNNING

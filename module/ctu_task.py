@@ -195,12 +195,11 @@ class Module(BasicModule):
         self.conveyor_tag_height = p.loadParam("conveyor_tag_height", type="float", default=0, comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
 
-        r.setNotice(f"===init=== {json.dumps(args)}")
-        r.setNotice(f"===init==={self.srcTray},{self.dstTray}")
+        # r.setNotice(f"===init=== {json.dumps(args)}")
 
         self.init = True
         self.state = dict()
-        # self.task = dict()
+        self.msg_send = False
         self.h = Hairou(ip, port)
         self.h.connect()
 
@@ -252,63 +251,83 @@ class Module(BasicModule):
             if "operation" in args:
                 if args['operation'] == 'switch_mode':
                     try:
-                        self.h.switch_mode(r, self.mode)
+                        if not self.msg_send:
+                            self.h.switch_mode(r, self.mode)
+                            self.msg_send = True
                         r.setNotice(json.dumps(self.h.switch_mode_res))
-
-                        self.status = MoveStatus.FINISHED
+                        if self.h.preaction_res['status'] == Action.FINISHED:
+                            self.msg_send = False
+                            self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
                         r.setWarning(f"switch_mode exception: {e}")
                         self.h.task_resume(r, self.robotId)
                 elif args['operation'] == 'preaction':
                     try:
-                        self.h.preaction(r, self.robotId, self.preconditions)
+                        if not self.msg_send:
+                            self.h.preaction(r, self.robotId, self.preconditions)
+                            self.msg_send = True
                         r.setNotice(json.dumps(self.h.preaction_res))
-
-                        self.status = MoveStatus.FINISHED
+                        if self.h.preaction_res['status'] == Action.FINISHED:
+                            self.msg_send = False
+                            self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
                         r.setWarning(f"preaction exception: {e}")
                         self.h.task_resume(r, self.robotId)
                 elif args['operation'] == 'robot_reset':
                     try:
-                        self.h.robot_reset(r)
+                        if not self.msg_send:
+                            self.h.robot_reset(r)
+                            self.msg_send = True
                         r.setNotice(json.dumps(self.h.reset_res))
-                        self.status = MoveStatus.FINISHED
+                        if self.h.reset_res['status'] == Action.FINISHED:
+                            self.msg_send = False
+                            self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
                         r.setWarning(f"robot_reset exception: {e}")
                         self.h.task_resume(r, self.robotId)
                 elif args['operation'] == 'param_set':
                     try:
-                        self.h.param_set(r, self.robotId, self.box_width, self.box_height, self.box_depth, self.box_tag_height,
-                                         self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height, self.gap_between_box)
+                        if not self.msg_send:
+                            self.h.param_set(r, self.robotId, self.box_width, self.box_height, self.box_depth, self.box_tag_height,
+                                             self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height, self.gap_between_box)
+                            self.msg_send = True
                         r.setNotice(json.dumps(self.h.param_set_res))
-
-                        self.status = MoveStatus.FINISHED
+                        if self.h.param_set_res['status'] == Action.FINISHED:
+                            self.msg_send = False
+                            self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
                         r.setWarning(f"param_set exception: {e}")
                         self.h.task_resume(r, self.robotId)
                 elif args['operation'] == 'internal_opt':
                     try:
-                        self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel,
-                                               self.srcTray, self.dstTray, self.targetTray)
+                        if not self.msg_send:
+                            self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel,
+                                                   self.srcTray, self.dstTray, self.targetTray)
+                            self.msg_send = True
                         r.setNotice(json.dumps(self.h.internal_bin_op_res))
                         r.setWarning(f"srcTray:{self.srcTray}, dstTray:{self.dstTray}")
                         if self.h.internal_bin_op_res['status'] == Action.FINISHED:
+                            self.msg_send = False
                             self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
-                        r.setWarning(f"internal_opt exception: {e}{self.h.seqNum_req}")
+                        r.setWarning(f"internal_opt exception: {e}---{self.h.seqNum_req}")
                         self.h.task_resume(r, self.robotId)
+
                 elif args['operation'] == 'external_opt':
                     try:
-                        r.setWarning(f"##########2222222###########targetHeight: {self.targetHeight}")
-                        self.h.external_bin_op(r, self.robotId, self.opType, self.binId, self.targetPosition,
-                                               self.targetHeight, self.binType, self.binModel,  self.locationType)
-                        r.setNotice(json.dumps(self.h.external_bin_op_res))
-                        self.status = MoveStatus.FINISHED
+                        r.setWarning(f"external_opt targetHeight: {self.targetHeight}")
+                        if not self.msg_send:
+                            self.h.external_bin_op(r, self.robotId, self.opType, self.binId, self.targetPosition,
+                                                   self.targetHeight, self.binType, self.binModel,  self.locationType)
+                            self.msg_send = True
+                        if self.h.external_bin_op_res['status'] == Action.FINISHED:
+                            self.msg_send = False
+                            self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
                         r.setWarning(f"external_opt exception: {e}")
@@ -394,37 +413,37 @@ class Module(BasicModule):
 
         # =================更新参数数据格式======================
         if self.mode == 'task':
-            self.mode = ModeType.TASK.value
+            self.mode = ModeType.TASK
         elif self.mode == 'module':
-            self.mode = ModeType.MODULE.value
+            self.mode = ModeType.MODULE
 
         if self.opType == 'put':
-            self.opType = BinOpType.PUT.value
+            self.opType = BinOpType.PUT
         elif self.opType == 'take':
-            self.opType = BinOpType.TAKE.value
+            self.opType = BinOpType.TAKE
         elif self.opType == 'move':
-            self.opType = BinOpType.MOVE.value
+            self.opType = BinOpType.MOVE
         elif self.opType == 'inspect':
-            self.opType = BinOpType.INSPECT.value
+            self.opType = BinOpType.INSPECT
 
         if self.binType == 'dm_market':
-            self.binType = BinType.DM_MARKED.value
+            self.binType = BinType.DM_MARKED
         elif self.binType == 'markerless':
-            self.binType = BinType.MARKERLESS.value
+            self.binType = BinType.MARKERLESS
         elif self.binType == 'barcode':
-            self.binType = BinType.BARCODE.value
+            self.binType = BinType.BARCODE
 
         if self.binModel == 'carton':
-            self.binModel = BinModel.CARTON.value
+            self.binModel = BinModel.CARTON
         elif self.binModel == 'plasticbox':
-            self.binModel = BinModel.PLASTICBOX.value
+            self.binModel = BinModel.PLASTICBOX
 
         if self.locationType == 'storage_shelf':
-            self.locationType = LocationType.STORAGE_SHELF.value
+            self.locationType = LocationType.STORAGE_SHELF
         elif self.locationType == 'storage_shelf_deep':
-            self.locationType = LocationType.STORAGE_SHELF_DEEP.value
+            self.locationType = LocationType.STORAGE_SHELF_DEEP
         elif self.locationType == 'conveyor':
-            self.locationType = LocationType.CONVEYOR.value
+            self.locationType = LocationType.CONVEYOR
 
         r.setWarning(f"########1111111#############targetHeight: {self.targetHeight}")
 
