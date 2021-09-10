@@ -425,7 +425,11 @@ class Module(BasicModule):
             else:
                 self.start_connect_time = time.time()
             self.state["task"] = self.task
-            if "operation" in self.task and self.task["operation"] == "load":
+            r.logDebug("first in script {}".format(self.task.get("_script_first_run_", False)))
+            if self.task.get("_script_first_run_", False) is True:
+                self.vision_status = MoveStatus.FINISHED
+                self.zero(r)
+            elif "operation" in self.task and self.task["operation"] == "load":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task and "selfPosition" in self.task:
                     self.load(r)
                 else:
@@ -542,6 +546,11 @@ class Module(BasicModule):
                                     self.status = MoveStatus.FINISHED
             else:
                 self.status = MoveStatus.RUNNING
+        if "_script_first_run_" in self.task \
+            and self.task["_script_first_run_"] == True\
+            and self.status is MoveStatus.FINISHED:
+            self.task["_script_first_run_"] = False
+            self.status = MoveStatus.RUNNING
         movestate = dict()
         movestate["lift"] = self.lift_status
         movestate["rotate"] = self.rotate_status
@@ -1110,7 +1119,8 @@ class Module(BasicModule):
             or lift_state == Hairou.ModuleState.ERROR \
                 or stretch_state == Hairou.ModuleState.ERROR \
                     or finger_state == Hairou.ModuleState.ERROR:
-                    r.setError("Picking robot has error in zero operation")
+                    if not r.errorExits(53000):
+                        r.setError("Picking robot has error in zero operation")
         else:
             if r.errorExits(53000):
                 r.clearError(53000)
