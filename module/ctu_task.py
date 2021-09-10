@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import json
 import time
+import sys
 
+sys.path.append("syspy")
+from syspy import goPath
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
 from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType, Action
@@ -11,7 +14,7 @@ from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, Locatio
 {
     "operation": {
         "value": "reset",
-        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode"],
+        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode", "task_resume"],
         "tips": "动作指令",
         "type": "complex"
     },
@@ -59,8 +62,8 @@ from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, Locatio
     },
     "dstTray": {
         "value": {
-            "id": 0,
-            "type": 0 
+            "id": 3,
+            "type": 1 
         },
         "tips": "目标托盘, 托盘id, 托盘类型",
         "type": "json"
@@ -178,21 +181,25 @@ class Module(BasicModule):
 
         self.srcTray = p.loadParam("srcTray", type="str", default='{"id": 0, "type": 0}', comment="源托盘, 托盘id, 托盘类型")
         self.dstTray = p.loadParam("dstTray", type="str", default='{"id": 1, "type": 0}', comment="目标托盘, 托盘id, 托盘类型")
-        self.targetTray = p.loadParam("targetTray", type="str", default='{"id": 0, "type": 0}', comment="扫描对象托盘, 托盘id, 托盘类型")
-        self.targetPosition = p.loadParam("targetPosition", type="str", default='{"x": 71.1, "y": 26.3, "theta": 1.5708}', comment="位置定义")
+        self.targetTray = p.loadParam("targetTray", type="str", default='{"id": 0, "type": 0}',
+                                      comment="扫描对象托盘, 托盘id, 托盘类型")
+        self.targetPosition = p.loadParam("targetPosition", type="str",
+                                          default='{"x": 71.1, "y": 26.3, "theta": 1.5708}', comment="位置定义")
 
         self.targetHeight = p.loadParam("targetHeight", type="float", default=0, comment="库位高度")
         self.locationType = p.loadParam("locationType", type="str", default="storage_shelf", comment="库位类型")
-        self.preconditions = p.loadParam("preconditions", type="str", default='{"liftPositionMax": 0.0, "liftPositionMin": 0.0,'
-                                                                              ' "forkRotationPositionMax": 0.0, "forkRotationPositionMin": 0.0,'
-                                                                              ' "fingerPosition": 0}', comment="预备动作前置目标")
+        self.preconditions = p.loadParam("preconditions", type="str",
+                                         default='{"liftPositionMax": 0.0, "liftPositionMin": 0.0,'
+                                                 ' "forkRotationPositionMax": 0.0, "forkRotationPositionMin": 0.0,'
+                                                 ' "fingerPosition": 0}', comment="预备动作前置目标")
         self.box_width = p.loadParam("box_width", type="float", default=0, comment="货箱宽度配置值")
         self.box_height = p.loadParam("box_height", type="float", default=0, comment="货箱高度配置值")
         self.box_depth = p.loadParam("box_depth", type="float", default=0, comment="货箱深度配置值")
         self.box_tag_height = p.loadParam("box_tag_height", type="float", default=0, comment="货箱底部与货箱码下边沿的高度差")
         self.box_tag_depth = p.loadParam("box_tag_depth", type="float", default=0, comment="货箱码到货箱表面的贴码深度")
         self.shelf_tag_height = p.loadParam("shelf_tag_height", type="float", default=0, comment="货架放货平面与货架码上边沿的高度差")
-        self.conveyor_tag_height = p.loadParam("conveyor_tag_height", type="float", default=0, comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
+        self.conveyor_tag_height = p.loadParam("conveyor_tag_height", type="float", default=0,
+                                               comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
 
         # r.setNotice(f"===init=== {json.dumps(args)}")
@@ -200,13 +207,17 @@ class Module(BasicModule):
         self.init = True
         self.state = dict()
         self.msg_send = False
+        self.src_ok = False
+        self.src_send = False
+        self.resume_send = False
+        self.go_path = goPath.Module(r, dict())
         self.h = Hairou(ip, port)
         self.h.connect()
 
     def run(self, r: SimModule, args):
         # 驱动器连接故障，通信超时
-        # if r.errorExits(52111):
-        #     return MoveStatus.FAILED
+        if r.errorExits(52111):
+            return MoveStatus.FAILED
 
         self.status = MoveStatus.RUNNING
         r.setNotice(f"===run=== {json.dumps(args)}")
@@ -228,7 +239,8 @@ class Module(BasicModule):
 
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
-            r.setWarning(json.dumps(self.state))
+            r.setInfo(json.dumps(self.state))
+
             if "connect_error" in self.state:
                 d_time = time.time() - self.start_connect_time
                 if d_time > self.max_connect_time:
@@ -242,7 +254,7 @@ class Module(BasicModule):
                 self.start_connect_time = time.time()
 
             if not self.h.mode == ModeType.TASK:
-                r.setError("mode error!")
+                r.setError("mode error! ")
                 # self.h.switch_mode(r, ModeType.TASK)
                 # return self.status
 
@@ -262,12 +274,14 @@ class Module(BasicModule):
                     except Exception as e:
                         r.setWarning(f"switch_mode exception: {e}")
                         self.h.task_resume(r, self.robotId)
+
                 elif args['operation'] == 'preaction':
                     try:
                         if not self.msg_send:
+                            r.setWarning(f"---preconditions---{self.preconditions}-----------")
                             self.h.preaction(r, self.robotId, self.preconditions)
                             self.msg_send = True
-                        r.setNotice(json.dumps(self.h.preaction_res))
+                        r.setNotice(f"preaction_res: {json.dumps(self.h.preaction_res)}")
                         if self.h.preaction_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
@@ -275,7 +289,9 @@ class Module(BasicModule):
                     except Exception as e:
                         r.setWarning(f"preaction exception: {e}")
                         self.h.task_resume(r, self.robotId)
+
                 elif args['operation'] == 'robot_reset':
+                    r.setWarning(f"robot is resetting...")
                     try:
                         if not self.msg_send:
                             self.h.robot_reset(r)
@@ -288,13 +304,16 @@ class Module(BasicModule):
                     except Exception as e:
                         r.setWarning(f"robot_reset exception: {e}")
                         self.h.task_resume(r, self.robotId)
+
                 elif args['operation'] == 'param_set':
                     try:
                         if not self.msg_send:
-                            self.h.param_set(r, self.robotId, self.box_width, self.box_height, self.box_depth, self.box_tag_height,
-                                             self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height, self.gap_between_box)
+                            self.h.param_set(r, self.robotId, self.box_width, self.box_height, self.box_depth,
+                                             self.box_tag_height,
+                                             self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height,
+                                             self.gap_between_box)
                             self.msg_send = True
-                        r.setNotice(json.dumps(self.h.param_set_res))
+                        r.setNotice(f"param_set_res: {json.dumps(self.h.param_set_res)}")
                         if self.h.param_set_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
@@ -302,16 +321,30 @@ class Module(BasicModule):
                     except Exception as e:
                         r.setWarning(f"param_set exception: {e}")
                         self.h.task_resume(r, self.robotId)
+
                 elif args['operation'] == 'internal_opt':
                     try:
+                        if self.state:
+                            finger = self.state['finger']
+                            rotate = self.state['rotate']
+                            stretch = self.state['stretch']
+                            lift = self.state['lift']
+                            if finger['state'] in [4, 0] or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or \
+                                    lift['state'] in [4, 0]:
+                                if not self.resume_send:
+                                    self.h.task_resume(r, self.robotId)
+                                    self.resume_send = True
+
                         if not self.msg_send:
-                            self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel,
+                            self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType,
+                                                   self.binModel,
                                                    self.srcTray, self.dstTray, self.targetTray)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.internal_bin_op_res))
                         r.setWarning(f"srcTray:{self.srcTray}, dstTray:{self.dstTray}")
                         if self.h.internal_bin_op_res['status'] == Action.FINISHED:
                             self.msg_send = False
+                            self.resume_send = False
                             self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
@@ -320,29 +353,61 @@ class Module(BasicModule):
 
                 elif args['operation'] == 'external_opt':
                     try:
-                        r.setWarning(f"external_opt targetHeight: {self.targetHeight}")
+                        if self.state:
+                            finger = self.state['finger']
+                            rotate = self.state['rotate']
+                            stretch = self.state['stretch']
+                            lift = self.state['lift']
+                            if finger['state'] in [4, 0] or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or \
+                                    lift['state'] in [4, 0]:
+                                # if finger['state'] in [4, 0]:
+                                # r.setWarning(f"---------task_resume------------------------------------------------")
+                                # self.h.task_resume(r, self.robotId)
+                                if not self.resume_send:
+                                    r.setWarning(f"---------task_resume-------------------------------------------")
+                                    self.h.task_resume(r, self.robotId)
+                                    self.resume_send = True
+                            else:
+                                self.resume_send = False
+
                         if not self.msg_send:
                             self.h.external_bin_op(r, self.robotId, self.opType, self.binId, self.targetPosition,
-                                                   self.targetHeight, self.binType, self.binModel,  self.locationType)
+                                                   self.targetHeight, self.binType, self.binModel, self.locationType)
                             self.msg_send = True
+                        r.setNotice(f"external_bin_op_res:{json.dumps(self.h.external_bin_op_res)}")
 
-                        # 监听位置请求 msgType(200)
-                        if self.h.req_position:
-                            r.setError(f"req_position: {self.h.req_position}")
-                            posi = {
-                                'x': 1,
-                                'y': 1,
-                                'theta': 1
-                            }
-                            self.h.src_pos_resp(r, posi)
+                        # 监听位置请求 msgType(200), 机器视觉自动校准取放货物位置
+                        if self.h.req_position and not self.src_ok:
+                            r.setWarning(f"req_position: {self.h.req_position}")
+                            self.src_ok = self.src_pos(r, self.h.req_position)
+                            # r.setWarning(f"src_ok: {self.src_ok}")
+                            if self.src_ok:
+                                self.h.req_position = dict()
+                                self.src_ok = False
 
                         if self.h.external_bin_op_res['status'] == Action.FINISHED:
                             self.msg_send = False
+                            self.resume_send = False
                             self.status = MoveStatus.FINISHED
                         return self.status
                     except Exception as e:
                         r.setWarning(f"external_opt exception: {e}")
-                        self.h.task_resume(r, self.robotId)
+                        # self.h.task_resume(r, self.robotId)
+
+                elif args['operation'] == 'task_resume':
+                    r.setWarning(f"task is resuming...")
+                    try:
+                        if not self.msg_send:
+                            self.h.task_resume(r, self.robotId)
+                            self.msg_send = True
+                        r.setNotice(json.dumps(self.h.resume_res))
+                        if self.h.resume_res['status'] == Action.FINISHED:
+                            self.msg_send = False
+                            self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"preaction exception: {e}")
+
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
@@ -377,8 +442,7 @@ class Module(BasicModule):
             self.srcTray = args['srcTray']
         else:
             self.srcTray = json.loads(self.srcTray)
-        # self.srcTray['id'] = int(self.srcTray['id'])
-        # self.srcTray['type'] = int(self.srcTray['type'])
+
         if 'dstTray' in args:
             args['dstTray']['id'] = int(args['dstTray']['id'])
             args['dstTray']['type'] = int(args['dstTray']['type'])
@@ -386,11 +450,12 @@ class Module(BasicModule):
         else:
             self.dstTray = json.loads(self.dstTray)
         if 'targetTray' in args:
+            # self.targetTray['id'] = int(self.srcTray['id'])
+            # self.targetTray['type'] = int(self.srcTray['type'])
             self.targetTray = args['targetTray']
         else:
             self.targetTray = json.loads(self.targetTray)
-        self.targetTray['id'] = int(self.srcTray['id'])
-        self.targetTray['type'] = int(self.srcTray['type'])
+
         if 'targetPosition' in args:
             self.targetPosition = args['targetPosition']
         else:
@@ -456,26 +521,23 @@ class Module(BasicModule):
         elif self.locationType == 'conveyor':
             self.locationType = LocationType.CONVEYOR
 
-        r.setWarning(f"########1111111#############targetHeight: {self.targetHeight}")
+    def src_pos(self, r, req_position):
+        req_posi = req_position['position']
+        req_posi['coordinate'] = 'robot'
+        src_status = self.go_path.status
+        if req_posi['x'] < 0:
+            req_posi['backMode'] = 1
+        if abs(req_posi['x']) < 0.003:
+            src_status = MoveStatus.FINISHED
+        if src_status != MoveStatus.FINISHED and src_status != MoveStatus.FAILED:
+            # r.setWarning(f"=====--go_path running-======{src_status}--{req_posi}")
+            self.go_path.run(r, req_posi)
 
-
-if __name__ == "__main__":
-    r = SimModule()
-    args = dict({
-        'ip': '127.0.1.1',
-        'port': 9999,
-        'robotId': '123456',
-        'operation': 'external_opt',
-        "dstTray": {
-            "id": 2,
-            "type": 1
-        },
-        "opType": "move",
-        'targetHeight': 888,
-        "srcTray": {
-            "id": 1,
-            "type": 0
-        }
-    })
-    m = Module(r, args)
-    m.run(r, args)
+        r.setWarning(f"----src_status----{src_status}--")
+        if src_status == MoveStatus.FINISHED:
+            self.go_path = goPath.Module(r, dict())
+            req_posi['status'] = "finish"
+            self.h.src_pos_resp(r, req_posi)
+            r.setWarning(f"--=======--finish-==========---{src_status}--{req_posi}")
+            return True
+        return False

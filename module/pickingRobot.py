@@ -5,15 +5,17 @@ import json
 import crc
 import time
 import sys
+import syspy.goPath as goPath
+from syspy.rbk import MoveStatus, SimModule
 
 
 class MessageType(IntEnum):
     ROBOT_INIT_REQ = 0
 
     ROBOT_MODE_REQ = 1  # 模式切换
-    ROBOT_RESUME_REQ = 2  # 任务恢复
     ROBOT_RESET_REQ = 3  # 重置机构校零
     ROBOT_PARAM_SET = 4  # 参数配置
+    ROBOT_RESUME_REQ = 6  # 任务恢复
 
     ROBOT_INFO_REPORT = 10
     ROBOT_LIFT_RESET = 20
@@ -271,7 +273,7 @@ class Hairou:
             }
 
         self.msg_preaction_req = {
-            "msgType": MessageType.ROBOT_PARAM_SET.value,
+            "msgType": MessageType.ROBOT_PREACTION_REQ.value,
             "seqNum": 0,
             "robotId": '',
             "preconditions": {
@@ -335,7 +337,9 @@ class Hairou:
         self.total_hex = ""
 
         self.mode = ModeType.TASK         # 默认为任务模式
-        self.req_position = dict()        # 反向导航请求
+        self.req_position = dict()             # 反向导航请求
+        self.go_path = goPath.Module(SimModule(), dict())
+        self.src_send = False
 
 
     def resetAction(self, data):
@@ -582,11 +586,14 @@ class Hairou:
         msg = self.msg_resume_req
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
-        msg['robotId'] = robotId    # 料箱种类
+        msg['robotId'] = robotId
+        msg['settings'] = [{
+                'node': 'system::action',
+                'value': 'recovery'
+        }]
         self.resume_res['seqNum'] = self.seqNum_req
         self.resume_res["status"] = Action.RUNNING
         self.resume_res['res'] = self.sendMessage(msg, r)
-        r.setNotice(f"task is resuming...")
         return self.resume_res
 
     def param_set(self, r, robotId, box_width, box_height, box_depth, box_tag_height, box_tag_depth, shelf_tag_height,
@@ -671,7 +678,7 @@ class Hairou:
 
         self.external_bin_op_res['seqNum'] = self.seqNum_req
         self.external_bin_op_res["status"] = Action.RUNNING
-        r.setWarning(f"=================external_bin_op:{msg}")
+        r.setWarning(f"external_bin_op:{msg}")
         self.external_bin_op_res['res'] = self.sendMessage(msg, r)
 
         return self.external_bin_op_res
@@ -689,6 +696,26 @@ class Hairou:
         self.preaction_res["status"] = Action.RUNNING
         self.preaction_res['res'] = self.sendMessage(msg, r)
         return self.preaction_res
+
+    def src_pos(self, r):
+        req_posi = self.req_position['position']
+        req_posi['coordinate'] = 'robot'
+        src_status = self.go_path.status
+        if req_posi['x'] < 0:
+            req_posi['backMode'] = 1
+        if abs(req_posi['x']) < 0.003:
+            src_status = MoveStatus.FINISHED
+        if not self.src_send and src_status != MoveStatus.FINISHED and src_status != MoveStatus.FAILED:
+            self.go_path.run(r, req_posi)
+            self.src_send = True
+        r.setWarning(f"----src_status----{src_status}--{self.src_send}")
+        if src_status == MoveStatus.FINISHED:
+            self.go_path = goPath.Module(r, dict())
+            self.src_send = False
+            req_posi['status'] = "finish"
+            self.src_pos_resp(r, req_posi)
+            return True
+        return False
 
     def src_pos_resp(self, r, position):
         msg = self.msg_src_pos_resp
