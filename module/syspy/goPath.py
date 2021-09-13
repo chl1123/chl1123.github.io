@@ -53,6 +53,18 @@ import math
       ],
       "tips": "目标点的坐标系，必填",
       "type": "complex"  
+    },
+    "maxSpeed":{
+      "value": 1,
+      "tips":"最大速度必填",
+      "type":"double",
+      "unit": "m/s"        
+    },
+    "maxRot":{
+      "value": 1,
+      "tips":"最大角速度",
+      "type":"double",
+      "unit": "rad"        
     }
 }
 ####END DEFAULT ARGS####
@@ -90,6 +102,10 @@ class Module(BasicModule):
                     r.setPathUseOdo(bool(int(args["useOdo"])))
                 if "backMode" in args:
                     r.setPathBackMode(bool(int(args["backMode"])))
+                if "maxSpeed" in args:
+                    r.setPathMaxSpeed(float(args["maxSpeed"]))
+                if "maxRot" in args:
+                    r.setPathMaxRot(float(args["maxRot"]))
                 r.logInfo("goal: " + str(self.goal))
                 if args["coordinate"] == "robot":
                     r.setPathOnRobot([0,self.goal[0]], [0, self.goal[1]], self.goal[2])

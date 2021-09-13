@@ -14,6 +14,19 @@ class MoveStatus(IntEnum):
     FAILED = 4
     SUSPENDED = 5
 
+class CollisionType(IntEnum):
+    Ultrasonic = 0
+    Laser = 1
+    Fallingdown = 2
+    Collision = 3
+    Infrared = 4
+    VirtualPoint = 5
+    APIObstacle = 6
+    ReservedPoint = 7
+    DiUltrasonic = 8
+    DepthCamera = 9
+    ReservedDepthCamera = 10
+    DistanceNode = 11
 
 def normalize_theta(theta):
     if theta >= -math.pi and theta < math.pi:

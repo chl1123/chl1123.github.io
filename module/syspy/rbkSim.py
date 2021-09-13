@@ -514,7 +514,25 @@ class SimModule:
         Args:
             a (bool): 如果倒走则为True
         """
-        print("func: {0} backMode: {1}".format(get_function_name(), a))     
+        print("func: {0} backMode: {1}".format(get_function_name(), a))    
+    @check
+    def setPathMaxSpeed(self, a:float):
+        """路径导航的最大速度
+
+        Args:
+            a (float): 单位m/s
+
+        """
+        print("func: {0} max_speed: {1}".format(get_function_name(), a)) 
+    @check
+    def setPathMaxRot(self, a:float):
+        """路径导航的最大角速度
+
+        Args:
+            a (float): 单位rad/s
+
+        """
+        print("func: {0} max_speed: {1}".format(get_function_name(), a)) 
     @check
     def setSound(self, name:str, flag:bool)->None:
         """播放音乐
@@ -695,6 +713,27 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
         return 0    
+    @check
+    def setBlockError(self):
+        """设置阻挡52200错误
+        """
+        print("func: {0}".format(get_function_name()))
+        return
+    def clearBlockError(self):
+        """清除阻挡52200错误
+        """
+        print("func: {0}".format(get_function_name()))
+        return            
+    def setBlockReason(self, collision_type: int, x: float, y: float, id: int):
+        """设置阻挡原因
+        Args:
+            collision_type (int): 阻挡原因见rbk.py脚本中的CollisionType类
+            x (float): 障碍物位置
+            y (float): 障碍物位置
+            id (float): 障碍物id        
+        """
+        print("func: {0} {1} {2} {3} {4}".format(get_function_name(), collision_type, x, y, id))
+        return          
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -759,6 +798,11 @@ if __name__ == '__main__':
     r.getRecStatus()
     r.getForkPressure()
     r.getForkPressureADC()
+    r.setPathMaxSpeed(1.0)
+    r.setPathMaxRot(1.0)
+    r.setBlockError()
+    r.clearBlockError()
+    r.setBlockReason(0,0,0,0)
     print("Success!!!")
 
 
