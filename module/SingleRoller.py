@@ -63,12 +63,14 @@ class Module(BasicModule):
         self.state = dict()
         if self.init:
             self.init = False
-            if "operation" not in args or (args["operation"] != "RollerStop" and "direction" not in args):
+            if "operation" not in args:
                 r.setError("args error {}".format(json.dumps(args)))
                 self.status = MoveStatus.FAILED
             else:
                 self.operation = args["operation"]
-                self.direction = args["direction"]
+                if args["operation"] != "RollerStop":
+                    self.direction = args["direction"]
+
         if self.status is MoveStatus.FAILED:
             return self.status
 
