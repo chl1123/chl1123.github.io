@@ -562,9 +562,10 @@ class Module(BasicModule):
         movestate["operation"] = self.operation_status
         movestate["status"] = self.status
         self.state["MoveStatus"] = movestate
-        if self.h.report:
-            self.state['pickingRobotInfo'] = self.h.report
-        str_state = json.dumps(self.state)
+        data = {
+            "pickingRobotInfo": self.state
+        }
+        str_state = json.dumps(data)
         r.setInfo(str_state)
         r.logDebug(str_state)
         try:
