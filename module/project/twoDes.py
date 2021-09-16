@@ -306,20 +306,23 @@ class StretchMotor:
         tailDI2_status = False
         tailDI2x = 0
         tailDI2y = 0
+        hasDI1 = False
+        hasDI2 = False
         for (ind, node) in enumerate(di['node']):
-            if node['forbidden'] == False:
-                if node['id'] == self.reach_num1 and node['forbidden'] == False:
-                    reach_num1_status = node['status']
-                elif node['id'] == self.reach_num2 and node['forbidden'] == False:
-                    reach_num2_status = node['status']
-                elif node['id'] == agv.fork_tailDI1 and node['forbidden'] == False:
-                    tailDI1_status = node['status']
-                    tailDI1x = node['x']
-                    tailDI1y = node['y']
-                elif node['id'] == agv.fork_tailDI2 and node['forbidden'] == False:
-                    tailDI2_status = node['status']
-                    tailDI2x = node['x']
-                    tailDI2y = node['y']
+            if node['id'] == self.reach_num1:
+                reach_num1_status = node['status']
+            elif node['id'] == self.reach_num2 :
+                reach_num2_status = node['status']
+            elif node['id'] == agv.fork_tailDI1:
+                tailDI1_status = node['status']
+                tailDI1x = node['x']
+                tailDI1y = node['y']
+                hasDI1 = True
+            elif node['id'] == agv.fork_tailDI2:
+                tailDI2_status = node['status']
+                tailDI2x = node['x']
+                tailDI2y = node['y']
+                hasDI2 = True
         self.status = MoveStatus.RUNNING
         if self.init:
             self.init = False
@@ -351,6 +354,8 @@ class StretchMotor:
         cur_state['lift_state'] = self.status
         cur_state['dist'] = self.dist
         agv.state['lift_org'] = cur_state
+        r.logDebug("[twoDos|{}|{}|{}|{}|{}|{}]".format(agv.fork_tailDI1, agv.fork_tailDI2, tailDI1_status, tailDI2_status,
+            hasDI1, hasDI2))
 
     def reset(self, r):
         r.resetMotor(self.motor)
