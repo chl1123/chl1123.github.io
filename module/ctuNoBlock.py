@@ -413,8 +413,6 @@ class Module(BasicModule):
             return self.status
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
-            self.state['pickingRobotInfo'] = self.h.report
-            r.setInfo(json.dumps(self.state))
 
             if "connect_error" in self.state:
                 dtime = time.time() - self.start_connect_time
@@ -564,6 +562,8 @@ class Module(BasicModule):
         movestate["operation"] = self.operation_status
         movestate["status"] = self.status
         self.state["MoveStatus"] = movestate
+        if self.h.report:
+            self.state['pickingRobotInfo'] = self.h.report
         str_state = json.dumps(self.state)
         r.setInfo(str_state)
         r.logDebug(str_state)
