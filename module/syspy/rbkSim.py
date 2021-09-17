@@ -733,7 +733,14 @@ class SimModule:
             id (float): 障碍物id        
         """
         print("func: {0} {1} {2} {3} {4}".format(get_function_name(), collision_type, x, y, id))
-        return          
+        return  
+    def getRecFileFromTask(self)->str:
+        """通过任务获取识别文件
+        Returns:
+            str: 识别文件
+        """        
+        print("func: {0} ".format(get_function_name()))
+        return ""
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -803,6 +810,7 @@ if __name__ == '__main__':
     r.setBlockError()
     r.clearBlockError()
     r.setBlockReason(0,0,0,0)
+    r.getRecFileFromTask()
     print("Success!!!")
 
 
