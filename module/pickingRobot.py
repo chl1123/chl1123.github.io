@@ -678,7 +678,6 @@ class Hairou:
 
         self.external_bin_op_res['seqNum'] = self.seqNum_req
         self.external_bin_op_res["status"] = Action.RUNNING
-        r.setWarning(f"external_bin_op:{msg}")
         self.external_bin_op_res['res'] = self.sendMessage(msg, r)
 
         return self.external_bin_op_res
@@ -708,7 +707,6 @@ class Hairou:
         if not self.src_send and src_status != MoveStatus.FINISHED and src_status != MoveStatus.FAILED:
             self.go_path.run(r, req_posi)
             self.src_send = True
-        r.setWarning(f"----src_status----{src_status}--{self.src_send}")
         if src_status == MoveStatus.FINISHED:
             self.go_path = goPath.Module(r, dict())
             self.src_send = False

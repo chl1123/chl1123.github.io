@@ -202,7 +202,6 @@ class Module(BasicModule):
                                                comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
 
-        # r.setNotice(f"===init=== {json.dumps(args)}")
 
         self.init = True
         self.state = dict()
@@ -220,7 +219,6 @@ class Module(BasicModule):
             return MoveStatus.FAILED
 
         self.status = MoveStatus.RUNNING
-        r.setNotice(f"===run=== {json.dumps(args)}")
         if self.init:
             self.init = False
             self.update_param(r, args)
@@ -255,8 +253,6 @@ class Module(BasicModule):
 
             if not self.h.mode == ModeType.TASK:
                 r.setError("mode error! ")
-                # self.h.switch_mode(r, ModeType.TASK)
-                # return self.status
 
             # ======================================动作指令类型========================================================
             # ["switch_mode", "preaction", "robot_reset", "param_set", "internal_opt", "external_opt", "task_resume"]
@@ -278,7 +274,6 @@ class Module(BasicModule):
                 elif args['operation'] == 'preaction':
                     try:
                         if not self.msg_send:
-                            r.setWarning(f"---preconditions---{self.preconditions}-----------")
                             self.h.preaction(r, self.robotId, self.preconditions)
                             self.msg_send = True
                         r.setNotice(f"preaction_res: {json.dumps(self.h.preaction_res)}")
@@ -341,7 +336,6 @@ class Module(BasicModule):
                                                    self.srcTray, self.dstTray, self.targetTray)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.internal_bin_op_res))
-                        r.setWarning(f"srcTray:{self.srcTray}, dstTray:{self.dstTray}")
                         if self.h.internal_bin_op_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.resume_send = False
@@ -349,7 +343,7 @@ class Module(BasicModule):
                         return self.status
                     except Exception as e:
                         r.setWarning(f"internal_opt exception: {e}---{self.h.seqNum_req}")
-                        self.h.task_resume(r, self.robotId)
+                        # self.h.task_resume(r, self.robotId)
 
                 elif args['operation'] == 'external_opt':
                     try:
@@ -361,8 +355,6 @@ class Module(BasicModule):
                             if finger['state'] in [4, 0] or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or \
                                     lift['state'] in [4, 0]:
                                 # if finger['state'] in [4, 0]:
-                                # r.setWarning(f"---------task_resume------------------------------------------------")
-                                # self.h.task_resume(r, self.robotId)
                                 if not self.resume_send:
                                     r.setWarning(f"---------task_resume-------------------------------------------")
                                     self.h.task_resume(r, self.robotId)
@@ -378,9 +370,8 @@ class Module(BasicModule):
 
                         # 监听位置请求 msgType(200), 机器视觉自动校准取放货物位置
                         if self.h.req_position and not self.src_ok:
-                            r.setWarning(f"req_position: {self.h.req_position}")
+                            # r.setWarning(f"req_position: {self.h.req_position}")
                             self.src_ok = self.src_pos(r, self.h.req_position)
-                            # r.setWarning(f"src_ok: {self.src_ok}")
                             if self.src_ok:
                                 self.h.req_position = dict()
                                 self.src_ok = False
@@ -392,7 +383,6 @@ class Module(BasicModule):
                         return self.status
                     except Exception as e:
                         r.setWarning(f"external_opt exception: {e}")
-                        # self.h.task_resume(r, self.robotId)
 
                 elif args['operation'] == 'task_resume':
                     r.setWarning(f"task is resuming...")
@@ -530,14 +520,11 @@ class Module(BasicModule):
         if abs(req_posi['x']) < 0.003:
             src_status = MoveStatus.FINISHED
         if src_status != MoveStatus.FINISHED and src_status != MoveStatus.FAILED:
-            # r.setWarning(f"=====--go_path running-======{src_status}--{req_posi}")
             self.go_path.run(r, req_posi)
 
-        r.setWarning(f"----src_status----{src_status}--")
         if src_status == MoveStatus.FINISHED:
             self.go_path = goPath.Module(r, dict())
             req_posi['status'] = "finish"
             self.h.src_pos_resp(r, req_posi)
-            r.setWarning(f"--=======--finish-==========---{src_status}--{req_posi}")
             return True
         return False
