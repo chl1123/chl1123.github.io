@@ -34,7 +34,7 @@ class MessageType(IntEnum):
     ROBOT_VISION_REQ = 61
     ROBOT_VISION_RECORD = 62
     ROBOT_VISION_STOP = 63
-    ROBOT_INDICATOR_REQ = 70
+    ROBOT_INDICATOR_REQ = 70    # 指示器控制
 
     ROBOT_INTERNAL_BIN_OP = 80  # 内部取放货
     ROBOT_EXTERNAL_BIN_OP = 90  # 外部取放货

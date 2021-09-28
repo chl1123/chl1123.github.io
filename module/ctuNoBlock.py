@@ -367,7 +367,10 @@ class Module(BasicModule):
         self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=400.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最低高度")
         self.fork_limit = p.loadParam("fork_limit", type="int", default = 1, maxValue = 100, minValue = -1, unit = "", comment = "货叉机械限位限位DI")
         self.loadOffset = p.loadParam("loadOffset", type="float", default=0.0, maxValue = 500.0, minValue = -500.0, unit = "mm", comment = "load货物时，货叉额外伸出的距离")
-        
+        self.fork_has_sensor = p.loadParam("forkSensor", type="int", default=0, comment="货叉是否有货物检测传感器，1为有，0为无")
+        self.tray_has_sensor = p.loadParam("traySensor", type="int", default=0, comment="背篓是否有货物检测传感器，1为有，0为无")
+        self.trays_num = p.loadParam("traysNum", type="int", default=3, comment="背篓层数")
+
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -382,6 +385,8 @@ class Module(BasicModule):
         self.task_list = []
         self.task_id = 0
         self.state = dict()
+        self.fork_detect = list()
+        self.tray_detect = self.init_trays(self.trays_num)
         self.goPath = goPath.Module(r, args)
         self.waitVision = waitVision()
         self.waitVision.status = MoveStatus.NONE
@@ -562,6 +567,11 @@ class Module(BasicModule):
         movestate["operation"] = self.operation_status
         movestate["status"] = self.status
         self.state["MoveStatus"] = movestate
+        if not self.fork_has_sensor and "forkDetect" not in self.state:
+            self.state["forkDetect"] = self.fork_detect
+        if not self.tray_has_sensor and "trays" not in self.state:
+            self.state["trays"] = self.tray_detect
+
         data = {
             "pickingRobotInfo": self.state
         }
@@ -607,6 +617,19 @@ class Module(BasicModule):
             r.logDebug("Other error in print hairou trays state")
 
         return self.status.value
+
+    @staticmethod
+    def init_trays(floor: int):
+        trays = list()
+        for i in range(floor):
+            d = dict()
+            d["binId"] = f"第{i+1}层背篓"
+            d["id"] = i
+            d["state"] = 1
+            d["type"] = 0
+            trays.append(d)
+        return trays
+
     def lift(self, r, height, clear_error = False):
         self.lift_status = MoveStatus.RUNNING
         if height < self.minLiftHeight:
@@ -941,7 +964,7 @@ class Module(BasicModule):
                 if dt > self.getMarkerPosTotTime:
                     self.getMarkerPos_status =2
                     self.operation_status = MoveStatus.FINISHED
-        self.state["MarkerPos"] = self.getMarkerPos_data 
+        self.state["MarkerPos"] = self.getMarkerPos_data
 
 
     def indicator(self, r, chassisLedFront = None, chassisLedBack = None, buzzer = None, headLedRed = None, headLedYellow = None, headLedGreen = None, headLedFreq = None):
@@ -1008,6 +1031,11 @@ class Module(BasicModule):
             self.task_id = 0
         else:
             self.runTakList(r)
+
+        if self.operation_status == MoveStatus.FINISHED:
+            trays_floor = int(self.task["selfPosition"])
+            self.tray_detect[trays_floor-1]["state"] = 0
+
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
@@ -1054,6 +1082,11 @@ class Module(BasicModule):
             self.task_id = 0
         else:
             self.runTakList(r)
+
+        if self.operation_status == MoveStatus.FINISHED:
+            trays_floor = int(self.task["selfPosition"])
+            self.tray_detect[trays_floor-1]["state"] = 1
+
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
@@ -1070,6 +1103,13 @@ class Module(BasicModule):
             self.task_id = 0
         else:
             self.runTakList(r)
+
+        if self.operation_status == MoveStatus.FINISHED:
+            trays_floor0 = int(self.task["changePosition0"])
+            trays_floor1 = int(self.task["changePosition1"])
+            self.tray_detect[trays_floor0-1]["state"] = 1
+            self.tray_detect[trays_floor1-1]["state"] = 0
+
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
@@ -1086,6 +1126,11 @@ class Module(BasicModule):
             self.task_id = 0
         else:
             self.runTakList(r)
+
+        if self.operation_status == MoveStatus.FINISHED:
+            trays_floor = int(self.task["putPosition"])
+            self.tray_detect[trays_floor-1]["state"] = 0
+
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
