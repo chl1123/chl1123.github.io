@@ -15,6 +15,7 @@ class MessageType(IntEnum):
     ROBOT_MODE_REQ = 1  # 模式切换
     ROBOT_RESET_REQ = 3  # 重置机构校零
     ROBOT_PARAM_SET = 4  # 参数配置
+    ROBOT_STOP_REQ = 5     # 任务停止
     ROBOT_RESUME_REQ = 6  # 任务恢复
 
     ROBOT_INFO_REPORT = 10
@@ -44,6 +45,10 @@ class MessageType(IntEnum):
     ROBOT_SRC_POS_RESP = 201
 
     ROBOT_COMM_RESP = 255
+
+
+class StopType(IntEnum):
+    STOP_EMG = 10                  # 停止机构业务
 
 
 class ModeType(IntEnum):
@@ -270,7 +275,7 @@ class Hairou:
             "locationType": 0,
             "targetPosition": 0,
             "targetHeight": 0
-            }
+        }
 
         self.msg_preaction_req = {
             "msgType": MessageType.ROBOT_PREACTION_REQ.value,
@@ -283,6 +288,11 @@ class Hairou:
                 "forkRotationPositionMin": 0,
                 "fingerPosition": 0
             }
+        }
+        self.msg_task_stop_req = {
+            "msgType": MessageType.ROBOT_STOP_REQ.value,
+            "seqNum": 0,
+            "stopType": 0,
         }
 
         self.report = dict()
@@ -327,6 +337,8 @@ class Hairou:
         self.resetAction(self.preaction_res)
         self.src_pos_res = dict()
         self.resetAction(self.src_pos_res)
+        self.task_stop_res = dict()
+        self.resetAction(self.task_stop_res)
 
         self.reset_time = 5
         self.rotate_reset_stime = -1
@@ -502,6 +514,8 @@ class Hairou:
                     self.finishAction(self.preaction_res, res_msg)
                 elif self.src_pos_res['seqNum'] == seqNum:
                     self.finishAction(self.src_pos_res, res_msg)
+                elif self.task_stop_res['seqNum'] == seqNum:
+                    self.finishAction(self.task_stop_res, res_msg)
 
             elif res_msg['msgType'] == MessageType.ROBOT_INFO_REPORT:
                 self.report = res_msg
@@ -725,6 +739,15 @@ class Hairou:
         self.msg_src_pos_resp['res'] = self.sendMessage(msg, r)
         return self.msg_src_pos_resp
 
+    def task_stop(self, r, stop_type):
+        msg = self.msg_task_stop_req
+        self.seqNum_req += 1
+        msg['seqNum'] = self.seqNum_req
+        msg['stopType'] = stop_type
+        self.task_stop_res['seqNum'] = self.seqNum_req
+        self.task_stop_res["status"] = Action.RUNNING
+        self.task_stop_res['res'] = self.sendMessage(msg, r)
+        return self.task_stop_res
 
     def liftReset(self, r):
         if self.liftReset_res['status'] is Action.INIT:

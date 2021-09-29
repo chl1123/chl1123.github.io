@@ -7,7 +7,7 @@ sys.path.append("syspy")
 from syspy import goPath
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
-from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType, Action
+from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType, Action, StopType
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -201,7 +201,10 @@ class Module(BasicModule):
         self.conveyor_tag_height = p.loadParam("conveyor_tag_height", type="float", default=0,
                                                comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
-
+        self.di1 = p.loadParam("di1", type="int", default=2, comment="上限位DI")
+        self.di2 = p.loadParam("di1", type="int", default=4, comment="下限位DI")
+        self.di1_status = False
+        self.di2_status = False
 
         self.init = True
         self.state = dict()
@@ -253,6 +256,13 @@ class Module(BasicModule):
 
             if not self.h.mode == ModeType.TASK:
                 r.setError("mode error! ")
+
+            if self.trigger_di(r):
+                r.setError(f"触发上下限位DI")
+                # 请求stop指令
+                self.h.task_stop(r, StopType.STOP_EMG)
+                r.setNotice(json.dumps(self.h.task_stop_res))
+                return MoveStatus.FAILED
 
             # ======================================动作指令类型========================================================
             # ["switch_mode", "preaction", "robot_reset", "param_set", "internal_opt", "external_opt", "task_resume"]
@@ -401,6 +411,7 @@ class Module(BasicModule):
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
+            r.setInfo(json.dumps(self.state))
             return self.status
 
     def update_param(self, r, args):
@@ -528,3 +539,17 @@ class Module(BasicModule):
             self.h.src_pos_resp(r, req_posi)
             return True
         return False
+
+    def trigger_di(self, r):                 # 触发上、下限位DI
+        dis = r.Di()
+        nodes = dis.get('node', list())
+        for node in nodes:
+            if node['id'] == self.di1 and node['status']:
+                return True
+            if node['id'] == self.di2 and node['status']:
+                return True
+        return False
+
+
+
+
