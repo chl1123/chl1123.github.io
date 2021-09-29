@@ -385,7 +385,7 @@ class Module(BasicModule):
         self.task_list = []
         self.task_id = 0
         self.state = dict()
-        self.fork_detect = list()
+        self.fork_detect = self.init_forksDetects(2)
         self.tray_detect = self.init_trays(self.trays_num)
         self.goPath = goPath.Module(r, args)
         self.waitVision = waitVision()
@@ -567,9 +567,9 @@ class Module(BasicModule):
         movestate["operation"] = self.operation_status
         movestate["status"] = self.status
         self.state["MoveStatus"] = movestate
-        if not self.fork_has_sensor and "forkDetect" not in self.state:
+        if not self.fork_has_sensor:
             self.state["forkDetect"] = self.fork_detect
-        if not self.tray_has_sensor and "trays" not in self.state:
+        if not self.tray_has_sensor:
             self.state["trays"] = self.tray_detect
 
         data = {
@@ -629,6 +629,26 @@ class Module(BasicModule):
             d["type"] = 0
             trays.append(d)
         return trays
+
+    @staticmethod
+    def init_forksDetects(forkDetects_num: int):
+        forkDetects = list()
+        for i in range(forkDetects_num):
+            d = dict()
+            d["binId"] = f"{i+1}号货叉传感器"
+            d["id"] = i
+            d["state"] = 1
+            d["type"] = 0
+            forkDetects.append(d)
+        return forkDetects
+
+    def fork_detect_refresh(self):
+        if "getGoods" in self.state and self.state["getGoods"]["status"] == MoveStatus.FINISHED:
+            self.fork_detect[0]["state"] = 0
+            self.fork_detect[1]["state"] = 0
+        if "putGoods" in self.state and self.state["putGoods"]["status"] == MoveStatus.FINISHED:
+            self.fork_detect[0]["state"] = 1
+            self.fork_detect[1]["state"] = 1
 
     def lift(self, r, height, clear_error = False):
         self.lift_status = MoveStatus.RUNNING
@@ -1035,6 +1055,7 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.FINISHED:
             trays_floor = int(self.task["selfPosition"])
             self.tray_detect[trays_floor-1]["state"] = 0
+        self.fork_detect_refresh()
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
@@ -1086,6 +1107,7 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.FINISHED:
             trays_floor = int(self.task["selfPosition"])
             self.tray_detect[trays_floor-1]["state"] = 1
+        self.fork_detect_refresh()
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
@@ -1109,6 +1131,7 @@ class Module(BasicModule):
             trays_floor1 = int(self.task["changePosition1"])
             self.tray_detect[trays_floor0-1]["state"] = 1
             self.tray_detect[trays_floor1-1]["state"] = 0
+        self.fork_detect_refresh()
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
@@ -1130,6 +1153,7 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.FINISHED:
             trays_floor = int(self.task["putPosition"])
             self.tray_detect[trays_floor-1]["state"] = 0
+        self.fork_detect_refresh()
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
