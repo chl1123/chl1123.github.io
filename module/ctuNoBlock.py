@@ -365,6 +365,7 @@ class Module(BasicModule):
         self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default = 4, maxValue = 100, minValue = -1, unit = "", comment = "货叉上限位DI")
         self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default = 2, maxValue = 100, minValue = -1, unit = "", comment = "货叉下限位DI")
         self.minLiftHeight = p.loadParam("min_fork_height", type="float", default=400.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最低高度")
+        self.maxLiftHeight = p.loadParam("max_fork_height", type="float", default=1940.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最大高度")
         self.fork_limit = p.loadParam("fork_limit", type="int", default = 1, maxValue = 100, minValue = -1, unit = "", comment = "货叉机械限位限位DI")
         self.loadOffset = p.loadParam("loadOffset", type="float", default=0.0, maxValue = 500.0, minValue = -500.0, unit = "mm", comment = "load货物时，货叉额外伸出的距离")
         self.fork_has_sensor = p.loadParam("forkSensor", type="int", default=0, comment="货叉是否有货物检测传感器，1为有，0为无")
@@ -655,6 +656,11 @@ class Module(BasicModule):
         if height < self.minLiftHeight:
             r.logDebug("lift {} is set to {}".format(height, self.minLiftHeight))
             height = self.minLiftHeight
+        if height > self.maxLiftHeight:
+            r.setError(f"lift out of maxLiftHeight")
+            r.logDebug("lift {} is set to {}".format(height, self.maxLiftHeight))
+            self.lift_status = MoveStatus.FAILED
+            self.status = MoveStatus.FAILED
         if "lift" in self.state:
             dis = r.Di()
             upLimit = False
