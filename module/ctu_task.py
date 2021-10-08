@@ -330,11 +330,14 @@ class Module(BasicModule):
                 elif args['operation'] == 'internal_opt':
                     try:
                         if self.state:
-                            finger = self.state['finger']
+                            if "finger" in self.state:
+                                finger = self.state['finger']
+                            else:
+                                finger = None
                             rotate = self.state['rotate']
                             stretch = self.state['stretch']
                             lift = self.state['lift']
-                            if finger['state'] in [4, 0] or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or \
+                            if (finger and finger['state'] in [4, 0]) or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or \
                                     lift['state'] in [4, 0]:
                                 if not self.resume_send:
                                     self.h.task_resume(r, self.robotId)
@@ -358,11 +361,14 @@ class Module(BasicModule):
                 elif args['operation'] == 'external_opt':
                     try:
                         if self.state:
-                            finger = self.state['finger']
+                            if "finger" in self.state:
+                                finger = self.state['finger']
+                            else:
+                                finger = None
                             rotate = self.state['rotate']
                             stretch = self.state['stretch']
                             lift = self.state['lift']
-                            if finger['state'] in [4, 0] or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or \
+                            if (finger and finger['state'] in [4, 0]) or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or \
                                     lift['state'] in [4, 0]:
                                 # if finger['state'] in [4, 0]:
                                 if not self.resume_send:
