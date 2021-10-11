@@ -573,6 +573,19 @@ class Module(BasicModule):
         if not self.tray_has_sensor:
             self.state["trays"] = self.tray_detect
 
+
+        if "res" in self.state:
+            try:
+                failDescription = self.state['res']['res']['failDescription']
+                if not failDescription == "":
+                    r.setError(f"{failDescription}")
+                    self.status = MoveStatus.FAILED
+            except KeyError as e:
+                r.logDebug("failDescription KeyError: "+str(e))
+            except Exception as e:
+                r.logDebug("failDescription error in hairou state")
+
+
         data = {
             "pickingRobotInfo": self.state
         }
@@ -656,11 +669,11 @@ class Module(BasicModule):
         if height < self.minLiftHeight:
             r.logDebug("lift {} is set to {}".format(height, self.minLiftHeight))
             height = self.minLiftHeight
-        if height > self.maxLiftHeight:
-            r.setError(f"lift out of maxLiftHeight")
-            r.logDebug("lift {} is set to {}".format(height, self.maxLiftHeight))
-            self.lift_status = MoveStatus.FAILED
-            self.status = MoveStatus.FAILED
+        # if height > self.maxLiftHeight:
+        #     r.setError(f"lift out of maxLiftHeight")
+        #     r.logDebug("lift {} is set to {}".format(height, self.maxLiftHeight))
+        #     self.lift_status = MoveStatus.FAILED
+        #     self.status = MoveStatus.FAILED
         if "lift" in self.state:
             dis = r.Di()
             upLimit = False
