@@ -368,8 +368,8 @@ class Module(BasicModule):
         self.maxLiftHeight = p.loadParam("max_fork_height", type="float", default=1940.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "货叉最大高度")
         self.fork_limit = p.loadParam("fork_limit", type="int", default = 1, maxValue = 100, minValue = -1, unit = "", comment = "货叉机械限位限位DI")
         self.loadOffset = p.loadParam("loadOffset", type="float", default=0.0, maxValue = 500.0, minValue = -500.0, unit = "mm", comment = "load货物时，货叉额外伸出的距离")
-        self.fork_has_sensor = p.loadParam("forkSensor", type="int", default=0, comment="货叉是否有货物检测传感器，1为有，0为无")
-        self.tray_has_sensor = p.loadParam("traySensor", type="int", default=0, comment="背篓是否有货物检测传感器，1为有，0为无")
+        self.has_fork_sensor = p.loadParam("forkSensor", type="int", default=0, comment="货叉是否有货物检测传感器，1为有，0为无")
+        self.has_tray_sensor = p.loadParam("traySensor", type="int", default=0, comment="背篓是否有货物检测传感器，1为有，0为无")
         self.trays_num = p.loadParam("traysNum", type="int", default=3, comment="背篓层数")
 
         self.stretch_status = MoveStatus.NONE
@@ -568,11 +568,6 @@ class Module(BasicModule):
         movestate["operation"] = self.operation_status
         movestate["status"] = self.status
         self.state["MoveStatus"] = movestate
-        if not self.fork_has_sensor:
-            self.state["forkDetect"] = self.fork_detect
-        if not self.tray_has_sensor:
-            self.state["trays"] = self.tray_detect
-
 
         if "res" in self.state:
             try:
@@ -585,13 +580,6 @@ class Module(BasicModule):
             except Exception as e:
                 r.logDebug("failDescription error in hairou state")
 
-
-        data = {
-            "pickingRobotInfo": self.state
-        }
-        str_state = json.dumps(data)
-        r.setInfo(str_state)
-        r.logDebug(str_state)
         try:
             r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
             self.state["lift"]["position"],self.state["lift"]["state"], self.state["lift"]["speed"],
@@ -656,13 +644,30 @@ class Module(BasicModule):
             forkDetects.append(d)
         return forkDetects
 
-    def fork_detect_refresh(self):
+    def fork_detect_refresh(self, r):
         if "getGoods" in self.state and self.state["getGoods"]["status"] == MoveStatus.FINISHED:
             self.fork_detect[0]["state"] = 0
             self.fork_detect[1]["state"] = 0
+            r.logInfo(f"------------getGoods fork_detect_refresh--------{self.fork_detect}")
+            self.report_info(r)
         if "putGoods" in self.state and self.state["putGoods"]["status"] == MoveStatus.FINISHED:
             self.fork_detect[0]["state"] = 1
             self.fork_detect[1]["state"] = 1
+            r.logInfo(f"------------putGoods fork_detect_refresh--------{self.fork_detect}")
+            self.report_info(r)
+
+    def report_info(self, r):
+        if not self.has_fork_sensor:
+            self.state["forkDetect"] = self.fork_detect
+        if not self.has_tray_sensor:
+            self.state["trays"] = self.tray_detect
+
+        data = {
+            "pickingRobotInfo": self.state
+        }
+        str_state = json.dumps(data)
+        r.setInfo(str_state)
+        r.logDebug(str_state)
 
     def lift(self, r, height, clear_error = False):
         self.lift_status = MoveStatus.RUNNING
@@ -1074,7 +1079,8 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.FINISHED:
             trays_floor = int(self.task["selfPosition"])
             self.tray_detect[trays_floor-1]["state"] = 0
-        self.fork_detect_refresh()
+            r.logInfo(f"--------load---------{self.tray_detect}--------load-------")
+        self.fork_detect_refresh(r)
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
@@ -1126,7 +1132,8 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.FINISHED:
             trays_floor = int(self.task["selfPosition"])
             self.tray_detect[trays_floor-1]["state"] = 1
-        self.fork_detect_refresh()
+            r.logInfo(f"--------unload---------{self.tray_detect}--------unload-------")
+        self.fork_detect_refresh(r)
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
@@ -1150,7 +1157,8 @@ class Module(BasicModule):
             trays_floor1 = int(self.task["changePosition1"])
             self.tray_detect[trays_floor0-1]["state"] = 1
             self.tray_detect[trays_floor1-1]["state"] = 0
-        self.fork_detect_refresh()
+        self.fork_detect_refresh(r)
+        r.logInfo(f"--------changePos---------{self.tray_detect}--------changePos-------")
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
@@ -1172,7 +1180,8 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.FINISHED:
             trays_floor = int(self.task["putPosition"])
             self.tray_detect[trays_floor-1]["state"] = 0
-        self.fork_detect_refresh()
+        self.fork_detect_refresh(r)
+        r.logInfo(f"--------putPos---------{self.tray_detect}--------putPos-------")
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
