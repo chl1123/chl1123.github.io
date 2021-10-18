@@ -165,6 +165,10 @@ import syspy.goPath as goPath
         "tips": "rec_offz_box",
         "type": "double",
         "unit": "mm"
+    },
+    "goodsId": {
+        "value": '',
+        "type": "string"
     }
 }
 ####END DEFAULT ARGS####
@@ -388,6 +392,7 @@ class Module(BasicModule):
         self.state = dict()
         self.fork_detect = self.init_forksDetects(2)
         self.tray_detect = self.init_trays(self.trays_num)
+        self.goods_id = None
         self.goPath = goPath.Module(r, args)
         self.waitVision = waitVision()
         self.waitVision.status = MoveStatus.NONE
@@ -406,6 +411,8 @@ class Module(BasicModule):
                 self.unloadHeight = self.task["unloadHeight"]
             if "loadHeight" in self.task:
                 self.loadHeight = self.task["loadHeight"]
+            if "goodsId" in self.task:
+                self.goods_id = self.task["goodsId"]
         if not self.h.isconnect:
             self.state["init"] = self.h.initDevice(r)
             self.state["warning"] = "ctu is connecting!!!!"
@@ -438,13 +445,13 @@ class Module(BasicModule):
                 self.zero(r)
             elif "operation" in self.task and self.task["operation"] == "load":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task and "selfPosition" in self.task:
-                    self.load(r)
+                    self.load(r, self.goods_id)
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
             elif "operation" in self.task and self.task["operation"] == "unload":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task and "selfPosition" in self.task:
-                    self.unload(r)
+                    self.unload(r, self.goods_id)
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -629,6 +636,7 @@ class Module(BasicModule):
             d["id"] = i
             d["state"] = 1
             d["type"] = 0
+            d["goods"] = None
             trays.append(d)
         return trays
 
@@ -649,12 +657,23 @@ class Module(BasicModule):
             self.fork_detect[0]["state"] = 0
             self.fork_detect[1]["state"] = 0
             r.logInfo(f"------------getGoods fork_detect_refresh--------{self.fork_detect}")
-            self.report_info(r)
         if "putGoods" in self.state and self.state["putGoods"]["status"] == MoveStatus.FINISHED:
             self.fork_detect[0]["state"] = 1
             self.fork_detect[1]["state"] = 1
             r.logInfo(f"------------putGoods fork_detect_refresh--------{self.fork_detect}")
-            self.report_info(r)
+        self.report_info(r)
+
+    def check_trays(self, r, lift_height, opt, goodsId):
+        """ 根据取放货高度，计算最优背篓层数 """
+        if opt == 'load':
+            for tray in self.tray_detect:
+                if tray['state'] == 1:
+                    return tray['id']
+        elif opt == 'unload':
+            for tray in self.tray_detect:
+                if goodsId == tray['goods']:
+                    return tray['id']
+        return None
 
     def report_info(self, r):
         if not self.has_fork_sensor:
@@ -1046,7 +1065,11 @@ class Module(BasicModule):
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
         self.state["rec"] = cur_state
-    def load(self,r):
+    def load(self,r, goodsId):
+        tray_floor = self.check_trays(r, self.task["lift"], 'load', goodsId)
+        if tray_floor is None:
+            r.setError(f"All trays are full, can not load")
+            self.operation_status = MoveStatus.FAILED
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
@@ -1058,7 +1081,7 @@ class Module(BasicModule):
                         recAdjust(self.task["visionType"], self.task["visionBinType"], 
                                   self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                         getGoods(self.task["stretch"] + self.loadOffset),
-                        prePutGoods(self.high[int(self.task["selfPosition"])],0,"load"),
+                        prePutGoods(self.high[tray_floor],0,"load"),
                         putGoods(self.stretchDist)
                     ]
                 else:
@@ -1069,7 +1092,7 @@ class Module(BasicModule):
                 self.task_list = [
                     preGoods(self.task["lift"], self.task["rotate"]),
                     getGoods(self.task["stretch"] + self.loadOffset),
-                    prePutGoods(self.high[int(self.task["selfPosition"])],0,"load"),
+                    prePutGoods(self.high[tray_floor],0,"load"),
                     putGoods(self.stretchDist)
                 ]
             self.task_id = 0
@@ -1077,8 +1100,8 @@ class Module(BasicModule):
             self.runTakList(r)
 
         if self.operation_status == MoveStatus.FINISHED:
-            trays_floor = int(self.task["selfPosition"])
-            self.tray_detect[trays_floor-1]["state"] = 0
+            self.tray_detect[tray_floor]["state"] = 0
+            self.tray_detect[tray_floor]["goods"] = goodsId
             r.logInfo(f"--------load---------{self.tray_detect}--------load-------")
         self.fork_detect_refresh(r)
 
@@ -1086,7 +1109,11 @@ class Module(BasicModule):
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
         self.state["load"] = cur_state
-    def unload(self,r):
+    def unload(self,r, goodsId):
+        tray_floor = self.check_trays(r, self.task["lift"], 'unload', goodsId)
+        if tray_floor is None:
+            r.setError(f"No such goodsId found, can not unload")
+            self.operation_status = MoveStatus.FAILED
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
@@ -1095,7 +1122,7 @@ class Module(BasicModule):
                         self.task["visionBinType"] = "code"
                     if "recBoxLift" in self.task:
                         self.task_list = [
-                            preGoods(self.low[int(self.task["selfPosition"])], 0),
+                            preGoods(self.low[tray_floor], 0),
                             getGoods(self.stretchDist),
                             preRecBox(self.task["recBoxLift"], self.task["rotate"]),
                             recBox(),
@@ -1106,7 +1133,7 @@ class Module(BasicModule):
                         ]
                     else:
                         self.task_list = [
-                            preGoods(self.low[int(self.task["selfPosition"])], 0),
+                            preGoods(self.low[tray_floor], 0),
                             getGoods(self.stretchDist),
                             prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
                             recBox(),
@@ -1120,7 +1147,7 @@ class Module(BasicModule):
             else:
                 self.vision_status = MoveStatus.FINISHED
                 self.task_list = [
-                    preGoods(self.low[int(self.task["selfPosition"])], 0),
+                    preGoods(self.low[tray_floor], 0),
                     getGoods(self.stretchDist),
                     prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
                     putGoods(self.task["stretch"])
@@ -1130,8 +1157,8 @@ class Module(BasicModule):
             self.runTakList(r)
 
         if self.operation_status == MoveStatus.FINISHED:
-            trays_floor = int(self.task["selfPosition"])
-            self.tray_detect[trays_floor-1]["state"] = 1
+            self.tray_detect[tray_floor]["state"] = 1
+            self.tray_detect[tray_floor]["goods"] = None
             r.logInfo(f"--------unload---------{self.tray_detect}--------unload-------")
         self.fork_detect_refresh(r)
 
@@ -1280,6 +1307,25 @@ class Module(BasicModule):
         str_state = json.dumps(self.state)
         r.setInfo(str_state)
         r.logDebug(str_state)
+
+
+class TrayState:
+    def __init__(self, layer: int, height: float, box_name: str, state: int):
+        self.layer = layer
+        self.height = height
+        self.box_name = box_name
+        self.state = state
+
+
+    def add(self):
+        # 数据库
+        pass
+
+    def delete(self):
+        pass
+
+    def update(self):
+        pass
 
 
 class recBox:
@@ -1719,7 +1765,7 @@ if __name__ == '__main__':
     data["headLedFreq"]["value"] = "1"
     print(m.run(r, data))
     # res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1616926318459, "lift": {"position": 485.754, "speed": 0.548552, "state": 2}, "msgType": 10, "rotate": {"position": -1.56325, "speed": 0.0, "state": 2}, "seqNum": 406, "stretch": {"position": -0.0, "speed": -1.01203, "state": 2}, "vision": {"state": 2}, "task": {"lift": 400, "operation": "load", "recAdjust": 1, "rotate": -1.57, "selfPosition": 3, "stretch": 860, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 22, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.005162753438078038, 0.9998964839473677, 0.013430091832507686, 0.02913439950958338, 0.9995693010948689, 0.004772144649372367, 0.02895581019694668, -0.010669121054354028, 0.02888872246489524, 0.013573799215306236, -0.9994904670326821, 0.34266477417180574, 0.0, 0.0, 0.0, 1.0], "seqNum": 22, "vout": {"yaw": 1.6554542548874005, "pitch": 0.2958052967453177, "roll": -0.7695209701947723, "dx": 0.6046647741718058, "dy": 0.010669121054354028, "dz": 0.0001343995095833793, "dist": 0.010668817268320767}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": 0.0001343995095833793, "dist": 0.010668817268320767, "dtheta": 0.028893127363934568, "goaPathStatus": 0, "lift_pos": 485.8883995095834, "go_args": {"coordinate": "robot", "x": 0.010668817268320767, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002}, "rot_theta": -1.5343568726360655, "adj_count": 8, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
-    # res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1616926319885, "lift": {"position": 485.755, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": -1.53436, "speed": -0.0167552, "state": 2}, "seqNum": 434, "stretch": {"position": -0.0, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 400, "operation": "load", "recAdjust": 1, "rotate": -1.57, "selfPosition": 3, "stretch": 860, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 24, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.007429246509390142, 0.999766852892183, 0.020274273214173785, 0.029153939962044777, 0.9997064956292621, 0.007893279536360431, -0.022904557075420436, 0.015400308396874191, -0.02305924745005849, 0.02009815902567019, -0.9995320580705833, 0.3421031880788719, 0.0, 0.0, 0.0, 1.0], "seqNum": 24, "vout": {"yaw": -1.3213511442478674, "pitch": 0.4256683857140494, "roll": -1.1617419484584592, "dx": 0.6041031880788719, "dy": -0.015400308396874191, "dz": 0.00015393996204477595, "dist": -0.015390086757584222}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": 0.00015393996204477595, "dist": -0.015390086757584222, "dtheta": -0.023061928042119817, "goaPathStatus": 0, "lift_pos": 485.90893996204477, "go_args": {"coordinate": "robot", "x": -0.015390086757584222, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": -1.5574219280421198, "adj_count": 9, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
+    # res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1616926319885, "lift": {"position": 485.755, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": -1.53436, "speed": -0.0167552, "state": 2}, "seqNum": 434, "stretch": {"position": -0.0, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 400, "operation": "load", "recAdjust": 1, "rotate": -1.57, "得分": 3, "stretch": 860, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 24, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.007429246509390142, 0.999766852892183, 0.020274273214173785, 0.029153939962044777, 0.9997064956292621, 0.007893279536360431, -0.022904557075420436, 0.015400308396874191, -0.02305924745005849, 0.02009815902567019, -0.9995320580705833, 0.3421031880788719, 0.0, 0.0, 0.0, 1.0], "seqNum": 24, "vout": {"yaw": -1.3213511442478674, "pitch": 0.4256683857140494, "roll": -1.1617419484584592, "dx": 0.6041031880788719, "dy": -0.015400308396874191, "dz": 0.00015393996204477595, "dist": -0.015390086757584222}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": 0.00015393996204477595, "dist": -0.015390086757584222, "dtheta": -0.023061928042119817, "goaPathStatus": 0, "lift_pos": 485.90893996204477, "go_args": {"coordinate": "robot", "x": -0.015390086757584222, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": -1.5574219280421198, "adj_count": 9, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
     # res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1616926321457, "lift": {"position": 485.753, "speed": 0.274276, "state": 2}, "msgType": 10, "rotate": {"position": -1.55743, "speed": 0.00167552, "state": 2}, "seqNum": 465, "stretch": {"position": -0.0, "speed": -0.0, "state": 2}, "vision": {"state": 2}, "task": {"lift": 400, "operation": "load", "recAdjust": 1, "rotate": -1.57, "selfPosition": 3, "stretch": 860, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 26, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.007004054562370299, 0.9999739902400965, -0.0017210644922518769, 0.02916108667094663, 0.9999590953971117, 0.007013779326262126, 0.005710904670219258, -0.01148737215256884, 0.005722827297514875, -0.0016809946048815666, -0.999982211594217, 0.342662612258709, 0.0, 0.0, 0.0, 1.0], "seqNum": 26, "vout": {"yaw": 0.3279036839872235, "pitch": 0.4013060470792056, "roll": 0.09861219918784905, "dx": 0.604662612258709, "dy": 0.01148737215256884, "dz": 0.00016108667094662937, "dist": 0.011486346008404863}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": 0.00016108667094662937, "dist": 0.011486346008404863, "dtheta": 0.005722998914996058, "goaPathStatus": 0, "lift_pos": 0, "go_args": {}, "rot_theta": 0, "adj_count": 10, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
     # res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1617774196313, "lift": {"position": 1150.08, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": 3.13999, "speed": 0.00753982, "state": 2}, "seqNum": 97, "stretch": {"position": 0.00202406, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 1080, "operation": "load", "recAdjust": 1, "rotate": 3.14, "selfPosition": 0, "stretch": 920, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 6, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.009344127654362655, 0.9982044929080618, 0.05916483428979484, 0.02896389952587754, 0.9998971162527275, 0.009971164304003799, -0.010311779279186539, -0.008335600717951527, -0.010883206690082945, 0.059062392608007996, -0.9981949657214058, 0.39888548170899063, 0.0, 0.0, 0.0, 1.0], "seqNum": 6, "vout": {"yaw": -0.6236013469464964, "pitch": 0.5353868690333142, "roll": -3.3920243909026055, "dx": 0.6608854817089906, "dy": 0.008335600717951527, "dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05, "dtheta": -0.01088389672408785, "goaPathStatus": 0, "lift_pos": 1070.0438995258776, "go_args": {"coordinate": "robot", "x": -1.3359074694907491e-05, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": 3.1291061032759124, "adj_count": 1, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
     res = {"errorState": [], "finger": {"leftStatus": 1, "rightStatus": 1, "state": 2}, "lastUpdate": 1617774196313, "lift": {"position": 1150.08, "speed": -0.0, "state": 2}, "msgType": 10, "rotate": {"position": 3.13999, "speed": 0.00753982, "state": 2}, "seqNum": 97, "stretch": {"position": 0.00202406, "speed": 0.337344, "state": 2}, "vision": {"state": 2}, "task": {"lift": 1080, "operation": "load", "recAdjust": 1, "rotate": 3.14, "selfPosition": 0, "stretch": 920, "visionType": "box", "visionBinType": "code"}, "res": {"status": 0, "seqNum": 6, "res": {"executionResult": 0, "msgType": 255, "positionMatrix": [-0.009344127654362655, 0.9982044929080618, 0.05916483428979484, 0.02896389952587754, 0.9998971162527275, 0.009971164304003799, -0.010311779279186539, -0.008335600717951527, -0.010883206690082945, 0.059062392608007996, -0.9981949657214058, 0.39888548170899063, 0.0, 0.0, 0.0, 1.0], "seqNum": 6, "vout": {"yaw": -0.6236013469464964, "pitch": 0.5353868690333142, "roll": -3.3920243909026055, "dx": 0.6608854817089906, "dy": 0.008335600717951527, "dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05}, "targetType": "box", "binType": "code", "binId": ""}}, "recAdjStatus": {"dz": -3.610047412246076e-05, "dist": -1.3359074694907491e-05, "dtheta": -0.01088389672408785, "goaPathStatus": 0, "lift_pos": 1070.0438995258776, "go_args": {"coordinate": "robot", "x": -1.3359074694907491e-05, "y": 0, "theta": 0, "reachAngle": 3.141592653589793, "useOdo": 1, "reachDist": 0.002, "backMode": 1}, "rot_theta": 3.1291061032759124, "adj_count": 1, "visionType": "box", "binType": "code", "status": 1}, "load": {"state": 1, "task_id": 1}, "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3, "operation": 1, "status": 1}}
