@@ -582,8 +582,8 @@ class Module(BasicModule):
         if "res" in self.state:
             try:
                 failDescription = self.state['res']['res']['failDescription']
-                if not failDescription == "":
-                    r.setError(f"{failDescription}")
+                if not failDescription == "" and not failDescription == "detect failed":
+                    r.setError(f"failDescription: {failDescription}")
                     self.status = MoveStatus.FAILED
             except KeyError as e:
                 r.logDebug("failDescription KeyError: "+str(e))
@@ -702,6 +702,11 @@ class Module(BasicModule):
     def save_data(r, key, data):
         with shelve.open(os.path.dirname(__file__) + '/trays.db') as s:
             s[key] = data
+
+    @staticmethod
+    def del_data(r, key):
+        with shelve.open(os.path.dirname(__file__) + '/trays.db') as s:
+            s.pop(key)
 
     @staticmethod
     def get_data(r, key):
@@ -1090,6 +1095,9 @@ class Module(BasicModule):
         cur_state["task_id"] = self.task_id
         self.state["rec"] = cur_state
     def load(self,r, goodsId):
+        if goodsId and self.get_data(r, goodsId):
+            r.setError(f"this goodsId already exists")
+            self.operation_status = MoveStatus.FAILED
         tray_floor = self.check_trays(r, self.task["lift"], 'load', goodsId)          # 查询空背篓所在层数
         if "selfPosition" in self.task:                                                                               # 脚本参数指定背篓层数
             tray_floor = int(self.task["selfPosition"])
@@ -1132,6 +1140,8 @@ class Module(BasicModule):
             self.tray_detect[tray_floor]["state"] = 0
             self.tray_detect[tray_floor]["goods"] = goodsId
             r.logInfo(f"--------load---------{self.tray_detect}--------load-------")
+            if goodsId:
+                self.save_data(r, goodsId, goodsId)
         self.fork_detect_refresh(r)
 
         cur_state = dict()
@@ -1191,6 +1201,8 @@ class Module(BasicModule):
             self.tray_detect[tray_floor]["state"] = 1
             self.tray_detect[tray_floor]["goods"] = None
             r.logInfo(f"--------unload---------{self.tray_detect}--------unload-------")
+            if goodsId:
+                self.del_data(r, goodsId)
         self.fork_detect_refresh(r)
 
         cur_state = dict()
