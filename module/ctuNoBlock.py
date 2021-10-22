@@ -168,10 +168,6 @@ import syspy.goPath as goPath
         "tips": "rec_offz_box",
         "type": "double",
         "unit": "mm"
-    },
-    "goodsId": {
-        "value": "",
-        "type": "string"
     }
 }
 ####END DEFAULT ARGS####
@@ -414,8 +410,12 @@ class Module(BasicModule):
                 self.unloadHeight = self.task["unloadHeight"]
             if "loadHeight" in self.task:
                 self.loadHeight = self.task["loadHeight"]
-            if "goodsId" in self.task:
-                self.goods_id = self.task["goodsId"]
+            # 创建数据库文件目录
+            db_path = os.path.dirname(__file__) + '/db'
+            if not os.path.exists(db_path):
+                os.makedirs(db_path)
+            # 更新goodsId
+            self.update_goodsId(r)
         if not self.h.isconnect:
             self.state["init"] = self.h.initDevice(r)
             self.state["warning"] = "ctu is connecting!!!!"
@@ -448,13 +448,13 @@ class Module(BasicModule):
                 self.zero(r)
             elif "operation" in self.task and self.task["operation"] == "load":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task:
-                    self.load(r, self.goods_id)
+                    self.load(r)
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
             elif "operation" in self.task and self.task["operation"] == "unload":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task:
-                    self.unload(r, self.goods_id)
+                    self.unload(r)
                 else:
                     r.setError("task is wrong : {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -673,7 +673,7 @@ class Module(BasicModule):
         self.save_data(r, "forks", self.fork_detect)
 
 
-    def check_trays(self, r, lift_height, opt, goodsId):
+    def check_trays(self, r, lift_height, opt):
         """ TO: 根据取货高度，计算最优空背篓层数 """
         if opt == 'load':
             for tray in self.tray_detect:
@@ -681,7 +681,7 @@ class Module(BasicModule):
                     return tray['id']
         elif opt == 'unload':
             for tray in self.tray_detect:
-                if goodsId == tray['goods'] and tray['state'] == 0:
+                if self.goods_id == tray['goods'] and tray['state'] == 0:
                     return tray['id']
         return None
 
@@ -698,24 +698,31 @@ class Module(BasicModule):
         r.setInfo(str_state)
         r.logDebug(str_state)
 
+    def update_goodsId(self, r):
+        move_task = r.moveTask()
+        for p in move_task['params']:
+            if p['key'] == 'goodsId':
+                self.goods_id = p['string_value']
+
+    def clear_tray_state(self, tray_floor, whole):
+        pass
+
     @staticmethod
     def save_data(r, key, data):
-        with shelve.open(os.path.dirname(__file__) + '/trays.db') as s:
+        with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
             s[key] = data
 
     @staticmethod
     def del_data(r, key):
-        with shelve.open(os.path.dirname(__file__) + '/trays.db') as s:
+        with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
             s.pop(key)
 
     @staticmethod
     def get_data(r, key):
-        with shelve.open(os.path.dirname(__file__) + '/trays.db') as s:
+        with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
             if key in s:
-                data = s[key]
-            else:
-                data = None
-        return data
+                return s[key]
+            return None
 
     def lift(self, r, height, clear_error = False):
         self.lift_status = MoveStatus.RUNNING
@@ -1094,11 +1101,11 @@ class Module(BasicModule):
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
         self.state["rec"] = cur_state
-    def load(self,r, goodsId):
-        if goodsId and self.get_data(r, goodsId):
+    def load(self,r):
+        if self.goods_id and self.get_data(r, self.goods_id):
             r.setError(f"this goodsId already exists")
             self.operation_status = MoveStatus.FAILED
-        tray_floor = self.check_trays(r, self.task["lift"], 'load', goodsId)          # 查询空背篓所在层数
+        tray_floor = self.check_trays(r, self.task["lift"], 'load')          # 查询空背篓所在层数
         if "selfPosition" in self.task:                                                                               # 脚本参数指定背篓层数
             tray_floor = int(self.task["selfPosition"])
             if self.tray_detect[tray_floor]["state"] == 0:
@@ -1138,18 +1145,18 @@ class Module(BasicModule):
 
         if self.operation_status == MoveStatus.FINISHED:
             self.tray_detect[tray_floor]["state"] = 0
-            self.tray_detect[tray_floor]["goods"] = goodsId
+            self.tray_detect[tray_floor]["goods"] = self.goods_id
             r.logInfo(f"--------load---------{self.tray_detect}--------load-------")
-            if goodsId:
-                self.save_data(r, goodsId, goodsId)
+            if self.goods_id:
+                self.save_data(r, self.goods_id, self.goods_id)
         self.fork_detect_refresh(r)
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
         self.state["load"] = cur_state
-    def unload(self,r, goodsId):
-        tray_floor = self.check_trays(r, self.task["lift"], 'unload', goodsId)
+    def unload(self,r):
+        tray_floor = self.check_trays(r, self.task["lift"], 'unload')
         if "selfPosition" in self.task:
             tray_floor = int(self.task["selfPosition"])
         if tray_floor is None:
@@ -1201,8 +1208,8 @@ class Module(BasicModule):
             self.tray_detect[tray_floor]["state"] = 1
             self.tray_detect[tray_floor]["goods"] = None
             r.logInfo(f"--------unload---------{self.tray_detect}--------unload-------")
-            if goodsId:
-                self.del_data(r, goodsId)
+            if self.goods_id:
+                self.del_data(r, self.goods_id)
         self.fork_detect_refresh(r)
 
         cur_state = dict()
