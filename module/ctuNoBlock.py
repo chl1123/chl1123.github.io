@@ -1160,7 +1160,7 @@ class Module(BasicModule):
         if "selfPosition" in self.task:
             tray_floor = int(self.task["selfPosition"])
         if tray_floor is None:
-            r.setError(f"No such goods found, can not unload")
+            r.setError(f"No such goodsId found, can not unload")
             self.operation_status = MoveStatus.FAILED
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
