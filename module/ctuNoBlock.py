@@ -634,7 +634,8 @@ class Module(BasicModule):
 
         return self.status.value
 
-    def init_trays(self, r, floor: int):
+    @staticmethod
+    def init_trays(r, floor: int):
         containers = r.getContainers()
         trays = list()
         if not floor == len(containers):
@@ -652,7 +653,8 @@ class Module(BasicModule):
             r.setError(f"init_trays error---{e}")
         return trays
 
-    def init_forksDetects(self, r, forkDetects_num: int):
+    @staticmethod
+    def init_forksDetects(r, forkDetects_num: int):
         forks = list()
         for i in range(forkDetects_num):
             d = dict()
