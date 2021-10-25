@@ -685,7 +685,7 @@ class SimModule:
             width (float): 货物的宽度
         Returns:
         """
-        print("func: {0} {} {} {}".format(get_function_name(), head, tail, width))
+        print("func: {0} {1} {2} {3}".format(get_function_name(), head, tail, width))
         return 0
     @check
     def hasGoods(self)->bool:
@@ -764,10 +764,10 @@ class SimModule:
         print("func: {0} {1} ".format(get_function_name(), c))
         return c
     def clearContainer(self, container_name:str)->bool:
-        """清楚车上特定库位或者背篓的状态
+        """清除车上特定库位或者背篓的状态
 
         Args:
-            container_name (str): 库位或者背篓名称，container_name如果为All则全部清楚
+            container_name (str): 库位或者背篓名称，container_name如果为All则全部清除
         Returns:
             bool: 如果没有库位或者背篓，则返回false
         """
@@ -781,7 +781,7 @@ if __name__ == '__main__':
     r.setMotorPosition("doMotor", 1.0, 2.0, 1)
     r.setLocalShelfArea("shelf")
     r.resetMotor("motor")
-    r.isAllMotorsReached
+    r.isAllMotorsReached()
     r.isMotorReached("motor")
     r.isMotorPositionReached("motor",1.0, 1)
     r.isMotorStop("motor")
@@ -848,6 +848,3 @@ if __name__ == '__main__':
     r.getContainers()
     r.clearContainer("1")
     print("Success!!!")
-
-
-        
