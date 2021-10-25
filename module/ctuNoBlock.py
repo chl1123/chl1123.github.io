@@ -168,6 +168,10 @@ import syspy.goPath as goPath
         "tips": "rec_offz_box",
         "type": "double",
         "unit": "mm"
+    },
+    "goodsId": {
+        "value": "",
+        "type": "string"
     }
 }
 ####END DEFAULT ARGS####
@@ -362,7 +366,7 @@ class Module(BasicModule):
         #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.stretchDist = p.loadParam("stretchDist", type="float", default = 752, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
         #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
-        self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default = -80.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货物后，抓货物时高度的调整距离")
+        self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default = -85.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货物后，抓货物时高度的调整距离")
          #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default = 50.0, maxValue = 1000.0, minValue = -1000.0, unit = "mm", comment = "识别货架后，放货物时高度的调整距离")
         self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default = 4, maxValue = 100, minValue = -1, unit = "", comment = "货叉上限位DI")
@@ -391,7 +395,7 @@ class Module(BasicModule):
         self.state = dict()
         self.fork_detect = self.init_forksDetects(r, 2)
         self.tray_detect = self.init_trays(r, self.trays_num)
-        self.goods_id = None
+        self.goods_id = ""
         self.goPath = goPath.Module(r, args)
         self.waitVision = waitVision()
         self.waitVision.status = MoveStatus.NONE
@@ -411,11 +415,11 @@ class Module(BasicModule):
             if "loadHeight" in self.task:
                 self.loadHeight = self.task["loadHeight"]
             # 创建数据库文件目录
-            db_path = os.path.dirname(__file__) + '/db'
-            if not os.path.exists(db_path):
-                os.makedirs(db_path)
+            # db_path = os.path.dirname(__file__) + '/db'
+            # if not os.path.exists(db_path):
+            #     os.makedirs(db_path)
             # 更新goodsId
-            self.update_goodsId(r)
+            self.get_goodsId(r)
         if not self.h.isconnect:
             self.state["init"] = self.h.initDevice(r)
             self.state["warning"] = "ctu is connecting!!!!"
@@ -631,46 +635,53 @@ class Module(BasicModule):
         return self.status.value
 
     def init_trays(self, r, floor: int):
-        trays = self.get_data(r, "trays")
-        if trays is None:
-            trays = list()
-            for i in range(floor):
+        containers = r.getContainers()
+        trays = list()
+        if not floor == len(containers):
+            r.setError(f"The floors of trays do not match，please check the trays params")
+        try:
+            for c in containers:
                 d = dict()
-                d["binId"] = f"第{i+1}层背篓"
-                d["id"] = i
-                d["state"] = 1
+                d["binId"] = c['desc']
+                d["id"] = int(c['container_name'])
+                d["state"] = int(not c['has_goods'])      # 海柔协议中1表示没有，0表示有
                 d["type"] = 0
-                d["goods"] = None
+                d["goods"] = c['goods_id']
                 trays.append(d)
+        except Exception as e:
+            r.setError(f"init_trays error---{e}")
         return trays
 
     def init_forksDetects(self, r, forkDetects_num: int):
-        forks = self.get_data(r, "forks")
-        if forks is None:
-            forks = list()
-            for i in range(forkDetects_num):
-                d = dict()
-                d["binId"] = f"{i+1}号货叉传感器"
-                d["id"] = i
-                d["state"] = 1
-                d["type"] = 0
-                forks.append(d)
+        forks = list()
+        for i in range(forkDetects_num):
+            d = dict()
+            d["binId"] = f"{i + 1}号货叉传感器"
+            d["id"] = i
+            d["state"] = 1
+            d["type"] = 0
+            forks.append(d)
         return forks
 
-    def fork_detect_refresh(self, r):
+    def detect_refresh(self, r):
         if "getGoods" in self.state and self.state["getGoods"]["status"] == MoveStatus.FINISHED:
             self.fork_detect[0]["state"] = 0
             self.fork_detect[1]["state"] = 0
-            r.logInfo(f"------------getGoods fork_detect_refresh--------{self.fork_detect}")
+            r.logInfo(f"------------getGoods detect_refresh--------{self.fork_detect}")
         if "putGoods" in self.state and self.state["putGoods"]["status"] == MoveStatus.FINISHED:
             self.fork_detect[0]["state"] = 1
             self.fork_detect[1]["state"] = 1
-            r.logInfo(f"------------putGoods fork_detect_refresh--------{self.fork_detect}")
+            r.logInfo(f"------------putGoods detect_refresh--------{self.fork_detect}")
         self.report_info(r)
 
-        # self.tray_detect 数据库更新
-        self.save_data(r, "trays", self.tray_detect)
-        self.save_data(r, "forks", self.fork_detect)
+        # 背篓 数据库更新
+        for tray in self.tray_detect:
+            if tray['state'] == 0:
+                r.setContainer(str(tray['id']), tray['goods'], tray['binId'])
+            else:
+                r.clearContainer(str(tray['id']))
+        # self.save_data(r, "trays", self.tray_detect)
+        # self.save_data(r, "forks", self.fork_detect)
 
 
     def check_trays(self, r, lift_height, opt):
@@ -698,7 +709,7 @@ class Module(BasicModule):
         r.setInfo(str_state)
         r.logDebug(str_state)
 
-    def update_goodsId(self, r):
+    def get_goodsId(self, r):
         move_task = r.moveTask()
         for p in move_task['params']:
             if p['key'] == 'goodsId':
@@ -709,8 +720,9 @@ class Module(BasicModule):
 
     @staticmethod
     def save_data(r, key, data):
-        with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
-            s[key] = data
+        pass
+        # with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
+        #     s[key] = data
 
     @staticmethod
     def del_data(r, key):
@@ -718,11 +730,16 @@ class Module(BasicModule):
             s.pop(key)
 
     @staticmethod
-    def get_data(r, key):
-        with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
-            if key in s:
-                return s[key]
-            return None
+    def check_goodsId(r, goodsId):
+        containers = r.getContainers()
+        for c in containers:
+            if goodsId == c['goods_id']:
+                return True
+        return False
+        # with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
+        #     if key in s:
+        #         return s[key]
+        #     return None
 
     def lift(self, r, height, clear_error = False):
         self.lift_status = MoveStatus.RUNNING
@@ -1101,15 +1118,16 @@ class Module(BasicModule):
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
         self.state["rec"] = cur_state
-    def load(self,r):
-        if self.goods_id and self.get_data(r, self.goods_id):
-            r.setError(f"this goodsId already exists")
+
+    def load(self, r):
+        if self.goods_id and self.check_goodsId(r, self.goods_id):               # 检查 goodsId 是否已存在
+            r.setError(f"This goodsId already exists")
             self.operation_status = MoveStatus.FAILED
-        tray_floor = self.check_trays(r, self.task["lift"], 'load')          # 查询空背篓所在层数
-        if "selfPosition" in self.task:                                                                               # 脚本参数指定背篓层数
+        tray_floor = self.check_trays(r, self.task["lift"], 'load')                         # load时，查询空背篓所在层数
+        if "selfPosition" in self.task:                                                                               # 脚本参数指定 load 背篓层数
             tray_floor = int(self.task["selfPosition"])
             if self.tray_detect[tray_floor]["state"] == 0:
-                r.setError(f"this tray is full, can not load")
+                r.setError(f"This tray is full, can not load")
                 self.operation_status = MoveStatus.FAILED
         if tray_floor is None:
             r.setError(f"All trays are full, can not load")
@@ -1147,18 +1165,22 @@ class Module(BasicModule):
             self.tray_detect[tray_floor]["state"] = 0
             self.tray_detect[tray_floor]["goods"] = self.goods_id
             r.logInfo(f"--------load---------{self.tray_detect}--------load-------")
-            if self.goods_id:
-                self.save_data(r, self.goods_id, self.goods_id)
-        self.fork_detect_refresh(r)
+            # if self.goods_id:
+            #     self.save_data(r, self.goods_id, self.goods_id)
+        self.detect_refresh(r)
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
         self.state["load"] = cur_state
+
     def unload(self,r):
-        tray_floor = self.check_trays(r, self.task["lift"], 'unload')
-        if "selfPosition" in self.task:
+        tray_floor = self.check_trays(r, self.task["lift"], 'unload')        # unload时，查询 goodsId 所在背篓层数
+        if "selfPosition" in self.task:                                                                 # 指定背篓层数 unload 
             tray_floor = int(self.task["selfPosition"])
+            if self.tray_detect[tray_floor]["state"] == 1:
+                r.setError(f"This tray is empty, can not unload")
+                self.operation_status = MoveStatus.FAILED
         if tray_floor is None:
             r.setError(f"No such goodsId found, can not unload")
             self.operation_status = MoveStatus.FAILED
@@ -1206,16 +1228,17 @@ class Module(BasicModule):
 
         if self.operation_status == MoveStatus.FINISHED:
             self.tray_detect[tray_floor]["state"] = 1
-            self.tray_detect[tray_floor]["goods"] = None
+            self.tray_detect[tray_floor]["goods"] = ""
             r.logInfo(f"--------unload---------{self.tray_detect}--------unload-------")
-            if self.goods_id:
-                self.del_data(r, self.goods_id)
-        self.fork_detect_refresh(r)
+            # if self.goods_id:
+            #     self.del_data(r, self.goods_id)
+        self.detect_refresh(r)
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
-        self.state["unload"] = cur_state             
+        self.state["unload"] = cur_state
+
     def changePos(self,r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -1235,9 +1258,10 @@ class Module(BasicModule):
             self.tray_detect[trays_floor0]["state"] = 1
             self.tray_detect[trays_floor1]["state"] = 0
             self.tray_detect[trays_floor1]["goods"] = self.tray_detect[trays_floor0]["goods"]
-            self.tray_detect[trays_floor0]["goods"] = None
-        self.fork_detect_refresh(r)
+            self.tray_detect[trays_floor0]["goods"] = ""
+        self.detect_refresh(r)
         r.logInfo(f"--------changePos---------{self.tray_detect}--------changePos-------")
+        self.detect_refresh(r)
 
         cur_state = dict()
         cur_state["state"] = self.operation_status
@@ -1259,7 +1283,7 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.FINISHED:
             trays_floor = int(self.task["putPosition"])
             self.tray_detect[trays_floor]["state"] = 0
-        self.fork_detect_refresh(r)
+        self.detect_refresh(r)
         r.logInfo(f"--------putPos---------{self.tray_detect}--------putPos-------")
 
         cur_state = dict()
