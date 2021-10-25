@@ -741,6 +741,39 @@ class SimModule:
         """        
         print("func: {0} ".format(get_function_name()))
         return ""
+    def setContainer(self, container_name:str, goods_id:str, desc:str)->bool:
+        """设置车子上库位或者背篓货物
+
+        Args:
+            container_name (str): 库位或者背篓名称
+            goods_id (str): 货物的id
+            desc (str): 描述
+
+        Returns:
+            bool: 如果没有库位或者背篓，则返回false
+        """
+        print("func: {0} {1} {2} {3}".format(get_function_name(), container_name, goods_id, desc))
+        return  True
+    def getContainers(self)->list:
+        """获取当前车子上库位或者背篓货物的状态
+
+        Returns:
+            list: 当前车子上库位或者背篓货物的状态
+        """
+        c= [{'container_name': '3', 'desc': '', 'goods_id': '', 'has_goods': False}, {'container_name': '1', 'desc': '', 'goods_id': 'goods1', 'has_goods': True}, {'container_name': '2', 'desc': 'by script', 'goods_id': 'goods2', 'has_goods': True}]
+        print("func: {0} {1} ".format(get_function_name(), c))
+        return c
+    def clearContainer(self, container_name:str)->bool:
+        """清楚车上特定库位或者背篓的状态
+
+        Args:
+            container_name (str): 库位或者背篓名称，container_name如果为All则全部清楚
+        Returns:
+            bool: 如果没有库位或者背篓，则返回false
+        """
+        print("func: {0} {1}".format(get_function_name(), container_name))
+        return  True
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -811,6 +844,9 @@ if __name__ == '__main__':
     r.clearBlockError()
     r.setBlockReason(0,0,0,0)
     r.getRecFileFromTask()
+    r.setContainer("1","goods1","")
+    r.getContainers()
+    r.clearContainer("1")
     print("Success!!!")
 
 
