@@ -732,8 +732,9 @@ class Module(BasicModule):
 
     @staticmethod
     def del_data(r, key):
-        with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
-            s.pop(key)
+        pass
+        # with shelve.open(os.path.dirname(__file__) + 'db/trays.db') as s:
+        #     s.pop(key)
 
     @staticmethod
     def check_goodsId(r, goodsId):
