@@ -357,16 +357,16 @@ class Module(BasicModule):
         self.low[1] = p.loadParam("low1", type="float", default = 845.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第1层高度")
         self.low[2] = p.loadParam("low2", type="float", default = 1295.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第2层高度")
         self.low[3] = p.loadParam("low3", type="float", default = 1745.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第3层高度")
-        self.low[4] = p.loadParam("low4", type="float", default = 2437.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第4层高度")
-        self.low[5] = p.loadParam("low5", type="float", default = 2947.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第5层高度")
+        self.low[4] = p.loadParam("low4", type="float", default = 2195.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第4层高度")
+        self.low[5] = p.loadParam("low5", type="float", default = 2645.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第5层高度")
         self.high = dict({0:407, 1:917, 2:1427, 3:1937, 4:2447, 5:2957}) #mm
         #此处在背篓放货时需要略高于背娄的高度，此处所更改的数值为默认值，需要在"ctuNoBlock.json"文件里修改才是最终执行的高度
-        self.high[0] = p.loadParam("high0", type="float", default = 407.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第0层高度")
+        self.high[0] = p.loadParam("high0", type="float", default = 405.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第0层高度")
         self.high[1] = p.loadParam("high1", type="float", default = 855.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第1层高度")
         self.high[2] = p.loadParam("high2", type="float", default = 1305.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第2层高度")
         self.high[3] = p.loadParam("high3", type="float", default = 1755.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第3层高度")
-        self.high[4] = p.loadParam("high4", type="float", default = 2447.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第4层高度")
-        self.high[5] = p.loadParam("high5", type="float", default = 2957.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第5层高度")
+        self.high[4] = p.loadParam("high4", type="float", default = 2205.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第4层高度")
+        self.high[5] = p.loadParam("high5", type="float", default = 2655.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第5层高度")
         #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.stretchDist = p.loadParam("stretchDist", type="float", default = 752, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
         #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
@@ -691,7 +691,7 @@ class Module(BasicModule):
 
 
     def check_trays(self, r, lift_height, opt):
-        """ TO: 根据取货高度，计算最优空背篓层数 """
+        """ TO.DO: 根据取货高度，计算最优空背篓层数 """
         if opt == 'load':
             for tray in self.tray_detect:
                 if tray['state'] == 1:
@@ -1136,6 +1136,7 @@ class Module(BasicModule):
             if self.tray_detect[tray_floor]["state"] == 0:
                 r.setError(f"This tray is full, can not load")
                 self.operation_status = MoveStatus.FAILED
+        r.setWarning(f"load-----trays:{self.tray_detect}---tray_floor:{tray_floor}")
         if tray_floor is None:
             r.setError(f"All trays are full, can not load")
             self.operation_status = MoveStatus.FAILED
@@ -1188,6 +1189,7 @@ class Module(BasicModule):
             if self.tray_detect[tray_floor]["state"] == 1:
                 r.setError(f"This tray is empty, can not unload")
                 self.operation_status = MoveStatus.FAILED
+        r.setWarning(f"unload-----trays:{self.tray_detect}---tray_floor:{tray_floor}")
         if tray_floor is None:
             r.setError(f"No such goodsId found, can not unload")
             self.operation_status = MoveStatus.FAILED
