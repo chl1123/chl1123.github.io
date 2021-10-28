@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/10/26 下午13:27
-# @Author : zhong
-# @Version : 2.1.1
+# @Time : 2021/10/28 下午16:27
+# @Author : huang, zhong
+# @Version : 2.1.2
+# @Support : rbk  3.3.5.X
 import os
 import shelve
 
@@ -418,12 +419,13 @@ class Module(BasicModule):
                 self.unloadHeight = self.task["unloadHeight"]
             if "loadHeight" in self.task:
                 self.loadHeight = self.task["loadHeight"]
-            # 创建数据库文件目录
-            # db_path = os.path.dirname(__file__) + '/db'
-            # if not os.path.exists(db_path):
-            #     os.makedirs(db_path)
+
             # 更新goodsId
-            self.get_goodsId(r)
+            try:
+                self.get_goodsId(r)
+            except Exception as e:
+                r.setWarning(f"Please update rbk & core --- {e}")
+
         if not self.h.isconnect:
             self.state["init"] = self.h.initDevice(r)
             self.state["warning"] = "ctu is connecting!!!!"
@@ -576,6 +578,7 @@ class Module(BasicModule):
             and self.status is MoveStatus.FINISHED:
             self.task["_script_first_run_"] = False
             self.status = MoveStatus.RUNNING
+            self.operation_status = MoveStatus.NONE
         movestate = dict()
         movestate["lift"] = self.lift_status
         movestate["rotate"] = self.rotate_status
@@ -883,7 +886,7 @@ class Module(BasicModule):
                         self.state["res"] = res
                     else:
                         r.setError("Stretch has error. Please zero the machine!")
-                        self.stretch_status = MoveStatus.FAILED      
+                        self.stretch_status = MoveStatus.FAILED
         return False 
     def checkFingerStatus(self,r, state):
         if "finger" in self.state:
@@ -1185,7 +1188,7 @@ class Module(BasicModule):
         tray_floor = self.check_trays(r, self.task["lift"], 'unload')        # unload时，查询 goodsId 所在背篓层数
         if "selfPosition" in self.task:                                                                 # 指定背篓层数 unload 
             tray_floor = int(self.task["selfPosition"])
-            if self.tray_detect[tray_floor]["state"] == 1:
+            if self.get_tray(r, tray_floor)["state"] == 1:
                 r.setError(f"This tray is empty, can not unload")
                 self.operation_status = MoveStatus.FAILED
         r.logInfo(f"------unload begin-----trays:{self.tray_detect}---tray_floor:{tray_floor}")
@@ -1332,7 +1335,7 @@ class Module(BasicModule):
                 or stretch_state == Hairou.ModuleState.ERROR \
                     or finger_state == Hairou.ModuleState.ERROR:
                     if not r.errorExits(53000):
-                        r.setError("Picking robot has error in zero operation")
+                        r.setWarning("Picking robot is zero calibrating")
         else:
             if r.errorExits(53000):
                 r.clearError(53000)
