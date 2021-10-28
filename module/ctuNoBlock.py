@@ -1138,7 +1138,7 @@ class Module(BasicModule):
         tray_floor = self.check_trays(r, self.task["lift"], 'load')                         # load时，查询空背篓所在层数
         if "selfPosition" in self.task:                                                                               # 脚本参数指定 load 背篓层数
             tray_floor = int(self.task["selfPosition"])
-            if self.tray_detect[tray_floor]["state"] == 0:
+            if self.get_tray(r, tray_floor)["state"] == 0:
                 r.setError(f"This tray is full, can not load")
                 self.operation_status = MoveStatus.FAILED
         r.logInfo(f"-------load begin-----trays:{self.tray_detect}---tray_floor:{tray_floor}")
