@@ -773,6 +773,16 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), container_name))
         return  True
+    def clearContainerByGoodsId(self, goods_id:str)->bool:
+        """清楚车上特定库位或者背篓的状态
+
+        Args:
+            container_name (str): 货物名称，货物名称如果为All则全部清除
+        Returns:
+            bool: 如果没有库位或者背篓，则返回false
+        """
+        print("func: {0} {1}".format(get_function_name(), goods_id))
+        return  True
 
 if __name__ == '__main__':
     r = SimModule()
@@ -847,4 +857,5 @@ if __name__ == '__main__':
     r.setContainer("1","goods1","")
     r.getContainers()
     r.clearContainer("1")
+    r.clearContainerByGoodsId("1")
     print("Success!!!")
