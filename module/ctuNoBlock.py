@@ -1139,7 +1139,7 @@ class Module(BasicModule):
         if "selfPosition" in self.task:                                                                               # 脚本参数指定 load 背篓层数
             tray_floor = int(self.task["selfPosition"])
             if self.get_tray(r, tray_floor)["state"] == 0:
-                r.setError(f"This tray is full, can not load")
+                r.setError(f"This tray is full, can not load --- tray:{tray_floor}")
                 self.operation_status = MoveStatus.FAILED
         r.logInfo(f"-------load begin-----trays:{self.tray_detect}---tray_floor:{tray_floor}")
         if tray_floor is None:
@@ -1189,7 +1189,7 @@ class Module(BasicModule):
         if "selfPosition" in self.task:                                                                 # 指定背篓层数 unload 
             tray_floor = int(self.task["selfPosition"])
             if self.get_tray(r, tray_floor)["state"] == 1:
-                r.setError(f"This tray is empty, can not unload")
+                r.setError(f"This tray is empty, can not unload --- tray:{tray_floor}")
                 self.operation_status = MoveStatus.FAILED
         r.logInfo(f"------unload begin-----trays:{self.tray_detect}---tray_floor:{tray_floor}")
         if tray_floor is None:
