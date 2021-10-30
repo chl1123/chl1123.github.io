@@ -784,6 +784,15 @@ class SimModule:
         print("func: {0} {1}".format(get_function_name(), goods_id))
         return  True
 
+    def robokitVersion(self)-> str:
+        """获取 robokit 版本号, from: 3.3.5.11
+
+        Returns:
+            str: 版本号, 示例: 3.3.5.11
+        """
+        print("func: {0} {1}".format(get_function_name(), "3.3.5.11"))
+        return  "3.3.5.11"
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
