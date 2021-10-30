@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/10/28 下午16:27
+# @Time : 2021/10/30 AM 10:27
 # @Author : huang, zhong
-# @Version : 2.1.2
+# @Version : 2.1.3
 # @Support : rbk  3.3.5.X
 import os
 import shelve
@@ -643,10 +643,15 @@ class Module(BasicModule):
 
     @staticmethod
     def init_trays(r, floor: int):
-        containers = r.getContainers()
+        # 判断 rbk 版本是否支持此脚本
+        if "getContainers" in dir(SimModule):
+            containers = r.getContainers()
+        else:
+            r.setError("rbk version mismatch, please update rbk & rbkSim.py")
+            return MoveStatus.FAILED
         trays = list()
-        if not floor == len(containers):
-            r.setError(f"The floors of trays do not match，please check the trays params")
+        # if not floor == len(containers):
+        #     r.setError(f"The floors of trays mismatch，please check the trays params")
         try:
             for c in containers:
                 d = dict()
