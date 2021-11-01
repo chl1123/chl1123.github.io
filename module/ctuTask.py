@@ -17,7 +17,7 @@ from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, Locatio
 {
     "operation": {
         "value": "reset",
-        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode", "task_resume"],
+        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode", "task_resume", "task_stop"],
         "tips": "动作指令",
         "type": "complex"
     },
@@ -363,7 +363,7 @@ class Module(BasicModule):
                             lift = self.state['lift']
                             if (finger and finger['state'] in [4, 0]) or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or lift['state'] in [4, 0]:
                                 if not self.resume_send:
-                                    r.setWarning(f"---------task_resume-------------------------------------------")
+                                    r.setWarning(f"external_opt --- task_resume")
                                     self.h.task_resume(r, self.robotId)
                                     self.resume_send = True
                             else:
@@ -405,6 +405,19 @@ class Module(BasicModule):
                     except Exception as e:
                         r.setWarning(f"preaction exception: {e}")
 
+                elif args['operation'] == 'task_stop':
+                    r.setWarning(f"task stop")
+                    try:
+                        if not self.msg_send:
+                            self.h.task_stop(r, StopType.STOP_EMG)
+                            self.msg_send = True
+                        r.setNotice(json.dumps(self.h.task_stop_res))
+                        if self.h.task_stop_res['status'] == Action.FINISHED:
+                            self.msg_send = False
+                            self.status = MoveStatus.FINISHED
+                        return self.status
+                    except Exception as e:
+                        r.setWarning(f"task_stop exception: {e}")
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
