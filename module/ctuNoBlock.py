@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/10/30 AM 10:27
+# @Time : 2021/11/2 AM 10:35
 # @Author : huang, zhong
 # @Version : 2.1.3
-# @Support : rbk  3.3.5.X
+# @Support : rbk  3.3.5.11
 import os
 import shelve
 
@@ -360,6 +360,7 @@ class Module(BasicModule):
         self.low[3] = p.loadParam("low3", type="float", default = 1745.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第3层高度")
         self.low[4] = p.loadParam("low4", type="float", default = 2195.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第4层高度")
         self.low[5] = p.loadParam("low5", type="float", default = 2645.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "取货时，第5层高度")
+        self.low[999] = p.loadParam("low999", type="float", default=0.0, maxValue=10000.0, minValue=0.0, unit="mm", comment="抓斗取货")
         self.high = dict({0:407, 1:917, 2:1427, 3:1937, 4:2447, 5:2957}) #mm
         #此处在背篓放货时需要略高于背娄的高度，此处所更改的数值为默认值，需要在"ctuNoBlock.json"文件里修改才是最终执行的高度
         self.high[0] = p.loadParam("high0", type="float", default = 405.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第0层高度")
@@ -368,6 +369,7 @@ class Module(BasicModule):
         self.high[3] = p.loadParam("high3", type="float", default = 1755.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第3层高度")
         self.high[4] = p.loadParam("high4", type="float", default = 2205.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第4层高度")
         self.high[5] = p.loadParam("high5", type="float", default = 2655.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放货时，第5层高度")
+        self.high[999] = p.loadParam("high999", type="float", default = 0.0, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "抓斗放货")
         #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.stretchDist = p.loadParam("stretchDist", type="float", default = 752, maxValue = 10000.0, minValue = 0.0, unit = "mm", comment = "放在自己货架上，抽屉伸出长度")
         #此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
@@ -439,6 +441,11 @@ class Module(BasicModule):
             return self.status
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
+            try:
+                rbk_version = r.robokitVersion()
+                self.state['rbk'] = rbk_version
+            except Exception as e:
+                r.setWarning(f"please update rbk & rbkSim.py -- {e}")
 
             if "connect_error" in self.state:
                 dtime = time.time() - self.start_connect_time
@@ -681,28 +688,25 @@ class Module(BasicModule):
         if "getGoods" in self.state and self.state["getGoods"]["status"] == MoveStatus.FINISHED:
             self.fork_detect[0]["state"] = 0
             self.fork_detect[1]["state"] = 0
-            r.logInfo(f"------------getGoods detect_refresh--------{self.fork_detect}")
+            r.logInfo(f"getGoods detect_refresh---{self.fork_detect}")
         if "putGoods" in self.state and self.state["putGoods"]["status"] == MoveStatus.FINISHED:
             self.fork_detect[0]["state"] = 1
             self.fork_detect[1]["state"] = 1
-            r.logInfo(f"------------putGoods detect_refresh--------{self.fork_detect}")
-        self.report_info(r)
+            r.logInfo(f"putGoods detect_refresh---{self.fork_detect}")
+        self.report_info(r)   # 数据上报
 
         # 背篓 数据库更新
         for tray in self.tray_detect:
             if tray['state'] == 0:
-                r.logInfo(f"------detect_refresh-----{tray}")
                 r.setContainer(str(tray['id']), tray['goods'], tray['binId'])
             elif tray['state'] == 1:
                 r.clearContainer(str(tray['id']))
-        # self.save_data(r, "trays", self.tray_detect)
-        # self.save_data(r, "forks", self.fork_detect)
 
     def check_trays(self, r, lift_height, opt):
         """ TO.DO: 根据取货高度，计算最优空背篓层数 """
         if opt == 'load':
             for tray in self.tray_detect:
-                if tray['state'] == 1:
+                if (tray['state'] == 1) and (tray['id'] != 999):           # 999 默认表示抓斗
                     return tray['id']
         elif opt == 'unload':
             for tray in self.tray_detect:
@@ -1147,9 +1151,12 @@ class Module(BasicModule):
                 r.setError(f"This tray is full, can not load --- tray:{tray_floor}")
                 self.operation_status = MoveStatus.FAILED
         r.logInfo(f"-------load begin-----trays:{self.tray_detect}---tray_floor:{tray_floor}")
-        if tray_floor is None:
-            r.setError(f"All trays are full, can not load")
-            self.operation_status = MoveStatus.FAILED
+        if tray_floor is None:                                                                                           # 背篓满了
+            if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 1:           # 配置了抓斗container并且抓斗为空，则抓斗取货(999默认表示抓斗)
+                tray_floor = 999
+            else:
+                r.setError(f"All trays are full, can not load")
+                self.operation_status = MoveStatus.FAILED
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
@@ -1164,6 +1171,8 @@ class Module(BasicModule):
                         prePutGoods(self.high[tray_floor],0,"load"),
                         putGoods(self.stretchDist)
                     ]
+                    if tray_floor == 999:
+                        self.task_list = self.task_list[:3]
                 else:
                     r.setError("task is wrong in load with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -1175,6 +1184,8 @@ class Module(BasicModule):
                     prePutGoods(self.high[tray_floor],0,"load"),
                     putGoods(self.stretchDist)
                 ]
+                if tray_floor == 999:
+                    self.task_list = self.task_list[:2]
             self.task_id = 0
         else:
             self.runTakList(r)
@@ -1196,9 +1207,11 @@ class Module(BasicModule):
             if self.get_tray(r, tray_floor)["state"] == 1:
                 r.setError(f"This tray is empty, can not unload --- tray:{tray_floor}")
                 self.operation_status = MoveStatus.FAILED
+        if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:                                                   # 如果抓斗有货，则先unload抓斗
+            tray_floor = 999
         r.logInfo(f"------unload begin-----trays:{self.tray_detect}---tray_floor:{tray_floor}")
         if tray_floor is None:
-            r.setError(f"No such goodsId found, can not unload")
+            r.setError(f"No such goodsId found, can not unload---goodsId:{self.goods_id}")
             self.operation_status = MoveStatus.FAILED
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -1217,6 +1230,8 @@ class Module(BasicModule):
                                     self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]
+                        if tray_floor == 999:
+                            self.task_list = self.task_list[2:]
                     else:
                         self.task_list = [
                             preGoods(self.low[tray_floor], 0),
@@ -1226,7 +1241,9 @@ class Module(BasicModule):
                             recAdjust(self.task["visionType"], self.task["visionBinType"], 
                                     self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
-                        ]                        
+                        ]
+                        if tray_floor == 999:
+                            self.task_list = self.task_list[2:]
                 else:
                     r.setError("task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -1238,6 +1255,8 @@ class Module(BasicModule):
                     prePutGoods(self.task["lift"], self.task["rotate"],"unload"),
                     putGoods(self.task["stretch"])
                 ]
+                if tray_floor == 999:
+                    self.task_list = self.task_list[2:]
             self.task_id = 0
         else:
             self.runTakList(r)
@@ -1253,6 +1272,9 @@ class Module(BasicModule):
         self.state["unload"] = cur_state
 
     def changePos(self,r):
+        if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:                                                   # 抓斗有货
+            r.setError(f"Attention! Dangerous operation! ")
+            return
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
