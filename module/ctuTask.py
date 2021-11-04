@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/10/25 下午6:47
+# @Time : 2021/11/04 PM 15: 40
 # @Author : zhong
-# @Version : 2.1
+# @Version : 2.1.1
+# @Update: add task stop operation & update report mechanism
 import json
 import time
 import sys
@@ -208,6 +209,7 @@ class Module(BasicModule):
         self.src_ok = False
         self.src_send = False
         self.resume_send = False
+        self.report_count = 0
         self.go_path = goPath.Module(r, dict())
         self.h = Hairou(ip, port)
         self.h.connect()
@@ -218,10 +220,11 @@ class Module(BasicModule):
             return MoveStatus.FAILED
 
         self.status = MoveStatus.RUNNING
-        r.logInfo(f"===run=== {json.dumps(args)}")
         if self.init:
             self.init = False
+            r.logInfo(f"before update args:  {json.dumps(args)}")
             self.update_param(r, args)
+            r.logInfo(f"after update args:  {json.dumps(args)}")
 
         if not self.h.isconnect:
             self.state["init"] = self.h.initDevice(r)
@@ -237,7 +240,7 @@ class Module(BasicModule):
 
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
-            r.setInfo(f"===state==={self.state}")
+            r.setInfo(json.dumps(self.state))
 
             if "connect_error" in self.state:
                 d_time = time.time() - self.start_connect_time
@@ -259,6 +262,7 @@ class Module(BasicModule):
                 # 请求stop指令
                 self.h.task_stop(r, StopType.STOP_EMG)
                 r.setNotice(json.dumps(self.h.task_stop_res))
+                self.state["task_stop_res"] = self.h.task_stop_res
                 return MoveStatus.FAILED
 
             # ======================================动作指令类型========================================================
@@ -270,10 +274,11 @@ class Module(BasicModule):
                             self.h.switch_mode(r, self.mode)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.switch_mode_res))
+                        self.state["switch_mode_res"] = self.h.switch_mode_res
                         if self.h.switch_mode_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        return self.status
+                        # return self.status
                     except Exception as e:
                         r.setWarning(f"switch_mode exception: {e}")
                         self.h.task_resume(r, self.robotId)
@@ -284,10 +289,11 @@ class Module(BasicModule):
                             self.h.preaction(r, self.robotId, self.preconditions)
                             self.msg_send = True
                         r.setNotice(f"preaction_res: {json.dumps(self.h.preaction_res)}")
+                        self.state["preaction_res"] = self.h.preaction_res
                         if self.h.preaction_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        return self.status
+                        # return self.status
                     except Exception as e:
                         r.setWarning(f"preaction exception: {e}")
                         self.h.task_resume(r, self.robotId)
@@ -299,10 +305,11 @@ class Module(BasicModule):
                             self.h.robot_reset(r)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.reset_res))
+                        self.state["reset_res"] = self.h.reset_res
                         if self.h.reset_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        return self.status
+                        # return self.status
                     except Exception as e:
                         r.setWarning(f"robot_reset exception: {e}")
                         self.h.task_resume(r, self.robotId)
@@ -314,10 +321,11 @@ class Module(BasicModule):
                                              self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height, self.gap_between_box)
                             self.msg_send = True
                         r.setNotice(f"param_set_res: {json.dumps(self.h.param_set_res)}")
+                        self.state["param_set_res"] = self.h.param_set_res
                         if self.h.param_set_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        return self.status
+                        # return self.status
                     except Exception as e:
                         r.setWarning(f"param_set exception: {e}")
                         self.h.task_resume(r, self.robotId)
@@ -342,18 +350,19 @@ class Module(BasicModule):
                                                    self.srcTray, self.dstTray, self.targetTray)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.internal_bin_op_res))
+                        self.state["internal_bin_op_res"] = self.h.internal_bin_op_res
                         if self.h.internal_bin_op_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.resume_send = False
                             self.status = MoveStatus.FINISHED
-                        return self.status
+                        # return self.status
                     except Exception as e:
                         r.setWarning(f"internal_opt exception: {e}---{self.h.seqNum_req}")
                         # self.h.task_resume(r, self.robotId)
 
                 elif args['operation'] == 'external_opt':
                     try:
-                        if self.state:
+                        if self.state:      # 检查机构状态，并自动进行异常状态恢复
                             if "finger" in self.state:
                                 finger = self.state['finger']
                             else:
@@ -374,7 +383,7 @@ class Module(BasicModule):
                                                    self.targetHeight, self.binType, self.binModel, self.locationType)
                             self.msg_send = True
                         r.setNotice(f"external_bin_op_res:{json.dumps(self.h.external_bin_op_res)}")
-
+                        self.state["external_bin_op_res"] = self.h.external_bin_op_res
                         # 监听位置请求 msgType(200), 机器视觉自动校准取放货物位置
                         if self.h.req_position and not self.src_ok:
                             # r.setWarning(f"req_position: {self.h.req_position}")
@@ -387,7 +396,7 @@ class Module(BasicModule):
                             self.msg_send = False
                             self.resume_send = False
                             self.status = MoveStatus.FINISHED
-                        return self.status
+                        # return self.status
                     except Exception as e:
                         r.setWarning(f"external_opt exception: {e}")
 
@@ -398,10 +407,11 @@ class Module(BasicModule):
                             self.h.task_resume(r, self.robotId)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.resume_res))
+                        self.state["resume_res"] = self.h.resume_res
                         if self.h.resume_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        return self.status
+                        # return self.status
                     except Exception as e:
                         r.setWarning(f"preaction exception: {e}")
 
@@ -412,17 +422,21 @@ class Module(BasicModule):
                             self.h.task_stop(r, StopType.STOP_EMG)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.task_stop_res))
+                        self.state["task_stop_res"] = self.h.task_stop_res
                         if self.h.task_stop_res['status'] == Action.FINISHED:
                             self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        return self.status
                     except Exception as e:
                         r.setWarning(f"task_stop exception: {e}")
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
             r.setInfo(json.dumps(self.state))
-            return self.status
+        elif self.state is MoveStatus.FINISHED:
+            self.report_count += 1
+            r.setInfo(json.dumps(self.state))
+            if self.report_count >= 50:
+                return self.status
 
     def update_param(self, r, args):
 

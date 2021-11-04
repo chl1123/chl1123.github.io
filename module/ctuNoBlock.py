@@ -1332,7 +1332,7 @@ class Module(BasicModule):
 
     def changePos(self, r):
         if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 抓斗有货
-            r.setError(f"Attention! Dangerous operation! ")
+            r.setError(f"Dangerous operation! There is goods in the fork, cannot changePos!")
             return
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
