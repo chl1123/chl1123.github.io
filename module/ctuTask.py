@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/11/04 PM 15: 40
+# @Time : 2021/11/04 PM 13: 40
 # @Author : zhong
 # @Version : 2.1.1
 # @Update: add task stop operation & update report mechanism
@@ -200,6 +200,10 @@ class Module(BasicModule):
         self.shelf_tag_height = p.loadParam("shelf_tag_height", type="float", default=0, comment="货架放货平面与货架码上边沿的高度差")
         self.conveyor_tag_height = p.loadParam("conveyor_tag_height", type="float", default=0, comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
+        self.di1 = p.loadParam("di1", type="int", default=2, comment="上限位DI")
+        self.di2 = p.loadParam("di1", type="int", default=4, comment="下限位DI")
+        self.di1_status = False
+        self.di2_status = False
 
         r.logInfo(f"===init=== {args}")
 
@@ -276,7 +280,7 @@ class Module(BasicModule):
                         r.setNotice(json.dumps(self.h.switch_mode_res))
                         self.state["switch_mode_res"] = self.h.switch_mode_res
                         if self.h.switch_mode_res['status'] == Action.FINISHED:
-                            self.msg_send = False
+                            # self.msg_send = False
                             self.status = MoveStatus.FINISHED
                         # return self.status
                     except Exception as e:
@@ -291,15 +295,13 @@ class Module(BasicModule):
                         r.setNotice(f"preaction_res: {json.dumps(self.h.preaction_res)}")
                         self.state["preaction_res"] = self.h.preaction_res
                         if self.h.preaction_res['status'] == Action.FINISHED:
-                            self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        # return self.status
                     except Exception as e:
                         r.setWarning(f"preaction exception: {e}")
                         self.h.task_resume(r, self.robotId)
 
                 elif args['operation'] == 'robot_reset':
-                    r.setWarning(f"robot is resetting...")
+                    r.logInfo(f"robot is resetting...")
                     try:
                         if not self.msg_send:
                             self.h.robot_reset(r)
@@ -307,9 +309,7 @@ class Module(BasicModule):
                         r.setNotice(json.dumps(self.h.reset_res))
                         self.state["reset_res"] = self.h.reset_res
                         if self.h.reset_res['status'] == Action.FINISHED:
-                            self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        # return self.status
                     except Exception as e:
                         r.setWarning(f"robot_reset exception: {e}")
                         self.h.task_resume(r, self.robotId)
@@ -323,27 +323,25 @@ class Module(BasicModule):
                         r.setNotice(f"param_set_res: {json.dumps(self.h.param_set_res)}")
                         self.state["param_set_res"] = self.h.param_set_res
                         if self.h.param_set_res['status'] == Action.FINISHED:
-                            self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        # return self.status
                     except Exception as e:
                         r.setWarning(f"param_set exception: {e}")
                         self.h.task_resume(r, self.robotId)
 
                 elif args['operation'] == 'internal_opt':
                     try:
-                        if self.state:
-                            if "finger" in self.state:
-                                finger = self.state['finger']
-                            else:
-                                finger = None
+                        if self.state:    # 检查机构状态，并自动进行异常状态恢复
+                            finger = self.state['finger'] if "finger" in self.state else None
                             rotate = self.state['rotate']
                             stretch = self.state['stretch']
                             lift = self.state['lift']
                             if (finger and finger['state'] in [4, 0]) or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or lift['state'] in [4, 0]:
                                 if not self.resume_send:
+                                    r.setWarning(f"internal_opt: machine abnormality--- task is resuming")
                                     self.h.task_resume(r, self.robotId)
                                     self.resume_send = True
+                            else:
+                                self.resume_send = False
 
                         if not self.msg_send:
                             self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel,
@@ -352,27 +350,21 @@ class Module(BasicModule):
                         r.setNotice(json.dumps(self.h.internal_bin_op_res))
                         self.state["internal_bin_op_res"] = self.h.internal_bin_op_res
                         if self.h.internal_bin_op_res['status'] == Action.FINISHED:
-                            self.msg_send = False
-                            self.resume_send = False
                             self.status = MoveStatus.FINISHED
-                        # return self.status
                     except Exception as e:
-                        r.setWarning(f"internal_opt exception: {e}---{self.h.seqNum_req}")
-                        # self.h.task_resume(r, self.robotId)
+                        r.setError(f"internal_opt exception: {e}---{self.h.seqNum_req}")
+                        return MoveStatus.FAILED
 
                 elif args['operation'] == 'external_opt':
                     try:
                         if self.state:      # 检查机构状态，并自动进行异常状态恢复
-                            if "finger" in self.state:
-                                finger = self.state['finger']
-                            else:
-                                finger = None
+                            finger = self.state['finger'] if "finger" in self.state else None
                             rotate = self.state['rotate']
                             stretch = self.state['stretch']
                             lift = self.state['lift']
                             if (finger and finger['state'] in [4, 0]) or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or lift['state'] in [4, 0]:
                                 if not self.resume_send:
-                                    r.setWarning(f"external_opt --- task_resume")
+                                    r.setWarning(f"external_opt: machine abnormality--- task is resuming")
                                     self.h.task_resume(r, self.robotId)
                                     self.resume_send = True
                             else:
@@ -393,15 +385,13 @@ class Module(BasicModule):
                                 self.src_ok = False
 
                         if self.h.external_bin_op_res['status'] == Action.FINISHED:
-                            self.msg_send = False
-                            self.resume_send = False
                             self.status = MoveStatus.FINISHED
-                        # return self.status
                     except Exception as e:
-                        r.setWarning(f"external_opt exception: {e}")
+                        r.setError(f"external_opt exception: {e}")
+                        return MoveStatus.FAILED
 
                 elif args['operation'] == 'task_resume':
-                    r.setWarning(f"task is resuming...")
+                    r.setWarning(f"task_resume: task is resuming...")
                     try:
                         if not self.msg_send:
                             self.h.task_resume(r, self.robotId)
@@ -409,11 +399,9 @@ class Module(BasicModule):
                         r.setNotice(json.dumps(self.h.resume_res))
                         self.state["resume_res"] = self.h.resume_res
                         if self.h.resume_res['status'] == Action.FINISHED:
-                            self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        # return self.status
                     except Exception as e:
-                        r.setWarning(f"preaction exception: {e}")
+                        r.setWarning(f"task_resume exception: {e}")
 
                 elif args['operation'] == 'task_stop':
                     r.setWarning(f"task stop")
@@ -424,19 +412,19 @@ class Module(BasicModule):
                         r.setNotice(json.dumps(self.h.task_stop_res))
                         self.state["task_stop_res"] = self.h.task_stop_res
                         if self.h.task_stop_res['status'] == Action.FINISHED:
-                            self.msg_send = False
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
                         r.setWarning(f"task_stop exception: {e}")
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
-            r.setInfo(json.dumps(self.state))
-        elif self.state is MoveStatus.FINISHED:
-            self.report_count += 1
-            r.setInfo(json.dumps(self.state))
-            if self.report_count >= 50:
-                return self.status
+            if self.status == MoveStatus.FINISHED:
+                self.report_count += 1
+                r.setInfo(json.dumps(self.state))
+                r.setNotice(f"report_count:{self.report_count}---status:{self.status}---{self.state}")
+                if self.report_count < 50:
+                    self.status = MoveStatus.RUNNING
+            return self.status
 
     def update_param(self, r, args):
 
