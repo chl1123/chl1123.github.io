@@ -258,8 +258,8 @@ class Module(BasicModule):
             else:
                 self.start_connect_time = time.time()
 
-            if not self.h.mode == ModeType.TASK:
-                r.setError("mode error! ")
+            # if not self.h.mode == ModeType.TASK:
+            #     r.setError("mode error! ")
 
             if self.trigger_di(r):
                 r.setError(f"触发上下限位DI")
@@ -425,6 +425,18 @@ class Module(BasicModule):
                 if self.report_count < 50:
                     self.status = MoveStatus.RUNNING
             return self.status
+
+    def suspend(self, r: SimModule):
+        self.status = MoveStatus.SUSPENDED
+        self.state = self.h.getReport(r)
+        self.start_connect_time = time.time()
+        r.setInfo(json.dumps(self.state))
+
+    def cancel(self, r: SimModule):
+        r.logInfo(f"Task cancel")
+        self.h.task_stop(r, StopType.STOP_EMG)
+        self.h.disconnect()
+        self.status = MoveStatus.NONE
 
     def update_param(self, r, args):
 
