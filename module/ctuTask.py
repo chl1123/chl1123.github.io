@@ -213,7 +213,6 @@ class Module(BasicModule):
         self.src_ok = False
         self.src_send = False
         self.resume_send = False
-        self.report_count = 0
         self.go_path = goPath.Module(r, dict())
         self.h = Hairou(ip, port)
         self.h.connect()
@@ -258,9 +257,6 @@ class Module(BasicModule):
             else:
                 self.start_connect_time = time.time()
 
-            # if not self.h.mode == ModeType.TASK:
-            #     r.setError("mode error! ")
-
             if self.trigger_di(r):
                 r.setError(f"触发上下限位DI")
                 # 请求stop指令
@@ -270,7 +266,7 @@ class Module(BasicModule):
                 return MoveStatus.FAILED
 
             # ======================================动作指令类型========================================================
-            # ["switch_mode", "preaction", "robot_reset", "param_set", "internal_opt", "external_opt", "task_resume"]
+            # ["switch_mode", "preaction", "robot_reset", "param_set", "internal_opt", "external_opt", "task_resume", "task_stop"]
             if "operation" in args:
                 if args['operation'] == 'switch_mode':
                     try:
@@ -278,7 +274,7 @@ class Module(BasicModule):
                             self.h.switch_mode(r, self.mode)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.switch_mode_res))
-                        self.state["switch_mode_res"] = self.h.switch_mode_res
+                        self.state['result'] = self.h.switch_mode_res
                         if self.h.switch_mode_res['status'] == Action.FINISHED:
                             # self.msg_send = False
                             self.status = MoveStatus.FINISHED
@@ -292,8 +288,8 @@ class Module(BasicModule):
                         if not self.msg_send:
                             self.h.preaction(r, self.robotId, self.preconditions)
                             self.msg_send = True
-                        r.setNotice(f"preaction_res: {json.dumps(self.h.preaction_res)}")
-                        self.state["preaction_res"] = self.h.preaction_res
+                        r.setNotice(json.dumps(self.h.preaction_res))
+                        self.state['result'] = self.h.preaction_res
                         if self.h.preaction_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
@@ -307,7 +303,7 @@ class Module(BasicModule):
                             self.h.robot_reset(r)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.reset_res))
-                        self.state["reset_res"] = self.h.reset_res
+                        self.state['result'] = self.h.reset_res
                         if self.h.reset_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
@@ -321,7 +317,7 @@ class Module(BasicModule):
                                              self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height, self.gap_between_box)
                             self.msg_send = True
                         r.setNotice(f"param_set_res: {json.dumps(self.h.param_set_res)}")
-                        self.state["param_set_res"] = self.h.param_set_res
+                        self.state['result'] = self.h.param_set_res
                         if self.h.param_set_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
@@ -348,7 +344,7 @@ class Module(BasicModule):
                                                    self.srcTray, self.dstTray, self.targetTray)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.internal_bin_op_res))
-                        self.state["internal_bin_op_res"] = self.h.internal_bin_op_res
+                        self.state['result'] = self.h.internal_bin_op_res
                         if self.h.internal_bin_op_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
@@ -374,8 +370,8 @@ class Module(BasicModule):
                             self.h.external_bin_op(r, self.robotId, self.opType, self.binId, self.targetPosition,
                                                    self.targetHeight, self.binType, self.binModel, self.locationType)
                             self.msg_send = True
-                        r.setNotice(f"external_bin_op_res:{json.dumps(self.h.external_bin_op_res)}")
-                        self.state["external_bin_op_res"] = self.h.external_bin_op_res
+                        r.setNotice(json.dumps(self.h.external_bin_op_res))
+                        self.state['result'] = self.h.external_bin_op_res
                         # 监听位置请求 msgType(200), 机器视觉自动校准取放货物位置
                         if self.h.req_position and not self.src_ok:
                             # r.setWarning(f"req_position: {self.h.req_position}")
@@ -397,7 +393,7 @@ class Module(BasicModule):
                             self.h.task_resume(r, self.robotId)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.resume_res))
-                        self.state["resume_res"] = self.h.resume_res
+                        self.state['result'] = self.h.resume_res
                         if self.h.resume_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
@@ -410,7 +406,7 @@ class Module(BasicModule):
                             self.h.task_stop(r, StopType.STOP_EMG)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.task_stop_res))
-                        self.state["task_stop_res"] = self.h.task_stop_res
+                        self.state['result'] = self.h.task_stop_res
                         if self.h.task_stop_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
@@ -418,12 +414,7 @@ class Module(BasicModule):
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
-            if self.status == MoveStatus.FINISHED:
-                self.report_count += 1
-                r.setInfo(json.dumps(self.state))
-                r.setNotice(f"report_count:{self.report_count}---status:{self.status}---{self.state}")
-                if self.report_count < 50:
-                    self.status = MoveStatus.RUNNING
+            r.setInfo(json.dumps(self.state))
             return self.status
 
     def suspend(self, r: SimModule):
