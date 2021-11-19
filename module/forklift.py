@@ -6,6 +6,7 @@
 import enum
 import json
 import math
+from syspy import goPath
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
 
@@ -54,7 +55,8 @@ class Module(BasicModule):
         self.state = dict()
         self.status = MoveStatus.NONE
         self.init = True
-        self.robot = None
+        self.go_path = goPath.Module(r, args)
+        self.robot = Robot(r)
         self.has_goods = False
         self.lift_motor = None
         self.stretch_motor = None
@@ -64,7 +66,6 @@ class Module(BasicModule):
         self.status = MoveStatus.RUNNING
         if self.init:
             self.init = False
-            self.robot = Robot(r)
             self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, self.lift_motor_name, -1)
             self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, self.stretch_motor_name, -1)
             if "operation" in args:     # 参数检查
@@ -84,7 +85,6 @@ class Module(BasicModule):
                 r.setError(f"user args error: {args}")
                 return MoveStatus.FAILED
         if args["operation"] == "zero":
-            r.setNotice("zero-----------")
             self.zero(r)
         elif args["operation"] == "lift":
             self.lift(r, args["liftHeight"])
@@ -105,8 +105,7 @@ class Module(BasicModule):
         self.state['has_goods'] = self.has_goods
         r.setInfo(json.dumps(self.state))
         r.clearWarning(57300)
-        # r.setWarning(f"motor: {r.odo()}")
-        r.setNotice(f"opt_step:{self.opt_step}")
+        r.setNotice(f"{args['operation']} opt_step: {self.opt_step}")
         return self.status
 
     def zero(self, r):
@@ -157,7 +156,8 @@ class Module(BasicModule):
             lift_height = self.min_lift_height
         if not self.opt_step[0]:
             # 叉车后移固定距离
-            self.opt_step[0] = self.robot.move(-self.move_dist, 0, back_mode=True, max_speed=self.max_move_speed)
+            # self.opt_step[0] = self.robot.move(-self.move_dist, 0, back_mode=True, max_speed=self.max_move_speed)
+            self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
         if self.opt_step[0] and not self.opt_step[1]:
             # 货叉伸出
             self.opt_step[1] = self.robot.stretch(self.stretch_motor, stretch_length)
@@ -169,7 +169,8 @@ class Module(BasicModule):
             self.opt_step[3] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
         if self.opt_step[3] and not self.opt_step[4]:
             # 叉车前移固定距离
-            self.opt_step[4] = self.robot.move(self.move_dist, 0, max_speed=self.max_move_speed)
+            # self.opt_step[4] = self.robot.move(self.move_dist, 0, max_speed=self.max_move_speed)
+            self.opt_step[4] = self.move(r, {'x': self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 0})
         if self.opt_step[4] and not self.opt_step[5]:
             # 货叉升降到指定高度
             self.opt_step[5] = self.robot.lift(self.lift_motor, self.min_lift_height)
@@ -187,7 +188,8 @@ class Module(BasicModule):
             lift_height = self.lift_zero
         if not self.opt_step[0]:
             # 叉车后移固定距离
-            self.opt_step[0] = self.robot.move(-self.move_dist, 0, back_mode=True, max_speed=self.max_move_speed)
+            # self.opt_step[0] = self.robot.move(-self.move_dist, 0, back_mode=True, max_speed=self.max_move_speed)
+            self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
         if self.opt_step[0] and not self.opt_step[1]:
             # 货叉伸出
             self.opt_step[1] = self.robot.stretch(self.stretch_motor, stretch_length)
@@ -199,7 +201,8 @@ class Module(BasicModule):
             self.opt_step[3] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
         if self.opt_step[3] and not self.opt_step[4]:
             # 叉车前移固定距离
-            self.opt_step[4] = self.robot.move(self.move_dist, 0, max_speed=self.max_move_speed)
+            # self.opt_step[4] = self.robot.move(self.move_dist, 0, max_speed=self.max_move_speed)
+            self.opt_step[4] = self.move(r, {'x': self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 0})
         if self.opt_step[4] and not self.opt_step[5]:
             # 货叉升降到指定高度
             self.opt_step[5] = self.robot.lift(self.lift_motor, self.lift_zero)
@@ -211,6 +214,14 @@ class Module(BasicModule):
         unload_state['opt_status'] = self.status
         unload_state['actions'] = self.robot.state
         self.state['operation'] = unload_state
+
+    def move(self, r, move_args) -> bool:
+        if self.go_path.status != 3 or self.go_path.status != 4:
+            self.go_path.run(r, move_args)
+        if self.go_path.status == MoveStatus.FINISHED:
+            self.go_path = goPath.Module(r, dict())
+            return True
+        return False
 
     def cancel(self, r: SimModule):
         r.stopRobot(True)
@@ -253,14 +264,13 @@ class Motor:
             self.r.setError(f"motor type error {self.motor_type}")
             self.status = MoveStatus.FAILED
         if self.r.isMotorReached(self.motor_name):
-            self.reset()
             self.status = MoveStatus.FINISHED
         self.state['motor_name'] = self.motor_name
         self.state['motor_type'] = self.motor_type
         self.state['motor_status'] = self.status
 
     def reset(self):
-        self.r.logInfo(f"motor: {self.motor_name}")
+        self.r.logInfo(f"motor reset: {self.motor_name}")
         self.r.resetMotor(self.motor_name)
         self.status = MoveStatus.RUNNING
 
@@ -315,6 +325,8 @@ class Robot:
             return False
         self.r.goPath()
         if self.r.isPathReached():
+            self.r.logInfo("move finish")
+            self.r.stopRobot(False)
             return True
         return False
 
@@ -323,6 +335,7 @@ class Robot:
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
             return True
         elif motor.status == MoveStatus.FAILED:
             return False
@@ -336,6 +349,7 @@ class Robot:
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
             return True
         elif motor.status == MoveStatus.FAILED:
             return False
