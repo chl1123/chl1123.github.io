@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/11/17 14:50
+# @Time : 2021/11/12 11:50
 # @Author : zhong
 # @File :forklift.py 前移叉车脚本
-# @Version: 1.0
+# @Version: 1.2
 import enum
 import json
 import math
@@ -84,6 +84,11 @@ class Module(BasicModule):
             else:
                 r.setError(f"user args error: {args}")
                 return MoveStatus.FAILED
+        # 货叉碰撞检测
+        if self.fork_collision():
+            r.setError(f"fork has collided!")
+            return MoveStatus.FAILED
+
         if args["operation"] == "zero":
             self.zero(r)
         elif args["operation"] == "lift":
@@ -173,7 +178,7 @@ class Module(BasicModule):
             self.opt_step[4] = self.move(r, {'x': self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 0})
         if self.opt_step[4] and not self.opt_step[5]:
             # 货叉升降到指定高度
-            self.opt_step[5] = self.robot.lift(self.lift_motor, self.min_lift_height)
+            self.opt_step[5] = self.robot.lift(self.lift_motor, lift_height)
         if all(self.opt_step):
             self.has_goods = True
             self.status = MoveStatus.FINISHED
@@ -221,6 +226,19 @@ class Module(BasicModule):
         if self.go_path.status == MoveStatus.FINISHED:
             self.go_path = goPath.Module(r, dict())
             return True
+        return False
+
+    def fork_collision(self) -> bool:
+        """
+        货叉尖端DI碰撞检测
+        :return: bool
+        """
+        DI = r.Di()
+        nodes = DI.get('node', list())
+        for node in nodes:
+            if node['id'] == self.fork_peak_di1 or node['id'] == self.fork_peak_di2:
+                if node['status']:
+                    return True
         return False
 
     def cancel(self, r: SimModule):
@@ -323,11 +341,11 @@ class Robot:
         else:
             self.r.setError(f"coordinate param error!")
             return False
-        self.r.goPath()
         if self.r.isPathReached():
             self.r.logInfo("move finish")
             self.r.stopRobot(False)
             return True
+        self.r.goPath()
         return False
 
     def lift(self, motor: Motor, height: float, max_vel=0.2) -> bool:
