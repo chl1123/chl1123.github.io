@@ -76,9 +76,8 @@ class Module(BasicModule):
                     pass
                 elif args["operation"] == "stretch" and "stretchLength" in args:
                     pass
-                elif args["operation"] == "load" or args["operation"] == "unload":
-                    if "stretchLength" in args and "liftHeight" in args:
-                        pass
+                elif (args["operation"] == "load" or args["operation"] == "unload") and ("stretchLength" in args and "liftHeight" in args):
+                    pass
                 else:
                     args_error = True
             else:
