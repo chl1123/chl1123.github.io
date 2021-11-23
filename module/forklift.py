@@ -85,7 +85,7 @@ class Module(BasicModule):
                 r.setError(f"user args error: {args}")
                 return MoveStatus.FAILED
         # 货叉碰撞检测
-        if self.fork_collision():
+        if self.fork_collision(r):
             r.setError(f"fork has collided!")
             return MoveStatus.FAILED
 
@@ -228,7 +228,7 @@ class Module(BasicModule):
             return True
         return False
 
-    def fork_collision(self) -> bool:
+    def fork_collision(self, r: SimModule) -> bool:
         """
         货叉尖端DI碰撞检测
         :return: bool
