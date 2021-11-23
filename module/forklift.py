@@ -68,6 +68,7 @@ class Module(BasicModule):
             self.init = False
             self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, self.lift_motor_name, -1)
             self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, self.stretch_motor_name, -1)
+            args_error = False
             if "operation" in args:     # 参数检查
                 if args["operation"] == "zero":
                     pass
@@ -79,9 +80,10 @@ class Module(BasicModule):
                     if "stretchLength" in args and "liftHeight" in args:
                         pass
                 else:
-                    r.setError(f"user args error: {args}")
-                    return MoveStatus.FAILED
+                    args_error = True
             else:
+                args_error = True
+            if args_error:
                 r.setError(f"user args error: {args}")
                 return MoveStatus.FAILED
         # 货叉碰撞检测
