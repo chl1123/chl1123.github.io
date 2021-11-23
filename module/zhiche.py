@@ -156,7 +156,7 @@ class Module(BasicModule):
                 return self.status
 
         # 货叉碰撞检测
-        if self.fork_collision():
+        if self.fork_collision(r):
             r.setError(f"fork has collided!")
             return MoveStatus.FAILED
 
@@ -199,7 +199,7 @@ class Module(BasicModule):
         self.task_id, len(self.task_list), self.operation_status))
         return self.status
 
-    def fork_collision(self) -> bool:
+    def fork_collision(self, r) -> bool:
         """
         货叉尖端DI碰撞检测
         :return: bool
@@ -592,7 +592,7 @@ class recAdjust:
             
             if self.rotate.status != MoveStatus.FINISHED\
                 and self.rotate.status != MoveStatus.FAILED:
-                self.rotate.run(r.agv)
+                self.rotate.run(r, agv)
 
             if self.goPath.status == MoveStatus.FAILED\
                 or self.lift.status == MoveStatus.FAILED\
