@@ -87,14 +87,14 @@ class Module(BasicModule):
         self.lift_motor = "shengjiang"
         self.stretch_motor = "shengsuo"
         self.rotate_motor = "xuanzhuan"
-        self.stretch_warn_dist = 0.1
+        self.stretch_warn_dist = 6.5
         self.reachDI = 1
         self.stretch_msg = 0.
         self.lift_msg = 0.
         self.rotate_msg = 0.
-        self.lift_zero = 0.
-        self.stretch_zero = 0.
-        self.rotate_zero = 0.
+        self.lift_zero = 0.3
+        self.stretch_zero = 0.28
+        self.rotate_zero = 0
 
         self.rec_file = ""
         self.init = True
@@ -116,6 +116,8 @@ class Module(BasicModule):
         self.lift_vel = p.loadParam("liftVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "m/s", comment = "升降电机最大速度")
         self.stretch_vel = p.loadParam("stretchVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "m/s", comment = "伸缩电机最大速度")
         self.rotate_vel = p.loadParam("rotateVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "rad/s", comment = "旋转电机最大速度")
+        self.fork_peak_di1 = p.loadParam("ForkPeakDI1", type="int", default=1, comment="货叉尖端光电检测DI1")
+        self.fork_peak_di2 = p.loadParam("ForkPeakDI2", type="int", default=2, comment="货叉尖端光电检测DI2")
 
 
     def reset(self, r:SimModule):
@@ -152,6 +154,12 @@ class Module(BasicModule):
                 r.setError("operation is empty!!!")
                 self.status = MoveStatus.FAILED
                 return self.status
+
+        # 货叉碰撞检测
+        if self.fork_collision():
+            r.setError(f"fork has collided!")
+            return MoveStatus.FAILED
+
         operation = self.task.get("operation","")
         if operation == "":
             self.status = MoveStatus.FINISHED
@@ -190,6 +198,20 @@ class Module(BasicModule):
         self.lift_msg, self.stretch_msg, self.rotate_msg, self.status, 
         self.task_id, len(self.task_list), self.operation_status))
         return self.status
+
+    def fork_collision(self) -> bool:
+        """
+        货叉尖端DI碰撞检测
+        :return: bool
+        """
+        DI = r.Di()
+        nodes = DI.get('node', list())
+        for node in nodes:
+            if node['id'] == self.fork_peak_di1 or node['id'] == self.fork_peak_di2:
+                if node['status']:
+                    return True
+        return False
+
     def lift(self, r):
         if "lift" not in self.task:
             r.setError("lift height is empty {}".format(json.dumps(self.task)))
@@ -251,7 +273,7 @@ class Module(BasicModule):
             cur_state["task_id"] = self.task_id
             self.state["rec"] = cur_state
     def safeCheck(self, r):
-        tor = 0.01
+        tor = 0.1
         if (self.stretch_msg + tor > 1.8 and self.rotate_msg + tor > math.pi) \
             or (self.stretch_msg - tor < 0.28 and self.rotate_msg - tor < 0):
             self.status = MoveStatus.FINISHED
@@ -648,7 +670,7 @@ if __name__ == '__main__':
     data["operation"] = "rec"
     data["recfile"] = "s001.pallet"
     print(m.run(r, data))
-    
+
     testNum(num)
     m.reset(r)
     data = dict()
