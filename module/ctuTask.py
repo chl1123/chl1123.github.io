@@ -3,12 +3,10 @@
 # @Author : zhong
 # @Version : 2.1.1
 # @Update: add task stop operation & update report mechanism
+
 import json
 import time
-import sys
-
-sys.path.append("syspy")
-from syspy import goPath
+import syspy.goPath as goPath
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
 from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType, Action, StopType
@@ -174,7 +172,8 @@ class Module(BasicModule):
         port = p.loadParam("port", type="int", default=4172, maxValue=999999, minValue=0, comment="port")
         self.start_connect_time = time.time()
 
-        self.max_connect_time = p.loadParam("max_connect_time", type="int", default=10, maxValue=999999, minValue=0, comment="链接等待最长时间s")
+        self.max_connect_time = p.loadParam("max_connect_time", type="int", default=10, maxValue=999999, minValue=0,
+                                            comment="链接等待最长时间s")
         self.mode = p.loadParam("mode", type="str", default="task", comment="交互模式")
         self.robotId = p.loadParam("robotId", type="str", default="1", comment="")
         self.opType = p.loadParam("opType", type="str", default="inspect", comment="操作类型")
@@ -184,21 +183,25 @@ class Module(BasicModule):
 
         self.srcTray = p.loadParam("srcTray", type="str", default='{"id": 0, "type": 0}', comment="源托盘, 托盘id, 托盘类型")
         self.dstTray = p.loadParam("dstTray", type="str", default='{"id": 1, "type": 0}', comment="目标托盘, 托盘id, 托盘类型")
-        self.targetTray = p.loadParam("targetTray", type="str", default='{"id": 0, "type": 0}', comment="扫描对象托盘, 托盘id, 托盘类型")
-        self.targetPosition = p.loadParam("targetPosition", type="str", default='{"x": 71.1, "y": 26.3, "theta": 1.5708}', comment="位置定义")
+        self.targetTray = p.loadParam("targetTray", type="str", default='{"id": 0, "type": 0}',
+                                      comment="扫描对象托盘, 托盘id, 托盘类型")
+        self.targetPosition = p.loadParam("targetPosition", type="str",
+                                          default='{"x": 71.1, "y": 26.3, "theta": 1.5708}', comment="位置定义")
 
         self.targetHeight = p.loadParam("targetHeight", type="float", default=0, comment="库位高度")
         self.locationType = p.loadParam("locationType", type="str", default="storage_shelf", comment="库位类型")
-        self.preconditions = p.loadParam("preconditions", type="str", default='{"liftPositionMax": 0.0, "liftPositionMin": 0.0,'
-                                                                              ' "forkRotationPositionMax": 0.0, "forkRotationPositionMin": 0.0,'
-                                                                              ' "fingerPosition": 0}', comment="预备动作前置目标")
+        self.preconditions = p.loadParam("preconditions", type="str",
+                                         default='{"liftPositionMax": 0.0, "liftPositionMin": 0.0,'
+                                                 ' "forkRotationPositionMax": 0.0, "forkRotationPositionMin": 0.0,'
+                                                 ' "fingerPosition": 0}', comment="预备动作前置目标")
         self.box_width = p.loadParam("box_width", type="float", default=0, comment="货箱宽度配置值")
         self.box_height = p.loadParam("box_height", type="float", default=0, comment="货箱高度配置值")
         self.box_depth = p.loadParam("box_depth", type="float", default=0, comment="货箱深度配置值")
         self.box_tag_height = p.loadParam("box_tag_height", type="float", default=0, comment="货箱底部与货箱码下边沿的高度差")
         self.box_tag_depth = p.loadParam("box_tag_depth", type="float", default=0, comment="货箱码到货箱表面的贴码深度")
         self.shelf_tag_height = p.loadParam("shelf_tag_height", type="float", default=0, comment="货架放货平面与货架码上边沿的高度差")
-        self.conveyor_tag_height = p.loadParam("conveyor_tag_height", type="float", default=0, comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
+        self.conveyor_tag_height = p.loadParam("conveyor_tag_height", type="float", default=0,
+                                               comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
         self.di1 = p.loadParam("di1", type="int", default=2, comment="上限位DI")
         self.di2 = p.loadParam("di1", type="int", default=4, comment="下限位DI")
@@ -313,8 +316,10 @@ class Module(BasicModule):
                 elif args['operation'] == 'param_set':
                     try:
                         if not self.msg_send:
-                            self.h.param_set(r, self.robotId, self.box_width, self.box_height, self.box_depth, self.box_tag_height,
-                                             self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height, self.gap_between_box)
+                            self.h.param_set(r, self.robotId, self.box_width, self.box_height, self.box_depth,
+                                             self.box_tag_height,
+                                             self.box_tag_depth, self.shelf_tag_height, self.conveyor_tag_height,
+                                             self.gap_between_box)
                             self.msg_send = True
                         r.setNotice(f"param_set_res: {json.dumps(self.h.param_set_res)}")
                         self.state['result'] = self.h.param_set_res
@@ -326,7 +331,7 @@ class Module(BasicModule):
 
                 elif args['operation'] == 'internal_opt':
                     try:
-                        if self.state:    # 检查机构状态，并自动进行异常状态恢复
+                        if self.state:  # 检查机构状态，并自动进行异常状态恢复
                             finger = self.state['finger'] if "finger" in self.state else None
                             rotate = self.state['rotate']
                             stretch = self.state['stretch']
@@ -340,7 +345,8 @@ class Module(BasicModule):
                                 self.resume_send = False
 
                         if not self.msg_send:
-                            self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel,
+                            self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType,
+                                                   self.binModel,
                                                    self.srcTray, self.dstTray, self.targetTray)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.internal_bin_op_res))
@@ -353,7 +359,7 @@ class Module(BasicModule):
 
                 elif args['operation'] == 'external_opt':
                     try:
-                        if self.state:      # 检查机构状态，并自动进行异常状态恢复
+                        if self.state:  # 检查机构状态，并自动进行异常状态恢复
                             finger = self.state['finger'] if "finger" in self.state else None
                             rotate = self.state['rotate']
                             stretch = self.state['stretch']
@@ -536,6 +542,7 @@ class Module(BasicModule):
             self.locationType = LocationType.STORAGE_SHELF_DEEP
         elif self.locationType == 'conveyor':
             self.locationType = LocationType.CONVEYOR
+        r.logInfo("update args: {args}")
 
     def src_pos(self, r, req_position):
         req_posi = req_position['position']
@@ -555,7 +562,7 @@ class Module(BasicModule):
             return True
         return False
 
-    def trigger_di(self, r):                 # 触发上、下限位DI
+    def trigger_di(self, r):  # 触发上、下限位DI
         dis = r.Di()
         nodes = dis.get('node', list())
         for node in nodes:
@@ -564,7 +571,3 @@ class Module(BasicModule):
             if node['id'] == self.di2 and node['status']:
                 return True
         return False
-
-
-
-

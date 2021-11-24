@@ -6,7 +6,7 @@
 import enum
 import json
 import math
-from syspy import goPath
+import syspy.goPath as goPath
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
 
@@ -145,6 +145,7 @@ class Module(BasicModule):
         lift_state['opt_status'] = self.status
         lift_state['actions'] = self.robot.state
         self.state['operation'] = lift_state
+        r.logInfo(f"lift: {lift_state}")
 
     def stretch(self, r, stretch_length):
         if not self.opt_step[0]:
@@ -156,6 +157,7 @@ class Module(BasicModule):
         stretch_state['opt_status'] = self.status
         stretch_state['actions'] = self.robot.state
         self.state['operation'] = stretch_state
+        r.logInfo(f"stretch: {stretch_state}")
 
     def load(self, r, lift_height, stretch_length):
         if lift_height < self.min_lift_height:
