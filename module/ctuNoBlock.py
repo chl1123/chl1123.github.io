@@ -684,7 +684,7 @@ class Module(BasicModule):
             r.logDebug("KeyError: " + str(e))
         except Exception as e:
             r.logDebug("Other error in print hairou trays state")
-
+        self.report_info(r)  # 数据上报
         return self.status.value
 
     @staticmethod
