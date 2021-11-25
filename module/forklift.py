@@ -48,7 +48,7 @@ class Module(BasicModule):
         p = ParamServer(__file__)
         self.move_dist = p.loadParam("MoveDist", type="float", default=0.6, comment="叉车移动的固定距离, 叉车尖端到支撑腿最前端的距离, 单位：米")
         self.max_move_speed = p.loadParam("MaxMoveSpeed", type="float", default=0.2, comment="叉车移动固定距离时的最大速度，单位：米/秒")
-        self.min_lift_height = p.loadParam("MinLiftHeight", type="float", default=0.4, comment="载货时货叉安全高度")
+        self.safe_lift_height = p.loadParam("SafeLiftHeight", type="float", default=0.4, comment="载货时货叉安全高度")
         self.reach_di1 = p.loadParam("ReachDI1", type="int", default=1, comment="货叉到位检测DI1")
         self.reach_di2 = p.loadParam("ReachDI2", type="int", default=9, comment="货叉到位检测DI2")
         self.fork_peak_di1 = p.loadParam("ForkPeakDI1", type="int", default=2, comment="货叉尖端检测DI1")
@@ -74,6 +74,15 @@ class Module(BasicModule):
             self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, self.lift_motor_name, -1)
             self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, self.stretch_motor_name, -1)
             args_error = False
+            # 获取升降电机数据
+            lift_motor_pos = None
+            try:
+                motor_info = r.odo()['motor_info']
+                for motor in motor_info:
+                    if motor['motor_name'] == self.lift_motor_name:
+                        lift_motor_pos = motor['position']
+            except Exception as e:
+                r.setError(f"Get motor info failed: {e}")
             if "operation" in args:     # 参数检查
                 if args["operation"] == "zero":
                     pass
@@ -83,7 +92,15 @@ class Module(BasicModule):
                     pass
                 elif (args["operation"] == "load" or args["operation"] == "unload") and \
                         ("stretchLength" in args and "liftHeight" in args and "reachHeight" in args):
-                    pass
+                    # 检查升降高度参数合理性
+                    if args["operation"] == "load":
+                        if args["liftHeight"] < lift_motor_pos:
+                            r.setWarning(f"load liftHeight lower than current lift height {lift_motor_pos}")
+                            args_error = True
+                    elif args["operation"] == "unload":
+                        if args["liftHeight"] > lift_motor_pos:
+                            r.setWarning(f"unload liftHeight higher than current lift height {lift_motor_pos}")
+                            args_error = True
                 else:
                     args_error = True
             else:
@@ -94,7 +111,9 @@ class Module(BasicModule):
         # 货叉碰撞检测
         if self.fork_collision(r):
             r.setError(f"fork has collided!")
-            return MoveStatus.FAILED
+            self.suspend(r)
+        # else:
+        #     r.clearError(53000)  # 自动清除错误
 
         if args["operation"] == "zero":
             self.zero(r)
@@ -133,9 +152,6 @@ class Module(BasicModule):
             # 货叉收回
             self.opt_step[0] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
         if self.opt_step[0] and not self.opt_step[1]:
-            # 货叉到位DI未触发
-            if not self.fork_reached(r):
-                r.setWarning(f"Fork reach DI not triggered, check please!")
             # 升降归零
             self.opt_step[1] = self.robot.lift(self.lift_motor, self.lift_zero)
         if self.opt_step[0] and self.opt_step[1]:
@@ -147,8 +163,8 @@ class Module(BasicModule):
         self.state['operation'] = zero_state
 
     def lift(self, r, lift_height):
-        if r.hasGoods() and lift_height < self.min_lift_height:
-            r.setError(f"Fork has goods, cannot lift down lower than {self.min_lift_height}")
+        if r.hasGoods() and lift_height < self.safe_lift_height:
+            r.setError(f"Fork has goods, cannot lift down lower than {self.safe_lift_height}")
             return MoveStatus.FAILED
         if not self.opt_step[0]:
             self.opt_step[0] = self.robot.lift(self.lift_motor, lift_height)
@@ -177,26 +193,28 @@ class Module(BasicModule):
         if r.hasGoods():
             r.setError(f"Fork has goods, cannot load")
             return MoveStatus.FAILED
-        if lift_height < self.min_lift_height:
-            lift_height = self.min_lift_height
-        if reach_height < self.min_lift_height:
-            reach_height = self.min_lift_height
+        if lift_height < self.safe_lift_height:
+            lift_height = self.safe_lift_height
+        if reach_height < self.safe_lift_height:
+            reach_height = self.safe_lift_height
         if not self.opt_step[0]:
             # 叉车后移固定距离
             self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
         if self.opt_step[0] and not self.opt_step[1]:
-            # 货叉伸出
-            self.opt_step[1] = self.robot.stretch(self.stretch_motor, stretch_length)
+            # 货叉伸出, 货叉到位DI检测
+            self.opt_step[1] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, stretch_length)
         if self.opt_step[1] and not self.opt_step[2]:
+            # 货叉到位DI未触发
+            if not self.fork_reached(r):
+                r.setError(f"Fork reach DI not triggered, check please!")
+            else:
+                self.stretch_motor.reset()
             # 货叉上升
             self.opt_step[2] = self.robot.lift(self.lift_motor, lift_height)
         if self.opt_step[2] and not self.opt_step[3]:
             # 货叉收回
             self.opt_step[3] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
         if self.opt_step[3] and not self.opt_step[4]:
-            # 货叉到位DI未触发
-            if not self.fork_reached(r):
-                r.setWarning(f"Fork reach DI not triggered, check please!")
             # 叉车前移固定距离
             self.opt_step[4] = self.move(r, {'x': self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 0})
         if self.opt_step[4] and not self.opt_step[5]:
@@ -214,6 +232,8 @@ class Module(BasicModule):
     def unload(self, r, lift_height, stretch_length, reach_height):
         if lift_height < self.lift_zero:
             lift_height = self.lift_zero
+        if reach_height < self.lift_zero:
+            reach_height = self.lift_zero
         if not self.opt_step[0]:
             # 叉车后移固定距离
             self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
@@ -227,9 +247,6 @@ class Module(BasicModule):
             # 货叉收回
             self.opt_step[3] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
         if self.opt_step[3] and not self.opt_step[4]:
-            # 货叉到位DI未触发
-            if not self.fork_reached(r):
-                r.setWarning(f"Fork reach DI not triggered, check please!")
             # 叉车前移固定距离
             self.opt_step[4] = self.move(r, {'x': self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 0})
         if self.opt_step[4] and not self.opt_step[5]:
@@ -287,7 +304,7 @@ class Module(BasicModule):
 
     def suspend(self, r: SimModule):
         r.stopRobot(True)
-        r.logInfo("task suspended")
+        r.logInfo("task suspend")
         self.status = MoveStatus.SUSPENDED
 
 
