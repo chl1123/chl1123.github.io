@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/11/24 19:20
+# @Time : 2021/11/26 10:10
 # @Author : zhong
 # @File :forklift.py 前移叉车脚本
-# @Version: 1.3
+# @Version: 1.4
 import enum
 import json
-import math
 import syspy.goPath as goPath
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
@@ -49,6 +48,8 @@ class Module(BasicModule):
         self.move_dist = p.loadParam("MoveDist", type="float", default=0.6, comment="叉车移动的固定距离, 叉车尖端到支撑腿最前端的距离, 单位：米")
         self.max_move_speed = p.loadParam("MaxMoveSpeed", type="float", default=0.2, comment="叉车移动固定距离时的最大速度，单位：米/秒")
         self.safe_lift_height = p.loadParam("SafeLiftHeight", type="float", default=0.4, comment="载货时货叉安全高度")
+        self.max_stretch_length = p.loadParam("MaxStretchLength", type="float", default=0.79, comment="最大伸出高度")
+        self.max_lift_height = p.loadParam("MaxLiftHeight", type="float", default=1.2, comment="最大升降高度")
         self.reach_di1 = p.loadParam("ReachDI1", type="int", default=1, comment="货叉到位检测DI1")
         self.reach_di2 = p.loadParam("ReachDI2", type="int", default=9, comment="货叉到位检测DI2")
         self.fork_peak_di1 = p.loadParam("ForkPeakDI1", type="int", default=2, comment="货叉尖端检测DI1")
@@ -101,6 +102,10 @@ class Module(BasicModule):
                         if args["liftHeight"] > lift_motor_pos:
                             r.setWarning(f"unload liftHeight higher than current lift height {lift_motor_pos}")
                             args_error = True
+                        if args["stretchLength"] < self.max_stretch_length and args["liftHeight"] < self.safe_lift_height:
+                            r.setWarning(f"stretchLength lower than max stretch length{self.max_stretch_length}, "
+                                         f" and liftHeight lower than safe lift height {self.safe_lift_height}")
+                            args_error = True
                 else:
                     args_error = True
             else:
@@ -109,9 +114,9 @@ class Module(BasicModule):
                 r.setError(f"args error: {args}")
                 return MoveStatus.FAILED
         # 货叉碰撞检测
-        if self.fork_collision(r):
-            r.setError(f"fork has collided!")
-            self.suspend(r)
+        # if self.fork_collision(r):
+        #     r.setError(f"fork has collided!")
+        #     self.suspend(r)
         # else:
         #     r.clearError(53000)  # 自动清除错误
 
@@ -179,6 +184,10 @@ class Module(BasicModule):
 
     def stretch(self, r, stretch_length):
         if not self.opt_step[0]:
+            # 货叉碰撞检测
+            if self.fork_collision(r):
+                r.setError(f"fork has collided!")
+                self.suspend(r)
             self.opt_step[0] = self.robot.stretch(self.stretch_motor, stretch_length)
         else:
             self.status = MoveStatus.FINISHED
@@ -199,8 +208,16 @@ class Module(BasicModule):
             reach_height = self.safe_lift_height
         if not self.opt_step[0]:
             # 叉车后移固定距离
+            # 货叉碰撞检测
+            if self.fork_collision(r):
+                r.setError(f"fork has collided!")
+                self.suspend(r)
             self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
         if self.opt_step[0] and not self.opt_step[1]:
+            # 货叉碰撞检测
+            if self.fork_collision(r):
+                r.setError(f"fork has collided!")
+                self.suspend(r)
             # 货叉伸出, 货叉到位DI检测
             self.opt_step[1] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, stretch_length)
         if self.opt_step[1] and not self.opt_step[2]:
@@ -235,9 +252,17 @@ class Module(BasicModule):
         if reach_height < self.lift_zero:
             reach_height = self.lift_zero
         if not self.opt_step[0]:
+            # 货叉碰撞检测
+            if self.fork_collision(r):
+                r.setError(f"fork has collided!")
+                self.suspend(r)
             # 叉车后移固定距离
             self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
         if self.opt_step[0] and not self.opt_step[1]:
+            # 货叉碰撞检测
+            if self.fork_collision(r):
+                r.setError(f"fork has collided!")
+                self.suspend(r)
             # 货叉伸出
             self.opt_step[1] = self.robot.stretch(self.stretch_motor, stretch_length)
         if self.opt_step[1] and not self.opt_step[2]:
@@ -304,6 +329,10 @@ class Module(BasicModule):
 
     def suspend(self, r: SimModule):
         r.stopRobot(True)
+        self.lift_motor.stop()
+        self.stretch_motor.stop()
+        self.lift_motor.reset()
+        self.stretch_motor.reset()
         r.logInfo("task suspend")
         self.status = MoveStatus.SUSPENDED
 
@@ -359,8 +388,9 @@ class Robot:
         self.reach_angle = 0.01           # 路径导航的到点角度精度
         self.reach_dist = 0.003            # 路径导航的到点精度
         self.state = dict()                       # 记录状态
+        self.go_path = goPath.Module(r, dict())    # 控制AGV移动对象
 
-    def move(self, x: float, y: float, theta=None, coordinate='robot', back_mode=False, max_speed=None) -> bool:
+    def move(self, x: float, y: float, theta=0., coordinate='robot', back_mode=False, max_speed=0.3) -> bool:
         """
         控制机器人移动
         :param x:
@@ -371,40 +401,54 @@ class Robot:
         :param max_speed:
         :return: MoveStatus
         """
-        move_state = dict()
-        move_state['x'] = x
-        move_state['y'] = y
-        move_state['theta'] = theta
-        move_state['coordinate'] = coordinate
-        move_state['back_mode'] = back_mode
-        move_state['max_speed'] = max_speed
-        self.state['move'] = move_state
-        self.r.resetPath()   # 让agv沿着规划的线路行驶
-        self.r.setPathBackMode(back_mode)    # 设置是否倒走
-        self.r.setPathReachDist(self.reach_dist)
-        if theta is not None:
-            self.r.setPathReachAngle(self.reach_angle)
-        else:
-            theta = 0
-            self.r.setPathReachAngle(math.pi)
-        if max_speed is not None:
-            self.r.setPathMaxSpeed(float(max_speed))
-        if coordinate == 'robot':
-            self.r.setPathOnRobot([0, x], [0, y], float(theta))
-        elif coordinate == 'world':
-            loc = self.r.loc()
-            self.r.setPathOnWorld([loc['x'], x], [loc['y'], y], float(theta))
-        else:
-            self.r.setError(f"coordinate param error!")
-            return False
-        if self.r.isPathReached():
-            self.r.logInfo("move finish")
-            self.r.stopRobot(False)
+        move_args = dict()
+        move_args['x'] = x
+        move_args['y'] = y
+        move_args['theta'] = theta
+        move_args['coordinate'] = coordinate
+        move_args['backMode'] = back_mode
+        move_args['maxSpeed'] = max_speed
+        self.state['move'] = move_args
+        if self.go_path.status != MoveStatus.FAILED or self.go_path.status != MoveStatus.FINISHED:
+            self.go_path.run(self.r, move_args)
+        if self.go_path.status == MoveStatus.FINISHED:
+            self.go_path = goPath.Module(self.r, dict())
             return True
-        self.r.goPath()
         return False
 
+        # self.r.resetPath()   # 让agv沿着规划的线路行驶
+        # self.r.setPathBackMode(back_mode)    # 设置是否倒走
+        # self.r.setPathReachDist(self.reach_dist)
+        # if theta is not None:
+        #     self.r.setPathReachAngle(self.reach_angle)
+        # else:
+        #     theta = 0
+        #     self.r.setPathReachAngle(math.pi)
+        # if max_speed is not None:
+        #     self.r.setPathMaxSpeed(float(max_speed))
+        # if coordinate == 'robot':
+        #     self.r.setPathOnRobot([0, x], [0, y], float(theta))
+        # elif coordinate == 'world':
+        #     loc = self.r.loc()
+        #     self.r.setPathOnWorld([loc['x'], x], [loc['y'], y], float(theta))
+        # else:
+        #     self.r.setError(f"coordinate param error!")
+        #     return False
+        # if self.r.isPathReached():
+        #     self.r.logInfo("move finish")
+        #     self.r.stopRobot(False)
+        #     return True
+        # self.r.goPath()
+        # return False
+
     def lift(self, motor: Motor, height: float, max_vel=0.2) -> bool:
+        """
+        控制升降电机
+        :param motor:
+        :param height:
+        :param max_vel:
+        :return:
+        """
         self.state['lift'] = motor.state
         if motor.status == MoveStatus.NONE:
             motor.reset()
@@ -419,6 +463,13 @@ class Robot:
 
 
     def stretch(self, motor: Motor, length: float, max_vel=0.2) -> bool:
+        """
+        控制伸缩机构电机
+        :param motor:
+        :param length:
+        :param max_vel:
+        :return:
+        """
         self.state['stretch'] = motor.state
         if motor.status == MoveStatus.NONE:
             motor.reset()
@@ -429,6 +480,19 @@ class Robot:
             return False
         else:
             motor.run(pos=length, max_vel=max_vel)
+        return False
+
+    def roller(self, motor: Motor, vel):
+        self.state['roller'] = motor.state
+        if motor.status == MoveStatus.NONE:
+            motor.reset()
+        elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
+            return True
+        elif motor.status == MoveStatus.FAILED:
+            return False
+        else:
+            motor.run(vel=vel)
         return False
 
 
