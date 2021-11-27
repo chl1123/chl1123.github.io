@@ -463,6 +463,8 @@ class Module(BasicModule):
             # 更新goodsId
             try:
                 self.get_goodsId(r)
+                if "goodsId" in args:
+                    self.goods_id = args["goodsId"]
             except Exception as e:
                 r.setWarning(f"Please update rbk & core --- {e}")
 
