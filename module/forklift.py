@@ -58,6 +58,7 @@ class Module(BasicModule):
         self.stretch_zero = p.loadParam("StretchZero", type="float", default=0.035, comment="货叉伸缩零位")
         self.lift_motor_name = p.loadParam("LiftMotorName", type="str", default="motor2", comment="货叉升降电机名称")
         self.stretch_motor_name = p.loadParam("StretchMotorName", type="str", default="motor3", comment="货叉伸缩电机名称")
+        self.fork_di_dist = p.loadParam("ForkDiDist", type="float", default=0.02, comment="货叉到位DI补足距离")
         r.logInfo(f"__init__ args: {args}")
         self.state = dict()
         self.status = MoveStatus.NONE
@@ -222,8 +223,14 @@ class Module(BasicModule):
             self.opt_step[1] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, stretch_length)
         if self.opt_step[1] and not self.opt_step[2]:
             # 货叉到位DI未触发
-            if not self.fork_reached(r):
-                r.setError(f"Fork reach DI not triggered, check please!")
+            if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:
+                reach = self.robot.stretch(self.stretch_motor, stretch_length + self.fork_di_dist)
+                if reach and self.fork_reached(r):
+                    self.stretch_motor.reset()
+                elif reach and not self.fork_reached(r):
+                    r.setError(f"Fork reach DI not triggered, check please!")
+                else:
+                    return MoveStatus.RUNNING
             else:
                 self.stretch_motor.reset()
             # 货叉上升
