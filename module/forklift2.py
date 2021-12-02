@@ -2,7 +2,7 @@
 # @Time : 2021/12/2 11:30
 # @Author : zhong
 # @File :forklift.py
-# @Request : test_center#856 前移叉车脚本，新方案
+# @Request : test_center#856 前移叉车脚本, 新方案
 # @Version: 1.5
 # @Update: 取放货流程改为先伸货叉，再后移AGV，同时计算AGV后移距离 move_dist，取放货完成后，AGV前移 move_dist 回到原点
 import enum
@@ -71,12 +71,13 @@ class Module(BasicModule):
         self.stretch_motor = None
         self.opt_step = [False]*6
         self.agv_loc_x = None
-        self.actual_move_dist = None
+        self.actual_move_dist = 0
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
         if self.init:
             self.init = False
+            self.agv_loc_x = r.loc().get("x")
             self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, self.lift_motor_name, -1)
             self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, self.stretch_motor_name, -1)
             args_error = False
@@ -103,9 +104,6 @@ class Module(BasicModule):
                         if args["liftHeight"] < lift_motor_pos:
                             r.setWarning(f"load liftHeight lower than current lift height {lift_motor_pos}")
                             args_error = True
-                        # if args["stretchLength"] + self.fork_di_dist > self.max_stretch_length:
-                        #     r.setWarning(f"stretchLength + ForkDiDist > MaxStretchLength")
-                        #     args_error = True
                     elif args["operation"] == "unload":
                         if args["liftHeight"] > lift_motor_pos:
                             r.setWarning(f"unload liftHeight higher than current lift height {lift_motor_pos}")
@@ -210,22 +208,18 @@ class Module(BasicModule):
             # 货叉碰撞检测，货叉伸出
             if not self.fork_collision(r):
                 self.opt_step[0] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, stretch_length)
-                self.agv_loc_x = r.loc().get("x")
         if self.opt_step[0] and not self.opt_step[1]:
             if not self.fork_collision(r):
                 # 叉车后移固定距离
                 self.opt_step[1] = self.fork_reached(r) or self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
                 # 计算叉车后移的实际距离
-                if self.opt_step[1]:
-                    self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
-                    self.agv_loc_x = r.loc().get("x")
-                    self.go_path.reset()
+                self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
         if self.opt_step[1] and not self.opt_step[2]:
-            add_move = False
             # 货叉到位DI未触发
             if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:
                 if self.fork_di_dist > 0:
                     add_move = self.fork_reached(r) or self.move(r, {'x': -self.fork_di_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
+                    self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
                     if add_move and not self.fork_reached(r):   # AGV 二次移动完成但到位DI仍未触发
                         r.setError(f"out of range, cannot load")
                         return MoveStatus.FAILED
@@ -233,13 +227,11 @@ class Module(BasicModule):
                     r.setError(f"Fork reach DI not triggered, check please!")
                     return MoveStatus.FAILED
             else:
-                if add_move:
-                    self.go_path.reset()
-                    self.actual_move_dist += abs(r.loc().get("x") - self.agv_loc_x)
-                if self.actual_move_dist < (self.move_dist - self.fork_di_dist) and self.fork_di_dist > 0:
+                self.go_path.status = MoveStatus.FINISHED
+                self.stretch_motor.reset()
+                if self.fork_di_dist > 0 and self.actual_move_dist < (self.move_dist - self.fork_di_dist):
                     r.setError(f"material maybe too close")
                     return MoveStatus.FAILED
-                self.stretch_motor.reset()
                 # 货叉上升
                 self.opt_step[2] = self.robot.lift(self.lift_motor, lift_height)
         if self.opt_step[2] and not self.opt_step[3]:

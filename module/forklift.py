@@ -70,13 +70,14 @@ class Module(BasicModule):
         self.stretch_motor = None
         self.opt_step = [False]*6
         self.agv_loc_x = None
-        self.actual_move_dist = None
+        self.actual_move_dist = 0
+        self.actual_stretch_length = 0
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
         if self.init:
             self.init = False
-            self.agv_loc_x = r.loc.get('x')
+            self.agv_loc_x = r.loc().get('x')
             self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, self.lift_motor_name, -1)
             self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, self.stretch_motor_name, -1)
             args_error = False
@@ -139,6 +140,7 @@ class Module(BasicModule):
         self.state['args'] = args
         self.state['has_goods'] = r.hasGoods()
         r.setInfo(json.dumps(self.state))
+        r.logInfo(json.dumps(self.state))
         r.clearWarning(57300)
         r.setNotice(f"{args['operation']} opt_step: {self.opt_step}")
         return self.status
@@ -207,31 +209,38 @@ class Module(BasicModule):
             # 叉车后移固定距离
             if not self.fork_collision(r):
                 self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
-        if self.opt_step[0] and not self.opt_step[1]:
-            if not self.fork_collision(r):
                 # 计算实际移动距离
                 self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
-                self.agv_loc_x = r.loc().get("x")
+        if self.opt_step[0] and not self.opt_step[1]:
+            if not self.fork_collision(r):
                 # 货叉伸出, 货叉到位DI检测
                 self.opt_step[1] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, stretch_length)
+                if self.opt_step[1]:
+                    # 计算货叉实际伸出长度
+                    motors = r.odo().get('motor_info')
+                    for motor in motors:
+                        if motor['motor_name'] == self.stretch_motor_name:
+                            self.actual_stretch_length = motor['position']
         if self.opt_step[1] and not self.opt_step[2]:
-            add_move = False
             # 货叉到位DI未触发
             if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:
                 if self.fork_di_dist > 0:
+                    # 二次后移
                     add_move = self.fork_reached(r) or self.move(r, {'x': -self.fork_di_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
+                    self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
                     if add_move and not self.fork_reached(r):
                         r.setError(f"Fork reach DI not triggered, check please!")
+                        return MoveStatus.FAILED
                 else:
                     r.setError(f"Fork reach DI not triggered, check please!")
-            else:
-                if add_move:
-                    self.go_path.reset()
-                    self.actual_move_dist += abs(r.loc().get("x") - self.agv_loc_x)
-                if self.actual_move_dist < (self.move_dist - self.fork_di_dist) and self.fork_di_dist > 0:
-                    r.setError(f"material maybe too close")
                     return MoveStatus.FAILED
+            else:
+                self.go_path.status = MoveStatus.FINISHED
                 self.stretch_motor.reset()
+                if self.fork_di_dist > 0:
+                    if self.actual_move_dist < (self.move_dist - self.fork_di_dist) or self.actual_stretch_length < (self.max_stretch_length - self.fork_di_dist):
+                        r.setError(f"material maybe too close")
+                        return MoveStatus.FAILED
                 # 货叉上升
                 self.opt_step[2] = self.robot.lift(self.lift_motor, lift_height)
         if self.opt_step[2] and not self.opt_step[3]:
@@ -250,6 +259,8 @@ class Module(BasicModule):
         load_state['opt_name'] = "load"
         load_state['opt_status'] = self.status
         load_state['actions'] = self.robot.state
+        load_state['actual_move_dist'] = self.actual_move_dist
+        load_state['actual_stretch_length'] = self.actual_stretch_length
         self.state['operation'] = load_state
 
     def unload(self, r, lift_height, stretch_length, reach_height):
@@ -290,7 +301,7 @@ class Module(BasicModule):
         if self.go_path.status != 3 or self.go_path.status != 4:
             self.go_path.run(r, move_args)
         if self.go_path.status == MoveStatus.FINISHED:
-            self.go_path = goPath.Module(r, dict())
+            self.go_path.reset()
             return True
         return False
 
