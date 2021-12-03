@@ -227,7 +227,7 @@ class Module(BasicModule):
                     r.setError(f"Fork reach DI not triggered, check please!")
                     return MoveStatus.FAILED
             else:
-                self.go_path.status = MoveStatus.FINISHED
+                self.go_path.reset()
                 self.stretch_motor.reset()
                 if self.fork_di_dist > 0 and self.actual_move_dist < (self.move_dist - self.fork_di_dist):
                     r.setError(f"material maybe too close")
@@ -250,6 +250,7 @@ class Module(BasicModule):
         load_state['opt_name'] = "load"
         load_state['opt_status'] = self.status
         load_state['actions'] = self.robot.state
+        load_state['reach_di'] = self.fork_reached(r)
         load_state['actual_move_dist'] = self.actual_move_dist
         self.state['operation'] = load_state
 
@@ -262,6 +263,7 @@ class Module(BasicModule):
             if not self.fork_collision(r):
                 # 叉车后移固定距离
                 self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
+                self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
         if self.opt_step[0] and not self.opt_step[1]:
             if not self.fork_collision(r):
                 # 货叉伸出
@@ -285,6 +287,7 @@ class Module(BasicModule):
         unload_state['opt_name'] = "unload"
         unload_state['opt_status'] = self.status
         unload_state['actions'] = self.robot.state
+        unload_state['actual_move_dist'] = self.actual_move_dist
         self.state['operation'] = unload_state
 
     def move(self, r, move_args) -> bool:
