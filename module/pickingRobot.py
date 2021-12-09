@@ -426,10 +426,10 @@ class Hairou:
     def getMsg(self, r):
         try:
             total_data = self.tcp_client.recv(1024)
-        except:
+        except Exception as e:
             if r is not None:
                 r.logDebug("ctu recv error!!!")
-            self.report["connect_error"] = "ctu recv error!!!"
+            self.report["connect_error"] = f"ctu recv error!!! {e}"
             self.total_hex = ""
             return dict()
         else:
