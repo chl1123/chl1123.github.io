@@ -340,6 +340,14 @@ class SimModule:
         """ 
         print("func: {0} content: {1}".format(get_function_name(), ss))
     @check
+    def setUserError(self, code:int, ss:str):
+        """用户报错码: 53900~53999
+        Args:
+            code(int): 报错码， 如果超过这个范围，则会报notice
+            ss (str): 注释字符串
+        """ 
+        print("func: {0} code: {1}, content: {2}".format(get_function_name(), code, ss))
+    @check
     def setWarning(self, ss:str):
         """输出55300的Warning
 
@@ -347,6 +355,15 @@ class SimModule:
             ss (str): 注释字符串
         """ 
         print("func: {0} content: {1}".format(get_function_name(), ss))
+    @check
+    def setUserWarning(self, code:int, ss:str):
+        """用户报警码: 55900~55999
+
+        Args:
+            code(int): 报错码， 如果超过这个范围，则会报notice
+            ss (str): 注释字符串
+        """ 
+        print("func: {0} code: {1}, content: {2}".format(get_function_name(), code, ss))
     @check
     def setNotice(self, ss:str):
         """输出57300的Notice
@@ -867,4 +884,6 @@ if __name__ == '__main__':
     r.getContainers()
     r.clearContainer("1")
     r.clearContainerByGoodsId("1")
+    r.setUserError(53900, "error")
+    r.setUserWarning(55900, "warning")
     print("Success!!!")
