@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/11/04 PM 13: 40
+# @Time : 2021/12/13  11: 56
 # @Author : zhong
-# @Version : 2.1.1
-# @Update: add task stop operation & update report mechanism
+# @Version : 2.1.2
+# @Update: add mechanical limit DI
 
 import json
 import time
@@ -204,9 +204,8 @@ class Module(BasicModule):
                                                comment="输送线放货平面(滚轮面)与货架码上边沿的高度差")
         self.gap_between_box = p.loadParam("gap_between_box", type="float", default=0, comment="货架上箱子之间的距离")
         self.di1 = p.loadParam("di1", type="int", default=2, comment="上限位DI")
-        self.di2 = p.loadParam("di1", type="int", default=4, comment="下限位DI")
-        self.di1_status = False
-        self.di2_status = False
+        self.di2 = p.loadParam("di2", type="int", default=4, comment="下限位DI")
+        self.di3 = p.loadParam("di3", type="int", default=1, comment="升降防坠机械限位DI")
 
         r.logInfo(f"===init=== {args}")
 
@@ -261,7 +260,6 @@ class Module(BasicModule):
                 self.start_connect_time = time.time()
 
             if self.trigger_di(r):
-                r.setError(f"触发上下限位DI")
                 # 请求stop指令
                 self.h.task_stop(r, StopType.STOP_EMG)
                 r.setNotice(json.dumps(self.h.task_stop_res))
@@ -562,12 +560,17 @@ class Module(BasicModule):
             return True
         return False
 
-    def trigger_di(self, r):  # 触发上、下限位DI
+    def trigger_di(self, r):  # 触发上、下限位DI，机械限位DI
         dis = r.Di()
         nodes = dis.get('node', list())
         for node in nodes:
             if node['id'] == self.di1 and node['status']:
+                r.setError(f"触发上限位DI")
                 return True
             if node['id'] == self.di2 and node['status']:
+                r.setError(f"触发下限位DI")
+                return True
+            if node['id'] == self.di3 and node['status']:
+                r.setError(f"触发机械限位DI")
                 return True
         return False
