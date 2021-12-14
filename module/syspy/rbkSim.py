@@ -298,7 +298,16 @@ class SimModule:
             dict: 具体的任务信息
         """
         print("func: {0}".format(get_function_name()))
-        return dict()               
+        return dict()    
+    @check
+    def sensorPointCloud(self)->dict:
+        """获得任务信息以字典类型返回
+
+        Returns:
+            dict: 具体的任务信息
+        """
+        print("func: {0}".format(get_function_name()))
+        return dict()       
     @check
     def logInfo(self, ss:str):
         """将字符串输出到log文件中，等级为Info
@@ -886,4 +895,5 @@ if __name__ == '__main__':
     r.clearContainerByGoodsId("1")
     r.setUserError(53900, "error")
     r.setUserWarning(55900, "warning")
+    r.sensorPointCloud()
     print("Success!!!")
