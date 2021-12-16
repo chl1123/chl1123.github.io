@@ -15,7 +15,7 @@ class MessageType(IntEnum):
     ROBOT_MODE_REQ = 1  # 模式切换
     ROBOT_RESET_REQ = 3  # 重置机构校零
     ROBOT_PARAM_SET = 4  # 参数配置
-    ROBOT_STOP_REQ = 5     # 任务停止
+    ROBOT_STOP_REQ = 5  # 任务停止
     ROBOT_RESUME_REQ = 6  # 任务恢复
 
     ROBOT_INFO_REPORT = 10
@@ -35,7 +35,7 @@ class MessageType(IntEnum):
     ROBOT_VISION_REQ = 61
     ROBOT_VISION_RECORD = 62
     ROBOT_VISION_STOP = 63
-    ROBOT_INDICATOR_REQ = 70    # 指示器控制
+    ROBOT_INDICATOR_REQ = 70  # 指示器控制
 
     ROBOT_INTERNAL_BIN_OP = 80  # 内部取放货
     ROBOT_EXTERNAL_BIN_OP = 90  # 外部取放货
@@ -48,7 +48,7 @@ class MessageType(IntEnum):
 
 
 class StopType(IntEnum):
-    STOP_EMG = 10                  # 停止机构业务
+    STOP_EMG = 10  # 停止机构业务
 
 
 class ModeType(IntEnum):
@@ -119,26 +119,29 @@ class Action(IntEnum):
 
 
 class ErrorMessage:
-    def __init__(self):
-        self.errorcode = dict()
-        self.errorcode[0] = ["OK", "成功，无错误"]
-        self.errorcode[0x80000001] = ["E_SEQUENCE", "指令序号错误"]
-        self.errorcode[0x80000002] = ["E_PARSE", "指令解析错误"]
-        self.errorcode[0x80000003] = ["E_UNSUPPORT", "不支持的功能"]
-        self.errorcode[0x80000004] = ["E_PARAMETER", "错误的参数"]
-        self.errorcode[0x80000005] = ["E_OVERLIMIT", "目标超出限制"]
-        self.errorcode[0x80000006] = ["E_ABNORMAL", "设备状态异常"]
-        self.errorcode[0x800000FF] = ["E_UNKNOWN", "未知错误"]
-        self.errorcode[0x80000200] = ["E_SAFE_MANUAL", "手动保护"]
-        self.errorcode[0x80000201] = ["E_SAFE_STOPPER", "限位保护"]
-        self.errorcode[0x80000202] = ["E_SAFE_LOCKING", "限位保护"]
-        self.errorcode[0x80000203] = ["E_SAFE_LOCKING", "锁定保护"]
-        self.errorcode[0x80000204] = ["E_SAFE_CONTROL", "失控保护"]
-        self.errorcode[0x80000300] = ["E_DEV_COM", "设备通讯错误"]
-        self.errorcode[0x80000301] = ["E_DEV_BUSY", "设备已被占用"]
-        self.errorcode[0x80000302] = ["E_DEV_SUPPORT", "设备不能支持"]
-        self.errorcode[0x80000303] = ["E_DEV_FAILURE", "设备功能失效"]
-        self.errorcode[0x80000304] = ["E_DEV_ABNORMAL", "设备数据异常"]
+    ERROR_CODE = dict()
+    ERROR_CODE[0] = ["OK", "成功，无错误"]
+    ERROR_CODE[0x80000001] = ["E_SEQUENCE", "指令序号错误"]
+    ERROR_CODE[0x80000002] = ["E_PARSE", "指令解析错误"]
+    ERROR_CODE[0x80000003] = ["E_UNSUPPORT", "不支持的功能"]
+    ERROR_CODE[0x80000004] = ["E_PARAMETER", "错误的参数"]
+    ERROR_CODE[0x80000005] = ["E_OVERLIMIT", "目标超出限制"]
+    ERROR_CODE[0x80000006] = ["E_ABNORMAL", "设备状态异常"]
+    ERROR_CODE[0x800000FF] = ["E_UNKNOWN", "未知错误"]
+    ERROR_CODE[0x80000200] = ["E_SAFE_MANUAL", "手动保护"]
+    ERROR_CODE[0x80000201] = ["E_SAFE_STOPPER", "限位保护"]
+    ERROR_CODE[0x80000202] = ["E_SAFE_LOCKING", "限位保护"]
+    ERROR_CODE[0x80000203] = ["E_SAFE_LOCKING", "锁定保护"]
+    ERROR_CODE[0x80000204] = ["E_SAFE_CONTROL", "失控保护"]
+    ERROR_CODE[0x80000300] = ["E_DEV_COM", "设备通讯错误"]
+    ERROR_CODE[0x80000301] = ["E_DEV_BUSY", "设备已被占用"]
+    ERROR_CODE[0x80000302] = ["E_DEV_SUPPORT", "设备不能支持"]
+    ERROR_CODE[0x80000303] = ["E_DEV_FAILURE", "设备功能失效"]
+    ERROR_CODE[0x80000304] = ["E_DEV_ABNORMAL", "设备数据异常"]
+    ERROR_CODE[0x80000400] = ["E_EXTERNAL_TAKE_NOTFOUND", "目标库位为空"]
+    ERROR_CODE[0x80000401] = ["E_EXTERNAL_PUT_OCCUPIED", "目标库位占用"]
+    ERROR_CODE[0x80000402] = ["E_INTERNAL_TAKE_NOTFOUND", "标背篓为空"]
+    ERROR_CODE[0x80000403] = ["E_INTERNAL_PUT_OCCUPIED", "目标背篓占用"]
 
 
 def del_dict_item(_dict, key):
@@ -246,7 +249,7 @@ class Hairou:
             "msgType": MessageType.ROBOT_INTERNAL_BIN_OP.value,
             "seqNum": 0,
             "robotId": '',
-            "opType": 0,    # BinOpType
+            "opType": 0,  # BinOpType
             "binId": '',
             "binType": 0,
             "binModel": 0,
@@ -268,7 +271,7 @@ class Hairou:
             "msgType": MessageType.ROBOT_EXTERNAL_BIN_OP.value,
             "seqNum": 0,
             "robotId": '',
-            "opType": 0,   # BinOpType
+            "opType": 0,  # BinOpType
             "binId": '',
             "binType": 0,
             "binModel": 0,
@@ -348,11 +351,10 @@ class Hairou:
         self.stretch_reset_stime = -1
         self.total_hex = ""
 
-        self.mode = ModeType.TASK         # 默认为任务模式
-        self.req_position = dict()             # 反向导航请求
+        self.mode = ModeType.TASK  # 默认为任务模式
+        self.req_position = dict()  # 反向导航请求
         self.go_path = goPath.Module(SimModule(), dict())
         self.src_send = False
-
 
     def resetAction(self, data):
         data['status'] = Action.INIT
@@ -586,7 +588,7 @@ class Hairou:
         self.switch_mode_res['res'] = self.sendMessage(msg, r)
         return self.switch_mode_res
 
-    def robot_reset(self, r):           # 所有机构重置校零
+    def robot_reset(self, r):  # 所有机构重置校零
         msg = self.msg_reset_req
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
@@ -602,8 +604,8 @@ class Hairou:
         msg['seqNum'] = self.seqNum_req
         msg['robotId'] = robotId
         msg['settings'] = [{
-                'node': 'system::action',
-                'value': 'recovery'
+            'node': 'system::action',
+            'value': 'recovery'
         }]
         self.resume_res['seqNum'] = self.seqNum_req
         self.resume_res["status"] = Action.RUNNING
@@ -629,7 +631,8 @@ class Hairou:
         self.param_set_res['res'] = self.sendMessage(msg, r)
         return self.param_set_res
 
-    def internal_bin_op(self, r, robotId, opType, binId='reserve', binType=None, binModel=None, srcTray=None, dstTray=None,
+    def internal_bin_op(self, r, robotId, opType, binId='reserve', binType=None, binModel=None, srcTray=None,
+                        dstTray=None,
                         targetTray=None):
         msg = self.msg_internal_bin_op
         self.seqNum_req += 1
@@ -664,7 +667,7 @@ class Hairou:
         return self.internal_bin_op_res
 
     def external_bin_op(self, r, robotId, opType, binId='reserve', targetPosition=0, targetHeight=0, binType=None,
-                        binModel=None,  locationType=None):
+                        binModel=None, locationType=None):
         msg = self.msg_external_bin_op
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
@@ -696,12 +699,12 @@ class Hairou:
 
         return self.external_bin_op_res
 
-    def preaction(self, r, robotId, preconditions=None):      # 仅在任务模式下使用
+    def preaction(self, r, robotId, preconditions=None):  # 仅在任务模式下使用
         msg = self.msg_preaction_req
         self.seqNum_req += 1
         msg['seqNum'] = self.seqNum_req
         msg['robotId'] = robotId
-        msg['preconditions'] = preconditions   # type: json
+        msg['preconditions'] = preconditions  # type: json
         if preconditions is None:
             del_dict_item(msg, 'preconditions')
 

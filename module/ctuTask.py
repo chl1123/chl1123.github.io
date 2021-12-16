@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/12/13  11: 56
+# @Time : 2021/12/16  16: 56
 # @Author : zhong
-# @Version : 2.1.2
-# @Update: add mechanical limit DI
+# @Version : 2.1.3
+# @Update: add user error code
 
 import json
 import time
 import syspy.goPath as goPath
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, ParamServer
-from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType, Action, StopType
+from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType, Action, StopType, ErrorMessage
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -171,23 +171,20 @@ class Module(BasicModule):
         ip = p.loadParam("ip", type="str", default="192.168.192.20", comment="ip addr")
         port = p.loadParam("port", type="int", default=4172, maxValue=999999, minValue=0, comment="port")
         self.start_connect_time = time.time()
-
         self.max_connect_time = p.loadParam("max_connect_time", type="int", default=10, maxValue=999999, minValue=0,
                                             comment="链接等待最长时间s")
         self.mode = p.loadParam("mode", type="str", default="task", comment="交互模式")
-        self.robotId = p.loadParam("robotId", type="str", default="1", comment="")
+        self.robotId = p.loadParam("robotId", type="str", default="1", comment="机器人ID")
         self.opType = p.loadParam("opType", type="str", default="inspect", comment="操作类型")
         self.binId = p.loadParam("binId", type="str", default="reserve", comment="预留参数")
         self.binType = p.loadParam("binType", type="str", default="markerless", comment="货物识别类型")
         self.binModel = p.loadParam("binModel", type="str", default="plasticbox", comment="料箱种类")
-
         self.srcTray = p.loadParam("srcTray", type="str", default='{"id": 0, "type": 0}', comment="源托盘, 托盘id, 托盘类型")
         self.dstTray = p.loadParam("dstTray", type="str", default='{"id": 1, "type": 0}', comment="目标托盘, 托盘id, 托盘类型")
         self.targetTray = p.loadParam("targetTray", type="str", default='{"id": 0, "type": 0}',
                                       comment="扫描对象托盘, 托盘id, 托盘类型")
         self.targetPosition = p.loadParam("targetPosition", type="str",
                                           default='{"x": 71.1, "y": 26.3, "theta": 1.5708}', comment="位置定义")
-
         self.targetHeight = p.loadParam("targetHeight", type="float", default=0, comment="库位高度")
         self.locationType = p.loadParam("locationType", type="str", default="storage_shelf", comment="库位类型")
         self.preconditions = p.loadParam("preconditions", type="str",
@@ -230,6 +227,7 @@ class Module(BasicModule):
             r.logInfo(f"before update args:  {json.dumps(args)}")
             self.update_param(r, args)
             r.logInfo(f"after update args:  {json.dumps(args)}")
+            self.clear_errors(r)  # 清除用户自定义错误
 
         if not self.h.isconnect:
             self.state["init"] = self.h.initDevice(r)
@@ -336,19 +334,18 @@ class Module(BasicModule):
                             lift = self.state['lift']
                             if (finger and finger['state'] in [4, 0]) or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or lift['state'] in [4, 0]:
                                 if not self.resume_send:
-                                    r.setWarning(f"internal_opt: machine abnormality--- task is resuming")
+                                    r.setWarning(f"internal_opt: machine abnormality, task is resuming")
                                     self.h.task_resume(r, self.robotId)
                                     self.resume_send = True
                             else:
                                 self.resume_send = False
 
                         if not self.msg_send:
-                            self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType,
-                                                   self.binModel,
-                                                   self.srcTray, self.dstTray, self.targetTray)
+                            self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel, self.srcTray, self.dstTray, self.targetTray)
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.internal_bin_op_res))
                         self.state['result'] = self.h.internal_bin_op_res
+                        self.check_execution_result(r, self.h.internal_bin_op_res)
                         if self.h.internal_bin_op_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
@@ -376,6 +373,7 @@ class Module(BasicModule):
                             self.msg_send = True
                         r.setNotice(json.dumps(self.h.external_bin_op_res))
                         self.state['result'] = self.h.external_bin_op_res
+                        self.check_execution_result(r, self.h.external_bin_op_res)
                         # 监听位置请求 msgType(200), 机器视觉自动校准取放货物位置
                         if self.h.req_position and not self.src_ok:
                             # r.setWarning(f"req_position: {self.h.req_position}")
@@ -574,3 +572,43 @@ class Module(BasicModule):
                 r.setError(f"触发机械限位DI")
                 return True
         return False
+
+    @staticmethod
+    def clear_errors(r):
+        """
+        清除用户自定义错误
+        :param r: 
+        :return: 
+        """""
+        for i in range(53900, 53905):
+            if r.errorExits(i):
+                r.clearError(i)
+
+    def check_execution_result(self, r, result):
+        """
+        检测指令执行结果是否有报错
+        :param r:
+        :param result:
+        """
+        if "res" in result:
+            try:
+                execution_result = result['res']['executionResult']
+                if execution_result != 0:
+                    error_msg = ErrorMessage.ERROR_CODE[execution_result]
+                    if execution_result == 0x80000400:
+                        r.setUserError(53900, error_msg)
+                    elif execution_result == 0x80000401:
+                        r.setUserError(53901, error_msg)
+                    elif execution_result == 0x80000400:
+                        r.setUserError(53902, error_msg)
+                    elif execution_result == 0x80000400:
+                        r.setUserError(53903, error_msg)
+                    else:
+                        r.setError(f"execute failed: {error_msg}")
+                    self.status = MoveStatus.FAILED
+            except KeyError as e:
+                r.logDebug(f"KeyError: {e}")
+            except Exception as e:
+                r.logDebug(f"error in hairou state: {e}")
+                r.setError(f"check_execution_result error: {e}")
+

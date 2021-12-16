@@ -640,14 +640,15 @@ class Module(BasicModule):
 
         if "res" in self.state:
             try:
-                failDescription = self.state['res']['res']['failDescription']
-                if not failDescription == "" and not failDescription == "detect failed":
-                    r.setError(f"failDescription: {failDescription}")
+                execution_result = self.state['res']['res']['executionResult']
+                if execution_result != 0:
+                    fail_description = self.state['res']['res']['failDescription']
+                    r.setError(f"failDescription: {fail_description}")
                     self.status = MoveStatus.FAILED
             except KeyError as e:
-                r.logDebug("failDescription KeyError: " + str(e))
+                r.logDebug("KeyError: " + str(e))
             except Exception as e:
-                r.logDebug("failDescription error in hairou state")
+                r.logDebug(f"error in hairou state,{e}")
 
         try:
             r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
