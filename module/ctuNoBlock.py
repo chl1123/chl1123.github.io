@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/11/2 AM 10:35
+# @Time : 2021/12/5 AM 10:35
 # @Author : huang, zhong
-# @Version : 2.1.3
+# @Version : 2.1.4
 # @Support : rbk  3.3.5.11
+# @Update : 1. 数据上报; 2. 兼容goodsId两种参数协议接口; 3. 新增自定义错误码
 
 import json
 import sys
