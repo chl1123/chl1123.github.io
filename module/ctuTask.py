@@ -580,9 +580,9 @@ class Module(BasicModule):
         :param r: 
         :return: 
         """""
-        for i in range(53900, 53905):
-            if r.errorExits(i):
-                r.clearError(i)
+        for err_code in range(53900, 53905):
+            if r.errorExits(err_code):
+                r.clearError(err_code)
 
     def check_execution_result(self, r, result):
         """
@@ -591,24 +591,22 @@ class Module(BasicModule):
         :param result:
         """
         if "res" in result:
-            try:
-                execution_result = result['res']['executionResult']
-                if execution_result != 0:
-                    error_msg = ErrorMessage.ERROR_CODE[execution_result]
-                    if execution_result == 0x80000400:
-                        r.setUserError(53900, error_msg)
-                    elif execution_result == 0x80000401:
-                        r.setUserError(53901, error_msg)
-                    elif execution_result == 0x80000400:
-                        r.setUserError(53902, error_msg)
-                    elif execution_result == 0x80000400:
-                        r.setUserError(53903, error_msg)
-                    else:
-                        r.setError(f"execute failed: {error_msg}")
-                    self.status = MoveStatus.FAILED
-            except KeyError as e:
-                r.logDebug(f"KeyError: {e}")
-            except Exception as e:
-                r.logDebug(f"error in hairou state: {e}")
-                r.setError(f"check_execution_result error: {e}")
-
+            if "executionResult" in result['res']:
+                try:
+                    execution_result = result['res']['executionResult']
+                    if execution_result != 0:
+                        error_msg = ErrorMessage.ERROR_CODE[execution_result]
+                        if execution_result == 0x80000400:
+                            r.setUserError(53900, f"Error Message: {error_msg}")
+                        elif execution_result == 0x80000401:
+                            r.setUserError(53901, f"Error Message: {error_msg}")
+                        elif execution_result == 0x80000402:
+                            r.setUserError(53902, f"Error Message: {error_msg}")
+                        elif execution_result == 0x80000403:
+                            r.setUserError(53903, f"Error Message: {error_msg}")
+                        else:
+                            r.setError(f"Error Message: {error_msg}")
+                        self.status = MoveStatus.FAILED
+                except Exception as e:
+                    r.logDebug(f"check_execution_result error state: {e}")
+                    r.setError(f"check_execution_result error: {e}")
