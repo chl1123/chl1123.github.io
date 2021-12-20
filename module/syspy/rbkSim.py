@@ -819,6 +819,22 @@ class SimModule:
         print("func: {0} {1}".format(get_function_name(), "3.3.5.11"))
         return  "3.3.5.11"
 
+    def initForkCollisionCheck(self):
+        """初始化货叉移动时的碰撞检，读取模型文件fork设备BackLaser相应的参数
+
+        Returns:
+        """
+        print("func: {0} ".format(get_function_name()))
+
+    def forkCollisionCheck(self)->bool:
+        """货叉移动时的碰撞，用于碰撞检测激光和DI为模型文件fork设备中的BackLaser
+           执行forkCollisionCheck前，当前任务需要先调用一次initForkCollisionCheck。
+        Returns:
+            bool: 如果有碰撞则返回bool，并且会设置52200阻挡报错
+        """
+        print("func: {0} ".format(get_function_name()))
+        return True
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -896,4 +912,6 @@ if __name__ == '__main__':
     r.setUserError(53900, "error")
     r.setUserWarning(55900, "warning")
     r.sensorPointCloud()
+    r.initForkCollisionCheck()
+    r.forkCollisionCheck()
     print("Success!!!")
