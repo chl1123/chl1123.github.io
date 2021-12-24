@@ -416,6 +416,7 @@ class Module(BasicModule):
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
+            self.check_execution_result(r, self.state.get('result', {}))
             r.setInfo(json.dumps(self.state))
             return self.status
 
@@ -595,7 +596,7 @@ class Module(BasicModule):
                 try:
                     execution_result = result['res']['executionResult']
                     if execution_result != 0:
-                        error_msg = ErrorMessage.ERROR_CODE[execution_result]
+                        error_msg = ErrorMessage.ERROR_CODE.get(execution_result, "undefined error")
                         if execution_result == 0x80000400:
                             r.setUserError(53900, f"Error Message: {error_msg}")
                         elif execution_result == 0x80000401:
@@ -609,4 +610,4 @@ class Module(BasicModule):
                         self.status = MoveStatus.FAILED
                 except Exception as e:
                     r.logDebug(f"check_execution_result error state: {e}")
-                    r.setError(f"check_execution_result error: {e}")
+                    r.setError(f"check_execution_result error: {e}")  # ERROR_CODE key error
