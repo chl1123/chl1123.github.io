@@ -4,7 +4,7 @@
 # @File : robot.py
 # @Version : 1.0
 """
-提供一些脚本常用的接口
+提供一些机构脚本常用的接口
 """
 import enum
 import os
@@ -43,6 +43,21 @@ def get_motor_pos(r: SimModule, motor_name: str):
         if m['motor_name'] == motor_name:
             motor_pos = m.get('position', False)
     return motor_pos
+
+
+def get_motor_speed(r: SimModule, motor_name: str):
+    """
+    获取指定电机的当前速度
+    :param r:
+    :param motor_name:
+    :return: 返回电机的当前速度，若电机不存在返回False
+    """
+    motors = r.navSpeed().get("motor_cmd", [])
+    motor_speed = False
+    for m in motors:
+        if m['motor_name'] == motor_name:
+            motor_speed = m.get('value', False)
+    return motor_speed
 
 
 class MotorType(enum.IntEnum):
@@ -91,7 +106,6 @@ class Motor:
         self.stop_di = stop_di
         self.status = MoveStatus.NONE
         self.state = dict()
-        self.motor_pos = None
 
     def run(self, vel=0., pos=0., max_vel=0.):
         """
@@ -112,14 +126,10 @@ class Motor:
         if self.r.isMotorReached(self.motor_name):
             self.r.resetMotor(self.motor_name)
             self.status = MoveStatus.FINISHED
-
-        motors = self.r.odo().get("motor_info", [])
-        for m in motors:
-            if m['motor_name'] == self.motor_name:
-                self.motor_pos = m['position']
         self.state['motor_name'] = self.motor_name
         self.state['motor_type'] = self.motor_type
-        self.state['motor_pos'] = self.motor_pos
+        self.state['motor_pos'] = get_motor_pos(self.r, self.motor_name)
+        self.state['motor_speed'] = get_motor_speed(self.r, self.motor_name)
         self.state['motor_status'] = self.status
         return self.status
 
@@ -195,7 +205,7 @@ class Robot:
         :param max_vel:
         :return:
         """
-        self.state['lift'] = motor.state
+        self.state[f'{motor.motor_name}'] = motor.state
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
@@ -216,7 +226,7 @@ class Robot:
         :param max_vel:
         :return:
         """
-        self.state['stretch'] = motor.state
+        self.state[f'{motor.motor_name}'] = motor.state
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
@@ -235,7 +245,7 @@ class Robot:
         :param vel:
         :return:
         """
-        self.state['roller'] = motor.state
+        self.state[f'{motor.motor_name}'] = motor.state
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
@@ -271,7 +281,7 @@ if __name__ == "__main__":
     robot.move(1, 0)
     robot.lift(liner_motor, 1)
     robot.stretch(liner_motor, 1)
-    robot.roller(roller_motor, 0.3)
+    robot.roller(roller_motor, 1)
     Log.config_log(log_dir)
     Log.logger.info(robot.state)
     Log.logger.critical(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
