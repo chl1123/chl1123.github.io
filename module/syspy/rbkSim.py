@@ -124,7 +124,7 @@ class SimModule:
         return True
     @check
     def isMotorStop(self, motor_name:str)->bool:
-        """控制电机停止
+        """查询电机是否停止
 
         Args:
             motor_name (str): 电机名称
@@ -301,7 +301,7 @@ class SimModule:
         return dict()    
     @check
     def sensorPointCloud(self)->dict:
-        """获得任务信息以字典类型返回
+        """获得后视激光点云信息以字典类型返回
 
         Returns:
             dict: 具体的任务信息
@@ -498,7 +498,7 @@ class SimModule:
         return True
     @check
     def speedDecomposition(self, nav:str)->str:
-        """将导航速度速度分解，目前只有单舵轮和双舵轮有效
+        """将导航速度分解，目前只有单舵轮和双舵轮有效
 
         Args:
             nav (str): 导航速度，格式与从getNextSpeed或者navSpeed获得的格式相同
@@ -800,7 +800,7 @@ class SimModule:
         print("func: {0} {1}".format(get_function_name(), container_name))
         return  True
     def clearContainerByGoodsId(self, goods_id:str)->bool:
-        """清楚车上特定库位或者背篓的状态
+        """清除车上特定库位或者背篓的状态
 
         Args:
             container_name (str): 货物名称，货物名称如果为All则全部清除
@@ -820,7 +820,7 @@ class SimModule:
         return  "3.3.5.11"
 
     def initForkCollisionCheck(self):
-        """初始化货叉移动时的碰撞检，读取模型文件fork设备BackLaser相应的参数
+        """初始化货叉移动时的碰撞检测，读取模型文件fork设备BackLaser相应的参数
 
         Returns:
         """
