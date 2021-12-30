@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2021/12/23 15:01
+# @Date : 2021/12/28 11:01
 # @Author : zhong
 # @File :lishengDoubleRoller.py
-# @Version : 1.0
+# @Version : 1.1
 # @Project : 河南力生  线性电机双辊筒
 
 import json
@@ -127,13 +127,14 @@ class Module(BasicModule):
             self.status = MoveStatus.FAILED
         if not self.load_goods and check_DI(r, finish_di):   # 上料方向反了
             r.setError(f"{motor.motor_name} load direction error !")
+            return False
         if self.prep_load(r, motor):    # 无光电触发，辊筒高速运转，预上料
+            self.load_goods = True
             self.robot.roller(motor, high_speed)
         else:
             if not self.load_goods:
                 r.setError(f"Goods already exists, {motor.motor_name} cannot load")
         if check_DI(r, slow_di):     # 中间光电触发，减速
-            self.load_goods = True
             self.robot.roller(motor, low_speed)
         if self.load_goods and check_DI(r, finish_di):   # 上料完成
             self.robot.roller(motor, 0)
