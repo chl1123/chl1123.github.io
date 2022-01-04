@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/12/2 11:10
+# @Time : 2021/12/20 15:10
 # @Author : zhong
 # @File :forklift.py
-# @Request : test_center#856 前移叉车脚本，原方案
-# @Version: 1.6
+# @Request : test_center#856 前移叉车脚本，方案1：先叉车后移，后伸货叉
+# @Version: 1.7
 import enum
 import json
 import syspy.goPath as goPath
@@ -16,7 +16,7 @@ from syspy.rbk import MoveStatus, BasicModule, ParamServer
    "operation":{
         "value": "zero",
         "default_value":["zero","load","unload", "lift", "stretch"],
-        "tips": "operation options",
+        "tips": "操作",
         "type": "complex"        
     },    
     "stretchLength": {
@@ -36,6 +36,12 @@ from syspy.rbk import MoveStatus, BasicModule, ParamServer
         "tips": "取放货后货叉到位高度",
         "type": "float",
         "unit": "m"
+    },
+    "loadMethod": {
+        "value": "RobotMoveFirst",
+        "default_value":["RobotMoveFirst","ForkStretchFirst"],
+        "tips": "取货方案选择",
+        "type": "complex"
     }
 }
 ####END DEFAULT ARGS####
@@ -60,6 +66,7 @@ class Module(BasicModule):
         self.lift_motor_name = p.loadParam("LiftMotorName", type="str", default="motor2", comment="货叉升降电机名称")
         self.stretch_motor_name = p.loadParam("StretchMotorName", type="str", default="motor3", comment="货叉伸缩电机名称")
         self.fork_di_dist = p.loadParam("ForkDiDist", type="float", default=0.1, comment="货叉到位DI补足距离")
+        self.laser_valid_height = p.loadParam("EnableHeight", type="float", default=0.2, comment="后视激光有效高度")
         r.logInfo(f"__init__ args: {args}")
         self.state = dict()
         self.status = MoveStatus.NONE
@@ -72,7 +79,13 @@ class Module(BasicModule):
         self.agv_loc_x = None
         self.actual_move_dist = 0
         self.actual_stretch_length = 0
-        self.add_move = False
+        self.twice_move = False
+        self.lift_height = self.lift_zero
+        self.reach_height = self.lift_zero
+        self.stretch_length = self.stretch_zero
+        self.init_lift_motor_pos = None
+        self.init_stretch_motor_pos = None
+        self.load_method = None
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
@@ -81,64 +94,86 @@ class Module(BasicModule):
             self.agv_loc_x = r.loc().get('x')
             self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, self.lift_motor_name, -1)
             self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, self.stretch_motor_name, -1)
+            r.initForkCollisionCheck()   # 初始化后视激光检测
             args_error = False
-            # 获取升降电机数据
-            lift_motor_pos = None
-            try:
-                motor_info = r.odo()['motor_info']
-                for motor in motor_info:
-                    if motor['motor_name'] == self.lift_motor_name:
-                        lift_motor_pos = motor['position']
-            except Exception as e:
-                r.setError(f"Get motor info failed: {e}")
+            # 获取升降电机和伸缩电机的初始位置
+            if self.get_motor_pos(r, self.lift_motor_name) is not False:
+                self.init_lift_motor_pos = self.get_motor_pos(r, self.lift_motor_name)
+            if self.get_motor_pos(r, self.stretch_motor_name) is not False:
+                self.init_stretch_motor_pos = self.get_motor_pos(r, self.stretch_motor_name)
+
             if "operation" in args:     # 参数检查
+                if "stretchLength" in args:
+                    self.stretch_length = args["stretchLength"]
+                    if args["stretchLength"] > self.max_stretch_length:
+                        r.setError(f"Out of max stretch length {self.max_stretch_length}")
+                        args_error = True
+                    elif args["stretchLength"] < self.stretch_zero:
+                        self.stretch_length = self.stretch_zero
+                if "liftHeight" in args:
+                    self.lift_height = args["liftHeight"]
+                    if args["liftHeight"] > self.max_lift_height:
+                        r.setError(f"Out of max lift height {self.max_lift_height}")
+                        args_error = True
+                    elif args["liftHeight"] < self.lift_zero:
+                        self.lift_height = self.lift_zero
+                if "reachHeight" in args:
+                    self.reach_height = args["reachHeight"]
+                    if args["reachHeight"] > self.max_lift_height:
+                        r.setError(f"Out of max lift height {self.max_lift_height}")
+                        args_error = True
+                    elif args["reachHeight"] < self.lift_zero:
+                        self.reach_height = self.lift_zero
+
                 if args["operation"] == "zero":
-                    pass
+                    if r.hasGoods():
+                        r.setError(f"Forklift has goods, cannot zero")
+                        args_error = True
                 elif args["operation"] == "lift" and "liftHeight" in args:
-                    if args["liftHeight"] > self.max_lift_height or args["liftHeight"] < 0:
+                    if r.hasGoods() and args["liftHeight"] < self.safe_lift_height:
+                        r.setError(f"Fork has goods, cannot lift down lower than safe height, {args}")
                         args_error = True
                 elif args["operation"] == "stretch" and "stretchLength" in args:
-                    if args["stretchLength"] > self.max_stretch_length or args["stretchLength"] < 0:
+                    pass
+                elif args["operation"] == "load" and "stretchLength" in args and "liftHeight" in args and "reachHeight" in args and "loadMethod" in args:
+                    self.load_method = args["loadMethod"]
+                    # load时检查升降高度参数合理性
+                    if args["liftHeight"] < self.init_lift_motor_pos:
+                        r.setError(f"load liftHeight lower than current lift height {self.init_lift_motor_pos}")
                         args_error = True
-                elif (args["operation"] == "load" or args["operation"] == "unload") and \
-                        ("stretchLength" in args and "liftHeight" in args and "reachHeight" in args):
-                    # 检查升降高度参数合理性
-                    if args["stretchLength"] > self.max_stretch_length or args["liftHeight"] > self.max_lift_height or args["reachHeight"] > self.max_lift_height:
-                        r.setWarning(f"Exceeds the maximum")
+                    if r.hasGoods():
+                        r.setError(f"Fork has goods, cannot load")
                         args_error = True
-                    if args["operation"] == "load":
-                        if args["liftHeight"] < lift_motor_pos:
-                            r.setWarning(f"load liftHeight lower than current lift height {lift_motor_pos}")
-                            args_error = True
-                    elif args["operation"] == "unload":
-                        if args["liftHeight"] > lift_motor_pos:
-                            r.setWarning(f"unload liftHeight higher than current lift height {lift_motor_pos}")
-                            args_error = True
-                        if args["stretchLength"] < self.max_stretch_length and args["liftHeight"] < self.safe_lift_height:
-                            r.setWarning(f"stretchLength lower than max stretch length{self.max_stretch_length}, "
-                                         f" and liftHeight lower than safe lift height {self.safe_lift_height}")
-                            args_error = True
+                elif args["operation"] == "unload" and "stretchLength" in args and "liftHeight" in args and "reachHeight" in args:
+                    # unload时检查升降高度参数合理性
+                    if args["liftHeight"] > self.init_lift_motor_pos:
+                        r.setError(f"unload liftHeight higher than current lift height {self.init_lift_motor_pos}")
+                        args_error = True
+                    if args["stretchLength"] < self.max_stretch_length and args["liftHeight"] < self.safe_lift_height:
+                        r.setError(f"Not stretch to the max length,  cannot lift lower than the safe lift height.")
+                        args_error = True
                 else:
                     args_error = True
             else:
                 args_error = True
             if args_error:
-                r.setError(f"args error: {args}")
+                if not r.errorExits(53000):
+                    r.setError(f"args error: {args}")
                 return MoveStatus.FAILED
 
         if args["operation"] == "zero":
             self.zero(r)
         elif args["operation"] == "lift":
-            self.lift(r, args["liftHeight"])
+            self.lift(r)
         elif args["operation"] == "stretch":
-            self.stretch(r, args["stretchLength"])
+            self.stretch(r)
         elif args["operation"] == "load":
-            self.load(r, args["liftHeight"], args["stretchLength"], args["reachHeight"])
+            self.load(r)
         elif args["operation"] == "unload":
-            self.unload(r, args["liftHeight"], args["stretchLength"], args["reachHeight"])
+            self.unload(r)
         else:
             r.setError(f"operation error: {args['operation']}")
-            return MoveStatus.FAILED
+            self.status = MoveStatus.FAILED
         if not r.publishSpeed():
             r.setError(f"Failed to publish the current motor control scheme ")
             self.status = MoveStatus.FAILED
@@ -147,8 +182,7 @@ class Module(BasicModule):
         self.state['has_goods'] = r.hasGoods()
         r.setInfo(json.dumps(self.state))
         r.logInfo(json.dumps(self.state))
-        r.clearWarning(57300)
-        r.setNotice(f"{args['operation']} opt_step: {self.opt_step}")
+        r.setNotice(f"step: {self.opt_step}")
         return self.status
 
     def zero(self, r):
@@ -157,15 +191,12 @@ class Module(BasicModule):
         :param r:
         :return: MoveStatus
         """
-        if r.hasGoods():
-            r.setError(f"Forklift has goods, cannot zero")
-            self.status = MoveStatus.FAILED
         if not self.opt_step[0]:
-            # 货叉收回
             self.opt_step[0] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
         if self.opt_step[0] and not self.opt_step[1]:
-            # 升降归零
-            self.opt_step[1] = self.robot.lift(self.lift_motor, self.lift_zero)
+            # 检查后视激光
+            if not self.back_laser_check(r):
+                self.opt_step[1] = self.robot.lift(self.lift_motor, self.lift_zero)
         if self.opt_step[0] and self.opt_step[1]:
             self.status = MoveStatus.FINISHED
         zero_state = dict()
@@ -174,14 +205,13 @@ class Module(BasicModule):
         zero_state['actions'] = self.robot.state
         self.state['operation'] = zero_state
 
-    def lift(self, r, lift_height):
-        if lift_height < self.lift_zero:
-            lift_height = self.lift_zero
-        if r.hasGoods() and lift_height < self.safe_lift_height:
-            r.setError(f"Fork has goods, cannot lift down lower than {self.safe_lift_height}")
-            self.status = MoveStatus.FAILED
+    def lift(self, r):
         if not self.opt_step[0]:
-            self.opt_step[0] = self.robot.lift(self.lift_motor, lift_height)
+            if self.lift_height < self.init_lift_motor_pos:  # 货叉要下降
+                if not self.back_laser_check(r):                     # 检查后视激光
+                    self.opt_step[0] = self.robot.lift(self.lift_motor, self.lift_height)
+            else:                                                                              # 货叉上升
+                self.opt_step[0] = self.robot.lift(self.lift_motor, self.lift_height)
         else:
             self.status = MoveStatus.FINISHED
         lift_state = dict()
@@ -191,13 +221,13 @@ class Module(BasicModule):
         self.state['operation'] = lift_state
         r.logInfo(f"lift: {lift_state}")
 
-    def stretch(self, r, stretch_length):
-        if stretch_length < self.stretch_zero:
-            stretch_length = self.stretch_zero
+    def stretch(self, r):
         if not self.opt_step[0]:
-            # 货叉碰撞检测
-            if not self.fork_collision(r):
-                self.opt_step[0] = self.robot.stretch(self.stretch_motor, stretch_length)
+            if self.stretch_length > self.stretch_zero:   # 货叉伸出
+                if not self.fork_collision(r) and not self.back_laser_check(r):
+                    self.opt_step[0] = self.robot.stretch(self.stretch_motor, self.stretch_length)
+            else:   # 货叉收回
+                self.opt_step[0] = self.robot.stretch(self.stretch_motor, self.stretch_length)
         else:
             self.status = MoveStatus.FINISHED
         stretch_state = dict()
@@ -207,73 +237,85 @@ class Module(BasicModule):
         self.state['operation'] = stretch_state
         r.logInfo(f"stretch: {stretch_state}")
 
-    def load(self, r, lift_height, stretch_length, reach_height):
-        if r.hasGoods():
-            r.setError(f"Fork has goods, cannot load")
-            self.status = MoveStatus.FAILED
-        if lift_height < self.safe_lift_height:
-            lift_height = self.safe_lift_height
-        if reach_height < self.safe_lift_height:
-            reach_height = self.safe_lift_height
+    def load(self, r):
+        if self.lift_height < self.safe_lift_height:
+            self.lift_height = self.safe_lift_height
+        if self.reach_height < self.safe_lift_height:
+            self.reach_height = self.safe_lift_height
+        # 叉车后移固定距离
         if not self.opt_step[0]:
-            # 叉车后移固定距离
-            if not self.fork_collision(r):
-                self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
-                # 计算实际移动距离
-                self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
-                if self.fork_reached(r):
-                    r.setError(f"Error! Fork reach DI has been wrong triggered ")
+            if self.load_method == "RobotMoveFirst":
+                if not self.fork_collision(r) and not self.back_laser_check(r):
+                    self.opt_step[0] = self.fork_reached(r) or self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
+                    self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)  # 计算实际移动距离
+                    if self.opt_step[0]:
+                        self.go_path.reset()
+                        if self.fork_di_dist > 0 and self.actual_move_dist < (self.move_dist - self.fork_di_dist):
+                            r.setError(f"Error! Fork reach DI has been wrong triggered")
+                            self.status = MoveStatus.FAILED
+            elif self.load_method == "ForkStretchFirst":
+                if not self.fork_collision(r) and not self.back_laser_check(r):
+                    self.opt_step[0] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, self.stretch_length)
+                    self.actual_stretch_length = self.get_motor_pos(r, self.stretch_motor_name)  # 计算货叉实际伸出长度
+                    if self.opt_step[0]:
+                        self.stretch_motor.reset()
+            else:
+                self.status = MoveStatus.FAILED
+
+        # 货叉伸出, 到位DI检测
         if self.opt_step[0] and not self.opt_step[1]:
-            if not self.fork_collision(r):
-                # 货叉伸出, 货叉到位DI检测
-                self.opt_step[1] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, stretch_length)
-                if self.opt_step[1]:
-                    # 计算货叉实际伸出长度
-                    motors = r.odo().get('motor_info')
-                    for motor in motors:
-                        if motor['motor_name'] == self.stretch_motor_name:
-                            self.actual_stretch_length = motor['position']
+            if self.load_method == "RobotMoveFirst":
+                if not self.fork_collision(r) and not self.back_laser_check(r):
+                    self.opt_step[1] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, self.stretch_length)
+                    self.actual_stretch_length = self.get_motor_pos(r, self.stretch_motor_name)  # 计算货叉实际伸出长度
+                    if self.opt_step[1]:
+                        self.stretch_motor.reset()
+            elif self.load_method == "ForkStretchFirst":
+                if not self.fork_collision(r) and not self.back_laser_check(r):
+                    self.opt_step[1] = self.fork_reached(r) or self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
+                    self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)  # 计算实际移动距离
+                    if self.opt_step[1]:
+                        self.go_path.reset()
+                        if self.fork_di_dist > 0:
+                            if self.actual_move_dist < (self.move_dist - self.fork_di_dist):
+                                r.setError(f"Error! Fork reach DI has been wrong triggered ")
+                                self.status = MoveStatus.FAILED
+            else:
+                self.status = MoveStatus.FAILED
+
+        # 货叉上升
         if self.opt_step[1] and not self.opt_step[2]:
-            # 货叉到位DI未触发
-            if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:
-                if self.fork_di_dist > 0 and not self.add_move:
-                    # 二次后移
-                    self.add_move = self.fork_reached(r) or self.move(r, {'x': -self.fork_di_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
+            if self.twice_move and not self.fork_reached(r):
+                r.setError(f"Fork reach DI not triggered, check please!")
+                self.status = MoveStatus.FAILED
+            if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:   # 货叉到位DI 已配置且未触发
+                if self.fork_di_dist > 0 and not self.twice_move:
+                    self.twice_move = self.fork_reached(r) or self.move(r, {'x': -self.fork_di_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})   # 二次后移
                     self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
-                    if self.add_move and not self.fork_reached(r):
-                        r.setError(f"Fork reach DI not triggered, check please!")
-                        self.status = MoveStatus.FAILED
                 else:
                     r.setError(f"Fork reach DI not triggered, check please!")
                     self.status = MoveStatus.FAILED
-            else:
+            else:  # 到位 DI 已触发
                 self.go_path.reset()
-                self.stretch_motor.reset()
-                if self.fork_di_dist > 0:
-                    if self.actual_move_dist < (self.move_dist - self.fork_di_dist) or self.actual_stretch_length < (self.max_stretch_length - self.fork_di_dist):
-                        r.setError(f"material maybe too close")
-                        self.status = MoveStatus.FAILED
-                # 货叉上升
-                self.opt_step[2] = self.robot.lift(self.lift_motor, lift_height)
+                self.opt_step[2] = self.robot.lift(self.lift_motor, self.lift_height)
+
+        # 货叉收回
         if self.opt_step[2] and not self.opt_step[3]:
-            # 货叉收回
-            self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
             self.opt_step[3] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
-            if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:
-                r.setError(f"Fork reach DI not triggered, check please!")
-                self.status = MoveStatus.FAILED
+            self.lost_goods_check(r)   # 掉货检测
+
+        # 叉车前移固定距离
         if self.opt_step[3] and not self.opt_step[4]:
-            # 叉车前移固定距离
             self.opt_step[4] = self.move(r, {'x': self.actual_move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 0})
-            if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:
-                r.setError(f"Fork reach DI not triggered, check please!")
-                self.status = MoveStatus.FAILED
+            self.lost_goods_check(r)  # 掉货检测
+
+        # 货叉升降到指定高度
         if self.opt_step[4] and not self.opt_step[5]:
-            # 货叉升降到指定高度
-            self.opt_step[5] = self.robot.lift(self.lift_motor, reach_height)
-            if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:
-                r.setError(f"Fork reach DI not triggered, check please!")
-                self.status = MoveStatus.FAILED
+            if self.reach_height < self.get_motor_pos(r, self.lift_motor_name):
+                self.back_laser_check(r)
+            self.opt_step[5] = self.robot.lift(self.lift_motor, self.reach_height)
+            self.lost_goods_check(r)  # 掉货检测
+
         if all(self.opt_step):
             r.setGoodsShape(0, 0, 0)
             self.status = MoveStatus.FINISHED
@@ -286,32 +328,31 @@ class Module(BasicModule):
         load_state['actual_stretch_length'] = self.actual_stretch_length
         self.state['operation'] = load_state
 
-    def unload(self, r, lift_height, stretch_length, reach_height):
-        if lift_height < self.lift_zero:
-            lift_height = self.lift_zero
-        if reach_height < self.lift_zero:
-            reach_height = self.lift_zero
+    def unload(self, r):
+        # 叉车后移固定距离
         if not self.opt_step[0]:
-            if not self.fork_collision(r):
-                # 叉车后移固定距离
+            if not self.fork_collision(r) and not self.back_laser_check(r):
                 self.opt_step[0] = self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
                 self.actual_move_dist = abs(r.loc().get("x") - self.agv_loc_x)
+        # 货叉伸出
         if self.opt_step[0] and not self.opt_step[1]:
-            if not self.fork_collision(r):
-                # 货叉伸出
-                self.opt_step[1] = self.robot.stretch(self.stretch_motor, stretch_length)
+            if not self.fork_collision(r) and not self.back_laser_check(r):
+                self.opt_step[1] = self.robot.stretch(self.stretch_motor, self.stretch_length)
+                self.actual_stretch_length = self.get_motor_pos(r, self.stretch_motor_name)
+        # 货叉下降到目标位置
         if self.opt_step[1] and not self.opt_step[2]:
-            # 货叉下降到目标位置
-            self.opt_step[2] = self.robot.lift(self.lift_motor, lift_height)
+            self.opt_step[2] = self.robot.lift(self.lift_motor, self.lift_height)
+        # 货叉收回
         if self.opt_step[2] and not self.opt_step[3]:
-            # 货叉收回
             self.opt_step[3] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
+        # 叉车前移固定距离
         if self.opt_step[3] and not self.opt_step[4]:
-            # 叉车前移固定距离
             self.opt_step[4] = self.move(r, {'x': self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 0})
+        # 货叉升降到指定高度
         if self.opt_step[4] and not self.opt_step[5]:
-            # 货叉升降到指定高度
-            self.opt_step[5] = self.robot.lift(self.lift_motor, reach_height)
+            if self.reach_height < self.get_motor_pos(r, self.lift_motor_name):
+                self.back_laser_check(r)
+            self.opt_step[5] = self.robot.lift(self.lift_motor, self.reach_height)
         if all(self.opt_step):
             r.clearGoodsShape()
             self.status = MoveStatus.FINISHED
@@ -320,6 +361,7 @@ class Module(BasicModule):
         unload_state['opt_status'] = self.status
         unload_state['actions'] = self.robot.state
         unload_state['actual_move_dist'] = self.actual_move_dist
+        unload_state['actual_stretch_length'] = self.actual_stretch_length
         self.state['operation'] = unload_state
 
     def move(self, r, move_args) -> bool:
@@ -346,6 +388,20 @@ class Module(BasicModule):
                     return True
         return False
 
+    def back_laser_check(self, r: SimModule) -> bool:
+        """
+        后视激光检测, 有阻挡会自动报错52200，需先调用一次initForkCollisionCheck
+        :param r:
+        :return:
+        """
+        if self.get_motor_pos(r, self.lift_motor_name) > self.laser_valid_height:
+            if r.forkCollisionCheck():
+                r.setError(f"back laser block!")
+                self.suspend(r)
+                return True
+        return False
+
+
     def fork_reached(self, r: SimModule) -> bool:
         """
         货叉到位DI检测
@@ -359,6 +415,32 @@ class Module(BasicModule):
                 if node['status']:
                     return True
         return False
+
+    def lost_goods_check(self, r):
+        """
+        掉货检测
+        :param r:
+        :return:
+        """
+        if not self.fork_reached(r) and self.reach_di1 != -1 and self.reach_di2 != -1:
+            r.setError(f"Goods maybe lost, check please!")
+            self.status = MoveStatus.FAILED
+
+
+    @staticmethod
+    def get_motor_pos(r: SimModule, motor_name: str):
+        """
+        获取指定电机的当前位置
+        :param r: SimModule类对象
+        :param motor_name: 电机名称
+        :return: 返回电机的当前位置，若电机不存在返回False
+        """
+        motors = r.odo().get("motor_info", [])
+        motor_pos = False
+        for m in motors:
+            if m['motor_name'] == motor_name:
+                motor_pos = m.get('position', False)
+        return motor_pos
 
     def cancel(self, r: SimModule):
         r.stopRobot(True)
@@ -467,13 +549,13 @@ class Robot:
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
             return True
         elif motor.status == MoveStatus.FAILED:
             return False
         else:
             motor.run(pos=height, max_vel=max_vel)
         return False
-
 
     def stretch(self, motor: Motor, length: float, max_vel=0.3) -> bool:
         """
@@ -487,6 +569,7 @@ class Robot:
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
             return True
         elif motor.status == MoveStatus.FAILED:
             return False
@@ -499,6 +582,7 @@ class Robot:
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
             return True
         elif motor.status == MoveStatus.FAILED:
             return False
