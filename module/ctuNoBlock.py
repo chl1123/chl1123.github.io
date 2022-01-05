@@ -355,7 +355,7 @@ class Module(BasicModule):
         port = p.loadParam("port", type="int", default=4172, maxValue=999999, minValue=0, comment="port")
         self.start_connect_time = time.time()
         self.max_connect_time = p.loadParam("max_connect_time", type="int", default=10, maxValue=999999, minValue=0,
-                                            comment="链接等待最长时间s")
+                                            comment="连接等待最长时间s")
         self.h = Hairou.Hairou(ip, port)
         self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default=0.5, maxValue=10.0, minValue=0.0,
                                            unit="mm", comment="lift_reach_dist")
@@ -705,11 +705,11 @@ class Module(BasicModule):
         try:
             for c in containers:
                 d = dict()
-                d["binId"] = c['desc']
+                d["binId"] = c['goods_id']
                 d["id"] = int(c['container_name'])
                 d["state"] = int(not c['has_goods'])  # 海柔协议中1表示没有，0表示有
                 d["type"] = 0
-                d["goods"] = c['goods_id']
+                d['goods'] = c['goods_id']
                 trays.append(d)
         except Exception as e:
             r.setError(f"init_trays error---{e}")
@@ -720,7 +720,7 @@ class Module(BasicModule):
         forks = list()
         for i in range(forkDetects_num):
             d = dict()
-            d["binId"] = f"{i + 1}号货叉传感器"
+            d["binId"] = -1
             d["id"] = i
             d["state"] = 1
             d["type"] = 0
@@ -729,6 +729,9 @@ class Module(BasicModule):
 
     def detect_refresh(self, r):
         if "getGoods" in self.state and self.state["getGoods"]["status"] == MoveStatus.FINISHED:
+            if self.has_fork_sensor:  # 如果有货叉传感器，检测货叉是否有货
+                if not self.check_fork(r):
+                    r.setError(f"Failed to pick up the goods! ")
             self.fork_detect[0]["state"] = 0
             self.fork_detect[1]["state"] = 0
             r.logInfo(f"getGoods detect_refresh---{self.fork_detect}")
@@ -776,9 +779,6 @@ class Module(BasicModule):
             if p['key'] == 'goodsId':
                 self.goods_id = p['string_value']
 
-    def clear_tray_state(self, tray_floor, whole):
-        pass
-
     # 更新指定层背篓的状态
     def update_data(self, r, tray_floor, tray_state, goodsId):
         for tray in self.tray_detect:
@@ -791,6 +791,15 @@ class Module(BasicModule):
         for tray in self.tray_detect:
             if tray['id'] == tray_floor:
                 return tray
+
+    # 解析货叉传感器数据，判断货叉中是否有货
+    def check_fork(self, r):
+        fork_detects = self.state.get("forkDetect", None)
+        if fork_detects is not None:
+            for detect in fork_detects:
+                if detect.get('id', None) == 0 and detect.get('state', None) == 0:  # 判断货叉中部传感器光电有效
+                    return True
+        return False
 
     @staticmethod
     def check_goodsId(r, goodsId):
@@ -1490,24 +1499,6 @@ class Module(BasicModule):
         r.logDebug(str_state)
 
 
-class TrayState:
-    def __init__(self, layer: int, height: float, box_name: str, state: int):
-        self.layer = layer
-        self.height = height
-        self.box_name = box_name
-        self.state = state
-
-    def add(self):
-        # 数据库
-        pass
-
-    def delete(self):
-        pass
-
-    def update(self):
-        pass
-
-
 class recBox:
     def __init__(self):
         self.status = MoveStatus.NONE
@@ -1865,7 +1856,7 @@ class prePutGoods:
         device_state = ctu.state["lift"]
         self.status = MoveStatus.RUNNING
         r.logDebug("prePutGoods, {}, {}, {}".format(self.seperate_height, self.operation, device_state["position"]))
-        if self.seperate_height >= 0 and self.operation == "load" and device_state["position"] >= self.seperate_height:
+        if 0 <= self.seperate_height <= device_state["position"] and self.operation == "load":
             self.status = MoveStatus.RUNNING
             if ctu.lift_status is not MoveStatus.FINISHED:
                 ctu.lift(r, self.liftPos)
@@ -1873,7 +1864,7 @@ class prePutGoods:
                 ctu.rotate(r, self.rotAngle)
             if ctu.lift_status is MoveStatus.FINISHED and ctu.rotate_status is MoveStatus.FINISHED:
                 self.status = MoveStatus.FINISHED
-        elif self.seperate_height >= 0 and self.operation == "unload" and self.liftPos >= self.seperate_height:
+        elif 0 <= self.seperate_height <= self.liftPos and self.operation == "unload":
             if ctu.rotate_status is not MoveStatus.FINISHED:
                 ctu.rotate(r, self.rotAngle)
             if ctu.rotate_status is MoveStatus.FINISHED and ctu.lift_status is not MoveStatus.FINISHED:
