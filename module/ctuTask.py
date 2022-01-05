@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/12/16  16: 56
+# @Time : 2021/12/31  12: 56
 # @Author : zhong
-# @Version : 2.1.3
-# @Update: add user error code
+# @Version : 2.1.4
+# @Update: add more user error code
 
 import json
 import time
@@ -581,7 +581,7 @@ class Module(BasicModule):
         :param r: 
         :return: 
         """""
-        for err_code in range(53900, 53905):
+        for err_code in range(53900, 53999):
             if r.errorExits(err_code):
                 r.clearError(err_code)
 
@@ -596,18 +596,12 @@ class Module(BasicModule):
                 try:
                     execution_result = result['res']['executionResult']
                     if execution_result != 0:
-                        error_msg = ErrorMessage.ERROR_CODE.get(execution_result, "undefined error")
-                        if execution_result == 0x80000400:
-                            r.setUserError(53900, f"Error Message: {error_msg}")
-                        elif execution_result == 0x80000401:
-                            r.setUserError(53901, f"Error Message: {error_msg}")
-                        elif execution_result == 0x80000402:
-                            r.setUserError(53902, f"Error Message: {error_msg}")
-                        elif execution_result == 0x80000403:
-                            r.setUserError(53903, f"Error Message: {error_msg}")
+                        error_msg = ErrorMessage.ERROR_CODE.get(execution_result, "user defined error")
+                        if execution_result in range(0x80000400, 0x80000400+100):
+                            r.setUserError(53900 + (execution_result - 0x80000400), f"Error Message: {error_msg}")
                         else:
                             r.setError(f"Error Message: {error_msg}")
                         self.status = MoveStatus.FAILED
                 except Exception as e:
                     r.logDebug(f"check_execution_result error state: {e}")
-                    r.setError(f"check_execution_result error: {e}")  # ERROR_CODE key error
+                    r.setError(f"check execution result key error : {e}")  # ERROR_CODE key error

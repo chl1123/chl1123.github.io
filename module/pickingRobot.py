@@ -96,20 +96,20 @@ class ModuleState(IntEnum):
     ERROR = 4
 
 
-class TargetType(IntEnum):
+class TargetType(IntEnum):   # 相机识别对象
     SHELF = 1
     BOX = 2
 
 
-class BinType(IntEnum):
-    DM_MARKED = 0
-    MARKERLESS = 10,
-    BARCODE = 20
+class BinType(IntEnum):    # 相机识别对象的类型
+    DM_MARKED = 0              # 识别货架/货箱二维码，使用2D相机
+    MARKERLESS = 10          # 识别无二维码货箱，使用3D相机
+    BARCODE = 20                  # 识别货箱一维码，使用2D相机
 
 
-class BinModel(IntEnum):
-    CARTON = 0
-    PLASTICBOX = 1
+class BinModel(IntEnum):       # 料箱类型
+    CARTON = 0            # 纸箱
+    PLASTICBOX = 1       # 有码料箱
 
 
 class Action(IntEnum):
