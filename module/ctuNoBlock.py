@@ -8,10 +8,8 @@
 import json
 import sys
 import time
-
-import pickingRobot as Hairou
-
 sys.path.append("syspy")
+import pickingRobot as Hairou
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 import math
@@ -1043,6 +1041,8 @@ class Module(BasicModule):
                             if not recgo:
                                 r.setError("rec no results.")
                         elif device_state["state"] == Hairou.ModuleState.IDLE:
+                            if r.errorExits(53000):
+                                r.clearError(53000)
                             if self.waitVision.status == MoveStatus.NONE:
                                 self.waitVision.reset()
                             self.waitVision.run(r, self)
@@ -1297,6 +1297,7 @@ class Module(BasicModule):
                             getGoods(self.stretchDist),
                             preRecBox(self.task["recBoxLift"], self.task["rotate"]),
                             recBox(),
+                            waitVision(),
                             prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
                             recAdjust(self.task["visionType"], self.task["visionBinType"],
                                       self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
@@ -1310,6 +1311,7 @@ class Module(BasicModule):
                             getGoods(self.stretchDist),
                             prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
                             recBox(),
+                            waitVision(),
                             recAdjust(self.task["visionType"], self.task["visionBinType"],
                                       self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
