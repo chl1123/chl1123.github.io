@@ -1070,7 +1070,7 @@ class Module(BasicModule):
                             self.waitVision.reset()
                             self.vision_status = MoveStatus.FAILED
                             if not recgo:
-                                r.setError("rec no results.")
+                                r.setWarning("rec no results.")
                         elif device_state["state"] == Hairou.ModuleState.IDLE:
                             if r.errorExits(53000):
                                 r.clearError(53000)
@@ -1253,6 +1253,7 @@ class Module(BasicModule):
             if self.get_tray(r, tray_floor)["state"] == 0:
                 r.setError(f"This tray is full, can not load --- tray:{tray_floor}")
                 self.operation_status = MoveStatus.FAILED
+                self.status = MoveStatus.FAILED
         r.logInfo(f"load begin---trays:{self.tray_detect}---tray_floor:{tray_floor}")
         if tray_floor is None:  # 背篓满了
             if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 1:  # 配置了抓斗container并且抓斗为空，则抓斗取货(999默认表示抓斗)
@@ -1260,6 +1261,7 @@ class Module(BasicModule):
             else:
                 r.setError(f"All trays are full, can not load")
                 self.operation_status = MoveStatus.FAILED
+                self.status = MoveStatus.FAILED
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
@@ -1388,8 +1390,14 @@ class Module(BasicModule):
 
     def changePos(self, r):
         if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 抓斗有货
-            r.setError(f"Dangerous operation! There is goods in the fork, cannot changePos!")
+            r.setError(f"Fork has goods, cannot changePos!")
+            self.status = MoveStatus.FAILED
             return
+        if self.get_tray(r, int(self.task["changePosition1"])).get('state', 0) == 0:
+            r.setError(f"The changePosition1 tray {int(self.task['changePosition1'])} has goods, cannot change goods")
+            self.status = MoveStatus.FAILED
+            return
+
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
