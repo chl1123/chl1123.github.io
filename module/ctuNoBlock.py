@@ -716,7 +716,7 @@ class Module(BasicModule):
         except Exception as e:
             r.logDebug("Other error in print hairou trays state")
         self.report_info(r)  # 数据上报
-        return self.status.value
+        return self.status
 
     @staticmethod
     def init_trays(r, floor: int):
@@ -759,7 +759,8 @@ class Module(BasicModule):
             if self.has_fork_sensor:  # 如果有货叉传感器，检测货叉是否有货
                 if not self.check_fork(r):
                     r.setError(f"Failed to pick up the goods! {self.state.get('forkDetect', 'No data')}")
-                    self.cancel(r)
+                    self.status = MoveStatus.FAILED
+                    return False
             self.fork_detect[0]["state"] = 0
             self.fork_detect[1]["state"] = 0
             r.logInfo(f"getGoods detect_refresh---{self.fork_detect}")
