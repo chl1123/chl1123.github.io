@@ -14,6 +14,7 @@ from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 import math
 import syspy.goPath as goPath
+import requests
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -177,6 +178,14 @@ import syspy.goPath as goPath
     "goodsId": {
         "value": "",
         "type": "string"
+    },
+    "postAddr":{
+        "value":"http://ip:port/api/returnBoxComplete",
+        "type":"strint"
+    },
+    "postData":{
+        "value":{},
+        "type":"string"
     }
 }
 ####END DEFAULT ARGS####
@@ -445,6 +454,7 @@ class Module(BasicModule):
         self.unloadHeight = self.rec_offz_shelf
         self.loadHeight = self.rec_offz_box
         self.h.connect()
+        self.postdata = None
 
     def run(self, r: SimModule, args):
         if r.errorExits(52111):
@@ -458,6 +468,13 @@ class Module(BasicModule):
                 self.unloadHeight = self.task["unloadHeight"]
             if "loadHeight" in self.task:
                 self.loadHeight = self.task["loadHeight"]
+
+            if "postAddr" in self.task and type(self.task["postAddr"]) is str and self.task["postAddr"] != "":
+                addr = self.task["postAddr"]
+                data = self.task.get("postData","")
+                self.postdata = PostData(addr, data)
+                r.logDebug("init post {}, {}".format(addr, data))
+                self.postdata.reset()
 
             # 更新goodsId
             try:
@@ -626,6 +643,15 @@ class Module(BasicModule):
             self.task["_script_first_run_"] = False
             self.status = MoveStatus.RUNNING
             self.operation_status = MoveStatus.NONE
+        
+        if self.status == MoveStatus.FINISHED:
+            if self.postdata is not None:
+                self.postdata.run(r, self)
+                if self.postdata.status == MoveStatus.FINISHED:
+                    self.status = MoveStatus.FINISHED
+                else:
+                    self.status = MoveStatus.RUNNING
+
         movestate = dict()
         movestate["lift"] = self.lift_status
         movestate["rotate"] = self.rotate_status
@@ -1972,7 +1998,7 @@ class waitVision:
         self.wtime = 0.5
         self.start_time = time.time()
 
-    def reset(self):
+    def reset(self, ctu = None):
         self.status = MoveStatus.RUNNING
         self.start_time = time.time()
 
@@ -1985,6 +2011,30 @@ class waitVision:
             else:
                 self.status = MoveStatus.RUNNING
 
+class PostData:
+    def __init__(self, addr, data):
+        self.addr = addr
+        self.data = data
+        self.head = {'Content-Type': 'application/json'}
+        self.status = MoveStatus.NONE
+    def reset(self):
+        self.status = MoveStatus.RUNNING
+    
+    def run(self, r, ctu):
+        if self.status is not MoveStatus.FINISHED:
+            try:
+                res = requests.post(self.addr, data=self.data, headers=self.head)
+                if res.status_code == 200:
+                    self.status = MoveStatus.FINISHED
+                else:
+                    self.status = MoveStatus.RUNNING
+                r.logDebug("response|{}|status|{}".format(str(res), self.status))
+            except requests.exceptions.ConnectionError as e:
+                self.status = MoveStatus.RUNNING
+                r.logDebug("connet to {} is refused".format(self.addr))
+            except Exception as e:
+                self.status = MoveStatus.RUNNING
+                r.logDebug(str(e))
 
 if __name__ == '__main__':
     import syspy.rbkSim
@@ -2119,6 +2169,15 @@ if __name__ == '__main__':
 
     print(m.checkFingerStatus(r, 1))
     print("DONE")
+
+    addr = "http://127.0.0.1:8088/api"
+    data = json.dumps(
+        {
+            "vehicles": []
+        }
+    )
+    p = PostData(addr, data)
+    p.run(r,m)
 
     # yaw = (yaw+math.pi/2)/math.pi*180.0
     # pitch = pitch/math.pi*180
