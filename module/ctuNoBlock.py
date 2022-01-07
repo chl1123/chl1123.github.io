@@ -760,6 +760,7 @@ class Module(BasicModule):
                 if not self.check_fork(r):
                     r.setError(f"Failed to pick up the goods! {self.state.get('forkDetect', 'No data')}")
                     self.status = MoveStatus.FAILED
+                    self.operation_status = MoveStatus.FAILED
                     return False
             self.fork_detect[0]["state"] = 0
             self.fork_detect[1]["state"] = 0
