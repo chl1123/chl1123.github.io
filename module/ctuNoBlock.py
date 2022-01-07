@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/12/5 AM 10:35
+# @Time : 2022/1/7  11:35
 # @Author : huang, zhong
 # @Version : 2.1.4
-# @Support : rbk  3.3.5.11
-# @Update : 1. 数据上报; 2. 兼容goodsId两种参数协议接口; 3. 新增自定义错误码
+# @Support : rbk  3.3.5.11 以上版本
+# @Update : 新增识别货架取货流程，新增空箱检测，修复检测失败报错的问题
 
 import json
 import sys
@@ -642,8 +642,11 @@ class Module(BasicModule):
                 execution_result = self.state['res']['res']['executionResult']
                 if execution_result != 0:
                     fail_description = self.state['res']['res']['failDescription']
-                    r.setError(f"failDescription: {fail_description}")
-                    self.status = MoveStatus.FAILED
+                    r.setError(f"failDescription: {fail_description}, executionResult: {execution_result}")
+                    if fail_description == 'detect failed':
+                        r.clearError(53000)
+                    else:
+                        self.status = MoveStatus.FAILED
             except KeyError as e:
                 r.logDebug("KeyError: " + str(e))
             except Exception as e:
@@ -729,7 +732,7 @@ class Module(BasicModule):
         if "getGoods" in self.state and self.state["getGoods"]["status"] == MoveStatus.FINISHED:
             if self.has_fork_sensor:  # 如果有货叉传感器，检测货叉是否有货
                 if not self.check_fork(r):
-                    r.setError(f"Failed to pick up the goods! ")
+                    r.setError(f"Failed to pick up the goods! {self.state.get('forkDetect', 'No data')}")
             self.fork_detect[0]["state"] = 0
             self.fork_detect[1]["state"] = 0
             r.logInfo(f"getGoods detect_refresh---{self.fork_detect}")
@@ -794,6 +797,7 @@ class Module(BasicModule):
     def check_fork(self, r):
         fork_detects = self.state.get("forkDetect", None)
         if fork_detects is not None:
+            r.logInfo(f"Fork detect: {fork_detects}")
             for detect in fork_detects:
                 if detect.get('id', None) == 0 and detect.get('state', None) == 0:  # 判断货叉中部传感器光电有效
                     return True
@@ -1232,7 +1236,7 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
-                if "visionType" in self.task and self.task["visionType"] == "box":
+                if "visionType" in self.task and self.task["visionType"] == "box":    # 识别料箱进行取货
                     if "visionBinType" not in self.task:
                         self.task["visionBinType"] = "code"
                     self.task_list = [
@@ -1245,6 +1249,16 @@ class Module(BasicModule):
                     ]
                     if tray_floor == 999:
                         self.task_list = self.task_list[:3]
+                elif "visionType" in self.task and self.task["visionType"] == "shelf":   # 识别货架二维码进行取货
+                    self.task_list = [
+                        preGoods(self.task["lift"], self.task["rotate"]),
+                        recAdjust(self.task["visionType"], self.task.get('visionBinType', 'code'), self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
+                        getGoods(self.task["stretch"] + self.loadOffset),
+                        prePutGoods(self.high[tray_floor], 0, "load"),
+                        putGoods(self.stretchDist)
+                    ]
+                    if tray_floor == 999:
+                        self.task_list = self.task_list[2:]
                 else:
                     r.setError("task is wrong in load with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -1437,10 +1451,11 @@ class Module(BasicModule):
                 or stretch_state == Hairou.ModuleState.ERROR \
                 or finger_state == Hairou.ModuleState.ERROR:
             if not r.errorExits(53000):
-                r.setWarning("Picking robot is zero calibrating")
+                r.setWarning(f"Picking robot is zero calibrating: {r.getCount()}")
         else:
             if r.errorExits(53000):
                 r.clearError(53000)
+                r.clearWarning(55300)
         r.logDebug("53000 error : {}".format(r.errorExits(53000)))
 
     def stop(self, r):
