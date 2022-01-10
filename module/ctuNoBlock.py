@@ -409,10 +409,8 @@ class Module(BasicModule):
         # 此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.stretchDist = p.loadParam("stretchDist", type="float", default=752, maxValue=10000.0, minValue=0.0,
                                        unit="mm", comment="放在自己货架上，抽屉伸出长度")
-        # 此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default=-85.0, maxValue=1000.0, minValue=-1000.0,
                                         unit="mm", comment="识别货物后，抓货物时高度的调整距离")
-        # 此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default=50.0, maxValue=1000.0,
                                           minValue=-1000.0, unit="mm", comment="识别货架后，放货物时高度的调整距离")
         self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default=4, maxValue=100, minValue=-1, unit="",
@@ -431,6 +429,7 @@ class Module(BasicModule):
         self.has_tray_sensor = p.loadParam("traySensor", type="int", default=0, comment="背篓是否有货物检测传感器，1为有，0为无")
         self.trays_num = p.loadParam("traysNum", type="int", default=3, comment="背篓层数")
 
+        r.logInfo(f"init args: {args}")
         self.stretch_status = MoveStatus.NONE
         self.lift_status = MoveStatus.NONE
         self.rotate_status = MoveStatus.NONE
@@ -446,8 +445,9 @@ class Module(BasicModule):
         self.task_id = 0
         self.state = dict()
         self.fork_detect = self.init_forksDetects(r, 2)
-        self.tray_detect = self.init_trays(r, self.trays_num)
+        self.tray_detect = self.init_trays(r)
         self.goods_id = ""
+        self.tray_floor = None
         self.goPath = goPath.Module(r, args)
         self.waitVision = waitVision()
         self.waitVision.status = MoveStatus.NONE
@@ -478,9 +478,9 @@ class Module(BasicModule):
 
             # 更新goodsId
             try:
-                self.get_goodsId(r)
                 if "goodsId" in args:
                     self.goods_id = args["goodsId"]
+                self.get_goodsId(r)
             except Exception as e:
                 r.setWarning(f"Please update rbk & core --- {e}")
 
@@ -637,9 +637,7 @@ class Module(BasicModule):
                 self.status = MoveStatus.FINISHED
             else:
                 self.status = MoveStatus.RUNNING
-        if "_script_first_run_" in self.task \
-                and self.task["_script_first_run_"] == True \
-                and self.status is MoveStatus.FINISHED:
+        if "_script_first_run_" in self.task and self.task["_script_first_run_"] is True and self.status is MoveStatus.FINISHED:
             self.task["_script_first_run_"] = False
             self.status = MoveStatus.RUNNING
             self.operation_status = MoveStatus.NONE
@@ -688,7 +686,7 @@ class Module(BasicModule):
         except KeyError as e:
             r.logDebug("KeyError: " + str(e))
         except Exception as e:
-            r.logDebug("Other error in print hairou state")
+            r.logDebug(f"Other error in print hairou state: {e}")
 
         try:
             if "forkDetect" in self.state:
@@ -701,7 +699,7 @@ class Module(BasicModule):
         except KeyError as e:
             r.logDebug("KeyError: " + str(e))
         except Exception as e:
-            r.logDebug("Other error in print hairou forkDetect state")
+            r.logDebug(f"Other error in print hairou forkDetect state: {e}")
 
         try:
             if "trays" in self.state:
@@ -714,32 +712,36 @@ class Module(BasicModule):
         except KeyError as e:
             r.logDebug("KeyError: " + str(e))
         except Exception as e:
-            r.logDebug("Other error in print hairou trays state")
+            r.logDebug(f"Other error in print hairou trays state: {e}")
+
         self.report_info(r)  # 数据上报
         return self.status
 
-    @staticmethod
-    def init_trays(r, floor: int):
+    def init_trays(self, r):
         # 判断 rbk 版本是否支持此脚本
         if "getContainers" in dir(SimModule):
             containers = r.getContainers()
+            tray_num = len(containers)
+            for c in containers:
+                if c.get('container_name', None) == '999':
+                    tray_num -= 1
+            if tray_num != self.trays_num:
+                r.setWarning(f"Please check trays_num in json file")
         else:
             r.setError("rbk version mismatch, please update rbk & rbkSim.py")
             return MoveStatus.FAILED
         trays = list()
-        # if not floor == len(containers):
-        #     r.setError(f"The floors of trays mismatch，please check the trays params")
         try:
             for c in containers:
                 d = dict()
-                d["binId"] = c['goods_id']
+                d["binId"] = '-1'
                 d["id"] = int(c['container_name'])
                 d["state"] = int(not c['has_goods'])  # 海柔协议中1表示没有，0表示有
-                d["type"] = 0
+                d["type"] = -1
                 d['goods'] = c['goods_id']
                 trays.append(d)
         except Exception as e:
-            r.setError(f"init_trays error---{e}")
+            r.setError(f"init_trays error: {e}")
         return trays
 
     @staticmethod
@@ -747,10 +749,10 @@ class Module(BasicModule):
         forks = list()
         for i in range(forkDetects_num):
             d = dict()
-            d["binId"] = -1
+            d["binId"] = '-1'
             d["id"] = i
             d["state"] = 1
-            d["type"] = 0
+            d["type"] = -1
             forks.append(d)
         return forks
 
@@ -758,8 +760,7 @@ class Module(BasicModule):
         if "getGoods" in self.state and self.state["getGoods"]["status"] == MoveStatus.FINISHED:
             if self.has_fork_sensor:  # 如果有货叉传感器，检测货叉是否有货
                 if not self.check_fork(r):
-                    r.setError(f"Failed to pick up the goods! {self.state.get('forkDetect', 'No data')}")
-                    self.status = MoveStatus.FAILED
+                    r.setError(f"Failed to pick up the goods {self.goods_id}! {self.state.get('forkDetect', 'No data')}")
                     self.operation_status = MoveStatus.FAILED
                     return False
             self.fork_detect[0]["state"] = 0
@@ -811,6 +812,8 @@ class Module(BasicModule):
 
     # 更新指定层背篓的状态
     def update_data(self, r, tray_floor, tray_state, goodsId):
+        if tray_floor is None:
+            return
         for tray in self.tray_detect:
             if tray['id'] == tray_floor:
                 tray['state'] = tray_state
@@ -1245,25 +1248,29 @@ class Module(BasicModule):
         self.state["rec"] = cur_state
 
     def load(self, r):
-        if self.goods_id and self.check_goodsId(r, self.goods_id):  # 检查 goodsId 是否已存在
-            r.setError(f"This goodsId already exists")
-            self.operation_status = MoveStatus.FAILED
-            return
-        tray_floor = self.check_trays(r, self.task["lift"], 'load')  # load时，查询空背篓所在层数
-        if "selfPosition" in self.task:  # 脚本参数指定 load 背篓层数
-            tray_floor = int(self.task["selfPosition"])
-            if self.get_tray(r, tray_floor)["state"] == 0:
-                r.setError(f"This tray is full, can not load --- tray:{tray_floor}")
+        if self.operation_status != MoveStatus.FINISHED:
+            if self.goods_id and self.check_goodsId(r, self.goods_id):  # 检查 goodsId 是否已存在
+                r.setError(f"This goodsId already exists")
                 self.operation_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
-        r.logInfo(f"load begin---trays:{self.tray_detect}---tray_floor:{tray_floor}")
-        if tray_floor is None:  # 背篓满了
-            if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 1:  # 配置了抓斗container并且抓斗为空，则抓斗取货(999默认表示抓斗)
-                tray_floor = 999
-            else:
-                r.setError(f"All trays are full, can not load")
-                self.operation_status = MoveStatus.FAILED
-                self.status = MoveStatus.FAILED
+                return
+            self.tray_floor = self.check_trays(r, self.task["lift"], 'load')  # load时，查询空背篓所在层数
+            if "selfPosition" in self.task:  # 脚本参数指定 load 背篓层数
+                self.tray_floor = int(self.task["selfPosition"])
+                if self.get_tray(r, self.tray_floor)["state"] == 0:
+                    r.setError(f"This tray is full, can not load --- tray:{self.tray_floor}")
+                    self.operation_status = MoveStatus.FAILED
+                    self.status = MoveStatus.FAILED
+                    return
+            r.logInfo(f"load begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
+            if self.tray_floor is None:  # 背篓满了
+                if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 1:  # 配置了抓斗container并且抓斗为空，则抓斗取货(999默认表示抓斗)
+                    self.tray_floor = 999
+                else:
+                    r.setError(f"All trays are full, can not load")
+                    self.operation_status = MoveStatus.FAILED
+                    self.status = MoveStatus.FAILED
+                    return
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
@@ -1275,20 +1282,20 @@ class Module(BasicModule):
                         recAdjust(self.task["visionType"], self.task["visionBinType"],
                                   self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                         getGoods(self.task["stretch"] + self.loadOffset),
-                        prePutGoods(self.high[tray_floor], 0, "load"),
+                        prePutGoods(self.high[self.tray_floor], 0, "load"),
                         putGoods(self.stretchDist)
                     ]
-                    if tray_floor == 999:
+                    if self.tray_floor == 999:
                         self.task_list = self.task_list[:3]
                 elif "visionType" in self.task and self.task["visionType"] == "shelf":   # 识别货架二维码进行取货
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
                         recAdjust(self.task["visionType"], self.task.get('visionBinType', 'code'), self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                         getGoods(self.task["stretch"] + self.loadOffset),
-                        prePutGoods(self.high[tray_floor], 0, "load"),
+                        prePutGoods(self.high[self.tray_floor], 0, "load"),
                         putGoods(self.stretchDist)
                     ]
-                    if tray_floor == 999:
+                    if self.tray_floor == 999:
                         self.task_list = self.task_list[2:]
                 else:
                     r.setError("task is wrong in load with recAdjust: {}".format(json.dumps(self.task)))
@@ -1298,17 +1305,17 @@ class Module(BasicModule):
                 self.task_list = [
                     preGoods(self.task["lift"], self.task["rotate"]),
                     getGoods(self.task["stretch"] + self.loadOffset),
-                    prePutGoods(self.high[tray_floor], 0, "load"),
+                    prePutGoods(self.high[self.tray_floor], 0, "load"),
                     putGoods(self.stretchDist)
                 ]
-                if tray_floor == 999:
+                if self.tray_floor == 999:
                     self.task_list = self.task_list[:2]
             self.task_id = 0
         else:
             self.runTakList(r)
 
         if self.operation_status == MoveStatus.FINISHED:
-            self.update_data(r, tray_floor, 0, self.goods_id)
+            self.update_data(r, self.tray_floor, 0, self.goods_id)
             r.logInfo(f"load finish---{self.tray_detect}")
         self.detect_refresh(r)
 
@@ -1318,18 +1325,23 @@ class Module(BasicModule):
         self.state["load"] = cur_state
 
     def unload(self, r):
-        tray_floor = self.check_trays(r, self.task["lift"], 'unload')  # unload时，查询 goodsId 所在背篓层数
-        if "selfPosition" in self.task:  # 指定背篓层数 unload
-            tray_floor = int(self.task["selfPosition"])
-            if self.get_tray(r, tray_floor)["state"] == 1:
-                r.setError(f"This tray is empty, can not unload --- tray:{tray_floor}")
+        if self.operation_status != MoveStatus.FINISHED:
+            self.tray_floor = self.check_trays(r, self.task["lift"], 'unload')  # unload时，查询 goodsId 所在背篓层数
+            if "selfPosition" in self.task:  # 指定背篓层数 unload
+                self.tray_floor = int(self.task["selfPosition"])
+                if self.get_tray(r, self.tray_floor)["state"] == 1:
+                    r.setError(f"This tray is empty, can not unload --- tray:{self.tray_floor}")
+                    self.operation_status = MoveStatus.FAILED
+                    self.status = MoveStatus.FAILED
+                    return
+            if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 如果抓斗有货，则先unload抓斗
+                self.tray_floor = 999
+            r.logInfo(f"unload begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
+            if self.tray_floor is None:
+                r.setError(f"No such goods found, can not unload---goodsId:{self.goods_id}")
                 self.operation_status = MoveStatus.FAILED
-        if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 如果抓斗有货，则先unload抓斗
-            tray_floor = 999
-        r.logInfo(f"unload begin---trays:{self.tray_detect}---tray_floor:{tray_floor}")
-        if tray_floor is None:
-            r.setError(f"No such goods found, can not unload---goodsId:{self.goods_id}")
-            self.operation_status = MoveStatus.FAILED
+                self.status = MoveStatus.FAILED
+                return
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
@@ -1338,7 +1350,7 @@ class Module(BasicModule):
                         self.task["visionBinType"] = "code"
                     if "recBoxLift" in self.task:
                         self.task_list = [
-                            preGoods(self.low[tray_floor], 0),
+                            preGoods(self.low[self.tray_floor], 0),
                             getGoods(self.stretchDist),
                             preRecBox(self.task["recBoxLift"], self.task["rotate"]),
                             recBox(),
@@ -1348,11 +1360,11 @@ class Module(BasicModule):
                                       self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]
-                        if tray_floor == 999:
+                        if self.tray_floor == 999:
                             self.task_list = self.task_list[2:]
                     else:
                         self.task_list = [
-                            preGoods(self.low[tray_floor], 0),
+                            preGoods(self.low[self.tray_floor], 0),
                             getGoods(self.stretchDist),
                             prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
                             recBox(),
@@ -1361,7 +1373,7 @@ class Module(BasicModule):
                                       self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]
-                        if tray_floor == 999:
+                        if self.tray_floor == 999:
                             self.task_list = self.task_list[2:]
                 else:
                     r.setError("task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
@@ -1369,19 +1381,19 @@ class Module(BasicModule):
             else:
                 self.vision_status = MoveStatus.FINISHED
                 self.task_list = [
-                    preGoods(self.low[tray_floor], 0),
+                    preGoods(self.low[self.tray_floor], 0),
                     getGoods(self.stretchDist),
                     prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
                     putGoods(self.task["stretch"])
                 ]
-                if tray_floor == 999:
+                if self.tray_floor == 999:
                     self.task_list = self.task_list[2:]
             self.task_id = 0
         else:
             self.runTakList(r)
 
         if self.operation_status == MoveStatus.FINISHED:
-            self.update_data(r, tray_floor, 1, "")
+            self.update_data(r, self.tray_floor, 1, "")
             r.logInfo(f"unload finish---{self.tray_detect}")
         self.detect_refresh(r)
 
@@ -1393,13 +1405,12 @@ class Module(BasicModule):
     def changePos(self, r):
         if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 抓斗有货
             r.setError(f"Fork has goods, cannot changePos!")
-            self.status = MoveStatus.FAILED
+            self.operation_status = MoveStatus.FAILED
             return
         if self.get_tray(r, int(self.task["changePosition1"])).get('state', 0) == 0:
             r.setError(f"The changePosition1 tray {int(self.task['changePosition1'])} has goods, cannot change goods")
-            self.status = MoveStatus.FAILED
+            self.operation_status = MoveStatus.FAILED
             return
-
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
@@ -1445,7 +1456,6 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.FINISHED:
             tray_floor = int(self.task["putPosition"])
             self.update_data(r, tray_floor, 0, self.goods_id)
-            # self.tray_detect[tray_floor]["state"] = 0
             r.logInfo(f"putPos finish---{self.tray_detect}")
         self.detect_refresh(r)
 
@@ -1584,6 +1594,7 @@ class recBox:
                     r.logDebug(f"Has shelf but not in here. dz {dz} dist {dist_stretch}")
                 else:
                     self.status = MoveStatus.FAILED
+                    ctu.vision_status = MoveStatus.FAILED
                     r.setError("The shelf has box. Cannot unload!!")
         cur_state = dict()
         cur_state["status"] = self.status
@@ -2028,6 +2039,7 @@ class PostData:
         self.data = data
         self.head = {'Content-Type': 'application/json'}
         self.status = MoveStatus.NONE
+        self.start_time = time.time()
     def reset(self):
         self.status = MoveStatus.RUNNING
     
@@ -2039,6 +2051,9 @@ class PostData:
                     self.status = MoveStatus.FINISHED
                 else:
                     self.status = MoveStatus.RUNNING
+                if time.time() - self.start_time > 60:
+                    r.setWarning(f"Response time out: 60s")
+                    self.status = MoveStatus.FAILED
                 r.logDebug("response|{}|status|{}".format(str(res), self.status))
             except requests.exceptions.ConnectionError as e:
                 self.status = MoveStatus.RUNNING
