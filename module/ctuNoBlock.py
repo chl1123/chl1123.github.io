@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/1/7  11:35
+# @Time : 2022/1/11  13:20
 # @Author : huang, zhong
-# @Version : 2.1.4
+# @Version : 2.1.5
 # @Support : rbk  3.3.5.11 以上版本
-# @Update : 新增识别货架取货流程，新增空箱检测，修复检测失败报错的问题
+# @Update : 新增空箱回报，修复change动作相关问题，修改ctu连接超时报错，修复识别货架 N+1 取货时抓斗取货异常问题
 
 import json
 import sys
@@ -471,7 +471,7 @@ class Module(BasicModule):
 
             if "postAddr" in self.task and type(self.task["postAddr"]) is str and self.task["postAddr"] != "":
                 addr = self.task["postAddr"]
-                data = self.task.get("postData","")
+                data = self.task.get("postData", "")
                 self.postdata = PostData(addr, data)
                 r.logDebug("init post {}, {}".format(addr, data))
                 self.postdata.reset()
@@ -482,7 +482,7 @@ class Module(BasicModule):
                     self.goods_id = args["goodsId"]
                 self.get_goodsId(r)
             except Exception as e:
-                r.setWarning(f"Please update rbk & core --- {e}")
+                r.setWarning(f"Please update rbk & core: {e}")
 
         if not self.h.isconnect:
             self.state["init"] = self.h.initDevice(r)
@@ -492,22 +492,19 @@ class Module(BasicModule):
             r.logDebug(str_state)
             dtime = time.time() - self.start_connect_time
             if dtime > self.max_connect_time:
-                r.setError("ctu connect is overtime: {}".format(self.max_connect_time))
-                self.status = MoveStatus.FAILED
-            return self.status
+                r.setWarning("ctu connect is overtime: {}".format(self.max_connect_time))
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
             try:
                 rbk_version = r.robokitVersion()
                 self.state['rbk'] = rbk_version
             except Exception as e:
-                r.setWarning(f"please update rbk & rbkSim.py -- {e}")
-
+                r.setWarning(f"please update rbk & rbkSim.py: {e}")
             if "connect_error" in self.state:
                 dtime = time.time() - self.start_connect_time
                 if dtime > self.max_connect_time:
-                    r.setError("ctu connect is overtime: {}".format(self.max_connect_time))
-                    self.status = MoveStatus.FAILED
+                    r.setWarning("ctu connect is overtime: {}".format(self.max_connect_time))
+                    # self.status = MoveStatus.FAILED
                     str_state = json.dumps(self.state)
                     r.setInfo(str_state)
                     r.logDebug(str_state)
@@ -647,6 +644,8 @@ class Module(BasicModule):
                 self.postdata.run(r, self)
                 if self.postdata.status == MoveStatus.FINISHED:
                     self.status = MoveStatus.FINISHED
+                elif self.postdata.status == MoveStatus.FAILED:
+                    self.status = MoveStatus.FAILED
                 else:
                     self.status = MoveStatus.RUNNING
 
@@ -1079,6 +1078,8 @@ class Module(BasicModule):
                         elif device_state["state"] == Hairou.ModuleState.IDLE:
                             if r.errorExits(53000):
                                 r.clearError(53000)
+                            if r.warningExits(55300):
+                                r.clearWarning(55300)
                             if self.waitVision.status == MoveStatus.NONE:
                                 self.waitVision.reset()
                             self.waitVision.run(r, self)
@@ -1250,7 +1251,7 @@ class Module(BasicModule):
     def load(self, r):
         if self.operation_status != MoveStatus.FINISHED:
             if self.goods_id and self.check_goodsId(r, self.goods_id):  # 检查 goodsId 是否已存在
-                r.setError(f"This goodsId already exists")
+                r.setError(f"This good already exists: {self.goods_id}")
                 self.operation_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
                 return
@@ -1258,7 +1259,7 @@ class Module(BasicModule):
             if "selfPosition" in self.task:  # 脚本参数指定 load 背篓层数
                 self.tray_floor = int(self.task["selfPosition"])
                 if self.get_tray(r, self.tray_floor)["state"] == 0:
-                    r.setError(f"This tray is full, can not load --- tray:{self.tray_floor}")
+                    r.setError(f"This tray is full, can not load， tray:{self.tray_floor}")
                     self.operation_status = MoveStatus.FAILED
                     self.status = MoveStatus.FAILED
                     return
@@ -1279,8 +1280,7 @@ class Module(BasicModule):
                         self.task["visionBinType"] = "code"
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task["visionBinType"],
-                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
+                        recAdjust(self.task["visionType"], self.task["visionBinType"], self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                         getGoods(self.task["stretch"] + self.loadOffset),
                         prePutGoods(self.high[self.tray_floor], 0, "load"),
                         putGoods(self.stretchDist)
@@ -1296,7 +1296,7 @@ class Module(BasicModule):
                         putGoods(self.stretchDist)
                     ]
                     if self.tray_floor == 999:
-                        self.task_list = self.task_list[2:]
+                        self.task_list = self.task_list[:3]
                 else:
                     r.setError("task is wrong in load with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -1330,7 +1330,7 @@ class Module(BasicModule):
             if "selfPosition" in self.task:  # 指定背篓层数 unload
                 self.tray_floor = int(self.task["selfPosition"])
                 if self.get_tray(r, self.tray_floor)["state"] == 1:
-                    r.setError(f"This tray is empty, can not unload --- tray:{self.tray_floor}")
+                    r.setError(f"This tray is empty, can not unload:  tray:{self.tray_floor}")
                     self.operation_status = MoveStatus.FAILED
                     self.status = MoveStatus.FAILED
                     return
@@ -1338,7 +1338,7 @@ class Module(BasicModule):
                 self.tray_floor = 999
             r.logInfo(f"unload begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
             if self.tray_floor is None:
-                r.setError(f"No such goods found, can not unload---goodsId:{self.goods_id}")
+                r.setError(f"No such goods found, can not unload, goodsId:{self.goods_id}")
                 self.operation_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
                 return
@@ -1408,7 +1408,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.FAILED
             return
         if self.get_tray(r, int(self.task["changePosition1"])).get('state', 0) == 0:
-            r.setError(f"The changePosition1 tray {int(self.task['changePosition1'])} has goods, cannot change goods")
+            r.setError(f"The target tray {int(self.task['changePosition1'])} has goods, cannot change goods")
             self.operation_status = MoveStatus.FAILED
             return
         if self.operation_status == MoveStatus.NONE:
@@ -1431,7 +1431,7 @@ class Module(BasicModule):
                 self.update_data(r, trays_floor1, 0, self.get_tray(r, trays_floor0)['goods'])
                 self.update_data(r, trays_floor0, 1, "")
             except Exception as e:
-                r.setError(f"get_tray: trays_floor0 error, not found goods---{e}")
+                r.setError(f"changePosition0: not found goods: {e}")
             r.logInfo(f"changePos finish ---{self.tray_detect}")
         self.detect_refresh(r)
 
@@ -1668,7 +1668,7 @@ class recAdjust:
                         dist = res[method]["dist"]
                         dtheta = res[method]["yaw"] * math.pi / 180.0
                     else:
-                        r.setError(" binType error: {}".format(self.visionBinType))
+                        r.setError(" visionBinType Type is wrong:: {}".format(self.visionBinType))
                         ctu.vision_status = MoveStatus.FAILED
                         self.status = MoveStatus.FAILED
                     ddtheta = normalize_theta(dtheta - ctu.state["rotate"]["position"])
@@ -2033,6 +2033,7 @@ class waitVision:
             else:
                 self.status = MoveStatus.RUNNING
 
+
 class PostData:
     def __init__(self, addr, data):
         self.addr = addr
@@ -2040,32 +2041,35 @@ class PostData:
         self.head = {'Content-Type': 'application/json'}
         self.status = MoveStatus.NONE
         self.start_time = time.time()
+
     def reset(self):
         self.status = MoveStatus.RUNNING
     
     def run(self, r, ctu):
+        err_str = ''
         if self.status is not MoveStatus.FINISHED:
             try:
                 res = requests.post(self.addr, data=self.data, headers=self.head)
+                err_str = "response | {} | status | {}".format(str(res), self.status)
                 if res.status_code == 200:
                     self.status = MoveStatus.FINISHED
                 else:
                     self.status = MoveStatus.RUNNING
-                if time.time() - self.start_time > 60:
-                    r.setWarning(f"Response time out: 60s")
-                    self.status = MoveStatus.FAILED
                 r.logDebug("response|{}|status|{}".format(str(res), self.status))
             except requests.exceptions.ConnectionError as e:
                 self.status = MoveStatus.RUNNING
-                r.logDebug("connet to {} is refused".format(self.addr))
+                err_str = "connect to {} is refused".format(self.addr)
+                r.logDebug("connect to {} is refused".format(self.addr))
             except Exception as e:
+                err_str = str(e)
                 self.status = MoveStatus.RUNNING
                 r.logDebug(str(e))
+        if time.time() - self.start_time > 30:
+            r.setWarning(f"Response time out: 30s {err_str}")
+            self.status = MoveStatus.FAILED
 
 if __name__ == '__main__':
-    import syspy.rbkSim
-
-    r = syspy.rbkSim.SimModule()
+    r = SimModule()
     m = Module(r, None)
     m.suspend(r)
     data = dict()
@@ -2203,7 +2207,7 @@ if __name__ == '__main__':
         }
     )
     p = PostData(addr, data)
-    p.run(r,m)
+    p.run(r, m)
 
     # yaw = (yaw+math.pi/2)/math.pi*180.0
     # pitch = pitch/math.pi*180
