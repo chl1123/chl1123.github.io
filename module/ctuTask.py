@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/12/31  12: 56
+# @Time : 2021/1/11  14: 25
 # @Author : zhong
-# @Version : 2.1.4
-# @Update: add more user error code
+# @Version : 2.1.5
+# @Update: 1. 修复内、外部取、放货时报错问题； 2. 添加更多自定义报错码
 
 import json
 import time
@@ -349,7 +349,7 @@ class Module(BasicModule):
                         if self.h.internal_bin_op_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
-                        r.setError(f"internal_opt exception: {e}---{self.h.seqNum_req}")
+                        r.setWarning(f"internal_opt exception: {e}, {self.state}")
                         return MoveStatus.FAILED
 
                 elif args['operation'] == 'external_opt':
@@ -385,7 +385,7 @@ class Module(BasicModule):
                         if self.h.external_bin_op_res['status'] == Action.FINISHED:
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
-                        r.setError(f"external_opt exception: {e}")
+                        r.setWarning(f"external_opt exception: {e}, {self.state}")
                         return MoveStatus.FAILED
 
                 elif args['operation'] == 'task_resume':
@@ -592,16 +592,28 @@ class Module(BasicModule):
         :param result:
         """
         if "res" in result:
+            # result: {"status": 2, "seqNum": 1, "res": {"executionResult": 2147484676, "failDescription": "there is box in fork!", "msgType": 255, "resMessageType": 90, "resOptType": 2, "robotId": "", "seqNum": 1}}
             if "executionResult" in result['res']:
                 try:
                     execution_result = result['res']['executionResult']
                     if execution_result != 0:
-                        error_msg = ErrorMessage.ERROR_CODE.get(execution_result, "user defined error")
-                        if execution_result in range(0x80000400, 0x80000400+100):
-                            r.setUserError(53900 + (execution_result - 0x80000400), f"Error Message: {error_msg}")
+                        if "failDescription" in result['res']:
+                            error_msg = result['res']['failDescription']
+                        else:
+                            error_msg = ErrorMessage.ERROR_CODE.get(execution_result, "user defined error")
+                        if execution_result in range(2147484672, 2147484672+100):
+                            r.setUserError(53900 + (execution_result - 2147484672), f"Error Message: {error_msg}")
                         else:
                             r.setError(f"Error Message: {error_msg}")
                         self.status = MoveStatus.FAILED
                 except Exception as e:
-                    r.logDebug(f"check_execution_result error state: {e}")
-                    r.setError(f"check execution result key error : {e}")  # ERROR_CODE key error
+                    r.setWarning(f"check execution result key error : {e}, res: {result['res']}")  # ERROR_CODE key error
+
+
+if __name__ == '__main__':
+    error_msg1 = ErrorMessage.ERROR_CODE.get(2147484672, "user defined error")
+    error_msg2 = ErrorMessage.ERROR_CODE.get(2147484672+3, "user defined error")
+    error_msg3 = ErrorMessage.ERROR_CODE.get(2147484672+4, "user defined error")
+    print(error_msg1)
+    print(error_msg2)
+    print(error_msg3)

@@ -183,10 +183,10 @@ class recAdjust:
                 r.setNotice("rec fail!!! {}".format(self.rec_fail_time))
             elif self.rec.status is MoveStatus.FINISHED:
                 self.rec_fail_time = 0
-                code2world = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]
+                code2world = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]  # 目标点在世界坐标系的位置
                 loc = r.loc()
-                robot2world = [loc['x'], loc['y'], loc['angle']]
-                code2robot = Pos2Base(code2world, robot2world)
+                robot2world = [loc['x'], loc['y'], loc['angle']]  # 小车在世界坐标系的位置
+                code2robot = Pos2Base(code2world, robot2world)   # 目标点相对小车的位置
                 self.go_args["coordinate"] = "robot"
                 self.go_args["x"] = code2robot[0]
                 self.go_args["y"] = 0
