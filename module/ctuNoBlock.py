@@ -2037,13 +2037,7 @@ class waitVision:
 class PostData:
     def __init__(self, addr, data):
         self.addr = addr
-        self.data = ""
-        if type(data) is dict:
-            self.data = json.dumps(data)
-        elif type(data) is not str:
-            self.data = str(data)
-        else:
-            self.data = data
+        self.data = data
         self.head = {'Content-Type': 'application/json'}
         self.status = MoveStatus.NONE
         self.start_time = time.time()
@@ -2055,7 +2049,7 @@ class PostData:
         err_str = ''
         if self.status is not MoveStatus.FINISHED:
             try:
-                res = requests.post(self.addr, data=self.data, headers=self.head)
+                res = requests.post(self.addr, json =self.data, headers=self.head)
                 err_str = "response | {} | status | {}".format(str(res), self.status)
                 if res.status_code == 200:
                     self.status = MoveStatus.FINISHED
