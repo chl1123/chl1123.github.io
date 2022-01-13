@@ -2037,7 +2037,13 @@ class waitVision:
 class PostData:
     def __init__(self, addr, data):
         self.addr = addr
-        self.data = data
+        self.data = ""
+        if type(data) is dict:
+            self.data = json.dumps(data)
+        elif type(data) is not str:
+            self.data = str(data)
+        else:
+            self.data = data
         self.head = {'Content-Type': 'application/json'}
         self.status = MoveStatus.NONE
         self.start_time = time.time()
