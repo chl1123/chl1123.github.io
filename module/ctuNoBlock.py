@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/1/11  13:20
+# @Time : 2022/1/13  13:20
 # @Author : huang, zhong
 # @Version : 2.1.5
 # @Support : rbk  3.3.5.11 以上版本
@@ -365,13 +365,13 @@ class Module(BasicModule):
                                             comment="连接等待最长时间s")
         self.h = Hairou.Hairou(ip, port)
         self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default=0.5, maxValue=10.0, minValue=0.0,
-                                           unit="mm", comment="lift_reach_dist")
+                                           unit="mm", comment="升降机构到位精度")
         self.rotate_reach_angle = p.loadParam("rotate_reach_angle", type="float", default=0.01, maxValue=10.0,
-                                              minValue=0.0, unit="rad", comment="rotate_reach_angle")
+                                              minValue=0.0, unit="rad", comment="旋转到位精度")
         self.stretch_reach_dist = p.loadParam("stretch_reach_dist", type="float", default=0.5, maxValue=10.0,
-                                              minValue=0.0, unit="mm", comment="stretch_reach_dist")
+                                              minValue=0.0, unit="mm", comment="伸缩到位精度")
         self.maxStretchDist = p.loadParam("max_stretch_dist", type="float", default=920.0, maxValue=10000.0,
-                                          minValue=0.0, unit="mm", comment="stretch_max_dist")
+                                          minValue=0.0, unit="mm", comment="伸缩臂最大伸出长度")
         self.init = True
         self.task = dict()
         self.low = dict({0: 740, 1: 1130, 2: 1520, 3: 1910, 4: 2300})  # mm
@@ -408,11 +408,11 @@ class Module(BasicModule):
                                      comment="抓斗放货")
         # 此处修改的是默认值，最终执行请在“ctuNoBlock.json"里进行更改
         self.stretchDist = p.loadParam("stretchDist", type="float", default=752, maxValue=10000.0, minValue=0.0,
-                                       unit="mm", comment="放在自己货架上，抽屉伸出长度")
+                                       unit="mm", comment="放在自己货架上，伸缩臂伸出长度")
         self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default=-85.0, maxValue=1000.0, minValue=-1000.0,
-                                        unit="mm", comment="识别货物后，抓货物时高度的调整距离")
+                                        unit="mm", comment="识别货物后，抓货物时高度的调整距离，根据料箱二维码高度调整")
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default=50.0, maxValue=1000.0,
-                                          minValue=-1000.0, unit="mm", comment="识别货架后，放货物时高度的调整距离")
+                                          minValue=-1000.0, unit="mm", comment="识别货架后，放货物时高度的调整距离，根据货架二维码高度调整")
         self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default=4, maxValue=100, minValue=-1, unit="",
                                          comment="货叉上限位DI")
         self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default=2, maxValue=100, minValue=-1, unit="",

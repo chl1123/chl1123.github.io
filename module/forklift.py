@@ -2,7 +2,7 @@
 # @Time : 2021/12/20 15:10
 # @Author : zhong
 # @File :forklift.py
-# @Request : test_center#856 前移叉车脚本，方案1：先叉车后移，后伸货叉
+# @Request : test_center#856 前移叉车脚本，增加方案可选参数，同时支持两种取货方案
 # @Version: 1.7
 import enum
 import json
