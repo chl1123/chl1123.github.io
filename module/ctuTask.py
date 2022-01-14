@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/1/13  14: 25
+# @Time : 2021/1/14  14: 10
 # @Author : zhong
-# @Version : 2.1.5
-# @Update: 1. 修复内、外部取、放货时报错问题； 2. 添加更多自定义报错码
+# @Version : 2.1.6
+# @Update: 1. 修复内、外部取放货时未收到上报数据报错问题
 
 import json
 import time
@@ -275,12 +275,9 @@ class Module(BasicModule):
                         r.setNotice(json.dumps(self.h.switch_mode_res))
                         self.state['result'] = self.h.switch_mode_res
                         if self.h.switch_mode_res['status'] == Action.FINISHED:
-                            # self.msg_send = False
                             self.status = MoveStatus.FINISHED
-                        # return self.status
                     except Exception as e:
                         r.setWarning(f"switch_mode exception: {e}")
-                        self.h.task_resume(r, self.robotId)
 
                 elif args['operation'] == 'preaction':
                     try:
@@ -293,7 +290,6 @@ class Module(BasicModule):
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
                         r.setWarning(f"preaction exception: {e}")
-                        self.h.task_resume(r, self.robotId)
 
                 elif args['operation'] == 'robot_reset':
                     r.logInfo(f"robot is resetting...")
@@ -327,19 +323,7 @@ class Module(BasicModule):
 
                 elif args['operation'] == 'internal_opt':
                     try:
-                        if self.state:  # 检查机构状态，并自动进行异常状态恢复
-                            finger = self.state['finger'] if "finger" in self.state else None
-                            rotate = self.state['rotate']
-                            stretch = self.state['stretch']
-                            lift = self.state['lift']
-                            if (finger and finger['state'] in [4, 0]) or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or lift['state'] in [4, 0]:
-                                if not self.resume_send:
-                                    r.setWarning(f"internal_opt: machine abnormality, task is resuming")
-                                    self.h.task_resume(r, self.robotId)
-                                    self.resume_send = True
-                            else:
-                                self.resume_send = False
-
+                        self.check_module_state(r)
                         if not self.msg_send:
                             self.h.internal_bin_op(r, self.robotId, self.opType, self.binId, self.binType, self.binModel, self.srcTray, self.dstTray, self.targetTray)
                             self.msg_send = True
@@ -350,23 +334,11 @@ class Module(BasicModule):
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
                         r.setWarning(f"internal_opt exception: {e}, {self.state}")
-                        return MoveStatus.FAILED
+                        # return MoveStatus.FAILED
 
                 elif args['operation'] == 'external_opt':
                     try:
-                        if self.state:  # 检查机构状态，并自动进行异常状态恢复
-                            finger = self.state['finger'] if "finger" in self.state else None
-                            rotate = self.state['rotate']
-                            stretch = self.state['stretch']
-                            lift = self.state['lift']
-                            if (finger and finger['state'] in [4, 0]) or rotate['state'] in [4, 0] or stretch['state'] in [4, 0] or lift['state'] in [4, 0]:
-                                if not self.resume_send:
-                                    r.setWarning(f"external_opt: machine abnormality--- task is resuming")
-                                    self.h.task_resume(r, self.robotId)
-                                    self.resume_send = True
-                            else:
-                                self.resume_send = False
-
+                        self.check_module_state(r)
                         if not self.msg_send:
                             self.h.external_bin_op(r, self.robotId, self.opType, self.binId, self.targetPosition,
                                                    self.targetHeight, self.binType, self.binModel, self.locationType)
@@ -386,7 +358,7 @@ class Module(BasicModule):
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
                         r.setWarning(f"external_opt exception: {e}, {self.state}")
-                        return MoveStatus.FAILED
+                        # return MoveStatus.FAILED
 
                 elif args['operation'] == 'task_resume':
                     r.setWarning(f"task_resume: task is resuming...")
@@ -608,6 +580,23 @@ class Module(BasicModule):
                         self.status = MoveStatus.FAILED
                 except Exception as e:
                     r.setWarning(f"check execution result key error : {e}, res: {result['res']}")  # ERROR_CODE key error
+
+    def check_module_state(self, r):
+        if self.state:  # 检查机构状态，并自动进行异常状态恢复
+            finger = self.state["finger"] if "finger" in self.state else None
+            rotate = self.state["rotate"] if "rotate" in self.state else None
+            stretch = self.state["stretch"] if "stretch" in self.state else None
+            lift = self.state["lift"] if "lift" in self.state else None
+            if (finger and finger['state'] in [4, 0]) or (rotate and rotate['state'] in [4, 0]) or (
+                    stretch and stretch['state'] in [4, 0]) or (lift and lift['state'] in [4, 0]):
+                if not self.resume_send:
+                    r.setWarning(f"check module state error, task is resuming")
+                    self.h.task_resume(r, self.robotId)
+                    self.resume_send = True
+            else:
+                self.resume_send = False
+        pass
+
 
 
 if __name__ == '__main__':
