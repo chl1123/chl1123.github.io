@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/1/13  13:20
+# @Time : 2022/1/17  11:20
 # @Author : huang, zhong
-# @Version : 2.1.5
+# @Version : 2.1.6
 # @Support : rbk  3.3.5.11 以上版本
-# @Update : 新增空箱回报，修复change动作相关问题，修改ctu连接超时报错，修复识别货架 N+1 取货时抓斗取货异常问题
+# @Update : post 数据成功后不再发送
 
 import json
 import sys
@@ -2041,6 +2041,7 @@ class PostData:
         self.head = {'Content-Type': 'application/json'}
         self.status = MoveStatus.NONE
         self.start_time = time.time()
+        self.post_send = False
 
     def reset(self):
         self.status = MoveStatus.RUNNING
@@ -2049,13 +2050,15 @@ class PostData:
         err_str = ''
         if self.status is not MoveStatus.FINISHED:
             try:
-                res = requests.post(self.addr, json =self.data, headers=self.head)
-                err_str = "response | {} | status | {}".format(str(res), self.status)
-                if res.status_code == 200:
-                    self.status = MoveStatus.FINISHED
-                else:
-                    self.status = MoveStatus.RUNNING
-                r.logDebug("response|{}|status|{}".format(str(res), self.status))
+                if not self.post_send:
+                    res = requests.post(self.addr, json =self.data, headers=self.head)
+                    err_str = "response | {} | status | {}".format(str(res), self.status)
+                    if res.status_code == 200:
+                        self.post_send = True
+                        self.status = MoveStatus.FINISHED
+                    else:
+                        self.status = MoveStatus.RUNNING
+                    r.logDebug("response|{}|status|{}".format(str(res), self.status))
             except requests.exceptions.ConnectionError as e:
                 self.status = MoveStatus.RUNNING
                 err_str = "connect to {} is refused".format(self.addr)
@@ -2067,6 +2070,7 @@ class PostData:
         if time.time() - self.start_time > 30:
             r.setWarning(f"Response time out: 30s {err_str}")
             self.status = MoveStatus.FAILED
+
 
 if __name__ == '__main__':
     r = SimModule()
