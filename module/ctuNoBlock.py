@@ -662,9 +662,9 @@ class Module(BasicModule):
 
         if "res" in self.state:
             try:
-                execution_result = self.state['res']['res']['executionResult']
+                execution_result = self.state['res']['res'].get('executionResult', 0)
                 if execution_result != 0:
-                    fail_description = self.state['res']['res']['failDescription']
+                    fail_description = self.state['res']['res'].get('failDescription', '')
                     r.setError(f"failDescription: {fail_description}, executionResult: {execution_result}")
                     if fail_description == 'detect failed':
                         r.clearError(53000)
@@ -1253,7 +1253,6 @@ class Module(BasicModule):
             if self.goods_id and self.check_goodsId(r, self.goods_id):  # 检查 goodsId 是否已存在
                 r.setError(f"This good already exists: {self.goods_id}")
                 self.operation_status = MoveStatus.FAILED
-                self.status = MoveStatus.FAILED
                 return
             self.tray_floor = self.check_trays(r, self.task["lift"], 'load')  # load时，查询空背篓所在层数
             if "selfPosition" in self.task:  # 脚本参数指定 load 背篓层数
@@ -1261,7 +1260,6 @@ class Module(BasicModule):
                 if self.get_tray(r, self.tray_floor)["state"] == 0:
                     r.setError(f"This tray is full, can not load， tray:{self.tray_floor}")
                     self.operation_status = MoveStatus.FAILED
-                    self.status = MoveStatus.FAILED
                     return
             r.logInfo(f"load begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
             if self.tray_floor is None:  # 背篓满了
@@ -1270,7 +1268,6 @@ class Module(BasicModule):
                 else:
                     r.setError(f"All trays are full, can not load")
                     self.operation_status = MoveStatus.FAILED
-                    self.status = MoveStatus.FAILED
                     return
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -1332,15 +1329,17 @@ class Module(BasicModule):
                 if self.get_tray(r, self.tray_floor)["state"] == 1:
                     r.setError(f"This tray is empty, can not unload:  tray:{self.tray_floor}")
                     self.operation_status = MoveStatus.FAILED
-                    self.status = MoveStatus.FAILED
                     return
             if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 如果抓斗有货，则先unload抓斗
                 self.tray_floor = 999
+                if self.get_tray(r, 999).get('goods', '') != self.goods_id:
+                    r.setError(f"Must unload 999 container first")
+                    self.operation_status = MoveStatus.FAILED
+                    return
             r.logInfo(f"unload begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
             if self.tray_floor is None:
                 r.setError(f"No such goods found, can not unload, goodsId:{self.goods_id}")
                 self.operation_status = MoveStatus.FAILED
-                self.status = MoveStatus.FAILED
                 return
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING

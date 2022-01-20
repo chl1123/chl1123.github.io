@@ -567,14 +567,15 @@ class Module(BasicModule):
             # result: {"status": 2, "seqNum": 1, "res": {"executionResult": 2147484676, "failDescription": "there is box in fork!", "msgType": 255, "resMessageType": 90, "resOptType": 2, "robotId": "", "seqNum": 1}}
             if "executionResult" in result['res']:
                 try:
-                    execution_result = result['res']['executionResult']
+                    execution_result = int(result['res'].get('executionResult', 0))
                     if execution_result != 0:
+                        r.logInfo(f"result: {result}")
                         if "failDescription" in result['res']:
                             error_msg = result['res']['failDescription']
                         else:
                             error_msg = ErrorMessage.ERROR_CODE.get(execution_result, "user defined error")
                         if execution_result in range(2147484672, 2147484672+100):
-                            r.setUserError(53900 + (execution_result - 2147484672), f"Error Message: {error_msg}")
+                            r.setUserError(53900 + (execution_result - int(2147484672)), f"Error Message: {error_msg}")
                         else:
                             r.setError(f"Error Message: {error_msg}")
                         self.status = MoveStatus.FAILED
