@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/1/17  11:20
+# @Time : 2022/1/20  11:20
 # @Author : huang, zhong
-# @Version : 2.1.6
+# @Version : 2.1.7
 # @Support : rbk  3.3.5.11 以上版本
-# @Update : post 数据成功后不再发送
+# @Update : 优化N+1放货报错提示
 
 import json
 import sys
@@ -181,7 +181,7 @@ import requests
     },
     "postAddr":{
         "value":"http://ip:port/api/returnBoxComplete",
-        "type":"strint"
+        "type":"string"
     },
     "postData":{
         "value":{},
@@ -1076,8 +1076,8 @@ class Module(BasicModule):
                             if not recgo:
                                 r.setWarning("rec no results.")
                         elif device_state["state"] == Hairou.ModuleState.IDLE:
-                            if r.errorExits(53000):
-                                r.clearError(53000)
+                            # if r.errorExits(53000):
+                            #     r.clearError(53000)
                             if r.warningExits(55300):
                                 r.clearWarning(55300)
                             if self.waitVision.status == MoveStatus.NONE:
@@ -1333,7 +1333,7 @@ class Module(BasicModule):
             if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 如果抓斗有货，则先unload抓斗
                 self.tray_floor = 999
                 if self.get_tray(r, 999).get('goods', '') != self.goods_id:
-                    r.setError(f"Must unload 999 container first")
+                    r.setError(f"must unload 999 container first")
                     self.operation_status = MoveStatus.FAILED
                     return
             r.logInfo(f"unload begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
@@ -2050,7 +2050,7 @@ class PostData:
         if self.status is not MoveStatus.FINISHED:
             try:
                 if not self.post_send:
-                    res = requests.post(self.addr, json =self.data, headers=self.head)
+                    res = requests.post(self.addr, json=self.data, headers=self.head)
                     err_str = "response | {} | status | {}".format(str(res), self.status)
                     if res.status_code == 200:
                         self.post_send = True

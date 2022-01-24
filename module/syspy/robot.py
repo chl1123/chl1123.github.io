@@ -15,49 +15,65 @@ from rbk import MoveStatus
 from rbkSim import SimModule
 
 
-def check_DI(r: SimModule, di: int):
+class ModuleTool:
     """
-    检测单个DI是否被触发
-    :param r: SimModule类对象
-    :param di: 需要检测的DI
-    :return: 返回指定DI的状态，若DI不存在返回False
+    机构脚本工具接口类
     """
-    DI = r.Di()
-    nodes = DI.get('node', list())
-    for node in nodes:
-        if node['id'] == di:
-            return node['status']
-    return False
+    start_time = None
 
+    @staticmethod
+    def check_DI(r: SimModule, di: int):
+        """
+        检测单个DI是否被触发
+        :param r: SimModule类对象
+        :param di: 需要检测的DI
+        :return: 返回指定DI的状态，若DI不存在返回False
+        """
+        DI = r.Di()
+        nodes = DI.get('node', list())
+        for node in nodes:
+            if node['id'] == di:
+                return node['status']
+        return False
 
-def get_motor_pos(r: SimModule, motor_name: str):
-    """
-    获取指定电机的当前位置
-    :param r: SimModule类对象
-    :param motor_name: 电机名称
-    :return: 返回电机的当前位置，若电机不存在返回False
-    """
-    motors = r.odo().get("motor_info", [])
-    motor_pos = False
-    for m in motors:
-        if m['motor_name'] == motor_name:
-            motor_pos = m.get('position', False)
-    return motor_pos
+    @staticmethod
+    def get_motor_pos(r: SimModule, motor_name: str):
+        """
+        获取指定电机的当前位置
+        :param r: SimModule类对象
+        :param motor_name: 电机名称
+        :return: 返回电机的当前位置，若电机不存在返回False
+        """
+        motors = r.odo().get("motor_info", [])
+        motor_pos = False
+        for m in motors:
+            if m['motor_name'] == motor_name:
+                motor_pos = m.get('position', False)
+        return motor_pos
 
+    @staticmethod
+    def get_motor_speed(r: SimModule, motor_name: str):
+        """
+        获取指定电机的当前速度
+        :param r:
+        :param motor_name:
+        :return: 返回电机的当前速度，若电机不存在返回False
+        """
+        motors = r.navSpeed().get("motor_cmd", [])
+        motor_speed = False
+        for m in motors:
+            if m['motor_name'] == motor_name:
+                motor_speed = m.get('value', False)
+        return motor_speed
 
-def get_motor_speed(r: SimModule, motor_name: str):
-    """
-    获取指定电机的当前速度
-    :param r:
-    :param motor_name:
-    :return: 返回电机的当前速度，若电机不存在返回False
-    """
-    motors = r.navSpeed().get("motor_cmd", [])
-    motor_speed = False
-    for m in motors:
-        if m['motor_name'] == motor_name:
-            motor_speed = m.get('value', False)
-    return motor_speed
+    @staticmethod
+    def delay(second):       # 延时 second 秒
+        if ModuleTool.start_time is None:
+            ModuleTool.start_time = time.time()
+        if time.time() - ModuleTool.start_time > second:
+            ModuleTool.start_time = None
+            return True
+        return False
 
 
 class MotorType(enum.IntEnum):
@@ -182,6 +198,7 @@ class Robot:
         move_args['x'] = x
         move_args['y'] = y
         move_args['theta'] = theta
+        move_args['useOdo'] = 1
         move_args['coordinate'] = coordinate
         move_args['backMode'] = back_mode
         move_args['maxSpeed'] = max_speed
