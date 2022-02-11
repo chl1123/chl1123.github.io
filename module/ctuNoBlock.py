@@ -498,6 +498,15 @@ class Module(BasicModule):
             try:
                 rbk_version = r.robokitVersion()
                 self.state['rbk'] = rbk_version
+                # 检测初始模式，若为任务模式，则将其转变为机构模式
+                if "mode" in self.state:
+                    if self.state.get("mode", 1) == 0:
+                        self.h.switch_mode(r, 1)
+                    # if self.h.switch_mode_res['status'] != Hairou.Action.FINISHED:
+                    #     return self.status
+                else:
+                    return self.status
+
             except Exception as e:
                 r.setWarning(f"please update rbk & rbkSim.py: {e}")
             if "connect_error" in self.state:
