@@ -810,7 +810,7 @@ class Module(BasicModule):
         }
         str_state = json.dumps(data)
         r.setInfo(str_state)
-        r.logDebug(str_state)
+        r.logDebug("[pickingRobotInfo][{}]".format(str_state))
 
     def get_goodsId(self, r):
         move_task = r.moveTask()
