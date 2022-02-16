@@ -69,13 +69,13 @@ class Module(BasicModule):
                     r.setNotice(f"Post Success")
                     self.status = MoveStatus.FINISHED
             except HTTPError:
-                print(f"Invalid HTTP response")
+                r.setNotice(f"Invalid HTTP response")
             except ConnectTimeout:
-                print('connect timeout')
+                r.setNotice(f'connect timeout')
             except ConnectionError:
-                print('Connection refused')
+                r.setNotice(f'Connection refused')
             except Exception as e:
-                print(f'unknown exception: {e}')
+                r.setNotice(f'unknown exception: {e}')
             else:
                 pass
         else:
@@ -90,19 +90,19 @@ class Module(BasicModule):
 if __name__ == '__main__':
     r = SimModule()
     read_args = {
-        "postURL": "http://192.168.8.222:8088/callTerminal",
+        "postURL": "http://192.168.8.113:7777",
         "postData": {
             "id": "Terminal-01",
             "type": "read"
         }
     }
     write_args = {
-        "postURL": "http://192.168.8.222:8088/callTerminal",
+        "postURL": "http://192.168.8.113:7777",
         "postData": {
             "id": "Terminal-01",
             "type": "write",
             "value": 456
         }
     }
-    m = Module(r, write_args)
-    m.run(r, write_args)
+    m = Module(r, read_args)
+    m.run(r, read_args)

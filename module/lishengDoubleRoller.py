@@ -10,7 +10,7 @@ import time
 
 from rbk import MoveStatus, BasicModule, ParamServer
 from rbkSim import SimModule
-from robot import Motor, MotorType, check_DI, Robot
+from robot import Motor, MotorType, ModuleTool, Robot
 
 
 """ 
@@ -102,18 +102,6 @@ class Module(BasicModule):
         self.state["status"] = self.status
         self.state["args"] = args
         self.state["has_goods"] = r.hasGoods()
-        # self.state["motor_state"] = {
-        #     self.head_motor_name: {
-        #         "speed": get_motor_speed(r, self.head_motor_name),
-        #         "reach": r.isMotorReached(self.head_motor_name),
-        #         "stop": r.isMotorStop(self.head_motor_name)
-        #     },
-        #     self.tail_motor_name: {
-        #         "speed": get_motor_speed(r, self.tail_motor_name),
-        #         "reach": r.isMotorReached(self.tail_motor_name),
-        #         "stop": r.isMotorStop(self.tail_motor_name)
-        #     }
-        # }
         r.logInfo(f"DoubleRollers: {self.state}")
         r.setInfo(json.dumps(self.state))
         if self.head_status and self.tail_status:
@@ -122,10 +110,10 @@ class Module(BasicModule):
 
     def load(self, r, motor: Motor, low_speed, high_speed, slow_di, finish_di):
         run_time = time.time() - self.start_time
-        if run_time > self.time_out and not check_DI(r, finish_di):   # 上料超时
+        if run_time > self.time_out and not ModuleTool.check_DI(r, finish_di):   # 上料超时
             r.setError(f"Roller {motor.motor_name} load time out")
             self.status = MoveStatus.FAILED
-        if not self.load_goods and check_DI(r, finish_di):   # 上料方向反了
+        if not self.load_goods and ModuleTool.check_DI(r, finish_di):   # 上料方向反了
             r.setError(f"{motor.motor_name} load direction error !")
             return False
         if self.prep_load(r, motor):    # 无光电触发，辊筒高速运转，预上料
@@ -134,9 +122,9 @@ class Module(BasicModule):
         else:
             if not self.load_goods:
                 r.setError(f"Goods already exists, {motor.motor_name} cannot load")
-        if check_DI(r, slow_di):     # 中间光电触发，减速
+        if ModuleTool.check_DI(r, slow_di):     # 中间光电触发，减速
             self.robot.roller(motor, low_speed)
-        if self.load_goods and check_DI(r, finish_di):   # 上料完成
+        if self.load_goods and ModuleTool.check_DI(r, finish_di):   # 上料完成
             self.robot.roller(motor, 0)
             r.setGoodsShape(0, 0, 0)
             return True
@@ -177,9 +165,9 @@ class Module(BasicModule):
         :return: 
         """
         if motor == self.head_motor:
-            return not (check_DI(r, self.DI_Head_R) or check_DI(r, self.DI_Head_L) or check_DI(r, self.DI_Head_M))
+            return not (ModuleTool.check_DI(r, self.DI_Head_R) or ModuleTool.check_DI(r, self.DI_Head_L) or ModuleTool.check_DI(r, self.DI_Head_M))
         if motor == self.tail_motor:
-            return not (check_DI(r, self.DI_Tail_R) or check_DI(r, self.DI_Tail_L) or check_DI(r, self.DI_Tail_M))
+            return not (ModuleTool.check_DI(r, self.DI_Tail_R) or ModuleTool.check_DI(r, self.DI_Tail_L) or ModuleTool.check_DI(r, self.DI_Tail_M))
         r.setError(f"motor not exists: {motor.motor_name}")
         return False
 

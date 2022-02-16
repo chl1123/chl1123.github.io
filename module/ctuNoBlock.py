@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/1/20  11:20
+# @Time : 2022/2/14  13:45
 # @Author : huang, zhong
-# @Version : 2.1.7
+# @Version : 2.1.8
 # @Support : rbk  3.3.5.11 以上版本
-# @Update : 优化N+1放货报错提示
+# @Update : 增加货物换层时货物检测，优化换层操作报错；新增开机时模式检测，自动切换到机构模式(可配置)
 
 import json
 import sys
@@ -124,37 +124,27 @@ import requests
     "selfPosition":{
         "value": 0,
         "tips": "pos",
-        "type": "int",
-        "max_value":3,
-        "min_value":0       
+        "type": "int"
     },
     "changePosition0":{
         "value": 0,
         "tips": "pos",
-        "type": "int",
-        "max_value":2,
-        "min_value":0       
+        "type": "int"
     },
     "putPosition":{
         "value": 0,
         "tips": "pos",
-        "type": "int",
-        "max_value":2,
-        "min_value":0       
+        "type": "int"
     },    
     "changePosition1":{
         "value": 0,
         "tips": "pos",
-        "type": "int",
-        "max_value":2,
-        "min_value":0       
+        "type": "int"
     },
     "recAdjust":{
         "value":1,
         "tips":"",
-        "type":"int",
-        "max_value":1,
-        "min_value":1
+        "type":"int"
     },
     "useLoc":{
         "value":1,
@@ -428,6 +418,7 @@ class Module(BasicModule):
         self.has_fork_sensor = p.loadParam("forkSensor", type="int", default=0, comment="货叉是否有货物检测传感器，1为有，0为无")
         self.has_tray_sensor = p.loadParam("traySensor", type="int", default=0, comment="背篓是否有货物检测传感器，1为有，0为无")
         self.trays_num = p.loadParam("traysNum", type="int", default=3, comment="背篓层数")
+        self.auto_switch_mode = p.loadParam("AutoSwitchMode", type="int", default=1, comment="是否自动切换到机构模式，1为是，0为否")
 
         r.logInfo(f"init args: {args}")
         self.stretch_status = MoveStatus.NONE
@@ -499,13 +490,11 @@ class Module(BasicModule):
                 rbk_version = r.robokitVersion()
                 self.state['rbk'] = rbk_version
                 # 检测初始模式，若为任务模式，则将其转变为机构模式
-                if "mode" in self.state:
+                if "mode" in self.state and bool(self.auto_switch_mode):
                     if self.state.get("mode", 1) == 0:
                         self.h.switch_mode(r, 1)
-                    # if self.h.switch_mode_res['status'] != Hairou.Action.FINISHED:
-                    #     return self.status
-                else:
-                    return self.status
+                        if self.h.switch_mode_res['status'] != Hairou.Action.FINISHED:
+                            return self.status
 
             except Exception as e:
                 r.setWarning(f"please update rbk & rbkSim.py: {e}")
@@ -1411,12 +1400,17 @@ class Module(BasicModule):
         self.state["unload"] = cur_state
 
     def changePos(self, r):
+        has_err = False
         if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 抓斗有货
-            r.setError(f"Fork has goods, cannot changePos!")
-            self.operation_status = MoveStatus.FAILED
-            return
-        if self.get_tray(r, int(self.task["changePosition1"])).get('state', 0) == 0:
-            r.setError(f"The target tray {int(self.task['changePosition1'])} has goods, cannot change goods")
+            r.setError(f"Fork has goods, cannot change position!")
+            has_err = True
+        if self.get_tray(r, int(self.task["changePosition0"])).get('state', 1) == 1:   # 初始层无货
+            r.setError(f"The target tray {int(self.task['changePosition0'])} is null, cannot change position")
+            has_err = True
+        if self.get_tray(r, int(self.task["changePosition1"])).get('state', 0) == 0:   # 备换层已有货
+            r.setError(f"The target tray {int(self.task['changePosition1'])} has goods, cannot change position")
+            has_err = True
+        if has_err:
             self.operation_status = MoveStatus.FAILED
             return
         if self.operation_status == MoveStatus.NONE:

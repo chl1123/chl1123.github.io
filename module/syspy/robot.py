@@ -24,7 +24,7 @@ class ModuleTool:
     @staticmethod
     def check_DI(r: SimModule, di: int):
         """
-        检测单个DI是否被触发
+        检测单个DI状态信息
         :param r: SimModule类对象
         :param di: 需要检测的DI
         :return: 返回指定DI的状态，若DI不存在返回False
@@ -33,6 +33,21 @@ class ModuleTool:
         nodes = DI.get('node', list())
         for node in nodes:
             if node['id'] == di:
+                return node['status']
+        return False
+
+    @staticmethod
+    def check_DO(r: SimModule, do: int):
+        """
+        检测单个DO状态信息
+        :param r: SimModule类对象
+        :param do: 需要检测的 DO
+        :return: 返回指定DO的状态，若DO不存在返回False
+        """
+        DO = r.Do()
+        nodes = DO.get('node', list())
+        for node in nodes:
+            if node['id'] == do:
                 return node['status']
         return False
 
@@ -144,8 +159,8 @@ class Motor:
             self.status = MoveStatus.FINISHED
         self.state['motor_name'] = self.motor_name
         self.state['motor_type'] = self.motor_type
-        self.state['motor_pos'] = get_motor_pos(self.r, self.motor_name)
-        self.state['motor_speed'] = get_motor_speed(self.r, self.motor_name)
+        self.state['motor_pos'] = ModuleTool.get_motor_pos(self.r, self.motor_name)
+        self.state['motor_speed'] = ModuleTool.get_motor_speed(self.r, self.motor_name)
         self.state['motor_status'] = self.status
         return self.status
 
