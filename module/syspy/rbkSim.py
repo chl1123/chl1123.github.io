@@ -834,7 +834,10 @@ class SimModule:
         """
         print("func: {0} ".format(get_function_name()))
         return True
-
+    def openSpeed(self, vx:float, vy:float, vw:float):
+        """让agv按vx,vy,vw行走，此函数考虑了碰撞检测
+        """
+        print("func: {0} {1} {2} {3} ".format(get_function_name(), vx, vy, vw))
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -914,4 +917,5 @@ if __name__ == '__main__':
     r.sensorPointCloud()
     r.initForkCollisionCheck()
     r.forkCollisionCheck()
+    r.openSpeed(0,0,0)
     print("Success!!!")
