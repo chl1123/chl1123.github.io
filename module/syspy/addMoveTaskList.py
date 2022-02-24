@@ -10,7 +10,7 @@ from rbkSim import SimModule
         "value": "",
         "tips": "任务",
         "unit": "",
-        "type": "array"
+        "type": "json"
     }
 }
 ####END DEFAULT ARGS####
