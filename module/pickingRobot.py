@@ -42,9 +42,9 @@ class MessageType(IntEnum):
     ROBOT_PREACTION_REQ = 100  # 预备动作
 
     ROBOT_SRC_POS_REQ = 200  # 导航请求
-    ROBOT_SRC_POS_RESP = 201
+    ROBOT_SRC_POS_RESP = 201  # 导航反向请求
 
-    ROBOT_COMM_RESP = 255
+    ROBOT_COMM_RESP = 255  # 指令反向请求
 
 
 class StopType(IntEnum):
@@ -560,7 +560,8 @@ class Hairou:
             t0 = time.time()
             send_suc = True
             while total_send < msg_len:
-                cur_sent = self.tcp_client.send(sends[total_send:])
+                # cur_sent = self.tcp_client.send(sends[total_send:])
+                cur_sent = self.tcp_client.send(sends[total_send:], socket.MSG_NOSIGNAL)
                 if cur_sent == 0:
                     r.logDebug("socket connection broken. send length is zero")
                     send_suc = False
@@ -575,6 +576,8 @@ class Hairou:
         except:
             res_msg["flag"] = False
             res_msg["content"] = str(sys.exc_info()[0])
+            r.setError(f"Send message failed, send the task again please")
+            self.disconnect()
         return res_msg
 
     def switch_mode(self, r, mode):
