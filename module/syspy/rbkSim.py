@@ -408,7 +408,7 @@ class SimModule:
             bool: 如果存在则返回True
         """
         print("func: {0} code: {1}".format(get_function_name(), code))
-        return True
+        return False
     @check
     def warningExits(self, code:int)->bool:
         """查询特定编号的Warning是否存在
