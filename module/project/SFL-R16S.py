@@ -22,7 +22,7 @@ import syspy.goPath as goPath
     "operation":{
         "value": "zero",
         "default_value":[
-        "zero","unload","load","lift","rotate","stretch","moveY","rec","recAdjust", "safeCheck"
+        "zero","unload","load","lift","rotate","stretch","rec","recAdjust", "goPath"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -51,17 +51,11 @@ import syspy.goPath as goPath
         "type": "double",
         "unit": "m"
     },
-    "stretch_back": {
-        "value": 0.,
-        "tips": "stretch back length",
-        "type": "double",
-        "unit": "m"
-    }, 
     "rotate": {
         "value": 0.,
-        "tips": "rotate angle",
+        "tips": "rotate dir. > 0 down; < 0 up",
         "type": "double",
-        "unit": "m"
+        "unit": ""
     },
     "recfile": {
         "value": "tag/t0001.tag",
@@ -99,8 +93,7 @@ class Module(BasicModule):
         self.rotate_motor = "qianhouqing"
         self.vy_motor = "zuoyouyi"
 
-        self.stretch_warn_dist = 6.5
-        self.reachDI = 1
+        self.reachDI = -1
 
         # 四个电机的实时位置
         self.stretch_pos = 0.
@@ -114,10 +107,12 @@ class Module(BasicModule):
         self.init_rotate_pos = 0.
         self.init_vy_motor_pos = 0.
 
-        self.lift_zero = 0.3
-        self.stretch_zero = 0.28
-        self.rotate_zero = 0
+        self.lift_zero = 0.075
+        self.stretch_zero = 0.01
+        self.rotate_zero = 1 #向下旋转就是归0
+        self.rotate_up = -1 # 向上转
         self.moveY_zero = 0
+
 
         self.rec_file = ""
         self.init = True
@@ -127,23 +122,32 @@ class Module(BasicModule):
         self.task_id = 0
         self.operation_status = MoveStatus.NONE
 
-        #识别调整相关的参数
-        self.rotate_yaw = 0.0  # 货叉0度,横移位置为0度时，货叉在小车坐标系下的角度
-        self.rotate_x0 = 0.0  #货叉0度,横移位置为0度时，货叉旋转中心，在小车坐标系下x
-        self.rotate_y0 = 0.0 #货叉0度,横移位置为0度时，货叉旋转中心，在小车坐标系下y
-        self.fork_L0 = 1.0 #货叉末端离旋转中心的距离
-        self.rec_offz = 0.0 #货叉高度的调整量
-
-        #此处修改的是默认值，最终执行请在“zhiche.json"里进行更改
+        #电机速度
         p = ParamServer(__file__)
-        self.lift_vel = p.loadParam("liftVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "m/s", comment = "升降电机最大速度")
-        self.stretch_vel = p.loadParam("stretchVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "m/s", comment = "伸缩电机最大速度")
-        self.rotate_vel = p.loadParam("rotateVel", type="float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "rad/s", comment = "倾斜电机最大速度")
-        self.moveY_vel = p.loadParam("Vy", type = "float", default = 0.1, maxValue = 10000.0, minValue = 0.001, unit = "m/s", comment = "水平电机最大速度")
+        self.lift_vel = 0.4
+        self.stretch_vel = 0.2
+        self.rotate_vel = 0.1
+        self.moveY_vel = 0.1
         
         #距离传感器
         self.distanceNodeId = (1,2) # distanceNode的ID号
-        self.obsStopDist = 0.1 # 报警距离
+        self.obsStopDist = 0.25 # 报警距离， 这个距离传感器的死区为0.2m，因此不能配置成小于0.2m
+
+        #倾斜及时
+        self.rotate_time = 4.0 # 倾斜电机旋转3s
+
+        # 激光尾部激光
+        self.back_laser = (1,2)
+        #operation
+        self.operation = ""
+
+        #有货物后的货叉安全高度
+        self.load_lift_safe_height = 0.5
+        self.load_stretch_safe_length = 0.01
+
+        #货叉伸出最大距离
+        self.stretch_max_length = 0.528 
+
 
     def reset(self, r:SimModule):
         self.status = MoveStatus.RUNNING
@@ -178,8 +182,7 @@ class Module(BasicModule):
             self.init_lift_pos = self.lift_pos
             self.init_stretch_pos = self.stretch_pos
             self.init_rotate_pos = self.rotate_pos
-            self.init_vy_motor_pos = self.vy_motor_pos
-            r.initForkCollisionCheck()   # 初始化后视激光检测
+            self.init_vy_motor_pos = self.vy_motor_pos  # 初始化后视激光检测
             self.task = args
             self.rec_file = args.get("recfile","")
             self.operation_status = MoveStatus.NONE
@@ -189,6 +192,7 @@ class Module(BasicModule):
                 return self.status
 
         operation = self.task.get("operation","")
+        self.operation = operation
         if operation == "":
             self.status = MoveStatus.FINISHED
         elif operation == "load":
@@ -209,8 +213,8 @@ class Module(BasicModule):
             self.moveY(r)
         elif operation == "rec":
             self.rec(r)
-        elif operation == "safeCheck":
-            self.safeCheck(r)
+        elif operation == "goPath":
+            self.goPath(r)
         else:
             r.setError("operation is wrong {}".format(str(operation)))
             self.status = MoveStatus.FAILED
@@ -234,22 +238,25 @@ class Module(BasicModule):
         货叉尖端距离传感器的碰撞检测
         :param r: rbk
         :param left_idst: 剩余距离
-        :return: bool
+        :return: bool, obs_dist
         """
-        sensor = r.sensorPointCloud()
-        if 'local_cluster' not in sensor:
-            return False, -1.0
+        sensor = r.getDistanceSensor()
         obs_dist = -1.0
-        for data in sensor['local_cluster']:
-            # r.logInfo("distanceNode {}".format(data))
+        if "node" not in sensor:
+            r.setNotice("distanceSensor empty")
+            return False, obs_dist
+        node_ss = ""
+        for data in sensor["node"]:
             if data.get('id', -1) in self.distanceNodeId \
-                and data.get('valid', False) and data.get('forbidden', False)\
-                    and 'dist' in data:
+                and data.get('valid', False) == True \
+                    and data.get('forbidden', True) == False\
+                        and 'dist' in data:
                 if obs_dist < 0:
                     obs_dist = data['dist']
                 else:
                     obs_dist = min(obs_dist, data['dist'])
-        r.logInfo("dist for distanceNode {} {} {}".format(obs_dist, self.obsStopDist, left_dist))
+            node_ss = "{}|{}|{}|{}|{}".format(data.get('id', -1),data.get('valid', False),data.get('forbidden', True), data.get('dist',-1), obs_dist)
+            r.logDebug("[distanceNode][{}]".format(node_ss))
         
         if obs_dist < 0:
             return False, obs_dist
@@ -261,18 +268,15 @@ class Module(BasicModule):
 
     def back_laser_check(self, r: SimModule) -> bool:
         """
-        后视激光检测, 有阻挡会自动报错52200, 需先调用一次initForkCollisionCheck
         :param r:
-        :return:
+        :return: 是否碰撞
         """
-        if self.get_motor_pos(r, self.lift_motor_name) > self.laser_valid_height:
-            if r.forkCollisionCheck():
-                r.setError(f"back laser block!")
-                return True
+        if r.laserCollision(self.back_laser):
+            return True
         return False
 
 
-    def lift(self, r):
+    def lift(self, r: SimModule):
         if "liftHeight" not in self.task:
             r.setError("lift height is empty {}".format(json.dumps(self.task)))
             self.status = MoveStatus.FAILED
@@ -288,7 +292,7 @@ class Module(BasicModule):
             cur_state["task_id"] = self.task_id
             self.state["lift"] = cur_state        
   
-    def stretch(self, r):
+    def stretch(self, r: SimModule):
         if "stretchLength" not in self.task:
             r.setError("stretch length is empty {}".format(json.dumps(self.task)))
             self.status = MoveStatus.FAILED    
@@ -304,7 +308,7 @@ class Module(BasicModule):
             cur_state["task_id"] = self.task_id
             self.state["stretch"] = cur_state
 
-    def rotate(self, r):
+    def rotate(self, r: SimModule):
         if "rotate" not in self.task:
             r.setError("rotate length is empty {}".format(json.dumps(self.task)))
             self.status = MoveStatus.FAILED  
@@ -321,7 +325,7 @@ class Module(BasicModule):
             self.state["rotate"] = cur_state     
 
 
-    def rec(self,r):
+    def rec(self,r: SimModule):
         if "recfile" not in self.task:
             r.setError("recfile is empty {}".format(json.dumps(self.task)))
             self.status = MoveStatus.FAILED 
@@ -337,7 +341,19 @@ class Module(BasicModule):
             cur_state["task_id"] = self.task_id
             self.state["rec"] = cur_state
 
-    def safeCheck(self, r):
+    def goPath(self, r:SimModule):
+        if self.operation_status == MoveStatus.NONE:
+            self.operation_status = MoveStatus.RUNNING
+            self.task_list = [goPath(r)]
+            self.task_id = 0
+        else:
+            self.runTakList(r)
+        cur_state = dict()
+        cur_state["state"] = self.operation_status
+        cur_state["task_id"] = self.task_id
+        self.state["goPath"] = cur_state       
+
+    def safeCheck(self, r: SimModule):
         tor = 0.1
         if (self.stretch_pos + tor > 1.8 and self.rotate_pos + tor > math.pi) \
             or (self.stretch_pos - tor < 0.28 and self.rotate_pos - tor < 0):
@@ -351,21 +367,17 @@ class Module(BasicModule):
         cur_state["state"] = self.status
         self.state["safeCheck"] = cur_state
 
-    def recAdjust(self,r):
-        if "recfile" not in self.task:
-            r.setError("recfile is empty {}".format(json.dumps(self.task)))
-            self.status = MoveStatus.FAILED 
-        else:        
-            if self.operation_status == MoveStatus.NONE:
-                self.operation_status = MoveStatus.RUNNING
-                self.task_list = [recAdjust(r, self.task["recfile"])]
-                self.task_id = 0
-            else:
-                self.runTakList(r)
-            cur_state = dict()
-            cur_state["state"] = self.operation_status
-            cur_state["task_id"] = self.task_id
-            self.state["rec"] = cur_state
+    def recAdjust(self,r: SimModule):   
+        if self.operation_status == MoveStatus.NONE:
+            self.operation_status = MoveStatus.RUNNING
+            self.task_list = [recAdjust(r)]
+            self.task_id = 0
+        else:
+            self.runTakList(r)
+        cur_state = dict()
+        cur_state["state"] = self.operation_status
+        cur_state["task_id"] = self.task_id
+        self.state["recAdjust"] = cur_state
 
     def load(self,r:SimModule):
         if self.operation_status == MoveStatus.NONE:
@@ -374,52 +386,43 @@ class Module(BasicModule):
                 r.setError(f"Fork has goods, cannot load")
                 return
             self.operation_status = MoveStatus.RUNNING
-            if "recfile" in self.task:
-                self.task_list = [
-                    rotate(self.rotate_motor, self.task["rotate"]),
-                    lift(self.lift_motor, self.task["liftHeight"]),
-                    recAdjust(r, self.task["recfile"]),
-                    stretch(self.stretch_motor, self.task["stretchLength"], self.reachDI),
-                    lift(self.lift_motor, self.task["liftUpHeight"] + self.task["liftHeight"]),
-                    stretch(self.stretch_motor, self.task["stretch_back"]),
-                    lift(self.lift_motor, self.lift_zero),
-                ]
-            else:
-                self.task_list = [
-                    rotate(self.rotate_motor, self.task["rotate"]),
-                    lift(self.lift_motor, self.task["liftHeight"]),
-                    stretch(self.stretch_motor, self.task["stretchLength"], self.reachDI),
-                    lift(self.lift_motor, self.task["liftUpHeight"] + self.task["liftHeight"]),
-                    stretch(self.stretch_motor, self.task["stretch_back"]),
-                    lift(self.lift_motor, self.lift_zero),
-                ]
-            self.task_id = 0
-        else:
-            self.runTakList(r)
-        if self.operation_status == MoveStatus.FINISHED:
-            r.setGoodsShape(0,0,0)
-        cur_state = dict()
-        cur_state["state"] = self.operation_status
-        cur_state["task_id"] = self.task_id
-        self.state["load"] = cur_state
-
-    def unload(self,r):
-        if self.operation_status == MoveStatus.NONE:
-            self.operation_status = MoveStatus.RUNNING
-            self.vision_status = MoveStatus.FINISHED
             self.task_list = [
-                rotate(self.rotate_motor, self.task["rotate"]),
-                lift(self.lift_motor, self.task['liftHeight']),
-                stretch(self.stretch_motor, self.task["stretchLength"]),
-                lift(self.lift_motor, -self.task["liftDownHeight"] + self.task["liftHeight"]),
-                stretch(self.stretch_motor, self.task["stretch_back"]),
-                lift(self.lift_motor, self.lift_zero),
+                rotate(self.rotate_motor, self.rotate_zero), # 货叉前后角度水平
+                lift(self.lift_motor, self.task["liftHeight"]),
+                stretch(self.stretch_motor, self.stretch_max_length, self.reachDI),
+                recAdjust(r),
+                lift(self.lift_motor, self.task["liftUpHeight"]),
+                rotate(self.rotate_motor, self.rotate_up), # 货叉前后翘起来
+                stretch(self.stretch_motor, self.load_stretch_safe_length),
+                lift(self.lift_motor, self.load_lift_safe_height)
             ]
             self.task_id = 0
         else:
             self.runTakList(r)
         if self.operation_status == MoveStatus.FINISHED:
-            r.clearGoodsShape()
+            r.forkGoods(True, self.task.get("recfile",""))
+        cur_state = dict()
+        cur_state["state"] = self.operation_status
+        cur_state["task_id"] = self.task_id
+        self.state["load"] = cur_state
+
+    def unload(self,r: SimModule):
+        if self.operation_status == MoveStatus.NONE:
+            self.operation_status = MoveStatus.RUNNING
+            self.vision_status = MoveStatus.FINISHED
+            self.task_list = [
+                lift(self.lift_motor, self.task['liftHeight']),
+                stretch(self.stretch_motor, self.stretch_max_length),
+                goPath(self),
+                rotate(self.rotate_motor, self.rotate_zero),
+                lift(self.lift_motor, self.task["liftDownHeight"]),
+                stretch(self.stretch_motor, self.stretch_zero)
+            ]
+            self.task_id = 0
+        else:
+            self.runTakList(r)
+        if self.operation_status == MoveStatus.FINISHED:
+            r.forkGoods(False, "")
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
@@ -434,8 +437,8 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 stretch(self.stretch_motor, self.stretch_zero),
-                rotate(self.rotate_motor, self.rotate_zero),
-                lift(self.lift_motor, self.lift_zero)
+                lift(self.lift_motor, self.lift_zero),
+                rotate(self.rotate_motor, self.rotate_zero)
             ]
             self.task_id = 0
         else:
@@ -476,22 +479,20 @@ class lift:
 
     def run(self, r:SimModule, agv:Module):
         self.status = MoveStatus.RUNNING
-        if agv.stretch_pos > agv.stretch_warn_dist:
-            r.setError("Cannot lift when strech {} larger than {}."
-            .format(agv.stretch_pos,agv.stretch_warn_dist))
-            self.status = MoveStatus.FAILED
-        else:
-            if self.dist < agv.init_lift_pos:
-                # 货叉下降需要检查一下，货叉下降是否安全
-                if agv.back_laser_check(r):
-                    r.resetMotor(self.motor)
-                else:
-                    r.setMotorPosition(self.motor, self.dist, agv.lift_vel, -1)
+        collision = False
+
+        if self.dist < agv.init_lift_pos:
+            # 货叉下降需要检查一下，货叉下降是否安全
+            if agv.back_laser_check(r):
+                collision = True
             else:
                 r.setMotorPosition(self.motor, self.dist, agv.lift_vel, -1)
-            if r.isMotorReached(self.motor):
-                self.status = MoveStatus.FINISHED
-                r.resetMotor(self.motor)
+        else:
+            r.setMotorPosition(self.motor, self.dist, agv.lift_vel, -1)
+        if collision == False and  r.isMotorReached(self.motor):
+            self.status = MoveStatus.FINISHED
+            r.resetMotor(self.motor)
+
         cur_state = dict()
         cur_state['lift_state'] = self.status
         cur_state['dist'] = self.dist
@@ -510,12 +511,17 @@ class stretch:
     def run(self, r:SimModule, agv:Module):
         self.status = MoveStatus.RUNNING
         left_dist = self.dist - agv.stretch_pos
-        flag, obs_dist = agv.fork_collision(r,left_dist)
-        if flag:
+        collision = False
+        obs_dist = -1
+        if self.dist > agv.init_stretch_pos:
+            collision, obs_dist = agv.fork_collision(r,left_dist)
+        if collision:
             if not r.errorExits(53000):
                 r.setError("fork tail collision error. obs distance is {}".format(obs_dist))
             r.resetMotor(self.motor)
         else:
+            if r.errorExits(53000):
+                r.clearError(53000)
             r.setMotorPosition(self.motor, self.dist, agv.stretch_vel, self.reachDI)
             if r.isMotorReached(self.motor):
                 self.status = MoveStatus.FINISHED
@@ -533,24 +539,26 @@ class rotate:
     def __init__(self, motor_name, a):
         self.status = MoveStatus.NONE
         self.motor = motor_name
-        self.angle = a
-    def run(self, r:SimModule, agv):
+        self.rot_dir = a
+        self.start_time = time.time()
+    def run(self, r:SimModule, agv:Module):
         self.status = MoveStatus.RUNNING
-        if agv.stretch_pos > agv.stretch_warn_dist:
-            r.setError("Cannot rotate when strech {} larger than {}."
-            .format(agv.stretch_pos,agv.stretch_warn_dist))
-            self.status = MoveStatus.FAILED
-        else:
-            r.setMotorPosition(self.motor, self.angle, agv.rotate_vel, -1)
-            if r.isMotorReached(self.motor):
-                self.status = MoveStatus.FINISHED
-                r.resetMotor(self.motor)
+        rot_vel = agv.rotate_vel
+        if self.rot_dir < 0:
+            rot_vel = - agv.rotate_vel
+        r.setMotorSpeed(self.motor, rot_vel, -1)
+        cur_time = time.time()
+        if (cur_time - self.start_time) > agv.rotate_time:
+            r.resetMotor(self.motor)
+            self.status = MoveStatus.FINISHED
         cur_state = dict()
         cur_state['rotate_state'] = self.status
-        cur_state['angle'] = self.angle
+        cur_state['rot_dir'] = self.rot_dir
+        cur_state['rot_time'] = cur_time - self.start_time
         agv.state['rotate_org'] = cur_state
 
     def reset(self, r):
+        self.start_time = time.time()
         r.resetMotor(self.motor)
         self.status = MoveStatus.RUNNING
 
@@ -612,135 +620,80 @@ class rec:
         self.status = MoveStatus.RUNNING
 
 class recAdjust:
-    def __init__(self, r, filename):
-        self.status = MoveStatus.NONE
-        self.rec = rec(filename)
-        self.result = []
-        self.max_rec_fail_times = 10
-        self.max_adjust_time = 10
-        self.rec_fail_time = 0
-        self.adjust_count = 0
-        self.go_args = dict()
-        self.ok = False
-        self.plan_status = MoveStatus.NONE
-        self.goPath = goPath.Module(r, dict())
-        self.lift_pos = 0
-        self.rot_theta = 0
+    def __init__(self, r:SimModule):
         self.init = True
+        self.task = None
+        self.status = MoveStatus.NONE
     def run(self, r:SimModule, agv:Module):
         self.status = MoveStatus.RUNNING
-        if self.plan_status is not MoveStatus.FINISHED:
-            self.plan_status = MoveStatus.RUNNING
-            if self.rec.status is MoveStatus.RUNNING or self.rec.status is MoveStatus.NONE:
-                self.rec.run(r,agv)
-            elif self.rec.status is MoveStatus.FAILED:
-                self.rec_fail_time = self.rec_fail_time + 1
-                if self.rec_fail_time < self.max_rec_fail_times:
-                    self.rec.reset(r)
-                    self.rec.run(r,agv)
+        if self.init:
+            self.init = False
+            self.task = r.moveTask()
+            if "params" not in self.task:
+                self.task["params"] = []
+            has_op = False
+            has_rec = False
+            has_rec_file = False
+            for p in self.task["params"]:
+                if p["key"] == "operation":
+                    has_op = True
+                    if agv.operation == "unload":
+                        p["string_value"] = "ForkUnload"
+                    else:
+                        p["string_value"] = "ForkLoad"
+                elif p["key"] == "recognize":
+                    has_rec = True
+                elif p["key"] == "recfile":
+                    has_rec_file = True
+                    p["string_value"] = agv.task["recfile"]
+            if has_op == False:
+                p = dict()
+                p["key"] = "operation"
+                if agv.operation == "load":
+                    p["string_value"] = "ForkLoad"
+                elif agv.operation == "unload":
+                    p["string_value"] = "ForkUnload"
                 else:
-                    self.status = MoveStatus.FAILED
-                    r.setError("rec fails!!! reach max times. {}".format(self.max_rec_fail_times))
-                r.setNotice("rec fail!!! {}".format(self.rec_fail_time))
-            elif self.rec.status is MoveStatus.FINISHED:
-                self.rec_fail_time = 0
-                code2rotate = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]
-                rotate2robot = [agv.rotate_x0, agv.rotate_y0 + agv.stretch_pos, agv.rotate_yaw + agv.rotate_pos]
-                code2robot = Pos2World(code2rotate, rotate2robot)
-                self.lift_pos = self.rec.result['z'] + agv.rec_offz
-                self.rot_theta = normalize_theta(code2robot[2] + math.pi)
+                    p["string_value"] = ""
+                self.task["params"].append(p)
+            if has_rec_file == False:
+                if "recfile" in agv.task:
+                    p = dict()
+                    p["key"] = "recfile"
+                    p["string_value"] = agv.task["recfile"]
+                    self.task["params"].append(p)
+                    if has_rec == False:
+                        p = dict()
+                        p["key"] = "recognize"
+                        p["bool_value"] = True
+                        self.task["params"].append(p)                  
+        r.logInfo("recAdjust task {}".format(str(self.task)))
+        self.status = r.recAndGoPathDi(json.dumps(self.task))
+        return self.status
 
-                rot_goal = normalize_theta(self.rot_theta - agv.rotate_yaw)
-                self.rotate = rotate(agv.rotate_motor, rot_goal)
-                lift_goal = agv.lift_pos + self.lift_pos
-                self.lift = lift(agv.lift_motor, lift_goal)
-
-                forkHead2rotate = [agv.fork_L0, 0, 0]
-                idealRotate2robot = [agv.rotate_x0, agv.rotate_y0 + agv.stretch_pos, self.rot_theta]
-                forkHead2robot = Pos2World(forkHead2rotate, idealRotate2robot)
-                dx = code2robot[0] - forkHead2robot[0]
-                self.go_args["coordinate"] = "robot"
-                self.go_args["x"] = dx
-                self.go_args["y"] = 0
-                self.go_args["theta"] = 0
-                self.go_args["reachAngle"] = math.pi
-                self.go_args["useOdo"] = 1
-                self.go_args["reachDist"] = 0.002
-
-                r.logDebug("[recAdjust][{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
-                self.rot_theta, agv.rotate_yaw, rot_goal, 
-                self.lift_pos, agv.rec_offz, lift_goal, 
-                code2robot[0],forkHead2robot[0], dx))
-                
-                if self.go_args["x"] < 0:
-                    self.go_args["backMode"] = 1
-                ok_x = 0.005
-                ok_z = 0.005
-                ok_theta = 0.017
-                if abs(self.go_args['x']) < ok_x\
-                    and abs(self.lift_pos) < ok_z\
-                        and abs(self.rot_theta) < ok_theta:
-                    self.status = MoveStatus.FINISHED
-                else:
-                    if self.adjust_count >= self.max_adjust_time:
-                        self.status = MoveStatus.FAILED
-                        r.setError("recAdjust fails!!! reach max times.")
-                self.plan_status = MoveStatus.FINISHED
-                self.rec.reset(r)
-        elif self.status is not MoveStatus.FINISHED and self.status is not MoveStatus.FAILED:
-            if self.goPath.status != MoveStatus.FINISHED\
-                and self.goPath.status != MoveStatus.FAILED:
-                if abs(self.go_args["x"]) < 0.003:
-                    self.goPath.status = MoveStatus.FINISHED
-                else:
-                    self.goPath.run(r,self.go_args)
-            
-            if self.lift.status != MoveStatus.FINISHED\
-                and self.lift.status != MoveStatus.FAILED:
-                self.lift.run(r, agv)
-            
-            if self.rotate.status != MoveStatus.FINISHED\
-                and self.rotate.status != MoveStatus.FAILED:
-                self.rotate.run(r, agv)
-
-            if self.goPath.status == MoveStatus.FAILED\
-                or self.lift.status == MoveStatus.FAILED\
-                    or self.rotate.status == MoveStatus.FAILED:
-                self.status = MoveStatus.FAILED
-            elif self.goPath.status == MoveStatus.FINISHED\
-                and self.lift.status == MoveStatus.FINISHED\
-                    and self.rotate.status == MoveStatus.FINISHED:
-                self.adjust_count = self.adjust_count + 1
-                self.rec_count = 0
-                self.goPath.reset()
-                self.lift = None
-                self.rotate = None
-                self.lift_pos = 0
-                self.rot_theta = 0
-                self.status = MoveStatus.RUNNING
-                self.go_args = dict()
-                self.plan_status = MoveStatus.NONE
-        cur_state = dict()
-        cur_state["goaPathStatus"] = self.goPath.status
-        cur_state["planStatus"] = self.plan_status
-        cur_state["go_args"] = self.go_args
-        cur_state["rec_fail_time"] = self.rec_fail_time
-        cur_state["ajdust_time"] = self.adjust_count
-        cur_state["status"] = self.status
-        cur_state["lif_pos"] = self.lift_pos
-        cur_state["rot_theta"] = self.rot_theta
-        agv.state["recAdjust_org"] = cur_state
-
-    def reset(self, r):
-        self.rec.reset(r)
+    def reset(self, r:SimModule):
+        r.logInfo("reset recAdjust")
         self.status = MoveStatus.RUNNING
-        self.rec_fail_time = 0
-        self.adjust_count = 0
-        self.goPath.reset()
-        self.lift = None
-        self.rotate = None
-        self.lift_pos = 0
-        self.rot_theta = 0
+        r.resetRecAndGoPathDi()
+
+class goPath:
+    def __init__(self, r:SimModule):
+        self.init = True
+        self.task = None
+        self.status = MoveStatus.NONE
+    def run(self, r:SimModule, agv:Module):
+        self.status = MoveStatus.RUNNING
+        if self.init:
+            self.init = False
+            self.task = r.moveTask()              
+        r.logInfo("goPath task {}".format(str(self.task)))
+        self.status = r.goMapPath(json.dumps(self.task))
+        return self.status
+
+    def reset(self, r:SimModule):
+        r.logInfo("reset goPath")
+        self.status = MoveStatus.RUNNING
+        r.resetGoMapPath()
 
 if __name__ == '__main__':
     import syspy.rbkSim
