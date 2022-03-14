@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/3/10
+# @Time : 2022/3/14
 # @Author : qiangsheng，zhong
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
@@ -66,22 +66,6 @@ import syspy.goPath as goPath
 }
 ####END DEFAULT ARGS####
 """
-def Pos2Base(pos2world, base2world):
-    """将基于世界坐标系的两个位姿，转换为基于base的位姿
-
-    Args:
-        pos2world ([3]): 被转换的位姿，基于世界坐标系,0:x, 1:y, 2: theta
-        base2world ([3]): 基准，基于世界坐标系,0:x, 1:y, 2: theta
-    Returns:
-        [3]: pos2base
-    """
-    pos2base = [0.,0.,0.]
-    x = pos2world[0] - base2world[0]
-    y = pos2world[1] - base2world[1]
-    pos2base[0] = x * math.cos(base2world[2]) + y * math.sin(base2world[2])
-    pos2base[1] = -x * math.sin(base2world[2]) + y * math.cos(base2world[2])
-    pos2base[2] = normalize_theta(pos2world[2] - base2world[2])
-    return pos2base
 
 class Module(BasicModule):
     def __init__(self, r:SimModule, args):
