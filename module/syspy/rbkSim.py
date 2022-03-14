@@ -1,5 +1,6 @@
 import inspect
 import json
+from os import strerror
 def get_function_name():
     '''获取正在运行函数(或方法)名称'''
     return inspect.stack()[1][3]
@@ -299,6 +300,16 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
         return dict()    
+    @check
+    def getDistanceSensor(self) -> dict:
+        """获取距离节点信息
+
+        Returns:
+            dict: 具体的距离节点内容
+        """
+        a = [{"node":{'RSSI': 1000, 'aperture': 30, 'can_router': 3, 'dist': 0.2527, 'forbidden': False, 'header': {'data_nsec': '2218882847857', 'frame_id': '', 'pub_nsec': '0', 'seq': '0'}, 'id': 1, 'name': 'distanceSensor', 'pos_angle': 180, 'pos_x': -0.75, 'pos_y': 0.35, 'rs485': 0, 'valid': True}}]
+        print("func: {0} {1}".format(get_function_name(), a))
+        return a
     @check
     def sensorPointCloud(self)->dict:
         """获得后视激光点云信息以字典类型返回
@@ -745,11 +756,13 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
         return
+    @check
     def clearBlockError(self):
         """清除阻挡52200错误
         """
         print("func: {0}".format(get_function_name()))
-        return            
+        return    
+    @check        
     def setBlockReason(self, collision_type: int, x: float, y: float, id: int):
         """设置阻挡原因
         Args:
@@ -760,6 +773,7 @@ class SimModule:
         """
         print("func: {0} {1} {2} {3} {4}".format(get_function_name(), collision_type, x, y, id))
         return  
+    @check
     def getRecFileFromTask(self)->str:
         """通过任务获取识别文件
         Returns:
@@ -767,6 +781,7 @@ class SimModule:
         """        
         print("func: {0} ".format(get_function_name()))
         return ""
+    @check
     def setContainer(self, container_name:str, goods_id:str, desc:str)->bool:
         """设置车子上库位或者背篓货物
 
@@ -780,6 +795,7 @@ class SimModule:
         """
         print("func: {0} {1} {2} {3}".format(get_function_name(), container_name, goods_id, desc))
         return  True
+    @check
     def getContainers(self)->list:
         """获取当前车子上库位或者背篓货物的状态
 
@@ -789,6 +805,7 @@ class SimModule:
         c= [{'container_name': '3', 'desc': '', 'goods_id': '', 'has_goods': False}, {'container_name': '1', 'desc': '', 'goods_id': 'goods1', 'has_goods': True}, {'container_name': '2', 'desc': 'by script', 'goods_id': 'goods2', 'has_goods': True}]
         print("func: {0} {1} ".format(get_function_name(), c))
         return c
+    @check
     def clearContainer(self, container_name:str)->bool:
         """清除车上特定库位或者背篓的状态
 
@@ -799,6 +816,7 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), container_name))
         return  True
+    @check
     def clearContainerByGoodsId(self, goods_id:str)->bool:
         """清除车上特定库位或者背篓的状态
 
@@ -809,7 +827,7 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), goods_id))
         return  True
-
+    @check
     def robokitVersion(self)-> str:
         """获取 robokit 版本号, from: 3.3.5.11
 
@@ -818,26 +836,52 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), "3.3.5.11"))
         return  "3.3.5.11"
-
-    def initForkCollisionCheck(self):
-        """初始化货叉移动时的碰撞检测，读取模型文件fork设备BackLaser相应的参数
-
-        Returns:
-        """
-        print("func: {0} ".format(get_function_name()))
-
-    def forkCollisionCheck(self)->bool:
-        """货叉移动时的碰撞，用于碰撞检测激光和DI为模型文件fork设备中的BackLaser
-           执行forkCollisionCheck前，当前任务需要先调用一次initForkCollisionCheck。
-        Returns:
-            bool: 如果有碰撞则返回bool，并且会设置52200阻挡报错
-        """
-        print("func: {0} ".format(get_function_name()))
-        return True
+    @check
     def openSpeed(self, vx:float, vy:float, vw:float):
         """让agv按vx,vy,vw行走，此函数考虑了碰撞检测
         """
         print("func: {0} {1} {2} {3} ".format(get_function_name(), vx, vy, vw))
+    @check
+    def resetRecAndGoPathDi(self):
+        """重置识别行走的动作
+        """
+        print("func: {0}".format(get_function_name()))
+    @check
+    def recAndGoPathDi(self, task:str) ->int:
+        """识别并且行走
+        Returns:
+            int: 任务状态。和 MoveStatus 相同
+        """
+        print("func: {0} {1}".format(get_function_name(), task))
+        return 4
+    @check
+    def resetGoMapPath(self):
+        """行走的动作
+        """
+        print("func: {0}".format(get_function_name()))  
+    @check      
+    def goMapPath(self, task:str) ->int:
+        """按地图路线行走
+        Returns:
+            int: 任务状态。和 MoveStatus 相同
+        """
+        print("func: {0} {1}".format(get_function_name(), task))
+        return 4        
+    @check
+    def laserCollision(self, ids:list) ->bool:
+        """检测激光点是否和自身碰撞
+        Returns:
+            bool: 激光点是否和自身碰撞
+        """      
+        print("func: {0} {1}".format(get_function_name(), ids))
+        return False
+    @check      
+    def forkGoods(self, load:bool, recfile:str):
+        """货叉上加载或者卸载货物模型及货物检测DI
+        Returns:
+        """
+        print("func: {0} {1} {2}".format(get_function_name(), load, recfile))
+        return 4
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -906,7 +950,7 @@ if __name__ == '__main__':
     r.setPathMaxRot(1.0)
     r.setBlockError()
     r.clearBlockError()
-    r.setBlockReason(0,0,0,0)
+    r.setBlockReason(0,0.,0.,0)
     r.getRecFileFromTask()
     r.setContainer("1","goods1","")
     r.getContainers()
@@ -915,7 +959,12 @@ if __name__ == '__main__':
     r.setUserError(53900, "error")
     r.setUserWarning(55900, "warning")
     r.sensorPointCloud()
-    r.initForkCollisionCheck()
-    r.forkCollisionCheck()
-    r.openSpeed(0,0,0)
+    r.openSpeed(0.,0.,0.)
+    r.resetRecAndGoPathDi()
+    r.recAndGoPathDi(task="{\"operation\":\"load\"}")
+    r.laserCollision([1,2])
+    r.getDistanceSensor()
+    r.resetGoMapPath()
+    r.goMapPath(task="{\"operation\":\"load\"}")
+    r.forkGoods(True, "shelf/s0001.shelf")
     print("Success!!!")
