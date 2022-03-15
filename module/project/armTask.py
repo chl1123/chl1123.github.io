@@ -38,18 +38,6 @@ import syspy.goPath as goPath
         "tips": "背篓号，如果缺省将自动放在对应的背篓中",
         "type": "int",
         "unit": ""
-    },
-    "goodsId": {
-        "value": 0.8,
-        "tips": "货物的Id",
-        "type": "str",
-        "unit": ""
-    },
-    "armArgs": {
-        "value": "[]",
-        "tips": "机械臂相关的运动指令",
-        "type": "str",
-        "unit": ""
     }
 }
 ####END DEFAULT ARGS####
@@ -59,20 +47,20 @@ import syspy.goPath as goPath
 class Module(BasicModule):
     """这个文件是控制机械臂机构的脚本
     用户运行脚本前需要提前准备一个armData.json。这个json文件是用来给出不同库位对于load和unload的具体操作。
-    下面这个例子是库位1,2,3的load和unload基本格式，其中每个库位的goodsType, load, unload三个关键字必填：
+    下面这个例子是库位1,2,3的load和unload基本格式，其中每个库位的load, unload三个关键字必填, 如果goodsType不填，则默认goodsType为0：
     {
         "1": {
-            "goodsType": 0,
+            "goodsType": 0, //默认为0
             "load": [],
             "unload": []
         },
         "2": {
-            "goodsType": 0,
+            "goodsType": 0, //默认为0
             "load": [],
             "unload": []
         },
         "3": {
-            "goodsType": 0,
+            "goodsType": 0, //默认为0
             "load": [],
             "unload": []
         }
@@ -87,10 +75,7 @@ class Module(BasicModule):
         with open(self.armFile) as fp:
             self.armData = json.load(fp)
         for k,v in self.armData.items():
-            if "goodsType" not in v:
-                self.type2c = dict()
-                r.setError("container {} goodsType is missing.".format(k))
-                break
+
             if "load" not in v:
                 r.setError("container {} load is missing.".format(k))
                 self.type2c = dict()
@@ -99,7 +84,9 @@ class Module(BasicModule):
                 r.setError("container {} unload is missing.".format(k))
                 self.type2c = dict()
                 break
-            gtype = v["goodsType"]
+            gtype = 0
+            if "goodsType" in v:
+                gtype = v["goodsType"]
             if gtype in self.type2c:
                 self.type2c[gtype].append(k)
             else:
@@ -135,19 +122,15 @@ class Module(BasicModule):
             self.init = False
             self.start_time = time.time()
             self.operation = args.get("operation",None)
-            self.goodsId = args.get("goodsId",None)
             self.container = args.get("container",None)
-            self.goodsType = args.get("goodsType",None)
-            self.armArgs = args.get("armArgs", None)
+            self.goodsType = args.get("goodsType",0)
+            self.getArmArgsAndGoodsId(r)
             if self.operation != "load" and self.operation != "unload":
                 r.setError("operation is wrong {}.".format(self.operation))
                 return self.failTask(r)
             if self.armArgs is None:
                 r.setError("armArgs is missing.")
                 return self.failTask(r)
-
-            if isinstance(self.armArgs, str):
-                self.armArgs = json.loads(self.armArgs)
             # 加载货物没有给goodsId
             if self.goodsId == "" and self.goodsId is None and self.operation == "load":
                 r.setError("goodsId is wrong {}.".format(self.goodsId))
@@ -292,6 +275,15 @@ class Module(BasicModule):
                 self.status = MoveStatus.FAILED
         r.logDebug("ArmS][{}|{}|{}|{}".format(armInfo["taskid"], armInfo["task_status"], self.status, time.time()-self.start_time));        
         return self.status
+    def getArmArgsAndGoodsId(self, r:SimModule):
+        moveTask = r.moveTask()
+        if "params" in moveTask:
+            for p in moveTask["params"]:
+                if p["key"] == "armArgs":
+                    cmd_str = p["string_value"]
+                    self.armArgs = json.loads(cmd_str)
+                if p['key'] == 'goodsId':
+                    self.goodsId = p['string_value']
 
 
 
@@ -299,19 +291,14 @@ if __name__ == '__main__':
     sim = SimModule()
     print("********load********")
     args = {
-        "operation":"load",
-        "goodsId":"a",
-        "goodsType":0,
-        "armArgs":[{"hello":"world"}]
+        "operation":"load"
     }
     print(args)
     m = Module(sim, args)
     m.run(sim,args)
     print("********unload********")
     args = {
-        "operation":"unload",
-        "goodsId":"goods1",
-        "armArgs":[{"hello":"world"}]
+        "operation":"unload"
     }
     print(args)
     m = Module(sim, args)
