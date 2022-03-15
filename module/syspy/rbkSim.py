@@ -301,6 +301,16 @@ class SimModule:
         print("func: {0}".format(get_function_name()))
         return dict()    
     @check
+    def getArmInfo(self)->dict:
+        """返回机械臂信息
+
+        Returns:
+            dict: 具体机械臂信息
+        """
+        data = {"taskid":1,"task_status":2}
+        print("func: {0}".format(get_function_name()))
+        return data          
+    @check
     def getDistanceSensor(self) -> dict:
         """获取距离节点信息
 
@@ -342,7 +352,7 @@ class SimModule:
         Args:
             ss (str): 输入的字符串
         """ 
-        print("func: {0} content: {1}".format(get_function_name(), ss))
+        print("func: {0} content: [{1}]".format(get_function_name(), ss))
     @check
     def logDebug(self, ss:str):
         """将字符串输出到log文件中，等级为Debug
@@ -350,7 +360,7 @@ class SimModule:
         Args:
             ss (str): 输入的字符串
         """ 
-        print("func: {0} content: {1}".format(get_function_name(), ss))
+        print("func: {0} content: [{1}]".format(get_function_name(), ss))
     @check
     def setError(self, ss:str):
         """输出53000的Error
@@ -882,6 +892,19 @@ class SimModule:
         """
         print("func: {0} {1} {2}".format(get_function_name(), load, recfile))
         return 4
+    @check
+    def armBinTask(self,task_id:int, cmd:str):
+        """调用机械臂动作的服务
+
+        Args:
+            task_id (int): 任务的id
+            cmd (str): 任务的详细动作序列，是个json array类型
+        """        
+        print("func: {0} {1} {2}".format(get_function_name(), task_id, cmd))
+    def stopMotor(self):
+        """停止所有非行走的电机
+        """        
+        print("func: {0}".format(get_function_name()))
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -967,4 +990,7 @@ if __name__ == '__main__':
     r.resetGoMapPath()
     r.goMapPath(task="{\"operation\":\"load\"}")
     r.forkGoods(True, "shelf/s0001.shelf")
+    r.getArmInfo()
+    r.armBinTask(1, "[]")
+    r.stopMotor()
     print("Success!!!")
