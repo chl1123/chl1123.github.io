@@ -369,6 +369,14 @@ class Module(BasicModule):
                 self.state["load"] = "Fork has goods, cannot load"
                 r.setError(f"Fork has goods, cannot load")
                 return
+            if "liftHeight" not in self.task:
+                self.state["load"] = "liftHeight is missing"
+                r.setError(f"liftHeight is missing")
+                return
+            if "liftUpHeight" not in self.task:
+                self.state["load"] = "liftUpHeight is missing"
+                r.setError(f"liftUpHeight is missing")
+                return                
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 rotate(self.rotate_motor, self.rotate_zero), # 货叉前后角度水平
@@ -394,6 +402,14 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.vision_status = MoveStatus.FINISHED
+            if "liftHeight" not in self.task:
+                self.state["load"] = "liftHeight is missing"
+                r.setError(f"liftHeight is missing")
+                return
+            if "liftDownHeight" not in self.task:
+                self.state["load"] = "liftDownHeight is missing"
+                r.setError(f"liftDownHeight is missing")
+                return    
             self.task_list = [
                 lift(self.lift_motor, self.task['liftHeight']),
                 stretch(self.stretch_motor, self.stretch_max_length),
@@ -629,7 +645,8 @@ class recAdjust:
                     has_rec = True
                 elif p["key"] == "recfile":
                     has_rec_file = True
-                    p["string_value"] = agv.task["recfile"]
+                    if "recfile" in agv.task:
+                        p["string_value"] = agv.task["recfile"]
             if has_op == False:
                 p = dict()
                 p["key"] = "operation"
