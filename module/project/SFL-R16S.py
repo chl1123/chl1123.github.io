@@ -125,8 +125,7 @@ class Module(BasicModule):
         #operation
         self.operation = ""
 
-        #有货物后的货叉安全高度
-        self.load_lift_safe_height = 0.5
+        #有货物后的货叉伸出距离
         self.load_stretch_safe_length = 0.01
 
         #货叉伸出最大距离
@@ -385,8 +384,7 @@ class Module(BasicModule):
                 recAdjust(r),
                 lift(self.lift_motor, self.task["liftUpHeight"]),
                 rotate(self.rotate_motor, self.rotate_up), # 货叉前后翘起来
-                stretch(self.stretch_motor, self.load_stretch_safe_length),
-                lift(self.lift_motor, self.load_lift_safe_height)
+                stretch(self.stretch_motor, self.load_stretch_safe_length)
             ]
             self.task_id = 0
         else:
@@ -663,11 +661,12 @@ class recAdjust:
                     p["key"] = "recfile"
                     p["string_value"] = agv.task["recfile"]
                     self.task["params"].append(p)
-                    if has_rec == False:
-                        p = dict()
-                        p["key"] = "recognize"
-                        p["bool_value"] = True
-                        self.task["params"].append(p)                  
+            if has_rec == False:
+                p = dict()
+                p["key"] = "recognize"
+                p["bool_value"] = True
+                self.task["params"].append(p)                
+
         r.logInfo("recAdjust task {}".format(str(self.task)))
         self.status = r.recAndGoPathDi(json.dumps(self.task))
         return self.status
