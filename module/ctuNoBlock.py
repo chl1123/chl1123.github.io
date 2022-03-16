@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/2/14  13:45
+# @Time : 2022/3/16  23:45
 # @Author : huang, zhong
-# @Version : 2.1.8
+# @Version : 2.1.9
 # @Support : rbk  3.3.5.11 以上版本
 # @Update : 增加货物换层时货物检测，优化换层操作报错；新增开机时模式检测，自动切换到机构模式(可配置)
 
@@ -495,7 +495,9 @@ class Module(BasicModule):
                         self.h.switch_mode(r, 1)
                         if self.h.switch_mode_res['status'] != Hairou.Action.FINISHED:
                             return self.status
-
+                elif "mode" not in self.state:
+                    r.setWarning("ctu is connecting! ")
+                    return self.status
             except Exception as e:
                 r.setWarning(f"please update rbk & rbkSim.py: {e}")
             if "connect_error" in self.state:
@@ -636,7 +638,7 @@ class Module(BasicModule):
             self.task["_script_first_run_"] = False
             self.status = MoveStatus.RUNNING
             self.operation_status = MoveStatus.NONE
-        
+
         if self.status == MoveStatus.FINISHED:
             if self.postdata is not None:
                 self.postdata.run(r, self)
@@ -663,10 +665,8 @@ class Module(BasicModule):
                 execution_result = self.state['res']['res'].get('executionResult', 0)
                 if execution_result != 0:
                     fail_description = self.state['res']['res'].get('failDescription', '')
-                    r.setError(f"failDescription: {fail_description}, executionResult: {execution_result}")
-                    if fail_description == 'detect failed':
-                        r.clearError(53000)
-                    else:
+                    if fail_description != 'detect failed':
+                        r.setError(f"failDescription: {fail_description}, executionResult: {hex(execution_result)}")
                         self.status = MoveStatus.FAILED
             except KeyError as e:
                 r.logDebug("KeyError: " + str(e))
@@ -722,8 +722,8 @@ class Module(BasicModule):
             for c in containers:
                 if c.get('container_name', None) == '999':
                     tray_num -= 1
-            if tray_num != self.trays_num:
-                r.setWarning(f"Please check trays_num in json file")
+            # if tray_num != self.trays_num:
+            #     r.setWarning(f"Please check trays_num in json file")
         else:
             r.setError("rbk version mismatch, please update rbk & rbkSim.py")
             return MoveStatus.FAILED
@@ -815,6 +815,7 @@ class Module(BasicModule):
             if tray['id'] == tray_floor:
                 tray['state'] = tray_state
                 tray['goods'] = goodsId
+                tray['binId'] = goodsId
 
     # 获取指定层数的背篓数据
     def get_tray(self, r, tray_floor):
@@ -986,7 +987,8 @@ class Module(BasicModule):
     def checkFingerStatus(self, r, state):
         if "finger" in self.state:
             device_state = self.state["finger"]
-            if device_state.get("state", -1) != Hairou.ModuleState.IDLE:
+            # if device_state.get("state", -1) != Hairou.ModuleState.IDLE:
+            if device_state.get("state", -1) not in [2, 3]:
                 r.setError("Finger status is not idle. Ctu cannot lift or rotate or stretch!")
                 self.finger_status = MoveStatus.FAILED
                 return False
@@ -1311,7 +1313,7 @@ class Module(BasicModule):
 
         if self.operation_status == MoveStatus.FINISHED:
             self.update_data(r, self.tray_floor, 0, self.goods_id)
-            r.logInfo(f"load finish---{self.tray_detect}")
+            r.logInfo(f"load finish---trays:{self.tray_detect}")
         self.detect_refresh(r)
 
         cur_state = dict()
@@ -1330,13 +1332,13 @@ class Module(BasicModule):
                     return
             if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 如果抓斗有货，则先unload抓斗
                 self.tray_floor = 999
-                if self.get_tray(r, 999).get('goods', '') != self.goods_id:
-                    r.setError(f"must unload 999 container first")
-                    self.operation_status = MoveStatus.FAILED
-                    return
             r.logInfo(f"unload begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
             if self.tray_floor is None:
                 r.setError(f"No such goods found, can not unload, goodsId:{self.goods_id}")
+                self.operation_status = MoveStatus.FAILED
+                return
+            if self.get_tray(r, self.tray_floor).get('goods', '') != self.goods_id:
+                r.setError(f"Unload the wrong box！tray_floor:{self.tray_floor}, goodsId:{self.goods_id}")
                 self.operation_status = MoveStatus.FAILED
                 return
         if self.operation_status == MoveStatus.NONE:
@@ -1391,7 +1393,7 @@ class Module(BasicModule):
 
         if self.operation_status == MoveStatus.FINISHED:
             self.update_data(r, self.tray_floor, 1, "")
-            r.logInfo(f"unload finish---{self.tray_detect}")
+            r.logInfo(f"unload finish---trays:{self.tray_detect}")
         self.detect_refresh(r)
 
         cur_state = dict()
@@ -1705,8 +1707,7 @@ class recAdjust:
                                 self.ok_x = 0.012
                                 self.ok_theta = 0.02
                             r.logDebug("[recAdjust][{}|{}|{}|{}|{}|{}]".format(
-                                self.go_args["x"], self.ok_x, ddtheta, self.ok_theta, self.last_ddtheta,
-                                self.first_adj))
+                                self.go_args["x"], self.ok_x, ddtheta, self.ok_theta, self.last_ddtheta, self.first_adj))
                             if (abs(ddtheta) < self.ok_theta or abs(ddtheta) > abs(self.last_ddtheta)) \
                                     and abs(self.go_args["x"]) < self.ok_x and not self.first_adj:
                                 self.ok = True
@@ -2038,6 +2039,8 @@ class waitVision:
 
 class PostData:
     def __init__(self, addr, data):
+        p = ParamServer(__file__)
+        self.post_overtime = p.loadParam("PostOvertime", type="int", default="60", comment="post 超时时间")
         self.addr = addr
         self.data = data
         self.head = {'Content-Type': 'application/json'}
@@ -2047,7 +2050,7 @@ class PostData:
 
     def reset(self):
         self.status = MoveStatus.RUNNING
-    
+
     def run(self, r, ctu):
         err_str = ''
         if self.status is not MoveStatus.FINISHED:
@@ -2069,9 +2072,9 @@ class PostData:
                 err_str = str(e)
                 self.status = MoveStatus.RUNNING
                 r.logDebug(str(e))
-        if time.time() - self.start_time > 30:
-            r.setWarning(f"Response time out: 30s {err_str}")
-            self.status = MoveStatus.FAILED
+            if time.time() - self.start_time > self.post_overtime:
+                r.setWarning(f"Response time out: {self.post_overtime}s {err_str}")
+                self.status = MoveStatus.FAILED
 
 
 if __name__ == '__main__':
