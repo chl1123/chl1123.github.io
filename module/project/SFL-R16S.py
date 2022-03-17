@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/3/14
+# @Time : 2022/3/17
 # @Author : qiangsheng，zhong
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
@@ -662,10 +662,11 @@ class recAdjust:
                     p["string_value"] = agv.task["recfile"]
                     self.task["params"].append(p)
             if has_rec == False:
-                p = dict()
-                p["key"] = "recognize"
-                p["bool_value"] = True
-                self.task["params"].append(p)                
+                if "recfile" in agv.task:
+                    p = dict()
+                    p["key"] = "recognize"
+                    p["bool_value"] = True
+                    self.task["params"].append(p)                
 
         r.logInfo("recAdjust task {}".format(str(self.task)))
         self.status = r.recAndGoPathDi(json.dumps(self.task))
