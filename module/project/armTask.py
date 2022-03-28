@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/3/24
+# @Time : 2022/3/28
 # @Author : qiangsheng
 # @File : armTask.py
 # @Request : issue_pool#3020 荣成拼合单
-# @Version: 0.0
+# @Version: 0.4
 
 import json
 import time
@@ -15,16 +15,10 @@ from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, Pos2World, normalize_theta, ParamServer
 import math
 import syspy.goPath as goPath
-
+import os
 """
 ####BEGIN DEFAULT ARGS####
 {
-    "goodsType": {
-        "value": 0,
-        "tips": "货物类型",
-        "type": "int",
-        "unit": ""
-    },
     "operation":{
         "value": "load",
         "default_value":[
@@ -50,17 +44,14 @@ class Module(BasicModule):
     下面这个例子是库位1,2,3的load和unload基本格式，其中每个库位的load, unload三个关键字必填, 如果goodsType不填，则默认goodsType为0：
     {
         "1": {
-            "goodsType": 0, //默认为0
             "load": [],
             "unload": []
         },
         "2": {
-            "goodsType": 0, //默认为0
             "load": [],
             "unload": []
         },
         "3": {
-            "goodsType": 0, //默认为0
             "load": [],
             "unload": []
         }
@@ -68,7 +59,8 @@ class Module(BasicModule):
     """    
     def __init__(self, r:SimModule, args):
         super(Module, self).__init__()
-        self.armFile = "armData.json"
+        param_dir = os.path.dirname(__file__)
+        self.armFile = os.path.join(param_dir, "armData.json")
         self.armData = None
 
         with open(self.armFile) as fp:
@@ -96,12 +88,14 @@ class Module(BasicModule):
 
     def reset(self, r:SimModule) -> MoveStatus:
         self.status = MoveStatus.RUNNING
+        self.init = True
 
     def failTask(self, r:SimModule):
         r.stopRobot(True)
         self.status = MoveStatus.FAILED
         return self.status
     def run(self, r:SimModule,args):
+        self.status = MoveStatus.RUNNING
         if self.armData == None:
             r.setError("cannot load {}".format(self.armFile))
             return self.failTask(r)
@@ -115,7 +109,7 @@ class Module(BasicModule):
             if self.armArgs is None:
                 r.setError("armArgs is missing.")
                 return self.failTask(r)
-            self.taskid = armInfo["taskid"] + 1
+            self.taskid = armInfo["taskId"] + 1
             if self.operation == "load" or self.operation == "unload":
                 if not isinstance(self.armArgs, list):
                     r.setError("armArgs should be list. {}".format(self.armArgs))
@@ -199,12 +193,12 @@ class Module(BasicModule):
                             replace_num = n
                 if replace_num >= 0:
                     out_args = self.armArgs
-                    out_args[replace_num] = self.cmd
+                    out_args = out_args[0:replace_num] + self.cmd + out_args[replace_num+1::]
                     r.armBinTask(self.taskid, json.dumps(out_args))
             else:
                 r.armBinTask(self.taskid, json.dumps(self.armArgs))
             r.logDebug("ArmInitS][{}|{}|{}|{}|{}".format(self.container, self.operation, self.goodsId, self.taskid, self.cmd))      
-        if armInfo["taskid"] == self.taskid:
+        if armInfo["taskId"] == self.taskid:
             if armInfo["task_status"] == 2:
                 if self.operation == "load":
                     if isinstance(self.container, str) and isinstance(self.goodsId, str):
@@ -212,7 +206,7 @@ class Module(BasicModule):
                     else:
                         r.setError("type error. container {}, goodsId {}".format(type(self.container), type(self.goodsId)))
                         return self.failTask(r)
-                elif self.operation == unload:
+                elif self.operation == "unload":
                     if isinstance(self.container, str):
                         r.clearContainer(self.container)
                     else:
@@ -222,7 +216,7 @@ class Module(BasicModule):
             elif armInfo["task_status"] == 3:
                 r.setError("arm task is failed {}")
                 self.status = MoveStatus.FAILED
-        r.logDebug("ArmS][{}|{}|{}|{}".format(armInfo["taskid"], armInfo["task_status"], self.status, time.time()-self.start_time));        
+        r.logDebug("ArmS][{}|{}|{}|{}".format(armInfo["taskId"], armInfo["task_status"], self.status, time.time()-self.start_time));        
         return self.status
     def getArmArgsAndGoodsId(self, r:SimModule):
         moveTask = r.moveTask()
