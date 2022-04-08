@@ -483,6 +483,7 @@ class Module(BasicModule):
             r.logDebug(str_state)
             dtime = time.time() - self.start_connect_time
             if dtime > self.max_connect_time:
+                self.h.connect()
                 r.setWarning("ctu connect is overtime: {}".format(self.max_connect_time))
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
@@ -503,6 +504,7 @@ class Module(BasicModule):
             if "connect_error" in self.state:
                 dtime = time.time() - self.start_connect_time
                 if dtime > self.max_connect_time:
+                    self.h.connect()
                     r.setWarning("ctu connect is overtime: {}".format(self.max_connect_time))
                     # self.status = MoveStatus.FAILED
                     str_state = json.dumps(self.state)
@@ -1833,7 +1835,7 @@ class getGoodsS1:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, self.stretchDist)
-            ctu.checkFingerStatus(r, 1)
+            # ctu.checkFingerStatus(r, 1)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 0)
         else:
@@ -1852,7 +1854,7 @@ class getGoodsS2:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, 0)
-            ctu.checkFingerStatus(r, 0)
+            # ctu.checkFingerStatus(r, 0)
         else:
             self.status = MoveStatus.FINISHED
 
@@ -1962,7 +1964,7 @@ class putGoodsS1:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, self.stretchDist)
-            ctu.checkFingerStatus(r, 0)
+            # ctu.checkFingerStatus(r, 0)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 1)
         else:

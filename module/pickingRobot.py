@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# @Time : 2022/3/16  23:45
+# @Author : huang, zhong
+# @Version : 2.1.9
+# @Support : rbk  3.3.5.11 以上版本
 from enum import Enum, IntEnum
 import struct
 import socket
@@ -431,7 +436,7 @@ class Hairou:
         except Exception as e:
             if r is not None:
                 r.logDebug("ctu recv error!!!")
-            self.report["connect_error"] = f"ctu recv error!!! {e}"
+            self.report["connect_error"] = f"ctu recv error!!!"
             self.total_hex = ""
             return dict()
         else:
@@ -576,7 +581,7 @@ class Hairou:
         except:
             res_msg["flag"] = False
             res_msg["content"] = str(sys.exc_info()[0])
-            r.setError(f"Send message failed, send the task again please")
+            r.setWarning(f"Send message failed!")
             self.disconnect()
         return res_msg
 
