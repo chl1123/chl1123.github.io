@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/3/28
+# @Time : 2022/4/8
 # @Author : qiangsheng
 # @File : armTask.py
-# @Request : issue_pool#3020 荣成拼合单
-# @Version: 0.4
+# @Request : issue_pool#3020 荣成拼合单 roboview#1358
+# @Version: 0.5
 
 import json
 import time
@@ -95,6 +95,8 @@ class Module(BasicModule):
         self.status = MoveStatus.FAILED
         return self.status
     def run(self, r:SimModule,args):
+        if self.status == MoveStatus.SUSPENDED:
+            r.armResume()
         self.status = MoveStatus.RUNNING
         if self.armData == None:
             r.setError("cannot load {}".format(self.armFile))
@@ -228,6 +230,14 @@ class Module(BasicModule):
                 if p['key'] == 'goodsId':
                     self.goodsId = p['string_value']
 
+    def suspend(self, r:SimModule):
+        if self.status is not MoveStatus.SUSPENDED:
+            r.armPause()
+        r.logInfo("task suspend")
+    def cancel(self, r:SimModule):
+        r.armStop()
+        self.status = MoveStatus.NONE
+        r.logInfo("task cancel")
 
 
 if __name__ == '__main__':
@@ -253,3 +263,6 @@ if __name__ == '__main__':
     print(args)
     m = Module(sim, args)
     m.run(sim,args)
+
+    m.suspend(sim)
+    m.cancel(sim)
