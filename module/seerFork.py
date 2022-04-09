@@ -118,6 +118,7 @@ class finger:
         self.status = MoveStatus.RUNNING
 
 class rec:
+    # 封装了识别
     def __init__(self, filename):
         self.status = MoveStatus.NONE
         self.filename = filename
@@ -126,18 +127,18 @@ class rec:
         self.result = dict()
     def run(self, r:SimModule,agv):
         self.status = MoveStatus.RUNNING
-        rec_status = r.getRecStatus()
+        rec_status = r.getRecStatus() #获取识别状态
         r.logDebug("rec_status: {}".format(rec_status))
-        if rec_status == 3:
+        if rec_status == 3: # 识别失败的状态
             self.rec_times = self.rec_times + 1
             if self.rec_times > self.max_rec_times:
                 r.setError("rec fail. reach max times {}".format(self.max_rec_times))
                 self.status = MoveStatus.FAILED
             else:
                 r.doRec(self.filename)
-        elif rec_status == 0 or rec_status == 1:
+        elif rec_status == 0 or rec_status == 1: # 
             r.doRec(self.filename)
-        elif rec_status == 2:
+        elif rec_status == 2: # 识别成功冲
             self.result = r.getRecResult()
             r.logDebug("rec_result:{}".format(self.result))
             self.status = MoveStatus.FINISHED
