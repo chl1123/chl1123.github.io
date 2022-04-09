@@ -72,12 +72,6 @@ class Module(BasicModule):
         super(Module, self).__init__()
         p = ParamServer(__file__)
         self.status = MoveStatus.RUNNING
-        self.lift_motor = "motor2"
-        self.stretch_motor = "qianhouyi"
-        self.rotate_motor = "qianhouqing"
-        self.vy_motor = "zuoyouyi"
-
-        self.reachDI = -1
 
         # 四个电机的实时位置
         self.stretch_pos = 0.
@@ -90,14 +84,6 @@ class Module(BasicModule):
         self.init_lift_pos = 0.
         self.init_rotate_pos = 0.
         self.init_vy_motor_pos = 0.
-
-        self.lift_zero = 0.075
-        self.stretch_zero = 0.01
-        self.rotate_zero = 1 #向下旋转就是归0
-        self.rotate_up = -1 # 向上转
-        self.moveY_zero = 0
-
-
         self.rec_file = ""
         self.init = True
         self.task = dict()
@@ -105,31 +91,46 @@ class Module(BasicModule):
         self.task_list = []
         self.task_id = 0
         self.operation_status = MoveStatus.NONE
+        #operation
+        self.operation = ""
 
-        #电机速度
-        p = ParamServer(__file__)
+
+        ## 下列参数需要使用前配置
+        # 四个电机对应模型文件的名称
+        self.lift_motor = "motor2"
+        self.stretch_motor = "qianhouyi"
+        self.rotate_motor = "qianhouqing"
+        self.vy_motor = "zuoyouyi"
+        # 货叉机构，伸出机构，旋转机构的零位
+        self.lift_zero = 0.075
+        self.stretch_zero = 0.01
+        self.rotate_zero = 1 #向下旋转就是归0
+        self.rotate_up = -1 # 向上转
+        self.moveY_zero = 0
+        # 四类电机的规划最大速度
         self.lift_vel = 0.4
         self.stretch_vel = 0.2
         self.rotate_vel = 0.1
         self.moveY_vel = 0.1
-        
-        #距离传感器
+        # 到位DI
+        self.reachDI = -1
+        # 距离传感器
         self.distanceNodeId = (1,2) # distanceNode的ID号
         self.obsStopDist = 0.25 # 报警距离， 这个距离传感器的死区为0.2m，因此不能配置成小于0.2m
-
-        #倾斜及时
+        # 倾斜延时
         self.rotate_time = 4.0 # 倾斜电机旋转3s
-
         # 激光尾部激光
         self.back_laser = (1,2)
-        #operation
-        self.operation = ""
-
-        #有货物后的货叉伸出距离
+        # 有货物后的货叉伸出距离
         self.load_stretch_safe_length = 0.01
-
-        #货叉伸出最大距离
-        self.stretch_max_length = 0.528 
+        # 货叉伸出最大距离
+        self.stretch_max_length = 0.418
+        # 货叉伸出最大距离时的识别倒退距离
+        self.back_dist = 0.2
+        # 货叉伸出最大距离时的最小前置距离
+        self.min_ahead_dist = 1.5
+        # 货叉识别调整最大前移距离
+        self.max_ahead_dist = 0
 
 
     def reset(self, r:SimModule):
@@ -693,8 +694,21 @@ class recAdjust:
                     p = dict()
                     p["key"] = "recognize"
                     p["bool_value"] = True
-                    self.task["params"].append(p)                
-
+                    self.task["params"].append(p) 
+                    has_rec = True               
+            if has_rec:
+                p1 = dict()
+                p1["key"] = "rec_back_dist"
+                p1["double_value"] = agv.back_dist
+                self.task["params"].append(p1)
+                p2 = dict()
+                p2["key"] = "rec_min_ahead_dist"
+                p2["double_value"] = agv.min_ahead_dist
+                self.task["params"].append(p2)    
+                p3 = dict()
+                p3["key"] = "rec_ahead_dist"
+                p3["double_value"] = agv.max_ahead_dist
+                self.task["params"].append(p3)                                
         r.logInfo("recAdjust task {}".format(str(self.task)))
         self.status = r.recAndGoPathDi(json.dumps(self.task))
         return self.status

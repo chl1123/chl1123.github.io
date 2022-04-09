@@ -299,7 +299,15 @@ class SimModule:
             dict: 具体的任务信息
         """
         print("func: {0}".format(get_function_name()))
-        return dict()    
+        args = dict()
+        args["params"] = []
+        script_insert = []
+        script_insert.append({"name":"ScriptInsert", "type":"ScriptInsert"})
+        script_insert.append({"hello":"world"})
+        args["params"].append({"key":"armArgs", "string_value":"{}".format(json.dumps(script_insert))})
+        args["params"].append({"key":"goodsId","string_value":"123"})
+        print(args)
+        return args   
     @check
     def getArmInfo(self)->dict:
         """返回机械臂信息
@@ -307,7 +315,7 @@ class SimModule:
         Returns:
             dict: 具体机械臂信息
         """
-        data = {"taskid":1,"task_status":2}
+        data = {"taskId":1,"task_status":2}
         print("func: {0}".format(get_function_name()))
         return data          
     @check
@@ -812,7 +820,7 @@ class SimModule:
         Returns:
             list: 当前车子上库位或者背篓货物的状态
         """
-        c= [{'container_name': '3', 'desc': '', 'goods_id': '', 'has_goods': False}, {'container_name': '1', 'desc': '', 'goods_id': 'goods1', 'has_goods': True}, {'container_name': '2', 'desc': 'by script', 'goods_id': 'goods2', 'has_goods': True}]
+        c= [{'container_name': '0', 'desc': '', 'goods_id': '1', 'has_goods': False}, {'container_name': '1', 'desc': '', 'goods_id': '123', 'has_goods': True}, {'container_name': '2', 'desc': 'by script', 'goods_id': 'goods2', 'has_goods': True}]
         print("func: {0} {1} ".format(get_function_name(), c))
         return c
     @check
@@ -901,6 +909,12 @@ class SimModule:
             cmd (str): 任务的详细动作序列，是个json array类型
         """        
         print("func: {0} {1} {2}".format(get_function_name(), task_id, cmd))
+    def armStop(self):
+        print("func: {0}".format(get_function_name()))
+    def armPause(self):
+        print("func: {0}".format(get_function_name()))
+    def armResume(self):
+        print("func: {0}".format(get_function_name()))
     def stopMotor(self):
         """停止所有非行走的电机
         """        
@@ -992,5 +1006,8 @@ if __name__ == '__main__':
     r.forkGoods(True, "shelf/s0001.shelf")
     r.getArmInfo()
     r.armBinTask(1, "[]")
+    r.armStop()
+    r.armPause()
+    r.armResume()
     r.stopMotor()
     print("Success!!!")
