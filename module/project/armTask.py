@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/4/8
+# @Time : 2022/4/11
 # @Author : qiangsheng
 # @File : armTask.py
 # @Request : issue_pool#3020 荣成拼合单 roboview#1358
@@ -233,6 +233,7 @@ class Module(BasicModule):
     def suspend(self, r:SimModule):
         if self.status is not MoveStatus.SUSPENDED:
             r.armPause()
+            self.status = MoveStatus.SUSPENDED
         r.logInfo("task suspend")
     def cancel(self, r:SimModule):
         r.armStop()
