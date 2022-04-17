@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/3/16  23:45
+# @Time : 2022/4/17  23:00
 # @Author : huang, zhong
-# @Version : 2.1.9
-# @Support : rbk  3.3.5.11 以上版本
-from enum import Enum, IntEnum
+# @Version : 2.2.1
+# @Support : rbk  3.3.5.40 以上版本
+
+from enum import IntEnum
 import struct
 import socket
 import json
@@ -94,11 +95,15 @@ class RunMode(IntEnum):
 
 
 class ModuleState(IntEnum):
-    INIT = 0
-    RESET = 1
-    IDLE = 2
-    WORKING = 3
-    ERROR = 4
+    """
+    机构状态
+    """
+    UNDEFINED = -1   # 协议之外的不明状态
+    INIT = 0    # 初始状态，不可用，需要发送ROBOT_XXX_RESET命令复位机构
+    RESET = 1   # 复位状态，复位成功跳转到IDLE，复位失败跳转到ERROR
+    IDLE = 2   # 空闲状态，当前无指令执行中，可发送各种操作命令
+    WORKING = 3    # 工作状态，当前正在执行指令，可发送各种操作命令，按顺序执行
+    ERROR = 4   # 错误状态，不可用，需要发送ROBOT_XXX_RESET命令复位
 
 
 class TargetType(IntEnum):   # 相机识别对象
@@ -581,8 +586,7 @@ class Hairou:
         except:
             res_msg["flag"] = False
             res_msg["content"] = str(sys.exc_info()[0])
-            r.setWarning(f"Send message failed!")
-            self.disconnect()
+            r.setWarning(f"send message failed!")
         return res_msg
 
     def switch_mode(self, r, mode):
@@ -770,6 +774,7 @@ class Hairou:
             self.liftReset_res["status"] = Action.RUNNING
             self.liftReset_res["res"] = dict()
             self.liftReset_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"lift reset: {msg}")
         else:
             dt = time.time() - self.lift_reset_stime
             if dt > self.reset_time:
@@ -781,6 +786,7 @@ class Hairou:
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
         self.sendMessage(msg, r)
+        r.logDebug(f"lift stop: {msg}")
 
     def liftPos(self, height, r):
         if self.liftPos_res['status'] is Action.INIT:
@@ -792,6 +798,7 @@ class Hairou:
             self.liftPos_res["status"] = Action.RUNNING
             self.liftPos_res["res"] = dict()
             self.liftPos_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"lift pos: {msg}")
         return self.liftPos_res
 
     def rotateReset(self, r):
@@ -804,6 +811,7 @@ class Hairou:
             self.rotateReset_res["status"] = Action.RUNNING
             self.rotateReset_res["res"] = dict()
             self.rotateReset_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"rotate reset: {msg}")
         else:
             dt = time.time() - self.rotate_reset_stime
             if dt > self.reset_time:
@@ -815,6 +823,7 @@ class Hairou:
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
         self.sendMessage(msg, r)
+        r.logDebug(f"rotate stop: {msg}")
 
     def rotateAngle(self, theta, r):
         if self.rotateAngle_res['status'] is Action.INIT:
@@ -826,6 +835,7 @@ class Hairou:
             self.rotateAngle_res["status"] = Action.RUNNING
             self.rotateAngle_res["res"] = dict()
             self.rotateAngle_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"rotate angle: {msg}")
         return self.rotateAngle_res
 
     def stretchReset(self, r):
@@ -838,6 +848,7 @@ class Hairou:
             self.stretchReset_res["status"] = Action.RUNNING
             self.stretchReset_res["res"] = dict()
             self.stretchReset_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"stretch reset: {msg}")
         else:
             dt = time.time() - self.stretch_reset_stime
             if dt > self.reset_time:
@@ -849,6 +860,7 @@ class Hairou:
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
         self.sendMessage(msg, r)
+        r.logDebug(f"stretch stop: {msg}")
 
     def stretchPos(self, value, r):
         if self.stretchPos_res["status"] is Action.INIT:
@@ -860,6 +872,7 @@ class Hairou:
             self.stretchPos_res["status"] = Action.RUNNING
             self.stretchPos_res["res"] = dict()
             self.stretchPos_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"stretch pos: {msg}")
         return self.stretchPos_res
 
     def fingerReset(self, r):
@@ -872,6 +885,7 @@ class Hairou:
             self.fingerReset_res["status"] = Action.RUNNING
             self.fingerReset_res["res"] = dict()
             self.fingerReset_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"finger reset: {msg}")
         else:
             dt = time.time() - self.finger_reset_stime
             if dt > self.reset_time:
@@ -883,6 +897,7 @@ class Hairou:
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
         self.sendMessage(msg, r)
+        r.logDebug(f"finger stop: {msg}")
 
     def fingerPos(self, value, r):
         if self.fingerPos_res["status"] is Action.INIT:
@@ -894,6 +909,7 @@ class Hairou:
             self.fingerPos_res["status"] = Action.RUNNING
             self.fingerPos_res["res"] = dict()
             self.fingerPos_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"finger pos: {msg}")
         return self.fingerPos_res
 
     def visionReset(self, r):

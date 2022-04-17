@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/3/16  23:45
+# @Time : 2022/4/17  23:00
 # @Author : huang, zhong
-# @Version : 2.1.9
-# @Support : rbk  3.3.5.11 以上版本
-# @Update : 增加货物换层时货物检测，优化换层操作报错；新增开机时模式检测，自动切换到机构模式(可配置)
+# @Version : 2.2.1
+# @Support : rbk  3.3.5.40 以上版本
+# @Update : 优化手指问题
 
 import json
 import sys
@@ -351,7 +351,7 @@ class Module(BasicModule):
         ip = p.loadParam("ip", type="str", default="192.168.192.20", comment="ip addr")
         port = p.loadParam("port", type="int", default=4172, maxValue=999999, minValue=0, comment="port")
         self.start_connect_time = time.time()
-        self.max_connect_time = p.loadParam("max_connect_time", type="int", default=10, maxValue=999999, minValue=0,
+        self.max_connect_time = p.loadParam("max_connect_time", type="int", default=30, maxValue=999999, minValue=0,
                                             comment="连接等待最长时间s")
         self.h = Hairou.Hairou(ip, port)
         self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default=0.5, maxValue=10.0, minValue=0.0,
@@ -366,7 +366,7 @@ class Module(BasicModule):
         self.task = dict()
         self.low = dict({0: 740, 1: 1130, 2: 1520, 3: 1910, 4: 2300})  # mm
         # 此处在背篓取货时需要略低于背篓的高度，此处所更改的数值为默认值，需要在"ctuNoBlock.json"文件里修改才是最终执行的高度
-        self.low[0] = p.loadParam("low0", type="float", default=395.0, maxValue=10000.0, minValue=0.0, unit="mm",
+        self.low[0] = p.loadParam("low0", type="float", default=400.0, maxValue=10000.0, minValue=0.0, unit="mm",
                                   comment="取货时，第0层高度")
         self.low[1] = p.loadParam("low1", type="float", default=845.0, maxValue=10000.0, minValue=0.0, unit="mm",
                                   comment="取货时，第1层高度")
@@ -989,9 +989,8 @@ class Module(BasicModule):
     def checkFingerStatus(self, r, state):
         if "finger" in self.state:
             device_state = self.state["finger"]
-            # if device_state.get("state", -1) != Hairou.ModuleState.IDLE:
-            if device_state.get("state", -1) not in [2, 3]:
-                r.setError("Finger status is not idle. Ctu cannot lift or rotate or stretch!")
+            if device_state.get("state", None) != Hairou.ModuleState.IDLE:
+                r.setWarning("Finger status is not idle. Ctu cannot lift or rotate or stretch!")
                 self.finger_status = MoveStatus.FAILED
                 return False
             # if device_state.get("leftStatus",-1) != device_state.get("rightStatus",-1):
@@ -1014,21 +1013,15 @@ class Module(BasicModule):
         self.finger_status = MoveStatus.RUNNING
         if "finger" in self.state:
             device_state = self.state["finger"]
-            if "leftStatus" in device_state and "state" in device_state \
-                    and device_state["state"] != Hairou.ModuleState.ERROR \
-                    and device_state["state"] != Hairou.ModuleState.INIT \
-                    and device_state["state"] != Hairou.ModuleState.RESET:
-                if abs(pos - 1) < 0.1 \
-                        and abs(device_state["leftStatus"] - 1) < 0.1 \
-                        and abs(device_state["rightStatus"] - 1) < 0.1 \
-                        and device_state["state"] == Hairou.ModuleState.IDLE:
+            if "leftStatus" in device_state and "state" in device_state and device_state["state"] != Hairou.ModuleState.ERROR \
+                    and device_state["state"] != Hairou.ModuleState.INIT and device_state["state"] != Hairou.ModuleState.RESET:
+                # if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1 and device_state["state"] == Hairou.ModuleState.IDLE:
+                if pos == 1 and device_state["leftStatus"] == 1 and device_state["rightStatus"] == 1 and device_state["state"] == Hairou.ModuleState.IDLE:
                     self.finger_status = MoveStatus.FINISHED
                     self.h.reset_fingerPos()
                     return True
-                elif abs(pos) < 0.1 \
-                        and abs(device_state["leftStatus"]) < 0.1 \
-                        and abs(device_state["rightStatus"]) < 0.1 \
-                        and device_state["state"] == Hairou.ModuleState.IDLE:
+                # elif abs(pos) < 0.1 and abs(device_state["leftStatus"]) < 0.1 and abs(device_state["rightStatus"]) < 0.1 and device_state["state"] == Hairou.ModuleState.IDLE:
+                elif pos == 0 and device_state["leftStatus"] == 0 and device_state["rightStatus"] == 0 and device_state["state"] == Hairou.ModuleState.IDLE:
                     self.finger_status = MoveStatus.FINISHED
                     self.h.reset_fingerPos()
                     return True
@@ -1835,7 +1828,7 @@ class getGoodsS1:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, self.stretchDist)
-            # ctu.checkFingerStatus(r, 1)
+            ctu.checkFingerStatus(r, 1)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 0)
         else:
@@ -1854,7 +1847,7 @@ class getGoodsS2:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, 0)
-            # ctu.checkFingerStatus(r, 0)
+            ctu.checkFingerStatus(r, 0)
         else:
             self.status = MoveStatus.FINISHED
 
@@ -1964,7 +1957,7 @@ class putGoodsS1:
         self.status = MoveStatus.RUNNING
         if ctu.stretch_status is not MoveStatus.FINISHED:
             ctu.stretch(r, self.stretchDist)
-            # ctu.checkFingerStatus(r, 0)
+            ctu.checkFingerStatus(r, 0)
         elif ctu.finger_status is not MoveStatus.FINISHED:
             ctu.finger(r, 1)
         else:
