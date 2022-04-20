@@ -386,6 +386,14 @@ class SimModule:
         """ 
         print("func: {0} code: {1}, content: {2}".format(get_function_name(), code, ss))
     @check
+    def setPickRobotError(self, code:int, ss:str):
+        """多料箱车专用报错码: 53800~53899
+        Args:
+            code(int): 报错码， 如果超过这个范围，则会报notice
+            ss (str): 注释字符串
+        """ 
+        print("func: {0} code: {1}, content: {2}".format(get_function_name(), code, ss))
+    @check
     def setWarning(self, ss:str):
         """输出55300的Warning
 
@@ -396,6 +404,15 @@ class SimModule:
     @check
     def setUserWarning(self, code:int, ss:str):
         """用户报警码: 55900~55999
+
+        Args:
+            code(int): 报错码， 如果超过这个范围，则会报notice
+            ss (str): 注释字符串
+        """ 
+        print("func: {0} code: {1}, content: {2}".format(get_function_name(), code, ss))
+    @check
+    def setPickRobotWarning(self, code:int, ss:str):
+        """多料箱车报警码: 55800~55899
 
         Args:
             code(int): 报错码， 如果超过这个范围，则会报notice
@@ -1010,4 +1027,6 @@ if __name__ == '__main__':
     r.armPause()
     r.armResume()
     r.stopMotor()
+    r.setPickRobotError(53800, "error")
+    r.setPickRobotWarning(55800, "warning")
     print("Success!!!")
