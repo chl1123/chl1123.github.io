@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/4/17  23:00
+# @Time : 2022/4/24  16:00
 # @Author : huang, zhong
-# @Version : 2.2.1
-# @Support : rbk  3.3.5.40 以上版本
+# @Version : 2.2.3
+# @Support : rbk  3.3.5.52 以上版本
+# @Update : 增加料箱车专属报错码，统一料箱车报错提示
 
 from enum import IntEnum
 import struct
@@ -586,7 +587,7 @@ class Hairou:
         except:
             res_msg["flag"] = False
             res_msg["content"] = str(sys.exc_info()[0])
-            r.setWarning(f"send message failed!")
+            r.setPickRobotWarning(55800, "socket connection broken, send message failed!")
         return res_msg
 
     def switch_mode(self, r, mode):
@@ -923,6 +924,7 @@ class Hairou:
             self.visionReset_res["res"] = dict()
             self.visionReq_res["status"] = Action.INIT
             self.visionReset_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"vision reset: {msg}")
         else:
             dt = time.time() - self.vision_reset_stime
             if dt > self.reset_time:
@@ -934,6 +936,7 @@ class Hairou:
         self.seqNum_req = self.seqNum_req + 1
         msg["seqNum"] = self.seqNum_req
         self.sendMessage(msg, r)
+        r.logDebug(f"vision stop: {msg}")
 
     def visionReq(self, targetType, binType, binModel, r):
         if self.visionReq_res["status"] is Action.INIT:
@@ -947,6 +950,7 @@ class Hairou:
             self.visionReq_res["status"] = Action.RUNNING
             self.visionReq_res["res"] = dict()
             self.visionReq_res["res"] = self.sendMessage(msg, r)
+            r.logDebug(f"vision req: {msg}")
         return self.visionReq_res
 
     def visionRecord(self, r):
