@@ -3,6 +3,7 @@ from google.protobuf.json_format import MessageToJson
 import syspy.lib.pass_through as pt
 import syspy.lib.rpc_client as rc
 import syspy.lib.rpc_server as rs
+import syspy.lib.udp_debug as ud
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery/')
 import message_battery_pb2
@@ -21,6 +22,8 @@ class batteryBase:
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
         self.setCallBack()
+        self.__debug_out = ud.udpDebug()
+        sys.stdout = self.__debug_out
 
     def write(self, msg):
         """
@@ -97,9 +100,10 @@ class batteryBase:
     def registerFunction(self, function, name = None):
         self.__rpc_server.registerFunction(function, name)
 
-    def shoutDown(self):
+    def __del__(self):
         self.__rpc_server.shoutDown()
         self.__pass.shoutDown()
+        self.__debug_out.close()
 
 if __name__ == "__main__":
     pass
