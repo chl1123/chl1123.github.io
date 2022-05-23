@@ -1,10 +1,17 @@
 import time,socket,sys
 class udpDebug:
     def __init__(self):
-        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        try:
+            self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        except Exception as e:
+            print("udp init failed.")
+        
     def write(self, str1):
-        self.udp_socket.sendto(str1.encode("utf-8"), ('<broadcast>', 20000))
+        try:
+            self.udp_socket.sendto(str1.encode("utf-8"), ("192.168.192.255", 20000))
+        except Exception as e:
+            print("udp write failed.")
     
     def flush(self):
         pass

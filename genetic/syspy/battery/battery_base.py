@@ -24,6 +24,7 @@ class batteryBase:
         self.setCallBack()
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
+        print("batteryBase init.")
 
     def write(self, msg):
         """
@@ -72,12 +73,14 @@ class batteryBase:
         设置电池通信超时警告,错误码为54001
         """
         self.__rpc_client.setWarning(CODE_BATT_ERRO, "UART Battery response time out")
+        print("UART Battery response time out")
 
     def clearTimeout(self):
         """
         清除电池通信超时警告,错误码为54001
         """
         self.__rpc_client.clearWarning(CODE_BATT_ERRO)
+        print("clear UART Battery response time out")
     
     def setChargeStateOn(self):
         """
@@ -103,6 +106,7 @@ class batteryBase:
     def __del__(self):
         self.__rpc_server.shoutDown()
         self.__pass.shoutDown()
+        print("batteryBase exit.")
         self.__debug_out.close()
 
 if __name__ == "__main__":
