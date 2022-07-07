@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/11/29 13:42
+# @Time : 2022/6/24 15:25
 # @Author : zhong
 # @File : robot.py
-# @Version : 1.0
+# @Version : 1.3
 """
 提供一些机构脚本常用的接口
 """
 import enum
+import json
 import os
 import logging
 import time
+import requests
+from logging.handlers import TimedRotatingFileHandler
+from requests.exceptions import ReadTimeout, ConnectTimeout, ConnectionError
+
 import goPath
 from rbk import MoveStatus
 from rbkSim import SimModule
@@ -82,7 +87,12 @@ class ModuleTool:
         return motor_speed
 
     @staticmethod
-    def delay(second):       # 延时 second 秒
+    def delay(second):
+        """
+        延时 second 秒
+        :param second:
+        :return: 延时完成返回True
+        """
         if ModuleTool.start_time is None:
             ModuleTool.start_time = time.time()
         if time.time() - ModuleTool.start_time > second:
@@ -90,43 +100,115 @@ class ModuleTool:
             return True
         return False
 
+    @staticmethod
+    def script_running_counter(r: SimModule):
+        return r.getCount()
+
+    @staticmethod
+    def get_value_by_key(data: dict, key: str):
+        """
+        深度遍历解析字典数据，获取指定 key 对应的 value 值，如果 key 不存在，则返回 None
+        :param data:
+        :param key:
+        :return:
+        """
+        pass
+
+
+class NetHandle:
+    """提供HTTP协议的GET请求和POST请求接口 """
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def http_get(r, url, headers=None, params=None,  timeout=5.0):
+        try:
+            res = requests.get(url, headers=headers, params=params, timeout=timeout)
+        except ReadTimeout:
+            pass
+        except ConnectTimeout:
+            r.logDebug(f'ConnectTimeout timeout, func: http_get: {url}')
+        except ConnectionError:
+            r.logDebug(f"Failed to establish a new connection, network is unreachable:{url}")
+        except Exception as e:
+            r.logDebug(f"Exception: {e}")
+        else:
+            r.logDebug(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
+            res.close()
+            return res
+
+    @staticmethod
+    def http_post(r, url, data=None, headers=None, timeout=10.0):
+        """
+        发送一次POST请求， 请求成功返回 response 的 json 数据
+        :param r:
+        :param url:
+        :param headers:
+        :param data:
+        :param timeout:
+        :return: json
+        """
+        try:
+            res = requests.post(url, json=data, headers=headers, timeout=timeout)
+        except ConnectTimeout:
+            r.logDebug(f"ConnectTimeout: {url}")
+        except ConnectionError:
+            r.logDebug(f"Failed to establish a new connection, network is unreachable: {url}")
+        except Exception as e:
+            r.logDebug(f"Exception: {e}")
+        else:
+            r.logDebug(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
+            res.close()
+            return res
+
+    @staticmethod
+    def call_terminal(r, url, data):
+        """
+        与终端设备交互, 使用 Core 的 callTerminal 接口
+        :param r:
+        :param url: "http:// Core IP:8088/callTerminal"
+        :param data: json data
+        :return: 成功则返回响应数据，失败返回 None
+        """
+        try:
+            res = requests.post(url, json=data, timeout=30)
+        except Exception as e:
+            r.logInfo(f"post failed!!! url: {url}, data: {data}, error: {e}")
+            return None
+        else:
+            if res.status_code == 200:
+                return json.loads(res.text)
+            else:
+                r.setWarning(f"res code: {res.status_code}, res: {res.text}")
+                return None
+
 
 class MotorType(enum.IntEnum):
     LINEAR_MOTOR = 0
     ROLLER_MOTOR = 1
 
 
-class Log:
-    """
-    输出脚本日志
-    """
-    logger = logging.getLogger('script')
-
-    @staticmethod
-    def config_log(filepath: str):
-        log_dir = os.path.dirname(filepath) + '/scripts-logs'
-        # log_dir = "/usr/local/etc/.SeerRobotics/rbk/diagnosis/log/scripts-logs"
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir, mode=0o777)
-        log_time = time.strftime("%Y-%m-%d")
-        log_fmt = "%(name)s - %(asctime)s - %(levelname)s - %(message)s"
-        logging.basicConfig(
-            filename=f"{log_dir}/scripts_log_{log_time}.log",
-            format=log_fmt,
-            level=logging.DEBUG
-        )
-
-    @staticmethod
-    def new_dir(filepath: str, dirname: str):
-        """
-        在当前文件目录下生成指定文件夹
-        :param dirname:
-        :param filepath:
-        :return:
-        """
-        new_dir = os.path.dirname(filepath) + '/' + dirname
-        if not os.path.exists(new_dir):
-            os.makedirs(new_dir)
+class ScriptLog:
+    """输出脚本日志"""
+    def __init__(self, filename, level=logging.INFO, when='H', interval=6, backupCount=30):
+        log_dir = os.getcwd() + "/scripts-logs/"
+        os.makedirs(log_dir, exist_ok=True)
+        log_format = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s: %(message)s')
+        stream_handle = logging.StreamHandler()
+        file_handle = TimedRotatingFileHandler(filename=log_dir+filename, when=when, interval=interval, backupCount=backupCount, encoding='utf-8')
+        file_handle.setFormatter(log_format)
+        if when == 'S':
+            file_handle.suffix = "%Y-%m-%d_%H-%M-%S.log"
+        elif when == 'M':
+            file_handle.suffix = "%Y-%m-%d_%H-%M.log"
+        elif when == 'H':
+            file_handle.suffix = "%Y-%m-%d_%H.log"
+        elif when == 'D' or when == 'MIDNIGHT':
+            file_handle.suffix = "%Y-%m-%d.log"
+        self.logger = logging.getLogger(filename)
+        self.logger.setLevel(level)
+        self.logger.addHandler(stream_handle)
+        self.logger.addHandler(file_handle)
 
 
 class Motor:
@@ -290,11 +372,18 @@ class Robot:
         return False
 
     def jack(self, motor: Motor, height: float, max_vel=0.3):
+        """
+        控制顶升电机
+        :param motor:
+        :param height:
+        :param max_vel:
+        :return:
+        """
         self.state[f'{motor.motor_name}'] = motor.state
         if motor.status == MoveStatus.NONE:
             motor.reset()
         elif motor.status == MoveStatus.FINISHED:
-            # motor.reset()
+            # motor.reset()   # 适配多电机顶升同步顶升
             return True
         elif motor.status == MoveStatus.FAILED:
             return False
@@ -303,10 +392,7 @@ class Robot:
         return False
 
 
-
 if __name__ == "__main__":
-    log_dir = os.getcwd() + "/scripts-logs"
-    print("log_dir: ", log_dir)
     liner_motor = Motor(SimModule(), MotorType.LINEAR_MOTOR, "motor1", -1)
     roller_motor = Motor(SimModule(), MotorType.ROLLER_MOTOR, "motor2", -1)
     robot = Robot(SimModule())
@@ -314,10 +400,10 @@ if __name__ == "__main__":
     robot.lift(liner_motor, 1)
     robot.stretch(liner_motor, 1)
     robot.roller(roller_motor, 1)
-    Log.config_log(log_dir)
-    Log.logger.info(robot.state)
-    Log.logger.critical(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    Log.logger.error(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    Log.logger.warning(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    Log.logger.info(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    Log.logger.debug(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log = ScriptLog("robot")
+    log.logger.info(robot.state)
+    log.logger.critical(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.error(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.warning(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.info(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.debug(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
