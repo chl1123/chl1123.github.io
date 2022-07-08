@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/4/24  16:00
+# @Time : 2022/6/28
 # @Author : huang, zhong
 # @Version : 2.2.3
 # @Support : rbk  3.3.5.52 以上版本
-# @Update : 增加料箱车专属报错码，统一料箱车报错提示
+# @Update : 新增料箱车专属报错码，新增料箱车通信交互功能
 
 import json
 import sys
 import time
+
 sys.path.append("syspy")
 import pickingRobot as Hairou
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
+from robot import NetHandle
 import math
 import syspy.goPath as goPath
 import requests
 
+SCRIPT_VERSION = "V2.2.3 - 20220628"
 """
 ####BEGIN DEFAULT ARGS####
 {
@@ -176,6 +179,51 @@ import requests
     "postData":{
         "value":{},
         "type":"string"
+    },
+    "callTerminalURL": {
+        "value":"http://ip:8088/callTerminal",
+        "type":"string"
+    },
+    "callTerminalData": {
+        "value":{
+            "reach": {
+                "address": 905,
+                "functionCode": 6,
+                "id": "TK02",
+                "type": "writeAddr",
+                "value": 1
+            },
+            "action":{
+                "address": 803,
+                "functionCode": 3,
+                "id": "TK02",
+                "type": "readAddr"
+            },
+            "finish":{
+                "address": 906,
+                "functionCode": 6,
+                "id": "TK02",
+                "type": "writeAddr",
+                "value": 1
+            },
+            "reset":[
+                {
+                    "address": 905,
+                    "functionCode": 6,
+                    "id": "TK02",
+                    "type": "writeAddr",
+                    "value": 0
+                },
+                {
+                    "address": 906,
+                    "functionCode": 6,
+                    "id": "TK02",
+                    "type": "writeAddr",
+                    "value": 0
+                }
+            ]
+        },
+        "type":"json"
     }
 }
 ####END DEFAULT ARGS####
@@ -446,6 +494,7 @@ class Module(BasicModule):
         self.loadHeight = self.rec_offz_box
         self.h.connect()
         self.postdata = None
+        self.call_terminal = None
 
     def run(self, r: SimModule, args):
         if r.errorExits(52111):
@@ -460,6 +509,11 @@ class Module(BasicModule):
             if "loadHeight" in self.task:
                 self.loadHeight = self.task["loadHeight"]
 
+            if "callTerminalURL" in self.task and "callTerminalData" in self.task:
+                addr = self.task.get("callTerminalURL", None)
+                data = self.task.get("callTerminalData", None)
+                self.call_terminal = CallTerminal(addr, data)
+
             if "postAddr" in self.task and type(self.task["postAddr"]) is str and self.task["postAddr"] != "":
                 addr = self.task["postAddr"]
                 data = self.task.get("postData", "")
@@ -472,6 +526,7 @@ class Module(BasicModule):
                 if "goodsId" in args:
                     self.goods_id = args["goodsId"]
                 self.get_goodsId(r)
+                self.state["cur_goodsId"] = self.goods_id
             except Exception as e:
                 r.setPickRobotWarning(55801, f"Please update rbk version: {e}")
 
@@ -486,16 +541,18 @@ class Module(BasicModule):
                 r.setPickRobotWarning(55802, "ctu connect is overtime: {}s".format(self.max_connect_time))
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
+            if self.call_terminal is not None:
+                self.call_terminal.run(r, self)  # 设备交互
             try:
                 rbk_version = r.robokitVersion()
-                self.state['rbk'] = rbk_version
+                self.state['rbk version'] = rbk_version
                 # 检测初始模式，若为任务模式，则将其转变为机构模式
                 if "mode" in self.state and bool(self.auto_switch_mode):
                     if self.state.get("mode", 1) == 0:
                         self.h.switch_mode(r, 1)
                         if self.h.switch_mode_res['status'] != Hairou.Action.FINISHED:
                             return self.status
-                elif "mode" not in self.state:
+                elif "mode" not in self.state and bool(self.auto_switch_mode):
                     r.setPickRobotWarning(55803, "mode checking, ctu is connecting! ")
                     return self.status
             except Exception as e:
@@ -589,6 +646,7 @@ class Module(BasicModule):
                 else:
                     self.vision_status = MoveStatus.FINISHED
 
+            # 指示灯
             chassisLedFront, chassisLedBack, buzzer, headLedYellow, headLedRed, headLedGreen, headLedFreq = None, None, None, None, None, None, None
             if "chassisLedFront" in self.task:
                 chassisLedFront = self.task["chassisLedFront"]
@@ -634,7 +692,8 @@ class Module(BasicModule):
                 self.status = MoveStatus.FINISHED
             else:
                 self.status = MoveStatus.RUNNING
-        if "_script_first_run_" in self.task and self.task["_script_first_run_"] is True and self.status is MoveStatus.FINISHED:
+        if "_script_first_run_" in self.task and self.task[
+            "_script_first_run_"] is True and self.status is MoveStatus.FINISHED:
             self.task["_script_first_run_"] = False
             self.status = MoveStatus.RUNNING
             self.operation_status = MoveStatus.NONE
@@ -666,7 +725,8 @@ class Module(BasicModule):
                 if execution_result != 0:
                     fail_description = self.state['res']['res'].get('failDescription', '')
                     if fail_description != 'detect failed':
-                        r.setPickRobotError(53802, f"Report data has error, failDescription: {fail_description}, executionResult: {hex(execution_result)}")
+                        r.setPickRobotError(53802,
+                                            f"Report data has error, fail description: {fail_description}, execution result: {hex(execution_result)}")
                         self.status = MoveStatus.FAILED
             except KeyError as e:
                 r.logDebug("KeyError: " + str(e))
@@ -712,6 +772,9 @@ class Module(BasicModule):
             r.logDebug(f"Other error in print hairou trays state: {e}")
 
         self.report_info(r)  # 数据上报
+        if self.status == MoveStatus.FINISHED:  # 任务完成时，清除料箱车过期报错提示
+            self.clear_pickrobot_error(r)
+            self.clear_pickrobot_warning(r)
         return self.status
 
     def init_trays(self, r):
@@ -755,7 +818,8 @@ class Module(BasicModule):
         if "getGoods" in self.state and self.state["getGoods"]["status"] == MoveStatus.FINISHED:
             if self.has_fork_sensor:  # 如果有货叉传感器，检测货叉是否有货
                 if not self.check_fork(r):
-                    r.setPickRobotError(53805, f"Failed to pick up the goods {self.goods_id}! {self.state.get('forkDetect', 'No data')}")
+                    r.setPickRobotError(53805,
+                                        f"Failed to pick up the goods {self.goods_id}! {self.state.get('forkDetect', 'No data')}")
                     self.operation_status = MoveStatus.FAILED
                     return False
             self.fork_detect[0]["state"] = 0
@@ -765,7 +829,7 @@ class Module(BasicModule):
             self.fork_detect[0]["state"] = 1
             self.fork_detect[1]["state"] = 1
             r.logInfo(f"putGoods detect_refresh---{self.fork_detect}")
-        self.report_info(r)  # 数据上报
+        # self.report_info(r)  # 数据上报
 
         # 背篓 数据库更新
         for tray in self.tray_detect:
@@ -792,6 +856,7 @@ class Module(BasicModule):
         if not self.has_tray_sensor:
             self.state["trays"] = self.tray_detect
         self.state["report_counter"] = r.getCount()
+        self.state["script version"] = SCRIPT_VERSION
         data = {
             "pickingRobotInfo": self.state
         }
@@ -909,7 +974,8 @@ class Module(BasicModule):
                             r.setPickRobotError(53809, "Lift has error, please zero the machine!")
                             self.stretch_status = MoveStatus.FAILED
             else:
-                r.setPickRobotError(53810, "Stretch pos is not zero, cannot lift.!!! {}".format(self.state["stretch"]["position"]))
+                r.setPickRobotError(53810, "Stretch pos is not zero, cannot lift.!!! {}".format(
+                    self.state["stretch"]["position"]))
                 self.lift_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
         return False
@@ -947,7 +1013,8 @@ class Module(BasicModule):
             else:
                 self.rotate_status = MoveStatus.FAILED
                 self.status = MoveStatus.FAILED
-                r.setPickRobotError(53812, "Stretch pos is not zero, cannot rotate.!!! {}".format(self.state["stretch"]["position"]))
+                r.setPickRobotError(53812, "Stretch pos is not zero, cannot rotate.!!! {}".format(
+                    self.state["stretch"]["position"]))
         return False
 
     def stretch(self, r, pos, clear_error=False):
@@ -1009,15 +1076,19 @@ class Module(BasicModule):
         self.finger_status = MoveStatus.RUNNING
         if "finger" in self.state:
             device_state = self.state["finger"]
-            if "leftStatus" in device_state and "state" in device_state and device_state["state"] != Hairou.ModuleState.ERROR \
-                    and device_state["state"] != Hairou.ModuleState.INIT and device_state["state"] != Hairou.ModuleState.RESET:
+            if "leftStatus" in device_state and "state" in device_state and device_state[
+                "state"] != Hairou.ModuleState.ERROR \
+                    and device_state["state"] != Hairou.ModuleState.INIT and device_state[
+                "state"] != Hairou.ModuleState.RESET:
                 # if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1 and device_state["state"] == Hairou.ModuleState.IDLE:
-                if pos == 1 and device_state["leftStatus"] == 1 and device_state["rightStatus"] == 1 and device_state["state"] == Hairou.ModuleState.IDLE:
+                if pos == 1 and device_state["leftStatus"] == 1 and device_state["rightStatus"] == 1 and device_state[
+                    "state"] == Hairou.ModuleState.IDLE:
                     self.finger_status = MoveStatus.FINISHED
                     self.h.reset_fingerPos()
                     return True
                 # elif abs(pos) < 0.1 and abs(device_state["leftStatus"]) < 0.1 and abs(device_state["rightStatus"]) < 0.1 and device_state["state"] == Hairou.ModuleState.IDLE:
-                elif pos == 0 and device_state["leftStatus"] == 0 and device_state["rightStatus"] == 0 and device_state["state"] == Hairou.ModuleState.IDLE:
+                elif pos == 0 and device_state["leftStatus"] == 0 and device_state["rightStatus"] == 0 and device_state[
+                    "state"] == Hairou.ModuleState.IDLE:
                     self.finger_status = MoveStatus.FINISHED
                     self.h.reset_fingerPos()
                     return True
@@ -1146,7 +1217,8 @@ class Module(BasicModule):
                                                                                                    self.state["rotate"][
                                                                                                        "position"])
                                         else:
-                                            r.setPickRobotError(53817, "VisionBinType Type is wrong: {}".format(binType))
+                                            r.setPickRobotError(53817,
+                                                                "VisionBinType Type is wrong: {}".format(binType))
                                             self.vision_status = MoveStatus.FAILED
                                         out1 = dict()
                                         out1["yaw"] = yaw * 180.0 / math.pi
@@ -1254,7 +1326,8 @@ class Module(BasicModule):
                     return
             r.logInfo(f"load begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
             if self.tray_floor is None:  # 背篓满了
-                if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 1:  # 配置了抓斗container并且抓斗为空，则抓斗取货(999默认表示抓斗)
+                if self.get_tray(r, 999) and self.get_tray(r, 999)[
+                    'state'] == 1:  # 配置了抓斗container并且抓斗为空，则抓斗取货(999默认表示抓斗)
                     self.tray_floor = 999
                 else:
                     r.setPickRobotError(53821, f"All trays are full, can not load")
@@ -1263,22 +1336,24 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
-                if "visionType" in self.task and self.task["visionType"] == "box":    # 识别料箱进行取货
+                if "visionType" in self.task and self.task["visionType"] == "box":  # 识别料箱进行取货
                     if "visionBinType" not in self.task:
                         self.task["visionBinType"] = "code"
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task["visionBinType"], self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
+                        recAdjust(self.task["visionType"], self.task["visionBinType"],
+                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                         getGoods(self.task["stretch"] + self.loadOffset),
                         prePutGoods(self.high[self.tray_floor], 0, "load"),
                         putGoods(self.stretchDist)
                     ]
                     if self.tray_floor == 999:
                         self.task_list = self.task_list[:3]
-                elif "visionType" in self.task and self.task["visionType"] == "shelf":   # 识别货架二维码进行取货
+                elif "visionType" in self.task and self.task["visionType"] == "shelf":  # 识别货架二维码进行取货
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task.get('visionBinType', 'code'), self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
+                        recAdjust(self.task["visionType"], self.task.get('visionBinType', 'code'),
+                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                         getGoods(self.task["stretch"] + self.loadOffset),
                         prePutGoods(self.high[self.tray_floor], 0, "load"),
                         putGoods(self.stretchDist)
@@ -1366,7 +1441,8 @@ class Module(BasicModule):
                         if self.tray_floor == 999:
                             self.task_list = self.task_list[2:]
                 else:
-                    r.setPickRobotError(53823, "Task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
+                    r.setPickRobotError(53823,
+                                        "Task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
             else:
                 self.vision_status = MoveStatus.FINISHED
@@ -1397,11 +1473,13 @@ class Module(BasicModule):
         if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 0:  # 抓斗有货
             r.setPickRobotError(53828, f"Fork has goods, cannot change position!")
             has_err = True
-        if self.get_tray(r, int(self.task["changePosition0"])).get('state', 1) == 1:   # 初始层无货
-            r.setPickRobotError(53829, f"The target tray {int(self.task['changePosition0'])} is null, cannot change position")
+        if self.get_tray(r, int(self.task["changePosition0"])).get('state', 1) == 1:  # 初始层无货
+            r.setPickRobotError(53829,
+                                f"The target tray {int(self.task['changePosition0'])} is null, cannot change position")
             has_err = True
-        if self.get_tray(r, int(self.task["changePosition1"])).get('state', 0) == 0:   # 备换层已有货
-            r.setPickRobotError(53830, f"The target tray {int(self.task['changePosition1'])} has goods, cannot change position")
+        if self.get_tray(r, int(self.task["changePosition1"])).get('state', 0) == 0:  # 备换层已有货
+            r.setPickRobotError(53830,
+                                f"The target tray {int(self.task['changePosition1'])} has goods, cannot change position")
             has_err = True
         if has_err:
             self.operation_status = MoveStatus.FAILED
@@ -1497,8 +1575,31 @@ class Module(BasicModule):
         else:
             if r.errorExits(53000):
                 r.clearError(53000)
-                r.clearWarning(55300)
+            if r.warningExits(55808):
+                r.clearWarning(55808)
         r.logDebug("53000 error : {}".format(r.errorExits(53000)))
+
+    @staticmethod
+    def clear_pickrobot_error(r: SimModule):
+        """
+        清除料箱车报错提示
+        :param r:
+        """
+        for error_code in range(53800, 53900):
+            if r.errorExits(error_code):
+                r.clearError(error_code)
+        pass
+
+    @staticmethod
+    def clear_pickrobot_warning(r: SimModule):
+        """
+        清除料箱车警告提示
+        :param r:
+        """
+        for warning_code in range(55800, 55900):
+            if r.warningExits(warning_code):
+                r.clearWarning(warning_code)
+        pass
 
     def stop(self, r):
         if self.lift_status is MoveStatus.RUNNING:
@@ -1574,6 +1675,7 @@ class recBox:
         if ctu.vision_status is not MoveStatus.FINISHED:
             res = ctu.vision(r, self.visionType, self.visionBinType, self.binModel, True)
             if ctu.vision_status == MoveStatus.FAILED:
+                r.logInfo(f"vision failed, vision res: {res}")
                 self.status = MoveStatus.FINISHED
                 ctu.vision_status = MoveStatus.FINISHED
             elif ctu.vision_status == MoveStatus.FINISHED:
@@ -1698,7 +1800,8 @@ class recAdjust:
                                 self.ok_x = 0.012
                                 self.ok_theta = 0.02
                             r.logDebug("[recAdjust][{}|{}|{}|{}|{}|{}]".format(
-                                self.go_args["x"], self.ok_x, ddtheta, self.ok_theta, self.last_ddtheta, self.first_adj))
+                                self.go_args["x"], self.ok_x, ddtheta, self.ok_theta, self.last_ddtheta,
+                                self.first_adj))
                             if (abs(ddtheta) < self.ok_theta or abs(ddtheta) > abs(self.last_ddtheta)) \
                                     and abs(self.go_args["x"]) < self.ok_x and not self.first_adj:
                                 self.ok = True
@@ -2014,7 +2117,7 @@ class waitVision:
         self.wtime = 0.5
         self.start_time = time.time()
 
-    def reset(self, ctu = None):
+    def reset(self, ctu=None):
         self.status = MoveStatus.RUNNING
         self.start_time = time.time()
 
@@ -2066,6 +2169,46 @@ class PostData:
             if time.time() - self.start_time > self.post_overtime:
                 r.setPickRobotWarning(55809, f"Response time out: {self.post_overtime}s {err_str}")
                 self.status = MoveStatus.FAILED
+
+
+class CallTerminal:
+    def __init__(self, addr, data):
+        self.status = MoveStatus.NONE
+        self.net = NetHandle()
+        self.report_info = dict()
+        self.addr = addr
+        self.data = data
+        self.get_url = f"http://{str(self.addr)}/getTerminalStatus"
+        self.post_url = f"http://{str(self.addr)}/setRobotStatus"
+        self.reach_data = data.get("reach", None)
+        self.action_data = data.get("action", None)
+        self.task_flag = [False] * 2
+
+    def run(self, r, ctu):
+        if self.addr is None or self.data is None:
+            r.setPickRobotError(53836, f"data has error. addr: {self.addr}, data: {self.data}")
+            self.status = MoveStatus.FAILED
+        else:
+            self.status = MoveStatus.RUNNING
+            if not self.task_flag[0]:
+                res = self.net.http_post(r, self.post_url, self.reach_data)
+                if res and res.status_code == 200 and res.json().get('code', 1) == 0:
+                    self.task_flag[0] = True
+            if not self.task_flag[1]:
+                res = self.net.http_get(r, self.get_url, params=self.action_data)
+                if res and res.status_code == 200 and res.json().get('code', 1) == 0:
+                    self.task_flag[1] = True
+            if all(self.task_flag):
+                self.status = MoveStatus.FINISHED
+
+        self.report_info['status'] = self.status
+        self.report_info['addr'] = self.addr
+        self.report_info['data'] = self.data
+        self.report_info['call task'] = self.task_flag
+        ctu.state['call terminal'] = self.report_info
+
+    def reset(self):
+        self.status = MoveStatus.RUNNING
 
 
 if __name__ == '__main__':
