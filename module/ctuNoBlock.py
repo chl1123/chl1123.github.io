@@ -552,6 +552,8 @@ class Module(BasicModule):
                         self.h.switch_mode(r, 1)
                         if self.h.switch_mode_res['status'] != Hairou.Action.FINISHED:
                             return self.status
+                        else:
+                            r.clearWarning(55803)
                 elif "mode" not in self.state and bool(self.auto_switch_mode):
                     r.setPickRobotWarning(55803, "mode checking, ctu is connecting! ")
                     return self.status
