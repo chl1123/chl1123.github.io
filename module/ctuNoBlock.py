@@ -10,10 +10,11 @@ import sys
 import time
 
 sys.path.append("syspy")
-import pickingRobot as Hairou
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 from robot import NetHandle
+from pickingRobot import PickRobot
+import pickingRobot
 import math
 import syspy.goPath as goPath
 import requests
@@ -401,7 +402,7 @@ class Module(BasicModule):
         self.start_connect_time = time.time()
         self.max_connect_time = p.loadParam("max_connect_time", type="int", default=30, maxValue=999999, minValue=0,
                                             comment="连接等待最长时间s")
-        self.h = Hairou.Hairou(ip, port)
+        self.h = PickRobot(ip, port)
         self.lift_reach_dist = p.loadParam("lift_reach_dist", type="float", default=0.5, maxValue=10.0, minValue=0.0,
                                            unit="mm", comment="升降机构到位精度")
         self.rotate_reach_angle = p.loadParam("rotate_reach_angle", type="float", default=0.01, maxValue=10.0,
@@ -541,7 +542,7 @@ class Module(BasicModule):
                 r.setPickRobotWarning(55802, "ctu connect is overtime: {}s".format(self.max_connect_time))
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
-            if self.call_terminal is not None:
+            if self.call_terminal is not None and self.call_terminal.status is not MoveStatus.FINISHED:
                 self.call_terminal.run(r, self)  # 设备交互
             try:
                 rbk_version = r.robokitVersion()
@@ -550,7 +551,7 @@ class Module(BasicModule):
                 if "mode" in self.state and bool(self.auto_switch_mode):
                     if self.state.get("mode", 1) == 0:
                         self.h.switch_mode(r, 1)
-                        if self.h.switch_mode_res['status'] != Hairou.Action.FINISHED:
+                        if self.h.switch_mode_res['status'] != pickingRobot.Action.FINISHED:
                             return self.status
                         else:
                             r.clearWarning(55803)
@@ -733,7 +734,7 @@ class Module(BasicModule):
             except KeyError as e:
                 r.logDebug("KeyError: " + str(e))
             except Exception as e:
-                r.logDebug(f"error in hairou state,{e}")
+                r.logDebug(f"error in report info state,{e}")
 
         try:
             r.logDebug("[HaiRou][{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}]".format(
@@ -745,7 +746,7 @@ class Module(BasicModule):
         except KeyError as e:
             r.logDebug("KeyError: " + str(e))
         except Exception as e:
-            r.logDebug(f"Other error in print hairou state: {e}")
+            r.logDebug(f"Other error in print report info state: {e}")
 
         try:
             if "forkDetect" in self.state:
@@ -758,7 +759,7 @@ class Module(BasicModule):
         except KeyError as e:
             r.logDebug("KeyError: " + str(e))
         except Exception as e:
-            r.logDebug(f"Other error in print hairou forkDetect state: {e}")
+            r.logDebug(f"Other error in print report info forkDetect state: {e}")
 
         try:
             if "trays" in self.state:
@@ -771,7 +772,7 @@ class Module(BasicModule):
         except KeyError as e:
             r.logDebug("KeyError: " + str(e))
         except Exception as e:
-            r.logDebug(f"Other error in print hairou trays state: {e}")
+            r.logDebug(f"Other error in print report info trays state: {e}")
 
         self.report_info(r)  # 数据上报
         if self.status == MoveStatus.FINISHED:  # 任务完成时，清除料箱车过期报错提示
@@ -955,19 +956,19 @@ class Module(BasicModule):
             elif "stretch" in self.state and self.state["stretch"]["position"] < 10:
                 if "position" in device_state and "state" in device_state:
                     if abs(device_state["position"] - height) < self.lift_reach_dist \
-                            and device_state["state"] == Hairou.ModuleState.IDLE:
+                            and device_state["state"] == pickingRobot.ModuleState.IDLE:
                         self.lift_status = MoveStatus.FINISHED
                         self.h.reset_liftPos()
                         return True
                 if "state" in device_state:
-                    if device_state["state"] == Hairou.ModuleState.INIT:
+                    if device_state["state"] == pickingRobot.ModuleState.INIT:
                         res = self.h.liftReset(r)
                         self.h.reset_liftPos()
                         self.state["res"] = res
-                    elif device_state["state"] == Hairou.ModuleState.IDLE:
+                    elif device_state["state"] == pickingRobot.ModuleState.IDLE:
                         res = self.h.liftPos(height, r)
                         self.state["res"] = res
-                    elif device_state["state"] == Hairou.ModuleState.ERROR:
+                    elif device_state["state"] == pickingRobot.ModuleState.ERROR:
                         if clear_error:
                             res = self.h.liftReset(r)
                             self.h.reset_liftPos()
@@ -992,19 +993,19 @@ class Module(BasicModule):
                 device_state = self.state["rotate"]
                 if "position" in device_state and "state" in device_state:
                     if abs(normalize_theta(device_state["position"] - theta)) < self.rotate_reach_angle \
-                            and device_state["state"] == Hairou.ModuleState.IDLE:
+                            and device_state["state"] == pickingRobot.ModuleState.IDLE:
                         self.rotate_status = MoveStatus.FINISHED
                         self.h.reset_rotateAngle()
                         return True
                 if "state" in device_state:
-                    if device_state["state"] == Hairou.ModuleState.INIT:
+                    if device_state["state"] == pickingRobot.ModuleState.INIT:
                         res = self.h.rotateReset(r)
                         self.h.reset_rotateAngle()
                         self.state["res"] = res
-                    elif device_state["state"] == Hairou.ModuleState.IDLE:
+                    elif device_state["state"] == pickingRobot.ModuleState.IDLE:
                         res = self.h.rotateAngle(theta, r)
                         self.state["res"] = res
-                    elif device_state["state"] == Hairou.ModuleState.ERROR:
+                    elif device_state["state"] == pickingRobot.ModuleState.ERROR:
                         if clear_error:
                             res = self.h.rotateReset(r)
                             self.h.reset_rotateAngle()
@@ -1029,19 +1030,19 @@ class Module(BasicModule):
             device_state = self.state["stretch"]
             if "position" in device_state and "state" in device_state:
                 if abs(device_state["position"] - pos) < self.stretch_reach_dist \
-                        and device_state["state"] == Hairou.ModuleState.IDLE:
+                        and device_state["state"] == pickingRobot.ModuleState.IDLE:
                     self.stretch_status = MoveStatus.FINISHED
                     self.h.reset_stretchPos()
                     return True
             if "state" in device_state:
-                if device_state["state"] == Hairou.ModuleState.INIT:
+                if device_state["state"] == pickingRobot.ModuleState.INIT:
                     res = self.h.stretchReset(r)
                     self.h.reset_stretchPos()
                     self.state["res"] = res
-                elif device_state["state"] == Hairou.ModuleState.IDLE:
+                elif device_state["state"] == pickingRobot.ModuleState.IDLE:
                     res = self.h.stretchPos(pos, r)
                     self.state["res"] = res
-                elif device_state["state"] == Hairou.ModuleState.ERROR:
+                elif device_state["state"] == pickingRobot.ModuleState.ERROR:
                     if clear_error:
                         res = self.h.stretchReset(r)
                         self.h.reset_stretchPos()
@@ -1054,7 +1055,7 @@ class Module(BasicModule):
     def checkFingerStatus(self, r, state):
         if "finger" in self.state:
             device_state = self.state["finger"]
-            if device_state.get("state", None) != Hairou.ModuleState.IDLE:
+            if device_state.get("state", None) != pickingRobot.ModuleState.IDLE:
                 r.setPickRobotWarning(55806, "Finger status is not idle. Ctu cannot lift or rotate or stretch!")
                 self.finger_status = MoveStatus.FAILED
                 return False
@@ -1079,30 +1080,30 @@ class Module(BasicModule):
         if "finger" in self.state:
             device_state = self.state["finger"]
             if "leftStatus" in device_state and "state" in device_state and device_state[
-                "state"] != Hairou.ModuleState.ERROR \
-                    and device_state["state"] != Hairou.ModuleState.INIT and device_state[
-                "state"] != Hairou.ModuleState.RESET:
-                # if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1 and device_state["state"] == Hairou.ModuleState.IDLE:
+                "state"] != pickingRobot.ModuleState.ERROR \
+                    and device_state["state"] != pickingRobot.ModuleState.INIT and device_state[
+                "state"] != pickingRobot.ModuleState.RESET:
+                # if abs(pos - 1) < 0.1 and abs(device_state["leftStatus"] - 1) < 0.1 and abs(device_state["rightStatus"] - 1) < 0.1 and device_state["state"] == pickingRobot.ModuleState.IDLE:
                 if pos == 1 and device_state["leftStatus"] == 1 and device_state["rightStatus"] == 1 and device_state[
-                    "state"] == Hairou.ModuleState.IDLE:
+                    "state"] == pickingRobot.ModuleState.IDLE:
                     self.finger_status = MoveStatus.FINISHED
                     self.h.reset_fingerPos()
                     return True
-                # elif abs(pos) < 0.1 and abs(device_state["leftStatus"]) < 0.1 and abs(device_state["rightStatus"]) < 0.1 and device_state["state"] == Hairou.ModuleState.IDLE:
+                # elif abs(pos) < 0.1 and abs(device_state["leftStatus"]) < 0.1 and abs(device_state["rightStatus"]) < 0.1 and device_state["state"] == pickingRobot.ModuleState.IDLE:
                 elif pos == 0 and device_state["leftStatus"] == 0 and device_state["rightStatus"] == 0 and device_state[
-                    "state"] == Hairou.ModuleState.IDLE:
+                    "state"] == pickingRobot.ModuleState.IDLE:
                     self.finger_status = MoveStatus.FINISHED
                     self.h.reset_fingerPos()
                     return True
             if "state" in device_state:
-                if device_state["state"] == Hairou.ModuleState.INIT:
+                if device_state["state"] == pickingRobot.ModuleState.INIT:
                     res = self.h.fingerReset(r)
                     self.h.reset_fingerPos()
                     self.state["res"] = res
-                elif device_state["state"] == Hairou.ModuleState.IDLE:
+                elif device_state["state"] == pickingRobot.ModuleState.IDLE:
                     res = self.h.fingerPos(pos, r)
                     self.state["res"] = res
-                elif device_state["state"] == Hairou.ModuleState.ERROR:
+                elif device_state["state"] == pickingRobot.ModuleState.ERROR:
                     if clear_error:
                         res = self.h.fingerReset(r)
                         self.h.reset_fingerPos()
@@ -1128,18 +1129,18 @@ class Module(BasicModule):
                     self.vision_status = MoveStatus.FINISHED
                 else:
                     if "state" in device_state:
-                        if device_state["state"] == Hairou.ModuleState.INIT:
+                        if device_state["state"] == pickingRobot.ModuleState.INIT:
                             self.h.visionReset(r)
                             self.h.reset_visionReq()
                             self.waitVision.reset()
-                        elif device_state["state"] == Hairou.ModuleState.ERROR:
+                        elif device_state["state"] == pickingRobot.ModuleState.ERROR:
                             self.h.visionReset(r)
                             self.h.reset_visionReq()
                             self.waitVision.reset()
                             self.vision_status = MoveStatus.FAILED
                             if not recgo:
                                 r.setPickRobotWarning(55807, "rec no results.")
-                        elif device_state["state"] == Hairou.ModuleState.IDLE:
+                        elif device_state["state"] == pickingRobot.ModuleState.IDLE:
                             # if r.errorExits(53000):
                             #     r.clearError(53000)
                             if r.warningExits(55300):
@@ -1151,27 +1152,27 @@ class Module(BasicModule):
                                 res = dict()
                                 if vtype == "shelf":
                                     binType = "code"
-                                    res = self.h.visionReq(Hairou.TargetType.SHELF.value,
-                                                           Hairou.BinType.DM_MARKED.value, Hairou.BinModel.PLASTICBOX,
+                                    res = self.h.visionReq(pickingRobot.TargetType.SHELF.value,
+                                                           pickingRobot.BinType.DM_MARKED.value, pickingRobot.BinModel.PLASTICBOX,
                                                            r)
                                 elif vtype == "box":
                                     if binType == "code":
-                                        res = self.h.visionReq(Hairou.TargetType.BOX.value,
-                                                               Hairou.BinType.DM_MARKED.value,
-                                                               Hairou.BinModel.PLASTICBOX, r)
+                                        res = self.h.visionReq(pickingRobot.TargetType.BOX.value,
+                                                               pickingRobot.BinType.DM_MARKED.value,
+                                                               pickingRobot.BinModel.PLASTICBOX, r)
                                     elif binType == "markerless":
                                         if binModel == "carton":
-                                            res = self.h.visionReq(Hairou.TargetType.BOX.value,
-                                                                   Hairou.BinType.MARKERLESS.value,
-                                                                   Hairou.BinModel.CARTON, r)
+                                            res = self.h.visionReq(pickingRobot.TargetType.BOX.value,
+                                                                   pickingRobot.BinType.MARKERLESS.value,
+                                                                   pickingRobot.BinModel.CARTON, r)
                                         else:
-                                            res = self.h.visionReq(Hairou.TargetType.BOX.value,
-                                                                   Hairou.BinType.MARKERLESS.value,
-                                                                   Hairou.BinModel.PLASTICBOX, r)
+                                            res = self.h.visionReq(pickingRobot.TargetType.BOX.value,
+                                                                   pickingRobot.BinType.MARKERLESS.value,
+                                                                   pickingRobot.BinModel.PLASTICBOX, r)
                                     elif binType == "barcode":
-                                        res = self.h.visionReq(Hairou.TargetType.BOX.value,
-                                                               Hairou.BinType.BARCODE.value,
-                                                               Hairou.BinModel.PLASTICBOX, r)
+                                        res = self.h.visionReq(pickingRobot.TargetType.BOX.value,
+                                                               pickingRobot.BinType.BARCODE.value,
+                                                               pickingRobot.BinModel.PLASTICBOX, r)
                                     else:
                                         r.setPickRobotError(53817, "VisionBinType type is wrong: {}".format(binType))
                                         self.vision_status = MoveStatus.FAILED
@@ -1180,7 +1181,7 @@ class Module(BasicModule):
                                     res["flag"] = False
                                     self.vision_status = MoveStatus.FAILED
                                 self.state["res"] = res
-                                if res.get("status", Hairou.Action.INIT) is Hairou.Action.FINISHED:
+                                if res.get("status", pickingRobot.Action.INIT) is pickingRobot.Action.FINISHED:
                                     self.h.reset_visionReq()
                                     if binType == "barcode" and "binId" in res['res']:
                                         res = res['res']
@@ -1278,7 +1279,7 @@ class Module(BasicModule):
         res = self.h.indicatorReq(chassisLedFront, chassisLedBack, buzzer, headLedRed, headLedYellow, headLedGreen,
                                   headLedFreq, r)
         self.state["res"] = res
-        if res['status'] is not Hairou.Action.FINISHED:
+        if res['status'] is not pickingRobot.Action.FINISHED:
             self.indicator_status = MoveStatus.RUNNING
             return False
         else:
@@ -1568,10 +1569,10 @@ class Module(BasicModule):
             stretch_state = self.state["stretch"]["state"]
         if "finger" in self.state and "state" in self.state["finger"]:
             finger_state = self.state["finger"]["state"]
-        if rotate_state == Hairou.ModuleState.ERROR \
-                or lift_state == Hairou.ModuleState.ERROR \
-                or stretch_state == Hairou.ModuleState.ERROR \
-                or finger_state == Hairou.ModuleState.ERROR:
+        if rotate_state == pickingRobot.ModuleState.ERROR \
+                or lift_state == pickingRobot.ModuleState.ERROR \
+                or stretch_state == pickingRobot.ModuleState.ERROR \
+                or finger_state == pickingRobot.ModuleState.ERROR:
             if not r.errorExits(53000):
                 r.setPickRobotWarning(55808, f"Picking robot is zero calibrating: {r.getCount()}")
         else:
@@ -2313,7 +2314,7 @@ if __name__ == '__main__':
     except KeyError as e:
         r.logDebug("KeyError: " + str(e))
     except Exception as e:
-        r.logDebug("Other error in print hairou state")
+        r.logDebug("Other error in print report info state")
 
     try:
         if "forkDetect" in res:
@@ -2326,7 +2327,7 @@ if __name__ == '__main__':
     except KeyError as e:
         r.logDebug("KeyError: " + str(e))
     except Exception as e:
-        r.logDebug("Other error in print hairou forkDetect state")
+        r.logDebug("Other error in print report info forkDetect state")
 
     try:
         if "trays" in res:
@@ -2340,7 +2341,7 @@ if __name__ == '__main__':
     except KeyError as e:
         r.logDebug("KeyError: " + str(e))
     except Exception as e:
-        r.logDebug("Other error in print hairou trays state")
+        r.logDebug("Other error in print report info trays state")
 
     print(m.checkFingerStatus(r, 1))
     print("DONE")

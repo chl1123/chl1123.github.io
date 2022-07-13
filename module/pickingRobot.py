@@ -161,7 +161,7 @@ def del_dict_item(_dict, key):
     return None
 
 
-class Hairou:
+class PickRobot:
     def __init__(self, ip, port):
         self.ip = ip
         self.port = port
@@ -1006,7 +1006,7 @@ class Hairou:
 
 
 if __name__ == "__main__":
-    h = Hairou("192.168.192.20", 4172)
+    h = PickRobot("192.168.192.20", 4172)
     r = None
     h.connect()
     print(h.initDevice(r))
