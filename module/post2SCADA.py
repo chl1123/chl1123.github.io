@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-# @Date : 2022/1/20 15:18
+# @Date : 2022/2/22 13:45
 # @Author : zhong
 # @File :post2SCADA.py
-# @Version : 1.0
+# @Version : 1.1
 # @Project : issue_pool#2263 中电科项目，通过modbus TCP协议和客户SCADA进行产线交互
+# @Update: issue_pool#2866 优化超时报错
 import json
 import sys
 import time
 
 import requests
-from requests import RequestException
 from requests.exceptions import ConnectTimeout, HTTPError, ConnectionError
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule
@@ -52,22 +52,21 @@ class Module(BasicModule):
             self.init = False
             self.post_url = args.get("postURL", None)
             self.post_data = args.get("postData", None)
-        r.setNotice(f"post_url: {self.post_url}, post_data: {self.post_data}")
-        if time.time() - self.start_time > 10:
-            r.setError(f"time out: 10s")
-            self.status = MoveStatus.FAILED
+        r.logDebug(f"post_url: {self.post_url}, post_data: {self.post_data}")
         if self.post_url and self.post_data:
             try:
-                res = requests.post(url=self.post_url, json=self.post_data, timeout=3.0)
+                res = requests.post(url=self.post_url, json=self.post_data, timeout=10.0)  # 10s请求一次
                 res.encoding = 'utf-8'
                 res_data = json.loads(res.text)   # 获取响应数据
                 self.state["response"] = res_data
                 if res_data.get("status", -1) == -1:
-                    r.setError(f"Post Failed. Response: {res_data}")
+                    r.setError(f"Post Failed！ Response: {res_data}")
                     self.status = MoveStatus.FAILED
                 elif res.status_code == 200:
-                    r.setNotice(f"Post Success")
+                    r.setNotice(f"Post Success！Response: {res_data}")
                     self.status = MoveStatus.FINISHED
+                else:
+                    r.logDebug(f"Response: {res_data}")
             except HTTPError:
                 r.setNotice(f"Invalid HTTP response")
             except ConnectTimeout:
@@ -83,6 +82,7 @@ class Module(BasicModule):
             self.status = MoveStatus.FAILED
 
         self.state["script args"] = args
+        self.state["status"] = self.status
         r.setInfo(json.dumps(self.state))
         return self.status
 
@@ -90,7 +90,7 @@ class Module(BasicModule):
 if __name__ == '__main__':
     r = SimModule()
     read_args = {
-        "postURL": "http://192.168.8.113:7777",
+        "postURL": "http://192.168.9.12:7777",
         "postData": {
             "id": "Terminal-01",
             "type": "read"

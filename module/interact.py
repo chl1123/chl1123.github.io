@@ -11,7 +11,7 @@ from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, ParamServer
 from robot import NetHandle
 
-SCRIPT_VERSION = "V1.0-20220718"
+SCRIPT_VERSION = "V1.1-20220729"
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -111,23 +111,23 @@ class Module(BasicModule):
             elif self.protocol == "ModbusTCP":
                 if not self.flag[0] and not self.reach_data:
                     reach_res = self.net_handle.call_terminal(r, self.addr, self.reach_data)
-                    r.logInfo(f"reach_res: {reach_res.text}")
-                    if reach_res and reach_res.status_code == 200:
+                    r.logInfo(f"reach_res: {reach_res}")
+                    if reach_res and reach_res.get("status", -1) != -1:
                         self.flag[0] = True
                 else:
                     self.flag[0] = True
                 if not self.flag[1] and not self.action_data:
                     action_res = self.net_handle.call_terminal(r, self.addr, self.action_data)
-                    r.logInfo(f"action_res: {action_res.text}")
-                    if action_res and action_res.status_code == 200:
+                    r.logInfo(f"action_res: {action_res}")
+                    if action_res and action_res.get("status", -1) != -1:
                         self.flag[1] = True
                 else:
                     self.flag[1] = True
 
                 if not self.flag[2] and not self.finish_data:
                     finish_res = self.net_handle.call_terminal(r, self.addr, self.finish_data)
-                    r.logInfo(f"finish_res: {finish_res.text}")
-                    if finish_res and finish_res.status_code == 200:
+                    r.logInfo(f"finish_res: {finish_res}")
+                    if finish_res and finish_res.get("status", -1) != -1:
                         self.flag[2] = True
                 else:
                     self.flag[2] = True
