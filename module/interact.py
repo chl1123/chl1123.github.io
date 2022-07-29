@@ -4,11 +4,11 @@
 # @File :interact.py
 # @Version : 1.0
 # @Project : https://seer-group.coding.net/p/issue_pool/requirements/issues/3427/detail
-# @Protocol: 海柔库卡项目接口文档V1.4;  [RDSCore与终端交互] https://seer-group.yuque.com/pf4yvd/lg4q1h/wbno17
+# @Protocol: [RDSCore与终端交互] https://seer-group.yuque.com/pf4yvd/lg4q1h/wbno17
 import json
 import time
 from rbkSim import SimModule
-from rbk import MoveStatus, BasicModule
+from rbk import MoveStatus, BasicModule, ParamServer
 from robot import NetHandle
 
 SCRIPT_VERSION = "V1.0-20220718"
@@ -44,6 +44,9 @@ SCRIPT_VERSION = "V1.0-20220718"
 class Module(BasicModule):
     def __init__(self, r: SimModule, args):
         super().__init__()
+        p = ParamServer(__file__)
+        self.get_path = p.loadParam("get path", type="str", default="/api/get path", comment="GET API 路径")
+        self.post_path = p.loadParam("post path", type="str", default="/api/post path", comment="POST API 路径")
         self.addr = None
         self.data = None
         self.protocol = None
@@ -77,8 +80,8 @@ class Module(BasicModule):
             self.finish_data = self.data.get("finish", None)
             r.logInfo(f"reach_data: {self.reach_data}, action_data: {self.action_data}, finish_data: {self.finish_data}")
             if self.protocol == "HTTP":
-                get_addr = f"{str(self.addr)}/getTerminalStatus"
-                post_addr = f"{str(self.addr)}/setRobotStatus"
+                get_addr = str(self.addr) + self.get_path
+                post_addr = str(self.addr) + self.post_path
                 if not self.flag[0] and not self.reach_data:
                     reach_res = self.net_handle.http_post(r, post_addr, data=self.reach_data)
                     r.logInfo(f"reach_res: {reach_res.text}")
