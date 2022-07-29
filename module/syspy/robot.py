@@ -121,27 +121,27 @@ class NetHandle:
         pass
 
     @staticmethod
-    def http_get(r, url, headers=None, params=None,  timeout=5.0):
+    def http_get(r: SimModule, url, headers=None, params=None,  timeout=5.0):
         try:
             res = requests.get(url, headers=headers, params=params, timeout=timeout)
         except ReadTimeout:
             pass
         except ConnectTimeout:
-            r.logDebug(f'ConnectTimeout timeout, func: http_get: {url}')
+            r.logInfo(f'ConnectTimeout timeout, func: http_get: {url}')
         except ConnectionError:
-            r.logDebug(f"Failed to establish a new connection, network is unreachable:{url}")
+            r.logInfo(f"Failed to establish a new connection, network is unreachable:{url}")
         except Exception as e:
-            r.logDebug(f"Exception: {e}")
+            r.logInfo(f"Exception: {e}")
         else:
-            r.logDebug(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
+            r.logInfo(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
             res.close()
             return res
 
     @staticmethod
-    def http_post(r, url, data=None, headers=None, timeout=10.0):
+    def http_post(r: SimModule, url, data=None, headers=None, timeout=10.0):
         """
         发送一次POST请求， 请求成功返回 response 的 json 数据
-        :param r:
+        :param r: SimModule
         :param url:
         :param headers:
         :param data:
@@ -151,18 +151,18 @@ class NetHandle:
         try:
             res = requests.post(url, json=data, headers=headers, timeout=timeout)
         except ConnectTimeout:
-            r.logDebug(f"ConnectTimeout: {url}")
+            r.logInfo(f"ConnectTimeout: {url}")
         except ConnectionError:
-            r.logDebug(f"Failed to establish a new connection, network is unreachable: {url}")
+            r.logInfo(f"Failed to establish a new connection, network is unreachable: {url}")
         except Exception as e:
-            r.logDebug(f"Exception: {e}")
+            r.logInfo(f"Exception: {e}")
         else:
-            r.logDebug(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
+            r.logInfo(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
             res.close()
             return res
 
     @staticmethod
-    def call_terminal(r, url, data):
+    def call_terminal(r: SimModule, url, data):
         """
         与终端设备交互, 使用 Core 的 callTerminal 接口
         :param r:
