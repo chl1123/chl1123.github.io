@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/6/28
+# @Time : 2022/7/25
 # @Author : huang, zhong
-# @Version : 2.2.3
-# @Support : rbk  3.3.5.52 以上版本
+# @Version : 2.2.4
+# @Support : rbk  3.3.5.56 以上版本
 # @Update : 新增料箱车专属报错码，新增料箱车通信交互功能
 
 import json
@@ -19,7 +19,7 @@ import math
 import syspy.goPath as goPath
 import requests
 
-SCRIPT_VERSION = "V2.2.3 - 20220628"
+SCRIPT_VERSION = "V2.2.3 - 20220725"
 """
 ####BEGIN DEFAULT ARGS####
 {
@@ -514,6 +514,7 @@ class Module(BasicModule):
                 addr = self.task.get("callTerminalURL", None)
                 data = self.task.get("callTerminalData", None)
                 self.call_terminal = CallTerminal(addr, data)
+                r.logInfo(f"addr: {addr}, data: {data}")
 
             if "postAddr" in self.task and type(self.task["postAddr"]) is str and self.task["postAddr"] != "":
                 addr = self.task["postAddr"]
@@ -527,7 +528,6 @@ class Module(BasicModule):
                 if "goodsId" in args:
                     self.goods_id = args["goodsId"]
                 self.get_goodsId(r)
-                self.state["cur_goodsId"] = self.goods_id
             except Exception as e:
                 r.setPickRobotWarning(55801, f"Please update rbk version: {e}")
 
@@ -542,8 +542,7 @@ class Module(BasicModule):
                 r.setPickRobotWarning(55802, "ctu connect is overtime: {}s".format(self.max_connect_time))
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
-            if self.call_terminal is not None and self.call_terminal.status is not MoveStatus.FINISHED:
-                self.call_terminal.run(r, self)  # 设备交互
+            self.state["cur_goodsId"] = self.goods_id
             try:
                 rbk_version = r.robokitVersion()
                 self.state['rbk version'] = rbk_version
@@ -563,7 +562,7 @@ class Module(BasicModule):
             if "connect_error" in self.state:
                 dtime = time.time() - self.start_connect_time
                 if dtime > self.max_connect_time:
-                    r.setPickRobotWarning(55805, "ctu connect is overtime: {}s".format(self.max_connect_time))
+                    r.setPickRobotWarning(55805, "command response time out: {}s".format(self.max_connect_time))
                     # self.status = MoveStatus.FAILED
                     str_state = json.dumps(self.state)
                     r.setInfo(str_state)
@@ -1153,7 +1152,8 @@ class Module(BasicModule):
                                 if vtype == "shelf":
                                     binType = "code"
                                     res = self.h.visionReq(pickingRobot.TargetType.SHELF.value,
-                                                           pickingRobot.BinType.DM_MARKED.value, pickingRobot.BinModel.PLASTICBOX,
+                                                           pickingRobot.BinType.DM_MARKED.value,
+                                                           pickingRobot.BinModel.PLASTICBOX,
                                                            r)
                                 elif vtype == "box":
                                     if binType == "code":
@@ -1329,8 +1329,7 @@ class Module(BasicModule):
                     return
             r.logInfo(f"load begin---trays:{self.tray_detect}---tray_floor:{self.tray_floor}")
             if self.tray_floor is None:  # 背篓满了
-                if self.get_tray(r, 999) and self.get_tray(r, 999)[
-                    'state'] == 1:  # 配置了抓斗container并且抓斗为空，则抓斗取货(999默认表示抓斗)
+                if self.get_tray(r, 999) and self.get_tray(r, 999)['state'] == 1:  # 配置了抓斗container并且抓斗为空，则抓斗取货
                     self.tray_floor = 999
                 else:
                     r.setPickRobotError(53821, f"All trays are full, can not load")
@@ -1352,6 +1351,8 @@ class Module(BasicModule):
                     ]
                     if self.tray_floor == 999:
                         self.task_list = self.task_list[:3]
+                    if self.call_terminal is not None:  # 设备交互
+                        self.task_list.insert(0, self.call_terminal)
                 elif "visionType" in self.task and self.task["visionType"] == "shelf":  # 识别货架二维码进行取货
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
@@ -1363,6 +1364,8 @@ class Module(BasicModule):
                     ]
                     if self.tray_floor == 999:
                         self.task_list = self.task_list[:3]
+                    if self.call_terminal is not None:  # 设备交互
+                        self.task_list.insert(0, self.call_terminal)
                 else:
                     r.setPickRobotError(53822, "Task is wrong in load with recAdjust: {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
@@ -1376,6 +1379,8 @@ class Module(BasicModule):
                 ]
                 if self.tray_floor == 999:
                     self.task_list = self.task_list[:2]
+                if self.call_terminal is not None:  # 设备交互
+                    self.task_list.insert(0, self.call_terminal)
             self.task_id = 0
         else:
             self.runTakList(r)
@@ -1428,8 +1433,6 @@ class Module(BasicModule):
                                       self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]
-                        if self.tray_floor == 999:
-                            self.task_list = self.task_list[2:]
                     else:
                         self.task_list = [
                             preGoods(self.low[self.tray_floor], 0),
@@ -1441,8 +1444,6 @@ class Module(BasicModule):
                                       self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]
-                        if self.tray_floor == 999:
-                            self.task_list = self.task_list[2:]
                 else:
                     r.setPickRobotError(53823,
                                         "Task is wrong in unload with recAdjust: {}".format(json.dumps(self.task)))
@@ -1455,9 +1456,11 @@ class Module(BasicModule):
                     prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
                     putGoods(self.task["stretch"])
                 ]
-                if self.tray_floor == 999:
-                    self.task_list = self.task_list[2:]
             self.task_id = 0
+            if self.tray_floor == 999:  # 抓斗放货
+                self.task_list = self.task_list[2:]
+            if self.call_terminal is not None:  # 设备交互
+                self.task_list.insert(0, self.call_terminal)
         else:
             self.runTakList(r)
 
@@ -1623,6 +1626,7 @@ class Module(BasicModule):
         self.status = MoveStatus.NONE
 
     def suspend(self, r: SimModule):
+        r.logInfo("script suspended")
         self.stop(r)
         if self.stretch_status is not MoveStatus.FINISHED \
                 and self.stretch_status is not MoveStatus.NONE:
@@ -1643,7 +1647,6 @@ class Module(BasicModule):
                 and self.operation_status is not MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
         self.h.resetAll()
-        r.logInfo("script suspended")
         self.status = MoveStatus.SUSPENDED
         self.start_connect_time = time.time()
         self.state = self.h.getReport(r)
@@ -2197,7 +2200,7 @@ class CallTerminal:
                 res = self.net.http_post(r, self.post_url, self.reach_data)
                 if res and res.status_code == 200 and res.json().get('code', 1) == 0:
                     self.task_flag[0] = True
-            if not self.task_flag[1]:
+            if self.task_flag[0] and not self.task_flag[1]:
                 res = self.net.http_get(r, self.get_url, params=self.action_data)
                 if res and res.status_code == 200 and res.json().get('code', 1) == 0:
                     self.task_flag[1] = True
@@ -2210,7 +2213,7 @@ class CallTerminal:
         self.report_info['call task'] = self.task_flag
         ctu.state['call terminal'] = self.report_info
 
-    def reset(self):
+    def reset(self, ctu=None):
         self.status = MoveStatus.RUNNING
 
 

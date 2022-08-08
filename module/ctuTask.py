@@ -410,6 +410,8 @@ class Module(BasicModule):
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
                         r.setWarning(f"task_stop exception: {e}")
+                else:
+                    r.setError(f"args error: {args}")
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/6/24 15:25
+# @Time : 2022/8/3
 # @Author : zhong
 # @File : robot.py
-# @Version : 1.3
+# @Version : 1.4
 """
 提供一些机构脚本常用的接口
 """
@@ -104,26 +104,32 @@ class ModuleTool:
     def script_running_counter(r: SimModule):
         return r.getCount()
 
-    @staticmethod
-    def get_value_by_key(data: dict, key: str):
-        """
-        深度遍历解析字典数据，获取指定 key 对应的 value 值，如果 key 不存在，则返回 None
-        :param data:
-        :param key:
-        :return:
-        """
-        pass
+
+def get_value_by_key(data: dict, key):
+    """深度遍历解析字典数据，获取指定 key 对应的 value 值，如果 key 不存在，则返回 None
+    :param data: 字典数据
+    :param key:
+    :return:
+    """
+    for k in data.keys():
+        # print("data:", data, "cur_key:", k)
+        if k == key:
+            return data[k]
+        else:
+            if isinstance(data[k], dict):
+                result = get_value_by_key(data[k], key)
+                if result is not None:
+                    return result
 
 
 class NetHandle:
     """提供HTTP协议的GET请求和POST请求接口 """
     def __init__(self):
-        pass
+        self.headers = {"Content-type": "application/json"}
 
-    @staticmethod
-    def http_get(r: SimModule, url, headers=None, params=None,  timeout=5.0):
+    def http_get(self, r: SimModule, url, params=None, data=None, timeout=5.0):
         try:
-            res = requests.get(url, headers=headers, params=params, timeout=timeout)
+            res = requests.get(url, headers=self.headers, params=params, data=data, timeout=timeout)
         except ReadTimeout:
             pass
         except ConnectTimeout:
@@ -137,19 +143,17 @@ class NetHandle:
             res.close()
             return res
 
-    @staticmethod
-    def http_post(r: SimModule, url, data=None, headers=None, timeout=10.0):
+    def http_post(self, r: SimModule, url, data=None, timeout=10.0):
         """
         发送一次POST请求， 请求成功返回 response 的 json 数据
         :param r: SimModule
         :param url:
-        :param headers:
         :param data:
         :param timeout:
         :return: json
         """
         try:
-            res = requests.post(url, json=data, headers=headers, timeout=timeout)
+            res = requests.post(url, json=data, headers=self.headers, timeout=timeout)
         except ConnectTimeout:
             r.logInfo(f"ConnectTimeout: {url}")
         except ConnectionError:
@@ -177,7 +181,7 @@ class NetHandle:
             return None
         else:
             if res.status_code == 200:
-                return json.loads(res.text)
+                return res.json()
             else:
                 r.setWarning(f"res code: {res.status_code}, res: {res.text}")
                 return None
