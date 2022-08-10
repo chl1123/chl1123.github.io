@@ -1,14 +1,19 @@
 # -*- coding: utf-8 -*-
 # @Time : 2022/04/11
-# @Author : qian
+# @Author : qian, qiangsheng
 # @File : forklift.py
 # @Project : 中电科8寸
 import time
+import enum
 import json
+import math
 import requests
+import sys
+sys.path.append("syspy")
+import syspy.goPath as goPath
 from syspy.rbkSim import SimModule
 from syspy.rbk import MoveStatus, BasicModule, ParamServer, Pos2Base
-from syspy.robot import ModuleTool
+from syspy.robot import Log, ModuleTool
 
 
 """
@@ -161,7 +166,9 @@ class Module(BasicModule):
         self.reset_data = None
         self.reset_flag = False
         r.logInfo(f"__init__ args: {args}")
+        Log.logger.info(f'step: {self.opt_step}')
         self.position = 0
+        self.p_offset = 0
 
 
     def run(self, r: SimModule, args):
@@ -184,6 +191,20 @@ class Module(BasicModule):
                 self.rec = RecAdjust(r, self.rec_file)
             args_error = False
             if "operation" in args:
+                code2pgv_x = 0
+                code2agv_y = 0
+                pgv_datas = r.pgv()
+                for p in pgv_datas["pgvs"]:
+                    if "pgv_info" not in p:
+                        continue
+                    if p["pgv_info"]["is_upside"] == True:
+                        continue
+                    if p["is_DMT_detected"] == False:
+                        continue
+                    code2pgv_x = p["tag_diff_x"]
+                    code2agv_y = p["tag_diff_y"]
+                r.logDebug("[pgv_tag_diff][{}|{}]".format(code2pgv_x, code2pgv_y))
+                self.p_offset = code2pgv_x
                 if "liftHeight" in args:
                     self.lift_height = args["liftHeight"]
                     if args["liftHeight"] > self.max_lift_height:
@@ -192,7 +213,7 @@ class Module(BasicModule):
                     elif args["liftHeight"] < self.lift_zero:
                         self.lift_height = self.lift_zero
                 if "stretchLength" in args:
-                    self.stretch_length = args["stretchLength"]
+                    self.stretch_length = args["stretchLength"] - code2agv_y
                     if args["stretchLength"] > self.max_stretch_length:
                         r.setError(f"Out of max stretch length {self.max_stretch_length}")
                         args_error = True
@@ -275,6 +296,7 @@ class Module(BasicModule):
         elif args["operation"] == "stretch":
             self.stretch(r)
         elif args["operation"] == "shift":
+            r.setNotice(f"step3: 333333333") 
             self.shift(r)
         else:
             r.setError(f"operation error: {args['operation']}")
@@ -378,17 +400,18 @@ class Module(BasicModule):
         if self.opt_step[0] and not self.opt_step[1]:
             self.opt_step[1] = self.robot.lift(self.lift_motor, self.lift_height)
         if self.opt_step[1] and not self.opt_step[2]:
-            if self.rec is None:
+            if abs(self.p_offset) < 1e-6:
                 self.opt_step[2] = True
-            elif self.rec is not None:
-                self.opt_step[2] = self.robot.shift(self.shift_motor, self.P1_shift_pos + self.rec.pos)
+            else:
+                self.opt_step[2] = self.robot.shift(self.shift_motor, self.P1_shift_pos + self.p_offset)
         if self.opt_step[2] and not self.opt_step[3]:
             self.opt_step[3] = self.robot.stretch(self.stretch_motor, self.stretch_length - 0.03)
         if self.opt_step[3] and not self.opt_step[4]:
             self.opt_step[4] = self.robot.stretchlow(self.stretch_motor, self.stretch_length)
             if self.fork_reached(r):
-                self.opt_step[4] = r.resetMotor(self.stretch_motor_name)
-                self.opt_step[4] = True
+                 #self.opt_step[4] = r.resetMotor(self.stretch_motor_name)
+                 self.stretch_motor.reset()
+                 self.opt_step[4] = True
         if self.opt_step[4] and not self.opt_step[5]:
             self.opt_step[5] = self.robot.liftlow(self.lift_motor, self.lift_height + self.lift_up)
         if self.opt_step[5] and not self.opt_step[6]:
@@ -422,18 +445,19 @@ class Module(BasicModule):
         if self.opt_step[3] and not self.opt_step[4]:
             self.opt_step[4] = self.robot.shift(self.shift_motor, self.P1_shift_pos)
         if self.opt_step[4] and not self.opt_step[5]:
-            if self.rec is None:
-                self.opt_step[5] = True
-            elif self.rec is not None:
-                self.opt_step[5] = self.robot.shift(self.shift_motor, self.P1_shift_pos + self.rec.pos)
+            if abs(self.p_offset) < 1e-6:
+                self.opt_step[2] = True
+            else:
+                self.opt_step[2] = self.robot.shift(self.shift_motor, self.P1_shift_pos + self.p_offset)
         if self.opt_step[5] and not self.opt_step[6]:
             self.opt_step[6] = self.robot.stretch(self.stretch_motor, self.stretch_length - 0.03)
         if self.opt_step[6] and not self.opt_step[7]:
             self.opt_step[7] = self.robot.stretchlow(self.stretch_motor, self.stretch_length)
             if self.fork_reached(r):
                 #self.position = self.get_motor_pos(r, self.stretch_motor_name)
-                r.resetMotor(self.stretch_motor_name)
+                #r.resetMotor(self.stretch_motor_name)
                 #r.setWarning(f"lift: {self.position}")
+                self.stretch_motor.reset()
                 self.opt_step[7] = True
                 #self.position = self.get_motor_pos(r, self.stretch_motor_name)
                 #self.opt_step[6] = self.robot.stretch(self.stretch_motor, self.position - 0.005)
