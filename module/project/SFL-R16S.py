@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/3/25
+# @Time : 2022/5/13
 # @Author : qiangsheng，zhong
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
-# @Version: 2.2
+# @Version: 2.4
+# @Description: 增加action和取放不动货叉
 
 import json
 import time
@@ -22,7 +23,7 @@ import syspy.goPath as goPath
     "operation":{
         "value": "zero",
         "default_value":[
-        "zero","unload","load","lift","rotate","stretch","rec","recAdjust", "goPath"
+        "zero","unload","load","lift","rotate","stretch","rec","recAdjust", "goPath", "action"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -120,13 +121,13 @@ class Module(BasicModule):
         # 倾斜延时
         self.rotate_time = 4.0 # 倾斜电机旋转3s
         # 激光尾部激光
-        self.back_laser = (1,2)
+        self.back_laser = (-1,-1)
         # 有货物后的货叉伸出距离
         self.load_stretch_safe_length = 0.01
         # 货叉伸出最大距离
         self.stretch_max_length = 0.418
         # 货叉伸出最大距离时的识别倒退距离
-        self.back_dist = 0.2
+        self.back_dist = 100
         # 货叉伸出最大距离时的最小前置距离
         self.min_ahead_dist = 1.5
         # 货叉识别调整最大前移距离
@@ -199,6 +200,8 @@ class Module(BasicModule):
             self.rec(r)
         elif operation == "goPath":
             self.goPath(r)
+        elif operation == "action":
+            self.action(r)
         else:
             r.setError("operation is wrong {}".format(str(operation)))
             self.status = MoveStatus.FAILED
@@ -259,6 +262,21 @@ class Module(BasicModule):
             return True
         return False
 
+
+    def action(self, r: SimModule):
+        if self.operation_status == MoveStatus.NONE:
+            self.operation_status = MoveStatus.RUNNING
+            if "liftHeight" in self.task:
+                self.task_list.append(lift(self.lift_motor, self.task["liftHeight"]))
+            if "stretchLength" in self.task:
+                self.task_list.append(stretch(self.stretch_motor, self.task["stretchLength"]))
+            self.task_id = 0
+        else:
+            self.runTakList(r)
+        cur_state = dict()
+        cur_state["state"] = self.operation_status
+        cur_state["task_id"] = self.task_id
+        self.state["action"] = cur_state
 
     def lift(self, r: SimModule):
         if "liftHeight" not in self.task:
@@ -365,41 +383,48 @@ class Module(BasicModule):
 
     def load(self,r:SimModule):
         if self.operation_status == MoveStatus.NONE:
+            self.operation_status = MoveStatus.RUNNING
             if r.hasGoods():
                 self.state["load"] = "Fork has goods, cannot load"
                 r.setError(f"Fork has goods, cannot load")
                 return
-            if "liftHeight" not in self.task:
-                self.state["load"] = "liftHeight is missing"
-                r.setError(f"liftHeight is missing")
-                return
-            if "liftUpHeight" not in self.task:
-                self.state["load"] = "liftUpHeight is missing"
-                r.setError(f"liftUpHeight is missing")
-                return                
-            self.operation_status = MoveStatus.RUNNING
-            stretch_length = self.stretch_max_length
-            if "stretchLength" in self.task:
-                stretch_length =  self.task["stretchLength"]
-            if stretch_length > self.load_stretch_safe_length:
-                # 如果需要伸出插齿取叉货物
+            if "liftHeight" not in self.task\
+                 and "liftUpHeight" not in self.task\
+                     and "stretchLength" not in self.task:
                 self.task_list = [
-                    rotate(self.rotate_motor, self.rotate_zero), # 货叉前后角度水平
-                    lift(self.lift_motor, self.task["liftHeight"]),
-                    stretch(self.stretch_motor, stretch_length, self.reachDI),
-                    recAdjust(r),
-                    lift(self.lift_motor, self.task["liftUpHeight"]),
-                    stretch(self.stretch_motor, self.load_stretch_safe_length)
+                    recAdjust(r)
                 ]
-            else:
-                # 不需要伸出插齿去取叉货
-                self.task_list = [
-                    rotate(self.rotate_motor, self.rotate_zero), # 货叉前后角度水平
-                    lift(self.lift_motor, self.task["liftHeight"]),
-                    stretch(self.stretch_motor, self.load_stretch_safe_length, self.reachDI),
-                    recAdjust(r),
-                    lift(self.lift_motor, self.task["liftUpHeight"])
-                ]                  
+            else:      
+                if "liftHeight" not in self.task:
+                    self.state["load"] = "liftHeight is missing"
+                    r.setError(f"liftHeight is missing")
+                    return
+                if "liftUpHeight" not in self.task:
+                    self.state["load"] = "liftUpHeight is missing"
+                    r.setError(f"liftUpHeight is missing")
+                    return                
+                stretch_length = self.stretch_max_length
+                if "stretchLength" in self.task:
+                    stretch_length =  self.task["stretchLength"]
+                if stretch_length > self.load_stretch_safe_length:
+                    # 如果需要伸出插齿取叉货物
+                    self.task_list = [
+                        rotate(self.rotate_motor, self.rotate_zero), # 货叉前后角度水平
+                        lift(self.lift_motor, self.task["liftHeight"]),
+                        stretch(self.stretch_motor, stretch_length, self.reachDI),
+                        recAdjust(r),
+                        lift(self.lift_motor, self.task["liftUpHeight"]),
+                        stretch(self.stretch_motor, self.load_stretch_safe_length)
+                    ]
+                else:
+                    # 不需要伸出插齿去取叉货
+                    self.task_list = [
+                        rotate(self.rotate_motor, self.rotate_zero), # 货叉前后角度水平
+                        lift(self.lift_motor, self.task["liftHeight"]),
+                        stretch(self.stretch_motor, self.load_stretch_safe_length, self.reachDI),
+                        recAdjust(r),
+                        lift(self.lift_motor, self.task["liftUpHeight"])
+                    ]           
             self.task_id = 0
         else:
             self.runTakList(r)
@@ -414,36 +439,43 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.vision_status = MoveStatus.FINISHED
-            if "liftHeight" not in self.task:
-                self.state["load"] = "liftHeight is missing"
-                r.setError(f"liftHeight is missing")
-                return
-            if "liftDownHeight" not in self.task:
-                self.state["load"] = "liftDownHeight is missing"
-                r.setError(f"liftDownHeight is missing")
-                return    
-            stretch_length = self.stretch_max_length
-            if "stretchLength" in self.task:
-                stretch_length =  self.task["stretchLength"]
-            if stretch_length > self.stretch_zero:
-                # 如果需要伸出插齿放叉货物
+            if "liftHeight" not in self.task\
+                 and "liftDownHeight" not in self.task\
+                     and "stretchLength" not in self.task:
                 self.task_list = [
-                    lift(self.lift_motor, self.task['liftHeight']),
-                    stretch(self.stretch_motor, stretch_length),
-                    goPath(self),
-                    rotate(self.rotate_motor, self.rotate_zero),
-                    lift(self.lift_motor, self.task["liftDownHeight"]),
-                    stretch(self.stretch_motor, self.stretch_zero)
+                    goPath(self)
                 ]
             else:
-                # 不需要伸出插齿去放叉货
-                self.task_list = [
-                    lift(self.lift_motor, self.task['liftHeight']),
-                    stretch(self.stretch_motor, stretch_zero),
-                    goPath(self),
-                    rotate(self.rotate_motor, self.rotate_zero),
-                    lift(self.lift_motor, self.task["liftDownHeight"])
-                ]                
+                if "liftHeight" not in self.task:
+                    self.state["load"] = "liftHeight is missing"
+                    r.setError(f"liftHeight is missing")
+                    return
+                if "liftDownHeight" not in self.task:
+                    self.state["load"] = "liftDownHeight is missing"
+                    r.setError(f"liftDownHeight is missing")
+                    return    
+                stretch_length = self.stretch_max_length
+                if "stretchLength" in self.task:
+                    stretch_length =  self.task["stretchLength"]
+                if stretch_length > self.stretch_zero:
+                    # 如果需要伸出插齿放叉货物
+                    self.task_list = [
+                        lift(self.lift_motor, self.task['liftHeight']),
+                        stretch(self.stretch_motor, stretch_length),
+                        goPath(self),
+                        rotate(self.rotate_motor, self.rotate_zero),
+                        lift(self.lift_motor, self.task["liftDownHeight"]),
+                        stretch(self.stretch_motor, self.stretch_zero)
+                    ]
+                else:
+                    # 不需要伸出插齿去放叉货
+                    self.task_list = [
+                        lift(self.lift_motor, self.task['liftHeight']),
+                        stretch(self.stretch_motor, stretch_zero),
+                        goPath(self),
+                        rotate(self.rotate_motor, self.rotate_zero),
+                        lift(self.lift_motor, self.task["liftDownHeight"])
+                    ]           
             self.task_id = 0
         else:
             self.runTakList(r)
@@ -699,11 +731,11 @@ class recAdjust:
             if has_rec:
                 p1 = dict()
                 p1["key"] = "rec_back_dist"
-                p1["double_value"] = agv.back_dist
+                p1["double_value"] = agv.back_dist + (agv.stretch_max_length - agv.stretch_pos)
                 self.task["params"].append(p1)
                 p2 = dict()
                 p2["key"] = "rec_min_ahead_dist"
-                p2["double_value"] = agv.min_ahead_dist
+                p2["double_value"] = agv.min_ahead_dist - (agv.stretch_max_length - agv.stretch_pos)
                 self.task["params"].append(p2)    
                 p3 = dict()
                 p3["key"] = "rec_ahead_dist"
@@ -743,8 +775,11 @@ if __name__ == '__main__':
     m = Module(r,None)
     
     num = [1]
-    def testNum(num):
-        print(f"*****{num[0]}*****")
+    def testNum(num, name = None):
+        if name == None:
+            print(f"*****{num[0]}*****")
+        else:
+            print(f"*****{name}*****")
         num[0] = num[0] + 1
 
 
@@ -828,4 +863,28 @@ if __name__ == '__main__':
     m.reset(r)
     data = dict()
     data["operation"] = "safeCheck"
+    print(m.run(r, data))
+
+
+    testNum(num, "action")
+    m.reset(r)
+    data = dict()
+    data["operation"] = "action"
+    data["liftHeight"] = 1.
+    data["stretchLength"] = 1.
+    print(m.run(r, data))
+    print(m.run(r, data))
+
+    testNum(num, "load_without_lift")
+    m.reset(r)
+    data = dict()
+    data["operation"] = "load"
+    print(m.run(r, data))
+    print(m.run(r, data))
+
+    testNum(num, "unload_without_lift")
+    m.reset(r)
+    data = dict()
+    data["operation"] = "unload"
+    print(m.run(r, data))
     print(m.run(r, data))
