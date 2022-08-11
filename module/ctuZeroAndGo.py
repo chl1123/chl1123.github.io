@@ -1,11 +1,9 @@
 import json
-import time
 import sys
 sys.path.append("syspy")
 from syspy.rbkSim import SimModule
-from syspy.rbk import MoveStatus, BasicModule, ParamServer
-import math
-from ctuNoBlock import Module as ctu
+from syspy.rbk import MoveStatus, BasicModule
+from module.pickRobot.ctuNoBlock import Module as ctu
 """
 ####BEGIN DEFAULT ARGS####
 {

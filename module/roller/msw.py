@@ -3,7 +3,7 @@
 # @Author : zhong
 # @File :msw.py
 # @Version : 1.0
-# @Project : 迈斯维
+# @Project : 迈斯维 单辊筒 DO电机
 
 import json
 import time
@@ -88,7 +88,6 @@ class Module(BasicModule):
         return self.status
 
     def load(self, r):
-        # if check_di(r, self.di3) and not check_di(r, self.di1):
         if check_di(r, self.di3):
             self.load_goods = True
             r.setDO(self.roller_reversal, True)

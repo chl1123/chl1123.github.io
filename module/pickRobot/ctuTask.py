@@ -6,9 +6,9 @@
 
 import json
 import time
-import syspy.goPath as goPath
-from syspy.rbkSim import SimModule
-from syspy.rbk import MoveStatus, BasicModule, ParamServer
+import goPath as goPath
+from rbkSim import SimModule
+from rbk import MoveStatus, BasicModule, ParamServer
 from pickingRobot import ModeType, PickRobot, BinOpType, BinType, BinModel, LocationType, Action, StopType, ErrorMessage
 
 """

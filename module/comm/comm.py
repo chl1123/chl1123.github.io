@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Date : 2022/8/5
 # @Author : zhong
-# @File :interact.py
+# @File :comm.py
 # @Version : 1.3
 # @Project : https://seer-group.coding.net/p/issue_pool/requirements/issues/3427/detail
 # @Protocol: [RDSCore与终端交互] https://seer-group.yuque.com/pf4yvd/lg4q1h/wbno17

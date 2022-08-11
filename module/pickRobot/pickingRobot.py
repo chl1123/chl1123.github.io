@@ -9,11 +9,11 @@ from enum import IntEnum
 import struct
 import socket
 import json
-import crc
+from module.pickRobot import crc
 import time
 import sys
-import syspy.goPath as goPath
-from syspy.rbk import MoveStatus, SimModule
+import goPath as goPath
+from rbk import MoveStatus, SimModule
 
 
 class MessageType(IntEnum):

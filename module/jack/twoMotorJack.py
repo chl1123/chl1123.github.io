@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date : 2021/12/23 15:24
+# @Date : 2022/5/25 15:25
 # @Author : zhong
-# @File :fourMotorJack.py.py
-# @Version : 1.1
-# @Project : 大族 4电机顶升
+# @File :twoMotorJack.py.py
+# @Version : 1.0
+# @Project : 双电机顶升
 import json
 
 from rbk import MoveStatus, BasicModule, ParamServer
@@ -22,7 +22,7 @@ from robot import Motor, MotorType, Robot, ModuleTool
         "type": "complex"
     },
     "loadHeight": {
-        "value": 0.01,
+        "value": 0.05,
         "tips": "指定上升高度，可选参数",
         "type": "float",
         "unit": "m"
@@ -38,18 +38,12 @@ class Module(BasicModule):
         p = ParamServer(__file__)
         self.motor_name1 = p.loadParam("MotorName1", type="str", default="motor2", comment="电机1名称")
         self.motor_name2 = p.loadParam("MotorName2", type="str", default="motor3", comment="电机2名称")
-        self.motor_name3 = p.loadParam("MotorName3", type="str", default="motor4", comment="电机3名称")
-        self.motor_name4 = p.loadParam("MotorName4", type="str", default="motor5", comment="电机4名称")
         self.up_limit_di1 = p.loadParam("UpLimitDi1", type="int", default=1, comment="电机1上限位DI")
         self.up_limit_di2 = p.loadParam("UpLimitDi2", type="int", default=4, comment="电机2上限位DI")
-        self.up_limit_di3 = p.loadParam("UpLimitDi3", type="int", default=6, comment="电机3上限位DI")
-        self.up_limit_di4 = p.loadParam("UpLimitDi4", type="int", default=8, comment="电机4上限位DI")
         self.zero_di1 = p.loadParam("ZeroDi1", type="int", default=0, comment="电机1零位DI")
         self.zero_di2 = p.loadParam("ZeroDi2", type="int", default=2, comment="电机2零位DI")
-        self.zero_di3 = p.loadParam("ZeroDi3", type="int", default=5, comment="电机3零位DI")
-        self.zero_di4 = p.loadParam("ZeroDi4", type="int", default=7, comment="电机4零位DI")
         self.shelf_file = p.loadParam("ShelfFile", type="str", default="", comment="货物模型文件，默认为空")
-        self.default_height = p.loadParam("DefaultHeight", type="float", default=0.01, comment="顶升默认上升高度")
+        self.default_height = p.loadParam("DefaultHeight", type="float", default=0.05, comment="顶升默认上升高度")
         self.extremum_diff = p.loadParam("ExtremumDiff", type="float", default=0.001, comment="多电机同步时编码器极值差阈值")
         self.variance = p.loadParam("Variance", type="float", default=1.0, comment="多电机同步时编码器方差阈值")
 
@@ -58,7 +52,7 @@ class Module(BasicModule):
         self.height = None
         self.state = dict()
         self.robot = Robot(r)
-        self.opt_status = [False]*4
+        self.opt_status = [False]*2
         self.jack_motors = list()
         r.logInfo(f"init args: {args}")
 
@@ -68,7 +62,7 @@ class Module(BasicModule):
             if "loadHeight" in args:
                 self.height = args["loadHeight"]
                 if args["loadHeight"] <= 0:
-                    self.height = -0.00001
+                    self.height = 0.000001
             else:
                 self.height = self.default_height
             if "operation" not in args:
@@ -76,12 +70,9 @@ class Module(BasicModule):
                 return MoveStatus.FAILED
             self.jack_motors.append(Motor(r, MotorType.LINEAR_MOTOR, self.motor_name1, -1))
             self.jack_motors.append(Motor(r, MotorType.LINEAR_MOTOR, self.motor_name2, -1))
-            self.jack_motors.append(Motor(r, MotorType.LINEAR_MOTOR, self.motor_name3, -1))
-            self.jack_motors.append(Motor(r, MotorType.LINEAR_MOTOR, self.motor_name4, -1))
 
         self.status = MoveStatus.RUNNING
-        if ModuleTool.check_DI(r, self.up_limit_di1) or ModuleTool.check_DI(r, self.up_limit_di2) \
-                or ModuleTool.check_DI(r, self.up_limit_di3) or ModuleTool.check_DI(r, self.up_limit_di4):
+        if ModuleTool.check_DI(r, self.up_limit_di1) or ModuleTool.check_DI(r, self.up_limit_di2):
             r.setError(f"触发上限位DI")
             self.status = MoveStatus.FAILED
         if args["operation"] == "JackLoad":
@@ -95,7 +86,7 @@ class Module(BasicModule):
         r.publishSpeed()
         # 多电机同步机制安全检查
         motor_pos = []
-        for motor_name in [self.motor_name1, self.motor_name2, self.motor_name3, self.motor_name4]:
+        for motor_name in [self.motor_name1, self.motor_name2]:
             motor_pos.append(ModuleTool.get_motor_pos(r, motor_name))
         self.motor_safe_check(r, motor_pos)
         # ############## 数据上报 ##############
@@ -106,16 +97,14 @@ class Module(BasicModule):
         self.state["motor_pos_variance"] = self.get_variance(*motor_pos)
         self.state["motors"] = {
             self.motor_name1: {"upLimitDi": self.up_limit_di1, "zeroDi": self.zero_di1, "reach": r.isMotorReached(self.motor_name1), "stop": r.isMotorStop(self.motor_name1)},
-            self.motor_name2: {"upLimitDi": self.up_limit_di2, "zeroDi": self.zero_di2, "reach": r.isMotorReached(self.motor_name2), "stop": r.isMotorStop(self.motor_name2)},
-            self.motor_name3: {"upLimitDi": self.up_limit_di3, "zeroDi": self.zero_di3, "reach": r.isMotorReached(self.motor_name3), "stop": r.isMotorStop(self.motor_name3)},
-            self.motor_name4: {"upLimitDi": self.up_limit_di4, "zeroDi": self.zero_di4, "reach": r.isMotorReached(self.motor_name4), "stop": r.isMotorStop(self.motor_name4)},
+            self.motor_name2: {"upLimitDi": self.up_limit_di2, "zeroDi": self.zero_di2, "reach": r.isMotorReached(self.motor_name2), "stop": r.isMotorStop(self.motor_name2)}
         }
         r.setInfo(json.dumps(self.state))
         r.logInfo(json.dumps(self.state))
         return self.status
 
     def jack_load(self, r):
-        for i in range(4):
+        for i in range(2):
             self.opt_status[i] = self.robot.jack(self.jack_motors[i], self.height)
         if all(self.opt_status):
             r.setGoodsShape(0, 0, 0)
@@ -129,8 +118,8 @@ class Module(BasicModule):
         self.state['operation'] = load_state
 
     def jack_unload(self, r):
-        for i in range(4):
-            self.opt_status[i] = self.robot.jack(self.jack_motors[i], 0.00001)
+        for i in range(2):
+            self.opt_status[i] = self.robot.jack(self.jack_motors[i], 0.000001)
         if all(self.opt_status):
             r.clearGoodsShape()
             r.resetLocalShelfArea()
