@@ -936,6 +936,15 @@ class SimModule:
         """停止所有非行走的电机
         """        
         print("func: {0}".format(get_function_name()))
+    def getMinDynamicObs(self)->list:
+        """获得离机器最近的一个动态障碍物坐标。 如果没有障碍物反馈0.,0.
+
+        Returns:
+            list: 两个元素，分别为x,y。单位为m
+        """
+        obs = [0.,0.]
+        print("func: {0} {1}".format(get_function_name(), obs))
+        return obs
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1029,4 +1038,5 @@ if __name__ == '__main__':
     r.stopMotor()
     r.setPickRobotError(53800, "error")
     r.setPickRobotWarning(55800, "warning")
+    r.getMinDynamicObs()
     print("Success!!!")
