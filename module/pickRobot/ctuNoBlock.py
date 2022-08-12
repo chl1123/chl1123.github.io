@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/7/25
+# @Time : 2022/8/12
 # @Author : huang, zhong
-# @Version : 2.2.4
-# @Support : rbk  3.3.5.56 以上版本
-# @Update : 新增料箱车专属报错码，新增料箱车通信交互功能
+# @Version : 2.2.5
+# @Support : rbk  3.3.5.62 +
+# @Update : 新增60秒超时报错并结束任务
 
 import json
 import sys
@@ -538,8 +538,11 @@ class Module(BasicModule):
             r.setInfo(str_state)
             r.logDebug(str_state)
             dtime = time.time() - self.start_connect_time
-            if dtime > self.max_connect_time:
-                r.setPickRobotWarning(55802, "ctu connect is overtime: {}s".format(self.max_connect_time))
+            # if dtime > self.max_connect_time:
+            #     r.setPickRobotWarning(55802, "ctu connect is overtime: {}s".format(self.max_connect_time))
+            if dtime > 60:
+                r.setError(f"ctu connect is overtime: 60s")
+                self.status = MoveStatus.FAILED
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
             self.state["cur_goodsId"] = self.goods_id
@@ -562,11 +565,12 @@ class Module(BasicModule):
             if "connect_error" in self.state:
                 dtime = time.time() - self.start_connect_time
                 if dtime > self.max_connect_time:
-                    r.setPickRobotWarning(55805, "command response time out: {}s".format(self.max_connect_time))
-                    # self.status = MoveStatus.FAILED
+                    r.setPickRobotError(53837, "command response time out: {}s".format(self.max_connect_time))
+                    self.status = MoveStatus.FAILED
                     str_state = json.dumps(self.state)
                     r.setInfo(str_state)
                     r.logDebug(str_state)
+                    r.logInfo(str_state)
                     return self.status
             else:
                 self.start_connect_time = time.time()
