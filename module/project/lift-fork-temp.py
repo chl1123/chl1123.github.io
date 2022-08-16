@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/8/11
+# @Time : 2022/8/18
 # @Author : qian, qiangsheng, zhong
 # @File : lift-fork-temp.py
 # @Project : 中电科8寸
@@ -13,7 +13,7 @@ sys.path.append("syspy")
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, ParamServer, Pos2Base
 from robot import ModuleTool
-
+SCRIPT_VERSION = "V2.0-20220815"
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -165,6 +165,9 @@ class Module(BasicModule):
         self.reset_flag = False
         r.logInfo(f"__init__ args: {args}")
         self.p_offset = 0
+        self.goods_id = ""
+        self.containers = None
+        self.pos = None
 
 
     def run(self, r: SimModule, args):
@@ -183,6 +186,14 @@ class Module(BasicModule):
             self.action_data = args.get('postData', dict()).get('action', False)
             self.finish_data = args.get('postData', dict()).get('finish', False)
             self.reset_data = args.get('postData', dict()).get('reset', False)
+            # 初始化机器人库位
+            if "getContainers" in dir(SimModule):
+                self.containers = r.getContainers()
+            else:
+                r.setError(f"RBK version mismatch, please update RBK")
+            # 获取货物ID
+            self.goods_id = self.get_goodsId(r)
+
             if self.rec_file:
                 self.rec = RecAdjust(r, self.rec_file)
             args_error = False
@@ -320,6 +331,9 @@ class Module(BasicModule):
         self.state['status'] = self.status
         self.state['args'] = args
         self.state['step'] = self.opt_step
+        self.state['goodsId'] = self.goods_id
+        self.state['container'] = r.getContainers()
+        self.state['script-version'] = SCRIPT_VERSION
         r.setInfo(json.dumps(self.state))
         r.logInfo(json.dumps(self.state))
         r.setWarning(f"step: {self.opt_step}")
@@ -390,6 +404,18 @@ class Module(BasicModule):
         r.logInfo(f"shift: {shift_state}")
 
     def load(self, r):
+        # 库位判断
+        if not self.has_goods(r, 0):
+            self.shift_width = self.P2_shift_pos
+            self.pos = 0
+        elif not self.has_goods(r, 999):
+            self.shift_width = self.P1_shift_pos
+            self.pos = 999
+        else:
+            r.setError("All containers are full, can not load")
+            self.status = MoveStatus.FAILED
+            return
+
         if not self.opt_step[0]:
             self.opt_step[0] = self.robot.shift(self.shift_motor, self.P1_shift_pos)
         if self.opt_step[0] and not self.opt_step[1]:
@@ -419,6 +445,7 @@ class Module(BasicModule):
         if self.opt_step[9] and not self.opt_step[10]:
             self.opt_step[10] = self.robot.shift(self.shift_motor, self.shift_zero)
         if self.opt_step[10]:
+            r.setContainer(str(self.pos), self.goods_id, self.goods_id)
             self.operation_status = MoveStatus.FINISHED
         load_state = dict()
         load_state['opt_name'] = "load"
@@ -428,6 +455,22 @@ class Module(BasicModule):
         r.logInfo(f"load: {load_state}")
 
     def unload(self, r):
+        # 库位判断
+        if self.has_goods(r, 999):
+            self.shift_width = self.P1_shift_pos
+            self.pos = 999
+        elif self.has_goods(r, 0):
+            self.shift_width = self.P2_shift_pos
+            self.pos = 0
+        else:
+            r.setError("All containers are empty, can not unload!")
+            self.status = MoveStatus.FAILED
+            return
+        if self.goods_id != self.get_container_goodsId(r, self.pos):
+            r.setError("Current goodsId mismatch!")
+            self.status = MoveStatus.FAILED
+            return
+
         if not self.opt_step[0]:
             self.opt_step[0] = self.robot.lift(self.lift_motor, self.lift_zero)
         if self.opt_step[0] and not self.opt_step[1]:
@@ -475,6 +518,7 @@ class Module(BasicModule):
         if self.opt_step[12] and not self.opt_step[13]:
             self.opt_step[13] = self.robot.shift(self.shift_motor, self.shift_zero)
         if self.opt_step[13]:
+            r.clearContainer(str(self.pos))
             self.operation_status = MoveStatus.FINISHED
         unload_state = dict()
         unload_state['opt_name'] = "unload"
@@ -557,6 +601,34 @@ class Module(BasicModule):
             ModuleTool.start_time = None
             return True
         return False
+
+    def update_container(self, r):
+
+        pass
+
+    @staticmethod
+    def has_goods(r, pos=0) -> bool:
+        container = r.getContainers()
+        for c in container:
+            if str(pos) == c.get("container_name", None):
+                return c.get("has_goods", False)
+        return False
+
+    @staticmethod
+    def get_goodsId(r):
+        move_task = r.moveTask()
+        for p in move_task['params']:
+            if p['key'] == 'goodsId':
+                return p['string_value']
+        return ""
+
+    @staticmethod
+    def get_container_goodsId(r, pos):
+        container = r.getContainers()
+        for c in container:
+            if str(pos) == c.get("container_name", None):
+                return c.get("goods_id", "")
+        return ""
 
 
 class Motor:
@@ -743,4 +815,4 @@ class RecAdjust:
 
 
 if __name__ == '__main__':
-   pass
+    pass
