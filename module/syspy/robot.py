@@ -396,6 +396,37 @@ class Robot:
         return False
 
 
+class GoodsManger:
+    """
+    管理机器人自带的库位及货物数据
+    """
+    def __init__(self, r):
+        self.container = list()
+        self.move_task = r.moveTask()
+        if "getContainers" in dir(SimModule):
+            self.container = r.getContainers()
+        else:
+            r.setError(f"RBK version mismatch, please update RBK")
+
+    def has_goods(self, pos=0) -> bool:
+        for c in self.container:
+            if pos == c.get("container_name", None):
+                return c.get("has_goods", False)
+        return False
+
+    def get_task_goodsId(self):
+        for p in self.move_task['params']:
+            if p['key'] == 'goodsId':
+                return p['string_value']
+        return ""
+
+    def get_container_goodsId(self, pos=0):
+        for c in self.container:
+            if pos == c.get("container_name", None):
+                return c.get("goods_id", "")
+        return ""
+
+
 if __name__ == "__main__":
     liner_motor = Motor(SimModule(), MotorType.LINEAR_MOTOR, "motor1", -1)
     roller_motor = Motor(SimModule(), MotorType.ROLLER_MOTOR, "motor2", -1)
