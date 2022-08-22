@@ -932,6 +932,12 @@ class SimModule:
         print("func: {0}".format(get_function_name()))
     def armResume(self):
         print("func: {0}".format(get_function_name()))
+    def scannerCode(self, task_id:int):
+        """ 调用机械臂识别二维码的接口
+        Args:
+            task_id (int): _description_
+        """
+        print("func: {0} {1}".format(get_function_name(), task_id))
     def stopMotor(self):
         """停止所有非行走的电机
         """        
@@ -1039,4 +1045,5 @@ if __name__ == '__main__':
     r.setPickRobotError(53800, "error")
     r.setPickRobotWarning(55800, "warning")
     r.getMinDynamicObs()
+    r.scannerCode(1)
     print("Success!!!")
