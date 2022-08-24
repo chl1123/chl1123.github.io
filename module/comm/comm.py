@@ -104,7 +104,7 @@ class Module(BasicModule):
                     r.logInfo(f"action_res: {action_res}")
                     if action_res and action_res.status_code == 200:
                         if bool(self.http_get_key):
-                            if action_res.json().get("code",  None) == self.http_get_value:
+                            if action_res.json().get(self.http_get_key,  None) == self.http_get_value:
                                 self.flag[1] = True
                         else:
                             self.flag[1] = True

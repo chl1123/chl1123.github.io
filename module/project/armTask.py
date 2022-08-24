@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/4/11
-# @Author : qiangsheng
+# @Time : 2022/8/23
+# @Author : qiangsheng, zhong
 # @File : armTask.py
 # @Request : issue_pool#3020 荣成拼合单 roboview#1358
 # @Version: 0.5
+# @Update: 增加扫码核对功能
 
 import json
 import time
@@ -11,18 +12,18 @@ import sys
 
 sys.path.append("..")
 sys.path.append("../syspy")
-from syspy.rbkSim import SimModule
-from syspy.rbk import MoveStatus, BasicModule, Pos2World, normalize_theta, ParamServer
+from rbkSim import SimModule
+from rbk import MoveStatus, BasicModule
 import math
-import syspy.goPath as goPath
 import os
+
 """
 ####BEGIN DEFAULT ARGS####
 {
     "operation":{
         "value": "load",
         "default_value":[
-        "unload","load"
+        "unload","load", "scan"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -56,8 +57,9 @@ class Module(BasicModule):
             "unload": []
         }
     }
-    """    
-    def __init__(self, r:SimModule, args):
+    """
+
+    def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
         param_dir = os.path.dirname(__file__)
         self.armFile = os.path.join(param_dir, "armData.json")
@@ -66,7 +68,7 @@ class Module(BasicModule):
         with open(self.armFile) as fp:
             self.armData = json.load(fp)
 
-        for k,v in self.armData.items():
+        for k, v in self.armData.items():
             if "load" not in v:
                 r.setError("container {} load is missing.".format(k))
                 self.type2c = dict()
@@ -86,27 +88,36 @@ class Module(BasicModule):
         self.armArgs = None
         self.taskid = None
 
-    def reset(self, r:SimModule) -> MoveStatus:
+        self.tempStatus = False
+        self.timescount = 0
+        self.status = MoveStatus.NONE
+        self.report_info = dict()
+        self.scan_status = None
+        self.scan_code = ""
+        r.logInfo(f"init args: {args}")
+
+    def reset(self, r: SimModule):
         self.status = MoveStatus.RUNNING
         self.init = True
 
-    def failTask(self, r:SimModule):
+    def failTask(self, r: SimModule):
         r.stopRobot(True)
         self.status = MoveStatus.FAILED
         return self.status
-    def run(self, r:SimModule,args):
+
+    def run(self, r: SimModule, args):
         if self.status == MoveStatus.SUSPENDED:
             r.armResume()
         self.status = MoveStatus.RUNNING
-        if self.armData == None:
+        if self.armData is None:
             r.setError("cannot load {}".format(self.armFile))
             return self.failTask(r)
-        armInfo = r.getArmInfo()
+        armInfo = r.getArmInfo()    # 包含扫码识别信息
         if self.init:
             self.init = False
             self.start_time = time.time()
-            self.operation = args.get("operation",None)
-            self.container = args.get("container",None)
+            self.operation = args.get("operation", None)
+            self.container = args.get("container", None)
             self.getArmArgsAndGoodsId(r)
             if self.armArgs is None:
                 r.setError("armArgs is missing.")
@@ -125,7 +136,7 @@ class Module(BasicModule):
                     return self.failTask(r)
 
                 # 加载货物没有给goodsId
-                if self.goodsId == "" and self.goodsId is None and self.operation == "load":
+                if (self.goodsId == "" or self.goodsId is None) and self.operation == "load":
                     r.setError("goodsId is wrong {}.".format(self.goodsId))
                     return self.failTask(r)
 
@@ -139,41 +150,41 @@ class Module(BasicModule):
                 if self.operation == "load":
                     for cn in cur_cs:
                         cur_c = cur_cs[cn]
-                        if cur_c["has_goods"] == False:
+                        if not cur_c["has_goods"]:
                             self.container = cn
                             break
-                    #load again error
+                    # load again error
                     if self.container is None:
-                        r.setError("all {} containers {} have goods, cannot load again.".format(self.goodsType, str(cs)))
+                        r.setError("all containers {} have goods, cannot load again.".format(str(cur_cs)))
                         return self.failTask(r)
-                    #背篓名称错误
+                    # 背篓名称错误
                     if self.container not in self.armData:
                         r.setError("container is wrong {} is not in the {}.".format(self.container, self.armFile))
                         return self.failTask(r)
-                    
+
                     c = self.armData[self.container]
                     # operation 错误  
                     if self.operation not in c:
                         r.setError("container {} and operation {} is mismatch.".format(self.container, self.operation))
-                        return self.failTask(r)    
+                        return self.failTask(r)
 
-                    self.cmd= c[self.operation]
+                    self.cmd = c[self.operation]
 
                 elif self.operation == "unload":
 
                     if self.goodsId is None:
                         r.setError("goodsId is missing in unload.")
-                        return self.failTask(r)         
+                        return self.failTask(r)
 
                     for k, v in cur_cs.items():
                         if v["goods_id"] == self.goodsId:
                             self.container = k
                             break
-                    #没有对应的货物
+                    # 没有对应的货物
                     if self.container is None:
                         r.setError("No container has goodId {}, cannot unload.".format(self.goodsId))
-                        return self.failTask(r)                  
-                    #背篓名称错误
+                        return self.failTask(r)
+                        # 背篓名称错误
                     if self.container not in self.armData:
                         r.setError("container is wrong {} is not in the {}.".format(self.container, self.armFile))
                         return self.failTask(r)
@@ -182,9 +193,9 @@ class Module(BasicModule):
                     # operation 错误  
                     if self.operation not in c:
                         r.setError("container {} and operation {} is mismatch.".format(self.container, self.operation))
-                        return self.failTask(r)    
+                        return self.failTask(r)
 
-                    self.cmd= c[self.operation]
+                    self.cmd = c[self.operation]
 
                 # armBinTask这个函数可能会有变化
                 # TODO 拼一下识别的字符串
@@ -195,13 +206,17 @@ class Module(BasicModule):
                             replace_num = n
                 if replace_num >= 0:
                     out_args = self.armArgs
-                    out_args = out_args[0:replace_num] + self.cmd + out_args[replace_num+1::]
+                    out_args = out_args[0:replace_num] + self.cmd + out_args[replace_num + 1::]
                     r.armBinTask(self.taskid, json.dumps(out_args))
+            elif self.operation == "scan":
+                r.scannerCode(self.taskid)   # 执行扫码
+
             else:
                 r.armBinTask(self.taskid, json.dumps(self.armArgs))
-            r.logDebug("ArmInitS][{}|{}|{}|{}|{}".format(self.container, self.operation, self.goodsId, self.taskid, self.cmd))      
+            r.logDebug("ArmInitS][{}|{}|{}|{}|{}".format(self.container, self.operation, self.goodsId, self.taskid, self.cmd))
+
         if armInfo["taskId"] == self.taskid:
-            if armInfo["task_status"] == 2:
+            if armInfo["task_status"] == 2:  # 任务完成
                 if self.operation == "load":
                     if isinstance(self.container, str) and isinstance(self.goodsId, str):
                         r.setContainer(self.container, self.goodsId, "")
@@ -214,13 +229,58 @@ class Module(BasicModule):
                     else:
                         r.setError("type error. container {}, goodsId {}".format(type(self.container), type(self.goodsId)))
                         return self.failTask(r)
+                elif self.operation == "scan":
+                    self.scan_status = armInfo.get("scan", {}).get("scan_status", None)
+                    self.scan_code = armInfo.get("scan", {}).get("data", None)
+                    if self.scan_status == 1:      # 1:success
+                        if self.goodsId and self.goodsId != self.scan_code:   # goodsId 不为空且与扫码结果不一致
+                            r.setError(f"The scan result is not consistent with the goodsId!")
+                            return self.failTask(r)
+                    elif self.scan_status == 2:    # 2: error
+                        r.setError(f"scan failed!")
+                        return self.failTask(r)
                 self.status = MoveStatus.FINISHED
-            elif armInfo["task_status"] == 3:
+            elif armInfo["task_status"] == 3:    # 任务失败
                 r.setError("arm task is failed {}")
                 self.status = MoveStatus.FAILED
-        r.logDebug("ArmS][{}|{}|{}|{}".format(armInfo["taskId"], armInfo["task_status"], self.status, time.time()-self.start_time));        
+
+        # 避障检测
+        minObj = r.getMinDynamicObs()
+        #        print("minObj", minObj[0], " ", minObj[1])
+        dis = math.sqrt(minObj[0] ** 2 + minObj[1] ** 2)
+        radius = 0.2
+        if not self.tempStatus and (0 < dis <= radius):
+            r.armPause()
+            self.tempStatus = True
+            self.timescount = 0
+        self.timescount = self.timescount + 1
+        if self.tempStatus and (dis > radius or dis == 0) and (self.timescount >= 50):
+            r.armResume()
+            self.tempStatus = False
+            self.timescount = 0
+        if self.timescount > 1000000:
+            self.timescount = 0
+        #        print("times: ", self.timescount)
+        r.logDebug(
+            "armstatus][{}|{}|{}|{}|{}|{}|{}|{}".format(armInfo["taskId"], armInfo["task_status"], minObj[0], minObj[1],
+                                                        dis, radius, self.tempStatus, self.timescount))
+        r.logDebug("ArmS][{}|{}|{}|{}".format(armInfo["taskId"], armInfo["task_status"], self.status,
+                                              time.time() - self.start_time))
+        self.report_info["script_args"] = args
+        self.report_info["task_status"] = self.status
+        self.report_info["goodsId"] = self.goodsId
+        self.report_info["move_task"] = r.moveTask()
+        self.report_info["arm_info"] = armInfo
+        self.report_info["arm_args"] = self.armArgs
+        self.report_info["arm_data"] = self.armData
+        self.report_info["scan_status"] = self.scan_status
+        self.report_info["scan_code"] = self.scan_code
+        r.logInfo(json.dumps(self.report_info))
+        r.setInfo(json.dumps(self.report_info))
+        print('*'*100, '\n', json.dumps(self.report_info))
         return self.status
-    def getArmArgsAndGoodsId(self, r:SimModule):
+
+    def getArmArgsAndGoodsId(self, r: SimModule):
         moveTask = r.moveTask()
         if "params" in moveTask:
             for p in moveTask["params"]:
@@ -230,12 +290,13 @@ class Module(BasicModule):
                 if p['key'] == 'goodsId':
                     self.goodsId = p['string_value']
 
-    def suspend(self, r:SimModule):
+    def suspend(self, r: SimModule):
         if self.status is not MoveStatus.SUSPENDED:
             r.armPause()
             self.status = MoveStatus.SUSPENDED
         r.logInfo("task suspend")
-    def cancel(self, r:SimModule):
+
+    def cancel(self, r: SimModule):
         r.armStop()
         self.status = MoveStatus.NONE
         r.logInfo("task cancel")
@@ -243,27 +304,29 @@ class Module(BasicModule):
 
 if __name__ == '__main__':
     sim = SimModule()
-    print("********load********")
+    print("********scan********")
     args = {
-        "operation":"load",
+        "operation": "scan",
     }
     print(args)
     m = Module(sim, args)
-    m.run(sim,args)
+    m.run(sim, args)
+    """ 
     print("********unload********")
     args = {
-        "operation":"unload"
+        "operation": "unload"
     }
     print(args)
     m = Module(sim, args)
-    m.run(sim,args)
+    m.run(sim, args)
 
     print("********no, op********")
     args = {
     }
     print(args)
     m = Module(sim, args)
-    m.run(sim,args)
+    m.run(sim, args)
 
     m.suspend(sim)
     m.cancel(sim)
+"""
