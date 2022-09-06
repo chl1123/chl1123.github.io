@@ -951,6 +951,23 @@ class SimModule:
         obs = [0.,0.]
         print("func: {0} {1}".format(get_function_name(), obs))
         return obs
+    def getRobotFile(self)->dict:
+        """获得模型文件的原始数据
+
+        Returns:
+            dict: 具体数据以字典类型返回
+        """
+        print("func: {0}".format(get_function_name()))
+        return dict()
+    def getRecFile(self, name:str)->dict:
+        """获得识别文件的原始数据
+        Args:
+            name (str): 识别文件名称，比如 shelf/s0001.shelf, pallet/p0001.pallet
+        Returns:
+            dict: 具体数据以字典类型返回
+        """
+        print("func: {0} {1}".format(get_function_name(), name))
+        return dict()
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1046,4 +1063,6 @@ if __name__ == '__main__':
     r.setPickRobotWarning(55800, "warning")
     r.getMinDynamicObs()
     r.scannerCode(1)
+    r.getRobotFile()
+    r.getRecFile("shelf/s0001.shelf")
     print("Success!!!")
