@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/4/24  16:00
+# @Time : 2022/09/06
 # @Author : huang, zhong
-# @Version : 2.2.3
-# @Support : rbk  3.3.5.52 以上版本
+# @Version : 2.2.5
+# @Support : rbk  3.3.5.66 以上版本
 # @Update : 增加料箱车专属报错码，统一料箱车报错提示
 
 from enum import IntEnum
 import struct
 import socket
 import json
-from module.pickRobot import crc
+import crc
 import time
 import sys
 import goPath as goPath
@@ -546,7 +546,7 @@ class PickRobot:
         self.getMsg(r)
         return self.report
 
-    def sendMessage(self, msg, r):
+    def sendMessage(self, msg, r: SimModule):
         usMagic = 0xFACEDEAD
         str_data = json.dumps(msg, separators=(',', ':'))
         byte_data = str_data.encode()

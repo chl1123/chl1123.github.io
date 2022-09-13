@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/8/12
+# @Time : 2022/9/6
 # @Author : huang, zhong
 # @Version : 2.2.5
 # @Support : rbk  3.3.5.62 +
-# @Update : 新增60秒超时报错并结束任务
+# @Update : 调整超时报错为Error并结束任务, 升降机构高度做软限位
 
 import json
 import sys
@@ -19,7 +19,7 @@ import math
 import syspy.goPath as goPath
 import requests
 
-SCRIPT_VERSION = "V2.2.3 - 20220725"
+SCRIPT_VERSION = "V2.2.3 - 20220906"
 """
 ####BEGIN DEFAULT ARGS####
 {
@@ -919,7 +919,9 @@ class Module(BasicModule):
         if height < self.minLiftHeight:
             r.logDebug("lift {} is set to {}".format(height, self.minLiftHeight))
             height = self.minLiftHeight
-        # if height > self.maxLiftHeight:
+        if height > self.maxLiftHeight:
+            r.logDebug("lift {} is set to {}".format(height, self.maxLiftHeight))
+            height = self.maxLiftHeight
         #     r.setError(f"lift out of maxLiftHeight")
         #     r.logDebug("lift {} is set to {}".format(height, self.maxLiftHeight))
         #     self.lift_status = MoveStatus.FAILED
