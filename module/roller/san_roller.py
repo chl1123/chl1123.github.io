@@ -130,7 +130,7 @@ class Module(BasicModule):
     def RollerStop(self, r: SimModule):
         r.setDO(self.left_block_up_do, False)
         r.setDO(self.left_block_down_do, False)
-        r.setDO(self.signal_do, Fasle)      #guanbi对射光电
+        r.setDO(self.signal_do, False)      #guanbi对射光电
         self.robot.roller(self.roller_motor, 0.)        #滚筒电机停止运行
         self.status = MoveStatus.FINISHED
         self.report_info["roller stop"] = self.robot.state
