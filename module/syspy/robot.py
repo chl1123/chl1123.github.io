@@ -125,9 +125,9 @@ def get_value_by_key(data: dict, key):
 class NetHandle:
     """提供HTTP协议的GET请求和POST请求接口 """
     def __init__(self):
-        self.headers = {"Content-type": "application/json"}
+        self.headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
 
-    def http_get(self, r: SimModule, url, params=None, data=None, timeout=5.0):
+    def http_get(self, r: SimModule, url, params=None, data=None, timeout=(0.1, 0.1)):
         try:
             res = requests.get(url, headers=self.headers, params=params, data=data, timeout=timeout)
         except ReadTimeout:
@@ -143,7 +143,7 @@ class NetHandle:
             res.close()
             return res
 
-    def http_post(self, r: SimModule, url, data=None, timeout=10.0):
+    def http_post(self, r: SimModule, url, data=None, timeout=(0.1, 0.1)):
         """
         发送一次POST请求， 请求成功返回 response 的 json 数据
         :param r: SimModule
@@ -175,7 +175,7 @@ class NetHandle:
         :return: 成功则返回响应数据，失败返回 None
         """
         try:
-            res = requests.post(url, json=data, timeout=30)
+            res = requests.post(url, json=data, timeout=(0.1, 0.1))
         except Exception as e:
             r.logInfo(f"post failed!!! url: {url}, data: {data}, error: {e}")
             return None
