@@ -115,7 +115,7 @@ class Module(BasicModule):
         elif args["operation"] == "unload" and args["side"] == "left":
             self.left_unload(r)
         elif args["operation"] == "unload" and args["side"] == "right":
-            self.right_load(r)
+            self.right_unload(r)
         else:
             r.setError(f"operation error: {args['operation']}")
             self.status = MoveStatus.FAILED
