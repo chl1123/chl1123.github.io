@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date : 2022/8/9
+# @Date : 2022/9/7
 # @Author : zhong
 # @File :http_dms_handle.py
-# @Version : 2.4
+# @Version : 2.5
 # @Project : 轩田料箱车项目，光通信处理主程序
-# @Update1 : 支持光通信和WiFi切换，优化接单时长，修复库内门控缺陷
+# @Update1 : 支持光通信和WiFi切换，优化 binCheck 响应错误的数据产生的误判断
 
 import time
 import requests
@@ -48,11 +48,11 @@ class HttpHandle:
         pass
 
     @staticmethod
-    def http_get(url, headers=None, timeout=5.0):
+    def http_get(url, headers=None, timeout=(2.0, 3.0)):
         try:
             res = requests.get(url, headers=headers, timeout=timeout)
         except ReadTimeout:
-            pass
+            log.logger.warning(f'ReadTimeout, func: http_get: {url}')
         except ConnectTimeout:
             log.logger.warning(f'ConnectTimeout, func: http_get: {url}')
         except ConnectionError:
@@ -61,13 +61,13 @@ class HttpHandle:
             log.logger.warning(f"Exception: {e}")
         else:
             log.logger.info(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
-            res.close()
+            # res.close()
             return res
         finally:
             pass
 
     @staticmethod
-    def http_post(url, data=None, headers=None, timeout=5.0):
+    def http_post(url, data=None, headers=None, timeout=(2.0, 3.0)):
         """
         发送一次POST请求， 请求成功返回 response 的 json 数据
         :param headers:
@@ -79,15 +79,16 @@ class HttpHandle:
         try:
             res = requests.post(url, json=data, headers=headers, timeout=timeout)
         except ConnectTimeout:
-            log.logger.warning(f'ConnectTimeout: {url}')
+            log.logger.warning(f'ConnectTimeout: func: http_post: {url}')
+        except ReadTimeout:
+            log.logger.warning(f'ReadTimeout, func: http_post: {url}')
         except ConnectionError:
             log.logger.warning(f"Failed to establish a new connection, network is unreachable: {url}")
-            return None
         except Exception as e:
             log.logger.warning(f"Exception: {e}")
         else:
             log.logger.info(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
-            res.close()
+            # res.close()
             return res
 
 
@@ -251,7 +252,7 @@ class OrdersHandle:
         if bin_check_res and bin_check_res.status_code == 200:
             bins = bin_check_res.json()
             for b in bins.get('bins', list()):
-                if not b['exist']:
+                if not b.get('exist', False):
                     return False
         return True
 

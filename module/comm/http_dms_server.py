@@ -33,12 +33,17 @@ class Request(BaseHTTPRequestHandler):
     server_version = "Apache"
 
     def do_GET(self):
-        log.logger.info(f'path: {self.path.split("?")[0]}')
-        log.logger.info(f'params: {self.path.split("?")[1]}')
-        log.logger.info(f"server:  {self.server.server_address}")
-        log.logger.info(f'client:  {self.client_address}')
-        log.logger.info(f'request: {self.request}')
-        log.logger.info('*' * 100)
+        try:
+            log.logger.info(f'url: {self.path.split("?")}')
+            log.logger.info(f'path: {self.path.split("?")[0]}')
+            if len(self.path.split("?")) > 1:
+                log.logger.info(f'params: {self.path.split("?")[1]}')
+            log.logger.info(f"server:  {self.server.server_address}")
+            log.logger.info(f'client:  {self.client_address}')
+            log.logger.info(f'request: {self.request}')
+            log.logger.info('*' * 100)
+        except Exception as e:
+            log.logger.warning(e)
         if self.path == "/getInfo":
             self.send_response(200)
             self.send_header("Content-type", "application/json")
@@ -46,6 +51,11 @@ class Request(BaseHTTPRequestHandler):
             res_data = {"order": Order.inside_orders}
             self.wfile.write(json.dumps(res_data).encode('utf-8'))
         else:
+            self.send_response(404)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            res_data = {"msg": "unknown path"}
+            self.wfile.write(json.dumps(res_data).encode('utf-8'))
             pass
 
     def do_POST(self):
@@ -128,9 +138,8 @@ class ParamServer:
     """
 
     def __init__(self, file):
-        param_dir = os.path.dirname(file) + '/config'
-        isExists = os.path.exists(param_dir)
-        if not isExists:
+        param_dir = os.getcwd() + '/config'
+        if not os.path.exists(param_dir):
             os.makedirs(param_dir)
         base_f = os.path.basename(file)
         self.file = param_dir + '/' + base_f.split('.')[0] + '.json'
