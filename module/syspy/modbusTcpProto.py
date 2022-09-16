@@ -1,20 +1,19 @@
-import sys
-import modbus_tk
 import modbus_tk.defines as cst
 import modbus_tk.modbus_tcp as modbus_tcp
 
 
-class ModbusTcpProto():
+class ModbusTcpProto:
     """
     modbus 协议封装
     """
-    def __init__(self, host: str = "192.168.192.5", port: int = 502, timeout: float = 5.0):
+
+    def __init__(self, host="192.168.192.5", port=502, timeout=3.0):
         self.host = host
         self.port = port
         self.master = modbus_tcp.TcpMaster(self.host, self.port)
         self.master.set_timeout(timeout)
 
-    def __read_register(self, start_addr: int, num: int, slave: int = 1):
+    def __read_register(self, start_addr, num, slave=1):
         """
         4x
         读取寄存器
@@ -25,7 +24,7 @@ class ModbusTcpProto():
         """
         return self.master.execute(slave, cst.READ_HOLDING_REGISTERS, start_addr, num)
 
-    def __write_single_register(self, start_addr: int, value, slave: int = 1):
+    def __write_single_register(self, start_addr, value, slave=1):
         """
         4x
         写寄存器
@@ -36,7 +35,7 @@ class ModbusTcpProto():
         """
         return self.master.execute(slave, cst.WRITE_SINGLE_REGISTER, start_addr, output_value=value)
 
-    def __write_multi_register(self, start_addr: int, value: list, slave: int = 1):
+    def __write_multi_register(self, start_addr, value, slave=1):
         """
         4x
         同时写多个寄存器
@@ -47,7 +46,7 @@ class ModbusTcpProto():
         """
         return self.master.execute(slave, cst.WRITE_MULTIPLE_REGISTERS, start_addr, output_value=value)
 
-    def __read_coil(self, start_addr: int, num: int, slave: int = 1):
+    def __read_coil(self, start_addr, num, slave=1):
         """
         0x
         :param start_addr:      读取的起始地址
@@ -57,7 +56,7 @@ class ModbusTcpProto():
         """
         return self.master.execute(slave, cst.READ_COILS, start_addr, num)
 
-    def __write_single_coil(self, start_addr: int, value: int, slave: int = 1):
+    def __write_single_coil(self, start_addr, value, slave=1):
         """
         0x
         写单个值到线圈
@@ -68,7 +67,7 @@ class ModbusTcpProto():
         """
         return self.master.execute(slave, cst.WRITE_SINGLE_COIL, start_addr, output_value=value)
 
-    def __write_multi_coil(self, start_addr: int, value: list, slave: int = 1):
+    def __write_multi_coil(self, start_addr, value, slave=1):
         """
         0x
         写多个值到线圈
@@ -79,7 +78,7 @@ class ModbusTcpProto():
         """
         return self.master.execute(slave, cst.WRITE_MULTIPLE_COILS, start_addr, output_value=value)
 
-    def __read_input_register(self, start_addr: int, num: int, slave: int = 1):
+    def __read_input_register(self, start_addr, num, slave=1):
         """
         3x
         读取只读寄存器的值
@@ -90,7 +89,7 @@ class ModbusTcpProto():
         """
         return self.master.execute(slave, cst.READ_INPUT_REGISTERS, start_addr, num)
 
-    def __read_inputs(self, start_addr: int, num: int, slave: int = 1):
+    def __read_inputs(self, start_addr, num, slave=1):
         """
         1x
         只读状态量
@@ -101,7 +100,7 @@ class ModbusTcpProto():
         """
         return self.master.execute(slave, cst.READ_DISCRETE_INPUTS, start_addr, num)
 
-    def write_go_target(self, addr: int, target: int, slave: int = 1):
+    def write_go_target(self, addr, target, slave=1):
         """
         :param addr:            写入的寄存器地址
         :param target:          任务的目标站点
@@ -115,7 +114,7 @@ class ModbusTcpProto():
             assert False
         return ret[0]
 
-    def write_operation(self, addr: int, opt: int, slave: int = 1):
+    def write_operation(self, addr, opt, slave=1):
         """
         :param addr:            写入寄存器的地址
         :param opt:             写入操作类型， 1 为取货， 2 为卸货
@@ -128,7 +127,7 @@ class ModbusTcpProto():
             assert False
         return ret[0]
 
-    def read_arm_status(self, addr: int, slave: int = 1):
+    def read_arm_status(self, addr, slave=1):
         """
         获取手臂的复位姿态的状态
         :param addr:            需要读取的地址
@@ -137,7 +136,7 @@ class ModbusTcpProto():
         """
         return self.__read_coil(addr, 1, slave)[0]
 
-    def read_target_status(self, addr: int, slave: int = 1):
+    def read_target_status(self, addr, slave=1):
         """
         获取设备的完成状态          1 为任务完成， 0 为任务未完成
         :param addr:            需要读取的地址
@@ -146,7 +145,7 @@ class ModbusTcpProto():
         """
         return self.__read_coil(addr, 1, slave)[0]
 
-    def write_from_to_inregister(self, addr_from: int, addr_to: int, _from: int, _to: int, slave: int = 1):
+    def write_from_to_register(self, addr_from, addr_to, _from, _to, slave=1):
         """
         把 from 和 to 的编号写入寄存器中
         :param addr_from:           from 写入的地址
