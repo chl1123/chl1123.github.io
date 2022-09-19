@@ -10,6 +10,7 @@ import math
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, Pos2Base, ParamServer
 import goPath
+from robot import ModuleTool
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -65,25 +66,24 @@ class RecAdjust:
         self.file = file
         self.status = MoveStatus.NONE
         self.rec_failed_time = 0
-        self.max_rec_time = 100
+        self.max_rec_time = 10
         self.adjust_count = 1
         self.max_adjust_times = 10
         self.go_path = goPath.Module(r, dict())
         self.move_args = dict()
         self.state = dict()
         self.start_time = None
-        self.rec_result = None
+        self.rec_result = self.do_rec(r, self.file)
         p = ParamServer(__file__)
         self.x_dist = p.loadParam("x_dist", type="float", default=0.003, comment="x 坐标精度")
         self.y_dist = p.loadParam("y_dist", type="float", default=0.003, comment="y 坐标精度")
         self.theta_dist = p.loadParam("theta_dist", type="float", default=0.0088, comment="theta 角度精度")
-        self.x_code2robot = p.loadParam("x_code2robot", type="float", default=0.0, comment="码距离AGV里程中心的x偏差")
-        self.y_code2robot = p.loadParam("y_code2robot", type="float", default=0.0, comment="码距离AGV里程中心的y偏差")
-        self.theta_code2robot = p.loadParam("theta_code2robot", type="float", default=0.0, comment="码距离AGV里程中心的theta偏差, 弧度值")
+        self.x_code2robot = p.loadParam("x_code2robot", type="float", default=0.0, comment="相机距离AGV里程中心的x偏差")
+        self.y_code2robot = p.loadParam("y_code2robot", type="float", default=0.0, comment="相机距离AGV里程中心的y偏差")
+        self.theta_code2robot = p.loadParam("theta_code2robot", type="float", default=0.0, comment="相机与AGV的角度偏差, 弧度值")
 
     def run(self, r):
         self.status = MoveStatus.RUNNING
-        # self.rec_result = self.do_rec(r, self.file)
         if self.rec_result:  # 识别成功，获取识别结果
             if self.go_path.status == MoveStatus.NONE:
                 self.go_path.status = MoveStatus.RUNNING
@@ -98,9 +98,9 @@ class RecAdjust:
                     self.status = MoveStatus.FINISHED
                     return True
                 self.move_args['coordinate'] = 'robot'
-                self.move_args['x'] = pos2robot[0] + self.x_code2robot
+                self.move_args['x'] = pos2robot[0] - self.x_code2robot
                 self.move_args['y'] = 0
-                self.move_args['theta'] = self.rec_result['yaw'] - math.pi
+                self.move_args['theta'] = self.rec_result['yaw'] - math.pi    # 角度调整
                 self.move_args['reachAngle'] = self.theta_dist
                 self.move_args['useOdo'] = 1
                 self.move_args['reachDist'] = 0.003
@@ -112,7 +112,7 @@ class RecAdjust:
             elif self.go_path.status == MoveStatus.FINISHED:
                 self.adjust_count = self.adjust_count + 1
                 self.reset(r)
-                self.status = MoveStatus.FINISHED                      # 只调整一次
+                # self.status = MoveStatus.FINISHED                      # 只调整一次
                 if self.adjust_count > self.max_adjust_times:
                     r.setError(f"rec adjust failed over the max times")
                     self.status = MoveStatus.FAILED
@@ -120,11 +120,12 @@ class RecAdjust:
                 r.setError(f"adjust failed, goPath has error. {self.move_args}")
                 self.status = MoveStatus.FAILED
         else:   # 识别失败
-            self.rec_result = self.do_rec(r, self.file)
-            self.rec_failed_time += 1
-            if self.rec_failed_time > self.max_rec_time:
-                r.setError(f"rec failed over the max times, {self.rec_result}")
-                self.status = MoveStatus.FAILED
+            if ModuleTool.delay(0.5):
+                self.rec_result = self.do_rec(r, self.file)
+                self.rec_failed_time += 1
+                if self.rec_failed_time > self.max_rec_time:
+                    r.setError(f"rec failed over the max times, {self.rec_result}")
+                    self.status = MoveStatus.FAILED
         self.state['rec_result'] = self.rec_result
         self.state['rec_file'] = self.file
         self.state['rec_adjust_status'] = self.status
@@ -136,7 +137,7 @@ class RecAdjust:
         r.resetRec()
         self.rec_failed_time = 0
         self.go_path.reset()
-        self.rec_result = None
+        self.rec_result = self.do_rec(r, self.file)
         r.logInfo(f"RecAdjust reset")
 
     def do_rec(self, r: SimModule, file):
