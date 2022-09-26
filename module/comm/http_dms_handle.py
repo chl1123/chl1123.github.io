@@ -115,7 +115,7 @@ class OrdersHandle:
             try:
                 if self.bin_check(core_url, order):              # 判断该订单的库位是否位于 RDSCore 的地图场景中
                     set_order_res = self.http_handle.http_post(core_url+"setOrder", order)
-                    if bool(set_order_res) and set_order_res.status_code == 200:      # 派发订单成功
+                    if bool(set_order_res) and set_order_res.status_code == 200 and set_order_res.json().get("code", -1) == 0:      # 派发订单成功
                         if core_url in self.url.internal_dms or core_url in self.url.internal_wifi:
                             self.cur_inside_handle_order.append(order)
                         elif core_url in self.url.external_dms or core_url in self.url.external_wifi:
@@ -334,7 +334,7 @@ class DMS:
                 self.door_status = self.get_door_status()                                                                       # 获取自动门信号
                 if conn_core:
                     pause_agv_res = self.http_handle.http_post(conn_core+"gotoSitePause", self.agv)               # 暂停小车
-                    if bool(pause_agv_res):
+                    if bool(pause_agv_res) and pause_agv_res.status_code == 200 and pause_agv_res.json().get("code", -1) == 0:
                         try:
                             if conn_core in self.url.internal_dms and self.door_status == 0 and order_data:           # AGV在库房内且库房门关闭，则处理订单
                                 self.order_handle.handle_orders(conn_core, order_data.json())
@@ -401,7 +401,7 @@ class DMS:
             if conn_dms_core is not None:
                 log.logger.info(f"{'$'*30}mix mode dms handle{'$'*30}")
                 pause_agv_res = self.http_handle.http_post(conn_dms_core + "gotoSitePause", self.agv)  # 暂停小车
-                if bool(pause_agv_res):
+                if bool(pause_agv_res) and pause_agv_res.status_code == 200 and pause_agv_res.json().get("code", -1) == 0:
                     try:
                         if mode[0] == 0 and bool(order_data) and self.door_status == 0:   # 库内 DMS
                             self.order_handle.handle_orders(conn_dms_core, order_data.json())
