@@ -305,8 +305,9 @@ class DMS:
         """
         for u in core_url:
             r = self.http_handle.http_get(u + "ping")
-            if bool(r) and r.status_code == 200:
+            if bool(r) and r.status_code == 200 and r.json().get("code", -1) == 0:
                 core_url.append(core_url.pop(0))
+                log.logger.info(f"current core_url list: {core_url}")
                 return u
         return None
 
