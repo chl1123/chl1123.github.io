@@ -56,18 +56,19 @@ class Module(BasicModule):
             if self.go_args["x"] < 0:
                 self.go_args["backMode"] = 1
             self.status = MoveStatus.RUNNING
-        if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
+        if self.goPath.status != MoveStatus.FINISHED or self.goPath.status != MoveStatus.FAILED:
             self.goPath.run(r, self.go_args)
-        if self.goPath.status == 3:
+        if self.goPath.status == MoveStatus.FINISHED:
             actual_move_dist = r.odo().get('x', None) - self.init_odo_x
             r.setNotice(f"actual_move_dist: {actual_move_dist}")
 
         self.state["move dist"] = args['dist']
         self.state["init_loc_x"] = self.init_loc_x
         self.state["init_odo_x"] = self.init_odo_x
-        self.state["current_loc_x"] = r.loc().get('x', None)
-        self.state["current_odo_x"] = r.odo().get('x', None)
-        self.state["actual_move_dist_loc"] = r.loc().get('x', None) - self.init_loc_x
+        self.state["current_loc_x"] = r.loc().get('x', 0)
+        self.state["current_odo_x"] = r.odo().get('x', 0)
+        self.state["actual_move_dist_loc"] = r.loc().get('x', 0) - self.init_loc_x
+        self.state["actual_move_dist_odo"] = r.odo().get('x', 0) - self.init_odo_x
         r.setInfo(json.dumps(self.state))
 
         self.status = self.goPath.status

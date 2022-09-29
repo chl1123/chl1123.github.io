@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2022/9/7
+# @Date : 2022/9/27
 # @Author : zhong
 # @File :http_dms_handle.py
-# @Version : 2.5
+# @Version : 2.6
 # @Project : 轩田料箱车项目，光通信处理主程序
 # @Update1 : 支持光通信和WiFi切换，优化 binCheck 响应错误的数据产生的误判断
 
@@ -163,7 +163,7 @@ class OrdersHandle:
         if len(cur_handle_order) > 0:
             for order in cur_handle_order[:]:
                 order_detail_res = self.http_handle.http_get(core_url + "orderDetails/" + f"{order['id']}")                 # 查询订单信息
-                if order_detail_res and order_detail_res.status_code == 200 and order_detail_res.text != 'null':
+                if order_detail_res and order_detail_res.status_code == 200 and order_detail_res.json().get("id", None) == order['id']:
                     agv_task_info_list.extend(self.return_agv_task_info(order_detail_res.json(), order, core_url))             # 生成回调订单数据
                 else:
                     log.logger.error(f"cannot get order details, order {order['id']} not in the core")
@@ -240,7 +240,7 @@ class OrdersHandle:
         ]
         return data
 
-    def bin_check(self, core_url: str, order: dict):
+    def bin_check(self, core_url: str, order: dict) -> bool:
         """
         检查订单的起点和终点库位是否在场景中
         :param core_url:
@@ -250,11 +250,13 @@ class OrdersHandle:
         bins_tobe_checked = {"bins": [order.get('fromLoc', ''), order.get('toLoc', '')]}
         bin_check_res = self.http_handle.http_post(core_url + "binCheck", bins_tobe_checked)
         if bin_check_res and bin_check_res.status_code == 200:
-            bins = bin_check_res.json()
-            for b in bins.get('bins', list()):
+            bins = bin_check_res.json().get('bins', list())
+            for b in bins:
                 if not b.get('exist', False):
                     return False
-        return True
+            return True
+        else:
+            return False
 
     def fail_order_counter(self, order):
         """
@@ -274,7 +276,7 @@ class OrdersHandle:
         :return:
         """
         update_order_res = self.http_handle.http_post(self.url.dms_server + "updateOrder", self.sent_order)
-        if update_order_res:
+        if update_order_res and update_order_res.status_code == 200:
             log.logger.info(f"update server orders success, sent_order_num: {self.sent_order_num}")
             log.logger.info(f"failed orders: {len(self.failed_orders)}-{self.failed_orders}")
             log.logger.info(f"surplus orders: {len(order_list)}-{order_list}")
@@ -315,7 +317,7 @@ class DMS:
         if self.url.door_service == 1:    # 门控服务开启
             get_door_res = self.http_handle.http_get(self.url.door_server)    # 获取自动门信号
             if bool(get_door_res) and get_door_res.status_code == 200:
-                self.door_status = int(get_door_res.json().get("Result"))
+                self.door_status = int(get_door_res.json().get("Result", 0))
             # return self.door_status
         else:
             log.logger.info(f"door service not open : {self.url.door_service}")
