@@ -21,9 +21,9 @@ import os
 ####BEGIN DEFAULT ARGS####
 {
     "operation":{
-        "value": "load",
+        "value": "",
         "default_value":[
-        "unload","load", "scan"
+        "unload","load", "scan", "do"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -131,6 +131,8 @@ class Module(BasicModule):
                     if "type" in a:
                         if a["type"] == "ScriptInsert":
                             scriptInsert_num += 1
+                        if a["type"] == "Scanner":
+                            a["code"] = self.goodsId
                 if scriptInsert_num != 1:
                     r.setError("armArgs should have only one ScriptInsert. {}".format(self.armArgs))
                     return self.failTask(r)
@@ -150,12 +152,12 @@ class Module(BasicModule):
                 if self.operation == "load":
                     for cn in cur_cs:
                         cur_c = cur_cs[cn]
-                        if not cur_c["has_goods"]:
+                        if not cur_c["has_goods"]:         # TODO 查找条件为容器为空且容器类型匹配
                             self.container = cn
                             break
                     # load again error
                     if self.container is None:
-                        r.setError("all containers {} have goods, cannot load again.".format(str(cur_cs)))
+                        r.setError("all {} containers {} have goods, cannot load again.".format(self.goodsType, str(cur_cs)))
                         return self.failTask(r)
                     # 背篓名称错误
                     if self.container not in self.armData:
@@ -210,9 +212,11 @@ class Module(BasicModule):
                     r.armBinTask(self.taskid, json.dumps(out_args))
             elif self.operation == "scan":
                 r.scannerCode(self.taskid)   # 执行扫码
-
-            else:
+            elif self.operation == "do":
                 r.armBinTask(self.taskid, json.dumps(self.armArgs))
+            else:
+                r.setError("operation args error")
+                self.status = MoveStatus.FAILED
             r.logDebug("ArmInitS][{}|{}|{}|{}|{}".format(self.container, self.operation, self.goodsId, self.taskid, self.cmd))
 
         if armInfo["taskId"] == self.taskid:
