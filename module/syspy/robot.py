@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/8/3
+# @Time : 2022/10/9
 # @Author : zhong
 # @File : robot.py
-# @Version : 1.4
+# @Version : 1.5
 """
 提供一些机构脚本常用的接口
 """
@@ -126,12 +126,13 @@ class NetHandle:
     """提供HTTP协议的GET请求和POST请求接口 """
     def __init__(self):
         self.headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
+        self.status = MoveStatus.NONE
 
     def http_get(self, r: SimModule, url, params=None, data=None, timeout=(0.1, 0.1)):
         try:
             res = requests.get(url, headers=self.headers, params=params, data=data, timeout=timeout)
         except ReadTimeout:
-            pass
+            r.logInfo(f'ReadTimeout, func: http_get: {url}')
         except ConnectTimeout:
             r.logInfo(f'ConnectTimeout timeout, func: http_get: {url}')
         except ConnectionError:
@@ -154,8 +155,10 @@ class NetHandle:
         """
         try:
             res = requests.post(url, json=data, headers=self.headers, timeout=timeout)
+        except ReadTimeout:
+            r.logInfo(f'ReadTimeout, func: http_post: {url}')
         except ConnectTimeout:
-            r.logInfo(f"ConnectTimeout: {url}")
+            r.logInfo(f"ConnectTimeout, func: http_post: {url}")
         except ConnectionError:
             r.logInfo(f"Failed to establish a new connection, network is unreachable: {url}")
         except Exception as e:

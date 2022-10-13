@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/9/6
+# @Time : 2022/10/8
 # @Author : huang, zhong
-# @Version : 2.2.5
-# @Support : rbk  3.3.5.62 +
-# @Update : 调整超时报错为Error并结束任务, 升降机构高度做软限位
+# @Version : 2.2.6
+# @Support : rbk  3.3.5.68 +
+# @Update : 增加取货扫码核对功能，语音自定义播报功能
 
 import json
 import sys
@@ -19,7 +19,7 @@ import math
 import syspy.goPath as goPath
 import requests
 
-SCRIPT_VERSION = "V2.2.3 - 20220906"
+SCRIPT_VERSION = "V2.2.6 - 20221008"
 """
 ####BEGIN DEFAULT ARGS####
 {
@@ -169,6 +169,11 @@ SCRIPT_VERSION = "V2.2.3 - 20220906"
         "type": "double",
         "unit": "mm"
     },
+    "barcodeHeight":{
+        "value": 0,
+        "tips": "一维码高度",
+        "type": "double"
+    },
     "goodsId": {
         "value": "",
         "type": "string"
@@ -182,7 +187,7 @@ SCRIPT_VERSION = "V2.2.3 - 20220906"
         "type":"string"
     },
     "callTerminalURL": {
-        "value":"http://ip:8088/callTerminal",
+        "value":"http://ip:8088/callTerminal/getTerminalStatus",
         "type":"string"
     },
     "callTerminalData": {
@@ -496,6 +501,7 @@ class Module(BasicModule):
         self.h.connect()
         self.postdata = None
         self.call_terminal = None
+        self.barcode_height = None
 
     def run(self, r: SimModule, args):
         if r.errorExits(52111):
@@ -505,6 +511,7 @@ class Module(BasicModule):
         if self.init:
             self.init = False
             self.task = args
+            self.barcode_height = args.get("barcodeHeight", None)
             if "unloadHeight" in self.task:
                 self.unloadHeight = self.task["unloadHeight"]
             if "loadHeight" in self.task:
@@ -545,7 +552,7 @@ class Module(BasicModule):
                 self.status = MoveStatus.FAILED
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
-            self.state["cur_goodsId"] = self.goods_id
+            self.state["goodsId"] = self.goods_id
             try:
                 rbk_version = r.robokitVersion()
                 self.state['rbk version'] = rbk_version
@@ -644,10 +651,8 @@ class Module(BasicModule):
                     self.finger(r, self.task["finger"])
                 else:
                     self.finger_status = MoveStatus.FINISHED
-                if "visionType" in self.task:
-                    if "visionBinType" not in self.task:
-                        self.task["visionBinType"] = "code"
-                    self.vision(r, self.task["visionType"], self.task["visionBinType"],
+                if "visionType" in self.task and self.lift_status is MoveStatus.FINISHED and self.rotate_status is MoveStatus.FINISHED:
+                    self.vision(r, self.task["visionType"], self.task.get("visionBinType", "code"),
                                 self.task.get("binModel", "plasticbox"))
                 else:
                     self.vision_status = MoveStatus.FINISHED
@@ -835,7 +840,7 @@ class Module(BasicModule):
             self.fork_detect[0]["state"] = 1
             self.fork_detect[1]["state"] = 1
             r.logInfo(f"putGoods detect_refresh---{self.fork_detect}")
-        # self.report_info(r)  # 数据上报
+        self.report_info(r)  # 数据上报
 
         # 背篓 数据库更新
         for tray in self.tray_detect:
@@ -1146,8 +1151,6 @@ class Module(BasicModule):
                             if not recgo:
                                 r.setPickRobotWarning(55807, "rec no results.")
                         elif device_state["state"] == pickingRobot.ModuleState.IDLE:
-                            # if r.errorExits(53000):
-                            #     r.clearError(53000)
                             if r.warningExits(55300):
                                 r.clearWarning(55300)
                             if self.waitVision.status == MoveStatus.NONE:
@@ -1191,6 +1194,7 @@ class Module(BasicModule):
                                     self.h.reset_visionReq()
                                     if binType == "barcode" and "binId" in res['res']:
                                         res = res['res']
+                                        self.state["rec_result"] = res
                                         self.vision_status = MoveStatus.FINISHED
                                         self.waitVision.status = MoveStatus.NONE
                                         out1 = dict()
@@ -1309,7 +1313,7 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
-                recAdjust(self.task["visionType"], self.task["visionBinType"],
+                recAdjust(self.task["visionType"], self.task.get("visionBinType", "code"),
                           self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight)
             ]
             self.task_id = 0
@@ -1345,11 +1349,9 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
                 if "visionType" in self.task and self.task["visionType"] == "box":  # 识别料箱进行取货
-                    if "visionBinType" not in self.task:
-                        self.task["visionBinType"] = "code"
                     self.task_list = [
                         preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task["visionBinType"],
+                        recAdjust(self.task["visionType"], self.task.get("visionBinType", "code"),
                                   self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                         getGoods(self.task["stretch"] + self.loadOffset),
                         prePutGoods(self.high[self.tray_floor], 0, "load"),
@@ -1357,6 +1359,8 @@ class Module(BasicModule):
                     ]
                     if self.tray_floor == 999:
                         self.task_list = self.task_list[:3]
+                    if self.barcode_height is not None:    # 取货前扫描一维码并核对goodsId
+                        self.task_list.insert(0, ScanBarcode(self.barcode_height, self.task["rotate"], self.goods_id))
                     if self.call_terminal is not None:  # 设备交互
                         self.task_list.insert(0, self.call_terminal)
                 elif "visionType" in self.task and self.task["visionType"] == "shelf":  # 识别货架二维码进行取货
@@ -1425,8 +1429,6 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             if "recAdjust" in self.task:
                 if "visionType" in self.task and self.task["visionType"] == "shelf":
-                    if "visionBinType" not in self.task:
-                        self.task["visionBinType"] = "code"
                     if "recBoxLift" in self.task:
                         self.task_list = [
                             preGoods(self.low[self.tray_floor], 0),
@@ -1435,7 +1437,7 @@ class Module(BasicModule):
                             recBox(),
                             waitVision(),
                             prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
-                            recAdjust(self.task["visionType"], self.task["visionBinType"],
+                            recAdjust(self.task["visionType"], self.task.get("visionBinType", "code"),
                                       self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]
@@ -1446,7 +1448,7 @@ class Module(BasicModule):
                             prePutGoods(self.task["lift"], self.task["rotate"], "unload"),
                             recBox(),
                             waitVision(),
-                            recAdjust(self.task["visionType"], self.task["visionBinType"],
+                            recAdjust(self.task["visionType"], self.task.get("visionBinType", "code"),
                                       self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
                             putGoods(self.task["stretch"])
                         ]
@@ -2123,6 +2125,42 @@ class putGoods:
         ctu.state["putGoods"] = cur_state
 
 
+class ScanBarcode:
+    def __init__(self, barcode_height, rot_angle, goodsId):
+        self.status = MoveStatus.NONE
+        self.barcode_height = barcode_height
+        self.rotate_angle = rot_angle
+        self.goodsId = goodsId
+
+    def reset(self, ctu: Module):
+        ctu.lift_status = MoveStatus.NONE
+        ctu.rotate_status = MoveStatus.NONE
+        self.status = MoveStatus.RUNNING
+
+    def run(self, r, ctu: Module):
+        self.status = MoveStatus.RUNNING
+        res = dict()
+        if ctu.lift_status is not MoveStatus.FINISHED:
+            ctu.lift(r, self.barcode_height)
+        elif ctu.rotate_status is not MoveStatus.FINISHED:
+            ctu.rotate(r, self.rotate_angle)
+        elif ctu.vision_status is not MoveStatus.FINISHED:
+            res = ctu.vision(r, "box", "barcode", "plasticbox")
+
+        if ctu.vision_status is MoveStatus.FINISHED:
+            if res.get("binId", "Error") == self.goodsId:
+                self.status = MoveStatus.FINISHED
+            else:
+                r.setError(f"scan barcode error, result: {res}")
+                self.status = MoveStatus.FAILED
+
+        cur_state = dict()
+        cur_state["status"] = self.status
+        cur_state["goodsId"] = self.goodsId
+        cur_state["scanResult"] = res
+        ctu.state["ScanBarcode"] = cur_state
+
+
 class waitVision:
     def __init__(self):
         self.status = MoveStatus.NONE
@@ -2203,7 +2241,7 @@ class CallTerminal:
         else:
             self.status = MoveStatus.RUNNING
             if not self.task_flag[0]:
-                res = self.net.http_post(r, self.post_url, self.reach_data)
+                res = self.net.http_post(r, self.post_url, data=self.reach_data, timeout=(0.1, 0.1))
                 if res and res.status_code == 200 and res.json().get('code', 1) == 0:
                     self.task_flag[0] = True
             if self.task_flag[0] and not self.task_flag[1]:
