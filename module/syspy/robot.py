@@ -108,7 +108,7 @@ class ModuleTool:
 def get_value_by_key(data: dict, key):
     """深度遍历解析字典数据，获取指定 key 对应的 value 值，如果 key 不存在，则返回 None
     :param data: 字典数据
-    :param key:
+    :param key: str
     :return:
     """
     for k in data.keys():
@@ -131,12 +131,12 @@ class NetHandle:
     def http_get(self, r: SimModule, url, params=None, data=None, timeout=(0.1, 0.1)):
         try:
             res = requests.get(url, headers=self.headers, params=params, data=data, timeout=timeout)
-        except ReadTimeout:
-            r.logInfo(f'ReadTimeout, func: http_get: {url}')
         except ConnectTimeout:
             r.logInfo(f'ConnectTimeout timeout, func: http_get: {url}')
-        except ConnectionError:
-            r.logInfo(f"Failed to establish a new connection, network is unreachable:{url}")
+        except ReadTimeout:
+            r.logInfo(f'ReadTimeout, func: http_get: {url}')
+        except ConnectionError as e:
+            r.logInfo(f"ConnectionError {e}:{url}")
         except Exception as e:
             r.logInfo(f"Exception: {e}")
         else:
@@ -155,12 +155,12 @@ class NetHandle:
         """
         try:
             res = requests.post(url, json=data, headers=self.headers, timeout=timeout)
-        except ReadTimeout:
-            r.logInfo(f'ReadTimeout, func: http_post: {url}')
         except ConnectTimeout:
             r.logInfo(f"ConnectTimeout, func: http_post: {url}")
-        except ConnectionError:
-            r.logInfo(f"Failed to establish a new connection, network is unreachable: {url}")
+        except ReadTimeout:
+            r.logInfo(f'ReadTimeout, func: http_post: {url}')
+        except ConnectionError as e:
+            r.logInfo(f"ConnectionError {e}:{url}")
         except Exception as e:
             r.logInfo(f"Exception: {e}")
         else:
