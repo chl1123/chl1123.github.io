@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/8/23
+# @Time : 2022/10/16
 # @Author : qiangsheng, zhong
 # @File : armTask.py
-# @Request : issue_pool#3020 荣成拼合单 roboview#1358
-# @Version: 0.5
-# @Update: 增加扫码核对功能
+# @Request :
+# @Version: 0.6
+# @Update: 增加扫码核对功能； 取货指定容器
 
 import json
 import time
@@ -81,6 +81,8 @@ class Module(BasicModule):
         self.operation = None
         self.goodsId = None
         self.container = None
+        self.container_name = None
+        self.goods_type = None
 
         self.cmd = None
         self.init = True
@@ -118,6 +120,7 @@ class Module(BasicModule):
             self.start_time = time.time()
             self.operation = args.get("operation", None)
             self.container = args.get("container", None)
+            self.container_name = args.get("containerName", None)
             self.getArmArgsAndGoodsId(r)
             if self.armArgs is None:
                 r.setError("armArgs is missing.")
@@ -152,12 +155,14 @@ class Module(BasicModule):
                 if self.operation == "load":
                     for cn in cur_cs:
                         cur_c = cur_cs[cn]
-                        if not cur_c["has_goods"]:         # TODO 查找条件为容器为空且容器类型匹配
+                        if not cur_c["has_goods"]:         # 查找条件为容器为空
                             self.container = cn
+                            if cur_c["container_name"] == self.container_name:   # 指定容器名称
+                                self.container = self.container_name
                             break
                     # load again error
-                    if self.container is None:
-                        r.setError("all {} containers {} have goods, cannot load again.".format(self.goodsType, str(cur_cs)))
+                    if self.container is None or cur_cs.get(self.container, {}).get("has_goods"):
+                        r.setError("all containers {} have goods, cannot load again.".format(str(cur_cs)))
                         return self.failTask(r)
                     # 背篓名称错误
                     if self.container not in self.armData:
@@ -215,7 +220,7 @@ class Module(BasicModule):
             elif self.operation == "do":
                 r.armBinTask(self.taskid, json.dumps(self.armArgs))
             else:
-                r.setError("operation args error")
+                r.setError(f"operation args error: {args}")
                 self.status = MoveStatus.FAILED
             r.logDebug("ArmInitS][{}|{}|{}|{}|{}".format(self.container, self.operation, self.goodsId, self.taskid, self.cmd))
 
@@ -276,9 +281,10 @@ class Module(BasicModule):
         self.report_info["move_task"] = r.moveTask()
         self.report_info["arm_info"] = armInfo
         self.report_info["arm_args"] = self.armArgs
-        self.report_info["arm_data"] = self.armData
+        # self.report_info["arm_data"] = self.armData
         self.report_info["scan_status"] = self.scan_status
         self.report_info["scan_code"] = self.scan_code
+        self.report_info["containerName"] = self.container_name
         r.logInfo(json.dumps(self.report_info))
         r.setInfo(json.dumps(self.report_info))
         print('*'*100, '\n', json.dumps(self.report_info))
@@ -293,6 +299,10 @@ class Module(BasicModule):
                     self.armArgs = json.loads(cmd_str)
                 if p['key'] == 'goodsId':
                     self.goodsId = p['string_value']
+                if p['key'] == 'goodsType':
+                    self.goods_type = p['string_value']
+                if p['key'] == 'containerName':
+                    self.container_name = p['string_value']
 
     def suspend(self, r: SimModule):
         if self.status is not MoveStatus.SUSPENDED:
