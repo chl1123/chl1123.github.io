@@ -428,6 +428,26 @@ class SimModule:
         """ 
         print("func: {0} content: {1}".format(get_function_name(), ss))
     @check
+    def clearNotice(self, code:int):
+        """清除Notice
+
+        Args:
+            code (int): Notice的编号
+        """ 
+        print("func: {0} content: {1}".format(get_function_name(), code))
+    @check
+    def noticeExits(self, code:int)->bool:
+        """查询特定编号的Notice是否存在
+
+        Args:
+            code (int): Notice 编号
+
+        Returns:
+            bool: 如果存在则返回True
+        """
+        print("func: {0} code: {1}".format(get_function_name(), code))
+        return False
+    @check
     def clearError(self, code:int):
         """清除特定编号的Error
 
@@ -1065,4 +1085,6 @@ if __name__ == '__main__':
     r.scannerCode(1)
     r.getRobotFile()
     r.getRecFile("shelf/s0001.shelf")
+    r.clearNotice(533000)
+    r.noticeExits(533000)
     print("Success!!!")
