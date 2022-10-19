@@ -1,25 +1,25 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/10/8
+# @Time : 2022/10/18
 # @Author : huang, zhong
 # @Version : 2.2.6
 # @Support : rbk  3.3.5.68 +
-# @Update : 增加取货扫码核对功能，语音自定义播报功能
+# @Update : 增加取货扫码核对功能
 
 import json
 import sys
 import time
 
 sys.path.append("../syspy")
-from syspy.rbkSim import SimModule
-from syspy.rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
+from rbkSim import SimModule
+from rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 from robot import NetHandle
 from pickingRobot import PickRobot
 import pickingRobot
 import math
-import syspy.goPath as goPath
+import goPath as goPath
 import requests
 
-SCRIPT_VERSION = "V2.2.6 - 20221008"
+SCRIPT_VERSION = "V2.2.6 - 20221018"
 """
 ####BEGIN DEFAULT ARGS####
 {
@@ -548,7 +548,7 @@ class Module(BasicModule):
             # if dtime > self.max_connect_time:
             #     r.setPickRobotWarning(55802, "ctu connect is overtime: {}s".format(self.max_connect_time))
             if dtime > 60:
-                r.setError(f"ctu connect is overtime: 60s")
+                r.setPickRobotError(53839, f"ctu connect is overtime: 60s")
                 self.status = MoveStatus.FAILED
         if self.status is not MoveStatus.FINISHED:
             self.state = self.h.getReport(r)
@@ -2151,7 +2151,8 @@ class ScanBarcode:
             if res.get("binId", "Error") == self.goodsId:
                 self.status = MoveStatus.FINISHED
             else:
-                r.setError(f"scan barcode error, result: {res}")
+                r.setPickRobotError(53838,
+                                    f"barcode mismatch, scan result: {res.get('binId', res)}, goodsId: {self.goodsId}")
                 self.status = MoveStatus.FAILED
 
         cur_state = dict()
@@ -2317,7 +2318,7 @@ if __name__ == '__main__':
            "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3,
                           "operation": 1, "status": 1}}
     print(f"rotate: {res['rotate']['position'] + res['recAdjStatus']['dtheta']}, dist: {res['recAdjStatus']['dist']}")
-    yaw, dx, dy, dz, dist, Tagv2box = getYPRZYX_code([res["res"]["res"]["positionMatrix"]], res["rotate"]["position"])
+    yaw, dx, dy, dz, dist, Tagv2box = getYPRZYX_code([res["res"]["res"]], res["rotate"]["position"])
     print(f"yaw: {yaw}, dx: {dx}, dy: {dy}, dz: {dz}, dist: {dist}")
     loc_org = {"x": -26.89989, "y": -1.768388, "angle": -0.228760}
     loc = [loc_org["x"], loc_org["y"], loc_org["angle"]]
