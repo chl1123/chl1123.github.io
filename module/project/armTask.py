@@ -159,7 +159,7 @@ class Module(BasicModule):
                             self.container = cn
                             if cur_c["container_name"] == self.container_name:   # 指定容器名称
                                 self.container = self.container_name
-                            break
+                                break
                     # load again error
                     if self.container is None or cur_cs.get(self.container, {}).get("has_goods"):
                         r.setError("all containers {} have goods, cannot load again.".format(str(cur_cs)))
