@@ -988,6 +988,18 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), name))
         return dict()
+    @check
+    def getLM(self, name:str, flag:bool)->tuple:
+        """获取点位坐标
+         Args:
+            name (str): 站点或者库位名称
+            flag (bool): True 返回的坐标是地图坐标系， False返回的坐标是机器人坐标系
+        Returns:
+            tuple: 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在) 
+        """
+        d = (0, 0, 0, -1)
+        print("func: {0} {1} {2} {3}".format(get_function_name(), name, flag, d))
+        return d
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1087,4 +1099,5 @@ if __name__ == '__main__':
     r.getRecFile("shelf/s0001.shelf")
     r.clearNotice(533000)
     r.noticeExits(533000)
+    r.getLM("AP1", True)
     print("Success!!!")
