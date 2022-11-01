@@ -1000,6 +1000,19 @@ class SimModule:
         d = (0, 0, 0, -1)
         print("func: {0} {1} {2} {3}".format(get_function_name(), name, flag, d))
         return d
+    @check
+    def RecognizeBarCode(self, name:str)->str:
+        """获取一维码信息
+
+        Args:
+            name (str): 其中输入为识别文件的目录，如: tag/t0001.tag
+
+        Returns:
+            str: 为识别到的条形码的编码符号，如上图所示，返回值为： "123456ABCDE"。如未识别到，返回值为空
+        """
+        d = ""
+        print("func: {0} {1} {2}".format(get_function_name(), name, d))
+        return d
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1100,4 +1113,5 @@ if __name__ == '__main__':
     r.clearNotice(533000)
     r.noticeExits(533000)
     r.getLM("AP1", True)
+    r.RecognizeBarCode("tag/t0001.tag")
     print("Success!!!")
