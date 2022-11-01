@@ -2,6 +2,7 @@
 # @Date : 2022/9/7
 # @Author : zhong
 # @File :posAdjust.py
+# @Project: 用于侧面相机实现小车二次定位
 # @Version : 1.1
 
 import json
@@ -19,6 +20,11 @@ from robot import ModuleTool
             "value": "tag/t0001.tag",
             "tips": "识别文件",
             "type": "string"
+        },
+    "adjustDist": {
+            "value": 0.0,
+            "tips": "识别补偿距离",
+            "type": "float"
         }
 }
 ####END DEFAULT ARGS####
@@ -34,6 +40,7 @@ class Module(BasicModule):
         self.robot_move = goPath.Module(r, args)
         self.rec_file = "tag/t0001.tag"
         self.rec_adjust_obj = None
+        self.adjust_dist = 0.0
         r.logInfo(f"init args: {args}")
 
     def run(self, r: SimModule, args):
@@ -41,7 +48,8 @@ class Module(BasicModule):
         if self.init:
             self.init = False
             self.rec_file = args.get("recfile", "")
-            self.rec_adjust_obj = RecAdjust(r, self.rec_file)
+            self.adjust_dist = args.get("adjustDist", 0.0)
+            self.rec_adjust_obj = RecAdjust(r, self.rec_file, self.adjust_dist)
             if not bool(self.rec_file):
                 r.setError(f"recfile is empty: {args}")
                 self.status = MoveStatus.FAILED
@@ -62,7 +70,7 @@ class Module(BasicModule):
 
 
 class RecAdjust:
-    def __init__(self, r, file):
+    def __init__(self, r, file, adjust_dist=0.0):
         self.file = file
         self.status = MoveStatus.NONE
         self.rec_failed_time = 0
@@ -74,11 +82,12 @@ class RecAdjust:
         self.state = dict()
         self.start_time = None
         self.rec_result = self.do_rec(r, self.file)
+        self.adjust_dist = adjust_dist
         p = ParamServer(__file__)
         self.x_dist = p.loadParam("x_dist", type="float", default=0.003, comment="x 坐标精度")
         self.y_dist = p.loadParam("y_dist", type="float", default=0.003, comment="y 坐标精度")
-        self.theta_dist = p.loadParam("theta_dist", type="float", default=0.0088, comment="theta 角度精度")
-        self.x_code2robot = p.loadParam("x_code2robot", type="float", default=0.0, comment="相机距离AGV里程中心的x偏差")
+        self.theta_dist = p.loadParam("theta_dist", type="float", default=0.088, comment="theta 角度精度")
+        self.x_code2robot = p.loadParam("x_code2robot", type="float", default=0.03, comment="相机距离AGV里程中心的x偏差")
         self.y_code2robot = p.loadParam("y_code2robot", type="float", default=0.0, comment="相机距离AGV里程中心的y偏差")
         self.theta_code2robot = p.loadParam("theta_code2robot", type="float", default=0.0, comment="相机与AGV的角度偏差, 弧度值")
 
@@ -94,11 +103,12 @@ class RecAdjust:
                 self.state['pos2world'] = pos2world
                 self.state['robot2world'] = robot2world
                 # 目标点相对小车的位置小于阈值时，识别调整完成
-                if abs(pos2robot[0]) < (self.x_dist+self.x_code2robot) and abs(math.pi - abs(pos2robot[2])) < self.theta_dist:
+                if abs(self.x_dist) > abs(pos2robot[0]-self.x_code2robot-self.adjust_dist) and abs(math.pi - abs(pos2robot[2])) < self.theta_dist:
+                    r.resetRec()
                     self.status = MoveStatus.FINISHED
                     return True
                 self.move_args['coordinate'] = 'robot'
-                self.move_args['x'] = pos2robot[0] - self.x_code2robot
+                self.move_args['x'] = pos2robot[0] - self.x_code2robot - self.adjust_dist
                 self.move_args['y'] = 0
                 self.move_args['theta'] = self.rec_result['yaw'] - math.pi    # 角度调整
                 self.move_args['reachAngle'] = self.theta_dist
@@ -112,11 +122,11 @@ class RecAdjust:
             elif self.go_path.status == MoveStatus.FINISHED:
                 self.adjust_count = self.adjust_count + 1
                 self.reset(r)
-                # self.status = MoveStatus.FINISHED                      # 只调整一次
                 if self.adjust_count > self.max_adjust_times:
                     r.setError(f"rec adjust failed over the max times")
                     self.status = MoveStatus.FAILED
             elif self.go_path.status == MoveStatus.FAILED:
+                self.reset(r)
                 r.setError(f"adjust failed, goPath has error. {self.move_args}")
                 self.status = MoveStatus.FAILED
         else:   # 识别失败
@@ -131,6 +141,7 @@ class RecAdjust:
         self.state['rec_adjust_status'] = self.status
         self.state['rec_count'] = self.rec_failed_time
         self.state['adjust_count'] = self.adjust_count
+        self.state['adjust_dist'] = self.adjust_dist
 
     def reset(self, r):
         self.status = MoveStatus.RUNNING
@@ -150,12 +161,14 @@ class RecAdjust:
         rec_status = r.getRecStatus()   # 0: 初始化；1: 识别中 ； 2: 获得结果； 3：识别出错；-1： 未知错误
         self.state['rec_status'] = rec_status
         if rec_status == 2:
-            return r.getRecResult()
+            rec_res = r.getRecResult()
+            r.resetRec()
+            return rec_res
         elif rec_status == 3 or rec_status == -1:
             r.resetRec()
         else:
             r.doRec(file)
-        return None
+        return False
 
 
 if __name__ == '__main__':
