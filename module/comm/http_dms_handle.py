@@ -23,21 +23,18 @@ class URL:
         dms6 = p.loadParam("dms6", param_type="str", default="http://192.167.64.31:8088/", comment="库外DMS-4")
         dms7 = p.loadParam("dms7", param_type="str", default="http://192.167.64.32:8088/", comment="库外DMS-5")
         dms8 = p.loadParam("dms8", param_type="str", default="http://192.167.64.33:8088/", comment="库外DMS-6")
-        agv_core1 = p.loadParam("agv-core-1", param_type="str", default="http://10.10.10.201:8088/", comment="库内 AGV WiFi模式  IP ")
-        agv_core2 = p.loadParam("agv-core-2", param_type="str", default="http://10.10.10.202:8088/", comment="库外 AGV-1 WiFi模式 IP")
-        agv_core3 = p.loadParam("agv-core-3", param_type="str", default="http://10.10.10.203:8088/", comment="库外 AGV-2 WiFi模式 IP")
+        agv_core1 = p.loadParam("agv-core-1", param_type="str", default="http://10.10.10.72:8088/", comment="库内 AGV WiFi模式  IP ")
+        agv_core2 = p.loadParam("agv-core-2", param_type="str", default="http://10.10.10.70:8088/", comment="库外 AGV-1 WiFi模式 IP")
+        agv_core3 = p.loadParam("agv-core-3", param_type="str", default="http://10.10.10.71:8088/", comment="库外 AGV-2 WiFi模式 IP")
         self.server_core = p.loadParam("server-core", param_type="str", default="http://10.10.10.200:8088/", comment="WiFi模式服务器 Core IP")
         self.dms_server = p.loadParam("dms-server", param_type="str", default="http://192.169.202.4:8885/", comment="订单缓存服务器")
         self.task_call_back = p.loadParam("call-back-server", param_type="str", default="http://192.169.202.2:80/api/AVG/TaskCallBack", comment="订单回调服务器")
         self.door_server = p.loadParam("door-server", param_type="str", default="http://192.167.1.161:7070/api/Wms/GetCTUDoorStatus", comment="库内门控服务器")
-        self.door_service = p.loadParam("door-service", param_type="int", default=0, comment="是否启用门控服务:  0代表关闭, 1代表开启")
+        self.door_service = p.loadParam("door-service", param_type="int", default=1, comment="是否启用门控服务:  0代表关闭, 1代表开启")
         self.internal_dms = [dms1, dms2]                                                  # 库内DMS
         self.external_dms = [dms3, dms4, dms5, dms6, dms7, dms8]      # 库外DMS
         self.internal_wifi = [agv_core1]                                                       # wifi 模式库内Core
         self.external_wifi = [agv_core2, agv_core3]                             # wifi 模式库外Core
-        # dms_server = "http://192.167.64.99:8885/"                                                                       # 本机模拟DMS服务器
-        # task_call_back = "http://192.169.202.2:80/api/AVG/TaskCallBack"                  # 订单回调服务器
-        # door_server = "http://192.167.1.161:7070/api/Wms/GetCTUDoorStatus"     # 门控服务器
 
 
 class HttpHandle:
@@ -51,17 +48,17 @@ class HttpHandle:
     def http_get(url, headers=None, timeout=(2.0, 3.0)):
         try:
             res = requests.get(url, headers=headers, timeout=timeout)
-        except ReadTimeout:
-            log.logger.warning(f'ReadTimeout, func: http_get: {url}')
         except ConnectTimeout:
             log.logger.warning(f'ConnectTimeout, func: http_get: {url}')
-        except ConnectionError:
-            log.logger.warning(f"Failed to establish a new connection, network is unreachable:{url}")
+        except ConnectionError as e:
+            log.logger.warning(f"ConnectionError {e}:{url}")
+        except ReadTimeout:
+            log.logger.warning(f'ReadTimeout, func: http_get: {url}')
         except Exception as e:
             log.logger.warning(f"Exception: {e}")
         else:
-            log.logger.info(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
-            # res.close()
+            log.logger.info(f"conn success: {url}, status_code: {res.status_code}, res text: {res.text}")
+            res.close()
             return res
         finally:
             pass
@@ -82,13 +79,13 @@ class HttpHandle:
             log.logger.warning(f'ConnectTimeout: func: http_post: {url}')
         except ReadTimeout:
             log.logger.warning(f'ReadTimeout, func: http_post: {url}')
-        except ConnectionError:
-            log.logger.warning(f"Failed to establish a new connection, network is unreachable: {url}")
+        except ConnectionError as e:
+            log.logger.warning(f"ConnectionError {e}: {url}")
         except Exception as e:
             log.logger.warning(f"Exception: {e}")
         else:
-            log.logger.info(f"conn success: {url}, res code: {res.status_code}, res text: {res.text}")
-            # res.close()
+            log.logger.info(f"conn success: {url}, status_code: {res.status_code}, res text: {res.text}")
+            res.close()
             return res
 
 
@@ -250,6 +247,8 @@ class OrdersHandle:
         bins_tobe_checked = {"bins": [order.get('fromLoc', ''), order.get('toLoc', '')]}
         bin_check_res = self.http_handle.http_post(core_url + "binCheck", bins_tobe_checked)
         if bin_check_res and bin_check_res.status_code == 200:
+            if "bins" not in bin_check_res.json():
+                return False
             bins = bin_check_res.json().get('bins', list())
             for b in bins:
                 if not b.get('exist', False):
@@ -265,7 +264,7 @@ class OrdersHandle:
         :return:
         """
         self.failed_orders[order['id']] = self.failed_orders.get(order['id'], 0) + 1
-        log.logger.error(f"The order {order['id']} not in the map scene, order details: {order}")
+        log.logger.error(f"The order '{order['id']}' bin check failed, order details: {order}")
         if self.failed_orders.get(order['id'], 0) >= 100:
             self.failed_orders.pop(order['id'], 0)
 
@@ -308,7 +307,7 @@ class DMS:
         for u in core_url:
             r = self.http_handle.http_get(u + "ping")
             if bool(r) and r.status_code == 200 and r.json().get("code", -1) == 0:
-                core_url.append(core_url.pop(0))
+                core_url.append(core_url.pop(core_url.index(u)))
                 log.logger.info(f"current core_url list: {core_url}")
                 return u
         return None
@@ -353,10 +352,13 @@ class DMS:
                             elif conn_core in self.url.external_dms:
                                 self.http_handle.http_post(conn_core + "gotoSiteResume", self.agv)
                             log.logger.info(f"door status: {self.door_status}, current connect dms: {conn_core}")
+                            log.logger.info(f"inside mode: {MainProcess().internal_mode}, outside mode: {MainProcess().external_mode}")
                             log.logger.info('*' * 160)
                             time.sleep(self.dms_interval_time)
                             log.logger.info(f"{time.strftime('%Y-%m-%d %H:%M:%S')} wait next task ...")
                 else:
+                    log.logger.warning(f"No robot currently connected")
+                    log.logger.info('*' * 160)
                     time.sleep(0.5)
             except Exception as e:
                 log.logger.error(f"connect core error: {e}")
@@ -381,6 +383,7 @@ class DMS:
                     self.order_handle.callback_order(conn_core)
                 else:
                     log.logger.warning(f"connect core failed with wifi")
+                log.logger.info(f"inside mode: {MainProcess().internal_mode}, outside mode: {MainProcess().external_mode}")
                 log.logger.info('*' * 160)
                 time.sleep(self.wifi_interval_time)
                 log.logger.info(f"{time.strftime('%Y-%m-%d %H:%M:%S')} wait next task ...")
@@ -432,6 +435,7 @@ class DMS:
                 self.order_handle.callback_order(conn_wifi_core)
             else:
                 log.logger.warning(f"connect wifi core failed with mix mode ")
+            log.logger.info(f"inside mode: {MainProcess().internal_mode}, outside mode: {MainProcess().external_mode}")
             log.logger.info('*' * 160)
             time.sleep(self.wifi_interval_time + 5.0)
             log.logger.info(f"{time.strftime('%Y-%m-%d %H:%M:%S')} wait next task ...")
