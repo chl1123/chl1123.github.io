@@ -558,12 +558,11 @@ class Module(BasicModule):
                 self.state['rbk version'] = rbk_version
                 # 检测初始模式，若为任务模式，则将其转变为机构模式
                 if "mode" in self.state and bool(self.auto_switch_mode):
+                    r.clearWarning(55803)
                     if self.state.get("mode", 1) == 0:
                         self.h.switch_mode(r, 1)
                         if self.h.switch_mode_res['status'] != pickingRobot.Action.FINISHED:
                             return self.status
-                        else:
-                            r.clearWarning(55803)
                 elif "mode" not in self.state and bool(self.auto_switch_mode):
                     r.setPickRobotWarning(55803, "mode checking, ctu is connecting! ")
                     return self.status
@@ -2318,7 +2317,7 @@ if __name__ == '__main__':
            "MoveStatus": {"lift": 0, "rotate": 0, "stretch": 0, "finger": 3, "indicator": 3, "vision": 3,
                           "operation": 1, "status": 1}}
     print(f"rotate: {res['rotate']['position'] + res['recAdjStatus']['dtheta']}, dist: {res['recAdjStatus']['dist']}")
-    yaw, dx, dy, dz, dist, Tagv2box = getYPRZYX_code([res["res"]["res"]], res["rotate"]["position"])
+    yaw, dx, dy, dz, dist, Tagv2box = getYPRZYX_code([res["res"]["res"]["positionMatrix"]], res["rotate"]["position"])
     print(f"yaw: {yaw}, dx: {dx}, dy: {dy}, dz: {dz}, dist: {dist}")
     loc_org = {"x": -26.89989, "y": -1.768388, "angle": -0.228760}
     loc = [loc_org["x"], loc_org["y"], loc_org["angle"]]
