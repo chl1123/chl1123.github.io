@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# @Date : 2022/8/9 
+# @Date : 2022/8/31
 # @Author : zhong
 # @File :san_roller.py
-# @Version : 1.0
+# @Version : 1.1
 # @Project : https://seer-group.coding.net/p/issue_pool/requirements/issues/3457/detail
 # @Support :
-# @Update : 
+# @Update : 增加辊筒延时停转
 
 import json
 import time
@@ -14,7 +14,7 @@ from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, ParamServer
 from robot import Motor, MotorType, ModuleTool, Robot
 
-SCRIPT_VERSION = "V1.0_2022-8-9"
+SCRIPT_VERSION = "V1.0_2022-8-31"
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -91,39 +91,58 @@ class Module(BasicModule):
         r.setInfo(json.dumps(self.report_info))
         return self.status
 
+    def RollerStop(self, r: SimModule):
+        r.setDO(self.left_block_up_do, False)
+        r.setDO(self.left_block_down_do, False)
+        r.setDO(self.signal_do, False)      # 关闭对射光电
+        self.robot.roller(self.roller_motor, 0.)        # 滚筒电机停止运行
+        self.status = MoveStatus.FINISHED
+        self.report_info["roller stop"] = self.robot.state
+
     def RollerLoad(self, r: SimModule):
-        r.setDO(self.signal_do, True)
-        r.setDO(self.left_block_up_do, True)
-        r.setDO(self.left_block_down_do, True)  # 左挡板下降
-        r.setDO(self.right_block_up_do, True)     # 右挡板上升
-        if self.check_di(r, self.load_condition_di1) and self.check_di(r, self.load_condition_di2):
+        r.setDO(self.signal_do, True)      #打开对射光电
+        if self.check_di(r, self.left_block_up_di):
+            r.setDO(self.left_block_up_do, True)   #打开左阻挡上升
+            r.setDO(self.left_block_down_do, True)  # 打开左挡板下降
+        if self.check_di(r, self.left_block_down_di):
+            r.setDO(self.left_block_up_do, False)
+            r.setDO(self.left_block_down_do, False)
+        #r.setDO(self.right_block_up_do, True)     # 打开右挡板上升
+        if self.check_di(r, self.load_condition_di1) and self.check_di(r, self.left_block_down_di):
             if self.check_di(r, self.left_block_down_di) and self.check_di(r, self.right_block_up_di):
-                self.robot.roller(self.roller_motor, self.fast_speed)
-                if self.check_di(r, self.goods_check_di2):
-                    self.robot.roller(self.roller_motor, self.slow_speed)
-                if self.check_di(r, self.goods_check_di1):
-                    self.robot.roller(self.roller_motor, 0.)
-                    r.setDO(self.left_block_down_do, False)
-        if self.check_di(r, self.goods_check_di1) and self.check_di(r, self.left_block_up_di):
-            r.setDO(self.signal_do, False)
-            self.status = MoveStatus.FINISHED
+                self.robot.roller(self.roller_motor, self.fast_speed)        #滚筒电机运行上料+快速
+                if self.check_di(r, self.goods_check_di3):        #上料时检测到慢速开关
+                    self.robot.roller(self.roller_motor, self.slow_speed)        #滚筒电机运行上料+慢速
+                if self.check_di(r, self.goods_check_di4):        #上料时检测到最右侧开关
+                    self.robot.roller(self.roller_motor, 0.)        #滚筒电机停止运行
+                    r.setDO(self.signal_do, False)
+                    if ModuleTool.delay(1.0):
+                        if self.check_di(r,  self.left_block_down_di):
+                            r.setDO(self.left_block_up_do, True)       #打开左阻挡上升
+                        if self.check_di(r,  self.left_block_up_di):
+                            r.setDO(self.left_block_up_do, False)
+                        self.status = MoveStatus.FINISHED
         self.report_info["roller load"] = self.robot.state
 
     def RollerUnload(self, r: SimModule):
-        r.setDO(self.signal_do, True)
-        r.setDO(self.left_block_up_do, True)
-        r.setDO(self.right_block_up_do, True)
-        if self.check_di(r, self.unload_condition_di1) and self.check_di(r, self.unload_condition_di2):
-            r.setDO(self.left_block_down_do, True)  # 左挡板下降
-            if self.check_di(r, self.left_block_down_di):
+        r.setDO(self.signal_do, True)        #打开对射光电
+        if self.check_di(r, self.left_block_up_di):
+            r.setDO(self.left_block_up_do, True)   #打开左阻挡上升
+            r.setDO(self.left_block_down_do, True)  # 打开左挡板下降
+        if self.check_di(r, self.left_block_down_di):
+            r.setDO(self.left_block_up_do, False)
+            r.setDO(self.left_block_down_do, False)
+        if self.check_di(r, self.unload_condition_di1) and self.check_di(r, self.left_block_down_di):
+            if self.check_di(r, self.left_block_down_di) and self.check_di(r, self.right_block_up_di):
                 self.robot.roller(self.roller_motor, -self.fast_speed)
-            if self.check_di(r, self.goods_check_di1) and self.check_di(r, self.goods_check_di2) \
-                    and self.check_di(r, self.goods_check_di3) and self.check_di(r, self.goods_check_di4):
-                if ModuleTool.delay(2.0):
+            if not self.check_di(r, self.goods_check_di1) and not self.check_di(r, self.goods_check_di2) and not self.check_di(r, self.goods_check_di3) and not self.check_di(r, self.goods_check_di4):
+                if ModuleTool.delay(3.0):        #延时持续输送n秒
                     self.robot.roller(self.roller_motor, 0.)
-                    r.setDO(self.left_block_down_do, False)
-                if self.check_di(r, self.left_block_up_di):
                     r.setDO(self.signal_do, False)
+                    if self.check_di(r, self.left_block_down_di):
+                        r.setDO(self.left_block_up_do, True)       #打开左阻挡上升
+                    if self.check_di(r, self.left_block_up_di):
+                        r.setDO(self.left_block_up_do, False)
                     self.status = MoveStatus.FINISHED
         self.report_info["roller unload"] = self.robot.state
 

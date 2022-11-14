@@ -1,0 +1,262 @@
+{
+    "ip": {
+        "value": "192.168.192.20",
+        "default": "192.168.192.20",
+        "comment": "ip addr"
+    },
+    "port": {
+        "value": 4172,
+        "default": 4172,
+        "maxValue": 999999,
+        "minValue": 0,
+        "comment": "port"
+    },
+    "max_connect_time": {
+        "value": 10,
+        "default": 30,
+        "maxValue": 999999,
+        "minValue": 0,
+        "comment": "连接等待最长时间s"
+    },
+    "lift_reach_dist": {
+        "value": 0.5,
+        "default": 0.5,
+        "maxValue": 10.0,
+        "minValue": 0.0,
+        "comment": "升降机构到位精度",
+        "unit": "mm"
+    },
+    "rotate_reach_angle": {
+        "value": 0.01,
+        "default": 0.01,
+        "maxValue": 10.0,
+        "minValue": 0.0,
+        "comment": "旋转到位精度",
+        "unit": "rad"
+    },
+    "stretch_reach_dist": {
+        "value": 0.5,
+        "default": 0.5,
+        "maxValue": 10.0,
+        "minValue": 0.0,
+        "comment": "伸缩到位精度",
+        "unit": "mm"
+    },
+    "max_stretch_dist": {
+        "value": 920.0,
+        "default": 920.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "伸缩臂最大伸出长度",
+        "unit": "mm"
+    },
+    "low0": {
+        "value": 395.0,
+        "default": 400.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "取货时，第0层高度",
+        "unit": "mm"
+    },
+    "low1": {
+        "value": 845.0,
+        "default": 845.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "取货时，第1层高度",
+        "unit": "mm"
+    },
+    "low2": {
+        "value": 1295.0,
+        "default": 1295.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "取货时，第2层高度",
+        "unit": "mm"
+    },
+    "low3": {
+        "value": 1745.0,
+        "default": 1745.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "取货时，第3层高度",
+        "unit": "mm"
+    },
+    "low4": {
+        "value": 2195.0,
+        "default": 2195.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "取货时，第4层高度",
+        "unit": "mm"
+    },
+    "low5": {
+        "value": 2645.0,
+        "default": 2645.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "取货时，第5层高度",
+        "unit": "mm"
+    },
+    "low999": {
+        "value": 0.0,
+        "default": 0.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "抓斗取货",
+        "unit": "mm"
+    },
+    "high0": {
+        "value": 405.0,
+        "default": 405.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "放货时，第0层高度",
+        "unit": "mm"
+    },
+    "high1": {
+        "value": 855.0,
+        "default": 855.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "放货时，第1层高度",
+        "unit": "mm"
+    },
+    "high2": {
+        "value": 1305.0,
+        "default": 1305.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "放货时，第2层高度",
+        "unit": "mm"
+    },
+    "high3": {
+        "value": 1755.0,
+        "default": 1755.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "放货时，第3层高度",
+        "unit": "mm"
+    },
+    "high4": {
+        "value": 2205.0,
+        "default": 2205.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "放货时，第4层高度",
+        "unit": "mm"
+    },
+    "high5": {
+        "value": 2655.0,
+        "default": 2655.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "放货时，第5层高度",
+        "unit": "mm"
+    },
+    "high999": {
+        "value": 0.0,
+        "default": 0.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "抓斗放货",
+        "unit": "mm"
+    },
+    "stretchDist": {
+        "value": 752.0,
+        "default": 752,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "放在自己货架上，伸缩臂伸出长度",
+        "unit": "mm"
+    },
+    "rec_offz_box": {
+        "value": -85.0,
+        "default": -85.0,
+        "maxValue": 1000.0,
+        "minValue": -1000.0,
+        "comment": "识别货物后，抓货物时高度的调整距离，根据料箱二维码高度调整",
+        "unit": "mm"
+    },
+    "rec_offz_shelf": {
+        "value": 50.0,
+        "default": 50.0,
+        "maxValue": 1000.0,
+        "minValue": -1000.0,
+        "comment": "识别货架后，放货物时高度的调整距离，根据货架二维码高度调整",
+        "unit": "mm"
+    },
+    "fokr_up_limit": {
+        "value": 4,
+        "default": 4,
+        "maxValue": 100,
+        "minValue": -1,
+        "comment": "货叉上限位DI",
+        "unit": ""
+    },
+    "fork_down_limit": {
+        "value": 2,
+        "default": 2,
+        "maxValue": 100,
+        "minValue": -1,
+        "comment": "货叉下限位DI",
+        "unit": ""
+    },
+    "min_fork_height": {
+        "value": 400.0,
+        "default": 400.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "货叉最低高度",
+        "unit": "mm"
+    },
+    "max_fork_height": {
+        "value": 5273.0,
+        "default": 5273.0,
+        "maxValue": 10000.0,
+        "minValue": 0.0,
+        "comment": "货叉最大高度",
+        "unit": "mm"
+    },
+    "fork_limit": {
+        "value": 1,
+        "default": 1,
+        "maxValue": 100,
+        "minValue": -1,
+        "comment": "货叉机械限位限位DI",
+        "unit": ""
+    },
+    "loadOffset": {
+        "value": 0.0,
+        "default": 0.0,
+        "maxValue": 500.0,
+        "minValue": -500.0,
+        "comment": "load货物时，货叉额外伸出的距离",
+        "unit": "mm"
+    },
+    "forkSensor": {
+        "value": 0,
+        "default": 0,
+        "comment": "货叉是否有货物检测传感器，1为有，0为无"
+    },
+    "traySensor": {
+        "value": 0,
+        "default": 0,
+        "comment": "背篓是否有货物检测传感器，1为有，0为无"
+    },
+    "traysNum": {
+        "value": 3,
+        "default": 3,
+        "comment": "背篓层数"
+    },
+    "AutoSwitchMode": {
+        "value": 1,
+        "default": 1,
+        "comment": "是否自动切换到机构模式，1为是，0为否"
+    },
+    "PostOvertime": {
+        "value": 60,
+        "default": "60",
+        "comment": "post 超时时间"
+    }
+}

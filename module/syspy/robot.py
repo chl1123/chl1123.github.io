@@ -7,7 +7,6 @@
 提供一些机构脚本常用的接口
 """
 import enum
-import json
 import os
 import logging
 import time
@@ -65,10 +64,10 @@ class ModuleTool:
         :return: 返回电机的当前位置，若电机不存在返回False
         """
         motors = r.odo().get("motor_info", [])
-        motor_pos = False
+        motor_pos = -1
         for m in motors:
             if m['motor_name'] == motor_name:
-                motor_pos = m.get('position', False)
+                motor_pos = m.get('position', -1)
         return motor_pos
 
     @staticmethod
@@ -128,7 +127,7 @@ class NetHandle:
         self.headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         self.status = MoveStatus.NONE
 
-    def http_get(self, r: SimModule, url, params=None, data=None, timeout=(0.1, 0.1)):
+    def http_get(self, r: SimModule, url, params=None, data=None, timeout=(0.1, 0.3)):
         try:
             res = requests.get(url, headers=self.headers, params=params, data=data, timeout=timeout)
         except ConnectTimeout:
@@ -144,7 +143,7 @@ class NetHandle:
             res.close()
             return res
 
-    def http_post(self, r: SimModule, url, data=None, timeout=(0.1, 0.1)):
+    def http_post(self, r: SimModule, url, data=None, timeout=(0.1, 0.3)):
         """
         发送一次POST请求， 请求成功返回 response 的 json 数据
         :param r: SimModule
@@ -178,7 +177,7 @@ class NetHandle:
         :return: 成功则返回响应数据，失败返回 None
         """
         try:
-            res = requests.post(url, json=data, timeout=(0.1, 0.1))
+            res = requests.post(url, json=data, timeout=(0.2, 0.5))
         except Exception as e:
             r.logInfo(f"post failed!!! url: {url}, data: {data}, error: {e}")
             return None
@@ -251,7 +250,6 @@ class Motor:
         self.state['motor_pos'] = ModuleTool.get_motor_pos(self.r, self.motor_name)
         self.state['motor_speed'] = ModuleTool.get_motor_speed(self.r, self.motor_name)
         self.state['motor_status'] = self.status
-        return self.status
 
     def reset(self):
         self.r.logInfo(f"motor reset: {self.motor_name}")
@@ -359,6 +357,26 @@ class Robot:
             motor.run(pos=float(length), max_vel=float(max_vel))
         return False
 
+    def rotate(self, motor: Motor, length: float, max_vel=0.3) -> bool:
+        """
+        控制旋转机构电机
+        :param motor:
+        :param length:
+        :param max_vel:
+        :return:
+        """
+        self.state[f'{motor.motor_name}'] = motor.state
+        if motor.status == MoveStatus.NONE:
+            motor.reset()
+        elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
+            return True
+        elif motor.status == MoveStatus.FAILED:
+            return False
+        else:
+            motor.run(pos=float(length), max_vel=float(max_vel))
+        return False
+
     def roller(self, motor: Motor, vel) -> bool:
         """
         控制辊筒电机
@@ -409,12 +427,18 @@ class GoodsManger:
         if "getContainers" in dir(SimModule):
             self.container = r.getContainers()
         else:
-            r.setError(f"RBK version mismatch, please update RBK")
+            r.setError(f"robot.GoodsManger: RBK version mismatch, please update RBK")
 
-    def has_goods(self, pos=0) -> bool:
+    def has_goods(self, pos='0') -> bool:
         for c in self.container:
             if pos == c.get("container_name", None):
                 return c.get("has_goods", False)
+        return False
+
+    def goods_id_exist(self, goods_id):
+        for c in self.container:
+            if goods_id == c['goods_id']:
+                return True
         return False
 
     def get_task_goodsId(self):
@@ -429,6 +453,12 @@ class GoodsManger:
                 return c.get("goods_id", "")
         return ""
 
+    def get_json_containers(self) -> dict:
+        containers = dict()
+        for c in self.container:
+            containers[c['container_name']] = c
+        return containers
+
 
 if __name__ == "__main__":
     liner_motor = Motor(SimModule(), MotorType.LINEAR_MOTOR, "motor1", -1)
@@ -438,7 +468,7 @@ if __name__ == "__main__":
     robot.lift(liner_motor, 1)
     robot.stretch(liner_motor, 1)
     robot.roller(roller_motor, 1)
-    log = ScriptLog("robot")
+    log = ScriptLog("robot-logs")
     log.logger.info(robot.state)
     log.logger.critical(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
     log.logger.error(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")

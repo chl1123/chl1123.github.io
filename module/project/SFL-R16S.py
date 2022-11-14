@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Time : 2022/5/13
-# @Author : qiangsheng，zhong
+# @Author : zhong, huang
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
 # @Version: 2.4

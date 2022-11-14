@@ -12,6 +12,7 @@ import time
 import goPath as goPath
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, ParamServer, Pos2Base
+from robot import ModuleTool, Motor, MotorType, Robot
 
 SCRIPT_VERSION = "V1.0-20220720"
 
@@ -173,9 +174,9 @@ class Module(BasicModule):
                     if args["liftHeight"] > self.init_lift_motor_pos:
                         r.setError(f"unload liftHeight higher than current lift height {self.init_lift_motor_pos}")
                         args_error = True
-                    if args["stretchLength"] < self.max_stretch_length and args["liftHeight"] < self.safe_lift_height:
-                        r.setError(f"Not stretch to the max length,  cannot lift lower than the safe lift height.")
-                        args_error = True
+                    # if args["stretchLength"] < self.max_stretch_length and args["liftHeight"] < self.safe_lift_height:
+                    #     r.setError(f"Not stretch to the max length,  cannot lift lower than the safe lift height.")
+                    #     args_error = True
                 else:
                     args_error = True
             else:
@@ -488,138 +489,138 @@ class Module(BasicModule):
         self.status = MoveStatus.SUSPENDED
 
 
-class MotorType(enum.IntEnum):
-    LINEAR_MOTOR = 0
-    ROLLER_MOTOR = 1
+# class MotorType(enum.IntEnum):
+#     LINEAR_MOTOR = 0
+#     ROLLER_MOTOR = 1
 
 
-class Motor:
-    def __init__(self, r, motor_type: MotorType, motor_name: str, stop_di: int):
-        self.motor_type = motor_type
-        self.motor_name = motor_name
-        self.stop_di = stop_di
-        self.r = r
-        self.status = MoveStatus.NONE
-        self.state = dict()
+# class Motor:
+#     def __init__(self, r, motor_type: MotorType, motor_name: str, stop_di: int):
+#         self.motor_type = motor_type
+#         self.motor_name = motor_name
+#         self.stop_di = stop_di
+#         self.r = r
+#         self.status = MoveStatus.NONE
+#         self.state = dict()
+#
+#     def run(self, vel=0., pos=0., max_vel=0.):
+#         """
+#         控制电机运转，辊筒电机需传参 vel，线性电机需传参 pos 和 max_vel
+#         :param vel: 辊筒电机转速
+#         :param pos: 线性电机目标位置
+#         :param max_vel: 线性电机最大转速
+#         :return:
+#         """
+#         if self.motor_type == MotorType.LINEAR_MOTOR:
+#             self.r.setMotorPosition(self.motor_name, pos, max_vel, self.stop_di)
+#         elif self.motor_type == MotorType.ROLLER_MOTOR:
+#             self.r.setMotorSpeed(self.motor_name, vel, self.stop_di)
+#         else:
+#             self.r.setError(f"motor type error {self.motor_type}")
+#             self.status = MoveStatus.FAILED
+#         if self.r.isMotorReached(self.motor_name):
+#             self.r.resetMotor(self.motor_name)
+#             self.status = MoveStatus.FINISHED
+#         self.state['motor_name'] = self.motor_name
+#         self.state['motor_type'] = self.motor_type
+#         self.state['motor_status'] = self.status
+#
+#     def reset(self):
+#         self.r.logInfo(f"motor reset: {self.motor_name}")
+#         self.r.resetMotor(self.motor_name)
+#         self.status = MoveStatus.RUNNING
+#
+#     def stop(self):
+#         self.r.isMotorStop(self.motor_name)
+#         self.status = MoveStatus.NONE
 
-    def run(self, vel=0., pos=0., max_vel=0.):
-        """
-        控制电机运转，辊筒电机需传参 vel，线性电机需传参 pos 和 max_vel
-        :param vel: 辊筒电机转速
-        :param pos: 线性电机目标位置
-        :param max_vel: 线性电机最大转速
-        :return:
-        """
-        if self.motor_type == MotorType.LINEAR_MOTOR:
-            self.r.setMotorPosition(self.motor_name, pos, max_vel, self.stop_di)
-        elif self.motor_type == MotorType.ROLLER_MOTOR:
-            self.r.setMotorSpeed(self.motor_name, vel, self.stop_di)
-        else:
-            self.r.setError(f"motor type error {self.motor_type}")
-            self.status = MoveStatus.FAILED
-        if self.r.isMotorReached(self.motor_name):
-            self.r.resetMotor(self.motor_name)
-            self.status = MoveStatus.FINISHED
-        self.state['motor_name'] = self.motor_name
-        self.state['motor_type'] = self.motor_type
-        self.state['motor_status'] = self.status
 
-    def reset(self):
-        self.r.logInfo(f"motor reset: {self.motor_name}")
-        self.r.resetMotor(self.motor_name)
-        self.status = MoveStatus.RUNNING
-
-    def stop(self):
-        self.r.isMotorStop(self.motor_name)
-        self.status = MoveStatus.NONE
-
-
-class Robot:
-    def __init__(self, r):
-        self.r = r
-        self.reach_angle = 0.01           # 路径导航的到点角度精度
-        self.reach_dist = 0.003            # 路径导航的到点精度
-        self.state = dict()                       # 记录状态
-        self.go_path = goPath.Module(r, dict())    # 控制AGV移动对象
-
-    def move(self, x: float, y: float, theta=0., coordinate='robot', back_mode=False, max_speed=0.3) -> bool:
-        """
-        控制机器人移动
-        :param x:
-        :param y:
-        :param theta:
-        :param coordinate:
-        :param back_mode:
-        :param max_speed:
-        :return: bool
-        """
-        move_args = dict()
-        move_args['x'] = x
-        move_args['y'] = y
-        move_args['theta'] = theta
-        move_args['coordinate'] = coordinate
-        move_args['backMode'] = back_mode
-        move_args['maxSpeed'] = max_speed
-        self.state['move'] = move_args
-        if self.go_path.status != MoveStatus.FAILED or self.go_path.status != MoveStatus.FINISHED:
-            self.go_path.run(self.r, move_args)
-        if self.go_path.status == MoveStatus.FINISHED:
-            self.go_path.reset()
-            return True
-        return False
-
-    def lift(self, motor: Motor, height: float, max_vel=0.3) -> bool:
-        """
-        控制升降电机
-        :param motor:
-        :param height:
-        :param max_vel:
-        :return:
-        """
-        self.state['lift'] = motor.state
-        if motor.status == MoveStatus.NONE:
-            motor.reset()
-        elif motor.status == MoveStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == MoveStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=height, max_vel=max_vel)
-        return False
-
-    def stretch(self, motor: Motor, length: float, max_vel=0.3) -> bool:
-        """
-        控制伸缩机构电机
-        :param motor:
-        :param length:
-        :param max_vel:
-        :return:
-        """
-        self.state['stretch'] = motor.state
-        if motor.status == MoveStatus.NONE:
-            motor.reset()
-        elif motor.status == MoveStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == MoveStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=length, max_vel=max_vel)
-        return False
-
-    def roller(self, motor: Motor, vel):
-        self.state['roller'] = motor.state
-        if motor.status == MoveStatus.NONE:
-            motor.reset()
-        elif motor.status == MoveStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == MoveStatus.FAILED:
-            return False
-        else:
-            motor.run(vel=vel)
-        return False
+# class Robot:
+#     def __init__(self, r):
+#         self.r = r
+#         self.reach_angle = 0.01           # 路径导航的到点角度精度
+#         self.reach_dist = 0.003            # 路径导航的到点精度
+#         self.state = dict()                       # 记录状态
+#         self.go_path = goPath.Module(r, dict())    # 控制AGV移动对象
+#
+#     def move(self, x: float, y: float, theta=0., coordinate='robot', back_mode=False, max_speed=0.3) -> bool:
+#         """
+#         控制机器人移动
+#         :param x:
+#         :param y:
+#         :param theta:
+#         :param coordinate:
+#         :param back_mode:
+#         :param max_speed:
+#         :return: bool
+#         """
+#         move_args = dict()
+#         move_args['x'] = x
+#         move_args['y'] = y
+#         move_args['theta'] = theta
+#         move_args['coordinate'] = coordinate
+#         move_args['backMode'] = back_mode
+#         move_args['maxSpeed'] = max_speed
+#         self.state['move'] = move_args
+#         if self.go_path.status != MoveStatus.FAILED or self.go_path.status != MoveStatus.FINISHED:
+#             self.go_path.run(self.r, move_args)
+#         if self.go_path.status == MoveStatus.FINISHED:
+#             self.go_path.reset()
+#             return True
+#         return False
+#
+#     def lift(self, motor: Motor, height: float, max_vel=0.3) -> bool:
+#         """
+#         控制升降电机
+#         :param motor:
+#         :param height:
+#         :param max_vel:
+#         :return:
+#         """
+#         self.state['lift'] = motor.state
+#         if motor.status == MoveStatus.NONE:
+#             motor.reset()
+#         elif motor.status == MoveStatus.FINISHED:
+#             motor.reset()
+#             return True
+#         elif motor.status == MoveStatus.FAILED:
+#             return False
+#         else:
+#             motor.run(pos=height, max_vel=max_vel)
+#         return False
+#
+#     def stretch(self, motor: Motor, length: float, max_vel=0.3) -> bool:
+#         """
+#         控制伸缩机构电机
+#         :param motor:
+#         :param length:
+#         :param max_vel:
+#         :return:
+#         """
+#         self.state['stretch'] = motor.state
+#         if motor.status == MoveStatus.NONE:
+#             motor.reset()
+#         elif motor.status == MoveStatus.FINISHED:
+#             motor.reset()
+#             return True
+#         elif motor.status == MoveStatus.FAILED:
+#             return False
+#         else:
+#             motor.run(pos=length, max_vel=max_vel)
+#         return False
+#
+#     def roller(self, motor: Motor, vel):
+#         self.state['roller'] = motor.state
+#         if motor.status == MoveStatus.NONE:
+#             motor.reset()
+#         elif motor.status == MoveStatus.FINISHED:
+#             motor.reset()
+#             return True
+#         elif motor.status == MoveStatus.FAILED:
+#             return False
+#         else:
+#             motor.run(vel=vel)
+#         return False
 
 
 class RecAdjust:

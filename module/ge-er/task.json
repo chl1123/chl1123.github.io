@@ -1,0 +1,16 @@
+{
+  "operation":"Script",
+  "script_args": {
+    "move_task_list": [
+      {"id":"SELF_POSITION","source_id": "SELF_POSITION","operation":"Script","script_args":{"Req":"SwitchScript,DBL_43OK.json,;","shouldRes":"SwitchScript,OK,;"},"script_name":"userpy/socketToRbk.py"},
+      {"id":"SELF_POSITION","source_id": "SELF_POSITION","operation":"Script","script_args":{"Req":"StartScript,;","shouldRes":"StartScript,OK,;"},"script_name":"userpy/socketToRbk.py"},
+      {"id":"SELF_POSITION","source_id": "SELF_POSITION","operation":"Script","script_args":{"delay": 5.0},"script_name":"delay.py"},
+      {"id":"SELF_POSITION","source_id": "SELF_POSITION","operation":"Script","script_args":{"address":1,"shouldValue":1},"script_name":"socketToMaster.py"},
+      {"id":"SELF_POSITION","source_id": "SELF_POSITION","operation":"Script","script_args":{"Req":"StopScript,;","shouldRes":"StopScript,OK,;"},"script_name":"userpy/socketToRbk.py"}
+    ]
+  },
+  "script_name":"runTaskList.py"
+}
+
+
+

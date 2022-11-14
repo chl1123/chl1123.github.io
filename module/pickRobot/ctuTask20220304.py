@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
-# @Time : 2021/2/14  10: 20
+# @Time : 2022/3/4  15: 10
 # @Author : zhong
-# @Version : 2.2.0
-# @Update: 升级任务模式脚本功能：1. 新增load，unload，change操作选项，2. 新增goodsId系统流程 3. 适配binTask任务 4. 适配库位管理功能
+# @Version : 2.1.7
+# @Update:  提高底盘移动精度, 到点精度 0.005 mm
 
 import json
 import time
-import goPath as goPath
-from rbkSim import SimModule
-from rbk import MoveStatus, BasicModule, ParamServer
-from pickingRobot import ModeType, PickRobot, BinOpType, BinType, BinModel, LocationType, Action, StopType, ErrorMessage
+import syspy.goPath as goPath
+from syspy.rbkSim import SimModule
+from syspy.rbk import MoveStatus, BasicModule, ParamServer
+from pickingRobot import ModeType, Hairou, BinOpType, BinType, BinModel, LocationType, Action, StopType, ErrorMessage
 
 """
 ####BEGIN DEFAULT ARGS####
 {
     "operation": {
         "value": "reset",
-        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode", "task_resume", "task_stop", "load", "unload", "change"],
+        "default_value": ["preaction", "external_opt", "internal_opt", "robot_reset", "param_set", "switch_mode", "task_resume", "task_stop"],
         "tips": "动作指令",
         "type": "complex"
     },
@@ -157,32 +157,6 @@ from pickingRobot import ModeType, PickRobot, BinOpType, BinType, BinModel, Loca
         "tips": "货架上箱子之间的距离",
         "unit": "m",
         "type": "double"
-    },
-    "changeFrom": {
-        "value": 0,
-        "type": "int"
-    },
-    "changeTo": {
-        "value": 1,
-        "type": "int"
-    },
-    "goodsId": {
-        "value": "",
-        "type": "string"
-    },
-    "postAddr":{
-        "value":"http://ip:port/path",
-        "type":"string"
-    },
-    "postData":{
-        "value":{},
-        "type":"string"
-    },
-    "reqType":{
-        "value": "GET",
-        "default_value": ["GET", "POST"],
-        "tips": "请求类型",
-        "type": "complex"
     }
 }
 ####END DEFAULT ARGS##### 
@@ -197,7 +171,7 @@ class Module(BasicModule):
         ip = p.loadParam("ip", type="str", default="192.168.192.20", comment="ip addr")
         port = p.loadParam("port", type="int", default=4172, maxValue=999999, minValue=0, comment="port")
         self.start_connect_time = time.time()
-        self.max_connect_time = p.loadParam("max_connect_time", type="int", default=30, maxValue=999999, minValue=0,
+        self.max_connect_time = p.loadParam("max_connect_time", type="int", default=10, maxValue=999999, minValue=0,
                                             comment="链接等待最长时间s")
         self.mode = p.loadParam("mode", type="str", default="task", comment="交互模式")
         self.robotId = p.loadParam("robotId", type="str", default="1", comment="机器人ID")
@@ -229,6 +203,9 @@ class Module(BasicModule):
         self.di1 = p.loadParam("di1", type="int", default=2, comment="上限位DI")
         self.di2 = p.loadParam("di2", type="int", default=4, comment="下限位DI")
         self.di3 = p.loadParam("di3", type="int", default=1, comment="升降防坠机械限位DI")
+
+        r.logInfo(f"===init=== {args}")
+
         self.init = True
         self.state = dict()
         self.msg_send = False
@@ -236,10 +213,8 @@ class Module(BasicModule):
         self.src_send = False
         self.resume_send = False
         self.go_path = goPath.Module(r, dict())
-        self.h = PickRobot(ip, port)
+        self.h = Hairou(ip, port)
         self.h.connect()
-        r.logInfo(f"init args: {args}")
-        self.goodsId = None
 
     def run(self, r: SimModule, args):
         # 驱动器连接故障，通信超时
@@ -262,7 +237,7 @@ class Module(BasicModule):
             r.logDebug(str_state)
             d_time = time.time() - self.start_connect_time
             if d_time > self.max_connect_time:
-                r.setError(f"ctu connect is overtime: {self.max_connect_time}s")
+                r.setError(f"ctu connect is overtime: {self.max_connect_time}")
                 self.status = MoveStatus.FAILED
             return self.status
 
@@ -273,7 +248,7 @@ class Module(BasicModule):
             if "connect_error" in self.state:
                 d_time = time.time() - self.start_connect_time
                 if d_time > self.max_connect_time:
-                    r.setError(f"ctu connect is overtime: {self.max_connect_time}s")
+                    r.setError(f"ctu connect is overtime: {self.max_connect_time}")
                     self.status = MoveStatus.FAILED
                     str_state = json.dumps(self.state)
                     r.setInfo(str_state)
@@ -410,13 +385,10 @@ class Module(BasicModule):
                             self.status = MoveStatus.FINISHED
                     except Exception as e:
                         r.setWarning(f"task_stop exception: {e}")
-                else:
-                    r.setError(f"args error: {args}")
             else:
                 r.setError("operation must be checked!")
                 return MoveStatus.FAILED
             self.check_execution_result(r, self.state.get('result', {}))
-            self.state["status"] = self.status
             r.setInfo(json.dumps(self.state))
             return self.status
 
@@ -549,7 +521,7 @@ class Module(BasicModule):
         src_status = self.go_path.status
         if req_posi['x'] < 0:
             req_posi['backMode'] = 1
-        if abs(req_posi['x']) < 0.005:                  # 底盘微调精度
+        if abs(req_posi['x']) < 0.005:
             src_status = MoveStatus.FINISHED
         if src_status != MoveStatus.FINISHED and src_status != MoveStatus.FAILED:
             self.go_path.run(r, req_posi)
@@ -597,15 +569,14 @@ class Module(BasicModule):
             # result: {"status": 2, "seqNum": 1, "res": {"executionResult": 2147484676, "failDescription": "there is box in fork!", "msgType": 255, "resMessageType": 90, "resOptType": 2, "robotId": "", "seqNum": 1}}
             if "executionResult" in result['res']:
                 try:
-                    execution_result = int(result['res'].get('executionResult', 0))
+                    execution_result = result['res']['executionResult']
                     if execution_result != 0:
-                        r.logInfo(f"result: {result}")
                         if "failDescription" in result['res']:
                             error_msg = result['res']['failDescription']
                         else:
                             error_msg = ErrorMessage.ERROR_CODE.get(execution_result, "user defined error")
                         if execution_result in range(2147484672, 2147484672+100):
-                            r.setUserError(53900 + (execution_result - int(2147484672)), f"Error Message: {error_msg}")
+                            r.setUserError(53900 + (execution_result - 2147484672), f"Error Message: {error_msg}")
                         else:
                             r.setError(f"Error Message: {error_msg}")
                         self.status = MoveStatus.FAILED
@@ -614,7 +585,7 @@ class Module(BasicModule):
 
     def check_module_state(self, r):
         if self.state:  # 检查机构状态，并自动进行异常状态恢复
-            finger = self.state["finger"] if "finger" in self.state else None    # finger = self.state.get("finger", None)
+            finger = self.state["finger"] if "finger" in self.state else None
             rotate = self.state["rotate"] if "rotate" in self.state else None
             stretch = self.state["stretch"] if "stretch" in self.state else None
             lift = self.state["lift"] if "lift" in self.state else None
@@ -626,8 +597,8 @@ class Module(BasicModule):
                     self.resume_send = True
             else:
                 self.resume_send = False
-                r.clearWarning(55300)
         pass
+
 
 
 if __name__ == '__main__':

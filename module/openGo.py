@@ -1,7 +1,8 @@
 import json
-import time
 from syspy.rbk import MoveStatus, BasicModule
 from syspy.rbkSim import SimModule
+
+""" 
 ####BEGIN DEFAULT ARGS####
 {
     "vx": {
@@ -18,15 +19,20 @@ from syspy.rbkSim import SimModule
     }
 }
 ####END DEFAULT ARGS####
+"""
+
 
 class Module(BasicModule):
-    def __init__(self, r:SimModule, args):
+    def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
         self.status = MoveStatus.RUNNING
         self.vx = 0
         self.vy = 0
         self.rot = 0
-    def run(self, r:SimModule,args):
+        r.logInfo(f"init args: {args}")
+
+    def run(self, r: SimModule, args):
+        nav = r.getNextSpeed()
         if self.status is not MoveStatus.FINISHED:
             if "vx" in args:
                 self.vx = args["vx"]["value"]
@@ -34,7 +40,6 @@ class Module(BasicModule):
                 self.vy = args["vy"]["value"]
             if "rot" in args:
                 self.rot = args["rot"]["value"]
-            nav = r.getNextSpeed()
             nav["x"] = self.vx
             nav["y"] = self.vy
             nav["rotate"] = self.rot
@@ -47,10 +52,10 @@ class Module(BasicModule):
         r.setInfo(json.dumps(nav))
         return self.status.value
 
+
 if __name__ == '__main__':
-    import syspy.rbkSim
-    r = syspy.rbkSim.SimModule()
-    m = Module(r,None)
+    r = SimModule()
+    m = Module(r, None)
     data = dict()
     data["vx"] = dict()
     data["vx"]["value"] = 0.3

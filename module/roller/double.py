@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/7/26
+# @Time : 2022/8/31
 # @Author : qian, zhong
 # @project ： 艾斯达克双滚筒车
 # @File :double.py
-# @Version: 1.8
+# @Version: 1.9
+# @Update：增加卸货时辊筒停转延时时间，可配置
 import time
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, ParamServer
@@ -80,6 +81,7 @@ class Module(BasicModule):
         self.do12 = p.loadParam("rear_damper_left_down", type="int", default=39, comment="后滚筒左侧挡板下降")
         self.do13 = p.loadParam("rear_damper_right_up", type="int", default=40, comment="后滚筒右侧挡板升起")
         self.do14 = p.loadParam("rear_damper_right_down", type="int", default=41, comment="后滚筒右侧挡板下降")
+        self.unload_delay_time = p.loadParam("unload_delay_time", type="float", default=5.0, comment="卸货时辊筒停转延时时间")
         r.logInfo(f"init args: {args}")
         self.state = dict()
         self.status = MoveStatus.NONE
@@ -189,7 +191,7 @@ class Module(BasicModule):
             self.init1 = False
             r.setDO(self.do7, True)  # 左侧挡板上升
             r.setDO(self.do10, True)  # 右侧挡板下降
-            r.setDO(self.do1, True)  # 皮带转动指令
+            r.setDO(self.do2, True)  # 皮带转动指令
             r.setDO(self.do5, True)  # 皮带反转指令
             self.current_time = time.time()
         if time.time() - self.current_time > 2:
@@ -198,7 +200,7 @@ class Module(BasicModule):
                 if self.check_DI(r, self.di11):  # 左侧挡板高位的时候
                     r.setDO(self.do7, False)  # 复位左侧挡板上升
                     if self.check_DI(r, self.di1):  # 左侧光电信号动作时
-                        r.setDO(self.do1, False)  # 复位皮带转动指令
+                        r.setDO(self.do2, False)  # 复位皮带转动指令
                         r.setDO(self.do5, False)  # 复位皮带反转指令
                         r.setDO(self.do9, True)  # 右侧挡板上升
             elif self.check_DI(r, self.di13):  # 右侧挡板高位的时候
@@ -216,11 +218,12 @@ class Module(BasicModule):
                 r.setDO(self.do5, True)  # 皮带反转指令
                 r.setDO(self.do8, False)  # 复位左侧挡板下降
                 if not self.check_DI(r, self.di1) and not self.check_DI(r, self.di2) and not self.check_DI(r, self.di3):  # 无光电检测时
-                    r.setDO(self.do2, False)  # 停皮带机
-                    r.setDO(self.do5, False)  # 停反转指令
-                    r.setDO(self.do7, True)  # 左侧挡板上升
+                    if self.delay(self.unload_delay_time):
+                        r.setDO(self.do7, True)  # 左侧挡板上升
             elif self.check_DI(r, self.di11):  # 左侧挡板高位的时候
                 r.setDO(self.do7, False)  # 复位左侧挡板上升
+                r.setDO(self.do2, False)  # 停皮带机
+                r.setDO(self.do5, False)  # 停反转指令
                 self.status = MoveStatus.FINISHED
 
     def front_right_unload(self, r: SimModule):
@@ -231,12 +234,13 @@ class Module(BasicModule):
         if time.time() - self.current_time > 2:
             if self.check_DI(r, self.di14):  # 右侧挡板低位的时候
                 r.setDO(self.do10, False)  # 复位右侧挡板下降
-                r.setDO(self.do1, True)  # 皮带转动指令
+                r.setDO(self.do2, True)  # 皮带转动指令
                 if not self.check_DI(r, self.di1) and not self.check_DI(r, self.di2) and not self.check_DI(r, self.di3):  # 无光电检测时
-                    r.setDO(self.do1, False)  # 停皮带机
-                    r.setDO(self.do9, True)  # 右侧挡板上升
+                    if self.delay(self.unload_delay_time):
+                        r.setDO(self.do9, True)  # 右侧挡板上升
             elif self.check_DI(r, self.di13):  # 右侧挡板高位的时候
                 r.setDO(self.do9, False)  # 复位右侧挡板上升
+                r.setDO(self.do2, False)  # 停皮带机
                 self.status = MoveStatus.FINISHED
 
     def rear_left_load(self, r: SimModule):
@@ -244,7 +248,7 @@ class Module(BasicModule):
             self.init1 = False
             r.setDO(self.do13, True)  # 右侧挡板上升
             r.setDO(self.do12, True)  # 左侧挡板下降
-            r.setDO(self.do3, True)  # 皮带转动指令
+            r.setDO(self.do4, True)  # 皮带转动指令
             r.setDO(self.do6, True)  # 皮带转动指令
             self.current_time = time.time()
         if time.time() - self.current_time > 2:
@@ -253,7 +257,7 @@ class Module(BasicModule):
                 if self.check_DI(r, self.di17):  # 右侧挡板高位的时候
                     r.setDO(self.do13, False)  # 复位右侧挡板上升
                     if self.check_DI(r, self.di6):  # 右侧光电信号动作时
-                        r.setDO(self.do3, False)  # 复位皮带转动指令
+                        r.setDO(self.do4, False)  # 复位皮带转动指令
                         r.setDO(self.do6, False)  # 停反转指令
                         r.setDO(self.do11, True)  # 左侧挡板上升
             elif self.check_DI(r, self.di15):  # 左侧挡板高位的时候
@@ -265,7 +269,7 @@ class Module(BasicModule):
             self.init1 = False
             r.setDO(self.do11, True)  # 左侧挡板上升
             r.setDO(self.do14, True)  # 右侧挡板下降
-            r.setDO(self.do3, True)  # 皮带转动指令
+            r.setDO(self.do4, True)  # 皮带转动指令
             # r.setDO(self.do6, True)  # 皮带反转指令
             self.current_time = time.time()
         if time.time() - self.current_time > 2:
@@ -274,7 +278,7 @@ class Module(BasicModule):
                 if self.check_DI(r, self.di15):  # 左侧挡板高位的时候
                     r.setDO(self.do11, False)  # 复位左侧挡板上升
                     if self.check_DI(r, self.di4):  # 左侧光电信号动作时
-                        r.setDO(self.do3, False)  # 复位皮带转动指令
+                        r.setDO(self.do4, False)  # 复位皮带转动指令
                         # r.setDO(self.do6, False)  # 复位皮带反转指令
                         r.setDO(self.do13, True)  # 右侧挡板上升
             elif self.check_DI(r, self.di17):  # 右侧挡板高位的时候
@@ -288,15 +292,15 @@ class Module(BasicModule):
             self.current_time = time.time()
         if time.time() - self.current_time > 2:
             if self.check_DI(r, self.di16):  # 左侧挡板低位的时候
-                r.setDO(self.do3, True)  # 皮带转动指令
+                r.setDO(self.do4, True)  # 皮带转动指令
                 r.setDO(self.do12, False)  # 复位左侧挡板下降
-                if not self.check_DI(r, self.di4) and not self.check_DI(r, self.di5) and not self.check_DI(r,
-                                                                                                           self.di6):  # 无光电检测时
-                    r.setDO(self.do3, False)  # 停皮带机
-                    r.setDO(self.do6, False)  # 停反转指令
-                    r.setDO(self.do11, True)  # 左侧挡板上升
+                if not self.check_DI(r, self.di4) and not self.check_DI(r, self.di5) and not self.check_DI(r, self.di6):  # 无光电检测时
+                    if self.delay(self.unload_delay_time):
+                        r.setDO(self.do11, True)  # 左侧挡板上升
             elif self.check_DI(r, self.di15):  # 左侧挡板高位的时候
                 r.setDO(self.do11, False)  # 复位左侧挡板上升
+                r.setDO(self.do4, False)  # 停皮带机
+                r.setDO(self.do6, False)  # 停反转指令
                 self.status = MoveStatus.FINISHED
 
     def rear_right_unload(self, r: SimModule):
@@ -306,16 +310,16 @@ class Module(BasicModule):
             self.current_time = time.time()
         if time.time() - self.current_time > 2:
             if self.check_DI(r, self.di18):  # 右侧挡板低位的时候
-                r.setDO(self.do3, True)  # 皮带转动指令
+                r.setDO(self.do4, True)  # 皮带转动指令
                 r.setDO(self.do6, True)  # 反转指令
                 r.setDO(self.do14, False)  # 复位右侧挡板下降
-                if not self.check_DI(r, self.di4) and not self.check_DI(r, self.di5) and not self.check_DI(r,
-                                                                                                           self.di6):  # 无光电检测时
-                    r.setDO(self.do3, False)  # 停皮带机
-                    r.setDO(self.do6, False)  # 停反转指令
-                    r.setDO(self.do13, True)  # 右侧挡板上升
+                if not self.check_DI(r, self.di4) and not self.check_DI(r, self.di5) and not self.check_DI(r, self.di6):  # 无光电检测时
+                    if self.delay(self.unload_delay_time):
+                        r.setDO(self.do13, True)  # 右侧挡板上升
             elif self.check_DI(r, self.di17):  # 右侧挡板高位的时候
                 r.setDO(self.do13, False)  # 复位右侧挡板上升
+                r.setDO(self.do4, False)  # 停皮带机
+                r.setDO(self.do6, False)  # 停反转指令
                 self.status = MoveStatus.FINISHED
 
     @staticmethod
@@ -335,4 +339,8 @@ class Module(BasicModule):
 
 
 if __name__ == '__main__':
-    pass
+    args = {"operation": "unload", "position": "front"}
+    r = SimModule()
+    m = Module(r, args)
+    m.run(r, args)
+
