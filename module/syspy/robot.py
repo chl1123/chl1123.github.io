@@ -447,10 +447,16 @@ class GoodsManger:
                 return p['string_value']
         return ""
 
-    def get_container_goodsId(self, pos=0):
+    def get_goodsId_by_container(self, pos=0):
         for c in self.container:
             if pos == c.get("container_name", None):
                 return c.get("goods_id", "")
+        return ""
+
+    def get_container_by_goodsId(self, goods_id):
+        for c in self.container:
+            if goods_id == c['goods_id']:
+                return c['container_name']
         return ""
 
     def get_json_containers(self) -> dict:
