@@ -455,7 +455,7 @@ class GoodsManger:
 
     def get_container_by_goodsId(self, goods_id):
         for c in self.container:
-            if goods_id == c['goods_id']:
+            if goods_id == c['goods_id'] and c['has_goods']:
                 return c['container_name']
         return ""
 
