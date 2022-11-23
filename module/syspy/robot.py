@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/10/9
+# @Time : 2022/11/22
 # @Author : zhong
 # @File : robot.py
-# @Version : 1.5
+# @Version : 1.6
 """
 提供一些机构脚本常用的接口
 """
@@ -192,6 +192,29 @@ class NetHandle:
 class MotorType(enum.IntEnum):
     LINEAR_MOTOR = 0
     ROLLER_MOTOR = 1
+
+
+class Log:
+    """兼容旧版本Log"""
+    def __init__(self, filename, level=logging.INFO, when='H', interval=6, backupCount=30):
+        log_dir = os.getcwd() + "/scripts-logs/"
+        os.makedirs(log_dir, exist_ok=True)
+        log_format = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s: %(message)s')
+        stream_handle = logging.StreamHandler()
+        file_handle = TimedRotatingFileHandler(filename=log_dir+filename, when=when, interval=interval, backupCount=backupCount, encoding='utf-8')
+        file_handle.setFormatter(log_format)
+        if when == 'S':
+            file_handle.suffix = "%Y-%m-%d_%H-%M-%S.log"
+        elif when == 'M':
+            file_handle.suffix = "%Y-%m-%d_%H-%M.log"
+        elif when == 'H':
+            file_handle.suffix = "%Y-%m-%d_%H.log"
+        elif when == 'D' or when == 'MIDNIGHT':
+            file_handle.suffix = "%Y-%m-%d.log"
+        self.logger = logging.getLogger(filename)
+        self.logger.setLevel(level)
+        self.logger.addHandler(stream_handle)
+        self.logger.addHandler(file_handle)
 
 
 class ScriptLog:
