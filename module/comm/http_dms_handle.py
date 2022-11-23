@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
-# @Date : 2022/11/07
+# @Date : 2022/11/21
 # @Author : zhong
 # @File :http_dms_handle.py
-# @Version : 2.7
+# @Version : 2.8
 # @Project : 轩田料箱车项目，光通信处理主程序
 # @Update1 : 解决网络通信断连问题
 import time
-import random
-
 import requests
 from http_dms_server import Log, ParamServer
 from requests.exceptions import ReadTimeout, ConnectTimeout, ConnectionError
@@ -24,43 +22,54 @@ class URL:
         dms6 = p.loadParam("dms6", param_type="str", default="http://192.167.64.31:8088/", comment="库外DMS-4")
         dms7 = p.loadParam("dms7", param_type="str", default="http://192.167.64.32:8088/", comment="库外DMS-5")
         dms8 = p.loadParam("dms8", param_type="str", default="http://192.167.64.33:8088/", comment="库外DMS-6")
-        agv_core1 = p.loadParam("agv-core-1", param_type="str", default="http://10.10.10.72:8088/", comment="库内 AGV WiFi模式  IP ")
-        agv_core2 = p.loadParam("agv-core-2", param_type="str", default="http://10.10.10.70:8088/", comment="库外 AGV-1 WiFi模式 IP")
-        agv_core3 = p.loadParam("agv-core-3", param_type="str", default="http://10.10.10.71:8088/", comment="库外 AGV-2 WiFi模式 IP")
-        self.server_core = p.loadParam("server-core", param_type="str", default="http://10.10.10.200:8088/", comment="WiFi模式服务器 Core IP")
-        self.dms_server = p.loadParam("dms-server", param_type="str", default="http://192.169.202.4:8885/", comment="订单缓存服务器")
-        self.task_call_back = p.loadParam("call-back-server", param_type="str", default="http://192.169.202.2:80/api/AVG/TaskCallBack", comment="订单回调服务器")
-        self.door_server = p.loadParam("door-server", param_type="str", default="http://192.167.1.161:7070/api/Wms/GetCTUDoorStatus", comment="库内门控服务器")
-        self.door_service = p.loadParam("door-service", param_type="int", default=1, comment="是否启用门控服务:  0代表关闭, 1代表开启")
-        self.internal_dms = [dms1, dms2]                                                  # 库内DMS
-        self.external_dms = [dms3, dms4, dms5, dms6, dms7, dms8]      # 库外DMS
-        self.internal_wifi = [agv_core1]                                                       # wifi 模式库内Core
-        self.external_wifi = [agv_core2, agv_core3]                             # wifi 模式库外Core
+        agv_core1 = p.loadParam("agv-core-1", param_type="str", default="http://10.10.10.72:8088/",
+                                comment="库内 AGV WiFi模式  IP ")
+        agv_core2 = p.loadParam("agv-core-2", param_type="str", default="http://10.10.10.70:8088/",
+                                comment="库外 AGV-1 WiFi模式 IP")
+        agv_core3 = p.loadParam("agv-core-3", param_type="str", default="http://10.10.10.71:8088/",
+                                comment="库外 AGV-2 WiFi模式 IP")
+        self.server_core = p.loadParam("server-core", param_type="str", default="http://10.10.10.200:8088/",
+                                       comment="WiFi模式服务器 Core IP")
+        self.dms_server = p.loadParam("dms-server", param_type="str", default="http://192.169.202.4:8885/",
+                                      comment="订单缓存服务器")
+        self.task_call_back = p.loadParam("call-back-server", param_type="str",
+                                          default="http://192.169.202.2:80/api/AVG/TaskCallBack",
+                                          comment="订单回调服务器")
+        self.door_server = p.loadParam("door-server", param_type="str",
+                                       default="http://192.167.1.161:7070/api/Wms/GetCTUDoorStatus",
+                                       comment="库内门控服务器")
+        self.door_service = p.loadParam("door-service", param_type="int", default=1,
+                                        comment="是否启用门控服务:  0代表关闭, 1代表开启")
+        self.internal_dms = [dms1, dms2]  # 库内DMS
+        self.external_dms = [dms3, dms4, dms5, dms6, dms7, dms8]  # 库外DMS
+        self.internal_wifi = [agv_core1]  # wifi 模式库内Core
+        self.external_wifi = [agv_core2, agv_core3]  # wifi 模式库外Core
 
 
 class HttpHandle:
     """
     提供HTTP协议的GET请求和POST请求接口
     """
+
     def __init__(self):
-        user_agent_list = [
-            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; WOW64) Gecko/20100101 Firefox/61.0",
-            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.62 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36",
-            "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)",
-            "Mozilla/5.0 (Macintosh; U; PPC Mac OS X 10.5; en-US; rv:1.9.2.15) Gecko/20110303 Firefox/3.6.15",
-            ]
+        # user_agent_list = [
+        #     "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36",
+        #     "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36",
+        #     "Mozilla/5.0 (Windows NT 10.0; WOW64) Gecko/20100101 Firefox/61.0",
+        #     "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36",
+        #     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.62 Safari/537.36",
+        #     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36",
+        #     "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)",
+        #     "Mozilla/5.0 (Macintosh; U; PPC Mac OS X 10.5; en-US; rv:1.9.2.15) Gecko/20110303 Firefox/3.6.15",
+        # ]
         self.headers = {
             'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': random.choice(user_agent_list)
+            'Content-Type': 'application/json'
+            # 'User-Agent': random.choice(user_agent_list)
         }
         pass
 
-    def http_get(self, url, headers=None, timeout=(2.0, 3.0)):
+    def http_get(self, url, headers=None, timeout=(5.0, 10.0)):
         if headers is None:
             headers = self.headers
         try:
@@ -81,7 +90,7 @@ class HttpHandle:
             time.sleep(0.5)
             pass
 
-    def http_post(self, url, data=None, headers=None, timeout=(2.0, 3.0)):
+    def http_post(self, url, data=None, headers=None, timeout=(5.0, 10.0)):
         """
         发送一次POST请求， 请求成功返回 response 的 json 数据
         :param headers:
@@ -113,11 +122,11 @@ class HttpHandle:
 class OrdersHandle:
     def __init__(self):
         self.http_handle = HttpHandle()
-        self.failed_orders = dict()                                  # 记录因不在当前 RDSCore 场景中而发送失败的订单
-        self.cur_inside_handle_order = list()         # 记录库内正在处理中的订单
-        self.cur_outside_handle_order = list()      # 记录库外正在处理中的订单
-        self.sent_order = list()                                         # 单次连接成功后，成功发送的订单列表
-        self.sent_order_num = 0                                   # 连接成功后，成功发送的订单计数
+        self.failed_orders = dict()  # 记录因不在当前 RDSCore 场景中而发送失败的订单
+        self.cur_inside_handle_order = list()  # 记录库内正在处理中的订单
+        self.cur_outside_handle_order = list()  # 记录库外正在处理中的订单
+        self.sent_order = list()  # 单次连接成功后，成功发送的订单列表
+        self.sent_order_num = 0  # 连接成功后，成功发送的订单计数
         self.url = URL()
         self.token_str = "Bearer eyJhbGciOiJIUzUxMiIsImlhdCI6MTY0NzI0NDQ1MSwiZXhwIjoyMzM4NDQ0NDUxfQ.eyJOYW1lIjoiYWRtaW4ifQ.65Tog8m-OCgaYqXL-ROUSZlWAwJlpN0LUwsoBZM1HhMuEOXOLoC9yfJTKpDJH7d7qoSCEubZQCKA8dmu0IafJQ"
 
@@ -128,12 +137,13 @@ class OrdersHandle:
         :param order_data: 服务器当前缓存订单
         :return:
         """
-        log.logger.info(f"{'='*20}order sending{'='*20}")
-        for order in order_data[:]:   # 遍历缓存订单，处理和发送订单
+        log.logger.info(f"{'=' * 20}order sending{'=' * 20}")
+        for order in order_data[:]:  # 遍历缓存订单，处理和发送订单
             try:
-                if self.bin_check(core_url, order):              # 判断该订单的库位是否位于 RDSCore 的地图场景中
-                    set_order_res = self.http_handle.http_post(core_url+"setOrder", order)
-                    if bool(set_order_res) and set_order_res.status_code == 200 and set_order_res.json().get("code", -1) == 0:      # 派发订单成功
+                if self.bin_check(core_url, order):  # 判断该订单的库位是否位于 RDSCore 的地图场景中
+                    set_order_res = self.http_handle.http_post(core_url + "setOrder", order)
+                    if bool(set_order_res) and set_order_res.status_code == 200 and set_order_res.json().get("code",
+                                                                                                             -1) == 0:  # 派发订单成功
                         if core_url in self.url.internal_dms or core_url in self.url.internal_wifi:
                             self.cur_inside_handle_order.append(order)
                         elif core_url in self.url.external_dms or core_url in self.url.external_wifi:
@@ -144,7 +154,8 @@ class OrdersHandle:
                         self.sent_order.append(order)
                         self.failed_orders.pop(order['id'], 0)
                         self.sent_order_num += 1
-                        log.logger.info(f"send orders success: {order.get('id', order)}, send order num: {self.sent_order_num}")
+                        log.logger.info(
+                            f"send orders success: {order.get('id', order)}, send order num: {self.sent_order_num}")
                     else:
                         log.logger.warning(f"send orders failed: {order}")
                 else:
@@ -166,7 +177,7 @@ class OrdersHandle:
         :param core_url: 当前连接的Core
         :return:
         """
-        log.logger.info(f"{'='*20} order callback{'='*20}")
+        log.logger.info(f"{'=' * 20} order callback{'=' * 20}")
         headers = {"Authorization": self.token_str}
         agv_task_info_list = list()
         if core_url in self.url.internal_dms or core_url in self.url.internal_wifi:
@@ -176,17 +187,17 @@ class OrdersHandle:
         else:
             cur_handle_order = []
             log.logger.error(f"unknown core or dms - 2: {core_url}")
-        log.logger.info(f"current inside orders: {self.cur_inside_handle_order}")
-        log.logger.info(f"current outside orders: {self.cur_outside_handle_order}")
+        log.logger.info(f"current inside orders: {len(self.cur_inside_handle_order)}-{self.cur_inside_handle_order}")
+        log.logger.info(f"current outside orders: {len(self.cur_outside_handle_order)}-{self.cur_outside_handle_order}")
         if len(cur_handle_order) > 0:
             for order in cur_handle_order[:]:
-                order_detail_res = self.http_handle.http_get(core_url + "orderDetails/" + f"{order['id']}", timeout=(3.0, 10.0))                 # 查询订单信息
-                if order_detail_res and order_detail_res.status_code == 200 and order_detail_res.json().get("id", None) == order['id']:
+                order_detail_res = self.http_handle.http_get(core_url + "orderDetails/" + f"{order['id']}",
+                                                             timeout=(3.0, 10.0))                 # 查询订单信息
+                if order_detail_res and order_detail_res.status_code == 200 \
+                        and order_detail_res.json().get("id", None) == order['id']:
                     agv_task_info_list.extend(self.return_agv_task_info(order_detail_res.json(), order, core_url))             # 生成回调订单数据
                 else:
                     log.logger.error(f"cannot get order details, order {order['id']} not in the core")
-        else:
-            log.logger.info(f"There are no orders currently being processed")
 
             # 回调订单数据不为空时，上报回调订单数据
             if len(agv_task_info_list) > 0:
@@ -197,6 +208,8 @@ class OrdersHandle:
                 }
                 self.http_handle.http_post(self.url.task_call_back, data=callback_data, headers=headers, timeout=20)
                 log.logger.info(f"callback_order_list: {agv_task_info_list}")
+        else:
+            log.logger.info(f"There are no orders currently being processed")
 
     def return_agv_task_info(self, order_detail, order, core_url):
         """
@@ -206,11 +219,11 @@ class OrdersHandle:
         :param order:
         :return:
         """
-        order_id = order_detail.get('id', '')                                      # 拼合单id
-        load_order_id = order_detail.get('loadOrderId', '')          # 拼合单 loadOrderId
+        order_id = order_detail.get('id', '')  # 拼合单id
+        load_order_id = order_detail.get('loadOrderId', '')  # 拼合单 loadOrderId
         # state = order_detail.get('state', '')                                     # 拼合单状态
-        load_state = order_detail.get('loadState', '')                   # 拼合单取货状态
-        unload_state = order_detail.get('unloadState', '')        # 拼合单放货状态
+        load_state = order_detail.get('loadState', '')  # 拼合单取货状态
+        unload_state = order_detail.get('unloadState', '')  # 拼合单放货状态
         vehicle = order_detail.get('vehicle', '')
         load_msg = order_detail.get('errMsg', '')
         unload_msg = order_detail.get('errMsg', '')
@@ -242,12 +255,12 @@ class OrdersHandle:
 
         data = [
             {
-                   "$id": 1,
-                   "$type": "Nkd.Custom.BusinessObjects.AGVTaskInfo,Nkd.Custom.BusinessObjects",
-                   "taskId": order_id,
-                   "vehicle": vehicle,
-                   "message": load_msg,
-                   "status": load_state
+                "$id": 1,
+                "$type": "Nkd.Custom.BusinessObjects.AGVTaskInfo,Nkd.Custom.BusinessObjects",
+                "taskId": order_id,
+                "vehicle": vehicle,
+                "message": load_msg,
+                "status": load_state
             },
             {
                 "$id": 1,
@@ -277,7 +290,13 @@ class OrdersHandle:
                 if not b.get('exist', False):
                     return False
             return True
-        else:
+        else:  # 当 bin_check 接口异常时，手动库位检测
+            if core_url in self.url.internal_dms and not str(order['fromLoc'][0]).isdigit() and not str(
+                    order['toLoc'][0]).isdigit() or \
+                    core_url in self.url.external_dms and (
+                    str(order['fromLoc'][0]).isdigit() or str(order['toLoc'][0]).isdigit()):
+                log.logger.info(f"bin_check by isdigit finished")
+                return True
             return False
 
     def fail_order_counter(self, order):
@@ -311,16 +330,17 @@ class OrdersHandle:
 class DMS:
     def __init__(self):
         p = ParamServer(__file__)
-        self.dms_interval_time = p.loadParam("dms_interval_time", param_type="float", default=20.0, comment="光通讯模式任务处理间隔时间")
-        self.wifi_interval_time = p.loadParam("wifi_interval_time", param_type="float", default=10.0, comment="wifi模式任务处理间隔时间")
+        self.dms_interval_time = p.loadParam("dms_interval_time", param_type="float", default=20.0,
+                                             comment="光通讯模式任务处理间隔时间")
+        self.wifi_interval_time = p.loadParam("wifi_interval_time", param_type="float", default=10.0,
+                                              comment="wifi模式任务处理间隔时间")
         self.http_handle = HttpHandle()
         self.order_handle = OrdersHandle()
         self.agv = {"vehicles": []}
         self.url = URL()
         self.dms_core_url = self.url.internal_dms + self.url.external_dms
         self.wifi_core_url = self.url.internal_wifi + self.url.external_wifi
-        self.door_status = 0               # 1: 开门状态， 0: 关门状态
-
+        self.door_status = 0  # 1: 开门状态， 0: 关门状态
 
     def connect_core(self, core_url):
         """
@@ -336,15 +356,14 @@ class DMS:
         return None
 
     def get_door_status(self):
-        if self.url.door_service == 1:    # 门控服务开启
-            get_door_res = self.http_handle.http_get(self.url.door_server)    # 获取自动门信号
+        if self.url.door_service == 1:  # 门控服务开启
+            get_door_res = self.http_handle.http_get(self.url.door_server)  # 获取自动门信号
             if bool(get_door_res) and get_door_res.status_code == 200:
                 self.door_status = int(get_door_res.json().get("Result", 0))
             # return self.door_status
         else:
             log.logger.info(f"door service not open : {self.url.door_service}")
         return self.door_status
-
 
     def dms_handle(self):
         """
@@ -354,28 +373,30 @@ class DMS:
         log.logger.info(f"{time.strftime('%Y-%m-%d %H:%M:%S')} DMS mode wait task ... ...")
         while True:
             try:
-                conn_core = self.connect_core(self.dms_core_url)                                                 # 轮询所有DMS, 返回当前连接的Core
+                conn_core = self.connect_core(self.dms_core_url)  # 轮询所有DMS, 返回当前连接的Core
                 order_data = self.http_handle.http_post(self.url.dms_server + "getOrder")  # 获取服务器缓存订单
-                self.door_status = self.get_door_status()                                                                       # 获取自动门信号
+                self.door_status = self.get_door_status()  # 获取自动门信号
                 if conn_core:
-                    pause_agv_res = self.http_handle.http_post(conn_core+"gotoSitePause", self.agv)               # 暂停小车
-                    if bool(pause_agv_res) and pause_agv_res.status_code == 200 and pause_agv_res.json().get("code", -1) == 0:
+                    pause_agv_res = self.http_handle.http_post(conn_core + "gotoSitePause", self.agv)  # 暂停小车
+                    if bool(pause_agv_res) and pause_agv_res.status_code == 200 and pause_agv_res.json().get("code",
+                                                                                                             -1) == 0:
                         try:
-                            if conn_core in self.url.internal_dms and self.door_status == 0 and order_data:           # AGV在库房内且库房门关闭，则处理订单
+                            if conn_core in self.url.internal_dms and self.door_status == 0 and order_data:  # AGV在库房内且库房门关闭，则处理订单
                                 self.order_handle.handle_orders(conn_core, order_data.json())
-                            elif conn_core in self.url.external_dms and order_data:                                                                # 连接的AGV在库房外, 直接处理订单
+                            elif conn_core in self.url.external_dms and order_data:  # 连接的AGV在库房外, 直接处理订单
                                 self.order_handle.handle_orders(conn_core, order_data.json())
                             time.sleep(1.0)
-                            self.order_handle.callback_order(conn_core)                                                                 # 处理订单回调
+                            self.order_handle.callback_order(conn_core)  # 处理订单回调
                         except Exception as e:
                             log.logger.error(f"dms handle error: {e}")
                         finally:
                             if conn_core in self.url.internal_dms and self.door_status == 0:
-                                self.http_handle.http_post(conn_core+"gotoSiteResume", self.agv)            # 恢复小车行动
+                                self.http_handle.http_post(conn_core + "gotoSiteResume", self.agv)  # 恢复小车行动
                             elif conn_core in self.url.external_dms:
                                 self.http_handle.http_post(conn_core + "gotoSiteResume", self.agv)
                             log.logger.info(f"door status: {self.door_status}, current connect dms: {conn_core}")
-                            log.logger.info(f"inside mode: {MainProcess().internal_mode}, outside mode: {MainProcess().external_mode}")
+                            log.logger.info(
+                                f"inside mode: {m.internal_mode}, outside mode: {m.external_mode}")
                             log.logger.info('*' * 160)
                             time.sleep(self.dms_interval_time)
                             log.logger.info(f"{time.strftime('%Y-%m-%d %H:%M:%S')} wait next task ...")
@@ -406,7 +427,8 @@ class DMS:
                     self.order_handle.callback_order(conn_core)
                 else:
                     log.logger.warning(f"connect core failed with wifi")
-                log.logger.info(f"inside mode: {MainProcess().internal_mode}, outside mode: {MainProcess().external_mode}")
+                log.logger.info(
+                    f"inside mode: {m.internal_mode}, outside mode: {m.external_mode}")
                 log.logger.info('*' * 160)
                 time.sleep(self.wifi_interval_time)
                 log.logger.info(f"{time.strftime('%Y-%m-%d %H:%M:%S')} wait next task ...")
@@ -428,13 +450,14 @@ class DMS:
             conn_wifi_core = self.connect_core(self.wifi_core_url)
             # 处理 DMS Core 业务
             if conn_dms_core is not None:
-                log.logger.info(f"{'$'*30}mix mode dms handle{'$'*30}")
+                log.logger.info(f"{'$' * 30}mix mode dms handle{'$' * 30}")
                 pause_agv_res = self.http_handle.http_post(conn_dms_core + "gotoSitePause", self.agv)  # 暂停小车
-                if bool(pause_agv_res) and pause_agv_res.status_code == 200 and pause_agv_res.json().get("code", -1) == 0:
+                if bool(pause_agv_res) and pause_agv_res.status_code == 200 and pause_agv_res.json().get("code",
+                                                                                                         -1) == 0:
                     try:
-                        if mode[0] == 0 and bool(order_data) and self.door_status == 0:   # 库内 DMS
+                        if mode[0] == 0 and bool(order_data) and self.door_status == 0:  # 库内 DMS
                             self.order_handle.handle_orders(conn_dms_core, order_data.json())
-                        elif mode[1] == 0 and order_data:    # 库外 DMS
+                        elif mode[1] == 0 and order_data:  # 库外 DMS
                             self.order_handle.handle_orders(conn_dms_core, order_data.json())
                         # 处理订单回调
                         self.order_handle.callback_order(conn_dms_core)
@@ -458,7 +481,7 @@ class DMS:
                 self.order_handle.callback_order(conn_wifi_core)
             else:
                 log.logger.warning(f"connect wifi core failed with mix mode ")
-            log.logger.info(f"inside mode: {MainProcess().internal_mode}, outside mode: {MainProcess().external_mode}")
+            log.logger.info(f"inside mode: {m.internal_mode}, outside mode: {m.external_mode}")
             log.logger.info('*' * 160)
             time.sleep(self.wifi_interval_time + 5.0)
             log.logger.info(f"{time.strftime('%Y-%m-%d %H:%M:%S')} wait next task ...")
@@ -467,8 +490,10 @@ class DMS:
 class MainProcess:
     def __init__(self):
         p = ParamServer(__file__)
-        self.internal_mode = p.loadParam("internal_mode", param_type="int", default=0, comment="库内通信模式:  0代表DMS, 1代表WiFi")
-        self.external_mode = p.loadParam("external_mode", param_type="int", default=0, comment="库外通信模式:  0代表DMS, 1代表WiFi")
+        self.internal_mode = p.loadParam("internal_mode", param_type="int", default=0,
+                                         comment="库内通信模式:  0代表DMS, 1代表WiFi")
+        self.external_mode = p.loadParam("external_mode", param_type="int", default=0,
+                                         comment="库外通信模式:  0代表DMS, 1代表WiFi")
         self.dms = DMS()
         log.logger.info(f"inside mode: {self.internal_mode}, outside mode: {self.external_mode}")
 
