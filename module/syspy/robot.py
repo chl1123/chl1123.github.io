@@ -359,6 +359,25 @@ class Robot:
             motor.run(pos=float(height), max_vel=float(max_vel))
         return False
 
+    def lift_door(self, motor: Motor, height: float, max_vel=0.3) -> bool:
+        """
+        料箱车门架电机
+        :param motor:
+        :param height:
+        :param max_vel:
+        :return:
+        """
+        self.state[f'{motor.motor_name}'] = motor.state
+        if motor.status == MoveStatus.NONE:
+            motor.reset()
+        elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
+            return True
+        elif motor.status == MoveStatus.FAILED:
+            return False
+        else:
+            motor.run(pos=float(height), max_vel=float(max_vel))
+        return False
 
     def stretch(self, motor: Motor, length: float, max_vel=0.3) -> bool:
         """
