@@ -24,8 +24,8 @@ class ServerConstant:
 
 
 class Order:
-    inside_orders = []        # 库内订单
-    outside_orders = []    # 库外订单
+    inside_orders = []  # 库内订单
+    outside_orders = []  # 库外订单
     pass
 
 
@@ -67,14 +67,14 @@ class Request(BaseHTTPRequestHandler):
         log.logger.info(f"path: {self.path}")
         log.logger.info(f'client:  {self.client_address}')
         log.logger.info(f"server recv data: {data.decode('utf-8')}")
-        if self.path == "/setOrder":                     # 接收 WMS 发送的订单
+        if self.path == "/setOrder":  # 接收 WMS 发送的订单
             if bool(data):
                 Order.inside_orders.append(json.loads(data.decode('utf-8')))
             res = {"status": http.HTTPStatus.OK, "type": "HTTP POST"}
             self.wfile.write(json.dumps(res).encode('utf-8'))
             log.logger.info(f"server current orders: {Order.inside_orders}")
             log.logger.info(f"server current orders num: {len(Order.inside_orders)}")
-            log.logger.info('*'*160)
+            log.logger.info('*' * 160)
         elif self.path == "/getOrder":
             log.logger.info(f"get orders: {len(Order.inside_orders)}-{Order.inside_orders}")
             self.wfile.write(json.dumps(Order.inside_orders).encode('utf-8'))
@@ -107,12 +107,14 @@ class ThreadingHttpServer(ThreadingMixIn, HTTPServer):
 
 class Log:
     """输出脚本日志"""
+
     def __init__(self, filename, level=logging.INFO, when='H', interval=3, backupCount=40):
         log_dir = os.getcwd() + "/scripts-logs/"
         os.makedirs(log_dir, exist_ok=True)
         log_format = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s: %(message)s')
         stream_handle = logging.StreamHandler()
-        file_handle = TimedRotatingFileHandler(filename=log_dir+filename, when=when, interval=interval, backupCount=backupCount, encoding='utf-8')
+        file_handle = TimedRotatingFileHandler(filename=log_dir + filename, when=when, interval=interval,
+                                               backupCount=backupCount, encoding='utf-8')
         file_handle.setFormatter(log_format)
         if when == 'S':
             file_handle.suffix = "%Y-%m-%d_%H-%M-%S.log"
@@ -139,8 +141,9 @@ class ParamServer:
 
     def __init__(self, file):
         param_dir = os.getcwd() + '/config'
-        if not os.path.exists(param_dir):
-            os.makedirs(param_dir)
+        # if not os.path.exists(param_dir):
+        #     os.makedirs(param_dir)
+        os.makedirs(param_dir, exist_ok=True)
         base_f = os.path.basename(file)
         self.file = param_dir + '/' + base_f.split('.')[0] + '.json'
         self.data = dict()
@@ -158,7 +161,7 @@ class ParamServer:
                 return False
 
         updateFile = False
-        if param_type is "float" or param_type is "str" or param_type is "int":
+        if param_type == "float" or param_type == "str" or param_type == "int":
             if default is not None:
                 if name not in self.data:
                     updateFile = True
@@ -169,7 +172,7 @@ class ParamServer:
                 if updateKey(self.data[name], "default", default):
                     updateFile = True
                     self.data[name]["default"] = default
-                if param_type is "float" or param_type is "int":
+                if param_type == "float" or param_type == "int":
                     if "maxValue" in kw and updateKey(self.data[name], "maxValue", kw["maxValue"]):
                         updateFile = True
                         self.data[name]["maxValue"] = kw["maxValue"]
@@ -201,5 +204,6 @@ if __name__ == '__main__':
     # server = HTTPServer((ServerConstant.ip, ServerConstant.port), Request)
     server = ThreadingHttpServer((ServerConstant.ip, ServerConstant.port), Request)
     log = Log("dms-server")
-    log.logger.info(f"{time.strftime('%Y-%m-%d %H:%M:%S')} Starting server, listen at: {ServerConstant.ip}:{ServerConstant.port}")
+    log.logger.info(
+        f"{time.strftime('%Y-%m-%d %H:%M:%S')} Starting server, listen at: {ServerConstant.ip}:{ServerConstant.port}")
     server.serve_forever()

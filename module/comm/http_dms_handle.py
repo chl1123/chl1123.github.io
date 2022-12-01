@@ -84,7 +84,7 @@ class HttpHandle:
             log.logger.warning(f"Exception: {e}")
         else:
             log.logger.info(f"conn success: {url}, status_code: {res.status_code}, res text: {res.text}")
-            res.close()
+            # res.close()
             return res
         finally:
             time.sleep(0.5)
@@ -113,7 +113,7 @@ class HttpHandle:
             log.logger.warning(f"Exception: {e}")
         else:
             log.logger.info(f"conn success: {url}, status_code: {res.status_code}, res text: {res.text}")
-            res.close()
+            # res.close()
             return res
         finally:
             time.sleep(0.5)
@@ -295,7 +295,7 @@ class OrdersHandle:
                     order['toLoc'][0]).isdigit() or \
                     core_url in self.url.external_dms and (
                     str(order['fromLoc'][0]).isdigit() or str(order['toLoc'][0]).isdigit()):
-                log.logger.info(f"bin_check by isdigit finished")
+                log.logger.info(f"bin_check by location name finished")
                 return True
             return False
 
@@ -495,6 +495,7 @@ class MainProcess:
         self.external_mode = p.loadParam("external_mode", param_type="int", default=0,
                                          comment="库外通信模式:  0代表DMS, 1代表WiFi")
         self.dms = DMS()
+        log.logger.info(f"handle start {time.strftime('%Y-%m-%d %H:%M:%S')}")
         log.logger.info(f"inside mode: {self.internal_mode}, outside mode: {self.external_mode}")
 
     def main(self):
