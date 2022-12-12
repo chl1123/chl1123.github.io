@@ -2,6 +2,7 @@ import json
 import sys
 from google.protobuf.json_format import MessageToJson, Parse
 import syspy.lib.rpc_client as rc
+import syspy.lib.udp_debug as ud
 from enum import Enum
 
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
@@ -28,6 +29,8 @@ class dmx512Base:
     def __init__(self):
         self.__rpc_client = rc.rpcClient()
         self.__rpc_client.connect(DEFAULT_RPC_ADDR)
+        self.__debug_out = ud.udpDebug()
+        sys.stdout = self.__debug_out
 
     def send_dmx512(self, dmx512_info):
         print("send_dmx512")
