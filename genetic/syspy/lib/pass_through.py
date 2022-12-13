@@ -1,8 +1,11 @@
-import threading,zmq,time
+import threading, zmq, time, sys
+import syspy.lib.udp_debug as ud
+
 
 class callBack:
     def handleData(self, msg):
         pass
+
 
 class passThrough:
     def __init__(self):
@@ -13,7 +16,9 @@ class passThrough:
         self.__msg_thread = None
         self.__should_close = False
         self.__callback = None
-    
+        self.__debug_out = ud.udpDebug()
+        sys.stdout = self.__debug_out
+
     def close(self):
         print("close the socket")
         self.socket.close()
@@ -24,15 +29,20 @@ class passThrough:
     def connect(self, addr):
         self.__addr = addr
         now = time.time()
-        self.__conn_id = "py_client_" + str(now) 
+        self.__conn_id = "py_client_" + str(now)
         self.__msg_thread = threading.Thread(target=self.__run, name="run")
-        self.__msg_thread.start() # FIXME: when to join?
+        self.__msg_thread.start()  # FIXME: when to join?
+
+    def connect(self, addr, connid):
+        self.__addr = addr
+        self.__conn_id = connid
+        self.__msg_thread = threading.Thread(target=self.__run, name="run")
+        self.__msg_thread.start()  # FIXME: when to join?
 
     def __run(self):
         identity = self.__conn_id
         self.__client_sock.identity = identity.encode("utf8")
         self.__client_sock.connect(self.__addr)
-
         poll = zmq.Poller()
         poll.register(self.__client_sock, zmq.POLLIN)
         try:
@@ -42,7 +52,7 @@ class passThrough:
                     self.__receive()
 
         except Exception as e:
-            print ("exception:", e)
+            print("exception:", e)
         finally:
             pass
 
@@ -53,9 +63,10 @@ class passThrough:
 
     def send(self, data):
         self.__client_sock.send(data)
-    
+
     def shoutDown(self):
         self.__should_close = True
+
 
 if __name__ == "__main__":
     pass
