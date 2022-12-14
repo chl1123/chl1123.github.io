@@ -13,7 +13,7 @@ import time
 import requests
 from logging.handlers import TimedRotatingFileHandler
 from requests.exceptions import ReadTimeout, ConnectTimeout, ConnectionError
-
+from concurrent.futures import ThreadPoolExecutor
 import goPath
 from rbk import MoveStatus
 from rbkSim import SimModule
@@ -188,6 +188,95 @@ class NetHandle:
                 r.setWarning(f"res code: {res.status_code}, res: {res.text}")
                 return None
 
+
+        pass
+    @staticmethod
+    def post(id, url, data=None, timeout=(0.1, 0.3)):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
+        re=NetHandle.requests.get(id,None);
+        if re is not None and re.status=="success":
+            result=dict()
+            result["result"]=re.get('result')
+            result["error"]=re.get("error")
+            return result
+        elif re is not None:
+            return False
+        else:
+            dic=dict();
+            dic['id']=id;
+            dic['method']='post'
+            dic['url']=url
+            dic['data']=data
+            dic['timeout']=timeout
+            dic['status']='request'
+            dic['headers']= headers
+            NetHandle.requests[id]=dic
+            NetHandle.theard_pool.submit(NetHandle.request,dic)
+            return False
+        pass
+    @staticmethod
+    def get(id,url,params=None,data=None,timeout=(0.1,0.3)):
+        headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
+        re=NetHandle.requests.get(id,None);
+        if re is not None and re.get('status')=="success":
+            result=dict()
+            result["result"]=re.get('result')
+            result["error"]=re.get("error")
+            return result
+        elif re is not None:
+            return False
+        else:
+            dic=dict();
+            dic['id']=id;
+            dic['method']='get'
+            dic['url']=url
+            dic['params']=params
+            dic['data']=data
+            dic['timeout']=timeout
+            dic['status']='request'
+            dic['headers']= headers
+            NetHandle.requests[id]=dic
+            NetHandle.theard_pool.submit(NetHandle.request,dic)
+            return False
+        pass
+
+    theard_pool=ThreadPoolExecutor(max_workers=2)
+    requests=dict()
+    @staticmethod
+    def request(r:dict):
+        if r.get('method')=='get':
+            try:
+                res = requests.get(r.get('url'), headers=r.get("headers"), params=r.get("params",{}), data=r.get("data",{}), timeout=r.get("timeout"))
+                try:
+                    r['result']= res.json()
+                except:
+                     ## 处理返回值不是json的情况
+                     r['result']=res.text
+            except Exception as e:
+                r['error']=e
+                pass
+            finally:
+                res.close()
+                r['status']='success'
+                pass
+            pass
+        elif r.get('method')=='post':
+            try:
+                res = requests.post(r.get('url'), json=r.get('json'), headers=r.get('headers'), timeout=r.get("timeout"))
+                try:
+                    r['result']= res.json()
+                except:
+                    ## 处理返回值不是json的情况
+                    r['result']=res.text
+            except Exception as e:
+                r['error']=e
+                pass
+            finally:
+                res.close()
+                r['status']='success'
+                pass
+            pass
+        pass
 
 class MotorType(enum.IntEnum):
     LINEAR_MOTOR = 0
@@ -509,17 +598,26 @@ class GoodsManger:
 
 
 if __name__ == "__main__":
-    liner_motor = Motor(SimModule(), MotorType.LINEAR_MOTOR, "motor1", -1)
-    roller_motor = Motor(SimModule(), MotorType.ROLLER_MOTOR, "motor2", -1)
-    robot = Robot(SimModule())
-    robot.move(1, 0)
-    robot.lift(liner_motor, 1)
-    robot.stretch(liner_motor, 1)
-    robot.roller(roller_motor, 1)
-    log = ScriptLog("robot-logs")
-    log.logger.info(robot.state)
-    log.logger.critical(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    log.logger.error(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    log.logger.warning(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    log.logger.info(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    log.logger.debug(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    # liner_motor = Motor(SimModule(), MotorType.LINEAR_MOTOR, "motor1", -1)
+    # roller_motor = Motor(SimModule(), MotorType.ROLLER_MOTOR, "motor2", -1)
+    # robot = Robot(SimModule())
+    # robot.move(1, 0)
+    # robot.lift(liner_motor, 1)
+    # robot.stretch(liner_motor, 1)
+    # robot.roller(roller_motor, 1)
+    # log = ScriptLog("robot-logs")
+    # log.logger.info(robot.state)
+    # log.logger.critical(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    # log.logger.error(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    # log.logger.warning(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    # log.logger.info(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    # log.logger.debug(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    count=0
+    while True:
+        result=NetHandle.get('1','http://58.34.177.166:8888/v1/paw?paw=123456')
+        print(result)
+        if result is not False:
+            count+=1;
+            if count>10:
+                break
+    
