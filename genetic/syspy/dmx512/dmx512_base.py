@@ -24,7 +24,6 @@ class LightType(Enum):
     FlowCalculator = 0x07
     Rainbow = 0x08
 
-
 class dmx512Base:
     def __init__(self):
         self.__rpc_client = rc.rpcClient()
@@ -32,66 +31,74 @@ class dmx512Base:
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
 
-    def send_dmx512(self, dmx512_info):
-        print("send_dmx512")
+    def sendDmx512(self, dmx512_info):
+        print("sendDmx512")
         type_exm = message_dmx512_pb2.Message_Dmx512()
         if (isinstance(dmx512_info, type(type_exm))):
             msg = MessageToJson(dmx512_info)
-            print(msg)
             self.__rpc_client.receivePython(msg)
 
-    def rec_moveStatus(self):
-        print("rec_moveStatus")
+    def recMoveStatus(self):
+        print("recMoveStatus")
         str = self.__rpc_client.getMoveStatus()
         movestatus = Parse(str, message_movetask_pb2.Message_MoveStatus())
-        print(movestatus)
         return movestatus
 
-    def rec_battery(self):
-        print("rec_battery")
+    def recBattery(self):
+        print("recBattery")
         str = self.__rpc_client.getBatterToPython()
         batter_ = Parse(str, message_battery_pb2.Message_Battery())
-        print(batter_)
         return batter_
 
-    def rec_robotSpeed(self):
-        print("rec_robotSpeed")
+    def recRobotSpeed(self):
+        print("recRobotSpeed")
         str = self.__rpc_client.getNavSpeed()
         robotSpeed = Parse(str, message_navigation_pb2.Message_NavSpeed())
-        print(robotSpeed)
         return robotSpeed
 
     def createDmx512Message(self):
+        print("createDmx512Message")
         return message_dmx512_pb2.Message_Dmx512()
 
     def createMoveStatusMessage(self):
+        print("createMoveStatusMessage")
         return message_movetask_pb2.Message_MoveStatus()
 
     def createBatteryMessage(self):
+        print("createBatteryMessage")
         return message_battery_pb2.Message_Battery()
 
     def createNavSpeedMessage(self):
+        print("createNavSpeedMessage")
         return message_navigation_pb2.Message_NavSpeed()
 
     def modelDeviceEnable(self,str):
         print("modelDeviceEnable")
-        print(self.__rpc_client.modelDeviceEnable(str))
         return self.__rpc_client.modelDeviceEnable(str)
+
+    def getChassisStop(self):
+        print("getChassisStop")
+        return self.__rpc_client.getChassisStop()
+
+    def getShowCharging(self):
+        print("getShowCharging")
+        return self.__rpc_client.getShowCharging()
+
+    def getEMCState(self):
+        print("getEMCState")
+        return self.__rpc_client.getEMCState()
 
     def getBatteryMaxPercentage(self):
         print("getBatteryMaxPercentage")
         maxPer = self.__rpc_client.getBatteryMaxPercentage()
-        print(maxPer)
         return maxPer
 
     def getErrorNum(self):
         print("getErrorNum")
-        print(self.__rpc_client.errorNum())
         return self.__rpc_client.errorNum()
 
     def getFatalNum(self):
         print("getFatalNum")
-        print(self.__rpc_client.fatalNum())
         return self.__rpc_client.fatalNum()
 #
     def warningExists(self,code):
