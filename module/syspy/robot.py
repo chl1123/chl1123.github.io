@@ -7,9 +7,11 @@
 提供一些机构脚本常用的接口
 """
 import enum
+import json
 import os
 import logging
 import time
+import uuid
 import requests
 from logging.handlers import TimedRotatingFileHandler
 from requests.exceptions import ReadTimeout, ConnectTimeout, ConnectionError
@@ -61,7 +63,7 @@ class ModuleTool:
         获取指定电机的当前位置
         :param r: SimModule类对象
         :param motor_name: 电机名称
-        :return: 返回电机的当前位置，若电机不存在返回False
+        :return: 返回电机的当前位置，若电机不存在返回 -1
         """
         motors = r.odo().get("motor_info", [])
         motor_pos = -1
@@ -76,14 +78,18 @@ class ModuleTool:
         获取指定电机的当前速度
         :param r:
         :param motor_name:
-        :return: 返回电机的当前速度，若电机不存在返回False
+        :return: 返回电机的当前速度，若电机不存在返回 -1
         """
         motors = r.navSpeed().get("motor_cmd", [])
-        motor_speed = False
+        motor_speed = -1
         for m in motors:
             if m['motor_name'] == motor_name:
-                motor_speed = m.get('value', False)
+                motor_speed = m.get('value', -1)
         return motor_speed
+
+    @staticmethod
+    def get_uuid():
+        return uuid.uuid4().hex
 
     @staticmethod
     def delay(second):
@@ -102,6 +108,10 @@ class ModuleTool:
     @staticmethod
     def script_running_counter(r: SimModule):
         return r.getCount()
+
+    @staticmethod
+    def get_now_date():
+        return time.strftime('%Y-%m-%d %H:%M:%S')
 
 
 def get_value_by_key(data: dict, key):
@@ -123,6 +133,7 @@ def get_value_by_key(data: dict, key):
 
 class NetHandle:
     """提供HTTP协议的GET请求和POST请求接口 """
+
     def __init__(self):
         self.headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
         self.status = MoveStatus.NONE
@@ -188,95 +199,109 @@ class NetHandle:
                 r.setWarning(f"res code: {res.status_code}, res: {res.text}")
                 return None
 
-
+    def ahttp_get(self, r):
         pass
+
+    def ahttp_post(self, r):
+        pass
+
     @staticmethod
-    def post(id, url, data=None, timeout=(0.1, 0.3)):
+    def post(seq, url, data=None, timeout=(0.1, 0.3)):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        re=NetHandle.requests.get(id,None);
-        if re is not None and re.status=="success":
-            result=dict()
-            result["result"]=re.get('result')
-            result["error"]=re.get("error")
+        re = NetHandle.requests.get(seq, None)
+        if re is not None and re.get("status", "") == "success":
+            result = dict()
+            result["result"] = re.get('result')
+            result["error"] = re.get("error")
             return result
         elif re is not None:
             return False
         else:
-            dic=dict();
-            dic['id']=id;
-            dic['method']='post'
-            dic['url']=url
-            dic['data']=data
-            dic['timeout']=timeout
-            dic['status']='request'
-            dic['headers']= headers
-            NetHandle.requests[id]=dic
-            NetHandle.theard_pool.submit(NetHandle.request,dic)
+            dic = dict()
+            dic['seq'] = seq
+            dic['method'] = 'post'
+            dic['url'] = url
+            dic['json'] = data
+            dic['timeout'] = timeout
+            dic['status'] = 'request'
+            dic['headers'] = headers
+            NetHandle.requests[seq] = dic
+            NetHandle.theard_pool.submit(NetHandle.request, dic)
             return False
         pass
+
     @staticmethod
-    def get(id,url,params=None,data=None,timeout=(0.1,0.3)):
+    def get(seq, url, params=None, data=None, timeout=(0.1, 0.3)):
         headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-        re=NetHandle.requests.get(id,None);
-        if re is not None and re.get('status')=="success":
-            result=dict()
-            result["result"]=re.get('result')
-            result["error"]=re.get("error")
+        re = NetHandle.requests.get(seq, None)
+        if re is not None and re.get('status') == "success":
+            result = dict()
+            result["result"] = re.get('result')
+            result["error"] = re.get("error")
             return result
         elif re is not None:
             return False
         else:
-            dic=dict();
-            dic['id']=id;
-            dic['method']='get'
-            dic['url']=url
-            dic['params']=params
-            dic['data']=data
-            dic['timeout']=timeout
-            dic['status']='request'
-            dic['headers']= headers
-            NetHandle.requests[id]=dic
-            NetHandle.theard_pool.submit(NetHandle.request,dic)
+            dic = dict()
+            dic['seq'] = seq
+            dic['method'] = 'get'
+            dic['url'] = url
+            dic['params'] = params
+            dic['data'] = data
+            dic['timeout'] = timeout
+            dic['status'] = 'request'
+            dic['headers'] = headers
+            NetHandle.requests[seq] = dic
+            NetHandle.theard_pool.submit(NetHandle.request, dic)
             return False
         pass
 
-    theard_pool=ThreadPoolExecutor(max_workers=2)
-    requests=dict()
+    theard_pool = ThreadPoolExecutor(max_workers=2)
+    requests = dict()
+
     @staticmethod
-    def request(r:dict):
-        if r.get('method')=='get':
+    def request(r: dict):
+        if r.get('method') == 'get':
             try:
-                res = requests.get(r.get('url'), headers=r.get("headers"), params=r.get("params",{}), data=r.get("data",{}), timeout=r.get("timeout"))
+                res = requests.get(r.get('url'), headers=r.get("headers"), params=r.get("params", {}),
+                                   data=r.get("data", {}), timeout=r.get("timeout"))
                 try:
-                    r['result']= res.json()
+                    r['result'] = res.json()
                 except:
-                     ## 处理返回值不是json的情况
-                     r['result']=res.text
+                    # 处理返回值不是json的情况
+                    r['result'] = res.text
+                finally:
+                    res.close()
             except Exception as e:
-                r['error']=e
+                r['error'] = e
                 pass
             finally:
-                res.close()
-                r['status']='success'
+                # res.close()
+                r['status'] = 'success'
                 pass
             pass
-        elif r.get('method')=='post':
+        elif r.get('method') == 'post':
             try:
-                res = requests.post(r.get('url'), json=r.get('json'), headers=r.get('headers'), timeout=r.get("timeout"))
+                res = requests.post(r.get('url'), json=r.get('json'), headers=r.get('headers'),
+                                    timeout=r.get("timeout"))
+                print(r)
                 try:
-                    r['result']= res.json()
+                    r['result'] = res.json()
                 except:
-                    ## 处理返回值不是json的情况
-                    r['result']=res.text
+                    # 处理返回值不是json的情况
+                    r['result'] = res.text
+                finally:
+                    res.close()
             except Exception as e:
-                r['error']=e
+                r['error'] = e
                 pass
             finally:
-                res.close()
-                r['status']='success'
+                # res.close()
+                r['status'] = 'success'
                 pass
             pass
         pass
+
 
 class MotorType(enum.IntEnum):
     LINEAR_MOTOR = 0
@@ -285,12 +310,14 @@ class MotorType(enum.IntEnum):
 
 class Log:
     """兼容旧版本Log"""
+
     def __init__(self, filename, level=logging.INFO, when='H', interval=6, backupCount=30):
         log_dir = os.getcwd() + "/scripts-logs/"
         os.makedirs(log_dir, exist_ok=True)
         log_format = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s: %(message)s')
         stream_handle = logging.StreamHandler()
-        file_handle = TimedRotatingFileHandler(filename=log_dir+filename, when=when, interval=interval, backupCount=backupCount, encoding='utf-8')
+        file_handle = TimedRotatingFileHandler(filename=log_dir + filename, when=when, interval=interval,
+                                               backupCount=backupCount, encoding='utf-8')
         file_handle.setFormatter(log_format)
         if when == 'S':
             file_handle.suffix = "%Y-%m-%d_%H-%M-%S.log"
@@ -308,12 +335,14 @@ class Log:
 
 class ScriptLog:
     """输出脚本日志"""
+
     def __init__(self, filename, level=logging.INFO, when='H', interval=6, backupCount=30):
         log_dir = os.getcwd() + "/scripts-logs/"
         os.makedirs(log_dir, exist_ok=True)
         log_format = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s: %(message)s')
         stream_handle = logging.StreamHandler()
-        file_handle = TimedRotatingFileHandler(filename=log_dir+filename, when=when, interval=interval, backupCount=backupCount, encoding='utf-8')
+        file_handle = TimedRotatingFileHandler(filename=log_dir + filename, when=when, interval=interval,
+                                               backupCount=backupCount, encoding='utf-8')
         file_handle.setFormatter(log_format)
         if when == 'S':
             file_handle.suffix = "%Y-%m-%d_%H-%M-%S.log"
@@ -330,7 +359,7 @@ class ScriptLog:
 
 
 class Motor:
-    def __init__(self, r, motor_type: MotorType, motor_name: str, stop_di: int):
+    def __init__(self, r, motor_type: MotorType, motor_name: str, stop_di: int = -1):
         self.r = r
         self.motor_type = motor_type
         self.motor_name = motor_name
@@ -379,12 +408,13 @@ class Robot:
     """
     实例化一个 AGV 对象，控制 AGV 移动和操作上层机构
     """
+
     def __init__(self, r):
         self.r = r
-        self.reach_angle = 0.01           # 路径导航的到点角度精度
-        self.reach_dist = 0.003            # 路径导航的到点精度
-        self.state = dict()                       # 记录状态
-        self.go_path = goPath.Module(r, dict())    # 控制AGV移动对象
+        self.reach_angle = 0.01  # 路径导航的到点角度精度
+        self.reach_dist = 0.003  # 路径导航的到点精度
+        self.state = dict()  # 记录状态
+        self.go_path = goPath.Module(r, dict())  # 控制AGV移动对象
         self.init = True
         self.loc = None
 
@@ -403,8 +433,8 @@ class Robot:
             self.init = False
             self.loc = self.r.loc()
         try:
-            x_dist = self.r.loc().get('x') - self.loc.get('x')
-            y_dist = self.r.loc().get('y') - self.loc.get('y')
+            x_dist = self.r.loc().get('x', 0) - self.loc.get('x', 0)
+            y_dist = self.r.loc().get('y', 0) - self.loc.get('y', 0)
         except Exception as e:
             x_dist, y_dist = 0, 0
             self.r.logInfo(f"robot move error: {e}")
@@ -547,11 +577,18 @@ class Robot:
             motor.run(pos=height, max_vel=max_vel)
         return False
 
+    def run_liner_motor(self, motor: Motor, pos, max_vel=0.3, stop_di=-1):
+        pass
+
+    def run_rotating_motor(self, motor: Motor, vel=0.3, stop_di=-1):
+        pass
+
 
 class GoodsManger:
     """
     管理机器人自带的库位及货物数据
     """
+
     def __init__(self, r):
         self.container = list()
         self.move_task = r.moveTask()
@@ -560,7 +597,7 @@ class GoodsManger:
         else:
             r.setError(f"robot.GoodsManger: RBK version mismatch, please update RBK")
 
-    def has_goods(self, pos='0') -> bool:
+    def has_goods(self, pos: str = '0') -> bool:
         for c in self.container:
             if pos == c.get("container_name", None):
                 return c.get("has_goods", False)
@@ -578,7 +615,7 @@ class GoodsManger:
                 return p['string_value']
         return ""
 
-    def get_goodsId_by_container(self, pos=0):
+    def get_goodsId_by_container(self, pos: str = '0'):
         for c in self.container:
             if pos == c.get("container_name", None):
                 return c.get("goods_id", "")
@@ -598,26 +635,27 @@ class GoodsManger:
 
 
 if __name__ == "__main__":
-    # liner_motor = Motor(SimModule(), MotorType.LINEAR_MOTOR, "motor1", -1)
-    # roller_motor = Motor(SimModule(), MotorType.ROLLER_MOTOR, "motor2", -1)
-    # robot = Robot(SimModule())
-    # robot.move(1, 0)
-    # robot.lift(liner_motor, 1)
-    # robot.stretch(liner_motor, 1)
-    # robot.roller(roller_motor, 1)
-    # log = ScriptLog("robot-logs")
-    # log.logger.info(robot.state)
-    # log.logger.critical(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    # log.logger.error(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    # log.logger.warning(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    # log.logger.info(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    # log.logger.debug(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
-    count=0
-    while True:
-        result=NetHandle.get('1','http://58.34.177.166:8888/v1/paw?paw=123456')
-        print(result)
-        if result is not False:
-            count+=1;
-            if count>10:
-                break
-    
+
+    """实例测试"""
+    liner_motor = Motor(SimModule(), MotorType.LINEAR_MOTOR, "motor1", -1)
+    roller_motor = Motor(SimModule(), MotorType.ROLLER_MOTOR, "motor2", -1)
+    robot = Robot(SimModule())
+    robot.move(1, 0)
+    robot.lift(liner_motor, 1)
+    robot.stretch(liner_motor, 1)
+    robot.roller(roller_motor, 1)
+    if ModuleTool.delay(1):
+        if ModuleTool.delay(1):
+            print("delay count:", ModuleTool.start_time)
+    log = ScriptLog("robot-logs")
+    log.logger.info(json.dumps(robot.state))
+    log.logger.critical(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.error(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.warning(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.info(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.debug(f"{__file__} {time.strftime('%Y-%m-%d: %H')}")
+    log.logger.info(f"uuid: {ModuleTool.get_uuid()}")
+    log.logger.info(f"date time: {ModuleTool.get_now_date()}")
+    log.logger.info(f"get motor_pos from state: {get_value_by_key(robot.state, 'motor_pos')}")
+
+
