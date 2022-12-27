@@ -413,7 +413,7 @@ class Robot:
         self.r = r
         self.reach_angle = 0.01  # 路径导航的到点角度精度
         self.reach_dist = 0.003  # 路径导航的到点精度
-        self.state = dict()  # 记录状态
+        self.state = dict()  # 记录机器人状态
         self.go_path = goPath.Module(r, dict())  # 控制AGV移动对象
         self.init = True
         self.loc = None
@@ -577,11 +577,27 @@ class Robot:
             motor.run(pos=height, max_vel=max_vel)
         return False
 
-    def run_liner_motor(self, motor: Motor, pos, max_vel=0.3, stop_di=-1):
-        pass
-
-    def run_rotating_motor(self, motor: Motor, vel=0.3, stop_di=-1):
-        pass
+    def run_motor(self, motor: Motor, pos=0, vel=0.3, max_vel=0.3, reach_di=-1):
+        """
+        @param motor: Motor类实例对象
+        @param pos: 位置模式下电机运动的目标位置
+        @param vel: 速度模式下电机运动的目标速度
+        @param max_vel: 电机运动的最大速度
+        @param reach_di: 到位 DI
+        @return: 电机运行到位返回True, 否则返回False
+        """
+        motor.stop_di = reach_di
+        self.state[f'{motor.motor_name}'] = motor.state
+        if motor.status == MoveStatus.NONE:
+            motor.reset()
+        elif motor.status == MoveStatus.FINISHED:
+            motor.reset()
+            return True
+        elif motor.status == MoveStatus.FAILED:
+            return False
+        else:
+            motor.run(vel=vel, pos=pos, max_vel=max_vel)
+        return False
 
 
 class GoodsManger:
