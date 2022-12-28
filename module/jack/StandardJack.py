@@ -6,6 +6,7 @@
 # @Project: 标准顶升车脚本, 同时支持 DoMotor 和 LinearMotor 类型顶升车
 # @Description: 通过 DO 控制时只能上升固定高度，通过线性电机控制时可以选择指定顶升高度
 import json
+import time
 
 from rbk import MoveStatus, BasicModule, ParamServer
 from rbkSim import SimModule
@@ -46,7 +47,7 @@ class Module(BasicModule):
         self.default_height = p.loadParam("default_height", type="float", default=0.05, comment="默认顶升高度")
         self.opt = None
         self.jack_height = None
-        self.jack_motor = Motor(r, MotorType.LINEAR_MOTOR, self.jack_motor_name)  # 定义顶升电机对象
+        self.jack_motor = Motor(r, MotorType.LINEAR_MOTOR, self.jack_motor_name, -1)  # 定义顶升电机对象
         self.jack_robot = Robot(r)   # 定义顶升车对象
 
         self.init = True
@@ -61,7 +62,10 @@ class Module(BasicModule):
             self.opt = args.get("operation", None)
             self.jack_height = args.get("loadHeight", None)
             pass
-
+        # 运行超时检测
+        if time.time() - self.start_time > self.timeout:
+            r.setError(f"script running timeout!")
+            self.status = MoveStatus.FINISHED
         # =====处理业务逻辑=====
         if self.opt == "JackLoadByDo":
             self.load_by_do(r)
@@ -74,6 +78,7 @@ class Module(BasicModule):
         else:
             r.setError(f"args error: {args}")
             self.status = MoveStatus.FAILED
+        r.publishSpeed()  # 下发速度
         # =====数据上报及日志打印=====
         di_do_info = {
             "up_do": ModuleTool.check_DI(r, self.up_do),
@@ -90,12 +95,18 @@ class Module(BasicModule):
         return self.status
 
     def load_by_do(self, r):
+        if self.up_do == -1 or self.down_do == -1:
+            r.setError(f"up_do and down_do cannot be -1")
+            self.status = MoveStatus.FAILED
         r.setDO(self.up_do, True)
         r.setDO(self.down_do, False)
         if ModuleTool.check_DI(r, self.up_di):
             self.status = MoveStatus.FINISHED
 
     def unload_by_do(self, r):
+        if self.up_do == -1 or self.down_do == -1:
+            r.setError(f"up_do and down_do cannot be -1")
+            self.status = MoveStatus.FAILED
         r.setDO(self.up_do, False)
         r.setDO(self.down_do, True)
         if ModuleTool.check_DI(r, self.down_di):
@@ -104,13 +115,13 @@ class Module(BasicModule):
     def load_by_motor(self, r):
         if self.jack_height is None:
             self.jack_height = self.default_height
-        if self.jack_robot.run_motor(self.jack_motor, pos=self.jack_height):
+        if self.jack_robot.run_motor(self.jack_motor, pos=self.jack_height, reach_di=self.up_di):
             self.status = MoveStatus.FINISHED
 
     def unload_by_motor(self, r):
         if self.jack_height is None:
             self.jack_height = 0.0
-        if self.jack_robot.run_motor(self.jack_motor, pos=self.jack_height):
+        if self.jack_robot.run_motor(self.jack_motor, pos=self.jack_height, reach_di=self.down_di):
             self.status = MoveStatus.FINISHED
 
     def cancel(self, r):
