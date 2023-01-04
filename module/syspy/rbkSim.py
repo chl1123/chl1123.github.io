@@ -958,6 +958,12 @@ class SimModule:
             task_id (int): _description_
         """
         print("func: {0} {1}".format(get_function_name(), task_id))
+    def armControl(self, json_str:str):
+        """ 调用控制机械臂运动状态接口，比如减速
+        Args:
+            json_str (str): 控制指令，是json 字符串
+        """
+        print("func: {0} {1}".format(get_function_name(), json_str))        
     def stopMotor(self):
         """停止所有非行走的电机
         """        
@@ -1103,6 +1109,8 @@ if __name__ == '__main__':
     r.armStop()
     r.armPause()
     r.armResume()
+    data =  {"type": "set_speed_slider"}
+    r.armControl(json.dumps(data))
     r.stopMotor()
     r.setPickRobotError(53800, "error")
     r.setPickRobotWarning(55800, "warning")
