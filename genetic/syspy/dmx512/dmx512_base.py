@@ -88,6 +88,10 @@ class dmx512Base:
         print("getEMCState")
         return self.__rpc_client.getEMCState()
 
+    def getShowBattery(self):
+        print("getShowBattery")
+        return self.__rpc_client.getShowBattery()
+
     def getBatteryMaxPercentage(self):
         print("getBatteryMaxPercentage")
         maxPer = self.__rpc_client.getBatteryMaxPercentage()
