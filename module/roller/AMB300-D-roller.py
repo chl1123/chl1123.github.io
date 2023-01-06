@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# @Date : 2022/11/27
+# @Date : 2023/01/05
 # @Author : lin, zhong
 # @File : AMB300-D-roller.py
-# @Version : 1.1
+# @Version : 1.3
 # @Project : 博众精工非标辊筒车
 # @Coding: https://seer-group.coding.net/p/order_issue_pool/requirements/issues/1775/detail
 # @Support :
-# @Update : 增加夹爪指定长度加紧
+# @Update : 增加预上料动作
 
 import json
 import time
@@ -20,7 +20,7 @@ from robot import ModuleTool
 {
     "operation": {
         "value": "zero",
-        "default_value": ["load","unload","zero", "lift", "spin", "clamp"],
+        "default_value": ["load","unload","zero", "lift", "spin", "clamp", "preLoad"],
         "tips": "操作类型",
         "type": "complex"
     },
@@ -85,7 +85,7 @@ class Module(BasicModule):
         self.lift_up_di = p.loadParam("lift_up_di", type="int", default=6, comment="升降机构上到位DI")
         self.rotate_zero_di = p.loadParam("rotate_zero_di", type="int", default=5, comment="旋转机构零位DI")
         self.clamp_up_di = p.loadParam("clamp_up_di", type="int", default=1, comment="夹爪上到位光电")
-        self.clamp_down_di = p.loadParam("clamp_down_di", type="int", default=2, comment="夹爪零位光电")
+        self.clamp_zero_di = p.loadParam("clamp_zero_di", type="int", default=2, comment="夹爪零位光电")
 
         self.clamp_motor_name = p.loadParam("clamp_motor_name", type="str", default="clamp", comment="夹爪电机")
         self.lift_motor_name = p.loadParam("lift_motor_name", type="str", default="lift", comment="顶升机构")
@@ -135,6 +135,8 @@ class Module(BasicModule):
             self.left_unload(r)
         elif self.operation == "unload" and self.side == "right":
             self.right_unload(r)
+        elif self.operation == "preLoad":
+            self.preload(r, self.side)
         elif self.operation == "zero":
             self.zero(r)
         elif self.operation == "lift":
@@ -154,9 +156,6 @@ class Module(BasicModule):
         self.state['status'] = self.status
         self.state['args'] = args
         self.state['run_time'] = time.time() - self.start_time
-        self.state['spin_motor_pos'] = ModuleTool.get_motor_pos(r, self.spin_motor_name)
-        self.state['lift_motor_pos'] = ModuleTool.get_motor_pos(r, self.lift_motor_name)
-        self.state['clamp_motor_pos'] = ModuleTool.get_motor_pos(r, self.clamp_motor_name)
         r.setInfo(json.dumps(self.state))
         r.logInfo(json.dumps(self.state))
         return self.status
@@ -171,7 +170,7 @@ class Module(BasicModule):
         if self.goods_size == "400":
             if self.opt_step[0] and not self.opt_step[1]:  # 辊筒运动左上料
                 r.setDO(self.do1, True)  # 认为左上料是正向
-                if self.tool.check_DI(r, self.goods_check_di3):  # 检查货物中间光电
+                if self.tool.check_DI(r, self.goods_check_di4):  # 检查货物中间光电
                     r.setDO(self.do1, False)  # 关闭辊筒
                     self.opt_step[1] = True
 
@@ -187,7 +186,7 @@ class Module(BasicModule):
 
             if self.opt_step[1] and not self.opt_step[2]:
                 r.setDO(self.do1, True)  # 认为左上料是正向
-                if self.tool.check_DI(r, self.goods_check_di4):  # 检查货物中间光电
+                if self.tool.check_DI(r, self.goods_check_di3):  # 检查货物中间光电
                     r.setDO(self.do1, False)  # 关闭辊筒
                     self.opt_step[2] = True
 
@@ -205,7 +204,7 @@ class Module(BasicModule):
 
             if self.opt_step[5] and not self.opt_step[6]:  # 关闭夹爪
                 # self.opt_step[6] = self.robot.stretch(self.clamp_motor, 0)
-                self.opt_step[6] = self.clamp(r, "clamp-length")
+                self.opt_step[6] = self.clamp(r, "clamp")
 
             if self.opt_step[6] and not self.opt_step[7]:
                 r.setDO(self.left_block_up_do, True)
@@ -236,7 +235,7 @@ class Module(BasicModule):
             if self.opt_step[0] and not self.opt_step[1]:  # 辊筒运动右上料
                 r.setDO(self.do1, True)  # 认为左上料是反向
                 r.setDO(self.do2, True)  # 皮带反转
-                if self.tool.check_DI(r, self.goods_check_di2):  # 检查货物中间光电
+                if self.tool.check_DI(r, self.goods_check_di1):  # 检查货物中间光电
                     r.setDO(self.do1, False)  # 关闭辊筒
                     r.setDO(self.do2, False)
                     self.opt_step[1] = True
@@ -254,7 +253,7 @@ class Module(BasicModule):
             if self.opt_step[1] and not self.opt_step[2]:
                 r.setDO(self.do1, True)  # 认为右上料是反向
                 r.setDO(self.do2, True)  # 皮带反转
-                if self.tool.check_DI(r, self.goods_check_di1):  # 检查货物中间光电
+                if self.tool.check_DI(r, self.goods_check_di2):  # 检查货物中间光电
                     r.setDO(self.do1, False)  # 关闭辊筒
                     r.setDO(self.do2, False)
                     self.opt_step[2] = True
@@ -273,7 +272,7 @@ class Module(BasicModule):
 
             if self.opt_step[5] and not self.opt_step[6]:  # 关闭夹爪
                 # self.opt_step[6] = self.robot.stretch(self.clamp_motor, 0)
-                self.opt_step[6] = self.clamp(r, "clamp-length")
+                self.opt_step[6] = self.clamp(r, "clamp")
 
             if self.opt_step[6] and not self.opt_step[7]:
                 r.setDO(self.right_block_up_do, True)
@@ -332,7 +331,7 @@ class Module(BasicModule):
 
             if self.opt_step[2] and not self.opt_step[3]:
                 # self.opt_step[3] = self.robot.lift(self.spin_motor, 1.5708)  # 反旋转90度
-                self.opt_step[3] = self.spin(r, 0.00001)
+                self.opt_step[3] = self.spin(r, 0.0002)
 
             if self.opt_step[3] and not self.opt_step[4]:
                 # self.opt_step[4] = self.robot.lift(self.lift_motor, 0)  # 下降顶升机构
@@ -340,7 +339,7 @@ class Module(BasicModule):
 
             if self.opt_step[4] and not self.opt_step[5]:
                 # self.opt_step[5] = self.robot.stretch(self.clamp_motor, 0)  # 关闭夹爪
-                self.opt_step[5] = self.clamp(r, "clamp-length")
+                self.opt_step[5] = self.clamp(r, "zero")
 
             if self.opt_step[5] and not self.opt_step[6]:
                 r.setDO(self.do1, True)  # 认为左下料是反向
@@ -412,7 +411,7 @@ class Module(BasicModule):
 
             if self.opt_step[2] and not self.opt_step[3]:
                 # self.opt_step[3] = self.robot.lift(self.spin_motor, 1.5708)  # 反旋转90度
-                self.opt_step[3] = self.spin(r, 0.00001)
+                self.opt_step[3] = self.spin(r, 0.0002)
 
             if self.opt_step[3] and not self.opt_step[4]:
                 # self.opt_step[4] = self.robot.lift(self.lift_motor, 0)  # 下降顶升机构
@@ -420,7 +419,7 @@ class Module(BasicModule):
 
             if self.opt_step[4] and not self.opt_step[5]:
                 # self.opt_step[5] = self.robot.stretch(self.clamp_motor, 0)  # 关闭夹爪
-                self.opt_step[5] = self.clamp(r, "clamp-length")
+                self.opt_step[5] = self.clamp(r, "zero")
 
             if self.opt_step[5] and not self.opt_step[6]:
                 r.setDO(self.do1, True)  # 认为左下料是反向
@@ -484,17 +483,17 @@ class Module(BasicModule):
 
     def clamp(self, r, opt):
         if opt == "zero":
-            r.setMotorSpeed(self.clamp_motor_name, -self.motor_speed, self.clamp_down_di)
-            if self.tool.check_DI(r, self.clamp_down_di):
+            r.setMotorSpeed(self.clamp_motor_name, -0.09, self.clamp_zero_di)
+            if self.tool.check_DI(r, self.clamp_zero_di):
                 r.resetMotor(self.clamp_motor_name)
                 return True
         elif opt == "clamp":
-            r.setMotorSpeed(self.clamp_motor_name, self.motor_speed, self.clamp_up_di)
+            r.setMotorSpeed(self.clamp_motor_name, 0.09, self.clamp_up_di)
             if self.tool.check_DI(r, self.clamp_up_di):
                 r.resetMotor(self.clamp_motor_name)
                 return True
         elif opt == "clamp-length":
-            r.setMotorPosition(self.clamp_motor_name, self.clamp_length, self.motor_speed, -1)
+            r.setMotorPosition(self.clamp_motor_name, self.clamp_length, 0.09, -1)
             if r.isMotorReached(self.clamp_motor_name):
                 r.resetMotor(self.clamp_motor_name)
                 return True
@@ -513,6 +512,28 @@ class Module(BasicModule):
         r.setDO(self.do2, False)
         r.setInfo("task stop!")
         self.status = MoveStatus.NONE
+
+    def preload(self, r, side):
+        # if not self.tool.check_DI(r, self.lift_down_di):
+        #     r.setError(f"jack should be below")
+        #     self.status = MoveStatus.FAILED
+        if side == "left":
+            r.setDO(self.left_block_down_do, True)
+            r.setDO(self.do1, True)
+            if self.tool.check_DI(r, self.left_block_down_di):
+                r.setDO(self.left_block_down_do, False)
+                self.status = MoveStatus.FINISHED
+        elif side == "right":
+            r.setDO(self.right_block_down_do, True)
+            r.setDO(self.do1, True)
+            r.setDO(self.do2, True)
+            if self.tool.check_DI(r, self.right_block_down_di):
+                r.setDO(self.right_block_down_do, False)
+                self.status = MoveStatus.FINISHED
+        else:
+            r.setError(f"side param error: {self.side}")
+            self.status = MoveStatus.FAILED
+            return False
 
     def zero(self, r):
         r.setDO(self.do1, False)
