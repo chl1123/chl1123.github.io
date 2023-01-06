@@ -22,6 +22,7 @@ class demo_dmx512(dmx.dmx512Base):
 
     def run(self):
         dmx512_info = self.createDmx512Message()
+        dmx_battery = self.createBatteryMessage()
         mu.sleep_s(20)
         while 1:
             '''从其他插件获取所需相关数据信息'''
@@ -153,7 +154,7 @@ class demo_dmx512(dmx.dmx512Base):
                     dmx512_info.color_g = RGBW[1]
                     dmx512_info.color_b = RGBW[2]
                     dmx512_info.color_w = RGBW[3]
-                elif (self.getShowCharging()==True):
+                elif (self.getShowBattery()==True):
                     '''显示电量，从绿色至暗红色渐变'''
                     dmx512_info.type = dmx.LightType.Battery.value
                     tem = (dmx_battery.percetage * 100.0)
