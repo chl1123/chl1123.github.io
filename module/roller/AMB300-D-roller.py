@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# @Date : 2023/01/05
+# @Date : 2023/01/09
 # @Author : lin, zhong
 # @File : AMB300-D-roller.py
-# @Version : 1.3
+# @Version : 1.4
 # @Project : 博众精工非标辊筒车
 # @Coding: https://seer-group.coding.net/p/order_issue_pool/requirements/issues/1775/detail
 # @Support :
-# @Update : 增加预上料动作
+# @Update : 增加预上料动作, 旋转时检测顶升是否升起
 
 import json
 import time
@@ -453,7 +453,7 @@ class Module(BasicModule):
         r.logInfo(f"right_unload: {unload_state}")
 
     def lift(self, r, opt):
-        r.setNotice(f"lift opt: {opt}")
+        # r.setNotice(f"lift opt: {opt}")
         if opt == "up":
             r.setMotorSpeed(self.lift_motor_name, -self.motor_speed, self.lift_up_di)
             if self.tool.check_DI(r, self.lift_up_di):
@@ -469,16 +469,17 @@ class Module(BasicModule):
         return False
 
     def spin(self, r, rad):
-        if rad == 0:
-            r.setMotorSpeed(self.spin_motor_name, 0.2, self.rotate_zero_di)
+        if self.tool.check_DI(r, self.lift_up_di):
+            if rad == 0:
+                r.setMotorSpeed(self.spin_motor_name, 0.2, self.rotate_zero_di)
+            else:
+                r.setMotorPosition(self.spin_motor_name, rad, 0.2, -1)
+
             if r.isMotorReached(self.spin_motor_name):
                 r.resetMotor(self.spin_motor_name)
                 return True
         else:
-            r.setMotorPosition(self.spin_motor_name, rad, 0.2, -1)
-            if r.isMotorReached(self.spin_motor_name):
-                r.resetMotor(self.spin_motor_name)
-                return True
+            r.setError(f"jack must be above")
         return False
 
     def clamp(self, r, opt):
