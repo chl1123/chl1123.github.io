@@ -65,7 +65,7 @@ class Module(BasicModule):
         # 运行超时检测
         if time.time() - self.start_time > self.timeout:
             r.setError(f"script running timeout!")
-            self.status = MoveStatus.FINISHED
+            self.status = MoveStatus.FAILED
         # =====处理业务逻辑=====
         if self.opt == "JackLoadByDo":
             self.load_by_do(r)
@@ -80,18 +80,23 @@ class Module(BasicModule):
             self.status = MoveStatus.FAILED
         r.publishSpeed()  # 下发速度
         # =====数据上报及日志打印=====
-        di_do_info = {
-            "up_do": ModuleTool.check_DI(r, self.up_do),
-            "up_di": ModuleTool.check_DI(r, self.up_di),
-            "down_do": ModuleTool.check_DI(r, self.down_do),
-            "down_di": ModuleTool.check_DI(r, self.down_di)
-        }
+        di_do_info = {}
+        if self.up_do != -1:
+            di_do_info[f'up_do({self.up_do})'] = ModuleTool.check_DO(r, self.up_do)
+        if self.up_di != -1:
+            di_do_info[f'up_di({self.up_di})'] = ModuleTool.check_DI(r, self.up_di)
+        if self.down_do != -1:
+            di_do_info[f'down_do({self.down_do})'] = ModuleTool.check_DO(r, self.down_do)
+        if self.down_di != -1:
+            di_do_info[f'down_di({self.down_di})'] = ModuleTool.check_DI(r, self.down_di)
+
         self.report_info['args'] = args
         self.report_info['DI&DO'] = di_do_info
         self.report_info['jack_height'] = ModuleTool.get_motor_pos(r, self.jack_motor_name)
         self.report_info['task_status'] = self.status
         self.report_info['jack_robot'] = self.jack_robot.state
         r.setInfo(json.dumps(self.report_info))
+        r.logInfo(json.dumps(self.report_info))
         return self.status
 
     def load_by_do(self, r):

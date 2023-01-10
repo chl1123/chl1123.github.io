@@ -18,7 +18,6 @@ import pickingRobot
 import math
 import goPath as goPath
 import requests
-import audio
 
 SCRIPT_VERSION = "V2.2.6 - 20221018"
 """
@@ -503,7 +502,6 @@ class Module(BasicModule):
         self.postdata = None
         self.call_terminal = None
         self.barcode_height = None
-        self.audio = audio.Module(r, args)
 
     def run(self, r: SimModule, args):
 
@@ -862,13 +860,6 @@ class Module(BasicModule):
                 if (self.goods_id == tray['goods']) and (tray['state'] == 0):
                     return tray['id']
         return None
-
-    def play_audio(self):
-        """音频播放"""
-        if self.audio.status is not MoveStatus.FINISHED:
-            self.audio.run(r, {})
-        elif self.audio.status is MoveStatus.FINISHED:
-            self.audio.status = MoveStatus.NONE
 
     def report_info(self, r):
         if not self.has_fork_sensor:
