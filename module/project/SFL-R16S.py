@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/5/13
-# @Author : zhong, huang
+# @Time : 2023/01/18
+# @Author : qiangsheng，zhong
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
-# @Version: 2.4
+# @Version: 2.7.1
 # @Description: 增加action和取放不动货叉
 
 import json
 import time
 import sys
-
 sys.path.append("..")
 sys.path.append("../syspy")
 from syspy.rbkSim import SimModule
@@ -23,7 +22,7 @@ import syspy.goPath as goPath
     "operation":{
         "value": "zero",
         "default_value":[
-        "zero","unload","load","lift","rotate","stretch","rec","recAdjust", "goPath", "action"
+        "zero","unload","load","lift","rotate","stretch","rec","goBack", "goPath", "action"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -59,11 +58,29 @@ import syspy.goPath as goPath
         "unit": ""
     },
     "recfile": {
-        "value": "tag/t0001.tag",
+        "value": "pallet/p0001.pallet",
         "tips": "识别文件",
         "unit": "",
         "type": "string"
-    }
+    },
+    "recAdjYForward": {
+        "value": "0.1",
+        "tips": "识别调整最大前进距离",
+        "unit": "m",
+        "type": "double"
+    },  
+    "recAdjYBackward": {
+        "value": "0.1",
+        "tips": "识别调整最大后退距离",
+        "unit": "m",
+        "type": "double"
+    },
+    "recAdjYTheta": {
+        "value": "5.0",
+        "tips": "识别调整最大调整角度",
+        "unit": "deg",
+        "type": "double"
+    },
 }
 ####END DEFAULT ARGS####
 """
@@ -104,13 +121,13 @@ class Module(BasicModule):
         self.vy_motor = "zuoyouyi"
         # 货叉机构，伸出机构，旋转机构的零位
         self.lift_zero = 0.075
-        self.stretch_zero = 0.01
+        self.stretch_zero = 0.02
         self.rotate_zero = 1 #向下旋转就是归0
         self.rotate_up = -1 # 向上转
         self.moveY_zero = 0
         # 四类电机的规划最大速度
         self.lift_vel = 0.4
-        self.stretch_vel = 0.2
+        self.stretch_vel = 0.02
         self.rotate_vel = 0.1
         self.moveY_vel = 0.1
         # 到位DI
@@ -125,14 +142,20 @@ class Module(BasicModule):
         # 有货物后的货叉伸出距离
         self.load_stretch_safe_length = 0.01
         # 货叉伸出最大距离
-        self.stretch_max_length = 0.418
+        self.stretch_max_length = 0.41
         # 货叉伸出最大距离时的识别倒退距离
-        self.back_dist = 100
+        self.back_dist = 0.4
         # 货叉伸出最大距离时的最小前置距离
-        self.min_ahead_dist = 1.5
+        self.min_ahead_dist = 0.2
         # 货叉识别调整最大前移距离
         self.max_ahead_dist = 0
 
+        #识别调整最大前进距离
+        self.recAdjYForward = 0.1 
+        #识别调整最大后退距离
+        self.recAdjYBackward = 0.1
+        #识别调整最大调整角度
+        self.recAdjYTheta = 3.0
 
     def reset(self, r:SimModule):
         self.status = MoveStatus.RUNNING
@@ -170,6 +193,15 @@ class Module(BasicModule):
             self.init_vy_motor_pos = self.vy_motor_pos  # 初始化后视激光检测
             self.task = args
             self.rec_file = args.get("recfile","")
+            self.recAdjYForward = args.get("recAdjYForward",0.0)
+            self.recAdjYBackward = args.get("recAdjYBackward",0.1)
+            self.recAdjYTheta = args.get("recAdjYTheta",3.0)
+            r.logDebug("[SFLR16Init][{}|{}|{}|{}|{}]".format(
+                    self.task.get("operation",""),
+                    self.rec_file,
+                    self.recAdjYForward,
+                    self.recAdjYBackward,
+                    self.recAdjYTheta))
             self.operation_status = MoveStatus.NONE
             if "operation" not in self.task:
                 r.setError("operation is empty!!!")
@@ -186,8 +218,8 @@ class Module(BasicModule):
             self.unload(r)
         elif operation == "zero":
             self.zero(r)
-        elif operation == "recAdjust":
-            self.recAdjust(r)
+        elif operation == "goBack":
+            self.goBack(r)
         elif operation == "lift":
             self.lift(r)
         elif operation == "stretch":
@@ -207,6 +239,8 @@ class Module(BasicModule):
             self.status = MoveStatus.FAILED
         if self.operation_status == MoveStatus.FINISHED:
             self.status = MoveStatus.FINISHED
+        elif self.operation_status == MoveStatus.FAILED:
+            self.status = MoveStatus.FAILED
         self.state["MoveStatus"] = self.status
         self.state["task"] = self.task
         str_state = json.dumps(self.state)
@@ -369,17 +403,17 @@ class Module(BasicModule):
         cur_state["state"] = self.status
         self.state["safeCheck"] = cur_state
 
-    def recAdjust(self,r: SimModule):   
+    def goBack(self,r: SimModule):   
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
-            self.task_list = [recAdjust(r)]
+            self.task_list = [goBack(r)]
             self.task_id = 0
         else:
             self.runTakList(r)
         cur_state = dict()
         cur_state["state"] = self.operation_status
         cur_state["task_id"] = self.task_id
-        self.state["recAdjust"] = cur_state
+        self.state["goBack"] = cur_state
 
     def load(self,r:SimModule):
         if self.operation_status == MoveStatus.NONE:
@@ -389,40 +423,41 @@ class Module(BasicModule):
                 r.setError(f"Fork has goods, cannot load")
                 return
             if "liftHeight" not in self.task\
-                 and "liftUpHeight" not in self.task\
+                and "liftUpHeight" not in self.task\
                      and "stretchLength" not in self.task:
                 self.task_list = [
-                    recAdjust(r)
+                    recAdjustY(r),
+                    goBack(r)
                 ]
             else:      
                 if "liftHeight" not in self.task:
                     self.state["load"] = "liftHeight is missing"
                     r.setError(f"liftHeight is missing")
-                    return
+                    return             
                 if "liftUpHeight" not in self.task:
                     self.state["load"] = "liftUpHeight is missing"
                     r.setError(f"liftUpHeight is missing")
-                    return                
+                    return
                 stretch_length = self.stretch_max_length
                 if "stretchLength" in self.task:
                     stretch_length =  self.task["stretchLength"]
                 if stretch_length > self.load_stretch_safe_length:
                     # 如果需要伸出插齿取叉货物
                     self.task_list = [
-                        rotate(self.rotate_motor, self.rotate_zero), # 货叉前后角度水平
                         lift(self.lift_motor, self.task["liftHeight"]),
+                        recAdjustY(r),
                         stretch(self.stretch_motor, stretch_length, self.reachDI),
-                        recAdjust(r),
+                        goBack(r),
                         lift(self.lift_motor, self.task["liftUpHeight"]),
                         stretch(self.stretch_motor, self.load_stretch_safe_length)
                     ]
                 else:
                     # 不需要伸出插齿去取叉货
                     self.task_list = [
-                        rotate(self.rotate_motor, self.rotate_zero), # 货叉前后角度水平
                         lift(self.lift_motor, self.task["liftHeight"]),
+                        recAdjustY(r),
                         stretch(self.stretch_motor, self.load_stretch_safe_length, self.reachDI),
-                        recAdjust(r),
+                        goBack(r),
                         lift(self.lift_motor, self.task["liftUpHeight"])
                     ]           
             self.task_id = 0
@@ -677,7 +712,60 @@ class rec:
         r.resetRec()
         self.status = MoveStatus.RUNNING
 
-class recAdjust:
+class goBack:
+    def __init__(self, r:SimModule):
+        self.init = True
+        self.task = None
+        self.status = MoveStatus.NONE
+    def run(self, r:SimModule, agv:Module):
+        self.status = MoveStatus.RUNNING
+        if self.init:
+            self.init = False
+            self.task = r.moveTask()
+            if "params" not in self.task:
+                self.task["params"] = []
+            has_op = False
+            has_goBack = False
+            for p in self.task["params"]:
+                if p["key"] == "operation":
+                    has_op = True
+                    if agv.operation == "unload":
+                        p["string_value"] = "ForkUnload"
+                    else:
+                        p["string_value"] = "ForkLoad"
+                elif p["key"] == "goBack":
+                    has_goBack = True
+                    p["bool_value"] = True
+            if has_op == False:
+                p = dict()
+                p["key"] = "operation"
+                if agv.operation == "load":
+                    p["string_value"] = "ForkLoad"
+                elif agv.operation == "unload":
+                    p["string_value"] = "ForkUnload"
+                else:
+                    p["string_value"] = ""
+                self.task["params"].append(p)
+            if has_goBack == False:
+                p = dict()
+                p["key"] = "goBack"
+                p["bool_value"] = True
+                self.task["params"].append(p) 
+                has_rec = True               
+            p1 = dict()
+            p1["key"] = "goBackDist"
+            p1["double_value"] = agv.back_dist + (agv.stretch_max_length - agv.stretch_pos)
+            self.task["params"].append(p1)                             
+        r.logInfo("goBack task {}".format(str(self.task)))
+        self.status = r.recAndGoPathDi(json.dumps(self.task))
+        return self.status
+
+    def reset(self, r:SimModule):
+        r.logInfo("reset goBack")
+        self.status = MoveStatus.RUNNING
+        r.resetRecAndGoPathDi()
+
+class recAdjustY:
     def __init__(self, r:SimModule):
         self.init = True
         self.task = None
@@ -695,12 +783,7 @@ class recAdjust:
             for p in self.task["params"]:
                 if p["key"] == "operation":
                     has_op = True
-                    if agv.operation == "unload":
-                        p["string_value"] = "ForkUnload"
-                    else:
-                        p["string_value"] = "ForkLoad"
-                elif p["key"] == "recognize":
-                    has_rec = True
+                    p["string_value"] = "Wait"
                 elif p["key"] == "recfile":
                     has_rec_file = True
                     if "recfile" in agv.task:
@@ -708,47 +791,34 @@ class recAdjust:
             if has_op == False:
                 p = dict()
                 p["key"] = "operation"
-                if agv.operation == "load":
-                    p["string_value"] = "ForkLoad"
-                elif agv.operation == "unload":
-                    p["string_value"] = "ForkUnload"
-                else:
-                    p["string_value"] = ""
+                p["string_value"] = "Wait"
                 self.task["params"].append(p)
             if has_rec_file == False:
                 if "recfile" in agv.task:
                     p = dict()
                     p["key"] = "recfile"
                     p["string_value"] = agv.task["recfile"]
-                    self.task["params"].append(p)
-            if has_rec == False:
-                if "recfile" in agv.task:
-                    p = dict()
-                    p["key"] = "recognize"
-                    p["bool_value"] = True
-                    self.task["params"].append(p) 
-                    has_rec = True               
-            if has_rec:
-                p1 = dict()
-                p1["key"] = "rec_back_dist"
-                p1["double_value"] = agv.back_dist + (agv.stretch_max_length - agv.stretch_pos)
-                self.task["params"].append(p1)
-                p2 = dict()
-                p2["key"] = "rec_min_ahead_dist"
-                p2["double_value"] = agv.min_ahead_dist - (agv.stretch_max_length - agv.stretch_pos)
-                self.task["params"].append(p2)    
-                p3 = dict()
-                p3["key"] = "rec_ahead_dist"
-                p3["double_value"] = agv.max_ahead_dist
-                self.task["params"].append(p3)                                
-        r.logInfo("recAdjust task {}".format(str(self.task)))
-        self.status = r.recAndGoPathDi(json.dumps(self.task))
+                    self.task["params"].append(p)            
+            p1 = dict()
+            p1["key"] = "recAdjYForward"
+            p1["double_value"] = agv.recAdjYForward
+            self.task["params"].append(p1)
+            p2 = dict()
+            p2["key"] = "recAdjYBackward"
+            p2["double_value"] = agv.recAdjYBackward
+            self.task["params"].append(p2)    
+            p3 = dict()
+            p3["key"] = "recAdjYTheta"
+            p3["double_value"] = agv.recAdjYTheta
+            self.task["params"].append(p3)                           
+        r.logInfo("recAdjustY task {}".format(str(self.task)))
+        self.status = r.recAdjustYTheta(json.dumps(self.task))
         return self.status
 
     def reset(self, r:SimModule):
-        r.logInfo("reset recAdjust")
+        r.logInfo("reset recAdjustY")
         self.status = MoveStatus.RUNNING
-        r.resetRecAndGoPathDi()
+        r.resetRecAdjustYTheta()
 
 class goPath:
     def __init__(self, r:SimModule):
@@ -815,7 +885,7 @@ if __name__ == '__main__':
     testNum(num)
     m.reset(r)
     data = dict()
-    data["operation"] = "recAdjust"
+    data["operation"] = "goBack"
     data["recfile"] = "s001.pallet"
     print(m.run(r, data))
 

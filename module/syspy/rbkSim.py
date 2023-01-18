@@ -910,6 +910,19 @@ class SimModule:
         print("func: {0} {1}".format(get_function_name(), task))
         return 4
     @check
+    def resetRecAdjustYTheta(self):
+        """在有限空间内来回调整,使车子对准目标点
+        """
+        print("func: {0}".format(get_function_name()))
+    @check
+    def recAdjustYTheta(self, task:str) ->int:
+        """在有限空间内来回调整,使车子对准目标点
+        Returns:
+            int: 任务状态。和 MoveStatus 相同
+        """
+        print("func: {0} {1}".format(get_function_name(), task))
+        return 4
+    @check
     def resetGoMapPath(self):
         """行走的动作
         """
