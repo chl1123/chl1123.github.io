@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2023/01/18
+# @Time : 2023/02/08
 # @Author : qiangsheng，zhong
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
-# @Version: 2.7.1
+# @Version: 2.7.2
 # @Description: 增加action和取放不动货叉
 
 import json
@@ -144,7 +144,7 @@ class Module(BasicModule):
         # 货叉伸出最大距离
         self.stretch_max_length = 0.41
         # 货叉伸出最大距离时的识别倒退距离
-        self.back_dist = 0.4
+        self.back_dist = 0
         # 货叉伸出最大距离时的最小前置距离
         self.min_ahead_dist = 0.2
         # 货叉识别调整最大前移距离
@@ -506,7 +506,7 @@ class Module(BasicModule):
                     # 不需要伸出插齿去放叉货
                     self.task_list = [
                         lift(self.lift_motor, self.task['liftHeight']),
-                        stretch(self.stretch_motor, stretch_zero),
+                        stretch(self.stretch_motor, self.stretch_zero),
                         goPath(self),
                         rotate(self.rotate_motor, self.rotate_zero),
                         lift(self.lift_motor, self.task["liftDownHeight"])
