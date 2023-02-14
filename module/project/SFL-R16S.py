@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Time : 2023/02/08
+# @Time : 2023/02/14
 # @Author : qiangsheng，zhong
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
-# @Version: 2.7.2
-# @Description: 增加action和取放不动货叉
+# @Version: 2.7.3
+# @Description: 增加是非识别取货
 
 import json
 import time
@@ -111,7 +111,7 @@ class Module(BasicModule):
         self.operation_status = MoveStatus.NONE
         #operation
         self.operation = ""
-
+        self.recognize = True
 
         ## 下列参数需要使用前配置
         # 四个电机对应模型文件的名称
@@ -196,12 +196,19 @@ class Module(BasicModule):
             self.recAdjYForward = args.get("recAdjYForward",0.0)
             self.recAdjYBackward = args.get("recAdjYBackward",0.1)
             self.recAdjYTheta = args.get("recAdjYTheta",3.0)
-            r.logDebug("[SFLR16Init][{}|{}|{}|{}|{}]".format(
+            org_task = r.moveTask()
+            if "params" in org_task:
+                for p in org_task["params"]:
+                    if p["key"] == "recognize":
+                        self.recognize = p["bool_value"]
+                        break
+            r.logDebug("[SFLR16Init][{}|{}|{}|{}|{}|{}]".format(
                     self.task.get("operation",""),
                     self.rec_file,
                     self.recAdjYForward,
                     self.recAdjYBackward,
-                    self.recAdjYTheta))
+                    self.recAdjYTheta,
+                    self.recognize))
             self.operation_status = MoveStatus.NONE
             if "operation" not in self.task:
                 r.setError("operation is empty!!!")
@@ -425,10 +432,15 @@ class Module(BasicModule):
             if "liftHeight" not in self.task\
                 and "liftUpHeight" not in self.task\
                      and "stretchLength" not in self.task:
-                self.task_list = [
-                    recAdjustY(r),
-                    goBack(r)
-                ]
+                if self.recognize:
+                    self.task_list = [
+                        recAdjustY(r),
+                        goBack(r)
+                    ]
+                else:
+                    self.task_list = [
+                        goBack(r)
+                    ]
             else:      
                 if "liftHeight" not in self.task:
                     self.state["load"] = "liftHeight is missing"
@@ -443,23 +455,40 @@ class Module(BasicModule):
                     stretch_length =  self.task["stretchLength"]
                 if stretch_length > self.load_stretch_safe_length:
                     # 如果需要伸出插齿取叉货物
-                    self.task_list = [
-                        lift(self.lift_motor, self.task["liftHeight"]),
-                        recAdjustY(r),
-                        stretch(self.stretch_motor, stretch_length, self.reachDI),
-                        goBack(r),
-                        lift(self.lift_motor, self.task["liftUpHeight"]),
-                        stretch(self.stretch_motor, self.load_stretch_safe_length)
-                    ]
+                    if self.recognize:
+                        self.task_list = [
+                            lift(self.lift_motor, self.task["liftHeight"]),
+                            recAdjustY(r),
+                            stretch(self.stretch_motor, stretch_length, self.reachDI),
+                            goBack(r),
+                            lift(self.lift_motor, self.task["liftUpHeight"]),
+                            stretch(self.stretch_motor, self.load_stretch_safe_length)
+                        ]
+                    else:
+                        self.task_list = [
+                            lift(self.lift_motor, self.task["liftHeight"]),
+                            stretch(self.stretch_motor, stretch_length, self.reachDI),
+                            goBack(r),
+                            lift(self.lift_motor, self.task["liftUpHeight"]),
+                            stretch(self.stretch_motor, self.load_stretch_safe_length)
+                        ]
                 else:
                     # 不需要伸出插齿去取叉货
-                    self.task_list = [
-                        lift(self.lift_motor, self.task["liftHeight"]),
-                        recAdjustY(r),
-                        stretch(self.stretch_motor, self.load_stretch_safe_length, self.reachDI),
-                        goBack(r),
-                        lift(self.lift_motor, self.task["liftUpHeight"])
-                    ]           
+                    if self.recognize:
+                        self.task_list = [
+                            lift(self.lift_motor, self.task["liftHeight"]),
+                            recAdjustY(r),
+                            stretch(self.stretch_motor, self.load_stretch_safe_length, self.reachDI),
+                            goBack(r),
+                            lift(self.lift_motor, self.task["liftUpHeight"])
+                        ]
+                    else:
+                        self.task_list = [
+                            lift(self.lift_motor, self.task["liftHeight"]),
+                            stretch(self.stretch_motor, self.load_stretch_safe_length, self.reachDI),
+                            goBack(r),
+                            lift(self.lift_motor, self.task["liftUpHeight"])
+                        ]                               
             self.task_id = 0
         else:
             self.runTakList(r)
