@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2022/10/30
+# @Time : 2023/02/21
 # @Author : huang, zhong
-# @Version : 2.2.6
+# @Version : 2.2.9
 # @Support : rbk  3.3.5.68 +
-# @Update : 轩田定制版本：1. 增加取货扫码核对功能，2. 定点音频播放功能，3. 智能取放错误料箱功能
+# @Update : 定制区域播放特定音频，扫码取货核验及回退功能, 增加一维码识别稳定性
 
 import json
 import sys
@@ -18,8 +18,9 @@ import pickingRobot
 import math
 import goPath as goPath
 import requests
+from playAudio import PlayAudio
 
-SCRIPT_VERSION = "V2.2.6 - 20221018"
+SCRIPT_VERSION = "V2.2.9 - 20230221"
 """
 ####BEGIN DEFAULT ARGS####
 {
@@ -120,7 +121,7 @@ SCRIPT_VERSION = "V2.2.6 - 20221018"
     "operation":{
         "value": "wait",
         "default_value":[
-        "load","unload","change","zero","wait","getMarkerPos","put", "scan-load"
+        "load","unload","change","zero","wait","getMarkerPos","put"
         ],
         "tips": "tips",
         "type": "complex"        
@@ -456,7 +457,8 @@ class Module(BasicModule):
         self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default=-85.0, maxValue=1000.0, minValue=-1000.0,
                                         unit="mm", comment="识别货物后，抓货物时高度的调整距离，根据料箱二维码高度调整")
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default=50.0, maxValue=1000.0,
-                                          minValue=-1000.0, unit="mm", comment="识别货架后，放货物时高度的调整距离，根据货架二维码高度调整")
+                                          minValue=-1000.0, unit="mm",
+                                          comment="识别货架后，放货物时高度的调整距离，根据货架二维码高度调整")
         self.fork_up_limit = p.loadParam("fokr_up_limit", type="int", default=4, maxValue=100, minValue=-1, unit="",
                                          comment="货叉上限位DI")
         self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default=2, maxValue=100, minValue=-1, unit="",
@@ -469,10 +471,13 @@ class Module(BasicModule):
                                       comment="货叉机械限位限位DI")
         self.loadOffset = p.loadParam("loadOffset", type="float", default=0.0, maxValue=500.0, minValue=-500.0,
                                       unit="mm", comment="load货物时，货叉额外伸出的距离")
-        self.has_fork_sensor = p.loadParam("forkSensor", type="int", default=0, comment="货叉是否有货物检测传感器，1为有，0为无")
-        self.has_tray_sensor = p.loadParam("traySensor", type="int", default=0, comment="背篓是否有货物检测传感器，1为有，0为无")
+        self.has_fork_sensor = p.loadParam("forkSensor", type="int", default=0,
+                                           comment="货叉是否有货物检测传感器，1为有，0为无")
+        self.has_tray_sensor = p.loadParam("traySensor", type="int", default=0,
+                                           comment="背篓是否有货物检测传感器，1为有，0为无")
         self.trays_num = p.loadParam("traysNum", type="int", default=3, comment="背篓层数")
-        self.auto_switch_mode = p.loadParam("AutoSwitchMode", type="int", default=1, comment="是否自动切换到机构模式，1为是，0为否")
+        self.auto_switch_mode = p.loadParam("AutoSwitchMode", type="int", default=1,
+                                            comment="是否自动切换到机构模式，1为是，0为否")
 
         r.logInfo(f"init args: {args}")
         self.stretch_status = MoveStatus.NONE
@@ -502,8 +507,12 @@ class Module(BasicModule):
         self.postdata = None
         self.call_terminal = None
         self.barcode_height = None
+        self.playback_height = None
+        self.scan_barcode = None
+        self.play_audio = PlayAudio()
 
     def run(self, r: SimModule, args):
+
         if r.errorExits(52111):
             self.status = MoveStatus.FAILED
             return self.status.value
@@ -512,6 +521,8 @@ class Module(BasicModule):
             self.init = False
             self.task = args
             self.barcode_height = args.get("barcodeHeight", None)
+            self.playback_height = args.get("playbackHeight", None)
+            self.play_audio = PlayAudio()
             if "unloadHeight" in self.task:
                 self.unloadHeight = self.task["unloadHeight"]
             if "loadHeight" in self.task:
@@ -591,8 +602,9 @@ class Module(BasicModule):
                 else:
                     r.setPickRobotError(53800, "Task is wrong : {}".format(json.dumps(self.task)))
                     self.operation_status = MoveStatus.FAILED
-            elif "operation" in self.task and self.task["operation"] == "scan-load":
-                self.scan_load(r)
+            elif "operation" in self.task and self.task["operation"] == "check_load":  # 扫码核验+退货流程
+                self.check_load(r)
+
             elif "operation" in self.task and self.task["operation"] == "unload":
                 if "lift" in self.task and "rotate" in self.task and "stretch" in self.task:
                     self.unload(r)
@@ -657,6 +669,9 @@ class Module(BasicModule):
                                 self.task.get("binModel", "plasticbox"))
                 else:
                     self.vision_status = MoveStatus.FINISHED
+
+            # 定制音频播放
+            self.play_audio.play(r)
 
             # 指示灯
             chassisLedFront, chassisLedBack, buzzer, headLedYellow, headLedRed, headLedGreen, headLedFreq = None, None, None, None, None, None, None
@@ -851,7 +866,7 @@ class Module(BasicModule):
                 r.clearContainer(str(tray['id']))
 
     def check_trays(self, r, lift_height, opt):
-        """ TO.DO: 根据取货高度，计算最优空背篓层数 """
+        """ TODO: 根据取货高度，计算最优空背篓层数 """
         if opt == 'load':
             for tray in self.tray_detect:
                 if (tray['state'] == 1) and (tray['id'] != 999):  # 999 默认表示抓斗
@@ -1360,7 +1375,7 @@ class Module(BasicModule):
                     ]
                     if self.tray_floor == 999:
                         self.task_list = self.task_list[:3]
-                    if self.barcode_height is not None:    # 取货前扫描一维码并核对goodsId
+                    if self.barcode_height is not None:  # 取货前扫描一维码并核对goodsId
                         self.task_list.insert(0, ScanBarcode(self.barcode_height, self.task["rotate"], self.goods_id))
                     if self.call_terminal is not None:  # 设备交互
                         self.task_list.insert(0, self.call_terminal)
@@ -1406,7 +1421,8 @@ class Module(BasicModule):
         cur_state["task_id"] = self.task_id
         self.state["load"] = cur_state
 
-    def scan_load(self, r):
+    def check_load(self, r):
+        """取货前扫描并核对goodsId，核验通过继续取货，核验失败将取货口的料箱取走并放置于退货口"""
         if self.operation_status != MoveStatus.FINISHED:
             if self.goods_id and self.check_goodsId(r, self.goods_id):  # 检查 goodsId 是否已存在
                 r.setPickRobotError(53819, f"This good already exists: {self.goods_id}")
@@ -1427,55 +1443,39 @@ class Module(BasicModule):
                     r.setPickRobotError(53821, f"All trays are full, can not load")
                     self.operation_status = MoveStatus.FAILED
                     return
+
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
-            if "recAdjust" in self.task:
-                if "visionType" in self.task and self.task["visionType"] == "box":  # 识别料箱进行取货
-                    self.task_list = [
-                        preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task.get("visionBinType", "code"),
-                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
-                        getGoods(self.task["stretch"] + self.loadOffset),
-                        prePutGoods(self.high[self.tray_floor], 0, "load"),
-                        putGoods(self.stretchDist)
-                    ]
-                    if self.tray_floor == 999:
-                        self.task_list = self.task_list[:3]
-                    if self.barcode_height is not None:    # 取货前扫描一维码并核对goodsId
-                        self.task_list.insert(0, ScanBarcode(self.barcode_height, self.task["rotate"], self.goods_id))
-                    if self.call_terminal is not None:  # 设备交互
-                        self.task_list.insert(0, self.call_terminal)
-                elif "visionType" in self.task and self.task["visionType"] == "shelf":  # 识别货架二维码进行取货
-                    self.task_list = [
-                        preGoods(self.task["lift"], self.task["rotate"]),
-                        recAdjust(self.task["visionType"], self.task.get('visionBinType', 'code'),
-                                  self.task.get("binModel", "plasticbox"), self.loadHeight, self.unloadHeight),
-                        getGoods(self.task["stretch"] + self.loadOffset),
-                        prePutGoods(self.high[self.tray_floor], 0, "load"),
-                        putGoods(self.stretchDist)
-                    ]
-                    if self.tray_floor == 999:
-                        self.task_list = self.task_list[:3]
-                    if self.call_terminal is not None:  # 设备交互
-                        self.task_list.insert(0, self.call_terminal)
-                else:
-                    r.setPickRobotError(53822, "Task is wrong in load with recAdjust: {}".format(json.dumps(self.task)))
-                    self.operation_status = MoveStatus.FAILED
-            else:
-                self.vision_status = MoveStatus.FINISHED
+            self.scan_barcode = ScanBarcode(self.barcode_height, self.task["rotate"], self.goods_id)
+            self.task_list = [
+                preGoods(self.task["lift"], self.task["rotate"]),
+                recAdjust("box", "code", "plasticbox", self.loadHeight, self.unloadHeight),
+                getGoods(self.task["stretch"] + self.loadOffset),
+                prePutGoods(self.high[self.tray_floor], 0, "load"),
+                putGoods(self.stretchDist)
+            ]
+            if self.tray_floor == 999:
+                self.task_list = self.task_list[:3]
+        else:
+            # 扫码核验成功，执行取货任务
+            if self.scan_barcode.status == MoveStatus.FINISHED:
+                self.runTakList(r)
+            # 扫码核验失败，将料箱退回指定高度处库位
+            elif self.scan_barcode.status == MoveStatus.FAILED:
+                r.clearError(53838)
                 self.task_list = [
                     preGoods(self.task["lift"], self.task["rotate"]),
+                    recAdjust("box", "code", "plasticbox", self.loadHeight, self.unloadHeight),
                     getGoods(self.task["stretch"] + self.loadOffset),
-                    prePutGoods(self.high[self.tray_floor], 0, "load"),
-                    putGoods(self.stretchDist)
+
+                    prePutGoods(self.task["playbackHeight"], self.task["rotate"], "unload"),
+                    recAdjust("shelf", "code", "plasticbox", self.loadHeight, self.unloadHeight),
+                    putGoods(self.task["stretch"])
+                    # CancelTask()
                 ]
-                if self.tray_floor == 999:
-                    self.task_list = self.task_list[:2]
-                if self.call_terminal is not None:  # 设备交互
-                    self.task_list.insert(0, self.call_terminal)
-            self.task_id = 0
-        else:
-            self.runTakList(r)
+                self.scan_barcode.status = MoveStatus.FINISHED
+            else:
+                self.scan_barcode.run(r, self)
 
         if self.operation_status == MoveStatus.FINISHED:
             self.update_data(r, self.tray_floor, 0, self.goods_id)
@@ -2207,12 +2207,23 @@ class putGoods:
         ctu.state["putGoods"] = cur_state
 
 
+class CancelTask:
+    def __init__(self):
+        self.status = MoveStatus.FAILED
+        self.task_list = []
+        self.task_id = 0
+
+    def run(self, r, ctu):
+        self.status = MoveStatus.FAILED
+
+
 class ScanBarcode:
     def __init__(self, barcode_height, rot_angle, goodsId):
         self.status = MoveStatus.NONE
         self.barcode_height = barcode_height
         self.rotate_angle = rot_angle
         self.goodsId = goodsId
+        self.failed_count = 0
 
     def reset(self, ctu: Module):
         ctu.lift_status = MoveStatus.NONE
@@ -2236,6 +2247,11 @@ class ScanBarcode:
                 r.setPickRobotError(53838,
                                     f"barcode mismatch, scan result: {res.get('binId', res)}, goodsId: {self.goodsId}")
                 self.status = MoveStatus.FAILED
+        elif ctu.vision_status is MoveStatus.FAILED:
+            # 失败计数
+            self.failed_count += 1
+            if self.failed_count < 10:
+                ctu.vision_status = MoveStatus.RUNNING
 
         cur_state = dict()
         cur_state["status"] = self.status
