@@ -3,7 +3,7 @@ import zmq,json,threading,sys,time
 class zmqServer(object):
     def __init__(self):
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.SUB)
+        self.socket = self.context.socket(zmq.REP)
         self.socket.bind("ipc:///tmp/dsp2python_rpc.ipc")
         self.data = None
         self.__should_close = False
