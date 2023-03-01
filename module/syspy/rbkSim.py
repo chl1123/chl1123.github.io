@@ -10,11 +10,11 @@ def check(fn):
         params = sig.parameters          # parames 是形参  是一个元素为二元结构的有序字典,OrderedDict([('x', <Parameter "x:int">), ('y', <Parameter "y:int">), ('z', <Parameter "z:int=3">)])               # args,kwargs 是实参
         va = list(params.values())       # 把字典中的值(形参)取出,用做列表处理
         for arg, param in zip(args, va):
-            if param.annotation != inspect._empty and  not isinstance(arg, param.annotation):    #实参元素与形参元素进行对比判断类型
-                raise TypeError("you must input {}".format(param.annotation))
+            if param.annotation != inspect._empty and  type(arg) !=  param.annotation:    #实参元素与形参元素进行对比判断类型
+                raise TypeError("you must input {}, but the input is {}".format(param.annotation, type(arg)))
         for k, v in kwargs.items():
-            if params[k].annotation != inspect._empty and not isinstance(v, params[k].annotation):              #  实参中的K与形参中的K是一样的,K一样,只要进行value的类型判断即可
-                raise TypeError("you must input {}".format(params[k].annotation))  
+            if params[k].annotation != inspect._empty and type(v) != params[k].annotation:              #  实参中的K与形参中的K是一样的,K一样,只要进行value的类型判断即可
+                raise TypeError("you must input {}, but the input is {}".format(params[k].annotation, type(arg)))  
         cc = fn(*args, **kwargs)
         return cc
     return wrapper
@@ -635,6 +635,15 @@ class SimModule:
         """
         print("func: {0} sound name: {1} loop: {2}".format(get_function_name(), name, flag))
     @check
+    def setSoundCount(self, name:str, count:int)->None:
+        """播放音乐
+
+        Args:
+            name (str): 音频名称
+            flag (int): 播放次数，需要大于0
+        """
+        print("func: {0} sound name: {1} count: {2}".format(get_function_name(), name, count))
+    @check
     def stopSound(self, flag:bool)->None:
         """停止播放音乐
 
@@ -1082,6 +1091,7 @@ if __name__ == '__main__':
     r.setPathUseOdo(True)
     r.setPathBackMode(True)
     r.setSound("hello", True)
+    r.setSoundCount("hello", 1)
     r.stopSound(True)
     # r.setForkHeight(1.0)
     # r.stopFork()
