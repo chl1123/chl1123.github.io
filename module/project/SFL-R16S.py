@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Time : 2023/02/14
+# @Time : 2023/02/22
 # @Author : qiangsheng，zhong
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
-# @Version: 2.7.3
+# @Version: 2.7.4
 # @Description: 增加是非识别取货
 
 import json
@@ -782,9 +782,10 @@ class goBack:
                 self.task["params"].append(p) 
                 has_rec = True               
             p1 = dict()
-            p1["key"] = "goBackDist"
-            p1["double_value"] = agv.back_dist + (agv.stretch_max_length - agv.stretch_pos)
-            self.task["params"].append(p1)                             
+            if agv.recognize:
+                p1["key"] = "goBackDist"
+                p1["double_value"] = agv.back_dist + (agv.stretch_max_length - agv.stretch_pos)
+                self.task["params"].append(p1)                             
         r.logInfo("goBack task {}".format(str(self.task)))
         self.status = r.recAndGoPathDi(json.dumps(self.task))
         return self.status
