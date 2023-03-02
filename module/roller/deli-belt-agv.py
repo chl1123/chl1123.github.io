@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date: 2023/03/01
+# @Date: 2023/03/02
 # @Author: zhong
-# @Version: 1.2
+# @Version: 1.3
 # @Project: 北京德利九州皮带控制脚本
 # @Coding: https://seer-group.coding.net/p/order_issue_pool/requirements/issues/2188/detail
-# @Update: 增加DO 高级区域控制功能
+# @Update: 脚本检测DO状态并执行对应功能
 
 import json
 import time
@@ -55,6 +55,7 @@ class Module(BasicModule):
         self.opt = None
         self.motor_vel = 0
         self.check_di = ModuleTool.check_DI
+        self.unload_flag = False
         r.logInfo(f"init args: {args}")
 
     def run(self, r: SimModule, args):
@@ -129,12 +130,17 @@ class Module(BasicModule):
             self.robot.run_motor(self.motor, vel=self.motor_vel, reach_di=-1)
 
     def unload(self, r):
-        # 未检测到光电，卸货完成
+        # 确认货物触发过 a1 或 a2 光电
+        if self.check_di(r, self.di_a1) or self.check_di(r, self.di_a2):
+            self.unload_flag = True
+        # 未检测到任何光电且货物触发过 a1 或 a2
         if not (self.check_di(r, self.di_a1) or self.check_di(r, self.di_b1) or self.check_di(r, self.di_c) or
-                self.check_di(r, self.di_a2) or self.check_di(r, self.di_b2)):
-            self.robot.run_motor(self.motor, vel=0, reach_di=-1)
-            r.clearGoodsShape()
-            self.status = MoveStatus.FINISHED
+                self.check_di(r, self.di_a2) or self.check_di(r, self.di_b2)) and self.unload_flag:
+            # 超过2秒未检测到任何光电，辊筒停转，卸货完成
+            if ModuleTool.delay(2):
+                self.robot.run_motor(self.motor, vel=0, reach_di=-1)
+                r.clearGoodsShape()
+                self.status = MoveStatus.FINISHED
         else:
             self.robot.run_motor(self.motor, vel=self.motor_vel, reach_di=-1)
 
