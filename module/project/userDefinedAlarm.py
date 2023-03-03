@@ -19,7 +19,7 @@ from rbk import MoveStatus, BasicModule, ParamServer
 {
     "operation":{
         "value": "setError",
-        "default_value":["setError","clearError", "setErrorList", "clearErrorList"],
+        "default_value":["setError","clearError", "setWarning", "clearWarning", "setErrorList", "clearErrorList"],
         "type": "complex"        
     },
     "code":{
@@ -56,7 +56,7 @@ class Module(BasicModule):
 
     def run(self, r: SimModule, args):
         """
-        # with setError:
+        # with setErrorList:
         {
             "errCodeList": [
                 {"code": "301", "content": "error1"},
@@ -64,7 +64,7 @@ class Module(BasicModule):
             ]
         }
 
-        # with clearError:
+        # with clearErrorList:
         {
             "errCodeList": ["301", "302", "303"]
         }
@@ -85,35 +85,40 @@ class Module(BasicModule):
 
         # =====处理业务逻辑=====
         if self.opt == 'setError':
-            if self.err_code in CodeMapping.CODEMAPPING:
-                r.setUserError(int(CodeMapping.CODEMAPPING.get(self.err_code)), self.err_content or "null")
+            if self.err_code in CodeMapping.CODE2ERROR:
+                r.setUserError(int(CodeMapping.CODE2ERROR.get(self.err_code)), self.err_content or "null")
             else:
                 r.setError(f"unsupported error code: {self.err_code}")
-            pass
         elif self.opt == 'clearError':
-            if self.err_code in CodeMapping.CODEMAPPING:
-                r.clearError(int(CodeMapping.CODEMAPPING.get(self.err_code)))
+            if self.err_code in CodeMapping.CODE2ERROR:
+                r.clearError(int(CodeMapping.CODE2ERROR.get(self.err_code)))
             else:
                 r.setError(f"unsupported error code: {self.err_code}")
-            pass
         elif self.opt == 'setErrorList':
             for err in self.err_code_list:
                 try:
-                    r.setUserError(int(CodeMapping.CODEMAPPING.get(err.get("code"))), err.get("content"))
+                    r.setUserError(int(CodeMapping.CODE2ERROR.get(err.get("code"))), err.get("content"))
                 except Exception as e:
                     r.setError(f"script args error! exception:{e}")
-            pass
         elif self.opt == 'clearErrorList':
             for err in self.err_code_list:
                 try:
-                    r.clearError(int(CodeMapping.CODEMAPPING.get(err)))
+                    r.clearError(int(CodeMapping.CODE2ERROR.get(err)))
                 except Exception as e:
                     r.setError(f"script args error! exception:{e}")
-            pass
+        elif self.opt == 'setWarning':
+            if self.err_code in CodeMapping.CODE2WARNING:
+                r.setUserWarning(int(CodeMapping.CODE2WARNING.get(self.err_code)), self.err_content or "null")
+            else:
+                r.setError(f"undefined code")
+        elif self.opt == 'clearWarning':
+            if self.err_code in CodeMapping.CODE2WARNING:
+                r.clearWarning(int(CodeMapping.CODE2WARNING.get(self.err_code)))
+            else:
+                r.setError(f"undefined code")
         else:
             r.setError(f"script args error: {args}")
             self.status = MoveStatus.FAILED
-        pass
 
         # =====数据上报及日志打印=====
         self.status = MoveStatus.FINISHED
@@ -139,8 +144,9 @@ class CodeMapping:
     用户自定义报错码和 RBK 报错码映射表
     用户可自行扩展, 最多支持50个自定义报错
     RBK 报错码范围: 53950~53999
+    RBK 报警码范围: 55950~55999
     """
-    CODEMAPPING = {
+    CODE2ERROR = {
         "301": "53950",
         "302": "53951",
         "303": "53952",
@@ -156,6 +162,23 @@ class CodeMapping:
         "651": "53962",
         "800": "53963",
         "801": "53964"
+    }
+    CODE2WARNING = {
+        "301": "55950",
+        "302": "55951",
+        "303": "55952",
+        "304": "55953",
+        "305": "55954",
+        "306": "55955",
+        "307": "55956",
+        "308": "55957",
+        "309": "55958",
+        "310": "55959",
+        "311": "55960",
+        "650": "55961",
+        "651": "55962",
+        "800": "55963",
+        "801": "55964"
     }
 
 
