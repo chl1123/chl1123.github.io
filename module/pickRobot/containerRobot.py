@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date : 2023/01/13
+# @Date : 2023/02/10
 # @Author : zhong
 # @File :containerRobot.py
-# @Version : 2023-01-13
+# @Version : 2023-02-10
 # @Project : 自研料箱车
-# @Update : 二维码识别优化
+# @Update : 识别调整优化
 import json
 import math
 import sys
@@ -13,7 +13,7 @@ import time
 sys.path.append("../syspy")
 import goPath
 from rbkSim import SimModule
-from rbk import MoveStatus, BasicModule, ParamServer, Pos2Base
+from rbk import MoveStatus, BasicModule, ParamServer
 from robot import ModuleTool, Motor, MotorType, Robot, GoodsManger
 
 """
@@ -188,11 +188,11 @@ class Module(BasicModule):
                                            comment="背篓是否有货物检测传感器，1为有，0为无")
         self.fork_sensor_di = p.loadParam("fork_sensor_di", type="int", default=-1, maxValue=100, minValue=-1, unit="",
                                           comment="货叉检测DI")
-        self.box_code_file = p.loadParam("box_code_file", type="str", default="tag/t0002.tag",
+        self.box_code_file = p.loadParam("box_code_file", type="str", default="tag/t0001.tag",
                                          comment="料箱二维码识别文件")
-        self.shelf_code_file = p.loadParam("shelf_code_file", type="str", default="tag/t0003.tag",
+        self.shelf_code_file = p.loadParam("shelf_code_file", type="str", default="tag/t0002.tag",
                                            comment="货架二维码识别文件")
-        self.barcode_file = p.loadParam("barcode_file", type="str", default="tag/t0001.tag", comment="条形码识别文件")
+        self.barcode_file = p.loadParam("barcode_file", type="str", default="tag/t0003.tag", comment="条形码识别文件")
         self.init = True
         self.status = MoveStatus.NONE
         self.report_info = dict()
@@ -223,7 +223,13 @@ class Module(BasicModule):
         self.right_finger_down_di = 10
         self.right_finger_up_do = 3
         self.right_finger_down_do = 5
-        self.fill_light_do = 7
+        self.fill_light_do = 7  # 补光灯DO
+        self.collision_di = 0  # 碰撞条DI
+        self.fork_limit_di = 1  # 机械防坠DI
+        self.up_limit_di = 2  # 升降上限位DI
+        self.down_limit_di = 3  # 升降下限位DI
+        self.lift_zero_di = 8
+        self.stretch_zero_di = 9
         self.target_type = None
         self.code_type = None
         self.barcode_height = None
@@ -242,6 +248,7 @@ class Module(BasicModule):
         self.unload_step = [False] * 16
         self.change_step = [False] * 10
         self.zero_step = [False] * 4
+        self.yaw_adjust = 0
 
         r.logInfo(f"init args: {args}")
         # self.logger.info(f"init args: {args}")
@@ -269,6 +276,7 @@ class Module(BasicModule):
             self.rotate_motor = Motor(r, MotorType.LINEAR_MOTOR, "rotate", -1)
             self.goods_manger = GoodsManger(r)
             self.self_position = args.get("selfPosition", None)
+            self.rec_adjust = RecAdjust(r, self.box_code_file)
             if "recAdjust" in args:
                 if self.operation == "load":
                     self.rec_adjust = RecAdjust(r, self.box_code_file)
@@ -299,6 +307,8 @@ class Module(BasicModule):
                 pass
             elif self.operation == "put":
                 pass
+            elif self.operation == "adjust":
+                self.adjust(r)
             else:
                 r.setError(f"args error: {args}")
                 self.status = MoveStatus.FAILED
@@ -336,9 +346,10 @@ class Module(BasicModule):
         self.report_info['motor_info'] = self.container_robot.state or -1
         if self.status == MoveStatus.FAILED or self.status == MoveStatus.FINISHED:
             r.setDO(self.fill_light_do, False)
+        if self.status == MoveStatus.FINISHED:
+            r.logInfo(json.dumps(self.report_info))
         r.setInfo(json.dumps(self.report_info))
-        r.logInfo(json.dumps(self.report_info))
-        # self.logger.info(f"report info: {json.dumps(self.report_info)}")
+        r.logDebug(json.dumps(self.report_info))
         return self.status
 
     def cancel(self, r: SimModule):
@@ -353,6 +364,22 @@ class Module(BasicModule):
         for p in move_task['params']:
             if p['key'] == 'goodsId':
                 self.goods_id = p['string_value']
+
+    def adjust(self, r):
+        if not self.load_step[0]:
+            self.load_step[0] = self.lift(r, self.lift_height)
+        if self.load_step[0] and not self.load_step[1]:
+            self.load_step[1] = self.rotate(r, self.rotate_pos)
+        if self.load_step[1] and not self.load_step[2]:
+            self.rec_adjust.run(r, self)
+        if self.rec_adjust.status is MoveStatus.FINISHED:
+            self.load_step[2] = True
+        # 调整货叉角度
+        # if self.load_step[2] and not self.load_step[3]:
+        #     self.load_step[3] = self.rotate(r, self.rotate_pos - self.yaw_adjust)
+        if self.load_step[2]:
+            self.status = MoveStatus.FINISHED
+        pass
 
     def zero(self, r):
         """
@@ -482,7 +509,7 @@ class Module(BasicModule):
         if self.rec.status is MoveStatus.FINISHED:
             self.rec.reset(r)
             r.setDO(self.fill_light_do, False)
-            self.report_info["QRcode"] = self.rec.result
+            # self.report_info["rec_result"] = self.rec.result
             return True
         elif self.rec.status is MoveStatus.FAILED:
             r.setDO(self.fill_light_do, False)
@@ -530,7 +557,8 @@ class Module(BasicModule):
                     r.setDO(self.fill_light_do, True)
                     if self.rec_adjust.status is MoveStatus.FINISHED:
                         r.setDO(self.fill_light_do, False)
-                        self.load_step[3] = True
+                        self.load_step[3] = self.rotate(r, self.rotate_pos - self.yaw_adjust)  # 货叉角度偏移修正 ±
+                        # self.load_step[3] = True
                     else:
                         self.rec_adjust.run(r, self)
             else:
@@ -614,6 +642,7 @@ class Module(BasicModule):
                 r.setDO(self.fill_light_do, True)
                 if self.rec_adjust.status is MoveStatus.FINISHED:
                     r.setDO(self.fill_light_do, False)
+                    # TODO 货叉角度偏移修正
                     self.unload_step[8] = True
                 else:
                     self.rec_adjust.run(r, self)
@@ -694,11 +723,10 @@ class Rec:
         self.result = dict()
 
     def run(self, r: SimModule, agv):
-        r.setNotice(f"----- running rec ------")
         self.status = MoveStatus.RUNNING
         rec_status = r.getRecStatus()  # 获取识别状态 0: 初始化, 1: 识别中, 2: 获得结果, 3：识别出错, -1: 未知错误
-        # r.logDebug("rec_status: {}".format(rec_status))
         if rec_status == 3 or rec_status == -1:  # 识别失败的状态
+            r.setNotice("rec failed:{}".format(self.result))
             if ModuleTool.delay(0.5):
                 self.rec_times = self.rec_times + 1
                 if self.rec_times > self.max_rec_times:
@@ -709,10 +737,11 @@ class Rec:
 
         elif rec_status == 2:  # 识别成功,获得结果
             self.result = r.getRecResult()
-            r.logDebug("rec_result:{}".format(self.result))
             r.resetRec()
             self.status = MoveStatus.FINISHED
+            r.setNotice(f"rec success: {self.status.name} {self.result}")
         else:
+            r.setNotice(f"--------------- doRec ----------------")
             r.doRec(self.filename)
 
         cur_state = dict()
@@ -722,8 +751,6 @@ class Rec:
         cur_state['rec_status'] = rec_status
         cur_state['file'] = self.filename
         agv.report_info['rec_info'] = cur_state
-        # agv.status = self.status
-        # r.logDebug(json.dumps(agv.report_info))
 
     def reset(self, r):
         r.resetRec()
@@ -749,6 +776,7 @@ class RecAdjust:
         if self.plan_status is not MoveStatus.FINISHED:
             self.plan_status = MoveStatus.RUNNING
             if self.rec.status is MoveStatus.RUNNING or self.rec.status is MoveStatus.NONE:
+                r.setNotice(f"----- rec to adjust {self.rec.status.name}------")
                 self.rec.run(r, agv)
             elif self.rec.status is MoveStatus.FAILED:
                 self.rec_fail_time = self.rec_fail_time + 1
@@ -760,13 +788,17 @@ class RecAdjust:
                     r.setError("rec fails!!! reach max times. {}".format(self.max_rec_fail_times))
                 r.setNotice("rec fail!!! {}".format(self.rec_fail_time))
             elif self.rec.status is MoveStatus.FINISHED:
+                r.setNotice(f"------------------ move to adjust -----------------")
                 self.rec_fail_time = 0
-                code2world = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]  # 目标点在世界坐标系的位置
-                loc = r.loc()
-                robot2world = [loc['x'], loc['y'], loc['angle']]  # 小车在世界坐标系的位置
-                code2robot = Pos2Base(code2world, robot2world)  # 目标点相对小车的位置
+                # code2world = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]  # 目标点在世界坐标系的位置
+                # loc = r.loc()
+                # robot2world = [loc['x'], loc['y'], loc['angle']]  # 小车在世界坐标系的位置
+                # code2robot = Pos2Base(code2world, robot2world)  # 目标点相对小车的位置
+                # 通过参数配置，使识别结果为二维码在相机坐标系下的坐标位置, (右手坐标系)x轴向前，y轴向左, z轴向上
+                code2camera = [self.rec.result['x'], self.rec.result['y'], self.rec.result['z'], self.rec.result['yaw']]  # 目标点在相机坐标系的位置
+                agv.yaw_adjust = math.pi/2 + code2camera[3]   # 角度偏差
                 self.go_args["coordinate"] = "robot"
-                self.go_args["x"] = code2robot[0]
+                self.go_args["x"] = code2camera[1]
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
@@ -774,6 +806,7 @@ class RecAdjust:
                 self.go_args["reachDist"] = 0.002
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
+                # ok_x = 0.02
                 ok_x = 0.005
                 if abs(self.go_args['x']) < ok_x:   # 调整完成
                     self.status = MoveStatus.FINISHED
@@ -798,15 +831,13 @@ class RecAdjust:
                 self.go_args = dict()
                 self.plan_status = MoveStatus.NONE
         cur_state = dict()
-        cur_state["goa_path_status"] = self.goPath.status
+        cur_state["go_path_status"] = self.goPath.status
         cur_state["plan_status"] = self.plan_status
         cur_state["go_args"] = self.go_args
-        cur_state["robot_loc"] = r.loc()
         cur_state["rec_fail_time"] = self.rec_fail_time
         cur_state["adjust_count"] = self.adjust_count
         cur_state["status"] = self.status
         agv.report_info["rec_adjust"] = cur_state
-        # agv.status = self.status
 
     def reset(self, r):
         self.rec.reset(r)
