@@ -12,8 +12,7 @@ import time
 import socket
 
 from rbkSim import SimModule
-from rbk import MoveStatus, BasicModule, ParamServer
-from robot import ModuleTool, MotorType, Motor, Robot
+from rbk import MoveStatus, BasicModule
 
 # =======脚本输入参数=======
 """
