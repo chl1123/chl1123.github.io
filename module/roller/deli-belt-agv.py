@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date: 2023/03/02
+# @Date: 2023/03/07
 # @Author: zhong
-# @Version: 1.3
+# @Version: 1.4
 # @Project: 北京德利九州皮带控制脚本
 # @Coding: https://seer-group.coding.net/p/order_issue_pool/requirements/issues/2188/detail
-# @Update: 脚本检测DO状态并执行对应功能
+# @Update: 增加等待接收物料超时报警功能
 
 import json
 import time
@@ -36,7 +36,7 @@ from robot import ModuleTool, MotorType, Motor, Robot
 class Module(BasicModule):
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
-        self.timeout = 120
+        self.timeout = 120   # 脚本运行超时时间
         self.adjust_vel = 0.3  # 货物调整位置时速度：m/s
         self.di_a1 = 6
         self.di_b1 = 2
@@ -46,6 +46,8 @@ class Module(BasicModule):
         self.do_func_unload = 50  # 触发卸货任务的DO
         self.do_func_adjust = [51, 52]  # 触发行李调整的DO列表
         self.do_func_stop = 60  # 触发辊筒停止的DO
+        self.do_func_wait = 61  # 触发等待接收物料的DO
+        self.wait_time = 30   # 等待接收物料的等待时间：秒
         self.init = True
         self.status = MoveStatus.NONE
         self.report_info = dict()
@@ -115,6 +117,16 @@ class Module(BasicModule):
             self.robot.run_motor(self.motor, vel=0, reach_di=-1)
             r.resetMotor()
             self.status = MoveStatus.FINISHED
+        elif ModuleTool.check_DO(r, self.do_func_wait):
+            if time.time() - self.start_time > self.wait_time:
+                r.setUserError(53910, "wait overtime!")
+            # 检测到任意光电
+            if (self.check_di(r, self.di_a1) or self.check_di(r, self.di_b1) or self.check_di(r, self.di_c) or
+                    self.check_di(r, self.di_a2) or self.check_di(r, self.di_b2)):
+                if r.errorExits(53910):
+                    r.clearError(53910)
+                if self.adjust(r):
+                    r.setGoodsShape(0., 0., 0.)
         else:
             for di in self.do_func_adjust:
                 if ModuleTool.check_DO(r, di):
