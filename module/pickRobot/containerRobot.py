@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date : 2023/02/10
+# @Date : 2023/03/07
 # @Author : zhong
 # @File :containerRobot.py
-# @Version : 2023-02-10
+# @Version : 2023-03-07
 # @Project : 自研料箱车
-# @Update : 识别调整优化
+# @Update : 适用于海柔改造车型
 import json
 import math
 import sys
@@ -193,6 +193,9 @@ class Module(BasicModule):
         self.shelf_code_file = p.loadParam("shelf_code_file", type="str", default="tag/t0002.tag",
                                            comment="货架二维码识别文件")
         self.barcode_file = p.loadParam("barcode_file", type="str", default="tag/t0003.tag", comment="条形码识别文件")
+        self.lift_motor_speed = p.loadParam("lift_motor_speed", type="float", default=0.1, comment="升降电机运转速度")
+        self.stretch_motor_speed = p.loadParam("stretch_motor_speed", type="float", default=0.1, comment="伸缩电机运转速度")
+        self.rotate_motor_speed = p.loadParam("rotate_motor_speed", type="float", default=0.1, comment="旋转电机运转速度")
         self.init = True
         self.status = MoveStatus.NONE
         self.report_info = dict()
@@ -206,8 +209,8 @@ class Module(BasicModule):
         self.finger_pos = None
         self.self_position = None
         self.lift_status = None
-        self.left_finger_real_pos = None
-        self.right_finger_real_pos = None
+        self.left_finger_real_pos = -1
+        self.right_finger_real_pos = -1
         self.finger_info = dict()
         self.stretch_status = None
         self.stretch_real_pos = 0
@@ -242,8 +245,8 @@ class Module(BasicModule):
         self.goods_manger = GoodsManger(r)
         self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, "lift", -1)
         self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, "stretch", -1)
-        self.rotate_motor = Motor(r, MotorType.LINEAR_MOTOR, "rotate", -1)
-        self.lift_door_motor = Motor(r, MotorType.LINEAR_MOTOR, "lift-door", -1)
+        self.rotate_motor = Motor(r, MotorType.LINEAR_MOTOR, "rotation", -1)
+        # self.lift_door_motor = Motor(r, MotorType.LINEAR_MOTOR, "lift-door", -1)
         self.load_step = [False] * 15
         self.unload_step = [False] * 16
         self.change_step = [False] * 10
@@ -271,9 +274,9 @@ class Module(BasicModule):
             self.load_height = args.get("loadHeight", self.rec_offz_box)
             self.unload_height = args.get("unloadHeight", self.rec_offz_shelf)
             self.containers = r.getContainers()
-            self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, "lift", -1)
-            self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, "stretch", -1)
-            self.rotate_motor = Motor(r, MotorType.LINEAR_MOTOR, "rotate", -1)
+            # self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, "lift", -1)
+            # self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, "stretch", -1)
+            # self.rotate_motor = Motor(r, MotorType.LINEAR_MOTOR, "rotation", -1)
             self.goods_manger = GoodsManger(r)
             self.self_position = args.get("selfPosition", None)
             self.rec_adjust = RecAdjust(r, self.box_code_file)
@@ -340,7 +343,6 @@ class Module(BasicModule):
         self.update_report_info(r)
         self.report_info['args'] = args
         self.report_info['task_status'] = self.status
-        self.report_info['finger'] = self.finger_info
         self.report_info['goodsId'] = self.goods_id
         self.report_info['containers'] = self.containers
         self.report_info['motor_info'] = self.container_robot.state or -1
@@ -411,19 +413,20 @@ class Module(BasicModule):
         if self.stretch_real_pos > self.safe_stretch_length:
             r.setError(f"stretch need to be zero, cannot lift")
         if height < self.level2_height:
-            if self.container_robot.lift(self.lift_motor, height):
+            if self.container_robot.lift(self.lift_motor, height, self.lift_motor_speed):
                 return True
         else:
-            if self.container_robot.lift_door(self.lift_door_motor, self.door_lift_height):
-                if self.container_robot.lift(self.lift_motor, height):
-                    return True
-            pass
+            r.setWarning(f"Out of the level2_height: {height}")
+            # if self.container_robot.lift_door(self.lift_door_motor, self.door_lift_height):
+            # if self.container_robot.lift(self.lift_motor, height):
+            return True
         return False
 
     def lift_door(self, r, height):
         r.setNotice(f"----- running lift_door ------")
         if height < self.door_lift_height:
-            return self.container_robot.lift_door(self.lift_door_motor, height)
+            # return self.container_robot.lift_door(self.lift_door_motor, height)
+            return True
         else:
             r.setError(f"Out of the max lift-door height: {height}")
         return False
@@ -457,13 +460,15 @@ class Module(BasicModule):
             self.right_finger_real_pos = 0
         elif ModuleTool.check_DI(r, self.right_finger_up_di):
             self.right_finger_real_pos = 1
+        self.finger_info["left_finger"] = self.left_finger_real_pos
+        self.finger_info["right_finger"] = self.right_finger_real_pos
 
     def stretch(self, r, length):
         r.setNotice(f"----- running stretch ------")
         if length > self.max_stretch_length:
             r.setWarning(f"Out of max stretch length: {length}")
             length = self.max_stretch_length
-        if self.container_robot.stretch(self.stretch_motor, length):
+        if self.container_robot.stretch(self.stretch_motor, length, self.stretch_motor_speed):
             return True
         return False
 
@@ -473,7 +478,7 @@ class Module(BasicModule):
             r.setError(f"Out of max rotate angle: {pos}")
         if self.stretch_real_pos > self.safe_stretch_length:
             r.setError(f"stretch need to be zero, cannot rotate")
-        if self.container_robot.rotate(self.rotate_motor, pos):
+        if self.container_robot.rotate(self.rotate_motor, pos, self.rotate_motor_speed):
             return True
         return False
 
@@ -684,11 +689,12 @@ class Module(BasicModule):
         module_pos = dict()
         self.lift_real_pos = ModuleTool.get_motor_pos(r, "lift")
         self.stretch_real_pos = ModuleTool.get_motor_pos(r, "stretch")
-        self.rotate_real_pos = ModuleTool.get_motor_pos(r, "rotate")
+        self.rotate_real_pos = ModuleTool.get_motor_pos(r, "rotation")
+        self.rotate_real_pos = self.rotate_real_pos * 180 / math.pi
         self.update_finger_info(r)
-        module_pos['lift'] = round(self.lift_real_pos, 6)
-        module_pos['stretch'] = round(self.stretch_real_pos, 6)
-        module_pos['rotate'] = round(self.rotate_real_pos, 6)
+        module_pos['lift'] = round(self.lift_real_pos, 3)
+        module_pos['stretch'] = round(self.stretch_real_pos, 3)
+        module_pos['rotate'] = round(self.rotate_real_pos, 3)
         module_pos['left_finger'] = self.left_finger_real_pos
         module_pos['right_finger'] = self.right_finger_real_pos
         self.containers = r.getContainers()
