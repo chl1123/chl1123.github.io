@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Time : 2023/02/22
+# @Time : 2023/03/03
 # @Author : qiangsheng，zhong
 # @File :SFL-R16S.py based on zhiche.py
 # @Request : test_center#964 SFL-R16S叉车脚本
-# @Version: 2.7.4
-# @Description: 增加是非识别取货
+# @Version: 2.7.5
+# @Description: 完善是非识别取货
 
 import json
 import time
@@ -764,7 +764,10 @@ class goBack:
                         p["string_value"] = "ForkLoad"
                 elif p["key"] == "goBack":
                     has_goBack = True
-                    p["bool_value"] = True
+                    if agv.recognize:
+                        p["bool_value"] = True
+                    else:
+                        p["bool_value"] = False
             if has_op == False:
                 p = dict()
                 p["key"] = "operation"
@@ -778,14 +781,17 @@ class goBack:
             if has_goBack == False:
                 p = dict()
                 p["key"] = "goBack"
-                p["bool_value"] = True
+                if agv.recognize:
+                    p["bool_value"] = True
+                else:
+                    p["bool_value"] = False
                 self.task["params"].append(p) 
-                has_rec = True               
+                has_goBack = True    
             p1 = dict()
             if agv.recognize:
                 p1["key"] = "goBackDist"
                 p1["double_value"] = agv.back_dist + (agv.stretch_max_length - agv.stretch_pos)
-                self.task["params"].append(p1)                             
+                self.task["params"].append(p1)
         r.logInfo("goBack task {}".format(str(self.task)))
         self.status = r.recAndGoPathDi(json.dumps(self.task))
         return self.status
