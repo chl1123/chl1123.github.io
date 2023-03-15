@@ -252,6 +252,8 @@ class Module(BasicModule):
         self.change_step = [False] * 10
         self.zero_step = [False] * 4
         self.yaw_adjust = 0
+        self.rec_res = None
+        self.rec_id = None
 
         r.logInfo(f"init args: {args}")
         # self.logger.info(f"init args: {args}")
@@ -274,12 +276,11 @@ class Module(BasicModule):
             self.load_height = args.get("loadHeight", self.rec_offz_box)
             self.unload_height = args.get("unloadHeight", self.rec_offz_shelf)
             self.containers = r.getContainers()
-            # self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, "lift", -1)
-            # self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, "stretch", -1)
-            # self.rotate_motor = Motor(r, MotorType.LINEAR_MOTOR, "rotation", -1)
             self.goods_manger = GoodsManger(r)
             self.self_position = args.get("selfPosition", None)
-            self.rec_adjust = RecAdjust(r, self.box_code_file)
+            if self.operation == "adjust":
+                self.rec_adjust = RecAdjust(r, self.box_code_file)
+            self.rec_id = ModuleTool.get_uuid()
             if "recAdjust" in args:
                 if self.operation == "load":
                     self.rec_adjust = RecAdjust(r, self.box_code_file)
@@ -485,24 +486,19 @@ class Module(BasicModule):
     def rec_barcode(self, r):
         """
         识别一维码
-        @param r:
+        @param r:102
         @return:
         """
-        r.setNotice(f"----- running rec_barcode ------")
         r.setDO(self.fill_light_do, True)
-        rec_count = 0
-        rec_res = r.RecognizeBarCode(self.barcode_file)
-        if rec_res:
+        if self.rec_res.get("status", 1) == 0:
             r.setDO(self.fill_light_do, False)
-            self.report_info["barcode"] = rec_res
-            return rec_res
+            self.report_info["barcode"] = self.rec_res['barCode']
+            return self.rec_res['barCode']
         else:
             if ModuleTool.delay(0.5):
-                rec_count += 1
-            if rec_count > 10:
-                return False
-        self.report_info["barcode"] = rec_res
-        self.report_info["rec_count"] = rec_count
+                self.rec_res = r.RecognizeBarCode(self.barcode_file, self.rec_id)
+            self.report_info["barcode"] = ""
+        self.report_info["rec_id"] = self.rec_id
 
     def rec_QRcode(self, r):
         """
@@ -514,7 +510,6 @@ class Module(BasicModule):
         if self.rec.status is MoveStatus.FINISHED:
             self.rec.reset(r)
             r.setDO(self.fill_light_do, False)
-            # self.report_info["rec_result"] = self.rec.result
             return True
         elif self.rec.status is MoveStatus.FAILED:
             r.setDO(self.fill_light_do, False)
@@ -796,10 +791,6 @@ class RecAdjust:
             elif self.rec.status is MoveStatus.FINISHED:
                 r.setNotice(f"------------------ move to adjust -----------------")
                 self.rec_fail_time = 0
-                # code2world = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]  # 目标点在世界坐标系的位置
-                # loc = r.loc()
-                # robot2world = [loc['x'], loc['y'], loc['angle']]  # 小车在世界坐标系的位置
-                # code2robot = Pos2Base(code2world, robot2world)  # 目标点相对小车的位置
                 # 通过参数配置，使识别结果为二维码在相机坐标系下的坐标位置, (右手坐标系)x轴向前，y轴向左, z轴向上
                 code2camera = [self.rec.result['x'], self.rec.result['y'], self.rec.result['z'], self.rec.result['yaw']]  # 目标点在相机坐标系的位置
                 agv.yaw_adjust = math.pi/2 + code2camera[3]   # 角度偏差
@@ -812,7 +803,6 @@ class RecAdjust:
                 self.go_args["reachDist"] = 0.002
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
-                # ok_x = 0.02
                 ok_x = 0.005
                 if abs(self.go_args['x']) < ok_x:   # 调整完成
                     self.status = MoveStatus.FINISHED
