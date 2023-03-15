@@ -386,6 +386,7 @@ class Motor:
         if self.r.isMotorReached(self.motor_name):
             self.r.resetMotor(self.motor_name)
             self.status = MoveStatus.FINISHED
+        self.r.publishSpeed()
         self.state['motor_name'] = self.motor_name
         self.state['motor_type'] = self.motor_type
         self.state['motor_pos'] = ModuleTool.get_motor_pos(self.r, self.motor_name)
