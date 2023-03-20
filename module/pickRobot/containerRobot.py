@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date : 2023/03/07
+# @Date : 2023/03/16
 # @Author : zhong
 # @File :containerRobot.py
-# @Version : 2023-03-07
+# @Version : 2023-03-16
 # @Project : 自研料箱车
-# @Update : 适用于海柔改造车型
+# @Update : 适用于海柔改造车型, 适配一维码识别新接口
 import json
 import math
 import sys
@@ -218,12 +218,12 @@ class Module(BasicModule):
         self.rotate_real_pos = 0
         self.load_height = None
         self.unload_height = None
-        self.left_finger_up_di = 2
-        self.left_finger_down_di = 4
+        self.left_finger_up_di = 7
+        self.left_finger_down_di = 10
         self.left_finger_up_do = 2
         self.left_finger_down_do = 1
-        self.right_finger_up_di = 7
-        self.right_finger_down_di = 10
+        self.right_finger_up_di = 4
+        self.right_finger_down_di = 2
         self.right_finger_up_do = 3
         self.right_finger_down_do = 5
         self.fill_light_do = 7  # 补光灯DO
@@ -378,8 +378,8 @@ class Module(BasicModule):
         if self.rec_adjust.status is MoveStatus.FINISHED:
             self.load_step[2] = True
         # 调整货叉角度
-        # if self.load_step[2] and not self.load_step[3]:
-        #     self.load_step[3] = self.rotate(r, self.rotate_pos - self.yaw_adjust)
+        if self.load_step[2] and not self.load_step[3]:
+            self.load_step[3] = self.rotate(r, self.rotate_pos - self.yaw_adjust)
         if self.load_step[2]:
             self.status = MoveStatus.FINISHED
         pass
@@ -486,18 +486,18 @@ class Module(BasicModule):
     def rec_barcode(self, r):
         """
         识别一维码
-        @param r:102
+        @param r:
         @return:
         """
         r.setDO(self.fill_light_do, True)
-        if self.rec_res.get("status", 1) == 0:
+        if self.rec_res and self.rec_res.get("status", 1) == 0:
             r.setDO(self.fill_light_do, False)
             self.report_info["barcode"] = self.rec_res['barCode']
             return self.rec_res['barCode']
         else:
             if ModuleTool.delay(0.5):
                 self.rec_res = r.RecognizeBarCode(self.barcode_file, self.rec_id)
-            self.report_info["barcode"] = ""
+            self.report_info["barcode"] = "None"
         self.report_info["rec_id"] = self.rec_id
 
     def rec_QRcode(self, r):
@@ -803,7 +803,7 @@ class RecAdjust:
                 self.go_args["reachDist"] = 0.002
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
-                ok_x = 0.005
+                ok_x = 0.03   # 调整完成阈值
                 if abs(self.go_args['x']) < ok_x:   # 调整完成
                     self.status = MoveStatus.FINISHED
                 else:
