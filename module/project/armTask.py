@@ -160,6 +160,13 @@ class Module(BasicModule):
                             if cur_c["container_name"] == self.container_name:   # 指定容器名称
                                 self.container = self.container_name
                                 break
+
+                    # 如果指定了库位号，但是该库位容器已满，则报错
+                    if self.container_name is not None:
+                        if cur_cs.get(self.container_name, {}).get('has_goods', False):
+                            r.setError(f"container {self.container_name} already has goods")
+                            return self.failTask(r)
+
                     # load again error
                     if self.container is None or cur_cs.get(self.container, {}).get("has_goods"):
                         r.setError("all containers {} have goods, cannot load again.".format(str(cur_cs)))
