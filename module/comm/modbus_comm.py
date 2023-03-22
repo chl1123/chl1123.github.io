@@ -9,7 +9,9 @@
 
 import json
 import time
-import serial
+# import serial
+import sys
+sys.path.append("../modbus_tk")
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule
 
@@ -53,8 +55,8 @@ except ImportError:
         "type": "json"
     },
     "slave_id": {
-        "value": "",
-        "type": "string"
+        "value": 1,
+        "type": "int"
     },
     "task_data":{
         "value": "",
@@ -78,7 +80,8 @@ class Module(BasicModule):
         self.length = 1
         self.result = None
         self.value = None
-        self.modbus_tcp = ModbusTCP(ip="127.0.0.1", port=502, timeout=3)
+        self.expected_value = None
+        self.modbus_tcp = ModbusTCP(ip="192.168.8.47", port=502, timeout=3)
         self.slave_id = 1    # 默认从机ID
         r.logInfo(f"init args: {args}")
 
@@ -93,52 +96,86 @@ class Module(BasicModule):
             self.tasks = args.get("task_data", None)
             self.value = args.get("write_value", None)
             self.slave_id = args.get("slave_id", self.slave_id)
+            self.expected_value = args.get("expected_value", None)
 
         # 超时判断
         if time.time() - self.start_time > self.timeout:
             r.setError(f"script running timeout")
+            self.status = MoveStatus.FAILED
 
         # =====处理业务逻辑=====
         if self.opt == "read_coils":
-            self.result = self.modbus_tcp.read_coils(self.slave_id, self.st_addr, self.length)
+            self.read_coils(r)
         elif self.opt == "read_registers":
-            self.result = self.modbus_tcp.read_holding_registers(self.slave_id, self.st_addr, self.length)
+            self.read_registers(r)
         elif self.opt == "write_coils":
-            self.modbus_tcp.write_multi_coils(self.slave_id, self.st_addr, self.value)
-            self.result = self.modbus_tcp.read_coils(self.slave_id, self.st_addr, len(self.value))
+            self.write_coils(r)
         elif self.opt == "write_registers":
-            self.modbus_tcp.write_multi_registers(self.slave_id, self.st_addr, self.value)
-            self.result = self.modbus_tcp.read_holding_registers(self.slave_id, self.st_addr, len(self.value))
+            self.write_registers(r)
         elif self.opt == "tasks_list":
             self.execute_tasks(r)
-        pass
 
         # =====数据上报及日志打印=====
         self.report_info['args'] = args
-        self.report_info['tasks'] = self.tasks
         self.report_info['task_status'] = self.status
         self.report_info['execute_result'] = self.result
         r.setInfo(json.dumps(self.report_info))
         r.logInfo(json.dumps(self.report_info))
         return self.status
 
+    def read_coils(self, r: SimModule):
+        self.result = self.modbus_tcp.read_coils(self.slave_id, self.st_addr, self.length)
+        if self.result is not None:
+            if self.expected_value:
+                if tuple(self.expected_value) == self.result:
+                    self.status = MoveStatus.FINISHED
+                else:
+                    r.setError(f"unexpected value: {self.result}")
+                    self.status = MoveStatus.FAILED
+            else:
+                self.status = MoveStatus.FINISHED
+
+    def write_coils(self, r: SimModule):
+        self.modbus_tcp.write_multi_coils(self.slave_id, self.st_addr, self.value)
+        self.result = self.modbus_tcp.read_coils(self.slave_id, self.st_addr, len(self.value))
+        if self.result is not None:
+            self.status = MoveStatus.FINISHED
+
+    def read_registers(self, r: SimModule):
+        self.result = self.modbus_tcp.read_holding_registers(self.slave_id, self.st_addr, self.length)
+        if self.result is not None:
+            if self.expected_value:
+                if tuple(self.expected_value) == self.result:
+                    self.status = MoveStatus.FINISHED
+                else:
+                    r.setError(f"unexpected value: {self.result}")
+                    self.status = MoveStatus.FAILED
+            else:
+                self.status = MoveStatus.FINISHED
+
+    def write_registers(self, r: SimModule):
+        self.modbus_tcp.write_multi_registers(self.slave_id, self.st_addr, self.value)
+        self.result = self.modbus_tcp.read_holding_registers(self.slave_id, self.st_addr, len(self.value))
+        if self.result is not None:
+            self.status = MoveStatus.FINISHED
+
     def execute_tasks(self, r):
         self.result = []
         for task in self.tasks:
             try:
-                if len(task.get('value', [])) == 1:
-                    value = task['value'][0]
+                if len(task.get('write_value', [])) == 1:
+                    value = task['write_value'][0]
                 else:
-                    value = task.get('value', 0)
-                ret = self.modbus_tcp.tcp_master.execute(task['slave'], task['func_code'], task['st_addr'],
+                    value = task.get('write_value', 0)
+                ret = self.modbus_tcp.tcp_master.execute(task['slave_id'], task['func_code'], task['st_addr'],
                                                          quantity_of_x=task.get('length', 0),
                                                          output_value=value)
                 self.result.append(ret)
 
                 # 读操作结果对比
                 if "expected_value" in task:
-                    if ret != task['expected_value']:
-                        r.setError(f"unexpected read result")
+                    if ret != tuple(task['expected_value']):
+                        r.setError(f"unexpected read result: {ret}, expected_value: {tuple(task['expected_value'])}")
                         self.status = MoveStatus.FAILED
                         break
 
@@ -146,6 +183,9 @@ class Module(BasicModule):
                 r.setError(f"execute_tasks error: {e}")
                 self.status = MoveStatus.FAILED
                 break
+
+        if len(self.result) == len(self.tasks):
+            self.status = MoveStatus.FINISHED
 
     def cancel(self, r):
         # =====处理任务取消时的业务=====
@@ -260,41 +300,51 @@ class ModbusTCP:
         return self.tcp_master.execute(slave, cst.WRITE_MULTIPLE_REGISTERS, st_addr, output_value=output_value)
 
 
-class ModbusRTU:
-    def __init__(self, port, baudrate=9600, bytesize=8, parity='N', stopbits=1, xonxoff=0, timeout=1.0):
-        """
-        Modbus-RTU协议串口通信
-        @param port: 串口
-        @param baudrate: 波特率
-        @param bytesize: 字节大小
-        @param parity: 校验位
-        @param stopbits: 停止位
-        @param xonxoff: 读超时
-        @param timeout: 写超时
-        """
-        self.rtu_master = modbus_rtu.RtuMaster(serial.Serial(port=port, baudrate=baudrate, bytesize=bytesize,
-                                                             parity=parity, stopbits=stopbits, xonxoff=xonxoff))
-        self.rtu_master.set_timeout(timeout)
-
-    @staticmethod
-    def rtu_master_func_demo():
-        master = modbus_rtu.RtuMaster(serial.Serial(port=502, baudrate=9600,
-                                                    bytesize=8, parity='N', stopbits=1, xonxoff=0))
-        master.set_timeout(1.0)
-        res1 = master.execute(1, cst.READ_COILS, 0, 10)
-        res2 = master.execute(2, cst.READ_DISCRETE_INPUTS, 0, 8)
-        res3 = master.execute(3, cst.READ_INPUT_REGISTERS, 100, 3)
-        res4 = master.execute(4, cst.READ_HOLDING_REGISTERS, 100, 12)
-        res5 = master.execute(5, cst.WRITE_SINGLE_COIL, 7, output_value=1)
-        res6 = master.execute(6, cst.WRITE_SINGLE_REGISTER, 100, output_value=8)
-        res7 = master.execute(7, cst.WRITE_MULTIPLE_COILS, 0, output_value=[1, 1, 0, 1, 1])
-        res8 = master.execute(8, cst.WRITE_MULTIPLE_REGISTERS, 100, output_value=[1, 2, 3, 4, 5])
-        print(f"{res1}-{res2}-{res3}-{res4}-{res5}-{res6}-{res7}-{res8}")
+# class ModbusRTU:
+#     def __init__(self, port, baudrate=9600, bytesize=8, parity='N', stopbits=1, xonxoff=0, timeout=1.0):
+#         """
+#         Modbus-RTU协议串口通信
+#         @param port: 串口
+#         @param baudrate: 波特率
+#         @param bytesize: 字节大小
+#         @param parity: 校验位
+#         @param stopbits: 停止位
+#         @param xonxoff: 读超时
+#         @param timeout: 写超时
+#         """
+#         self.rtu_master = modbus_rtu.RtuMaster(serial.Serial(port=port, baudrate=baudrate, bytesize=bytesize,
+#                                                              parity=parity, stopbits=stopbits, xonxoff=xonxoff))
+#         self.rtu_master.set_timeout(timeout)
+#
+#     @staticmethod
+#     def rtu_master_func_demo():
+#         master = modbus_rtu.RtuMaster(serial.Serial(port=502, baudrate=9600,
+#                                                     bytesize=8, parity='N', stopbits=1, xonxoff=0))
+#         master.set_timeout(1.0)
+#         res1 = master.execute(1, cst.READ_COILS, 0, 10)
+#         res2 = master.execute(2, cst.READ_DISCRETE_INPUTS, 0, 8)
+#         res3 = master.execute(3, cst.READ_INPUT_REGISTERS, 100, 3)
+#         res4 = master.execute(4, cst.READ_HOLDING_REGISTERS, 100, 12)
+#         res5 = master.execute(5, cst.WRITE_SINGLE_COIL, 7, output_value=1)
+#         res6 = master.execute(6, cst.WRITE_SINGLE_REGISTER, 100, output_value=8)
+#         res7 = master.execute(7, cst.WRITE_MULTIPLE_COILS, 0, output_value=[1, 1, 0, 1, 1])
+#         res8 = master.execute(8, cst.WRITE_MULTIPLE_REGISTERS, 100, output_value=[1, 2, 3, 4, 5])
+#         print(f"{res1}-{res2}-{res3}-{res4}-{res5}-{res6}-{res7}-{res8}")
 
 
 if __name__ == '__main__':  # 本地运行测试
-    # args1 = {"operation": "write_registers", "st_addr": 5, "length": 3, "write_value": [5, 6, 7]}
-    args1 = {"operation": "read_registers", "st_addr": 5, "length": 3}
+    task1 = [
+        {
+            "slave": 1,
+            "func_code": 3,
+            "st_addr": 1,
+            "length": 1,
+            "expected_value": [5]
+        }
+    ]
+    # args1 = {"operation": "tasks_list", "st_addr": 0, "length": 10, "write_value": [1] * 10}
+    # args1 = {"slave_id": 2, "operation": "write_registers", "st_addr": 0, "length": 10, "write_value": [6]*10}
+    args1 = {"operation": "read_registers", "st_addr": 0, "length": 2}
 
     r1 = SimModule()
     m = Module(r1, args1)
