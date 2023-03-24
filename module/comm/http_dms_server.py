@@ -44,7 +44,7 @@ class Request(BaseHTTPRequestHandler):
             log.logger.info('*' * 100)
         except Exception as e:
             log.logger.warning(e)
-        if self.path == "/getInfo":
+        if self.path.split("?")[0] == "/getInfo":
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
@@ -67,7 +67,7 @@ class Request(BaseHTTPRequestHandler):
         log.logger.info(f"path: {self.path}")
         log.logger.info(f'client:  {self.client_address}')
         log.logger.info(f"server recv data: {data.decode('utf-8')}")
-        if self.path == "/setOrder":  # 接收 WMS 发送的订单
+        if self.path.split("?")[0] == "/setOrder":  # 接收 WMS 发送的订单
             if bool(data):
                 Order.inside_orders.append(json.loads(data.decode('utf-8')))
             res = {"status": http.HTTPStatus.OK, "type": "HTTP POST"}
