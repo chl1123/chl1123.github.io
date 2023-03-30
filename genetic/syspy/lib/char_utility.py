@@ -11,10 +11,15 @@ def merge2bytesTo1(byte1, byte2):
 def merge4bytesTo1(byte1, byte2, byte3, byte4):
     temp1 = byte1 << 24 & 0xFF000000
     temp2 = byte2 << 16 & 0x00FF0000
-    temp3 = byte3 << 8 &  0x0000FF00
+    temp3 = byte3 << 8 & 0x0000FF00
     temp4 = byte4 & 0x000000FF
     return temp1 | temp2 | temp3 | temp4
 
+def get_bit_val(byte, index):
+    if byte & (1 << index):
+        return 1
+    else:
+        return 0
 
 def u16Toint16(u16t):
     '''

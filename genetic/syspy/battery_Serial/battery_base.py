@@ -5,7 +5,7 @@ import syspy.lib.rpc_client as rc
 import syspy.lib.rpc_server as rs
 import syspy.lib.udp_debug as ud
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery/')
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Serial/')
 import message_battery_pb2
 
 DEFAULT_PASS_ADDR = "ipc:///tmp/python2dsp_udp.ipc"
