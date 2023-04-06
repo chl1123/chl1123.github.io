@@ -397,7 +397,7 @@ class Motor:
         self.r.logInfo(f"motor reset: {self.motor_name}")
         self.r.resetMotor(self.motor_name)
         self.status = MoveStatus.RUNNING
-        self.state['motor_status'] = self.status
+        # self.state['motor_status'] = self.status
 
     def stop(self):
         self.r.isMotorStop(self.motor_name)
