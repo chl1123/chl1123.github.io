@@ -113,6 +113,22 @@ class ModuleTool:
     def get_now_date():
         return time.strftime('%Y-%m-%d %H:%M:%S')
 
+    @staticmethod
+    def clear_all_warnings(r: SimModule):
+        """
+        清除所有机构脚本相关的告警提示
+        @param r:
+        @return:
+        """
+        r.clearNotice(57019)
+        r.clearNotice(57300)
+        r.clearWarning(55300)
+        r.clearError(53000)
+        for code in range(53900, 54000):
+            r.clearError(code)
+        for code in range(55900, 56000):
+            r.clearWarning(code)
+
 
 def get_value_by_key(data: dict, key):
     """深度遍历解析字典数据，获取指定 key 对应的 value 值，如果 key 不存在，则返回 None
