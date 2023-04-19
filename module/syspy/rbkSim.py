@@ -1044,6 +1044,12 @@ class SimModule:
         d = {"barCode":"1234", "id":"123", "status": 0}
         print("func: {0} {1} {2}".format(get_function_name(), name, d))
         return d
+    @check
+    def stopCurrentBlock(self):
+        """终止当前调度的动作块
+        """
+        print("func: {0}".format(get_function_name()))
+        return
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1148,4 +1154,5 @@ if __name__ == '__main__':
     r.noticeExits(533000)
     r.getLM("AP1", True)
     r.RecognizeBarCode("tag/t0001.tag", "123")
+    r.stopCurrentBlock()
     print("Success!!!")
