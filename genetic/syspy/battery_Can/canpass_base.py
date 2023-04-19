@@ -15,7 +15,7 @@ DEFAULT_PASS_ADDR = "ipc:///tmp/CanPass_udp.ipc"
 class canPassBase:
     def __init__(self):
         self.__pass = pt.passThrough()
-        self.__pass.connect(DEFAULT_PASS_ADDR,"ECanFrame_pass_py")
+        self.__pass.canConnect(DEFAULT_PASS_ADDR,"ECanFrame_pass_py")
         self.__rpc_client = rc.rpcClient()
         self.__rpc_client.connect(DEFAULT_RPC_ADDR)
         self.__rpc_server = rs.rpcServer()
@@ -49,12 +49,11 @@ class canPassBase:
         """
         self.__rpc_client.sendPassThroughCanFrame(channel, can_id, dlc, extend, can_string)
 
-    def attachCanID(self, channel, id_nums, can_id1, can_id2, can_id3, can_id4):
+    def attachCanID(self, channel, extend, id_nums, can_id1, can_id2, can_id3, can_id4):
         """
         绑定多个can邮箱
         """
-        self.__rpc_client.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4)
-
+        self.__rpc_client.canPassThroughRxId(channel, extend, id_nums, can_id1, can_id2, can_id3, can_id4)
 
     def publish(self, battery_info):
         """

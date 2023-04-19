@@ -4,18 +4,20 @@ import syspy.lib.pass_through as pt
 import syspy.lib.rpc_client as rc
 import syspy.lib.rpc_server as rs
 import syspy.lib.udp_debug as ud
+
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Serial/')
 import message_battery_pb2
 
 DEFAULT_PASS_ADDR = "ipc:///tmp/python2dsp_udp.ipc"
 DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_rpc.ipc"
-CODE_BATT_ERRO   = 54001
+CODE_BATT_ERRO = 54001
+
 
 class batteryBase:
     def __init__(self):
         self.__pass = pt.passThrough()
-        self.__pass.connect(DEFAULT_PASS_ADDR)
+        self.__pass.serialConnect(DEFAULT_PASS_ADDR)
         self.__rpc_client = rc.rpcClient()
         self.__rpc_client.connect(DEFAULT_RPC_ADDR)
         self.__rpc_server = rs.rpcServer()

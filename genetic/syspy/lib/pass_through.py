@@ -26,14 +26,14 @@ class passThrough:
     def setCallBack(self, callback):
         self.__callback = callback
 
-    def connect(self, addr):
+    def serialConnect(self, addr):
         self.__addr = addr
         now = time.time()
         self.__conn_id = "py_client_" + str(now)
         self.__msg_thread = threading.Thread(target=self.__run, name="run")
         self.__msg_thread.start()  # FIXME: when to join?
 
-    def connect(self, addr, connid):
+    def canConnect(self, addr, connid):
         self.__addr = addr
         self.__conn_id = connid
         self.__msg_thread = threading.Thread(target=self.__run, name="run")
