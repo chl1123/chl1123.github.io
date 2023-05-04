@@ -45,7 +45,7 @@ class testCanBattery(cb.canPassBase):
         connect_timeout_t = mu.Timer(3000)
         # 需要至少7s来等待底层初始化,否则将会覆盖操作
         mu.sleep_s(7)
-        self.attachCanID(1, 1, 0x019E, 0, 0, 0)
+        self.attachCanID(1, False, 1, 0x019E, 0, 0, 0)
         while True:
             if self.isNeedCharge() == True:
                 self.sendCanframe(2, 0x18FF50E5, 8, True, '01 19 03 E9 00 00 00 00')

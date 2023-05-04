@@ -43,7 +43,7 @@ class testCanBattery(cb.canPassBase):
         # 需要至少7s来等待底层初始化,否则将会覆盖操作
         mu.sleep_s(7)
         # 绑定多个can邮箱，3为绑定的邮箱个数，54，55，56分别为绑定的三个邮箱编号，0表示未绑定第四个邮箱
-        self.attachCanID(3, 0x36, 0x37, 0x38, 0)
+        self.attachCanID(1, False, 3, 0x36, 0x37, 0x38, 0)
         while True:
             # 自问自答模式，需发送如此canframe信息等待上报，若主动上报模式则无需发送
             self.sendCanframe(2, 0x36, 8, False, "10 20 33 54 66 18 77 00")

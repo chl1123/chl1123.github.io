@@ -43,8 +43,8 @@ class testCanBattery(cb.canPassBase):
         connect_timeout_t = mu.Timer(3000)
         # 需要至少7s来等待底层初始化,否则将会覆盖操作
         mu.sleep_s(7)
-        # 绑定多个can邮箱，3为绑定的邮箱个数，54，55，56分别为绑定的三个邮箱编号，0表示未绑定第四个邮箱
-        self.attachCanID(1, 1, 0x2F0, 0, 0, 0)
+        # 绑定多个can邮箱，1为绑定的邮箱个数，false表示非扩展帧，0x2F0表示第一个邮箱canid号，0表示未绑定第四个邮箱
+        self.attachCanID(1, False, 1, 0x2F0, 0, 0, 0)
         while True:
             # 判断是否收到整包
             if self.msg_ok:
