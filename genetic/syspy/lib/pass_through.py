@@ -1,7 +1,8 @@
 import threading, zmq, time, sys
 import syspy.lib.udp_debug as ud
+import syspy.lib.rpc_client as rc
 
-
+DEFAULT_RPC_ADDR = "ipc:///tmp/CanPass_rpc.ipc"
 class callBack:
     def handleData(self, msg):
         pass
@@ -10,6 +11,8 @@ class callBack:
 class passThrough:
     def __init__(self):
         context = zmq.Context()
+        self.__rpc_client = rc.rpcClient()
+        self.__rpc_client.connect(DEFAULT_RPC_ADDR)
         self.__client_sock = context.socket(zmq.DEALER)
         self.__addr = ""
         self.__conn_id = ""
@@ -53,6 +56,8 @@ class passThrough:
 
         except Exception as e:
             print("exception:", e)
+            self.stopBatteryScript()
+            self.startBatteryScript()
         finally:
             pass
 
@@ -66,6 +71,12 @@ class passThrough:
 
     def shoutDown(self):
         self.__should_close = True
+
+    def stopBatteryScript(self):
+        self.__rpc_client.stopBatteryScript()
+
+    def startBatteryScript(self):
+        self.__rpc_client.startBatteryScript()
 
 
 if __name__ == "__main__":

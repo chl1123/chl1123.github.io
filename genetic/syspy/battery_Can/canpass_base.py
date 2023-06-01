@@ -104,6 +104,9 @@ class canPassBase:
         """
         return self.need_charge
 
+    def getConInterrupt(self):
+        return self.__rpc_client.getConInterrupt()
+
     def __del__(self):
         self.__pass.shoutDown()
         self.__rpc_client.close()
