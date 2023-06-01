@@ -1,4 +1,5 @@
 import sys,ctypes
+import syspy.lib.udp_debug as ud
 
 def merge2bytesTo1(byte1, byte2):
     '''
@@ -20,6 +21,16 @@ def get_bit_val(byte, index):
         return 1
     else:
         return 0
+
+def hexStr_to_int(hex_str,Reserved_Digits):
+    binary_str = bin(int(hex_str, 16))[2:].zfill(Reserved_Digits)
+    num = int(binary_str, 2)
+    num_bits = len(binary_str)
+    if binary_str[0] == '0':
+        return num
+    else:
+        inverted = num ^ (2**num_bits - 1)
+        return -1 * (inverted + 1)
 
 def u16Toint16(u16t):
     '''
