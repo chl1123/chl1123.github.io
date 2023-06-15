@@ -1,5 +1,4 @@
 import zmq,json,threading,sys,time
-import syspy.battery_Can.canpass_base as cb
 
 class zmqServer(object):
     def __init__(self):
@@ -34,10 +33,8 @@ class zmqServer(object):
                 if self.__should_close:
                     break
             except Exception as e:
-                print('loop error',e)
-                cb.stopBatteryScript()
-                cb.startBatteryScript()
-    
+                print('server loop error',e)
+
     def shoutDown(self):
         self.__should_close = True
 
