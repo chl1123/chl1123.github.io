@@ -113,7 +113,13 @@ class demo_dmx512(dmx.dmx512Base):
                             dmx512_info.turn_left_or_right=3
 
                     else:
-                        '''静止'''
+                        '''无转向状态'''
+                        if self.cur_x < 0.0:
+                            RGBW = [255, 250, 250, 0]
+                            dmx512_info.color_r = RGBW[0]
+                            dmx512_info.color_g = RGBW[1]
+                            dmx512_info.color_b = RGBW[2]
+                            dmx512_info.color_w = RGBW[3]
                         dmx512_info.turn_left_or_right=0
 
                 else:
