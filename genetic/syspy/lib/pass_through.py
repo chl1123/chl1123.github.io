@@ -14,6 +14,7 @@ class passThrough:
         self.__msg_thread = None
         self.__should_close = False
         self.__callback = None
+        self.__lock = threading.Lock()  # 创建锁对象
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
         print("passThrough start")
@@ -57,12 +58,20 @@ class passThrough:
             pass
 
     def __receive(self):
-        msg = self.__client_sock.recv()
-        if not self.__callback is None:
-            self.__callback(msg)
+        try:
+            self.__lock.acquire()  # 加锁
+            msg = self.__client_sock.recv()
+            if not self.__callback is None:
+                self.__callback(msg)
+        finally:
+            self.__lock.release()  # 解锁
 
     def send(self, data):
-        self.__client_sock.send(data)
+        try:
+            self.__lock.acquire()  # 加锁
+            self.__client_sock.send(data)
+        finally:
+            self.__lock.release()  # 解锁
 
     def shoutDown(self):
         self.__should_close = True

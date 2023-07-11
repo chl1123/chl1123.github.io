@@ -1,4 +1,4 @@
-import zmq,json
+import zmq,json,threading
 
 class zmqClient(object):
     def __init__(self):
@@ -7,7 +7,8 @@ class zmqClient(object):
         self.poller = zmq.Poller()
         self.poller.register(self.socket, zmq.POLLIN)
         self.addr = "ipc:///tmp/dsp_serial_rpc_server.ipc"
-        
+        self.__lock = threading.Lock()  # 创建锁对象
+
     def close(self):
         print("close the socket")
         self.socket.close()
@@ -17,11 +18,18 @@ class zmqClient(object):
         self.socket.connect(addr)
     
     def send(self, data):
-        self.socket.send(data)
+        try:
+            self.__lock.acquire()  # 加锁
+            self.socket.send(data)
+        finally:
+            self.__lock.release()  # 解锁
 
     def recv(self):
-        data = self.socket.recv()
-        return data
+        try:
+            self.__lock.acquire()  # 加锁
+            return self.socket.recv()
+        finally:
+            self.__lock.release()  # 解锁
 
 class rpcStub(object):
     def __getattr__(self, function):
