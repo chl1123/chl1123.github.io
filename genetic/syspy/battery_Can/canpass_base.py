@@ -106,6 +106,10 @@ class canPassBase:
         """
         return self.need_charge
 
+    def getCanString(self, data):
+        can_string = ' '.join(data)
+        return can_string
+
     def __del__(self):
         self.__pass.shoutDown()
         self.__rpc_client.close()
