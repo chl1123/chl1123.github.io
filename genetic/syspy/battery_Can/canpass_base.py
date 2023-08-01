@@ -49,11 +49,11 @@ class canPassBase:
         """
         self.__rpc_client.sendPassThroughCanFrame(channel, can_id, dlc, extend, can_string)
 
-    def attachCanID(self, channel, extend, id_nums, can_id1, can_id2, can_id3, can_id4):
+    def attachCanID(self, channel, id_nums, can_id1, can_id2, can_id3, can_id4):
         """
         绑定多个can邮箱
         """
-        self.__rpc_client.canPassThroughRxId(channel, extend, id_nums, can_id1, can_id2, can_id3, can_id4)
+        self.__rpc_client.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4)
         print("attachCanID")
 
     def publish(self, battery_info):

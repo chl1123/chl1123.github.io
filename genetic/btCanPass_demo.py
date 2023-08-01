@@ -60,8 +60,8 @@ class testCanBattery(cb.canPassBase):
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
         mu.sleep_s(5)
-        # 绑定多个can邮箱，False为标准帧, 为绑定的邮箱个数，54，55，56分别为绑定的三个邮箱编号，0表示未绑定第四个邮箱
-        self.attachCanID(2, False, 3, 0x36, 0x37, 0x38, 0)
+        # 绑定多个can邮箱，为绑定的邮箱个数，54，55，56分别为绑定的三个邮箱编号，0表示未绑定第四个邮箱
+        self.attachCanID(2, 3, 0x36, 0x37, 0x38, 0)
         while True:
             self.judgeMsgok()
             mu.sleep_s(2)
