@@ -1,26 +1,23 @@
 import threading, zmq, time, sys
 import syspy.lib.udp_debug as ud
-import syspy.lib.rpc_client as rc
 
-DEFAULT_RPC_ADDR = "ipc:///tmp/CanPass_rpc.ipc"
 class callBack:
     def handleData(self, msg):
         pass
 
-
 class passThrough:
     def __init__(self):
-        context = zmq.Context()
-        self.__rpc_client = rc.rpcClient()
-        self.__rpc_client.connect(DEFAULT_RPC_ADDR)
-        self.__client_sock = context.socket(zmq.DEALER)
+        self.context = zmq.Context()
+        self.__client_sock = self.context.socket(zmq.DEALER)
         self.__addr = ""
         self.__conn_id = ""
         self.__msg_thread = None
         self.__should_close = False
         self.__callback = None
+        self.__lock = threading.Lock()  # 创建锁对象
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
+        print("passThrough start")
 
     def close(self):
         print("close the socket")
@@ -56,27 +53,28 @@ class passThrough:
 
         except Exception as e:
             print("exception:", e)
-            self.stopBatteryScript()
-            self.startBatteryScript()
+
         finally:
             pass
 
     def __receive(self):
-        msg = self.__client_sock.recv()
-        if not self.__callback is None:
-            self.__callback(msg)
+        try:
+            self.__lock.acquire()  # 加锁
+            msg = self.__client_sock.recv()
+            if not self.__callback is None:
+                self.__callback(msg)
+        finally:
+            self.__lock.release()  # 解锁
 
     def send(self, data):
-        self.__client_sock.send(data)
+        try:
+            self.__lock.acquire()  # 加锁
+            self.__client_sock.send(data)
+        finally:
+            self.__lock.release()  # 解锁
 
     def shoutDown(self):
         self.__should_close = True
-
-    def stopBatteryScript(self):
-        self.__rpc_client.stopBatteryScript()
-
-    def startBatteryScript(self):
-        self.__rpc_client.startBatteryScript()
 
 
 if __name__ == "__main__":

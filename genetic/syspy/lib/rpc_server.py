@@ -1,5 +1,4 @@
 import zmq,json,threading,sys,time
-import syspy.battery_Can.canpass_base as cb
 
 class zmqServer(object):
     def __init__(self):
@@ -10,17 +9,25 @@ class zmqServer(object):
         self.__should_close = False
         self.msg_thread = threading.Thread(target=self.__loop, name="loop")
         self.msg_thread.start()
-    
+        self.__lock = threading.Lock()  # 创建锁对象
+
     def close(self):
         print("close the socket")
         self.socket.close()
     
     def send(self, data):
-        self.socket.send(data)
+        try:
+            self.__lock.acquire()  # 加锁
+            self.socket.send(data)
+        finally:
+            self.__lock.release()  # 解锁
 
     def recv(self):
-        data = self.socket.recv()
-        return data
+        try:
+            self.__lock.acquire()  # 加锁
+            return self.socket.recv()
+        finally:
+            self.__lock.release()  # 解锁
 
     def __loop(self):
         while True:
@@ -34,10 +41,8 @@ class zmqServer(object):
                 if self.__should_close:
                     break
             except Exception as e:
-                print('loop error',e)
-                cb.stopBatteryScript()
-                cb.startBatteryScript()
-    
+                print('server loop error',e)
+
     def shoutDown(self):
         self.__should_close = True
 

@@ -92,7 +92,7 @@ class demo_dmx512(dmx.dmx512Base):
                         '''机身左旋'''
                         if (self.cur_x > 0.0):
                             '''机身左旋+前进'''
-                            dmx512_info.turn_left_or_right=1
+                            dmx512_info.turn_left_or_right=2
                         elif (self.cur_x < 0.0):
                             '''机身左旋+后退'''
                             dmx512_info.turn_left_or_right=2
@@ -104,7 +104,7 @@ class demo_dmx512(dmx.dmx512Base):
                         '''机身右旋'''
                         if (self.cur_x > 0.0):
                             '''机身右旋+前进'''
-                            dmx512_info.turn_left_or_right=2
+                            dmx512_info.turn_left_or_right=1
                         elif (self.cur_x < 0.0):
                             '''机身右旋+后退'''
                             dmx512_info.turn_left_or_right=1
@@ -113,7 +113,8 @@ class demo_dmx512(dmx.dmx512Base):
                             dmx512_info.turn_left_or_right=3
 
                     else:
-                        '''无转向状态'''
+                        # '''静止'''
+                        # dmx512_info.turn_left_or_right=0
                         if self.cur_x < 0.0:
                             RGBW = [255, 250, 250, 0]
                             dmx512_info.color_r = RGBW[0]

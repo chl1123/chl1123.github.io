@@ -1,5 +1,4 @@
-import sys,ctypes
-import syspy.lib.udp_debug as ud
+import ctypes
 
 def merge2bytesTo1(byte1, byte2):
     '''

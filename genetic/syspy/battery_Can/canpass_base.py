@@ -49,11 +49,12 @@ class canPassBase:
         """
         self.__rpc_client.sendPassThroughCanFrame(channel, can_id, dlc, extend, can_string)
 
-    def attachCanID(self, channel, extend, id_nums, can_id1, can_id2, can_id3, can_id4):
+    def attachCanID(self, channel, id_nums, can_id1, can_id2, can_id3, can_id4):
         """
         绑定多个can邮箱
         """
-        self.__rpc_client.canPassThroughRxId(channel, extend, id_nums, can_id1, can_id2, can_id3, can_id4)
+        self.__rpc_client.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4)
+        print("attachCanID")
 
     def publish(self, battery_info):
         """
@@ -63,6 +64,7 @@ class canPassBase:
         if(isinstance(battery_info, type(type_exm))):
             msg = MessageToJson(battery_info)
             self.__rpc_client.publishBattery(msg)
+            print("Publish battery info")
         else:
             print("Publish battery info type error.")
 
@@ -104,8 +106,9 @@ class canPassBase:
         """
         return self.need_charge
 
-    def getConInterrupt(self):
-        return self.__rpc_client.getConInterrupt()
+    def getCanString(self, data):
+        can_string = ' '.join(data)
+        return can_string
 
     def __del__(self):
         self.__pass.shoutDown()
