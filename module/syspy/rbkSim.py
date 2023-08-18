@@ -1069,6 +1069,31 @@ class SimModule:
             can_string (string): 报文数据区，如"40 40 60 00 00 00 00 00"，十六进制，空格隔开
         """
         print("func: {0} {1} {2} {3} {4} {5}".format(get_function_name(), channel, can_id, dlc, extend, can_string))
+    @check
+    def resetGoForkPath(self, x:float, y:float, yaw:float, back_dist:float, ahead_dist:float):
+        """重置叉车去往识别点的路径规划
+
+        Args:
+            x (float): 终点x坐标 m
+            y (float): 终点y坐标 m
+            yaw (float): 终点角度坐标 rad
+            back_dist (float): 到终点后的后退距离
+            ahead_dist (float): 到终点前的直线距离
+        """
+        print("func: {0} {1} {2} {3} {4} {5}".format(get_function_name(), x, y, yaw, back_dist, ahead_dist))
+    @check
+    def goForkPath(self):
+        """叉车依据规划的路径导航，需要先调用 resetGoForkPath
+        """
+        print("func: {0} ".format(get_function_name()))
+
+    def motorCalib(self, motor_name:str):
+        """电机标零
+
+        Args:
+            motor_name (str): 电机名称
+        """
+        print("func: {0} {1}".format(get_function_name(), motor_name))        
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1176,4 +1201,6 @@ if __name__ == '__main__':
     r.stopCurrentBlock()
     r.getCanFrame()
     r.sendCanFrame(1,1,1,False,"40 40 60 00 00 00 00 00")
+    r.resetGoForkPath(0.0,0.0,0.0,0.0,0.0)
+    r.goForkPath()
     print("Success!!!")
