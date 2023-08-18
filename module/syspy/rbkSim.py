@@ -1050,6 +1050,25 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
         return
+    @check
+    def getCanFrame(self)->dict:
+        """ 获取当前的 CanFrame
+        """
+        d = {'Canerror': [], 'Channel': 0, 'DLC': 0, 'Data': '', 'Direction': False, 'Extended': False, 'ID': 0, 'Remote': False, 'Timestamp': 0}
+        print("func: {0} {1}".format(get_function_name(), d))
+        return d
+    @check
+    def sendCanFrame(self, channel:int, can_id: int, dlc: int, extend: bool, can_string: str):
+        """DSP提供sendCanFrame接口
+
+        Args:
+            channel (uint8_t): 使用的端口，有1和2,对应控制器的CAN通道
+            can_id (uint16_t): 发送报文的canid, 如0x601
+            dlc (uint8_t): 发送报文的数据长度，一般为8
+            extend (bool): 报文是否为扩展型，一般为false
+            can_string (string): 报文数据区，如"40 40 60 00 00 00 00 00"，十六进制，空格隔开
+        """
+        print("func: {0} {1} {2} {3} {4} {5}".format(get_function_name(), channel, can_id, dlc, extend, can_string))
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1155,4 +1174,6 @@ if __name__ == '__main__':
     r.getLM("AP1", True)
     r.RecognizeBarCode("tag/t0001.tag", "123")
     r.stopCurrentBlock()
+    r.getCanFrame()
+    r.sendCanFrame(1,1,1,False,"40 40 60 00 00 00 00 00")
     print("Success!!!")
