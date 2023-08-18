@@ -3,14 +3,15 @@
 # @Author : zhong
 # @Version : 2.2.0
 # @Update: 升级任务模式脚本功能：1. 新增load，unload，change操作选项，2. 新增goodsId系统流程 3. 适配binTask任务 4. 适配库位管理功能
-
+import sys
+sys.path.append("../syspy")
+import syspy.rbk
 import json
 import time
 import goPath as goPath
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, ParamServer
 from pickingRobot import ModeType, PickRobot, BinOpType, BinType, BinModel, LocationType, Action, StopType, ErrorMessage
-
 """
 ####BEGIN DEFAULT ARGS####
 {

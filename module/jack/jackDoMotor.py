@@ -4,6 +4,7 @@
 # @File :jackDoMotor.py
 # @Version : 1.0
 # @Project : 改编J系列顶升标准脚本，电机到位条件变更为DI触发
+
 import json
 import time
 from rbk import MoveStatus, BasicModule, ParamServer

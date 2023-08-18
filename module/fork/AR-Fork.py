@@ -92,7 +92,7 @@ class Module(BasicModule):
         self.robot = Robot(r)
         self.lift_motor = None
         self.stretch_motor = None
-        self.opt_step = [False]*6
+        self.opt_step = [False] * 6
         self.agv_loc_x = None
         self.actual_move_dist = 0
         self.actual_stretch_length = 0
@@ -107,6 +107,7 @@ class Module(BasicModule):
         self.rec_file = None
         self.rec = None
         self.back_laser = [1, 2]
+        self.init_lift = True
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
@@ -116,7 +117,7 @@ class Module(BasicModule):
             self.lift_motor = Motor(r, MotorType.LINEAR_MOTOR, self.lift_motor_name, -1)
             self.stretch_motor = Motor(r, MotorType.LINEAR_MOTOR, self.stretch_motor_name, -1)
             # r.initForkCollisionCheck()   # 初始化后视激光检测
-            self.rec_file = args.get("recFile", None)    # 识别文件
+            self.rec_file = args.get("recFile", None)  # 识别文件
             if self.rec_file:
                 self.rec = RecAdjust(r, self.rec_file)
             args_error = False
@@ -126,7 +127,7 @@ class Module(BasicModule):
             if self.get_motor_pos(r, self.stretch_motor_name) is not False:
                 self.init_stretch_motor_pos = self.get_motor_pos(r, self.stretch_motor_name)
 
-            if "operation" in args:     # 参数检查
+            if "operation" in args:  # 参数检查
                 self.before_height = args.get("beforeHeight", None)
                 if "stretchLength" in args:
                     self.stretch_length = args["stretchLength"]
@@ -160,7 +161,8 @@ class Module(BasicModule):
                         args_error = True
                 elif args["operation"] == "stretch" and "stretchLength" in args:
                     pass
-                elif args["operation"] == "load" and "stretchLength" in args and "liftHeight" in args and "reachHeight" in args and "loadMethod" in args:
+                elif args[
+                    "operation"] == "load" and "stretchLength" in args and "liftHeight" in args and "reachHeight" in args and "loadMethod" in args:
                     self.load_method = args["loadMethod"]
                     # load时检查升降高度参数合理性
                     if args["liftHeight"] < self.init_lift_motor_pos:
@@ -169,7 +171,8 @@ class Module(BasicModule):
                     if r.hasGoods():
                         r.setError(f"Fork has goods, cannot load")
                         args_error = True
-                elif args["operation"] == "unload" and "stretchLength" in args and "liftHeight" in args and "reachHeight" in args:
+                elif args[
+                    "operation"] == "unload" and "stretchLength" in args and "liftHeight" in args and "reachHeight" in args:
                     # unload时检查升降高度参数合理性
                     if args["liftHeight"] > self.init_lift_motor_pos:
                         r.setError(f"unload liftHeight higher than current lift height {self.init_lift_motor_pos}")
@@ -193,16 +196,21 @@ class Module(BasicModule):
         elif args["operation"] == "stretch":
             self.stretch(r)
         elif args["operation"] == "load":
-            if self.before_height is not None:
+            if self.before_height is not None and self.init_lift:
                 if not self.robot.lift(self.lift_motor, self.before_height):
-                    return self.status
-            if self.rec is not None:       # 识别栈板，调整位置
+                    r.publishSpeed()
+                    self.init_lift = False
+                    self.state['publishSpeed'] = self.init_lift
+            if self.rec is not None:  # 识别栈板，调整位置
+                self.state['rec'] = True
                 if self.rec.status == MoveStatus.FINISHED:
                     self.load(r)
                 else:
                     self.rec.run(r)
             else:
-                self.load(r)
+                if not self.init_lift:
+                    self.state['load'] = True
+                    self.load(r)
         elif args["operation"] == "unload":
             self.unload(r)
         else:
@@ -242,9 +250,9 @@ class Module(BasicModule):
     def lift(self, r):
         if not self.opt_step[0]:
             if self.lift_height < self.init_lift_motor_pos:  # 货叉要下降
-                if not self.back_laser_check(r):                     # 检查后视激光
+                if not self.back_laser_check(r):  # 检查后视激光
                     self.opt_step[0] = self.robot.lift(self.lift_motor, self.lift_height)
-            else:                                                                              # 货叉上升
+            else:  # 货叉上升
                 self.opt_step[0] = self.robot.lift(self.lift_motor, self.lift_height)
         else:
             self.status = MoveStatus.FINISHED
@@ -257,10 +265,10 @@ class Module(BasicModule):
 
     def stretch(self, r):
         if not self.opt_step[0]:
-            if self.stretch_length > self.stretch_zero:   # 货叉伸出
+            if self.stretch_length > self.stretch_zero:  # 货叉伸出
                 if not self.fork_collision(r) and not self.back_laser_check(r):
                     self.opt_step[0] = self.robot.stretch(self.stretch_motor, self.stretch_length)
-            else:   # 货叉收回
+            else:  # 货叉收回
                 self.opt_step[0] = self.robot.stretch(self.stretch_motor, self.stretch_length)
         else:
             self.status = MoveStatus.FINISHED
@@ -280,7 +288,8 @@ class Module(BasicModule):
         if not self.opt_step[0]:
             if self.load_method == "RobotMoveFirst":
                 if not self.fork_collision(r) and not self.back_laser_check(r):
-                    self.opt_step[0] = self.fork_reached(r) or self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
+                    self.opt_step[0] = self.fork_reached(r) or self.move(r, {'x': -self.move_dist, 'y': 0,
+                                                                             'coordinate': 'robot', 'backMode': 1})
                     self.actual_move_dist = abs(r.odo().get("x") - self.agv_loc_x)  # 计算实际移动距离
                     if self.opt_step[0]:
                         self.go_path.reset()
@@ -289,7 +298,8 @@ class Module(BasicModule):
                             self.status = MoveStatus.FAILED
             elif self.load_method == "ForkStretchFirst":
                 if not self.fork_collision(r) and not self.back_laser_check(r):
-                    self.opt_step[0] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, self.stretch_length)
+                    self.opt_step[0] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor,
+                                                                                  self.stretch_length)
                     self.actual_stretch_length = self.get_motor_pos(r, self.stretch_motor_name)  # 计算货叉实际伸出长度
                     if self.opt_step[0]:
                         self.stretch_motor.reset()
@@ -301,13 +311,15 @@ class Module(BasicModule):
         if self.opt_step[0] and not self.opt_step[1]:
             if self.load_method == "RobotMoveFirst":
                 if not self.fork_collision(r) and not self.back_laser_check(r):
-                    self.opt_step[1] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor, self.stretch_length)
+                    self.opt_step[1] = self.fork_reached(r) or self.robot.stretch(self.stretch_motor,
+                                                                                  self.stretch_length)
                     self.actual_stretch_length = self.get_motor_pos(r, self.stretch_motor_name)  # 计算货叉实际伸出长度
                     if self.opt_step[1]:
                         self.stretch_motor.reset()
             elif self.load_method == "ForkStretchFirst":
                 if not self.fork_collision(r) and not self.back_laser_check(r):
-                    self.opt_step[1] = self.fork_reached(r) or self.move(r, {'x': -self.move_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})
+                    self.opt_step[1] = self.fork_reached(r) or self.move(r, {'x': -self.move_dist, 'y': 0,
+                                                                             'coordinate': 'robot', 'backMode': 1})
                     self.actual_move_dist = abs(r.odo().get("x") - self.agv_loc_x)  # 计算实际移动距离
                     if self.opt_step[1]:
                         self.go_path.reset()
@@ -323,9 +335,11 @@ class Module(BasicModule):
             if self.twice_move and not self.fork_reached(r):
                 r.setError(f"Fork reach DI not triggered, check please!")
                 self.status = MoveStatus.FAILED
-            if not self.fork_reached(r) and self.fork_reach_di != -1:   # 货叉到位DI 已配置且未触发
+            if not self.fork_reached(r) and self.fork_reach_di != -1:  # 货叉到位DI 已配置且未触发
                 if self.fork_di_dist > 0 and not self.twice_move:
-                    self.twice_move = self.fork_reached(r) or self.move(r, {'x': -self.fork_di_dist, 'y': 0, 'coordinate': 'robot', 'backMode': 1})   # 二次后移
+                    self.twice_move = self.fork_reached(r) or self.move(r, {'x': -self.fork_di_dist, 'y': 0,
+                                                                            'coordinate': 'robot',
+                                                                            'backMode': 1})  # 二次后移
                     self.actual_move_dist = abs(r.odo().get("x") - self.agv_loc_x)
                 else:
                     r.setError(f"Fork reach DI not triggered, check please!")
@@ -337,7 +351,7 @@ class Module(BasicModule):
         # 货叉收回
         if self.opt_step[2] and not self.opt_step[3]:
             self.opt_step[3] = self.robot.stretch(self.stretch_motor, self.stretch_zero)
-            self.lost_goods_check(r)   # 掉货检测
+            self.lost_goods_check(r)  # 掉货检测
 
         # 叉车前移固定距离
         if self.opt_step[3] and not self.opt_step[4]:
@@ -409,7 +423,7 @@ class Module(BasicModule):
 
     def fork_collision(self, r: SimModule) -> bool:
         """
-        货叉尖端DI碰撞检测
+        keyi
         :param r:
         :return: bool
         """
@@ -423,7 +437,6 @@ class Module(BasicModule):
                     return True
         return False
 
-
     def back_laser_check(self, r: SimModule) -> bool:
         """后视激光检测
         :param r:
@@ -432,7 +445,6 @@ class Module(BasicModule):
         if r.laserCollision(self.back_laser):
             return True
         return False
-
 
     def fork_reached(self, r: SimModule) -> bool:
         """
@@ -448,16 +460,29 @@ class Module(BasicModule):
                     return True
         return False
 
+    def fork_goods_reach(self, r: SimModule) -> bool:
+        """
+        货叉到位DI检测
+        :param r:
+        :return: bool
+        """
+        DI = r.Di()
+        nodes = DI.get('node', list())
+        for node in nodes:
+            if node['id'] == self.goods_reach_di:
+                if node['status']:
+                    return True
+        return False
+
     def lost_goods_check(self, r):
         """
         掉货检测
         :param r:
         :return:
         """
-        if not self.fork_reached(r) and self.fork_reach_di != -1:
+        if not self.fork_goods_reach(r) and self.fork_reach_di != -1:
             r.setError(f"Goods maybe lost, check please!")
             self.status = MoveStatus.FAILED
-
 
     @staticmethod
     def get_motor_pos(r: SimModule, motor_name: str):
@@ -642,14 +667,14 @@ class RecAdjust:
         if time.time() - self.start_time > 60:
             r.setError(f"rec time out!")
             self.status = MoveStatus.FAILED
-        if rec_result:              # 成功获取识别结果
+        if rec_result:  # 成功获取识别结果
             # r.resetRec()           # 重置识别模块
             if self.go_path.status == MoveStatus.NONE:
                 self.go_path.status = MoveStatus.RUNNING
-                pos2world = [rec_result['x'], rec_result['y'], rec_result['yaw']]    # 目标点在世界坐标系的位置
-                robot2world = [r.odo()['x'], r.odo()['y'], r.odo()['angle']]    # 小车在世界坐标系的位置
-                pos2robot = Pos2Base(pos2world, robot2world)    # 目标点相对小车的位置
-                if abs(pos2robot[0]) < 0.005:      # 目标点相对小车的位置小于阈值时，识别调整完成
+                pos2world = [rec_result['x'], rec_result['y'], rec_result['yaw']]  # 目标点在世界坐标系的位置
+                robot2world = [r.odo()['x'], r.odo()['y'], r.odo()['angle']]  # 小车在世界坐标系的位置
+                pos2robot = Pos2Base(pos2world, robot2world)  # 目标点相对小车的位置
+                if abs(pos2robot[0]) < 0.005:  # 目标点相对小车的位置小于阈值时，识别调整完成
                     self.status = MoveStatus.FINISHED
                     return True
                 self.move_args['coordinate'] = 'robot'
@@ -674,7 +699,7 @@ class RecAdjust:
             elif self.go_path.status == MoveStatus.FAILED:
                 r.setWarning(f"adjust failed, {self.move_args}")
                 self.status = MoveStatus.FAILED
-        else:    # 识别失败
+        else:  # 识别失败
             self.rec_failed_time += 1
             if self.rec_failed_time > self.max_rec_time:
                 r.setError(f"rec failed the max times, {rec_result}")

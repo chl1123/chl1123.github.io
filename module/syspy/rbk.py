@@ -42,7 +42,6 @@ def normalize_theta(theta):
 
 def Pos2World(pos2base, base2world):
     """将位姿转换为世界坐标系
-
     Args:
         pos2base ([3]): 被转换的位姿，基于base. 0:x, 1:y, 2: theta
         base2world ([3]): 基准位姿. 0:x, 1:y, 2: theta

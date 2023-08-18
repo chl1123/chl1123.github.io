@@ -58,11 +58,12 @@ class Module(BasicModule):
         self.report_info = dict()
         self.init = True
         self.net_handle = NetHandle()
-        self.flag = [False]*3
+        self.flag = [False]*4
         self.start_time = time.time()
         self.reach_data = None
         self.action_data = None
         self.finish_data = None
+        self.action_write_data = None
         r.logInfo(f"init args: {args}")
 
     def run(self, r: SimModule, args):
@@ -82,19 +83,22 @@ class Module(BasicModule):
             self.reach_data = self.data.get("reach", None)
             self.action_data = self.data.get("action", None)
             self.finish_data = self.data.get("finish", None)
+            self.action_write_data = self.data.get("action_write", None)
             if self.reach_data is None:
                 self.flag[0] = True
             if self.action_data is None:
                 self.flag[1] = True
             if self.finish_data is None:
                 self.flag[2] = True
-            r.logInfo(f"reach_data: {self.reach_data}, action_data: {self.action_data}, finish_data: {self.finish_data}")
+            if self.action_write_data is None:
+                self.flag[3] = True
+            r.logInfo(f"reach_data: {self.reach_data}, action_data: {self.action_data}, finish_data: {self.finish_data},action_write_data:{self.action_write_data}")
 
             if self.protocol == "HTTP":
                 get_addr = str(self.addr) + self.get_path
                 post_addr = str(self.addr) + self.post_path
                 if not self.flag[0]:
-                    reach_res = self.net_handle.http_post(r, post_addr, data=self.reach_data)
+                    reach_res = self.net_handle.http_post(r, post_addr, data=self.reach_data,timeout=(0.1, 0.1))
                     r.logInfo(f"reach_res: {reach_res}")
                     if reach_res and reach_res.status_code == 200:
                         self.flag[0] = True
@@ -109,8 +113,17 @@ class Module(BasicModule):
                         else:
                             self.flag[1] = True
 
+                if not self.flag[3] and self.flag[1]:
+                    action_write_res = self.net_handle.http_get(r, get_addr, params=self.action_write_data)
+                    r.logInfo(f"action_res: {action_write_res}")
+                    if action_write_res and action_write_res.status_code == 200:
+                        if bool(self.http_get_key):
+                            if action_write_res.json().get(self.http_get_key,  None) == self.http_get_value:
+                                self.flag[3] = True
+                        else:
+                            self.flag[3] = True
                 if self.flag[1] and not self.flag[2]:
-                    finish_res = self.net_handle.http_post(r, post_addr, data=self.finish_data)
+                    finish_res = self.net_handle.http_post(r, post_addr, data=self.finish_data,timeout=(0.1, 0.1))
                     r.logInfo(f"finish_res: {finish_res}")
                     if finish_res and finish_res.status_code == 200:
                         self.flag[2] = True
@@ -141,6 +154,15 @@ class Module(BasicModule):
                     if finish_res and finish_res.get("status", -1) != -1:
                         self.flag[2] = True
 
+                if self.flag[1] and not self.flag[3]:
+                    action_write_res = self.net_handle.call_terminal(r, self.addr, self.action_write_data)
+                    r.logInfo(f"action_res: {action_write_res}")
+                    if action_write_res and action_write_res.get("status", -1) != -1:
+                        if self.read_value != -1:
+                            if action_write_res.get("status", -1) == self.read_value:
+                                self.flag[3] = True
+                        else:
+                            self.flag[3] = True
                 if all(self.flag):
                     self.status = MoveStatus.FINISHED
         else:
@@ -163,7 +185,8 @@ if __name__ == '__main__':
         'data': {
             'action': {'id': 'terminal-MA1181-C02-02'},
             'reach': {'id': 'terminal-MA1181-C02-02', 'status': '1'},
-            'finish': {'id': 'terminal-MA1181-C02-02', 'status': '0'}
+            'finish': {'id': 'terminal-MA1181-C02-02', 'status': '0'},
+            'action_write': {'id': 'terminal-MA1181-C02-02', 'status': '0'}
         },
         'protocol': 'HTTP'
     }

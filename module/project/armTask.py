@@ -12,8 +12,8 @@ import sys
 
 sys.path.append("..")
 sys.path.append("../syspy")
-from rbkSim import SimModule
-from rbk import MoveStatus, BasicModule
+from syspy.rbkSim import SimModule
+from syspy.rbk import MoveStatus, BasicModule
 import math
 import os
 

@@ -13,7 +13,7 @@ sys.path.append("../syspy")
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, normalize_theta, ParamServer
 from robot import NetHandle
-from pickingRobot import PickRobot
+from pickingRobot import PickRFobot
 import pickingRobot
 import math
 import goPath as goPath
