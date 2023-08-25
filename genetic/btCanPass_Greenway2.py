@@ -17,7 +17,6 @@ class testCanBattery(cb.canPassBase):
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(5000)
         self.msg_ok = False
-        self.is_charging = False
         self.tem = []
 
     def handleData(self, msg):
@@ -28,11 +27,10 @@ class testCanBattery(cb.canPassBase):
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             cycle = int(tem[4:6] + tem[6:8], 16)
             if int(tem[12:14], 16) == 1:
-                self.is_charging = True
+                self.battery_info.is_charging = True
             else:
-                self.is_charging = False
+                self.battery_info.is_charging = False
             self.battery_info.percetage = percentage
-            self.battery_info.is_charging = self.is_charging
             self.battery_info.cycle = cycle
             self.publish(self.battery_info)
             self.msg_ok = True
@@ -52,11 +50,17 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = True
         elif canframe.ID == 0x0EA4F40D:
             tem = canframe.Data.hex()
-            max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
-            max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
-            self.battery_info.max_charge_current = max_charge_current
-            self.battery_info.max_charge_voltage = max_charge_voltage
-            self.publish(self.battery_info)
+            battery_info = self.createBatteryMessage()
+            if self.isNeedCharge():
+                print("start charge")
+                max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
+                max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
+                battery_info.max_charge_current = max_charge_current
+                battery_info.max_charge_voltage = max_charge_voltage
+            else:
+                battery_info.max_charge_current = 0
+                battery_info.max_charge_voltage = 0
+            self.publish(battery_info)
             self.msg_ok = True
 
     def judgeMsgok(self):
@@ -69,7 +73,7 @@ class testCanBattery(cb.canPassBase):
                 self.setTimeout()
 
     def loop(self):
-        # 需要至少5s来等待底层初始化,否则将会覆盖操作
+        # 需要至少7s来等待底层初始化,否则将会覆盖操作
         mu.sleep_s(5)
         self.attachCanID(2, 4, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D)
         self.battery_info = self.createBatteryMessage()
