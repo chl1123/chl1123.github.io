@@ -50,17 +50,16 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = True
         elif canframe.ID == 0x0EA4F40D:
             tem = canframe.Data.hex()
-            battery_info = self.createBatteryMessage()
             if self.isNeedCharge():
                 print("start charge")
                 max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
                 max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
-                battery_info.max_charge_current = max_charge_current
-                battery_info.max_charge_voltage = max_charge_voltage
+                self.battery_info.max_charge_current = max_charge_current
+                self.battery_info.max_charge_voltage = max_charge_voltage
             else:
-                battery_info.max_charge_current = 0
-                battery_info.max_charge_voltage = 0
-            self.publish(battery_info)
+                self.battery_info.max_charge_current = 0
+                self.battery_info.max_charge_voltage = 0
+            self.publish(self.battery_info)
             self.msg_ok = True
 
     def judgeMsgok(self):
