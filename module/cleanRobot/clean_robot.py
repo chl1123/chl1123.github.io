@@ -1,10 +1,10 @@
 # @File :clean_robot.py
-# @Version : 2.0
+# @Version : 1.3
 # @Project : 霞智清洁机器人项目,霞智自研XZ-MC700驱动器用于控制：
 # 两个刷盘电机、喷水泵电机、刷盘升降电机、水扒升降电机、喷水电磁阀、排水球阀；
 # 同时收清水液位计、污水液位计信号
 # @coding: https://seer-group.coding.net/p/robokit/requirements/issues/1822/detail
-# @Update : 20230818
+# @Update : 20230829
 import binascii
 import sys
 import base64
@@ -35,7 +35,7 @@ import can_commad as cmd
     },
     "shift":{
         "value": "",
-        "default_value":["lowGear","MediumGear","highGear"],
+        "default_value":["lowGear","MediumGear","highGear","light","normal","heavy"],
         "tips": "档位",
         "type": "complex"
     },
@@ -124,7 +124,7 @@ class Module(BasicModule):
         self.waste_water_level = 0
         self.dlc = 8  # 发送报文的数据长度，一般为8
         self.extend = False  # 报文是否为扩展型，一般为false
-        self.shift = "lowGear"
+        self.shift = "light"
         self.check_level_opt = [False] * 4
         self.block_stop_opt = [False] * 6
         self.block_re_start_opt = [False] * 6
@@ -132,9 +132,9 @@ class Module(BasicModule):
 
     def periodRun(self, r: SimModule) -> bool:
         self.check_level(r)
-        self.safe_ctr(r)
+        if self.operation == "WashStart":
+            self.safe_ctr(r)
         r.logDebug(f"periodRun is running")
-        print("jpw test")
         self.state["block_re_start_opt"] = self.block_re_start_opt
         self.state["block_stop_opt"] = self.block_stop_opt
         r.setInfo(json.dumps(self.state))
@@ -157,7 +157,8 @@ class Module(BasicModule):
             self.status = MoveStatus.FAILED
             return self.status
         if r.errorExits(52200):
-            self.safe_ctr(r)
+            if self.operation == "WashStart":
+                self.safe_ctr(r)
             # r.setNotice("pls input params can be running")
         if self.status != MoveStatus.FINISHED:
             self.get_info(r)
@@ -169,9 +170,9 @@ class Module(BasicModule):
             self.init = False
             self.task = args
             self.operation = self.task.get("operation", None)
-            self.shift = self.task.get("shift", "lowGear")
+            self.shift = self.task.get("shift", "light")
         # 扫地、推尘
-        if self.operation is not None:
+        if self.operation is not None and self.operation != "":
             if self.task["operation"] == "WashStart":
                 if not int(self.clean_water_level) < self.clean_water_alarm and not int(
                         self.waste_water_level) > self.waste_water_alarm:
@@ -219,7 +220,11 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.FINISHED
         if "brush_plate_lift" in self.task:
             self.brush_plate_lift(r, self.task["brush_plate_lift"])
-
+        # 给调度上报
+        self.state["cleanRobot"]={
+            "cleanWaterLevel": int(self.clean_water_level),
+            "wasteWaterLevel": int(self.waste_water_level)
+        }
         self.state['args'] = args
         self.state['status'] = self.status
         r.setInfo(json.dumps(self.state))
@@ -267,6 +272,8 @@ class Module(BasicModule):
                 r.setError(f"clean_water_level:{self.clean_water_level}")
                 self.stopV1(r)
             else:
+                if r.errorExits(53700):
+                    r.clearError(53700)
                 self.check_level_opt[0] = True
         # 查詢液位-污水
         if self.check_level_opt[0] and not self.check_level_opt[1]:
@@ -281,6 +288,8 @@ class Module(BasicModule):
                 r.setError(f"waste_water_alarm:{self.waste_water_level}")
                 self.stopV1(r)
             else:
+                if r.errorExits(53700):
+                    r.clearError(53700)
                 self.check_level_opt[1] = True
         if self.check_level_opt[1] and not self.check_level_opt[2]:
             # 上报液位
@@ -292,6 +301,10 @@ class Module(BasicModule):
             self.check_level_opt[3] = True
         if all(self.check_level_opt):
             self.check_level_opt = [False] * 4
+        self.state["cleanRobot"]={
+            "cleanWaterLevel": int(self.clean_water_level),
+            "wasteWaterLevel": int(self.waste_water_level)
+        }
         r.logDebug(json.dumps(self.state))
         r.setInfo(json.dumps(self.state))
 
@@ -713,7 +726,7 @@ class BrushPlate:
 
     def run(self, r: SimModule, m: Module):
         m_state = dict()
-        gear = shift(self.shift)
+        gear = shift(self.shift,"SP")
         if self.opt == "open":
             m.send_msg(r, "2B 80 30 02 " + gear + " 00 00 00")
             if ModuleTool.delay(self.wash_time):
@@ -784,7 +797,7 @@ class SuctionWing:
 
     def run(self, r: SimModule, m: Module):
         m_state = dict()
-        gear = shift(self.shift)
+        gear = shift(self.shift,"FJ")
         if self.opt == "open":
             for i in range(5):
                 m.send_msg(r, "2B 80 30 01 " + gear + " 00 00 00")
@@ -805,7 +818,7 @@ class SuctionWing:
         m.state["SuctionWing"] = m_state
 
 
-def shift(sh: str) -> str:
+def shift(sh: str,d:str="") -> str:
     s = "08"
     if sh == "lowGear":
         s = "08"
@@ -813,6 +826,30 @@ def shift(sh: str) -> str:
         s = "32"
     if sh == "highGear":
         s = "58"
+        # 轻度：风机40% 水泵15% 刷盘50%
+        # 标准：风机50%水泵 30% 刷盘67%
+        # 重度：风机70% 水泵50% 刷盘67%
+    if sh == "light":
+        if d == "FJ":
+            s="28"
+        if d == "SB":
+            s="0F"
+        if d == "SP":
+            s="32"
+    if sh == "normal":
+        if d == "FJ":
+            s = "32"
+        if d == "SB":
+            s = "1E"
+        if d == "SP":
+            s = "43"
+    if sh == "heavy":
+        if d == "FJ":
+            s = "46"
+        if d == "SB":
+            s = "32"
+        if d == "SP":
+            s = "43"
     return s
 
 
@@ -865,7 +902,7 @@ class JetWater:
 
     def run(self, r: SimModule, m: Module):
         m_state = dict()
-        gear = shift(self.shift)
+        gear = shift(self.shift,"SB")
         if self.opt == "open":
 
             for i in range(5):
@@ -921,6 +958,7 @@ class AddWater:
     def __init__(self):
         self.status = MoveStatus.NONE
         self.is_open = False
+        self.is_waste = False
 
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
@@ -928,18 +966,24 @@ class AddWater:
     def run(self, r: SimModule, m: Module):
         self.status = MoveStatus.RUNNING
         m_state = dict()
-        if not self.is_open:
-            if m.clean_water_level >= m.addingWater_limit_level:
-                self.status = MoveStatus.FINISHED
-            else:
-                r.setDO(m.addingWater_do, True)
-                self.is_open = True
-        else:
-            if m.clean_water_level >= m.addingWater_limit_level:
+        if m.clean_water_level >= m.addingWater_limit_level:
+            if ModuleTool.check_DO(r, m.addingWater_do):
                 r.setDO(m.addingWater_do, False)
-                self.status = MoveStatus.FINISHED
-            else:
-                m_state["AddWater_status"] = "Adding Water ..."
+        else:
+            if not ModuleTool.check_DO(r, m.addingWater_do):
+                r.setDO(m.addingWater_do, True)
+        if m.waste_water_level >0:
+            if not self.is_waste:
+                m.send_msg(r, "2B 80 30 07 64 00 00 00")
+                self.is_waste = True
+        if m.waste_water_level < 0 or m.waste_water_level == 0:
+            m.send_msg(r, "2B 80 30 07 00 00 00 00")
+
+        if (m.waste_water_level < 0 or m.waste_water_level == 0) and m.clean_water_level >= m.addingWater_limit_level:
+            m.send_msg(r, "2B 80 30 07 00 00 00 00")
+            r.setDO(m.addingWater_do, False)
+            self.status = MoveStatus.FINISHED
+        m_state["AddWater_status"] = "Adding Water ..."
         m_state["status"] = self.status
         m_state["is_open"] = self.is_open
         m.state["AddWater"] = m_state
