@@ -6,6 +6,27 @@ import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu
 
+error_dict = {
+    (1, 0): "first-level overvoltage",
+    (1, 1): "second-level overvoltage",
+    (1, 2): "Overcharge protection",
+    (1, 3): "Overcurrent during charging",
+    (1, 4): "high temperature during charging",
+    (1, 5): "low temperature during charging",
+    (1, 6): "charging timeout",
+    (1, 7): "first-level undervoltage",
+    (2, 0): "second-level undervoltage",
+    (2, 1): "first-level overcurrent during discharge",
+    (2, 2): "second-level overcurrent during discharge",
+    (2, 3): "short circuit",
+    (2, 4): "high temperature during discharge",
+    (2, 5): "low temperature during discharge",
+    (2, 6): "MOS high temperature protection",
+    (2, 7): "low voltage prohibits charging and discharging",
+    (3, 0): "large difference in inter-group cycling times",
+    (3, 1): "excessive individual cell pressure difference",
+}
+
 class testCanBattery(cb.canPassBase):
 
     def __init__(self):
@@ -17,12 +38,33 @@ class testCanBattery(cb.canPassBase):
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(5000)
         self.msg_ok = False
-        self.tem = []
+        self.msg_userdata = False
+        self.id = ""
+        self.year = ""
+        self.week = ""
+        self.number = ""
 
     def handleData(self, msg):
         canframe = self.recCanframe(msg)
-        self.clearTimeout()
+        if canframe.ID == 0x0DA2F40D and not self.msg_userdata:
+            self.clearTimeout()
+            tem = canframe.Data.hex()
+            if int(tem[1:2], 16) == 1:
+                self.id = hex(int(tem[3:4] + tem[5:6]))[2:].zfill(2)
+                print(self.id)
+                self.year = hex(int(tem[7:8] + tem[9:10]+ tem[11:12] + tem[13:14]))[2:].zfill(4)
+                print(self.year)
+            elif int(tem[1:2], 16) == 2:
+                self.week = hex(int(tem[3:4] + tem[5:6]))[2:].zfill(2)
+            elif int(tem[1:2], 16) == 3:
+                self.number = hex(int(tem[15:16]))[2:].zfill(8)
+            if (self.id and self.year and self.week and self.number) != "":
+                self.battery_info.user_data = bytes(self.id+self.year+self.week+self.number,encoding='utf-8')
+                self.msg_userdata = True
+                self.publish(self.battery_info)
+                self.msg_ok = True
         if canframe.ID == 0x0EA0F40D:
+            self.clearTimeout()
             tem = canframe.Data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             cycle = int(tem[4:6] + tem[6:8], 16)
@@ -35,6 +77,7 @@ class testCanBattery(cb.canPassBase):
             self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x0EA1F40D:
+            self.clearTimeout()
             tem = canframe.Data.hex()
             current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
@@ -43,12 +86,14 @@ class testCanBattery(cb.canPassBase):
             self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x0EA2F40D:
+            self.clearTimeout()
             tem = canframe.Data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
             self.battery_info.temperature = temperature
             self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x0EA4F40D:
+            self.clearTimeout()
             tem = canframe.Data.hex()
             if self.isNeedCharge():
                 print("start charge")
@@ -61,6 +106,19 @@ class testCanBattery(cb.canPassBase):
                 self.battery_info.max_charge_voltage = 0
             self.publish(self.battery_info)
             self.msg_ok = True
+        elif canframe.ID == 0x1EA7F40D:
+            self.clearTimeout()
+            tem = canframe.Data.hex()
+            for i in range(1, 4):
+                for j in range(8):
+                    if cu.get_bit_val(canframe.Data[i], j) == 1:
+                        if (i==3 and j==0) or (i==1 and j==2) or (i==1 and j==0) or (i==1 and j==1):
+                            error_msg = "Battery pack number: "+tem[0:2]+" warning msg: "+error_dict[(i, j)]
+                            self.setWarning(error_msg)
+                        else:
+                            error_msg = "Battery pack number: "+tem[0:2]+" error msg: "+error_dict[(i, j)]
+                            self.setError(error_msg)
+                        break
 
     def judgeMsgok(self):
         if self.msg_ok:
@@ -74,8 +132,13 @@ class testCanBattery(cb.canPassBase):
     def loop(self):
         # 需要至少7s来等待底层初始化,否则将会覆盖操作
         mu.sleep_s(5)
-        self.attachCanID(2, 4, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D)
-        self.battery_info = self.createBatteryMessage()
+        self.attachCanID(2, 1, 0x0DA2F40D)
+        while True:
+            self.sendCanframe(2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
+            mu.sleep_s(2)
+            if self.msg_userdata:
+                break
+        self.attachCanID(2, 5, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
             self.judgeMsgok()
             mu.sleep_s(2)

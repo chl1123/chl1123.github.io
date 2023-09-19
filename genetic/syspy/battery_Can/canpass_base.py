@@ -49,11 +49,12 @@ class canPassBase:
         """
         self.__rpc_client.sendPassThroughCanFrame(channel, can_id, dlc, extend, can_string)
 
-    def attachCanID(self, channel, id_nums, can_id1, can_id2, can_id3, can_id4):
-        """
-        绑定多个can邮箱
-        """
-        self.__rpc_client.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4)
+    def attachCanID(self, channel, id_nums, *canid):
+        can_ids = []
+        for i in range(min(len(canid), 5)):
+            can_ids.append(canid[i])
+        can_id1, can_id2, can_id3, can_id4, can_id5 = can_ids + [0] * (5 - len(can_ids))
+        self.__rpc_client.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4, can_id5)
         print("attachCanID")
 
     def publish(self, battery_info):
@@ -87,6 +88,28 @@ class canPassBase:
         """
         self.__rpc_client.clearWarning(54001)
         print("clear can Battery response time out")
+
+    def setWarning(self, warMessage):
+        """
+        设置电池通信超时警告,错误码为54001
+        """
+        self.__rpc_client.setWarning(54001, warMessage)
+        print("Warning{}".format(warMessage))
+
+    def setError(self, errMessage):
+        """
+        设置电池通信超时警告,错误码为54001
+        """
+        self.__rpc_client.setError(52960, errMessage)
+        print("Error{}".format(errMessage))
+
+    def warningExists(self,code):
+        print("warningExists")
+        return self.__rpc_client.warningExists(code)
+
+    def errorExists(self,code):
+        print("errorExists")
+        return self.__rpc_client.errorExists(code)
 
     def setChargeStateOn(self):
         """
