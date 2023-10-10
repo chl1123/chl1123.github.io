@@ -626,6 +626,15 @@ class SimModule:
         """
         print("func: {0} max_speed: {1}".format(get_function_name(), a)) 
     @check
+    def setPathHoldDir(self, a:float):
+        """路径导航的 hold_dir
+
+        Args:
+            a (float): 单位度
+
+        """
+        print("func: {0} hold_dir: {1}".format(get_function_name(), a)) 
+    @check
     def setSound(self, name:str, flag:bool)->None:
         """播放音乐
 
@@ -1086,7 +1095,19 @@ class SimModule:
         """叉车依据规划的路径导航，需要先调用 resetGoForkPath
         """
         print("func: {0} ".format(get_function_name()))
+    @check
+    def setGoForkForkPos(self, x:float, y:float, theta:float, hold_dir:float):
+        """重置叉车去往识别点的路径规划
 
+        Args:
+            x (float): 货叉相对于里程中心的 x 轴坐标 m
+            y (float): 货叉相对于里程中心的 y 轴坐标 m
+            theta (float): 是货叉相对于里程中心的偏移角度 rad
+            hold_dir (float): 是车体的横移角度 单位：°
+             
+        """
+        print("func: {0} {1} {2} {3} {4}".format(get_function_name(), x, y, theta, hold_dir))
+    @check
     def motorCalib(self, motor_name:str):
         """电机标零
 
@@ -1161,6 +1182,7 @@ if __name__ == '__main__':
     r.getForkPressureADC()
     r.setPathMaxSpeed(1.0)
     r.setPathMaxRot(1.0)
+    r.setPathHoldDir(999.0)
     r.setBlockError()
     r.clearBlockError()
     r.setBlockReason(0,0.,0.,0)
@@ -1203,4 +1225,6 @@ if __name__ == '__main__':
     r.sendCanFrame(1,1,1,False,"40 40 60 00 00 00 00 00")
     r.resetGoForkPath(0.0,0.0,0.0,0.0,0.0)
     r.goForkPath()
+    r.setGoForkForkPos(0.0,0.0,0.0,0.0)
+    r.motorCalib("motor")
     print("Success!!!")
