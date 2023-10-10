@@ -65,6 +65,12 @@ import math
       "tips":"最大角速度",
       "type":"double",
       "unit": "rad"        
+    },
+    "hold_dir":{
+      "value": 999,
+      "tips":"全向车平移时车身的固定角度",
+      "type":"double",
+      "unit": "°"        
     }
 }
 ####END DEFAULT ARGS####
@@ -106,6 +112,8 @@ class Module(BasicModule):
                     r.setPathMaxSpeed(float(args["maxSpeed"]))
                 if "maxRot" in args:
                     r.setPathMaxRot(float(args["maxRot"]))
+                if "hold_dir" in args:
+                    r.setPathHoldDir(float(args["hold_dir"]))
                 r.logInfo("goal: " + str(self.goal))
                 if args["coordinate"] == "robot":
                     r.setPathOnRobot([0,self.goal[0]], [0, self.goal[1]], self.goal[2])
