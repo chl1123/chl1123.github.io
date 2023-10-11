@@ -36,7 +36,7 @@ class testCanBattery(cb.canPassBase):
         sys.stdout = self.__debug_out
         # 用来表示数据是否已经正确接收
         self.battery_info = self.createBatteryMessage()
-        self.connect_timeout_t = mu.Timer(5000)
+        self.connect_timeout_t = mu.Timer(7000)
         self.msg_ok = False
         self.msg_userdata = False
         self.id = ""
@@ -49,20 +49,22 @@ class testCanBattery(cb.canPassBase):
         if canframe.ID == 0x0DA2F40D and not self.msg_userdata:
             self.clearTimeout()
             tem = canframe.Data.hex()
-            if int(tem[1:2], 16) == 1:
-                self.id = hex(int(tem[3:4] + tem[5:6]))[2:].zfill(2)
-                print(self.id)
-                self.year = hex(int(tem[7:8] + tem[9:10]+ tem[11:12] + tem[13:14]))[2:].zfill(4)
-                print(self.year)
-            elif int(tem[1:2], 16) == 2:
-                self.week = hex(int(tem[3:4] + tem[5:6]))[2:].zfill(2)
-            elif int(tem[1:2], 16) == 3:
-                self.number = hex(int(tem[15:16]))[2:].zfill(8)
-            if (self.id and self.year and self.week and self.number) != "":
-                self.battery_info.user_data = bytes(self.id+self.year+self.week+self.number,encoding='utf-8')
+            if tem[2:14] == 'ffffffffffff':
                 self.msg_userdata = True
-                self.publish(self.battery_info)
                 self.msg_ok = True
+            else:
+                if int(tem[1:2], 16) == 1:
+                    self.id = hex(int(tem[3:4] + tem[5:6]))[2:].zfill(2)
+                    self.year = hex(int(tem[7:8] + tem[9:10] + tem[11:12] + tem[13:14]))[2:].zfill(4)
+                elif int(tem[1:2], 16) == 2:
+                    self.week = hex(int(tem[3:4] + tem[5:6]))[2:].zfill(2)
+                elif int(tem[1:2], 16) == 3:
+                    self.number = hex(int(tem[15:16]))[2:].zfill(8)
+                if (self.id and self.year and self.week and self.number) != "":
+                    self.battery_info.user_data = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
+                    self.msg_userdata = True
+                    self.publish(self.battery_info)
+                    self.msg_ok = True
         if canframe.ID == 0x0EA0F40D:
             self.clearTimeout()
             tem = canframe.Data.hex()
