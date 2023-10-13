@@ -37,14 +37,20 @@ class testCanBattery(cb.canPassBase):
         # 用来表示数据是否已经正确接收
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(7000)
+        self.wait = mu.Timer(10000)
         self.msg_ok = False
         self.msg_userdata = False
+        self.first = True
         self.id = ""
         self.year = ""
         self.week = ""
         self.number = ""
 
     def handleData(self, msg):
+        self.judgeCanframe(msg)
+        self.judgePublish()
+
+    def judgeCanframe(self, msg):
         canframe = self.recCanframe(msg)
         if canframe.ID == 0x0DA2F40D and not self.msg_userdata:
             self.clearTimeout()
@@ -63,7 +69,6 @@ class testCanBattery(cb.canPassBase):
                 if (self.id and self.year and self.week and self.number) != "":
                     self.battery_info.user_data = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
                     self.msg_userdata = True
-                    self.publish(self.battery_info)
                     self.msg_ok = True
         if canframe.ID == 0x0EA0F40D:
             self.clearTimeout()
@@ -76,7 +81,6 @@ class testCanBattery(cb.canPassBase):
                 self.battery_info.is_charging = False
             self.battery_info.percetage = percentage
             self.battery_info.cycle = cycle
-            self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x0EA1F40D:
             self.clearTimeout()
@@ -85,14 +89,12 @@ class testCanBattery(cb.canPassBase):
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
             self.battery_info.charge_voltage = voltage
             self.battery_info.charge_current = current
-            self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x0EA2F40D:
             self.clearTimeout()
             tem = canframe.Data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
             self.battery_info.temperature = temperature
-            self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x0EA4F40D:
             self.clearTimeout()
@@ -106,7 +108,6 @@ class testCanBattery(cb.canPassBase):
             else:
                 self.battery_info.max_charge_current = 0
                 self.battery_info.max_charge_voltage = 0
-            self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x1EA7F40D:
             self.clearTimeout()
@@ -114,13 +115,21 @@ class testCanBattery(cb.canPassBase):
             for i in range(1, 4):
                 for j in range(8):
                     if cu.get_bit_val(canframe.Data[i], j) == 1:
-                        if (i==3 and j==0) or (i==1 and j==2) or (i==1 and j==0) or (i==1 and j==1):
-                            error_msg = "Battery pack number: "+tem[0:2]+" warning msg: "+error_dict[(i, j)]
+                        if (i == 3 and j == 0) or (i == 1 and j == 2) or (i == 1 and j == 0) or (i == 1 and j == 1):
+                            error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
                             self.setWarning(error_msg)
                         else:
-                            error_msg = "Battery pack number: "+tem[0:2]+" error msg: "+error_dict[(i, j)]
+                            error_msg = "Battery pack number: " + tem[0:2] + " error msg: " + error_dict[(i, j)]
                             self.setError(error_msg)
                         break
+
+    def judgePublish(self):
+        if self.first:
+            if self.wait.isTimeUp():
+                self.publish(self.battery_info)
+                self.first = False
+        else:
+            self.publish(self.battery_info)
 
     def judgeMsgok(self):
         if self.msg_ok:
