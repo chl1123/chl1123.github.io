@@ -20,7 +20,7 @@ import math
     },
     "theta": {
       "value": 1,
-      "tips":"世界坐标系下的朝向",
+      "tips":"机器人朝向",
       "type":"double",
       "unit": "rad"
     },
@@ -116,7 +116,9 @@ class Module(BasicModule):
                     r.setPathHoldDir(float(args["hold_dir"]))
                 r.logInfo("goal: " + str(self.goal))
                 if args["coordinate"] == "robot":
-                    r.setPathOnRobot([0,self.goal[0]], [0, self.goal[1]], self.goal[2])
+                    loc = r.loc()
+                    goal_theta_of_robot = loc['angle'] + self.goal[2]
+                    r.setPathOnRobot([0,self.goal[0]], [0, self.goal[1]], goal_theta_of_robot)
                 elif args["coordinate"] == "world":
                     loc = r.loc()
                     r.setPathOnWorld([loc['x'],self.goal[0]], [loc['y'], self.goal[1]], self.goal[2])
