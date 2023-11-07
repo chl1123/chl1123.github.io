@@ -1114,7 +1114,17 @@ class SimModule:
         Args:
             motor_name (str): 电机名称
         """
-        print("func: {0} {1}".format(get_function_name(), motor_name))        
+        print("func: {0} {1}".format(get_function_name(), motor_name))
+    @check
+    def setVirtualDI(self, id:int, index:int, status:bool):
+        """获取当前任务状态的接口
+
+        Args:
+            id (int): DI 列表中虚拟 DI 的 id 号
+            index (int): DI 列表中相对第一个虚拟 DI 的索引
+            status (bool): 虚拟 DI 状态
+        """
+        print("func: {0} {1} {2} {3}".format(get_function_name(), id, index, status))        
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1227,4 +1237,5 @@ if __name__ == '__main__':
     r.goForkPath()
     r.setGoForkForkPos(0.0,0.0,0.0,0.0)
     r.motorCalib("motor")
+    r.setVirtualDI(1,1,True)
     print("Success!!!")
