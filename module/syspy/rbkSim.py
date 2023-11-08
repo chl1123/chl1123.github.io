@@ -1117,7 +1117,7 @@ class SimModule:
         print("func: {0} {1}".format(get_function_name(), motor_name))
     @check
     def setVirtualDI(self, id:int, index:int, status:bool):
-        """获取当前任务状态的接口
+        """设置虚拟 DI 状态
 
         Args:
             id (int): DI 列表中虚拟 DI 的 id 号
