@@ -1124,7 +1124,20 @@ class SimModule:
             index (int): DI 列表中相对第一个虚拟 DI 的索引
             status (bool): 虚拟 DI 状态
         """
-        print("func: {0} {1} {2} {3}".format(get_function_name(), id, index, status))        
+        print("func: {0} {1} {2} {3}".format(get_function_name(), id, index, status))
+    @check
+    def isAnyErrorExists(self):
+        """检测是否有错误存在
+
+        """
+        print("func: {0} ".format(get_function_name())) 
+    @check 
+    def getCurrentTaskStatus(self):
+        """获取当前任务状态
+
+        """
+        print("func: {0} ".format(get_function_name())) 
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1238,4 +1251,6 @@ if __name__ == '__main__':
     r.setGoForkForkPos(0.0,0.0,0.0,0.0)
     r.motorCalib("motor")
     r.setVirtualDI(1,1,True)
+    r.isAnyErrorExists()
+    r.getCurrentTaskStatus()
     print("Success!!!")
