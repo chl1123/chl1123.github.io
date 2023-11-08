@@ -1,4 +1,4 @@
-# @File :clean_robot.py
+# @File :clean_robot_safe_check.py
 # @Version : 1.3
 # @Project : 霞智清洁机器人项目,霞智自研XZ-MC700驱动器用于控制：
 # 两个刷盘电机、喷水泵电机、刷盘升降电机、水扒升降电机、喷水电磁阀、排水球阀；
