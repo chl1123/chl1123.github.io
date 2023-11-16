@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Date: 2023/03/20
-# @Author: zhong
+# @Author: zhong,CXN
 # @File: modbus_comm.py
 # @Version: 1.1
 # @Project:
@@ -114,7 +114,8 @@ class Module(BasicModule):
             self.write_registers(r)
         elif self.opt == "tasks_list":
             self.execute_tasks(r)
-
+        if self.status == MoveStatus.FINISHED or self.status == MoveStatus.FAILED:
+            self.modbus_tcp.close()
         # =====数据上报及日志打印=====
         self.report_info['args'] = args
         self.report_info['task_status'] = self.status
@@ -298,6 +299,9 @@ class ModbusTCP:
         @return:
         """
         return self.tcp_master.execute(slave, cst.WRITE_MULTIPLE_REGISTERS, st_addr, output_value=output_value)
+
+    def close(self):
+        self.tcp_master.close()
 
 
 # class ModbusRTU:
