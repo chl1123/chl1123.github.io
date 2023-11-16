@@ -1116,15 +1116,14 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), motor_name))
     @check
-    def setVirtualDI(self, id:int, index:int, status:bool):
+    def setVirtualDI(self, index:int, status:bool):
         """设置虚拟 DI 状态
 
         Args:
-            id (int): DI 列表中虚拟 DI 的 id 号
             index (int): DI 列表中相对第一个虚拟 DI 的索引
             status (bool): 虚拟 DI 状态
         """
-        print("func: {0} {1} {2} {3}".format(get_function_name(), id, index, status))
+        print("func: {0} {1} {2}".format(get_function_name(), index, status))
     @check
     def isAnyErrorExists(self):
         """检测是否有错误存在
@@ -1250,7 +1249,7 @@ if __name__ == '__main__':
     r.goForkPath()
     r.setGoForkForkPos(0.0,0.0,0.0,0.0)
     r.motorCalib("motor")
-    r.setVirtualDI(1,1,True)
+    r.setVirtualDI(1,True)
     r.isAnyErrorExists()
     r.getCurrentTaskStatus()
     print("Success!!!")
