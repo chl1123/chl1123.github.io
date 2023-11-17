@@ -13,7 +13,8 @@ class serialPassAarch64():
         self.ser = serial.Serial(port=name, baudrate=baudrate, bytesize=8, parity='N', stopbits=1)
         command = "cat /etc/srcname"
         output = subprocess.check_output(command, shell=True)
-        output = output.decode("utf-8")
+        output = output.decode("utf-8").strip()
+        print(output)
         if not output == 'SRC880':
             fcntl.ioctl(self.ser, 0)  # 这行决定了485模式
         __msg_thread = threading.Thread(target=self.__run, name="run")
