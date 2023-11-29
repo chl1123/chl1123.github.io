@@ -14,16 +14,23 @@ class testCanBattery(cb.canPassBase):
         super(testCanBattery, self).__init__()
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
-        self.connect_timeout_t = mu.Timer(5000)
-        self.battery_info = self.createBatteryMessage()
         # 用来表示数据是否已经正确接收
+        self.battery_info = self.createBatteryMessage()
+        self.connect_timeout_t = mu.Timer(5000)
+        self.wait = mu.Timer(10000)
         self.msg_ok = False
+        self.first = True
         self.tem = []
 
     def handleData(self, msg):
+        self.judgeCanframe(msg)
+        self.judgePublish()
+
+    def judgeCanframe(self, msg):
         canframe = self.recCanframe(msg)
-        self.clearTimeout()
+
         if canframe.ID == 0x019E:
+            self.clearTimeout()
             tem = canframe.Data.hex()
             current = -round((int(tem[6:8] + tem[4:6], 16) - 32000) * 0.1, 2)
             voltage = round(int(tem[2:4] + tem[0:2], 16) * 0.1, 2)
@@ -31,28 +38,35 @@ class testCanBattery(cb.canPassBase):
             self.battery_info.charge_voltage = voltage
             self.battery_info.charge_current = current
             self.battery_info.percetage = percentage
-            self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x1806E5F4:
+            self.clearTimeout()
             tem = canframe.Data.hex()
             if self.isNeedCharge():
                 print("start charge")
                 can_data = [tem[0:2], tem[2:4], tem[4:6], tem[6:8], '00', '00', '00', '00']
-                can_string = self.getCanString(can_data)
+                can_string = ' '.join(can_data).upper()
                 print(can_string)
                 self.sendCanframe(2, 0x18FF50E5, 8, True, can_string)
             max_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             max_current = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
             self.battery_info.max_charge_current = max_current
             self.battery_info.max_charge_voltage = max_voltage
-            self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x1800FFF4:
+            self.clearTimeout()
             tem = canframe.Data.hex()
             temperature = round(int(tem[10:12], 16) - 40, 2)
             self.battery_info.temperature = temperature
-            self.publish(self.battery_info)
             self.msg_ok = True
+
+    def judgePublish(self):
+        if self.first:
+            if self.wait.isTimeUp():
+                self.publish(self.battery_info)
+                self.first = False
+        else:
+            self.publish(self.battery_info)
 
     def judgeMsgok(self):
         if self.msg_ok:
