@@ -9,7 +9,7 @@ class serialPassX86():
     def __init__(self):
         print("serialPassx86 start!")
         self.__pass = pt.passThrough()
-        self.__pass.connect(DEFAULT_PASS_ADDR)
+        self.__pass.serialConnect(DEFAULT_PASS_ADDR)
 
     def createBatteryMessage(self):
         return message_battery_pb2.Message_Battery()
