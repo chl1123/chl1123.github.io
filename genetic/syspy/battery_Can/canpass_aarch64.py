@@ -1,7 +1,7 @@
 import sys,can,threading
 import syspy.lib.udp_debug as ud
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Can/')
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages_arm')
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 import message_battery_aarch64_pb2
 
 class canPassAarch64():
