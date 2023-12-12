@@ -689,7 +689,7 @@ class SimModule:
         Returns:
             int: 2没有进行切换，1切换中，0切换成功，-1不存在地图，-2切换失败
         """
-        print("func: {0}: {1} {2}".format(get_function_name(), map, switchPoint))
+        print("func: {0}: {1} {2} {3} {4} {5}".format(get_function_name(), map, switchPoint, center_x, center_y, initial_angle))
         return 0
     @check
     def getTriggleScriptName(self)->str:
@@ -1194,7 +1194,7 @@ if __name__ == '__main__':
     r.stopSound(True)
     # r.setForkHeight(1.0)
     # r.stopFork()
-    r.switchMap("hello","LM1")
+    r.switchMap("hello","LM1",0.0,0.0,0.0)
     r.getTriggleScriptArgs()
     r.getTriggleScriptName()
     r.hasTriggleScript()
