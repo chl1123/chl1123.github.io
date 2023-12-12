@@ -677,12 +677,15 @@ class SimModule:
     #     """
     #     print("func: {0} ".format(get_function_name()))
     @check
-    def switchMap(self, map:str, switchPoint:str)->int:
+    def switchMap(self, map:str, switchPoint:str, center_x:float, center_y:float, initial_angle:float)->int:
         """切换地图
 
         Args:
             map (str): 地图名称
             switchPoint (str): 重定位点位
+            center_x (float): 重定位中心点 x 坐标 单位 m
+            center_y (float): 重定位中心点 y 坐标 单位 m
+            initial_angle (float): 重定位中心朝向 单位 degree
         Returns:
             int: 2没有进行切换，1切换中，0切换成功，-1不存在地图，-2切换失败
         """
