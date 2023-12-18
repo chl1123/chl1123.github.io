@@ -36,7 +36,7 @@ class testCanBattery(cb.canPassBase):
         sys.stdout = self.__debug_out
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(7000)
-        self.wait = mu.Timer(10000)
+        self.id1,self.id2,self.id3,self.id4 = False,False,False,False
         self.msg_ok = False
         self.msg_userdata = False
         self.first = True
@@ -80,6 +80,7 @@ class testCanBattery(cb.canPassBase):
             self.battery_info.percetage = percentage
             self.battery_info.cycle = cycle
             self.msg_ok = True
+            self.id1 = True
         elif msg.arbitration_id == 0x0EA1F40D:
             self.clearTimeout()
             tem = msg.data.hex()
@@ -88,12 +89,14 @@ class testCanBattery(cb.canPassBase):
             self.battery_info.charge_voltage = voltage
             self.battery_info.charge_current = current
             self.msg_ok = True
+            self.id2 = True
         elif msg.arbitration_id == 0x0EA2F40D:
             self.clearTimeout()
             tem = msg.data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
             self.battery_info.temperature = temperature
             self.msg_ok = True
+            self.id3 = True
         elif msg.arbitration_id == 0x0EA4F40D:
             self.clearTimeout()
             tem = msg.data.hex()
@@ -107,6 +110,7 @@ class testCanBattery(cb.canPassBase):
                 self.battery_info.max_charge_current = 0
                 self.battery_info.max_charge_voltage = 0
             self.msg_ok = True
+            self.id4 = True
         elif msg.arbitration_id == 0x1EA7F40D:
             self.clearTimeout()
             tem = msg.data.hex()
@@ -122,12 +126,10 @@ class testCanBattery(cb.canPassBase):
                         break
 
     def judgePublish(self):
-        if self.first:
-            if self.wait.isTimeUp():
-                self.publish(self.battery_info)
-                self.first = False
-        else:
+        if self.id1 and self.id2 and self.id3 and self.id4:
             self.publish(self.battery_info)
+        else:
+            print("not")
 
     def judgeMsgok(self):
         if self.msg_ok:
