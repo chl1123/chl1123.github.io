@@ -17,6 +17,24 @@ from rbkSim import SimModule
         "tips":"切换地图后重定位的点位",
         "unit":"",
         "type":"string"
+    },
+    "center_x": {
+        "value": 0.0,
+        "tips": "重定位点 x 坐标",
+        "unit": "m",
+        "type": "float"
+    },
+    "center_y": {
+        "value": 0.0,
+        "tips": "重定位点 y 坐标",
+        "unit": "m",
+        "type": "float"
+    },
+     "initiate_angle": {
+        "value": 0.0,
+        "tips": "重定位点朝向",
+        "unit": "degree",
+        "type": "float"
     }
 }
 ####END DEFAULT ARGS####
@@ -30,6 +48,9 @@ class Module(BasicModule):
         self.status = MoveStatus.NONE
         self.map = ""
         self.switchPoint = ""
+        self.center_x = 0.0
+        self.center_y = 0.0
+        self.initiate_angle = 0.0
     def run(self, r:SimModule,args):
         """主函数，每个运行周期都会执行run函数
 
@@ -46,9 +67,13 @@ class Module(BasicModule):
         if self.init:
             self.map = args.get("map","")
             self.switchPoint = args.get("switchPoint","")
+            self.center_x = args.get("center_x",0.0)
+            self.center_y = args.get("center_y",0.0)
+            # initiate_angle 为 65535 时表示执行原地切换地图动作
+            self.initiate_angle = args.get("initiate_angle",0.0)
             self.init = False
         if self.map is not "":
-            map_status = r.switchMap(self.map, self.switchPoint)
+            map_status = r.switchMap(self.map, self.switchPoint, self.center_x,  self.center_y, self.initiate_angle)
             if map_status is 0:
                 self.status = MoveStatus.FINISHED
             elif map_status is -1:
