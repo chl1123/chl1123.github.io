@@ -92,10 +92,10 @@ class demo_dmx512(dmx.dmx512Base):
                         '''机身左旋'''
                         if (self.cur_x > 0.0):
                             '''机身左旋+前进'''
-                            dmx512_info.turn_left_or_right=2
+                            dmx512_info.turn_left_or_right=1
                         elif (self.cur_x < 0.0):
                             '''机身左旋+后退'''
-                            dmx512_info.turn_left_or_right=2
+                            dmx512_info.turn_left_or_right=1
                         else:
                             '''机身原地左旋'''
                             dmx512_info.turn_left_or_right=3
@@ -104,17 +104,16 @@ class demo_dmx512(dmx.dmx512Base):
                         '''机身右旋'''
                         if (self.cur_x > 0.0):
                             '''机身右旋+前进'''
-                            dmx512_info.turn_left_or_right=1
+                            dmx512_info.turn_left_or_right=2
                         elif (self.cur_x < 0.0):
                             '''机身右旋+后退'''
-                            dmx512_info.turn_left_or_right=1
+                            dmx512_info.turn_left_or_right=2
                         else:
                             '''机身原地右旋'''
                             dmx512_info.turn_left_or_right=3
 
                     else:
                         # '''静止'''
-                        # dmx512_info.turn_left_or_right=0
                         if self.cur_x < 0.0:
                             RGBW = [255, 250, 250, 0]
                             dmx512_info.color_r = RGBW[0]
@@ -161,15 +160,11 @@ class demo_dmx512(dmx.dmx512Base):
                     dmx512_info.color_g = RGBW[1]
                     dmx512_info.color_b = RGBW[2]
                     dmx512_info.color_w = RGBW[3]
-                elif (self.getShowBattery()==True):
+                else:
                     '''显示电量，从绿色至暗红色渐变'''
                     dmx512_info.type = dmx.LightType.Battery.value
                     tem = (dmx_battery.percetage * 100.0)
                     dmx512_info.battery = int(tem)
-                else:
-                    '''否则蓝色常亮'''
-                    dmx512_info.type = dmx.LightType.ConstantLight.value
-
             else:
                 '''电池类型未配置且机器人静止为彩虹灯'''
                 dmx512_info.type = dmx.LightType.Rainbow.value
