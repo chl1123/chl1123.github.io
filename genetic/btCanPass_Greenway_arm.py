@@ -94,6 +94,14 @@ class testCanBattery(cb.canPassBase):
             self.clearTimeout()
             tem = msg.data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
+            if temperature <= -19:
+                self.setError("The current temperature has reached " + str(temperature) + " degrees , low temperature error!")
+            elif -19 < temperature <= -15:
+                self.setWarning("The current temperature has reached " + str(temperature) + " degrees , low temperature warning.")
+            elif 55 <= temperature < 59:
+                self.setWarning("The current temperature has reached " + str(temperature) + " degrees , high temperature warning.")
+            elif temperature >= 59:
+                self.setError("The current temperature has reached " + str(temperature) + " degrees , high temperature error!")
             self.battery_info.temperature = temperature
             self.msg_ok = True
             self.id3 = True
