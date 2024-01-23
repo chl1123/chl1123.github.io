@@ -50,6 +50,12 @@ class canPassBase:
         self.__rpc_client.publishBattery(msg)
         print("publishBattery.")
 
+    def getDIStates(self,index):
+        return self.__rpc_client.getDIStates(index)
+
+    def getDOStates(self,index):
+        return self.__rpc_client.getDOStates(index)
+
     def setTimeout(self):
         print("Can battery response time out")
         self.__rpc_client.setWarning(54001, "Can battery response time out")

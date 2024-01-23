@@ -30,87 +30,76 @@ class dmx512Base:
         self.__rpc_client.connect(DEFAULT_RPC_ADDR)
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
+        print("start dmx512")
 
     def sendDmx512(self, dmx512_info):
-        print("sendDmx512")
         type_exm = message_dmx512_pb2.Message_Dmx512()
         if (isinstance(dmx512_info, type(type_exm))):
             msg = MessageToJson(dmx512_info)
             self.__rpc_client.receivePython(msg)
 
     def recMoveStatus(self):
-        print("recMoveStatus")
         str = self.__rpc_client.getMoveStatus()
         movestatus = Parse(str, message_movetask_pb2.Message_MoveStatus())
         return movestatus
 
     def recBattery(self):
-        print("recBattery")
         str = self.__rpc_client.getBatterToPython()
         batter_ = Parse(str, message_battery_pb2.Message_Battery())
         return batter_
 
     def recRobotSpeed(self):
-        print("recRobotSpeed")
         str = self.__rpc_client.getNavSpeed()
         robotSpeed = Parse(str, message_navigation_pb2.Message_NavSpeed())
         return robotSpeed
 
     def createDmx512Message(self):
-        print("createDmx512Message")
         return message_dmx512_pb2.Message_Dmx512()
 
     def createMoveStatusMessage(self):
-        print("createMoveStatusMessage")
         return message_movetask_pb2.Message_MoveStatus()
 
     def createBatteryMessage(self):
-        print("createBatteryMessage")
         return message_battery_pb2.Message_Battery()
 
     def createNavSpeedMessage(self):
-        print("createNavSpeedMessage")
         return message_navigation_pb2.Message_NavSpeed()
 
     def modelDeviceEnable(self,str):
-        print("modelDeviceEnable")
         return self.__rpc_client.modelDeviceEnable(str)
 
     def getChassisStop(self):
-        print("getChassisStop")
         return self.__rpc_client.getChassisStop()
 
     def getShowCharging(self):
-        print("getShowCharging")
         return self.__rpc_client.getShowCharging()
 
     def getEMCState(self):
-        print("getEMCState")
         return self.__rpc_client.getEMCState()
 
     def getShowBattery(self):
-        print("getShowBattery")
         return self.__rpc_client.getShowBattery()
 
+    def getDIStates(self,index):
+        return self.__rpc_client.getDIStates(index)
+
+    def getDOStates(self,index):
+        return self.__rpc_client.getDOStates(index)
+
     def getBatteryMaxPercentage(self):
-        print("getBatteryMaxPercentage")
         maxPer = self.__rpc_client.getBatteryMaxPercentage()
         return maxPer
 
     def getErrorNum(self):
-        print("getErrorNum")
         return self.__rpc_client.errorNum()
 
     def getFatalNum(self):
-        print("getFatalNum")
         return self.__rpc_client.fatalNum()
 #
     def warningExists(self,code):
-        print("warningExists")
         return self.__rpc_client.warningExists(code)
 
     def errorExists(self,code):
-        print("errorExists")
         return self.__rpc_client.errorExists(code)
 
     def __del__(self):
