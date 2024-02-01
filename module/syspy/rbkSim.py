@@ -1111,7 +1111,7 @@ class SimModule:
         """
         print("func: {0} {1} {2} {3} {4}".format(get_function_name(), x, y, theta, hold_dir))
     @check
-    def motorCalib(self, motor_name:str):
+    def setMotorCalib(self, motor_name:str):
         """电机标零
 
         Args:
@@ -1251,7 +1251,7 @@ if __name__ == '__main__':
     r.resetGoForkPath(0.0,0.0,0.0,0.0,0.0)
     r.goForkPath()
     r.setGoForkForkPos(0.0,0.0,0.0,0.0)
-    r.motorCalib("motor")
+    r.setMotorCalib("motor")
     r.setVirtualDI(1,True)
     r.isAnyErrorExists()
     r.getCurrentTaskStatus()
