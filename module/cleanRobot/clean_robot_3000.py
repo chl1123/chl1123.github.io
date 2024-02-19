@@ -1,16 +1,17 @@
-# @File :clean_robot_safe_check.py
+# @File :clean_robot.py
 # @Version : 1.3
 # @Project : 霞智清洁机器人项目,霞智自研XZ-MC700驱动器用于控制：
 # 两个刷盘电机、喷水泵电机、刷盘升降电机、水扒升降电机、喷水电磁阀、排水球阀；
 # 同时收清水液位计、污水液位计信号
-# @coding: https://seer-group.coding.net/p/robokit/requirements/issues/1822/detail
-# @Update : 20231108
+# @coding: https://seer-group.coding.net/p/test_center/requirements/issues/3043/detail
+# @Update : 20230906
 import binascii
 import sys
 import base64
 import time
 import socket
-
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
+import can
 sys.path.append("../syspy")
 import json
 from syspy.rbkSim import SimModule
@@ -118,16 +119,21 @@ class Module(BasicModule):
         self.status = MoveStatus.NONE
         self.operation = None
         self.init = True
-        self.chanel = 2
+        self.chanel = "can1"
         self.can_id = 0x605
         self.clean_water_level = 0
         self.waste_water_level = 0
         self.dlc = 8  # 发送报文的数据长度，一般为8
         self.extend = False  # 报文是否为扩展型，一般为false
+
+        self.send_channel = "can1"
+        self.cp = CanPassAarch64()
+        self.cp.createCanBus(r, self.send_channel, self.can_id)
+        self.cp.attachCanID(0x585)
         self.shift = "light"
         self.check_level_opt = [False] * 4
-        self.block_stop_opt = [False] * 6
-        self.block_re_start_opt = [False] * 6
+        self.block_stop_opt = [False] * 8
+        self.block_re_start_opt = [False] * 8
 
         self.is_device_run = False
 
@@ -183,7 +189,7 @@ class Module(BasicModule):
             return True
 
         except Exception as e:
-            r.setError(f"periodRun error:{e}")
+            r.setWarning(f"periodRun error:{e}")
             return False
 
     # def suspend(self, r: SimModule):
@@ -196,88 +202,93 @@ class Module(BasicModule):
     #     self.status = MoveStatus.NONE
 
     def run(self, r: SimModule, args):
-        self.status = MoveStatus.RUNNING
-        if len(args) == 0:
-            r.setError("pls input params can be running")
-            self.status = MoveStatus.FAILED
-            return self.status
-        if r.errorExits(52200):
-            if self.operation == "WashStart":
-                self.safe_ctr(r)
-            # r.setNotice("pls input params can be running")
-        if self.status != MoveStatus.FINISHED:
-            self.get_info(r)
-            # 上报液位
-            self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
-            # 上报液位
-            self.client(self.ip, self.port, self.report_addr_2, int(self.waste_water_level), r)
-        if self.init:
-            self.init = False
-            self.task = args
-            self.operation = self.task.get("operation", None)
-            self.shift = self.task.get("shift", "light")
-        # 扫地、推尘
-        if self.operation is not None and self.operation != "":
-            if self.task["operation"] == "WashStart":
-                if not int(self.clean_water_level) < self.clean_water_alarm and not int(
-                        self.waste_water_level) > self.waste_water_alarm:
-                    self.wash_start(r)
-                else:
-                    r.setError(
-                        f"clean_water_level :{int(self.clean_water_level)} ,waste_water_level:{int(self.waste_water_level)}")
-                    self.status = MoveStatus.FAILED
-            elif self.task["operation"] == "WashEnd":
-                self.wash_end(r)
-            elif self.task["operation"] == "DustStart":
-                self.dust_start(r)
-            elif self.task["operation"] == "DustStart":
-                self.dust_end(r)
-            elif self.task["operation"] == "check_level":
-                self.check_level(r)
-            else:
-                r.setError("operation is wrong : {}".format(self.operation))
+        try:
+            self.status = MoveStatus.RUNNING
+            if len(args) == 0:
+                r.setError("pls input params can be running")
                 self.status = MoveStatus.FAILED
                 return self.status
-        # 单个设备控制 addingWater
-        if "addingWater" in self.task:
-            if "true" in self.task["addingWater"] or "True" in self.task["addingWater"]:
-                # r.setDO(self.addingWater_do, True)
-                self.add_water(r)
-            if "false" in self.task["addingWater"] or "False" in self.task["addingWater"]:
-                r.setDO(self.addingWater_do, False)
+            if r.errorExits(52200):
+                if self.operation == "WashStart":
+                    self.safe_ctr(r)
+                # r.setNotice("pls input params can be running")
+            if self.status != MoveStatus.FINISHED:
+                self.get_info(r)
+                # 上报液位
+                self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
+                # 上报液位
+                self.client(self.ip, self.port, self.report_addr_2, int(self.waste_water_level), r)
+            if self.init:
+                self.init = False
+                self.task = args
+                self.operation = self.task.get("operation", None)
+                self.shift = self.task.get("shift", "light")
+            # 扫地、推尘
+            if self.operation is not None and self.operation != "":
+                if self.task["operation"] == "WashStart":
+                    if not int(self.clean_water_level) < self.clean_water_alarm and not int(
+                            self.waste_water_level) > self.waste_water_alarm:
+                        self.wash_start(r)
+                    else:
+                        r.setError(
+                            f"clean_water_level :{int(self.clean_water_level)} ,waste_water_level:{int(self.waste_water_level)}")
+                        self.status = MoveStatus.FAILED
+                elif self.task["operation"] == "WashEnd":
+                    self.wash_end(r)
+                elif self.task["operation"] == "DustStart":
+                    self.dust_start(r)
+                elif self.task["operation"] == "DustStart":
+                    self.dust_end(r)
+                elif self.task["operation"] == "check_level":
+                    self.check_level(r)
+                else:
+                    r.setError("operation is wrong : {}".format(self.operation))
+                    self.status = MoveStatus.FAILED
+                    return self.status
+            # 单个设备控制 addingWater
+            if "addingWater" in self.task:
+                if "true" in self.task["addingWater"] or "True" in self.task["addingWater"]:
+                    # r.setDO(self.addingWater_do, True)
+                    self.add_water(r)
+                if "false" in self.task["addingWater"] or "False" in self.task["addingWater"]:
+                    r.setDO(self.addingWater_do, False)
+                    self.operation_status = MoveStatus.FINISHED
+            if "suction_wing" in self.task:
+                self.send_msg(r, "2B 80 30 01 " + '{:02x}'.format(self.task["suction_wing"]) + " 00 00 00")
                 self.operation_status = MoveStatus.FINISHED
-        if "suction_wing" in self.task:
-            self.send_msg(r, "2B 80 30 01 " + '{:02x}'.format(self.task["suction_wing"]) + " 00 00 00")
-            self.operation_status = MoveStatus.FINISHED
-        if "jet_water" in self.task:
-            self.send_msg(r, "2B 80 30 03 " + '{:02x}'.format(self.task["jet_water"]) + " 00 00 00")
-            self.operation_status = MoveStatus.FINISHED
-        if "water_pa" in self.task:
-            self.water_pa(r, self.task["water_pa"])
-        if "jet_water_valve" in self.task:
-            self.jet_water_valve(r, self.task["jet_water_valve"])
-        if "brain_ball_valve" in self.task:
-            self.brain_ball_valve(r, self.task["brain_ball_valve"])
+            if "jet_water" in self.task:
+                self.send_msg(r, "2B 80 30 03 " + '{:02x}'.format(self.task["jet_water"]) + " 00 00 00")
+                self.operation_status = MoveStatus.FINISHED
+            if "water_pa" in self.task:
+                self.water_pa(r, self.task["water_pa"])
+            if "jet_water_valve" in self.task:
+                self.jet_water_valve(r, self.task["jet_water_valve"])
+            if "brain_ball_valve" in self.task:
+                self.brain_ball_valve(r, self.task["brain_ball_valve"])
 
-        if "brush_plate" in self.task:
-            self.send_msg(r, "2B 80 30 02 " + '{:02x}'.format(self.task["brush_plate"]) + " 00 00 00")
-            # self.send_msg(r, "2B 80 30 02 00 00 00 00")
-            self.operation_status = MoveStatus.FINISHED
-        if "brush_plate_lift" in self.task:
-            self.brush_plate_lift(r, self.task["brush_plate_lift"])
-        # 给调度上报
-        self.state["cleanRobot"] = {
-            "cleanWaterLevel": int(self.clean_water_level),
-            "wasteWaterLevel": int(self.waste_water_level)
-        }
-        self.state['args'] = args
-        self.state['status'] = self.status
-        r.setInfo(json.dumps(self.state))
-        r.logInfo(json.dumps(self.state))
-        self.status = self.operation_status
-        return self.status
-
+            if "brush_plate" in self.task:
+                self.send_msg(r, "2B 80 30 02 " + '{:02x}'.format(self.task["brush_plate"]) + " 00 00 00")
+                # self.send_msg(r, "2B 80 30 02 00 00 00 00")
+                self.operation_status = MoveStatus.FINISHED
+            if "brush_plate_lift" in self.task:
+                self.brush_plate_lift(r, self.task["brush_plate_lift"])
+            # 给调度上报
+            self.state["cleanRobot"] = {
+                "cleanWaterLevel": int(self.clean_water_level),
+                "wasteWaterLevel": int(self.waste_water_level)
+            }
+            self.state['args'] = args
+            self.state['status'] = self.status
+            r.setInfo(json.dumps(self.state))
+            r.logInfo(json.dumps(self.state))
+            self.status = self.operation_status
+            return self.status
+        except Exception as e:
+            r.setError(f"3000 error:{e}")
+            return self.status
     def client(self, ip, port, addr, value, r):
+        t = time.time()
+        r.logInfo(f"client start:{t}")
         # 创建一个 TCP socket
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # 定义 Modbus TCP server 的 IP 和端口号
@@ -302,6 +313,7 @@ class Module(BasicModule):
             r.setInfo(f"Value write failed!:{value}")
         # 关闭 socket 连接
         client_socket.close()
+        r.logInfo(f"client end:{time.time()-t}")
 
     def check_level(self, r):
         # 查詢液位-清水
@@ -400,8 +412,15 @@ class Module(BasicModule):
         elif not self.block_re_start_opt[5] and self.block_re_start_opt[4]:
             self.send_msg(r, "2B 80 30 02 " + shift(self.shift, "SP") + " 00 00 00")
             self.block_re_start_opt[5] = True
+
+        elif not self.block_re_start_opt[6] and self.block_re_start_opt[3]:
+            self.send_msg(r, "2B 80 30 06 64 00 00 00")
+            self.block_re_start_opt[6] = True
+        elif not self.block_re_start_opt[7] and self.block_re_start_opt[4]:
+            self.send_msg(r, "2B 80 30 06 64 00 00 00")
+            self.block_re_start_opt[7] = True
         if all(self.block_re_start_opt):
-            self.block_re_start_opt = [False] * 6
+            self.block_re_start_opt = [False] * 8
             self.is_block = False
             self.block_first = False
 
@@ -428,8 +447,15 @@ class Module(BasicModule):
         elif not self.block_stop_opt[5] and self.block_stop_opt[4]:
             self.send_msg(r, "2B 80 30 02 00 00 00 00")
             self.block_stop_opt[5] = True
+        # 关闭水阀
+        elif not self.block_stop_opt[6] and self.block_stop_opt[3]:
+            self.send_msg(r, "2B 80 30 06 00 00 00 00")
+            self.block_stop_opt[6] = True
+        elif not self.block_stop_opt[7] and self.block_stop_opt[4]:
+            self.send_msg(r, "2B 80 30 06 00 00 00 00")
+            self.block_stop_opt[7] = True
         if all(self.block_stop_opt):
-            self.block_stop_opt = [False] * 6
+            self.block_stop_opt = [False] * 8
             self.is_block = True
 
     def stopV1(self, r: SimModule, tpy=False):
@@ -460,7 +486,7 @@ class Module(BasicModule):
 
     def safe_ctr(self, r: SimModule):
         safe_state = dict()
-        block = r.errorExits(52200)
+        block = r.isAnyErrorExists()
         if block and not self.block_first:
             self.block_init = True
             self.block_first = True
@@ -585,25 +611,7 @@ class Module(BasicModule):
             self.run_tak_list(r)
 
     def get_proxy_info(self, r: SimModule, msg):
-        for i in range(10):
-            flag = False
-            data = dict()
-            if not flag:
-                time.sleep(0.01)
-                flag = True
-                data = self._send_get(r, msg)
-                can_frame_id_res = data["ID"]
-                if can_frame_id_res + 128 != self.can_id:
-                    flag = False
-                d_data = data["Data"]
-                dict_obj = msg[3:5] + msg[6:8] + msg[9:11]
-                dict_obj_res = d_data[2:8]
-                if dict_obj != dict_obj_res:
-                    flag = False
-            if flag:
-                return data["Data"]
-            if i == 9:
-                return "9999999999999999"
+        return self._send_get(r, msg)
 
     def get_info(self, r: SimModule):
         get_can_frame = dict()
@@ -646,15 +654,11 @@ class Module(BasicModule):
         self.state["CanFrame"] = can_frame
 
     def _send_get(self, r: SimModule, msg):
-        r.sendCanFrame(self.chanel, self.can_id, self.dlc, self.extend, msg)
-        data = r.getCanFrame()
-        b64_str = data["Data"]
-        # print(b64_str, type(b64_str))
-        byte_str = base64.b64decode(b64_str)
-        hex_str = byte_str.hex().upper()
-        # print(hex_str[0], hex_str[1], hex_str[2], hex_str[3], hex_str[6], hex_str[7])
-        data["Data"] = hex_str
-        return data
+        l = [int(hex(int(i.strip(), 16))[2:], 16) for i in msg.split()]
+        self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend, l)
+        data = self.cp.recvCan(r)
+        decimals = ''.join(hex(int.from_bytes(data[i:i + 1], 'big'))[2:].zfill(2) for i in range(len(data)))
+        return decimals
 
     def run_tak_list(self, r):
         if self.task_id < len(self.task_list):
@@ -1039,3 +1043,79 @@ class AddWater:
         m_state["status"] = self.status
         m_state["is_open"] = self.is_open
         m.state["AddWater"] = m_state
+
+
+
+class CanPassAarch64:
+    def __init__(self):
+        print("canPassAarch64 start!")
+        self.bus = None
+        self.__callback = None
+        self.__should_close = False
+        self.can_ids = []
+        self.send_time = 0
+        self.res_timeout = 2
+        self.timeout = 0.04   # can通信超时时间，单位：秒
+
+    def setCallBack(self,handleData):
+        if not handleData:
+            print("Set callback error.It should be implemented the func 'handleData'")
+        else:
+            self.__callback = handleData
+
+    def createCanBus(self,r:SimModule, channel, bitrate):
+        self.bus = can.interface.Bus(bustype='socketcan', channel=channel, bitrate=bitrate)
+        # __msg_thread = threading.Thread(target=self.__run, args=(r,),name="run")
+        # __msg_thread.start()  # FIXME: when to join?
+
+    # 过滤器函数
+    def can_filter(self, msg):
+        if msg.arbitration_id in self.can_ids:
+            return True
+        else:
+            return False
+
+    def attachCanID(self, *canid):
+        for i in range(len(canid)):
+            self.can_ids.append(canid[i])
+        filters = []
+        for id_ in self.can_ids:
+            if id_ < 0x800:
+                can_mask = 0x7FF
+            else:
+                can_mask = 0x1FFFFFFF
+            filters.append({"can_id": id_, "can_mask": can_mask})
+        self.bus.set_filters(filters)
+        print('Attached CAN IDs:', end=' ')
+        for id_ in self.can_ids:
+            print(hex(id_), end=' ')
+
+    def sendCanframe(self,r:SimModule,channel, can_id, dlc, extend, can_string):
+        self.send_time = time.time()
+        bus = can.interface.Bus(channel, bustype='socketcan')
+        msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
+        bus.send(msg, timeout=self.timeout)
+        r.setNotice(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+        bus.shutdown()
+
+    def recvCan(self,r):
+        try:
+            start = time.time()
+            r.logInfo(f"self.bus start {self.bus},{type(self.bus)}")
+            for msg in self.bus:
+                r.logInfo(f"self.bus{self.bus}")
+                if self.can_filter(msg):
+                    if not self.__callback is None:
+                        self.__callback(r,msg)
+                    r.logInfo(f"start time end {time.time()-start}")
+                    return msg.data
+            return False
+        except Exception as e:
+            r.setWarning(f"can 通信接受异常,{e}")
+            return False
+
+    def __del__(self):
+        self.bus.shutdown()
+
+    def close(self):
+        self.bus.shutdown()
