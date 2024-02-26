@@ -1094,8 +1094,12 @@ class CanPassAarch64:
         self.send_time = time.time()
         bus = can.interface.Bus(channel, bustype='socketcan')
         msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
-        bus.send(msg, timeout=self.timeout)
-        r.setNotice(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+        try:
+            bus.send(msg, timeout=self.timeout)
+        except Exception as e:
+            r.logInfo(f"Exception: {e}")
+        else:
+            r.setNotice(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
         bus.shutdown()
 
     def recvCan(self,r):
