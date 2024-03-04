@@ -8,6 +8,7 @@ class serialPassAarch64():
         self.ser = None
         self.__callback = None
         self.__should_close = False
+        self.__msg_thread = None
 
     def createSerial(self, name, baudrate):
         self.ser = serial.Serial(port=name, baudrate=baudrate, bytesize=8, parity='N', stopbits=1)
@@ -17,8 +18,8 @@ class serialPassAarch64():
         print(output)
         if not output == 'SRC880':
             fcntl.ioctl(self.ser, 0)  # 这行决定了485模式
-        __msg_thread = threading.Thread(target=self.__run, name="run")
-        __msg_thread.start()  # FIXME: when to join?
+        self.__msg_thread = threading.Thread(target=self.__run, name="run")
+        self.__msg_thread.start()  # FIXME: when to join?
         print('createSerial  name:{},baudrate:{}'.format(name, baudrate))
 
     def send(self, msg: list):
@@ -48,6 +49,14 @@ class serialPassAarch64():
         finally:
             self.ser.close()
             pass
+
+    def stop(self):
+        self.__should_close = True
+        if self.__msg_thread:
+            self.__msg_thread.join()
+
+    def __del__(self):
+        self.stop()
 
 if __name__ == "__main__":
     pass

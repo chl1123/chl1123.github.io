@@ -45,7 +45,11 @@ class canPassX86():
             print(hex(id_), end=' ')
 
     def __del__(self):
-        self.__pass.shoutDown()
+        if self.__pass:
+            try:
+                self.__pass.shoutDown()
+            except Exception as e:
+                print(f"Error shutting down passThrough: {e}")
 
 if __name__ == "__main__":
     pass

@@ -26,8 +26,15 @@ class serialPassX86():
         else:
             self.__pass.setCallBack(handleData)
 
+    def shutdown(self):
+        try:
+            if self.__pass:
+                self.__pass.shoutDown()  # Assuming typo in original code is fixed here
+        except Exception as e:
+            print(f"Failed to shutdown properly: {e}")
+
     def __del__(self):
-        self.__pass.shoutDown()
+        self.shutdown()
 
 if __name__ == "__main__":
     pass
