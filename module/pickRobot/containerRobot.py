@@ -944,6 +944,7 @@ class Rec:
         self.result = dict()
         self.has_goods = None
         self.goods_out_dist = None
+        self.max_goods_dist = 0.8  # 料箱距离货叉里程中心最远距离，单位：米
     
     def run(self, r: SimModule, agv):
         self.status = MoveStatus.RUNNING
@@ -967,7 +968,7 @@ class Rec:
                 self.result.pop("resultImg")
             r.resetRec()
             self.has_goods = True
-            if self.result["x"] > 0.8:
+            if self.result["x"] > self.max_goods_dist:
                 self.goods_out_dist = True
             self.status = MoveStatus.FINISHED
             r.logInfo(f"rec success: {self.status.name} {self.result}")
