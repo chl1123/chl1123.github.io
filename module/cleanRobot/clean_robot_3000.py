@@ -182,7 +182,6 @@ class Module(BasicModule):
             if not self.stop_ok:
                 self.stopV1(r)
                 self.stop_ok = True
-            
         try:
             if time.time() - self.periodRun_start_time > 1.0:
                 self.check_level(r)
