@@ -10,8 +10,10 @@ import sys
 import base64
 import time
 import socket
+
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 import can
+
 sys.path.append("../syspy")
 import json
 from syspy.rbkSim import SimModule
@@ -125,7 +127,7 @@ class Module(BasicModule):
         self.waste_water_level = 0
         self.dlc = 8  # 发送报文的数据长度，一般为8
         self.extend = False  # 报文是否为扩展型，一般为false
-
+        
         self.send_channel = "can1"
         self.cp = CanPassAarch64()
         self.bitrate = 250
@@ -135,29 +137,29 @@ class Module(BasicModule):
         self.check_level_opt = [False] * 4
         self.block_stop_opt = [False] * 8
         self.block_re_start_opt = [False] * 8
-
+        
         self.is_device_run = False
-
+        
         # 液位滤波
         self.alpha = 0.2  # 平滑因子，控制权重分配，范围为[0, 1]
         self.threshold = 8.0  # 用于判断异常值的阈值
         self.data_list = []  # 存储数据的列表
-
+        self.stop_ok = False
         self.periodRun_start_time = time.time()
-
+        
         r.logInfo(str(args))
-
+    
     def level_EMA(self, x):
-
+        
         if len(self.data_list) == 0:
             filtered_value = x
         else:
             filtered_value = self.alpha * x + (1 - self.alpha) * self.data_list[-1]
-
+        
         self.data_list.append(x)  # 添加新数据到列表末尾
         if len(self.data_list) > 100:  # 判断列表长度是否超过100
             self.data_list.pop(0)  # 列表已满，删除列表头部数据
-
+        
         if abs(filtered_value - x) >= self.threshold:  # 判断滤波后的数据与原始数据的差值是否超过阈值
             return filtered_value  # 输出滤波后的数据
         else:
@@ -165,7 +167,7 @@ class Module(BasicModule):
             if len(self.data_list) == 0:
                 return x
             return self.data_list[-1]
-
+    
     def device_status(self, r):
         fj_s = False
         fj = self.get_proxy_info(r, cmd.SUCTION_WING_GET)
@@ -173,30 +175,36 @@ class Module(BasicModule):
             fj_s = True
         if fj_s:
             self.is_device_run = True
-
+    
     def periodRun(self, r: SimModule) -> bool:
+        task_status = r.getCurrentTaskStatus()
+        if task_status in [3, 5, 6]:
+            if not self.stop_ok:
+                self.stopV1(r)
+                self.stop_ok = True
+            
         try:
             if time.time() - self.periodRun_start_time > 1.0:
                 self.check_level(r)
                 self.device_status(r)
-                if self.operation == "WashStart":
-                    self.safe_ctr(r)
-                    if self.status == MoveStatus.FAILED:
-                        self.stop(r)
                 r.logDebug(f"periodRun is running")
                 self.state["operation"] = self.operation
-                self.state["task_status"] = r.getCurrentTaskStatus()
+                self.state["move_task"] = r.moveTask()
+                self.state["task_status"] = task_status
                 self.state["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
                 r.setInfo(json.dumps(self.state))
                 r.logInfo(json.dumps(self.state))
                 self.periodRun_start_time = time.time()
+                if self.operation == "WashStart":
+                    self.safe_ctr(r)
+                    if self.status == MoveStatus.FAILED:
+                        self.stop(r)
             return True
-
         except Exception as e:
             self.periodRun_start_time = time.time()
             r.setWarning(f"periodRun error:{e}")
             return False
-
+    
     # def suspend(self, r: SimModule):
     #     self.start_time = time.time()
     #     # r.logInfo("script suspend")
@@ -205,10 +213,15 @@ class Module(BasicModule):
     # def cancel(self, r: SimModule):
     #     # r.logInfo("script cancel")
     #     self.status = MoveStatus.NONE
-
+    
     def run(self, r: SimModule, args):
         try:
             self.status = MoveStatus.RUNNING
+            if self.init:
+                self.init = False
+                self.task = args
+                self.operation = self.task.get("operation", None)
+                self.shift = self.task.get("shift", "light")
             if len(args) == 0:
                 r.setError("pls input params can be running")
                 self.status = MoveStatus.FAILED
@@ -216,18 +229,13 @@ class Module(BasicModule):
             if r.errorExits(52200):
                 if self.operation == "WashStart":
                     self.safe_ctr(r)
-                # r.setNotice("pls input params can be running")
             if self.status != MoveStatus.FINISHED:
                 self.get_info(r)
                 # 上报液位
                 self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
                 # 上报液位
                 self.client(self.ip, self.port, self.report_addr_2, int(self.waste_water_level), r)
-            if self.init:
-                self.init = False
-                self.task = args
-                self.operation = self.task.get("operation", None)
-                self.shift = self.task.get("shift", "light")
+            
             # 扫地、推尘
             if self.operation is not None and self.operation != "":
                 if self.task["operation"] == "WashStart":
@@ -270,7 +278,7 @@ class Module(BasicModule):
                 self.jet_water_valve(r, self.task["jet_water_valve"])
             if "brain_ball_valve" in self.task:
                 self.brain_ball_valve(r, self.task["brain_ball_valve"])
-
+            
             if "brush_plate" in self.task:
                 self.send_msg(r, "2B 80 30 02 " + '{:02x}'.format(self.task["brush_plate"]) + " 00 00 00")
                 # self.send_msg(r, "2B 80 30 02 00 00 00 00")
@@ -283,7 +291,7 @@ class Module(BasicModule):
                 "wasteWaterLevel": round(float(self.waste_water_level), 3)
             }
             self.state['args'] = args
-            self.state['status'] = self.status
+            self.state['script_status'] = self.status
             r.setInfo(json.dumps(self.state))
             r.logInfo(json.dumps(self.state))
             self.status = self.operation_status
@@ -291,6 +299,7 @@ class Module(BasicModule):
         except Exception as e:
             r.setError(f"3000 error:{e}")
             return self.status
+    
     def client(self, ip, port, addr, value, r):
         t = time.time()
         r.logInfo(f"client start:{t}")
@@ -305,7 +314,7 @@ class Module(BasicModule):
         client_socket.sendall(self.pack(addr, value))
         # 接收 Modbus TCP server 的返回数据
         response_adu = client_socket.recv(1024)
-
+        
         unit_id = response_adu[0]  # Unit id，此处应该与写入操作中的一致
         func_code = response_adu[1]  # 功能码，此处应该与写入操作中的一致
         register_value = int.from_bytes(response_adu[-2:], byteorder='big')  # 获取写入的值
@@ -318,17 +327,16 @@ class Module(BasicModule):
             r.setInfo(f"Value write failed!:{value}")
         # 关闭 socket 连接
         client_socket.close()
-        r.logInfo(f"client end:{time.time()-t}")
-
+        r.logInfo(f"client end:{time.time() - t}")
+    
     def check_level(self, r):
         # 查詢液位-清水
         if not self.check_level_opt[0]:
             clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-            if clean_gauge[0] =="0":
+            if clean_gauge[0] == "0":
                 return
             self.clean_water_level = self.level_EMA(
                 (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            # self.state["clean_water_level"] = self.clean_water_level
             if self.clean_water_level > 99.9:
                 self.clean_water_level = 100.
             if self.clean_water_level < 0.:
@@ -344,11 +352,11 @@ class Module(BasicModule):
         # 查詢液位-污水
         elif self.check_level_opt[0] and not self.check_level_opt[1]:
             waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
-            if waste_gauge[0] =="0":
+            if waste_gauge[0] == "0":
                 return
             self.waste_water_level = self.level_EMA(
                 (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            self.state["waste_water_level"] = self.waste_water_level
+            self.state["waste_water_level"] = round(self.waste_water_level, 3)
             if self.waste_water_level > 99.9:
                 self.waste_water_level = 100.
             if self.waste_water_level < 0.:
@@ -374,12 +382,14 @@ class Module(BasicModule):
         if all(self.check_level_opt):
             self.check_level_opt = [False] * 4
         self.state["cleanRobot"] = {
-            "cleanWaterLevel": int(self.clean_water_level),
-            "wasteWaterLevel": int(self.waste_water_level)
+            "cleanWaterLevel": round(float(self.clean_water_level), 4),
+            "wasteWaterLevel": round(float(self.waste_water_level), 4)
         }
         r.logDebug(json.dumps(self.state))
         r.setInfo(json.dumps(self.state))
-
+        if self.operation == "check_level":
+            self.operation_status = MoveStatus.FINISHED
+    
     def block_wash_end(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -390,7 +400,7 @@ class Module(BasicModule):
             ]
         else:
             self.run_tak_list(r)
-
+    
     def re_wash_startV1(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -401,7 +411,7 @@ class Module(BasicModule):
             ]
         else:
             self.run_tak_list(r)
-
+    
     def re_wash_start(self, r):
         r.logDebug("---------------re_wash_start-------------------")
         # 吸风电机
@@ -411,21 +421,21 @@ class Module(BasicModule):
         elif not self.block_re_start_opt[1] and self.block_re_start_opt[0]:
             self.send_msg(r, "2B 80 30 01 " + shift(self.shift, "FJ") + " 00 00 00")
             self.block_re_start_opt[1] = True
-
+        
         elif not self.block_re_start_opt[2] and self.block_re_start_opt[1]:
             self.send_msg(r, "2B 80 30 03 " + shift(self.shift, "SB") + " 00 00 00")
             self.block_re_start_opt[2] = True
         elif not self.block_re_start_opt[3] and self.block_re_start_opt[2]:
             self.send_msg(r, "2B 80 30 03 " + shift(self.shift, "SB") + " 00 00 00")
             self.block_re_start_opt[3] = True
-
+        
         elif not self.block_re_start_opt[4] and self.block_re_start_opt[3]:
             self.send_msg(r, "2B 80 30 02 " + shift(self.shift, "SP") + " 00 00 00")
             self.block_re_start_opt[4] = True
         elif not self.block_re_start_opt[5] and self.block_re_start_opt[4]:
             self.send_msg(r, "2B 80 30 02 " + shift(self.shift, "SP") + " 00 00 00")
             self.block_re_start_opt[5] = True
-
+        
         elif not self.block_re_start_opt[6] and self.block_re_start_opt[3]:
             self.send_msg(r, "2B 80 30 06 64 00 00 00")
             self.block_re_start_opt[6] = True
@@ -436,7 +446,7 @@ class Module(BasicModule):
             self.block_re_start_opt = [False] * 8
             self.is_block = False
             self.block_first = False
-
+    
     def stop(self, r: SimModule, tpy=False):
         r.logDebug("--------------------stop----------------------")
         # 停止吸风电机
@@ -470,7 +480,7 @@ class Module(BasicModule):
         if all(self.block_stop_opt):
             self.block_stop_opt = [False] * 8
             self.is_block = True
-
+    
     def stopV1(self, r: SimModule, tpy=False):
         r.logDebug("--------------------stop----------------------")
         # 停止吸风电机
@@ -496,7 +506,7 @@ class Module(BasicModule):
             self.block_stop_opt[5] = True
         if all(self.block_stop_opt):
             return True
-
+    
     def safe_ctr(self, r: SimModule):
         safe_state = dict()
         block = r.isAnyErrorExists()
@@ -508,7 +518,7 @@ class Module(BasicModule):
         safe_state["self.is_block and not block"] = self.is_block and not block
         if self.block_init:
             if not self.is_block:
-                if  self.is_device_run:
+                if self.is_device_run:
                     self.stop(r)
         else:
             if self.is_block and r.getCurrentTaskStatus() == 2:
@@ -523,9 +533,8 @@ class Module(BasicModule):
         safe_state["operation_status"] = self.operation_status
         safe_state["is_block"] = self.is_block
         safe_state["block_first"] = self.block_first
-        self.state["safe_ctr"] =safe_state
-
-
+        self.state["safe_ctr"] = safe_state
+    
     def re_start(self, r: SimModule):
         if not int(self.clean_water_level) < self.clean_water_alarm and not int(
                 self.waste_water_level) > self.waste_water_alarm:
@@ -534,7 +543,7 @@ class Module(BasicModule):
             r.setError(
                 f"clean_water_level :{int(self.clean_water_level)} ,waste_water_level:{int(self.waste_water_level)}")
             self.status = MoveStatus.FAILED
-
+    
     def pack(self, addr, v):
         def crc16(data):
             """
@@ -550,19 +559,19 @@ class Module(BasicModule):
                     else:
                         crc >>= 1
             return crc
-
+        
         # 构造 Modbus TCP 协议中的 PDU
         unit_id = 1  # Modbus device 的 unit id
         func_code = 6  # 写单个寄存器的功能码
         register_addr = addr  # 寄存器地址，假设为 4x0001
         register_value1 = v  # 待写入的值，假设为 0xFFFF
-
+        
         pdu = bytearray()
         pdu += unit_id.to_bytes(1, byteorder='big')
         pdu += func_code.to_bytes(1, byteorder='big')
         pdu += register_addr.to_bytes(2, byteorder='big')
         pdu += register_value1.to_bytes(2, byteorder='big')
-
+        
         # 构造 Modbus TCP 的 ADU
         transaction_id = 1  # Modbus' transaction id，此处设为 1
         protocol_id = 0  # Modbus protocol id，此处设为 0
@@ -576,7 +585,7 @@ class Module(BasicModule):
         crc16 = crc16(pdu)
         adu += crc16.to_bytes(2, byteorder='big')
         return adu
-
+    
     def wash_start(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -590,7 +599,7 @@ class Module(BasicModule):
             ]
         else:
             self.run_tak_list(r)
-
+    
     def wash_end(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -604,7 +613,7 @@ class Module(BasicModule):
             ]
         else:
             self.run_tak_list(r)
-
+    
     def dust_start(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -613,7 +622,7 @@ class Module(BasicModule):
             ]
         else:
             self.run_tak_list(r)
-
+    
     def dust_end(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -622,11 +631,12 @@ class Module(BasicModule):
             ]
         else:
             self.run_tak_list(r)
-
+    
     def get_proxy_info(self, r: SimModule, msg):
         rec = self._send_get(r, msg)
+        r.logInfo(f"can rec{rec}")
         return rec
-
+    
     def get_info(self, r: SimModule):
         get_can_frame = dict()
         get_can_frame["suction_wing"] = self.get_proxy_info(r, cmd.SUCTION_WING_GET)
@@ -636,10 +646,10 @@ class Module(BasicModule):
         get_can_frame["brush_plate_lift"] = self.get_proxy_info(r, cmd.BRUSH_PLATE_LIFT_GET)
         get_can_frame["jet_water_valve"] = self.get_proxy_info(r, cmd.JET_WATER_VALVE__GET)
         get_can_frame["water_pa"] = self.get_proxy_info(r, cmd.WATER_PA_LIFT_GET)
-
+        
         clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
         waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
-        if not clean_gauge[0] =="0" and not waste_gauge[0] =="0":
+        if not clean_gauge[0] == "0" and not waste_gauge[0] == "0":
             self.clean_water_level = self.level_EMA(
                 (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
             # self.state["clean_water_level"] = self.clean_water_level
@@ -649,16 +659,16 @@ class Module(BasicModule):
                 self.clean_water_level = 0.
             self.waste_water_level = self.level_EMA(
                 (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            self.state["waste_water_level"] = self.waste_water_level
+            self.state["waste_water_level"] = round(self.waste_water_level, 3)
             if self.waste_water_level > 99.9:
                 self.waste_water_level = 100.
             if self.waste_water_level < 0.:
                 self.waste_water_level = 0.
-
+            
             self.state["getCanFrame_all"] = get_can_frame
             r.logDebug(json.dumps(self.state))
         return
-
+    
     # 用于单个设备控制
     def send_msg(self, r: SimModule, msg):
         can_frame = dict()
@@ -667,7 +677,7 @@ class Module(BasicModule):
         can_frame["getCanFrame"] = data
         r.logDebug(json.dumps(can_frame))
         self.state["CanFrame"] = can_frame
-
+    
     def _send_get(self, r: SimModule, msg):
         l = [int(hex(int(i.strip(), 16))[2:], 16) for i in msg.split()]
         self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend, l)
@@ -676,7 +686,7 @@ class Module(BasicModule):
             decimals = ''.join(hex(int.from_bytes(data[i:i + 1], 'big'))[2:].zfill(2) for i in range(len(data)))
             return decimals
         return "0000000000000000"
-
+    
     def run_tak_list(self, r):
         if self.task_id < len(self.task_list):
             if self.task_list[self.task_id].status == MoveStatus.NONE:
@@ -689,7 +699,7 @@ class Module(BasicModule):
                 self.task_list[self.task_id].run(r, self)
         else:
             self.operation_status = MoveStatus.FINISHED
-
+    
     def brush_plate_lift(self, r: SimModule, opt):
         if opt == "up":
             self.send_msg(r, "2B 80 30 04 64 00 00 00")
@@ -701,7 +711,7 @@ class Module(BasicModule):
         if ModuleTool.delay(10):
             self.send_msg(r, "2B 80 30 04 00 00 00 00")
             self.operation_status = MoveStatus.FINISHED
-
+    
     def brain_ball_valve(self, r, opt):
         if opt == "open":
             self.send_msg(r, "2B 80 30 07 64 00 00 00")
@@ -712,7 +722,7 @@ class Module(BasicModule):
         else:
             r.setError(f"pls input open or close")
             self.operation_status = MoveStatus.FAILED
-
+    
     def jet_water_valve(self, r, opt):
         if opt == "open":
             self.send_msg(r, "2B 80 30 06 64 00 00 00")
@@ -723,7 +733,7 @@ class Module(BasicModule):
         else:
             r.setError(f"pls input open or close")
             self.operation_status = MoveStatus.FAILED
-
+    
     def water_pa(self, r, opt):
         self.send_msg(r, "2B 80 30 05 00 00 00 00")
         if opt == "up":
@@ -739,7 +749,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.FAILED
         if ModuleTool.delay(1):
             self.operation_status = MoveStatus.FINISHED
-
+    
     def add_water(self, r):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
@@ -754,14 +764,14 @@ class BrushPlateLift:
     """
         刷盘升降电机
     """
-
+    
     def __init__(self, opt: str):
         self.status = MoveStatus.NONE
         self.opt = opt
-
+    
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
-
+    
     def run(self, r: SimModule, m: Module):
         m_state = dict()
         if self.opt == "up":
@@ -787,16 +797,16 @@ class BrushPlate:
     """
         刷盘电机
     """
-
+    
     def __init__(self, opt: str, s: str = "lowGear", wash_time=15):
         self.status = MoveStatus.NONE
         self.opt = opt
         self.shift = s
         self.wash_time = wash_time
-
+    
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
-
+    
     def run(self, r: SimModule, m: Module):
         m_state = dict()
         gear = shift(self.shift, "SP")
@@ -811,7 +821,7 @@ class BrushPlate:
         else:
             r.setError(f"pls input open or close")
             self.status = MoveStatus.FAILED
-
+        
         m_state["status"] = self.status
         m.state["BrushPlate"] = m_state
 
@@ -820,14 +830,14 @@ class WaterPaLift:
     """
         水扒升降电机
     """
-
+    
     def __init__(self, opt: str):
         self.status = MoveStatus.NONE
         self.opt = opt
-
+    
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
-
+    
     def run(self, r: SimModule, m: Module):
         m_state = dict()
         if self.opt == "up":
@@ -835,7 +845,7 @@ class WaterPaLift:
             for i in range(5):
                 time.sleep(0.01)
                 m.send_msg(r, "2B 80 30 05 FF 9C 00 00")
-
+                
                 if i >= 4:
                     m.send_msg(r, "2B 80 30 05 FF 9C 00 00")
                     self.status = MoveStatus.FINISHED
@@ -844,7 +854,7 @@ class WaterPaLift:
             for i in range(5):
                 time.sleep(0.01)
                 m.send_msg(r, "2B 80 30 05 64 00 00 00")
-
+                
                 if i >= 4:
                     m.send_msg(r, "2B 80 30 05 64 00 00 00")
                     self.status = MoveStatus.FINISHED
@@ -859,15 +869,15 @@ class SuctionWing:
     """
         吸风电机
     """
-
+    
     def __init__(self, opt: str, s: str = "lowGear"):
         self.status = MoveStatus.NONE
         self.opt = opt
         self.shift = s
-
+    
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
-
+    
     def run(self, r: SimModule, m: Module):
         m_state = dict()
         gear = shift(self.shift, "FJ")
@@ -878,7 +888,7 @@ class SuctionWing:
                 if i >= 4:
                     self.status = MoveStatus.FINISHED
         elif self.opt == "close":
-
+            
             for i in range(5):
                 m.send_msg(r, "2B 80 30 01 00 00 00 00")
                 time.sleep(0.01)
@@ -930,18 +940,18 @@ class JetWaterValve:
     """
         喷水泵电磁阀
     """
-
+    
     def __init__(self, opt: str):
         self.status = MoveStatus.NONE
         self.opt = opt
-
+    
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
-
+    
     def run(self, r: SimModule, m: Module):
         m_state = dict()
         if self.opt == "open":
-
+            
             for i in range(5):
                 m.send_msg(r, "2B 80 30 06 64 00 00 00")
                 time.sleep(0.01)
@@ -964,20 +974,20 @@ class JetWater:
     """
         喷水泵电机
     """
-
+    
     def __init__(self, opt: str, s: str = "lowGear"):
         self.shift = s
         self.status = MoveStatus.NONE
         self.opt = opt
-
+    
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
-
+    
     def run(self, r: SimModule, m: Module):
         m_state = dict()
         gear = shift(self.shift, "SB")
         if self.opt == "open":
-
+            
             for i in range(5):
                 m.send_msg(r, "2B 80 30 03 " + gear + " 00 00 00")
                 time.sleep(0.01)
@@ -1000,14 +1010,14 @@ class DrainBallValve:
     """
         排水球阀
     """
-
+    
     def __init__(self, opt: str):
         self.status = MoveStatus.NONE
         self.opt = opt
-
+    
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
-
+    
     def run(self, r: SimModule, m: Module):
         m_state = dict()
         if self.opt == "open":
@@ -1027,15 +1037,15 @@ class AddWater:
     """
         排水球阀
     """
-
+    
     def __init__(self):
         self.status = MoveStatus.NONE
         self.is_open = False
         self.is_waste = False
-
+    
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
-
+    
     def run(self, r: SimModule, m: Module):
         self.status = MoveStatus.RUNNING
         m_state = dict()
@@ -1051,7 +1061,7 @@ class AddWater:
                 self.is_waste = True
         if m.waste_water_level < 0 or m.waste_water_level == 0:
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
-
+        
         if (m.waste_water_level < 0 or m.waste_water_level == 0) and m.clean_water_level >= m.addingWater_limit_level:
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
             r.setDO(m.addingWater_do, False)
@@ -1060,7 +1070,6 @@ class AddWater:
         m_state["status"] = self.status
         m_state["is_open"] = self.is_open
         m.state["AddWater"] = m_state
-
 
 
 class CanPassAarch64:
@@ -1072,25 +1081,25 @@ class CanPassAarch64:
         self.can_ids = []
         self.send_time = 0
         self.res_timeout = 2
-
-    def setCallBack(self,handleData):
+    
+    def setCallBack(self, handleData):
         if not handleData:
             print("Set callback error.It should be implemented the func 'handleData'")
         else:
             self.__callback = handleData
-
-    def createCanBus(self,r:SimModule, channel, bitrate):
+    
+    def createCanBus(self, r: SimModule, channel, bitrate):
         self.bus = can.interface.Bus(bustype='socketcan', channel=channel, bitrate=bitrate)
         # __msg_thread = threading.Thread(target=self.__run, args=(r,),name="run")
         # __msg_thread.start()  # FIXME: when to join?
-
+    
     # 过滤器函数
     def can_filter(self, msg):
         if msg.arbitration_id in self.can_ids:
             return True
         else:
             return False
-
+    
     def attachCanID(self, *canid):
         for i in range(len(canid)):
             self.can_ids.append(canid[i])
@@ -1105,34 +1114,35 @@ class CanPassAarch64:
         print('Attached CAN IDs:', end=' ')
         for id_ in self.can_ids:
             print(hex(id_), end=' ')
-
-    def sendCanframe(self,r:SimModule,channel, can_id, dlc, extend, can_string):
+    
+    def sendCanframe(self, r: SimModule, channel, can_id, dlc, extend, can_string):
         self.send_time = time.time()
         bus = can.interface.Bus(channel, bustype='socketcan')
         msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
         bus.send(msg)
-        r.logInfo(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+        r.logInfo(
+            f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
         bus.shutdown()
-
-    def recvCan(self,r):
+    
+    def recvCan(self, r):
         try:
             start = time.time()
             msg = self.bus.recv(0.1)
-
+            
             r.logInfo(f"self.bus start {self.bus},{type(self.bus)}")
             if msg and self.can_filter(msg):
                 if not self.__callback is None:
-                    self.__callback(r,msg)
-                r.logInfo(f"start time end {time.time()-start},has rec")
+                    self.__callback(r, msg)
+                r.logInfo(f"start time end {time.time() - start},has rec")
                 return msg.data
-            r.logInfo(f"start time end {time.time()-start},nor rec")
+            r.logInfo(f"start time end {time.time() - start},nor rec")
             return False
         except Exception as e:
             r.setWarning(f"can 通信接受异常,{e}")
             return False
-
+    
     def __del__(self):
         self.bus.shutdown()
-
+    
     def close(self):
         self.bus.shutdown()
