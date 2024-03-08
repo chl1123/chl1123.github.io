@@ -128,7 +128,8 @@ class Module(BasicModule):
 
         self.send_channel = "can1"
         self.cp = CanPassAarch64()
-        self.cp.createCanBus(r, self.send_channel, self.can_id)
+        self.bitrate = 250
+        self.cp.createCanBus(r, self.send_channel, self.bitrate)
         self.cp.attachCanID(0x585)
         self.shift = "light"
         self.check_level_opt = [False] * 4
@@ -141,6 +142,8 @@ class Module(BasicModule):
         self.alpha = 0.2  # 平滑因子，控制权重分配，范围为[0, 1]
         self.threshold = 8.0  # 用于判断异常值的阈值
         self.data_list = []  # 存储数据的列表
+
+        self.periodRun_start_time = time.time()
 
         r.logInfo(str(args))
 
@@ -173,22 +176,28 @@ class Module(BasicModule):
 
     def periodRun(self, r: SimModule) -> bool:
         try:
-            self.check_level(r)
-            self.device_status(r)
-            if self.operation == "WashStart":
-                self.safe_ctr(r)
-                if self.status == MoveStatus.FAILED:
-                    self.stop(r)
-            r.logDebug(f"periodRun is running")
-            self.state["block_re_start_opt"] = self.block_re_start_opt
-            self.state["block_stop_opt"] = self.block_stop_opt
-            self.state["operation"] = self.operation
-            self.state["moveTask_periodRun"] = r.moveTask()
-            r.setInfo(json.dumps(self.state))
-            r.logInfo(json.dumps(self.state))
+            if time.time() - self.periodRun_start_time > 1.5:
+                r.setNotice("check_level start")
+                self.check_level(r)
+                r.setNotice("check_level end")
+                self.device_status(r)
+                r.setNotice("device_status start")
+                if self.operation == "WashStart":
+                    self.safe_ctr(r)
+                    if self.status == MoveStatus.FAILED:
+                        self.stop(r)
+                r.logDebug(f"periodRun is running")
+                self.state["block_re_start_opt"] = self.block_re_start_opt
+                self.state["block_stop_opt"] = self.block_stop_opt
+                self.state["operation"] = self.operation
+                self.state["moveTask_periodRun"] = r.moveTask()
+                r.setInfo(json.dumps(self.state))
+                r.logInfo(json.dumps(self.state))
+                self.periodRun_start_time = time.time()
             return True
 
         except Exception as e:
+            self.periodRun_start_time = time.time()
             r.setWarning(f"periodRun error:{e}")
             return False
 
@@ -319,6 +328,8 @@ class Module(BasicModule):
         # 查詢液位-清水
         if not self.check_level_opt[0]:
             clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
+            if clean_gauge[0] =="0":
+                return
             self.clean_water_level = self.level_EMA(
                 (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
             self.state["clean_water_level"] = self.clean_water_level
@@ -333,9 +344,12 @@ class Module(BasicModule):
                 if r.errorExits(53000):
                     r.clearError(53000)
                 self.check_level_opt[0] = True
+            r.setNotice("获取清水液位")
         # 查詢液位-污水
         elif self.check_level_opt[0] and not self.check_level_opt[1]:
             waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
+            if waste_gauge[0] =="0":
+                return
             self.waste_water_level = self.level_EMA(
                 (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
             self.state["waste_water_level"] = self.waste_water_level
@@ -350,14 +364,17 @@ class Module(BasicModule):
                 if r.errorExits(53000):
                     r.clearError(53000)
                 self.check_level_opt[1] = True
+            r.setNotice("获取污水液位")
         elif self.check_level_opt[1] and not self.check_level_opt[2]:
             # 上报液位
             self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
             self.check_level_opt[2] = True
             # 上报液位
+            r.setNotice("上报清水液位")
         elif self.check_level_opt[2] and not self.check_level_opt[3]:
             self.client(self.ip, self.port, self.report_addr_2, int(self.waste_water_level), r)
             self.check_level_opt[3] = True
+            r.setNotice("上报污水液位")
         if all(self.check_level_opt):
             self.check_level_opt = [False] * 4
         self.state["cleanRobot"] = {
@@ -611,7 +628,9 @@ class Module(BasicModule):
             self.run_tak_list(r)
 
     def get_proxy_info(self, r: SimModule, msg):
-        return self._send_get(r, msg)
+        rec = self._send_get(r, msg)
+        r.setNotice(f"can rec{rec}")
+        return rec
 
     def get_info(self, r: SimModule):
         get_can_frame = dict()
@@ -624,24 +643,25 @@ class Module(BasicModule):
         get_can_frame["water_pa"] = self.get_proxy_info(r, cmd.WATER_PA_LIFT_GET)
 
         clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-        self.clean_water_level = self.level_EMA(
-            (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-        self.state["clean_water_level"] = self.clean_water_level
-        if self.clean_water_level > 99.9:
-            self.clean_water_level = 100.
-        if self.clean_water_level < 0.:
-            self.clean_water_level = 0.
         waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
-        self.waste_water_level = self.level_EMA(
-            (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-        self.state["waste_water_level"] = self.waste_water_level
-        if self.waste_water_level > 99.9:
-            self.waste_water_level = 100.
-        if self.waste_water_level < 0.:
-            self.waste_water_level = 0.
+        if not clean_gauge[0] =="0" and not waste_gauge[0] =="0":
+            self.clean_water_level = self.level_EMA(
+                (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
+            self.state["clean_water_level"] = self.clean_water_level
+            if self.clean_water_level > 99.9:
+                self.clean_water_level = 100.
+            if self.clean_water_level < 0.:
+                self.clean_water_level = 0.
+            self.waste_water_level = self.level_EMA(
+                (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
+            self.state["waste_water_level"] = self.waste_water_level
+            if self.waste_water_level > 99.9:
+                self.waste_water_level = 100.
+            if self.waste_water_level < 0.:
+                self.waste_water_level = 0.
 
-        self.state["getCanFrame_all"] = get_can_frame
-        r.logDebug(json.dumps(self.state))
+            self.state["getCanFrame_all"] = get_can_frame
+            r.logDebug(json.dumps(self.state))
         return
 
     # 用于单个设备控制
@@ -657,8 +677,10 @@ class Module(BasicModule):
         l = [int(hex(int(i.strip(), 16))[2:], 16) for i in msg.split()]
         self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend, l)
         data = self.cp.recvCan(r)
-        decimals = ''.join(hex(int.from_bytes(data[i:i + 1], 'big'))[2:].zfill(2) for i in range(len(data)))
-        return decimals
+        if data:
+            decimals = ''.join(hex(int.from_bytes(data[i:i + 1], 'big'))[2:].zfill(2) for i in range(len(data)))
+            return decimals
+        return "0000000000000000"
 
     def run_tak_list(self, r):
         if self.task_id < len(self.task_list):
@@ -1055,7 +1077,6 @@ class CanPassAarch64:
         self.can_ids = []
         self.send_time = 0
         self.res_timeout = 2
-        self.timeout = 0.04   # can通信超时时间，单位：秒
 
     def setCallBack(self,handleData):
         if not handleData:
@@ -1094,25 +1115,22 @@ class CanPassAarch64:
         self.send_time = time.time()
         bus = can.interface.Bus(channel, bustype='socketcan')
         msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
-        try:
-            bus.send(msg, timeout=self.timeout)
-        except Exception as e:
-            r.logInfo(f"Exception: {e}")
-        else:
-            r.setNotice(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+        bus.send(msg)
+        r.setNotice(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
         bus.shutdown()
 
     def recvCan(self,r):
         try:
             start = time.time()
+            msg = self.bus.recv(0.1)
+
             r.logInfo(f"self.bus start {self.bus},{type(self.bus)}")
-            for msg in self.bus:
-                r.logInfo(f"self.bus{self.bus}")
-                if self.can_filter(msg):
-                    if not self.__callback is None:
-                        self.__callback(r,msg)
-                    r.logInfo(f"start time end {time.time()-start}")
-                    return msg.data
+            if msg and self.can_filter(msg):
+                if not self.__callback is None:
+                    self.__callback(r,msg)
+                r.logInfo(f"start time end {time.time()-start},has rec")
+                return msg.data
+            r.logInfo(f"start time end {time.time()-start},nor rec")
             return False
         except Exception as e:
             r.setWarning(f"can 通信接受异常,{e}")
