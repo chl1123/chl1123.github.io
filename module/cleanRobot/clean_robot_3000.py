@@ -176,21 +176,17 @@ class Module(BasicModule):
 
     def periodRun(self, r: SimModule) -> bool:
         try:
-            if time.time() - self.periodRun_start_time > 1.5:
-                r.setNotice("check_level start")
+            if time.time() - self.periodRun_start_time > 1.0:
                 self.check_level(r)
-                r.setNotice("check_level end")
                 self.device_status(r)
-                r.setNotice("device_status start")
                 if self.operation == "WashStart":
                     self.safe_ctr(r)
                     if self.status == MoveStatus.FAILED:
                         self.stop(r)
                 r.logDebug(f"periodRun is running")
-                self.state["block_re_start_opt"] = self.block_re_start_opt
-                self.state["block_stop_opt"] = self.block_stop_opt
                 self.state["operation"] = self.operation
-                self.state["moveTask_periodRun"] = r.moveTask()
+                self.state["task_status"] = r.getCurrentTaskStatus()
+                self.state["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
                 r.setInfo(json.dumps(self.state))
                 r.logInfo(json.dumps(self.state))
                 self.periodRun_start_time = time.time()
@@ -283,8 +279,8 @@ class Module(BasicModule):
                 self.brush_plate_lift(r, self.task["brush_plate_lift"])
             # 给调度上报
             self.state["cleanRobot"] = {
-                "cleanWaterLevel": int(self.clean_water_level),
-                "wasteWaterLevel": int(self.waste_water_level)
+                "cleanWaterLevel": round(float(self.clean_water_level), 3),
+                "wasteWaterLevel": round(float(self.waste_water_level), 3)
             }
             self.state['args'] = args
             self.state['status'] = self.status
@@ -332,7 +328,7 @@ class Module(BasicModule):
                 return
             self.clean_water_level = self.level_EMA(
                 (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            self.state["clean_water_level"] = self.clean_water_level
+            # self.state["clean_water_level"] = self.clean_water_level
             if self.clean_water_level > 99.9:
                 self.clean_water_level = 100.
             if self.clean_water_level < 0.:
@@ -629,7 +625,6 @@ class Module(BasicModule):
 
     def get_proxy_info(self, r: SimModule, msg):
         rec = self._send_get(r, msg)
-        r.setNotice(f"can rec{rec}")
         return rec
 
     def get_info(self, r: SimModule):
@@ -647,7 +642,7 @@ class Module(BasicModule):
         if not clean_gauge[0] =="0" and not waste_gauge[0] =="0":
             self.clean_water_level = self.level_EMA(
                 (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            self.state["clean_water_level"] = self.clean_water_level
+            # self.state["clean_water_level"] = self.clean_water_level
             if self.clean_water_level > 99.9:
                 self.clean_water_level = 100.
             if self.clean_water_level < 0.:
@@ -1116,7 +1111,7 @@ class CanPassAarch64:
         bus = can.interface.Bus(channel, bustype='socketcan')
         msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
         bus.send(msg)
-        r.setNotice(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+        r.logInfo(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
         bus.shutdown()
 
     def recvCan(self,r):
