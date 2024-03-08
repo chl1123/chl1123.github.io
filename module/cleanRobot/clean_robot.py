@@ -174,10 +174,11 @@ class Module(BasicModule):
                 if self.status == MoveStatus.FAILED:
                     self.stop(r)
             r.logDebug(f"periodRun is running")
-            self.state["block_re_start_opt"] = self.block_re_start_opt
-            self.state["block_stop_opt"] = self.block_stop_opt
+            # self.state["block_re_start_opt"] = self.block_re_start_opt
+            # self.state["block_stop_opt"] = self.block_stop_opt
             self.state["operation"] = self.operation
-            self.state["moveTask_periodRun"] = r.moveTask()
+            self.state["task_status"] = r.getCurrentTaskStatus()
+            # self.state["moveTask_periodRun"] = r.moveTask()
             r.setInfo(json.dumps(self.state))
             r.logInfo(json.dumps(self.state))
             return True
@@ -186,14 +187,15 @@ class Module(BasicModule):
             r.setError(f"periodRun error:{e}")
             return False
 
-    # def suspend(self, r: SimModule):
-    #     self.start_time = time.time()
-    #     # r.logInfo("script suspend")
-    #     self.status = MoveStatus.SUSPENDED
-    #
-    # def cancel(self, r: SimModule):
-    #     # r.logInfo("script cancel")
-    #     self.status = MoveStatus.NONE
+    def suspend(self, r: SimModule):
+        r.logInfo("script suspend")
+        self.stopV1(r)
+        self.status = MoveStatus.SUSPENDED
+
+    def cancel(self, r: SimModule):
+        r.logInfo("script cancel")
+        self.stopV1(r)
+        self.status = MoveStatus.NONE
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
@@ -469,7 +471,7 @@ class Module(BasicModule):
         safe_state["self.is_block and not block"] = self.is_block and not block
         if self.block_init:
             if not self.is_block:
-                if  self.is_device_run:
+                if self.is_device_run:
                     self.stop(r)
         else:
             if self.is_block and r.getCurrentTaskStatus() == 2:
