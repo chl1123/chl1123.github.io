@@ -245,18 +245,16 @@ class Module(BasicModule):
         self.rotate_real_pos = 0
         self.load_height = None
         self.unload_height = None
-        
+        # 手指控制DO
         self.left_finger_up_do = 8  # di1
         self.right_finger_up_do = 7  # di6
-        
-        self.right_finger_down_do = 6
-        self.left_finger_up_di = 1
-        
+        self.right_finger_down_do = 6  # di5
         self.left_finger_down_do = 9  # di4
-        self.right_finger_up_di = 6  # di5
-        
-        self.right_finger_down_di = 5
+        # 手指到位DI
+        self.left_finger_up_di = 1
         self.left_finger_down_di = 4
+        self.right_finger_up_di = 6
+        self.right_finger_down_di = 5
         
         self.fill_light_do = 4  # 补光灯DO
         self.collision_di = 0  # 碰撞条DI
@@ -1091,6 +1089,7 @@ class RecAdjust:
                         if self.adjust_count >= self.max_adjust_time:
                             self.status = MoveStatus.FAILED
                             r.setError("recAdjust fails!!! recAdjust max times.")
+                        self.adjust_count += 1
                 self.plan_status = MoveStatus.FINISHED
                 self.rec.reset(r)
         elif self.status is not MoveStatus.FINISHED and self.status is not MoveStatus.FAILED:
