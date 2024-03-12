@@ -4,7 +4,7 @@
 # 两个刷盘电机、喷水泵电机、刷盘升降电机、水扒升降电机、喷水电磁阀、排水球阀；
 # 同时收清水液位计、污水液位计信号
 # @coding: https://seer-group.coding.net/p/robokit/requirements/issues/1822/detail
-# @Update : 20231108
+# @Update : 20230906
 import binascii
 import sys
 import base64
@@ -95,6 +95,9 @@ import can_commad as cmd
 class Module(BasicModule):
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
+        self.stop_number = 0
+        self.periodRun_start_time = time.time()
+        self.stop_ok = None
         self.is_init_block = None
         self.block_init = None
         self.block_first = None
@@ -126,8 +129,8 @@ class Module(BasicModule):
         self.extend = False  # 报文是否为扩展型，一般为false
         self.shift = "light"
         self.check_level_opt = [False] * 4
-        self.block_stop_opt = [False] * 6
-        self.block_re_start_opt = [False] * 6
+        self.block_stop_opt = [False] * 8
+        self.block_re_start_opt = [False] * 8
 
         self.is_device_run = False
 
@@ -166,36 +169,49 @@ class Module(BasicModule):
             self.is_device_run = True
 
     def periodRun(self, r: SimModule) -> bool:
+        task_status = r.getCurrentTaskStatus()
+        self.state["task_status"] = task_status
+        """任务异常，需要停止工作,需要停止刷盘旋转、吸水电机、喷水电机，每个设备下发两次停止信号，共下发6次"""
+        if task_status in [3, 5, 6]:
+            if not self.stop_ok:
+                self.stopV1(r)
+                if self.stop_number >= 6:
+                    self.stop_ok = True
+                    self.stop_number = 0
+                else:
+                    self.stop_number += 1  # 下发停止信号计数
+        else:
+            self.stop_ok = False
+            self.stop_number = 0
         try:
             self.check_level(r)
-            self.device_status(r)
-            if self.operation == "WashStart":
-                self.safe_ctr(r)
-                if self.status == MoveStatus.FAILED:
-                    self.stop(r)
             r.logDebug(f"periodRun is running")
-            # self.state["block_re_start_opt"] = self.block_re_start_opt
-            # self.state["block_stop_opt"] = self.block_stop_opt
             self.state["operation"] = self.operation
-            self.state["task_status"] = r.getCurrentTaskStatus()
-            # self.state["moveTask_periodRun"] = r.moveTask()
+            self.state["move_task"] = r.moveTask()
+            self.state["task_status"] = task_status
+            self.state["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
             r.setInfo(json.dumps(self.state))
             r.logInfo(json.dumps(self.state))
+            if self.operation == "WashStart":
+                if time.time() - self.periodRun_start_time >= 0.1:
+                    self.safe_ctr(r)
+                    if self.status == MoveStatus.FAILED:
+                        self.stop(r)
+                    self.periodRun_start_time = time.time()
             return True
-
         except Exception as e:
-            r.setError(f"periodRun error:{e}")
+            r.setWarning(f"periodRun error:{e}")
+            self.periodRun_start_time = time.time()
             return False
 
-    def suspend(self, r: SimModule):
-        r.logInfo("script suspend")
-        self.stopV1(r)
-        self.status = MoveStatus.SUSPENDED
-
-    def cancel(self, r: SimModule):
-        r.logInfo("script cancel")
-        self.stopV1(r)
-        self.status = MoveStatus.NONE
+    # def suspend(self, r: SimModule):
+    #     self.start_time = time.time()
+    #     # r.logInfo("script suspend")
+    #     self.status = MoveStatus.SUSPENDED
+    #
+    # def cancel(self, r: SimModule):
+    #     # r.logInfo("script cancel")
+    #     self.status = MoveStatus.NONE
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
@@ -402,8 +418,15 @@ class Module(BasicModule):
         elif not self.block_re_start_opt[5] and self.block_re_start_opt[4]:
             self.send_msg(r, "2B 80 30 02 " + shift(self.shift, "SP") + " 00 00 00")
             self.block_re_start_opt[5] = True
+
+        elif not self.block_re_start_opt[6] and self.block_re_start_opt[3]:
+            self.send_msg(r, "2B 80 30 06 64 00 00 00")
+            self.block_re_start_opt[6] = True
+        elif not self.block_re_start_opt[7] and self.block_re_start_opt[4]:
+            self.send_msg(r, "2B 80 30 06 64 00 00 00")
+            self.block_re_start_opt[7] = True
         if all(self.block_re_start_opt):
-            self.block_re_start_opt = [False] * 6
+            self.block_re_start_opt = [False] * 8
             self.is_block = False
             self.block_first = False
 
@@ -430,8 +453,15 @@ class Module(BasicModule):
         elif not self.block_stop_opt[5] and self.block_stop_opt[4]:
             self.send_msg(r, "2B 80 30 02 00 00 00 00")
             self.block_stop_opt[5] = True
+        # 关闭水阀
+        elif not self.block_stop_opt[6] and self.block_stop_opt[3]:
+            self.send_msg(r, "2B 80 30 06 00 00 00 00")
+            self.block_stop_opt[6] = True
+        elif not self.block_stop_opt[7] and self.block_stop_opt[4]:
+            self.send_msg(r, "2B 80 30 06 00 00 00 00")
+            self.block_stop_opt[7] = True
         if all(self.block_stop_opt):
-            self.block_stop_opt = [False] * 6
+            self.block_stop_opt = [False] * 8
             self.is_block = True
 
     def stopV1(self, r: SimModule, tpy=False):
@@ -462,7 +492,7 @@ class Module(BasicModule):
 
     def safe_ctr(self, r: SimModule):
         safe_state = dict()
-        block = r.errorExits(52200)
+        block = r.isAnyErrorExists()
         if block and not self.block_first:
             self.block_init = True
             self.block_first = True
@@ -486,8 +516,7 @@ class Module(BasicModule):
         safe_state["operation_status"] = self.operation_status
         safe_state["is_block"] = self.is_block
         safe_state["block_first"] = self.block_first
-        self.state["safe_ctr"] =safe_state
-
+        self.state["safe_ctr"] = safe_state
 
     def re_start(self, r: SimModule):
         if not int(self.clean_water_level) < self.clean_water_alarm and not int(
