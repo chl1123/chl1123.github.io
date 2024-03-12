@@ -1000,20 +1000,27 @@ class RecAdjust:
         self.adjust_count = 0
         self.go_args = dict()
         self.ok = False
+        self.ok_x = 0.005  # x方向行走调整完成阈值
+        self.ok_yaw = 0.035  # 调整完成阈值 1°
+        self.max_yaw_bias = 0.13   # 最大偏差弧度
+        self.adjust_rotate = 1.5708
         self.plan_status = MoveStatus.NONE
         self.goPath = goPath.Module(r, dict())
+
+    @staticmethod
+    def move_x(dx, dy, yaw):  # 计算车体在x方向上移动的距离
+        if yaw > 0:
+            ret = dy + dx * math.tan(math.pi - yaw)
+            adjust_dist = 0.01
+            ret = ret + adjust_dist if ret > 0 else ret - adjust_dist
+            return ret
+        elif yaw < 0:
+            ret = dy - dx * math.tan(math.pi + yaw)
+            adjust_dist = 0.01
+            ret = ret + adjust_dist if ret > 0 else ret - adjust_dist
+            return ret
     
     def run(self, r: SimModule, agv: Module):
-        # 定义了self.go_args["x"] 在不同状态下的调整策略
-        def move(dx, dy, yaw):
-            if abs(yaw) >= 3.0716:
-                return dy
-            
-            if yaw < 0:
-                return dy - dx * math.tan(math.pi + yaw)
-            else:
-                return dy + dx * math.tan(math.pi - yaw)
-        
         cur_state = dict()
         self.status = MoveStatus.RUNNING
         if self.plan_status is not MoveStatus.FINISHED:
@@ -1040,50 +1047,40 @@ class RecAdjust:
                 if not agv.stretch_length:
                     agv.stretch_length = abs(self.rec.result[
                                                  'x']) - agv.auto_stretch_odo_len + agv.auto_stretch_dist + agv.auto_stretch_box_len
-                    if agv.max_stretch_length < agv.stretch_length:
+                    if agv.stretch_length > agv.max_stretch_length:
                         r.setError(
                             f"自动计算手臂伸出长度为{agv.stretch_length}，大于最大伸缩长度{agv.max_stretch_length}。需要检查箱子距离是否太远了")
                         self.status = MoveStatus.FAILED
                         return
                 
                 code2camera = [self.rec.result['x'], self.rec.result['y'], self.rec.result['z'],
-                               self.rec.result['yaw']]  # 目标点在相机坐标系的位置
+                               self.rec.result['yaw']]
                 cur_state["code2camera"] = code2camera
                 
-                # agv.yaw_adjust = math.pi/2 + code2camera[3]   # 角度偏差
                 self.go_args["coordinate"] = "robot"
                 
                 # 根据反馈的yaw来判断rotate调整方向
                 if code2camera[3] > 0:
                     agv.yaw_adjust = code2camera[3] - math.pi  # 负角度调整
+                    self.adjust_rotate = agv.rotate_pos - (math.pi - code2camera[3])
                 else:
-                    agv.yaw_adjust = math.pi + code2camera[3]  # 正角度调整
+                    agv.yaw_adjust = code2camera[3] + math.pi  # 正角度调整
+                    self.adjust_rotate = agv.rotate_pos + (math.pi + code2camera[3])
                 
-                # 根据下发货叉的角度，判断行走方向
-                if agv.rotate_pos > 0:
-                    if self.rec.result['y'] >= 0:
-                        self.go_args["x"] = 0 - move(self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw'])
-                    else:
-                        self.go_args["x"] = 0 - move(self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw'])
-                else:
-                    if self.rec.result['y'] >= 0:
-                        self.go_args["x"] = move(self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw'])
-                    else:
-                        self.go_args["x"] = move(self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw'])
+                self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw'])
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
                 self.go_args["useOdo"] = 1
-                self.go_args["reachDist"] = 0.002
+                self.go_args["reachDist"] = self.ok_x
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
-                ok_x = 0.002  # 调整完成阈值
-                ok_yaw = 0.03  # 调整完成阈值
-                if abs(agv.yaw_adjust) > 0.07:
+                
+                if abs(agv.yaw_adjust) > self.max_yaw_bias:
                     self.status = MoveStatus.FAILED
                     r.setError("recAdjust fails!!! reach max yaw_adjust.")
                 else:
-                    if abs(self.go_args['x']) < 0.002 and abs(agv.yaw_adjust) <= 0.07:  # 调整完成
+                    if abs(self.go_args['x']) < self.ok_x and abs(agv.yaw_adjust) <= self.ok_yaw:  # 调整完成
                         self.status = MoveStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
@@ -1094,7 +1091,7 @@ class RecAdjust:
                 self.rec.reset(r)
         elif self.status is not MoveStatus.FINISHED and self.status is not MoveStatus.FAILED:
             if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
-                if abs(self.go_args['x']) < 0.002:  # 调整完成
+                if abs(self.go_args['x']) < self.ok_x:  # 调整完成
                     self.goPath.status = MoveStatus.FINISHED
                 else:
                     if self.adjust_count >= self.max_adjust_time:
@@ -1104,10 +1101,13 @@ class RecAdjust:
                     if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
                         self.goPath.run(r, self.go_args)
             elif not self.rotate_step and self.goPath.status == MoveStatus.FINISHED:
-                if abs(agv.yaw_adjust) <= 0.07:  # 调整完成
+                if abs(agv.yaw_adjust) <= self.ok_yaw:  # 调整完成
                     self.rotate_step = True
                 if not self.rotate_step:
-                    self.rotate_step = agv.rotate(r, agv.rotate_pos + agv.yaw_adjust)  # 货叉角度偏移修正 ±
+                    if agv.operation == "load":
+                        self.rotate_step = agv.rotate(r, self.adjust_rotate)  # 货叉角度偏移修正
+                    elif agv.operation == "unload":
+                        self.rotate_step = True
             elif self.goPath.status == MoveStatus.FAILED:
                 self.status = MoveStatus.FAILED
             elif self.goPath.status == MoveStatus.FINISHED and self.rotate_step:
