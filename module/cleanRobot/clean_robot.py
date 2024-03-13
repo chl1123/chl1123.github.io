@@ -1,11 +1,10 @@
 # @File :clean_robot.py
-# @Version : 1.3
+# @Version : 2.0
 # @Project : 霞智清洁机器人项目,霞智自研XZ-MC700驱动器用于控制：
 # 两个刷盘电机、喷水泵电机、刷盘升降电机、水扒升降电机、喷水电磁阀、排水球阀；
 # 同时收清水液位计、污水液位计信号
 # @coding: https://seer-group.coding.net/p/robokit/requirements/issues/1822/detail
 # @Update : 20230906
-import binascii
 import sys
 import base64
 import time
@@ -95,6 +94,7 @@ import can_commad as cmd
 class Module(BasicModule):
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
+        self.block_start_time = time.time()
         self.stop_number = 0
         self.periodRun_start_time = time.time()
         self.stop_ok = None
@@ -184,20 +184,20 @@ class Module(BasicModule):
             self.stop_ok = False
             self.stop_number = 0
         try:
+            """"上报液位"""
             self.check_level(r)
-            r.logDebug(f"periodRun is running")
             self.state["operation"] = self.operation
-            self.state["move_task"] = r.moveTask()
             self.state["task_status"] = task_status
             self.state["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
-            r.setInfo(json.dumps(self.state))
-            r.logInfo(json.dumps(self.state))
+
             if self.operation == "WashStart":
                 if time.time() - self.periodRun_start_time >= 0.1:
                     self.safe_ctr(r)
                     if self.status == MoveStatus.FAILED:
                         self.stop(r)
                     self.periodRun_start_time = time.time()
+            r.setInfo(json.dumps(self.state))
+            r.logInfo(json.dumps(self.state))
             return True
         except Exception as e:
             r.setWarning(f"periodRun error:{e}")
@@ -425,9 +425,6 @@ class Module(BasicModule):
         elif not self.block_re_start_opt[7] and self.block_re_start_opt[4]:
             self.send_msg(r, "2B 80 30 06 64 00 00 00")
             self.block_re_start_opt[7] = True
-        if all(self.block_re_start_opt):
-            self.block_re_start_opt = [False] * 8
-            self.is_block = False
             self.block_first = False
 
     def stop(self, r: SimModule, tpy=False):
@@ -460,9 +457,6 @@ class Module(BasicModule):
         elif not self.block_stop_opt[7] and self.block_stop_opt[4]:
             self.send_msg(r, "2B 80 30 06 00 00 00 00")
             self.block_stop_opt[7] = True
-        if all(self.block_stop_opt):
-            self.block_stop_opt = [False] * 8
-            self.is_block = True
 
     def stopV1(self, r: SimModule, tpy=False):
         r.logDebug("--------------------stop----------------------")
@@ -494,27 +488,21 @@ class Module(BasicModule):
         safe_state = dict()
         block = r.isAnyErrorExists()
         if block and not self.block_first:
-            self.block_init = True
             self.block_first = True
-        if self.is_block and not block:
-            self.block_init = False
-        safe_state["self.is_block and not block"] = self.is_block and not block
-        if self.block_init:
-            if not self.is_block:
-                if self.is_device_run:
-                    self.stop(r)
-        else:
-            if self.is_block and r.getCurrentTaskStatus() == 2:
-                self.re_start(r)
-            elif self.is_block and r.getCurrentTaskStatus() == 6:
-                self.block_re_start_opt = [False] * 6
-                self.is_block = False
-                self.block_first = False
+            self.block_start_time = time.time()
+            self.block_stop_opt = [False] * 8
+            self.block_re_start_opt = [False] * 8
+        if self.block_first:
+            if time.time() - self.block_start_time > 1 and not all(self.block_stop_opt):
+                self.stop(r)
+        if not block and self.block_first and all(self.block_stop_opt) and r.getCurrentTaskStatus() == 2 and not all(
+                self.block_re_start_opt):
+            self.re_start(r)
+
         safe_state["block"] = block
-        safe_state["operation"] = self.operation
-        safe_state["block_init"] = self.block_init
-        safe_state["operation_status"] = self.operation_status
-        safe_state["is_block"] = self.is_block
+        safe_state["block_start_time"] = self.block_start_time
+        safe_state["all(self.block_stop_opt)"] = all(self.block_stop_opt)
+        safe_state["all(self.block_re_start_opt)"] = all(self.block_re_start_opt)
         safe_state["block_first"] = self.block_first
         self.state["safe_ctr"] = safe_state
 
@@ -905,18 +893,18 @@ def shift(sh: str, d: str = "") -> str:
     s = "08"
     if sh == "lowGear":
         s = "08"
-    if sh == "MediumGear":
-        s = "32"
+    if sh == "light":
+        s = "0"
     if sh == "highGear":
         s = "58"
         # 轻度：风机40% 水泵15% 刷盘50%
         # 标准：风机50%水泵 30% 刷盘67%
         # 重度：风机70% 水泵50% 刷盘67%
-    if sh == "light":
+    if sh == "MediumGear":
         if d == "FJ":
-            s = "28"
+            s = "60"
         if d == "SB":
-            s = "0F"
+            s = "10"
         if d == "SP":
             s = "32"
     if sh == "normal":
