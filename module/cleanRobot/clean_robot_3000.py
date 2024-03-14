@@ -98,6 +98,7 @@ import can_commad as cmd
 class Module(BasicModule):
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
+        self.block_start_time = time.time()
         self.stop_number = 0
         self.is_init_block = None
         self.block_init = None
@@ -194,20 +195,20 @@ class Module(BasicModule):
             self.stop_ok = False
             self.stop_number = 0
         try:
+            """"上报液位"""
             self.check_level(r)
-            r.logDebug(f"periodRun is running")
             self.state["operation"] = self.operation
-            self.state["move_task"] = r.moveTask()
             self.state["task_status"] = task_status
             self.state["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
-            r.setInfo(json.dumps(self.state))
-            r.logInfo(json.dumps(self.state))
+
             if self.operation == "WashStart":
                 if time.time() - self.periodRun_start_time >= 0.1:
                     self.safe_ctr(r)
                     if self.status == MoveStatus.FAILED:
                         self.stop(r)
                     self.periodRun_start_time = time.time()
+            r.setInfo(json.dumps(self.state))
+            r.logInfo(json.dumps(self.state))
             return True
         except Exception as e:
             r.setWarning(f"periodRun error:{e}")
@@ -359,7 +360,6 @@ class Module(BasicModule):
                     if r.errorExits(53000):
                         r.clearError(53000)
                     self.check_level_opt[0] = True
-                r.setNotice("获取清水液位")
             # 查詢液位-污水
             elif self.check_level_opt[0] and not self.check_level_opt[1]:
                 waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
@@ -379,17 +379,14 @@ class Module(BasicModule):
                     if r.errorExits(53000):
                         r.clearError(53000)
                     self.check_level_opt[1] = True
-                r.setNotice("获取污水液位")
             elif self.check_level_opt[1] and not self.check_level_opt[2]:
                 # 上报液位
                 self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
                 self.check_level_opt[2] = True
                 # 上报液位
-                r.setNotice("上报清水液位")
             elif self.check_level_opt[2] and not self.check_level_opt[3]:
                 self.client(self.ip, self.port, self.report_addr_2, int(self.waste_water_level), r)
                 self.check_level_opt[3] = True
-                r.setNotice("上报污水液位")
             if all(self.check_level_opt):
                 self.check_level_opt = [False] * 4
             self.state["cleanRobot"] = {
@@ -453,9 +450,6 @@ class Module(BasicModule):
         elif not self.block_re_start_opt[7] and self.block_re_start_opt[4]:
             self.send_msg(r, "2B 80 30 06 64 00 00 00")
             self.block_re_start_opt[7] = True
-        if all(self.block_re_start_opt):
-            self.block_re_start_opt = [False] * 8
-            self.is_block = False
             self.block_first = False
 
     def stop(self, r: SimModule, tpy=False):
@@ -488,9 +482,7 @@ class Module(BasicModule):
         elif not self.block_stop_opt[7] and self.block_stop_opt[4]:
             self.send_msg(r, "2B 80 30 06 00 00 00 00")
             self.block_stop_opt[7] = True
-        if all(self.block_stop_opt):
-            self.block_stop_opt = [False] * 8
-            self.is_block = True
+
 
     def stopV1(self, r: SimModule, tpy=False):
         r.logDebug("--------------------stop----------------------")
@@ -522,28 +514,21 @@ class Module(BasicModule):
         safe_state = dict()
         block = r.isAnyErrorExists()
         if block and not self.block_first:
-            self.block_init = True
             self.block_first = True
-            self.device_status(r)
-        if self.is_block and not block:
-            self.block_init = False
-        safe_state["self.is_block and not block"] = self.is_block and not block
-        if self.block_init:
-            if not self.is_block:
-                if self.is_device_run:
-                    self.stop(r)
-        else:
-            if self.is_block and r.getCurrentTaskStatus() == 2:
-                self.re_start(r)
-            elif self.is_block and r.getCurrentTaskStatus() == 6:
-                self.block_re_start_opt = [False] * 6
-                self.is_block = False
-                self.block_first = False
+            self.block_start_time = time.time()
+            self.block_stop_opt = [False] * 8
+            self.block_re_start_opt = [False] * 8
+        if self.block_first:
+            if time.time() - self.block_start_time > 1 and not all(self.block_stop_opt):
+                self.stop(r)
+        if not block and self.block_first and all(self.block_stop_opt) and r.getCurrentTaskStatus() == 2 and not all(
+                self.block_re_start_opt):
+            self.re_start(r)
+
         safe_state["block"] = block
-        safe_state["operation"] = self.operation
-        safe_state["block_init"] = self.block_init
-        safe_state["operation_status"] = self.operation_status
-        safe_state["is_block"] = self.is_block
+        safe_state["block_start_time"] = self.block_start_time
+        safe_state["all(self.block_stop_opt)"] = all(self.block_stop_opt)
+        safe_state["all(self.block_re_start_opt)"] = all(self.block_re_start_opt)
         safe_state["block_first"] = self.block_first
         self.state["safe_ctr"] = safe_state
 
