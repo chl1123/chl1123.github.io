@@ -1,5 +1,5 @@
 import sys,serial,fcntl,threading,subprocess
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Serial/')
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 import message_battery_aarch64_pb2
 class serialPassAarch64():
