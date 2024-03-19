@@ -40,6 +40,9 @@ class testCanBattery(cb.canPassBase):
         self.msg_ok = False
         self.msg_userdata = False
         self.first = True
+        self.port1 = 'can0'
+        self.port2 = 'can1'
+        self.port3 = 'can2'
         self.id = ""
         self.year = ""
         self.week = ""
@@ -149,12 +152,14 @@ class testCanBattery(cb.canPassBase):
 
     def loop(self):
         mu.sleep_s(2)
-        #这里的'canx'对应CAN模型文件中的port(x+1)，CAN模型需要同步配置
-        self.createCanBus('can2', 250000)
+        """
+        这里的self.portX对应实际can通道接线的portX，CAN模型需要同步配置,880配置与实际接线通道相反需注意
+        """
+        self.createCanBus(self.port3, 250000)
         self.attachCanID(0x0DA2F40D, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
             if not self.msg_userdata:
-                self.sendCanframe('can2', 0x0DA20DF4, 8, True, [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+                self.sendCanframe(self.port3, 0x0DA20DF4, 8, True, [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
             self.judgeMsgok()
             mu.sleep_s(2)
 

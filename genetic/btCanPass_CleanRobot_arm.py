@@ -19,6 +19,9 @@ class testCanBattery(cb.canPassBase):
         # 用来表示数据是否已经正确接收
         self.battery_info = self.createBatteryMessage()
         self.msg_ok = False
+        self.port1 = 'can0'
+        self.port2 = 'can1'
+        self.port3 = 'can2'
         self.tem = []
 
     def handleData(self, msg):
@@ -53,7 +56,10 @@ class testCanBattery(cb.canPassBase):
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
         mu.sleep_s(2)
-        self.createCanBus('can1', 500000)
+        """
+        这里的self.portX对应实际can通道接线的portX，CAN模型需要同步配置,880配置与实际接线通道相反需注意
+        """
+        self.createCanBus(self.port2, 500000)
         self.attachCanID(0x112)
         while True:
             self.judgeMsgok()
