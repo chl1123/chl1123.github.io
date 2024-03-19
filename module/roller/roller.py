@@ -17,7 +17,7 @@ from robot import ModuleTool
     "operation": {
         "value": "stop",
         "default_value": [
-            "load", "unLoad", "stop"
+            "load", "unload", "stop"
         ],
         "type": "complex"
     }
@@ -40,15 +40,16 @@ class Module(BasicModule):
         # 挡板控制
         self.block_open_do = 3
         self.block_direction_do = 2
-        self.block_up_di = 6
-        self.block_down_di = 2
+        self.block_up_di = 2
+        self.block_down_di = 6
         
-        self.unload_delay_time = 3  # 下料延时停止时间
+        self.unload_delay_time = 2  # 下料延时停止时间
         self.opt = args.get("operation", None)
-        self.start_time = time.time()
+        self.unload_stop_start = False
         self.status = MoveStatus.NONE
         self.report_info = {}
         self.has_trigger = False
+        self.has_goods = False
         r.logInfo(f"init args: {args}")
 
     def run(self, r: SimModule, args):
@@ -70,8 +71,7 @@ class Module(BasicModule):
         return self.status
 
     def load(self, r):
-        if not self.has_trigger and (self.check_di(r, self.goods_check_di1) or
-                                     self.check_di(r, self.goods_check_di2)):
+        if not self.has_trigger and self.check_di(r, self.goods_check_di2):
             r.setError(f"The roller already has goods")
             self.status = MoveStatus.FAILED
             return
@@ -93,12 +93,12 @@ class Module(BasicModule):
                 self.status = MoveStatus.FINISHED
         
     def unload(self, r):
-        if not self.has_trigger and (not self.check_di(r, self.goods_check_di1)
-                                     and not self.check_di(r, self.goods_check_di2)):
+        if self.check_di(r, self.goods_check_di2):
+            self.has_goods = True
+        if not self.has_goods and not self.check_di(r, self.goods_check_di1):
             r.setError(f"The roller has no goods")
             self.status = MoveStatus.FAILED
             return
-
         r.setDO(self.block_open_do, True)
         r.setDO(self.block_direction_do, False)
         if self.check_di(r, self.block_down_di):
@@ -107,15 +107,19 @@ class Module(BasicModule):
             r.setDO(self.roller_direction_do3, True)
         if self.check_di(r, self.goods_check_di1):
             self.has_trigger = True
+            
         if self.has_trigger and not self.check_di(r, self.goods_check_di1) and (
                 not self.check_di(r, self.goods_check_di2)):
             if ModuleTool.delay(self.unload_delay_time):
-                r.setDO(self.roller_speed_do2, False)
-                r.setDO(self.block_direction_do, True)
-                if self.check_di(r, self.block_up_di):
-                    r.setDO(self.block_open_do, False)
-                    r.clearGoodsShape()
-                    self.status = MoveStatus.FINISHED
+                self.unload_stop_start = True
+                
+        if self.unload_stop_start:
+            r.setDO(self.roller_speed_do2, False)
+            r.setDO(self.block_direction_do, True)
+            if self.check_di(r, self.block_up_di):
+                r.setDO(self.block_open_do, False)
+                r.clearGoodsShape()
+                self.status = MoveStatus.FINISHED
 
     def stop(self, r):
         r.setDO(self.roller_speed_do1, False)
