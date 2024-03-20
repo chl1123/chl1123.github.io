@@ -513,7 +513,7 @@ class Module(BasicModule):
     def safe_ctr(self, r: SimModule):
         safe_state = dict()
         block = r.isAnyErrorExists()
-        if block and not self.block_first:
+        if block and not self.block_first and not (self.operation == "WashStart" and r.getCurrentTaskStatus() == 0 ):
             self.block_first = True
             self.block_start_time = time.time()
             self.block_stop_opt = [False] * 8
