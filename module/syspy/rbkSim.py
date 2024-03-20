@@ -1139,6 +1139,14 @@ class SimModule:
 
         """
         print("func: {0} ".format(get_function_name())) 
+    @check
+    def getNearestLaserPoint(self, laser_id:int):
+        """获取与指定激光距离最近的激光点与激光中心的距离和朝向
+
+        Args:
+            laser_id (int): 激光 id 号
+        """
+        print("func: {0} {1}".format(get_function_name(), laser_id))
 
 if __name__ == '__main__':
     r = SimModule()
@@ -1255,4 +1263,5 @@ if __name__ == '__main__':
     r.setVirtualDI(1,True)
     r.isAnyErrorExists()
     r.getCurrentTaskStatus()
+    r.getNearestLaserPoint(0)
     print("Success!!!")
