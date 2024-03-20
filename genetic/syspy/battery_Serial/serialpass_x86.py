@@ -1,7 +1,7 @@
 import sys
 import syspy.lib.pass_through as pt
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Serial/')
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
 DEFAULT_PASS_ADDR = "ipc:///tmp/python2dsp_udp.ipc"
 import message_battery_pb2
 

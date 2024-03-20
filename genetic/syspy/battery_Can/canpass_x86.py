@@ -1,6 +1,6 @@
 import sys
 import syspy.lib.pass_through as pt
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Can/')
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 DEFAULT_PASS_ADDR = "ipc:///tmp/CanPass_udp.ipc"
 import message_battery_pb2

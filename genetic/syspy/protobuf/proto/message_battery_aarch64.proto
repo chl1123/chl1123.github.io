@@ -9,5 +9,6 @@ message Message_Battery {
 	int32 cycle = 6;
 	double max_charge_current = 7;
 	double max_charge_voltage = 8;
+	string extra = 9;
 	bytes user_data = 30;
 }

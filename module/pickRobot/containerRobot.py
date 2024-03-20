@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/01/30
+# @Date : 2024/03/20
 # @Author : zhong,CXN
-# @Version : 2.0
+# @Version : 2.1
 # @Project : 智千料箱车
-# @Update : 格式整理
+# @Update : 采取动态识别调整货叉的方式进行识别取货
 import json
 import math
 import sys
@@ -491,7 +491,7 @@ class Module(BasicModule):
         if self.load_step[2] and not self.load_step[3]:
             self.load_step[3] = self.rotate(r, self.rotate_pos - self.yaw_adjust)
             self.load_step[3] = True
-        if self.load_step[2]:
+        if self.load_step[3]:
             self.status = MoveStatus.FINISHED
         pass
     
@@ -1000,25 +1000,30 @@ class RecAdjust:
         self.adjust_count = 0
         self.go_args = dict()
         self.ok = False
-        self.ok_x = 0.005  # x方向行走调整完成阈值
+        self.ok_x = 0.003  # x方向行走调整完成阈值
         self.ok_yaw = 0.035  # 调整完成阈值 1°
         self.max_yaw_bias = 0.13   # 最大偏差弧度
-        self.adjust_rotate = 1.5708
+        self.adjust_rotate = 1.5708  # 默认值
         self.plan_status = MoveStatus.NONE
         self.goPath = goPath.Module(r, dict())
 
     @staticmethod
-    def move_x(dx, dy, yaw):  # 计算车体在x方向上移动的距离
-        if yaw > 0:
-            ret = dy + dx * math.tan(math.pi - yaw)
-            adjust_dist = 0.01
-            ret = ret + adjust_dist if ret > 0 else ret - adjust_dist
-            return ret
-        elif yaw < 0:
-            ret = dy - dx * math.tan(math.pi + yaw)
-            adjust_dist = 0.01
-            ret = ret + adjust_dist if ret > 0 else ret - adjust_dist
-            return ret
+    def move_x(dx, dy, yaw, rotate_pos):
+        """
+        计算车体在x方向上移动的距离
+        rotate_pos 是货叉旋转方向
+        (dx, dy, yaw)是识别结果
+        """
+        if rotate_pos > 0:
+            if yaw > 0:
+                return dy + dx * math.tan(math.pi - yaw)
+            elif yaw < 0:
+                return dy - dx * math.tan(math.pi + yaw)
+        else:
+            if yaw > 0:
+                return dy - dx * math.tan(math.pi - yaw)
+            elif yaw < 0:
+                return dy + dx * math.tan(math.pi + yaw)
     
     def run(self, r: SimModule, agv: Module):
         cur_state = dict()
@@ -1067,7 +1072,8 @@ class RecAdjust:
                     agv.yaw_adjust = code2camera[3] + math.pi  # 正角度调整
                     self.adjust_rotate = agv.rotate_pos + (math.pi + code2camera[3])
                 
-                self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw'])
+                self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'],
+                                                self.rec.result['yaw'], agv.rotate_pos)
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
@@ -1086,7 +1092,6 @@ class RecAdjust:
                         if self.adjust_count >= self.max_adjust_time:
                             self.status = MoveStatus.FAILED
                             r.setError("recAdjust fails!!! recAdjust max times.")
-                        self.adjust_count += 1
                 self.plan_status = MoveStatus.FINISHED
                 self.rec.reset(r)
         elif self.status is not MoveStatus.FINISHED and self.status is not MoveStatus.FAILED:
@@ -1111,7 +1116,9 @@ class RecAdjust:
             elif self.goPath.status == MoveStatus.FAILED:
                 self.status = MoveStatus.FAILED
             elif self.goPath.status == MoveStatus.FINISHED and self.rotate_step:
-                self.status = MoveStatus.FINISHED
+                self.reset(r)
+                self.adjust_count += 1
+                # self.status = MoveStatus.FINISHED
         cur_state["stretch_length"] = agv.stretch_length
         cur_state["go_path_status"] = self.goPath.status
         cur_state["plan_status"] = self.plan_status
@@ -1126,7 +1133,6 @@ class RecAdjust:
         self.rec.reset(r)
         self.status = MoveStatus.RUNNING
         self.rec_fail_time = 0
-        self.adjust_count = 0
         self.goPath.reset()
 
 
