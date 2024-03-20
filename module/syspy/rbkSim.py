@@ -753,14 +753,23 @@ class SimModule:
         """
         print("func: {0}".format(get_function_name()))
     @check
-    def getRecResult(self)->dict:
-        """获取识别结果
+    def getRecResult(self,index:int)->dict:
+        """获取第 index 个识别结果
 
         Returns:
             dict: 识别结果的结构体
         """
+        print("func: {0}".format(get_function_name(), index))
+        return dict()   
+    @check 
+    def getRecResultSize(self)->int:
+        """获取识别结果的个数
+
+        Returns:
+            int: 识别结果的个数
+        """
         print("func: {0}".format(get_function_name()))
-        return dict()      
+        return 0   
     @check 
     def doRec(self, filename:str):
         """进行识别
@@ -1209,7 +1218,8 @@ if __name__ == '__main__':
     r.resetTriggleScript()
     r.resetRec()
     r.doRec("shelf.shelf")
-    r.getRecResult()
+    r.getRecResult(1)
+    r.getRecResultSize()
     r.getRecStatus()
     r.getForkPressure()
     r.getForkPressureADC()
