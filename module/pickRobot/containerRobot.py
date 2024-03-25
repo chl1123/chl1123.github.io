@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/03/20
+# @Date : 2024/03/25
 # @Author : zhong,CXN
-# @Version : 2.1
+# @Version : 2.2
 # @Project : 智千料箱车
-# @Update : 采取动态识别调整货叉的方式进行识别取货
+# @Update : 采取动态多次识别-多次调整货叉的方式进行识别取货
 import json
 import math
 import sys
@@ -178,12 +178,12 @@ class Module(BasicModule):
                                            minValue=0.0, unit="m", comment="货叉最低高度")
         self.max_lift_height = p.loadParam("max_fork_height", type="float", default=4.5, maxValue=10000.0,
                                            minValue=0.0, unit="m", comment="货叉最大高度")
-        
+
         self.min_rotate_angle = p.loadParam("min_rotate_angle", type="float", default=80, maxValue=90,
                                             minValue=60, unit="m", comment="货叉最小旋转范围")
         self.max_rotate_angle = p.loadParam("max_rotate_angle", type="float", default=100, maxValue=110,
                                             minValue=90, unit="m", comment="货叉最大旋转范围")
-        
+
         self.max_stretch_length = p.loadParam("max_stretch_length", type="float", default=0.90, maxValue=10000.0,
                                               minValue=0.0, unit="m", comment="货叉最大伸出长度")
         self.safe_stretch_length = p.loadParam("safe_stretch_length", type="float", default=0.05, maxValue=10000.0,
@@ -286,6 +286,7 @@ class Module(BasicModule):
         self.rec_res = None
         self.rec_id = None
         self.rec_box_lift = None
+        self.finger_open_start = False
         
         self.lift_motor_calib = None
         self.stretch_motor_calib = None
@@ -307,6 +308,7 @@ class Module(BasicModule):
         self.status = MoveStatus.RUNNING
         self.report_info["getCount_run"] = r.getCount()
         if self.init:
+            self.close_finger(r)
             self.motor_calib(r)
             self.goods_id = args.get("goodsId", "")
             self.get_move_task_params(r)
@@ -425,20 +427,24 @@ class Module(BasicModule):
             elif self.zero_by_rbk_step[1] and not self.zero_by_rbk_step[2]:
                 if not self.set_lift_motor_calib:
                     if self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
+                        r.setMotorCalib(self.rotate_motor_name)
                         r.setMotorCalib(self.lift_motor_name)
+                        self.set_rotate_motor_calib = True
                         self.set_lift_motor_calib = True
                 if self.lift_motor_calib:
                     self.zero_by_rbk_step[2] = True
-            elif self.zero_by_rbk_step[2] and not self.zero_by_rbk_step[3]:
-                if not self.set_rotate_motor_calib:
-                    if self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
-                        r.setMotorCalib(self.rotate_motor_name)
-                        self.set_rotate_motor_calib = True
                 if self.rotate_motor_calib:
                     self.zero_by_rbk_step[3] = True
+            # elif self.zero_by_rbk_step[2] and not self.zero_by_rbk_step[3]:
+            #     if not self.set_rotate_motor_calib:
+            #         if self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
+            #             r.setMotorCalib(self.rotate_motor_name)
+            #             self.set_rotate_motor_calib = True
+            #     if self.rotate_motor_calib:
+            #         self.zero_by_rbk_step[3] = True
             if all(self.zero_by_rbk_step):
                 self.init = False
-    
+
     def get_motor_calib_state(self, r: SimModule):
         odo_data = r.odo()
         motor_info = None
@@ -463,12 +469,13 @@ class Module(BasicModule):
                         self.rotate_motor_calib = calib
                         self.rotate_motor_stop = stop
         return True
-    
+
     def cancel(self, r: SimModule):
         r.resetRec()
+        self.close_finger(r)
         r.setDO(self.fill_light_do, False)
         self.status = MoveStatus.NONE
-    
+
     def get_move_task_params(self, r):
         """
         获取moveTask参数
@@ -477,7 +484,7 @@ class Module(BasicModule):
         for p in move_task['params']:
             if p['key'] == 'goodsId':
                 self.goods_id = p['string_value']
-    
+
     def adjust(self, r):
         if not self.load_step[0]:
             self.load_step[0] = self.lift(r, self.lift_height)
@@ -505,17 +512,18 @@ class Module(BasicModule):
         self.zeroing = True
         r.logInfo(f"----- running zero ------")
         if not self.zero_step[0]:
-            self.zero_step[0] = self.stretch(r, 0)
+            self.zero_step[0] = self.finger(r, 1)
         elif self.zero_step[0] and not self.zero_step[1]:
-            self.zero_step[1] = self.finger(r, 0)
+            self.zero_step[1] = self.stretch(r, 0)
         elif self.zero_step[1] and not self.zero_step[2]:
             self.zero_step[2] = self.rotate(r, 0)
+            self.zero_step[3] = self.lift(r, 0)
         elif self.zero_step[2] and not self.zero_step[3]:
             self.zero_step[3] = self.lift(r, 0)
         r.logDebug(f"zero_step:{self.zero_step}")
         if all(self.zero_step):
             return True
-        
+
         return False
     
     def lift(self, r, height):
@@ -549,6 +557,17 @@ class Module(BasicModule):
     
     def finger(self, r, pos):
         r.logInfo(f"----- running finger ------")
+        if not self.finger_open_start:
+            self.finger_open_start = time.time()
+        else:
+            if time.time() - self.finger_open_start > 3:
+                r.setError(f"finger open error")
+                r.setDO(self.left_finger_up_do, False)
+                r.setDO(self.right_finger_up_do, False)
+                r.setDO(self.left_finger_down_do, False)
+                r.setDO(self.right_finger_down_do, False)
+                self.status = MoveStatus.FAILED
+                return
         if pos == 1:
             r.setDO(self.left_finger_up_do, True)
             r.setDO(self.right_finger_up_do, True)
@@ -556,6 +575,7 @@ class Module(BasicModule):
                 self.left_finger_real_pos, self.right_finger_real_pos = 1, 1
                 r.setDO(self.left_finger_up_do, False)
                 r.setDO(self.right_finger_up_do, False)
+                self.finger_open_start = False
                 return True
         elif pos == 0:
             r.setDO(self.left_finger_down_do, True)
@@ -565,8 +585,15 @@ class Module(BasicModule):
                 self.left_finger_real_pos, self.right_finger_real_pos = 0, 0
                 r.setDO(self.left_finger_down_do, False)
                 r.setDO(self.right_finger_down_do, False)
+                self.finger_open_start = False
                 return True
         return False
+    
+    def close_finger(self, r):
+        r.setDO(self.left_finger_up_do, False)
+        r.setDO(self.right_finger_up_do, False)
+        r.setDO(self.left_finger_down_do, False)
+        r.setDO(self.right_finger_down_do, False)
     
     def update_finger_info(self, r):
         if ModuleTool.check_DI(r, self.left_finger_down_di):
@@ -1001,12 +1028,12 @@ class RecAdjust:
         self.go_args = dict()
         self.ok = False
         self.ok_x = 0.003  # x方向行走调整完成阈值
-        self.ok_yaw = 0.035  # 调整完成阈值 1°
-        self.max_yaw_bias = 0.13   # 最大偏差弧度
+        self.ok_yaw = 0.035  # 调整完成弧度阈值, 对应2°
+        self.max_yaw_bias = 0.13  # 最大偏差弧度
         self.adjust_rotate = 1.5708  # 默认值
         self.plan_status = MoveStatus.NONE
         self.goPath = goPath.Module(r, dict())
-
+    
     @staticmethod
     def move_x(dx, dy, yaw, rotate_pos):
         """
@@ -1016,14 +1043,14 @@ class RecAdjust:
         """
         if rotate_pos > 0:
             if yaw > 0:
+                return -dy - dx * math.tan(math.pi - yaw)
+            elif yaw < 0:
+                return -dy + dx * math.tan(math.pi + yaw)
+        else:
+            if yaw > 0:
                 return dy + dx * math.tan(math.pi - yaw)
             elif yaw < 0:
                 return dy - dx * math.tan(math.pi + yaw)
-        else:
-            if yaw > 0:
-                return dy - dx * math.tan(math.pi - yaw)
-            elif yaw < 0:
-                return dy + dx * math.tan(math.pi + yaw)
     
     def run(self, r: SimModule, agv: Module):
         cur_state = dict()
@@ -1054,7 +1081,7 @@ class RecAdjust:
                                                  'x']) - agv.auto_stretch_odo_len + agv.auto_stretch_dist + agv.auto_stretch_box_len
                     if agv.stretch_length > agv.max_stretch_length:
                         r.setError(
-                            f"自动计算手臂伸出长度为{agv.stretch_length}，大于最大伸缩长度{agv.max_stretch_length}。需要检查箱子距离是否太远了")
+                            f"The box is too far. need stretch: {agv.stretch_length}, max stretch: {agv.max_stretch_length}.")
                         self.status = MoveStatus.FAILED
                         return
                 
@@ -1081,6 +1108,8 @@ class RecAdjust:
                 self.go_args["reachDist"] = self.ok_x
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
+                else:
+                    self.go_args["backMode"] = 0
                 
                 if abs(agv.yaw_adjust) > self.max_yaw_bias:
                     self.status = MoveStatus.FAILED
@@ -1118,6 +1147,7 @@ class RecAdjust:
             elif self.goPath.status == MoveStatus.FINISHED and self.rotate_step:
                 self.reset(r)
                 self.adjust_count += 1
+                self.plan_status = None
                 # self.status = MoveStatus.FINISHED
         cur_state["stretch_length"] = agv.stretch_length
         cur_state["go_path_status"] = self.goPath.status
