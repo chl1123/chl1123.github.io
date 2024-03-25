@@ -1017,6 +1017,7 @@ class Rec:
 
 class RecAdjust:
     def __init__(self, r, filename):
+        p = ParamServer(__file__)
         self.rotate_step = None
         self.status = MoveStatus.NONE
         self.rec = Rec(filename)
@@ -1027,9 +1028,12 @@ class RecAdjust:
         self.adjust_count = 0
         self.go_args = dict()
         self.ok = False
-        self.ok_x = 0.003  # x方向行走调整完成阈值
-        self.ok_yaw = 0.035  # 调整完成弧度阈值, 对应2°
-        self.max_yaw_bias = 0.13  # 最大偏差弧度
+        # self.ok_x = 0.003  # x方向行走调整完成阈值
+        self.ok_x = p.loadParam("ok_x", type="float", default=0.003, comment="x方向行走调整完成阈值")
+        # self.ok_yaw = 0.035  # 调整完成弧度阈值, 对应2°
+        self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.035, comment="调整完成弧度阈值")
+        # self.max_yaw_bias = 0.13  # 最大偏差弧度
+        self.max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13, comment="货叉与料箱角度最大偏差, 弧度值")
         self.adjust_rotate = 1.5708  # 默认值
         self.plan_status = MoveStatus.NONE
         self.goPath = goPath.Module(r, dict())
