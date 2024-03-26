@@ -21,12 +21,18 @@ message Message_MotorCmd{
 		TO_NEGATIVE = 2;
 		STOP = 3;
 	}
+	enum MoveType{
+		NORMAL = 0;
+		ACC = 1;
+		DEC = 2;
+	}
 	string motor_name = 1;
 	uint32 can_router = 2;
 	uint32 can_id = 3;
 	double value = 4;
 	IOCmd io_cmd = 5;
 	MotorType type = 6;
+	MoveType move_type = 7;
 }
 
 message Message_NavSpeed {
