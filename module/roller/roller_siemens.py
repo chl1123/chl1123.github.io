@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/03/24
+# @Date : 2024/03/25
 # @Author : zhong
-# @Version : 1.0
+# @Version : 1.1
 # @Project : 西门子 IO滚筒
 # @Coding: https://seer-group.coding.net/p/order_issue_pool/requirements/issues/5940/detail
 
@@ -120,7 +120,8 @@ class Module(BasicModule):
 
     def load(self, r):
         if self.side == "left":  # 左上料
-            r.setDO(self.left_block_down_do, True)
+            if not self.has_goods:
+                r.setDO(self.left_block_down_do, True)
             if self.check_di(r, self.left_block_down_di):
                 r.setDO(self.roller_do_positive, True)
                 if (self.check_di(r, self.goods_check_left) and self.check_di(r, self.goods_check_mid)
@@ -130,10 +131,12 @@ class Module(BasicModule):
                     r.setDO(self.left_block_down_do, False)
                     r.setDO(self.left_block_up_do, True)
             if self.has_goods and self.check_di(r, self.left_block_up_di):
+                r.setDO(self.left_block_up_do, False)
                 self.status = MoveStatus.FINISHED
             
         elif self.side == "right":  # 右上料
-            r.setDO(self.right_block_down_do, True)
+            if not self.has_goods:
+                r.setDO(self.right_block_down_do, True)
             if self.check_di(r, self.right_block_down_di):
                 r.setDO(self.roller_do_negative, True)
                 if (self.check_di(r, self.goods_check_left) and self.check_di(r, self.goods_check_mid)
@@ -143,6 +146,7 @@ class Module(BasicModule):
                     r.setDO(self.right_block_down_do, False)
                     r.setDO(self.right_block_up_do, True)
             if self.has_goods and self.check_di(r, self.right_block_up_di):
+                r.setDO(self.right_block_up_do, False)
                 self.status = MoveStatus.FINISHED
                 
         else:
@@ -151,7 +155,8 @@ class Module(BasicModule):
         
     def unload(self, r):
         if self.side == "left":  # 左下料
-            r.setDO(self.left_block_down_do, True)
+            if self.has_goods:
+                r.setDO(self.left_block_down_do, True)
             if self.check_di(r, self.left_block_down_di):
                 r.setDO(self.roller_do_negative, True)
                 if not (self.check_di(r, self.goods_check_left) or self.check_di(r, self.goods_check_mid)
@@ -161,10 +166,12 @@ class Module(BasicModule):
                     r.setDO(self.left_block_down_do, False)
                     r.setDO(self.left_block_up_do, True)
             if not self.has_goods and self.check_di(r, self.left_block_up_di):
+                r.setDO(self.left_block_up_do, False)
                 self.status = MoveStatus.FINISHED
                 
         elif self.side == "right":  # 右下料
-            r.setDO(self.right_block_down_do, True)
+            if self.has_goods:
+                r.setDO(self.right_block_down_do, True)
             if self.check_di(r, self.right_block_down_di):
                 r.setDO(self.roller_do_positive, True)
                 if not (self.check_di(r, self.goods_check_left) or self.check_di(r, self.goods_check_mid)
@@ -174,6 +181,7 @@ class Module(BasicModule):
                     r.setDO(self.right_block_down_do, False)
                     r.setDO(self.right_block_up_do, True)
             if not self.has_goods and self.check_di(r, self.right_block_up_di):
+                r.setDO(self.right_block_up_do, False)
                 self.status = MoveStatus.FINISHED
                 
         else:
