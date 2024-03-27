@@ -143,9 +143,8 @@ class Module(BasicModule):
         self.is_device_run = False
 
         # 液位滤波
-        self.alpha = 0.2  # 平滑因子，控制权重分配，范围为[0, 1]
-        self.threshold = 8.0  # 用于判断异常值的阈值
-        self.data_list = []  # 存储数据的列表
+        self.clean_filter = MeanValue(2000)
+        self.waste_filter = MeanValue(2000)
         self.stop_ok = False
         self.periodRun_start_time = time.time()
         self.check_level_start_time = time.time()
@@ -1135,3 +1134,22 @@ class CanPassAarch64:
 
     def close(self):
         self.bus.shutdown()
+
+class MeanValue:
+    """均值滤波
+    """
+    def __init__(self, windowSize = 2000):
+        """_summary_
+
+        Args:
+            windowSize (_type_): 窗口大小，默认值为 2000
+        """
+        super().__init__()
+        self.w = windowSize
+        self.data = []
+    def setValue(self, v):
+        self.data.append(v)
+        while len(self.data) > self.w:
+            self.data.pop(0)
+    def getMeanValue(self)-> float:
+        return sum(self.data)/len(self.data)
