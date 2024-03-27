@@ -137,9 +137,6 @@ class Module(BasicModule):
         # 液位滤波
         self.clean_filter = MeanValue(2000)
         self.waste_filter = MeanValue(2000)
-        self.alpha = 0.2  # 平滑因子，控制权重分配，范围为[0, 1]
-        self.threshold = 8.0  # 用于判断异常值的阈值
-        self.data_list = []  # 存储数据的列表
 
         r.logInfo(str(args))
 
@@ -151,24 +148,6 @@ class Module(BasicModule):
         self.waste_filter.setValue(v)
         return self.waste_filter.getMeanValue()
 
-    def level_EMA(self, x):
-
-        if len(self.data_list) == 0:
-            filtered_value = x
-        else:
-            filtered_value = self.alpha * x + (1 - self.alpha) * self.data_list[-1]
-
-        self.data_list.append(x)  # 添加新数据到列表末尾
-        if len(self.data_list) > 100:  # 判断列表长度是否超过100
-            self.data_list.pop(0)  # 列表已满，删除列表头部数据
-
-        if abs(filtered_value - x) >= self.threshold:  # 判断滤波后的数据与原始数据的差值是否超过阈值
-            return filtered_value  # 输出滤波后的数据
-        else:
-            self.data_list.pop()  # 删除异常值
-            if len(self.data_list) == 0:
-                return x
-            return self.data_list[-1]
 
     def device_status(self, r):
         fj_s = False
@@ -201,7 +180,7 @@ class Module(BasicModule):
             self.state["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
 
             if self.operation == "WashStart":
-                if time.time() - self.periodRun_start_time >= 0.1:
+                if time.time() - self.periodRun_start_time >= 0.2:
                     self.safe_ctr(r)
                     if self.status == MoveStatus.FAILED:
                         self.stop(r)
@@ -336,7 +315,7 @@ class Module(BasicModule):
         if not self.check_level_opt[0]:
             clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
             self.clean_water_level = self.get_clean_filter((int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            self.state["clean_water_level"] = self.clean_water_level
+            self.state["clean_water_level"] = (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
             if self.clean_water_level > 99.9:
                 self.clean_water_level = 100.
             if self.clean_water_level < 0.:
@@ -352,7 +331,7 @@ class Module(BasicModule):
         elif self.check_level_opt[0] and not self.check_level_opt[1]:
             waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
             self.waste_water_level = self.get_waste_filter((int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            self.state["waste_water_level"] = self.waste_water_level
+            self.state["waste_water_level"] = (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
             if self.waste_water_level > 99.9:
                 self.waste_water_level = 100.
             if self.waste_water_level < 0.:
@@ -378,8 +357,6 @@ class Module(BasicModule):
             "cleanWaterLevel": int(self.clean_water_level),
             "wasteWaterLevel": int(self.waste_water_level)
         }
-        r.logDebug(json.dumps(self.state))
-        r.setInfo(json.dumps(self.state))
 
     def block_wash_end(self, r):
         if self.operation_status == MoveStatus.NONE:
