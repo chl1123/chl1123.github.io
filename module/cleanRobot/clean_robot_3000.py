@@ -186,7 +186,7 @@ class Module(BasicModule):
         if task_status in [3, 5, 6]:
             if not self.stop_ok:
                 self.stopV1(r)
-                if self.stop_number >= 6:
+                if self.stop_number >= 8:
                     self.stop_ok = True
                     self.stop_number = 0
                 else:
@@ -202,7 +202,7 @@ class Module(BasicModule):
             self.state["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
 
             if self.operation == "WashStart":
-                if time.time() - self.periodRun_start_time >= 0.1:
+                if time.time() - self.periodRun_start_time >= 0.2:
                     self.safe_ctr(r)
                     if self.status == MoveStatus.FAILED:
                         self.stop(r)
@@ -339,64 +339,54 @@ class Module(BasicModule):
         client_socket.close()
         r.logInfo(f"client end:{time.time() - t}")
 
+
     def check_level(self, r):
         # 查詢液位-清水
-        if time.time() - self.check_level_start_time > 1.0:
-            self.check_level_start_time = time.time()
-            if not self.check_level_opt[0]:
-                clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-                if clean_gauge[0] == "0":
-                    return
-                self.clean_water_level = self.level_EMA(
-                    (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-                if self.clean_water_level > 99.9:
-                    self.clean_water_level = 100.
-                if self.clean_water_level < 0.:
-                    self.clean_water_level = 0.
-                if self.clean_water_level <= self.clean_water_alarm:
-                    r.setError(f"clean_water_level:{self.clean_water_level}")
-                    self.stopV1(r)
-                else:
-                    if r.errorExits(53000):
-                        r.clearError(53000)
-                    self.check_level_opt[0] = True
-            # 查詢液位-污水
-            elif self.check_level_opt[0] and not self.check_level_opt[1]:
-                waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
-                if waste_gauge[0] == "0":
-                    return
-                self.waste_water_level = self.level_EMA(
-                    (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-                self.state["waste_water_level"] = round(self.waste_water_level, 3)
-                if self.waste_water_level > 99.9:
-                    self.waste_water_level = 100.
-                if self.waste_water_level < 0.:
-                    self.waste_water_level = 0.
-                if self.waste_water_level >= self.waste_water_alarm:
-                    r.setError(f"waste_water_alarm:{self.waste_water_level}")
-                    self.stopV1(r)
-                else:
-                    if r.errorExits(53000):
-                        r.clearError(53000)
-                    self.check_level_opt[1] = True
-            elif self.check_level_opt[1] and not self.check_level_opt[2]:
-                # 上报液位
-                self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
-                self.check_level_opt[2] = True
-                # 上报液位
-            elif self.check_level_opt[2] and not self.check_level_opt[3]:
-                self.client(self.ip, self.port, self.report_addr_2, int(self.waste_water_level), r)
-                self.check_level_opt[3] = True
-            if all(self.check_level_opt):
-                self.check_level_opt = [False] * 4
-            self.state["cleanRobot"] = {
-                "cleanWaterLevel": round(float(self.clean_water_level), 4),
-                "wasteWaterLevel": round(float(self.waste_water_level), 4)
-            }
-            r.logDebug(json.dumps(self.state))
-            r.setInfo(json.dumps(self.state))
-            if self.operation == "check_level":
-                self.operation_status = MoveStatus.FINISHED
+        if not self.check_level_opt[0]:
+            clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
+            self.clean_water_level = self.get_clean_filter((int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
+            self.state["clean_water_level"] = (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
+            if self.clean_water_level > 99.9:
+                self.clean_water_level = 100.
+            if self.clean_water_level < 0.:
+                self.clean_water_level = 0.
+            if self.clean_water_level <= self.clean_water_alarm:
+                r.setError(f"clean_water_level:{self.clean_water_level}")
+                self.stopV1(r)
+            else:
+                if r.errorExits(53000):
+                    r.clearError(53000)
+                self.check_level_opt[0] = True
+        # 查詢液位-污水
+        elif self.check_level_opt[0] and not self.check_level_opt[1]:
+            waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
+            self.waste_water_level = self.get_waste_filter((int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
+            self.state["waste_water_level"] = (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
+            if self.waste_water_level > 99.9:
+                self.waste_water_level = 100.
+            if self.waste_water_level < 0.:
+                self.waste_water_level = 0.
+            if self.waste_water_level >= self.waste_water_alarm:
+                r.setError(f"waste_water_alarm:{self.waste_water_level}")
+                self.stopV1(r)
+            else:
+                if r.errorExits(53000):
+                    r.clearError(53000)
+                self.check_level_opt[1] = True
+        elif self.check_level_opt[1] and not self.check_level_opt[2]:
+            # 上报液位
+            self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
+            self.check_level_opt[2] = True
+            # 上报液位
+        elif self.check_level_opt[2] and not self.check_level_opt[3]:
+            self.client(self.ip, self.port, self.report_addr_2, int(self.waste_water_level), r)
+            self.check_level_opt[3] = True
+        if all(self.check_level_opt):
+            self.check_level_opt = [False] * 4
+        self.state["cleanRobot"] = {
+            "cleanWaterLevel": int(self.clean_water_level),
+            "wasteWaterLevel": int(self.waste_water_level)
+        }
 
     def block_wash_end(self, r):
         if self.operation_status == MoveStatus.NONE:
@@ -512,8 +502,10 @@ class Module(BasicModule):
 
     def safe_ctr(self, r: SimModule):
         safe_state = dict()
-        block = r.isAnyErrorExists()
-        if block and not self.block_first and not (self.operation == "WashStart" and r.getCurrentTaskStatus() == 0 ):
+        block = r.isAnyErrorExists()  # 任务错误
+        error_52316 = r.errorExits(52316)  # 下发速度超时
+        warning_54231 = r.warningExits(54231)  # 调度报阻挡
+        if (not error_52316) and (block or warning_54231) and not self.block_first and self.status == MoveStatus.FINISHED:
             self.block_first = True
             self.block_start_time = time.time()
             self.block_stop_opt = [False] * 8
