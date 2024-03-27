@@ -135,11 +135,21 @@ class Module(BasicModule):
         self.is_device_run = False
 
         # 液位滤波
+        self.clean_filter = MeanValue(2000)
+        self.waste_filter = MeanValue(2000)
         self.alpha = 0.2  # 平滑因子，控制权重分配，范围为[0, 1]
         self.threshold = 8.0  # 用于判断异常值的阈值
         self.data_list = []  # 存储数据的列表
 
         r.logInfo(str(args))
+
+    def get_clean_filter(self,v):
+        self.clean_filter.setValue(v)
+        return self.clean_filter.getMeanValue()
+
+    def get_waste_filter(self,v):
+        self.waste_filter.setValue(v)
+        return self.waste_filter.getMeanValue()
 
     def level_EMA(self, x):
 
@@ -175,7 +185,7 @@ class Module(BasicModule):
         if task_status in [3, 5, 6]:
             if not self.stop_ok:
                 self.stopV1(r)
-                if self.stop_number >= 6:
+                if self.stop_number >= 8:
                     self.stop_ok = True
                     self.stop_number = 0
                 else:
@@ -325,8 +335,7 @@ class Module(BasicModule):
         # 查詢液位-清水
         if not self.check_level_opt[0]:
             clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-            self.clean_water_level = self.level_EMA(
-                (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
+            self.clean_water_level = self.get_clean_filter((int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
             self.state["clean_water_level"] = self.clean_water_level
             if self.clean_water_level > 99.9:
                 self.clean_water_level = 100.
@@ -342,8 +351,7 @@ class Module(BasicModule):
         # 查詢液位-污水
         elif self.check_level_opt[0] and not self.check_level_opt[1]:
             waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
-            self.waste_water_level = self.level_EMA(
-                (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
+            self.waste_water_level = self.get_waste_filter((int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
             self.state["waste_water_level"] = self.waste_water_level
             if self.waste_water_level > 99.9:
                 self.waste_water_level = 100.
@@ -451,10 +459,10 @@ class Module(BasicModule):
             self.send_msg(r, "2B 80 30 02 00 00 00 00")
             self.block_stop_opt[5] = True
         # 关闭水阀
-        elif not self.block_stop_opt[6] and self.block_stop_opt[3]:
+        elif not self.block_stop_opt[6] and self.block_stop_opt[5]:
             self.send_msg(r, "2B 80 30 06 00 00 00 00")
             self.block_stop_opt[6] = True
-        elif not self.block_stop_opt[7] and self.block_stop_opt[4]:
+        elif not self.block_stop_opt[7] and self.block_stop_opt[6]:
             self.send_msg(r, "2B 80 30 06 00 00 00 00")
             self.block_stop_opt[7] = True
 
@@ -481,13 +489,22 @@ class Module(BasicModule):
         elif not self.block_stop_opt[5] and self.block_stop_opt[4]:
             self.send_msg(r, "2B 80 30 02 00 00 00 00")
             self.block_stop_opt[5] = True
+        # 关闭水阀
+        elif not self.block_stop_opt[6] and self.block_stop_opt[5]:
+            self.send_msg(r, "2B 80 30 06 00 00 00 00")
+            self.block_stop_opt[6] = True
+        elif not self.block_stop_opt[7] and self.block_stop_opt[6]:
+            self.send_msg(r, "2B 80 30 06 00 00 00 00")
+            self.block_stop_opt[7] = True
         if all(self.block_stop_opt):
             return True
 
     def safe_ctr(self, r: SimModule):
         safe_state = dict()
         block = r.isAnyErrorExists()
-        if block and not self.block_first and not (self.operation == "WashStart" and r.getCurrentTaskStatus() == 0 ):
+        error_52316 = r.errorExits(52316)
+        warning_54231 = r.warningExits(54231)
+        if (not error_52316) and (block or warning_54231) and not self.block_first and self.status == MoveStatus.FINISHED:
             self.block_first = True
             self.block_start_time = time.time()
             self.block_stop_opt = [False] * 8
@@ -635,7 +652,7 @@ class Module(BasicModule):
         get_can_frame["water_pa"] = self.get_proxy_info(r, cmd.WATER_PA_LIFT_GET)
 
         clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-        self.clean_water_level = self.level_EMA(
+        self.clean_water_level = self.get_clean_filter(
             (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
         self.state["clean_water_level"] = self.clean_water_level
         if self.clean_water_level > 99.9:
@@ -643,7 +660,7 @@ class Module(BasicModule):
         if self.clean_water_level < 0.:
             self.clean_water_level = 0.
         waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
-        self.waste_water_level = self.level_EMA(
+        self.waste_water_level = self.get_waste_filter(
             (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
         self.state["waste_water_level"] = self.waste_water_level
         if self.waste_water_level > 99.9:
@@ -1054,7 +1071,28 @@ class AddWater:
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
             r.setDO(m.addingWater_do, False)
             self.status = MoveStatus.FINISHED
+        m_state["clean_water_level"] = m.clean_water_level
         m_state["AddWater_status"] = "Adding Water ..."
         m_state["status"] = self.status
         m_state["is_open"] = self.is_open
         m.state["AddWater"] = m_state
+
+
+class MeanValue:
+    """均值滤波
+    """
+    def __init__(self, windowSize = 2000):
+        """_summary_
+
+        Args:
+            windowSize (_type_): 窗口大小，默认值为 2000
+        """
+        super().__init__()
+        self.w = windowSize
+        self.data = []
+    def setValue(self, v):
+        self.data.append(v)
+        while len(self.data) > self.w:
+            self.data.pop(0)
+    def getMeanValue(self)-> float:
+        return sum(self.data)/len(self.data)
