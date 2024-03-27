@@ -94,6 +94,7 @@ import can_commad as cmd
 class Module(BasicModule):
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
+        self.clean_water_level_add = 0
         self.block_start_time = time.time()
         self.stop_number = 0
         self.periodRun_start_time = time.time()
@@ -204,35 +205,21 @@ class Module(BasicModule):
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
-        if len(args) == 0:
-            r.setError("pls input params can be running")
-            self.status = MoveStatus.FAILED
-            return self.status
-        if r.errorExits(52200):
-            if self.operation == "WashStart":
-                self.safe_ctr(r)
-            # r.setNotice("pls input params can be running")
         if self.status != MoveStatus.FINISHED:
             self.get_info(r)
-            # 上报液位
-            self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
-            # 上报液位
-            self.client(self.ip, self.port, self.report_addr_2, int(self.waste_water_level), r)
         if self.init:
+            if len(args) == 0:
+                r.setError("pls input params can be running")
+                self.status = MoveStatus.FAILED
+                return self.status
             self.init = False
             self.task = args
             self.operation = self.task.get("operation", None)
-            self.shift = self.task.get("shift", "light")
+            self.shift = self.task.get("shift", "MediumGear")
         # 扫地、推尘
-        if self.operation is not None and self.operation != "":
+        if self.operation:
             if self.task["operation"] == "WashStart":
-                if not int(self.clean_water_level) < self.clean_water_alarm and not int(
-                        self.waste_water_level) > self.waste_water_alarm:
-                    self.wash_start(r)
-                else:
-                    r.setError(
-                        f"clean_water_level :{int(self.clean_water_level)} ,waste_water_level:{int(self.waste_water_level)}")
-                    self.status = MoveStatus.FAILED
+                self.wash_start(r)
             elif self.task["operation"] == "WashEnd":
                 self.wash_end(r)
             elif self.task["operation"] == "DustStart":
@@ -552,6 +539,10 @@ class Module(BasicModule):
         return adu
 
     def wash_start(self, r):
+        if int(self.clean_water_level) < self.clean_water_alarm and int(self.waste_water_level) > self.waste_water_alarm:
+            r.setError(f"clean_water_level :{int(self.clean_water_level)} ,waste_water_level:{int(self.waste_water_level)}")
+            self.status = MoveStatus.FAILED
+            return
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
@@ -627,26 +618,11 @@ class Module(BasicModule):
         get_can_frame["brush_plate_lift"] = self.get_proxy_info(r, cmd.BRUSH_PLATE_LIFT_GET)
         get_can_frame["jet_water_valve"] = self.get_proxy_info(r, cmd.JET_WATER_VALVE__GET)
         get_can_frame["water_pa"] = self.get_proxy_info(r, cmd.WATER_PA_LIFT_GET)
-
         clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-        self.clean_water_level = self.get_clean_filter(
-            (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-        self.state["clean_water_level"] = self.clean_water_level
-        if self.clean_water_level > 99.9:
-            self.clean_water_level = 100.
-        if self.clean_water_level < 0.:
-            self.clean_water_level = 0.
+        self.clean_water_level_add = (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
         waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
-        self.waste_water_level = self.get_waste_filter(
-            (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-        self.state["waste_water_level"] = self.waste_water_level
-        if self.waste_water_level > 99.9:
-            self.waste_water_level = 100.
-        if self.waste_water_level < 0.:
-            self.waste_water_level = 0.
-
+        self.waste_water_level = (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
         self.state["getCanFrame_all"] = get_can_frame
-        r.logDebug(json.dumps(self.state))
         return
 
     # 用于单个设备控制
@@ -1017,7 +993,7 @@ class DrainBallValve:
 
 class AddWater:
     """
-        排水球阀
+        自动加水
     """
 
     def __init__(self):
@@ -1031,7 +1007,7 @@ class AddWater:
     def run(self, r: SimModule, m: Module):
         self.status = MoveStatus.RUNNING
         m_state = dict()
-        if m.clean_water_level >= m.addingWater_limit_level:
+        if m.clean_water_level_add >= m.addingWater_limit_level:
             if ModuleTool.check_DO(r, m.addingWater_do):
                 r.setDO(m.addingWater_do, False)
         else:
@@ -1040,15 +1016,22 @@ class AddWater:
         if m.waste_water_level > 0:
             if not self.is_waste:
                 m.send_msg(r, "2B 80 30 07 64 00 00 00")
+                time.sleep(0.1)
+                m.send_msg(r, "2B 80 30 07 64 00 00 00")
                 self.is_waste = True
-        if m.waste_water_level < 0 or m.waste_water_level == 0:
+        if m.waste_water_level <= 1:
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
 
-        if (m.waste_water_level < 0 or m.waste_water_level == 0) and m.clean_water_level >= m.addingWater_limit_level:
+        if m.waste_water_level <= 1 and m.clean_water_level_add >= m.addingWater_limit_level:
+            m.send_msg(r, "2B 80 30 07 00 00 00 00")
+            time.sleep(0.1)
+            m.send_msg(r, "2B 80 30 07 00 00 00 00")
+            time.sleep(0.1)
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
             r.setDO(m.addingWater_do, False)
             self.status = MoveStatus.FINISHED
-        m_state["clean_water_level"] = m.clean_water_level
+        m_state["clean_water_level_add"] = m.clean_water_level_add
+        m_state["waste_water_level"] = m.waste_water_level
         m_state["AddWater_status"] = "Adding Water ..."
         m_state["status"] = self.status
         m_state["is_open"] = self.is_open
