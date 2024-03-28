@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/03/25
+# @Date : 2024/03/26
 # @Author : zhong,CXN
-# @Version : 2.2
+# @Version : 2.3
 # @Project : 智千料箱车
-# @Update : 采取动态多次识别-多次调整货叉的方式进行识别取货
+# @Update : 增加识别货架码取货的方式
 import json
 import math
 import sys
@@ -119,6 +119,10 @@ from robot import ModuleTool, Motor, MotorType, Robot, GoodsManger
         "type": "double"
     },
     "goodsId": {
+        "value": "",
+        "type": "string"
+    },
+    "code_file": {
         "value": "",
         "type": "string"
     }
@@ -243,8 +247,8 @@ class Module(BasicModule):
         self.stretch_real_pos = 0
         self.lift_real_pos = 0
         self.rotate_real_pos = 0
-        self.load_height = None
-        self.unload_height = None
+        self.load_height = 0
+        self.unload_height = 0
         # 手指控制DO
         self.left_finger_up_do = 8  # di1
         self.right_finger_up_do = 7  # di6
@@ -329,9 +333,8 @@ class Module(BasicModule):
             self.containers = r.getContainers()
             self.goods_manger = GoodsManger(r)
             self.self_position = args.get("selfPosition", None)
-            if self.operation == "adjust":
-                self.rec_adjust = RecAdjust(r, self.box_code_file)
             self.rec_id = ModuleTool.get_uuid()
+            self.box_code_file = args.get("code_file", self.box_code_file)
             if "recAdjust" in args:
                 if self.operation == "load":
                     self.rec_adjust = RecAdjust(r, self.box_code_file)
@@ -363,8 +366,6 @@ class Module(BasicModule):
                     pass
                 elif self.operation == "put":
                     pass
-                elif self.operation == "adjust":
-                    self.adjust(r)
                 else:
                     r.setError(f"args error: {args}")
                     self.status = MoveStatus.FAILED
@@ -435,20 +436,11 @@ class Module(BasicModule):
                     self.zero_by_rbk_step[2] = True
                 if self.rotate_motor_calib:
                     self.zero_by_rbk_step[3] = True
-            # elif self.zero_by_rbk_step[2] and not self.zero_by_rbk_step[3]:
-            #     if not self.set_rotate_motor_calib:
-            #         if self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
-            #             r.setMotorCalib(self.rotate_motor_name)
-            #             self.set_rotate_motor_calib = True
-            #     if self.rotate_motor_calib:
-            #         self.zero_by_rbk_step[3] = True
             if all(self.zero_by_rbk_step):
                 self.init = False
 
     def get_motor_calib_state(self, r: SimModule):
         odo_data = r.odo()
-        motor_info = None
-        state = dict()
         if odo_data.get("motor_info", None):
             motor_info = odo_data["motor_info"]
             for m_f in motor_info:
@@ -485,23 +477,6 @@ class Module(BasicModule):
             if p['key'] == 'goodsId':
                 self.goods_id = p['string_value']
 
-    def adjust(self, r):
-        if not self.load_step[0]:
-            self.load_step[0] = self.lift(r, self.lift_height)
-        if self.load_step[0] and not self.load_step[1]:
-            self.load_step[1] = self.rotate(r, self.rotate_pos)
-        if self.load_step[1] and not self.load_step[2]:
-            self.rec_adjust.run(r, self)
-        if self.rec_adjust.status is MoveStatus.FINISHED:
-            self.load_step[2] = True
-        # 调整货叉角度
-        if self.load_step[2] and not self.load_step[3]:
-            self.load_step[3] = self.rotate(r, self.rotate_pos - self.yaw_adjust)
-            self.load_step[3] = True
-        if self.load_step[3]:
-            self.status = MoveStatus.FINISHED
-        pass
-    
     def zero(self, r: SimModule):
         """
         机构复位
@@ -640,7 +615,7 @@ class Module(BasicModule):
         if not self.change_step[0]:
             r.setDO(self.fill_light_do, True)
             if ModuleTool.check_DO(r, self.fill_light_do):
-                if ModuleTool.delay(0.3):
+                if ModuleTool.delay(0.1):
                     self.change_step[0] = True
         else:
             if self.rec_res and self.rec_res.get("status", 1) == 0:
@@ -648,7 +623,7 @@ class Module(BasicModule):
                 self.report_info["barcode"] = self.rec_res['barCode']
                 return self.rec_res['barCode']
             else:
-                if ModuleTool.delay(0.5):
+                if ModuleTool.delay(0.3):
                     self.rec_res = r.RecognizeBarCode(self.barcode_file, self.rec_id)
                 self.report_info["barcode"] = "None"
             self.report_info["rec_id"] = self.rec_id
@@ -662,7 +637,7 @@ class Module(BasicModule):
         if not self.change_step[0]:
             r.setDO(self.fill_light_do, True)
             if ModuleTool.check_DO(r, self.fill_light_do):
-                if ModuleTool.delay(0.3):
+                if ModuleTool.delay(0.1):
                     self.change_step[0] = True
         else:
             if self.rec.status is MoveStatus.FINISHED:
@@ -691,11 +666,11 @@ class Module(BasicModule):
             else:
                 self.cur_c = self.search_operable_container(r, 'load')
             r.logInfo(f"load begin: {json.dumps(self.containers)}")
-            if self.cur_c is None:  # 抓斗取货
+            if self.cur_c is None:  # 车体满载了
                 r.setPickRobotError(53821, f"All containers are full, can not load")
                 self.status = MoveStatus.FAILED
                 return
-            if self.goods_manger.has_goods("999"):
+            if self.goods_manger.has_goods("999"):  # 货叉已载货
                 r.setPickRobotError(53820, f"Container 999 has goods, can not load")
                 self.status = MoveStatus.FAILED
                 return
@@ -712,17 +687,10 @@ class Module(BasicModule):
                     self.load_step[2] = True
             elif self.load_step[2] and not self.load_step[3]:
                 if self.rec_adjust is not None:
-                    # if not self.change_step[0]:
-                    #     r.setDO(self.fill_light_do, True)
-                    #     if ModuleTool.check_DO(r, self.fill_light_do):
-                    #         if ModuleTool.delay(0.3):
-                    #             self.change_step[0] = True
-                    # if not self.change_step[1] and self.change_step[0]:
-                    #     self.change_step[1] = self.lift(r, self.lift_height)
                     if self.light_st_time is None:
                         r.setDO(self.fill_light_do, True)
                         self.light_st_time = time.time()
-                    if time.time() - self.light_st_time > 0.3:  # 延时0.3秒
+                    if time.time() - self.light_st_time > 0.1:  # 延时0.1秒
                         if self.rec_adjust.status is MoveStatus.FINISHED:
                             r.setDO(self.fill_light_do, False)
                             self.load_step[3] = True
@@ -758,9 +726,6 @@ class Module(BasicModule):
             elif self.load_step[12] and not self.load_step[13]:
                 self.load_step[13] = self.finger(r, 0)
             elif self.load_step[13] and not self.load_step[14]:
-                # if not self.check_safe_height:
-                #     self.check_safe_height = self.safe_lift_height if self.lift_real_pos > self.safe_lift_height else self.lift_real_pos
-                # self.load_step[14] = self.lift(r, self.check_safe_height)
                 self.load_step[14] = True
             
             load_info['load_step'] = self.load_step
@@ -769,7 +734,7 @@ class Module(BasicModule):
             load_info['load_step'] = self.load_step
             self.report_info["load_info"] = load_info
             if all(self.load_step):
-                # 在完成取货的所有动作后，清楚背篓货物
+                # 在完成取货的所有动作后，增加背篓货物数据
                 r.setContainer(self.cur_c, self.goods_id, "")
                 return True
     
@@ -1029,9 +994,9 @@ class RecAdjust:
         self.go_args = dict()
         self.ok = False
         # self.ok_x = 0.003  # x方向行走调整完成阈值
-        self.ok_x = p.loadParam("ok_x", type="float", default=0.003, comment="x方向行走调整完成阈值")
+        self.ok_x = p.loadParam("ok_x", type="float", default=0.005, comment="x方向行走调整完成阈值")
         # self.ok_yaw = 0.035  # 调整完成弧度阈值, 对应2°
-        self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.035, comment="调整完成弧度阈值")
+        self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.04, comment="调整完成弧度阈值")
         # self.max_yaw_bias = 0.13  # 最大偏差弧度
         self.max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13, comment="货叉与料箱角度最大偏差, 弧度值")
         self.adjust_rotate = 1.5708  # 默认值
