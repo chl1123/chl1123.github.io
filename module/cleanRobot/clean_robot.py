@@ -224,7 +224,7 @@ class Module(BasicModule):
                 self.wash_end(r)
             elif self.task["operation"] == "DustStart":
                 self.dust_start(r)
-            elif self.task["operation"] == "DustStart":
+            elif self.task["operation"] == "DustEnd":
                 self.dust_end(r)
             elif self.task["operation"] == "check_level":
                 self.check_level(r)
