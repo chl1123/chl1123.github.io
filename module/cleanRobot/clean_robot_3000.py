@@ -971,7 +971,7 @@ class AddWater:
         if m.waste_water_level <= 1:
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
 
-        if m.waste_water_level <= 1 and m.clean_water_level_add >= m.addingWater_limit_level:
+        if m.waste_water_level <= 1 and clean_water_level_add >= m.addingWater_limit_level:
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
             time.sleep(0.1)
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
@@ -979,7 +979,7 @@ class AddWater:
             m.send_msg(r, "2B 80 30 07 00 00 00 00")
             r.setDO(m.addingWater_do, False)
             self.status = MoveStatus.FINISHED
-        m_state["clean_water_level_add"] = m.clean_water_level_add
+        m_state["clean_water_level_add"] = clean_water_level_add
         m_state["waste_water_level"] = m.waste_water_level
         m_state["AddWater_status"] = "Adding Water ..."
         m_state["status"] = self.status
