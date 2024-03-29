@@ -729,7 +729,8 @@ class Module(BasicModule):
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
-                AddWater()
+                AddWater(),
+                DelayTime(5)  # 延时5s
             ]
         else:
             self.run_tak_list(r)
@@ -1039,3 +1040,30 @@ class MeanValue:
 
     def getMeanValue(self) -> float:
         return sum(self.data) / len(self.data)
+
+
+class DelayTime:
+    """延时指定时间"""
+    def __init__(self, time_delay):
+        super().__init__()
+        self.status = MoveStatus.NONE
+        self.time_delay = time_delay
+        self.start = time.time()
+        self.init = True
+
+    def reset(self, m: Module):
+        self.status = MoveStatus.RUNNING
+
+    def run(self, r: SimModule, m: Module):
+        self.status = MoveStatus.RUNNING
+        if self.init:
+            self.start = time.time()
+            self.init = False
+        task_state = dict()
+        if not self.init and time.time() - self.start >= self.time_delay:
+            self.status = MoveStatus.FINISHED
+        task_state["time"] = self.time_delay
+        task_state["start"] = self.start
+        task_state["status"] = self.status
+        task_state["time"] = time.time()
+        m.state["DelayTime"] = task_state

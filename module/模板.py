@@ -140,7 +140,7 @@ class Module(BasicModule):
         }
 
     def motorPos(self,r:SimModule):
-        self.task_list = [MotorPos("lift",0.1)]
+        self.task_list = [MotorPos(r,"lift",0.1)]
 
     def delay(self,r:SimModule):
         self.task_list = [DelayTime(self.delay_time)]
@@ -306,7 +306,7 @@ class DelayTime(TpModule):
             self.start = time.time()
             self.init = False
         task_state = dict()
-        if not self.init and time.time() - self.start > self.time_delay:
+        if not self.init and time.time() - self.start >= self.time_delay:
             self.status = MoveStatus.FINISHED
         task_state["time"] = self.time_delay
         task_state["start"] = self.start
