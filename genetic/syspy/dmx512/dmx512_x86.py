@@ -10,6 +10,7 @@ import message_dmx512_pb2
 import message_movetask_pb2
 import message_battery_pb2
 import message_navigation_pb2
+import message_controller_pb2
 
 class dmx512X86():
     def __init__(self,rpc_client):
@@ -39,6 +40,11 @@ class dmx512X86():
         str = self.rpc_client.getNavSpeed()
         robotSpeed = Parse(str, message_navigation_pb2.Message_NavSpeed())
         return robotSpeed
+
+    def recControllerMsg(self):
+        str = self.rpc_client.getController()
+        controllerMsg = Parse(str, message_controller_pb2.Message_Controller())
+        return controllerMsg
 
     def createDmx512Message(self):
         return message_dmx512_pb2.Message_Dmx512()

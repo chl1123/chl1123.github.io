@@ -52,6 +52,9 @@ class dmx512Base:
     def recRobotSpeed(self):
         return self.child.recRobotSpeed()
 
+    def recControllerMsg(self):
+        return self.child.recControllerMsg()
+
     def modelDeviceEnable(self,str):
         return self.__rpc_client.modelDeviceEnable(str)
 

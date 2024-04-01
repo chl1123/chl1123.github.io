@@ -11,6 +11,7 @@ import message_dmx512_arm_pb2
 import message_movetask_aarch64_pb2
 import message_navigation_aarch64_pb2
 import message_battery_aarch64_pb2
+import message_controller_aarch64_pb2
 
 class dmx512Aarch64():
     def __init__(self,rpc_client):
@@ -68,6 +69,10 @@ class dmx512Aarch64():
         robotSpeed = Parse(str, message_navigation_aarch64_pb2.Message_NavSpeed())
         return robotSpeed
 
+    def recControllerMsg(self):
+        str = self.rpc_client.getController()
+        controllerMsg = Parse(str, message_controller_aarch64_pb2.Message_Controller())
+        return controllerMsg
 
 
     ''' Serial '''
