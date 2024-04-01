@@ -275,7 +275,7 @@ class Module(BasicModule):
             self.brush_plate_lift(r, self.task["brush_plate_lift"])
         self.state['args'] = args
         self.state['status'] = self.status
-        r.setInfo(json.dumps(self.state))
+        # r.setInfo(json.dumps(self.state))
         r.logInfo(json.dumps(self.state))
         self.status = self.operation_status
         return self.status
