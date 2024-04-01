@@ -144,8 +144,8 @@ class Module(BasicModule):
         self.is_device_run = False
 
         # 液位滤波
-        self.clean_filter = MeanValue(2000)
-        self.waste_filter = MeanValue(2000)
+        self.clean_filter = MeanValue(1000)
+        self.waste_filter = MeanValue(1000)
         self.stop_ok = False
         self.periodRun_start_time = time.time()
         self.check_level_start_time = time.time()
@@ -184,7 +184,7 @@ class Module(BasicModule):
             self.stop_ok = False
             self.stop_number = 0
         try:
-
+            """"上报设备状态,清洁车驱动器新增看门狗，只要在 1 秒 内没有can通信，则会停止风机以及喷水"""
             """"WashStart 时的安全逻辑"""
 
             if self.operation == "WashStart":
@@ -193,10 +193,9 @@ class Module(BasicModule):
                     if self.status == MoveStatus.FAILED:
                         self.stop(r)
                     self.periodRun_start_time = time.time()
-
+            self.check_level(r)
             """"上报液位.每1s上报一次"""
             if time.time() - self.check_level_start_time >= 1:
-                self.check_level(r)
                 self.state["operation"] = self.operation
                 self.state["task_status"] = task_status
                 self.state["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
