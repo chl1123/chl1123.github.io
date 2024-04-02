@@ -137,8 +137,8 @@ class Module(BasicModule):
         self.is_device_run = False
 
         # 液位滤波
-        self.clean_filter = MeanValue(1000)
-        self.waste_filter = MeanValue(1000)
+        self.clean_filter = MeanValue(500)
+        self.waste_filter = MeanValue(500)
 
         r.logInfo(str(args))
 
@@ -726,7 +726,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 AddWater(),
-                DelayTime(5)  # 延时5s
+                DelayTime(8)  # 延时5s
             ]
         else:
             self.run_tak_list(r)
@@ -1028,9 +1028,11 @@ class MeanValue:
         super().__init__()
         self.w = windowSize
         self.data = []
+        self.threshold = 10
 
     def setValue(self, v):
-        self.data.append(v)
+        if abs(v - self.getMeanValue()) < self.threshold:
+            self.data.append(v)
         while len(self.data) > self.w:
             self.data.pop(0)
 
