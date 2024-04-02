@@ -597,7 +597,7 @@ class Module(BasicModule):
             flag = False
             data = dict()
             if not flag:
-                time.sleep(0.01)
+                time.sleep(0.005)
                 flag = True
                 data = self._send_get(r, msg)
                 can_frame_id_res = data["ID"]
@@ -1031,7 +1031,9 @@ class MeanValue:
         self.threshold = 10
 
     def setValue(self, v):
-        if abs(v - self.getMeanValue()) < self.threshold:
+        if len(self.data) < 10:
+            self.data.append(v)
+        elif abs(v - self.getMeanValue()) < self.threshold:
             self.data.append(v)
         while len(self.data) > self.w:
             self.data.pop(0)
