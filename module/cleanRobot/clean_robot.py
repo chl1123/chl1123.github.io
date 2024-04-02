@@ -288,9 +288,9 @@ class Module(BasicModule):
         # 解析 Modbus TCP server 返回的 ADU
         # 检查是否写入成功
         if register_value == value:
-            r.setInfo(f"Value written successfully!:{value}")
+            r.logInfo(f"Value written successfully!:{value}")
         else:
-            r.setInfo(f"Value write failed!:{value}")
+            r.logInfo(f"Value write failed!:{value}")
         # 关闭 socket 连接
         client_socket.close()
 
