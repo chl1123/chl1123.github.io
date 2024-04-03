@@ -698,7 +698,7 @@ class Module(BasicModule):
                         if self.rec_adjust.status is MoveStatus.FINISHED:
                             r.setDO(self.fill_light_do, False)
                             self.load_step[3] = True
-                        if self.rec_adjust.status is MoveStatus.FAILED:
+                        elif self.rec_adjust.status is MoveStatus.FAILED:
                             self.status = MoveStatus.FAILED
                         else:
                             self.rec_adjust.run(r, self)
@@ -892,9 +892,9 @@ class Module(BasicModule):
     
     def update_report_info(self, r):
         module_pos = dict()
-        self.lift_real_pos = ModuleTool.get_motor_pos(r, "lift")
-        self.stretch_real_pos = ModuleTool.get_motor_pos(r, "stretch")
-        self.rotate_real_pos = ModuleTool.get_motor_pos(r, "rotation")
+        self.lift_real_pos = ModuleTool.get_motor_pos(r, self.lift_motor_name)
+        self.stretch_real_pos = ModuleTool.get_motor_pos(r, self.stretch_motor_name)
+        self.rotate_real_pos = ModuleTool.get_motor_pos(r, self.rotate_motor_name)
         self.rotate_real_pos = self.rotate_real_pos * 180 / math.pi
         self.update_finger_info(r)
         module_pos['lift'] = round(self.lift_real_pos, 3)
@@ -1088,7 +1088,8 @@ class RecAdjust:
                     self.status = MoveStatus.FAILED
                     r.setError("recAdjust fails!!! reach max yaw_adjust.")
                 else:
-                    if abs(self.go_args['x']) < self.ok_x and abs(agv.yaw_adjust) <= self.ok_yaw:  # 调整完成
+                    # 精度满足, 识别调整任务完成
+                    if abs(self.go_args['x']) < self.ok_x and abs(agv.yaw_adjust) <= self.ok_yaw:
                         self.status = MoveStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
@@ -1098,7 +1099,7 @@ class RecAdjust:
                 self.rec.reset(r)
         elif self.status is not MoveStatus.FINISHED and self.status is not MoveStatus.FAILED:
             if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
-                if abs(self.go_args['x']) < self.ok_x:  # 调整完成
+                if abs(self.go_args['x']) < self.ok_x:  # 底盘调整完成
                     self.goPath.status = MoveStatus.FINISHED
                 else:
                     if self.adjust_count >= self.max_adjust_time:
@@ -1108,7 +1109,7 @@ class RecAdjust:
                     if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
                         self.goPath.run(r, self.go_args)
             elif not self.rotate_step and self.goPath.status == MoveStatus.FINISHED:
-                if abs(agv.yaw_adjust) <= self.ok_yaw:  # 调整完成
+                if abs(agv.yaw_adjust) <= self.ok_yaw:  # 货叉调整完成
                     self.rotate_step = True
                 if not self.rotate_step:
                     if agv.operation == "load":
@@ -1120,7 +1121,8 @@ class RecAdjust:
             elif self.goPath.status == MoveStatus.FINISHED and self.rotate_step:
                 self.reset(r)
                 self.adjust_count += 1
-                self.plan_status = None
+                self.plan_status = MoveStatus.NONE
+                self.rotate_step = False
                 # self.status = MoveStatus.FINISHED
         cur_state["stretch_length"] = agv.stretch_length
         cur_state["go_path_status"] = self.goPath.status
