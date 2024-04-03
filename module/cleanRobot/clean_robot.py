@@ -986,8 +986,7 @@ class AddWater:
     def run(self, r: SimModule, m: Module):
         self.status = MoveStatus.RUNNING
         m_state = dict()
-        clean_gauge = m.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-        clean_water_level_add = (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
+        clean_water_level_add = m.clean_water_level
         if clean_water_level_add >= m.addingWater_limit_level:
             if ModuleTool.check_DO(r, m.addingWater_do):
                 r.setDO(m.addingWater_do, False)
