@@ -140,6 +140,10 @@ class Module(BasicModule):
         self.clean_filter = MeanValue(500)
         self.waste_filter = MeanValue(500)
 
+        # modbus 初始化化变量
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket_init = True
+
         r.logInfo(str(args))
 
     def get_clean_filter(self, v):
@@ -287,10 +291,10 @@ class Module(BasicModule):
         # 接收 Modbus TCP server 的返回数据
         # 解析 Modbus TCP server 返回的 ADU
         # 检查是否写入成功
-        if register_value == value:
-            r.logInfo(f"Value written successfully!:{value}")
-        else:
-            r.logInfo(f"Value write failed!:{value}")
+        # if register_value == value:
+        #     r.logInfo(f"Value written successfully!:{value}")
+        # else:
+        #     r.logInfo(f"Value write failed!:{value}")
         # 关闭 socket 连接
         client_socket.close()
 
@@ -333,7 +337,7 @@ class Module(BasicModule):
                 self.check_level_opt[1] = True
         elif self.check_level_opt[1] and not self.check_level_opt[2]:
             # 上报液位
-            self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
+            self.modbus_send_clean(r,int(self.clean_water_level))
             self.check_level_opt[2] = True
             # 上报液位
         elif self.check_level_opt[2] and not self.check_level_opt[3]:
