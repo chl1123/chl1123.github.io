@@ -101,6 +101,9 @@ class Module(BasicModule):
         self.clean_water_level_add = 0
         self.block_start_time = time.time()
         self.stop_number = 0
+        self.periodRun_start_time = time.time()
+        self.check_level_start_time = time.time()
+        self.stop_ok = None
         self.is_init_block = None
         self.block_init = None
         self.block_first = None
@@ -144,19 +147,20 @@ class Module(BasicModule):
         self.is_device_run = False
 
         # 液位滤波
-        self.clean_filter = MeanValue(1000)
-        self.waste_filter = MeanValue(1000)
-        self.stop_ok = False
-        self.periodRun_start_time = time.time()
-        self.check_level_start_time = time.time()
+        self.clean_filter = MeanValue(500)
+        self.waste_filter = MeanValue(500)
+
+        # modbus 初始化化变量
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket_init = True
 
         r.logInfo(str(args))
 
-    def get_clean_filter(self,v):
+    def get_clean_filter(self, v):
         self.clean_filter.setValue(v)
         return self.clean_filter.getMeanValue()
 
-    def get_waste_filter(self,v):
+    def get_waste_filter(self, v):
         self.waste_filter.setValue(v)
         return self.waste_filter.getMeanValue()
 
@@ -219,8 +223,6 @@ class Module(BasicModule):
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
-        # if self.status != MoveStatus.FINISHED:
-        #     self.get_info(r)
         if self.init:
             if len(args) == 0:
                 r.setError("pls input params can be running")
@@ -281,8 +283,6 @@ class Module(BasicModule):
         return self.status
 
     def client(self, ip, port, addr, value, r):
-        t = time.time()
-        r.logInfo(f"client start:{t}")
         # 创建一个 TCP socket
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # 定义 Modbus TCP server 的 IP 和端口号
@@ -301,21 +301,21 @@ class Module(BasicModule):
         # 接收 Modbus TCP server 的返回数据
         # 解析 Modbus TCP server 返回的 ADU
         # 检查是否写入成功
-        if register_value == value:
-            r.setInfo(f"Value written successfully!:{value}")
-        else:
-            r.setInfo(f"Value write failed!:{value}")
+        # if register_value == value:
+        #     r.logInfo(f"Value written successfully!:{value}")
+        # else:
+        #     r.logInfo(f"Value write failed!:{value}")
         # 关闭 socket 连接
         client_socket.close()
-        r.logInfo(f"client end:{time.time() - t}")
-
 
     def check_level(self, r):
         # 查詢液位-清水
         if not self.check_level_opt[0]:
             clean_gauge = self.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-            self.clean_water_level = self.get_clean_filter((int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            self.state["clean_water_level"] = (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
+            self.clean_water_level = self.get_clean_filter(
+                (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
+            self.state["clean_water_level"] = (int(clean_gauge[10:12] + clean_gauge[8:10],
+                                                   16) / 4095 * 1000) / 950 * 100
             if self.clean_water_level > 99.9:
                 self.clean_water_level = 100.
             if self.clean_water_level < 0.:
@@ -330,8 +330,10 @@ class Module(BasicModule):
         # 查詢液位-污水
         elif self.check_level_opt[0] and not self.check_level_opt[1]:
             waste_gauge = self.get_proxy_info(r, cmd.WASTE_WATER_LEVEL_GAUGE)
-            self.waste_water_level = self.get_waste_filter((int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
-            self.state["waste_water_level"] = (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
+            self.waste_water_level = self.get_waste_filter(
+                (int(waste_gauge[10:12] + waste_gauge[8:10], 16) / 4095 * 1000) / 950 * 100)
+            self.state["waste_water_level"] = (int(waste_gauge[10:12] + waste_gauge[8:10],
+                                                   16) / 4095 * 1000) / 950 * 100
             if self.waste_water_level > 99.9:
                 self.waste_water_level = 100.
             if self.waste_water_level < 0.:
@@ -436,13 +438,12 @@ class Module(BasicModule):
             self.send_msg(r, "2B 80 30 02 00 00 00 00")
             self.block_stop_opt[5] = True
         # 关闭水阀
-        elif not self.block_stop_opt[6] and self.block_stop_opt[3]:
+        elif not self.block_stop_opt[6] and self.block_stop_opt[5]:
             self.send_msg(r, "2B 80 30 06 00 00 00 00")
             self.block_stop_opt[6] = True
-        elif not self.block_stop_opt[7] and self.block_stop_opt[4]:
+        elif not self.block_stop_opt[7] and self.block_stop_opt[6]:
             self.send_msg(r, "2B 80 30 06 00 00 00 00")
             self.block_stop_opt[7] = True
-
 
     def stopV1(self, r: SimModule, tpy=False):
         r.logDebug("--------------------stop----------------------")
@@ -467,6 +468,13 @@ class Module(BasicModule):
         elif not self.block_stop_opt[5] and self.block_stop_opt[4]:
             self.send_msg(r, "2B 80 30 02 00 00 00 00")
             self.block_stop_opt[5] = True
+        # 关闭水阀
+        elif not self.block_stop_opt[6] and self.block_stop_opt[5]:
+            self.send_msg(r, "2B 80 30 06 00 00 00 00")
+            self.block_stop_opt[6] = True
+        elif not self.block_stop_opt[7] and self.block_stop_opt[6]:
+            self.send_msg(r, "2B 80 30 06 00 00 00 00")
+            self.block_stop_opt[7] = True
         if all(self.block_stop_opt):
             return True
 
@@ -546,6 +554,12 @@ class Module(BasicModule):
         return adu
 
     def wash_start(self, r):
+        if int(self.clean_water_level) < self.clean_water_alarm and int(
+                self.waste_water_level) > self.waste_water_alarm:
+            r.setError(
+                f"clean_water_level :{int(self.clean_water_level)} ,waste_water_level:{int(self.waste_water_level)}")
+            self.status = MoveStatus.FAILED
+            return
         if self.operation_status == MoveStatus.NONE:
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
@@ -597,6 +611,15 @@ class Module(BasicModule):
         return rec
 
     def get_info(self, r: SimModule):
+        device = {
+            "suction_wing":1,
+            "brush_plate":1,
+            "jet_water":1,
+            "braun_ball_valve":1,
+            "brush_plate_lift":1,
+            "jet_water_valve":1,
+            "water_pa":1,
+        }
         get_can_frame = dict()
         get_can_frame["suction_wing"] = self.get_proxy_info(r, cmd.SUCTION_WING_GET)
         get_can_frame["brush_plate"] = self.get_proxy_info(r, cmd.BRUSH_PLATE_GET)
@@ -618,7 +641,6 @@ class Module(BasicModule):
         data = self.get_proxy_info(r, msg)
         can_frame["sendCanFrame"] = f'{self.chanel} {self.can_id} {self.dlc} {self.extend} {msg}'
         can_frame["getCanFrame"] = data
-        r.logDebug(json.dumps(can_frame))
         self.state["CanFrame"] = can_frame
 
     def _send_get(self, r: SimModule, msg):
@@ -698,7 +720,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 AddWater(),
-                DelayTime(5)  # 延时5s
+                DelayTime(8)  # 延时5s
             ]
         else:
             self.run_tak_list(r)
@@ -954,18 +976,13 @@ class AddWater:
     def run(self, r: SimModule, m: Module):
         self.status = MoveStatus.RUNNING
         m_state = dict()
-        clean_gauge = m.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-        if clean_gauge[0] == "0":
-            return
-        clean_water_level_add = (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
+        clean_water_level_add = m.clean_water_level
         if clean_water_level_add >= m.addingWater_limit_level:
             if ModuleTool.check_DO(r, m.addingWater_do):
                 r.setDO(m.addingWater_do, False)
-                self.is_open = False
         else:
             if not ModuleTool.check_DO(r, m.addingWater_do):
                 r.setDO(m.addingWater_do, True)
-                self.is_open = True
         if m.waste_water_level > 0:
             if not self.is_waste:
                 m.send_msg(r, "2B 80 30 07 64 00 00 00")
@@ -987,7 +1004,6 @@ class AddWater:
         m_state["waste_water_level"] = m.waste_water_level
         m_state["AddWater_status"] = "Adding Water ..."
         m_state["status"] = self.status
-        m_state["is_waste"] = self.is_waste
         m_state["is_open"] = self.is_open
         m.state["AddWater"] = m_state
 
@@ -1005,9 +1021,13 @@ class MeanValue:
         super().__init__()
         self.w = windowSize
         self.data = []
+        self.threshold = 10
 
     def setValue(self, v):
-        self.data.append(v)
+        if len(self.data) < 10:
+            self.data.append(v)
+        elif abs(v - self.getMeanValue()) < self.threshold:
+            self.data.append(v)
         while len(self.data) > self.w:
             self.data.pop(0)
 
@@ -1017,7 +1037,6 @@ class MeanValue:
 
 class DelayTime:
     """延时指定时间"""
-
     def __init__(self, time_delay):
         super().__init__()
         self.status = MoveStatus.NONE

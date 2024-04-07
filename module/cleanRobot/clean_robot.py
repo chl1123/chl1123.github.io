@@ -337,7 +337,7 @@ class Module(BasicModule):
                 self.check_level_opt[1] = True
         elif self.check_level_opt[1] and not self.check_level_opt[2]:
             # 上报液位
-            self.modbus_send_clean(r,int(self.clean_water_level))
+            self.client(self.ip, self.port, self.report_addr_1, int(self.clean_water_level), r)
             self.check_level_opt[2] = True
             # 上报液位
         elif self.check_level_opt[2] and not self.check_level_opt[3]:
@@ -473,8 +473,7 @@ class Module(BasicModule):
         block = r.isAnyErrorExists()  # 任务错误
         error_52316 = r.errorExits(52316)  # 下发速度超时
         warning_54231 = r.warningExits(54231)  # 调度报阻挡
-        if (not error_52316) and (
-                block or warning_54231) and not self.block_first and self.status == MoveStatus.FINISHED:
+        if (not error_52316) and (block or warning_54231) and not self.block_first and self.status == MoveStatus.FINISHED:
             self.block_first = True
             self.block_start_time = time.time()
             self.block_stop_opt = [False] * 8

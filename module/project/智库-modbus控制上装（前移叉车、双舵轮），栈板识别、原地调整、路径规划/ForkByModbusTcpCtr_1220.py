@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date: 2023/12/20
+# @Date: 2023/01/19
 # @Author: CXN
 # @File: ForkByModbusTcpCtr.py
-# @Version: 2.1.2
+# @Version: 2.1.5
 # @Project:
-# @Coding:https://seer-group.coding.net/p/order_issue_pool/requirements/issues/3452/detail
+# @Coding:
 # @Update: 智库造车项目，脚本控制上装（modbus tcp），双舵轮,优化计算取货坐标的方法，取货坐标不同于栈板坐标，增加手动控制货叉(1206),增加货物超宽检测并增加超框后先抬起再收叉(1220)
 import enum
 import json
@@ -97,25 +97,22 @@ class Module(BasicModule):
         # 脚本輸入參數初始化
 
 
-        self.odo_can_dist = 0.96 # 里程中心 到 伸叉后到位开关的位置 的距离
-        self.pick_len_percent = 0.8
+        self.fork_len = 0.94  #  货叉长度
+        self.contact_di_to_odo = 0.99  # 到位开关到相机的距离，
+
+
+        self.y_dist = 0.005  # 栈板识别左右偏差精度
+        self.yaw_dist = 0.01  # 栈板识别角度偏移精度
+
+        self.speed_adjust_max = 0.1  # 栈板识别后，在前置点调整对准栈板的最大速度
+        self.y_adjust_max = 0.1  # 栈板允許的左右偏差最大值，米
+        self.yaw_adjust_max = 0.26  # 栈板允許的角度偏差最大值，弧度
         self.safe_check_need = None
-        self.rec_len_mini_speed = 0.05
-        self.rec_len_mini = 0.3
-        self.fork2base = [-0.006, 0.8, -math.pi / 2]  # 叉尺相对里程中心坐标
+        self.fork2base = [0.0, 0.0, -math.pi / 2]  # 叉尺相对里程中心坐标
         self.pallet2world = [0., 0., 0.]  # 栈板世界坐标系
         self.target2world = [0., 0., 0.]  # 前置点坐标系
         self.pallet2robot = [0., 0., 0.]  # 前置点坐标系,相对与机器人坐标系
-
-        self.y_dist = 0.015  # 栈板识别左右偏差精度
-        self.yaw_dist = 0.22  # 栈板识别角度偏移精度
-
-        self.speed_adjust_max = 0.1  # 栈板识别后，在前置点调整对准栈板的最大速度
-        self.y_adjust_max = 0.15  # 栈板允許的左右偏差最大值，米
-        self.yaw_adjust_max = 0.26  # 栈板允許的角度偏差最大值，弧度
-        self.actual_move_dist = None  # 车子实际的后退距离
         self.switch_model = None
-        self.mini_speed_on = None
         self.action_parameters = None
         self.blocking_type = None
         self.angle = None
@@ -130,7 +127,9 @@ class Module(BasicModule):
         self.robot_pos = [0., 0., 0.]  # 栈板识别前的机器人位置
         self.is_palletWidth = False  # 是否超宽
         p = ParamServer(__file__)
-        self.palletWidth_height = p.loadParam("palletWidth", type="float", default=1.5,
+        self.timeout_PalletCodeRec = p.loadParam("timeout_PalletCodeRec", type="int", default=10,
+                                      comment="托盘码识别超时时间")
+        self.palletWidth_height = p.loadParam("palletWidth_height", type="int", default=1100,
                                       comment="栈板超框后，取货先抬起到的目标位置")
         self.palletWidth = p.loadParam("palletWidth", type="float", default=1.0,
                                       comment="最大货物宽度")
@@ -149,8 +148,9 @@ class Module(BasicModule):
         self.port = p.loadParam("port", type="int", default=502, comment="PLC的端口")
         self.slave_id = p.loadParam("slave_id", type="int", default=1, comment="PLC的 id")
         self.timeout = p.loadParam("timeout", type="int", default=180, comment="整个任务的超时时间")
-        self.safe_height = p.loadParam("safe_height", type="int", default=180, comment="货叉安全高度")
+        self.safe_height = p.loadParam("safe_height", type="int", default=1100, comment="货叉安全高度")
         self.min_fork_height = p.loadParam("min_fork_height", type="int", default=80, comment="货叉最低高度")
+        self.lifi_height_dist = p.loadParam("lifi_height_dist", type="int", default=5, comment="升降误差阈值")
         self.Translate_speed_max_go = p.loadParam("Translate_speed_max_go", type="float", default=0.2,
                                                   comment="平移最大速度——前半段")
         self.Translate_speed_max_back = p.loadParam("Translate_speed_max_back", type="float", default=0.2,
@@ -162,7 +162,7 @@ class Module(BasicModule):
         self.man_out_stretch = p.loadParam("man_out_stretch", type="int", default=3, comment="手动控制货叉伸出")
         self.man_back_stretch = p.loadParam("man_back_stretch", type="int", default=4, comment="手动控制货叉缩回")
         self.man_lift_speed_up = p.loadParam("man_lift_speed_up", type="int", default=50, comment="手动控制货叉上升速度")
-        self.man_lift_speed_down = p.loadParam("man_lift_speed_down", type="int", default=-200, comment="手动控制货下降降速度")
+        self.man_lift_speed_down = p.loadParam("man_lift_speed_down", type="int", default=-50, comment="手动控制货下降降速度")
 
         self.init = True
         self.result = None
@@ -273,6 +273,9 @@ class Module(BasicModule):
                     else:
                         r.setUserWarning(55999, "PLC running ...")
                         self.handle_run(r)
+                if s == MoveStatus.FAILED:
+                    self.status = MoveStatus.FAILED
+                    return self.status
 
         if time.time() - self.start_time > self.timeout:
             r.setError(f"运行超时 {self.timeout} s")
@@ -327,8 +330,11 @@ class Module(BasicModule):
             byte2 = value & 0x00FF  # 获取低字节
             bytes_representation.append(byte2)
             bytes_representation.append(byte1)
+
         # self.PLC.pallet_code = int_array_convert_to_string(c[9:35])
-        self.PLC.pallet_code = bytes_representation.decode("ascii")
+        self.PLC.pallet_code = bytes_representation.decode("ascii").rstrip('\0')
+
+
         return True
 
     def handle_run(self, r: SimModule):
@@ -403,7 +409,7 @@ class Module(BasicModule):
             self.depth += self.depth_dist
             if self.safe_check_need:
                 self.task_list.append(SafeCheck())
-            self.task_list.append(CheckGoods(False))
+            self.task_list.append(CheckGoods("pick","before"))
             # 升到指定高度
             if self.height:
                 self.task_list.append(ForkLift(self.height))
@@ -413,7 +419,7 @@ class Module(BasicModule):
             if self.recognize:
                 self.task_list.append(AdjustPos(r,self.rec_file))
             if self.loadId:
-                self.task_list.append(PalletCodeRec(self.loadId))
+                self.task_list.append(PalletCodeRec(self.loadId,self.timeout_PalletCodeRec))
             # 边走边伸叉，停下来条件 1、已经超过预定距离，2、已经叉到货
             if self.recognize:
                 self.task_list.append(TranslateStretchByPos(r,"go"))
@@ -430,7 +436,7 @@ class Module(BasicModule):
             else:
                 self.task_list.append(TranslateStretch(r, 0 - self.angle, self.depth, "back"))
             # 检查货物
-            self.task_list.append(CheckGoods(True))
+            self.task_list.append(CheckGoods("pick","after"))
             # 加载货物模型
             self.task_list.append(SetGoodsModule("pick"))
             self.init_operation = False
@@ -464,7 +470,7 @@ class Module(BasicModule):
         if self.init_operation:
             if self.safe_check_need:
                 self.task_list.append(SafeCheck())
-            self.task_list.append(CheckGoods(True))
+            self.task_list.append(CheckGoods("drop","before"))
             # 边走边伸叉，停下来条件 1、已经超过预定距离，2、已经叉到货
             self.init_operation = False
             # 升到指定高度
@@ -474,7 +480,7 @@ class Module(BasicModule):
             self.task_list.append(MiniForklift(self.operation))
             self.task_list.append(TranslateStretch(r, 0 - self.angle, self.depth, "back"))
             # 检查货物
-            self.task_list.append(CheckGoods(False))
+            self.task_list.append(CheckGoods("drop","after"))
             # 清除货物状态
             self.task_list.append(SetGoodsModule("drop"))
 
@@ -500,7 +506,7 @@ class Module(BasicModule):
             if safe_check:
                 self.lift_action_opt[3] = True
         elif not self.lift_action_opt[3] and self.lift_action_opt[2]:
-            if self.PLC.lift_status == 3 and ((height - 5) <= self.PLC.lift_position <= (height + 5)):
+            if self.PLC.lift_status == 3 and ((height - self.lifi_height_dist) <= self.PLC.lift_position <= (height + self.lifi_height_dist)):
                 lift_status = self.modbus_tcp.execute(1, cst.READ_HOLDING_REGISTERS, self.lift_status_addr, 1)[0]
                 if lift_status == 3:
                     self.lift_action_opt[3] = True
@@ -581,9 +587,7 @@ class Module(BasicModule):
                 r.setNotice("readCodeFault!!!")
             if self.PLC.pallet_code == pallet_code:
                 self.pallet_rec_action_opt[1] = True
-            else:
-                r.setError(f"pallet_rec_action error:PLC.pallet_code:{self.PLC.pallet_code},pallet_code:{pallet_code}")
-                self.status = MoveStatus.FAILED
+
         r.logDebug(f"pallet_rec_action_opt:{self.pallet_rec_action_opt},{self.PLC.pallet_code} -- {code}")
         if all(self.pallet_rec_action_opt):
             return True
@@ -716,6 +720,11 @@ class Module(BasicModule):
         if self.PLC.gantry_error.prong:
             self.status = MoveStatus.FAILED
             r.setError("叉尖报警")
+            return self.status
+
+        if self.PLC.gantry_error.noGoodsStretch:
+            self.status = MoveStatus.FAILED
+            r.setError("仰起无货伸叉报警")
             return self.status
 
         ############################################################
@@ -885,8 +894,9 @@ class Execute:
 
 
 class CheckGoods:
-    def __init__(self, operation: bool):
+    def __init__(self, operation,time_s):
         self.status = MoveStatus.NONE
+        self.time_s = time_s
         self.operation = operation
 
     def reset(self, m: Module):
@@ -895,18 +905,30 @@ class CheckGoods:
     def run(self, r: SimModule, m: Module):
         self.status = MoveStatus.RUNNING
         task_state = dict()
-        if self.operation:
+        if self.operation == "pick" and self.time_s == "before":
+            if m.PLC.gantry_sensor_status.StockOnTheFork:
+                self.status = MoveStatus.FAILED
+                r.setError("取货时有货")
+            else:
+               self.status = MoveStatus.FINISHED
+        if self.operation == "pick" and self.time_s == "after":
             if m.PLC.gantry_sensor_status.StockOnTheFork:
                 self.status = MoveStatus.FINISHED
             else:
                 self.status = MoveStatus.FAILED
-                r.setError("已经有货了")
-        elif not self.operation:
+                r.setError("取货完成时无货")
+        if self.operation == "drop" and self.time_s == "before":
+            if not m.PLC.gantry_sensor_status.StockOnTheFork:
+                self.status = MoveStatus.FAILED
+                r.setError("放货时无货")
+            else:
+                self.status = MoveStatus.FINISHED
+        if self.operation == "drop" and self.time_s == "after":
             if not m.PLC.gantry_sensor_status.StockOnTheFork:
                 self.status = MoveStatus.FINISHED
             else:
                 self.status = MoveStatus.FAILED
-                r.setError("没叉到货")
+                r.setError("放货完成后还是有货")
         task_state["operation"] = self.operation
         task_state["status"] = self.status
         r.logDebug(json.dumps(task_state))
@@ -1019,6 +1041,7 @@ class GantryError:
     liftEncoderDataErr: int
     overWeight: int
     prong:int
+    noGoodsStretch:int
 
     def update(self, value):
         self.beforeLimitAlarm = (value >> 0) & 1
@@ -1035,6 +1058,7 @@ class GantryError:
         self.liftEncoderDataErr = (value >> 11) & 1
         self.overWeight = (value >> 12) & 1
         self.prong = (value >> 13) & 1
+        self.noGoodsStretch = (value >> 14) & 1
 
     def to_json(self):
         error_dict = {
@@ -1140,12 +1164,12 @@ class PalletCodeRec:
     PLC 二維碼識別
     """
 
-    def __init__(self, load_id):
+    def __init__(self, load_id,timeout = 20):
         self.status = MoveStatus.NONE
         self.load_id = load_id
         self.init = True
         self.start_time = time.time()
-        self.timeout = 60  # 超时时间
+        self.timeout = timeout  # 超时时间
 
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
@@ -1158,13 +1182,19 @@ class PalletCodeRec:
         if self.init:
             if m.PLC.ready:
                 self.init = False
+                self.start_time = time.time()
         if self.status != MoveStatus.FINISHED and not self.init:
             if m.pallet_rec_action(r, self.load_id):
                 self.status = MoveStatus.FINISHED
-
-        if time.time() - self.start_time > self.timeout:
-            r.setError(f"二維碼識別 超时 {self.timeout}")
-            self.status = MoveStatus.FAILED
+            else:
+                if  m.PLC.pallet_code =='' or m.PLC.pallet_code == 'NG':
+                    if time.time() - self.start_time > self.timeout:
+                        r.setError(f"二維碼識別 超时 {self.timeout}，pallet_rec_action error:PLC.pallet_code:{m.PLC.pallet_code},pallet_code:{self.load_id}")
+                        self.status = MoveStatus.FAILED
+                else:
+                    if time.time() - self.start_time > 2:
+                        if m.PLC.pallet_code != self.load_id:
+                            r.setError(f"栈板码不一致 {self.timeout}，pallet_rec_action error:PLC.pallet_code:{m.PLC.pallet_code},pallet_code:{self.load_id}")
 
         task_state["status"] = self.status
         task_state["load_id"] = self.load_id
@@ -1251,14 +1281,21 @@ class Rec:
                     r.setError(f"栈板识别，角度偏差太大，偏差{180/math.pi*self.yaw}°")
                     self.status = MoveStatus.FAILED
                     return
-                if abs(self.y) <= m.rec_len_mini:
-                    m.mini_speed_on = True
                 # 开始计算目标点的世界坐标系
                 robot2world = [r.loc().get("x"), r.loc().get("y"), r.loc().get("angle")]  # 小车在世界坐标系的位置
 
-                pallet_rec = [self.result['x'], self.result['y'], self.result['yaw']]  # 栈板识别的坐标
+                pallet_rec_dist = [self.result['x'] + m.back_dist, self.result['y'], self.result['yaw']]  # 栈板识别的坐标补偿
 
-                fork2base = m.fork2base  # 叉尺相对里程中心坐标
+                """计算栈板世界坐标系"""
+                fork2base = [0.0,m.fork_len,-math.pi/2]  # 叉尖相对里程中心坐标
+
+                pallet2base_dist = Pos2World(pallet_rec_dist, fork2base)  # 栈板相对里程中心的坐标
+
+                pallet2world = Pos2World(pallet2base_dist, robot2world)  # 栈板的世界坐标系
+                m.pallet2world = pallet2world
+
+                """计算栈板前置点坐标系"""
+                pallet_rec = [self.result['x'], self.result['y'], self.result['yaw']]  # 栈板识别的坐标
 
                 pallet2base = Pos2World(pallet_rec, fork2base)  # 栈板相对里程中心的坐标
 
@@ -1272,27 +1309,12 @@ class Rec:
 
                 target2world = Pos2World(pallet2robot, robot2world)  # 将目标点转为世界坐标系
 
-                def find_point(x1, y1, x2, y2, percent):
-                    Cx = x1 + percent * (x2 - x1)
-                    Cy = y1 + percent * (y2 - y1)
-                    return Cx, Cy
-
-                distance_init_pallet = math.sqrt((pallet2world[0] - target2world[0]) ** 2 + (pallet2world[1] - target2world[1]) ** 2)
-                x, y = find_point(target2world[0], target2world[1], pallet2world[0], pallet2world[1],
-                                  (distance_init_pallet - m.odo_can_dist) / distance_init_pallet
-                                  )
-                T = [x,y,pallet2world[2]]
 
                 m.target2world = target2world
                 m.pallet2robot = pallet2robot
-                m.pallet2world = T
 
-                task_state['robot2world'] = robot2world
-                task_state['pallet_rec'] = pallet_rec
-                task_state['pallet_base'] = pallet2base
+                task_state['target2world'] = target2world
                 task_state['pallet_world'] = pallet2world
-                task_state['T'] = T
-                task_state['T_pallet_dist'] = math.sqrt((pallet2world[0] - T[0]) ** 2 + (pallet2world[1] - T[1]) ** 2)
 
                 self.status = MoveStatus.FINISHED
                 r.setNotice(f"rec success: {self.status.name} {self.result}")
@@ -1498,7 +1520,6 @@ class MiniForklift:
 
     def __init__(self, operation: str):
         self.operation = operation
-        self.actual_move_dist = None
         self.status = MoveStatus.NONE
         self.position = None
         self.init = True
@@ -1511,22 +1532,33 @@ class MiniForklift:
         if self.init:
             self.position = m.PLC.lift_position
             m.lift_action_opt = [False] * 4
-            if m.is_palletWidth and self.operation == "pick":
+            if m.is_palletWidth:
                 if m.PLC.lift_position < m.palletWidth_height:
                     self.position = m.palletWidth_height
+                else:
+                    if self.operation == "pick":
+                        self.position += m.forklift_micro_height_pick
+                    if self.operation == "drop":
+                        self.position -= m.forklift_micro_height_drop
+            else:
+                if self.operation == "pick":
+                    self.position += m.forklift_micro_height_pick
+                if self.operation == "drop":
+                    self.position -= m.forklift_micro_height_drop
             self.init = False
         task_state = dict()
-        if self.operation == "pick":
-            # 抬起时检测是否有货，没有货则报错
-            if m.PLC.gantry_sensor_status.StockOnTheFork:
-                if m.lift_action(r, self.position + m.forklift_micro_height_pick):
+        if not self.init and self.status != MoveStatus.FINISHED:
+            if self.operation == "pick":
+                # 抬起时检测是否有货，没有货则报错
+                if m.PLC.gantry_sensor_status.StockOnTheFork:
+                    if m.lift_action(r, self.position):
+                        self.status = MoveStatus.FINISHED
+                else:
+                    r.setError(f"抬货叉时没有检测到位")
+                    self.status = MoveStatus.FAILED
+            if self.operation == "drop":
+                if m.lift_action(r, self.position):
                     self.status = MoveStatus.FINISHED
-            else:
-                r.setError(f"抬货叉时没有检测到位")
-                self.status = MoveStatus.FAILED
-        if self.operation == "drop":
-            if m.lift_action(r, self.position - m.forklift_micro_height_drop):
-                self.status = MoveStatus.FINISHED
 
         task_state["operation"] = self.operation
         task_state["status"] = self.status
@@ -1617,7 +1649,7 @@ class GoTargetPre:
             self.init = True
             self.x = m.target2world[0]
             self.y = m.target2world[1]
-            self.theta = m.target2world[2]+math.pi/2
+            self.theta = m.result['yaw']+m.robot_pos[2]
             self.go_args["coordinate"] = "world"
             self.go_args["x"] = self.x
             self.go_args["y"] = self.y
@@ -1627,7 +1659,7 @@ class GoTargetPre:
             self.go_args["useOdo"] = 1
             self.go_args["maxSpeed"] = m.speed_adjust_max
             self.go_args["hold_dir"] = (180 / math.pi) * (r.loc().get("angle", 0))
-            task_state["status"] = self.go_args["hold_dir"]
+
             self.status = MoveStatus.RUNNING
             self.goPath.status = MoveStatus.RUNNING
             if abs(m.result["y"]) <= m.y_dist and abs(m.result["yaw"]) <= m.yaw_dist:
@@ -1644,6 +1676,61 @@ class GoTargetPre:
         task_state["init"] = self.init
         task_state["go_args"] = self.go_args
         m.report_data["GoTargetPre"] = task_state
+
+
+
+class GoTargetPreByRobot:
+    """导航到与栈板对正的位置
+    """
+    def __init__(self,r, speed=0.08):
+        self.goPath = goPath.Module(r, dict())
+        self.init = False
+        self.status = MoveStatus.NONE
+        self.go_args = dict()
+        self.speed = speed
+        self.x= None
+        self.y= None
+        self.theta= None
+
+    def reset(self, m: Module):
+        self.status = MoveStatus.RUNNING
+
+    def run(self, r: SimModule, m: Module):
+        self.status = MoveStatus.RUNNING
+        task_state = dict()
+        if not self.init:
+            self.init = True
+            def move(dx, dy, yaw):
+                if abs(yaw) >= 3.0916:
+                    return dy
+                if yaw < 0:
+                    return dy - dx * math.tan(math.pi + yaw)
+                else:
+                    return dy + dx * math.tan(math.pi - yaw)
+            code2camera = [m.result['x'], m.result['y'], m.result['z'],
+                           m.result['yaw']]  # 目标点在相机坐标系的位置
+            task_state["code2camera"] = code2camera
+            self.go_args["coordinate"] = "robot"
+            # 根据下发货叉的角度，判断行走方向
+            self.go_args["x"] = move(m.result['x']-0.8, m.result['y'], m.result['yaw'])
+            self.go_args["y"] = 0
+            self.go_args["theta"] = m.result['yaw']*1.03
+            self.go_args["reachAngle"] = 0.01
+            self.go_args["useOdo"] = 1
+            self.go_args["reachDist"] = 0.002
+            if self.go_args["x"] < 0:
+                self.go_args["backMode"] = 1
+            if abs(m.result["y"]) <= m.y_dist and abs(m.result["yaw"]) <= m.yaw_dist:
+                self.status = MoveStatus.FINISHED
+                return
+        if self.goPath.status != MoveStatus.FINISHED or self.goPath.status != MoveStatus.FAILED:
+            self.goPath.run(r, self.go_args)
+        if self.goPath.status == MoveStatus.FINISHED:
+            self.status = MoveStatus.FINISHED
+
+        task_state["status"] = self.status
+        task_state["go_args"] = self.go_args
+        m.report_data["GoTargetPreByRobot"] = task_state
 
 
 
@@ -1690,7 +1777,7 @@ class Translate:
                 self.go_args["useOdo"] = 1
                 self.go_args["maxSpeed"] = self.speed
                 self.go_args["hold_dir"] = (180 / math.pi) * (r.loc().get("angle", 0))
-                task_state["status"] = self.go_args["hold_dir"]
+                task_state["go_args"] = self.go_args
                 self.goPath.run(r, self.go_args)
         if self.goPath.status == MoveStatus.FINISHED:
             self.status = MoveStatus.FINISHED
@@ -1700,6 +1787,45 @@ class Translate:
         task_state["go_args"] = self.go_args
         task_state["angle"] = self.angle
         task_state["dist"] = self.dist
+        m.report_data["Translate"] = task_state
+
+
+class TranslateByRobot:
+    def __init__(self, r: SimModule,speed=0.8):
+        self.goPath = goPath.Module(r, dict())
+        self.init = False
+        self.status = MoveStatus.NONE
+        self.go_args = dict()
+        self.speed = speed
+        self.t2world = None
+
+    def reset(self, m: Module):
+        self.status = MoveStatus.RUNNING
+
+    def run(self, r: SimModule, m: Module):
+        self.status = MoveStatus.RUNNING
+        task_state = dict()
+        if not self.init:
+            self.init = True
+            self.goPath.status = MoveStatus.RUNNING
+            self.go_args["coordinate"] = "robot"
+            self.go_args["x"] = 0
+            l = math.sqrt((m.pallet2world[0] - m.target2world[0]) ** 2 + (m.pallet2world[1] - m.target2world[1]) ** 2)
+            self.go_args["y"] = l-m.contact_di_to_odo
+            # self.go_args["y"] = 1.06/(m.result["yaw"]+1.06)*math.sqrt((m.pallet2world[0] - m.target2world[0]) ** 2 + (m.pallet2world[1] - m.target2world[1]) ** 2)
+            self.go_args["reachDist"] = 0.003
+            self.go_args["reachAngle"] = math.pi
+            self.go_args["useOdo"] = 1
+            self.go_args["maxSpeed"] = self.speed
+            self.go_args["hold_dir"] = (180 / math.pi) * (r.loc().get("angle", 0))
+        if self.goPath.status != MoveStatus.FINISHED or self.goPath.status != MoveStatus.FAILED:
+            self.goPath.run(r, self.go_args)
+        if self.goPath.status == MoveStatus.FINISHED:
+            self.status = MoveStatus.FINISHED
+
+        task_state["status"] = self.status
+        task_state["init"] = self.init
+        task_state["go_args"] = self.go_args
         m.report_data["Translate"] = task_state
 
 
@@ -1737,7 +1863,6 @@ class TranslateByPos:
             self.go_args["useOdo"] = 1
             self.go_args["maxSpeed"] = self.speed
             self.go_args["hold_dir"] = (180 / math.pi) * (r.loc().get("angle", 0))
-            task_state["status"] = self.go_args["hold_dir"]
             self.status = MoveStatus.RUNNING
             self.goPath.status = MoveStatus.RUNNING
         if self.goPath.status != MoveStatus.FINISHED or self.goPath.status != MoveStatus.FAILED:
@@ -1853,7 +1978,7 @@ class SetGoodsModule:
         self.status = MoveStatus.RUNNING
         if self.status != MoveStatus.FINISHED:
             if self.operation == "pick":
-                r.setGoodsShape(1.0, 1.0, 1.0)
+                r.setLocalShelfArea(m.rec_file)
                 self.status = MoveStatus.FINISHED
             if self.operation == "drop":
                 r.clearGoodsShape()
@@ -1889,17 +2014,64 @@ class GetRobotPos:
         m.report_data["SetGoodsModule"] = task_state
 
 
+class SlowTranslate:
+    """缓慢平移小段距离
+    """
+
+    def __init__(self,r):
+        self.goPath = goPath.Module(r, dict())
+        self.init = False
+        self.status = MoveStatus.NONE
+        self.go_args = dict()
+        self.t2world = None
+
+
+    def reset(self, m: Module):
+        self.status = MoveStatus.RUNNING
+
+    def run(self, r: SimModule, m: Module):
+        self.status = MoveStatus.RUNNING
+        task_state = dict()
+        if not self.init:
+            self.init = True
+            robot2world = [r.loc().get("x",None),r.loc().get("y",None),r.loc().get("angle", 0)]
+            x = m.back_dist * math.cos(math.radians(m.angle))*2
+            y = m.back_dist * math.sin(math.radians(m.angle))*2
+            t = [x,y,0]
+            self.t2world = Pos2World(t, robot2world)  # 栈板的世界坐标系
+            self.goPath.status = MoveStatus.RUNNING
+        if self.goPath.status != MoveStatus.FINISHED or self.goPath.status != MoveStatus.FAILED:
+            if self.t2world:
+                self.go_args["coordinate"] = "world"
+                self.go_args["x"] = self.t2world[0]
+                self.go_args["y"] = self.t2world[1]
+                self.go_args["reachDist"] = 0.01
+                self.go_args["reachAngle"] = math.pi
+                self.go_args["useOdo"] = 1
+                self.go_args["maxSpeed"] = 0.03
+                self.go_args["hold_dir"] = (180 / math.pi) * (r.loc().get("angle", 0))
+                task_state["status"] = self.go_args["hold_dir"]
+                self.goPath.run(r, self.go_args)
+        if self.goPath.status == MoveStatus.FINISHED:
+            self.status = MoveStatus.FINISHED
+        task_state["status"] = self.status
+        task_state["go_args"] = self.go_args
+        m.report_data["SlowTranslate"] = task_state
 
 class TranslateStretchByPos:
     """
     边平移边伸叉
     """
     def __init__(self, r: SimModule, action):
-        self.Translate = TranslateByPos(r)
+        if action == 'go':
+            self.Translate = TranslateByRobot(r)
+        if action == 'back':
+            self.Translate = TranslateByPos(r)
         self.Stretch = Stretch(action)
         self.action = action
         self.init = True
         self.status = MoveStatus.NONE
+        self.SlowTranslate = SlowTranslate(r)
 
     def reset(self, m: Module):
         self.status = MoveStatus.RUNNING
@@ -1912,9 +2084,9 @@ class TranslateStretchByPos:
             self.Translate.reset(m)
             self.Stretch.reset(m)
             if self.action == "go":
-                # self.Translate.speed = m.Translate_speed_max_go if not m.mini_speed_on else m.rec_len_mini_speed
                 self.Translate.target_pos = m.pallet2world
                 self.Translate.angel = math.pi/2
+                self.Translate.reachAngle = math.pi
             if self.action == "back":
                 self.Translate.speed = m.Translate_speed_max_back
                 self.Translate.angel = 0.005
@@ -1925,21 +2097,26 @@ class TranslateStretchByPos:
                     r.setError(f"没有获取到机器人坐标{m.robot_pos} ")
         if self.status != MoveStatus.FINISHED and not self.init:
             if self.Translate.status != MoveStatus.FINISHED:
-
-                self.Translate.speed = m.Translate_speed_max_back
                 self.Translate.run(r, m)
             if self.Stretch.status != MoveStatus.FINISHED:
                 self.Stretch.run(r, m)
-            if self.Translate.status == MoveStatus.FINISHED and self.Stretch.status == MoveStatus.FINISHED:
-                self.status = MoveStatus.FINISHED
+
             if self.Translate.status == MoveStatus.FAILED or self.Stretch.status == MoveStatus.FAILED:
                 self.status = MoveStatus.FAILED
         if m.operation == "pick" and self.action == "go" :
             if m.PLC.gantry_sensor_status.StockOnTheFork:
                 self.Translate.status = MoveStatus.FINISHED
+                self.SlowTranslate.status = MoveStatus.FINISHED
+                if self.Stretch.status == MoveStatus.FINISHED:
+                    self.status = MoveStatus.FINISHED
+            if self.Translate.status == MoveStatus.FINISHED and not m.PLC.gantry_sensor_status.StockOnTheFork:
+                if self.SlowTranslate.status != MoveStatus.FINISHED:
+                    self.SlowTranslate.run(r,m)
+        if self.action == "back":
+            if self.Translate.status == MoveStatus.FINISHED and self.Stretch.status == MoveStatus.FINISHED:
+                self.status = MoveStatus.FINISHED
         task_state["status"] = self.status
         task_state["m.robot_pos"] = m.robot_pos
         task_state["action"] = self.action
         task_state["init"] = self.init
         m.report_data["TranslateStretchByPos"] = task_state
-
