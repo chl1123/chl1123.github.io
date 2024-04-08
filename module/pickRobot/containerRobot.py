@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/03/26
+# @Date : 2024/04/08
 # @Author : zhong,CXN
-# @Version : 2.3
+# @Version : 2.4
 # @Project : 智千料箱车
-# @Update : 增加识别货架码取货的方式
+# @Update : 增加指定货叉高度和角度识别一维码数据
 import json
 import math
 import sys
@@ -72,7 +72,7 @@ from robot import ModuleTool, Motor, MotorType, Robot, GoodsManger
     },
     "operation":{
         "value": "zero",
-        "default_value":["load","unload","change","zero","take","put"],
+        "default_value":["load","unload","recBoxBarcode","zero","take","put"],
         "tips": "机构动作选项",
         "type": "complex"
     },
@@ -290,6 +290,7 @@ class Module(BasicModule):
         self.rec_box_lift_step = [False] * 5
         self.zero_step = [False] * 4
         self.zero_by_rbk_step = [False] * 4
+        self.opt_step = [False]*10
         self.yaw_adjust = 0
         self.rec_res = None
         self.rec_id = None
@@ -364,8 +365,8 @@ class Module(BasicModule):
                 elif self.operation == "unload":
                     if self.unload(r):
                         self.status = MoveStatus.FINISHED
-                elif self.operation == "change":
-                    pass
+                elif self.operation == "recBoxBarcode":
+                    self.rec_box_barcode(r)
                 elif self.operation == "take":
                     pass
                 elif self.operation == "put":
@@ -395,7 +396,7 @@ class Module(BasicModule):
                         if self.rec_barcode(r):
                             self.status = MoveStatus.FINISHED
                     elif self.code_type == "code":
-                        if self.rec_QRcode(r):
+                        if self.rec_qrcode(r):
                             self.status = MoveStatus.FINISHED
         r.publishSpeed()
         self.update_report_info(r)
@@ -632,7 +633,25 @@ class Module(BasicModule):
                 self.report_info["barcode"] = "None"
             self.report_info["rec_id"] = self.rec_id
     
-    def rec_QRcode(self, r):
+    def rec_box_barcode(self, r: SimModule):
+        """
+        指定货叉高度和角度位置识别一维码
+        """
+        if time.time() - self.start_time > 20:
+            r.setWarning(f"No code recognized!")
+            self.status = MoveStatus.FAILED
+        if not self.opt_step[0]:
+            self.opt_step[0] = self.lift(r, self.lift_height)
+        if not self.opt_step[1]:
+            self.opt_step[1] = self.rotate(r, self.rotate_pos)
+        if self.opt_step[0] and self.opt_step[1] and not self.opt_step[2]:
+            self.rec_barcode(r)
+            if self.rec_res and self.rec_res.get("status", 1) == 0:
+                self.opt_step[2] = True
+        if all(self.opt_step[0:3]):
+            self.status = MoveStatus.FINISHED
+    
+    def rec_qrcode(self, r):
         """
         识别料箱、货架二维码
         @param r:
