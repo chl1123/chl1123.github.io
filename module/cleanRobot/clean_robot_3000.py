@@ -179,6 +179,7 @@ class Module(BasicModule):
         if task_status in [3, 5, 6]:
             if not self.stop_ok:
                 self.stopV1(r)
+                r.setDO(self.addingWater_do, False)
                 if self.stop_number >= 8:
                     self.stop_ok = True
                     self.stop_number = 0
@@ -217,9 +218,11 @@ class Module(BasicModule):
     #     # r.logInfo("script suspend")
     #     self.status = MoveStatus.SUSPENDED
     #
-    # def cancel(self, r: SimModule):
-    #     # r.logInfo("script cancel")
-    #     self.status = MoveStatus.NONE
+    def cancel(self, r: SimModule):
+        r.logInfo("script cancel")
+        r.setDO(self.addingWater_do, False)
+        self.send_msg(r, "2B 80 30 07 00 00 00 00")
+        self.status = MoveStatus.NONE
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
