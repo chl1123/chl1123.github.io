@@ -393,16 +393,6 @@ class CleanRobot:
         self.has_send = False
         self.send_start = None
         self.send_wait_time = 0.008
-        
-        self.query_brush_cmd_status = WorkingStatus.INIT
-        self.query_jet_cmd_status = WorkingStatus.INIT
-        self.query_suck_cmd_status = WorkingStatus.INIT
-        self.query_brush_lift_cmd_status = WorkingStatus.INIT
-        self.query_mop_lift_cmd_status = WorkingStatus.INIT
-        self.query_water_valve_cmd_status = WorkingStatus.INIT
-        self.query_ball_valve_cmd_status = WorkingStatus.INIT
-        self.query_clean_water_cmd_status = WorkingStatus.INIT
-        self.query_waste_water_cmd_status = WorkingStatus.INIT
         self.query_all_cmd_status = WorkingStatus.INIT
     
     def ctrl_suck(self, r: SimModule, power=0):
@@ -470,84 +460,12 @@ class CleanRobot:
         return self.default_data
     
     def ctrl_open_all(self, r: SimModule):
-        cmd = Cmd.SET_ALL_STD
+        cmd = Cmd.SET_ALL_STD  # 标准功率打开
         self.send_cmd(r, cmd)
     
     def ctrl_close_all(self, r: SimModule):
         cmd = Cmd.SET_ALL_CLOSED
         self.send_cmd(r, cmd)
-    
-    def query_brush(self, r: SimModule):
-        self.query_brush_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_BRUSH)
-        if recv_data[0:2] == RecvCmdType.QUERY and recv_data[6:8] == Mechanism.BRUSH:
-            self.query_brush_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
-    
-    def query_jet_pump(self, r: SimModule):
-        self.query_jet_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_JET_PUMP)
-        if recv_data[0:2] == RecvCmdType.QUERY and recv_data[6:8] == Mechanism.JET_PUMP:
-            self.query_jet_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
-    
-    def query_suck(self, r: SimModule):
-        self.query_suck_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_SUCK)
-        if recv_data[0:2] == RecvCmdType.QUERY and recv_data[6:8] == Mechanism.SUCK:
-            self.query_suck_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
-    
-    def query_brush_lift(self, r: SimModule):
-        self.query_brush_lift_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_BRUSH_LIFT)
-        if recv_data[0:2] == RecvCmdType.QUERY and recv_data[6:8] == Mechanism.BRUSH_LIFT:
-            self.query_brush_lift_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
-    
-    def query_mop_lift(self, r: SimModule):
-        self.query_mop_lift_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_MOP_LIFT)
-        if recv_data[0:2] == RecvCmdType.QUERY and recv_data[6:8] == Mechanism.MOP_LIFT:
-            self.query_mop_lift_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
-    
-    def query_water_valve(self, r: SimModule):
-        self.query_water_valve_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_WATER_VALVE)
-        if recv_data[0:2] == RecvCmdType.QUERY and recv_data[6:8] == Mechanism.WATER_VALVE:
-            self.query_water_valve_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
-    
-    def query_ball_valve(self, r: SimModule):
-        self.query_ball_valve_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_BALL_VALVE)
-        if recv_data[0:2] == RecvCmdType.QUERY and recv_data[6:8] == Mechanism.BALL_VALVE:
-            self.query_ball_valve_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
-    
-    def query_clean_water(self, r: SimModule):
-        self.query_clean_water_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_CLEAN_WATER_LEVEL)
-        if recv_data[0:2] == RecvCmdType.METER and recv_data[6:8] == Meter.CLEAN_WATER_METER:
-            self.query_clean_water_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
-    
-    def query_waste_water(self, r: SimModule):
-        self.query_waste_water_cmd_status = WorkingStatus.RUNNING
-        recv_data = self.send_cmd(r, Cmd.QUERY_WASTE_WATER_LEVEL)
-        if recv_data[0:2] == RecvCmdType.METER and recv_data[6:8] == Meter.WASTE_WATER_METER:
-            self.query_waste_water_cmd_status = WorkingStatus.FINISHED
-            return recv_data
-        return self.default_data
     
     def query_all_info(self, r: SimModule):
         self.query_all_cmd_status = WorkingStatus.RUNNING
@@ -574,17 +492,6 @@ class CleanRobot:
             return hex_str
         return self.default_data
     
-    def init_query_status(self):
-        self.query_brush_cmd_status = WorkingStatus.INIT
-        self.query_jet_cmd_status = WorkingStatus.INIT
-        self.query_suck_cmd_status = WorkingStatus.INIT
-        self.query_brush_lift_cmd_status = WorkingStatus.INIT
-        self.query_mop_lift_cmd_status = WorkingStatus.INIT
-        self.query_water_valve_cmd_status = WorkingStatus.INIT
-        self.query_ball_valve_cmd_status = WorkingStatus.INIT
-        self.query_clean_water_cmd_status = WorkingStatus.INIT
-        self.query_waste_water_cmd_status = WorkingStatus.INIT
-
 
 class WorkingStatus(IntEnum):
     INIT = 0
@@ -595,13 +502,6 @@ class WorkingStatus(IntEnum):
 class WorkState(IntEnum):
     CLOSE = 0
     OPEN = 1
-    
-
-class WorkingPower(IntEnum):
-    FULL = 100
-    HIGH = 80
-    MEDIUM = 50
-    LOW = 25
     
 
 class Mechanism:
