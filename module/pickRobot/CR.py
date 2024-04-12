@@ -546,7 +546,8 @@ class Module(BasicModule):
             FingerCan(r,1),
             Stretch(),
             FingerCan(r,0),
-            Stretch(0)
+            Stretch(0),
+            ReportToRds("load", 1),
         ])
         # 返货完成，发送信号给PLC，并等待返回
         if self.isNeedComm:
@@ -562,7 +563,7 @@ class Module(BasicModule):
             Stretch(0),  # 收手臂
             FingerCan(r,0),  # 关手指
             SetAndClearContainer("set", self.goods_id),
-            ReportToRds("load")
+            ReportToRds("load", 0),
         ])
 
     def unload(self,r):
@@ -831,19 +832,17 @@ class RecHandel:
 
 class ReportToRds:
 
-    def __init__(self,operation = ""):
+    def __init__(self, operation="", value=0):
         self.status = MoveStatus.NONE
         self.operation = operation
+        self.value = value
         self.init = False
 
     def reset(self, r,agv):
         self.status = MoveStatus.RUNNING
 
     def run(self,r: SimModule, m:Module):
-        if self.operation == "load":
-            m.report_info['load_status'] = 1
-        if self.operation == "unload":
-            m.report_info['unload_status'] = 1
+        m.report_info['load_status'] = self.value
         self.status = MoveStatus.FINISHED
         task_state = {"status": self.status, "operation": self.operation, "taskid": m.task_id}
         m.report_info['ReportToRds'] = task_state
