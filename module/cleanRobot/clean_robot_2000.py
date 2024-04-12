@@ -73,13 +73,13 @@ class Module(BasicModule):
         self.rbk_addr2 = 111  # rbk寄存器污水液位数据地址
         
         # 清洁机构工作状态
-        self.brush_status = WorkingStatus.INIT
-        self.jet_status = WorkingStatus.INIT
-        self.suck_status = WorkingStatus.INIT
-        self.brush_lift_status = WorkingStatus.INIT
-        self.mop_lift_status = WorkingStatus.INIT
-        self.clean_valve_status = WorkingStatus.INIT
-        self.waste_valve_status = WorkingStatus.INIT
+        self.brush_status = None
+        self.jet_status = None
+        self.suck_status = None
+        self.brush_lift_status = None
+        self.mop_lift_status = None
+        self.clean_valve_status = None
+        self.waste_valve_status = None
         
         self.period_run_start = time.time()
         self.period_run_counter = 0
@@ -117,10 +117,10 @@ class Module(BasicModule):
         self.report_info["periodRunCounter"] = self.period_run_counter
         self.report_info["taskStatus"] = r.getCurrentTaskStatus()
         self.report_info["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
-        # 同步清洁机器人各机构的工作状态
-        self.update_all_info(r)
         if time.time() - self.period_run_start > 0.5:
             self.period_run_start = time.time()
+            # 同步清洁机器人各机构的工作状态
+            self.update_all_info(r)
             # 同步液位数据到RBK
             self.save_to_rbk(r, self.rbk_addr1, self.filter_clean_water_level())
             self.save_to_rbk(r, self.rbk_addr2, self.filter_waste_water_level())
@@ -157,10 +157,7 @@ class Module(BasicModule):
         else:
             r.setUserError(53910, f"args error: {self.operation}")
             self.status = MoveStatus.FAILED
-        
         self.report_info['args'] = args
-        self.report_info['clean_water'] = self.filter_clean_water_level()
-        self.report_info['waste_water'] = self.filter_waste_water_level()
         self.report_info['operation'] = self.operation
         r.logInfo(f"clean robot info: {json.dumps(self.report_info)}")
         return self.status
@@ -349,17 +346,16 @@ class Module(BasicModule):
         if self.clean_robot.query_all_cmd_status == WorkingStatus.FINISHED:
             self.clean_robot.query_all_cmd_status = WorkingStatus.INIT
             # 报文数据解析
-            if recv_data != self.clean_robot.default_data:
-                state = bin(int(recv_data[12:14], 16))[2:].zfill(8)  # 状态数据变为8位2进制
-                self.clean_water_level = int(recv_data[8:10], 16)  # 清水液位
-                self.waste_water_level = int(recv_data[10:12], 16)  # 污水液位
-                self.jet_status = int(state[6:7])
-                self.brush_status = int(state[5:6])
-                self.suck_status = int(state[4:5])
-                self.waste_valve_status = int(state[3:4])
-                self.clean_valve_status = int(state[2:3])
-                self.mop_lift_status = int(state[1:2])
-                self.brush_lift_status = int(state[0:1])
+            state = bin(int(recv_data[12:14], 16))[2:].zfill(8)  # 状态数据变为8位2进制
+            self.clean_water_level = int(recv_data[8:10], 16)  # 清水液位
+            self.waste_water_level = int(recv_data[10:12], 16)  # 污水液位
+            self.jet_status = int(state[1:2])
+            self.brush_status = int(state[2:3])
+            self.suck_status = int(state[3:4])
+            self.waste_valve_status = int(state[4:5])
+            self.clean_valve_status = int(state[5:6])
+            self.mop_lift_status = int(state[6:7])
+            self.brush_lift_status = int(state[7:8])
         info['suck_state'] = self.suck_status
         info['brush_state'] = self.brush_status
         info['jet_pump_state'] = self.jet_status
@@ -368,8 +364,7 @@ class Module(BasicModule):
         info['ball_valve_state'] = self.waste_valve_status
         info['water_valve_state'] = self.clean_valve_status
         self.report_info["work_status"] = info
-        self.report_info["query_all_cmd_status"] = self.clean_robot.query_all_cmd_status
-
+    
     def suspend(self, r: SimModule):
         r.setWarning(f"script suspend")
         self.status = MoveStatus.SUSPENDED
@@ -392,7 +387,7 @@ class CleanRobot:
         self.default_data = '0'*16
         self.has_send = False
         self.send_start = None
-        self.send_wait_time = 0.008
+        self.send_wait_time = 0.01
         self.query_all_cmd_status = WorkingStatus.INIT
     
     def ctrl_suck(self, r: SimModule, power=0):
@@ -400,6 +395,7 @@ class CleanRobot:
         cmd = cmd[:12] + hex(power)[2:].zfill(2) + cmd[14:]
         recv_data = self.send_cmd(r, cmd)
         if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.SUCK:
+            self.agv.report_info['ctrl_suck'] = recv_data
             return recv_data
         return self.default_data
     
@@ -408,6 +404,7 @@ class CleanRobot:
         cmd = cmd[:12] + hex(power)[2:].zfill(2) + cmd[14:]
         recv_data = self.send_cmd(r, cmd)
         if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.BRUSH:
+            self.agv.report_info['ctrl_brush'] = recv_data
             return recv_data
         return self.default_data
     
@@ -416,6 +413,7 @@ class CleanRobot:
         cmd = cmd[:12] + hex(power)[2:].zfill(2) + cmd[14:]
         recv_data = self.send_cmd(r, cmd)
         if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.JET_PUMP:
+            self.agv.report_info['ctrl_jet_pump'] = recv_data
             return recv_data
         return self.default_data
     
@@ -426,6 +424,7 @@ class CleanRobot:
             cmd = Cmd.BRUSH_LIFT_UP
         recv_data = self.send_cmd(r, cmd)
         if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.BRUSH_LIFT:
+            self.agv.report_info['ctrl_brush_lift'] = recv_data
             return recv_data
         return self.default_data
     
@@ -436,6 +435,7 @@ class CleanRobot:
             cmd = Cmd.MOP_LIFT_UP
         recv_data = self.send_cmd(r, cmd)
         if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.MOP_LIFT:
+            self.agv.report_info['ctrl_mop_lift'] = recv_data
             return recv_data
         return self.default_data
     
@@ -446,6 +446,7 @@ class CleanRobot:
             cmd = Cmd.WATER_VALVE_CLOSE
         recv_data = self.send_cmd(r, cmd)
         if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.WATER_VALVE:
+            self.agv.report_info['ctrl_water_valve'] = recv_data
             return recv_data
         return self.default_data
     
@@ -456,6 +457,7 @@ class CleanRobot:
             cmd = Cmd.BRAIN_BALL_VALVE_CLOSE
         recv_data = self.send_cmd(r, cmd)
         if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.BALL_VALVE:
+            self.agv.report_info['ctrl_ball_valve'] = recv_data
             return recv_data
         return self.default_data
     
@@ -472,24 +474,21 @@ class CleanRobot:
         recv_data = self.send_cmd(r, Cmd.QUERY_ALL_INFO)
         if recv_data[0:2] == RecvCmdType.ALL and recv_data[6:8] == Mechanism.ALL:
             self.query_all_cmd_status = WorkingStatus.FINISHED
+            self.agv.report_info['query_all_info'] = recv_data
             return recv_data
         return self.default_data
     
     def send_cmd(self, r: SimModule, cmd):
-        b64_str, can_id = '', 0
-        if not self.has_send:
+        for i in range(3):
             r.sendCanFrame(self.chanel, self.can_id, self.dlc, self.extend, cmd)
             data = r.getCanFrame()
-            self.has_send = True
             b64_str = data.get('Data', '')
             can_id = data.get('ID', 0)
-            self.send_start = time.time()
-        if self.has_send and time.time() - self.send_start > self.send_wait_time:
-            self.has_send = False
-        hex_str = base64.b64decode(b64_str).hex().upper()
-        self.agv.report_info[cmd] = hex_str
-        if can_id + 128 == self.can_id and (cmd[3:5] + cmd[6:8] + cmd[9:11]) == hex_str[2:8]:
-            return hex_str
+            hex_str = base64.b64decode(b64_str).hex().upper()
+            r.setNotice(f"{cmd}, {hex_str}")
+            if can_id + 128 == self.can_id and (cmd[3:5] + cmd[6:8] + cmd[9:11]) == hex_str[2:8]:
+                return hex_str
+            time.sleep(0.005)
         return self.default_data
     
 
@@ -572,10 +571,7 @@ class MeanValue:
         self.threshold = 10
     
     def add_value(self, v):
-        if not self.data:
-            self.data.append(v)
-        elif abs(v - self.get_mean_value()) < self.threshold:
-            self.data.append(v)
+        self.data.append(v)
         while len(self.data) > self.window_size:
             self.data.pop(0)
     
@@ -584,5 +580,5 @@ class MeanValue:
 
 
 if __name__ == '__main__':
-    print(0 == WorkingStatus.INIT)
-    pass
+    print('' == base64.b64decode('').hex().upper())
+    print(1 == WorkingStatus.RUNNING)

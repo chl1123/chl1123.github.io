@@ -1037,10 +1037,7 @@ class MeanValue:
         self.threshold = 10
 
     def setValue(self, v):
-        if len(self.data) < 10:
-            self.data.append(v)
-        elif abs(v - self.getMeanValue()) < self.threshold:
-            self.data.append(v)
+        self.data.append(v)
         while len(self.data) > self.w:
             self.data.pop(0)
 
