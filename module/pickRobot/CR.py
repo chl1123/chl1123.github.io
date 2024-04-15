@@ -209,6 +209,8 @@ class Module(BasicModule):
                                         unit="m", comment="识别料箱码后抓取料箱时调整高度")
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default=0.02, maxValue=1000.0,
                                           minValue=-1000.0, unit="m", comment="识别货架码后放置料箱时调整高度")
+        self.load_rec_diff_height = p.loadParam("load_rec_diff_height", type="float", default=0.12,  comment="取货识别额外高度")
+        self.unload_rec_diff_height = p.loadParam("unload_rec_diff_height", type="float", default=0.12,  comment="放货识别额外高度")
         self.fork_up_limit = p.loadParam("fork_up_limit", type="int", default=2, maxValue=100, minValue=-1, unit="",
                                          comment="货叉上限位DI")
         self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default=2, maxValue=100, minValue=-1, unit="",
@@ -543,6 +545,7 @@ class Module(BasicModule):
         self.task_list.extend([
             GetContainerPos(r, "load", self.goods_id, self.self_position),  # 获取背篓位置
             Lift(self.lift_height + self.load_height),
+            LiftRec("load", self.lift_height + self.load_height + self.load_rec_diff_height),
             FingerCan(r,1),
             Stretch(),
             FingerCan(r,0),
@@ -582,6 +585,7 @@ class Module(BasicModule):
             ])
         self.task_list.extend([
             RotateAndLift(self.lift_height,self.rotate_pos),
+            LiftRec("unload", self.lift_height + self.unload_height + self.unload_rec_diff_height),
             # FingerCan(r,1),  # 打开手指
             SetAndClearContainer("clear")
             ])
@@ -953,6 +957,35 @@ class Lift(TpModule):
         task_state["taskid"] = m.task_id
 
         m.report_info[f"Lift_{self.height}"] = task_state
+        
+        
+class LiftRec(TpModule):
+    def __init__(self, opt, height):
+        super(LiftRec, self).__init__()
+        self.goods_check_di = 13  # 检测是否有货的DI信号
+        self.opt = opt
+        self.height = height
+        self.lift = Lift(height)
+        self.check_di = ModuleTool.check_DI
+        
+    def run(self, r: SimModule, agv: Module):
+        if self.opt == "load":
+            if self.lift.status is not MoveStatus.FINISHED:
+                self.lift.run(r, agv)
+            elif self.check_di(r, self.goods_check_di):
+                self.status = MoveStatus.FINISHED
+            else:
+                r.setError(f"rec no box. DI {self.goods_check_di} is {self.check_di(r, self.goods_check_di)}")
+                self.status = MoveStatus.FAILED
+        elif self.opt == "unload":
+            if self.lift.status is not MoveStatus.FINISHED:
+                self.lift.run(r, agv)
+            elif self.check_di(r, self.goods_check_di):
+                r.setError(f"shelf already has box. DI {self.goods_check_di} is {self.check_di(r, self.goods_check_di)}")
+                self.status = MoveStatus.FAILED
+            else:
+                self.status = MoveStatus.FINISHED
+        
 
 class RotateAndLift(TpModule):
     """
@@ -1231,7 +1264,6 @@ class FingerCan(TpModule):
         self.finger_status["time"] = time.time() - time_start_finger
 
 
-
 class FingerCanOpen(TpModule):
     def __init__(self,r:SimModule,position):
         super().__init__()
@@ -1303,7 +1335,6 @@ class FingerCanOpen(TpModule):
                 "finger_right_code":finger_right_code,
                 "times":time.time()- time_start_finger
             }
-
 
 
 class FingerCanClose(TpModule):

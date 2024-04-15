@@ -647,6 +647,7 @@ class Module(BasicModule):
         if self.opt_step[0] and self.opt_step[1] and not self.opt_step[2]:
             self.rec_barcode(r)
             if self.rec_res and self.rec_res.get("status", 1) == 0:
+                self.report_info["barcode"] = self.rec_res['barCode']
                 self.opt_step[2] = True
         if all(self.opt_step[0:3]):
             self.status = MoveStatus.FINISHED
