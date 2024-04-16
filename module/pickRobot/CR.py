@@ -544,8 +544,8 @@ class Module(BasicModule):
         # 取货到抓斗
         self.task_list.extend([
             GetContainerPos(r, "load", self.goods_id, self.self_position),  # 获取背篓位置
-            Lift(self.lift_height + self.load_height),
             LiftRec("load", self.lift_height + self.load_height + self.load_rec_diff_height),
+            Lift(self.lift_height + self.load_height),
             FingerCan(r,1),
             Stretch(),
             FingerCan(r,0),
