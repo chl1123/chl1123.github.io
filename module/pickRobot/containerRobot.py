@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/04/08
-# @Author : zhong,CXN
-# @Version : 2.4
+# @Date : 2024/04/16
+# @Author : zhong
+# @Version : 2.5
 # @Project : 智千料箱车
-# @Update : 增加指定货叉高度和角度识别一维码数据
+# @Update : 完善N+1功能报错机制
 import json
 import math
 import sys
@@ -218,11 +218,11 @@ class Module(BasicModule):
                                                comment="伸缩电机运转速度")
         self.rotate_motor_speed = p.loadParam("rotate_motor_speed", type="float", default=1.5,
                                               comment="旋转电机运转速度")
-        self.lift_motor_name = p.loadParam("lift_motor_name", type="str", default="lift", comment="lift_motor_name")
+        self.lift_motor_name = p.loadParam("lift_motor_name", type="str", default="lift", comment="升降电机名称")
         self.stretch_motor_name = p.loadParam("stretch_motor_name", type="str", default="stretch",
-                                              comment="stretch_motor_name")
+                                              comment="伸缩电机名称")
         self.rotate_motor_name = p.loadParam("rotate_motor_name", type="str", default="rotate",
-                                             comment="rotate_motor_name")
+                                             comment="旋转电机名称")
         # 以下是自动计算取放货伸手的长度
         self.auto_stretch_box_len = p.loadParam("auto_stretch_box_len", type="float", default=0.6, maxValue=100,
                                                 minValue=-1, unit="", comment="箱子长度")
@@ -776,15 +776,15 @@ class Module(BasicModule):
                     self.status = MoveStatus.FAILED
                 self.cur_c = self.self_position
             else:
-                if self.goods_manger.has_goods("999"):
+                if self.goods_manger.has_goods("999"):   # 抓斗有货
                     self.cur_c = "999"
+                    if self.goods_manger.get_goodsId_by_container("999") != self.goods_id:
+                        r.setPickRobotError(53820, f"Container 999 has goods, can not unload other goods first!")
+                        self.status = MoveStatus.FAILED
+                        return
                 else:
                     self.cur_c = self.goods_manger.get_container_by_goodsId(self.goods_id)
-            if self.goods_manger.has_goods("999"):  # 抓斗有货
-                if self.cur_c != "999":
-                    r.setPickRobotError(53820, f"Container 999 has goods,but goodsId error, can not unload")
-                    self.status = MoveStatus.FAILED
-                    return
+                    
             if not self.cur_c:
                 r.setPickRobotError(53825, f"Goods {self.goods_id} not found, can not unload!")
                 self.status = MoveStatus.FAILED
@@ -1165,6 +1165,7 @@ if __name__ == '__main__':
     sim = SimModule()
     args1 = {}
     m = Module(sim, args1)
+    rec = RecAdjust(sim, '')
     counter = 0
     while m.status is not MoveStatus.FAILED and m.status is not MoveStatus.FINISHED:
         m.run(sim, args1)
