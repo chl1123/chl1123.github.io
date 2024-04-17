@@ -228,6 +228,10 @@ class Module(BasicModule):
                                               comment="stretch_motor_name")
         self.rotate_motor_name = p.loadParam("rotate_motor_name", type="str", default="rotate",
                                              comment="rotate_motor_name")
+        self.lift_height_after_clamp = p.loadParam("lift_height_after_clamp", type="float", default=0.035,
+                                                   comment="抱夹抓取物料后上升的高度")
+        self.lift_height_before_clamp = p.loadParam("lift_height_before_clamp", type="float", default=0.035,
+                                                      comment="抱夹松开物料前下降的高度")
         # 以下是自动计算取放货伸手的长度
         self.auto_stretch_box_len = p.loadParam("auto_stretch_box_len", type="float", default=0.6, maxValue=100,
                                                 minValue=-1, unit="", comment="箱子长度")
@@ -754,28 +758,32 @@ class Module(BasicModule):
             elif self.load_step[5] and not self.load_step[6]:
                 self.load_step[6] = self.clamp(r, self.clamp_pos)
             elif self.load_step[6] and not self.load_step[7]:
-                self.load_step[7] = self.stretch(r, 0)
-            elif self.load_step[7] and (not self.load_step[8] or not self.load_step[9]):
-                if not self.load_step[8]:
-                    self.load_step[8] = self.rotate(r, 0)
+                self.load_step[7] = self.lift(r, self.lift_height + self.load_height + self.lift_height_after_clamp)
+            elif self.load_step[7] and not self.load_step[8]:
+                self.load_step[8] = self.stretch(r, 0)
+            elif self.load_step[8] and (not self.load_step[9] or not self.load_step[10]):
+                if not self.load_step[9]:
+                    self.load_step[9] = self.rotate(r, 0)
                 if self.cur_c == "999":
-                    self.load_step[:14] = [True] * 14
+                    self.load_step[:15] = [True] * 14
                 else:
-                    if not self.load_step[9]:
-                        self.load_step[9] = self.lift(r, self.high[int(self.cur_c)])
-            elif self.load_step[8] and self.load_step[9] and not self.load_step[10]:
-                self.load_step[10] = self.stretch(r, self.stretch_length)
-            elif self.load_step[10] and not self.load_step[11]:
-                self.load_step[11] = self.clamp(r, 0)
-            elif self.load_step[11] and not self.load_step[12]:
-                self.load_step[12] = self.stretch(r, 0)
+                    if not self.load_step[10]:
+                        self.load_step[10] = self.lift(r, self.high[int(self.cur_c)])
+            elif self.load_step[9] and self.load_step[10] and not self.load_step[11]:
+                self.load_step[11] = self.stretch(r, self.stretch_length)
+            elif self.load_step[12] and not self.load_step[13]:
+                self.load_step[12] = self.lift(r, self.high[int(self.cur_c)] - self.lift_height_before_clamp)
+            elif self.load_step[12] and not self.load_step[13]:
+                self.load_step[13] = self.clamp(r, 0)
+            elif self.load_step[13] and not self.load_step[14]:
+                self.load_step[14] = self.stretch(r, 0)
             
             load_info['load_step'] = self.load_step
             load_info['cur_container'] = self.cur_c
             load_info['goodsId'] = self.goods_id
             load_info['load_step'] = self.load_step
             self.report_info["load_info"] = load_info
-            if all(self.load_step[:13]):
+            if all(self.load_step[:15]):
                 # 在完成取货的所有动作后，增加背篓货物数据
                 r.setContainer(self.cur_c, self.goods_id, "")
                 return True
@@ -822,7 +830,11 @@ class Module(BasicModule):
                 elif self.unload_step[1] and self.unload_step[2] and not self.unload_step[3]:
                     self.unload_step[3] = self.stretch(r, self.stretch_length)
                 elif self.unload_step[3] and not self.unload_step[4]:
-                    self.unload_step[4] = self.clamp(r, self.clamp_pos)
+                    if not self.change_step[0]:
+                        self.change_step[0] = self.clamp(r, self.clamp_pos)
+                    elif self.change_step[0] and not self.change_step[1]:
+                        self.change_step[1] = self.lift(r, self.low[int(self.cur_c)] + self.lift_height_after_clamp)
+                    self.unload_step[4] = self.change_step[0] and self.change_step[1]
                 elif self.unload_step[4] and not self.unload_step[5]:
                     if all(self.unload_step[:6]) and (not self.unload_step[6] or not self.unload_step[7]):
                         if not self.unload_step[6]:
@@ -899,7 +911,11 @@ class Module(BasicModule):
             elif self.unload_step[9] and not self.unload_step[10]:
                 self.unload_step[10] = self.stretch(r, self.stretch_length)
             elif self.unload_step[10] and not self.unload_step[11]:
-                self.unload_step[11] = self.clamp(r, 0)
+                if not self.change_step[2]:
+                    self.change_step[2] = self.lift(r, self.lift_height + self.unload_height - self.lift_height_before_clamp)
+                elif self.change_step[2] and not self.change_step[3]:
+                    self.change_step[3] = self.clamp(r, 0)
+                self.unload_step[11] = self.change_step[2] and self.change_step[3]
             elif self.unload_step[11] and not self.unload_step[12]:
                 self.unload_step[12] = self.stretch(r, 0)
             elif self.unload_step[12] and not self.unload_step[13]:
@@ -910,7 +926,7 @@ class Module(BasicModule):
             unload_info['goodsId'] = self.goods_id
             self.report_info["unload_info"] = unload_info
         
-        if all(self.unload_step):
+        if all(self.unload_step[:14]):
             # 在所有的动作完成后，将自身背篓的获取清除
             r.clearContainer(self.cur_c)
             # r.clearContainerByGoodsId(self.goods_id)
