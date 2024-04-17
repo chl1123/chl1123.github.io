@@ -61,6 +61,7 @@ class Module(BasicModule):
         # 顶升电机名称
         self.lift_motor_name = "lift"
         
+        self.stop_belt_timer = 120   # 皮带启动后计时, 定时停止皮带的时长, 单位：秒
         self.unload_delay_time = 2  # 下料延时停止时间
         self.opt = args.get("operation", None)
         self.side = args.get("side", None)
@@ -76,6 +77,9 @@ class Module(BasicModule):
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
+        if time.time() - self.start_time > self.stop_belt_timer:
+            self.stop(r)
+            self.status = MoveStatus.FINISHED
         if not self.init:
             self.init = True
             self.close_do(r)
