@@ -62,7 +62,8 @@ class Module(BasicModule):
         self.suck_power = p.loadParam("suck_power", type="int", default=50, comment="吸风电机默认功率")
         self.jet_power = p.loadParam("jet_power", type="int", default=20, comment="喷水泵电机默认功率")
         
-        self.add_water_delay_time = p.loadParam("add_water_delay_time", type="float", default=5.0, comment="加水延时关闭时间")
+        self.add_water_delay_time = p.loadParam("add_water_delay_time", type="float", default=5.0,
+                                                comment="加水延时关闭时间")
         
         self.ip = "127.0.0.1"  # 机器人上报数据 ip
         self.port = 502
@@ -83,6 +84,7 @@ class Module(BasicModule):
         
         self.period_run_start = time.time()
         self.period_run_counter = 0
+        self.opt_run_counter = 0
         self.report_info = {}
         self.status = MoveStatus.NONE
         self.operation = None
@@ -90,6 +92,7 @@ class Module(BasicModule):
         self.period_init = False
         self.wash_start_time = None
         self.add_water_time_start = None
+        self.send2rbk_start = None
         
         self.clean_robot = CleanRobot(self)
         self.clean_water_level = 50
@@ -102,13 +105,15 @@ class Module(BasicModule):
         self.period_run_counter += 1
         if not self.period_init:
             self.period_init = True
+        if not self.is_connected:
+            self.connect(r)
         clean_robot = dict()
         clean_robot["cleanWaterLevel"] = self.filter_clean_water_level()
         clean_robot["wasteWaterLevel"] = self.filter_waste_water_level()
         agv_speed = dict()
-        agv_speed['x'] = r.getNextSpeed()['x']
-        agv_speed['y'] = r.getNextSpeed()['y']
-        agv_speed['rotate'] = r.getNextSpeed()['rotate']
+        agv_speed['x'] = round(r.getNextSpeed()['x'], 6)
+        agv_speed['y'] = round(r.getNextSpeed()['y'], 6)
+        agv_speed['rotate'] = round(r.getNextSpeed()['rotate'], 6)
         self.report_info["cleanRobot"] = clean_robot
         self.report_info["connected"] = self.is_connected
         self.report_info["scriptStatus"] = self.status
@@ -117,13 +122,12 @@ class Module(BasicModule):
         self.report_info["periodRunCounter"] = self.period_run_counter
         self.report_info["taskStatus"] = r.getCurrentTaskStatus()
         self.report_info["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
+        # 同步清洁机器人各机构的工作状态
+        self.update_all_info(r)
+        # 同步液位数据到RBK
+        self.save_to_rbk(r)
         if time.time() - self.period_run_start > 0.5:
             self.period_run_start = time.time()
-            # 同步清洁机器人各机构的工作状态
-            self.update_all_info(r)
-            # 同步液位数据到RBK
-            self.save_to_rbk(r, self.rbk_addr1, self.filter_clean_water_level())
-            self.save_to_rbk(r, self.rbk_addr2, self.filter_waste_water_level())
             # 根据任务状态处理业务逻辑
             self.update_by_task_status(r)
             # 数据上报及日志打印
@@ -132,6 +136,7 @@ class Module(BasicModule):
         return True
     
     def run(self, r: SimModule, args: dict):
+        self.opt_run_counter += 1
         self.status = MoveStatus.RUNNING
         if not self.init:
             self.init = True
@@ -159,6 +164,7 @@ class Module(BasicModule):
             self.status = MoveStatus.FAILED
         self.report_info['args'] = args
         self.report_info['operation'] = self.operation
+        # r.setInfo(json.dumps(self.report_info))
         r.logInfo(f"clean robot info: {json.dumps(self.report_info)}")
         return self.status
     
@@ -168,16 +174,13 @@ class Module(BasicModule):
         if task_status == 2:  # Running
             # TODO 根据AGV速度处理业务逻辑
             if self.operation == "WashStart":
-                if (agv_speed['x'] < 0.1 or agv_speed['rotate'] > agv_speed['x']) \
-                        and (self.jet_status == WorkingStatus.RUNNING):
-                    self.clean_robot.ctrl_jet_pump(r, 0)
-                elif self.jet_status != WorkingStatus.RUNNING:
-                    self.clean_robot.ctrl_jet_pump(r, self.jet_power)
+                if agv_speed['x'] > 0.1:
+                    self.wash_start(r)
+                if agv_speed['x'] < 0.05:
+                    self.wash_suspend(r)
         # TODO 根据任务状态处理业务逻辑
         elif task_status == 3:  # Suspended
-            self.wash_end(r)
-        elif task_status == 4:  # Completed
-            self.wash_end(r)
+            self.wash_suspend(r)
         elif task_status == 5:  # Failed
             self.wash_end(r)
         elif task_status == 6:  # Canceled
@@ -192,7 +195,7 @@ class Module(BasicModule):
             self.is_connected = True
     
     @staticmethod
-    def pack(addr, v):
+    def data_pack(addr, v):
         def crc16(data):
             """
             计算 Modbus CRC16 校验码
@@ -207,16 +210,19 @@ class Module(BasicModule):
                     else:
                         crc >>= 1
             return crc
+        
         # 构造 Modbus TCP 协议中的 PDU
         unit_id = 1  # Modbus device 的 unit id
         func_code = 6  # 写单个寄存器的功能码
         register_addr = addr  # 寄存器地址，假设为 4x0001
         register_value1 = v  # 待写入的值，假设为 0xFFFF
+        
         pdu = bytearray()
         pdu += unit_id.to_bytes(1, byteorder='big')
         pdu += func_code.to_bytes(1, byteorder='big')
         pdu += register_addr.to_bytes(2, byteorder='big')
         pdu += register_value1.to_bytes(2, byteorder='big')
+        
         # 构造 Modbus TCP 的 ADU
         transaction_id = 1  # Modbus' transaction id，此处设为 1
         protocol_id = 0  # Modbus protocol id，此处设为 0
@@ -231,14 +237,18 @@ class Module(BasicModule):
         adu += crc16.to_bytes(2, byteorder='big')
         return adu
     
-    def save_to_rbk(self, r: SimModule, addr, value):
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def save_to_rbk(self, r: SimModule):
+        timer = round(time.time() - int(time.time()), 2)
         try:
-            client_socket.connect((self.ip, self.port))
-            client_socket.sendall(self.pack(addr, value))
-            response_adu = client_socket.recv(1024)
-            r.logDebug(f"response_adu: {response_adu}")
-            client_socket.close()
+            if timer < 0.5:
+                self.tcp_client.sendall(self.data_pack(self.rbk_addr1, int(self.filter_clean_water_level())))
+                self.tcp_client.recv(1024)
+                response_adu = 1
+            else:
+                self.tcp_client.sendall(self.data_pack(self.rbk_addr1, int(self.filter_clean_water_level())))
+                self.tcp_client.recv(1024)
+                response_adu = 2
+            self.report_info['response_adu'] = response_adu
         except Exception as e:
             r.logDebug(f"save_to_rbk error: {e}")
     
@@ -246,10 +256,10 @@ class Module(BasicModule):
         self.status = MoveStatus.RUNNING
         if self.brush_lift_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_brush_lift(r, WorkState.OPEN)
-        elif self.mop_lift_status != WorkingStatus.RUNNING:
+        if self.mop_lift_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mop_lift(r, WorkState.OPEN)
         elif self.clean_valve_status != WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_water_valve(r, WorkState.OPEN)
+            self.clean_robot.ctrl_clean_valve(r, WorkState.OPEN)
         elif self.suck_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_suck(r, self.suck_power)
         elif self.brush_status != WorkingStatus.RUNNING:
@@ -272,9 +282,19 @@ class Module(BasicModule):
         elif self.mop_lift_status != WorkingStatus.INIT:
             self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
         elif self.clean_valve_status != WorkingStatus.INIT:
-            self.clean_robot.ctrl_water_valve(r, WorkState.CLOSE)
+            self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
         else:
             self.status = MoveStatus.FINISHED
+            
+    def wash_suspend(self, r: SimModule):
+        if self.jet_status == WorkingStatus.RUNNING:
+            self.clean_robot.ctrl_jet_pump(r, 0)
+        if self.brush_status == WorkingStatus.RUNNING:
+            self.clean_robot.ctrl_brush(r, 0)
+        if self.suck_status == WorkingStatus.RUNNING:
+            self.clean_robot.ctrl_suck(r, 0)
+        if self.clean_valve_status == WorkingStatus.RUNNING:
+            self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
     
     def dust_start(self, r: SimModule):
         self.status = MoveStatus.RUNNING
@@ -291,17 +311,22 @@ class Module(BasicModule):
             self.status = MoveStatus.FINISHED
     
     def add_water(self, r: SimModule):
-        # 加清水
+        is_charging = r.battery().get("is_charging", False)
+        if is_charging:
+            # 加水排污
+            r.setDO(self.add_water_do, True)
+            self.clean_robot.ctrl_waste_valve(r, WorkState.OPEN)
+        else:
+            r.setDO(self.add_water_do, False)
+            self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
+            r.setError(f"Not in charging state!")
+            self.status = MoveStatus.FAILED
+            
         if self.clean_water_level > self.max_clean_water_level:
             r.setDO(self.add_water_do, False)
-        elif self.clean_water_level < self.min_clean_water_level:
-            r.setDO(self.add_water_do, True)
         
-        # 排污水
         if self.waste_water_level < self.min_waste_water_level:
-            self.clean_robot.ctrl_ball_valve(r, WorkState.CLOSE)
-        else:
-            self.clean_robot.ctrl_ball_valve(r, WorkState.OPEN)
+            self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
         
         if self.waste_water_level < self.min_waste_water_level and self.clean_water_level > self.max_clean_water_level:
             if not self.add_water_time_start:
@@ -312,18 +337,18 @@ class Module(BasicModule):
     
     def close_ball_valve(self, r: SimModule):
         if self.waste_valve_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_ball_valve(r, WorkState.CLOSE)
+            self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
         else:
             self.status = MoveStatus.FINISHED
-            
+    
     def filter_clean_water_level(self):
         self.clean_filter.add_value(self.clean_water_level)
         return self.clean_filter.get_mean_value()
-        
+    
     def filter_waste_water_level(self):
         self.waste_filter.add_value(self.waste_water_level)
         return self.waste_filter.get_mean_value()
-
+    
     def update_all_info(self, r: SimModule):
         """
         CAN报文数据解析:
@@ -361,8 +386,8 @@ class Module(BasicModule):
         info['jet_pump_state'] = self.jet_status
         info['mop_lift_state'] = self.mop_lift_status
         info['brush_lift_state'] = self.brush_lift_status
-        info['ball_valve_state'] = self.waste_valve_status
-        info['water_valve_state'] = self.clean_valve_status
+        info['waste_valve_state'] = self.waste_valve_status
+        info['clean_valve_state'] = self.clean_valve_status
         self.report_info["work_status"] = info
     
     def suspend(self, r: SimModule):
@@ -372,7 +397,7 @@ class Module(BasicModule):
     def cancel(self, r: SimModule):
         r.setWarning(f"script cancel")
         r.setDO(self.add_water_do, False)
-        self.clean_robot.ctrl_ball_valve(r, WorkState.CLOSE)
+        self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
         self.status = MoveStatus.NONE
 
 
@@ -384,7 +409,7 @@ class CleanRobot:
         self.extend = False
         self.agv = module_obj
         self.brush_start_time = None
-        self.default_data = '0'*16
+        self.default_data = '0' * 16
         self.has_send = False
         self.send_start = None
         self.send_wait_time = 0.01
@@ -394,7 +419,7 @@ class CleanRobot:
         cmd = Cmd.SUCK
         cmd = cmd[:12] + hex(power)[2:].zfill(2) + cmd[14:]
         recv_data = self.send_cmd(r, cmd)
-        if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.SUCK:
+        if recv_data[0:8] == "60803001":
             self.agv.report_info['ctrl_suck'] = recv_data
             return recv_data
         return self.default_data
@@ -403,7 +428,7 @@ class CleanRobot:
         cmd = Cmd.BRUSH
         cmd = cmd[:12] + hex(power)[2:].zfill(2) + cmd[14:]
         recv_data = self.send_cmd(r, cmd)
-        if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.BRUSH:
+        if recv_data[0:8] == "60803002":
             self.agv.report_info['ctrl_brush'] = recv_data
             return recv_data
         return self.default_data
@@ -412,52 +437,52 @@ class CleanRobot:
         cmd = Cmd.JET_PUMP
         cmd = cmd[:12] + hex(power)[2:].zfill(2) + cmd[14:]
         recv_data = self.send_cmd(r, cmd)
-        if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.JET_PUMP:
+        if recv_data[0:8] == "60803003":
             self.agv.report_info['ctrl_jet_pump'] = recv_data
             return recv_data
         return self.default_data
     
     def ctrl_brush_lift(self, r: SimModule, state):
-        if state is WorkState.CLOSE:
+        
+        if state is WorkState.OPEN:
             cmd = Cmd.BRUSH_LIFT_DOWN
         else:
             cmd = Cmd.BRUSH_LIFT_UP
         recv_data = self.send_cmd(r, cmd)
-        if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.BRUSH_LIFT:
+        if recv_data[0:8] == "60803004":
             self.agv.report_info['ctrl_brush_lift'] = recv_data
             return recv_data
         return self.default_data
     
     def ctrl_mop_lift(self, r: SimModule, state):
-        if state is WorkState.CLOSE:
+        if state is WorkState.OPEN:
             cmd = Cmd.MOP_LIFT_DOWN
         else:
             cmd = Cmd.MOP_LIFT_UP
         recv_data = self.send_cmd(r, cmd)
-        if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.MOP_LIFT:
+        if recv_data[0:8] == "60803005":
             self.agv.report_info['ctrl_mop_lift'] = recv_data
             return recv_data
         return self.default_data
     
-    def ctrl_water_valve(self, r: SimModule, state):
+    def ctrl_clean_valve(self, r: SimModule, state):
         if state is WorkState.OPEN:
             cmd = Cmd.WATER_VALVE_OPEN
         else:
             cmd = Cmd.WATER_VALVE_CLOSE
         recv_data = self.send_cmd(r, cmd)
-        if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.WATER_VALVE:
-            self.agv.report_info['ctrl_water_valve'] = recv_data
+        if recv_data[0:8] == "60803006":
+            self.agv.report_info['ctrl_clean_valve'] = recv_data
             return recv_data
         return self.default_data
     
-    def ctrl_ball_valve(self, r: SimModule, state):
+    def ctrl_waste_valve(self, r: SimModule, state):
         if state is WorkState.OPEN:
             cmd = Cmd.BRAIN_BALL_VALVE_OPEN
         else:
             cmd = Cmd.BRAIN_BALL_VALVE_CLOSE
         recv_data = self.send_cmd(r, cmd)
-        if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == Mechanism.BALL_VALVE:
-            self.agv.report_info['ctrl_ball_valve'] = recv_data
+        if recv_data[0:8] == "60803007":
             return recv_data
         return self.default_data
     
@@ -472,25 +497,22 @@ class CleanRobot:
     def query_all_info(self, r: SimModule):
         self.query_all_cmd_status = WorkingStatus.RUNNING
         recv_data = self.send_cmd(r, Cmd.QUERY_ALL_INFO)
-        if recv_data[0:2] == RecvCmdType.ALL and recv_data[6:8] == Mechanism.ALL:
+        if recv_data[:8] == "43034000":
             self.query_all_cmd_status = WorkingStatus.FINISHED
             self.agv.report_info['query_all_info'] = recv_data
             return recv_data
         return self.default_data
     
     def send_cmd(self, r: SimModule, cmd):
-        for i in range(3):
-            r.sendCanFrame(self.chanel, self.can_id, self.dlc, self.extend, cmd)
-            data = r.getCanFrame()
-            b64_str = data.get('Data', '')
-            can_id = data.get('ID', 0)
-            hex_str = base64.b64decode(b64_str).hex().upper()
-            r.setNotice(f"{cmd}, {hex_str}")
-            if can_id + 128 == self.can_id and (cmd[3:5] + cmd[6:8] + cmd[9:11]) == hex_str[2:8]:
-                return hex_str
-            time.sleep(0.005)
+        r.sendCanFrame(self.chanel, self.can_id, self.dlc, self.extend, cmd)
+        data = r.getCanFrame()
+        b64_str = data.get('Data', '')
+        can_id = data.get('ID', 0)
+        hex_str = base64.b64decode(b64_str).hex().upper()
+        if can_id + 128 == self.can_id:
+            return hex_str
         return self.default_data
-    
+
 
 class WorkingStatus(IntEnum):
     INIT = 0
@@ -501,7 +523,7 @@ class WorkingStatus(IntEnum):
 class WorkState(IntEnum):
     CLOSE = 0
     OPEN = 1
-    
+
 
 class Mechanism:
     ALL = '00'
@@ -512,18 +534,6 @@ class Mechanism:
     MOP_LIFT = '05'
     WATER_VALVE = '06'
     BALL_VALVE = '07'
-
-
-class Meter:
-    CLEAN_WATER_METER = '03'
-    WASTE_WATER_METER = '04'
-
-
-class RecvCmdType:
-    CTRL = '60'
-    QUERY = '4B'
-    METER = '43'
-    ALL = '43'
 
 
 class Cmd:
@@ -550,15 +560,15 @@ class Cmd:
     QUERY_MOP_LIFT = "40 80 30 05 00 00 00 00"  # 查询水扒升降信息
     QUERY_WATER_VALVE = "40 80 30 06 00 00 00 00"  # 查询喷水阀信息
     QUERY_BALL_VALVE = "40 80 30 07 00 00 00 00"  # 查询排水球阀信息
-
+    
     QUERY_CLEAN_WATER_LEVEL = "40 8B 30 03 00 00 00 00"  # 查询清水液位计
     QUERY_WASTE_WATER_LEVEL = "40 8B 30 04 00 00 00 00"  # 查询污水液位计
-
+    
     SET_CAN_TIMEOUT = "2B 01 40 00 00 00 00 00"  # 设置CAN通信超时时间, 2字节
-    SET_ALL_STD = "23 02 40 00 32 43 1E 07"   # 以标准功率设定全部机构
-    SET_ALL_LOW = "23 02 40 00 28 32 14 07"   # 以低档模式设定全部机构
-    SET_ALL_HIGH = "23 02 40 00 46 50 32 07"   # 以高档模式设定全部机构
-    SET_ALL_CLOSED = "23 02 40 00 00 00 00 00"   # 设定全部机构关闭
+    SET_ALL_STD = "23 02 40 00 32 43 1E 07"  # 以标准功率设定全部机构
+    SET_ALL_LOW = "23 02 40 00 28 32 14 07"  # 以低档模式设定全部机构
+    SET_ALL_HIGH = "23 02 40 00 46 50 32 07"  # 以高档模式设定全部机构
+    SET_ALL_CLOSED = "23 02 40 00 00 00 00 00"  # 设定全部机构关闭
     QUERY_ALL_INFO = "40 03 40 00 00 00 00 00"  # 查询所有机构的运行状态
 
 
@@ -576,7 +586,7 @@ class MeanValue:
             self.data.pop(0)
     
     def get_mean_value(self) -> float:
-        return round(sum(self.data) / len(self.data), 5)
+        return round(sum(self.data) / len(self.data), 3)
 
 
 if __name__ == '__main__':
