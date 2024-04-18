@@ -297,7 +297,7 @@ class Module(BasicModule):
         self.rotate_motor = Motor(r, MotorType.LINEAR_MOTOR, self.rotate_motor_name, -1)
         self.clamp_motor = Motor(r, MotorType.LINEAR_MOTOR, self.clamp_motor_name, -1)
         self.load_step = [False] * 15
-        self.unload_step = [False] * 16
+        self.unload_step = [False] * 14
         self.change_step = [False] * 10
         self.rec_box_lift_step = [False] * 5
         self.zero_step = [False] * 4
@@ -532,15 +532,13 @@ class Module(BasicModule):
         if height > self.max_lift_height:
             r.setError(f"Out of the max lift height: {height}")
             return False
-        if self.stretch_real_pos > self.safe_stretch_length:
-            r.setError(f"stretch need to be zero, cannot lift")
+        # if self.stretch_real_pos > self.safe_stretch_length:
+        #     r.setError(f"stretch need to be zero, cannot lift")
         if height < self.level2_height:
             if self.container_robot.lift(self.lift_motor, height, self.lift_motor_speed):
                 return True
         else:
             r.setWarning(f"Out of the level2_height: {height}")
-            # if self.container_robot.lift_door(self.lift_door_motor, self.door_lift_height):
-            # if self.container_robot.lift(self.lift_motor, height):
             return True
         return False
     
@@ -771,7 +769,7 @@ class Module(BasicModule):
                         self.load_step[10] = self.lift(r, self.high[int(self.cur_c)])
             elif self.load_step[9] and self.load_step[10] and not self.load_step[11]:
                 self.load_step[11] = self.stretch(r, self.stretch_length)
-            elif self.load_step[12] and not self.load_step[13]:
+            elif self.load_step[11] and not self.load_step[12]:
                 self.load_step[12] = self.lift(r, self.high[int(self.cur_c)] - self.lift_height_before_clamp)
             elif self.load_step[12] and not self.load_step[13]:
                 self.load_step[13] = self.clamp(r, 0)
