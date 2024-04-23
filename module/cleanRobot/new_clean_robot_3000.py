@@ -313,11 +313,14 @@ class Module(BasicModule):
                 r.setInfo(json.dumps(self.report_info))
                 r.logInfo(json.dumps(self.report_info))
         except Exception as e:
-            print("error periodrun!")
+            SetAid.add_to_dict(self.report_info,("periodrunerror",str(e)))
+            r.setInfo(json.dumps(self.report_info))
+            r.logInfo(json.dumps(self.report_info))
         return True
     
     def run(self, r: SimModule, args: dict):
         self.status = MoveStatus.RUNNING
+        #self.update_all_info(r)
         if not self.init:
             self.init = True
             self.operation = args.get("operation", None)
@@ -330,14 +333,14 @@ class Module(BasicModule):
         if self.operation in self.function_dict:
             func_name = self.function_dict[self.operation]
             # 根据函数名获取函数对象，并调用
+            SetAid.add_to_dict(self.report_info,("func_name",func_name))
             getattr(self, func_name)(r)
         else:
             r.setUserError(53910, f"args error: {self.operation}")
             self.status = MoveStatus.FAILED
-    
+
         SetAid.add_to_dict(self.report_info,('args',args),('clean_water',self.clean_water_level),('waste_water',self.waste_water_level),('operation',self.operation))
- 
-        #r.setInfo(json.dumps(self.report_info))
+        r.setInfo(json.dumps(self.report_info))
         r.logInfo(f"clean robot info: {json.dumps(self.report_info)}")
         return self.status
     
@@ -485,7 +488,6 @@ class Module(BasicModule):
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'mop_lift', WorkState.OPEN)
         else:
             self.status = MoveStatus.FINISHED
-
     
     def dust_end(self, r: SimModule):
         self.status = MoveStatus.RUNNING
@@ -552,27 +554,28 @@ class Module(BasicModule):
         585: 43 03 40 00 64 63 10 00
         """
         info = {}
-        recv_data = self.clean_robot.query_mechanism(self.can_arch64,r,"all_info")
-        if self.clean_robot.query_all_cmd_status == WorkingStatus.FINISHED:
-            self.clean_robot.query_all_cmd_status = WorkingStatus.INIT
+        recv_data = self.clean_robot.query_all_info(self.can_arch64,r)
+        if self.clean_robot.query_all_cmd_status == WorkingStatus.FINISHED:#2
+            self.clean_robot.query_all_cmd_status = WorkingStatus.INIT#0
             # 报文数据解析
             if recv_data != self.clean_robot.default_data:
                 state = bin(int(recv_data[12:14], 16))[2:].zfill(8)  # 状态数据变为8位2进制
                 self.clean_water_level = int(recv_data[8:10], 16)  # 清水液位
                 self.waste_water_level = int(recv_data[10:12], 16)  # 污水液位
-                self.jet_status = int(state[6:7])
-                self.brush_status = int(state[5:6])
-                self.suck_status = int(state[4:5])
-                self.waste_valve_status = int(state[3:4])
-                self.clean_valve_status = int(state[2:3])
-                self.mop_lift_status = int(state[1:2])
-                self.brush_lift_status = int(state[0:1])
+                self.jet_status = int(state[1:2])
+                self.brush_status = int(state[2:3])
+                self.suck_status = int(state[3:4])
+                self.waste_valve_status = int(state[4:5])
+                self.clean_valve_status = int(state[5:6])
+                self.mop_lift_status = int(state[6:7])
+                self.brush_lift_status = int(state[7:8])
+                SetAid.add_to_dict(self.report_info,('mystate',state))
  
-        SetAid.add_to_dict(info,('suck_state',self.suck_status),('brush_state',self.brush_status),('jet_pump_state',self.jet_status),('water_valve_state',self.waste_water_level),\
+        SetAid.add_to_dict(self.report_info,('suck_state',self.suck_status),('brush_state',self.brush_status),('jet_pump_state',self.jet_status),('water_valve_state',self.waste_water_level),\
                            ('mop_lift_state',self.mop_lift_status),('brush_lift_state',self.brush_lift_status),('ball_valve_state',self.waste_valve_status))
-        SetAid.add_to_dict(self.report_info,("work_status",info),("query_all_cmd_status",self.clean_robot.query_all_cmd_status))
-        r.setInfo(json.dumps(self.report_info))
-        r.setInfo(json.dumps(info))
+        SetAid.add_to_dict(self.report_info,("work_status",info),("query_all_cmd_status",self.clean_robot.query_all_cmd_status),("myrecv",recv_data))
+        #r.setInfo(json.dumps(self.report_info))
+        #r.setInfo(json.dumps(info))
 
 class CleanRobot:
     def __init__(self, module_obj: Module):
@@ -614,10 +617,10 @@ class CleanRobot:
         cmd, expected_mechanism = cmd_map.get(mechanism, (None, None))
         if cmd is None:
             raise ValueError("Invalid mechanism")
-        myinfo =dict()
-        SetAid.add_to_dict(myinfo,("cmd",cmd),("ctrlname",mechanism))
-        r.setInfo(json.dumps(myinfo))
         recv_data = self.send_cmd(can_arch64,r, cmd)
+        # mydict={}
+        # SetAid.add_to_dict(mydict,("cmd",cmd),("action",mechanism),("recive",recv_data),('mestate',state))
+        # r.setInfo(json.dumps(mydict))
         if expected_mechanism is not None:
             if recv_data[0:2] == RecvCmdType.CTRL and recv_data[6:8] == expected_mechanism:
                 return recv_data
@@ -625,30 +628,14 @@ class CleanRobot:
             return recv_data
         return self.default_data
     
-    def query_mechanism(self, can_arch64:CanPassAarch64,r: SimModule, mechanism: str):
-        cmd_status_map = {
-            "brush": (Cmd.QUERY_BRUSH, "query_brush_cmd_status", Mechanism.BRUSH),
-            "jet_pump": (Cmd.QUERY_JET_PUMP, "query_jet_cmd_status", Mechanism.JET_PUMP),
-            "suck": (Cmd.QUERY_SUCK, "query_suck_cmd_status", Mechanism.SUCK),
-            "brush_lift": (Cmd.QUERY_BRUSH_LIFT, "query_brush_lift_cmd_status", Mechanism.BRUSH_LIFT),
-            "mop_lift": (Cmd.QUERY_MOP_LIFT, "query_mop_lift_cmd_status", Mechanism.MOP_LIFT),
-            "water_valve": (Cmd.QUERY_WATER_VALVE, "query_water_valve_cmd_status", Mechanism.WATER_VALVE),
-            "ball_valve": (Cmd.QUERY_BALL_VALVE, "query_ball_valve_cmd_status", Mechanism.BALL_VALVE),
-            "clean_water": (Cmd.QUERY_CLEAN_WATER_LEVEL, "query_clean_water_cmd_status", Meter.CLEAN_WATER_METER),
-            "waste_water": (Cmd.QUERY_WASTE_WATER_LEVEL, "query_waste_water_cmd_status", Meter.WASTE_WATER_METER),
-            "all_info": (Cmd.QUERY_ALL_INFO, "query_all_cmd_status", Mechanism.ALL)
-        }
-        
-        cmd, status_attr, expected_mechanism = cmd_status_map.get(mechanism)
-        if cmd is None:
-            raise ValueError("Invalid mechanism")
-        setattr(self, status_attr, WorkingStatus.RUNNING)
-        recv_data = self.send_cmd(can_arch64,r, cmd)
-        #上面是设备状态查询和重设，暂时没用
-        if recv_data[0:2] == RecvCmdType.QUERY and recv_data[6:8] == expected_mechanism:
-            setattr(self, status_attr, WorkingStatus.FINISHED)
+
+    def query_all_info(self,can_arch64:CanPassAarch64, r: SimModule):
+        self.query_all_cmd_status = WorkingStatus.RUNNING
+        recv_data = self.send_cmd(can_arch64,r, Cmd.QUERY_ALL_INFO)
+        if recv_data[:8] == "43034000":  # 报文地址匹配
+            self.query_all_cmd_status = WorkingStatus.FINISHED
+            self.agv.report_info['query_all_info'] = recv_data
             return recv_data
-        
         return self.default_data
     
     def send_cmd(self, can_arch64:CanPassAarch64,r: SimModule, cmd):
