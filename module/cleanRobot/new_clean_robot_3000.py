@@ -85,6 +85,7 @@ class WorkMode(IntEnum):
     LOW = 0
     STD = 1
     HIGH = 2
+    STOP = 3
 
 class Cmd:
     """
@@ -233,7 +234,8 @@ class Module(BasicModule):
         'DustStart': 'dust_start',
         'DustEnd': 'dust_end',
         'AddWater':'add_water',
-        'CheckInfo':'update_all_info'
+        'CheckInfo':'update_all_info',
+        'CloseJetPump':'close_jet_pump'
     }#写在前面，每个operation执行的对应动作
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
@@ -251,7 +253,14 @@ class Module(BasicModule):
         self.suck_power = p.loadParam("suck_power", type="int", default=50, comment="吸风电机默认功率")
         self.jet_power = p.loadParam("jet_power", type="int", default=20, comment="喷水泵电机默认功率")
         self.add_water_delay_time = p.loadParam("add_water_delay_time", type="float", default=5.0, comment="加水延时关闭时间")
-        self.stop_x_speed = p.loadParam("stop_x_speed", type="float", default=0.05, comment="使清洁机构停止工作的x速度")
+        self.auto_adjust_power = p.loadParam("auto_adjust_power", type="int", default=1,
+                                             comment="是否启动电机功率自动调节模式, 1: 启动， 0: 不启动")
+        self.std_mode_x_speed = p.loadParam("std_mode_x_speed", type="float", default=0.4,
+                                            comment="x速度大于该值时, 清洁机构以标准功率工作")
+        self.stop_x_speed = p.loadParam("stop_x_speed", type="float", default=0.05,
+                                        comment="x速度大于该值时, 清洁机构以低功率工作, x速度小于该值时, 清洁机构停止工作")
+        self.high_mode_x_speed = p.loadParam("high_mode_x_speed", type="float", default=0.8,
+                                             comment="x速度大于该值时, 清洁机构以高功率工作")
         
         self.ip = "127.0.0.1"  # 机器人上报数据 ip
         self.port = 502
@@ -279,6 +288,7 @@ class Module(BasicModule):
         self.period_init = False
         self.wash_start_time = None
         self.add_water_time_start = None
+        self.wash_end_start = None
         
         self.clean_robot = CleanRobot(self)
         self.clean_water_level = 50
@@ -319,25 +329,25 @@ class Module(BasicModule):
     
     def run(self, r: SimModule, args: dict):
         self.status = MoveStatus.RUNNING
-        #self.update_all_info(r)
         if not self.init:
             self.init = True
             self.operation = args.get("operation", None)
             self.jet_power = int(args.get("jet_power", self.jet_power))
             self.brush_power = int(args.get("brush_power", self.brush_power))
             self.suck_power = int(args.get("suck_power", self.suck_power))
+
+        self.update_all_info(r)  # 同步清洁机器人各机构的工作状态
        
         if self.operation in self.function_dict:
             func_name = self.function_dict[self.operation]
             # 根据函数名获取函数对象，并调用
-            SetAid.add_to_dict(self.report_info,("func_name",func_name))
             getattr(self, func_name)(r)
         else:
             r.setUserError(53910, f"args error: {self.operation}")
             self.status = MoveStatus.FAILED
 
         SetAid.add_to_dict(self.report_info,('args',args),('clean_water',self.clean_water_level),('waste_water',self.waste_water_level),('operation',self.operation))
-        r.setInfo(json.dumps(self.report_info))
+        #r.setInfo(json.dumps(self.report_info))
         r.logInfo(f"clean robot info: {json.dumps(self.report_info)}")
         return self.status
     
@@ -366,6 +376,10 @@ class Module(BasicModule):
             self.wash_end(r)
         elif task_status == 6:  # Canceled
             self.wash_end(r)
+
+        # 急停信号检测
+        if r.controller().get("emc", False):
+            self.wash_suspend(r)
         # 清水空了或者污水满了，停止清洗
         if self.filter_waste_water_level() > self.max_waste_water_level or self.filter_clean_water_level() < self.min_clean_water_level:
             self.wash_end(r)
@@ -454,7 +468,6 @@ class Module(BasicModule):
 
     #下面是几个基本动作
     def wash_open(self, r: SimModule):
-        self.status = MoveStatus.RUNNING
         if self.brush_lift_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush_lift", WorkState.OPEN)
         if self.mop_lift_status != WorkingStatus.RUNNING:
@@ -473,34 +486,34 @@ class Module(BasicModule):
         if (self.jet_status and self.suck_status and self.brush_status and self.clean_valve_status
                 and self.brush_lift_status and self.mop_lift_status):
             self.status = MoveStatus.FINISHED
-    
+
     def wash_end(self, r: SimModule):
-        self.status = MoveStatus.RUNNING
-        if self.jet_status != WorkingStatus.INIT:
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"jet_pump", WorkState.OPEN,0)
-        elif self.suck_status != WorkingStatus.INIT:
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"suck", WorkState.OPEN,0)
-        elif self.brush_status != WorkingStatus.INIT:
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush", WorkState.OPEN,0)
-        elif self.clean_valve_status != WorkingStatus.INIT:
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"water_valve", WorkState.CLOSE)
-        elif self.waste_valve_status != WorkingStatus.INIT:
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"ball_valve", WorkState.CLOSE)
-        elif self.brush_lift_status != WorkingStatus.INIT or self.mop_lift_status != WorkingStatus.INIT:
+        self.wash_suspend(r)
+        if self.brush_lift_status != WorkingStatus.INIT:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush_lift", WorkState.CLOSE)
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"mop_lift", WorkState.CLOSE)
-        else:
+        if self.mop_lift_status != WorkingStatus.INIT:
+             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"mop_lift", WorkState.CLOSE)
+        if (self.jet_status == WorkingStatus.INIT and self.suck_status == WorkingStatus.INIT
+                and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
+                and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
             self.status = MoveStatus.FINISHED
     
+    def close_jet_pump(self, r: SimModule):
+        if self.jet_status == WorkingStatus.RUNNING:
+            self.clean_robot.ctrl_jet_pump(r, 0)
+        if self.clean_valve_status == WorkingStatus.RUNNING:
+            self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
+        if self.jet_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT:
+            self.status = MoveStatus.FINISHED
+
+    
     def dust_start(self, r: SimModule):
-        self.status = MoveStatus.RUNNING
         if self.mop_lift_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'mop_lift', WorkState.OPEN)
         else:
             self.status = MoveStatus.FINISHED
     
     def dust_end(self, r: SimModule):
-        self.status = MoveStatus.RUNNING
         if self.mop_lift_status != WorkingStatus.INIT:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'mop_lift', WorkState.CLOSE)
         else:
@@ -530,14 +543,19 @@ class Module(BasicModule):
             if time.time() - self.add_water_time_start > self.add_water_delay_time:
                 self.add_water_time_start = None
                 self.status = MoveStatus.FINISHED
-            
-    def filter_clean_water_level(self):#水位计算，调用滤波方法
-        self.clean_filter.add_value(self.clean_water_level)
-        return self.clean_filter.get_mean_value()
-        
+
+    #滤波与水位计算
+    def filter_clean_water_level(self):
+        if self.clean_water_level >= 0:
+            self.clean_filter.add_value(self.clean_water_level)
+            return self.clean_filter.get_mean_value()
+        return self.clean_water_level
+    
     def filter_waste_water_level(self):
-        self.waste_filter.add_value(self.waste_water_level)
-        return self.waste_filter.get_mean_value()
+        if self.waste_water_level >= 0:
+            self.waste_filter.add_value(self.waste_water_level)
+            return self.waste_filter.get_mean_value()
+        return self.waste_water_level
 
     def update_all_info(self, r: SimModule):
         """
@@ -589,10 +607,6 @@ class CleanRobot:
         self.agv = module_obj
         self.brush_start_time = None
         self.default_data = '0'*16
-        self.has_send = False
-        self.send_start = None
-        self.send_wait_time = 0.008
-        
         self.query_brush_cmd_status = WorkingStatus.INIT
         self.query_jet_cmd_status = WorkingStatus.INIT
         self.query_suck_cmd_status = WorkingStatus.INIT
@@ -643,11 +657,8 @@ class CleanRobot:
     
     def send_cmd(self, can_arch64:CanPassAarch64,r: SimModule, cmd):
         #b64_str, can_id = '', 0
-        if not self.has_send:
-            l = [int(hex(int(i.strip(), 16))[2:], 16) for i in cmd.split()]
-            can_arch64.sendCanframe(r,self.chanel, self.can_id, self.dlc, self.extend, l)
-            data = can_arch64.recvCan(r)
-        else:
-            data=self.default_data
+        l = [int(hex(int(i.strip(), 16))[2:], 16) for i in cmd.split()]
+        can_arch64.sendCanframe(r,self.chanel, self.can_id, self.dlc, self.extend, l)
+        data = can_arch64.recvCan(r)
         return data
     
