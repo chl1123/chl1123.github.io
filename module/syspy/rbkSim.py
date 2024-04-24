@@ -1166,6 +1166,30 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), laser_id))
 
+    @check
+    def setGData(self, value: dict):
+        """设置全局字典变量
+        Args:
+        value dict (_type_): 传入字典类型的变量
+        """
+        print("func: {0} {1}".format(get_function_name(), value))
+
+    @check
+    def getGData(self) -> dict:
+        """获取全局字典
+        Returns:
+            dict: 返回字典类型的变量
+        """
+        print("func: {0}".format(get_function_name()))
+        return dict()
+
+    @check
+    def clearGData(self):
+        """清除全局字典变量
+        """
+        print("func: {0}".format(get_function_name()))
+        
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
