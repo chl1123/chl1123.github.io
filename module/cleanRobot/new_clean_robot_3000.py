@@ -233,7 +233,6 @@ class Module(BasicModule):
         'DustStart': 'dust_start',
         'DustEnd': 'dust_end',
         'AddWater':'add_water',
-        'CloseBallValve':'close_ball_valve',
         'CheckInfo':'update_all_info'
     }#写在前面，每个operation执行的对应动作
     def __init__(self, r: SimModule, args):
@@ -327,8 +326,6 @@ class Module(BasicModule):
             self.jet_power = int(args.get("jet_power", self.jet_power))
             self.brush_power = int(args.get("brush_power", self.brush_power))
             self.suck_power = int(args.get("suck_power", self.suck_power))
-        
-       # SetAid.add_to_dict(self.report_info,'operation',self.operation)
        
         if self.operation in self.function_dict:
             func_name = self.function_dict[self.operation]
@@ -345,6 +342,9 @@ class Module(BasicModule):
         return self.status
     
     def wash_suspend(self, r: SimModule):
+        if bool(self.auto_adjust_power):
+            self.work_mode = WorkMode.STOP
+            self.suck_power, self.jet_power, self.brush_power = (0, 0, 0)
         actions = {
             'jet_status': 'jet_pump',
             'brush_status': 'brush',
@@ -358,7 +358,7 @@ class Module(BasicModule):
     def update_by_task_status(self, r: SimModule):
         task_status = r.getCurrentTaskStatus()
         if task_status == 2:  # Running
-            if self.operation == "WashStart":
+            if self.operation == "WashStart" and self.status == MoveStatus.FINISHED:
                 self.update_power_by_speed(r)
         elif task_status == 3:  # Suspended
             self.wash_suspend(r)
@@ -366,20 +366,26 @@ class Module(BasicModule):
             self.wash_end(r)
         elif task_status == 6:  # Canceled
             self.wash_end(r)
+        # 清水空了或者污水满了，停止清洗
+        if self.filter_waste_water_level() > self.max_waste_water_level or self.filter_clean_water_level() < self.min_clean_water_level:
+            self.wash_end(r)
 
     def update_power_by_speed(self, r: SimModule):
         agv_speed = r.getNextSpeed()
-        work_mode = WorkMode.STD
-        if agv_speed['x'] > 0.8:
-            work_mode = WorkMode.HIGH
-        elif 0.4 < agv_speed['x'] < 0.8:
-            work_mode = WorkMode.STD
-        if self.stop_x_speed < agv_speed['x'] < 0.4 or agv_speed['x'] < agv_speed['rotate']:
-            work_mode = WorkMode.LOW
+        if bool(self.auto_adjust_power):
+            if agv_speed['x'] > self.high_mode_x_speed:
+                self.work_mode = WorkMode.HIGH
+                self.suck_power, self.jet_power, self.brush_power = (70, 50, 67)
+            if self.std_mode_x_speed < agv_speed['x'] < self.high_mode_x_speed:
+                self.work_mode = WorkMode.STD
+                self.suck_power, self.jet_power, self.brush_power = (50, 20, 67)
+            if self.stop_x_speed < agv_speed['x'] < self.std_mode_x_speed or agv_speed['x'] < agv_speed['rotate']:
+                self.work_mode = WorkMode.LOW
+                self.suck_power, self.jet_power, self.brush_power = (40, 10, 50)
         if agv_speed['x'] < self.stop_x_speed:
             self.wash_suspend(r)
         else:
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r, "open_all",work_mode)
+            self.wash_open(r)
     
     def connect(self, r: SimModule):
         try:
@@ -445,9 +451,9 @@ class Module(BasicModule):
             self.report_info['send_num'] = send_num
         finally:
             self.tcp_client.close()
-    
+
     #下面是几个基本动作
-    def wash_start(self, r: SimModule):
+    def wash_open(self, r: SimModule):
         self.status = MoveStatus.RUNNING
         if self.brush_lift_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush_lift", WorkState.OPEN)
@@ -461,7 +467,11 @@ class Module(BasicModule):
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush", WorkState.OPEN,self.brush_power)
         elif self.jet_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"jet_pump", WorkState.OPEN,self.jet_power)
-        else:
+    
+    def wash_start(self, r: SimModule):
+        self.wash_open(r)
+        if (self.jet_status and self.suck_status and self.brush_status and self.clean_valve_status
+                and self.brush_lift_status and self.mop_lift_status):
             self.status = MoveStatus.FINISHED
     
     def wash_end(self, r: SimModule):
@@ -520,13 +530,6 @@ class Module(BasicModule):
             if time.time() - self.add_water_time_start > self.add_water_delay_time:
                 self.add_water_time_start = None
                 self.status = MoveStatus.FINISHED
-        
-    
-    def close_ball_valve(self, r: SimModule): #关阀
-        if self.waste_valve_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r,'ball_valve', WorkState.CLOSE)
-        else:
-            self.status = MoveStatus.FINISHED
             
     def filter_clean_water_level(self):#水位计算，调用滤波方法
         self.clean_filter.add_value(self.clean_water_level)
@@ -610,7 +613,7 @@ class CleanRobot:
             "mop_lift": (Cmd.MOP_LIFT_DOWN if state is WorkState.OPEN else Cmd.MOP_LIFT_UP, Mechanism.MOP_LIFT),
             "water_valve": (Cmd.WATER_VALVE_OPEN if state is WorkState.OPEN else Cmd.WATER_VALVE_CLOSE, Mechanism.WATER_VALVE),
             "ball_valve": (Cmd.BRAIN_BALL_VALVE_OPEN if state is WorkState.OPEN else Cmd.BRAIN_BALL_VALVE_CLOSE, Mechanism.BALL_VALVE),
-            "open_all": ((Cmd.SET_ALL_STD if state == WorkMode.STD else (Cmd.SET_ALL_LOW if state == WorkMode.LOW else Cmd.SET_ALL_HIGH)), None),
+            "open_all": ((Cmd.SET_ALL_STD if state == WorkMode.STD else (Cmd.SET_ALL_LOW if state == WorkMode.LOW else (Cmd.SET_ALL_HIGH if state == WorkMode.HIGH else Cmd.SET_ALL_CLOSED))), None),
             "close_all": (Cmd.SET_ALL_CLOSED, None)
         }
         #上面是发送的can控制报文，每个行为对应一个can报文同时对应不同的设施序号，下面对输入的行为设施进行获取并发送报文,其中suck等因为需要把功率加入报文，要做些微调
