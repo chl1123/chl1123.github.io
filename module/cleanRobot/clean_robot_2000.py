@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
-# @Date: 2024/04/10
+# @Date: 2024/04/25
 # @Author: zhong
-# @Version: 1.1
+# @Version: 1.2
 # @Project: SRC2000 清洁机器人
 # @Coding: https://seer-group.coding.net/p/robokit/assignments/issues/2631/detail
-# @Update: 更新一键控制协议
+# @Update: 更新实时控制模式, 文档: https://seer-group.feishu.cn/wiki/PPFjwE99KitmUSk22rpcJAkYnDe?fromScene=spaceOverview
 import base64
 import sys
 import time
-import socket
 from enum import IntEnum
 import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
@@ -26,6 +25,11 @@ from rbk import MoveStatus, BasicModule, ParamServer
         "default_value":["WashStart", "WashEnd", "DustStart", "DustEnd", "AddWater", "CloseJetPump", "CheckInfo"],
         "tips": "操作选项",
         "type": "complex"
+    },
+    "auto_adjust":{
+        "value": 1,
+        "tips": "是否启动电机功率自动调节模式, 1: 启动, 0: 不启动, 参数可缺省",
+        "type": "int"
     },
     "brush_power":{
         "value": 67,
@@ -51,7 +55,7 @@ class Module(BasicModule):
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
         p = ParamServer(__file__)
-        self.min_clean_water_level = p.loadParam("min_clean_water_level", type="float", default=1.0,
+        self.min_clean_water_level = p.loadParam("min_clean_water_level", type="float", default=5.0,
                                                  comment="清水液位最小值")
         self.max_clean_water_level = p.loadParam("max_clean_water_level", type="float", default=99.0,
                                                  comment="清水液位最大值")
@@ -117,6 +121,13 @@ class Module(BasicModule):
         agv_speed['x'] = round(cur_speed.get('x', 0), 6)
         agv_speed['y'] = round(cur_speed.get('y', 0), 6)
         agv_speed['rotate'] = round(cur_speed.get('rotate', 0), 6)
+        auto_adjust = dict()
+        auto_adjust["auto_adjust"] = bool(self.auto_adjust_power)
+        auto_adjust["work_mode"] = self.work_mode.name
+        auto_adjust["suck_power"] = self.suck_power
+        auto_adjust["jet_power"] = self.jet_power
+        auto_adjust["brush_power"] = self.brush_power
+        self.report_info["auto_adjust"] = auto_adjust
         self.report_info["cleanRobot"] = clean_robot
         self.report_info["connected"] = self.is_connected
         self.report_info["script_status"] = self.status
@@ -125,10 +136,6 @@ class Module(BasicModule):
         self.report_info["period_run_counter"] = self.period_run_counter
         self.report_info["task_status"] = r.getCurrentTaskStatus()
         self.report_info["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
-        self.report_info["work_mode"] = self.work_mode.name
-        self.report_info["suck_power"] = self.suck_power
-        self.report_info["jet_power"] = self.jet_power
-        self.report_info["brush_power"] = self.brush_power
         # 同步清洁机器人各机构的工作状态
         self.update_all_info(r)
         # 同步液位数据到RBK
@@ -151,6 +158,7 @@ class Module(BasicModule):
             self.init = True
             self.update_all_info(r)  # 同步清洁机器人各机构的工作状态
             self.operation = args.get("operation", None)
+            self.auto_adjust_power = args.get("auto_adjust", self.auto_adjust_power)
             self.jet_power = int(args.get("jet_power", self.jet_power))
             self.brush_power = int(args.get("brush_power", self.brush_power))
             self.suck_power = int(args.get("suck_power", self.suck_power))
@@ -195,8 +203,9 @@ class Module(BasicModule):
             self.wash_suspend(r)
             
         # 水位检测，清水空了或者污水满了，结束清洁任务
-        if self.filter_waste_water_level() > self.max_waste_water_level or \
-                self.filter_clean_water_level() < self.min_clean_water_level:
+        if (self.filter_waste_water_level() > self.max_waste_water_level or
+                self.filter_clean_water_level() < self.min_clean_water_level):
+            r.setError(f"Clean water is empty or waste water is full!")
             self.wash_end(r)
             
     def update_power_by_speed(self, r: SimModule):
@@ -281,10 +290,12 @@ class Module(BasicModule):
             
     def close_jet_pump(self, r: SimModule):
         if self.jet_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_jet_pump(r, 0)
+            self.jet_power = 0
+            self.clean_robot.ctrl_jet_pump(r, self.jet_power)
         if self.clean_valve_status == WorkingStatus.RUNNING:
             self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
         if self.jet_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT:
+            self.operation = "WashStart"  # 是否需要恢复自启动
             self.status = MoveStatus.FINISHED
     
     def dust_start(self, r: SimModule):
@@ -550,7 +561,12 @@ class MeanValue:
 
 
 if __name__ == '__main__':
-    m = Module(SimModule(), {})
-    m.run(SimModule(), {})
-    m.periodRun(SimModule())
-    pass
+    r1 = SimModule()
+    m1 = Module(r1, {})
+    m1.periodRun(r1)
+    operation = ["WashStart", "WashEnd", "DustStart", "DustEnd", "AddWater", "CloseJetPump"]
+    for opt in operation:
+        args1 = {"operation": opt}
+        print("*" * 100)
+        m1.run(r1, args1)
+    m1.periodRun(r1)
