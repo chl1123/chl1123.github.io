@@ -11,10 +11,14 @@ import socket
 from enum import IntEnum
 import sys,can,threading
 sys.path.append("../syspy")
+sys.path.append("../modbus_tk")
+sys.path.append("..")
 #from canpass_aarch64  import CanPassAarch64 as ca64
 import json
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, ParamServer
+import modbus_tk.defines as cst
+from modbus_tk import modbus_tcp
 
 
 """
@@ -22,7 +26,7 @@ from rbk import MoveStatus, BasicModule, ParamServer
 {
     "operation":{
         "value": "",
-        "default_value":["WashStart", "WashEnd", "DustStart", "DustEnd", "AddWater", "CloseBallValve", "CheckInfo"],
+        "default_value":["WashStart", "WashEnd", "DustStart", "DustEnd", "AddWater", "CloseJetPump", "CheckInfo"],
         "tips": "操作选项",
         "type": "complex"
     },
@@ -264,10 +268,9 @@ class Module(BasicModule):
         
         self.ip = "127.0.0.1"  # 机器人上报数据 ip
         self.port = 502
-        self.tcp_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tcp_client.setblocking(False)
+        self.modbus_tcp = modbus_tcp.TcpMaster(self.ip, self.port, 1)
         self.is_connected = False
-        self.rbk_addr1 = 110  # rbk寄存器清水液位数据地址
+        self.rbk_addr = 110  # rbk寄存器清水液位数据地址
         self.rbk_addr2 = 111  # rbk寄存器污水液位数据地址
         
         # 清洁机构工作状态
@@ -309,9 +312,11 @@ class Module(BasicModule):
             SetAid.add_to_dict(clean_dict,("cleanWaterLevel",self.filter_clean_water_level()),("wasteWaterLevel",self.waste_water_level))
             SetAid.add_to_dict(agv_speed,('x',r.getNextSpeed()['x']),('y',r.getNextSpeed()['y']),('rotate',r.getNextSpeed()['rotate']))
             SetAid.add_to_dict(self.report_info,("cleanRobot",clean_dict),("connected",self.is_connected),("scriptStatus",self.status),("time",time.strftime('%Y-%m-%d %H:%M:%S')),\
-                             ("agvSpeed",agv_speed),("operation",self.operation),("periodRunCounter",self.period_run_counter),("taskStatus",r.getCurrentTaskStatus()))
+                             ("agvSpeed",agv_speed),("operation",self.operation),("periodRunCounter",self.period_run_counter),("taskStatus",r.getCurrentTaskStatus()),("connected",self.is_connected))
             # 同步清洁机器人各机构的工作状态
             self.update_all_info(r)
+            if not self.is_connected:
+                self.connect(r)
             # 同步液位数据到RBK
             self.save_to_rbk(r)
             if time.time() - self.period_run_start > 0.5:
@@ -403,68 +408,19 @@ class Module(BasicModule):
     
     def connect(self, r: SimModule):
         try:
-            self.tcp_client.connect((self.ip, self.port))
+            self.modbus_tcp.open()
         except Exception as e:
             r.logInfo(f"connect error: {e}")
         else:
             self.is_connected = True
-    
-    @staticmethod
-    def pack(addr, v):
-        def crc16(data):
-            """
-            计算 Modbus CRC16 校验码
-            """
-            crc = 0xFFFF
-            for b in data:
-                crc ^= b
-                for _ in range(8):
-                    if crc & 0x0001:
-                        crc >>= 1
-                        crc ^= 0xA001
-                    else:
-                        crc >>= 1
-            return crc
-        # 构造 Modbus TCP 协议中的 PDU
-        unit_id = 1  # Modbus device 的 unit id
-        func_code = 6  # 写单个寄存器的功能码
-        register_addr = addr  # 寄存器地址，假设为 4x0001
-        register_value1 = v  # 待写入的值，假设为 0xFFFF
-        pdu = bytearray()
-        pdu += unit_id.to_bytes(1, byteorder='big')
-        pdu += func_code.to_bytes(1, byteorder='big')
-        pdu += register_addr.to_bytes(2, byteorder='big')
-        pdu += register_value1.to_bytes(2, byteorder='big')
-        # 构造 Modbus TCP 的 ADU
-        transaction_id = 1  # Modbus' transaction id，此处设为 1
-        protocol_id = 0  # Modbus protocol id，此处设为 0
-        length = len(pdu) + 1  # ADU 长度为 PDU 长度加 1（unit id 的长度）
-        adu = bytearray()
-        adu += transaction_id.to_bytes(2, byteorder='big')
-        adu += protocol_id.to_bytes(2, byteorder='big')
-        adu += length.to_bytes(2, byteorder='big')
-        adu += pdu
-        # 计算 CRC-16 校验码
-        crc16 = crc16(pdu)
-        adu += crc16.to_bytes(2, byteorder='big')
-        return adu
-    
+
     def save_to_rbk(self, r: SimModule):
-        timer = round(time.time() - int(time.time()), 2)
         try:
-            self.tcp_client.connect((self.ip, self.port))
-            if timer < 0.5:
-                send_num = self.tcp_client.sendall(self.data_pack(self.rbk_addr1, int(self.filter_clean_water_level())))
-                self.tcp_client.recv(1024)
-            else:
-                send_num = self.tcp_client.sendall(self.data_pack(self.rbk_addr1, int(self.filter_clean_water_level())))
-                self.tcp_client.recv(1024)
+            self.modbus_tcp.execute(1, cst.WRITE_MULTIPLE_REGISTERS, self.rbk_addr,
+                                    output_value=[round(self.filter_clean_water_level()),
+                                                  round(self.filter_waste_water_level())])
         except Exception as e:
-            r.logDebug(f"save_to_rbk error: {e}")
-        else:
-            self.report_info['send_num'] = send_num
-        finally:
-            self.tcp_client.close()
+            r.logInfo(f"save_to_rbk error: {e}")
 
     #下面是几个基本动作
     def wash_open(self, r: SimModule):
@@ -500,9 +456,9 @@ class Module(BasicModule):
     
     def close_jet_pump(self, r: SimModule):
         if self.jet_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_jet_pump(r, 0)
+            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"jet_pump", WorkState.CLOSE,0)
         if self.clean_valve_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
+            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"water_valve", WorkState.CLOSE)
         if self.jet_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT:
             self.status = MoveStatus.FINISHED
 
@@ -597,6 +553,12 @@ class Module(BasicModule):
         SetAid.add_to_dict(self.report_info,("work_status",info),("query_all_cmd_status",self.clean_robot.query_all_cmd_status),("myrecv",recv_data))
         #r.setInfo(json.dumps(self.report_info))
         #r.setInfo(json.dumps(info))
+
+    def cancel(self, r: SimModule):#run函数结束时运行，关闭相关DO
+        r.setNotice(f"script cancel")
+        r.setDO(self.add_water_do, False)
+        self.wash_end(r)
+        self.status = MoveStatus.FAILED
 
 class CleanRobot:
     def __init__(self, module_obj: Module):
