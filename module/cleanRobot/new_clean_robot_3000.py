@@ -282,6 +282,7 @@ class Module(BasicModule):
         self.clean_valve_status = WorkingStatus.INIT
         self.waste_valve_status = WorkingStatus.INIT
         
+        #一些执行状态，包括peirodrun轮次，打印数据，开始时间等
         self.period_run_start = time.time()
         self.period_run_counter = 0
         self.report_info = {}
@@ -298,6 +299,7 @@ class Module(BasicModule):
         self.waste_water_level = 50
         self.clean_filter = MeanValue(1000)  # 清水液位滤波
         self.waste_filter = MeanValue(1000)  # 污水液位滤波
+        #can总线创建
         self.can_arch64 = CanPassAarch64()
         self.can_arch64.createCanBus(r,channel="can1", bitrate=250)
         self.can_arch64.attachCanID(0x585)
@@ -356,7 +358,7 @@ class Module(BasicModule):
         r.logInfo(f"clean robot info: {json.dumps(self.report_info)}")
         return self.status
     
-    def wash_suspend(self, r: SimModule):
+    def wash_suspend(self, r: SimModule):#挂起，关闭各设备
         if bool(self.auto_adjust_power):
             self.work_mode = WorkMode.STOP
             self.suck_power, self.jet_power, self.brush_power = (0, 0, 0)
@@ -428,8 +430,6 @@ class Module(BasicModule):
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush_lift", WorkState.OPEN)
         if self.mop_lift_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"mop_lift", WorkState.OPEN)
-        elif self.clean_valve_status != WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_mechanism(self.can_arch64,r,"water_valve", WorkState.OPEN)
         elif self.suck_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"suck", WorkState.OPEN,self.suck_power)
         elif self.brush_status != WorkingStatus.RUNNING:
@@ -444,6 +444,7 @@ class Module(BasicModule):
             self.status = MoveStatus.FINISHED
 
     def wash_end(self, r: SimModule):
+        self.operation == "WashEnd"
         self.wash_suspend(r)
         if self.brush_lift_status != WorkingStatus.INIT:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush_lift", WorkState.CLOSE)
@@ -476,13 +477,13 @@ class Module(BasicModule):
             self.status = MoveStatus.FINISHED
     
     def add_water(self, r: SimModule):
-        is_charging = r.battery().get("is_charging", False)
+        is_charging = r.battery().get("is_charging", False)#判断是否处于充电状态
         if is_charging:
             # 加水排污
             r.setDO(self.add_water_do, True)
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'ball_valve', WorkState.OPEN)
         else:
-            r.setDO(self.add_water_do, False)
+            r.setDO(self.add_water_do, False)#结束时关闭加水DO
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'ball_valve', WorkState.CLOSE)
             r.setError(f"Not in charging state!")
             self.status = MoveStatus.FAILED
@@ -608,7 +609,7 @@ class CleanRobot:
         return self.default_data
     
 
-    def query_all_info(self,can_arch64:CanPassAarch64, r: SimModule):
+    def query_all_info(self,can_arch64:CanPassAarch64, r: SimModule):#一键查询总状态
         self.query_all_cmd_status = WorkingStatus.RUNNING
         recv_data = self.send_cmd(can_arch64,r, Cmd.QUERY_ALL_INFO)
         if recv_data[:8] == "43034000":  # 报文地址匹配
