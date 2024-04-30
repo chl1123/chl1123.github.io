@@ -1188,7 +1188,38 @@ class SimModule:
         """清除全局字典变量
         """
         print("func: {0}".format(get_function_name()))
+
+    @check
+    def release(self):
+        """释放控制权
+
+        Returns:
+            int: 0=ok
+        """
+        print("func: {0}".format(get_function_name()))
+        return 0
+    
+    @check
+    def requireByNickName(self, nick_name:str):
+        """获取控制权
+
+        Args:
+            nick_name (str): 控制权所有者名称
+        Returns:
+            int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
+        """
+        print("func: {0} {1}".format(get_function_name(), nick_name))
+        return 0
         
+    @check
+    def require(self):
+        """获取控制权
+
+        Returns:
+            int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
+        """
+        print("func: {0}".format(get_function_name()))
+        return 0
 
 if __name__ == '__main__':
     r = SimModule()
@@ -1308,4 +1339,7 @@ if __name__ == '__main__':
     r.isAnyErrorExists()
     r.getCurrentTaskStatus()
     r.getNearestLaserPoint(0)
+    r.require()
+    r.requireByNickName("abc")
+    r.release()
     print("Success!!!")
