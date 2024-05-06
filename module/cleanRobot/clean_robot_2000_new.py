@@ -135,6 +135,7 @@ class Module(BasicModule):
         self.report_info["suck_power"] = self.suck_power
         self.report_info["jet_power"] = self.jet_power
         self.report_info["brush_power"] = self.brush_power
+        self.report_info["endclosetime"] = self.end_close_time
         # 同步清洁机器人各机构的工作状态
         self.update_all_info(r)
         # 同步液位数据到RBK
@@ -263,8 +264,6 @@ class Module(BasicModule):
             self.clean_robot.ctrl_jet_pump(r, 0)
         if self.clean_valve_status == WorkingStatus.RUNNING:
             self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
-        if self.jet_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT:
-            self.status = MoveStatus.FINISHED
 
     def wash_end(self, r: SimModule):
         self.operation == "WashEnd"
@@ -280,8 +279,9 @@ class Module(BasicModule):
             if (self.jet_status == WorkingStatus.INIT and self.suck_status == WorkingStatus.INIT
                 and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
                 and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
-                self.status = MoveStatus.FINISHED
                 self.end_start_flag=True
+                self.status = MoveStatus.FINISHED
+
             
     def wash_suspend(self, r: SimModule):
         if bool(self.auto_adjust_power):

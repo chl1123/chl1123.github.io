@@ -239,7 +239,6 @@ class Module(BasicModule):
         'DustEnd': 'dust_end',
         'AddWater':'add_water',
         'CheckInfo':'update_all_info',
-        'CloseJetPump':'close_jet_pump'
     }#写在前面，每个operation执行的对应动作
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
@@ -322,7 +321,7 @@ class Module(BasicModule):
             SetAid.add_to_dict(agv_speed,('x',r.getNextSpeed()['x']),('y',r.getNextSpeed()['y']),('rotate',r.getNextSpeed()['rotate']))
             SetAid.add_to_dict(self.report_info,("cleanRobot",clean_dict),("connected",self.is_connected),("scriptStatus",self.status),("time",time.strftime('%Y-%m-%d %H:%M:%S')),\
                              ("agvSpeed",agv_speed),("operation",self.operation),("periodRunCounter",self.period_run_counter),("taskStatus",r.getCurrentTaskStatus()),("connected",self.is_connected),\
-                                ("work_mode",self.work_mode.name),("suck_power",self.suck_power),("brush_power",self.brush_power),("jet_power",self.jet_power))
+                                ("work_mode",self.work_mode.name),("suck_power",self.suck_power),("brush_power",self.brush_power),("jet_power",self.jet_power),("endclosetime",self.end_close_time))
             # 同步清洁机器人各机构的工作状态
             self.update_all_info(r)
             if not self.is_connected:
@@ -469,8 +468,9 @@ class Module(BasicModule):
             if (self.jet_status == WorkingStatus.INIT and self.suck_status == WorkingStatus.INIT
                     and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
                     and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
-                self.status = MoveStatus.FINISHED
                 self.end_start_flag=True
+                self.status = MoveStatus.FINISHED
+
     
     def dust_start(self, r: SimModule):
         if self.mop_lift_status != WorkingStatus.RUNNING:
@@ -489,8 +489,6 @@ class Module(BasicModule):
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'jet_pump', WorkState.CLOSE,0)
         if self.clean_valve_status == WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'clean_valve', WorkState.CLOSE,0)
-        if self.jet_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT:
-            self.status = MoveStatus.FINISHED
     
     def add_water(self, r: SimModule):
         is_charging = r.battery().get("is_charging", False)#判断是否处于充电状态
