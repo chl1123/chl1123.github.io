@@ -144,6 +144,8 @@ class Module(BasicModule):
         self.save_to_rbk(r)
         if time.time() - self.period_run_start > 0.5:
             self.period_run_start = time.time()
+            if not self.end_start_flag:
+                self.wash_suspend(r)
             # 根据任务状态处理业务逻辑
             self.update_by_task_status(r)
             # 数据上报及日志打印
@@ -152,7 +154,6 @@ class Module(BasicModule):
         return True
     
     def run(self, r: SimModule, args: dict):
-        self.opt_run_counter += 1
         self.status = MoveStatus.RUNNING
         if not self.init:
             self.init = True
@@ -267,36 +268,35 @@ class Module(BasicModule):
 
     def wash_end(self, r: SimModule):
         self.operation == "WashEnd"
-        self.close_jet_pump(r)
+        self.wash_suspend(r)
         if self.end_start_flag:
-            self.end_start_flag=False
-            self.end_start_time=time.time()
-        elif time.time()-self.end_start_time>self.end_close_time:
             if self.brush_lift_status != WorkingStatus.INIT:
                 self.clean_robot.ctrl_brush_lift(r, WorkState.CLOSE)
             if self.mop_lift_status != WorkingStatus.INIT:
-                self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
+                    self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
             if (self.jet_status == WorkingStatus.INIT and self.suck_status == WorkingStatus.INIT
-                and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
-                and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
-                self.end_start_flag=True
-                self.status = MoveStatus.FINISHED
+                    and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
+                    and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
+                    self.status = MoveStatus.FINISHED
 
             
     def wash_suspend(self, r: SimModule):
-        if bool(self.auto_adjust_power):
-            self.work_mode = WorkMode.STOP
-            self.suck_power, self.jet_power, self.brush_power = (0, 0, 0)
-        if self.jet_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_jet_pump(r, 0)
-        if self.brush_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_brush(r, 0)
-        if self.suck_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_suck(r, 0)
-        if self.clean_valve_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
-        if self.waste_valve_status == WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
+        if self.end_start_flag:
+            if bool(self.auto_adjust_power):
+                self.work_mode = WorkMode.STOP
+                self.jet_power = 0
+            self.close_jet_pump(r)
+            self.end_start_flag=False
+            self.end_start_time=time.time()
+        elif time.time()-self.end_start_time>self.end_close_time:
+            self.suck_power, self.brush_power = (0,0)
+            if self.brush_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_brush(r, 0)
+            if self.suck_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_suck(r, 0)
+            if self.waste_valve_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
+            self.end_start_flag=True
     
     def dust_start(self, r: SimModule):
         if self.mop_lift_status != WorkingStatus.RUNNING:
@@ -322,13 +322,13 @@ class Module(BasicModule):
             r.setError(f"Not in charging state!")
             self.status = MoveStatus.FAILED
             
-        if self.clean_water_level > self.max_clean_water_level:
+        if self.clean_water_level >= self.max_clean_water_level:
             r.setDO(self.add_water_do, False)
         
-        if self.waste_water_level < self.min_waste_water_level:
+        if self.waste_water_level <= self.min_waste_water_level:
             self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
         
-        if self.waste_water_level < self.min_waste_water_level and self.clean_water_level > self.max_clean_water_level:
+        if self.waste_water_level <= self.min_waste_water_level and self.clean_water_level >= self.max_clean_water_level:
             if not self.add_water_time_start:
                 self.add_water_time_start = time.time()
             if time.time() - self.add_water_time_start > self.add_water_delay_time:

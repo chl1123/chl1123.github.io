@@ -331,6 +331,8 @@ class Module(BasicModule):
             if time.time() - self.period_run_start > 0.5:
                 self.period_run_start = time.time()
                 # 根据任务状态处理业务逻辑
+                if not self.end_start_flag:
+                    self.wash_suspend(r)
                 self.update_by_task_status(r)
                 # 数据上报及日志打印
                 r.setInfo(json.dumps(self.report_info))
@@ -367,18 +369,22 @@ class Module(BasicModule):
         return self.status
     
     def wash_suspend(self, r: SimModule):#挂起，关闭各设备
-        if bool(self.auto_adjust_power):
-            self.work_mode = WorkMode.STOP
-            self.suck_power, self.jet_power, self.brush_power = (0, 0, 0)
-        actions = {
-            'jet_status': 'jet_pump',
-            'brush_status': 'brush',
-            'suck_status': 'suck',
-            'clean_valve_status': 'clean_valve'
-        }
-        for status, mechanism in actions.items():
-            if getattr(self, status) == WorkingStatus.RUNNING:
-                self.clean_robot.ctrl_mechanism(self.can_arch64, r, mechanism, WorkState.CLOSE, 0)
+        if self.end_start_flag:
+            if bool(self.auto_adjust_power):
+                self.work_mode = WorkMode.STOP
+                self.jet_power = 0
+            self.close_jet_pump(r)
+            self.end_start_flag=False
+            self.end_start_time=time.time()
+        elif time.time()-self.end_start_time>self.end_close_time:
+            self.suck_power, self.brush_power = (0,0)
+            if self.brush_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_mechanism(self.can_arch64, r, "brush", WorkState.CLOSE, 0)
+            if self.suck_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_mechanism(self.can_arch64, r, "suck", WorkState.CLOSE, 0)
+            if self.waste_valve_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_mechanism(self.can_arch64, r, "waste_valve", WorkState.CLOSE, 0)
+            self.end_start_flag=True
 
     def update_by_task_status(self, r: SimModule):
         task_status = r.getCurrentTaskStatus()
@@ -455,12 +461,8 @@ class Module(BasicModule):
 
     def wash_end(self, r: SimModule):
         self.operation == "WashEnd"
-        self.close_jet_pump(r)
+        self.wash_suspend(r)
         if self.end_start_flag:
-            self.end_start_flag=False
-            self.end_start_time=time.time()
-        elif time.time()-self.end_start_time>self.end_close_time:
-            self.wash_suspend(r)
             if self.brush_lift_status != WorkingStatus.INIT:
                 self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush_lift", WorkState.CLOSE)
             if self.mop_lift_status != WorkingStatus.INIT:
@@ -468,7 +470,6 @@ class Module(BasicModule):
             if (self.jet_status == WorkingStatus.INIT and self.suck_status == WorkingStatus.INIT
                     and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
                     and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
-                self.end_start_flag=True
                 self.status = MoveStatus.FINISHED
 
     
@@ -502,13 +503,13 @@ class Module(BasicModule):
             r.setError(f"Not in charging state!")
             self.status = MoveStatus.FAILED
             
-        if self.clean_water_level > self.max_clean_water_level:
+        if self.clean_water_level >= self.max_clean_water_level:
             r.setDO(self.add_water_do, False)
         
-        if self.waste_water_level < self.min_waste_water_level:
+        if self.waste_water_level <= self.min_waste_water_level:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'waste_valve', WorkState.CLOSE)
         
-        if self.waste_water_level < self.min_waste_water_level and self.clean_water_level > self.max_clean_water_level:
+        if self.waste_water_level <= self.min_waste_water_level and self.clean_water_level >= self.max_clean_water_level:
             if not self.add_water_time_start:
                 self.add_water_time_start = time.time()
             if time.time() - self.add_water_time_start > self.add_water_delay_time:
@@ -563,9 +564,9 @@ class Module(BasicModule):
                 self.brush_lift_status = int(state[7:8])
                 SetAid.add_to_dict(self.report_info,('mystate',state))
  
-        SetAid.add_to_dict(self.report_info,('suck_state',self.suck_status),('brush_state',self.brush_status),('jet_pump_state',self.jet_status),('clean_valve_state',self.waste_water_level),\
+        SetAid.add_to_dict(info,('suck_state',self.suck_status),('brush_state',self.brush_status),('jet_pump_state',self.jet_status),('clean_valve_state',self.clean_valve_status),\
                            ('mop_lift_state',self.mop_lift_status),('brush_lift_state',self.brush_lift_status),('waste_valve_state',self.waste_valve_status))
-        SetAid.add_to_dict(self.report_info,("work_status",info),("query_all_cmd_status",self.clean_robot.query_all_cmd_status),("myrecv",recv_data))
+        SetAid.add_to_dict(self.report_info,("work_status",info),("query_all_cmd_status",self.clean_robot.query_all_cmd_status))
         #r.setInfo(json.dumps(self.report_info))
         #r.setInfo(json.dumps(info))
 
