@@ -173,7 +173,7 @@ class Module(BasicModule):
                                   comment="第5层背篓取料箱高度")
         self.high[5] = p.loadParam("high5", type="float", default=2.525, maxValue=10000.0, minValue=0.0, unit="m",
                                    comment="第5层背篓放料箱高度")
-        self.stretch_length = p.loadParam("stretch_length", type="float", default=0.73, maxValue=10000.0,
+        self.tray_stretch_length = p.loadParam("tray_stretch_length", type="float", default=0.73, maxValue=10000.0,
                                                minValue=0.0, unit="m", comment="取放自身背篓货物时伸出长度")
         self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default=-0.05, maxValue=1000.0, minValue=-1000.0,
                                         unit="m", comment="识别料箱码后抓取料箱时调整高度")
@@ -768,7 +768,7 @@ class Module(BasicModule):
                     if not self.load_step[10]:
                         self.load_step[10] = self.lift(r, self.high[int(self.cur_c)])
             elif self.load_step[9] and self.load_step[10] and not self.load_step[11]:
-                self.load_step[11] = self.stretch(r, self.stretch_length)
+                self.load_step[11] = self.stretch(r, self.tray_stretch_length)
             elif self.load_step[11] and not self.load_step[12]:
                 self.load_step[12] = self.lift(r, self.high[int(self.cur_c)] - self.lift_height_before_clamp)
             elif self.load_step[12] and not self.load_step[13]:
@@ -826,7 +826,7 @@ class Module(BasicModule):
                     if not self.unload_step[2]:
                         self.unload_step[2] = self.rotate(r, 0)
                 elif self.unload_step[1] and self.unload_step[2] and not self.unload_step[3]:
-                    self.unload_step[3] = self.stretch(r, self.stretch_length)
+                    self.unload_step[3] = self.stretch(r, self.tray_stretch_length)
                 elif self.unload_step[3] and not self.unload_step[4]:
                     if not self.change_step[0]:
                         self.change_step[0] = self.clamp(r, self.clamp_pos)
@@ -888,12 +888,12 @@ class Module(BasicModule):
                         self.unload_step[7] = self.rotate(r, self.rotate_pos)
             elif self.unload_step[7] and not self.unload_step[8]:
                 if self.rec_adjust is not None:
-                    if not self.change_step[0]:
+                    if not self.load_step[0]:
                         r.setDO(self.fill_light_do, True)
                         self.rec_adjust.status = MoveStatus.RUNNING
                         if ModuleTool.check_DO(r, self.fill_light_do):
                             if ModuleTool.delay(0.3):
-                                self.change_step[0] = True
+                                self.load_step[0] = True
                     else:
                         if self.rec_adjust.status is MoveStatus.FINISHED:
                             r.setDO(self.fill_light_do, False)

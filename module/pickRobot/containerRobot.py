@@ -492,7 +492,7 @@ class Module(BasicModule):
         self.zeroing = True
         r.logInfo(f"----- running zero ------")
         if not self.zero_step[0]:
-            self.zero_step[0] = self.finger(r, 1)
+            self.zero_step[0] = self.goods_manger.has_goods("999") or self.finger(r, 1)
         elif self.zero_step[0] and not self.zero_step[1]:
             self.zero_step[1] = self.stretch(r, 0)
         elif self.zero_step[1] and not self.zero_step[2]:

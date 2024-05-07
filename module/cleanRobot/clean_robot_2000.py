@@ -322,13 +322,13 @@ class Module(BasicModule):
             r.setError(f"Not in charging state!")
             self.status = MoveStatus.FAILED
             
-        if self.clean_water_level > self.max_clean_water_level:
+        if self.clean_water_level >= self.max_clean_water_level:
             r.setDO(self.add_water_do, False)
         
-        if self.waste_water_level < self.min_waste_water_level:
+        if self.waste_water_level <= self.min_waste_water_level:
             self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
         
-        if self.waste_water_level < self.min_waste_water_level and self.clean_water_level > self.max_clean_water_level:
+        if self.waste_water_level <= self.min_waste_water_level and self.clean_water_level >= self.max_clean_water_level:
             if not self.add_water_time_start:
                 self.add_water_time_start = time.time()
             if time.time() - self.add_water_time_start > self.add_water_delay_time:
