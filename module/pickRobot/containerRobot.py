@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/04/16
+# @Date : 2024/05/06
 # @Author : zhong
-# @Version : 2.5
+# @Version : 2.6
 # @Project : 智千料箱车
-# @Update : 完善N+1功能报错机制
+# @Update : 标零动作结束自动释放小车控制权，试用于RBK版本V3.4.5.44和V3.4.6.16及以上
 import json
 import math
 import sys
@@ -230,6 +230,8 @@ class Module(BasicModule):
                                              unit="", comment="多伸出的距离")
         self.auto_stretch_odo_len = p.loadParam("auto_stretch_odo_len", type="float", default=0.38, maxValue=100,
                                                 minValue=20, unit="", comment="手臂到里程中心的距离")
+        self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=1,
+                                              comment="识别时是否需要自动调整货叉角度，1：需要 0：不需要")
         
         self.init = True
         
@@ -502,6 +504,7 @@ class Module(BasicModule):
             self.zero_step[3] = self.lift(r, 0)
         r.logDebug(f"zero_step:{self.zero_step}")
         if all(self.zero_step):
+            r.release()
             return True
 
         return False
@@ -1142,8 +1145,8 @@ class RecAdjust:
                 self.reset(r)
                 self.adjust_count += 1
                 self.plan_status = MoveStatus.NONE
-                self.rotate_step = False
-                # self.status = MoveStatus.FINISHED
+                if bool(agv.auto_adjust_rotate):
+                    self.rotate_step = False
         cur_state["stretch_length"] = agv.stretch_length
         cur_state["go_path_status"] = self.goPath.status
         cur_state["plan_status"] = self.plan_status
