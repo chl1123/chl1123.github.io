@@ -312,21 +312,22 @@ class Module(BasicModule):
     
     def add_water(self, r: SimModule):
         is_charging = r.battery().get("is_charging", False)
-        if is_charging:
-            # 加水排污
-            r.setDO(self.add_water_do, True)
-            self.clean_robot.ctrl_waste_valve(r, WorkState.OPEN)
-        else:
+        if not is_charging:
             r.setDO(self.add_water_do, False)
             self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
             r.setError(f"Not in charging state!")
             self.status = MoveStatus.FAILED
-            
+
+        # 加水排污
         if self.clean_water_level >= self.max_clean_water_level:
             r.setDO(self.add_water_do, False)
+        else:
+            r.setDO(self.add_water_do, True)
         
         if self.waste_water_level <= self.min_waste_water_level:
             self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
+        else:
+            self.clean_robot.ctrl_waste_valve(r, WorkState.OPEN)
         
         if self.waste_water_level <= self.min_waste_water_level and self.clean_water_level >= self.max_clean_water_level:
             if not self.add_water_time_start:
