@@ -32,7 +32,7 @@ from rbk import MoveStatus, BasicModule, ParamServer
         "tips": "刷盘电机功率, 取值: 0-100, 0即关闭，100即满功率, 参数可缺省",
         "type": "int"
     },
-    "suck_power":{
+    "suction_power":{
         "value": 50,
         "tips": "吸风电机功率, 取值: 0-100, 0即关闭, 100即满功率, 参数可缺省",
         "type": "int"
@@ -63,7 +63,7 @@ class Module(BasicModule):
                                              comment="任务结束缓冲时间")
         self.add_water_do = p.loadParam("add_water_do", type="int", default=4, comment="加水DO")
         self.brush_power = p.loadParam("brush_power", type="int", default=67, comment="刷盘电机默认功率")
-        self.suck_power = p.loadParam("suck_power", type="int", default=50, comment="吸风电机默认功率")
+        self.suction_power = p.loadParam("suction_power", type="int", default=50, comment="吸风电机默认功率")
         self.jet_power = p.loadParam("jet_power", type="int", default=20, comment="喷水泵电机默认功率")
         self.auto_adjust_power = p.loadParam("auto_adjust_power", type="int", default=1,
                                              comment="是否启动电机功率自动调节模式, 1: 启动， 0: 不启动")
@@ -85,7 +85,7 @@ class Module(BasicModule):
         # 清洁机构工作状态
         self.brush_status = None
         self.jet_status = None
-        self.suck_status = None
+        self.suction_status = None
         self.brush_lift_status = None
         self.mop_lift_status = None
         self.clean_valve_status = None
@@ -105,6 +105,7 @@ class Module(BasicModule):
         self.init = False
         self.wash_start_time = None
         self.add_water_time_start = None
+        self.add_water_begin = False #开始加水
         
         self.clean_robot = CleanRobot(self)
         self.clean_water_level = -1
@@ -132,7 +133,7 @@ class Module(BasicModule):
         self.report_info["task_status"] = r.getCurrentTaskStatus()
         self.report_info["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
         self.report_info["work_mode"] = self.work_mode.name
-        self.report_info["suck_power"] = self.suck_power
+        self.report_info["suction_power"] = self.suction_power
         self.report_info["jet_power"] = self.jet_power
         self.report_info["brush_power"] = self.brush_power
         self.report_info["endclosetime"] = self.end_close_time
@@ -161,7 +162,7 @@ class Module(BasicModule):
             self.operation = args.get("operation", None)
             self.jet_power = int(args.get("jet_power", self.jet_power))
             self.brush_power = int(args.get("brush_power", self.brush_power))
-            self.suck_power = int(args.get("suck_power", self.suck_power))
+            self.suction_power = int(args.get("suction_power", self.suction_power))
         
         if self.operation == "WashStart":
             self.wash_start(r)
@@ -175,8 +176,6 @@ class Module(BasicModule):
             self.add_water(r)
         elif self.operation == "CheckInfo":
             self.update_all_info(r)
-        elif self.operation == "CloseJetPump":
-            self.close_jet_pump(r)
         else:
             r.setUserError(53910, f"args error: {self.operation}")
             self.status = MoveStatus.FAILED
@@ -212,13 +211,13 @@ class Module(BasicModule):
         if bool(self.auto_adjust_power):
             if agv_speed['x'] > self.high_mode_x_speed:
                 self.work_mode = WorkMode.HIGH
-                self.suck_power, self.jet_power, self.brush_power = (70, 50, 67)
+                self.suction_power, self.jet_power, self.brush_power = (70, 50, 67)
             if self.std_mode_x_speed < agv_speed['x'] < self.high_mode_x_speed:
                 self.work_mode = WorkMode.STD
-                self.suck_power, self.jet_power, self.brush_power = (50, 20, 67)
+                self.suction_power, self.jet_power, self.brush_power = (50, 20, 67)
             if self.stop_x_speed < agv_speed['x'] < self.std_mode_x_speed or agv_speed['x'] < agv_speed['rotate']:
                 self.work_mode = WorkMode.LOW
-                self.suck_power, self.jet_power, self.brush_power = (40, 10, 50)
+                self.suction_power, self.jet_power, self.brush_power = (40, 10, 50)
         if agv_speed['x'] < self.stop_x_speed:
             self.wash_suspend(r)
         else:
@@ -247,8 +246,8 @@ class Module(BasicModule):
             self.clean_robot.ctrl_mop_lift(r, WorkState.OPEN)
         elif self.clean_valve_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_clean_valve(r, WorkState.OPEN)
-        elif self.suck_status != WorkingStatus.RUNNING:
-            self.clean_robot.ctrl_suck(r, self.suck_power)
+        elif self.suction_status != WorkingStatus.RUNNING:
+            self.clean_robot.ctrl_suction(r, self.suction_power)
         elif self.brush_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_brush(r, self.brush_power)
         elif self.jet_status != WorkingStatus.RUNNING:
@@ -256,7 +255,7 @@ class Module(BasicModule):
     
     def wash_start(self, r: SimModule):
         self.wash_open(r)
-        if (self.jet_status and self.suck_status and self.brush_status and self.clean_valve_status
+        if (self.jet_status and self.suction_status and self.brush_status and self.clean_valve_status
                 and self.brush_lift_status and self.mop_lift_status):
             self.status = MoveStatus.FINISHED
     
@@ -274,7 +273,7 @@ class Module(BasicModule):
                 self.clean_robot.ctrl_brush_lift(r, WorkState.CLOSE)
             if self.mop_lift_status != WorkingStatus.INIT:
                     self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
-            if (self.jet_status == WorkingStatus.INIT and self.suck_status == WorkingStatus.INIT
+            if (self.jet_status == WorkingStatus.INIT and self.suction_status == WorkingStatus.INIT
                     and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
                     and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
                     self.status = MoveStatus.FINISHED
@@ -289,11 +288,11 @@ class Module(BasicModule):
             self.end_start_flag=False
             self.end_start_time=time.time()
         elif time.time()-self.end_start_time>self.end_close_time:
-            self.suck_power, self.brush_power = (0,0)
+            self.suction_power, self.brush_power = (0,0)
             if self.brush_status == WorkingStatus.RUNNING:
                 self.clean_robot.ctrl_brush(r, 0)
-            if self.suck_status == WorkingStatus.RUNNING:
-                self.clean_robot.ctrl_suck(r, 0)
+            if self.suction_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_suction(r, 0)
             if self.waste_valve_status == WorkingStatus.RUNNING:
                 self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
             self.end_start_flag=True
@@ -314,8 +313,10 @@ class Module(BasicModule):
         is_charging = r.battery().get("is_charging", False)
         if is_charging:
             # 加水排污
-            r.setDO(self.add_water_do, True)
-            self.clean_robot.ctrl_waste_valve(r, WorkState.OPEN)
+            if not self.add_water_begin:
+                self.add_water_begin=True
+                r.setDO(self.add_water_do, True)
+                self.clean_robot.ctrl_waste_valve(r, WorkState.OPEN)
         else:
             r.setDO(self.add_water_do, False)
             self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
@@ -334,6 +335,7 @@ class Module(BasicModule):
             if time.time() - self.add_water_time_start > self.add_water_delay_time:
                 self.add_water_time_start = None
                 self.status = MoveStatus.FINISHED
+                self.add_water_begin=False
     
     def filter_clean_water_level(self):
         if self.clean_water_level >= 0:
@@ -374,12 +376,12 @@ class Module(BasicModule):
             self.waste_water_level = int(recv_data[10:12], 16)  # 污水液位
             self.jet_status = WorkingStatus(int(state[1:2]))
             self.brush_status = WorkingStatus(int(state[2:3]))
-            self.suck_status = WorkingStatus(int(state[3:4]))
+            self.suction_status = WorkingStatus(int(state[3:4]))
             self.waste_valve_status = WorkingStatus(int(state[4:5]))
             self.clean_valve_status = WorkingStatus(int(state[5:6]))
             self.mop_lift_status = WorkingStatus(int(state[6:7]))
             self.brush_lift_status = WorkingStatus(int(state[7:8]))
-        info['suck_state'] = self.suck_status
+        info['suction_state'] = self.suction_status
         info['brush_state'] = self.brush_status
         info['jet_pump_state'] = self.jet_status
         info['mop_lift_state'] = self.mop_lift_status
@@ -409,8 +411,8 @@ class CleanRobot:
         self.send_wait_time = 0.01
         self.query_all_cmd_status = WorkingStatus.INIT
     
-    def ctrl_suck(self, r: SimModule, power=0):
-        cmd = Cmd.SUCK
+    def ctrl_suction(self, r: SimModule, power=0):
+        cmd = Cmd.SUCTION
         cmd = cmd[:12] + hex(power)[2:].zfill(2) + cmd[14:]
         self.send_cmd(r, cmd)
     
@@ -512,7 +514,7 @@ class Cmd:
     电机控制指令格式   "2B 80 30 " + "addr" + "power" + " 00 00 00"
     电机查询指令格式   "40 80 30 " + "addr" + " 00 00 00 00"
     """
-    SUCK = "2B 80 30 01 00 00 00 00"  # 吸风电机
+    SUCTION = "2B 80 30 01 00 00 00 00"  # 吸风电机
     BRUSH = "2B 80 30 02 00 00 00 00"  # 刷盘电机
     JET_PUMP = "2B 80 30 03 00 00 00 00"  # 清水喷水泵
     BRUSH_LIFT_UP = "2B 80 30 04 64 00 00 00"  # 刷盘升降推杆上升
@@ -524,7 +526,7 @@ class Cmd:
     BRAIN_BALL_VALVE_OPEN = "2B 80 30 07 64 00 00 00"  # 排水球阀开
     BRAIN_BALL_VALVE_CLOSE = "2B 80 30 07 00 00 00 00"  # 排水球阀关
     
-    QUERY_SUCK = "40 80 30 01 00 00 00 00"  # 查询吸风电机信息
+    QUERY_SUCTION = "40 80 30 01 00 00 00 00"  # 查询吸风电机信息
     QUERY_BRUSH = "40 80 30 02 00 00 00 00"  # 查询刷盘电机信息
     QUERY_JET_PUMP = "40 80 30 03 00 00 00 00"  # 查询喷水泵电机信息
     QUERY_BRUSH_LIFT = "40 80 30 04 00 00 00 00"  # 查询刷盘推杆电机信息
