@@ -221,6 +221,7 @@ class Module(BasicModule):
         if agv_speed['x'] < self.stop_x_speed:
             self.wash_suspend(r)
         else:
+            self.end_start_flag = True
             self.wash_open(r)
     
     def connect(self, r: SimModule):
@@ -238,6 +239,23 @@ class Module(BasicModule):
                                                   round(self.filter_waste_water_level())])
         except Exception as e:
             r.logInfo(f"save_to_rbk error: {e}")
+
+    def status_check(self, r: SimModule):
+        if self.brush_lift_status and self.suction_status and self.brush_status and self.mop_lift_status and self.clean_valve_status and self.jet_status:
+            return MachineState.WASHING
+        elif not self.brush_lift_status and not self.suction_status and not self.brush_status and not self.mop_lift_status\
+            and not self.clean_valve_status and not self.waste_valve_status and not self.jet_status:
+            return MachineState.STANDBY
+        elif not self.brush_lift_status and not self.suction_status and not self.brush_status and  self.mop_lift_status\
+            and not self.clean_valve_status and not self.waste_valve_status and not self.jet_status:
+            return MachineState.DUSTING
+        elif not self.brush_lift_status and not self.suction_status and not self.brush_status and not self.mop_lift_status\
+            and not self.clean_valve_status and self.waste_valve_status and not self.jet_status:
+            return MachineState.MAINTAINING
+        elif not self.suction_status and not self.brush_status and not self.clean_valve_status and self.waste_valve_status and not self.jet_status:
+            return MachineState.SUSPEND
+        elif self.suction_status and self.brush_status and not self.clean_valve_status and self.waste_valve_status and not self.jet_status:
+            return MachineState.FINISHING
     
     def wash_open(self, r: SimModule):
         if self.brush_lift_status != WorkingStatus.RUNNING:
@@ -255,8 +273,7 @@ class Module(BasicModule):
     
     def wash_start(self, r: SimModule):
         self.wash_open(r)
-        if (self.jet_status and self.suction_status and self.brush_status and self.clean_valve_status
-                and self.brush_lift_status and self.mop_lift_status):
+        if (self.status_check(r)==MachineState.WASHING):
             self.status = MoveStatus.FINISHED
     
     def close_jet_pump(self, r: SimModule):
@@ -266,16 +283,14 @@ class Module(BasicModule):
             self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
 
     def wash_end(self, r: SimModule):
-        self.operation == "WashEnd"
+        self.operation = "WashEnd"
         self.wash_suspend(r)
         if self.end_start_flag:
             if self.brush_lift_status != WorkingStatus.INIT:
                 self.clean_robot.ctrl_brush_lift(r, WorkState.CLOSE)
             if self.mop_lift_status != WorkingStatus.INIT:
                     self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
-            if (self.jet_status == WorkingStatus.INIT and self.suction_status == WorkingStatus.INIT
-                    and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
-                    and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
+            if (self.status_check(r)==MachineState.STANDBY):
                     self.status = MoveStatus.FINISHED
 
             
@@ -288,7 +303,8 @@ class Module(BasicModule):
             self.end_start_flag=False
             self.end_start_time=time.time()
         elif time.time()-self.end_start_time>self.end_close_time:
-            self.suction_power, self.brush_power = (0,0)
+            if bool(self.auto_adjust_power):
+                self.suction_power, self.brush_power = (0,0)
             if self.brush_status == WorkingStatus.RUNNING:
                 self.clean_robot.ctrl_brush(r, 0)
             if self.suction_status == WorkingStatus.RUNNING:
@@ -389,7 +405,7 @@ class Module(BasicModule):
         info['waste_valve_state'] = self.waste_valve_status
         info['clean_valve_state'] = self.clean_valve_status
         self.report_info["work_status"] = info
-    
+
     def cancel(self, r: SimModule):
         r.setNotice(f"script cancel")
         r.setDO(self.add_water_do, False)
@@ -507,6 +523,14 @@ class WorkMode(IntEnum):
     STD = 1
     HIGH = 2
     STOP = 3
+
+class MachineState(IntEnum):
+    STANDBY = 0
+    WASHING = 1
+    DUSTING = 2
+    MAINTAINING = 3
+    SUSPEND = 4
+    FINISHING = 5
 
 
 class Cmd:

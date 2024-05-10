@@ -91,6 +91,14 @@ class WorkMode(IntEnum):
     HIGH = 2
     STOP = 3
 
+class MachineState(IntEnum):
+    STANDBY = 0
+    WASHING = 1
+    DUSTING = 2
+    MAINTAINING = 3
+    SUSPEND = 4
+    FINISHING = 5
+
 class Cmd:
     """
     电机控制指令格式   "2B 80 30 " + "addr" + "power" + " 00 00 00"
@@ -366,7 +374,24 @@ class Module(BasicModule):
         #r.setInfo(json.dumps(self.report_info))
         r.logInfo(f"clean robot info: {json.dumps(self.report_info)}")
         return self.status
-    
+
+    def status_check(self, r: SimModule):
+        if self.brush_lift_status and self.suction_status and self.brush_status and self.mop_lift_status and self.clean_valve_status and self.jet_status:
+            return MachineState.WASHING
+        elif not self.brush_lift_status and not self.suction_status and not self.brush_status and not self.mop_lift_status\
+            and not self.clean_valve_status and not self.waste_valve_status and not self.jet_status:
+            return MachineState.STANDBY
+        elif not self.brush_lift_status and not self.suction_status and not self.brush_status and  self.mop_lift_status\
+            and not self.clean_valve_status and not self.waste_valve_status and not self.jet_status:
+            return MachineState.DUSTING
+        elif not self.brush_lift_status and not self.suction_status and not self.brush_status and not self.mop_lift_status\
+            and not self.clean_valve_status and self.waste_valve_status and not self.jet_status:
+            return MachineState.MAINTAINING
+        elif not self.suction_status and not self.brush_status and not self.clean_valve_status and self.waste_valve_status and not self.jet_status:
+            return MachineState.SUSPEND
+        elif self.suction_status and self.brush_status and not self.clean_valve_status and self.waste_valve_status and not self.jet_status:
+            return MachineState.FINISHING
+        
     def wash_suspend(self, r: SimModule):#挂起，关闭各设备
         if self.end_start_flag:
             if bool(self.auto_adjust_power):
@@ -376,7 +401,8 @@ class Module(BasicModule):
             self.end_start_flag=False
             self.end_start_time=time.time()
         elif time.time()-self.end_start_time>self.end_close_time:
-            self.suction_power, self.brush_power = (0,0)
+            if bool(self.auto_adjust_power):
+                self.suction_power, self.brush_power = (0,0)
             if self.brush_status == WorkingStatus.RUNNING:
                 self.clean_robot.ctrl_mechanism(self.can_arch64, r, "brush", WorkState.CLOSE, 0)
             if self.suction_status == WorkingStatus.RUNNING:
@@ -397,9 +423,11 @@ class Module(BasicModule):
         elif task_status == 6:  # Canceled
             self.wash_end(r)
 
+
         # 急停信号检测
         if r.controller().get("emc", False):
             self.wash_suspend(r)
+            
         # 清水空了或者污水满了，停止清洗
         if self.filter_waste_water_level() > self.max_waste_water_level or self.filter_clean_water_level() < self.min_clean_water_level:
             self.wash_end(r)
@@ -419,6 +447,7 @@ class Module(BasicModule):
         if agv_speed['x'] < self.stop_x_speed:
             self.wash_suspend(r)
         else:
+            self.end_start_flag = True
             self.wash_open(r)
     
     def connect(self, r: SimModule):
@@ -454,21 +483,18 @@ class Module(BasicModule):
     
     def wash_start(self, r: SimModule):
         self.wash_open(r)
-        if (self.jet_status and self.suction_status and self.brush_status and self.clean_valve_status
-                and self.brush_lift_status and self.mop_lift_status):
+        if (self.status_check(r)==MachineState.WASHING):
             self.status = MoveStatus.FINISHED
 
     def wash_end(self, r: SimModule):
-        self.operation == "WashEnd"
+        self.operation = "WashEnd"
         self.wash_suspend(r)
         if self.end_start_flag:
             if self.brush_lift_status != WorkingStatus.INIT:
                 self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush_lift", WorkState.CLOSE)
             if self.mop_lift_status != WorkingStatus.INIT:
                  self.clean_robot.ctrl_mechanism(self.can_arch64,r,"mop_lift", WorkState.CLOSE)
-            if (self.jet_status == WorkingStatus.INIT and self.suction_status == WorkingStatus.INIT
-                    and self.brush_status == WorkingStatus.INIT and self.clean_valve_status == WorkingStatus.INIT
-                    and self.brush_lift_status == WorkingStatus.INIT and self.mop_lift_status == WorkingStatus.INIT):
+            if (self.status_check(r)==MachineState.STANDBY):
                 self.status = MoveStatus.FINISHED
 
     
@@ -600,7 +626,7 @@ class CleanRobot:
 
     def ctrl_mechanism(self, can_arch64:CanPassAarch64,r: SimModule, mechanism: str, state,power=0):
         cmd_map = {
-            "suction": ((Cmd.suction[:12] + hex(power)[2:].zfill(2) + Cmd.suction[14:]), Mechanism.SUCTION),
+            "suction": ((Cmd.SUCTION[:12] + hex(power)[2:].zfill(2) + Cmd.SUCTION[14:]), Mechanism.SUCTION),
             "brush": ((Cmd.BRUSH[:12] + hex(power)[2:].zfill(2) + Cmd.BRUSH[14:]), Mechanism.BRUSH),
             "jet_pump": ((Cmd.JET_PUMP[:12] + hex(power)[2:].zfill(2) + Cmd.JET_PUMP[14:]), Mechanism.JET_PUMP),
             "brush_lift": (Cmd.BRUSH_LIFT_DOWN if state is WorkState.OPEN else Cmd.BRUSH_LIFT_UP, Mechanism.BRUSH_LIFT),
