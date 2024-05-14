@@ -52,15 +52,15 @@ class Module(BasicModule):
         super(Module, self).__init__()
         p = ParamServer(__file__)
         self.min_clean_water_level = p.loadParam("min_clean_water_level", type="float", default=1.0,
-                                                 comment="清水液位最小值")
+                                                 comment="清水液位最小值，达到此值机器人停止工作去加水")
         self.max_clean_water_level = p.loadParam("max_clean_water_level", type="float", default=99.0,
-                                                 comment="清水液位最大值")
+                                                 comment="清水液位最大值，达到此值机器人停止加水")
         self.min_waste_water_level = p.loadParam("min_waste_water_level", type="float", default=1.0,
-                                                 comment="污水液位最小值")
+                                                 comment="污水液位最小值，达到此值机器人停止排污")
         self.max_waste_water_level = p.loadParam("max_waste_water_level", type="float", default=90.0,
-                                                 comment="污水液位最大值")
+                                                 comment="污水液位最大值，达到此值机器人停止工作去排污")
         self.end_close_time = p.loadParam("end_close_time", type="float", default=5.0,
-                                             comment="任务结束缓冲时间")
+                                             comment="任务结束缓冲时间,即水泵关闭后阻塞时间")
         self.add_water_do = p.loadParam("add_water_do", type="int", default=4, comment="加水DO")
         self.brush_power = p.loadParam("brush_power", type="int", default=67, comment="刷盘电机默认功率")
         self.suction_power = p.loadParam("suction_power", type="int", default=50, comment="吸风电机默认功率")
@@ -68,7 +68,7 @@ class Module(BasicModule):
         self.auto_adjust_power = p.loadParam("auto_adjust_power", type="int", default=1,
                                              comment="是否启动电机功率自动调节模式, 1: 启动， 0: 不启动")
         self.add_water_delay_time = p.loadParam("add_water_delay_time", type="float", default=5.0,
-                                                comment="加水延时关闭时间")
+                                                comment="加水延时关闭时间，即加水任务结束后阻塞时间")
         self.high_mode_x_speed = p.loadParam("high_mode_x_speed", type="float", default=0.8,
                                              comment="x速度大于该值时, 清洁机构以高功率工作")
         self.std_mode_x_speed = p.loadParam("std_mode_x_speed", type="float", default=0.4,
