@@ -143,6 +143,8 @@ class Module(BasicModule):
         if not self.is_connected:
             self.connect(r)
         self.save_to_rbk(r)
+        if self.period_run_counter == 1:
+            self.reset_status(r)
         if time.time() - self.period_run_start > 0.5:
             self.period_run_start = time.time()
             if not self.end_start_flag:
@@ -289,7 +291,7 @@ class Module(BasicModule):
             if self.brush_lift_status != WorkingStatus.INIT:
                 self.clean_robot.ctrl_brush_lift(r, WorkState.CLOSE)
             if self.mop_lift_status != WorkingStatus.INIT:
-                    self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
+                self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
             if (self.status_check(r)==MachineState.STANDBY):
                     self.status = MoveStatus.FINISHED
 
@@ -312,6 +314,17 @@ class Module(BasicModule):
             if self.waste_valve_status == WorkingStatus.RUNNING:
                 self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
             self.end_start_flag=True
+
+    def reset_status(self, r: SimModule):
+        self.close_jet_pump(r)
+        if self.brush_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_brush(r, 0)
+        if self.suction_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_suction(r, 0)
+        if self.waste_valve_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
+        self.clean_robot.ctrl_brush_lift(r, WorkState.CLOSE)
+        self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
     
     def dust_start(self, r: SimModule):
         if self.mop_lift_status != WorkingStatus.RUNNING:

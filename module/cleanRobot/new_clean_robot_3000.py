@@ -335,6 +335,8 @@ class Module(BasicModule):
                 self.connect(r)
             # 同步液位数据到RBK
             self.save_to_rbk(r)
+            if self.period_run_counter == 1:
+                self.reset_status(r)
             if time.time() - self.period_run_start > 0.5:
                 self.period_run_start = time.time()
                 # 根据任务状态处理业务逻辑
@@ -423,7 +425,6 @@ class Module(BasicModule):
         elif task_status == 6:  # Canceled
             self.wash_end(r)
 
-
         # 急停信号检测
         if r.controller().get("emc", False):
             self.wash_suspend(r)
@@ -497,7 +498,17 @@ class Module(BasicModule):
             if (self.status_check(r)==MachineState.STANDBY):
                 self.status = MoveStatus.FINISHED
 
-    
+    def reset_status(self, r: SimModule):
+        self.close_jet_pump(r)
+        if self.brush_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_mechanism(self.can_arch64, r, "brush", WorkState.CLOSE, 0)
+        if self.suction_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_mechanism(self.can_arch64, r, "suction", WorkState.CLOSE, 0)
+        if self.waste_valve_status == WorkingStatus.RUNNING:
+                self.clean_robot.ctrl_mechanism(self.can_arch64, r, "waste_valve", WorkState.CLOSE, 0)
+        self.clean_robot.ctrl_mechanism(self.can_arch64,r,"brush_lift", WorkState.CLOSE)
+        self.clean_robot.ctrl_mechanism(self.can_arch64,r,"mop_lift", WorkState.CLOSE)
+
     def dust_start(self, r: SimModule):
         if self.mop_lift_status != WorkingStatus.RUNNING:
             self.clean_robot.ctrl_mechanism(self.can_arch64,r,'mop_lift', WorkState.OPEN)
