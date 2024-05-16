@@ -1221,6 +1221,34 @@ class SimModule:
         print("func: {0}".format(get_function_name()))
         return 0
 
+    @check
+    def setModbusData(self,type:str, addr:int, data:list)->bool:
+        """在内部寄存器中写入数据
+
+        Args:
+            type (str): modbus 类型，取值为"0x"、"1x"、"3x"、"4x"
+            addr (int): 写入时的寄存器起始地址
+            data (list): 写入的数据
+        Returns:
+            bool: 是否写入成功。写入失败时所有数据都不写入。
+        """
+        print("func: {0} {1} {2} {3}".format(get_function_name(), type, addr, data))
+        return True 
+
+    @check
+    def getModbusData(self,type:str, addr:int, size:int)->list:
+        """在内部寄存器中读取数据
+
+        Args:
+            type (str): modbus 类型，取值为"0x"、"1x"、"3x"、"4x"
+            addr (int): 读取时的寄存器起始地址
+            size (int): 读取的数据长度
+        Returns:
+            list: 寄存器数据
+        """
+        print("func: {0} {1} {2} {3}".format(get_function_name(), type, addr, size))
+        return list()
+
 if __name__ == '__main__':
     r = SimModule()
     r.setDO(1,True)
@@ -1342,4 +1370,6 @@ if __name__ == '__main__':
     r.require()
     r.requireByNickName("abc")
     r.release()
+    r.setModbusData("0x",1,[0,1])
+    r.getModbusData("0x",1,1)
     print("Success!!!")
