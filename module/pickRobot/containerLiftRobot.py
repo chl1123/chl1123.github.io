@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/04/13
+# @Date : 2024/05/15
 # @Author : zhong
-# @Version : 1.0
+# @Version : 1.3
 # @Project : 抱夹式料箱车
 # Coding: https://seer-group.coding.net/p/order_issue_pool/requirements/issues/6117/detail
-# @Update :
+# @Update : 增加 offset_x 补偿值
 import json
 import math
 import sys
@@ -239,6 +239,7 @@ class Module(BasicModule):
                                              unit="", comment="多伸出的距离")
         self.auto_stretch_odo_len = p.loadParam("auto_stretch_odo_len", type="float", default=0.38, maxValue=100,
                                                 minValue=20, unit="", comment="手臂到里程中心的距离")
+        self.offset_x = p.loadParam("offset_x", type="float", default=0, comment="针对识别结果误差在x方向的补偿值")
         
         self.init = True
         
@@ -1054,7 +1055,7 @@ class RecAdjust:
         self.goPath = goPath.Module(r, dict())
     
     @staticmethod
-    def move_x(dx, dy, yaw, rotate_pos):
+    def move_x(dx, dy, yaw, rotate_pos, offset_x):
         """
         计算车体在x方向上移动的距离
         rotate_pos 是货叉旋转方向
@@ -1062,14 +1063,14 @@ class RecAdjust:
         """
         if rotate_pos > 0:
             if yaw > 0:
-                return -dy - dx * math.tan(math.pi - yaw)
+                return -dy - dx * math.tan(math.pi - yaw) + offset_x
             elif yaw < 0:
-                return -dy + dx * math.tan(math.pi + yaw)
+                return -dy + dx * math.tan(math.pi + yaw) + offset_x
         else:
             if yaw > 0:
-                return dy + dx * math.tan(math.pi - yaw)
+                return dy + dx * math.tan(math.pi - yaw) - offset_x
             elif yaw < 0:
-                return dy - dx * math.tan(math.pi + yaw)
+                return dy - dx * math.tan(math.pi + yaw) - offset_x
     
     def run(self, r: SimModule, agv: Module):
         cur_state = dict()
@@ -1118,8 +1119,8 @@ class RecAdjust:
                     agv.yaw_adjust = code2camera[3] + math.pi  # 正角度调整
                     self.adjust_rotate = agv.rotate_pos + (math.pi + code2camera[3])
                 
-                self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'],
-                                                self.rec.result['yaw'], agv.rotate_pos)
+                self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw'],
+                                                agv.rotate_pos, agv.offset_x)
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date : 2024/05/06
-# @Author : zhong
-# @Version : 2.6
-# @Project : 智千料箱车
-# @Update : 标零动作结束自动释放小车控制权，试用于RBK版本V3.4.5.44和V3.4.6.16及以上
+# @Date: 2024/05/15
+# @Author: zhong
+# @Version: 2.7
+# @Project: 智千料箱车
+# @Update: 标零动作结束自动释放小车控制权;
+# @RBK Version: V3.4.5.44 或 V3.4.6.18 以上
 import json
 import math
 import sys
@@ -232,7 +233,6 @@ class Module(BasicModule):
                                                 minValue=20, unit="", comment="手臂到里程中心的距离")
         self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=1,
                                               comment="识别时是否需要自动调整货叉角度，1：需要 0：不需要")
-        
         self.init = True
         
         self.status = MoveStatus.NONE
@@ -408,7 +408,7 @@ class Module(BasicModule):
         self.report_info['task_status'] = self.status
         self.report_info['goodsId'] = self.goods_id
         self.report_info['containers'] = self.containers
-        self.report_info['zero_step'] = self.zero_step
+        # self.report_info['zero_step'] = self.zero_step
         self.report_info['motor_info'] = self.container_robot.state or -1
         if self.status == MoveStatus.FAILED or self.status == MoveStatus.FINISHED:
             r.setDO(self.fill_light_do, False)
@@ -512,7 +512,6 @@ class Module(BasicModule):
     def lift(self, r, height):
         r.logInfo(f"----- running lift ------")
         if height < self.min_lift_height:
-            # r.setWarning(f"lower than the min lift height: {height}")
             height = self.min_lift_height
         if height > self.max_lift_height:
             r.setError(f"Out of the max lift height: {height}")
@@ -524,8 +523,6 @@ class Module(BasicModule):
                 return True
         else:
             r.setWarning(f"Out of the level2_height: {height}")
-            # if self.container_robot.lift_door(self.lift_door_motor, self.door_lift_height):
-            # if self.container_robot.lift(self.lift_motor, height):
             return True
         return False
     
@@ -543,14 +540,14 @@ class Module(BasicModule):
         if not self.finger_open_start:
             self.finger_open_start = time.time()
         else:
-            if time.time() - self.finger_open_start > 3:
+            if time.time() - self.finger_open_start > 5:
                 r.setError(f"finger open error")
                 r.setDO(self.left_finger_up_do, False)
                 r.setDO(self.right_finger_up_do, False)
                 r.setDO(self.left_finger_down_do, False)
                 r.setDO(self.right_finger_down_do, False)
                 self.status = MoveStatus.FAILED
-                return
+                return False
         if pos == 1:
             r.setDO(self.left_finger_up_do, True)
             r.setDO(self.right_finger_up_do, True)
@@ -1020,10 +1017,10 @@ class RecAdjust:
         self.adjust_count = 0
         self.go_args = dict()
         self.ok = False
-        # self.ok_x = 0.003  # x方向行走调整完成阈值
-        self.ok_x = p.loadParam("ok_x", type="float", default=0.005, comment="x方向行走调整完成阈值")
-        # self.ok_yaw = 0.035  # 调整完成弧度阈值, 对应2°
-        self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.04, comment="调整完成弧度阈值")
+        self.ok_x = 0.01  # x方向行走调整完成阈值
+        # self.ok_x = p.loadParam("ok_x", type="float", default=0.005, comment="x方向行走调整完成阈值")
+        self.ok_yaw = 0.02  # 调整完成弧度阈值, 对应1.16°
+        # self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.04, comment="调整完成弧度阈值")
         # self.max_yaw_bias = 0.13  # 最大偏差弧度
         self.max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13, comment="货叉与料箱角度最大偏差, 弧度值")
         self.adjust_rotate = 1.5708  # 默认值
@@ -1073,13 +1070,8 @@ class RecAdjust:
                 """获取结果"""
                 # 计算手臂伸出长度
                 if not agv.stretch_length:
-                    agv.stretch_length = abs(self.rec.result[
-                                                 'x']) - agv.auto_stretch_odo_len + agv.auto_stretch_dist + agv.auto_stretch_box_len
-                    if agv.stretch_length > agv.max_stretch_length:
-                        r.setError(
-                            f"The box is too far. need stretch: {agv.stretch_length}, max stretch: {agv.max_stretch_length}.")
-                        self.status = MoveStatus.FAILED
-                        return
+                    agv.stretch_length = (abs(self.rec.result['x']) - agv.auto_stretch_odo_len +
+                                          agv.auto_stretch_dist + agv.auto_stretch_box_len)
                 
                 code2camera = [self.rec.result['x'], self.rec.result['y'], self.rec.result['z'],
                                self.rec.result['yaw']]
@@ -1089,10 +1081,10 @@ class RecAdjust:
                 
                 # 根据反馈的yaw来判断rotate调整方向
                 if code2camera[3] > 0:
-                    agv.yaw_adjust = code2camera[3] - math.pi  # 负角度调整
+                    agv.yaw_adjust = code2camera[3] - math.pi
                     self.adjust_rotate = agv.rotate_pos - (math.pi - code2camera[3])
                 else:
-                    agv.yaw_adjust = code2camera[3] + math.pi  # 正角度调整
+                    agv.yaw_adjust = code2camera[3] + math.pi
                     self.adjust_rotate = agv.rotate_pos + (math.pi + code2camera[3])
                 
                 self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'],
@@ -1101,7 +1093,7 @@ class RecAdjust:
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
                 self.go_args["useOdo"] = 1
-                self.go_args["reachDist"] = self.ok_x
+                self.go_args["reachDist"] = 0.003
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
                 else:
@@ -1122,7 +1114,7 @@ class RecAdjust:
                 self.rec.reset(r)
         elif self.status is not MoveStatus.FINISHED and self.status is not MoveStatus.FAILED:
             if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
-                if abs(self.go_args['x']) < self.ok_x:  # 底盘调整完成
+                if abs(self.go_args['x']) < 0.003:  # 底盘调整完成
                     self.goPath.status = MoveStatus.FINISHED
                 else:
                     if self.adjust_count >= self.max_adjust_time:
@@ -1134,19 +1126,17 @@ class RecAdjust:
             elif not self.rotate_step and self.goPath.status == MoveStatus.FINISHED:
                 if abs(agv.yaw_adjust) <= self.ok_yaw:  # 货叉调整完成
                     self.rotate_step = True
-                if not self.rotate_step:
-                    if agv.operation == "load":
-                        self.rotate_step = agv.rotate(r, self.adjust_rotate)  # 货叉角度偏移修正
-                    elif agv.operation == "unload":
-                        self.rotate_step = True
+                if not self.rotate_step and agv.operation == "load" and bool(agv.auto_adjust_rotate):
+                    self.rotate_step = agv.rotate(r, self.adjust_rotate)  # 货叉角度偏移修正
+                else:
+                    self.rotate_step = True
             elif self.goPath.status == MoveStatus.FAILED:
                 self.status = MoveStatus.FAILED
             elif self.goPath.status == MoveStatus.FINISHED and self.rotate_step:
                 self.reset(r)
                 self.adjust_count += 1
                 self.plan_status = MoveStatus.NONE
-                if bool(agv.auto_adjust_rotate):
-                    self.rotate_step = False
+                self.rotate_step = False
         cur_state["stretch_length"] = agv.stretch_length
         cur_state["go_path_status"] = self.goPath.status
         cur_state["plan_status"] = self.plan_status
