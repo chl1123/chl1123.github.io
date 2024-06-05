@@ -132,8 +132,8 @@ class ParamServer:
                 return False
 
         updateFile = False    
-        if type is "float" or type is "str" or type is "int":
-            if default is not None: 
+        if type is "float" or type is "str" or type is "int" or type is "bool":
+            if default is not None:
                 if name not in self.data:
                     updateFile = True
                     self.data[name] = dict()
@@ -149,7 +149,7 @@ class ParamServer:
                         self.data[name]["maxValue"] = kw["maxValue"]
                     if "minValue" in kw and updateKey(self.data[name], "minValue", kw["minValue"]):
                         updateFile = True
-                        self.data[name]["minValue"] = kw["minValue"]                    
+                        self.data[name]["minValue"] = kw["minValue"]
                 if "comment" in kw and updateKey(self.data[name], "comment", kw["comment"]):
                         updateFile = True
                         self.data[name]["comment"] = kw["comment"]
@@ -157,10 +157,10 @@ class ParamServer:
                         updateFile = True
                         self.data[name]["unit"] = kw["unit"]
                 if updateFile:
-                    with open(self.file, 'w', encoding="utf-8") as f: 
-                        json.dump(self.data, f, indent=4, ensure_ascii=False)        
+                    with open(self.file, 'w', encoding="utf-8") as f:
+                        json.dump(self.data, f, indent=4, ensure_ascii=False)
                 return self.data[name]["value"]
             else:
                 raise Exception("loadParam no default key")
         else:
-            raise Exception("loadParam Type (str, int, float) Error. Input Type is {}".format(type))
+            raise Exception("loadParam Type (str, int, float, bool) Error. Input Type is {}".format(type))
