@@ -320,38 +320,54 @@ def getYPRZYX(p):
 
 
 def getYPRZYX_code(p, theta):
+    # 货叉相对于agv
     Tagv2f = [[math.cos(theta), -math.sin(theta), 0., 0.],
               [math.sin(theta), math.cos(theta), 0., 0.],
               [0., 0., 1., 0.],
               [0., 0., 0., 1.]]
+    # 相机相对于货叉
     Tf2c = [[0., 0., 1., 0.262],
             [0., -1., 0., 0.],
             [1., 0., 0., -0.029],
             [0., 0., 0., 1.]]
+    # 料箱相对于二维码
     Tm2box = [[0., -1., 0., 0.],
               [0., 0., 1., 0.],
               [-1., 0., 0., 0.],
               [0., 0., 0., 1.]]
+    # 二维码相对于相机
     Tc2m_now = matrixReshape(p, 4, 4)
+    # 二维码相对于货叉
     Tf2m_now = matrixDot(Tf2c, Tc2m_now, 4, 4, 4)
     # newp = matrixReshape(Tf2m_now, 1, 16)[0]
     # yaw, pitch, roll, dz, dy, dx = getYPRZYX(newp)
+    # 二维码相对于小车
     Tagv2m_now = matrixDot(Tagv2f, Tf2m_now, 4, 4, 4)
+    # 料箱相对于小车
     Tagv2box = matrixDot(Tagv2m_now, Tm2box, 4, 4, 4)
+    # 料箱相对于货叉
     Tf2box = matrixDot(Tf2m_now, Tm2box, 4, 4, 4)
+    # 料箱的 [1，0，0]
     boxX = [[1.], [0.], [0.], [1.]]
+    # 料箱的 [1,0,0] 在 小车 下的坐标
     boxX2agv = matrixDot(Tagv2box, boxX, 4, 4, 1)
+
+    # 
     angle_agv = math.atan2(boxX2agv[1][0] - Tagv2box[1][3], boxX2agv[0][0] - Tagv2box[0][3])
     dx = Tagv2box[0][3]
     dy = Tagv2box[1][3]
     dz = Tagv2box[2][3]
-    # pf2box， box在理想货叉坐标系中的位置
+
+    # pf2box， 料箱相对于最终货叉坐标系中的位置
     pf2box_ideal = [[Tf2box[0][3]], [0], [Tf2box[2][3]], [1]]
     print(pf2box_ideal)
+    # 最终货叉相对于小车坐标下的位姿
     Tagv2f_ideal = [[math.cos(angle_agv), -math.sin(angle_agv), 0., 0.],
                     [math.sin(angle_agv), math.cos(angle_agv), 0., 0.],
                     [0., 0., 1., 0.],
                     [0., 0., 0., 1.]]
+    
+    # 料箱相对于最终小车的位姿
     pagv2box_ideal = matrixDot(Tagv2f_ideal, pf2box_ideal, 4, 4, 1)
     dist = Tagv2box[0][3] - pagv2box_ideal[0][0]
     return angle_agv, dx, dy, dz, dist, Tagv2box
