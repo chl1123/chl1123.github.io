@@ -728,7 +728,7 @@ class SimModule:
 
         Args:
             name (str): 音频名称
-            flag (int): 播放次数，需要大于0
+            count (int): 播放次数，需要大于0
         """
         print("func: {0} sound name: {1} count: {2}".format(get_function_name(), name, count))
 
@@ -777,9 +777,6 @@ class SimModule:
     @check
     def getTriggleScriptName(self) -> str:
         """获取TriggleScript的名称
-
-        Args:
-            map (str): 地图名称
 
         Returns:
             str: scriptName
@@ -922,14 +919,14 @@ class SimModule:
             bool: 是否有货物
         """
         print("func: {0}".format(get_function_name()))
-        return 0
+        return False
 
     @check
     def clearGoodsShape(self) -> bool:
         """去除agv身上的状态
         """
         print("func: {0}".format(get_function_name()))
-        return 0
+        return False
 
     @check
     def getForkPressure(self) -> float:
@@ -1025,7 +1022,7 @@ class SimModule:
         """清除车上特定库位或者背篓的状态
 
         Args:
-            container_name (str): 货物名称，货物名称如果为All则全部清除
+            goods_id (str): 货物名称，货物名称如果为All则全部清除
         Returns:
             bool: 如果没有库位或者背篓，则返回false
         """
