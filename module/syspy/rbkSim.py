@@ -4,7 +4,9 @@ from os import strerror
 
 
 def get_function_name():
-    '''获取正在运行函数(或方法)名称'''
+    """
+    获取正在运行函数(或方法)名称
+    """
     return inspect.stack()[1][3]
 
 
