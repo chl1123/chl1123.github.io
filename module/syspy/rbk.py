@@ -132,7 +132,7 @@ class ParamServer:
                 return False
 
         updateFile = False    
-        if type is "float" or type is "str" or type is "int" or type is "bool":
+        if type == "float" or type == "str" or type == "int" or type == "bool":
             if default is not None:
                 if name not in self.data:
                     updateFile = True
@@ -143,7 +143,7 @@ class ParamServer:
                 if updateKey(self.data[name], "default", default):
                     updateFile = True
                     self.data[name]["default"] = default
-                if type is "float" or type is "int":
+                if type == "float" or type == "int":
                     if "maxValue" in kw and updateKey(self.data[name], "maxValue", kw["maxValue"]):
                         updateFile = True
                         self.data[name]["maxValue"] = kw["maxValue"]
