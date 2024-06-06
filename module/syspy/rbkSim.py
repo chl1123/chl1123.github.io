@@ -1413,6 +1413,7 @@ class SimModule:
             dict: 库位状态
         """
         print("func: {0}".format(get_function_name()))
+        return dict()
 
     @check
     def doRecWithRegion(self, file: str, x: float, y: float, theta: float, radius: float) -> dict:
