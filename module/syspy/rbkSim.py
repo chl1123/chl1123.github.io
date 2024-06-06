@@ -1468,6 +1468,24 @@ class SimModule:
 
         """
         print("func: {0} {1}".format(get_function_name(), dist))
+    
+    @check
+    def enableMotor(self, name: str):
+        """电机使能
+        Args:
+            name (str): 电机名称
+        Returns:
+        """
+        print("func: {0} {1}".format(get_function_name(), name))
+    
+    @check
+    def disableMotor(self, name: str):
+        """电机去使能
+        Args:
+            name (str): 电机名称
+        Returns:
+        """
+        print("func: {0} {1}".format(get_function_name(), name))
 
 
 if __name__ == '__main__':
@@ -1590,4 +1608,6 @@ if __name__ == '__main__':
     r.getNearestLaserPoint(0)
     r.binDetection(26446717)
     r.getBinDetectionResult()
+    r.enableMotor("lift")
+    r.disableMotor("lift")
     print("Success!!!")
