@@ -1237,7 +1237,8 @@ class SimModule:
         print("func: {0} {1} {2} {3} {4} {5}".format(get_function_name(), channel, can_id, dlc, extend, can_string))
 
     @check
-    def resetGoForkPath(self, x: float, y: float, yaw: float, back_dist: float, min_ahead_dist: float, ahead_dist: float):
+    def resetGoForkPath(self, x: float, y: float, yaw: float, back_dist: float, min_ahead_dist: float,
+                        ahead_dist: float):
         """重置叉车去往识别点的路径规划
 
         Args:
@@ -1248,7 +1249,8 @@ class SimModule:
             min_ahead_dist (float): 栈板前直线距离 m
             ahead_dist (float): 到终点前的直线距离
         """
-        print("func: {0} {1} {2} {3} {4} {5} {6}".format(get_function_name(), x, y, yaw, back_dist, min_ahead_dist, ahead_dist))
+        print("func: {0} {1} {2} {3} {4} {5} {6}".format(get_function_name(), x, y, yaw, back_dist, min_ahead_dist,
+                                                         ahead_dist))
 
     @check
     def goForkPath(self):
@@ -1312,6 +1314,89 @@ class SimModule:
         print("func: {0} {1}".format(get_function_name(), laser_id))
 
     @check
+    def setGData(self, value: dict):
+        """设置全局字典变量
+        Args:
+        value dict (_type_): 传入字典类型的变量
+        """
+        print("func: {0} {1}".format(get_function_name(), value))
+
+    @check
+    def getGData(self) -> dict:
+        """获取全局字典
+        Returns:
+            dict: 返回字典类型的变量
+        """
+        print("func: {0}".format(get_function_name()))
+        return dict()
+
+    @check
+    def clearGData(self):
+        """清除全局字典变量
+        """
+        print("func: {0}".format(get_function_name()))
+
+    @check
+    def release(self):
+        """释放控制权
+
+        Returns:
+            int: 0=ok
+        """
+        print("func: {0}".format(get_function_name()))
+        return 0
+
+    @check
+    def requireByNickName(self, nick_name: str):
+        """获取控制权
+
+        Args:
+            nick_name (str): 控制权所有者名称
+        Returns:
+            int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
+        """
+        print("func: {0} {1}".format(get_function_name(), nick_name))
+        return 0
+
+    @check
+    def require(self):
+        """获取控制权
+
+        Returns:
+            int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
+        """
+        print("func: {0}".format(get_function_name()))
+        return 0
+
+    @check
+    def setModbusData(self, type: str, addr: int, data: list) -> bool:
+        """在内部寄存器中写入数据
+
+        Args:
+            type (str): modbus 类型，取值为"0x"、"1x"、"3x"、"4x"
+            addr (int): 写入时的寄存器起始地址
+            data (list): 写入的数据
+        Returns:
+            bool: 是否写入成功。写入失败时所有数据都不写入。
+        """
+        print("func: {0} {1} {2} {3}".format(get_function_name(), type, addr, data))
+        return True
+
+    @check
+    def getModbusData(self, type: str, addr: int, size: int) -> list:
+        """在内部寄存器中读取数据
+
+        Args:
+            type (str): modbus 类型，取值为"0x"、"1x"、"3x"、"4x"
+            addr (int): 读取时的寄存器起始地址
+            size (int): 读取的数据长度
+        Returns:
+            list: 寄存器数据
+        """
+        print("func: {0} {1} {2} {3}".format(get_function_name(), type, addr, size))
+        return list()
+
+    @check
     def binDetection(self, seq: int):
         """库位检测
 
@@ -1330,9 +1415,14 @@ class SimModule:
         print("func: {0}".format(get_function_name()))
 
     @check
-    def doRecWithRegion(self, file: str, x:float, y:float, theta:float, radius:float) -> dict:
+    def doRecWithRegion(self, file: str, x: float, y: float, theta: float, radius: float) -> dict:
         """根据识别范围进行识别
-
+        Args:
+            file (str): 识别文件
+            x (float): 机器人坐标系下识别范围中心X坐标，单位 m
+            y (float): 机器人坐标系下识别范围中心Y坐标，单位 m
+            theta (float): 机器人坐标系下识别范围中心角度,
+            radius (float): 识别范围半径，单位 m
         Returns:
             dict: 识别结果
         """
@@ -1350,30 +1440,46 @@ class SimModule:
 
     @check
     def setLaserWidth(self, id: int, width: float):
+        """设置激光有效宽度
+        Args:
+            id (int): 激光id
+            width (float): 宽度范围，单位 m
+        Returns:
 
+        """
         print("func: {0}: {1} {2}".format(get_function_name(), id, width))
 
     @check
     def clearLaserWidth(self, ids: list):
+        """清除激光有效宽度
+        Args:
+            ids (list): 激光id列表
+        Returns:
 
+        """
         print("func: {0} {1}".format(get_function_name(), ids))
 
     @check
     def setObsStopDist(self, dist: float):
+        """设置避障距离
+        Args:
+            dist (float): 避障距离，单位 m
+        Returns:
 
+        """
         print("func: {0} {1}".format(get_function_name(), dist))
 
 
 if __name__ == '__main__':
     r = SimModule()
-    r.setDO(1, True)
+    r.setDO(1,True)
     r.setMotorSpeed("motor", 1.0, 1)
     r.setMotorPosition("doMotor", 1.0, 2.0, 1)
     r.setLocalShelfArea("shelf")
     r.resetMotor("motor")
     r.isAllMotorsReached()
     r.isMotorReached("motor")
-    r.isMotorPositionReached("motor", 1.0, 1)
+    r.isMotorPositionReached("motor",1.0, 1)
     r.isMotorStop("motor")
     r.publishSpeed()
     r.resetLocalShelfArea()
@@ -1400,15 +1506,15 @@ if __name__ == '__main__':
     r.clearWarning(111111)
     r.errorExits(111111)
     r.warningExits(111111)
-    r.setPathOnRobot([0, 1], [0, 1], 0.0)
-    r.setPathOnWorld([0, 1], [0, 1], 0.0)
+    r.setPathOnRobot([0,1],[0,1],0.0)
+    r.setPathOnWorld([0,1],[0,1],0.0)
     r.isPathReached()
     r.goPath()
     r.resetPath()
     r.stopRobot(True)
     r.getNextSpeed()
-    r.setNextSpeed(json.dumps({"x": 0.3}))
-    r.speedDecomposition(json.dumps({"x": 0.3}))
+    r.setNextSpeed(json.dumps({"x":0.3}))
+    r.speedDecomposition(json.dumps({"x":0.3}))
     r.setPathReachAngle(1.0)
     r.setPathReachDist(1.0)
     r.setPathUseOdo(True)
@@ -1418,7 +1524,7 @@ if __name__ == '__main__':
     r.stopSound(True)
     # r.setForkHeight(1.0)
     # r.stopFork()
-    r.switchMap("hello", "LM1", 0.0, 0.0, 0.0)
+    r.switchMap("hello","LM1",0.0,0.0,0.0)
     r.getTriggleScriptArgs()
     r.getTriggleScriptName()
     r.hasTriggleScript()
@@ -1436,19 +1542,19 @@ if __name__ == '__main__':
     r.setPathHoldDir(999.0)
     r.setBlockError()
     r.clearBlockError()
-    r.setBlockReason(0, 0., 0., 0)
+    r.setBlockReason(0,0.,0.,0)
     r.getRecFileFromTask()
-    r.setContainer("1", "goods1", "")
+    r.setContainer("1","goods1","")
     r.getContainers()
     r.clearContainer("1")
     r.clearContainerByGoodsId("1")
     r.setUserError(53900, "error")
     r.setUserWarning(55900, "warning")
     r.sensorPointCloud()
-    r.openSpeed(0., 0., 0.)
+    r.openSpeed(0.,0.,0.)
     r.resetRecAndGoPathDi()
     r.recAndGoPathDi(task="{\"operation\":\"load\"}")
-    r.laserCollision([1, 2])
+    r.laserCollision([1,2])
     r.getDistanceSensor()
     r.resetGoMapPath()
     r.goMapPath(task="{\"operation\":\"load\"}")
@@ -1458,7 +1564,7 @@ if __name__ == '__main__':
     r.armStop()
     r.armPause()
     r.armResume()
-    data = {"type": "set_speed_slider"}
+    data =  {"type": "set_speed_slider"}
     r.armControl(json.dumps(data))
     r.stopMotor()
     r.setPickRobotError(53800, "error")
@@ -1473,12 +1579,12 @@ if __name__ == '__main__':
     r.RecognizeBarCode("tag/t0001.tag", "123")
     r.stopCurrentBlock()
     r.getCanFrame()
-    r.sendCanFrame(1, 1, 1, False, "40 40 60 00 00 00 00 00")
-    r.resetGoForkPath(0.0, 0.0, 0.0, 0.0, 0.0)
+    r.sendCanFrame(1,1,1,False,"40 40 60 00 00 00 00 00")
+    r.resetGoForkPath(0.0,0.0,0.0,0.0,0.0,0.0)
     r.goForkPath()
-    r.setGoForkForkPos(0.0, 0.0, 0.0, 0.0)
+    r.setGoForkForkPos(0.0,0.0,0.0,0.0)
     r.setMotorCalib("motor")
-    r.setVirtualDI(1, True)
+    r.setVirtualDI(1,True)
     r.isAnyErrorExists()
     r.getCurrentTaskStatus()
     r.getNearestLaserPoint(0)
