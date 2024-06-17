@@ -97,13 +97,13 @@ class testCanBattery(cb.canPassBase):
             tem = canframe.Data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
             if temperature <= -19:
-                self.setError("The current temperature has reached " + str(temperature) + " degrees , low temperature error!")
+                self.setError(53140,"The current temperature has reached " + str(temperature) + " degrees , low temperature error!")
             elif -19 < temperature <= -15:
-                self.setWarning("The current temperature has reached " + str(temperature) + " degrees , low temperature warning.")
+                self.setWarning(54400, "The current temperature has reached " + str(temperature) + " degrees , low temperature warning.")
             elif 55 <= temperature < 59:
-                self.setWarning("The current temperature has reached " + str(temperature) + " degrees , high temperature warning.")
+                self.setWarning(54400, "The current temperature has reached " + str(temperature) + " degrees , high temperature warning.")
             elif temperature >= 59:
-                self.setError("The current temperature has reached " + str(temperature) + " degrees , high temperature error!")
+                self.setError(53140, "The current temperature has reached " + str(temperature) + " degrees , high temperature error!")
             self.battery_info.temperature = temperature
             self.msg_ok = True
             self.id3 = True
@@ -129,10 +129,10 @@ class testCanBattery(cb.canPassBase):
                     if cu.get_bit_val(canframe.Data[i], j) == 1:
                         if (i == 3 and j == 0) or (i == 1 and j == 2) or (i == 1 and j == 0) or (i == 1 and j == 1):
                             error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
-                            self.setWarning(error_msg)
+                            self.setWarning(54400, error_msg)
                         else:
                             error_msg = "Battery pack number: " + tem[0:2] + " error msg: " + error_dict[(i, j)]
-                            self.setError(error_msg)
+                            self.setError(53140,error_msg)
                         break
 
     def judgePublish(self):

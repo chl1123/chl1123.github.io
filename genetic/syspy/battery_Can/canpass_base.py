@@ -64,11 +64,11 @@ class canPassBase:
         print("Clear timeout")
         self.__rpc_client.clearWarning(54001)
 
-    def setWarning(self, warMessage):
-        self.__rpc_client.setWarning(54001, warMessage)
+    def setWarning(self, warNum, warMessage):
+        self.__rpc_client.setWarning(warNum, warMessage)
 
-    def setError(self, errMessage):
-        self.__rpc_client.setError(52960, errMessage)
+    def setError(self, errNum, errMessage):
+        self.__rpc_client.setError(errNum, errMessage)
 
     def warningExists(self,code):
         return self.__rpc_client.warningExists(code)
