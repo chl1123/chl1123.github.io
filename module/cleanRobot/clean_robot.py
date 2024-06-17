@@ -137,8 +137,12 @@ class Module(BasicModule):
         self.is_device_run = False
 
         # 液位滤波
-        self.clean_filter = MeanValue(1000)
-        self.waste_filter = MeanValue(1000)
+        self.clean_filter = MeanValue(500)
+        self.waste_filter = MeanValue(500)
+
+        # modbus 初始化化变量
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket_init = True
 
         r.logInfo(str(args))
 
@@ -165,6 +169,8 @@ class Module(BasicModule):
         if task_status in [3, 5, 6]:
             if not self.stop_ok:
                 self.stopV1(r)
+                r.setDO(self.addingWater_do, False)
+                # self.send_msg(r, "2B 80 30 07 00 00 00 00")
                 if self.stop_number >= 8:
                     self.stop_ok = True
                     self.stop_number = 0
@@ -203,9 +209,11 @@ class Module(BasicModule):
     #     # r.logInfo("script suspend")
     #     self.status = MoveStatus.SUSPENDED
     #
-    # def cancel(self, r: SimModule):
-    #     # r.logInfo("script cancel")
-    #     self.status = MoveStatus.NONE
+    def cancel(self, r: SimModule):
+        r.logInfo("script cancel")
+        r.setDO(self.addingWater_do, False)
+        self.send_msg(r, "2B 80 30 07 00 00 00 00")
+        self.status = MoveStatus.NONE
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
@@ -287,10 +295,10 @@ class Module(BasicModule):
         # 接收 Modbus TCP server 的返回数据
         # 解析 Modbus TCP server 返回的 ADU
         # 检查是否写入成功
-        if register_value == value:
-            r.setInfo(f"Value written successfully!:{value}")
-        else:
-            r.setInfo(f"Value write failed!:{value}")
+        # if register_value == value:
+        #     r.logInfo(f"Value written successfully!:{value}")
+        # else:
+        #     r.logInfo(f"Value write failed!:{value}")
         # 关闭 socket 连接
         client_socket.close()
 
@@ -469,8 +477,7 @@ class Module(BasicModule):
         block = r.isAnyErrorExists()  # 任务错误
         error_52316 = r.errorExits(52316)  # 下发速度超时
         warning_54231 = r.warningExits(54231)  # 调度报阻挡
-        if (not error_52316) and (
-                block or warning_54231) and not self.block_first and self.status == MoveStatus.FINISHED:
+        if (not error_52316) and (block or warning_54231) and not self.block_first and self.status == MoveStatus.FINISHED:
             self.block_first = True
             self.block_start_time = time.time()
             self.block_stop_opt = [False] * 8
@@ -597,7 +604,7 @@ class Module(BasicModule):
             flag = False
             data = dict()
             if not flag:
-                time.sleep(0.01)
+                time.sleep(0.005)
                 flag = True
                 data = self._send_get(r, msg)
                 can_frame_id_res = data["ID"]
@@ -726,7 +733,7 @@ class Module(BasicModule):
             self.operation_status = MoveStatus.RUNNING
             self.task_list = [
                 AddWater(),
-                DelayTime(5)  # 延时5s
+                DelayTime(8)  # 延时5s
             ]
         else:
             self.run_tak_list(r)
@@ -982,8 +989,7 @@ class AddWater:
     def run(self, r: SimModule, m: Module):
         self.status = MoveStatus.RUNNING
         m_state = dict()
-        clean_gauge = m.get_proxy_info(r, cmd.CLEAN_WATER_LEVEL_GAUGE)
-        clean_water_level_add = (int(clean_gauge[10:12] + clean_gauge[8:10], 16) / 4095 * 1000) / 950 * 100
+        clean_water_level_add = m.clean_water_level
         if clean_water_level_add >= m.addingWater_limit_level:
             if ModuleTool.check_DO(r, m.addingWater_do):
                 r.setDO(m.addingWater_do, False)
@@ -1028,6 +1034,7 @@ class MeanValue:
         super().__init__()
         self.w = windowSize
         self.data = []
+        self.threshold = 10
 
     def setValue(self, v):
         self.data.append(v)
