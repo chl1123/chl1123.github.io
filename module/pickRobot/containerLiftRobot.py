@@ -332,7 +332,7 @@ class Module(BasicModule):
         self.status = MoveStatus.RUNNING
         self.report_info["getCount_run"] = r.getCount()
         if self.init:
-            # self.close_finger(r)
+            self.offset_x = args.get("offset_x", self.offset_x)
             self.motor_calib(r)
             self.goods_id = args.get("goodsId", "")
             self.get_move_task_params(r)
@@ -940,7 +940,7 @@ class Module(BasicModule):
         self.stretch_real_pos = ModuleTool.get_motor_pos(r, self.stretch_motor_name)
         self.clamp_real_pos = ModuleTool.get_motor_pos(r, self.clamp_motor_name)
         self.rotate_real_pos = ModuleTool.get_motor_pos(r, self.rotate_motor_name)
-        self.rotate_real_pos = self.rotate_real_pos * 180 / math.pi
+        # self.rotate_real_pos = self.rotate_real_pos * 180 / math.pi
         # self.update_finger_info(r)
         module_pos['lift'] = round(self.lift_real_pos, 3)
         module_pos['stretch'] = round(self.stretch_real_pos, 3)
@@ -1039,7 +1039,7 @@ class RecAdjust:
         self.rec = Rec(filename)
         self.result = []
         self.max_rec_fail_times = 10
-        self.max_adjust_time = 10
+        self.max_adjust_time = 20
         self.rec_fail_time = 0
         self.adjust_count = 0
         self.go_args = dict()
@@ -1063,14 +1063,18 @@ class RecAdjust:
         """
         if rotate_pos > 0:
             if yaw > 0:
-                return -dy - dx * math.tan(math.pi - yaw) + offset_x
+                return -dy - offset_x
+                # return -dy - dx * math.tan(math.pi - yaw) - offset_x
             elif yaw < 0:
-                return -dy + dx * math.tan(math.pi + yaw) + offset_x
+                return -dy - offset_x
+                # return -dy + dx * math.tan(math.pi + yaw) - offset_x
         else:
             if yaw > 0:
-                return dy + dx * math.tan(math.pi - yaw) - offset_x
+                return dy + offset_x
+                # return dy + dx * math.tan(math.pi - yaw) + offset_x
             elif yaw < 0:
-                return dy - dx * math.tan(math.pi + yaw) - offset_x
+                return dy + offset_x
+                # return dy - dx * math.tan(math.pi + yaw) + offset_x
     
     def run(self, r: SimModule, agv: Module):
         cur_state = dict()
@@ -1114,18 +1118,18 @@ class RecAdjust:
                 # 根据反馈的yaw来判断rotate调整方向
                 if code2camera[3] > 0:
                     agv.yaw_adjust = code2camera[3] - math.pi  # 负角度调整
-                    self.adjust_rotate = agv.rotate_pos - (math.pi - code2camera[3])
+                    self.adjust_rotate = agv.rotate_real_pos - agv.yaw_adjust
                 else:
                     agv.yaw_adjust = code2camera[3] + math.pi  # 正角度调整
-                    self.adjust_rotate = agv.rotate_pos + (math.pi + code2camera[3])
+                    self.adjust_rotate = agv.rotate_real_pos + agv.yaw_adjust
                 
                 self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw'],
-                                                agv.rotate_pos, agv.offset_x)
+                                                agv.rotate_real_pos, agv.offset_x)
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
                 self.go_args["useOdo"] = 1
-                self.go_args["reachDist"] = self.ok_x
+                self.go_args["reachDist"] = 0.003
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
                 else:
@@ -1146,7 +1150,7 @@ class RecAdjust:
                 self.rec.reset(r)
         elif self.status is not MoveStatus.FINISHED and self.status is not MoveStatus.FAILED:
             if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
-                if abs(self.go_args['x']) < self.ok_x:  # 底盘调整完成
+                if abs(self.go_args['x']) < 0.003:  # 底盘调整完成
                     self.goPath.status = MoveStatus.FINISHED
                 else:
                     if self.adjust_count >= self.max_adjust_time:
@@ -1156,7 +1160,7 @@ class RecAdjust:
                     if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
                         self.goPath.run(r, self.go_args)
             elif not self.rotate_step and self.goPath.status == MoveStatus.FINISHED:
-                if abs(agv.yaw_adjust) <= self.ok_yaw:  # 货叉调整完成
+                if abs(agv.yaw_adjust) <= 0.02:  # 货叉调整完成
                     self.rotate_step = True
                 if not self.rotate_step:
                     if agv.operation == "load":
