@@ -157,6 +157,11 @@ except ImportError:
     "goodsId": {
         "value": "",
         "type": "string"
+    },
+    "unloadReset":{
+        "value": 0,
+        "tips": "取货报错时，将货物塞回背篓",
+        "type": "int"
     }
 }
 ####END DEFAULT ARGS####
@@ -179,6 +184,7 @@ class Module(BasicModule):
         self.operation_status = MoveStatus.NONE
         self.low = dict()
         self.high = dict()
+        self.unloadReset = 0  # 是否放回背篓标志位   1:放回、0:不放回
         p = ParamServer(__file__)
         self.rec_type = False if platform.machine() != 'aarch64' else True
         self.timeout = p.loadParam("timeout", type="int", default=120, maxValue=300, minValue=0, unit="s",
@@ -313,14 +319,23 @@ class Module(BasicModule):
         self.lift_motor_calib = None
         self.stretch_motor_calib = None
         self.rotate_motor_calib = None
-
+        
         self.operations= self.init_operations()
         self.handle = None
 
         r.logInfo(f"init args: {args}")
+    
+    @staticmethod
+    def get_motor_info(r: SimModule, motor_name: str):
+        motor_data = r.odo().get("motor_info", [])
+        for _motor in motor_data:
+            if _motor['motor_name'] == motor_name:
+                return _motor
+        return {}
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
+        self.stretch_real_pos = self.get_motor_info(r, self.stretch_motor_name).get("position", 0.1)
         if self.init:
             self.init_args(r,args)
             if not self.handle:
@@ -376,7 +391,7 @@ class Module(BasicModule):
     def get_handle(self, r: SimModule, args: dict):
         # Initialize calibration only if motors are not calibrated.
         if not self.get_motor_calib_state(r):
-            self.task_list.extend([MotorCalib(self.stretch_motor_name),MotorCalib(self.rotate_motor_name),MotorCalib(self.lift_motor_name)])
+            self.task_list.extend([FingerCan(r,1),MotorCalib(self.stretch_motor_name),MotorCalib(self.rotate_motor_name),MotorCalib(self.lift_motor_name)])
         # Simplify operation retrieval process by checking 'self.operation' first.
         # Retrieve and execute the handler function if it exists.
         handler = self.operations.get(self.operation or next((op for op in args if op in self.operations), None))
@@ -426,7 +441,7 @@ class Module(BasicModule):
 
 
     def zero(self,r:SimModule):
-        self.task_list.extend([FingerCan(r,0),StretchZero(0),Rotate(0),Lift(0)])
+        self.task_list.extend([FingerCan(r,1),StretchZero(0),Rotate(0),Lift(0)])
 
     def adjust(self,r:SimModule):
         if self.lift_height:
@@ -472,7 +487,7 @@ class Module(BasicModule):
             FingerCan(r,1),  # 打开手指
             Stretch(self.stretch_length), # 伸手臂抓箱子
             Stretch(0) , # 伸手臂抓箱子
-            FingerCan(r,0),  # 关闭手指
+            # FingerCan(r,0),  # 关闭手指
             ])
 
     def putOnSelfAndPrePickOff(self,r:SimModule):
@@ -528,13 +543,14 @@ class Module(BasicModule):
             Stretch(self.stretch_self_length),  # 伸手臂
             FingerCan(r,1),  # 开手指
             Stretch(0),  # 收手臂
-            FingerCan(r,0),  # 开手指
+            # FingerCan(r,0),  # 开手指
             SetAndClearContainer("set", self.goods_id)
         ])
 
     def load(self,r:SimModule):
         # 升降旋转到指定高度
-        self.task_list.append(RotateAndLift(self.lift_height,self.rotate_pos))
+        self.task_list.append(RotateAndLift(self.lift_height + self.load_height + self.load_rec_diff_height,
+                                            self.rotate_pos))
         # 如果有识别
         if self.target_type == "box" and self.code_type == "code":
             self.task_list.extend( [
@@ -564,7 +580,7 @@ class Module(BasicModule):
             Stretch(self.stretch_self_length),  # 伸手臂
             FingerCan(r, 1),    #开手指
             Stretch(0),  # 收手臂
-            FingerCan(r,0),  # 关手指
+            # FingerCan(r,0),  # 关手指
             SetAndClearContainer("set", self.goods_id),
             ReportToRds("load", 0),
         ])
@@ -584,7 +600,7 @@ class Module(BasicModule):
                 RecHandel(r, True, 10,"box"),
             ])
         self.task_list.extend([
-            RotateAndLift(self.lift_height,self.rotate_pos),
+            RotateAndLift(self.lift_height + self.unload_height + self.unload_rec_diff_height, self.rotate_pos),
             LiftRec("unload", self.lift_height + self.unload_height + self.unload_rec_diff_height),
             # FingerCan(r,1),  # 打开手指
             SetAndClearContainer("clear")
@@ -602,7 +618,7 @@ class Module(BasicModule):
             Stretch(),
             FingerCan(r, 1),  # 打开手指
             Stretch(0),
-            FingerCan(r,0),
+            # FingerCan(r,0),
             Rotate(0)
             ])
         if self.isNeedComm:
@@ -657,6 +673,7 @@ class Module(BasicModule):
         self.recBoxLift = args.get("recBoxLift",None)
         self.self_position = args.get("selfPosition", None)
         self.isNeedComm = args.get("isNeedComm", 0)
+        self.unloadReset = args.get("unloadReset", self.unloadReset)
 
         self.waitModbus_value = args.get("waitModbus", 0)
         self.writeModbus_value = args.get("writeModbus", 0)
@@ -824,8 +841,11 @@ class RecHandel:
                     m.result = self.rec.result
                     self.status = MoveStatus.FINISHED
                     if not self.is_must_ok:
-                        r.setError(f"放货时已经有货")
-                        self.status = MoveStatus.FAILED
+                        if m.unloadReset and m.operation =="unload":
+                            pass
+                        else:
+                            r.setError(f"放货时已经有货")
+                            self.status = MoveStatus.FAILED
                 else:
                     self.rec.reset(r,m)
                     self.rec_times_cur += 1
@@ -981,8 +1001,20 @@ class LiftRec(TpModule):
             if self.lift.status is not MoveStatus.FINISHED:
                 self.lift.run(r, agv)
             elif self.check_di(r, self.goods_check_di):
-                r.setError(f"shelf already has box. DI {self.goods_check_di} is {self.check_di(r, self.goods_check_di)}")
-                self.status = MoveStatus.FAILED
+                if agv.unloadReset and agv.operation == "unload":
+                    self.status = MoveStatus.FINISHED
+                    agv.task_list = agv.task_list[:agv.task_id]
+                    agv.task_list.extend([
+                        RotateAndLift("load", 0),
+                        FingerCan(r, 1),  # 打开手指
+                        Stretch(agv.stretch_self_length),
+                        # FingerCan(r, 1),
+                        Stretch(0),
+                        SetError("放货时已经有货")
+                    ])
+                else:
+                    r.setError(f"shelf already has box. DI {self.goods_check_di} is {self.check_di(r, self.goods_check_di)}")
+                    self.status = MoveStatus.FAILED
             else:
                 self.status = MoveStatus.FINISHED
         
@@ -999,6 +1031,9 @@ class RotateAndLift(TpModule):
         self.init = True
     def run(self, r: SimModule, m: Module):
         task_state = dict()
+        if m.stretch_real_pos > m.safe_stretch_length:
+            r.setError(f"stretch need to be zero, cannot rotate")
+            self.status = MoveStatus.FAILED
         if self.init:
             self.init = False
             if self.lift_pos == "load":
@@ -1671,6 +1706,19 @@ class SetAndClearContainer(TpModule):
         task_state = {"msg": self.msg, "cur_c": m.cur_c, "goodsId": self.goodsId, "operation": self.operation,
                       "status": self.status, "taskid": m.task_id}
         m.report_info["SetAndClearContainer"] = task_state
+
+
+class SetError(TpModule):
+    def __init__(self,msg=""):
+        super().__init__()
+        self.msg = msg
+
+    def run(self, r: SimModule, m: Module):
+        r.setError(self.msg)
+        self.status = MoveStatus.FINISHED
+        task_state = {"msg": self.msg, "cur_c": m.cur_c, "goodsId": m.goods_id, "operation": m.operation,
+                      "status": self.status, "taskid": m.task_id}
+        m.report_info["SetError"] = task_state
 
 class DelayTime(TpModule):
     def __init__(self, time_delay: int):
