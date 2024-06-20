@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-# @Date: 2024/04/25
+# @Date: 2024/06/18
 # @Author: zhong
-# @Version: 1.2
+# @Version: 1.3
 # @Project: SRC2000 清洁机器人
 # @Coding: https://seer-group.coding.net/p/robokit/assignments/issues/2631/detail
-# @Update: 更新实时控制模式, 文档: https://seer-group.feishu.cn/wiki/PPFjwE99KitmUSk22rpcJAkYnDe?fromScene=spaceOverview
+# @Update: 更新了开机复位，水位满足时自动清除水位报错
+# @Doc: https://seer-group.feishu.cn/wiki/PPFjwE99KitmUSk22rpcJAkYnDe?fromScene=spaceOverview
 import base64
 import sys
 import time
@@ -110,8 +111,8 @@ class Module(BasicModule):
         
         self.wash_start_time = None
         self.add_water_time_start = None
-        self.add_water_opt_start = None
         self.close_jet_pump_start = None
+        self.add_water_opt_start = False
         
         self.clean_robot = CleanRobot(self)
         self.clean_water_level = -1
@@ -122,6 +123,8 @@ class Module(BasicModule):
     
     def periodRun(self, r: SimModule) -> bool:
         self.period_run_counter += 1
+        if self.period_run_counter < 3:  # 开机时复位机构
+            self.reset(r)
         self.update_report_info(r)  # 更新上报数据
         self.update_all_info(r)  # 同步清洁机器人各机构的工作状态
         
@@ -189,8 +192,11 @@ class Module(BasicModule):
         # 水位检测，清水空了或者污水满了，结束清洁任务
         if (self.filter_waste_water_level() > self.max_waste_water_level or
                 self.filter_clean_water_level() < self.min_clean_water_level):
-            r.setError(f"Clean water is empty or waste water is full!")
+            r.setUserError(53980, f"Clean water is empty or waste water is full!")
             self.wash_end(r)
+        else:
+            if r.errorExits(53980):
+                r.clearError(53980)
             
     def update_power_by_speed(self, r: SimModule):
         agv_speed = r.getNextSpeed()
@@ -272,12 +278,14 @@ class Module(BasicModule):
     def wash_end(self, r: SimModule):
         self.operation = "WashEnd"  # 通过函数调用时，同步更新 self.operation
         self.wash_suspend(r)
-        if time.time() - self.close_jet_pump_start > self.close_jet_delay_time:
+        # 暂停工作时，不关闭升降杆，停止工作时，关闭升降杆
+        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > self.close_jet_delay_time:
             if self.brush_lift_status != WorkingStatus.INIT:
                 self.clean_robot.ctrl_brush_lift(r, WorkState.CLOSE)
             if self.mop_lift_status != WorkingStatus.INIT:
                 self.clean_robot.ctrl_mop_lift(r, WorkState.CLOSE)
         if self.clean_robot_closed:
+            self.close_jet_pump_start = None
             self.status = MoveStatus.FINISHED
             
     def wash_suspend(self, r: SimModule):
@@ -287,18 +295,18 @@ class Module(BasicModule):
             self.clean_robot.ctrl_brush(r, 0)
         if self.clean_valve_status == WorkingStatus.RUNNING:
             self.clean_robot.ctrl_clean_valve(r, WorkState.CLOSE)
+        if self.waste_valve_status == WorkingStatus.RUNNING:
+            self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
         if bool(self.auto_adjust_power):
             self.work_mode = WorkMode.STOP
             self.suck_power, self.jet_power, self.brush_power = (0, 0, 0)
-            
+        
+        # 延时 close_jet_delay_time 秒关闭吸风电机
         if not self.close_jet_pump_start:
             self.close_jet_pump_start = time.time()
-        if time.time() - self.close_jet_pump_start > self.close_jet_delay_time + 0.1:
-            self.close_jet_pump_start = None
+        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > self.close_jet_delay_time:
             if self.suck_status == WorkingStatus.RUNNING:
                 self.clean_robot.ctrl_suck(r, 0)
-            if self.waste_valve_status == WorkingStatus.RUNNING:
-                self.clean_robot.ctrl_waste_valve(r, WorkState.CLOSE)
             
     def reset(self, r: SimModule):
         self.clean_robot.ctrl_close_all(r)  # 关闭全部机构
@@ -352,8 +360,9 @@ class Module(BasicModule):
                 self.add_water_time_start = time.time()
             if time.time() - self.add_water_time_start > self.add_water_delay_time:
                 self.add_water_time_start = None
-                self.add_water_opt_start = None
+                self.add_water_opt_start = False
                 self.status = MoveStatus.FINISHED
+        self.report_info["add_water_opt_start"] = self.add_water_opt_start
     
     def filter_clean_water_level(self):
         if self.clean_water_level >= 0:
