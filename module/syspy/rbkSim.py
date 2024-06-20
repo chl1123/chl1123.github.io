@@ -1487,7 +1487,7 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), name))
     
-    def setSteerAngle(name:str, angle:float) -> bool:
+    def setSteerAngle(self, name:str, angle:float) -> bool:
         """
         Args:
             name (str): 舵机名称
@@ -1498,19 +1498,22 @@ class SimModule:
         """
         print("func: {0} {1}".format(get_function_name(), name, angle))
     
-    def setObsStopDist(dist:float):
+    def setObsStopDist(self, dist:float):
         """
         Args:
             dist (float): 避障距离，单位m
         
         Return:
         """
-    def updateModelParamsByJsonStr(model:json):
+        print("func: {0} {1}".format(get_function_name(), dist))
+        
+    def updateModelParamsByJsonStr(self, model:json):
         """
         Args:
             model (json): 机器人模型文件的json格式，先从r.getRobotFile()获取
         Return: True则推送成功
         """
+        print("func: {0} {1}".format(get_function_name(), model))
 
 
 if __name__ == '__main__':
