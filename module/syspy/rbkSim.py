@@ -1486,6 +1486,31 @@ class SimModule:
         Returns:
         """
         print("func: {0} {1}".format(get_function_name(), name))
+    
+    def setSteerAngle(name:str, angle:float) -> bool:
+        """
+        Args:
+            name (str): 舵机名称
+            angle (float): 角度位置, 单位rad
+
+        Returns:
+            bool: 如果为True电机到位
+        """
+        print("func: {0} {1}".format(get_function_name(), name, angle))
+    
+    def setObsStopDist(dist:float):
+        """
+        Args:
+            dist (float): 避障距离，单位m
+        
+        Return:
+        """
+    def updateModelParamsByJsonStr(model:json):
+        """
+        Args:
+            model (json): 机器人模型文件的json格式，先从r.getRobotFile()获取
+        Return: True则推送成功
+        """
 
 
 if __name__ == '__main__':
@@ -1610,4 +1635,8 @@ if __name__ == '__main__':
     r.getBinDetectionResult()
     r.enableMotor("lift")
     r.disableMotor("lift")
+    r.setObsStopDist(0.05)
+    r.setSteerAngle("steer", 1.57)
+    robotFile  = r.getRobotFile
+    r.updateModelParamsByJsonStr(json.dumps(robotFile))
     print("Success!!!")
