@@ -950,9 +950,9 @@ class Lift(TpModule):
             # if self.height > m.max_lift_height:
             #     r.setWarning(f"Out of the max lift height: {self.height}")
             #     self.height = m.min_lift_height
-            # if m.stretch_real_pos > m.safe_stretch_length:
-            #     r.setError(f"stretch need to be zero, cannot lift")
-            #     self.status = MoveStatus.FAILED
+            if m.stretch_real_pos > m.safe_stretch_length:
+                r.setError(f"stretch need to be zero, cannot lift")
+                self.status = MoveStatus.FAILED
             if self.height == "load":
                 self.height = m.high[int(m.cur_c)]
             if self.height == "unload":
