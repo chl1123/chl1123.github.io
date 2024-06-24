@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-# @Date: 2024/06/18
+# @Date: 2024/06/24
 # @Author: zhong
-# @Version: 1.3
+# @Version: 1.4
 # @Project: SRC2000 清洁机器人
 # @Coding: https://seer-group.coding.net/p/robokit/assignments/issues/2631/detail
 # @Update: 更新了开机复位，水位满足时自动清除水位报错
@@ -108,6 +108,7 @@ class Module(BasicModule):
         self.status = MoveStatus.NONE
         self.operation = None
         self.init = False
+        self.args = args
         
         self.wash_start_time = None
         self.add_water_time_start = None
@@ -123,7 +124,8 @@ class Module(BasicModule):
     
     def periodRun(self, r: SimModule) -> bool:
         self.period_run_counter += 1
-        if self.period_run_counter < 3:  # 开机时复位机构
+        if (isinstance(self.args, dict) and "_script_first_run_" in self.args and
+                self.period_run_counter == 1):  # 刚开机时, 复位机构
             self.reset(r)
         self.update_report_info(r)  # 更新上报数据
         self.update_all_info(r)  # 同步清洁机器人各机构的工作状态
@@ -193,7 +195,8 @@ class Module(BasicModule):
         if (self.filter_waste_water_level() > self.max_waste_water_level or
                 self.filter_clean_water_level() < self.min_clean_water_level):
             r.setUserError(53980, f"Clean water is empty or waste water is full!")
-            self.wash_end(r)
+            if self.operation != "AddWater":  # 终止任务，过滤加水任务
+                self.wash_end(r)
         else:
             if r.errorExits(53980):
                 r.clearError(53980)
@@ -278,6 +281,7 @@ class Module(BasicModule):
     def wash_end(self, r: SimModule):
         self.operation = "WashEnd"  # 通过函数调用时，同步更新 self.operation
         self.wash_suspend(r)
+        r.setDO(self.add_water_do, False)
         # 暂停工作时，不关闭升降杆，停止工作时，关闭升降杆
         if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > self.close_jet_delay_time:
             if self.brush_lift_status != WorkingStatus.INIT:
@@ -363,6 +367,7 @@ class Module(BasicModule):
                 self.add_water_opt_start = False
                 self.status = MoveStatus.FINISHED
         self.report_info["add_water_opt_start"] = self.add_water_opt_start
+        self.report_info["is_charging"] = is_charging
     
     def filter_clean_water_level(self):
         if self.clean_water_level >= 0:
@@ -422,6 +427,7 @@ class Module(BasicModule):
     def cancel(self, r: SimModule):
         r.setNotice(f"script cancel")
         r.setDO(self.add_water_do, False)
+        self.close_jet_delay_time = -1
         self.wash_end(r)
         self.status = MoveStatus.FAILED
 
