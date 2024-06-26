@@ -223,6 +223,7 @@ class Module(BasicModule):
                                                 minValue=20, unit="", comment="手臂到里程中心的距离")
         self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=1,
                                               comment="识别时是否需要自动调整货叉角度，1：需要 0：不需要")
+        self.offset_x = p.loadParam("offset_x", type="float", default=0., comment="针对识别结果误差在x方向的补偿值")
         self.init = True
         
         self.status = MoveStatus.NONE
@@ -327,6 +328,7 @@ class Module(BasicModule):
             self.stretch_length = args.get("stretch", 0)
             self.rotate_pos = args.get("rotate", 0)
             self.rec_box_lift = args.get("recBoxLift", 0)
+            self.offset_x = args.get("offset_x", self.offset_x)
             if self.rec_box_lift:
                 self.rec_box = Rec(self.box_code_file, max_rec_times=1)
             self.code_type = args.get("visionBinType", "code")
@@ -603,7 +605,7 @@ class Module(BasicModule):
     
     def stretch(self, r, length):
         r.logInfo(f"----- running stretch ------")
-        temp_motor_speed = 0
+        temp_motor_speed = self.stretch_motor_speed
         if length > self.max_stretch_length:
             r.setWarning(f"Out of max stretch length: {length}")
             length = self.max_stretch_length
@@ -811,7 +813,7 @@ class Module(BasicModule):
                 if not self.in_take_step[1]:
                     self.in_take_step[1] = self.lift(r, self.low[int(self.cur_c)])
                 if not self.in_take_step[2]:
-                    self.in_take_step[2] = self.rotate(r, self.rotate_pos)
+                    self.in_take_step[2] = self.rotate(r, 0)
                 if self.in_take_step[0] and self.in_take_step[1] and self.in_take_step[2] and not self.in_take_step[3]:
                     self.in_take_step[3] = self.stretch(r, self.stretch_self_length)
                 elif self.in_take_step[3] and not self.in_take_step[4]:
@@ -819,12 +821,15 @@ class Module(BasicModule):
                 elif self.in_take_step[4] and not self.in_take_step[5]:
                     self.in_take_step[5] = self.stretch(r, 0)
                 elif self.in_take_step[5] and not self.in_take_step[6]:
-                    self.in_take_step[6] = self.rotate(r, 0)
-        in_take_info["in_take_step"] = self.in_take_step[:7]
+                    self.in_take_step[6] = self.rotate(r, self.rotate_pos)
+                if self.in_take_step[5] and not self.in_take_step[7]:
+                    self.in_take_step[7] = self.lift(r, self.lift_height)
+        
+        in_take_info["in_take_step"] = self.in_take_step[:8]
         in_take_info["cur_container"] = self.cur_c
         in_take_info["goodsId"] = self.goods_id
         self.report_info["in_take_info"] = in_take_info
-        if all(self.in_take_step[:7]):
+        if all(self.in_take_step[:8]):
             r.clearContainer(self.cur_c)
             goods_id = self.goods_manger.get_goodsId_by_container(self.cur_c)
             r.setContainer("999", goods_id, "")
@@ -842,7 +847,7 @@ class Module(BasicModule):
             if not self.in_put_step[0]:
                 self.in_put_step[0] = self.lift(r, self.high[int(self.cur_c)])
             if not self.in_put_step[1]:
-                self.in_put_step[1] = self.rotate(r, self.rotate_pos)
+                self.in_put_step[1] = self.rotate(r, 0)
             if not self.in_put_step[2]:
                 self.in_put_step[2] = self.finger(r, 1)
             if all(self.in_put_step[0:3]) and not self.in_put_step[3]:
@@ -916,14 +921,14 @@ class Module(BasicModule):
             self.ex_take_step[8] = self.finger(r, 0)
         if all(self.ex_take_step[0:9]) and not self.ex_take_step[9]:
             self.ex_take_step[9] = self.stretch(r, 0)
-        if all(self.ex_take_step[0:10]) and not self.ex_take_step[10]:
-            self.ex_take_step[10] = self.rotate(r, 0)
+        # if all(self.ex_take_step[0:10]) and not self.ex_take_step[10]:
+        #     self.ex_take_step[10] = self.rotate(r, 0)
         
         ex_take_info['goodsId'] = self.goods_id
         ex_take_info['cur_container'] = self.cur_c
-        ex_take_info['ex_take_step'] = self.ex_take_step[:11]
+        ex_take_info['ex_take_step'] = self.ex_take_step[:10]
         self.report_info["ex_take_info"] = ex_take_info
-        if all(self.ex_take_step[:11]):
+        if all(self.ex_take_step[:10]):
             r.setContainer("999", self.goods_id, "")
             return True
     
@@ -1161,7 +1166,7 @@ class Module(BasicModule):
         self.update_finger_info(r)
         module_pos['lift'] = round(self.lift_real_pos, 3)
         module_pos['stretch'] = round(self.stretch_real_pos, 3)
-        module_pos['rotate'] = round(self.rotate_real_pos, 3)
+        module_pos['rotate'] = round(self.rotate_real_pos * 180 / math.pi, 3)
         module_pos['left_finger'] = self.left_finger_real_pos
         module_pos['right_finger'] = self.right_finger_real_pos
         self.containers = r.getContainers()
@@ -1181,11 +1186,6 @@ class Module(BasicModule):
                 if not c['has_goods']:
                     ct = c['container_name']
                     break
-                # if not c['has_goods'] and (c['container_name'] == "999"):
-                #     ct = "999"
-                # if not c['has_goods'] and (c['container_name'] != "999"):
-                #     ct = c['container_name']
-                #     break
         elif opt == 'unload':
             for c in self.containers:
                 if c['has_goods'] and self.goods_id == c['goods_id']:
@@ -1321,16 +1321,16 @@ class RecAdjust:
         self.code2robot = -1
     
     @staticmethod
-    def move_x(dx, dy, yaw, rotate_pos):
+    def move_x(dx, dy, yaw, rotate_pos, offset_x):
         """
         计算车体在x方向上移动的距离
         rotate_pos 是货叉旋转方向
         (dx, dy, yaw)是识别结果
         """
         if rotate_pos > 0:
-            return -dy
+            return -dy - offset_x
         else:
-            return dy
+            return dy + offset_x
         
         # if rotate_pos > 0:
         #     if yaw > 0:
@@ -1391,7 +1391,7 @@ class RecAdjust:
                     self.adjust_rotate = agv.rotate_real_pos + agv.yaw_adjust
                 
                 self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'],
-                                                self.rec.result['yaw'], agv.rotate_real_pos)
+                                                self.rec.result['yaw'], agv.rotate_real_pos, agv.offset_x)
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
