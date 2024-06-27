@@ -124,8 +124,7 @@ class Module(BasicModule):
     
     def periodRun(self, r: SimModule) -> bool:
         self.period_run_counter += 1
-        if (isinstance(self.args, dict) and "_script_first_run_" in self.args and
-                self.period_run_counter == 1):  # 刚开机时, 复位机构
+        if (self.args == {} or self.args == [""]) and self.period_run_counter == 1:  # 刚开机时, 复位机构
             self.reset(r)
         self.update_report_info(r)  # 更新上报数据
         self.update_all_info(r)  # 同步清洁机器人各机构的工作状态
@@ -190,7 +189,7 @@ class Module(BasicModule):
         # 急停信号检测
         if r.controller().get("emc", False):
             self.wash_suspend(r)
-            
+        
         # 水位检测，清水空了或者污水满了，结束清洁任务
         if (self.filter_waste_water_level() > self.max_waste_water_level or
                 self.filter_clean_water_level() < self.min_clean_water_level):
@@ -200,7 +199,7 @@ class Module(BasicModule):
         else:
             if r.errorExits(53980):
                 r.clearError(53980)
-            
+    
     def update_power_by_speed(self, r: SimModule):
         agv_speed = r.getNextSpeed()
         if bool(self.auto_adjust_power):
@@ -233,7 +232,7 @@ class Module(BasicModule):
                                                   round(self.filter_waste_water_level())])
         except Exception as e:
             r.logInfo(f"save_to_rbk error: {e}")
-            
+    
     def update_report_info(self, r: SimModule):
         clean_robot = dict()
         clean_robot["cleanWaterLevel"] = self.filter_clean_water_level()
@@ -291,7 +290,7 @@ class Module(BasicModule):
         if self.clean_robot_closed:
             self.close_jet_pump_start = None
             self.status = MoveStatus.FINISHED
-            
+    
     def wash_suspend(self, r: SimModule):
         if self.jet_status == WorkingStatus.RUNNING:
             self.clean_robot.ctrl_jet_pump(r, 0)
@@ -311,7 +310,7 @@ class Module(BasicModule):
         if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > self.close_jet_delay_time:
             if self.suck_status == WorkingStatus.RUNNING:
                 self.clean_robot.ctrl_suck(r, 0)
-            
+    
     def reset(self, r: SimModule):
         self.clean_robot.ctrl_close_all(r)  # 关闭全部机构
         # self.clean_robot.ctrl_jet_pump(r, 0)
@@ -535,7 +534,7 @@ class WorkingStatus(IntEnum):
 class WorkState(IntEnum):
     CLOSE = 0
     OPEN = 1
-    
+
 
 class WorkMode(IntEnum):
     LOW = 0
