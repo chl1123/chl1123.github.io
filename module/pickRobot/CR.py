@@ -335,9 +335,14 @@ class Module(BasicModule):
 
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
-        self.stretch_real_pos = self.get_motor_info(r, self.stretch_motor_name).get("position", 0.1)
+        self.stretch_real_pos = self.get_motor_info(r, self.stretch_motor_name).get("position", self.stretch_real_pos)
+        self.lift_real_pos = self.get_motor_info(r, self.lift_motor_name).get("position", self.lift_real_pos)
+        self.rotate_real_pos = self.get_motor_info(r, self.rotate_motor_name).get("position", self.rotate_real_pos)
+        self.report_info["stretch_real_pos"] = self.stretch_real_pos
+        self.report_info["lift_real_pos"] = self.lift_real_pos
+        self.report_info["rotate_real_pos"] = self.rotate_real_pos
         if self.init:
-            self.init_args(r,args)
+            self.init_args(r, args)
             if not self.handle:
                 self.handle = self.get_handle(r, args)
                 if not self.handle:
@@ -1029,10 +1034,11 @@ class RotateAndLift(TpModule):
         self.lift_pos = lift_pos
         self.rotate = Rotate(rotate_pos)
         self.init = True
+        
     def run(self, r: SimModule, m: Module):
         task_state = dict()
         if m.stretch_real_pos > m.safe_stretch_length:
-            r.setError(f"stretch need to be zero, cannot rotate")
+            r.setError(f"stretch need to be zero, cannot rotate, cur_stretch: {m.stretch_real_pos}")
             self.status = MoveStatus.FAILED
         if self.init:
             self.init = False
@@ -1078,11 +1084,11 @@ class Rotate(TpModule):
                 r.setError(f"Out of max rotate angle: {self.position}")
                 self.status = MoveStatus.FAILED
         if self.status != MoveStatus.FINISHED:
-                if m.stretch_real_pos > m.safe_stretch_length:
-                    r.setError(f"stretch need to be zero, cannot rotate")
-                    self.status = MoveStatus.FAILED
-                if m.container_robot.rotate(m.rotate_motor, self.position, m.rotate_motor_speed):
-                    self.status = MoveStatus.FINISHED
+            if m.stretch_real_pos > m.safe_stretch_length:
+                r.setError(f"stretch need to be zero, cannot rotate, cur_stretch: {m.stretch_real_pos}")
+                self.status = MoveStatus.FAILED
+            if m.container_robot.rotate(m.rotate_motor, self.position, m.rotate_motor_speed):
+                self.status = MoveStatus.FINISHED
         r.publishSpeed()
         task_state["status"] = self.status
         task_state["position"] = self.position
