@@ -878,6 +878,11 @@ class Module(BasicModule):
         """
         r.logInfo(f"----- running ex_take ------")
         ex_take_info = dict()
+        if self.goods_manger.has_goods("999"):  # 货叉已载货
+            r.setPickRobotError(53820, f"Container 999 has goods, can not ex_take")
+            self.status = MoveStatus.FAILED
+            return
+        
         if self.barcode_height is not None:
             if not self.ex_take_step[0]:
                 self.ex_take_step[0] = self.lift(r, self.barcode_height)
@@ -1222,10 +1227,6 @@ class Module(BasicModule):
         :param r:
         :return:
         """
-        if self.goods_manger.has_goods("999"):  # 抓斗有货
-            r.setPickRobotError(53820, f"Container 999 has goods, can not operation!")
-            self.status = MoveStatus.FAILED
-            return
         if self.self_position:
             if not self.goods_manger.has_goods(self.self_position):
                 r.setPickRobotError(53824, f"Container {self.self_position} is empty, can not take!")
@@ -1233,6 +1234,9 @@ class Module(BasicModule):
             self.cur_c = self.self_position
         else:
             self.cur_c = self.goods_manger.get_container_by_goodsId(self.goods_id)
+            
+        if self.goods_manger.has_goods("999"):  # 抓斗有货
+            self.cur_c = "999"
         
         if not self.cur_c:
             r.setPickRobotError(53825, f"Goods {self.goods_id} not found, can not take!")
