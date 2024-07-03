@@ -160,6 +160,8 @@ class testCanBattery(cb.canPassBase):
         while True:
             if not self.msg_userdata:
                 self.sendCanframe(self.port3, 0x0DA20DF4, 8, True, [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+            if self.id == "0b" or self.id == "0d":
+                self.sendCanframe('can0', 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
             self.judgeMsgok()
             mu.sleep_s(2)
 
