@@ -70,18 +70,18 @@ except ImportError:
 class Module(BasicModule):
     def __init__(self, r: SimModule, args):
         super(Module, self).__init__()
-        self.timeout = 60
+        self.timeout = 30
         self.init = True
         self.status = MoveStatus.NONE
         self.report_info = dict()
-        self.tasks = None
+        self.tasks = []
         self.opt = None
         self.st_addr = 0
         self.length = 1
-        self.result = None
+        self.result = []
         self.value = None
         self.expected_value = None
-        self.modbus_tcp = ModbusTCP(ip="192.168.8.47", port=502, timeout=3)
+        self.modbus_tcp = ModbusTCP(ip="192.168.50.59", port=502, timeout=3)
         self.slave_id = 1    # 默认从机ID
         r.logInfo(f"init args: {args}")
 
@@ -131,8 +131,9 @@ class Module(BasicModule):
                 if tuple(self.expected_value) == self.result:
                     self.status = MoveStatus.FINISHED
                 else:
-                    r.setError(f"unexpected value: {self.result}")
-                    self.status = MoveStatus.FAILED
+                    if time.time() - self.start_time > self.timeout:
+                        r.setError(f"timeout, unexpected value: {self.result}")
+                        self.status = MoveStatus.FAILED
             else:
                 self.status = MoveStatus.FINISHED
 
@@ -144,13 +145,15 @@ class Module(BasicModule):
 
     def read_registers(self, r: SimModule):
         self.result = self.modbus_tcp.read_holding_registers(self.slave_id, self.st_addr, self.length)
+        print(self.result, type(self.result))
         if self.result is not None:
             if self.expected_value:
                 if tuple(self.expected_value) == self.result:
                     self.status = MoveStatus.FINISHED
                 else:
-                    r.setError(f"unexpected value: {self.result}")
-                    self.status = MoveStatus.FAILED
+                    if time.time() - self.start_time > self.timeout:
+                        r.setError(f"timeout, unexpected value: {self.result}")
+                        self.status = MoveStatus.FAILED
             else:
                 self.status = MoveStatus.FINISHED
 
@@ -161,31 +164,35 @@ class Module(BasicModule):
             self.status = MoveStatus.FINISHED
 
     def execute_tasks(self, r):
-        self.result = []
         for task in self.tasks:
             try:
-                if len(task.get('write_value', [])) == 1:
-                    value = task['write_value'][0]
-                else:
-                    value = task.get('write_value', 0)
+                print("---", task)
+                value = task.get('write_value', [])
                 ret = self.modbus_tcp.tcp_master.execute(task['slave_id'], task['func_code'], task['st_addr'],
                                                          quantity_of_x=task.get('length', 0),
                                                          output_value=value)
-                self.result.append(ret)
-
+                r.logInfo(f"task: {task}, ret: {ret}")
                 # 读操作结果对比
                 if "expected_value" in task:
-                    if ret != tuple(task['expected_value']):
-                        r.setError(f"unexpected read result: {ret}, expected_value: {tuple(task['expected_value'])}")
-                        self.status = MoveStatus.FAILED
-                        break
+                    if ret == tuple(task['expected_value']):
+                        self.tasks.remove(task)
+                        self.result.append(ret)
+                    else:
+                        if time.time() - self.start_time > self.timeout:
+                            r.setError(f"timeout, unexpected read result: {ret}, expected_value: {tuple(task['expected_value'])}")
+                            self.status = MoveStatus.FAILED
+                else:
+                    self.tasks.remove(task)
+                    self.result.append(ret)
 
             except Exception as e:
                 r.setError(f"execute_tasks error: {e}")
                 self.status = MoveStatus.FAILED
                 break
+            
+            self.modbus_tcp.close()
 
-        if len(self.result) == len(self.tasks):
+        if not self.tasks:
             self.status = MoveStatus.FINISHED
 
     def cancel(self, r):
@@ -348,13 +355,13 @@ if __name__ == '__main__':  # 本地运行测试
     ]
     # args1 = {"operation": "tasks_list", "st_addr": 0, "length": 10, "write_value": [1] * 10}
     # args1 = {"slave_id": 2, "operation": "write_registers", "st_addr": 0, "length": 10, "write_value": [6]*10}
-    args1 = {"operation": "read_registers", "st_addr": 0, "length": 2}
-
-    r1 = SimModule()
-    m = Module(r1, args1)
-    m.run(r1, args1)
-
-    """ 
+    # args1 = {"operation": "read_registers", "st_addr": 10, "length": 1}
+    #
+    # r1 = SimModule()
+    # m = Module(r1, args1)
+    # m.run(r1, args1)
+    
+    """
     md = ModbusTCP(ip='127.0.0.1', port=502, timeout=1.0)
     try:
         res1 = md.write_multi_registers(1, 0, list(range(3, 33, 3)))
@@ -368,3 +375,41 @@ if __name__ == '__main__':  # 本地运行测试
         print(f"{ret1}")
         print(f"{ret2}")
     """
+    
+    import time
+    args1 = {
+        "operation": "tasks_list",
+        "task_data": [
+                {
+                    "func_code": 16,
+                    "slave_id": 1,
+                    "st_addr": 110,
+                    "write_value": [666]
+                },
+                {
+                    "func_code": 3,
+                    "length": 10,
+                    "slave_id": 1,
+                    "st_addr": 110
+                }
+        ]
+    }
+    r1 = SimModule()
+    md = Module(r1, args1)
+    # 5A5742575C5D10
+    md.modbus_tcp = ModbusTCP(ip="192.168.8.61", port=502, timeout=3)
+    md.timeout = 5
+    start = None
+    count = 0
+    
+    while 1:
+        if start is None:
+            start = time.time()
+        if time.time() - start > 1:
+            md.run(r1, args1)
+            print(md.result)
+            start = None
+            count += 1
+            print("*"*100)
+        if count > 100 or md.status == 3 or md.status == 4:
+            break
