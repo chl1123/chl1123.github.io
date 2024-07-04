@@ -240,7 +240,8 @@ class Module(BasicModule):
         self.auto_stretch_odo_len = p.loadParam("auto_stretch_odo_len", type="float", default=0.38, maxValue=100,
                                                 minValue=20, unit="", comment="手臂到里程中心的距离")
         self.offset_x = p.loadParam("offset_x", type="float", default=0, comment="针对识别结果误差在x方向的补偿值")
-        
+        self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=1,
+                                              comment="识别时是否需要自动调整货叉角度，1：需要 0：不需要")
         self.init = True
         
         self.status = MoveStatus.NONE
@@ -436,27 +437,25 @@ class Module(BasicModule):
         if self.lift_motor_calib and self.stretch_motor_calib and self.rotate_motor_calib and self.clamp_motor_calib:
             self.init = False
         else:
-            if not self.zero_by_rbk_step[0]:
+            if not self.zero_by_rbk_step[0] and not self.set_clamp_motor_calib:
+                self.set_clamp_motor_calib = True
+                r.setMotorCalib(self.clamp_motor_name)
+            elif not self.zero_by_rbk_step[1] and not self.set_stretch_motor_calib:
+                r.setMotorCalib(self.stretch_motor_name)
+                self.set_stretch_motor_calib = True
+            elif not self.zero_by_rbk_step[2] and not self.set_rotate_motor_calib:
+                r.setMotorCalib(self.rotate_motor_name)
+                r.setMotorCalib(self.lift_motor_name)
+                self.set_rotate_motor_calib = True
+                self.set_lift_motor_calib = True
+            if self.clamp_motor_calib:
                 self.zero_by_rbk_step[0] = True
-            elif self.zero_by_rbk_step[0] and not self.zero_by_rbk_step[1]:
-                if not self.set_stretch_motor_calib:
-                    if self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
-                        r.setMotorCalib(self.stretch_motor_name)
-                        self.set_stretch_motor_calib = True
-                if self.stretch_motor_calib:
-                    self.zero_by_rbk_step[1] = True
-            elif self.zero_by_rbk_step[1] and not self.zero_by_rbk_step[2]:
-                if self.lift_motor_stop and self.rotate_motor_stop and self.clamp_motor_stop:
-                    r.setMotorCalib(self.rotate_motor_name)
-                    r.setMotorCalib(self.lift_motor_name)
-                    r.setMotorCalib(self.clamp_motor_name)
-                    self.set_rotate_motor_calib = True
-                    self.set_lift_motor_calib = True
-                    self.set_clamp_motor_calib = True
-                if self.lift_motor_calib:
-                    self.zero_by_rbk_step[2] = True
-                if self.rotate_motor_calib and self.clamp_motor_calib:
-                    self.zero_by_rbk_step[3] = True
+            if self.stretch_motor_calib:
+                self.zero_by_rbk_step[1] = True
+            if self.lift_motor_calib:
+                self.zero_by_rbk_step[2] = True
+            if self.rotate_motor_calib:
+                self.zero_by_rbk_step[3] = True
             if all(self.zero_by_rbk_step):
                 self.init = False
 
@@ -1163,7 +1162,7 @@ class RecAdjust:
                 if abs(agv.yaw_adjust) <= 0.02:  # 货叉调整完成
                     self.rotate_step = True
                 if not self.rotate_step:
-                    if agv.operation == "load":
+                    if agv.operation == "load" and bool(agv.auto_adjust_rotate):
                         self.rotate_step = agv.rotate(r, self.adjust_rotate)  # 货叉角度偏移修正
                     elif agv.operation == "unload":
                         self.rotate_step = True

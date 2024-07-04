@@ -218,7 +218,7 @@ class Module(BasicModule):
         self.auto_stretch_box_len = p.loadParam("auto_stretch_box_len", type="float", default=0.6, maxValue=100,
                                                 minValue=-1, unit="", comment="箱子长度")
         self.auto_stretch_dist = p.loadParam("auto_stretch_dist", type="float", default=0.01, maxValue=10, minValue=0,
-                                             unit="", comment="多伸出的距离")
+                                             unit="", comment="自动计算伸出长度时的补偿值")
         self.auto_stretch_odo_len = p.loadParam("auto_stretch_odo_len", type="float", default=0.38, maxValue=100,
                                                 minValue=20, unit="", comment="手臂到里程中心的距离")
         self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=1,
@@ -306,6 +306,9 @@ class Module(BasicModule):
         self.send_enable_motor_count = 0
         self.enable_motor_time = time.time()
         
+        self.lift_ok = False
+        self.rotate_ok = False
+        
         r.logInfo(f"init args: {args}")
     
     def run(self, r: SimModule, args):
@@ -389,16 +392,16 @@ class Module(BasicModule):
                     if self.finger(r, self.finger_pos):
                         self.update_finger_info(r)
                         self.status = MoveStatus.FINISHED
-                elif "lift" in args:
-                    if self.lift(r, self.lift_height):
-                        self.status = MoveStatus.FINISHED
                 elif "lift" in args and "rotate" in args:
-                    a = self.lift(r, self.lift_height)
-                    b = self.rotate(r, self.rotate_pos)
-                    if a and b:
-                        self.status = MoveStatus.FINISHED
-                elif "rotate" in args:
-                    if self.rotate(r, self.rotate_pos):
+                    if "lift" in args and not self.lift_ok:
+                        self.lift_ok = self.lift(r, self.lift_height)
+                    else:
+                        self.lift_ok = True
+                    if "rotate" in args and not self.rotate_ok:
+                        self.rotate_ok = self.rotate(r, self.rotate_pos)
+                    else:
+                        self.rotate_ok = True
+                    if self.lift_ok and self.rotate_ok:
                         self.status = MoveStatus.FINISHED
                 elif "stretch" in args:
                     if self.stretch(r, self.stretch_length):
@@ -876,13 +879,12 @@ class Module(BasicModule):
         :param r:
         :return:
         """
-        r.logInfo(f"----- running ex_take ------")
-        ex_take_info = dict()
-        if self.goods_manger.has_goods("999"):  # 货叉已载货
-            r.setPickRobotError(53820, f"Container 999 has goods, can not ex_take")
+        if self.goods_manger.has_goods("999"):  # 抓斗有货
+            r.setError(f"container 999 has goods, cannot ex_take!")
             self.status = MoveStatus.FAILED
             return
-        
+        r.logInfo(f"----- running ex_take ------")
+        ex_take_info = dict()
         if self.barcode_height is not None:
             if not self.ex_take_step[0]:
                 self.ex_take_step[0] = self.lift(r, self.barcode_height)
@@ -1314,8 +1316,9 @@ class RecAdjust:
         self.adjust_count = 0
         self.go_args = dict()
         self.ok = False
-        self.ok_x = 0.012  # x方向行走调整完成阈值
-        self.ok_yaw = 0.03  # 调整完成弧度阈值
+        # self.ok_x = 0.003  # x方向行走调整完成阈值
+        self.ok_x = p.loadParam("ok_x", type="float", default=0.005, comment="x方向行走调整完成阈值")
+        self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.04, comment="调整完成弧度阈值")
         self.max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13,
                                         comment="货叉与料箱角度最大偏差, 弧度值")
         self.adjust_rotate = 1.5708  # 默认值
@@ -1348,8 +1351,6 @@ class RecAdjust:
         #         return dy - dx * math.tan(math.pi + yaw)
     
     def run(self, r: SimModule, agv: Module):
-        if r.warningExits(54901):
-            r.clearWarning(54901)
         cur_state = dict()
         self.status = MoveStatus.RUNNING
         if self.plan_status is not MoveStatus.FINISHED:
@@ -1432,7 +1433,7 @@ class RecAdjust:
             elif not self.rotate_step and self.goPath.status == MoveStatus.FINISHED:
                 if abs(agv.yaw_adjust) <= 0.02:  # 调整值小于货叉旋转精度
                     self.rotate_step = True
-                if not self.rotate_step and bool(agv.auto_adjust_rotate) and agv.operation == "load":
+                if not self.rotate_step and bool(agv.auto_adjust_rotate):
                     self.rotate_step = agv.rotate(r, self.adjust_rotate)  # 货叉角度偏移修正
                 else:
                     self.rotate_step = True
