@@ -137,6 +137,11 @@ class ParamServer:
                 if name not in self.data:
                     updateFile = True
                     self.data[name] = dict()
+                
+                if "type" not in self.data[name]:
+                    updateFile = True
+                    self.data[name]["type"] = type
+                
                 if "value" not in self.data[name]:
                     updateFile = True
                     self.data[name]["value"] = eval(type)(default)
