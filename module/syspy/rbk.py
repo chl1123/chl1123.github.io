@@ -112,7 +112,7 @@ class ParamServer:
 
     def __init__(self, file):
         param_dir = os.path.dirname(file) + '/params'
-        isExists=os.path.exists(param_dir)
+        isExists = os.path.exists(param_dir)
         if not isExists:
             os.makedirs(param_dir)
         base_f = os.path.basename(file)
@@ -124,9 +124,9 @@ class ParamServer:
         except:
             pass
 
-    def loadParam(self, name:str, type:str = "", default = None, **kw):
+    def loadParam(self, name: str, type: str = "", default=None, **kw):
         def updateKey(data, key, value):
-            if (key not in data)  or (key in data and data[key] != value):
+            if (key not in data) or (key in data and data[key] != value):
                 return True
             else:
                 return False
@@ -156,11 +156,15 @@ class ParamServer:
                         updateFile = True
                         self.data[name]["minValue"] = kw["minValue"]
                 if "comment" in kw and updateKey(self.data[name], "comment", kw["comment"]):
-                        updateFile = True
-                        self.data[name]["comment"] = kw["comment"]
+                    updateFile = True
+                    self.data[name]["comment"] = kw["comment"]
                 if "unit" in kw and updateKey(self.data[name], "unit", kw["unit"]):
-                        updateFile = True
-                        self.data[name]["unit"] = kw["unit"]
+                    updateFile = True
+                    self.data[name]["unit"] = kw["unit"]
+                if "group" in kw and updateKey(self.data[name], "group", kw["group"]):
+                    updateFile = True
+                    self.data[name]["group"] = kw["group"]
+                    
                 if updateFile:
                     with open(self.file, 'w', encoding="utf-8") as f:
                         json.dump(self.data, f, indent=4, ensure_ascii=False)
