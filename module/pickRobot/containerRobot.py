@@ -116,6 +116,10 @@ from robot import ModuleTool, Motor, MotorType, Robot, GoodsManger
     "code_file": {
         "value": "",
         "type": "string"
+    },
+    "pre_finger":{
+        "value": 1,
+        "type": "int"
     }
 }
 ####END DEFAULT ARGS####
@@ -289,6 +293,7 @@ class Module(BasicModule):
         self.rec_id = None
         self.rec_box_lift = None
         self.finger_open_start = False
+        self.pre_finger = None
         
         self.in_take_step = [False] * 20
         self.ex_take_step = [False] * 20
@@ -332,6 +337,7 @@ class Module(BasicModule):
             self.rotate_pos = args.get("rotate", 0)
             self.rec_box_lift = args.get("recBoxLift", 0)
             self.offset_x = args.get("offset_x", self.offset_x)
+            self.pre_finger = args.get("pre_finger", self.pre_finger)
             if self.rec_box_lift:
                 self.rec_box = Rec(self.box_code_file, max_rec_times=1)
             self.code_type = args.get("visionBinType", "code")
@@ -612,13 +618,9 @@ class Module(BasicModule):
         if length > self.max_stretch_length:
             r.setWarning(f"Out of max stretch length: {length}")
             length = self.max_stretch_length
-        if length > 0.1:  # 手臂伸出且大于0.1m
-            if self.stretch_real_pos < length * 0.8:
-                temp_motor_speed = 1.0
-            else:
-                temp_motor_speed = self.stretch_motor_speed
-        if length == 0:  # 手臂收回
-            temp_motor_speed = 1.2
+        # 手臂伸出且目标位置大于0.1m, 后半段速度减半
+        if length > 0.1 and self.stretch_real_pos > length * 0.5:
+            temp_motor_speed = self.stretch_motor_speed * 0.5
         if self.container_robot.stretch(self.stretch_motor, length, temp_motor_speed):
             return True
         return False
@@ -1137,6 +1139,8 @@ class Module(BasicModule):
             elif self.unload_step[8] and not self.unload_step[9]:
                 self.unload_step[9] = self.lift(r, self.lift_height + self.unload_height)
             elif self.unload_step[9] and not self.unload_step[10]:
+                if self.pre_finger is not None:
+                    self.finger(r, self.pre_finger)
                 self.unload_step[10] = self.stretch(r, self.stretch_length)
             elif self.unload_step[10] and not self.unload_step[11]:
                 self.unload_step[11] = self.finger(r, 1)
