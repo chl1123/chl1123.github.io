@@ -398,7 +398,7 @@ class Module(BasicModule):
                     if self.finger(r, self.finger_pos):
                         self.update_finger_info(r)
                         self.status = MoveStatus.FINISHED
-                elif "lift" in args and "rotate" in args:
+                elif "lift" in args or "rotate" in args:
                     if "lift" in args and not self.lift_ok:
                         self.lift_ok = self.lift(r, self.lift_height)
                     else:
