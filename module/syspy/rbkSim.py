@@ -1497,15 +1497,6 @@ class SimModule:
             bool: 如果为True电机到位
         """
         print("func: {0} {1}".format(get_function_name(), name, angle))
-    
-    def setObsStopDist(self, dist:float):
-        """
-        Args:
-            dist (float): 避障距离，单位m
-        
-        Return:
-        """
-        print("func: {0} {1}".format(get_function_name(), dist))
         
     def updateModelParamsByJsonStr(self, model:json):
         """
@@ -1514,6 +1505,20 @@ class SimModule:
         Return: True则推送成功
         """
         print("func: {0} {1}".format(get_function_name(), model))
+    @check
+    def recTargetObs(self, x:float, y:float, theta:float, filename:str)->bool:
+        """叉车库位检测
+
+        Args:
+            x (float): 目标点世界坐标系下 x 坐标 m
+            y (float): 目标点世界坐标系下 y 坐标 m
+            theta (float): 目标点世界坐标系下朝向 rad
+            filename (str): 识别文件名称 palletObject
+        Returns:
+            bool: 目标位置是否有货
+        """
+        print("func: {0} {1} {2} {3} {4}".format(get_function_name(), x, y, theta, filename))
+        return False
 
 
 if __name__ == '__main__':
