@@ -112,7 +112,7 @@ class ParamServer:
 
     def __init__(self, file):
         param_dir = os.path.dirname(file) + '/params'
-        isExists = os.path.exists(param_dir)
+        isExists=os.path.exists(param_dir)
         if not isExists:
             os.makedirs(param_dir)
         base_f = os.path.basename(file)
@@ -124,31 +124,32 @@ class ParamServer:
         except:
             pass
 
-    def loadParam(self, name: str, type: str = "", default=None, **kw):
+    def loadParam(self, name:str, type:str = "", group:str = "", default = None, **kw):
         def updateKey(data, key, value):
-            if (key not in data) or (key in data and data[key] != value):
+            if (key not in data)  or (key in data and data[key] != value):
                 return True
             else:
                 return False
 
-        updateFile = False    
-        if type == "float" or type == "str" or type == "int" or type == "bool":
+        updateFile = False
+        if type is "float" or type is "str" or type is "int" or type is "bool":
             if default is not None:
                 if name not in self.data:
                     updateFile = True
                     self.data[name] = dict()
-                
-                if "type" not in self.data[name]:
-                    updateFile = True
-                    self.data[name]["type"] = type
-                
                 if "value" not in self.data[name]:
                     updateFile = True
                     self.data[name]["value"] = eval(type)(default)
+                if "group" not in self.data[name]:
+                    updateFile = True
+                    self.data[name]["group"] = group
+                if "type" not in self.data[name]:
+                    updateFile = True
+                    self.data[name]["type"] = type
                 if updateKey(self.data[name], "default", default):
                     updateFile = True
                     self.data[name]["default"] = default
-                if type == "float" or type == "int":
+                if type is "float" or type is "int":
                     if "maxValue" in kw and updateKey(self.data[name], "maxValue", kw["maxValue"]):
                         updateFile = True
                         self.data[name]["maxValue"] = kw["maxValue"]
@@ -156,15 +157,17 @@ class ParamServer:
                         updateFile = True
                         self.data[name]["minValue"] = kw["minValue"]
                 if "comment" in kw and updateKey(self.data[name], "comment", kw["comment"]):
-                    updateFile = True
-                    self.data[name]["comment"] = kw["comment"]
-                if "unit" in kw and updateKey(self.data[name], "unit", kw["unit"]):
-                    updateFile = True
-                    self.data[name]["unit"] = kw["unit"]
+                        updateFile = True
+                        self.data[name]["comment"] = kw["comment"]
+                if "type" in kw and updateKey(self.data[name], "type", kw["type"]):
+                        updateFile = True
+                        self.data[name]["type"] = kw["type"]
                 if "group" in kw and updateKey(self.data[name], "group", kw["group"]):
-                    updateFile = True
-                    self.data[name]["group"] = kw["group"]
-                    
+                        updateFile = True
+                        self.data[name]["group"] = kw["group"]
+                if "unit" in kw and updateKey(self.data[name], "unit", kw["unit"]):
+                        updateFile = True
+                        self.data[name]["unit"] = kw["unit"]
                 if updateFile:
                     with open(self.file, 'w', encoding="utf-8") as f:
                         json.dump(self.data, f, indent=4, ensure_ascii=False)
