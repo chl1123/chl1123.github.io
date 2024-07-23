@@ -162,7 +162,7 @@ class testCanBattery(cb.canPassBase):
         self.attachCanID(2, 5, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
             if self.id == "0b" or self.id == "0d":
-                self.sendCanframe('can0', 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+                self.sendCanframe(2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
             self.judgeMsgok()
             mu.sleep_s(2)
 
