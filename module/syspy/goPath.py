@@ -66,6 +66,30 @@ import math
       "type":"double",
       "unit": "rad"        
     },
+    "maxAcc":{
+      "value": 1,
+      "tips":"最大加速度",
+      "type":"double",
+      "unit": "m/s^2"   
+    },
+    "maxDec":{
+      "value": 1,
+      "tips":"最大减速度",
+      "type":"double",
+      "unit": "m/s^2"   
+    },
+    "maxRotAcc":{
+      "value": 1,
+      "tips":"最大角速度",
+      "type":"double",
+      "unit": "rad/s^2"
+    },
+    "maxRotDec":{
+      "value": 1,
+      "tips":"最大角减速度",
+      "type":"double",
+      "unit": "rad/s^2"   
+    },
     "hold_dir":{
       "value": 999,
       "tips":"全向车平移时车身的固定角度",
@@ -81,6 +105,7 @@ class Module(BasicModule):
         self.goal = [0,0,0]
         self.init = False
         self.status = MoveStatus.NONE
+        self.param = dict()
     def run(self, r:SimModule,args):
         self.status = MoveStatus.RUNNING
         if r.errorExits(52111):
@@ -114,6 +139,14 @@ class Module(BasicModule):
                     r.setPathMaxRot(float(args["maxRot"]))
                 if "hold_dir" in args:
                     r.setPathHoldDir(float(args["hold_dir"]))
+                if "maxAcc" in args:
+                    self.param["maxAcc"] = float(args["maxAcc"])
+                if "maxDec" in args:
+                    self.param["maxDec"] = float(args["maxDec"])
+                if "maxRotAcc" in args:
+                    self.param["maxRotAcc"] = float(args["maxRotAcc"])
+                if "maxRotDec" in args:
+                    self.param["maxRotDec"] = float(args["maxRotDec"])
                 r.logInfo("goal: " + str(self.goal))
                 if args["coordinate"] == "robot":
                     loc = r.loc()
@@ -129,7 +162,7 @@ class Module(BasicModule):
                 r.setError("args error: {}".format(json.dumps(args)))
                 self.status = MoveStatus.FAILED
         if self.status != MoveStatus.FAILED:
-            r.goPath()
+            r.goPath(self.param)
             if r.isPathReached():
                 self.status = MoveStatus.FINISHED
             else:
@@ -139,3 +172,4 @@ class Module(BasicModule):
     def reset(self):
         self.status = MoveStatus.NONE
         self.init = False
+        self.param = dict()
