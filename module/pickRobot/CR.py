@@ -1235,6 +1235,8 @@ class FingerCan(TpModule):
                         self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend,
                                              self.open_finger)
                         open_res = self.cp.recvCan(r)
+                        self.cp.close()
+                        self.init = True
                         res["open_res"] = str(open_res)
 
                 else:
@@ -1247,6 +1249,8 @@ class FingerCan(TpModule):
                         self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend,
                                              self.close_finger)
                         close_res = self.cp.recvCan(r)
+                        self.cp.close()
+                        self.init = True
                         res["close_res"] = str(close_res)
 
         state = {
