@@ -57,11 +57,11 @@ class RuiBoTe(cb.canPassBase):
                 max_charge_current = round(int(tem[6:8] + tem[4:6], 16) * 0.01, 2)
                 self.battery_info.max_charge_current = max_charge_current
                 self.battery_info.max_charge_voltage = max_charge_voltage
-                self.open_charge = False
+                self.open_charge = True
             else:
                 self.battery_info.max_charge_current = 0
                 self.battery_info.max_charge_voltage = 0
-                self.open_charge = True
+                self.open_charge = False
             self.msg_ok = True
         elif canframe.ID == 0x1A1:
             self.clearTimeout()
@@ -87,9 +87,9 @@ class RuiBoTe(cb.canPassBase):
         self.attachCanID(2, 5, 0x18FFA2F4, 0x18FFA5F4, 0x112, 0x111, 0x1A1)
         while True:
             if self.open_charge:
-                self.sendCanframe(2, 0x0DA20DF4, 8, True, '01 01 00 01 01 ff 00 00')
+                self.sendCanframe(2, 0x110, 8, False, '01 01 00 01 01 ff 00 00')
             else:
-                self.sendCanframe(2, 0x0DA20DF4, 8, True, '01 00 01 01 00 ff 00 00')
+                self.sendCanframe(2, 0x110, 8, False, '01 00 01 01 00 ff 00 00')
             self.judgeMsgok()
             mu.sleep_s(2)
 
