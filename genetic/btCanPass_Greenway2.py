@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+# @Date: 2024-08-02
+# @Author: liyulong
+# @File: btCanPass_Greenway2.py
+# @Version: V1.0
+
 import sys
 # 导入电池基类
 import syspy.battery_Can.canpass_base as cb
