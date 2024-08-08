@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date: 2024/06/18
+# @Date: 2024/07/25
 # @Author: zhong
-# @Version: 3.0
+# @Version: 3.1
 # @Project: 智千料箱车
-# @Update: 拼单动作拆分
-# @RBK Version: V3.4.5.44 或 V3.4.6.18 以上
+# @Update: 优化识别调整时货叉旋转速度以及车体移动速度
+# @RBK Version: V3.4.5.46 或 V3.4.6.19 以上
 import json
 import math
 import sys
@@ -209,9 +209,9 @@ class Module(BasicModule):
                                            comment="货架二维码识别文件")
         self.barcode_file = p.loadParam("barcode_file", type="str", default="tag/t0003.tag", comment="条形码识别文件")
         self.lift_motor_speed = p.loadParam("lift_motor_speed", type="float", default=1.5, comment="升降电机运转速度")
-        self.stretch_motor_speed = p.loadParam("stretch_motor_speed", type="float", default=1.5,
+        self.stretch_motor_speed = p.loadParam("stretch_motor_speed", type="float", default=1.0,
                                                comment="伸缩电机运转速度")
-        self.rotate_motor_speed = p.loadParam("rotate_motor_speed", type="float", default=1.5,
+        self.rotate_motor_speed = p.loadParam("rotate_motor_speed", type="float", default=1.0,
                                               comment="旋转电机运转速度")
         self.lift_motor_name = p.loadParam("lift_motor_name", type="str", default="lift", comment="升降电机名称")
         self.stretch_motor_name = p.loadParam("stretch_motor_name", type="str", default="stretch",
@@ -225,7 +225,7 @@ class Module(BasicModule):
                                              unit="", comment="自动计算伸出长度时的补偿值")
         self.auto_stretch_odo_len = p.loadParam("auto_stretch_odo_len", type="float", default=0.38, maxValue=100,
                                                 minValue=20, unit="", comment="手臂到里程中心的距离")
-        self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=1,
+        self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=0,
                                               comment="识别时是否需要自动调整货叉角度，1：需要 0：不需要")
         self.offset_x = p.loadParam("offset_x", type="float", default=0., comment="针对识别结果误差在x方向的补偿值")
         self.init = True
@@ -625,7 +625,7 @@ class Module(BasicModule):
             return True
         return False
     
-    def rotate(self, r, pos):
+    def rotate(self, r, pos, max_speed=None):
         r.logInfo(f"----- running rotate ------")
         if pos < (-self.max_rotate_angle / 180 * math.pi) or pos > (self.max_rotate_angle / 180 * math.pi):
             r.setError(f"Out of max rotate angle: {pos}")
@@ -636,7 +636,13 @@ class Module(BasicModule):
             r.setError(f"stretch need to be zero, cannot rotate")
             self.status = MoveStatus.FAILED
             return False
-        if self.container_robot.rotate(self.rotate_motor, pos, self.rotate_motor_speed):
+        
+        if max_speed is not None:
+            speed = max_speed
+        else:
+            speed = self.rotate_motor_speed
+            
+        if self.container_robot.rotate(self.rotate_motor, pos, speed):
             return True
         return False
     
@@ -1320,7 +1326,6 @@ class RecAdjust:
         self.adjust_count = 0
         self.go_args = dict()
         self.ok = False
-        # self.ok_x = 0.003  # x方向行走调整完成阈值
         self.ok_x = p.loadParam("ok_x", type="float", default=0.005, comment="x方向行走调整完成阈值")
         self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.04, comment="调整完成弧度阈值")
         self.max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13,
@@ -1332,27 +1337,27 @@ class RecAdjust:
         self.code2robot = -1
     
     @staticmethod
-    def move_x(dx, dy, yaw, rotate_pos, offset_x):
+    def move_x(dx, dy, yaw, rotate_pos, offset_x=0):
         """
         计算车体在x方向上移动的距离
         rotate_pos 是货叉旋转方向
         (dx, dy, yaw)是识别结果
         """
-        if rotate_pos > 0:
-            return -dy - offset_x
-        else:
-            return dy + offset_x
-        
         # if rotate_pos > 0:
-        #     if yaw > 0:
-        #         return -dy - dx * math.tan(math.pi - yaw)
-        #     elif yaw < 0:
-        #         return -dy + dx * math.tan(math.pi + yaw)
+        #     return -dy - offset_x
         # else:
-        #     if yaw > 0:
-        #         return dy + dx * math.tan(math.pi - yaw)
-        #     elif yaw < 0:
-        #         return dy - dx * math.tan(math.pi + yaw)
+        #     return dy + offset_x
+        
+        if rotate_pos > 0:
+            if yaw > 0:
+                return -dy - dx * math.tan(math.pi - yaw) - offset_x
+            elif yaw < 0:
+                return -dy + dx * math.tan(math.pi + yaw) - offset_x
+        else:
+            if yaw > 0:
+                return dy + dx * math.tan(math.pi - yaw) + offset_x
+            elif yaw < 0:
+                return dy - dx * math.tan(math.pi + yaw) + offset_x
     
     def run(self, r: SimModule, agv: Module):
         cur_state = dict()
@@ -1405,6 +1410,7 @@ class RecAdjust:
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
                 self.go_args["useOdo"] = 1
+                self.go_args["maxSpeed"] = 0.3  # 设置二次调整时底盘移动最大速度, m/s
                 self.go_args["reachDist"] = 0.003
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
@@ -1417,6 +1423,7 @@ class RecAdjust:
                 else:
                     # 精度满足, 识别调整任务完成
                     if abs(self.go_args['x']) < self.ok_x and abs(agv.yaw_adjust) <= self.ok_yaw:
+                        r.logInfo(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = MoveStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
@@ -1435,10 +1442,10 @@ class RecAdjust:
                     if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
                         self.goPath.run(r, self.go_args)
             elif not self.rotate_step and self.goPath.status == MoveStatus.FINISHED:
-                if abs(agv.yaw_adjust) <= 0.02:  # 调整值小于货叉旋转精度
+                if abs(agv.yaw_adjust) <= 0.01:  # 调整值小于货叉旋转精度
                     self.rotate_step = True
                 if not self.rotate_step and bool(agv.auto_adjust_rotate):
-                    self.rotate_step = agv.rotate(r, self.adjust_rotate)  # 货叉角度偏移修正
+                    self.rotate_step = agv.rotate(r, self.adjust_rotate, max_speed=0.3)  # 货叉角度偏移修正
                 else:
                     self.rotate_step = True
             elif self.goPath.status == MoveStatus.FAILED:
@@ -1454,9 +1461,9 @@ class RecAdjust:
         cur_state["go_args"] = self.go_args
         cur_state["rec_fail_time"] = self.rec_fail_time
         cur_state["adjust_count"] = self.adjust_count
-        cur_state["cur-rotate"] = agv.rotate_real_pos
-        cur_state["cur-lift"] = agv.lift_real_pos
-        cur_state["cur-stretch"] = agv.stretch_real_pos
+        cur_state["cur_rotate"] = agv.rotate_real_pos
+        cur_state["cur_lift"] = agv.lift_real_pos
+        cur_state["cur_stretch"] = agv.stretch_real_pos
         cur_state["status"] = self.status
         cur_state["agv_yaw_adjust"] = agv.yaw_adjust
         cur_state["adjust_rotate"] = self.adjust_rotate

@@ -103,9 +103,10 @@ class Module(BasicModule):
         r.logInfo(json.dumps(self.state))
         return self.status
 
-    def jack_load(self, r):
+    def jack_load(self, r: SimModule):
         for i in range(2):
-            self.opt_status[i] = self.robot.jack(self.jack_motors[i], self.height)
+            if not self.opt_status[i]:
+                self.opt_status[i] = self.robot.jack(self.jack_motors[i], self.height)
         if all(self.opt_status):
             r.setGoodsShape(0, 0, 0)
             if self.shelf_file != "":
@@ -117,9 +118,10 @@ class Module(BasicModule):
         load_state['actions'] = self.robot.state
         self.state['operation'] = load_state
 
-    def jack_unload(self, r):
+    def jack_unload(self, r: SimModule):
         for i in range(2):
-            self.opt_status[i] = self.robot.jack(self.jack_motors[i], 0.000001)
+            if not self.opt_status[i]:
+                self.opt_status[i] = self.robot.jack(self.jack_motors[i], 0.000001)
         if all(self.opt_status):
             r.clearGoodsShape()
             r.resetLocalShelfArea()
@@ -167,6 +169,6 @@ class Module(BasicModule):
 
 
 if __name__ == '__main__':
-    r = SimModule()
-    m = Module(r, {})
+    r1 = SimModule()
+    m = Module(r1, {})
     print(m.__dict__)
