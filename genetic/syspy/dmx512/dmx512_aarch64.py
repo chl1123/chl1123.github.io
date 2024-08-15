@@ -52,7 +52,7 @@ class dmx512Aarch64():
         type_exm = message_dmx512_arm_pb2.Message_Dmx512()
         if (isinstance(dmx512_info, type(type_exm))):
             msg = MessageToJson(dmx512_info)
-            self.rpc_client.receivePython(msg)
+            self.rpc_client.sendArmDmxInfo(msg)
 
     def recMoveStatus(self):
         str = self.rpc_client.getMoveStatus()

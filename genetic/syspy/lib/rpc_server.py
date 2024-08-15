@@ -16,18 +16,12 @@ class zmqServer(object):
         self.socket.close()
     
     def send(self, data):
-        try:
-            self.__lock.acquire()  # 加锁
+        with self.__lock:
             self.socket.send(data)
-        finally:
-            self.__lock.release()  # 解锁
 
     def recv(self):
-        try:
-            self.__lock.acquire()  # 加锁
+        with self.__lock:
             return self.socket.recv()
-        finally:
-            self.__lock.release()  # 解锁
 
     def __loop(self):
         while True:
