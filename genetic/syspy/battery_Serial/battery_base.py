@@ -36,7 +36,6 @@ class batteryBase:
     def publish(self, battery_info):
         msg = MessageToJson(battery_info)
         self.__rpc_client.publishBattery(msg)
-        print("publishBattery.")
 
     def getDIStates(self,index):
         return self.__rpc_client.getDIStates(index)
@@ -44,12 +43,18 @@ class batteryBase:
     def getDOStates(self,index):
         return self.__rpc_client.getDOStates(index)
 
+    def setModbusData(self, type: str, addr: int, data: list) -> bool:
+        is_ok:bool  = self.__rpc_client.setModbusData(type,addr,data)
+        return is_ok
+
+    def getModbusData(self, type: str, addr: int, size: int) -> list:
+        msg:list = self.__rpc_client.getModbusData(type, addr, size)
+        return msg
+
     def setTimeout(self):
-        print("Serail battery response time out")
         self.__rpc_client.setWarning(54001, "Serail battery response time out")
 
     def clearTimeout(self):
-        print("Clear timeout")
         self.__rpc_client.clearWarning(54001)
 
     def setWarning(self, warNum, warMessage):
