@@ -149,7 +149,7 @@ class demo_dmx512(dmx.dmx512Base):
             elif self.battery_exist:
                 '''静止状态且battery存在'''
                 maxPer = self.getBatteryMaxPercentage()
-                if (dmx_battery.is_charging and (self.getShowCharging()==True)):
+                if dmx_battery.is_charging:
                     '''充电中为橙黄色呼吸'''
                     dmx512_info.type = dmx.LightType.Charging.value
                 elif (dmx_battery.percetage * 100 < maxPer):

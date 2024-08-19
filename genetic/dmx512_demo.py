@@ -149,7 +149,7 @@ class demo_dmx512(dmx.dmx512Base):
             elif self.battery_exist:
                 '''静止状态且battery存在'''
                 maxPer = self.getBatteryMaxPercentage()
-                if (dmx_battery.is_charging and (self.getShowCharging()==True)):
+                if dmx_battery.is_charging:
                     '''充电中为橙黄色呼吸'''
                     dmx512_info.type = dmx.LightType.Charging.value
                 elif (dmx_battery.percetage * 100 < maxPer):
@@ -160,14 +160,11 @@ class demo_dmx512(dmx.dmx512Base):
                     dmx512_info.color_g = RGBW[1]
                     dmx512_info.color_b = RGBW[2]
                     dmx512_info.color_w = RGBW[3]
-                elif (self.getShowBattery()==True):
+                else:
                     '''显示电量，从绿色至暗红色渐变'''
                     dmx512_info.type = dmx.LightType.Battery.value
                     tem = (dmx_battery.percetage * 100.0)
                     dmx512_info.battery = int(tem)
-                else:
-                    '''否则蓝色常亮'''
-                    dmx512_info.type = dmx.LightType.ConstantLight.value
 
             else:
                 '''电池类型未配置且机器人静止为彩虹灯'''

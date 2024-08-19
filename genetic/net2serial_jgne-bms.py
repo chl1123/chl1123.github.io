@@ -1,7 +1,7 @@
 import sys
 import os
 #import bettery base class
-import syspy.battery.battery_base as bb 
+import syspy.battery_Serial.battery_base as bb 
 #import the tool of handling string type
 import syspy.lib.char_utility as cu 
 #other tools,like Timer
