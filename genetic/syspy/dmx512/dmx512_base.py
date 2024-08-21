@@ -102,6 +102,11 @@ class dmx512Base:
     def sendDmx512(self,dmx512_info):
         self.child.sendDmx512(dmx512_info)
 
+    def getLedExternalControlInfo(self):
+        json_string = self.__rpc_client.getLedExternalControlInfo()
+        print('getinfo: ',json_string)
+        return json_string
+
 
 
     ''' Serial '''
