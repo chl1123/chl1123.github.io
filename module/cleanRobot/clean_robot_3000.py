@@ -12,7 +12,8 @@ import can
 from enum import IntEnum
 import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
-
+import os
+sys.path.append(os.path.dirname(__file__) + "/syspy")
 sys.path.append("../syspy")
 sys.path.append("../../genetic")
 import json
