@@ -41,18 +41,31 @@ class testCanBattery(cb.canPassBase):
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
         self.battery_info = self.createBatteryMessage()
-        self.connect_timeout_t = mu.Timer(7000)
+        self.connect_timeout_t = mu.Timer(2000)
         self.id1,self.id2,self.id3,self.id4 = False,False,False,False
         self.msg_ok = False
         self.msg_userdata = False
         self.first = True
-        self.port1 = 'can0'
-        self.port2 = 'can1'
+        self.srcname = self.getSrcName()
+        if self.srcname == 'SRC880':
+            self.port1 = 'can1'
+            self.port2 = 'can0'
+        else:
+            self.port1 = 'can0'
+            self.port2 = 'can1'
         self.port3 = 'can2'
         self.id = ""
         self.year = ""
         self.week = ""
         self.number = ""
+        self.previous_temperature = None
+        self.temperature_buffer = []
+        self.wake_up = None
+
+    def getSrcName(self):
+        with open('/etc/srcname', 'r') as file:
+            srcname = file.readline().strip()
+        return srcname
 
     def handleData(self, msg):
         self.judgeCanframe(msg)
@@ -103,14 +116,28 @@ class testCanBattery(cb.canPassBase):
             self.clearTimeout()
             tem = msg.data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
-            if temperature <= -19:
-                self.setError(53140,"The current temperature has reached " + str(temperature) + " degrees , low temperature error!")
-            elif -19 < temperature <= -15:
-                self.setWarning(54400, "The current temperature has reached " + str(temperature) + " degrees , low temperature warning.")
-            elif 55 <= temperature < 59:
-                self.setWarning(54400, "The current temperature has reached " + str(temperature) + " degrees , high temperature warning.")
-            elif temperature >= 59:
-                self.setError(53140,"The current temperature has reached " + str(temperature) + " degrees , high temperature error!")
+
+            if self.previous_temperature is not None and abs(temperature - self.previous_temperature) > 10:
+                self.temperature_buffer.append(temperature)
+                if len(self.temperature_buffer) >= 3:
+                    self.previous_temperature = temperature  # 更新上次温度值
+                    self.temperature_buffer = []  # 清空缓冲区
+            else:
+                self.previous_temperature = temperature
+                self.temperature_buffer = []  # 如果温差小于10度，重置缓冲区
+                if temperature <= -19:
+                    self.setError(53140, "The current temperature has reached " + str(
+                        temperature) + " degrees , low temperature error!")
+                elif -19 < temperature <= -15:
+                    self.setWarning(54400, "The current temperature has reached " + str(
+                        temperature) + " degrees , low temperature warning.")
+                elif 55 <= temperature < 59:
+                    self.setWarning(54400, "The current temperature has reached " + str(
+                        temperature) + " degrees , high temperature warning.")
+                elif temperature >= 59:
+                    self.setError(53140, "The current temperature has reached " + str(
+                        temperature) + " degrees , high temperature error!")
+
             self.battery_info.temperature = temperature
             self.msg_ok = True
             self.id3 = True
@@ -150,11 +177,17 @@ class testCanBattery(cb.canPassBase):
 
     def judgeMsgok(self):
         if self.msg_ok:
+            # 清除超时错误,重置标志位
             self.msg_ok = False
             self.connect_timeout_t.reset()
+            self.wake_up = False
         else:
             if self.connect_timeout_t.isTimeUp():
-                self.setTimeout()
+                if not self.wake_up and (self.id == "0b" or self.id == "0d"):
+                    self.sendCanframe(self.port3, 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+                    self.wake_up = True # 主动唤醒
+                else:
+                    self.setTimeout()
 
     def loop(self):
         mu.sleep_s(2)
@@ -164,12 +197,10 @@ class testCanBattery(cb.canPassBase):
         self.createCanBus(self.port3, 250000)
         self.attachCanID(0x0DA2F40D, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
+            mu.sleep_s(2)
             if not self.msg_userdata:
                 self.sendCanframe(self.port3, 0x0DA20DF4, 8, True, [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
-            if self.id == "0b" or self.id == "0d":
-                self.sendCanframe(self.port3, 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
             self.judgeMsgok()
-            mu.sleep_s(2)
 
 if __name__ == '__main__':
     client = testCanBattery()

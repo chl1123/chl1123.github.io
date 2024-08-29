@@ -42,15 +42,20 @@ class testCanBattery(cb.canPassBase):
         sys.stdout = self.__debug_out
         # 用来表示数据是否已经正确接收
         self.battery_info = self.createBatteryMessage()
-        self.connect_timeout_t = mu.Timer(7000)
+        self.connect_timeout_t = mu.Timer(2000)
         self.id1,self.id2,self.id3,self.id4 = False,False,False,False
         self.msg_ok = False
         self.msg_userdata = False
         self.first = True
+        self.port1 = 1
+        self.port2 = 2
         self.id = ""
         self.year = ""
         self.week = ""
         self.number = ""
+        self.previous_temperature = None
+        self.temperature_buffer = []
+        self.wake_up = None
 
     def handleData(self, msg):
         self.judgeCanframe(msg)
@@ -102,14 +107,28 @@ class testCanBattery(cb.canPassBase):
             self.clearTimeout()
             tem = canframe.Data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
-            if temperature <= -19:
-                self.setError(53140,"The current temperature has reached " + str(temperature) + " degrees , low temperature error!")
-            elif -19 < temperature <= -15:
-                self.setWarning(54400, "The current temperature has reached " + str(temperature) + " degrees , low temperature warning.")
-            elif 55 <= temperature < 59:
-                self.setWarning(54400, "The current temperature has reached " + str(temperature) + " degrees , high temperature warning.")
-            elif temperature >= 59:
-                self.setError(53140, "The current temperature has reached " + str(temperature) + " degrees , high temperature error!")
+
+            if self.previous_temperature is not None and abs(temperature - self.previous_temperature) > 10:
+                self.temperature_buffer.append(temperature)
+                if len(self.temperature_buffer) >= 3:
+                    self.previous_temperature = temperature  # 更新上次温度值
+                    self.temperature_buffer = []  # 清空缓冲区
+            else:
+                self.previous_temperature = temperature
+                self.temperature_buffer = []  # 如果温差小于10度，重置缓冲区
+                if temperature <= -19:
+                    self.setError(53140, "The current temperature has reached " + str(
+                        temperature) + " degrees , low temperature error!")
+                elif -19 < temperature <= -15:
+                    self.setWarning(54400, "The current temperature has reached " + str(
+                        temperature) + " degrees , low temperature warning.")
+                elif 55 <= temperature < 59:
+                    self.setWarning(54400, "The current temperature has reached " + str(
+                        temperature) + " degrees , high temperature warning.")
+                elif temperature >= 59:
+                    self.setError(53140, "The current temperature has reached " + str(
+                        temperature) + " degrees , high temperature error!")
+
             self.battery_info.temperature = temperature
             self.msg_ok = True
             self.id3 = True
@@ -152,23 +171,25 @@ class testCanBattery(cb.canPassBase):
             # 清除超时错误,重置标志位
             self.msg_ok = False
             self.connect_timeout_t.reset()
+            self.wake_up = False
         else:
             if self.connect_timeout_t.isTimeUp():
-                self.setTimeout()
+                if not self.wake_up and (self.id == "0b" or self.id == "0d"):
+                    self.sendCanframe(self.port2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
+                    self.wake_up = True # 主动唤醒
+                else:
+                    self.setTimeout()
 
     def loop(self):
-        # 需要至少7s来等待底层初始化,否则将会覆盖操作
         mu.sleep_s(5)
-        self.attachCanID(2, 1, 0x0DA2F40D)
+        self.attachCanID(self.port2, 1, 0x0DA2F40D)
         while True:
-            self.sendCanframe(2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
+            self.sendCanframe(self.port2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
             mu.sleep_s(2)
             if self.msg_userdata:
                 break
-        self.attachCanID(2, 5, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
+        self.attachCanID(self.port2, 5, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
-            if self.id == "0b" or self.id == "0d":
-                self.sendCanframe(2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
             self.judgeMsgok()
             mu.sleep_s(2)
 
