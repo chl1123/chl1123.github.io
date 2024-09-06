@@ -1,10 +1,4 @@
-# -*- coding: utf-8 -*-
-# @Date: 2024-08-02
-# @Author: liyulong
-# @File: btCanPass_Greenway2.py
-# @Version: V1.0
 
-import sys
 # 导入电池基类
 import syspy.battery_Can.canpass_base as cb
 # 其他工具类,如定时器
@@ -38,8 +32,8 @@ class testCanBattery(cb.canPassBase):
     def __init__(self):
         # 初始化基类,必须做
         super(testCanBattery, self).__init__()
-        self.__debug_out = ud.udpDebug()
-        sys.stdout = self.__debug_out
+        # self.__debug_out = ud.udpDebug()
+        # sys.stdout = self.__debug_out
         # 用来表示数据是否已经正确接收
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(2000)
@@ -55,7 +49,8 @@ class testCanBattery(cb.canPassBase):
         self.number = ""
         self.previous_temperature = None
         self.temperature_buffer = []
-        self.wake_up = None
+        self.wake_up = False
+        self.clear = False
 
     def handleData(self, msg):
         self.judgeCanframe(msg)
@@ -64,7 +59,6 @@ class testCanBattery(cb.canPassBase):
     def judgeCanframe(self, msg):
         canframe = self.recCanframe(msg)
         if canframe.ID == 0x0DA2F40D and not self.msg_userdata:
-            self.clearTimeout()
             tem = canframe.Data.hex()
             if tem[2:14] == 'ffffffffffff':
                 self.msg_userdata = True
@@ -82,7 +76,6 @@ class testCanBattery(cb.canPassBase):
                     self.msg_userdata = True
                     self.msg_ok = True
         if canframe.ID == 0x0EA0F40D:
-            self.clearTimeout()
             tem = canframe.Data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             cycle = int(tem[4:6] + tem[6:8], 16)
@@ -95,7 +88,6 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = True
             self.id1 = True
         elif canframe.ID == 0x0EA1F40D:
-            self.clearTimeout()
             tem = canframe.Data.hex()
             current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
@@ -104,7 +96,6 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = True
             self.id2 = True
         elif canframe.ID == 0x0EA2F40D:
-            self.clearTimeout()
             tem = canframe.Data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
 
@@ -133,10 +124,8 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = True
             self.id3 = True
         elif canframe.ID == 0x0EA4F40D:
-            self.clearTimeout()
             tem = canframe.Data.hex()
             if self.isNeedCharge():
-                print("start charge")
                 max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
                 max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
                 self.battery_info.max_charge_current = max_charge_current
@@ -147,7 +136,6 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = True
             self.id4 = True
         elif canframe.ID == 0x1EA7F40D:
-            self.clearTimeout()
             tem = canframe.Data.hex()
             for i in range(1, 4):
                 for j in range(8):
@@ -164,7 +152,7 @@ class testCanBattery(cb.canPassBase):
         if self.id1 and self.id2 and self.id3 and self.id4:
             self.publish(self.battery_info)
         else:
-            print("not")
+            print(f"wait 4 ids all recv: id1{self.id1} id2{self.id2} id3{self.id3} id4{self.id4}")
 
     def judgeMsgok(self):
         if self.msg_ok:
@@ -172,12 +160,21 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = False
             self.connect_timeout_t.reset()
             self.wake_up = False
+            if not self.clear:
+                if self.warningExists(54001):
+                    print('clear')
+                    self.clearTimeout()
+                else:
+                    self.clear = True
         else:
             if self.connect_timeout_t.isTimeUp():
                 if not self.wake_up and (self.id == "0b" or self.id == "0d"):
                     self.sendCanframe(self.port2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
                     self.wake_up = True # 主动唤醒
+                    print("wake_up")
                 else:
+                    self.clear = False
+                    print('timeout')
                     self.setTimeout()
 
     def loop(self):
