@@ -1,6 +1,8 @@
 import sys,platform
 import syspy.lib.rpc_client as rc
 import syspy.lib.rpc_server as rs
+import syspy.lib.udp_debug as ud
+_syslog = ud.syslogDebug("can_battery")
 from google.protobuf.json_format import MessageToJson
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Can/')
 DEFAULT_RPC_ADDR = "ipc:///tmp/CanPass_rpc.ipc"
@@ -48,7 +50,6 @@ class canPassBase:
     def publish(self, battery_info):
         msg = MessageToJson(battery_info)
         self.__rpc_client.publishBattery(msg)
-        print("publishBattery.")
 
     def getDIStates(self,index):
         return self.__rpc_client.getDIStates(index)
@@ -57,11 +58,9 @@ class canPassBase:
         return self.__rpc_client.getDOStates(index)
 
     def setTimeout(self):
-        print("Can battery response time out")
         self.__rpc_client.setWarning(54001, "Can battery response time out")
 
     def clearTimeout(self):
-        print("Clear timeout")
         self.__rpc_client.clearWarning(54001)
 
     def setWarning(self, warNum, warMessage):

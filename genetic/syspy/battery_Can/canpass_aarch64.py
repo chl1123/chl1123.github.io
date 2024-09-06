@@ -1,5 +1,4 @@
 import sys,can,threading
-import syspy.lib.udp_debug as ud
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 import message_battery_aarch64_pb2
@@ -12,8 +11,7 @@ class canPassAarch64():
         self.__should_close = threading.Event()  # 使用事件来控制线程关闭
         self.can_ids = []
         self.__msg_thread = None
-        self.__debug_out = ud.udpDebug()
-        sys.stdout = self.__debug_out
+        self.bus_dict = {}  # 用于存储不同通道的Bus对象
 
     def setCallBack(self, handleData):
         if callable(handleData):
@@ -25,7 +23,7 @@ class canPassAarch64():
         return message_battery_aarch64_pb2.Message_Battery()
 
     def createCanBus(self, channel, bitrate):
-        self.bus = can.interface.Bus(bustype='socketcan', channel=channel, bitrate=bitrate)
+        self.bus = can.interface.Bus(bustype='socketcan', channel=channel, bitrate=bitrate, receive_own_messages=False)
         self.__msg_thread = threading.Thread(target=self.__run, name="run")
         self.__msg_thread.start()  # FIXME: when to join?
 
@@ -33,6 +31,7 @@ class canPassAarch64():
         return msg.arbitration_id in self.can_ids
 
     def attachCanID(self, *canid):
+        self.can_ids.clear()
         for i in range(len(canid)):
             self.can_ids.append(canid[i])
         filters = []
@@ -46,20 +45,22 @@ class canPassAarch64():
         print('Attached CAN IDs:', end=' ')
         for id_ in self.can_ids:
             print(hex(id_), end=' ')
+        print()
 
     def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
-        bus = can.interface.Bus(channel, bustype='socketcan')
         try:
             msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
-            bus.send(msg)
-            print(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
-        finally:
-            bus.shutdown()
+            self.bus.send(msg)
+            print(f'message send: can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+        except Exception as e:
+            print(f"Error sending CAN frame: {e}")
 
     def recvCan(self):
-        msg = self.bus.recv(1.0)  # 设置超时时间
-        if msg and self.can_filter(msg):
-            if not self.__callback is None:
+        msg = self.bus.recv(2.0)  # 设置超时时间
+        if msg is None:
+            print(f"CAN bus receive timeout: No data received within the timeout period.")
+        elif self.can_filter(msg):
+            if self.__callback is not None:
                 self.__callback(msg)
 
     def __run(self):

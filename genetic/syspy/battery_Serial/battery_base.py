@@ -1,6 +1,8 @@
 import sys,platform
 import syspy.lib.rpc_client as rc
 import syspy.lib.rpc_server as rs
+import syspy.lib.udp_debug as ud
+_syslog = ud.syslogDebug("serial_battery")
 from google.protobuf.json_format import MessageToJson
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Serial/')
 DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_rpc.ipc"

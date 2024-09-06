@@ -15,8 +15,6 @@ class passThrough:
         self.__should_close = False
         self.__callback = None
         self.__lock = threading.Lock()  # 创建锁对象
-        self.__debug_out = ud.udpDebug()
-        sys.stdout = self.__debug_out
         print("passThrough start")
 
     def close(self):
@@ -50,28 +48,21 @@ class passThrough:
                 sockets = dict(poll.poll(10))
                 if self.__client_sock in sockets:
                     self.__receive()
-
         except Exception as e:
-            print("exception:", e)
+            print("passThrough exception:", e)
 
         finally:
             pass
 
     def __receive(self):
-        try:
-            self.__lock.acquire()  # 加锁
+        with self.__lock:
             msg = self.__client_sock.recv()
             if not self.__callback is None:
                 self.__callback(msg)
-        finally:
-            self.__lock.release()  # 解锁
 
     def send(self, data):
-        try:
-            self.__lock.acquire()  # 加锁
+        with self.__lock:
             self.__client_sock.send(data)
-        finally:
-            self.__lock.release()  # 解锁
 
     def shoutDown(self):
         self.__should_close = True

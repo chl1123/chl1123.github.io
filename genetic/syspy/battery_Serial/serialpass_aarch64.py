@@ -24,7 +24,6 @@ class serialPassAarch64():
 
     def send(self, msg: list):
         self.ser.write(msg)
-        print('message send {}'.format(msg))
 
     def recv(self):
         data = self.ser.read()

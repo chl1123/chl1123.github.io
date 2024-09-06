@@ -90,7 +90,6 @@ class dmx512Aarch64():
 
     def send(self, msg: list):
         self.ser.write(msg)
-        print('message send {}'.format(msg))
 
     def recv(self):
         data = self.ser.read()
@@ -133,13 +132,12 @@ class dmx512Aarch64():
             print(hex(id_), end=' ')
 
     def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
-        bus = can.interface.Bus(channel, bustype='socketcan')
         try:
             msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
-            bus.send(msg)
-            print(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
-        finally:
-            bus.shutdown()
+            self.bus.send(msg)
+            print(f'message send: can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+        except Exception as e:
+            print(f"Error sending CAN frame: {e}")
 
     def recvCan(self):
         msg = self.bus.recv(1.0)  # 设置超时时间

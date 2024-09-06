@@ -1,4 +1,4 @@
-import zmq,json,threading,sys,time
+import zmq,json,threading,sys
 
 class zmqServer(object):
     def __init__(self):
@@ -7,13 +7,16 @@ class zmqServer(object):
         self.socket.bind("ipc:///tmp/dsp2python_rpc.ipc")
         self.data = None
         self.__should_close = False
+        self.__lock = threading.Lock()  # 创建锁对象
         self.msg_thread = threading.Thread(target=self.__loop, name="loop")
         self.msg_thread.start()
-        self.__lock = threading.Lock()  # 创建锁对象
+
 
     def close(self):
         print("close the socket")
+        self.__should_close = True
         self.socket.close()
+        self.context.term()
     
     def send(self, data):
         with self.__lock:
@@ -29,6 +32,7 @@ class zmqServer(object):
                 message = self.socket.recv()
                 self.data = json.loads(message.decode('utf-8'))
                 method_name = self.data['method_name']
+                print(f'server: {method_name}')
                 res = self.funs[method_name]()
                 data = {"res": res}
                 self.socket.send(json.dumps(data).encode('utf-8'))
@@ -37,8 +41,6 @@ class zmqServer(object):
             except Exception as e:
                 print('server loop error',e)
 
-    def shoutDown(self):
-        self.__should_close = True
 
 class rpcStub(object):
     def __init__(self):
