@@ -70,6 +70,6 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         suff = "_trigger_" + sys.argv[1]
     file_str = datetime.strftime(datetime.now(), 'can_%Y-%m-%d_%H-%M-%S.%f').replace(" ","")
-    save_fime_name = "/home/sr/" + file_str + suff + ".log"
+    save_fime_name = "/usr/local/etc/.SeerRobotics/rbk/diagnosis/log/" + file_str + suff + ".log"
     app = Recode2File(save_fime_name)
     app.file.close()
