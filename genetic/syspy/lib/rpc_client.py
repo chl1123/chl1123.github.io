@@ -1,4 +1,4 @@
-import zmq,json,threading,sys,queue
+import zmq,json,threading,sys,queue,os
 
 class zmqClient(object):
     def __init__(self):
@@ -67,6 +67,7 @@ class rpcStub(object):
                     return reply["res"]
                 else:
                     print("poller Timeout or No result")
+                    os._exit(1)
                     return None
             except Exception as e:
                 print('rpcStub error', e)
