@@ -1,4 +1,5 @@
-
+import sys,os
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 # 导入电池基类
 import syspy.battery_Can.canpass_base as cb
 # 其他工具类,如定时器
@@ -73,6 +74,9 @@ class testCanBattery(cb.canPassBase):
             print(f"Unexpected exception in handleData: {e}")
 
     def judgeCanframe(self, msg):
+        if len(msg.data) != 8:
+            print("msg not valid: %s" % (str(msg)))
+            return
         if msg.arbitration_id == 0x0DA2F40D and not self.msg_userdata:
             tem = msg.data.hex()
             if tem[2:14] == 'ffffffffffff':
@@ -90,10 +94,20 @@ class testCanBattery(cb.canPassBase):
                     self.battery_info.user_data = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
                     self.msg_userdata = True
                     self.msg_ok = True
-        if msg.arbitration_id == 0x0EA0F40D:
+        elif msg.arbitration_id == 0x0EA0F40D:
+            self.clearTimeout()
             tem = msg.data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             cycle = int(tem[4:6] + tem[6:8], 16)
+            if True == self.id1:
+                if abs(cycle - self.battery_info.cycle) > 1:
+                    print("cycle jumps form %d to %d, drop msg:%s" % (cycle,
+                        self.battery_info.cycle, str(msg)))
+                    return
+                elif 0 == cycle:
+                    print("cycle cannot be zero, drop msg:%s" % (cycle,
+                        self.battery_info.cycle, str(msg)))
+                    return
             if int(tem[12:14], 16) == 1:
                 self.battery_info.is_charging = True
             else:
@@ -209,11 +223,3 @@ class testCanBattery(cb.canPassBase):
 if __name__ == '__main__':
     client = testCanBattery()
     client.loop()
-
-
-
-
-
-
-
-
