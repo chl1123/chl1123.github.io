@@ -104,8 +104,8 @@ class testCanBattery(cb.canPassBase):
                     print("cycle jumps form %d to %d, drop msg:%s" % (cycle,
                         self.battery_info.cycle, str(msg)))
                     return
-                elif 0 == cycle:
-                    print("cycle cannot be zero, drop msg:%s" % (cycle,
+                elif 0 == cycle or 0 == percentage:
+                    print("cycle and SoC cannot be zero, drop msg:%s" % (cycle,
                         self.battery_info.cycle, str(msg)))
                     return
             if int(tem[12:14], 16) == 1:
