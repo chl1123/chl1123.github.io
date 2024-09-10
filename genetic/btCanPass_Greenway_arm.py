@@ -95,7 +95,6 @@ class testCanBattery(cb.canPassBase):
                     self.msg_userdata = True
                     self.msg_ok = True
         elif msg.arbitration_id == 0x0EA0F40D:
-            self.clearTimeout()
             tem = msg.data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             cycle = int(tem[4:6] + tem[6:8], 16)
