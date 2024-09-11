@@ -98,14 +98,12 @@ class testCanBattery(cb.canPassBase):
             tem = msg.data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             cycle = int(tem[4:6] + tem[6:8], 16)
-            if True == self.id1:
+            if self.id1:
                 if abs(cycle - self.battery_info.cycle) > 1:
-                    print("cycle jumps form %d to %d, drop msg:%s" % (cycle,
-                        self.battery_info.cycle, str(msg)))
+                    print(f"cycle jumps form {self.battery_info.cycle} to {cycle}, drop msg:{str(msg)}")
                     return
                 elif 0 == cycle or 0 == percentage:
-                    print("cycle and SoC cannot be zero, drop msg:%s" % (cycle,
-                        self.battery_info.cycle, str(msg)))
+                    print(f"cycle and SoC cannot be zero,per:{percentage},cycle:{cycle},msg:{str(msg)}")
                     return
             if int(tem[12:14], 16) == 1:
                 self.battery_info.is_charging = True
@@ -119,6 +117,13 @@ class testCanBattery(cb.canPassBase):
             tem = msg.data.hex()
             current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
+            if self.id2:
+                if abs(current - self.battery_info.charge_current) > 100:
+                    print(f"current jumps form {self.battery_info.charge_current} to {current}, drop msg:{str(msg)}")
+                    return
+                if abs(voltage - self.battery_info.charge_voltage) > 100:
+                    print(f"voltage jumps form {self.battery_info.charge_voltage} to {voltage}, drop msg:{str(msg)}")
+                    return
             self.battery_info.charge_voltage = voltage
             self.battery_info.charge_current = current
             self.msg_ok = True
