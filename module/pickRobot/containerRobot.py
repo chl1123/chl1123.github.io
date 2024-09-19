@@ -3,13 +3,14 @@
 # @Author: zhong
 # @Version: 3.1
 # @Project: 智千料箱车
-# @Update: 优化识别调整时货叉旋转速度以及车体移动速度
+# @Update: 优化识别调整时货叉旋转速度以及车体移动速度, 适配三联码
 # @RBK Version: V3.4.5.46 或 V3.4.6.19 以上
 import json
 import math
 import sys
 import time
-
+import os
+sys.path.append(os.path.dirname(__file__) + "/syspy")
 sys.path.append("../syspy")
 import goPath
 from rbkSim import SimModule
@@ -619,8 +620,8 @@ class Module(BasicModule):
             r.setWarning(f"Out of max stretch length: {length}")
             length = self.max_stretch_length
         # 手臂伸出且目标位置大于0.1m, 后半段速度减半
-        if length > 0.1 and self.stretch_real_pos > length * 0.5:
-            temp_motor_speed = self.stretch_motor_speed * 0.5
+        if length > 0.1 and self.stretch_real_pos > length * 0.8:
+            temp_motor_speed = self.stretch_motor_speed * 0.6
         if self.container_robot.stretch(self.stretch_motor, length, temp_motor_speed):
             return True
         return False
@@ -825,7 +826,7 @@ class Module(BasicModule):
                     self.in_take_step[1] = self.lift(r, self.low[int(self.cur_c)])
                 if not self.in_take_step[2]:
                     self.in_take_step[2] = self.rotate(r, 0)
-                if self.in_take_step[0] and self.in_take_step[1] and self.in_take_step[2] and not self.in_take_step[3]:
+                if all(self.in_take_step[0:3]) and not self.in_take_step[3]:
                     self.in_take_step[3] = self.stretch(r, self.stretch_self_length)
                 elif self.in_take_step[3] and not self.in_take_step[4]:
                     self.in_take_step[4] = self.finger(r, 0)

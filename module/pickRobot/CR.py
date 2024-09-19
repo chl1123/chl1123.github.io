@@ -8,10 +8,11 @@
 import json
 import math
 import struct
-import sys,platform
+import sys
+import platform
 import time
-
-
+import os
+sys.path.append(os.path.dirname(__file__) + "/syspy")
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery/')
 if platform.machine() == 'aarch64':
@@ -1175,7 +1176,7 @@ class CanPassAarch64:
 class FingerCan(TpModule):
     def __init__(self,r:SimModule,position):
         super().__init__()
-        self.finger_status = None
+        self.finger_status = {}
         self.position = position
         self.cp = None
         self.send_channel = "can1"
@@ -1190,6 +1191,7 @@ class FingerCan(TpModule):
         self.finger_status_sensor = [0x40,0x00,0x20,0x01,0x00,0x00,0x00,0x00]
         self.finger_status_code = [0x40,0x00,0x20,0x02,0x00,0x00,0x00,0x00]
         self.init = True
+        self.finger_pos = -1
 
     def run(self, r: SimModule, m:Module):
         self.status = MoveStatus.RUNNING
@@ -1204,7 +1206,7 @@ class FingerCan(TpModule):
         if not self.init:
             self.get_finger_status(r)
             if self.finger_status:
-                error = self.finger_status.get("finger_error_status")
+                # error = self.finger_status.get("finger_error_status")
                 # if error != 0:
                 #     self.status = MoveStatus.FAILED
                 #     if error == 1:
@@ -1221,15 +1223,14 @@ class FingerCan(TpModule):
                 #     else:
                 #         r.setError(f"finger_error_status:{error}")
                 #         return
-                finger_left_code = self.finger_status.get("finger_left_code")
-                finger_right_code = self.finger_status.get("finger_right_code")
-                if not finger_right_code and not finger_left_code :
-                    return
+                finger_left_code = self.finger_status.get("finger_left_code", 0)
+                finger_right_code = self.finger_status.get("finger_right_code", 0)
                 if self.position == 1:
                     self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend,
                                          self.open_finger)
                     if finger_left_code <= 1100 and finger_right_code >= 1900:
                         self.status = MoveStatus.FINISHED
+                        self.finger_status = {}
                         self.cp.close()
                     else:
                         self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend,
@@ -1239,11 +1240,12 @@ class FingerCan(TpModule):
                         self.init = True
                         res["open_res"] = str(open_res)
 
-                else:
+                if self.position == 0:
                     self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend,
                                          self.close_finger)
                     if finger_left_code >= 1900 and finger_right_code <= 1100:
                         self.status = MoveStatus.FINISHED
+                        self.finger_status = {}
                         self.cp.close()
                     else:
                         self.cp.sendCanframe(r, self.send_channel, self.can_id, self.dlc, self.extend,
@@ -1289,7 +1291,7 @@ class FingerCan(TpModule):
         time_start_finger = time.time()
         self.cp.sendCanframe(r,self.send_channel, self.can_id, self.dlc, self.extend, self.finger_status_sensor)
         finger_status_sensor_res = self.cp.recvCan(r)
-
+        
         self.cp.sendCanframe(r,self.send_channel, self.can_id, self.dlc, self.extend, self.finger_status_code)
         finger_status_code_res = self.cp.recvCan(r)
         if finger_status_sensor_res:
@@ -1297,16 +1299,21 @@ class FingerCan(TpModule):
             finger_sensor_status= struct.unpack('<B', finger_status_sensor_res[5:6])[0]
             finger_sensor_left= struct.unpack('<B', finger_status_sensor_res[6:7])[0]
             finger_sensor_right= struct.unpack('<B', finger_status_sensor_res[7:8])[0]
+            self.finger_pos = (finger_sensor_status >> 3) & 0b1   # 手指机构位置（0: 落下 1: 竖起）
             self.finger_status["finger_error_status"] = finger_error_status
             self.finger_status["finger_sensor_status"] = finger_sensor_status
             self.finger_status["finger_sensor_left"] = finger_sensor_left
             self.finger_status["finger_sensor_right"] = finger_sensor_right
+            
         if finger_status_code_res:
             finger_left_code= struct.unpack('<H', finger_status_code_res[4:6])[0]
             finger_right_code= struct.unpack('<H', finger_status_code_res[6:8])[0]
             self.finger_status["finger_left_code"] = finger_left_code
             self.finger_status["finger_right_code"] = finger_right_code
         self.finger_status["time"] = time.time() - time_start_finger
+        self.finger_status["finger_status_sensor_res"] = finger_status_sensor_res
+        self.finger_status["finger_status_code_res"] = finger_status_code_res
+        self.finger_status["finger_pos"] = self.finger_pos
 
 
 class FingerCanOpen(TpModule):
