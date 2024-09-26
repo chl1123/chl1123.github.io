@@ -1311,9 +1311,9 @@ class FingerCan(TpModule):
             self.finger_status["finger_left_code"] = finger_left_code
             self.finger_status["finger_right_code"] = finger_right_code
         self.finger_status["time"] = time.time() - time_start_finger
-        self.finger_status["finger_status_sensor_res"] = finger_status_sensor_res
-        self.finger_status["finger_status_code_res"] = finger_status_code_res
-        self.finger_status["finger_pos"] = self.finger_pos
+        self.finger_status["finger_status_sensor_res"] = str(finger_status_sensor_res)
+        self.finger_status["finger_status_code_res"] = str(finger_status_code_res)
+        self.finger_status["finger_pos"] = str(self.finger_pos)
 
 
 class FingerCanOpen(TpModule):
