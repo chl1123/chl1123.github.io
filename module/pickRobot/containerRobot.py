@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date: 2024/07/25
+# @Date: 2024/10/08
 # @Author: zhong
-# @Version: 3.1
+# @Version: 3.2
 # @Project: 智千料箱车
-# @Update: 优化识别调整时货叉旋转速度以及车体移动速度, 适配三联码
-# @RBK Version: V3.4.5.46 或 V3.4.6.19 以上
+# @Update: 控制器及驱动器急停状态检测，自动上使能
+# @RBK Version: V3.4.5.44 或 V3.4.6.18 以上
 import json
 import math
 import sys
@@ -320,12 +320,7 @@ class Module(BasicModule):
     def run(self, r: SimModule, args):
         self.status = MoveStatus.RUNNING
         self.report_info["getCount_run"] = r.getCount()
-        lift_motor_info = self.get_motor_info(r, self.lift_motor_name)  # 能查询到电机数据
-        self.enable_motor = not lift_motor_info.get("emc", True)
-        if lift_motor_info and not self.enable_motor and time.time() - self.enable_motor_time > 1:  # 给升降电机上使能
-            self.enable_motor_time = time.time()
-            r.enableMotor(self.lift_motor_name)
-            self.send_enable_motor_count += 1
+        self.check_motor_emc(r)  # 检测控制器及驱动器急停状态
         if self.init:
             if self.enable_motor:  # 使能成功, 可以标零
                 self.motor_calib(r)
@@ -427,8 +422,7 @@ class Module(BasicModule):
         self.report_info['motor_calib'] = [self.lift_motor_calib, self.stretch_motor_calib, self.rotate_motor_calib]
         self.report_info['task_status'] = self.status
         self.report_info['goodsId'] = self.goods_id
-        self.report_info['send_enable_motor_count'] = self.send_enable_motor_count
-        self.report_info['lift_motor_info'] = self.get_motor_info(r, self.lift_motor_name)
+        # self.report_info['lift_motor_info'] = self.get_motor_info(r, self.lift_motor_name)
         self.report_info['motor_info'] = self.container_robot.state or -1
         if self.status == MoveStatus.FAILED or self.status == MoveStatus.FINISHED:
             r.disableMotor(self.lift_motor_name)
@@ -447,6 +441,30 @@ class Module(BasicModule):
                 return _motor
         return {}
     
+    def check_motor_emc(self, r: SimModule):
+        controller_emc = r.controller().get("emc", False)
+        lift_motor_info = self.get_motor_info(r, self.lift_motor_name)  # 能查询到电机数据,说明驱动器已供电
+        stretch_motor_info = self.get_motor_info(r, self.stretch_motor_name)
+        rotate_motor_info = self.get_motor_info(r, self.rotate_motor_name)
+        lift_motor_emc = lift_motor_info.get("emc", False)
+        stretch_motor_emc = stretch_motor_info.get("emc", False)
+        rotate_motor_emc = rotate_motor_info.get("emc", False)
+        self.report_info["lift_motor_emc"] = lift_motor_emc
+        self.report_info["stretch_motor_emc"] = stretch_motor_emc
+        self.report_info["rotate_motor_emc"] = rotate_motor_emc
+        self.enable_motor = not lift_motor_emc and not rotate_motor_emc and not stretch_motor_emc  # 驱动器使能状态
+        if not controller_emc and time.time() - self.enable_motor_time > 0.5:  # 控制器未急停
+            self.enable_motor_time = time.time()
+            if lift_motor_info and lift_motor_emc:  # 控制器未急停但是驱动器急停，给电机上使能
+                r.enableMotor(self.lift_motor_name)
+                self.report_info['lift_motor_info'] = lift_motor_info
+            if stretch_motor_info and stretch_motor_emc:
+                r.enableMotor(self.stretch_motor_name)
+                self.report_info['stretch_motor_info'] = stretch_motor_info
+            if rotate_motor_info and rotate_motor_emc:
+                r.enableMotor(self.rotate_motor_name)
+                self.report_info['rotate_motor_info'] = rotate_motor_info
+        
     def motor_calib(self, r: SimModule):
         self.get_motor_calib_state(r)
         if self.lift_motor_calib and self.stretch_motor_calib and self.rotate_motor_calib:
