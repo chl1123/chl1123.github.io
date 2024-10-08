@@ -549,7 +549,7 @@ class Module(BasicModule):
             self.zero_step[3] = self.lift(r, 0)
         r.logDebug(f"zero_step:{self.zero_step}")
         if all(self.zero_step):
-            r.release()
+            # r.release()
             return True
         return False
     
@@ -584,7 +584,7 @@ class Module(BasicModule):
         if not self.finger_open_start:
             self.finger_open_start = time.time()
         else:
-            if time.time() - self.finger_open_start > 5:
+            if time.time() - self.finger_open_start > 3:  # 防止手指机构卡死时电机过流烧毁
                 r.setError(f"finger open error")
                 r.setDO(self.left_finger_up_do, False)
                 r.setDO(self.right_finger_up_do, False)
@@ -595,20 +595,25 @@ class Module(BasicModule):
         if pos == 1:
             r.setDO(self.left_finger_up_do, True)
             r.setDO(self.right_finger_up_do, True)
-            if ModuleTool.check_DI(r, self.left_finger_up_di) and ModuleTool.check_DI(r, self.right_finger_up_di):
-                self.left_finger_real_pos, self.right_finger_real_pos = 1, 1
+            if ModuleTool.check_DI(r, self.left_finger_up_di):
+                self.left_finger_real_pos = 1
                 r.setDO(self.left_finger_up_do, False)
+            if ModuleTool.check_DI(r, self.right_finger_up_di):
+                self.right_finger_real_pos = 1
                 r.setDO(self.right_finger_up_do, False)
+            if ModuleTool.check_DI(r, self.left_finger_up_di) and ModuleTool.check_DI(r, self.right_finger_up_di):
                 self.finger_open_start = False
                 return True
         elif pos == 0:
             r.setDO(self.left_finger_down_do, True)
             r.setDO(self.right_finger_down_do, True)
-            r.logInfo(f"----- open finger do  ------")
-            if ModuleTool.check_DI(r, self.left_finger_down_di) and ModuleTool.check_DI(r, self.right_finger_down_di):
-                self.left_finger_real_pos, self.right_finger_real_pos = 0, 0
+            if ModuleTool.check_DI(r, self.left_finger_down_di):
                 r.setDO(self.left_finger_down_do, False)
+                self.left_finger_real_pos = 0
+            if ModuleTool.check_DI(r, self.right_finger_down_di):
                 r.setDO(self.right_finger_down_do, False)
+                self.right_finger_real_pos = 0
+            if ModuleTool.check_DI(r, self.left_finger_down_di) and ModuleTool.check_DI(r, self.right_finger_down_di):
                 self.finger_open_start = False
                 return True
         return False
