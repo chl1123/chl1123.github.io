@@ -1,24 +1,22 @@
 # -*- coding: utf-8 -*-
-# @Date: 2024/06/30
+# @Date: 2024/07/25
 # @Author: zhong
-# @Version: 3.0
-# @Project: 料箱车边走边升降
-# @Update: 实时控制
-# @RBK Version: V3.4.6.1800
+# @Version: 3.1
+# @Project: 智千料箱车
+# @Update: 优化识别调整时货叉旋转速度以及车体移动速度
+# @RBK Version: V3.4.5.x
 import json
 import math
 import sys
 import time
+import os
 
+sys.path.append(os.path.dirname(__file__) + "/syspy")
 sys.path.append("../syspy")
 import goPath
-import modbus_tk.defines as cst
-from modbus_tk import modbus_tcp
 from rbkSim import SimModule
 from rbk import MoveStatus, BasicModule, ParamServer, Pos2World
-from robot import ModuleTool, Motor, MotorType, Robot
-from utils import ModuleUtils, GoodsManger
-from actions import RunMotorByPosition
+from robot import ModuleTool, Motor, MotorType, Robot, GoodsManger
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -77,7 +75,7 @@ from actions import RunMotorByPosition
     },
     "operation":{
         "value": "zero",
-        "default_value":["load","unload","recBoxBarcode","zero", "check_load", "check_unload", "in_take","in_put", "ex_take","ex_put"],
+        "default_value":["load","unload","recBoxBarcode","zero","in_take","in_put", "ex_take","ex_put"],
         "tips": "机构动作选项",
         "type": "complex"
     },
@@ -120,6 +118,10 @@ from actions import RunMotorByPosition
     "code_file": {
         "value": "",
         "type": "string"
+    },
+    "pre_finger":{
+        "value": 1,
+        "type": "int"
     }
 }
 ####END DEFAULT ARGS####
@@ -131,65 +133,63 @@ class Module(BasicModule):
         super(Module, self).__init__()
         self.check_safe_height = 0
         self.rec_box = None
-        self.args = args
         self.stretch_motor_stop = None
         self.rotate_motor_stop = None
         self.lift_motor_stop = None
         self.zeroing = None
         self.cur_c = None
-        self.utils = ModuleUtils()
         p = ParamServer(__file__)
         self.timeout = p.loadParam("timeout", type="int", default=120, maxValue=300, minValue=0, unit="s",
                                    comment=" 运行超时时间")
         self.low = dict()
         self.high = dict()
-        self.low[0] = p.loadParam("low0", type="float", default=0.4, maxValue=10000.0, minValue=0.0, unit="m",
+        self.low[0] = p.loadParam("low0", type="float", default=0.02, maxValue=10000.0, minValue=0.0, unit="m",
                                   comment="第0层背篓取料箱高度")
-        self.high[0] = p.loadParam("high0", type="float", default=0.41, maxValue=10000.0, minValue=0.0, unit="m",
+        self.high[0] = p.loadParam("high0", type="float", default=0.02, maxValue=10000.0, minValue=0.0, unit="m",
                                    comment="第0层背篓放料箱高度")
-        self.low[1] = p.loadParam("low1", type="float", default=0.82, maxValue=10000.0, minValue=0.0, unit="m",
+        self.low[1] = p.loadParam("low1", type="float", default=0.36, maxValue=10000.0, minValue=0.0, unit="m",
                                   comment="第1层背篓取料箱高度")
-        self.high[1] = p.loadParam("high1", type="float", default=0.83, maxValue=10000.0, minValue=0.0, unit="m",
+        self.high[1] = p.loadParam("high1", type="float", default=0.36, maxValue=10000.0, minValue=0.0, unit="m",
                                    comment="第1层背篓放料箱高度")
-        self.low[2] = p.loadParam("low2", type="float", default=1.25, maxValue=10000.0, minValue=0.0, unit="m",
+        self.low[2] = p.loadParam("low2", type="float", default=0.70, maxValue=10000.0, minValue=0.0, unit="m",
                                   comment="第2层背篓取料箱高度")
-        self.high[2] = p.loadParam("high2", type="float", default=1.26, maxValue=10000.0, minValue=0.0, unit="m",
+        self.high[2] = p.loadParam("high2", type="float", default=0.70, maxValue=10000.0, minValue=0.0, unit="m",
                                    comment="第2层背篓放料箱高度")
-        self.low[3] = p.loadParam("low3", type="float", default=1.675, maxValue=10000.0, minValue=0.0, unit="m",
+        self.low[3] = p.loadParam("low3", type="float", default=1.04, maxValue=10000.0, minValue=0.0, unit="m",
                                   comment="第3层背篓取料箱高度")
-        self.high[3] = p.loadParam("high3", type="float", default=1.68, maxValue=10000.0, minValue=0.0, unit="m",
+        self.high[3] = p.loadParam("high3", type="float", default=1.04, maxValue=10000.0, minValue=0.0, unit="m",
                                    comment="第3层背篓放料箱高度")
-        self.low[4] = p.loadParam("low4", type="float", default=2.095, maxValue=10000.0, minValue=0.0, unit="m",
+        self.low[4] = p.loadParam("low4", type="float", default=1.38, maxValue=10000.0, minValue=0.0, unit="m",
                                   comment="第4层背篓取料箱高度")
-        self.high[4] = p.loadParam("high4", type="float", default=2.10, maxValue=10000.0, minValue=0.0, unit="m",
+        self.high[4] = p.loadParam("high4", type="float", default=1.38, maxValue=10000.0, minValue=0.0, unit="m",
                                    comment="第4层背篓放料箱高度")
-        self.low[5] = p.loadParam("low5", type="float", default=2.515, maxValue=10000.0, minValue=0.0, unit="m",
-                                  comment="第5层背篓取料箱高度")
-        self.high[5] = p.loadParam("high5", type="float", default=2.525, maxValue=10000.0, minValue=0.0, unit="m",
-                                   comment="第5层背篓放料箱高度")
-        self.stretch_self_length = p.loadParam("stretch_self_length", type="float", default=0.73, maxValue=10000.0,
+        # self.low[5] = p.loadParam("low5", type="float", default=2.515, maxValue=10000.0, minValue=0.0, unit="m",
+        #                           comment="第5层背篓取料箱高度")
+        # self.high[5] = p.loadParam("high5", type="float", default=2.525, maxValue=10000.0, minValue=0.0, unit="m",
+        #                            comment="第5层背篓放料箱高度")
+        self.stretch_self_length = p.loadParam("stretch_self_length", type="float", default=0.3, maxValue=10000.0,
                                                minValue=0.0, unit="m", comment="取放自身背篓货物时伸出长度")
         self.rec_offz_box = p.loadParam("rec_offz_box", type="float", default=-0.05, maxValue=1000.0, minValue=-1000.0,
                                         unit="m", comment="识别料箱码后抓取料箱时调整高度")
         self.rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default=0.02, maxValue=1000.0,
                                           minValue=-1000.0, unit="m", comment="识别货架码后放置料箱时调整高度")
-        self.fork_up_limit = p.loadParam("fork_up_limit", type="int", default=2, maxValue=100, minValue=-1, unit="",
+        self.fork_up_limit = p.loadParam("fork_up_limit", type="int", default=0, maxValue=100, minValue=-1, unit="",
                                          comment="货叉上限位DI")
-        self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default=2, maxValue=100, minValue=-1, unit="",
+        self.fork_down_limit = p.loadParam("fork_down_limit", type="int", default=1, maxValue=100, minValue=-1, unit="",
                                            comment="货叉下限位DI")
         self.fork_limit = p.loadParam("fork_limit", type="int", default=3, maxValue=100, minValue=-1, unit="",
                                       comment="货叉机械限位限位DI")
-        self.min_lift_height = p.loadParam("min_fork_height", type="float", default=0.38, maxValue=10000.0,
+        self.min_lift_height = p.loadParam("min_fork_height", type="float", default=0.0, maxValue=10000.0,
                                            minValue=0.0, unit="m", comment="货叉最低高度")
-        self.max_lift_height = p.loadParam("max_fork_height", type="float", default=4.5, maxValue=10000.0,
+        self.max_lift_height = p.loadParam("max_fork_height", type="float", default=2, maxValue=10000.0,
                                            minValue=0.0, unit="m", comment="货叉最大高度")
-        
+
         self.min_rotate_angle = p.loadParam("min_rotate_angle", type="float", default=80, maxValue=90,
                                             minValue=60, unit="m", comment="货叉最小旋转范围")
-        self.max_rotate_angle = p.loadParam("max_rotate_angle", type="float", default=100, maxValue=110,
+        self.max_rotate_angle = p.loadParam("max_rotate_angle", type="float", default=220, maxValue=110,
                                             minValue=90, unit="m", comment="货叉最大旋转范围")
-        
-        self.max_stretch_length = p.loadParam("max_stretch_length", type="float", default=0.90, maxValue=10000.0,
+
+        self.max_stretch_length = p.loadParam("max_stretch_length", type="float", default=0.3, maxValue=10000.0,
                                               minValue=0.0, unit="m", comment="货叉最大伸出长度")
         self.safe_stretch_length = p.loadParam("safe_stretch_length", type="float", default=0.05, maxValue=10000.0,
                                                minValue=0.0, unit="m", comment="货叉升降、旋转操作时伸缩臂安全长度")
@@ -199,11 +199,11 @@ class Module(BasicModule):
                                          minValue=0.0, unit="m", comment="门架升降临界高度值")
         self.door_lift_height = p.loadParam("door_lift_height", type="float", default=1.7, maxValue=10000.0,
                                             minValue=0.0, unit="m", comment="门架固定升降高度")
-        self.has_fork_sensor = p.loadParam("has_fork_sensor", type="int", default=0,
+        self.has_fork_sensor = p.loadParam("has_fork_sensor", type="int", default=1,
                                            comment="货叉是否有货物检测传感器，1为有，0为无")
         self.has_tray_sensor = p.loadParam("has_tray_sensor", type="int", default=0,
                                            comment="背篓是否有货物检测传感器，1为有，0为无")
-        self.fork_sensor_di = p.loadParam("fork_sensor_di", type="int", default=9, maxValue=100, minValue=-1, unit="",
+        self.fork_sensor_di = p.loadParam("fork_sensor_di", type="int", default=4, maxValue=100, minValue=-1, unit="",
                                           comment="货叉检测DI")
         self.box_code_file = p.loadParam("box_code_file", type="str", default="code/c0001.code",
                                          comment="料箱二维码识别文件")
@@ -218,23 +218,24 @@ class Module(BasicModule):
         self.lift_motor_name = p.loadParam("lift_motor_name", type="str", default="lift", comment="升降电机名称")
         self.stretch_motor_name = p.loadParam("stretch_motor_name", type="str", default="stretch",
                                               comment="伸缩电机名称")
-        self.rotate_motor_name = p.loadParam("rotate_motor_name", type="str", default="rotate",
+        self.rotate_motor_name = p.loadParam("rotate_motor_name", type="str", default="rotation",
                                              comment="旋转电机名称")
         # 以下是自动计算取放货伸手的长度
         self.auto_stretch_box_len = p.loadParam("auto_stretch_box_len", type="float", default=0.6, maxValue=100,
                                                 minValue=-1, unit="", comment="箱子长度")
-        self.auto_stretch_dist = p.loadParam("auto_stretch_dist", type="float", default=0.05, maxValue=10, minValue=0,
-                                             unit="", comment="多伸出的距离")
+        self.auto_stretch_dist = p.loadParam("auto_stretch_dist", type="float", default=0.01, maxValue=10, minValue=0,
+                                             unit="", comment="自动计算伸出长度时的补偿值")
         self.auto_stretch_odo_len = p.loadParam("auto_stretch_odo_len", type="float", default=0.38, maxValue=100,
                                                 minValue=20, unit="", comment="手臂到里程中心的距离")
-        self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=1,
+        self.auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=0,
                                               comment="识别时是否需要自动调整货叉角度，1：需要 0：不需要")
-        self.comm_wait_time = p.loadParam("comm_wait_time", type="float", default=60.0,
-                                          comment="等待通信设备信号的最长时间，单位秒，超时任务失败并报错")
-        self.comm_ip = p.loadParam("ip", type="str", default="127.0.0.1", comment="通信设备IP")
-        self.comm_port = p.loadParam("port", type="int", default=502, comment="通信设备端口")
+        self.offset_x = p.loadParam("offset_x", type="float", default=0., comment="针对识别结果误差在x方向的补偿值")
+        self.fork_goods_check_di = p.loadParam("fork_goods_check_di", type="int", default=8, comment="货叉货物检测光电")
+        # 为旋转机构设置偏移量
+        self.rotate_offset = p.loadParam("rotate_offset", type="float", default=2.094, comment="旋转机构偏移量")
+
         self.init = True
-        
+
         self.status = MoveStatus.NONE
         self.report_info = dict()
         self.start_time = time.time()
@@ -256,23 +257,24 @@ class Module(BasicModule):
         self.load_height = 0
         self.unload_height = 0
         # 手指控制DO
-        self.left_finger_up_do = 8  # di1
-        self.right_finger_up_do = 7  # di6
-        self.right_finger_down_do = 6  # di5
-        self.left_finger_down_do = 9  # di4
+        self.left_finger_up_do = 3  # di1
+        self.left_finger_down_do = 4  # di4
+
+        self.right_finger_up_do = 1  # di6
+        self.right_finger_down_do = 2  # di5
         # 手指到位DI
-        self.left_finger_up_di = 1
-        self.left_finger_down_di = 4
-        self.right_finger_up_di = 6
-        self.right_finger_down_di = 5
-        
+        self.left_finger_up_di = 19
+        self.left_finger_down_di = 20
+        self.right_finger_up_di = 21
+        self.right_finger_down_di = 22
+
         self.fill_light_do = 4  # 补光灯DO
-        self.collision_di = 0  # 碰撞条DI
+        self.collision_di = 7  # 碰撞条DI
         self.light_st_time = None
-        
-        self.lift_zero_di = 8
-        self.stretch_limit = 10
-        self.rotate_limit = 7
+
+        self.lift_zero_di = 1
+        # self.stretch_limit = 10
+        # self.rotate_limit = 7
         self.target_type = None
         self.code_type = None
         self.barcode_height = None
@@ -289,10 +291,8 @@ class Module(BasicModule):
         self.load_step = [False] * 16
         self.unload_step = [False] * 16
         self.change_step = [False] * 10
-        self.check_load_step = [False] * 10
-        self.check_unload_step = [False] * 10
         self.rec_box_lift_step = [False] * 5
-        self.zero_step = [False] * 4
+        self.zero_step = [False] * 5
         self.zero_by_rbk_step = [False] * 4
         self.opt_step = [False] * 10
         self.yaw_adjust = 0
@@ -300,54 +300,43 @@ class Module(BasicModule):
         self.rec_id = None
         self.rec_box_lift = None
         self.finger_open_start = False
-        
+        self.pre_finger = None
+
         self.in_take_step = [False] * 20
         self.ex_take_step = [False] * 20
         self.in_put_step = [False] * 20
         self.ex_put_step = [False] * 20
-        
+
         self.lift_motor_calib = None
         self.stretch_motor_calib = None
         self.rotate_motor_calib = None
-        
+
         self.set_lift_motor_calib = None
         self.set_stretch_motor_calib = None
         self.set_rotate_motor_calib = None
         self.enable_motor = None
         self.send_enable_motor_count = 0
         self.enable_motor_time = time.time()
-        
-        self.modbus_master = None
-        self.slave_id = 1
-        self.start_addr = 0
-        self.data_length = 1
-        self.comm_expected_value = None
-        
+
+        self.lift_ok = False
+        self.rotate_ok = False
+
         r.logInfo(f"init args: {args}")
-    
+
     def run(self, r: SimModule, args):
+        # a = ModuleTool.get_motor_pos(r, self.lift_motor_name)
+        # r.setError(f"lift:{a}")
         self.status = MoveStatus.RUNNING
-        self.report_info["getCount_run"] = r.getCount()
+        self.report_info["script_running_count"] = r.getCount()
         lift_motor_info = self.get_motor_info(r, self.lift_motor_name)  # 能查询到电机数据
         self.enable_motor = not lift_motor_info.get("emc", True)
         if lift_motor_info and not self.enable_motor and time.time() - self.enable_motor_time > 1:  # 给升降电机上使能
             self.enable_motor_time = time.time()
-            r.enableMotor(self.lift_motor_name)
+            # r.enableMotor(self.lift_motor_name)
             self.send_enable_motor_count += 1
         if self.init:
             if self.enable_motor:  # 使能成功, 可以标零
                 self.motor_calib(r)
-            
-            # 设备信号交互初始化变量
-            self.comm_ip = args.get("ip", self.comm_ip)
-            self.comm_port = args.get("port", self.comm_port)
-            self.comm_expected_value = args.get("expected_value", self.comm_expected_value)
-            self.comm_wait_time = args.get("wait_time", self.comm_wait_time)
-            self.slave_id = args.get("slave_id", self.slave_id)
-            self.start_addr = args.get("start_addr", self.start_addr)
-            self.data_length = args.get("data_length", self.data_length)
-            self.modbus_master = modbus_tcp.TcpMaster(self.comm_ip, self.comm_port, 1.0)
-            
             self.goods_id = args.get("goodsId", "")
             self.get_move_task_params(r)
             self.finger_pos = args.get("finger", 0)
@@ -356,6 +345,8 @@ class Module(BasicModule):
             self.stretch_length = args.get("stretch", 0)
             self.rotate_pos = args.get("rotate", 0)
             self.rec_box_lift = args.get("recBoxLift", 0)
+            self.offset_x = args.get("offset_x", self.offset_x)
+            self.pre_finger = args.get("pre_finger", self.pre_finger)
             if self.rec_box_lift:
                 self.rec_box = Rec(self.box_code_file, max_rec_times=1)
             self.code_type = args.get("visionBinType", "code")
@@ -378,7 +369,7 @@ class Module(BasicModule):
                 self.rec = Rec(self.box_code_file)
             elif self.target_type == "shelf" and self.code_type == "code":
                 self.rec = Rec(self.shelf_code_file)
-        
+
         if time.time() - self.start_time > self.timeout:
             r.setError(f"running time out")
             self.status = MoveStatus.FAILED
@@ -390,9 +381,6 @@ class Module(BasicModule):
                         self.status = MoveStatus.FINISHED
                 elif self.operation == "load":
                     if self.load(r):
-                        self.status = MoveStatus.FINISHED
-                elif self.operation == "check_load":
-                    if self.check_load(r):
                         self.status = MoveStatus.FINISHED
                 elif self.operation == "unload":
                     if self.unload(r):
@@ -411,6 +399,9 @@ class Module(BasicModule):
                 elif self.operation == "ex_put":
                     if self.ex_put(r):
                         self.status = MoveStatus.FINISHED
+                elif self.operation == "zero":
+                     if self.zero(r):
+                        self.status = MoveStatus.FINISHED
                 else:
                     r.setError(f"args error: {args}")
                     self.status = MoveStatus.FAILED
@@ -419,16 +410,16 @@ class Module(BasicModule):
                     if self.finger(r, self.finger_pos):
                         self.update_finger_info(r)
                         self.status = MoveStatus.FINISHED
-                elif "lift" in args:
-                    if self.lift(r, self.lift_height):
-                        self.status = MoveStatus.FINISHED
-                elif "lift" in args and "rotate" in args:
-                    a = self.lift(r, self.lift_height)
-                    b = self.rotate(r, self.rotate_pos)
-                    if a and b:
-                        self.status = MoveStatus.FINISHED
-                elif "rotate" in args:
-                    if self.rotate(r, self.rotate_pos):
+                elif "lift" in args or "rotate" in args:
+                    if "lift" in args and not self.lift_ok:
+                        self.lift_ok = self.lift(r, self.lift_height)
+                    else:
+                        self.lift_ok = True
+                    if "rotate" in args and not self.rotate_ok:
+                        self.rotate_ok = self.rotate(r, self.rotate_pos)
+                    else:
+                        self.rotate_ok = True
+                    if self.lift_ok and self.rotate_ok:
                         self.status = MoveStatus.FINISHED
                 elif "stretch" in args:
                     if self.stretch(r, self.stretch_length):
@@ -451,14 +442,14 @@ class Module(BasicModule):
         # self.report_info['lift_motor_info'] = self.get_motor_info(r, self.lift_motor_name)
         self.report_info['motor_info'] = self.container_robot.state or -1
         if self.status == MoveStatus.FAILED or self.status == MoveStatus.FINISHED:
-            r.disableMotor(self.lift_motor_name)
-            r.release()
+            # r.disableMotor(self.lift_motor_name)
+            # r.release()
             r.setDO(self.fill_light_do, False)
             r.logInfo(f"script over: {json.dumps(self.report_info)}")
         r.setInfo(json.dumps(self.report_info))
         r.logDebug(json.dumps(self.report_info))
         return self.status
-    
+
     @staticmethod
     def get_motor_info(r: SimModule, motor_name: str):
         motor_data = r.odo().get("motor_info", [])
@@ -466,22 +457,7 @@ class Module(BasicModule):
             if _motor['motor_name'] == motor_name:
                 return _motor
         return {}
-    
-    def read_registers(self, r: SimModule):
-        read_result = self.modbus_master.execute(self.slave_id, cst.READ_HOLDING_REGISTERS, self.start_addr,
-                                                 self.data_length)
-        if read_result is not None:
-            self.report_info["read_registers"] = read_result
-            if self.comm_expected_value:
-                if tuple(self.comm_expected_value) == read_result:
-                    return True
-                else:
-                    r.setError(f"unexpected value: {read_result}")
-                    self.status = MoveStatus.FAILED
-            else:
-                return True
-        return False
-    
+
     def motor_calib(self, r: SimModule):
         self.get_motor_calib_state(r)
         if self.lift_motor_calib and self.stretch_motor_calib and self.rotate_motor_calib:
@@ -509,7 +485,7 @@ class Module(BasicModule):
                     self.zero_by_rbk_step[3] = True
             if all(self.zero_by_rbk_step):
                 self.init = False
-    
+
     def get_motor_calib_state(self, r: SimModule):
         odo_data = r.odo()
         if odo_data.get("motor_info", None):
@@ -532,13 +508,13 @@ class Module(BasicModule):
                         self.rotate_motor_calib = calib
                         self.rotate_motor_stop = stop
         return True
-    
+
     def cancel(self, r: SimModule):
         r.resetRec()
         self.close_finger(r)
         r.setDO(self.fill_light_do, False)
         self.status = MoveStatus.NONE
-    
+
     def get_move_task_params(self, r):
         """
         获取moveTask参数
@@ -547,7 +523,7 @@ class Module(BasicModule):
         for p in move_task['params']:
             if p['key'] == 'goodsId':
                 self.goods_id = p['string_value']
-    
+
     def zero(self, r: SimModule):
         """
         机构复位
@@ -564,12 +540,34 @@ class Module(BasicModule):
             self.zero_step[3] = self.lift(r, 0)
         elif self.zero_step[2] and not self.zero_step[3]:
             self.zero_step[3] = self.lift(r, 0)
-        r.logDebug(f"zero_step:{self.zero_step}")
-        if all(self.zero_step):
-            r.release()
+        # r.logDebug(f"zero_step:{self.zero_step}")
+        self.report_info["zero_step"] = self.zero_step[:4]
+        if all(self.zero_step[:4]):
             return True
         return False
-    
+
+    def safeMoveCheck(self, r: SimModule):
+        """
+        基于zero，底盘移动前执行，高于某个高度时先下降，低于某个高度时无作为
+        :param r:
+        :return:
+        """
+        r.logInfo(f"----- safeMoveCheck ------")
+        if not self.zero_step[0]:
+            self.zero_step[0] = self.goods_manger.has_goods("999") or self.finger(r, 1)
+        elif self.zero_step[0] and not self.zero_step[1]:
+            self.zero_step[1] = self.stretch(r, 0)
+        elif self.zero_step[1] and not self.zero_step[2]:
+            self.zero_step[2] = self.rotate(r, 0)
+        elif self.zero_step[2] and not self.zero_step[3]:
+            self.zero_step[3] = self.lift(r, 0)
+        elif self.zero_step[2] and not self.zero_step[3]:
+            self.zero_step[3] = self.lift(r, 0)
+        r.logDebug(f"zero_step:{self.zero_step}")
+        if all(self.zero_step):
+            return True
+        return False
+
     def lift(self, r, height):
         r.logInfo(f"----- running lift ------")
         if height < self.min_lift_height:
@@ -586,7 +584,16 @@ class Module(BasicModule):
             r.setWarning(f"Out of the level2_height: {height}")
             return True
         return False
-    
+
+    def lift_door(self, r, height):
+        r.logInfo(f"----- running lift_door ------")
+        if height < self.door_lift_height:
+            # return self.container_robot.lift_door(self.lift_door_motor, height)
+            return True
+        else:
+            r.setError(f"Out of the max lift-door height: {height}")
+        return False
+
     def finger(self, r, pos):
         r.logInfo(f"----- running finger ------")
         if not self.finger_open_start:
@@ -600,7 +607,7 @@ class Module(BasicModule):
                 r.setDO(self.right_finger_down_do, False)
                 self.status = MoveStatus.FAILED
                 return False
-        if pos == 1:
+        if pos == 1:  # 打开手指
             r.setDO(self.left_finger_up_do, True)
             r.setDO(self.right_finger_up_do, True)
             if ModuleTool.check_DI(r, self.left_finger_up_di) and ModuleTool.check_DI(r, self.right_finger_up_di):
@@ -609,7 +616,7 @@ class Module(BasicModule):
                 r.setDO(self.right_finger_up_do, False)
                 self.finger_open_start = False
                 return True
-        elif pos == 0:
+        elif pos == 0:  # 关闭手指
             r.setDO(self.left_finger_down_do, True)
             r.setDO(self.right_finger_down_do, True)
             r.logInfo(f"----- open finger do  ------")
@@ -620,57 +627,63 @@ class Module(BasicModule):
                 self.finger_open_start = False
                 return True
         return False
-    
+
     def close_finger(self, r):
         r.setDO(self.left_finger_up_do, False)
         r.setDO(self.right_finger_up_do, False)
         r.setDO(self.left_finger_down_do, False)
         r.setDO(self.right_finger_down_do, False)
-    
+
     def update_finger_info(self, r):
-        if ModuleTool.check_DI(r, self.left_finger_down_di):
-            self.left_finger_real_pos = 0
-        elif ModuleTool.check_DI(r, self.left_finger_up_di):
-            self.left_finger_real_pos = 1
-        if ModuleTool.check_DI(r, self.right_finger_down_di):
-            self.right_finger_real_pos = 0
-        elif ModuleTool.check_DI(r, self.right_finger_up_di):
-            self.right_finger_real_pos = 1
+        # if ModuleTool.check_DI(r, self.left_finger_down_di):
+        #     self.left_finger_real_pos = 0
+        # elif ModuleTool.check_DI(r, self.left_finger_up_di):
+        #     self.left_finger_real_pos = 1
+        # if ModuleTool.check_DI(r, self.right_finger_down_di):
+        #     self.right_finger_real_pos = 0
+        # elif ModuleTool.check_DI(r, self.right_finger_up_di):
+        #     self.right_finger_real_pos = 1
         self.finger_info["left_finger"] = self.left_finger_real_pos
         self.finger_info["right_finger"] = self.right_finger_real_pos
-    
+
     def stretch(self, r, length):
         r.logInfo(f"----- running stretch ------")
-        temp_motor_speed = 0
+        temp_motor_speed = self.stretch_motor_speed
         if length > self.max_stretch_length:
             r.setWarning(f"Out of max stretch length: {length}")
             length = self.max_stretch_length
-        if length > 0.1:  # 手臂伸出且大于0.1m
-            if self.stretch_real_pos < length * 0.8:
-                temp_motor_speed = 1.0
-            else:
-                temp_motor_speed = self.stretch_motor_speed
-        if length == 0:  # 手臂收回
-            temp_motor_speed = 1.2
+        # 手臂伸出且目标位置大于0.05m, 后半段速度减半
+        if length > 0.05 and self.stretch_real_pos > length * 0.5:
+            temp_motor_speed = self.stretch_motor_speed * 0.5
         if self.container_robot.stretch(self.stretch_motor, length, temp_motor_speed):
             return True
         return False
-    
-    def rotate(self, r, pos):
+
+    def rotate(self, r, pos, max_speed=None):
         r.logInfo(f"----- running rotate ------")
         if pos < (-self.max_rotate_angle / 180 * math.pi) or pos > (self.max_rotate_angle / 180 * math.pi):
             r.setError(f"Out of max rotate angle: {pos}")
             self.status = MoveStatus.FAILED
             return False
-        
+
         if self.stretch_real_pos > self.safe_stretch_length:
             r.setError(f"stretch need to be zero, cannot rotate")
             self.status = MoveStatus.FAILED
             return False
-        if self.container_robot.rotate(self.rotate_motor, pos, self.rotate_motor_speed):
+
+        if max_speed is not None:
+            speed = max_speed
+        else:
+            speed = self.rotate_motor_speed
+
+        # 设置旋转机构偏移
+        if pos == 0:
+            pos = pos + self.rotate_offset
+
+        if self.container_robot.rotate(self.rotate_motor, pos, speed):
             return True
         return False
-    
+
     def rec_barcode(self, r):
         """
         识别一维码
@@ -695,7 +708,7 @@ class Module(BasicModule):
                     self.rec_res = r.RecognizeBarCode(self.barcode_file, self.rec_id)
                 self.report_info["barcode"] = "None"
             self.report_info["rec_id"] = self.rec_id
-    
+
     def rec_box_barcode(self, r: SimModule):
         """
         指定货叉高度和角度位置识别一维码
@@ -714,7 +727,7 @@ class Module(BasicModule):
                 self.opt_step[2] = True
         if all(self.opt_step[0:3]):
             self.status = MoveStatus.FINISHED
-    
+
     def rec_qrcode(self, r):
         """
         识别料箱、货架二维码
@@ -737,29 +750,7 @@ class Module(BasicModule):
             else:
                 self.rec.run(r, self)
             return False
-    
-    def check_load(self, r: SimModule):
-        if not self.check_load_step[0]:
-            self.check_load_step[0] = self.ex_take(r)
-        elif not self.check_load_step[1]:
-            self.check_load_step[1] = self.read_registers(r)
-        elif not self.check_load_step[2]:
-            self.check_load_step[2] = self.in_put(r)
-        elif all(self.check_load_step[:3]):
-            return True
-        return False
-    
-    def check_unload(self, r: SimModule):
-        if not self.check_unload_step[0]:
-            self.check_unload_step[0] = self.in_take(r)
-        elif not self.check_unload_step[1]:
-            self.check_unload_step[1] = self.read_registers(r)
-        elif not self.check_unload_step[2]:
-            self.check_unload_step[2] = self.ex_put(r)
-        elif all(self.check_unload_step[:3]):
-            return True
-        return False
-    
+
     def load(self, r):
         r.logInfo(f"----- running load  {self.goods_id}------")
         load_info = dict()
@@ -779,7 +770,7 @@ class Module(BasicModule):
                 r.setPickRobotError(53821, f"All containers are full, can not load")
                 self.status = MoveStatus.FAILED
                 return
-            if self.goods_manger.has_goods("999"):  # 货叉已载货
+            if self.goods_manger.has_goods("999") or ModuleTool.check_DI(r, self.fork_goods_check_di):  # 货叉已载货
                 r.setPickRobotError(53820, f"Container 999 has goods, can not load")
                 self.status = MoveStatus.FAILED
                 return
@@ -823,7 +814,7 @@ class Module(BasicModule):
                 self.load_step[8] = self.stretch(r, 0)
             elif self.load_step[8] and (not self.load_step[9] or not self.load_step[10]):
                 if not self.load_step[9]:
-                    self.load_step[9] = self.rotate(r, 0)
+                    self.load_step[9] = self.rotate(r, 2.094)
                 if self.cur_c == "999":
                     self.load_step[:15] = [True] * 15
                 else:
@@ -840,7 +831,7 @@ class Module(BasicModule):
             elif self.load_step[14] and not self.load_step[15]:
                 # self.load_step[14] = self.lift(r, self.min_lift_height)
                 self.load_step[15] = True
-            
+
             load_info['cur_container'] = self.cur_c
             load_info['goodsId'] = self.goods_id
             load_info['load_step'] = self.load_step
@@ -852,7 +843,7 @@ class Module(BasicModule):
                 # 在完成取货的所有动作后，增加背篓货物数据
                 r.setContainer(self.cur_c, self.goods_id, "")
                 return True
-    
+
     def in_take(self, r: SimModule):
         """
         内部取货： 从背篓取货到货叉
@@ -871,7 +862,7 @@ class Module(BasicModule):
                 if not self.in_take_step[1]:
                     self.in_take_step[1] = self.lift(r, self.low[int(self.cur_c)])
                 if not self.in_take_step[2]:
-                    self.in_take_step[2] = self.rotate(r, self.rotate_pos)
+                    self.in_take_step[2] = self.rotate(r, 0)
                 if self.in_take_step[0] and self.in_take_step[1] and self.in_take_step[2] and not self.in_take_step[3]:
                     self.in_take_step[3] = self.stretch(r, self.stretch_self_length)
                 elif self.in_take_step[3] and not self.in_take_step[4]:
@@ -879,17 +870,20 @@ class Module(BasicModule):
                 elif self.in_take_step[4] and not self.in_take_step[5]:
                     self.in_take_step[5] = self.stretch(r, 0)
                 elif self.in_take_step[5] and not self.in_take_step[6]:
-                    self.in_take_step[6] = self.rotate(r, 0)
-        in_take_info["in_take_step"] = self.in_take_step[:7]
+                    self.in_take_step[6] = self.rotate(r, self.rotate_pos)
+                if self.in_take_step[5] and not self.in_take_step[7]:
+                    self.in_take_step[7] = self.lift(r, self.lift_height)
+
+        in_take_info["in_take_step"] = self.in_take_step[:8]
         in_take_info["cur_container"] = self.cur_c
         in_take_info["goodsId"] = self.goods_id
         self.report_info["in_take_info"] = in_take_info
-        if all(self.in_take_step[:7]):
+        if all(self.in_take_step[:8]):
             r.clearContainer(self.cur_c)
             goods_id = self.goods_manger.get_goodsId_by_container(self.cur_c)
             r.setContainer("999", goods_id, "")
             return True
-    
+
     def in_put(self, r: SimModule):
         """
         内部放货： 从货叉放货到背篓
@@ -902,7 +896,7 @@ class Module(BasicModule):
             if not self.in_put_step[0]:
                 self.in_put_step[0] = self.lift(r, self.high[int(self.cur_c)])
             if not self.in_put_step[1]:
-                self.in_put_step[1] = self.rotate(r, self.rotate_pos)
+                self.in_put_step[1] = self.rotate(r, 0)
             if not self.in_put_step[2]:
                 self.in_put_step[2] = self.finger(r, 1)
             if all(self.in_put_step[0:3]) and not self.in_put_step[3]:
@@ -913,7 +907,7 @@ class Module(BasicModule):
                 self.in_put_step[5] = self.stretch(r, 0)
             if all(self.in_put_step[0:6]) and not self.in_put_step[6]:
                 self.in_put_step[6] = self.finger(r, 0)
-        
+
         r.logInfo(f"----- running in_put ------")
         in_put_info = dict()
         in_put_info["goodsId"] = self.goods_id
@@ -924,13 +918,17 @@ class Module(BasicModule):
             r.setContainer(self.cur_c, goods_id, "")
             r.clearContainer("999")
             return True
-    
+
     def ex_take(self, r: SimModule):
         """
         外部取货： 从货架取货到货叉
         :param r:
         :return:
         """
+        if self.goods_manger.has_goods("999"):  # 抓斗有货
+            r.setError(f"container 999 has goods, cannot ex_take!")
+            self.status = MoveStatus.FAILED
+            return
         r.logInfo(f"----- running ex_take ------")
         ex_take_info = dict()
         if self.barcode_height is not None:
@@ -942,7 +940,7 @@ class Module(BasicModule):
                 self.ex_take_step[2] = self.goods_id == self.rec_barcode(r)
         else:
             self.ex_take_step[0:3] = [True] * 3
-        
+
         if self.rec_adjust is not None:
             if not self.change_step[0]:
                 self.change_step[0] = self.lift(r, self.lift_height)
@@ -964,7 +962,7 @@ class Module(BasicModule):
                     self.rec_adjust.run(r, self)
         else:
             self.ex_take_step[3] = True
-        
+
         if all(self.ex_take_step[0:4]) and not self.ex_take_step[4]:
             self.ex_take_step[4] = self.lift(r, self.lift_height + self.load_height)
             self.ex_take_step[5] = True
@@ -976,17 +974,17 @@ class Module(BasicModule):
             self.ex_take_step[8] = self.finger(r, 0)
         if all(self.ex_take_step[0:9]) and not self.ex_take_step[9]:
             self.ex_take_step[9] = self.stretch(r, 0)
-        if all(self.ex_take_step[0:10]) and not self.ex_take_step[10]:
-            self.ex_take_step[10] = self.rotate(r, 0)
-        
+        # if all(self.ex_take_step[0:10]) and not self.ex_take_step[10]:
+        #     self.ex_take_step[10] = self.rotate(r, 0.0000001)
+
         ex_take_info['goodsId'] = self.goods_id
         ex_take_info['cur_container'] = self.cur_c
-        ex_take_info['ex_take_step'] = self.ex_take_step[:11]
+        ex_take_info['ex_take_step'] = self.ex_take_step[:10]
         self.report_info["ex_take_info"] = ex_take_info
-        if all(self.ex_take_step[:11]):
+        if all(self.ex_take_step[:10]):
             r.setContainer("999", self.goods_id, "")
             return True
-    
+
     def ex_put(self, r: SimModule):
         """
         外部放货： 从货叉放货到货架
@@ -1025,7 +1023,7 @@ class Module(BasicModule):
                     self.rec_box.run(r, self)
         else:
             self.ex_put_step[0:4] = [True] * 4
-        
+
         if all(self.ex_put_step[0:4]) and not self.ex_put_step[4]:
             self.ex_put_step[4] = self.lift(r, self.lift_height)
         if all(self.ex_put_step[0:4]) and not self.ex_put_step[5]:
@@ -1060,18 +1058,18 @@ class Module(BasicModule):
             self.ex_put_step[11] = self.rotate(r, 0)
         if all(self.ex_put_step[0:11]) and not self.ex_put_step[12]:
             self.ex_put_step[12] = self.finger(r, 0)
-        
+
         ex_put_info["ex_put_info"] = self.ex_put_step[:13]
         ex_put_info["goodsId"] = self.goods_id
         self.report_info["ex_put_info"] = ex_put_info
         if all(self.ex_put_step[:13]):
             r.clearContainer("999")
             return True
-    
+
     def unload(self, r):
         r.logInfo(f"----- running unload ------")
         unload_info = dict()
-        
+
         if not self.cur_c:
             if self.self_position:
                 if not self.goods_manger.has_goods(self.self_position):
@@ -1090,7 +1088,7 @@ class Module(BasicModule):
                         return
                 else:
                     self.cur_c = self.goods_manger.get_container_by_goodsId(self.goods_id)
-            
+
             if not self.cur_c:
                 r.setPickRobotError(53825, f"Goods {self.goods_id} not found, can not unload!")
                 self.status = MoveStatus.FAILED
@@ -1106,7 +1104,7 @@ class Module(BasicModule):
                     if not self.unload_step[1]:
                         self.unload_step[1] = self.finger(r, 1)
                     if not self.unload_step[2]:
-                        self.unload_step[2] = self.rotate(r, 0)
+                        self.unload_step[2] = self.rotate(r, 2.094)
                 elif self.unload_step[1] and self.unload_step[2] and not self.unload_step[3]:
                     self.unload_step[3] = self.stretch(r, self.stretch_self_length)
                 elif self.unload_step[3] and not self.unload_step[4]:
@@ -1118,7 +1116,7 @@ class Module(BasicModule):
                         if not self.unload_step[7]:
                             self.unload_step[7] = self.rotate(r, self.rotate_pos)
                     self.unload_step[5] = self.stretch(r, 0)
-            
+
             if all(self.unload_step[:6]) and (not self.unload_step[6] or not self.unload_step[7]):
                 if self.rec_box_lift:
                     if not self.unload_step[6]:
@@ -1185,6 +1183,8 @@ class Module(BasicModule):
             elif self.unload_step[8] and not self.unload_step[9]:
                 self.unload_step[9] = self.lift(r, self.lift_height + self.unload_height)
             elif self.unload_step[9] and not self.unload_step[10]:
+                if self.pre_finger is not None:
+                    self.finger(r, self.pre_finger)
                 self.unload_step[10] = self.stretch(r, self.stretch_length)
             elif self.unload_step[10] and not self.unload_step[11]:
                 self.unload_step[11] = self.finger(r, 1)
@@ -1199,20 +1199,20 @@ class Module(BasicModule):
                 if not self.unload_step[15]:
                     # self.unload_step[15] = self.lift(r, self.min_lift_height)
                     self.unload_step[15] = True
-            
+
             unload_info['unload_step'] = self.unload_step
             unload_info['cur_container'] = self.cur_c
             unload_info['goodsId'] = self.goods_id
             self.report_info["unload_info"] = unload_info
-        
+
         if all(self.unload_step):
             # 在所有的动作完成后，将自身背篓的获取清除
             r.clearContainer(self.cur_c)
             return True
-    
+
     def change(self, r):
         pass
-    
+
     def update_report_info(self, r):
         module_pos = dict()
         self.lift_real_pos = ModuleTool.get_motor_pos(r, self.lift_motor_name)
@@ -1221,19 +1221,19 @@ class Module(BasicModule):
         self.update_finger_info(r)
         module_pos['lift'] = round(self.lift_real_pos, 3)
         module_pos['stretch'] = round(self.stretch_real_pos, 3)
-        module_pos['rotate'] = round(self.rotate_real_pos, 3)
+        module_pos['rotate'] = round(self.rotate_real_pos*180/math.pi, 3)
         module_pos['left_finger'] = self.left_finger_real_pos
         module_pos['right_finger'] = self.right_finger_real_pos
         self.containers = r.getContainers()
         self.report_info["current_pos"] = module_pos
-    
+
     def has_goods_id(self, r, goods_id: str):
         r.logInfo(f"goodsId: {goods_id}")
         for c in self.containers:
             if goods_id == c['goods_id']:
                 return True
         return False
-    
+
     def search_operable_container(self, r, opt):
         ct = None
         if opt == 'load':
@@ -1241,17 +1241,12 @@ class Module(BasicModule):
                 if not c['has_goods']:
                     ct = c['container_name']
                     break
-                # if not c['has_goods'] and (c['container_name'] == "999"):
-                #     ct = "999"
-                # if not c['has_goods'] and (c['container_name'] != "999"):
-                #     ct = c['container_name']
-                #     break
         elif opt == 'unload':
             for c in self.containers:
                 if c['has_goods'] and self.goods_id == c['goods_id']:
                     ct = c['container_name']
         return ct
-    
+
     def check_put(self, r: SimModule):
         """
         放货到背篓前，检查背篓有空位且货叉有货
@@ -1266,7 +1261,7 @@ class Module(BasicModule):
             self.cur_c = self.self_position
         else:
             self.cur_c = self.search_operable_container(r, 'load')  # 查找空位
-        
+
         if self.cur_c is None:  # 车体满载了
             r.setPickRobotError(53821, f"All containers are full, can not put")
             self.status = MoveStatus.FAILED
@@ -1275,17 +1270,13 @@ class Module(BasicModule):
             r.setPickRobotError(53850, f"Container 999 is null, can not put")
             self.status = MoveStatus.FAILED
             return
-    
+
     def check_take(self, r: SimModule):
         """
         从背篓取货前检测背篓货物信息，检查货叉为空
         :param r:
         :return:
         """
-        if self.goods_manger.has_goods("999"):  # 抓斗有货
-            r.setPickRobotError(53820, f"Container 999 has goods, can not operation!")
-            self.status = MoveStatus.FAILED
-            return
         if self.self_position:
             if not self.goods_manger.has_goods(self.self_position):
                 r.setPickRobotError(53824, f"Container {self.self_position} is empty, can not take!")
@@ -1293,7 +1284,10 @@ class Module(BasicModule):
             self.cur_c = self.self_position
         else:
             self.cur_c = self.goods_manger.get_container_by_goodsId(self.goods_id)
-        
+
+        if self.goods_manger.has_goods("999"):  # 抓斗有货
+            self.cur_c = "999"
+
         if not self.cur_c:
             r.setPickRobotError(53825, f"Goods {self.goods_id} not found, can not take!")
             self.status = MoveStatus.FAILED
@@ -1311,7 +1305,7 @@ class Rec:
         self.has_goods = None
         self.goods_out_dist = None
         self.max_goods_dist = 0.8  # 料箱距离货叉里程中心最远距离，单位：米
-    
+
     def run(self, r: SimModule, agv):
         self.status = MoveStatus.RUNNING
         rec_status = r.getRecStatus()  # 获取识别状态 0: 初始化, 1: 识别中, 2: 获得结果, 3：识别出错, -1: 未知错误
@@ -1327,7 +1321,7 @@ class Rec:
                         self.status = MoveStatus.FINISHED
                 else:
                     r.resetRec()
-        
+
         elif rec_status == 2:  # 识别成功,获得结果
             self.result = r.getRecResult()
             if "resultImg" in self.result:
@@ -1341,7 +1335,7 @@ class Rec:
         else:
             r.logInfo(f"--------------- doRec ----------------")
             r.doRecWithAngle(self.filename, 0.0)
-        
+
         cur_state = dict()
         cur_state['rec_result'] = self.result
         cur_state['rec_count'] = self.rec_times
@@ -1349,10 +1343,10 @@ class Rec:
         cur_state['rec_status'] = rec_status
         cur_state['file'] = self.filename
         agv.report_info['rec_info'] = cur_state
-    
+
     def reset(self, r):
         r.resetRec()
-        
+
         self.status = MoveStatus.RUNNING
 
 
@@ -1370,10 +1364,8 @@ class RecAdjust:
         self.adjust_count = 0
         self.go_args = dict()
         self.ok = False
-        # self.ok_x = 0.01  # x方向行走调整完成阈值
-        # self.ok_yaw = 0.02  # 调整完成弧度阈值
-        self.ok_x = p.loadParam("ok_x", type="float", default=0.01, comment="x方向行走调整完成阈值")
-        self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.017, comment="调整完成弧度阈值")
+        self.ok_x = p.loadParam("ok_x", type="float", default=0.005, comment="x方向行走调整完成阈值")
+        self.ok_yaw = p.loadParam("ok_yaw", type="float", default=0.04, comment="调整完成弧度阈值")
         self.max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13,
                                         comment="货叉与料箱角度最大偏差, 弧度值")
         self.adjust_rotate = 1.5708  # 默认值
@@ -1381,33 +1373,31 @@ class RecAdjust:
         self.plan_status = MoveStatus.NONE
         self.goPath = goPath.Module(r, dict())
         self.code2robot = -1
-    
+
     @staticmethod
-    def move_x(dx, dy, yaw, rotate_pos):
+    def move_x(dx, dy, yaw, rotate_pos, offset_x=0):
         """
         计算车体在x方向上移动的距离
         rotate_pos 是货叉旋转方向
         (dx, dy, yaw)是识别结果
         """
         if rotate_pos > 0:
-            return -dy
+            return -dy - offset_x
         else:
-            return dy
-        
+            return dy + offset_x
+
         # if rotate_pos > 0:
         #     if yaw > 0:
-        #         return -dy - dx * math.tan(math.pi - yaw)
+        #         return -dy - dx * math.tan(math.pi - yaw) - offset_x
         #     elif yaw < 0:
-        #         return -dy + dx * math.tan(math.pi + yaw)
+        #         return -dy + dx * math.tan(math.pi + yaw) - offset_x
         # else:
         #     if yaw > 0:
-        #         return dy + dx * math.tan(math.pi - yaw)
+        #         return dy + dx * math.tan(math.pi - yaw) + offset_x
         #     elif yaw < 0:
-        #         return dy - dx * math.tan(math.pi + yaw)
-    
+        #         return dy - dx * math.tan(math.pi + yaw) + offset_x
+
     def run(self, r: SimModule, agv: Module):
-        if r.warningExits(54901):
-            r.clearWarning(54901)
         cur_state = dict()
         self.status = MoveStatus.RUNNING
         if self.plan_status is not MoveStatus.FINISHED:
@@ -1428,42 +1418,43 @@ class RecAdjust:
                 r.logInfo(f"------------------ move to adjust -----------------")
                 self.rec_fail_time = 0
                 # 通过参数配置，使识别结果为二维码在相机坐标系下的坐标位置, (右手坐标系)x轴向前，y轴向左, z轴向上
-                
+
                 """获取结果"""
                 # 计算手臂伸出长度
                 if not agv.stretch_length:
                     agv.stretch_length = (abs(self.rec.result['x']) - agv.auto_stretch_odo_len +
                                           agv.auto_stretch_dist + agv.auto_stretch_box_len)
-                
+
                 code2camera = [self.rec.result['x'], self.rec.result['y'], self.rec.result['z'],
                                self.rec.result['yaw']]
                 code2fork = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]
                 fork2robot = [-0, 0, agv.rotate_real_pos]
                 self.code2robot = Pos2World(code2fork, fork2robot)
-                
+
                 self.diff_height = self.rec.result['z']
-                
+
                 self.go_args["coordinate"] = "robot"
-                
+
                 # 根据反馈的yaw来判断rotate调整方向
                 agv.yaw_adjust = math.pi - abs(code2camera[3])  # 角度偏差
                 if code2camera[3] > 0:  # 识别结果为正值
                     self.adjust_rotate = agv.rotate_real_pos - agv.yaw_adjust
                 else:  # 识别结果为负值
                     self.adjust_rotate = agv.rotate_real_pos + agv.yaw_adjust
-                
+
                 self.go_args["x"] = self.move_x(self.rec.result['x'], self.rec.result['y'],
-                                                self.rec.result['yaw'], agv.rotate_real_pos)
+                                                self.rec.result['yaw'], agv.rotate_real_pos, agv.offset_x)
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
                 self.go_args["reachAngle"] = math.pi
                 self.go_args["useOdo"] = 1
+                self.go_args["maxSpeed"] = 0.3  # 设置二次调整时底盘移动最大速度, m/s
                 self.go_args["reachDist"] = 0.003
                 if self.go_args["x"] < 0:
                     self.go_args["backMode"] = 1
                 else:
                     self.go_args["backMode"] = 0
-                
+
                 if abs(agv.yaw_adjust) > self.max_yaw_bias:
                     self.status = MoveStatus.FAILED
                     r.setError("recAdjust fails!!! reach max yaw_adjust.")
@@ -1488,10 +1479,10 @@ class RecAdjust:
                     if self.goPath.status != MoveStatus.FINISHED and self.goPath.status != MoveStatus.FAILED:
                         self.goPath.run(r, self.go_args)
             elif not self.rotate_step and self.goPath.status == MoveStatus.FINISHED:
-                if abs(agv.yaw_adjust) <= 0.01:  # 调整值小于货叉旋转精度
+                if abs(agv.yaw_adjust) <= 0.02:  # 调整值小于货叉旋转精度
                     self.rotate_step = True
-                if not self.rotate_step and bool(agv.auto_adjust_rotate) and agv.operation == "load":
-                    self.rotate_step = agv.rotate(r, self.adjust_rotate)  # 货叉角度偏移修正
+                if not self.rotate_step and bool(agv.auto_adjust_rotate):
+                    self.rotate_step = agv.rotate(r, self.adjust_rotate, max_speed=0.1)  # 货叉角度偏移修正
                 else:
                     self.rotate_step = True
             elif self.goPath.status == MoveStatus.FAILED:
@@ -1507,13 +1498,15 @@ class RecAdjust:
         cur_state["go_args"] = self.go_args
         cur_state["rec_fail_time"] = self.rec_fail_time
         cur_state["adjust_count"] = self.adjust_count
+        cur_state["cur-rotate"] = agv.rotate_real_pos
+        cur_state["cur-lift"] = agv.lift_real_pos
+        cur_state["cur-stretch"] = agv.stretch_real_pos
         cur_state["status"] = self.status
-        cur_state["agv_stretch_length"] = agv.stretch_length
-        cur_state["agv_yaw_adjust"] = agv.yaw_adjust / math.pi * 180
-        cur_state["adjust_rotate"] = self.adjust_rotate / math.pi * 180
-        # cur_state["code2robot"] = self.code2robot
+        cur_state["agv_yaw_adjust"] = agv.yaw_adjust
+        cur_state["adjust_rotate"] = self.adjust_rotate
+        cur_state["code2robot"] = self.code2robot
         agv.report_info["rec_adjust"] = cur_state
-    
+
     def reset(self, r):
         self.rec.reset(r)
         self.status = MoveStatus.RUNNING
@@ -1521,40 +1514,9 @@ class RecAdjust:
         self.goPath.reset()
 
 
-class LiftAndRotate:
-    def __init__(self, lift_height, rotate_pos):
-        self.height = lift_height
-        self.rotate_pos = rotate_pos
-        self.status = MoveStatus.NONE
-        self.start_time = time.time()
-    
-    def run(self, r: SimModule, agv: Module):
-        self.status = MoveStatus.RUNNING
-        if self.height > agv.max_lift_height:
-            r.setError(f"out of max lift height {agv.max_lift_height}, target height: {self.height}")
-            self.status = MoveStatus.FAILED
-        elif self.height < agv.min_lift_height:
-            self.height = agv.min_lift_height
-        r.setMotorPosition(agv.lift_motor_name, self.height, self.max_speed, self.stop_di)
-        r.publishSpeed()
-        if r.isMotorReached(agv.lift_motor_name) or agv.utils.check_di(self.stop_di):
-            r.resetMotor(agv.lift_motor_name)
-            self.status = MoveStatus.FINISHED
-
-
 if __name__ == '__main__':
     sim = SimModule()
-    args1 = {
-        "expected_value": 1,
-        "ip": "127.0.0.1",
-        "lift": 0.91,
-        "operation": "check_load",
-        "recAdjust": 1,
-        "rotate": 1.57,
-        "start_addr": 0,
-        "stretch": 0.68,
-        "wait_time": 30
-    }
+    args1 = {}
     m = Module(sim, args1)
     rec = RecAdjust(sim, '')
     counter = 0

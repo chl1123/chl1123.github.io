@@ -78,7 +78,7 @@ from robot import ModuleTool, Motor, MotorType, Robot, GoodsManger
         "tips": "机构动作选项",
         "type": "complex"
     },
-    "selfPosition":{
+    "container":{
         "value": "",
         "tips": "机器人自身库位编号",
         "type": "string"
@@ -344,7 +344,7 @@ class Module(BasicModule):
             self.unload_height = args.get("unloadHeight", self.rec_offz_shelf)
             self.containers = r.getContainers()
             self.goods_manger = GoodsManger(r)
-            self.self_position = args.get("selfPosition", None)
+            self.self_position = args.get("container", None)
             self.rec_id = ModuleTool.get_uuid()
             self.box_code_file = args.get("code_file", self.box_code_file)
             if "recAdjust" in args:
