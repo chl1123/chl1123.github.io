@@ -1,9 +1,13 @@
-
+import sys, json
+sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
+sys.path.append('/opt/.data/rbk/resources/scripts/')
+import syspy
+syspy.init()
 # 导入电池基类
 import syspy.battery_Can.canpass_base as cb
+
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu
 
 error_dict = {
@@ -27,39 +31,40 @@ error_dict = {
     (3, 1): "excessive individual cell pressure difference",
 }
 
+
+
 class testCanBattery(cb.canPassBase):
 
     def __init__(self):
-        # 初始化基类,必须做
+        print("testCanBattery")
         super(testCanBattery, self).__init__()
-        # self.__debug_out = ud.udpDebug()
-        # sys.stdout = self.__debug_out
-        # 用来表示数据是否已经正确接收
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(2000)
-        self.id1,self.id2,self.id3,self.id4 = False,False,False,False
-        self.msg_ok = False
-        self.msg_userdata = False
+        self.id1=self.id2=self.id3=self.id4=self.msg_ok=self.msg_userdata=self.wake_up=self.clear = False
         self.first = True
-        self.port1 = 1
-        self.port2 = 2
-        self.id = ""
-        self.year = ""
-        self.week = ""
-        self.number = ""
+        self.port = self.getBatteryCanPort()
+        self.id = self.year = self.week = self.number = ""
         self.previous_temperature = None
         self.temperature_buffer = []
-        self.wake_up = False
-        self.clear = False
 
     def handleData(self, msg):
         self.judgeCanframe(msg)
         self.judgePublish()
+        # try:
+        #
+        # except ValueError as e:
+        #     print(f"ValueError occurred in handleData: {e}")
+        # except TypeError as e:
+        #     print(f"TypeError occurred in handleData: {e}")
+        # except Exception as e:
+        #     print(f"Unexpected exception in handleData: {e}")
 
     def judgeCanframe(self, msg):
-        canframe = self.recCanframe(msg)
-        if canframe.ID == 0x0DA2F40D and not self.msg_userdata:
-            tem = canframe.Data.hex()
+        if len(msg.data) != 8:
+            print("msg not valid: %s" % (str(msg)))
+            return
+        if msg.arbitration_id == 0x0DA2F40D and not self.msg_userdata:
+            tem = msg.data.hex()
             if tem[2:14] == 'ffffffffffff':
                 self.msg_userdata = True
                 self.msg_ok = True
@@ -75,28 +80,44 @@ class testCanBattery(cb.canPassBase):
                     self.battery_info.user_data = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
                     self.msg_userdata = True
                     self.msg_ok = True
-        if canframe.ID == 0x0EA0F40D:
-            tem = canframe.Data.hex()
+        elif msg.arbitration_id == 0x0EA0F40D:
+            tem = msg.data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
+            SOH = round(int(tem[2:4], 16) * 0.01, 2)
             cycle = int(tem[4:6] + tem[6:8], 16)
+            if self.id1:
+                if abs(cycle - self.battery_info.cycle) > 1:
+                    print(f"cycle jumps form {self.battery_info.cycle} to {cycle}, drop msg:{str(msg)}")
+                    return
+                elif 0 == cycle or 0 == percentage:
+                    print(f"cycle and SoC cannot be zero,per:{percentage},cycle:{cycle},msg:{str(msg)}")
+                    return
             if int(tem[12:14], 16) == 1:
                 self.battery_info.is_charging = True
             else:
                 self.battery_info.is_charging = False
             self.battery_info.percetage = percentage
+            self.battery_info.extra = json.dumps({"SOH": SOH})
             self.battery_info.cycle = cycle
             self.msg_ok = True
             self.id1 = True
-        elif canframe.ID == 0x0EA1F40D:
-            tem = canframe.Data.hex()
+        elif msg.arbitration_id == 0x0EA1F40D:
+            tem = msg.data.hex()
             current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
+            if self.id2:
+                if abs(current - self.battery_info.charge_current) > 100:
+                    print(f"current jumps form {self.battery_info.charge_current} to {current}, drop msg:{str(msg)}")
+                    return
+                if abs(voltage - self.battery_info.charge_voltage) > 100:
+                    print(f"voltage jumps form {self.battery_info.charge_voltage} to {voltage}, drop msg:{str(msg)}")
+                    return
             self.battery_info.charge_voltage = voltage
             self.battery_info.charge_current = current
             self.msg_ok = True
             self.id2 = True
-        elif canframe.ID == 0x0EA2F40D:
-            tem = canframe.Data.hex()
+        elif msg.arbitration_id == 0x0EA2F40D:
+            tem = msg.data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
 
             if self.previous_temperature is not None and abs(temperature - self.previous_temperature) > 10:
@@ -123,8 +144,8 @@ class testCanBattery(cb.canPassBase):
             self.battery_info.temperature = temperature
             self.msg_ok = True
             self.id3 = True
-        elif canframe.ID == 0x0EA4F40D:
-            tem = canframe.Data.hex()
+        elif msg.arbitration_id == 0x0EA4F40D:
+            tem = msg.data.hex()
             if self.isNeedCharge():
                 max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
                 max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
@@ -135,22 +156,25 @@ class testCanBattery(cb.canPassBase):
                 self.battery_info.max_charge_voltage = 0
             self.msg_ok = True
             self.id4 = True
-        elif canframe.ID == 0x1EA7F40D:
-            tem = canframe.Data.hex()
+        elif msg.arbitration_id == 0x1EA7F40D:
+            tem = msg.data.hex()
             for i in range(1, 4):
                 for j in range(8):
-                    if cu.get_bit_val(canframe.Data[i], j) == 1:
+                    if cu.get_bit_val(msg.data[i], j) == 1:
                         if (i == 3 and j == 0) or (i == 1 and j == 2) or (i == 1 and j == 0) or (i == 1 and j == 1):
                             error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
                             self.setWarning(54400, error_msg)
                         else:
                             error_msg = "Battery pack number: " + tem[0:2] + " error msg: " + error_dict[(i, j)]
-                            self.setError(53140,error_msg)
+                            self.setError(53140, error_msg)
                         break
+
 
     def judgePublish(self):
         if self.id1 and self.id2 and self.id3 and self.id4:
             self.publish(self.battery_info)
+            print("self.battery_info", self.battery_info)
+            # syspy.report.set_report(self.battery_info)
         else:
             print(f"wait 4 ids all recv: id1{self.id1} id2{self.id2} id3{self.id3} id4{self.id4}")
 
@@ -169,7 +193,7 @@ class testCanBattery(cb.canPassBase):
         else:
             if self.connect_timeout_t.isTimeUp():
                 if not self.wake_up and (self.id == "0b" or self.id == "0d"):
-                    self.sendCanframe(self.port2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
+                    self.sendCanframe(self.port, 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
                     self.wake_up = True # 主动唤醒
                     print("wake_up")
                 else:
@@ -178,26 +202,16 @@ class testCanBattery(cb.canPassBase):
                     self.setTimeout()
 
     def loop(self):
-        mu.sleep_s(5)
-        self.attachCanID(self.port2, 1, 0x0DA2F40D)
+        mu.sleep_s(3)
+        self.createCanBus(self.port, 250000)
+        self.attachCanID(0x0DA2F40D, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
-            self.sendCanframe(self.port2, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
             mu.sleep_s(2)
-            if self.msg_userdata:
-                break
-        self.attachCanID(self.port2, 5, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
-        while True:
+            if not self.msg_userdata:
+                self.sendCanframe(self.port, 0x0DA20DF4, 8, True, [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
             self.judgeMsgok()
-            mu.sleep_s(2)
 
 if __name__ == '__main__':
+    print("123")
     client = testCanBattery()
     client.loop()
-
-
-
-
-
-
-
-

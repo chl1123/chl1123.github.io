@@ -1,0 +1,73 @@
+import inspect
+import os
+
+from .module import ScriptStatus
+from .lib.rpc_client import rpcClient
+# from .lib.rpc_server import rpcServer
+from .lib.rpc_sub import rpcSub
+# import aiohttp
+# import asyncio
+
+extracted_path = None
+
+def init(module_obj = None):
+    global extracted_path
+    caller_frame = inspect.stack()[1]
+    dir_name = os.path.abspath(caller_frame.filename)
+    # 从dir_name中第一个devices或者tasks到最后
+    # 提取从第一个 'devices' 或 'tasks' 到最后的部分
+    parts = dir_name.split(os.sep)
+    start_index = next((i for i, part in enumerate(parts) if part in ['devices', 'tasks']), None)
+    if start_index is not None:
+        extracted_path = os.sep.join(parts[start_index:])
+    else:
+        extracted_path = dir_name  # 如果没有找到 'devices' 或 'tasks'，则保持原路径
+
+    print("extracted_path", extracted_path)
+    if module_obj is not None:
+        rpc_sub = rpcSub()
+        rpc_sub.registerFunction(module_obj.update_cmd, "update_cmd", extracted_path)
+        rpc_sub.registerFunction(module_obj.suspend, "suspend", extracted_path)
+        rpc_sub.registerFunction(module_obj.reset, "reset", extracted_path)
+        rpc_sub.registerFunction(module_obj.cancel, "cancel", extracted_path)
+
+
+url = "http://127.0.0.1:21006/api/v1/ide/send_ide_report"
+rpc_client = rpcClient()
+
+class Report:
+    def __init__(self):
+        self.run_status = None
+        self.report = None
+
+    def report_data(self):
+        data = {
+            "report": ""
+        }
+        if self.run_status is not None:
+            data["run_status"] = self.run_status.value
+        if self.report is not None:
+            data["report"] = self.report
+        if extracted_path is not None and data != {}:
+            rpc_client.report(extracted_path, data)
+            # result = await self.send_ide_report(data)
+            # print(result)
+
+    def set_status(self, status: ScriptStatus):
+        self.run_status = status
+        self.report_data()
+        # asyncio.create_task(self.report_data())
+
+    def set_report(self, report):
+        self.report = report
+        self.report_data()
+        # asyncio.create_task(self.report_data())
+
+    # async def send_ide_report(self, data):
+    #     async with aiohttp.ClientSession() as session:
+    #         async with session.post(url, json=dumps(data)) as response:
+    #             return await response.text()
+
+
+report = Report()
+script_name = None

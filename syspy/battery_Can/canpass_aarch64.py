@@ -1,4 +1,4 @@
-import sys,can,threading
+import sys,can,threading,subprocess
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 import message_battery_aarch64_pb2
@@ -54,17 +54,13 @@ class canPassAarch64():
             return
         self.bus.send(can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc))
         print(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
-    def recvCan(self):
-        for msg in self.bus:
-            if not self.__callback is None:
-                self.__callback(msg)
-            if self.__should_close.is_set():
-                break
 
     def __run(self):
         try:
             while not self.__should_close.is_set():
-                self.recvCan()
+                msg = self.bus.recv(timeout=5)  # 使用超时来避免阻塞
+                if msg is not None and self.__callback is not None:
+                    self.__callback(msg)
         except Exception as e:
             print("recvCan exception:", e)
         finally:
