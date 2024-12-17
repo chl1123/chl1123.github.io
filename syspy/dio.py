@@ -60,12 +60,15 @@ from syspy.py_ipc import Status
 class Di(Status):
     """
     Attributes:
-      _TOPIC (dict): 消息名
+      _TOPIC (str): 消息名
+      _PLUGIN (str): 插件名
       _key_to_attribute (dict):
         key: 原始proto转json的属性名
         value: 封装的Python类属性名
     """
 
+    _TOPIC = "rbk.protocol.Message_DI"
+    _PLUGIN = "DSPChassis"
     _key_to_attribute = {
         'node': 'node',
         'max_node': 'max_node'
@@ -75,19 +78,15 @@ class Di(Status):
     node: Optional[List[dict]] = None
     max_node: Optional[int] = None
 
-    _TOPIC = "rbk.protocol.Message_DI"
-
-    def __init__(self):
-        super().__init__(Di._TOPIC, "DSPChassis")
-
-    def get_di(self, di: int):
+    @classmethod
+    def get_di(cls, di: int):
         """
         检测单个DI状态信息
         :param r: SimModule类对象
         :param di: 需要检测的DI
         :return: 返回指定DI的状态，若DI不存在返回False
         """
-        for node in self.node:
+        for node in cls.node:
             if node['id'] == di:
                 return node['status']
         return False
@@ -119,14 +118,15 @@ class Di(Status):
 class Do(Status):
     """
     Attributes:
-      _TOPIC (dict): 消息名
+      _TOPIC (str): 消息名
+      _PLUGIN (str): 插件名
       _key_to_attribute (dict):
         key: 原始proto转json的属性名
         value: 封装的Python类属性名
     """
 
     _TOPIC = "rbk.protocol.Message_DO"
-
+    _PLUGIN = "DSPChassis"
     _key_to_attribute = {
         'node': 'node',
         'max_node': 'max_node'
@@ -136,22 +136,21 @@ class Do(Status):
     node: Optional[List[dict]] = None
     max_node: Optional[int] = None
 
-    def __init__(self):
-        super().__init__(Do._TOPIC, "DSPChassis")
-
-    def get_do(self, do: int):
+    @classmethod
+    def get_do(cls, do: int):
         """
         检测单个DO状态信息
         :param r: SimModule类对象
         :param do: 需要检测的 DO
         :return: 返回指定DO的状态，若DO不存在返回False
         """
-        for node in self.node:
+        for node in cls.node:
             if node['id'] == do:
                 return node['status']
         return False
 
-    def setDO(self, id: int, status: bool) -> bool:
+    @classmethod
+    def setDO(cls, id: int, status: bool) -> bool:
         """控制DO的开关
 
         Args:
@@ -161,4 +160,4 @@ class Do(Status):
         Returns:
             bool: 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
         """
-        return self.rpc_client.setDO(id, status)
+        return cls.rpc_client.setDO(id, status)

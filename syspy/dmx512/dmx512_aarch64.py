@@ -16,8 +16,8 @@ import message_controller_aarch64_pb2
 class dmx512Aarch64():
     def __init__(self,rpc_client):
         self.rpc_client = rpc_client
-        self.__debug_out = ud.udpDebug()
-        sys.stdout = self.__debug_out
+        # self.__debug_out = ud.udpDebug()
+        # sys.stdout = self.__debug_out
         print("start dmx512")
         self.ser = None
         self.__callback = None

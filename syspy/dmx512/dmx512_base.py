@@ -1,6 +1,6 @@
 import sys,platform
 import syspy.lib.rpc_client as rc
-import syspy.lib.udp_debug as ud
+# import syspy.lib.udp_debug as ud
 from google.protobuf.json_format import MessageToJson
 from enum import Enum
 
@@ -20,15 +20,14 @@ class LightType(Enum):
 class dmx512Base:
     def __init__(self):
         self.__rpc_client = rc.rpcClient()
-        self.__rpc_client.connect(DEFAULT_RPC_ADDR)
         if platform.machine() == 'x86_64':
             import syspy.dmx512.dmx512_x86 as x86
             self.child = x86.dmx512X86(self.__rpc_client)
         elif platform.machine() == 'aarch64':
             import syspy.dmx512.dmx512_aarch64 as aarch64
             self.child = aarch64.dmx512Aarch64(self.__rpc_client)
-        self.__debug_out = ud.udpDebug()
-        sys.stdout = self.__debug_out
+        # self.__debug_out = ud.udpDebug()
+        # sys.stdout = self.__debug_out
         print("start dmx512")
 
 

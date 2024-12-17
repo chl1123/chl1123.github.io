@@ -15,8 +15,8 @@ import message_controller_pb2
 class dmx512X86():
     def __init__(self,rpc_client):
         self.rpc_client = rpc_client
-        self.__debug_out = ud.udpDebug()
-        sys.stdout = self.__debug_out
+        # self.__debug_out = ud.udpDebug()
+        # sys.stdout = self.__debug_out
         print("start dmx512")
 
 

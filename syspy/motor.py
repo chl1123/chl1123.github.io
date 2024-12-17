@@ -101,3 +101,13 @@ class Motor:
         """
         print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
         return self.rpc_client.isMotorStop(motor_name)
+
+    @check
+    def publishSpeed(self) -> bool:
+        """将当前电机控制方案，进行速度规划然后下发
+
+        Returns:
+            bool: 如果规划电机速度失败则返回False
+        """
+        print("func: {0}".format(get_function_name()))
+        return self.rpc_client.publishSpeed()

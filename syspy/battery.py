@@ -5,14 +5,15 @@ from syspy.py_ipc import Status
 class Battery(Status):
     """
     Attributes:
-      _TOPIC (dict): 消息名
+      _TOPIC (str): 消息名
+      _PLUGIN (str): 插件名
       _key_to_attribute (dict):
         key: 原始proto转json的属性名
         value: 封装的Python类属性名
     """
 
     _TOPIC = "rbk.protocol.Message_Battery"
-
+    _PLUGIN = "DSPChassis"
     _key_to_attribute = {
         'charge_current': 'charge_current',
         'charge_voltage': 'charge_voltage',
@@ -39,6 +40,3 @@ class Battery(Status):
     max_charge_voltage: Optional[int] = None
     temperature: Optional[int] = None
     user_data: Optional[str] = None
-
-    def __init__(self):  # noqa: E501
-        super().__init__(Battery._TOPIC, "DSPChassis")
