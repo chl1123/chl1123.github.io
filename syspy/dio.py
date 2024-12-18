@@ -1,7 +1,5 @@
 from typing import Optional, List
-import sys
-sys.path.append('/opt/.data/rbk/resources/scripts/')
-from syspy.py_ipc import Status
+from .py_ipc import Status
 
 
 """

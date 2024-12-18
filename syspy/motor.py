@@ -1,15 +1,14 @@
-import sys
-sys.path.append('/opt/.data/rbk/resources/scripts/')
-from syspy.lib.rpc_client import rpcClient
-from syspy.service_utils import check, get_function_name
+from .lib.rpc_client import rpcClient
+from .service_utils import check, get_function_name
 
 
 class Motor:
-    def __init__(self):
-        self.rpc_client = rpcClient()
+    rpc_client = rpcClient()
 
+
+    @classmethod
     @check
-    def setMotorSpeed(self, name: str, vel: float, stopDI: int) -> bool:
+    def setMotorSpeed(cls, name: str, vel: float, stopDI: int) -> bool:
         """让电机以某个速度运行，比如滚筒电机
         Args:
             name (str): 电机名称
@@ -19,10 +18,11 @@ class Motor:
         Returns:
             bool: 如果不存在这个电机，则返回False
         """
-        return self.rpc_client.setMotorSpeed(name, vel, stopDI)
+        return cls.rpc_client.setMotorSpeed(name, vel, stopDI)
 
+    @classmethod
     @check
-    def setMotorPosition(self, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
+    def setMotorPosition(cls, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
         """控制线性电机到特定位置
 
         Args:
@@ -36,10 +36,11 @@ class Motor:
         """
         print("func: {0} name: {1}  pos: {2} maxVel: {3} stopDI: {4}".format(get_function_name(), motor_name, pos, maxVel,
                                                                            stopDI))
-        return self.rpc_client.setMotorPosition(motor_name, pos, maxVel, stopDI)
+        return cls.rpc_client.setMotorPosition(motor_name, pos, maxVel, stopDI)
 
+    @classmethod
     @check
-    def resetMotor(self, motor_name: str) -> bool:
+    def resetMotor(cls, motor_name: str) -> bool:
         """将电机重置为不启用状态
 
         Args:
@@ -49,20 +50,22 @@ class Motor:
             bool: 如果不存在这个电机则报错
         """
         print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
-        return self.rpc_client.resetMotor(motor_name)
+        return cls.rpc_client.resetMotor(motor_name)
 
+    @classmethod
     @check
-    def isAllMotorsReached(self) -> bool:
+    def isAllMotorsReached(cls) -> bool:
         """所有电机是否到位
 
         Returns:
             bool: 如果所有电机到位则为True
         """
         print("func: {0}".format(get_function_name()))
-        return self.rpc_client.isAllMotorsReached()
+        return cls.rpc_client.isAllMotorsReached()
 
+    @classmethod
     @check
-    def isMotorReached(self, motor_name: str) -> bool:
+    def isMotorReached(cls, motor_name: str) -> bool:
         """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
 
         Args:
@@ -72,10 +75,11 @@ class Motor:
             bool: 如果到位则返回True
         """
         print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
-        return self.rpc_client.isMotorReached(motor_name)
+        return cls.rpc_client.isMotorReached(motor_name)
 
+    @classmethod
     @check
-    def isMotorPositionReached(self, motor_name: str, pos: float, stopDI: int) -> bool:
+    def isMotorPositionReached(cls, motor_name: str, pos: float, stopDI: int) -> bool:
         """电机是否到达特定位置
 
         Args:
@@ -87,10 +91,11 @@ class Motor:
             bool: 如果到位则返回True
         """
         print("func: {0} name: {1}  pos: {2} stopDI: {3}".format(get_function_name(), motor_name, pos, stopDI))
-        return self.rpc_client.isMotorPositionReached(motor_name, pos, stopDI)
+        return cls.rpc_client.isMotorPositionReached(motor_name, pos, stopDI)
 
+    @classmethod
     @check
-    def isMotorStop(self, motor_name: str) -> bool:
+    def isMotorStop(cls, motor_name: str) -> bool:
         """查询电机是否停止
 
         Args:
@@ -100,14 +105,15 @@ class Motor:
             bool: 如果电机不存在则返回False
         """
         print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
-        return self.rpc_client.isMotorStop(motor_name)
+        return cls.rpc_client.isMotorStop(motor_name)
 
+    @classmethod
     @check
-    def publishSpeed(self) -> bool:
+    def publishSpeed(cls) -> bool:
         """将当前电机控制方案，进行速度规划然后下发
 
         Returns:
             bool: 如果规划电机速度失败则返回False
         """
         print("func: {0}".format(get_function_name()))
-        return self.rpc_client.publishSpeed()
+        return cls.rpc_client.publishSpeed()

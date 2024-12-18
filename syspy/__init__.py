@@ -8,7 +8,16 @@ from .lib.rpc_sub import rpcSub
 # import aiohttp
 # import asyncio
 
+from .battery import Battery
+from .controller import Controller
+from .dio import Di, Do
+from .motor import Motor
+from .move import Move
+from .navigation import NavSpeed
+
 extracted_path = None
+
+__all__ = ['Battery', 'Controller', 'Di', 'Do', 'Motor', 'Move', 'NavSpeed']  # 列出所有公共模块
 
 def init(module_obj = None):
     global extracted_path
@@ -39,19 +48,26 @@ class Report:
     def __init__(self):
         self.run_status = None
         self.report = None
+        self.task_id = None
 
     def report_data(self):
         data = {
             "report": ""
         }
         if self.run_status is not None:
-            data["run_status"] = self.run_status.value
+            data["moveStatus"] = self.run_status.value
         if self.report is not None:
             data["report"] = self.report
+        if self.task_id is not None:
+            data["taskId"] = self.task_id
         if extracted_path is not None and data != {}:
             rpc_client.report(extracted_path, data)
             # result = await self.send_ide_report(data)
             # print(result)
+
+    def set_task_id(self, task_id):
+        self.task_id = task_id
+        self.report_data()
 
     def set_status(self, status: ScriptStatus):
         self.run_status = status

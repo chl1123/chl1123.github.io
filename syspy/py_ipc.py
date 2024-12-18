@@ -1,7 +1,5 @@
 import json
-import sys
-sys.path.append('/opt/.data/rbk/resources/scripts/')
-from syspy.lib.rpc_client import rpcClient
+from .lib.rpc_client import rpcClient
 
 class Status:
     """

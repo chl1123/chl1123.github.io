@@ -1,5 +1,5 @@
 from typing import Optional
-from syspy.py_ipc import Status
+from .py_ipc import Status
 
 
 class Battery(Status):
