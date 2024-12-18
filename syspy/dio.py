@@ -78,6 +78,7 @@ class Di(Status):
 
     @classmethod
     def get_di(cls, di: int):
+        cls.update()
         """
         检测单个DI状态信息
         :param r: SimModule类对象
@@ -142,6 +143,7 @@ class Do(Status):
         :param do: 需要检测的 DO
         :return: 返回指定DO的状态，若DO不存在返回False
         """
+        cls.update()
         for node in cls.node:
             if node['id'] == do:
                 return node['status']

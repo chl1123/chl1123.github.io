@@ -117,3 +117,36 @@ class Motor:
         """
         print("func: {0}".format(get_function_name()))
         return cls.rpc_client.publishSpeed()
+
+
+    @classmethod
+    @check
+    def setMotorPositionRPC(cls, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
+        """控制线性电机到特定位置
+
+        Args:
+            motor_name (str): 模型文件中的电机名称
+            pos (float): 发送目标点位置也可能是角度
+            maxVel (float): 运行过程中的最大速度不能超过模型文件中的最大速度
+            stopDI (int): 如果这个StopDI触发则表示运动到位
+
+        Returns:
+            bool: 如果不存在这个电机，则返回False
+        """
+        print("func: {0} name: {1}  pos: {2} maxVel: {3} stopDI: {4}".format(get_function_name(), motor_name, pos, maxVel,
+                                                                           stopDI))
+        return cls.rpc_client.setMotorPositionRPC(motor_name, pos, maxVel, stopDI)
+
+    @classmethod
+    @check
+    def isMotorReachedRPC(cls, motor_name: str) -> bool:
+        """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
+
+        Args:
+            motor_name (str): 电机名称
+
+        Returns:
+            bool: 如果到位则返回True
+        """
+        print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
+        return cls.rpc_client.isMotorReachedRPC(motor_name)
