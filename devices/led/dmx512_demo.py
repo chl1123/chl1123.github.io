@@ -27,28 +27,25 @@ class demo_dmx512(dmx.dmx512Base):
         self.cur_y = 0.0
 
     def run(self):
-        print("4")
         dmx512_info = self.createDmx512Message()
         dmx_battery = self.createBatteryMessage()
         mu.sleep_s(10)
         while 1:
             '''从其他插件获取所需相关数据信息'''
-            # movestatus_info = self.recMoveStatus()
             Move.update()
             NavSpeed.update()
             Battery.update()
             Controller.update()
 
-            # robotspeed_info = self.recRobotSpeed()
             '''cur_w:旋转度, cur_x:前进距离, cur_y:平移距离'''
             self.cur_w = NavSpeed.rotate
             self.cur_x = NavSpeed.x
             self.cur_y = NavSpeed.y
-            '''实时获取电池信息并转换为dmx类型 '''
-            # dmx_battery = self.recBattery()
 
+            '''实时获取电池信息并转换为dmx类型 '''
             tem = (Battery.percentage * 100.0)
             dmx512_info.battery = int(tem)
+
             '''非停止状态计数'''
             if Move.getChassisStop() == True :
                 self.is_stop = True
@@ -65,8 +62,12 @@ class demo_dmx512(dmx.dmx512Base):
             dmx512_info.color_b = RGBW[2]
             dmx512_info.color_w = RGBW[3]
 
-            '''判断是否从模型文件读取到'''
-            self.battery_exist = self.modelDeviceEnable(self.str1)
+            '''判断是否有电池信息'''''
+            if dmx512_info.battery != 0:
+                self.battery_exist = True
+            else:
+                self.battery_exist = False
+
             if self.warningExists(54001):
                 self.battery_exist = False
 
@@ -78,7 +79,7 @@ class demo_dmx512(dmx.dmx512Base):
                 '''报错状态下红色呼吸'''
                 dmx512_info.type = dmx.LightType.Errofatal.value
 
-            elif Controller.emc == True:
+            elif Controller.emc:
                 '''急停状态下暗红色闪烁'''
                 dmx512_info.type = dmx.LightType.FlowCalculator.value
                 RGBW = [230, 30, 0, 0]
@@ -97,67 +98,41 @@ class demo_dmx512(dmx.dmx512Base):
                 dmx512_info.color_w = RGBW[3]
 
             elif (not self.is_stop):
-                '''not ym_dxm512'''
-                if (not self.ym_dxm512_enable):
-                    '''正常运动下蓝色呼吸'''
-                    dmx512_info.type = dmx.LightType.MutableBreath.value
-                    if (self.cur_w >= math.radians(1) * 3):
-                        '''机身左旋'''
-                        if (self.cur_x > 0.0):
-                            '''机身左旋+前进'''
-                            dmx512_info.turn_left_or_right=1
-                        elif (self.cur_x < 0.0):
-                            '''机身左旋+后退'''
-                            dmx512_info.turn_left_or_right=2
-                        else:
-                            '''机身原地左旋'''
-                            dmx512_info.turn_left_or_right=3
-
-                    elif (self.cur_w <= math.radians(-1) * 3):
-                        '''机身右旋'''
-                        if (self.cur_x > 0.0):
-                            '''机身右旋+前进'''
-                            dmx512_info.turn_left_or_right=2
-                        elif (self.cur_x < 0.0):
-                            '''机身右旋+后退'''
-                            dmx512_info.turn_left_or_right=1
-                        else:
-                            '''机身原地右旋'''
-                            dmx512_info.turn_left_or_right=3
-
+                '''正常运动下蓝色呼吸'''
+                dmx512_info.type = dmx.LightType.MutableBreath.value
+                if (self.cur_w >= math.radians(1) * 3):
+                    '''机身左旋'''
+                    if (self.cur_x > 0.0):
+                        '''机身左旋+前进'''
+                        dmx512_info.turn_left_or_right=1
+                    elif (self.cur_x < 0.0):
+                        '''机身左旋+后退'''
+                        dmx512_info.turn_left_or_right=2
                     else:
-                        '''无转向状态'''
-                        if self.cur_x < 0.0:
-                            RGBW = [255, 250, 250, 0]
-                            dmx512_info.color_r = RGBW[0]
-                            dmx512_info.color_g = RGBW[1]
-                            dmx512_info.color_b = RGBW[2]
-                            dmx512_info.color_w = RGBW[3]
-                        dmx512_info.turn_left_or_right=0
+                        '''机身原地左旋'''
+                        dmx512_info.turn_left_or_right=3
+
+                elif (self.cur_w <= math.radians(-1) * 3):
+                    '''机身右旋'''
+                    if (self.cur_x > 0.0):
+                        '''机身右旋+前进'''
+                        dmx512_info.turn_left_or_right=2
+                    elif (self.cur_x < 0.0):
+                        '''机身右旋+后退'''
+                        dmx512_info.turn_left_or_right=1
+                    else:
+                        '''机身原地右旋'''
+                        dmx512_info.turn_left_or_right=3
 
                 else:
-                    '''ym_dxm512'''
-                    dmx512_info.type = dmx.LightType.MutableBreath.value
-                    if (self.cur_x != 0.0):
-                        dmx512_info.turn_left_or_right=4
-                    else:
-                        if (self.cur_x > 0.0):
-                            if (self.cur_y == 0.0):
-                                dmx512_info.turn_left_or_right=0
-                            else:
-                                dmx512_info.turn_left_or_right=4
-                        elif (self.cur_x < 0.0):
-                            if (self.cur_y == 0.0):
-                                dmx512_info.turn_left_or_right=1
-                            else:
-                                dmx512_info.turn_left_or_right=4
-                        else:
-                            if (self.cur_y > 0.0):
-                                dmx512_info.turn_left_or_right=2
-                            elif (self.cur_y < 0.0):
-                                dmx512_info.turn_left_or_right=3
-                            else:
-                                dmx512_info.turn_left_or_right=4
+                    '''无转向状态'''
+                    if self.cur_x < 0.0:
+                        RGBW = [255, 250, 250, 0]
+                        dmx512_info.color_r = RGBW[0]
+                        dmx512_info.color_g = RGBW[1]
+                        dmx512_info.color_b = RGBW[2]
+                        dmx512_info.color_w = RGBW[3]
+                    dmx512_info.turn_left_or_right=0
 
             elif self.battery_exist:
                 '''静止状态且battery存在'''
