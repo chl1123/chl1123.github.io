@@ -28,7 +28,6 @@ class demo_dmx512(dmx.dmx512Base):
 
     def run(self):
         dmx512_info = self.createDmx512Message()
-        dmx_battery = self.createBatteryMessage()
         mu.sleep_s(10)
         while 1:
             '''从其他插件获取所需相关数据信息'''
@@ -137,10 +136,10 @@ class demo_dmx512(dmx.dmx512Base):
             elif self.battery_exist:
                 '''静止状态且battery存在'''
                 maxPer = self.getBatteryMaxPercentage()
-                if dmx_battery.is_charging:
+                if Battery.is_charging:
                     '''充电中为橙黄色呼吸'''
                     dmx512_info.type = dmx.LightType.Charging.value
-                elif (dmx_battery.percetage * 100 < maxPer):
+                elif (Battery.percentage * 100 < maxPer):
                     '''电量低于20 %（可配置）为暗红色跑马灯'''
                     dmx512_info.type = dmx.LightType.MutableHorseRace.value
                     RGBW = [170, 20, 0, 0]
@@ -151,7 +150,7 @@ class demo_dmx512(dmx.dmx512Base):
                 else:
                     '''显示电量，从绿色至暗红色渐变'''
                     dmx512_info.type = dmx.LightType.Battery.value
-                    tem = (dmx_battery.percetage * 100.0)
+                    tem = (Battery.percentage * 100.0)
                     dmx512_info.battery = int(tem)
 
             else:
