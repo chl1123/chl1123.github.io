@@ -74,7 +74,7 @@ class zmqClient(object):
 class rpcStub(object):
     def get_message(self, topic: str, plugin: str):
         d = {
-            "method_name": "getMessage",
+            "method_name": "NetProtocol::getMessage",
             "method_args": [topic, plugin],
             'method_kwargs': {}
         }
@@ -110,6 +110,17 @@ class rpcStub(object):
         }
         print("report", d)
         return self.handle_request(d)
+
+    def call_service(self, plugin, function: str, *args, **kwargs):
+        if args is None:
+            args = {}
+        if plugin is not None:
+            function = plugin + "::" + function
+
+        message = {"method_name": function, "method_args": args, "method_kwargs": kwargs}
+        print("call_service", message)
+        response = self.handle_request(message)
+        return response
 
     def __getattr__(self, function):
         def _func(*args, **kwargs):

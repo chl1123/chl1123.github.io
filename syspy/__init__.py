@@ -14,10 +14,11 @@ from .dio import Di, Do
 from .motor import Motor
 from .move import Move
 from .navigation import NavSpeed
+from .module import BasicModule, ScriptStatus
 
 extracted_path = None
 
-__all__ = ['Battery', 'Controller', 'Di', 'Do', 'Motor', 'Move', 'NavSpeed']  # 列出所有公共模块
+__all__ = ['Battery', 'Controller', 'Di', 'Do', 'Motor', 'Move', 'NavSpeed', 'BasicModule', 'ScriptStatus']  # 列出所有公共模块
 
 def init(module_obj = None):
     global extracted_path

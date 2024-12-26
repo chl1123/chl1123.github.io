@@ -1,7 +1,12 @@
 import json
 from .lib.rpc_client import rpcClient
 
-class Status:
+class Service:
+    default_plugin = None
+    rpc_client = rpcClient()
+
+
+class Status(Service):
     """
     Attributes:
       _TOPIC (dict): 消息名
@@ -13,7 +18,6 @@ class Status:
     _key_to_attribute = None
     _PLUGIN = "RBKSim"
     _data = None
-    rpc_client = rpcClient()
 
     @classmethod
     def get_data(cls):
@@ -24,13 +28,18 @@ class Status:
 
     @classmethod
     def __parse_response(cls, response):
-        # print("response", response)
-        data = json.loads(response)
-        cls._data = data
-        # print("data: ", data)
-        for key, value in data.items():
-            mapped_key = cls._key_to_attribute.get(key, key)
-            setattr(cls, mapped_key, value)
+        print("response", response)
+        if response is None or response == "":
+            return
+        try:
+            data = json.loads(response)
+            cls._data = data
+            # print("data: ", data)
+            for key, value in data.items():
+                mapped_key = cls._key_to_attribute.get(key, key)
+                setattr(cls, mapped_key, value)
+        except Exception as e:
+            print(f"parse response error: {e}")
 
     @classmethod
     def update(cls):

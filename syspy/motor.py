@@ -1,13 +1,10 @@
-from .lib.rpc_client import rpcClient
-from .service_utils import check, get_function_name
+from .py_ipc import Service
+from .service_utils import default_plugin, call_service
 
-
-class Motor:
-    rpc_client = rpcClient()
-
-
+@default_plugin("MoveFactory")
+class Motor(Service):
     @classmethod
-    @check
+    @call_service()
     def setMotorSpeed(cls, name: str, vel: float, stopDI: int) -> bool:
         """让电机以某个速度运行，比如滚筒电机
         Args:
@@ -18,10 +15,11 @@ class Motor:
         Returns:
             bool: 如果不存在这个电机，则返回False
         """
-        return cls.rpc_client.setMotorSpeed(name, vel, stopDI)
+        pass
+
 
     @classmethod
-    @check
+    @call_service()
     def setMotorPosition(cls, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
         """控制线性电机到特定位置
 
@@ -34,12 +32,10 @@ class Motor:
         Returns:
             bool: 如果不存在这个电机，则返回False
         """
-        print("func: {0} name: {1}  pos: {2} maxVel: {3} stopDI: {4}".format(get_function_name(), motor_name, pos, maxVel,
-                                                                           stopDI))
-        return cls.rpc_client.setMotorPosition(motor_name, pos, maxVel, stopDI)
+        pass
 
     @classmethod
-    @check
+    @call_service()
     def resetMotor(cls, motor_name: str) -> bool:
         """将电机重置为不启用状态
 
@@ -49,22 +45,20 @@ class Motor:
         Returns:
             bool: 如果不存在这个电机则报错
         """
-        print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
-        return cls.rpc_client.resetMotor(motor_name)
+        pass
 
     @classmethod
-    @check
+    @call_service()
     def isAllMotorsReached(cls) -> bool:
         """所有电机是否到位
 
         Returns:
             bool: 如果所有电机到位则为True
         """
-        print("func: {0}".format(get_function_name()))
-        return cls.rpc_client.isAllMotorsReached()
+        pass
 
     @classmethod
-    @check
+    @call_service()
     def isMotorReached(cls, motor_name: str) -> bool:
         """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
 
@@ -74,11 +68,10 @@ class Motor:
         Returns:
             bool: 如果到位则返回True
         """
-        print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
-        return cls.rpc_client.isMotorReached(motor_name)
+        pass
 
     @classmethod
-    @check
+    @call_service()
     def isMotorPositionReached(cls, motor_name: str, pos: float, stopDI: int) -> bool:
         """电机是否到达特定位置
 
@@ -90,11 +83,10 @@ class Motor:
         Returns:
             bool: 如果到位则返回True
         """
-        print("func: {0} name: {1}  pos: {2} stopDI: {3}".format(get_function_name(), motor_name, pos, stopDI))
-        return cls.rpc_client.isMotorPositionReached(motor_name, pos, stopDI)
+        pass
 
     @classmethod
-    @check
+    @call_service()
     def isMotorStop(cls, motor_name: str) -> bool:
         """查询电机是否停止
 
@@ -104,23 +96,10 @@ class Motor:
         Returns:
             bool: 如果电机不存在则返回False
         """
-        print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
-        return cls.rpc_client.isMotorStop(motor_name)
+        pass
 
     @classmethod
-    @check
-    def publishSpeed(cls) -> bool:
-        """将当前电机控制方案，进行速度规划然后下发
-
-        Returns:
-            bool: 如果规划电机速度失败则返回False
-        """
-        print("func: {0}".format(get_function_name()))
-        return cls.rpc_client.publishSpeed()
-
-
-    @classmethod
-    @check
+    @call_service()
     def setMotorPositionRPC(cls, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
         """控制线性电机到特定位置
 
@@ -133,12 +112,10 @@ class Motor:
         Returns:
             bool: 如果不存在这个电机，则返回False
         """
-        print("func: {0} name: {1}  pos: {2} maxVel: {3} stopDI: {4}".format(get_function_name(), motor_name, pos, maxVel,
-                                                                           stopDI))
-        return cls.rpc_client.setMotorPositionRPC(motor_name, pos, maxVel, stopDI)
+        pass
 
     @classmethod
-    @check
+    @call_service()
     def isMotorReachedRPC(cls, motor_name: str) -> bool:
         """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
 
@@ -148,5 +125,4 @@ class Motor:
         Returns:
             bool: 如果到位则返回True
         """
-        print("func: {0} motor_name: {1}".format(get_function_name(), motor_name))
-        return cls.rpc_client.isMotorReachedRPC(motor_name)
+        pass

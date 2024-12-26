@@ -1,6 +1,6 @@
 from typing import Optional, List
 from .py_ipc import Status
-
+from .service_utils import default_plugin, call_service
 
 """
 {
@@ -55,6 +55,8 @@ from .py_ipc import Status
     "topic": "rbk.protocol.Message_DI"
 }
 """
+
+@default_plugin("DSPChassis")
 class Di(Status):
     """
     Attributes:
@@ -114,6 +116,7 @@ class Di(Status):
     "topic": "rbk.protocol.Message_DO"
 }
 """
+@default_plugin("DSPChassis")
 class Do(Status):
     """
     Attributes:
@@ -150,6 +153,7 @@ class Do(Status):
         return False
 
     @classmethod
+    @call_service()
     def setDO(cls, id: int, status: bool) -> bool:
         """控制DO的开关
 
@@ -160,4 +164,4 @@ class Do(Status):
         Returns:
             bool: 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
         """
-        return cls.rpc_client.setDO(id, status)
+        pass

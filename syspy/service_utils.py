@@ -1,5 +1,6 @@
 import inspect
-
+from .lib.rpc_client import rpcClient
+from functools import wraps
 
 def get_function_name():
     """
@@ -23,3 +24,41 @@ def check(fn):
         cc = fn(*args, **kwargs)
         return cc
     return wrapper
+
+def default_plugin(name=None):
+    def decorator(cls):
+        cls.default_plugin = name
+        return cls
+    return decorator
+
+def call_service(plugin_name=None):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(cls, *args, **kwargs):
+            # 类型检查
+            sig = inspect.signature(func)
+
+            params = sig.parameters
+            value = list(params.values())[1:]  # 忽略 'cls' 参数
+            for arg, param in zip(args, value):
+                if param.annotation != inspect.Parameter.empty and not isinstance(arg, param.annotation):
+                    raise TypeError(f"you must input {param.annotation}, but the input is {type(arg)}")
+            # 检查关键字参数
+            for k, v in kwargs.items():
+                if k in params and params[k].annotation != inspect.Parameter.empty and not isinstance(v, params[k].annotation):
+                    raise TypeError(f"you must input {params[k].annotation}, but the input is {type(v)}")
+
+            # 使用提供的 plugin_name 或者从对象获取
+            service_plugin = plugin_name or getattr(cls, 'default_plugin')
+            # 调用原始函数
+            result = func(cls, *args, **kwargs)
+
+            # 判断是否为 Motor 类的实例，并且具有 get_service_plugin 方法
+            if hasattr(cls, 'rpc_client') and isinstance(cls.rpc_client, rpcClient):
+                print(f"plugin:{service_plugin}, func:{func.__name__}, args:{args}, kwargs:{kwargs}")
+                return cls.rpc_client.call_service(service_plugin, func.__name__, *args, **kwargs)
+            return result
+
+        return wrapper
+
+    return decorator
