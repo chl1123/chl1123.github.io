@@ -85,6 +85,7 @@ class Module(BasicModule):
         syspy.report.set_status(self.status)
 
     def init_task_args(self):
+        print("init_task_args")
         if self.task_queue:  # 判断任务队列不为空
             print("task_queue self.current_task", self.current_task)
             self.current_task = self.task_queue.popleft()  # 取出最先入队的任务
@@ -93,6 +94,7 @@ class Module(BasicModule):
             syspy.report.set_task_id(self.current_task_id)
             syspy.report.set_status(self.status)
         else:
+            print("task_queue empty")
             pass
 
     def get_robot_info(self):
@@ -104,6 +106,7 @@ class Module(BasicModule):
         if Di.get_di(self.up_di) or Motor.isMotorReachedRPC(self.jack_motor_name):
             print("load finish")
             self.status = ScriptStatus.FINISHED
+            syspy.report.set_status(self.status)
 
     def unload(self):
         print("unload: ", self.jack_motor_name, self.zero_pos, self.motor_speed, self.zero_di)
@@ -111,9 +114,11 @@ class Module(BasicModule):
         if Di.get_di(self.zero_di) or Motor.isMotorReachedRPC(self.jack_motor_name):
             print("unload finish")
             self.status = ScriptStatus.FINISHED
+            syspy.report.set_status(self.status)
 
     def script_task_manage(self):
         self.status = syspy.report.run_status
+        self.print_info()
         if self.status is ScriptStatus.NONE:
             self.init_task_args()
         elif self.status is ScriptStatus.RUNNING:
@@ -124,6 +129,7 @@ class Module(BasicModule):
             self.cancel()
         elif self.status is ScriptStatus.FINISHED:
             self.status = ScriptStatus.NONE
+            syspy.report.set_status(self.status)
 
     def print_info(self):
         print("current task_queue: ", self.task_queue)
@@ -134,7 +140,6 @@ class Module(BasicModule):
     def main(self):
         while True:
             self.script_task_manage()  # 脚本任务状态管理
-            self.print_info()
             # syspy.report.set_status(self.status)
             # 睡眠50毫秒
             time.sleep(0.5)
