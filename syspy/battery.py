@@ -29,14 +29,14 @@ class Battery(Status):
     }
 
     # 显式声明属性
-    charge_current: Optional[int] = None
-    percentage: Optional[int] = None
-    charge_voltage: Optional[int] = None
-    cycle: Optional[int] = None
+    charge_current: Optional[int] = 0
+    percentage: Optional[int] = 0
+    charge_voltage: Optional[int] = 0
+    cycle: Optional[int] = 0
     extra: Optional[str] = None
-    is_charging: Optional[bool] = None
-    is_manually_connected: Optional[bool] = None
-    max_charge_current: Optional[int] = None
-    max_charge_voltage: Optional[int] = None
-    temperature: Optional[int] = None
+    is_charging: Optional[bool] = False
+    is_manually_connected: Optional[bool] = False
+    max_charge_current: Optional[int] = 0
+    max_charge_voltage: Optional[int] = 0
+    temperature: Optional[int] = 0
     user_data: Optional[str] = None

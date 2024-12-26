@@ -21,6 +21,6 @@ class NavSpeed(Status):
     }
 
     # 显式声明属性
-    x: Optional[float] = None
-    y: Optional[float] = None
-    rotate: Optional[float] = None
+    x: Optional[float] = 0
+    y: Optional[float] = 0
+    rotate: Optional[float] = 0
