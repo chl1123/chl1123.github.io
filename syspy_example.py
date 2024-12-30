@@ -3,6 +3,8 @@ import sys
 sys.path.append('/opt/.data/rbk/resources/scripts/')
 from syspy import Battery, Di, Do, Controller, Move, NavSpeed, Motor
 from syspy.rpc import Rpc
+from syspy.abnormal import Abnormal
+from syspy.trace import Trace
 
 def test_battery():
     Battery.update()
@@ -72,11 +74,33 @@ def test_multi_params():
     print("Rpc.multiParams 1: ", Rpc.multiParams("hello", "2", "3"))
     print("Rpc.multiParams 2: ", Rpc.multiParams("hello", "2"))
 
+def test_abnormal():
+    print("Abnormal.exists", Abnormal.exists(24500))
+    print("Abnormal.setTask", Abnormal.setTask(24500, "task error", "reboot", "setTaskAbnormal", "task 123"))
+    print("Abnormal.setMap", Abnormal.setMap(24501, "map error", "reboot", "setMapAbnormal", "map 123", "2D", "elementType", "elementName", "param"))
+    print("Abnormal.setModel", Abnormal.setModel(24502, "chassis error", "reboot", "setChassisAbnormal", "chassis 123"))
+    print("Abnormal.setApp", Abnormal.setApp(24503, "task error", "reboot", "setTaskAbnormal", "task", "123"))
+    print("Abnormal.setSystem", Abnormal.setSystem(24504, "task error", "reboot", "setTaskAbnormal", "task 123"))
+    print("Abnormal.setSRC", Abnormal.setSRC(24505, "task error", "reboot", "setTaskAbnormal"))
+    print("Abnormal.setEnvironment", Abnormal.setEnvironment(24506, "task error", "reboot", "setTaskAbnormal"))
+    print("Abnormal.setDevice", Abnormal.setDevice(24507, "task error", "reboot", "setTaskAbnormal", "task 123"))
+    print("Abnormal.setConnect", Abnormal.setConnect(24508, "task error", "reboot", "setTaskAbnormal", "task 123"))
+    print("Abnormal.setCalibration", Abnormal.setCalibrate(24509, "task error", "reboot", "setTaskAbnormal", "task 123"))
+    print("Abnormal.setAPI", Abnormal.setAPI(24510, "task error", "reboot", "setTaskAbnormal", 2453))
+    print("Abnormal.setLicense", Abnormal.setLicense(24511, "task error", "reboot", "setTaskAbnormal", "task 123"))
+    print("Abnormal.setChassis", Abnormal.setChassis(24512, "task error", "reboot", "setTaskAbnormal"))
+
+def test_trace():
+    print("Trace.scriptEventInstant", Trace.event("script event instant"))
+    print("Trace.scriptLog", Trace.log("setTrace", "trace 123"))
+
 def main():
     while True:
         test_message()
         test_motor()
         test_multi_params()
+        test_abnormal()
+        test_trace()
         time.sleep(1)
 
 
