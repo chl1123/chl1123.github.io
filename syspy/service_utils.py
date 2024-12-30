@@ -31,7 +31,7 @@ def default_plugin(name=None):
         return cls
     return decorator
 
-def call_service(plugin_name=None):
+def call_service(plugin_name=None, func_name=None):
     def decorator(func):
         @wraps(func)
         def wrapper(cls, *args, **kwargs):
@@ -55,8 +55,8 @@ def call_service(plugin_name=None):
 
             # 判断是否为 Motor 类的实例，并且具有 get_service_plugin 方法
             if hasattr(cls, 'rpc_client') and isinstance(cls.rpc_client, rpcClient):
-                print(f"plugin:{service_plugin}, func:{func.__name__}, args:{args}, kwargs:{kwargs}")
-                return cls.rpc_client.call_service(service_plugin, func.__name__, *args, **kwargs)
+                print(f"plugin:{service_plugin}, func:{func_name or func.__name__}, args:{args}, kwargs:{kwargs}")
+                return cls.rpc_client.call_service(service_plugin, func_name or func.__name__, *args, **kwargs)
             return result
 
         return wrapper
