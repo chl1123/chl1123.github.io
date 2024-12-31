@@ -1,0 +1,8 @@
+syntax = "proto3";
+package rbk.protocol;
+message Message_Sound {
+	int32 status = 1; 		// 0 = Stopped = Sound is not playing; 1 = Paused = Sound is paused; 2 = Playing = Sound is playing
+	string sound_name = 2;	// with suffix
+	bool loop = 3;
+	int32 count = 4;
+}

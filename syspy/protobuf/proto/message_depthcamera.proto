@@ -1,0 +1,113 @@
+syntax = "proto3";
+package rbk.protocol;
+import "message_header.proto";
+
+enum PixelFormat {
+    RGB8 = 0;
+    RGBA8 = 1;
+    RGB16 = 2;
+    RGBA16 = 3;
+    BGR8 = 4;
+    BGRA8 = 5;
+    BGR16 = 6;
+    BGRA16 = 7;
+    MONO8 = 8;
+    MONO16 = 9;
+  
+    // OpenCV CvMat types
+    TYPE_8UC1 = 10;
+    TYPE_8UC2 = 11;
+    TYPE_8UC3 = 12;
+    TYPE_8UC4 = 13;
+    TYPE_8SC1 = 14;
+    TYPE_8SC2 = 15;
+    TYPE_8SC3 = 16;
+    TYPE_8SC4 = 17;
+    TYPE_16UC1 = 18;
+    TYPE_16UC2 = 19;
+    TYPE_16UC3 = 20;
+    TYPE_16UC4 = 21;
+    TYPE_16SC1 = 22;
+    TYPE_16SC2 = 23;
+    TYPE_16SC3 = 24;
+    TYPE_16SC4 = 25;
+    TYPE_32SC1 = 26;
+    TYPE_32SC2 = 27;
+    TYPE_32SC3 = 28;
+    TYPE_32SC4 = 29;
+    TYPE_32FC1 = 30;
+    TYPE_32FC2 = 31;
+    TYPE_32FC3 = 32;
+    TYPE_32FC4 = 33;
+    TYPE_64FC1 = 34;
+    TYPE_64FC2 = 35;
+    TYPE_64FC3 = 36;
+    TYPE_64FC4 = 37;
+  
+    // Bayer encodings
+    BAYER_RGGB8 = 38;
+    BAYER_BGGR8 = 39;
+    BAYER_GBRG8 = 40;
+    BAYER_GRBG8 = 41;
+    BAYER_RGGB16 = 42;
+    BAYER_BGGR16 = 43;
+    BAYER_GBRG16 = 44;
+    BAYER_GRBG16 = 45;
+  
+    // Miscellaneous
+    // This is the UYVY version of YUV422 codec http://www.fourcc.org/yuv.php#UYVY
+    // with an 8-bit depth
+    YUV422 = 46;
+}
+
+message Message_2DImage{
+	uint32 width = 1;
+	uint32 height = 2;
+	bytes data = 3;
+    string encoding = 4;  // enum PixelFormat
+    string base64Data = 5;
+    double fx=6;
+    double fy=7;
+    double cx=8;
+    double cy=9;
+}
+
+message Message_ScanRangePoint{
+    double x = 1;
+    double y = 2;
+}
+
+message Message_DepthCameraInstallInfo{
+    double x = 1;
+    double y = 2;
+    double z = 3;
+    double roll= 4;
+    double pitch = 5;
+    double yaw = 6;
+}
+
+message Message_DepthCameraDeviceInfo{
+    string device_name = 1;
+    repeated Message_ScanRangePoint point = 2;
+}
+
+message Message_DepthCameraPoint {
+	double x = 1;
+	double y = 2;
+	double z = 3;
+    uint32 label = 4;	// hole 1,obstacle 1 , person 2
+
+}
+message Message_DepthCameraCloud {
+	Message_Header header = 1;
+	string 	device_name = 2;
+    repeated Message_DepthCameraPoint cloud = 3;
+    Message_DepthCameraInstallInfo install = 4;
+    Message_DepthCameraDeviceInfo device = 5;
+    Message_2DImage image = 6;
+    double cloud_voxel = 7;
+}
+
+message Message_AllCameraCloud{
+	repeated Message_DepthCameraCloud allcloud=1;
+}

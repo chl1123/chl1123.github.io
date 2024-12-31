@@ -1,0 +1,23 @@
+syntax = "proto3";
+package rbk.protocol;
+import "message_header.proto";
+
+message Message_DistanceNode {
+    Message_Header header = 1;
+    string  name = 2;   //设备名
+	int32 	id = 3; //设备id
+	float 	dist = 4;   //距离，单位m
+	bool 	valid = 5;  //数据是否有效
+    float 	pos_x = 6;
+    float 	pos_y = 7;  
+    float 	pos_angle = 8;  //安装角度
+    float   aperture = 9;   //扇形范围
+	bool 	forbidden = 10;     //是否禁用
+    uint32  can_router = 11;    //can端口号
+    uint32  rs485 = 12;     //rs485端口号
+    uint32  RSSI = 13;  //强度
+}
+
+message Message_DistanceSensor {
+	repeated Message_DistanceNode node = 1;
+}

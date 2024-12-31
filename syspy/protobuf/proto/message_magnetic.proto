@@ -1,0 +1,19 @@
+syntax = "proto3";
+package rbk.protocol;
+import "message_header.proto";
+
+message Message_MagneticNode{
+    uint32 id = 1;
+    repeated bool value = 2;
+
+    double x = 3;
+    double y = 4;
+    double yaw = 5;
+    double step = 6;
+    uint32 resolution = 7;
+    Message_Header header = 8;
+}
+
+message Message_Magnetic{
+    repeated Message_MagneticNode magnetic_nodes = 1;
+}

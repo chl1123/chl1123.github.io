@@ -1,6 +1,6 @@
 syntax = "proto3";
 package rbk.protocol;
-import "wrappers.proto";
+import "google/protobuf/wrappers.proto";
 import "message_odometer.proto";
 import "message_motorinfos.proto";
 
