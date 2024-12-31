@@ -3,7 +3,6 @@ import sys
 
 sys.path.append('/opt/.data/rbk/resources/scripts/')
 from syspy import *
-from syspy.rpc import Rpc
 from syspy.abnormal import Abnormal
 from syspy.trace import Trace
 
@@ -11,6 +10,24 @@ from syspy.trace import Trace
 def test_battery():
     Battery.update()
     print("Battery.get_data()", Battery.get_data())
+
+
+def test_bin():
+    Bin.update()
+    print("type(bin): ", type(Bin))
+    print("Bin.data: ", Bin.data)
+    if Bin.data is not None:
+        print("Bin.data.bins: ", Bin.data.bins)
+
+
+def test_camera():
+    Camera.update()
+    print("Camera.data: ", Camera.data)
+
+
+def test_can():
+    Can.update()
+    print("Can.data: ", Can.data)
 
 
 def test_controller():
@@ -28,6 +45,26 @@ def test_do():
     print("Do.get_data()", Do.get_data())
 
 
+def test_distance():
+    Distance.update()
+    print("Distance.get_data()", Distance.get_data())
+
+
+def test_laser():
+    Laser.update()
+    print("Laser.get_data()", Laser.get_data())
+
+
+def test_loc():
+    Loc.update()
+    print("Loc.get_data()", Loc.get_data())
+
+
+def test_magnetic():
+    Magnetic.update()
+    print("Magnetic.get_data()", Magnetic.get_data())
+
+
 def test_move():
     Move.update()
     print("Move.get_data()", Move.get_data())
@@ -38,14 +75,43 @@ def test_nav_speed():
     print("NavSpeed.get_data()", NavSpeed.get_data())
 
 
+def test_odometer():
+    Odometer.update()
+    print("Odometer.get_data()", Odometer.get_data())
+
+
+def test_pgv():
+    Pgv.update()
+    print("Pgv.get_data()", Pgv.get_data())
+
+
+def test_rfid():
+    RFID.update()
+    print("RFID.get_data()", RFID.get_data())
+
+
+def test_sound():
+    Sound.update()
+    print("Sound.get_data()", Sound.get_data())
+
+
 def test_message():
     test_battery()
+    test_bin()
+    test_camera()
+    test_can()
     test_controller()
     test_di()
     test_do()
+    test_distance()
+    test_laser()
+    test_loc()
+    test_magnetic()
     test_move()
     test_nav_speed()
-
+    test_odometer()
+    test_pgv()
+    test_sound()
 
 def test_motor():
     jack_motor_name = "Motor-003"
@@ -59,11 +125,6 @@ def test_motor():
     print("motor.isMotorStop()", Motor.isMotorStop(jack_motor_name))
     if Di.get_di(zero_di) or Motor.isMotorReachedRPC(jack_motor_name):
         print("finish")
-
-
-def test_multi_params():
-    print("Rpc.multiParams 1: ", Rpc.multiParams("hello", "2", "3"))
-    print("Rpc.multiParams 2: ", Rpc.multiParams("hello", "2"))
 
 
 def test_abnormal():
@@ -92,7 +153,6 @@ def main():
     while True:
         test_message()
         test_motor()
-        # test_multi_params()
         test_abnormal()
         test_trace()
         time.sleep(0.001)

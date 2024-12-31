@@ -1,18 +1,28 @@
 import inspect
 import os
 
-from .module import ScriptStatus
 from .lib.rpc_client import rpcClient
-from .lib.rpc_sub import rpcSub
-
 
 from .abnormal import Abnormal
 from .battery import Battery
+from .bin import Bin
+from .camera import Camera
+from .can import Can
 from .controller import Controller
 from .dio import Di, Do
+from .distance import Distance
+from .laser import Laser
+from .led import  Led
+from .loc import Loc
+from .magnetic import Magnetic
 from .motor import Motor
 from .move import Move
 from .navigation import NavSpeed
+from .odometer import Odometer
+from .pgv import Pgv
+from .rfid import RFID
+from .sound import Sound
+
 from .module import BasicModule, ScriptStatus
 
 extracted_path = None
@@ -20,12 +30,24 @@ extracted_path = None
 __all__ = [
     'Abnormal',
     'Battery',
+    'Bin',
+    'Camera',
+    'Can',
     'Controller',
     'Di',
     'Do',
+    'Distance',
+    'Laser',
+    'Led',
+    'Loc',
+    'Magnetic',
     'Motor',
     'Move',
     'NavSpeed',
+    'Odometer',
+    'Pgv',
+    'RFID',
+    'Sound',
 
     'BasicModule',
     'ScriptStatus'
