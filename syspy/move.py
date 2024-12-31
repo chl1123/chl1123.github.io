@@ -1,36 +1,27 @@
-from typing import Optional
-from .py_ipc import Status
+from .protobuf.messsage import Message_MoveStatus
+from .py_ipc import Message
+from .service_utils import default_plugin, call_service
 
-class Move(Status):
+
+@default_plugin("MoveFactory")
+class Move(Message[Message_MoveStatus]):
     """
     Attributes:
       _TOPIC (str): 消息名
       _PLUGIN (str): 插件名
-      _key_to_attribute (dict):
-        key: 原始proto转json的属性名
-        value: 封装的Python类属性名
+      _MODEL_CLASS (Type[T]): Pydantic模型类
     """
 
     _TOPIC = "rbk.protocol.Message_MoveStatus"
     _PLUGIN = "MoveFactory"
-    _key_to_attribute = {
-        'blocked': 'blocked',
-        'block_x': 'block_x',
-        'block_y': 'block_y',
-        'block_reason': 'block_reason'
-    }
-
-    # 显式声明属性
-    blocked: Optional[bool] = None
-    block_x: Optional[float] = None
-    block_y: Optional[float] = None
-    block_reason: Optional[int] = None
+    _MODEL_CLASS = Message_MoveStatus
 
     @classmethod
+    @call_service()
     def getChassisStop(cls) -> bool:
         """底盘是否停止（仅通过walk电机判断）
 
         Returns:
             bool: 如果行走电机停止则为True
         """
-        return cls.rpc_client.getChassisStop()
+        pass

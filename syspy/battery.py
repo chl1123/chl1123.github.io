@@ -1,42 +1,34 @@
-from typing import Optional
-from .py_ipc import Status
+from .protobuf.messsage import Message_Battery
+from .py_ipc import Message
+from .service_utils import call_service, default_plugin
 
 
-class Battery(Status):
+@default_plugin("DSPChassis")
+class Battery(Message[Message_Battery]):
     """
     Attributes:
       _TOPIC (str): 消息名
       _PLUGIN (str): 插件名
-      _key_to_attribute (dict):
-        key: 原始proto转json的属性名
-        value: 封装的Python类属性名
+      _MODEL_CLASS (Type[T]): Pydantic模型类
     """
 
     _TOPIC = "rbk.protocol.Message_Battery"
     _PLUGIN = "DSPChassis"
-    _key_to_attribute = {
-        'charge_current': 'charge_current',
-        'charge_voltage': 'charge_voltage',
-        'cycle': 'cycle',
-        'extra': 'extra',
-        'is_charging': 'is_charging',
-        'is_manually_connected': 'is_manually_connected',
-        'max_charge_current': 'max_charge_current',
-        'max_charge_voltage': 'max_charge_voltage',
-        'percetage': 'percentage',
-        'temperature': 'temperature',
-        'user_data': 'user_data'
-    }
+    _MODEL_CLASS = Message_Battery
 
-    # 显式声明属性
-    charge_current: Optional[int] = 0
-    percentage: Optional[int] = 0
-    charge_voltage: Optional[int] = 0
-    cycle: Optional[int] = 0
-    extra: Optional[str] = None
-    is_charging: Optional[bool] = False
-    is_manually_connected: Optional[bool] = False
-    max_charge_current: Optional[int] = 0
-    max_charge_voltage: Optional[int] = 0
-    temperature: Optional[int] = 0
-    user_data: Optional[str] = None
+
+    @classmethod
+    @call_service(func_name="getBatteryMaxPercentage")
+    def getAlarmPercentage(cls) -> int:
+        """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
+        Args:
+
+        Returns:
+            bool: 返回指定DI的状态，若DI不存在返回False
+        """
+        pass
+
+    @classmethod
+    @call_service(func_name="publishBattery")
+    def publish(cls, battery_info) -> None:
+        pass

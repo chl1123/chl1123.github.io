@@ -1,23 +1,13 @@
 import platform
 import time
+from typing import overload, Optional
 
 import zmq, json, threading, sys, queue, os
 
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages/')
-from google.protobuf.json_format import MessageToJson
-
 sys.path.append('/opt/.data/rbk/resources/scripts/syspy/protobuf/')
-if platform.machine() == 'x86_64':
-    import message_battery_pb2
-    import message_dmx512_pb2
-elif platform.machine() == 'aarch64':
-    import message_dmx512_arm_pb2 as message_dmx512_pb2
-    import message_battery_aarch64_pb2 as message_battery_pb2
 
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
-
-
-# CPP_PYTHON_IPC = "ipc:///tmp/cpp2python_rpc.ipc"
 
 class zmqClient(object):
     def __init__(self):
@@ -72,7 +62,7 @@ class zmqClient(object):
 
 
 class rpcStub(object):
-    def get_message(self, topic: str, plugin: str):
+    def get_message(self, topic: str, plugin: str) -> str:
         d = {
             "method_name": "NetProtocol::getMessage",
             "method_args": [topic, plugin],
@@ -80,40 +70,20 @@ class rpcStub(object):
         }
         return self.handle_request(d)
 
-    # def put_message(self, name: str, data):
-    #     dmx512 = message_dmx512_pb2.Message_Dmx512()
-    #     battery = message_battery_pb2.Message_Battery()
-    #     if (isinstance(data, type(dmx512)) or isinstance(data, type(battery))):
-    #         data = MessageToJson(data)
-    #     d = {
-    #         "method_name": "putMessage",
-    #         "method_args": [name, data],
-    #         'method_kwargs': {}
-    #     }
-    #     print("put_message", d)
-    #     return self.handle_request(d)
-
-    def report(self, name: str, data):
-        # 如果后缀有.py，去除
-        # if name.endswith(".py"):
-        #     name = name[:-3]
-        dmx512 = message_dmx512_pb2.Message_Dmx512()
-        battery = message_battery_pb2.Message_Battery()
-        if (isinstance(data["report"], type(dmx512)) or isinstance(data["report"], type(battery))):
-            data = MessageToJson(data["report"])
+    def report(self, name: str, data) -> str:
         if isinstance(data, dict):
             data = json.dumps(data)
         d = {
-            "method_name": "report",
+            "method_name": "MoveFactory::report",
             "method_args": [name, data],
             'method_kwargs': {}
         }
         print("report", d)
         return self.handle_request(d)
 
-    def call_service(self, plugin, function: str, *args, **kwargs):
+    def call_service(self, plugin, function: str, *args, **kwargs) -> str:
         if args is None:
-            args = {}
+            args = []
         if plugin is not None:
             function = plugin + "::" + function
 
@@ -122,10 +92,13 @@ class rpcStub(object):
         response = self.handle_request(message)
         return response
 
-    def __getattr__(self, function):
-        def _func(*args, **kwargs):
+    def __getattr__(self, function, plugin_name: str):
+        def _func(plugin_name: Optional[str], *args, **kwargs):
+            bind_function = function
+            if plugin_name is not None:
+                bind_function = plugin_name + "::" + function
             try:
-                d = {'method_name': function, 'method_args': args, 'method_kwargs': kwargs}
+                d = {'method_name': bind_function, 'method_args': args, 'method_kwargs': kwargs}
                 return self.handle_request(d)
             except Exception as e:
                 print('rpcStub error', e)
@@ -134,7 +107,7 @@ class rpcStub(object):
         return _func
 
     # 提取公共的部分为方法
-    def handle_request(self, d):
+    def handle_request(self, d) -> str:
         self.func_json = json.dumps(d).encode('utf-8')
         event = threading.Event()
         self.putQueue(self.func_json, event)
@@ -145,7 +118,7 @@ class rpcStub(object):
         else:
             print("poller Timeout or No result")
             os._exit(1)
-            return None
+            return ""
 
 
 class rpcClient(zmqClient, rpcStub):
@@ -162,11 +135,6 @@ if __name__ == "__main__":
 
     print("-----------")
     while True:
-        message_battery = message_battery_pb2.Message_Battery()
-        message_battery.percetage = 80
-        message_battery.charge_current = 1.5
-        print("client.put_message() ", message_battery)
-        client.report("battery.py", message_battery)
         print("-----------")
         message = client.get_message("rbk.protocol.Message_DI", "RBKSim")
         print("client.get_message() ", message)

@@ -1,26 +1,14 @@
-from typing import Optional
-from .py_ipc import Status
+from .protobuf.messsage import Message_NavSpeed
+from .py_ipc import Message
 
-
-class NavSpeed(Status):
+class NavSpeed(Message[Message_NavSpeed]):
     """
     Attributes:
       _TOPIC (str): 消息名
       _PLUGIN (str): 插件名
-      _key_to_attribute (dict):
-        key: 原始proto转json的属性名
-        value: 封装的Python类属性名
+      _MODEL_CLASS (Type[T]): Pydantic模型类
     """
 
     _TOPIC = "rbk.protocol.Message_NavSpeed"
     _PLUGIN = "MoveFactory"
-    _key_to_attribute = {
-        'x': 'x',
-        'y': 'y',
-        'rotate': 'rotate'
-    }
-
-    # 显式声明属性
-    x: Optional[float] = 0
-    y: Optional[float] = 0
-    rotate: Optional[float] = 0
+    _MODEL_CLASS = Message_NavSpeed

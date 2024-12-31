@@ -3,11 +3,10 @@ import os
 
 from .module import ScriptStatus
 from .lib.rpc_client import rpcClient
-# from .lib.rpc_server import rpcServer
 from .lib.rpc_sub import rpcSub
-# import aiohttp
-# import asyncio
 
+
+from .abnormal import Abnormal
 from .battery import Battery
 from .controller import Controller
 from .dio import Di, Do
@@ -18,9 +17,22 @@ from .module import BasicModule, ScriptStatus
 
 extracted_path = None
 
-__all__ = ['Battery', 'Controller', 'Di', 'Do', 'Motor', 'Move', 'NavSpeed', 'BasicModule', 'ScriptStatus']  # 列出所有公共模块
+__all__ = [
+    'Abnormal',
+    'Battery',
+    'Controller',
+    'Di',
+    'Do',
+    'Motor',
+    'Move',
+    'NavSpeed',
 
-def init(module_obj = None):
+    'BasicModule',
+    'ScriptStatus'
+]  # 列出所有公共模块
+
+
+def init(module_obj=None):
     global extracted_path
     caller_frame = inspect.stack()[1]
     dir_name = os.path.abspath(caller_frame.filename)
@@ -45,6 +57,7 @@ def init(module_obj = None):
 url = "http://127.0.0.1:21006/api/v1/ide/send_ide_report"
 rpc_client = rpcClient()
 
+
 class Report:
     def __init__(self):
         self.run_status = None
@@ -63,8 +76,6 @@ class Report:
             data["taskId"] = self.task_id
         if extracted_path is not None and data != {}:
             rpc_client.report(extracted_path, data)
-            # result = await self.send_ide_report(data)
-            # print(result)
 
     def set_task_id(self, task_id):
         self.task_id = task_id
@@ -73,17 +84,10 @@ class Report:
     def set_status(self, status: ScriptStatus):
         self.run_status = status
         self.report_data()
-        # asyncio.create_task(self.report_data())
 
     def set_report(self, report):
         self.report = report
         self.report_data()
-        # asyncio.create_task(self.report_data())
-
-    # async def send_ide_report(self, data):
-    #     async with aiohttp.ClientSession() as session:
-    #         async with session.post(url, json=dumps(data)) as response:
-    #             return await response.text()
 
 
 report = Report()

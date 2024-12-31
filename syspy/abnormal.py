@@ -28,6 +28,17 @@ class Abnormal(Service):
         pass
 
     @classmethod
+    @call_service(func_name="getNumAbnormal")
+    def getNum(cls) -> int:
+        """
+        Args:
+
+        Returns:
+            int: abnormal的数量
+        """
+        pass
+
+    @classmethod
     @call_service(func_name="setTaskAbnormal")
     def setTask(cls, code: int, desc: str, reason: str, method: str, task: str) -> bool:
         """

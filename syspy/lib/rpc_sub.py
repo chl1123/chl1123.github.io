@@ -47,12 +47,9 @@ class zmqSub(object):
                 elif method_name == "update_cmd" and "name" in self.data and self.data["name"] == self.script_name:
                     # if "name" in self.data and self.data['name'] != "":
                     method_name = self.data['name'] + '.' + method_name
-                    print("method_name", method_name)
-                    print("self.funs", self.funs)
                     if method_name in self.funs:
                         func = self.funs[method_name]
                         args = self.data['args']
-                        print(f'method_name: {method_name}')
                         if args is None:
                             res = func()
                         else:
