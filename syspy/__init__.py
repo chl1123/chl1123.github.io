@@ -2,6 +2,7 @@ import inspect
 import os
 
 from .lib.rpc_client import rpcClient
+from .lib.rpc_sub import rpcSub
 
 from .abnormal import Abnormal
 from .battery import Battery
