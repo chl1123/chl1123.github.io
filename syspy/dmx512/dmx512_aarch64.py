@@ -1,17 +1,14 @@
 
-import sys,serial,fcntl,threading,subprocess,can
-from google.protobuf.json_format import MessageToJson, Parse
+import sys
+sys.path.insert(0, '/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
+import serial,fcntl,threading,subprocess,can
 import syspy.lib.udp_debug as ud
+from syspy import Led
 
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
 DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_dmx512.ipc"
 
-import message_dmx512_arm_pb2
-import message_movetask_aarch64_pb2
-import message_navigation_aarch64_pb2
-import message_battery_aarch64_pb2
-import message_controller_aarch64_pb2
+
+from syspy.protobuf.messsage import Message_Dmx512, Message_MoveStatus, Message_Battery, Message_NavSpeed
 
 class dmx512Aarch64():
     def __init__(self,rpc_client):
@@ -37,43 +34,21 @@ class dmx512Aarch64():
 
     ''' LED '''
     def createDmx512Message(self):
-        return message_dmx512_arm_pb2.Message_Dmx512()
+        return Message_Dmx512()
 
     def createMoveStatusMessage(self):
-        return message_movetask_aarch64_pb2.Message_MoveStatus()
+        return Message_MoveStatus()
 
     def createBatteryMessage(self):
-        return message_battery_aarch64_pb2.Message_Battery()
+        return Message_Battery()
 
     def createNavSpeedMessage(self):
-        return message_navigation_aarch64_pb2.Message_NavSpeed()
+        return Message_NavSpeed()
 
     def sendDmx512(self, dmx512_info):
-        type_exm = message_dmx512_arm_pb2.Message_Dmx512()
+        type_exm = Message_Dmx512()
         if (isinstance(dmx512_info, type(type_exm))):
-            msg = MessageToJson(dmx512_info)
-            self.rpc_client.sendArmDmxInfo(msg)
-
-    def recMoveStatus(self):
-        str = self.rpc_client.getMoveStatus()
-        movestatus = Parse(str, message_movetask_aarch64_pb2.Message_MoveStatus())
-        return movestatus
-
-    def recBattery(self):
-        str = self.rpc_client.getBatterToPython()
-        batter_ = Parse(str, message_battery_aarch64_pb2.Message_Battery())
-        return batter_
-
-    def recRobotSpeed(self):
-        str = self.rpc_client.getNavSpeed()
-        robotSpeed = Parse(str, message_navigation_aarch64_pb2.Message_NavSpeed())
-        return robotSpeed
-
-    def recControllerMsg(self):
-        str = self.rpc_client.getController()
-        controllerMsg = Parse(str, message_controller_aarch64_pb2.Message_Controller())
-        return controllerMsg
-
+            Led.sendArmDmxInfo(dmx512_info.model_dump_json())
 
     ''' Serial '''
     def createSerial(self, name, baudrate):

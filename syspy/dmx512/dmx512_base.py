@@ -1,10 +1,11 @@
 import sys,platform
 import syspy.lib.rpc_client as rc
 # import syspy.lib.udp_debug as ud
-from google.protobuf.json_format import MessageToJson
 from enum import Enum
 
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy')
+from syspy import Move, NavSpeed, Battery, Controller, Di, Do, Abnormal, Led
+from syspy.protobuf.messsage import Message_MoveStatus, Message_NavSpeed, Message_Battery
+
 DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_dmx512.ipc"
 
 class LightType(Enum):
@@ -42,57 +43,48 @@ class dmx512Base:
     def createNavSpeedMessage(self):
         return self.child.createNavSpeedMessage()
 
-    def recMoveStatus(self):
-        return self.child.recMoveStatus()
+    def recMoveStatus(self) -> Message_MoveStatus:
+        Move.update()
+        return Move.data
 
-    def recBattery(self):
-        return self.child.recBattery()
+    def recBattery(self) -> Message_Battery:
+        Battery.update()
+        return Battery.data
 
-    def recRobotSpeed(self):
-        return self.child.recRobotSpeed()
+    def recRobotSpeed(self) -> Message_NavSpeed:
+        NavSpeed.update()
+        return NavSpeed.data
 
-    def recControllerMsg(self):
-        return self.child.recControllerMsg()
+    def getChassisStop(self) -> bool:
+        return Move.getChassisStop()
 
-    def modelDeviceEnable(self,str):
-        return self.__rpc_client.modelDeviceEnable(str)
+    def getEMCState(self) -> bool:
+        Controller.update()
+        return Controller.data.emc
 
-    def getChassisStop(self):
-        return self.__rpc_client.getChassisStop()
+    def getDIStates(self, index) -> bool:
+        return Di.get_di(index)
 
-    def getEMCState(self):
-        return self.__rpc_client.getEMCState()
-
-    def getDIStates(self, index):
-        return self.__rpc_client.getDIStates(index)
-
-    def getDOStates(self, index):
-        return self.__rpc_client.getDOStates(index)
+    def getDOStates(self, index) -> bool:
+        return Do.get_do(index)
 
     def getBatteryMaxPercentage(self):
-        maxPer = self.__rpc_client.getBatteryMaxPercentage()
-        return maxPer
+        return Battery.getAlarmPercentage()
 
     def getErrorNum(self):
-        return self.__rpc_client.errorNum()
+        return Abnormal.getNum()
 
     def getFatalNum(self):
-        return self.__rpc_client.fatalNum()
+        return Abnormal.getNum()
 
     def warningExists(self, code):
-        return self.__rpc_client.warningExists(code)
+        return Abnormal.exists(code)
 
     def setCallBack(self):
         self.child.setCallBack(self.handleData)
 
     def errorExists(self, code):
-        return self.__rpc_client.errorExists(code)
-
-    def publish(self, battery_info):
-        msg = MessageToJson(battery_info)
-        self.__rpc_client.publishBattery(msg)
-
-
+        return Abnormal.exists(code)
 
     ''' led '''
     def createDmx512Message(self):
@@ -102,7 +94,7 @@ class dmx512Base:
         self.child.sendDmx512(dmx512_info)
 
     def getLedExternalControlInfo(self):
-        json_string = self.__rpc_client.getLedExternalControlInfo()
+        json_string = Led.getLedExternalControlInfo()
         print('getinfo: ',json_string)
         return json_string
 

@@ -2,6 +2,8 @@ import sys,platform,os,json
 
 sys.path.append('/opt/.data/rbk/resources/scripts/')
 
+from syspy import Battery, Di, Do
+
 print("import syspy.lib.rpc_client as rc")
 import syspy.lib.rpc_client as rc
 print("import syspy.lib.rpc_client as rc after")
@@ -73,7 +75,7 @@ class canPassBase:
             ports = ('can0', 'can1', 'can2')
         print(f'name: {srcname}, ports:{ports}')
 
-        port = self.__rpc_client.getBatteryCanPort()
+        port = Battery.getCanPort()
         print(f'port: {port}')
         if port in (1, 2, 3):
             selected_port = ports[port - 1]  # 根据端口号获取对应的端口
@@ -98,13 +100,13 @@ class canPassBase:
 
     def publish(self, battery_info):
         msg = MessageToJson(battery_info)
-        self.__rpc_client.publishBattery(msg)
+        Battery.publish(msg)
 
     def getDIStates(self,index):
-        return self.__rpc_client.getDIStates(index)
+        return Di.get_di(index)
 
     def getDOStates(self,index):
-        return self.__rpc_client.getDOStates(index)
+        return Do.get_do(index)
 
     def setTimeout(self):
         self.__rpc_client.setWarning(54001, "Can battery response time out")

@@ -92,13 +92,13 @@ class rpcStub(object):
         response = self.handle_request(message)
         return response
 
-    def __getattr__(self, function, plugin_name: str):
-        def _func(plugin_name: Optional[str], *args, **kwargs):
+    def __getattr__(self, function):
+        def _func(*, plugin: Optional[str], params: set):
             bind_function = function
-            if plugin_name is not None:
-                bind_function = plugin_name + "::" + function
+            if plugin is not None:
+                bind_function = plugin + "::" + function
             try:
-                d = {'method_name': bind_function, 'method_args': args, 'method_kwargs': kwargs}
+                d = {'method_name': bind_function, 'method_args': params, 'method_kwargs': {}}
                 return self.handle_request(d)
             except Exception as e:
                 print('rpcStub error', e)
@@ -131,7 +131,7 @@ class rpcClient(zmqClient, rpcStub):
 if __name__ == "__main__":
     client = rpcClient()
     # print("client.add() ", client.setOn({"a": 1, "b": 2}, 123))
-    print("client.sub() ", client.setMotorPosition("doMotor", 1.0, 2.0, 1))
+    print("client.setMotorPosition() ", client.setMotorPosition(plugin="MoveFactory", params=("doMotor", 1.0, 2.0, 1)))
 
     print("-----------")
     while True:

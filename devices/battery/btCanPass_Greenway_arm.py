@@ -1,8 +1,7 @@
 import sys, json
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 sys.path.append('/opt/.data/rbk/resources/scripts/')
-import syspy
-syspy.init()
+
 # 导入电池基类
 import syspy.battery_Can.canpass_base as cb
 

@@ -2,6 +2,8 @@ import sys,platform
 import syspy.lib.rpc_client as rc
 import syspy.lib.rpc_server as rs
 import syspy.lib.udp_debug as ud
+from syspy import Battery, Di, Do
+
 _syslog = ud.syslogDebug("serial_battery")
 from google.protobuf.json_format import MessageToJson
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Serial/')
@@ -37,20 +39,20 @@ class batteryBase:
 
     def publish(self, battery_info):
         msg = MessageToJson(battery_info)
-        self.__rpc_client.publishBattery(msg)
+        Battery.publish(msg)
 
     def getDIStates(self,index):
-        return self.__rpc_client.getDIStates(index)
+        return Di.get_di(index)
 
     def getDOStates(self,index):
-        return self.__rpc_client.getDOStates(index)
+        return Do.get_do(index)
 
     def setModbusData(self, type: str, addr: int, data: list) -> bool:
-        is_ok:bool  = self.__rpc_client.setModbusData(type,addr,data)
+        is_ok:bool  = self.__rpc_client.setModbusData(plugin="DSPChassis", parms=(type,addr,data))
         return is_ok
 
     def getModbusData(self, type: str, addr: int, size: int) -> list:
-        msg:list = self.__rpc_client.getModbusData(type, addr, size)
+        msg:list = self.__rpc_client.getModbusData(plugin="DSPChassis", parms=(type, addr, size))
         return msg
 
     def setTimeout(self):

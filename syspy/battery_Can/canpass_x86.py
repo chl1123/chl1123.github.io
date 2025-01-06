@@ -1,5 +1,7 @@
 import sys
 import syspy.lib.pass_through as pt
+from syspy import Can
+
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 DEFAULT_PASS_ADDR = "ipc:///tmp/CanPass_udp.ipc"
@@ -32,7 +34,7 @@ class canPassX86():
 
     def sendCanframe(self, channel, can_id, dlc, extend, can_string):
         print(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
-        self.rpc_client.sendPassThroughCanFrame(channel, can_id, dlc, extend, can_string)
+        Can.sendPassThroughCanFrame(channel, can_id, dlc, extend, can_string)
 
     def attachCanID(self, channel, id_nums, *canid):
         can_ids = []
@@ -40,7 +42,7 @@ class canPassX86():
             can_ids.append(canid[i])
         can_id1, can_id2, can_id3, can_id4, can_id5 = can_ids + [0] * (5 - len(can_ids))
         print(f'channel{channel},id_nums{id_nums},can_id1{hex(can_id1)},can_id2{hex(can_id2)},can_id3{hex(can_id3)}')
-        self.rpc_client.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4, can_id5)
+        Can.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4, can_id5)
         print('Attached CAN IDs:', end=' ')
         for id_ in can_ids:
             print(hex(id_), end=' ')

@@ -37,12 +37,12 @@ class demo_dmx512(dmx.dmx512Base):
             Controller.update()
 
             '''cur_w:旋转度, cur_x:前进距离, cur_y:平移距离'''
-            self.cur_w = NavSpeed.rotate
-            self.cur_x = NavSpeed.x
-            self.cur_y = NavSpeed.y
+            self.cur_w = NavSpeed.data.rotate
+            self.cur_x = NavSpeed.data.x
+            self.cur_y = NavSpeed.data.y
 
             '''实时获取电池信息并转换为dmx类型 '''
-            tem = (Battery.percentage * 100.0)
+            tem = (Battery.data.percetage * 100.0)
             dmx512_info.battery = int(tem)
 
             '''非停止状态计数'''
@@ -78,7 +78,7 @@ class demo_dmx512(dmx.dmx512Base):
                 '''报错状态下红色呼吸'''
                 dmx512_info.type = dmx.LightType.Errofatal.value
 
-            elif Controller.emc:
+            elif Controller.data.emc:
                 '''急停状态下暗红色闪烁'''
                 dmx512_info.type = dmx.LightType.FlowCalculator.value
                 RGBW = [230, 30, 0, 0]
@@ -87,7 +87,7 @@ class demo_dmx512(dmx.dmx512Base):
                 dmx512_info.color_b = RGBW[2]
                 dmx512_info.color_w = RGBW[3]
 
-            elif Move.blocked:
+            elif Move.data.blocked:
                 '''被阻挡状态下粉紫色跑马'''
                 dmx512_info.type = dmx.LightType.MutableHorseRace.value
                 RGBW = [30, 0, 30, 0]
@@ -136,10 +136,10 @@ class demo_dmx512(dmx.dmx512Base):
             elif self.battery_exist:
                 '''静止状态且battery存在'''
                 maxPer = self.getBatteryMaxPercentage()
-                if Battery.is_charging:
+                if Battery.data.is_charging:
                     '''充电中为橙黄色呼吸'''
                     dmx512_info.type = dmx.LightType.Charging.value
-                elif (Battery.percentage * 100 < maxPer):
+                elif (Battery.data.percetage * 100 < maxPer):
                     '''电量低于20 %（可配置）为暗红色跑马灯'''
                     dmx512_info.type = dmx.LightType.MutableHorseRace.value
                     RGBW = [170, 20, 0, 0]
@@ -150,7 +150,7 @@ class demo_dmx512(dmx.dmx512Base):
                 else:
                     '''显示电量，从绿色至暗红色渐变'''
                     dmx512_info.type = dmx.LightType.Battery.value
-                    tem = (Battery.percentage * 100.0)
+                    tem = (Battery.data.percetage * 100.0)
                     dmx512_info.battery = int(tem)
 
             else:
