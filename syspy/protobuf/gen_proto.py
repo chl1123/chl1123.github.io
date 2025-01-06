@@ -24,7 +24,9 @@ protos = [
 
     "message_pgv",
     "message_rfid",
-    "message_sound"
+    "message_sound",
+
+    "message_dmx512"
 ]
 
 def fix_default_value(proto_name):

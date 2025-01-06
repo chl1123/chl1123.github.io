@@ -4,6 +4,7 @@ from .message_bin_p2p import Message_Bins
 from .message_controller_p2p import Message_Controller
 from .message_depthcamera_p2p import Message_AllCameraCloud
 from .message_distancesensor_p2p import Message_DistanceSensor
+from .message_dmx512_p2p import Message_Dmx512
 from .message_io_p2p import Message_DI, Message_DO
 from .message_laser_p2p import Message_AllLasers
 from .message_localization_p2p import Message_Localization
@@ -23,6 +24,7 @@ __all__ = [
     "Message_Controller",
     "Message_AllCameraCloud",
     "Message_DistanceSensor",
+    "Message_Dmx512",
     "Message_DI",
     "Message_DO",
     "Message_AllLasers",
