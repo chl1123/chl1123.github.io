@@ -17,7 +17,7 @@ class Move(Message[Message_MoveStatus]):
     _MODEL_CLASS = Message_MoveStatus
 
     @classmethod
-    @call_service()
+    @call_service("DSPChassis")
     def getChassisStop(cls) -> bool:
         """底盘是否停止（仅通过walk电机判断）
 

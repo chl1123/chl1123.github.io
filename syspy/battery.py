@@ -32,3 +32,8 @@ class Battery(Message[Message_Battery]):
     @call_service(func_name="publishBattery")
     def publish(cls, battery_info) -> None:
         pass
+
+    @classmethod
+    @call_service(func_name="getBatteryCanPort")
+    def getCanPort(cls) -> int:
+        pass

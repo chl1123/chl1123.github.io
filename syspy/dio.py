@@ -17,6 +17,26 @@ class Di(Message[Message_DI]):
     _MODEL_CLASS = Message_DI
 
     @classmethod
+    @call_service()
+    def setDIValid(self, index: int, status: bool):
+        """
+        Args:
+            index (int):
+            status (bool):
+        """
+        pass
+
+    @classmethod
+    @call_service()
+    def setVirtualDI(self, index: int, status: bool):
+        """
+        Args:
+            index (int):
+            status (bool):
+        """
+        pass
+
+    @classmethod
     def get_di(cls, di: int) -> bool:
         """检测单个DI状态信息
         Args:

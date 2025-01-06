@@ -8,7 +8,7 @@ from .abnormal import Abnormal
 from .battery import Battery
 from .bin import Bin
 from .camera import Camera
-from .can import Can
+from .can_frame import Can
 from .controller import Controller
 from .dio import Di, Do
 from .distance import Distance
