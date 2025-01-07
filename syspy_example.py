@@ -121,9 +121,9 @@ def test_motor():
     up_di = 6
     zero_di = 3
     height = 0.05
-    print("motor.setMotorPositionRPC", Motor.setMotorPositionRPC(jack_motor_name, height, motor_speed, up_di))
+    print("motor.setMotorPosition", Motor.setMotorPosition(jack_motor_name, height, motor_speed, up_di))
     print("motor.isMotorStop()", Motor.isMotorStop(jack_motor_name))
-    if Di.get_di(zero_di) or Motor.isMotorReachedRPC(jack_motor_name):
+    if Di.get_di(zero_di) or Motor.isMotorReached(jack_motor_name):
         print("finish")
 
 
@@ -155,7 +155,7 @@ def main():
         test_motor()
         test_abnormal()
         test_trace()
-        time.sleep(0.001)
+        time.sleep(0.01)
 
 
 if __name__ == '__main__':

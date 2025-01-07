@@ -26,6 +26,8 @@ from .sound import Sound
 
 from .module import BasicModule, ScriptStatus
 
+from .mf import  MF
+
 extracted_path = None
 
 __all__ = [
@@ -51,7 +53,9 @@ __all__ = [
     'Sound',
 
     'BasicModule',
-    'ScriptStatus'
+    'ScriptStatus',
+
+    'MF'
 ]  # 列出所有公共模块
 
 
@@ -84,7 +88,7 @@ rpc_client = rpcClient()
 class Report:
     def __init__(self):
         self.run_status = None
-        self.report = None
+        self.info = None
         self.task_id = None
 
     def report_data(self):
@@ -93,8 +97,8 @@ class Report:
         }
         if self.run_status is not None:
             data["moveStatus"] = self.run_status.value
-        if self.report is not None:
-            data["report"] = self.report
+        if self.info is not None:
+            data["info"] = self.info
         if self.task_id is not None:
             data["taskId"] = self.task_id
         if extracted_path is not None and data != {}:
@@ -108,8 +112,8 @@ class Report:
         self.run_status = status
         self.report_data()
 
-    def set_report(self, report):
-        self.report = report
+    def set_info(self, info):
+        self.info = info
         self.report_data()
 
 
