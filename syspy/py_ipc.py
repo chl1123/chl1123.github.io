@@ -24,8 +24,8 @@ class Message(Generic[T], Service):
     data: Optional[T] = None
 
     @classmethod
-    def get_data(cls) -> Optional[T]:
-        return cls.data
+    def get_data(cls) -> dict:
+        return cls.data.model_dump()
 
     @classmethod
     def update(cls):
@@ -36,7 +36,5 @@ class Message(Generic[T], Service):
             try:
                 parsed_data = json.loads(response)
                 cls.data = cls._MODEL_CLASS(**parsed_data)
-                # parsed_data = json.loads(response)
-                # cls._parse_response(response)
             except Exception as e:
                 print(f"Error parsing response: {e}")

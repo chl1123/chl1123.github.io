@@ -10,6 +10,7 @@ from syspy.trace import Trace
 def test_battery():
     Battery.update()
     print("Battery.get_data()", Battery.get_data())
+    print("Battery.percentage", Battery.data.percetage)
 
 
 def test_bin():
