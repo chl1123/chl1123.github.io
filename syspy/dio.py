@@ -83,7 +83,7 @@ class Do(Message[Message_DO]):
         return False
 
     @classmethod
-    @call_service()
+    @call_service(plugin_name="MoveFactory")
     def setDO(cls, id: int, status: bool) -> bool:
         """控制DO的开关
 

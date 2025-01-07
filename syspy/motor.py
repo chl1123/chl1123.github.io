@@ -1,6 +1,7 @@
 from .py_ipc import Service
 from .service_utils import default_plugin, call_service
 
+
 @default_plugin("MoveFactory")
 class Motor(Service):
     @classmethod
@@ -16,7 +17,6 @@ class Motor(Service):
             bool: 如果不存在这个电机，则返回False
         """
         pass
-
 
     @classmethod
     @call_service()
@@ -99,30 +99,39 @@ class Motor(Service):
         pass
 
     @classmethod
-    @call_service()
-    def setMotorPositionRPC(cls, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
-        """控制线性电机到特定位置
-
+    @call_service(plugin_name="DSPChassis")
+    def disableMotor(cls, name: str) -> bool:
+        """电机去使能
         Args:
-            motor_name (str): 模型文件中的电机名称
-            pos (float): 发送目标点位置也可能是角度
-            maxVel (float): 运行过程中的最大速度不能超过模型文件中的最大速度
-            stopDI (int): 如果这个StopDI触发则表示运动到位
-
+            name (str): 电机名称
         Returns:
-            bool: 如果不存在这个电机，则返回False
         """
         pass
 
     @classmethod
-    @call_service()
-    def isMotorReachedRPC(cls, motor_name: str) -> bool:
-        """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
-
+    @call_service(plugin_name="DSPChassis")
+    def enableMotor(self, name: str):
+        """电机使能
         Args:
-            motor_name (str): 电机名称
-
+            name (str): 电机名称
         Returns:
-            bool: 如果到位则返回True
+        """
+        pass
+
+    @classmethod
+    @call_service(plugin_name="DSPChassis")
+    def motorCalib(self, m: str):
+        """
+        Args:
+            m (str):
+        """
+        pass
+
+    @classmethod
+    @call_service(plugin_name="DSPChassis")
+    def motorForceCalib(self, m: str):
+        """
+        Args:
+            m (str):
         """
         pass
