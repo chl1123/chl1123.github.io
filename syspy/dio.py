@@ -17,7 +17,7 @@ class Di(Message[Message_DI]):
 
     @classmethod
     @call_service()
-    def setDIValid(self, index: int, status: bool):
+    def setDIValid(cls, index: int, status: bool):
         """
         Args:
             index (int):
@@ -27,7 +27,7 @@ class Di(Message[Message_DI]):
 
     @classmethod
     @call_service()
-    def setVirtualDI(self, index: int, status: bool):
+    def setVirtualDI(cls, index: int, status: bool):
         """
         Args:
             index (int):

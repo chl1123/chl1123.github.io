@@ -5,7 +5,7 @@ from .lib.py_rpc import Service, default_plugin, call_service
 class Map(Service):
     @classmethod
     @call_service()
-    def switchMap(self, map: str, switchPoint: str, center_x: float, center_y: float, initial_angle: float) -> int:
+    def switchMap(cls, map: str, switchPoint: str, center_x: float, center_y: float, initial_angle: float) -> int:
         """切换地图
 
         Args:

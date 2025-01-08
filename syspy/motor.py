@@ -109,7 +109,7 @@ class Motor(Service):
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
-    def enableMotor(self, name: str):
+    def enableMotor(cls, name: str):
         """电机使能
         Args:
             name (str): 电机名称
@@ -119,7 +119,7 @@ class Motor(Service):
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
-    def motorCalib(self, m: str):
+    def motorCalib(cls, m: str):
         """
         Args:
             m (str):
@@ -128,7 +128,7 @@ class Motor(Service):
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
-    def motorForceCalib(self, m: str):
+    def motorForceCalib(cls, m: str):
         """
         Args:
             m (str):
