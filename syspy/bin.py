@@ -1,5 +1,5 @@
 from .protobuf.messsage import Message_Bins
-from .py_ipc import Message
+from .lib.py_rpc import Message
 
 
 class Bin(Message[Message_Bins]):

@@ -1,6 +1,5 @@
 from .protobuf.messsage import Message_MoveStatus
-from .py_ipc import Message
-from .service_utils import default_plugin, call_service
+from .lib.py_rpc import Message, default_plugin, call_service
 
 
 @default_plugin("MoveFactory")

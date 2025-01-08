@@ -1,6 +1,5 @@
 from .protobuf.messsage import Message_Battery
-from .py_ipc import Message
-from .service_utils import call_service, default_plugin
+from .lib.py_rpc import Message, call_service, default_plugin
 
 
 @default_plugin("DSPChassis")
@@ -15,7 +14,6 @@ class Battery(Message[Message_Battery]):
     _TOPIC = "rbk.protocol.Message_Battery"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = Message_Battery
-
 
     @classmethod
     @call_service(func_name="getBatteryMaxPercentage")

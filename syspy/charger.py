@@ -1,5 +1,4 @@
-from .lib.py_ipc import Service
-from .lib.service_utils import call_service, default_plugin
+from .lib.py_rpc import Service, call_service, default_plugin
 
 
 @default_plugin("ChargerAdapter")

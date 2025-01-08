@@ -1,5 +1,5 @@
 from .protobuf.messsage import Message_Magnetic
-from .py_ipc import Message
+from .lib.py_rpc import Message
 
 
 class Magnetic(Message[Message_Magnetic]):

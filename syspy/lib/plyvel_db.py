@@ -3,6 +3,7 @@ import os
 import fasteners
 import pickle
 
+
 class LevelDB:
     _db_path = "/opt/.data/rbk/private/runtimes/containers_leveldb"
     _lock_file_path = os.path.join('/tmp', 'containers_leveldb.lock')  # 分离锁文件路径
@@ -81,6 +82,7 @@ class LevelDB:
             return True
         print("LevelDB: Database connection was already closed")
         return True
+
 
 # 示例使用方法
 if __name__ == '__main__':

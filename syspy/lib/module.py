@@ -2,6 +2,7 @@ from enum import IntEnum
 import os, json
 import math
 
+
 class ScriptStatus(IntEnum):
     NONE = 0
     RUNNING = 1
@@ -9,6 +10,7 @@ class ScriptStatus(IntEnum):
     FINISHED = 3
     FAILED = 4
     SUSPENDED = 5
+
 
 class CollisionType(IntEnum):
     Ultrasonic = 0
@@ -23,6 +25,7 @@ class CollisionType(IntEnum):
     DepthCamera = 9
     ReservedDepthCamera = 10
     DistanceNode = 11
+
 
 def normalize_theta(theta):
     if theta >= -math.pi and theta < math.pi:
@@ -45,7 +48,7 @@ def Pos2World(pos2base, base2world):
     Returns:
         [type]: pos2world
     """
-    pos2world = [0.,0.,0.]
+    pos2world = [0., 0., 0.]
     x = pos2base[0] * math.cos(base2world[2]) - pos2base[1] * math.sin(base2world[2])
     y = pos2base[0] * math.sin(base2world[2]) + pos2base[1] * math.cos(base2world[2])
     pos2world[0] = x + base2world[0]
@@ -63,13 +66,14 @@ def Pos2Base(pos2world, base2world):
     Returns:
         [3]: pos2base
     """
-    pos2base = [0.,0.,0.]
+    pos2base = [0., 0., 0.]
     x = pos2world[0] - base2world[0]
     y = pos2world[1] - base2world[1]
     pos2base[0] = x * math.cos(base2world[2]) + y * math.sin(base2world[2])
     pos2base[1] = -x * math.sin(base2world[2]) + y * math.cos(base2world[2])
     pos2base[2] = normalize_theta(pos2world[2] - base2world[2])
     return pos2base
+
 
 class BasicModule:
     def __init__(self):
@@ -119,21 +123,21 @@ class ParamServer:
 
     def __init__(self, file):
         param_dir = os.path.dirname(file) + '/params'
-        isExists=os.path.exists(param_dir)
+        isExists = os.path.exists(param_dir)
         if not isExists:
             os.makedirs(param_dir)
         base_f = os.path.basename(file)
-        self.file = param_dir + '/'+base_f.split('.')[0] + '.json'
+        self.file = param_dir + '/' + base_f.split('.')[0] + '.json'
         self.data = dict()
         try:
             with open(self.file, 'r', encoding="utf-8") as f:
-                self.data = json.load( f)
+                self.data = json.load(f)
         except:
             pass
 
-    def loadParam(self, name:str, type:str = "", group:str = "", default = None, **kw):
+    def loadParam(self, name: str, type: str = "", group: str = "", default=None, **kw):
         def updateKey(data, key, value):
-            if (key not in data)  or (key in data and data[key] != value):
+            if (key not in data) or (key in data and data[key] != value):
                 return True
             else:
                 return False
@@ -164,17 +168,17 @@ class ParamServer:
                         updateFile = True
                         self.data[name]["minValue"] = kw["minValue"]
                 if "comment" in kw and updateKey(self.data[name], "comment", kw["comment"]):
-                        updateFile = True
-                        self.data[name]["comment"] = kw["comment"]
+                    updateFile = True
+                    self.data[name]["comment"] = kw["comment"]
                 if "type" in kw and updateKey(self.data[name], "type", kw["type"]):
-                        updateFile = True
-                        self.data[name]["type"] = kw["type"]
+                    updateFile = True
+                    self.data[name]["type"] = kw["type"]
                 if "group" in kw and updateKey(self.data[name], "group", kw["group"]):
-                        updateFile = True
-                        self.data[name]["group"] = kw["group"]
+                    updateFile = True
+                    self.data[name]["group"] = kw["group"]
                 if "unit" in kw and updateKey(self.data[name], "unit", kw["unit"]):
-                        updateFile = True
-                        self.data[name]["unit"] = kw["unit"]
+                    updateFile = True
+                    self.data[name]["unit"] = kw["unit"]
                 if updateFile:
                     with open(self.file, 'w', encoding="utf-8") as f:
                         json.dump(self.data, f, indent=4, ensure_ascii=False)

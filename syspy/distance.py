@@ -1,5 +1,5 @@
 from .protobuf.messsage import Message_DistanceSensor
-from .py_ipc import Message
+from .lib.py_rpc import Message
 
 
 class Distance(Message[Message_DistanceSensor]):

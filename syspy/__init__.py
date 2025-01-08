@@ -4,16 +4,22 @@ import os
 from .lib.rpc_client import rpcClient
 from .lib.rpc_sub import rpcSub
 
-from .abnormal import Abnormal
+from .lib.abnormal import Abnormal
+from .lib.trace import Trace
+from .lib.can_frame import Can
+from .lib.model import Model
+from .lib.param import Param
+from .lib.net_protocol import NetProtocol
+from .lib.module import BasicModule, ScriptStatus
+
 from .battery import Battery
 from .bin import Bin
 from .camera import Camera
-from .can_frame import Can
 from .controller import Controller
 from .dio import Di, Do
 from .distance import Distance
 from .laser import Laser
-from .led import  Led
+from .led import Led
 from .loc import Loc
 from .magnetic import Magnetic
 from .motor import Motor
@@ -24,18 +30,23 @@ from .pgv import Pgv
 from .rfid import RFID
 from .sound import Sound
 
-from .module import BasicModule, ScriptStatus
+from .mf import MF
 
-from .mf import  MF
-
-extracted_path = None
+extracted_path = ""
 
 __all__ = [
     'Abnormal',
+    'Trace',
+    'NetProtocol',
+    'Can',
+    'Model',
+    'Param',
+    'BasicModule',
+    'ScriptStatus',
+
     'Battery',
     'Bin',
     'Camera',
-    'Can',
     'Controller',
     'Di',
     'Do',
@@ -51,9 +62,6 @@ __all__ = [
     'Pgv',
     'RFID',
     'Sound',
-
-    'BasicModule',
-    'ScriptStatus',
 
     'MF'
 ]  # 列出所有公共模块
@@ -101,7 +109,7 @@ class Report:
             data["info"] = self.info
         if self.task_id is not None:
             data["taskId"] = self.task_id
-        if extracted_path is not None and data != {}:
+        if extracted_path != "" and data != {}:
             rpc_client.report(extracted_path, data)
 
     def set_task_id(self, task_id):

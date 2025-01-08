@@ -1,5 +1,5 @@
-from .py_ipc import Service
-from .service_utils import default_plugin, call_service
+from .py_rpc import Service, default_plugin, call_service
+
 
 @default_plugin("Abnormal")
 class Abnormal(Service):
@@ -56,7 +56,8 @@ class Abnormal(Service):
 
     @classmethod
     @call_service(func_name="setMapAbnormal")
-    def setMap(cls, code: int, desc: str, reason: str, method: str, fileName: str, mapType: str = "", elementType: str = "", elementName: str = "", param: str = "") -> bool:
+    def setMap(cls, code: int, desc: str, reason: str, method: str, fileName: str, mapType: str = "",
+               elementType: str = "", elementName: str = "", param: str = "") -> bool:
         """
         Args:
             code (int):
@@ -76,7 +77,8 @@ class Abnormal(Service):
 
     @classmethod
     @call_service(func_name="setModelAbnormal")
-    def setModel(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "", deviceKey: str = "", param: str = "") -> bool:
+    def setModel(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
+                 deviceKey: str = "", param: str = "") -> bool:
         """
         Args:
             code (int):
@@ -95,7 +97,8 @@ class Abnormal(Service):
 
     @classmethod
     @call_service(func_name="setAppAbnormal")
-    def setApp(cls, code: int, desc: str, reason: str, method: str, appType: str, fileName: str, param: str = "") -> bool:
+    def setApp(cls, code: int, desc: str, reason: str, method: str, appType: str, fileName: str,
+               param: str = "") -> bool:
         """
         Args:
             code (int):
@@ -160,7 +163,8 @@ class Abnormal(Service):
 
     @classmethod
     @call_service(func_name="setDeviceAbnormal")
-    def setDevice(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "", deviceName: str = "", param: str = "", errorCode: int = 0) -> bool:
+    def setDevice(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
+                  deviceName: str = "", param: str = "", errorCode: int = 0) -> bool:
         """
         Args:
             code (int):
@@ -180,7 +184,8 @@ class Abnormal(Service):
 
     @classmethod
     @call_service(func_name="setConnectionAbnormal")
-    def setConnect(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "", deviceName: str = "", param: str = "") -> bool:
+    def setConnect(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
+                   deviceName: str = "", param: str = "") -> bool:
         """
         Args:
             code (int):

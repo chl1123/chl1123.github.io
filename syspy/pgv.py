@@ -1,5 +1,5 @@
 from .protobuf.messsage import Message_PGV
-from .py_ipc import Message
+from .lib.py_rpc import Message
 
 
 class Pgv(Message[Message_PGV]):

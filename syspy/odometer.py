@@ -1,5 +1,5 @@
 from .protobuf.messsage import Message_Odometer
-from .py_ipc import Message
+from .lib.py_rpc import Message
 
 
 class Odometer(Message[Message_Odometer]):

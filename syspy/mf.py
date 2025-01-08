@@ -1,5 +1,4 @@
-from .py_ipc import Service
-from .service_utils import default_plugin, call_service
+from .lib.py_rpc import Service, default_plugin, call_service
 
 
 @default_plugin("MoveFactory")

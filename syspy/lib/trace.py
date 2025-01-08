@@ -1,5 +1,5 @@
-from .py_ipc import Service
-from .service_utils import default_plugin, call_service
+from .py_rpc import Service, default_plugin, call_service
+
 
 @default_plugin("Trace")
 class Trace(Service):

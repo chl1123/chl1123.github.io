@@ -1,6 +1,5 @@
-from .protobuf.messsage import CanFrame
-from .py_ipc import Message
-from .service_utils import default_plugin, call_service
+from ..protobuf.messsage import CanFrame
+from .py_rpc import Message, default_plugin, call_service
 
 
 @default_plugin("DSPChassis")
@@ -47,7 +46,8 @@ class Can(Message[CanFrame]):
 
     @classmethod
     @call_service(func_name="canPassThroughRxId")
-    def canPassThroughRxId(cls, channel: int, id_nums: int, can_id1: int, can_id2: int, can_id3: int, can_id4: int, can_id5: int) -> int:
+    def canPassThroughRxId(cls, channel: int, id_nums: int, can_id1: int, can_id2: int, can_id3: int, can_id4: int,
+                           can_id5: int) -> int:
         """
         Args:
             channel (int):

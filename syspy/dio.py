@@ -1,6 +1,5 @@
 from .protobuf.messsage import Message_DI, Message_DO
-from .py_ipc import Message
-from .service_utils import default_plugin, call_service
+from .lib.py_rpc import Message, default_plugin, call_service
 
 
 @default_plugin("DSPChassis")

@@ -1,5 +1,6 @@
 from .protobuf.messsage import Message_Sound
-from .py_ipc import Message
+from .lib.py_rpc import Message
+
 
 class Sound(Message[Message_Sound]):
     """

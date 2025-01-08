@@ -1,5 +1,7 @@
-import socket,sys
-import logging,logging.handlers
+import socket, sys
+import logging, logging.handlers
+
+
 class udpDebug:
     def __init__(self):
         try:
@@ -7,14 +9,14 @@ class udpDebug:
             self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         except Exception as e:
             pass
-        
+
     def write(self, str1):
         try:
             str1 = str1.strip("\n")
             self.udp_socket.sendto(str1.encode("utf-8"), ("192.168.192.255", 20000))
         except Exception as e:
             pass
-    
+
     def flush(self):
         pass
 
@@ -60,6 +62,7 @@ class syslogDebug:
 
         def flush(self):
             pass
+
 
 if __name__ == "__main__":
     pass

@@ -1,13 +1,10 @@
-import platform
 import time
-from typing import overload, Optional
+from typing import Optional
 
 import zmq, json, threading, sys, queue, os
 
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages/')
-sys.path.append('/opt/.data/rbk/resources/scripts/syspy/protobuf/')
-
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
+
 
 class zmqClient(object):
     def __init__(self):

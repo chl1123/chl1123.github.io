@@ -3,8 +3,6 @@ import sys
 
 sys.path.append('/opt/.data/rbk/resources/scripts/')
 from syspy import *
-from syspy.abnormal import Abnormal
-from syspy.trace import Trace
 
 
 def test_battery():
@@ -123,7 +121,7 @@ def test_motor():
     zero_di = 3
     height = 0.05
     print("motor.setMotorPosition", Motor.setMotorPosition(jack_motor_name, height, motor_speed, up_di))
-    print("motor.isMotorStop()", Motor.isMotorStop(jack_motor_name))
+    # print("motor.isMotorStop()", Motor.isMotorStop(jack_motor_name))
     if Di.get_di(zero_di) or Motor.isMotorReached(jack_motor_name):
         print("finish")
 

@@ -1,7 +1,6 @@
-import os
-
 import zmq, json, threading
 import inspect
+
 
 class zmqServer(object):
     def __init__(self):
@@ -64,7 +63,7 @@ class zmqServer(object):
                 print(f'data: {data}')
                 self.socket.send(json.dumps(data).encode('utf-8'))
             except zmq.ZMQError as e:
-                #self.socket.send(json.dumps({"code": -1}).encode('utf-8'))
+                # self.socket.send(json.dumps({"code": -1}).encode('utf-8'))
                 if self.__should_close.is_set():
                     break  # 关闭线程时会触发 ZMQError，结束循环
                 print('server loop error, zmq.ZMQError: ', e)
@@ -106,6 +105,7 @@ if __name__ == '__main__':
         def exit(self):
             print("exit")
             # sys.exit()
+
 
     a = Test()
     test = rpcServer()

@@ -2,6 +2,7 @@ import time
 
 getNowMilliTime = lambda: int(time.time() * 1000)
 
+
 class Timer:
     def __init__(self, period):
         '''
@@ -26,7 +27,7 @@ class Timer:
         '''
         self.__period = period
         self.__last = getNowMilliTime()
-    
+
     def reset(self):
         '''
         重启该定时器
@@ -39,11 +40,14 @@ class Timer:
         '''
         pass
 
+
 def sleep_ms(ms):
     time.sleep(ms / 1000.0)
 
+
 def sleep_s(s):
     time.sleep(s)
+
 
 if __name__ == "__main__":
     test = Timer(1000)

@@ -1,5 +1,5 @@
 from .protobuf.messsage import Message_Localization
-from .py_ipc import Message
+from .lib.py_rpc import Message
 
 
 class Loc(Message[Message_Localization]):

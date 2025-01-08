@@ -1,5 +1,6 @@
 from .protobuf.messsage import Message_NavSpeed
-from .py_ipc import Message
+from .lib.py_rpc import Message
+
 
 class NavSpeed(Message[Message_NavSpeed]):
     """

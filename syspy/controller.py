@@ -1,5 +1,5 @@
 from .protobuf.messsage import Message_Controller
-from .py_ipc import Message
+from .lib.py_rpc import Message
 
 
 class Controller(Message[Message_Controller]):

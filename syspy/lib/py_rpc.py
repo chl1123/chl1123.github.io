@@ -1,6 +1,51 @@
-import inspect
-from .lib.rpc_client import rpcClient
+import json
 from functools import wraps
+from typing import Optional, Type, TypeVar, Generic
+import inspect
+from pydantic import BaseModel
+
+from .rpc_client import rpcClient
+
+T = TypeVar('T', bound=BaseModel)
+
+
+class Service:
+    default_plugin = None
+    rpc_client = rpcClient()
+
+
+class Message(Generic[T], Service):
+    """
+    Attributes:
+      _TOPIC (str): 消息名
+      _PLUGIN (str): 插件名
+      _MODEL_CLASS (Type[T]): Pydantic模型类
+    """
+    _TOPIC = None
+    _PLUGIN = "RBKSim"
+    _MODEL_CLASS: Type[T]
+
+    data: Optional[T] = None
+
+    @classmethod
+    def get_data(cls) -> dict:
+        if cls.data is None:
+            return {}
+        else:
+            return cls.data.model_dump()
+
+    @classmethod
+    def update(cls):
+        """刷新状态"""
+        response = cls.rpc_client.get_message(cls._TOPIC, cls._PLUGIN)
+        # print("parsed_data", response)
+        if response:
+            try:
+                parsed_data = json.loads(response)
+                cls.data = cls._MODEL_CLASS(**parsed_data)
+            except Exception as e:
+                print(f"Error parsing response: {e}")
+
 
 def get_function_name():
     """
@@ -23,13 +68,17 @@ def check(fn):
                 raise TypeError("you must input {}, but the input is {}".format(params[k].annotation, type(arg)))
         cc = fn(*args, **kwargs)
         return cc
+
     return wrapper
+
 
 def default_plugin(name=None):
     def decorator(cls):
         cls.default_plugin = name
         return cls
+
     return decorator
+
 
 def call_service(plugin_name=None, func_name=None):
     def decorator(func):
@@ -45,7 +94,8 @@ def call_service(plugin_name=None, func_name=None):
                     raise TypeError(f"you must input {param.annotation}, but the input is {type(arg)}")
             # 检查关键字参数
             for k, v in kwargs.items():
-                if k in params and params[k].annotation != inspect.Parameter.empty and not isinstance(v, params[k].annotation):
+                if k in params and params[k].annotation != inspect.Parameter.empty and not isinstance(v, params[
+                    k].annotation):
                     raise TypeError(f"you must input {params[k].annotation}, but the input is {type(v)}")
 
             # 使用提供的 plugin_name 或者从对象获取
@@ -53,7 +103,7 @@ def call_service(plugin_name=None, func_name=None):
             # 调用原始函数
             result = func(cls, *args, **kwargs)
 
-            # 判断是否为 Motor 类的实例，并且具有 get_service_plugin 方法
+            # 判断是否为 rpcClient 类的实例
             if hasattr(cls, 'rpc_client') and isinstance(cls.rpc_client, rpcClient):
                 print(f"plugin:{service_plugin}, func:{func_name or func.__name__}, args:{args}, kwargs:{kwargs}")
                 return cls.rpc_client.call_service(service_plugin, func_name or func.__name__, *args, **kwargs)

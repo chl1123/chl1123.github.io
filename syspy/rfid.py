@@ -1,5 +1,5 @@
 from .protobuf.messsage import Message_RFID
-from .py_ipc import Message
+from .lib.py_rpc import Message
 
 
 class RFID(Message[Message_RFID]):

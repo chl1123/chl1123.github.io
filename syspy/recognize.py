@@ -1,5 +1,4 @@
-from .py_ipc import Service
-from .service_utils import call_service, default_plugin
+from .lib.py_rpc import Service, default_plugin, call_service
 
 
 @default_plugin("RecoFactory")
@@ -62,14 +61,12 @@ class Recognize(Service):
         """
         pass
 
-
     @classmethod
     @call_service()
     def resetRec(cls):
         """重置识别模块
         """
         pass
-
 
     @classmethod
     @call_service()
@@ -90,12 +87,22 @@ class Recognize(Service):
         """
         pass
 
-
     @classmethod
     @call_service()
     def loadStatus(cls, dist: float):
         """
         Args:
             dist (float):
+        """
+        pass
+
+    @classmethod
+    @call_service(plugin_name="NetProtocol")
+    def getRecFile(cls, name: str) -> str:
+        """获得识别文件的原始数据
+        Args:
+            name (str): 识别文件名称，比如 shelf/s0001.shelf, pallet/p0001.pallet
+        Returns:
+            dict: 具体数据以字典类型返回
         """
         pass
