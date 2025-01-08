@@ -10,26 +10,7 @@ from collections import deque
 
 sys.path.append('/opt/.data/rbk/resources/scripts/')
 import syspy
-from syspy import Di, Motor, MF
-from syspy.module import BasicModule, ScriptStatus
-
-# =======脚本输入参数=======
-# doc
-"""
-####BEGIN DEFAULT ARGS####
-{
-    "operation": {
-        "value": "load",
-        "default_value":["load", "unload"],
-        "type": "complex"
-    },
-    "height":{
-        "value": 0.1,
-        "type": "float"
-    }
-}
-####END DEFAULT ARGS####
-"""
+from syspy import Di, Motor, MF, BasicModule, ScriptStatus
 
 
 class Module(BasicModule):
@@ -40,7 +21,6 @@ class Module(BasicModule):
         self.init = True
         self.status = ScriptStatus.NONE
         self.report_info = dict()
-        # self.motor = Motor()
         self.motor_speed = 0.1
         self.zero_pos = 0.0
         self.up_di = 6
@@ -219,7 +199,7 @@ class Module(BasicModule):
         while True:
             self.script_task_manage()  # 脚本任务状态管理
             # syspy.report.set_status(self.status)
-            # 睡眠50毫秒
+            # 睡眠0.5秒
             time.sleep(0.5)
 
 
