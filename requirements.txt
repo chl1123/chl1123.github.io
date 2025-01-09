@@ -1,0 +1,6 @@
+protobuf==5.29.2
+protobuf_to_pydantic==0.3.0.3
+pydantic==2.10.4
+pyzmq==26.2.0
+python-can==4.5.0
+pyserial==3.5
