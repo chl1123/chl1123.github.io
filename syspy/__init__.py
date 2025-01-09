@@ -101,7 +101,9 @@ class Report:
 
     def report_data(self):
         data = {
-            "report": ""
+            "moveStatus": ScriptStatus.NONE,
+            "info": "",
+            "taskId": -1
         }
         if self.run_status is not None:
             data["moveStatus"] = self.run_status.value

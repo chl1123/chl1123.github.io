@@ -10,25 +10,17 @@ from collections import deque
 
 sys.path.append('/opt/.data/rbk/resources/scripts/')
 import syspy
-from syspy import Di, Motor, MF, BasicModule, ScriptStatus
+from syspy import Di, Motor, MF, ScriptStatus
 
 
-class Module(BasicModule):
+class Module:
     def __init__(self):
-        super(Module, self).__init__()
-        self.timeout = 60
+        self.opt = None
         self.jack_motor_name = "Motor-003"
-        self.init = True
-        self.status = ScriptStatus.NONE
-        self.report_info = dict()
         self.motor_speed = 0.1
         self.zero_pos = 0.0
         self.up_di = 6
         self.zero_di = 3
-        self.task_queue = deque()
-        self.current_task = None
-        self.current_task_id = None
-        self.opt = None
         self.height = 0.03
         self.spinAngle = 0
         self.init_path = True
@@ -37,18 +29,19 @@ class Module(BasicModule):
         self.goPath_y = 0
         self.goPath_a = 0
 
-        syspy.report.set_status(self.status)
+        self.status = ScriptStatus.NONE
+        self.task_queue = deque()
+        self.current_task = None
+        self.current_task_id = None
 
     def update_cmd(self, args):
         self.task_queue.append(args)
 
     def cancel(self):
         self.status = ScriptStatus.NONE
-        syspy.report.set_status(self.status)
 
     def suspend(self):
         self.status = ScriptStatus.SUSPENDED
-        syspy.report.set_status(self.status)
 
     def run(self):
         self.status = ScriptStatus.RUNNING
@@ -75,11 +68,12 @@ class Module(BasicModule):
             self.getLM()
         else:
             pass
-        syspy.report.set_status(self.status)
 
     def reset(self):
-        self.status = ScriptStatus.RUNNING
-        syspy.report.set_status(self.status)
+        if self.current_task is not None:
+            self.status = ScriptStatus.RUNNING
+        else:
+            self.status = ScriptStatus.NONE
         self.spinAngle = 0
         self.init_path = True
         self.init_odo = True
@@ -97,8 +91,6 @@ class Module(BasicModule):
             self.current_task_id = self.current_task.get('taskId', None)
             self.status = ScriptStatus.RUNNING
             syspy.report.set_task_id(self.current_task_id)
-            syspy.report.set_status(self.status)
-            self.reset()
         else:
             print("task_queue empty")
             pass
@@ -113,7 +105,6 @@ class Module(BasicModule):
         if Di.get_di(self.up_di) or Motor.isMotorReached(self.jack_motor_name):
             print("load finish")
             self.status = ScriptStatus.FINISHED
-            syspy.report.set_status(self.status)
 
     def unload(self):
         print("unload: ", self.jack_motor_name, self.zero_pos, self.motor_speed, self.zero_di)
@@ -122,7 +113,6 @@ class Module(BasicModule):
         if Di.get_di(self.zero_di) or Motor.isMotorReached(self.jack_motor_name):
             print("unload finish")
             self.status = ScriptStatus.FINISHED
-            syspy.report.set_status(self.status)
 
     def spin(self):
         print("spin: ", self.spinAngle)
@@ -131,7 +121,6 @@ class Module(BasicModule):
         if finished:
             print("spin finish")
             self.status = ScriptStatus.FINISHED
-            syspy.report.set_status(self.status)
 
     def goPath(self):
         if self.init_path:
@@ -145,21 +134,18 @@ class Module(BasicModule):
         if finished:
             print("goPath finish")
             self.status = ScriptStatus.FINISHED
-            syspy.report.set_status(self.status)
 
     def getCurrentPathProperty(self):
         print("getCurrentPathProperty ==============================================")
         result = MF.getCurrentPathProperty()
         print("getCurrentPathProperty", result)
         self.status = ScriptStatus.FINISHED
-        syspy.report.set_status(self.status)
 
     def getLM(self):
         print("getLM ==============================================")
         result = MF.getLM("LM7", True)
         print("getLM", result)
         self.status = ScriptStatus.FINISHED
-        syspy.report.set_status(self.status)
 
     def odo(self):
         if self.init_odo:
@@ -172,10 +158,8 @@ class Module(BasicModule):
         if finished:
             print("!!!!!!!!!!!!!!!!!!!!!!!!!!runOdoMove finish")
             self.status = ScriptStatus.FINISHED
-            syspy.report.set_status(self.status)
 
     def script_task_manage(self):
-        self.status = syspy.report.run_status
         self.print_info()
         if self.status is ScriptStatus.NONE:
             self.init_task_args()
@@ -187,7 +171,8 @@ class Module(BasicModule):
             self.cancel()
         elif self.status is ScriptStatus.FINISHED:
             self.status = ScriptStatus.NONE
-            syspy.report.set_status(self.status)
+            self.current_task = None
+            self.current_task_id = None
 
     def print_info(self):
         print("current task_queue: ", self.task_queue)
@@ -198,7 +183,7 @@ class Module(BasicModule):
     def main(self):
         while True:
             self.script_task_manage()  # 脚本任务状态管理
-            # syspy.report.set_status(self.status)
+            syspy.report.set_status(self.status)
             # 睡眠0.5秒
             time.sleep(0.5)
 
