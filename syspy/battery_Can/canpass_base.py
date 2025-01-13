@@ -5,11 +5,12 @@ sys.path.append('/opt/.data/rbk/resources/scripts/')
 from syspy import Battery, Di, Do
 
 print("import syspy.lib.rpc_client as rc")
-import syspy.lib.rpc_client as rc
+# import syspy.lib.rpc_client as rc
 print("import syspy.lib.rpc_client as rc after")
 # import syspy.lib.rpc_server as rs
 import syspy.lib.udp_debug as ud
 print("import syspy.lib.udp_debug as ud after")
+from syspy import Abnormal
 # _syslog = ud.syslogDebug("can_battery")
 print("ud.syslogDebug after")
 sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
@@ -21,7 +22,7 @@ DEFAULT_RPC_ADDR = "ipc:///tmp/CanPass_rpc.ipc"
 class canPassBase:
     def __init__(self):
         print("canPassBase __init__")
-        self.__rpc_client = rc.rpcClient()
+        # self.__rpc_client = rc.rpcClient()
         # self.__rpc_client.connect(DEFAULT_RPC_ADDR)
         # self.__rpc_server = rs.rpcServer()
         # self.__rpc_server.registerFunction(self.setChargeStateOn)
@@ -109,22 +110,16 @@ class canPassBase:
         return Do.get_do(index)
 
     def setTimeout(self):
-        self.__rpc_client.setWarning(54001, "Can battery response time out")
+        Abnormal.setDevice(54001,"Can battery response time out")
 
     def clearTimeout(self):
-        self.__rpc_client.clearWarning(54001)
+        Abnormal.clear(54001)
 
-    def setWarning(self, warNum, warMessage):
-        self.__rpc_client.setWarning(warNum, warMessage)
-
-    def setError(self, errNum, errMessage):
-        self.__rpc_client.setError(errNum, errMessage)
-
-    def warningExists(self,code):
-        return self.__rpc_client.warningExists(code)
+    def setError(self, errNum, errMessage,reason='battery',method='check out',filename='btCanPass_xx.py'):
+        Abnormal.setDevice(errNum,errMessage,reason,method,filename)
 
     def errorExists(self,code):
-        return self.__rpc_client.errorExists(code)
+        return Abnormal.exists(code)
 
     def setChargeStateOn(self):
         self.need_charge = True
@@ -138,7 +133,7 @@ class canPassBase:
     def close(self):
         self.child.close()
         # self.__rpc_server.close()
-        self.__rpc_client.close()
+        # self.__rpc_client.close()
 
     def __del__(self):
         self.close()

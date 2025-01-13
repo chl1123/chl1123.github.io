@@ -131,10 +131,10 @@ class testCanBattery(cb.canPassBase):
                     self.setError(53140, "The current temperature has reached " + str(
                         temperature) + " degrees , low temperature error!")
                 elif -19 < temperature <= -15:
-                    self.setWarning(54400, "The current temperature has reached " + str(
+                    self.setError(54400, "The current temperature has reached " + str(
                         temperature) + " degrees , low temperature warning.")
                 elif 55 <= temperature < 59:
-                    self.setWarning(54400, "The current temperature has reached " + str(
+                    self.setError(54400, "The current temperature has reached " + str(
                         temperature) + " degrees , high temperature warning.")
                 elif temperature >= 59:
                     self.setError(53140, "The current temperature has reached " + str(
@@ -162,7 +162,7 @@ class testCanBattery(cb.canPassBase):
                     if cu.get_bit_val(msg.data[i], j) == 1:
                         if (i == 3 and j == 0) or (i == 1 and j == 2) or (i == 1 and j == 0) or (i == 1 and j == 1):
                             error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
-                            self.setWarning(54400, error_msg)
+                            self.setError(54400, error_msg)
                         else:
                             error_msg = "Battery pack number: " + tem[0:2] + " error msg: " + error_dict[(i, j)]
                             self.setError(53140, error_msg)
@@ -184,7 +184,7 @@ class testCanBattery(cb.canPassBase):
             self.connect_timeout_t.reset()
             self.wake_up = False
             if not self.clear:
-                if self.warningExists(54001):
+                if self.errorExists(54001):
                     print('clear')
                     self.clearTimeout()
                 else:
