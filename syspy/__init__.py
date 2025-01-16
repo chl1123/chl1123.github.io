@@ -1,5 +1,7 @@
 import inspect
 import os
+import queue
+import threading
 
 from .lib.rpc_client import rpcClient
 from .lib.rpc_sub import rpcSub
@@ -10,11 +12,12 @@ from .lib.can_frame import Can
 from .lib.model import Model
 from .lib.param import Param
 from .lib.net_protocol import NetProtocol
-from .lib.module import BasicModule, ScriptStatus
+from .lib.module import ScriptStatus
 
 from .battery import Battery
 from .bin import Bin
 from .camera import Camera
+from .charger import Charger
 from .controller import Controller
 from .dio import Di, Do
 from .distance import Distance
@@ -22,6 +25,7 @@ from .laser import Laser
 from .led import Led
 from .loc import Loc
 from .magnetic import Magnetic
+from .map import Map
 from .motor import Motor
 from .move import Move
 from .navigation import NavSpeed
@@ -47,6 +51,7 @@ __all__ = [
     'Battery',
     'Bin',
     'Camera',
+    'Charger',
     'Controller',
     'Di',
     'Do',
@@ -55,6 +60,7 @@ __all__ = [
     'Led',
     'Loc',
     'Magnetic',
+    'Map',
     'Motor',
     'Move',
     'NavSpeed',
@@ -85,47 +91,86 @@ def init(module_obj=None):
         rpc_sub = rpcSub()
         rpc_sub.registerFunction(module_obj.update_cmd, "update_cmd", extracted_path)
         rpc_sub.registerFunction(module_obj.suspend, "suspend", extracted_path)
-        rpc_sub.registerFunction(module_obj.reset, "reset", extracted_path)
+        rpc_sub.registerFunction(module_obj.resume, "resume", extracted_path)
         rpc_sub.registerFunction(module_obj.cancel, "cancel", extracted_path)
+        rpc_sub.registerFunction(module_obj.reset, "reset", extracted_path)
 
 
-url = "http://127.0.0.1:21006/api/v1/ide/send_ide_report"
-rpc_client = rpcClient()
-
-
-class Report:
+class BasicModule:
     def __init__(self):
-        self.run_status = None
-        self.info = None
-        self.task_id = None
+        self._lock = threading.Lock()
+        self._run_status = None
+        self._info = None
+        self._task_id = None
+        self.task_queue = queue.Queue()
+        self.rpc_client = rpcClient()
 
-    def report_data(self):
+    def __del__(self):
+        self.rpc_client.close()
+
+    def update_cmd(self, args):
+        self.task_queue.put(args)
+
+    def cancel(self):
+        self.status = ScriptStatus.NONE
+
+    def suspend(self):
+        if self.status == ScriptStatus.RUNNING:
+            self.status = ScriptStatus.SUSPENDED
+
+    def resume(self):
+        if self.status == ScriptStatus.SUSPENDED:
+            self.status = ScriptStatus.RUNNING
+        elif self.status != ScriptStatus.RUNNING:
+            self.status = ScriptStatus.NONE
+
+    def reset(self):
+        pass
+
+    def _report_data(self):
         data = {
             "moveStatus": ScriptStatus.NONE,
             "info": "",
             "taskId": -1
         }
-        if self.run_status is not None:
-            data["moveStatus"] = self.run_status.value
-        if self.info is not None:
-            data["info"] = self.info
-        if self.task_id is not None:
-            data["taskId"] = self.task_id
+        if self._run_status is not None:
+            data["moveStatus"] = self._run_status.value
+        if self._info is not None:
+            data["info"] = self._info
+        if self._task_id is not None:
+            data["taskId"] = self._task_id
         if extracted_path != "" and data != {}:
-            rpc_client.report(extracted_path, data)
+            self.rpc_client.report(extracted_path, data)
 
-    def set_task_id(self, task_id):
-        self.task_id = task_id
-        self.report_data()
+    @property
+    def task_id(self):
+        with self._lock:
+            return self._task_id
 
-    def set_status(self, status: ScriptStatus):
-        self.run_status = status
-        self.report_data()
+    @task_id.setter
+    def task_id(self, task_id):
+        with self._lock:
+            self._task_id = task_id
+            self._report_data()
 
-    def set_info(self, info):
-        self.info = info
-        self.report_data()
+    @property
+    def status(self) -> ScriptStatus:
+        with self._lock:
+            return self._run_status
 
+    @status.setter
+    def status(self, status: ScriptStatus):
+        with self._lock:
+            self._run_status = status
+            self._report_data()
 
-report = Report()
-script_name = None
+    @property
+    def info(self):
+        with self._lock:
+            return self._info
+
+    @info.setter
+    def info(self, info):
+        with self._lock:
+            self._info = info
+            self._report_data()

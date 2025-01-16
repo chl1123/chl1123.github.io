@@ -39,7 +39,7 @@ class zmqSub(object):
                 print(f"Sub: {self.data}")
                 res = {}
                 method_name = self.data['method']
-                if method_name in ["suspend", "reset", "cancel"]:
+                if method_name in ["suspend", "resume", "reset", "cancel"]:
                     for func_name, func in self.funs.items():
                         # 如果func_name以method_name结尾，则调用
                         if func_name.endswith(method_name):

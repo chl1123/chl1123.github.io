@@ -5,16 +5,14 @@
 # @Update:
 
 import time
-import sys
-from collections import deque
-
-sys.path.append('/opt/.data/rbk/resources/scripts/')
+import queue
 import syspy
 from syspy import Di, Motor, MF, ScriptStatus
 
 
-class Module:
+class Module(syspy.BasicModule):
     def __init__(self):
+        super().__init__()
         self.opt = None
         self.jack_motor_name = "Motor-003"
         self.motor_speed = 0.1
@@ -29,19 +27,33 @@ class Module:
         self.goPath_y = 0
         self.goPath_a = 0
 
-        self.status = ScriptStatus.NONE
-        self.task_queue = deque()
+        self.task_queue = queue.Queue()
         self.current_task = None
-        self.current_task_id = None
+        self.status = ScriptStatus.NONE
 
     def update_cmd(self, args):
-        self.task_queue.append(args)
+        self.task_queue.put(args)
 
     def cancel(self):
         self.status = ScriptStatus.NONE
 
     def suspend(self):
-        self.status = ScriptStatus.SUSPENDED
+        if self.status == ScriptStatus.RUNNING:
+            self.status = ScriptStatus.SUSPENDED
+
+    def resume(self):
+        if self.status == ScriptStatus.SUSPENDED:
+            self.status = ScriptStatus.RUNNING
+        elif self.status != ScriptStatus.RUNNING:
+            self.status = ScriptStatus.NONE
+
+    def reset(self):
+        self.spinAngle = 0
+        self.init_path = True
+        self.init_odo = True
+        self.goPath_x = 0
+        self.goPath_y = 0
+        self.goPath_a = 0
 
     def run(self):
         self.status = ScriptStatus.RUNNING
@@ -69,34 +81,17 @@ class Module:
         else:
             pass
 
-    def reset(self):
-        if self.current_task is not None:
-            self.status = ScriptStatus.RUNNING
-        else:
-            self.status = ScriptStatus.NONE
-        self.spinAngle = 0
-        self.init_path = True
-        self.init_odo = True
-        self.goPath_x = 0
-        self.goPath_y = 0
-        self.goPath_a = 0
-        print("reset*********************************************")
-
     def init_task_args(self):
         print("init_task_args")
-        if self.task_queue:  # 判断任务队列不为空
-            print("===================================================")
-            print("***********************task_queue self.current_task", self.current_task)
-            self.current_task = self.task_queue.popleft()  # 取出最先入队的任务
-            self.current_task_id = self.current_task.get('taskId', None)
+        print("===================================================")
+        print("***********************task_queue self.current_task", self.current_task)
+        try:
+            self.current_task = self.task_queue.get(True, 5)  # 取出最先入队的任务
+            self.task_id = self.current_task.get('taskId', None)
             self.status = ScriptStatus.RUNNING
-            syspy.report.set_task_id(self.current_task_id)
-        else:
-            print("task_queue empty")
-            pass
-
-    def get_robot_info(self):
-        pass
+        except queue.Empty:
+            print("task_queue is empty")
+            return
 
     def load(self):
         print("load: ", self.jack_motor_name, self.height, self.motor_speed, self.up_di)
@@ -160,7 +155,6 @@ class Module:
             self.status = ScriptStatus.FINISHED
 
     def script_task_manage(self):
-        self.print_info()
         if self.status is ScriptStatus.NONE:
             self.init_task_args()
         elif self.status is ScriptStatus.RUNNING:
@@ -169,23 +163,27 @@ class Module:
             self.suspend()
         elif self.status is ScriptStatus.FAILED:
             self.cancel()
+            self.current_task = None
+            self.task_id = None
         elif self.status is ScriptStatus.FINISHED:
             self.status = ScriptStatus.NONE
             self.current_task = None
-            self.current_task_id = None
+            self.task_id = None
 
     def print_info(self):
-        print("current task_queue: ", self.task_queue)
+        # 打印当前任务队列、当前任务、当前任务id、当前任务状态
+        print("task queue: ", list(self.task_queue.queue))
         print("current task: ", self.current_task)
-        print("current task id: ", self.current_task_id)
+        print("current task id: ", self.task_id)
         print("current task status: ", self.status)
 
     def main(self):
         while True:
             self.script_task_manage()  # 脚本任务状态管理
-            syspy.report.set_status(self.status)
+            self.print_info()
             # 睡眠0.5秒
             time.sleep(0.5)
+            break
 
 
 if __name__ == '__main__':
