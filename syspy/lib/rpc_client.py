@@ -97,12 +97,9 @@ class rpcStub(object):
         return response
 
     def __getattr__(self, function):
-        def _func(*, plugin: Optional[str], params: set):
-            bind_function = function
-            if plugin is not None:
-                bind_function = plugin + "::" + function
+        def _func(*args, **kwargs):
             try:
-                d = {'method_name': bind_function, 'method_args': params, 'method_kwargs': {}}
+                d = {'method_name': function, 'method_args': args, 'method_kwargs': kwargs}
                 return self.handle_request(d)
             except Exception as e:
                 print('rpcStub error', e)

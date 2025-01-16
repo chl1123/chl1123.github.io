@@ -48,11 +48,11 @@ class batteryBase:
         return Do.get_do(index)
 
     def setModbusData(self, type: str, addr: int, data: list) -> bool:
-        is_ok:bool  = self.__rpc_client.setModbusData(plugin="DSPChassis", parms=(type,addr,data))
+        is_ok:bool  = self.__rpc_client.setModbusData(type,addr,data)
         return is_ok
 
     def getModbusData(self, type: str, addr: int, size: int) -> list:
-        msg:list = self.__rpc_client.getModbusData(plugin="DSPChassis", parms=(type, addr, size))
+        msg:list = self.__rpc_client.getModbusData(type, addr, size)
         return msg
 
     def setTimeout(self):
