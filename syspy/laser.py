@@ -16,16 +16,16 @@ class Laser(Message[Message_AllLasers]):
 
     @classmethod
     @call_service(plugin_name="Perception")
-    def addDisableLaserId(cls, ids: list):
-        """禁用指定id数组的激光雷达
+    def addDisableLaserStrName(cls, ids: list):
+        """禁用多个指定名字的激光雷达
         Args:
-            ids (list): 指定的激光雷达id列表
+            ids (List(str)): 指定的激光雷达id列表
         """
         pass
 
     @classmethod
     @call_service(plugin_name="Perception")
-    def clearDisableLaserId(cls):
+    def clearDisableLaserStrName(cls):
         """清除禁用的激光
         """
         pass

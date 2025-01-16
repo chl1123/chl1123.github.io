@@ -48,16 +48,6 @@ class Motor(Service):
 
     @classmethod
     @call_service()
-    def isAllMotorsReached(cls) -> bool:
-        """所有电机是否到位
-
-        Returns:
-            bool: 如果所有电机到位则为True
-        """
-        pass
-
-    @classmethod
-    @call_service()
     def isMotorReached(cls, motor_name: str) -> bool:
         """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
 
@@ -99,7 +89,7 @@ class Motor(Service):
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
-    def disableMotor(cls, name: str) -> bool:
+    def disableMotor(cls, name: str):
         """电机去使能
         Args:
             name (str): 电机名称

@@ -5,25 +5,19 @@ from .py_rpc import Service, default_plugin, call_service
 class Trace(Service):
     @classmethod
     @call_service(func_name="scriptEventInstant")
-    def event(cls, msg: str) -> int:
+    def event(cls, msg: str):
         """
         Args:
             msg (str):
-
-        Returns:
-            bool:
         """
         pass
 
     @classmethod
     @call_service(func_name="scriptLog")
-    def log(cls, topic: str, msg: str) -> int:
+    def log(cls, topic: str, msg: str):
         """
         Args:
             topic (str):
             msg (str):
-
-        Returns:
-            bool:
         """
         pass

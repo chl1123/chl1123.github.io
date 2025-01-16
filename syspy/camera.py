@@ -16,16 +16,16 @@ class Camera(Message[Message_AllCameraCloud]):
 
     @classmethod
     @call_service(plugin_name="Perception")
-    def addDisableDepthId(cls, ids: list):
-        """禁用指定id的深度相机
+    def addDisableDepthStrName(cls, ids: list):
+        """禁用多个指定名字的深度相机
         Args:
-            ids (list): 指定的相机id列表
+            ids (List[str]): 指定的相机id列表
         """
         pass
 
     @classmethod
     @call_service(plugin_name="Perception")
-    def clearDisableDepthId(cls):
+    def clearDisableDepthStrName(cls):
         """清除禁用的深度相机
         """
         pass

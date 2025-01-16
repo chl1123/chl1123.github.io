@@ -21,13 +21,13 @@ class MF(Service):
 
     @classmethod
     @call_service()
-    def getLM(cls, name: str, flag: bool) -> tuple:
+    def getLM(cls, name: str, flag: bool) -> list:
         """获取点位坐标
         Args:
             name (str): 站点或者库位名称
             flag (bool): True 返回的坐标是地图坐标系， False返回的坐标是机器人坐标系
         Returns:
-            tuple: 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
+            list: 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
         """
         pass
 
@@ -42,7 +42,7 @@ class MF(Service):
 
     @classmethod
     @call_service()
-    def clearGoodsShape(cls) -> bool:
+    def clearGoodsShape(cls):
         """去除agv身上的状态
         """
         pass
@@ -84,14 +84,15 @@ class MF(Service):
 
     @classmethod
     @call_service()
-    def getNearestLaserPoint(cls, laser_id: int) -> tuple:
+    def getNearestLaserPoint(cls, laser_id: int) -> list:
         """获取与指定激光距离最近的激光点与激光中心的距离和朝向
 
         Args:
             laser_id (int): 激光 id 号
         Returns:
-            double: 最近激光点与激光中心的距离
-            double: 最近激光点与激光中心的夹角
+            list: List[double, double]
+                : 最近激光点与激光中心的距离
+                : 最近激光点与激光中心的夹角
         """
         pass
 
@@ -229,7 +230,7 @@ class MF(Service):
 
     @classmethod
     @call_service()
-    def resetLocalShelfArea(cls) -> bool:
+    def resetLocalShelfArea(cls):
         """取消顶升上的货架
 
         Returns:
@@ -326,7 +327,7 @@ class MF(Service):
 
     @classmethod
     @call_service()
-    def setLocalShelfArea(cls, object_model_path: str) -> bool:
+    def setLocalShelfArea(cls, object_model_path: str):
         """加载顶升上的货物模型
 
         Args:
@@ -554,7 +555,7 @@ class MF(Service):
 
     @classmethod
     @call_service()
-    def stopSound(cls, flag: bool) -> None:
+    def stopSound(cls, flag: bool):
         """停止播放音乐
 
         Args:

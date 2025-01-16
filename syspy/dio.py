@@ -66,7 +66,7 @@ class Do(Message[Message_DO]):
     _MODEL_CLASS = Message_DO
 
     @classmethod
-    def get_do(cls, do: int):
+    def get_do(cls, do: int) -> bool:
         """检测单个DO状态信息
         Args:
             do (int): 需要检测的 DO

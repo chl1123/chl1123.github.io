@@ -17,7 +17,7 @@ class Can(Message[CanFrame]):
 
     @classmethod
     @call_service(func_name="sendPassThroughCanFrame")
-    def sendPassThroughCanFrame(cls, channel: int, can_id: int, dlc: int, extend: bool, can_string: str) -> bool:
+    def sendPassThroughCanFrame(cls, channel: int, can_id: int, dlc: int, extend: bool, can_string: str):
         """
         Args:
             channel (int):
@@ -33,7 +33,7 @@ class Can(Message[CanFrame]):
 
     @classmethod
     @call_service(func_name="sendCanFrame")
-    def sendCanFrame(cls, channel: int, can_id: int, dlc: int, extend: bool, can_string: str) -> bool:
+    def sendCanFrame(cls, channel: int, can_id: int, dlc: int, extend: bool, can_string: str):
         """
         Args:
             channel (int):
