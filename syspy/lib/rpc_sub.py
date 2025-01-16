@@ -13,7 +13,7 @@ class zmqSub(object):
         self.data = None
         self.__should_close = threading.Event()  # 线程关闭标志
         self.__lock = threading.Lock()  # 创建锁对象
-        self.msg_thread = threading.Thread(target=self.__loop, name="loop")
+        self.msg_thread = threading.Thread(target=self.__loop, name="zmqSub", daemon=True)
         self.msg_thread.start()
 
     def close(self):

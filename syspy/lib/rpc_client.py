@@ -12,15 +12,19 @@ class zmqClient(object):
         self.socket = self.context.socket(zmq.REQ)
         self.poller = zmq.Poller()
         self.poller.register(self.socket, zmq.POLLIN)
-        self.stop_flag = False
+        self.stop_flag = threading.Event()  # 线程关闭标志
         self.func_json = ""
         self.queue = queue.Queue()
-        self.worker_thread = threading.Thread(target=self.worker, name="worker")
+        self.worker_thread = threading.Thread(target=self.worker, name="zmqClient", daemon=True)
         self.worker_thread.start()
+
+    def __del__(self):
+        self.close()
 
     def close(self):
         print("close the socket")
-        self.stop_flag = True
+        self.stop_flag.set()
+        self.queue.put((None, None))
         self.worker_thread.join()  # 等待线程结束
         self.socket.close()
 
@@ -35,7 +39,7 @@ class zmqClient(object):
         return self.socket.recv()
 
     def worker(self):
-        while not self.stop_flag:
+        while not self.stop_flag.is_set():
             try:
                 data, event = self.queue.get(timeout=1)
                 self.socket.send(data)  # 发送数据
@@ -54,6 +58,8 @@ class zmqClient(object):
             except queue.Empty:
                 continue
             except Exception as e:
+                if self.stop_flag.is_set():
+                    break
                 print(f'worker error:{e},send{self.func_json}')
         print('exit worker')
 
@@ -87,6 +93,7 @@ class rpcStub(object):
         message = {"method_name": function, "method_args": args, "method_kwargs": kwargs}
         print("call_service", message)
         response = self.handle_request(message)
+        print(function, " -> ", response)
         return response
 
     def __getattr__(self, function):

@@ -4,13 +4,14 @@ import inspect
 
 class zmqServer(object):
     def __init__(self):
+        self.funs = {}
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind("ipc:///tmp/cpp2python_rpc.ipc")
         self.data = None
         self.__should_close = threading.Event()  # 线程关闭标志
         self.__lock = threading.Lock()  # 创建锁对象
-        self.msg_thread = threading.Thread(target=self.__loop, name="loop")
+        self.msg_thread = threading.Thread(target=self.__loop, name="zmqServer", daemon=True)
         self.msg_thread.start()
 
     def close(self):
@@ -35,6 +36,7 @@ class zmqServer(object):
                 self.data = json.loads(message.decode('utf-8'))
                 print(f"server: {self.data}")
                 method_name = self.data['method']
+                res = {}
                 if method_name in ["suspend", "reset", "cancel"]:
                     for func_name, func in self.funs.items():
                         # 如果func_name以method_name结尾，则调用
