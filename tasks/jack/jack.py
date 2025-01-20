@@ -183,7 +183,6 @@ class Module(syspy.BasicModule):
             self.print_info()
             # 睡眠0.5秒
             time.sleep(0.5)
-            break
 
 
 if __name__ == '__main__':

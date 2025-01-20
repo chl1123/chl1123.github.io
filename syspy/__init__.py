@@ -124,9 +124,6 @@ class BasicModule:
         elif self.status != ScriptStatus.RUNNING:
             self.status = ScriptStatus.NONE
 
-    def reset(self):
-        pass
-
     def _report_data(self):
         data = {
             "moveStatus": ScriptStatus.NONE,
