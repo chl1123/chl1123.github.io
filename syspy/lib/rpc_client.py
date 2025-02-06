@@ -1,6 +1,7 @@
 import time
-from typing import Optional
+import uuid
 
+from .logger import log
 import zmq, json, threading, sys, queue, os
 
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
@@ -22,7 +23,7 @@ class zmqClient(object):
         self.close()
 
     def close(self):
-        print("close the socket")
+        log.info("zmqClient close the socket")
         self.stop_flag.set()
         self.queue.put((None, None))
         self.worker_thread.join()  # 等待线程结束
@@ -42,16 +43,13 @@ class zmqClient(object):
         while not self.stop_flag.is_set():
             try:
                 data, event = self.queue.get(timeout=1)
-                self.socket.send(data)  # 发送数据
-
+                self.socket.send(json.dumps(data).encode('utf-8'))  # 发送数据
                 events = dict(self.poller.poll(5000))
                 if self.socket in events:
                     response = self.recv()
                     event.result = response
-                    # print(f"event.result: {event.result}")
                     event.set()
                 else:
-                    print("poller Timeout,exit")
                     event.result = None
                     event.set()
                     sys.exit(1)
@@ -60,65 +58,57 @@ class zmqClient(object):
             except Exception as e:
                 if self.stop_flag.is_set():
                     break
-                print(f'worker error:{e},send{self.func_json}')
-        print('exit worker')
+                log.error(f"worker error:{e}, send{self.func_json}")
+        log.info("zmqClient worker exit")
 
 
 class rpcStub(object):
     def get_message(self, topic: str, plugin: str) -> str:
-        d = {
-            "method_name": "NetProtocol::getMessage",
-            "method_args": [topic, plugin],
-            'method_kwargs': {}
-        }
-        return self.handle_request(d)
+        return self.handle_request("NetProtocol::getMessage", [topic, plugin])
 
     def report(self, name: str, data) -> str:
         if isinstance(data, dict):
             data = json.dumps(data)
-        d = {
-            "method_name": "MoveFactory::report",
-            "method_args": [name, data],
-            'method_kwargs': {}
-        }
-        print("report", d)
-        return self.handle_request(d)
+        return self.handle_request("MoveFactory::report", [name, data])
 
-    def call_service(self, plugin, function: str, *args, **kwargs) -> str:
+    def call_service(self, plugin, function: str, /, *args, **kwargs):
         if args is None:
             args = []
         if plugin is not None:
             function = plugin + "::" + function
-
-        message = {"method_name": function, "method_args": args, "method_kwargs": kwargs}
-        print("call_service", message)
-        response = self.handle_request(message)
-        print(function, " -> ", response)
-        return response
+        return self.handle_request(function, list(args))
 
     def __getattr__(self, function):
         def _func(*args, **kwargs):
             try:
-                d = {'method_name': function, 'method_args': args, 'method_kwargs': kwargs}
-                return self.handle_request(d)
+                return self.handle_request(function, list(args))
             except Exception as e:
-                print('rpcStub error', e)
+                log.error(f"rpcStub error:{e}")
 
         setattr(self, function, _func)
         return _func
 
     # 提取公共的部分为方法
-    def handle_request(self, d) -> str:
-        self.func_json = json.dumps(d).encode('utf-8')
+    def handle_request(self, method: str, params: list):
+        request = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params,
+            "id": str(uuid.uuid4())
+        }
         event = threading.Event()
-        self.putQueue(self.func_json, event)
+        self.putQueue(request, event)
+        log.info(f"req => {request}")
         event.wait()
         if event.result:
-            reply = json.loads(event.result.decode())
-            return reply["res"]
+            response = json.loads(event.result.decode())
+            if "error" in response:
+                log.error(f"res <= {response}")
+            else:
+                log.info(f"res <= {response}")
+                return response["result"]
         else:
-            print("poller Timeout or No result")
-            os._exit(1)
+            log.error("poller Timeout")
             return ""
 
 
