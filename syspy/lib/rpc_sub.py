@@ -1,5 +1,5 @@
 import zmq, json, threading
-
+from .logger import log
 
 class zmqSub(object):
     def __init__(self):
@@ -17,7 +17,7 @@ class zmqSub(object):
         self.msg_thread.start()
 
     def close(self):
-        print("close the socket")
+        log.info("zmqSub close the socket")
         self.__should_close.set()  # 通知线程关闭
         self.socket.close()  # 关闭 socket 会终止 recv 的阻塞状态
         self.context.term()  # 终止 context
@@ -36,10 +36,10 @@ class zmqSub(object):
             try:
                 message = self.socket.recv()  # 阻塞等待消息
                 self.data = json.loads(message.decode('utf-8'))
-                print(f"Sub: {self.data}")
+                log.info(f"zmqSub recv: {self.data}")
                 res = {}
                 method_name = self.data['method']
-                if method_name in ["suspend", "resume", "reset", "cancel"]:
+                if method_name in ["suspend", "resume", "cancel"]:
                     for func_name, func in self.funs.items():
                         # 如果func_name以method_name结尾，则调用
                         if func_name.endswith(method_name):
@@ -61,13 +61,13 @@ class zmqSub(object):
                 else:
                     continue
                 data = {"res": res, "code": 0}
-                print(f'data: {data}')
+                log.info(f"zmqSub data: {data}")
             except zmq.ZMQError as e:
                 if self.__should_close.is_set():
                     break  # 关闭线程时会触发 ZMQError，结束循环
-                print('Sub loop error, zmq.ZMQError: ', e)
+                log.error(f"zmqSub loop error, zmq.ZMQError: {e}")
             except Exception as e:
-                print('Sub loop error, Exception: ', e)
+                log.error(f"zmqSub loop error, Exception: {e}")
                 break
 
 
@@ -91,9 +91,8 @@ class rpcSub(zmqSub):
             register_name = method_name
         else:  # 否则，取脚本名.函数名
             register_name = script_name + '.' + method_name
-        print("registerFunction", register_name)
         self.funs[register_name] = function
-        print("registerFunction", self.funs)
+        log.info(f"registerFunction: {self.funs}")
 
 
 if __name__ == '__main__':

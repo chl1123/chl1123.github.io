@@ -1,5 +1,6 @@
 import zmq, json, threading
 import inspect
+from .logger import log
 
 
 class zmqServer(object):
@@ -15,7 +16,7 @@ class zmqServer(object):
         self.msg_thread.start()
 
     def close(self):
-        print("close the socket")
+        log.info("zmqServer close the socket")
         self.__should_close.set()  # 通知线程关闭
         self.socket.close()  # 关闭 socket 会终止 recv 的阻塞状态
         self.context.term()  # 终止 context
@@ -34,7 +35,7 @@ class zmqServer(object):
             try:
                 message = self.socket.recv()  # 阻塞等待消息
                 self.data = json.loads(message.decode('utf-8'))
-                print(f"server: {self.data}")
+                log.info(f"zmqServer recv: {self.data}")
                 method_name = self.data['method']
                 res = {}
                 if method_name in ["suspend", "reset", "cancel"]:
@@ -48,7 +49,6 @@ class zmqServer(object):
                     if method_name in self.funs:
                         func = self.funs[method_name]
                         args = self.data['args']
-                        print(f'method_name: {method_name}')
                         if args is None:
                             res = func()
                         if isinstance(args, dict):
@@ -62,16 +62,16 @@ class zmqServer(object):
                 else:
                     res = -1
                 data = {"res": res, "code": 0}
-                print(f'data: {data}')
+                log.info(f"zmqServer send: {data}")
                 self.socket.send(json.dumps(data).encode('utf-8'))
             except zmq.ZMQError as e:
                 # self.socket.send(json.dumps({"code": -1}).encode('utf-8'))
                 if self.__should_close.is_set():
                     break  # 关闭线程时会触发 ZMQError，结束循环
-                print('server loop error, zmq.ZMQError: ', e)
+                log.error(f"zmqServer loop error, zmq.ZMQError: {e}")
             except Exception as e:
                 self.socket.send(json.dumps({"code": -1}).encode('utf-8'))
-                print('server loop error, Exception: ', e)
+                log.error(f"zmqServer loop error, Exception: {e}")
                 break
 
 
@@ -86,10 +86,8 @@ class rpcStub(object):
         if script_name is None:
             script_name = inspect.stack()[1].filename
         name = script_name + '.' + name
-        print("registerFunction", name)
         self.funs[name] = function
-        print("registerFunction", self.funs)
-
+        log.info(f"registerFunction: {self.funs}")
 
 class rpcServer(zmqServer, rpcStub):
     def __init__(self):

@@ -3,6 +3,7 @@ import os
 import fasteners
 import pickle
 
+from .logger import log
 
 class LevelDB:
     _db_path = "/opt/.data/rbk/private/runtimes/containers_leveldb"
@@ -32,7 +33,7 @@ class LevelDB:
                     try:
                         cls._db = plyvel.DB(cls._db_path, create_if_missing=True)
                     except Exception as e:
-                        print(f"LevelDB: Failed to initialize database: {e}")
+                        log.error(f"LevelDB: Failed to initialize database: {e}")
                         return False
         return True
 
@@ -42,10 +43,10 @@ class LevelDB:
         with cls._lock:  # 写锁
             try:
                 cls._db.put(cls._to_bytes(key), cls._to_bytes(value))
-                print(f"LevelDB: Data put successfully: {key} -> {value}")
+                log.info(f"LevelDB: Data put successfully: {key} -> {value}")
                 return True
             except Exception as e:
-                print(f"LevelDB: Failed to put data into database: {e}")
+                log.error(f"LevelDB: Failed to put data into database: {e}")
                 return False
 
     @classmethod
@@ -54,11 +55,11 @@ class LevelDB:
         try:
             result = cls._db.get(cls._to_bytes(key))
             if result is None:
-                print(f"LevelDB: Key not found: {key}")
+                log.error(f"LevelDB: Key not found: {key}")
                 return None
             return cls._from_bytes(result)  # 返回原始数据类型
         except Exception as e:
-            print(f"LevelDB: Failed to get data from database: {e}")
+            log.error(f"LevelDB: Failed to get data from database: {e}")
             return None
 
     @classmethod
@@ -67,10 +68,10 @@ class LevelDB:
         with cls._lock:  # 写锁
             try:
                 cls._db.delete(cls._to_bytes(key))
-                print(f"LevelDB: Data deleted successfully: {key}")
+                log.info(f"LevelDB: Data deleted successfully: '{key}'")
                 return True
             except Exception as e:
-                print(f"LevelDB: Failed to delete data from database: {e}")
+                log.error(f"LevelDB: Failed to delete data '{key}' from database: {e}")
                 return False
 
     @classmethod
@@ -78,9 +79,9 @@ class LevelDB:
         if cls._db is not None:
             cls._db.close()
             cls._db = None
-            print("LevelDB: Database connection closed successfully")
+            log.info("LevelDB: Database connection closed successfully")
             return True
-        print("LevelDB: Database connection was already closed")
+        log.info("LevelDB: Database connection was already closed")
         return True
 
 
