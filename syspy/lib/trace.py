@@ -14,7 +14,7 @@ class Trace(Service):
 
     @classmethod
     @call_service(func_name="scriptLog")
-    def log(cls, topic: str, msg: str):
+    def data(cls, topic: str, msg: str):
         """
         Args:
             topic (str):

@@ -13,3 +13,8 @@ class Controller(Message[Message_Controller]):
     _TOPIC = "rbk.protocol.Message_Controller"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = Message_Controller
+
+    @classmethod
+    def get_emc(cls) -> bool:
+        if cls.update():
+            return cls.data.emc

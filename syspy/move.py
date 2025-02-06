@@ -24,3 +24,8 @@ class Move(Message[Message_MoveStatus]):
             bool: 如果行走电机停止则为True
         """
         pass
+
+    @classmethod
+    def get_block(cls):
+        if cls.update():
+            return cls.data.blocked

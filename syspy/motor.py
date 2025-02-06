@@ -1,8 +1,40 @@
-from .lib.py_rpc import Service, default_plugin, call_service
+from typing import Union
 
+from .navigation import NavSpeed
+from .lib.py_rpc import Service, default_plugin, call_service
+from .odometer import Odometer
 
 @default_plugin("MoveFactory")
 class Motor(Service):
+    @staticmethod
+    def get_motor_pos(motor_name: str) -> Union[float, int]:
+        """
+        获取指定电机的当前位置
+        :param motor_name: 电机名称
+        :return: 返回电机的当前位置，若电机不存在返回 -1
+        """
+
+        motor_pos = -1
+        if Odometer.update():
+            for motor in Odometer.data.motor_info:
+                if motor.motor_name == motor_name:
+                    motor_pos = motor.position
+        return motor_pos
+
+    @staticmethod
+    def get_motor_speed(motor_name: str) -> Union[float, int]:
+        """
+        获取指定电机的当前速度
+        :param motor_name:
+        :return: 返回电机的当前速度，若电机不存在返回 -1
+        """
+        motor_speed = -1
+        if NavSpeed.update():
+            for motor in NavSpeed.data.motor_cmd:
+                if motor.motor_name == motor_name:
+                    motor_speed = motor.value
+        return motor_speed
+
     @classmethod
     @call_service()
     def setMotorSpeed(cls, name: str, vel: float, stopDI: int) -> bool:

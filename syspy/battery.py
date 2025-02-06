@@ -15,6 +15,17 @@ class Battery(Message[Message_Battery]):
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = Message_Battery
 
+
+    @classmethod
+    def get_percentage(cls) -> float:
+        if cls.update():
+            return cls.data.percetage
+
+    @classmethod
+    def get_is_charge(cls) -> bool:
+        if cls.update():
+            return cls.data.is_charging
+
     @classmethod
     @call_service(func_name="getBatteryMaxPercentage")
     def getAlarmPercentage(cls) -> int:
@@ -28,7 +39,7 @@ class Battery(Message[Message_Battery]):
 
     @classmethod
     @call_service(func_name="publishBattery")
-    def publish(cls, battery_info) -> None:
+    def publish(cls, battery_info) -> int:
         pass
 
     @classmethod
