@@ -121,10 +121,8 @@ class MF(Service):
 
     @classmethod
     @call_service()
-    def goMapPath(cls, task: str) -> int:
+    def goMapPath(cls) -> int:
         """按地图路线行走
-        Returns:
-            int: 任务状态。和 MoveStatus 相同
         """
         pass
 

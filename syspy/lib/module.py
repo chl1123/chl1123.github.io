@@ -75,42 +75,6 @@ def Pos2Base(pos2world, base2world):
     return pos2base
 
 
-class BasicModule:
-    def __init__(self):
-        self._status = ScriptStatus.NONE
-        self.status_change_callback = None
-
-    def run(self):
-        pass
-
-    def update_cmd(self, args):
-        self._status = ScriptStatus.RUNNING
-        return self._status.value
-
-    def reset(self):
-        self._status = ScriptStatus.RUNNING
-
-    def suspend(self):
-        self._status = ScriptStatus.SUSPENDED
-
-    def cancel(self):
-        self._status = ScriptStatus.NONE
-
-    @property
-    def status(self):
-        return self._status
-
-    @status.setter
-    def status(self, new_status):
-        if self._status != new_status:
-            self._status = new_status
-            if self.status_change_callback:
-                self.status_change_callback(self._status)
-
-    def register_status_change_callback(self, callback):
-        self.status_change_callback = callback
-
-
 class ParamServer:
     """
     参数服务:构建的参数以json的格式保存在params的文件夹下，参数文件名为脚本名称，后缀为json。

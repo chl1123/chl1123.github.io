@@ -2,6 +2,7 @@ import inspect
 import os
 import queue
 import threading
+import time
 
 from .lib.rpc_client import rpcClient
 from .lib.rpc_sub import rpcSub
@@ -86,14 +87,12 @@ def init(module_obj=None):
     else:
         extracted_path = dir_name  # 如果没有找到 'devices' 或 'tasks'，则保持原路径
 
-    print("extracted_path", extracted_path)
     if module_obj is not None:
         rpc_sub = rpcSub()
         rpc_sub.registerFunction(module_obj.update_cmd, "update_cmd", extracted_path)
         rpc_sub.registerFunction(module_obj.suspend, "suspend", extracted_path)
         rpc_sub.registerFunction(module_obj.resume, "resume", extracted_path)
         rpc_sub.registerFunction(module_obj.cancel, "cancel", extracted_path)
-        rpc_sub.registerFunction(module_obj.reset, "reset", extracted_path)
 
 
 class BasicModule:
@@ -104,6 +103,8 @@ class BasicModule:
         self._task_id = None
         self.task_queue = queue.Queue()
         self.rpc_client = rpcClient()
+
+        self.current_task = None
 
     def __del__(self):
         self.rpc_client.close()
@@ -121,8 +122,6 @@ class BasicModule:
     def resume(self):
         if self.status == ScriptStatus.SUSPENDED:
             self.status = ScriptStatus.RUNNING
-        elif self.status != ScriptStatus.RUNNING:
-            self.status = ScriptStatus.NONE
 
     def _report_data(self):
         data = {
@@ -171,3 +170,45 @@ class BasicModule:
         with self._lock:
             self._info = info
             self._report_data()
+
+    def init_task_args(self):
+        print("***********************task_queue self.current_task", self.current_task)
+        try:
+            self.current_task = self.task_queue.get(True, 5)  # 取出最先入队的任务
+            self.task_id = self.current_task.get('taskId', None)
+            self.status = ScriptStatus.RUNNING
+        except queue.Empty:
+            print("task_queue is empty")
+            return
+
+    def run(self):
+        self.status = ScriptStatus.RUNNING
+        pass
+
+    def print_info(self):
+        # 睡眠0.05秒
+        time.sleep(0.05)
+        # 打印当前任务队列、当前任务、当前任务id、当前任务状态
+        print("task queue: ", list(self.task_queue.queue))
+        print("current task: ", self.current_task)
+        print("current task id: ", self.task_id)
+        print("current task status: ", self.status)
+
+    def main(self):
+        while True:
+            # 脚本任务状态管理
+            if self.status is ScriptStatus.NONE:
+                self.init_task_args()
+            elif self.status is ScriptStatus.RUNNING:
+                self.run()
+            elif self.status is ScriptStatus.SUSPENDED:
+                self.suspend()
+            elif self.status is ScriptStatus.FAILED:
+                self.cancel()
+                self.current_task = None
+                self.task_id = None
+            elif self.status is ScriptStatus.FINISHED:
+                self.status = ScriptStatus.NONE
+                self.current_task = None
+                self.task_id = None
+            self.print_info()

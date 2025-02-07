@@ -5,7 +5,6 @@
 # @Update:
 
 import time
-import queue
 import syspy
 from syspy import Di, Motor, MF, ScriptStatus
 
@@ -27,25 +26,8 @@ class Module(syspy.BasicModule):
         self.goPath_y = 0
         self.goPath_a = 0
 
-        self.task_queue = queue.Queue()
         self.current_task = None
         self.status = ScriptStatus.NONE
-
-    def update_cmd(self, args):
-        self.task_queue.put(args)
-
-    def cancel(self):
-        self.status = ScriptStatus.NONE
-
-    def suspend(self):
-        if self.status == ScriptStatus.RUNNING:
-            self.status = ScriptStatus.SUSPENDED
-
-    def resume(self):
-        if self.status == ScriptStatus.SUSPENDED:
-            self.status = ScriptStatus.RUNNING
-        elif self.status != ScriptStatus.RUNNING:
-            self.status = ScriptStatus.NONE
 
     def reset(self):
         self.spinAngle = 0
@@ -80,18 +62,6 @@ class Module(syspy.BasicModule):
             self.getLM()
         else:
             pass
-
-    def init_task_args(self):
-        print("init_task_args")
-        print("===================================================")
-        print("***********************task_queue self.current_task", self.current_task)
-        try:
-            self.current_task = self.task_queue.get(True, 5)  # 取出最先入队的任务
-            self.task_id = self.current_task.get('taskId', None)
-            self.status = ScriptStatus.RUNNING
-        except queue.Empty:
-            print("task_queue is empty")
-            return
 
     def load(self):
         print("load: ", self.jack_motor_name, self.height, self.motor_speed, self.up_di)
@@ -154,36 +124,14 @@ class Module(syspy.BasicModule):
             print("!!!!!!!!!!!!!!!!!!!!!!!!!!runOdoMove finish")
             self.status = ScriptStatus.FINISHED
 
-    def script_task_manage(self):
-        if self.status is ScriptStatus.NONE:
-            self.init_task_args()
-        elif self.status is ScriptStatus.RUNNING:
-            self.run()
-        elif self.status is ScriptStatus.SUSPENDED:
-            self.suspend()
-        elif self.status is ScriptStatus.FAILED:
-            self.cancel()
-            self.current_task = None
-            self.task_id = None
-        elif self.status is ScriptStatus.FINISHED:
-            self.status = ScriptStatus.NONE
-            self.current_task = None
-            self.task_id = None
-
     def print_info(self):
+        # 睡眠0.05秒
+        time.sleep(0.05)
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
         print("task queue: ", list(self.task_queue.queue))
         print("current task: ", self.current_task)
         print("current task id: ", self.task_id)
         print("current task status: ", self.status)
-
-    def main(self):
-        while True:
-            self.script_task_manage()  # 脚本任务状态管理
-            self.print_info()
-            # 睡眠0.5秒
-            time.sleep(0.5)
-
 
 if __name__ == '__main__':
     module = Module()
