@@ -1,7 +1,7 @@
 import time
 import uuid
 
-from .logger import log
+from syspy.lib.logger import log
 import zmq, json, threading, sys, queue, os
 
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
@@ -44,15 +44,15 @@ class zmqClient(object):
             try:
                 data, event = self.queue.get(timeout=1)
                 self.socket.send(json.dumps(data).encode('utf-8'))  # 发送数据
+                # 利用 self.poller.poll(5000) 对发送的数据进行轮询，等待最多 5000 毫秒
                 events = dict(self.poller.poll(5000))
+                # 如果 socket 在从 poll 返回的事件中，则表示收到了响应
                 if self.socket in events:
                     response = self.recv()
                     event.result = response
-                    event.set()
-                else:
+                else:  # 5秒内没有收到响应（即 socket 不在从 poll 返回的事件中）
                     event.result = None
-                    event.set()
-                    sys.exit(1)
+                event.set()
             except queue.Empty:
                 continue
             except Exception as e:
@@ -97,9 +97,12 @@ class rpcStub(object):
             "id": str(uuid.uuid4())
         }
         event = threading.Event()
+        # 将请求放入队列，并传入事件对象
         self.putQueue(request, event)
         log.info(f"req => {request}")
+        # 阻塞等待，直到工作线程处理完成并调用 event.set() 通知结果已经返回
         event.wait()
+        # 如果 event.result 不为空，则表示收到了响应
         if event.result:
             response = json.loads(event.result.decode())
             if "error" in response:
@@ -107,7 +110,7 @@ class rpcStub(object):
             else:
                 log.info(f"res <= {response}")
                 return response["result"]
-        else:
+        else:  #  event.result 为 None
             log.error("poller Timeout")
             return ""
 

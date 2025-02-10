@@ -5,7 +5,7 @@ from typing import Optional, Type, TypeVar, Generic, Union, List
 import inspect
 from pydantic import BaseModel
 
-from .rpc_client import rpcClient
+from .rpc.client import rpcClient
 from .logger import log
 
 T = TypeVar('T', bound=BaseModel)

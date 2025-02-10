@@ -4,8 +4,8 @@ import queue
 import threading
 import time
 
-from .lib.rpc_client import rpcClient
-from .lib.rpc_sub import rpcSub
+from .lib.rpc.server import rpcServer
+from .lib.rpc.client import rpcClient
 
 from .lib.abnormal import Abnormal
 from .lib.trace import Trace
@@ -88,11 +88,11 @@ def init(module_obj=None):
         extracted_path = dir_name  # 如果没有找到 'devices' 或 'tasks'，则保持原路径
 
     if module_obj is not None:
-        rpc_sub = rpcSub()
-        rpc_sub.registerFunction(module_obj.update_cmd, "update_cmd", extracted_path)
-        rpc_sub.registerFunction(module_obj.suspend, "suspend", extracted_path)
-        rpc_sub.registerFunction(module_obj.resume, "resume", extracted_path)
-        rpc_sub.registerFunction(module_obj.cancel, "cancel", extracted_path)
+        rpc_server = rpcServer(extracted_path)
+        rpc_server.registerFunction(module_obj.update_cmd, "update_cmd")
+        rpc_server.registerFunction(module_obj.suspend, "suspend")
+        rpc_server.registerFunction(module_obj.resume, "resume")
+        rpc_server.registerFunction(module_obj.cancel, "cancel")
 
 
 class BasicModule:

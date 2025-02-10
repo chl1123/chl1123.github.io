@@ -1,7 +1,6 @@
-import sys,can,threading,subprocess
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
-import message_battery_aarch64_pb2
+import can, threading
+from syspy.protobuf import message_battery_aarch64_pb2
+
 
 class canPassAarch64():
     def __init__(self):

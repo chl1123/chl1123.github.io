@@ -1,5 +1,5 @@
 import zmq, json, threading
-from .logger import log
+from syspy.lib.logger import log
 
 class zmqSub(object):
     def __init__(self):
@@ -38,6 +38,9 @@ class zmqSub(object):
                 self.data = json.loads(message.decode('utf-8'))
                 log.info(f"zmqSub recv: {self.data}")
                 res = {}
+                if "method" not in self.data:
+                    log.error("zmqSub recv: method not found")
+                    continue
                 method_name = self.data['method']
                 if method_name in ["suspend", "resume", "cancel"]:
                     for func_name, func in self.funs.items():
@@ -105,3 +108,5 @@ if __name__ == '__main__':
     a = Test()
     test = rpcSub()
     test.registerFunction(a.setChargeStateOn)
+    import time
+    time.sleep(60)

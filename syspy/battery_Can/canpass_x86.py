@@ -1,17 +1,13 @@
-import sys
 import syspy.lib.pass_through as pt
 from syspy import Can
+from syspy.protobuf import CanFrame_pb2, message_battery_pb2
 
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/protobuf')
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 DEFAULT_PASS_ADDR = "ipc:///tmp/CanPass_udp.ipc"
-import message_battery_pb2
-import CanFrame_pb2
+
 
 class canPassX86():
-    def __init__(self, rpc_client):
+    def __init__(self):
         print("canPassX86 start!")
-        self.rpc_client = rpc_client
         self.__pass = pt.passThrough()
         self.__pass.canConnect(DEFAULT_PASS_ADDR,"ECanFrame_pass_py")
 

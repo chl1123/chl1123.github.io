@@ -1,6 +1,6 @@
 import sys,platform
-import syspy.lib.rpc_client as rc
-import syspy.lib.rpc_server as rs
+import syspy.lib.rpc.client as rc
+import syspy.lib.rpc.server as rs
 import syspy.lib.udp_debug as ud
 from syspy import Battery, Di, Do
 
@@ -83,7 +83,6 @@ class batteryBase:
         return self.need_charge
 
     def __del__(self):
-        self.__rpc_server.close()
         self.__rpc_client.close()
 
 if __name__ == "__main__":

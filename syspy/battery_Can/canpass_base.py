@@ -1,37 +1,26 @@
 import sys,platform,os,json
 
-sys.path.append('/opt/.data/rbk/resources/scripts/')
-
+import syspy.lib.rpc.server as rs
+from syspy.protobuf.messsage import Message_Battery
 from syspy import Battery, Di, Do
 
-print("import syspy.lib.rpc_client as rc")
-# import syspy.lib.rpc_client as rc
-print("import syspy.lib.rpc_client as rc after")
-# import syspy.lib.rpc_server as rs
 import syspy.lib.udp_debug as ud
 print("import syspy.lib.udp_debug as ud after")
 from syspy import Abnormal
 # _syslog = ud.syslogDebug("can_battery")
-print("ud.syslogDebug after")
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 from google.protobuf.json_format import MessageToJson
-print("from google.protobuf.json_format import MessageToJson after")
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/genetic/syspy/battery_Can/')
 DEFAULT_RPC_ADDR = "ipc:///tmp/CanPass_rpc.ipc"
 
 class canPassBase:
     def __init__(self):
         print("canPassBase __init__")
-        # self.__rpc_client = rc.rpcClient()
-        # self.__rpc_client.connect(DEFAULT_RPC_ADDR)
-        # self.__rpc_server = rs.rpcServer()
-        # self.__rpc_server.registerFunction(self.setChargeStateOn)
-        # self.__rpc_server.registerFunction(self.setChargeStateOff)
-        print("self.__rpc_client stop")
+        self.__rpc_server = rs.rpcServer()
+        self.__rpc_server.registerFunction(self.setChargeStateOn)
+        self.__rpc_server.registerFunction(self.setChargeStateOff)
         if platform.machine() == 'x86_64':
             print("platform: x86_64")
             import syspy.battery_Can.canpass_x86 as x86
-            self.child = x86.canPassX86(self.__rpc_client)
+            self.child = x86.canPassX86()
         elif platform.machine() == 'aarch64':
             print("platform: aarch64")
             import syspy.battery_Can.canpass_aarch64 as aarch64
@@ -99,9 +88,9 @@ class canPassBase:
 
         return selected_port
 
-    def publish(self, battery_info):
+    def publish(self, battery_info: Message_Battery) -> int:
         msg = MessageToJson(battery_info)
-        Battery.publish(msg)
+        return Battery.publish(msg)
 
     def getDIStates(self,index):
         return Di.get_di(index)
@@ -132,8 +121,6 @@ class canPassBase:
 
     def close(self):
         self.child.close()
-        # self.__rpc_server.close()
-        # self.__rpc_client.close()
 
     def __del__(self):
         self.close()
