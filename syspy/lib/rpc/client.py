@@ -2,7 +2,7 @@ import time
 import uuid
 
 from syspy.lib.logger import log
-import zmq, json, threading, sys, queue, os
+import zmq, json, threading, queue
 
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
 

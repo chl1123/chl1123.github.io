@@ -2,31 +2,83 @@ import zmq
 import json
 from syspy.lib.logger import log
 
-def start_broker(frontend_addr, backend_addr):
-    context = zmq.Context()
 
-    # 创建 ROUTER 套接字监听客户端请求
-    frontend = context.socket(zmq.ROUTER)
-    frontend.bind(frontend_addr)
+def send_error_response(socket, recipient_id, error_message):
+    response = json.dumps({"code": -1, "error": error_message}).encode('utf-8')
+    socket.send_multipart([recipient_id, b"", response])
 
-    # 创建 DEALER 套接字连接到服务端
-    backend = context.socket(zmq.ROUTER)
-    backend.bind(backend_addr)
 
-    log.info(f"Broker started: frontend={frontend_addr}, backend={backend_addr}")
+class Broker:
+    def __init__(self, frontend_addr, backend_addr):
+        self.context = zmq.Context()
+        self.frontend = None
+        self.frontend_addr = frontend_addr
+        self.backend = None
+        self.backend_addr = backend_addr
+        self.service_mapping = {}
+        self._setup_sockets()
+        self._setup_poller()
 
-    service_mapping = {}  # 存储服务端地址映射
+    def _setup_sockets(self):
+        try:
+            # 创建 ROUTER 套接字监听客户端请求
+            self.frontend = self.context.socket(zmq.ROUTER)
+            self.frontend.bind(self.frontend_addr)
 
-    poller = zmq.Poller()
-    poller.register(frontend, zmq.POLLIN)
-    poller.register(backend, zmq.POLLIN)
+            # 创建 ROUTER 套接字连接到服务端
+            self.backend = self.context.socket(zmq.ROUTER)
+            self.backend.bind(self.backend_addr)
+        except zmq.ZMQError as e:
+            log.error(f"Failed to setup sockets: {e}")
+            raise
 
-    while True:
-        socks = dict(poller.poll())
+    def _setup_poller(self):
+        self.poller = zmq.Poller()
+        self.poller.register(self.frontend, zmq.POLLIN)
+        self.poller.register(self.backend, zmq.POLLIN)
 
-        if backend in socks and socks[backend] == zmq.POLLIN:
-            # 处理来自服务端的消息
-            parts = backend.recv_multipart()
+    def start(self):
+        log.info(f"Broker started: frontend={self.frontend_addr}, backend={self.backend_addr}")
+
+        try:
+            while True:
+                socks = dict(self.poller.poll())
+                if self.backend in socks and socks[self.backend] == zmq.POLLIN:
+                    self._handle_backend_message()
+                if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
+                    self._handle_frontend_message()
+        except Exception as e:
+            log.error(f"Broker encountered an error: {e}")
+        finally:
+            self._cleanup()
+
+    def _handle_frontend_message(self):
+        try:
+            client_id, empty, request_msg = self.frontend.recv_multipart()
+            log.info(f"Request <= {client_id}, {request_msg}")
+            request = json.loads(request_msg.decode('utf-8'))
+            name = request.get("name")
+
+            if name is None:
+                log.warning("Request message does not contain 'name' field")
+                send_error_response(self.frontend, client_id, "Request message does not contain 'name' field")
+                return
+
+            service_id = self.service_mapping.get(name)
+            if service_id is None:
+                log.warning(f"No service found for name: {name}")
+                send_error_response(self.frontend, client_id, f"No service found for name: {name}")
+                return
+
+            # 转发请求到指定的服务端
+            self.backend.send_multipart([service_id, b"", client_id, b"", request_msg])
+            log.info(f"Response => {service_id}, {client_id}, {request_msg}")
+        except Exception as e:
+            log.error(f"Error handling frontend message: {e}")
+
+    def _handle_backend_message(self):
+        try:
+            parts = self.backend.recv_multipart()
             log.info(f"Request <= {parts}")
             if len(parts) == 3:  # 注册消息
                 service_id, empty, service_msg = parts
@@ -34,47 +86,35 @@ def start_broker(frontend_addr, backend_addr):
                 name = register_info.get("name")
 
                 if name is None:
-                    log.info("Register message does not contain 'name' field")
-                    backend.send_multipart([service_id, b"", json.dumps(
-                        {"code": -1, "error": "Register message does not contain 'name' field"}).encode('utf-8')])
-                    continue
+                    log.warning("Register message does not contain 'name' field")
+                    send_error_response(self.backend, service_id, "Register message does not contain 'name' field")
+                    return
+
+                if name in self.service_mapping:
+                    log.warning(f"Service with name '{name}' already registered. Overwriting old service.")
 
                 # 存储服务端地址映射
-                service_mapping[name] = service_id
+                self.service_mapping[name] = service_id
                 response_msg = json.dumps({"code": 0, "message": "Registered successfully"}).encode('utf-8')
-                backend.send_multipart([service_id, b"", response_msg])
+                self.backend.send_multipart([service_id, b"", response_msg])
                 log.info(f"Response => {service_id}, {response_msg}")
             elif len(parts) == 4:  # 响应消息
                 service_id, client_id, empty, response_msg = parts
-                frontend.send_multipart([client_id, b"", response_msg])
+                self.frontend.send_multipart([client_id, b"", response_msg])
                 log.info(f"Response => {client_id}, {response_msg}")
             else:
-                log.info("Invalid message received")
-        if frontend in socks and socks[frontend] == zmq.POLLIN:
-            # 处理来自客户端的消息
-            client_id, empty, request_msg = frontend.recv_multipart()
-            log.info(f"Request <= {client_id}, {request_msg}")
-            request = json.loads(request_msg.decode('utf-8'))
-            name = request.get("name")
+                log.error("Invalid message received")
+        except Exception as e:
+            log.error(f"Error handling backend message: {e}")
 
-            if name is None:
-                log.info("Request message does not contain 'name' field")
-                frontend.send_multipart([client_id, b"", json.dumps(
-                    {"code": -1, "error": "Request message does not contain 'name' field"}).encode('utf-8')])
-                continue
+    def _cleanup(self):
+        self.frontend.close()
+        self.backend.close()
+        self.context.term()
 
-            service_id = service_mapping.get(name)
-            if service_id is None:
-                log.info(f"No service found for name: {name}")
-                frontend.send_multipart([client_id, b"", json.dumps(
-                    {"code": -1, "error": f"No service found for name: {name}"}).encode('utf-8')])
-                continue
-
-            # 转发请求到指定的服务端
-            backend.send_multipart([service_id, b"", client_id, b"", request_msg])
-            log.info(f"Response => {service_id}, {client_id}, {request_msg}")
 
 if __name__ == "__main__":
     frontend_addr = "ipc:///tmp/cpp2broker.ipc"  # 客户端连接地址
     backend_addr = "ipc:///tmp/broker2server.ipc"  # 服务端连接地址
-    start_broker(frontend_addr, backend_addr)
+    broker = Broker(frontend_addr, backend_addr)
+    broker.start()
