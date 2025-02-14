@@ -1,10 +1,16 @@
 import time
-import uuid
-
-from syspy.lib.logger import log
 import zmq, json, threading, queue
 
+from syspy.lib.logger import log
+from syspy.lib.rpc.json_rpc import JSONRPCRequest
+
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
+
+
+class ResultEvent(threading.Event):
+    def __init__(self):
+        super().__init__()
+        self.result = None  # 添加 result 属性
 
 
 class zmqClient(object):
@@ -29,10 +35,10 @@ class zmqClient(object):
         self.worker_thread.join()  # 等待线程结束
         self.socket.close()
 
-    def connect(self, addr):
+    def connect(self, addr: str):
         self.socket.connect(addr)
 
-    def putQueue(self, data, event):
+    def putQueue(self, data: JSONRPCRequest, event: ResultEvent):
         # 将请求放入队列，并传入事件对象
         self.queue.put((data, event))
 
@@ -43,7 +49,7 @@ class zmqClient(object):
         while not self.stop_flag.is_set():
             try:
                 data, event = self.queue.get(timeout=1)
-                self.socket.send(json.dumps(data).encode('utf-8'))  # 发送数据
+                self.socket.send(data.to_json().encode('utf-8'))  # 发送数据
                 # 利用 self.poller.poll(5000) 对发送的数据进行轮询，等待最多 5000 毫秒
                 events = dict(self.poller.poll(5000))
                 # 如果 socket 在从 poll 返回的事件中，则表示收到了响应
@@ -71,7 +77,7 @@ class rpcStub(object):
             data = json.dumps(data)
         return self.handle_request("MoveFactory::report", [name, data])
 
-    def call_service(self, plugin, function: str, /, *args, **kwargs):
+    def call_service(self, plugin: str, function: str, /, *args, **kwargs):
         if args is None:
             args = []
         if plugin is not None:
@@ -90,19 +96,14 @@ class rpcStub(object):
 
     # 提取公共的部分为方法
     def handle_request(self, method: str, params: list):
-        request = {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params,
-            "id": str(uuid.uuid4())
-        }
-        event = threading.Event()
+        request = JSONRPCRequest(method, params)
+        event = ResultEvent()
         # 将请求放入队列，并传入事件对象
         self.putQueue(request, event)
-        log.info(f"req => {request}")
+        log.info(f"req => {request.to_json()}")
         # 阻塞等待，直到工作线程处理完成并调用 event.set() 通知结果已经返回
         event.wait()
-        # 如果 event.result 不为空，则表示收到了响应
+        # event.result 不为空，表示收到响应
         if event.result:
             response = json.loads(event.result.decode())
             if "error" in response:
@@ -110,7 +111,7 @@ class rpcStub(object):
             else:
                 log.info(f"res <= {response}")
                 return response["result"]
-        else:  #  event.result 为 None
+        else:  # event.result 为 None
             log.error("poller Timeout")
             return ""
 
@@ -124,13 +125,11 @@ class rpcClient(zmqClient, rpcStub):
 
 if __name__ == "__main__":
     client = rpcClient()
-    # print("client.add() ", client.setOn({"a": 1, "b": 2}, 123))
-    print("client.setMotorPosition() ", client.setMotorPosition(plugin="MoveFactory", params=("doMotor", 1.0, 2.0, 1)))
 
+    print("client.setMotorPosition() ", client.call_service("MoveFactory", "setMotorPosition", "doMotor", 1.0, 2.0, 1))
     print("-----------")
     while True:
         print("-----------")
-        message = client.get_message("rbk.protocol.Message_DI", "RBKSim")
-        print("client.get_message() ", message)
-        print("getBattery", client.get_message("rbk.protocol.Message_Battery", "RBKSim"))
+        print("Message_DI ", client.get_message("rbk.protocol.Message_DI", "RBKSim"))
+        print("Message_Battery ", client.get_message("rbk.protocol.Message_Battery", "RBKSim"))
         time.sleep(1)
