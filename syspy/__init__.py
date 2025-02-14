@@ -93,7 +93,7 @@ def init(module_obj=None):
         rpc_server.registerFunction(module_obj.suspend, "suspend")
         rpc_server.registerFunction(module_obj.resume, "resume")
         rpc_server.registerFunction(module_obj.cancel, "cancel")
-
+        rpc_server.start()
 
 class BasicModule:
     def __init__(self):

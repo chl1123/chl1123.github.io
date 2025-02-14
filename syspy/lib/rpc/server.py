@@ -3,6 +3,7 @@ import zmq
 import json
 
 from syspy.lib.logger import log
+from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InternalError
 
 # 全局变量
 server_addr = "ipc:///tmp/broker2server.ipc"  # 代理的后端地址
@@ -18,7 +19,11 @@ class rpcServer:
             name (str): 脚本名称，用于注册到代理。
         """
         rpcServer.SCRIPT_NAME = name
-        self._start_server(name)
+        context = zmq.Context()
+        self.socket = context.socket(zmq.DEALER)  # 使用 DEALER 套接字
+        self.socket.connect(server_addr)
+        log.info(f"Server connected to {server_addr}")
+        self._register_server(name)
 
     def registerFunction(self, function, method_name=""):
         """注册 Python 方法，以便远程调用。
@@ -29,31 +34,18 @@ class rpcServer:
         """
         if not method_name:
             method_name = function.__name__
-        register_name = f"{rpcServer.SCRIPT_NAME}.{method_name}" if rpcServer.SCRIPT_NAME else method_name
-        rpcServer.FUNCS[register_name] = function
-        log.info(f"Registered function: {register_name}")
-
-    def _start_server(self, name):
-        """启动服务器，连接到代理并注册服务。
-
-        Args:
-            name (str): 脚本名称，用于注册到代理。
-        """
-        context = zmq.Context()
-        self.socket = context.socket(zmq.DEALER)  # 使用 DEALER 套接字
-        self.socket.connect(server_addr)
-        log.info(f"Server connected to {server_addr}")
+        rpcServer.FUNCS[method_name] = function
 
         # 发送注册信息到代理
-        register_msg = {"name": name}
-        log.info(f"Sending registration message: {register_msg}")
+        register_msg = {"server": rpcServer.SCRIPT_NAME, "method": method_name}
+        log.info(f"Sending registration method message: {register_msg}")
         self.socket.send_multipart([b"", json.dumps(register_msg).encode('utf-8')])
 
         # 接收注册响应
         response_parts = self.socket.recv_multipart()
-        log.info(f"Received registration response: {response_parts}")
+        log.info(f"Received registration method response: {response_parts}")
         if len(response_parts) != 2:
-            log.error("Invalid registration response format")
+            log.error("Invalid registration method response format")
             return
         empty, register_response_str = response_parts
         register_response = json.loads(register_response_str.decode('utf-8'))
@@ -62,8 +54,9 @@ class rpcServer:
             log.error(f"Registration failed: {register_response['error']}")
             return
 
-        log.info(f"Registered successfully for {name}")
+        log.info(f"Registered function: {rpcServer.SCRIPT_NAME}.{method_name}")
 
+    def start(self):
         # 启动请求处理线程
         zmq_server_thread = threading.Thread(
             target=self._handle_request,
@@ -88,55 +81,67 @@ class rpcServer:
                     log.warning(f"Invalid request format: {message_parts}")
                     continue
                 empty, client_id, empty, request_str = message_parts
-                request = json.loads(request_str.decode('utf-8'))
+                request_dict = json.loads(request_str.decode('utf-8'))
+                request = JSONRPCRequest(**request_dict)
 
                 # 处理请求
-                method_name = request.get("method")
-                res = self._process_request(method_name, request)
-
+                method_name = request.get_method()
+                response = JSONRPCResponse(request.get_id())
+                if method_name in rpcServer.FUNCS:
+                    try:
+                        res = self._process_request(request)
+                        response.set_result(res)
+                    except Exception as e:
+                        response.set_error(InternalError())
+                else:
+                    response.set_error(MethodNotFound())
                 # 构造响应
-                response = {"res": res, "code": 0}
-                log.info(f"Response => {response}")
+                log.info(f"Response => {response.to_json()}")
 
                 # 发送响应
-                socket.send_multipart([client_id, b"", json.dumps(response).encode('utf-8')])
+                socket.send_multipart([client_id, b"", response.to_json().encode('utf-8')])
             except Exception as e:
                 log.error(f"Error handling request: {e}")
 
-    def _process_request(self, method_name, request):
+    def _process_request(self, request: JSONRPCRequest):
         """根据请求的方法名称和参数处理请求。
 
         Args:
-            method_name (str): 请求的方法名称。
-            request (dict): 请求的完整数据。
+            request (JSONRPCRequest): 请求的完整数据。
 
         Returns:
-            Any: 处理结果，如果方法未找到则返回 -1。
+            方法返回值
         """
-        if method_name in ["suspend", "resume", "cancel"]:
-            return self._handle_control_methods(method_name)
-        elif "name" in request and request["name"] == rpcServer.SCRIPT_NAME:
-            register_name = f"{request['name']}.{method_name}" if request["name"] else method_name
-            if register_name in rpcServer.FUNCS:
-                func = rpcServer.FUNCS[register_name]
-                args = request.get("args", [])
-                if args:
-                    return func(args)
-                else:
-                    return func()
-        return -1
+        func = rpcServer.FUNCS[request.get_method()]
+        args = request.get_params()
+        if args:
+            return func(args)
+        else:
+            return func()
 
-    def _handle_control_methods(self, method_name):
-        """处理控制方法（如 suspend、resume、cancel）。
+    def _register_server(self, name):
+        """启动服务器，连接到代理并注册服务。
 
         Args:
-            method_name (str): 控制方法名称。
-
-        Returns:
-            Any: 处理结果。
+            name (str): 脚本名称，用于注册到代理。
         """
-        res = {}
-        for func_name, func in rpcServer.FUNCS.items():
-            if func_name.endswith(method_name):
-                res = func()
-        return res
+
+        # 发送注册信息到代理
+        register_msg = {"server": name}
+        log.info(f"Sending registration message: {register_msg}")
+        self.socket.send_multipart([b"", json.dumps(register_msg).encode('utf-8')])
+
+        # 接收注册响应
+        response_parts = self.socket.recv_multipart()
+        log.info(f"Received registration response: {response_parts}")
+        if len(response_parts) != 2:
+            log.error("Invalid registration response format")
+            return
+        empty, register_response_str = response_parts
+        register_response = json.loads(register_response_str.decode('utf-8'))
+
+        if register_response["code"] != 0:
+            log.error(f"Registration failed: {register_response['message']}")
+            return
+
+        log.info(f"Registered successfully for {name}")

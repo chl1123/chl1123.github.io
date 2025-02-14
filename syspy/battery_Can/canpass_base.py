@@ -17,6 +17,7 @@ class canPassBase:
         self.__rpc_server = rs.rpcServer()
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
+        self.__rpc_server.start()
         if platform.machine() == 'x86_64':
             print("platform: x86_64")
             import syspy.battery_Can.canpass_x86 as x86

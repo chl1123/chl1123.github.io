@@ -22,6 +22,7 @@ class batteryBase:
         self.__rpc_server = rs.rpcServer()
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
+        self.__rpc_server.start()
         self.setCallBack()
         self.need_charge = False
 

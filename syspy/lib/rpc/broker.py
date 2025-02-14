@@ -1,11 +1,39 @@
 import zmq
 import json
+
 from syspy.lib.logger import log
+from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, JSONRPCError, MethodNotFound, InvalidRequest
 
 
-def send_error_response(socket, recipient_id, error_message):
-    response = json.dumps({"code": -1, "error": error_message}).encode('utf-8')
-    socket.send_multipart([recipient_id, b"", response])
+class ServiceMap:
+    def __init__(self):
+        self.service_mapping = {}
+
+    def register_service(self, service_name, service_id):
+        if service_name in self.service_mapping:
+            log.warning(f"Service with name '{service_name}' already registered. Overwriting old service.")
+        self.service_mapping[service_name] = {}
+        self.service_mapping[service_name]["id"] = service_id
+
+    def register_method(self, service_name, method_name):
+        log.info(f"self.service_mapping: {self.service_mapping}")
+        if service_name not in self.service_mapping:
+            log.warning(f"Service with name '{service_name}' not found. Cannot register method.")
+            return False
+        if "method" not in self.service_mapping[service_name]:
+            self.service_mapping[service_name]["method"] = []
+        self.service_mapping[service_name]["method"].append(method_name)
+        log.info(f"self.service_mapping: {self.service_mapping}")
+        return True
+
+    def get_services(self):
+        return self.service_mapping
+
+    def get_service_id(self, service_name):
+        return self.service_mapping.get(service_name).get("id", None)
+
+    def get_service_methods(self, service_name):
+        return self.service_mapping.get(service_name, {}).get("method", [])
 
 
 class Broker:
@@ -15,7 +43,7 @@ class Broker:
         self.frontend_addr = frontend_addr
         self.backend = None
         self.backend_addr = backend_addr
-        self.service_mapping = {}
+        self.service_mapping = ServiceMap()
         self._setup_sockets()
         self._setup_poller()
 
@@ -53,26 +81,51 @@ class Broker:
             self._cleanup()
 
     def _handle_frontend_message(self):
+
         try:
             client_id, empty, request_msg = self.frontend.recv_multipart()
             log.info(f"Request <= {client_id}, {request_msg}")
-            request = json.loads(request_msg.decode('utf-8'))
-            name = request.get("name")
+            request_dict = json.loads(request_msg.decode('utf-8'))
 
-            if name is None:
-                log.warning("Request message does not contain 'name' field")
-                send_error_response(self.frontend, client_id, "Request message does not contain 'name' field")
+            # 解析 request_dict 到 JSONRPCRequest 模型
+            try:
+                request = JSONRPCRequest.parse(request_dict)
+            except InvalidRequest as error:
+                log.error(f"Invalid JSON-RPC request: {error}")
+                response = JSONRPCResponse()
+                response.set_error(error)
+                self.frontend.send_multipart([client_id, b"", response.to_json().encode('utf-8')])
                 return
+            bind_name = request.get_method()
 
-            service_id = self.service_mapping.get(name)
-            if service_id is None:
-                log.warning(f"No service found for name: {name}")
-                send_error_response(self.frontend, client_id, f"No service found for name: {name}")
-                return
-
-            # 转发请求到指定的服务端
-            self.backend.send_multipart([service_id, b"", client_id, b"", request_msg])
-            log.info(f"Response => {service_id}, {client_id}, {request_msg}")
+            if '.' in bind_name:
+                # 取出脚本名，方法名
+                script_name, method = bind_name.rsplit('.', 1)
+                service_id = self.service_mapping.get_service_id(script_name)
+                if service_id is None:
+                    log.warning(f"No service found for name: {script_name}")
+                    response = JSONRPCResponse(request.get_id())
+                    response.set_error(MethodNotFound(f"No service found for name: {script_name}"))
+                    self.frontend.send_multipart([client_id, b"", response.to_json().encode('utf-8')])
+                    return
+                request.set_method(method)
+                # 转发请求到指定的服务端
+                self.backend.send_multipart([service_id, b"", client_id, b"", request.to_json().encode('utf-8')])
+                log.info(f"Response => {service_id}, {client_id}, {request_msg}")
+            else:
+                has_method = False
+                # 转发请求到多个服务端
+                for service_id in self.service_mapping.get_services().keys():
+                    methods = self.service_mapping.get_service_methods(service_id)
+                    if bind_name in methods:
+                        has_method = True
+                        self.backend.send_multipart([service_id, b"", client_id, b"", request_msg])
+                        log.info(f"Response => {service_id}, {client_id}, {request_msg}")
+                if not has_method:
+                    log.warning(f"No method found for name: {bind_name}")
+                    response = JSONRPCResponse(request.get_id())
+                    response.set_error(MethodNotFound())
+                    self.frontend.send_multipart([client_id, b"", response.to_json().encode('utf-8')])
         except Exception as e:
             log.error(f"Error handling frontend message: {e}")
 
@@ -83,19 +136,27 @@ class Broker:
             if len(parts) == 3:  # 注册消息
                 service_id, empty, service_msg = parts
                 register_info = json.loads(service_msg.decode('utf-8'))
-                name = register_info.get("name")
+                server_name = register_info.get("server")
+                method_name = register_info.get("method")
 
-                if name is None:
+                if server_name is None:
                     log.warning("Register message does not contain 'name' field")
-                    send_error_response(self.backend, service_id, "Register message does not contain 'name' field")
+                    error = JSONRPCError(code=-32600, message="Register message does not contain 'name' field")
+                    response = json.dumps(error.to_dict()).encode('utf-8')
+                    self.backend.send_multipart([service_id, b"", response])
                     return
-
-                if name in self.service_mapping:
-                    log.warning(f"Service with name '{name}' already registered. Overwriting old service.")
-
-                # 存储服务端地址映射
-                self.service_mapping[name] = service_id
-                response_msg = json.dumps({"code": 0, "message": "Registered successfully"}).encode('utf-8')
+                response_msg = b""
+                if method_name is None:
+                    # 注册服务
+                    self.service_mapping.register_service(server_name, service_id)
+                    response_msg = json.dumps({"code": 0, "message": "Registered method successfully"}).encode('utf-8')
+                else:
+                    # 注册方法
+                    register_method_flag = self.service_mapping.register_method(server_name, method_name)
+                    if register_method_flag:
+                        response_msg = json.dumps({"code": 0, "message": "Registered method successfully"}).encode('utf-8')
+                    else:
+                        response_msg = json.dumps({"code": -1, "message": "Registered method failed"}).encode('utf-8')
                 self.backend.send_multipart([service_id, b"", response_msg])
                 log.info(f"Response => {service_id}, {response_msg}")
             elif len(parts) == 4:  # 响应消息
