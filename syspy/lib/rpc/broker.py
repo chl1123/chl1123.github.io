@@ -16,6 +16,13 @@ class ServiceMap:
         self.service_mapping[service_name] = {}
         self.service_mapping[service_name]["id"] = service_id
 
+    def unregister_service(self, service_name):
+        if service_name in self.service_mapping:
+            del self.service_mapping[service_name]
+            log.info(f"Service with name '{service_name}' unregistered.")
+        else:
+            log.warning(f"Service with name '{service_name}' not found. Cannot unregister.")
+
     def register_method(self, service_name, method_name):
         log.info(f"self.service_mapping: {self.service_mapping}")
         if service_name not in self.service_mapping:
@@ -137,29 +144,27 @@ class Broker:
             if len(parts) == 3:  # 注册消息
                 service_id, empty, service_msg = parts
                 register_info = json.loads(service_msg.decode('utf-8'))
-                server_name = register_info.get("server")
-                method_name = register_info.get("method")
+                request = JSONRPCRequest.parse(register_info)
+                method = request.get_method()
+                params = request.get_params()
+                response = JSONRPCResponse(request.get_id())
 
-                if server_name is None:
-                    log.warning("Register message does not contain 'name' field")
-                    error = JSONRPCError(code=-32600, message="Register message does not contain 'name' field")
-                    response = json.dumps(error.to_dict()).encode('utf-8')
-                    self.backend.send_multipart([service_id, b"", response])
-                    return
-                response_msg = b""
-                if method_name is None:
-                    # 注册服务
-                    self.service_mapping.register_service(server_name, service_id)
-                    response_msg = json.dumps({"code": 0, "message": "Registered method successfully"}).encode('utf-8')
-                else:
-                    # 注册方法
-                    register_method_flag = self.service_mapping.register_method(server_name, method_name)
+                if method == "register_service":  # 注册服务
+                    self.service_mapping.register_service(*params, service_id)
+                    response.set_result(True)
+                elif method == "register_method":  # 注册方法
+                    register_method_flag = self.service_mapping.register_method(*params)
                     if register_method_flag:
-                        response_msg = json.dumps({"code": 0, "message": "Registered method successfully"}).encode('utf-8')
+                        response.set_result(True)
                     else:
-                        response_msg = json.dumps({"code": -1, "message": "Registered method failed"}).encode('utf-8')
-                self.backend.send_multipart([service_id, b"", response_msg])
-                log.info(f"Response => {service_id}, {response_msg}")
+                        response.set_error(MethodNotFound(f"Service '{params}' not found. Cannot register method."))
+                elif method == "unregister_service":  # 销毁服务
+                    self.service_mapping.unregister_service(*params)
+                    response.set_result(True)
+                else:
+                    response.set_error(MethodNotFound(f"method: {method} not found"))
+                self.backend.send_multipart([service_id, b"", response.to_json().encode('utf-8')])
+                log.info(f"Response => {service_id}, {response.to_json()}")
             elif len(parts) == 4:  # 响应消息
                 service_id, client_id, empty, response_msg = parts
                 self.frontend.send_multipart([client_id, b"", response_msg])

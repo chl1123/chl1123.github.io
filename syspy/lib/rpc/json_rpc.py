@@ -2,6 +2,7 @@ import json
 import uuid
 from typing import Optional, Union, Dict, Any
 
+
 class JSONRPCError(Exception):
     def __init__(self, code: int, message: str, data: Optional[Any] = None):
         super().__init__(message)
@@ -16,29 +17,36 @@ class JSONRPCError(Exception):
             "data": self.data
         }
 
+
 class ParseError(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
         super().__init__(-32700, "Parse error", data)
+
 
 class InvalidRequest(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
         super().__init__(-32600, "Invalid Request", data)
 
+
 class MethodNotFound(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
         super().__init__(-32601, "Method not found", data)
+
 
 class InvalidParams(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
         super().__init__(-32602, "Invalid params", data)
 
+
 class InternalError(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
         super().__init__(-32603, "Internal error", data)
 
+
 class InvalidResponse(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
         super().__init__(-32000, "Invalid response", data)
+
 
 class JsonRpcMessage:
     def __init__(self, id: Optional[Union[int, str]] = None, jsonrpc: str = "2.0"):
@@ -104,6 +112,7 @@ class JSONRPCRequest(JsonRpcMessage):
             "id": self._id
         }
 
+
 class JSONRPCResponse(JsonRpcMessage):
     def __init__(self, id: Optional[Union[int, str]] = None):
         super().__init__(id)
@@ -128,7 +137,7 @@ class JSONRPCResponse(JsonRpcMessage):
     def get_error(self):
         return self._error
 
-    @staticmethod
+    @classmethod
     def parse(cls, data: Dict) -> 'JSONRPCResponse':
         if data.get("jsonrpc") != "2.0":
             raise InvalidResponse("Invalid JSON-RPC version")
