@@ -2,6 +2,7 @@ import time
 import zmq, json, threading, queue
 
 from syspy.lib.logger import log
+from syspy.lib.rpc import DOUBLE_COLON
 from syspy.lib.rpc.json_rpc import JSONRPCRequest
 
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
@@ -32,8 +33,11 @@ class zmqClient(object):
         log.info("zmqClient close the socket")
         self.stop_flag.set()
         self.queue.put((None, None))
-        self.worker_thread.join()  # 等待线程结束
+        self.worker_thread.join(timeout=5)  # 设置超时时间，避免无限等待
+        if self.worker_thread.is_alive():
+            log.warning("Worker thread did not exit gracefully")
         self.socket.close()
+        self.context.term()
 
     def connect(self, addr: str):
         self.socket.connect(addr)
@@ -81,7 +85,7 @@ class rpcStub(object):
         if args is None:
             args = []
         if plugin is not None:
-            function = plugin + "::" + function
+            function = plugin + DOUBLE_COLON + function
         return self.handle_request(function, list(args))
 
     def __getattr__(self, function):
@@ -101,8 +105,10 @@ class rpcStub(object):
         # 将请求放入队列，并传入事件对象
         self.putQueue(request, event)
         log.info(f"req => {request.to_json()}")
-        # 阻塞等待，直到工作线程处理完成并调用 event.set() 通知结果已经返回
-        event.wait()
+        # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
+        if not event.wait(timeout=7):  # 设置适当的超时时间
+            log.error("Event wait timeout")
+            return ""
         # event.result 不为空，表示收到响应
         if event.result:
             response = json.loads(event.result.decode())

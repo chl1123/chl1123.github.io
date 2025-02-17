@@ -2,6 +2,7 @@ import zmq
 import json
 
 from syspy.lib.logger import log
+from syspy.lib.rpc import DOUBLE_COLON
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, JSONRPCError, MethodNotFound, InvalidRequest
 
 
@@ -98,9 +99,9 @@ class Broker:
                 return
             bind_name = request.get_method()
 
-            if '.' in bind_name:
+            if DOUBLE_COLON in bind_name:
                 # 取出脚本名，方法名
-                script_name, method = bind_name.rsplit('.', 1)
+                script_name, method = bind_name.rsplit(DOUBLE_COLON, 1)
                 service_id = self.service_mapping.get_service_id(script_name)
                 if service_id is None:
                     log.warning(f"No service found for name: {script_name}")
