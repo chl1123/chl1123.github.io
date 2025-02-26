@@ -1,15 +1,22 @@
-from .protobuf.messsage import Message_PGV
+from typing import List
+
 from .lib.py_rpc import Message
+from .protobuf.message import Message_PGV
 
 
 class Pgv(Message[Message_PGV]):
-    """
-    Attributes:
-      _TOPIC (str): 消息名
-      _PLUGIN (str): 插件名
-      _MODEL_CLASS (Type[T]): Pydantic模型类
-    """
+    """PGV类"""
 
     _TOPIC = "rbk.protocol.Message_PGV"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = Message_PGV
+
+    @classmethod
+    def get_pgvs(cls) -> List["Message_PGV"]:
+        """获取PGV_DMT对象列表
+
+        Returns:
+            PGV_DMT对象列表
+        """
+        if cls.update():
+            return cls.data.pgvs

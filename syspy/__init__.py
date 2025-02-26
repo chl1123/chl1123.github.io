@@ -4,17 +4,6 @@ import queue
 import threading
 import time
 
-from .lib.rpc.server import rpcServer
-from .lib.rpc.client import rpcClient
-
-from .lib.abnormal import Abnormal
-from .lib.trace import Trace
-from .lib.can_frame import Can
-from .lib.model import Model
-from .lib.param import Param
-from .lib.net_protocol import NetProtocol
-from .lib.module import ScriptStatus
-
 from .battery import Battery
 from .bin import Bin
 from .camera import Camera
@@ -24,53 +13,57 @@ from .dio import Di, Do
 from .distance import Distance
 from .laser import Laser
 from .led import Led
+from .lib.abnormal import Abnormal
+from .lib.can_frame import Can
+from .lib.model import Model
+from .lib.module import ScriptStatus
+from .lib.net_protocol import NetProtocol
+from .lib.param import Param
+from .lib.rpc.client import rpcClient
+from .lib.rpc.server import rpcServer
+from .lib.trace import Trace
 from .loc import Loc
 from .magnetic import Magnetic
 from .map import Map
 from .motor import Motor
-from .move import Move
-from .navigation import NavSpeed
+from .navigation import Navigation, NavStatus, NavSpeed
 from .odometer import Odometer
 from .pgv import Pgv
 from .rfid import RFID
 from .sound import Sound
 
-from .mf import MF
-
 extracted_path = ""
 
 __all__ = [
-    'Abnormal',
-    'Trace',
-    'NetProtocol',
-    'Can',
-    'Model',
-    'Param',
-    'BasicModule',
-    'ScriptStatus',
-
-    'Battery',
-    'Bin',
-    'Camera',
-    'Charger',
-    'Controller',
-    'Di',
-    'Do',
-    'Distance',
-    'Laser',
-    'Led',
-    'Loc',
-    'Magnetic',
-    'Map',
-    'Motor',
-    'Move',
-    'NavSpeed',
-    'Odometer',
-    'Pgv',
-    'RFID',
-    'Sound',
-
-    'MF'
+    "Abnormal",
+    "Trace",
+    "NetProtocol",
+    "Can",
+    "Model",
+    "Param",
+    "BasicModule",
+    "ScriptStatus",
+    "Battery",
+    "Bin",
+    "Camera",
+    "Charger",
+    "Controller",
+    "Di",
+    "Do",
+    "Distance",
+    "Laser",
+    "Led",
+    "Loc",
+    "Magnetic",
+    "Map",
+    "Motor",
+    "Navigation",
+    "NavStatus",
+    "NavSpeed",
+    "Odometer",
+    "Pgv",
+    "RFID",
+    "Sound",
 ]  # 列出所有公共模块
 
 
@@ -95,7 +88,9 @@ def init(module_obj=None):
         rpc_server.registerFunction(module_obj.cancel, "cancel")
         rpc_server.start()
 
+
 class BasicModule:
+
     def __init__(self):
         self._lock = threading.Lock()
         self._run_status = None
@@ -175,7 +170,7 @@ class BasicModule:
         print("***********************task_queue self.current_task", self.current_task)
         try:
             self.current_task = self.task_queue.get(True, 5)  # 取出最先入队的任务
-            self.task_id = self.current_task.get('taskId', None)
+            self.task_id = self.current_task.get("taskId", None)
             self.status = ScriptStatus.RUNNING
         except queue.Empty:
             print("task_queue is empty")

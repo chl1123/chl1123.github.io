@@ -2,16 +2,46 @@
 # gen by protobuf_to_pydantic[v0.3.0.3](https://github.com/so1n/protobuf_to_pydantic)
 # Protobuf Version: 5.29.2
 # Pydantic Version: 2.10.4
-from .message_header_p2p import Message_Header
+import typing
 from enum import IntEnum
+
 from google.protobuf.message import Message  # type: ignore
 from pydantic import BaseModel
 from pydantic import Field
-import typing
+
+from .message_header_p2p import Message_Header
 
 
 class Message_Localization(BaseModel):
+    """表示本地化消息的模型类。
+
+    Attributes:
+        header (typing.Optional[Message_Header]): 消息头，默认为None。
+        x (float): 定位的x坐标，默认值为0.0。
+        y (float): 定位的y坐标，默认值为0.0。
+        angle (float): 定位的角度，默认值为0.0。
+        confidence (float): 定位的置信度，默认值为0.0。
+        correction_errs (typing.List[float]): 校正误差列表，默认是空列表。
+        reliabilities (typing.List[float]): 可靠性列表，默认是空列表。
+        in_forbidden_area (bool): 是否在禁区内，默认值为False。
+        update_reason (Message_Localization.UpdateReason): 定位更新原因，默认值为0（即NONE）。
+        loc_state (Message_Localization.LocState): 定位状态，默认值为0（即Normal）。
+        similarity (float): 相似度，默认值为0.0。
+        loc_method (Message_Localization.LocMethod): 定位方法，默认值为0（即PF_LASER_2D）。
+        roll (float): 车体相对于水平面的翻滚角，单位为度，默认值为0.0。
+        pitch (float): 车体相对于水平面的俯仰角，单位为度，默认值为0.0。
+    """
+
     class UpdateReason(IntEnum):
+        """更新原因的枚举类。
+
+        Attributes:
+            NONE (int): 无更新原因
+            OdoUpdate (int): 里程计更新
+            LaserCorrec (int): 激光校正
+            LaserThenOdo (int): 先激光校正后里程计更新
+            PGVCORRECT (int): PGV校正
+        """
         NONE = 0
         OdoUpdate = 1
         LaserCorrec = 2
@@ -19,11 +49,28 @@ class Message_Localization(BaseModel):
         PGVCORRECT = 4
 
     class LocState(IntEnum):
+        """定位状态的枚举类。
+
+        Attributes:
+            Normal (int): 正常定位状态
+            Skidding (int): 打滑定位状态
+            LowConfidence (int): 低置信度定位状态
+        """
         Normal = 0
         Skidding = 1
         LowConfidence = 2
 
     class LocMethod(IntEnum):
+        """定位方法的枚举类。
+
+        Attributes:
+            PF_LASER_2D (int): 2D粒子滤波激光定位方法
+            SLAM_2D (int): 2D同步定位与地图构建定位方法
+            PGV (int): PGV定位方法
+            REFLECTOR (int): 反射器定位方法
+            LASER_3D (int): 3D激光定位方法
+            BAR_CODE (int): 条形码定位方法
+        """
         PF_LASER_2D = 0
         SLAM_2D = 1
         PGV = 2

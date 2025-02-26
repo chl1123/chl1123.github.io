@@ -1,14 +1,9 @@
-from .protobuf.messsage import Message_DistanceSensor
 from .lib.py_rpc import Message
+from .protobuf.message import Message_DistanceSensor
 
 
 class Distance(Message[Message_DistanceSensor]):
-    """
-    Attributes:
-      _TOPIC (str): 消息名
-      _PLUGIN (str): 插件名
-      _MODEL_CLASS (Type[T]): Pydantic模型类
-    """
+    """距离传感器类"""
 
     _TOPIC = "rbk.protocol.Message_DistanceSensor"
     _PLUGIN = "DSPChassis"

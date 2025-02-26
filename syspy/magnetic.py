@@ -1,15 +1,23 @@
-from .protobuf.messsage import Message_Magnetic
+import typing
+
 from .lib.py_rpc import Message
+from .protobuf.message import Message_Magnetic
+from .protobuf.message.message_magnetic_p2p import Message_MagneticNode
 
 
 class Magnetic(Message[Message_Magnetic]):
-    """
-    Attributes:
-      _TOPIC (str): 消息名
-      _PLUGIN (str): 插件名
-      _MODEL_CLASS (Type[T]): Pydantic模型类
-    """
+    """磁传感器类"""
 
     _TOPIC = "rbk.protocol.Message_Magnetic"
     _PLUGIN = "MagneticSensor"
     _MODEL_CLASS = Message_Magnetic
+
+    @classmethod
+    def get_magnetics(cls) -> typing.List["Message_MagneticNode"]:
+        """获取磁节点列表
+
+        Returns:
+            typing.List[Message_MagneticNode]: 包含所有磁节点信息的列表
+        """
+        if cls.update():
+            return cls.data.magnetic_nodes

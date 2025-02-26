@@ -3,10 +3,18 @@ from .lib.py_rpc import Service, default_plugin, call_service
 
 @default_plugin("RecoFactory")
 class Recognize(Service):
+
     @classmethod
     @call_service()
-    def doRec(cls, file: str, withRegion: bool, x: float = 0.0, y: float = 0.0, theta: float = 0.0,
-              radius: float = 0.0):
+    def doRec(
+            cls,
+            file: str,
+            withRegion: bool,
+            x: float = 0.0,
+            y: float = 0.0,
+            theta: float = 0.0,
+            radius: float = 0.0,
+    ):
         """
         Args:
 
@@ -31,9 +39,6 @@ class Recognize(Service):
         """
         Args:
             paramJson (str): JSON string containing the target observation parameters.
-
-        Returns:
-            None
         """
         pass
 
@@ -55,17 +60,13 @@ class Recognize(Service):
         """
         Args:
             jsonStr (str): JSON string containing real-time detection parameters.
-
-        Returns:
-            None
         """
         pass
 
     @classmethod
     @call_service()
     def resetRec(cls):
-        """重置识别模块
-        """
+        """重置识别模块"""
         pass
 
     @classmethod

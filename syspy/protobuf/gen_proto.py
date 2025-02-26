@@ -12,36 +12,32 @@ protos = [
     "message_io",
     "CanFrame",
     "message_distancesensor",
-
     "message_motorinfos",
     "message_odometer",
-
     "message_movetask",
     "message_localization",
     "message_magnetic",
     "message_navigation",
-
-
     "message_pgv",
     "message_rfid",
     "message_sound",
-
     "message_dmx512"
 ]
+
 
 def fix_default_value(proto_name):
     # 打开生成的文件
     # 读取文件内容
-    with open(f'./messsage/{proto_name}_p2p.py', 'r') as file:
+    with open(f"./new_message/{proto_name}_p2p.py", "r") as file:
         lines = file.readlines()
 
-    # 定义替换模式
-    pattern_field = re.compile(r':\s*(\w+)\s*=\s*Field\(\)')
-    replacement_field = r': typing.Optional[\1] = None'
+    # 替换
+    pattern_field = re.compile(r":\s*(\w+)\s*=\s*Field\(\)")
+    replacement_field = r": typing.Optional[\1] = None"
 
-    # 新增替换模式
-    pattern_none = re.compile(r'\bNone\s*=\s*(\S+)')
-    replacement_none = r'NONE = \1'
+    # 替换
+    pattern_none = re.compile(r"\bNone\s*=\s*(\S+)")
+    replacement_none = r"NONE = \1"
 
     modified_lines = []
     updated_lines = []
@@ -60,20 +56,21 @@ def fix_default_value(proto_name):
         print(f"Modified line {line_number}: {old_line} -> {new_line}")
 
     # 写回文件
-    with open(f'./messsage/{proto_name}_p2p.py', 'w') as file:
+    with open(f"./new_message/{proto_name}_p2p.py", "w") as file:
         file.writelines(updated_lines)
 
 
 def main():
     # 执行python命令
     for proto_name in protos:
-        print(f"sudo python3 -m grpc_tools.protoc -I./proto --protobuf-to-pydantic_out=./messsage {proto_name}.proto")
+        print(
+            f"sudo python3 -m grpc_tools.protoc -I./proto --protobuf-to-pydantic_out=./new_message {proto_name}.proto")
         os.system(
-            f"sudo python3 -m grpc_tools.protoc -I./proto --protobuf-to-pydantic_out=./messsage {proto_name}.proto")
+            f"sudo python3 -m grpc_tools.protoc -I./proto --protobuf-to-pydantic_out=./new_message {proto_name}.proto")
         print(f"gen {proto_name} pythonic proto success")
         fix_default_value(proto_name)
         print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
