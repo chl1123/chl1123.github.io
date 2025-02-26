@@ -1,19 +1,24 @@
 from typing import Union
 
-from .navigation import NavSpeed
 from .lib.py_rpc import Service, default_plugin, call_service
+from .navigation import NavSpeed
 from .odometer import Odometer
+
 
 @default_plugin("MoveFactory")
 class Motor(Service):
+    """电机类"""
+
     @staticmethod
     def get_motor_pos(motor_name: str) -> Union[float, int]:
-        """
-        获取指定电机的当前位置
-        :param motor_name: 电机名称
-        :return: 返回电机的当前位置，若电机不存在返回 -1
-        """
+        """获取指定电机的当前位置
 
+        Args:
+            motor_name (str): 电机名称
+
+        Returns:
+            Union[float, int]: 返回电机的当前位置，若电机不存在返回 -1
+        """
         motor_pos = -1
         if Odometer.update():
             for motor in Odometer.data.motor_info:
@@ -23,10 +28,13 @@ class Motor(Service):
 
     @staticmethod
     def get_motor_speed(motor_name: str) -> Union[float, int]:
-        """
-        获取指定电机的当前速度
-        :param motor_name:
-        :return: 返回电机的当前速度，若电机不存在返回 -1
+        """获取指定电机的当前速度
+
+        Args:
+            motor_name (str): 电机名称
+
+        Returns:
+            Union[float, int]: 返回电机的当前速度，若电机不存在返回 -1
         """
         motor_speed = -1
         if NavSpeed.update():
@@ -39,6 +47,7 @@ class Motor(Service):
     @call_service()
     def setMotorSpeed(cls, name: str, vel: float, stopDI: int) -> bool:
         """让电机以某个速度运行，比如滚筒电机
+
         Args:
             name (str): 电机名称
             vel (float): 电机速度
@@ -63,6 +72,12 @@ class Motor(Service):
         Returns:
             bool: 如果不存在这个电机，则返回False
         """
+        pass
+
+    @classmethod
+    @call_service()
+    def stopMotor(cls):
+        """停止所有非行走的电机"""
         pass
 
     @classmethod
@@ -123,9 +138,9 @@ class Motor(Service):
     @call_service(plugin_name="DSPChassis")
     def disableMotor(cls, name: str):
         """电机去使能
+
         Args:
             name (str): 电机名称
-        Returns:
         """
         pass
 
@@ -133,16 +148,17 @@ class Motor(Service):
     @call_service(plugin_name="DSPChassis")
     def enableMotor(cls, name: str):
         """电机使能
+
         Args:
             name (str): 电机名称
-        Returns:
         """
         pass
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
     def motorCalib(cls, m: str):
-        """
+        """电机标零
+
         Args:
             m (str):
         """
@@ -152,6 +168,7 @@ class Motor(Service):
     @call_service(plugin_name="DSPChassis")
     def motorForceCalib(cls, m: str):
         """
+
         Args:
             m (str):
         """
