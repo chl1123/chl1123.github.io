@@ -5,8 +5,9 @@
 # @Update:
 
 import time
+
 import syspy
-from syspy import Di, Motor, MF, ScriptStatus
+from syspy import Di, Motor, Navigation, ScriptStatus
 
 
 class Module(syspy.BasicModule):
@@ -81,8 +82,8 @@ class Module(syspy.BasicModule):
 
     def spin(self):
         print("spin: ", self.spinAngle)
-        print("setRobotSpinAngle(): ", MF.setRobotSpinAngle(self.spinAngle, 0))
-        finished = MF.spinRun()
+        print("setRobotSpinAngle(): ", Navigation.setRobotSpinAngle(self.spinAngle, 0))
+        finished = Navigation.spinRun()
         if finished:
             print("spin finish")
             self.status = ScriptStatus.FINISHED
@@ -91,10 +92,10 @@ class Module(syspy.BasicModule):
         if self.init_path:
             print("init_path****************************************")
             self.init_path = False
-            MF.resetPath()
-            MF.setPathOnRobot([0, self.goPath_x], [0, self.goPath_y], self.goPath_a)
-        MF.goPathParam({"test": 123})
-        finished = MF.isPathReached()
+            Navigation.resetPath()
+            Navigation.setPathOnRobot([0, self.goPath_x], [0, self.goPath_y], self.goPath_a)
+        Navigation.goPathParam({"test": 123})
+        finished = Navigation.isPathReached()
         print("goPath: ", self.goPath_x, self.goPath_y, self.goPath_a, finished)
         if finished:
             print("goPath finish")
@@ -102,13 +103,13 @@ class Module(syspy.BasicModule):
 
     def getCurrentPathProperty(self):
         print("getCurrentPathProperty ==============================================")
-        result = MF.getCurrentPathProperty()
+        result = Navigation.getCurrentPathProperty()
         print("getCurrentPathProperty", result)
         self.status = ScriptStatus.FINISHED
 
     def getLM(self):
         print("getLM ==============================================")
-        result = MF.getLM("LM7", True)
+        result = Navigation.getLM("LM7", True)
         print("getLM", result)
         self.status = ScriptStatus.FINISHED
 
@@ -116,9 +117,9 @@ class Module(syspy.BasicModule):
         if self.init_odo:
             print("init_odo****************************************")
             self.init_odo = False
-            MF.resetOdoMove()
-        status = MF.runOdoMove({"move_dist": 1.0, "speed_x": 0.5})
-        finished = (status == 3)
+            Navigation.resetOdoMove()
+        status = Navigation.runOdoMove({"move_dist": 1.0, "speed_x": 0.5})
+        finished = status == 3
         print("===========================runOdoMove: ", status, finished)
         if finished:
             print("!!!!!!!!!!!!!!!!!!!!!!!!!!runOdoMove finish")
@@ -132,6 +133,7 @@ class Module(syspy.BasicModule):
         print("current task: ", self.current_task)
         print("current task id: ", self.task_id)
         print("current task status: ", self.status)
+
 
 if __name__ == '__main__':
     module = Module()
