@@ -1,9 +1,11 @@
-import plyvel
 import os
-import fasteners
 import pickle
 
+import fasteners
+import plyvel
+
 from .logger import log
+
 
 class LevelDB:
     _db_path = "/opt/.data/rbk/private/runtimes/containers_leveldb"

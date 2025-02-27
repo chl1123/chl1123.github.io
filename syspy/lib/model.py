@@ -17,10 +17,12 @@ class Model(Service):
     @classmethod
     @call_service()
     def updateModel(cls, file_name: str, data: dict) -> str:
-        """
+        """更新模型文件
+
         Args:
             file_name:
             data: 机器人模型文件的dict格式，先从Model.getRobotFile()获取
+
         Returns:
             str:
         """

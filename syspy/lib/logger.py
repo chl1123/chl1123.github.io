@@ -1,11 +1,11 @@
+import logging
 import os
 import sys
 import time
-import logging
-from loguru import logger
-
 from types import FrameType
 from typing import cast
+
+from loguru import logger
 
 
 class Logger:
