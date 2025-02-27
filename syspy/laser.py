@@ -1,7 +1,7 @@
 from typing import List
 
 from .lib.py_rpc import Message, call_service
-from .protobuf.message import Message_AllLasers
+from .protobuf.message import Message_AllLasers, Message_AllLasers3D, Message_Laser3D
 
 
 class Laser(Message[Message_AllLasers]):
@@ -105,3 +105,21 @@ class Laser(Message[Message_AllLasers]):
             enable:
         """
         pass
+
+
+class Laser3D(Message[Message_AllLasers3D]):
+    """激光类"""
+
+    _TOPIC = "rbk.protocol.Message_AllLasers3D"
+    _PLUGIN = "MultiLaser"
+    _MODEL_CLASS = Message_AllLasers3D
+
+    @classmethod
+    def get_lasers3d(cls) -> List["Message_Laser3D"]:
+        """获取所有3D激光数据列表
+
+        Returns:
+            List[Message_Laser3D]: 返回所有3D激光数据的列表
+        """
+        if cls.update():
+            return cls.data.lasers3d

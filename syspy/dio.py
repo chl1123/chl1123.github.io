@@ -35,6 +35,22 @@ class Di(Message[Message_DI]):
         pass
 
     @classmethod
+    def get_di(cls, di: int) -> bool:
+        """检测单个DI状态信息
+        Args:
+            di (int): 需要检测的 DI
+
+        Returns:
+            bool: 返回指定DI的状态，若DI不存在返回False
+        """
+        cls.update()
+        if cls.data:
+            for node in cls.data.node:
+                if node.id == di:
+                    return node.status
+        return False
+
+    @classmethod
     def get_dis(cls) -> typing.List["Message_DINode"]:
         """获取DI消息中的节点列表
 
