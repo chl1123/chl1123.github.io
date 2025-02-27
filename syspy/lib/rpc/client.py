@@ -1,5 +1,9 @@
+import json
+import queue
+import threading
 import time
-import zmq, json, threading, queue
+
+import zmq
 
 from syspy.lib.logger import log
 from syspy.lib.rpc import DOUBLE_COLON
@@ -20,11 +24,12 @@ class zmqClient(object):
         self.socket = self.context.socket(zmq.REQ)
         self.poller = zmq.Poller()
         self.poller.register(self.socket, zmq.POLLIN)
+
         self.stop_flag = threading.Event()  # 线程关闭标志
-        self.func_json = ""
         self.queue = queue.Queue()
         self.worker_thread = threading.Thread(target=self.worker, name="zmqClient", daemon=True)
         self.worker_thread.start()
+        self.addr = PYTHON_CPP_IPC
 
     def __del__(self):
         self.close()
@@ -40,7 +45,13 @@ class zmqClient(object):
         self.context.term()
 
     def connect(self, addr: str):
-        self.socket.connect(addr)
+        try:
+            self.socket.connect(addr)
+            log.info(f"Successfully connected to {addr}")
+            return True
+        except zmq.ZMQError as e:
+            log.error(f"Connection failed: {e.strerror} (addr={addr})")
+            return False
 
     def putQueue(self, data: JSONRPCRequest, event: ResultEvent):
         # 将请求放入队列，并传入事件对象
@@ -48,6 +59,19 @@ class zmqClient(object):
 
     def recv(self):
         return self.socket.recv()
+
+    def _init_socket(self):
+        log.warning("zmqClient init the socket")
+        # 销毁旧资源
+        self.socket.close()
+        self.context.term()
+
+        # 创建新资源
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.REQ)
+        self.poller = zmq.Poller()
+        self.poller.register(self.socket, zmq.POLLIN)
+        self.connect(self.addr)
 
     def worker(self):
         while not self.stop_flag.is_set():
@@ -66,9 +90,8 @@ class zmqClient(object):
             except queue.Empty:
                 continue
             except Exception as e:
-                if self.stop_flag.is_set():
-                    break
-                log.error(f"worker error:{e}, send{self.func_json}")
+                log.error(f"worker error:{e}")
+                break
         log.info("zmqClient worker exit")
 
 
@@ -106,9 +129,9 @@ class rpcStub(object):
         self.putQueue(request, event)
         log.info(f"req => {request.to_json()}")
         # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
-        if not event.wait(timeout=7):  # 设置适当的超时时间
+        if not event.wait(timeout=5):  # 设置适当的超时时间
             log.error("Event wait timeout")
-            return ""
+            raise Exception("Event wait timeout")
         # event.result 不为空，表示收到响应
         if event.result:
             response = json.loads(event.result.decode())
@@ -119,7 +142,7 @@ class rpcStub(object):
                 return response["result"]
         else:  # event.result 为 None
             log.error("poller Timeout")
-            return ""
+            raise Exception("poller Timeout")
 
 
 class rpcClient(zmqClient, rpcStub):
