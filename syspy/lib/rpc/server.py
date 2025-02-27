@@ -1,7 +1,9 @@
-import threading
-import zmq
-import json
 import atexit
+import json
+import threading
+from typing import Any
+
+import zmq
 
 from syspy.lib.logger import log
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InternalError
@@ -67,7 +69,7 @@ class rpcServer:
         if response.has_error():
             log.error(f"Unregister failed: {response.get_error()}")
             return
-        log.info(f"Registered function: {rpcServer.SCRIPT_NAME}.{method_name}")
+        log.info(f"Registered function: {rpcServer.SCRIPT_NAME}::{method_name}")
 
     def start(self):
         self.zmq_server_thread.start()
@@ -114,7 +116,7 @@ class rpcServer:
                 log.error(f"Error handling request: {e}")
                 break
 
-    def _process_request(self, request: JSONRPCRequest):
+    def _process_request(self, request: JSONRPCRequest) -> Any:
         """根据请求的方法名称和参数处理请求。
 
         Args:
@@ -159,8 +161,7 @@ class rpcServer:
         log.info(f"Registered successfully for {name}")
 
     def _unregister_server(self, name):
-        """注销服务，断开与代理的连接。
-        """
+        """注销服务，断开与代理的连接。"""
         request = JSONRPCRequest("unregister_service", [name])
         self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
 

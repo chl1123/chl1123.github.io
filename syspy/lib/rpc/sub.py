@@ -1,5 +1,10 @@
-import zmq, json, threading
+import json
+import threading
+
+import zmq
+
 from syspy.lib.logger import log
+
 
 class zmqSub(object):
     def __init__(self):
@@ -51,7 +56,7 @@ class zmqSub(object):
                     if self.data["name"] == "":
                         register_name = method_name
                     else:
-                        register_name = self.data['name'] + '.' + method_name
+                        register_name = self.data['name'] + "::" + method_name
                     if register_name in self.funs:
                         func = self.funs[register_name]
                         args = self.data['args']
@@ -93,7 +98,7 @@ class rpcSub(zmqSub):
         if script_name == "":
             register_name = method_name
         else:  # 否则，取脚本名.函数名
-            register_name = script_name + '.' + method_name
+            register_name = script_name + "::" + method_name
         self.funs[register_name] = function
         log.info(f"registerFunction: {self.funs}")
 
@@ -109,4 +114,5 @@ if __name__ == '__main__':
     test = rpcSub()
     test.registerFunction(a.setChargeStateOn)
     import time
+
     time.sleep(60)

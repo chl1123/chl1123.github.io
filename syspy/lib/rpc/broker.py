@@ -1,9 +1,10 @@
-import zmq
 import json
+
+import zmq
 
 from syspy.lib.logger import log
 from syspy.lib.rpc import DOUBLE_COLON
-from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, JSONRPCError, MethodNotFound, InvalidRequest
+from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InvalidRequest
 
 
 class ServiceMap:
@@ -38,7 +39,7 @@ class ServiceMap:
         return self.service_mapping
 
     def get_service_id(self, service_name):
-        return self.service_mapping.get(service_name).get("id", None)
+        return self.service_mapping.get(service_name, {}).get("id", None)
 
     def get_service_methods(self, service_name):
         return self.service_mapping.get(service_name, {}).get("method", [])
