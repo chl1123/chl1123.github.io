@@ -121,7 +121,7 @@ class Abnormal(Service):
         pass
 
     @classmethod
-    @call_service(func_name="setAppAbnormal")
+    @call_service(func_name="setSystemAbnormal")
     def setSystem(cls, code: int, desc: str, reason: str, method: str, fileName: str, param: str = "") -> bool:
         """设置系统异常
 
@@ -139,7 +139,7 @@ class Abnormal(Service):
         pass
 
     @classmethod
-    @call_service(func_name="setAppAbnormal")
+    @call_service(func_name="setSRCAbnormal")
     def setSRC(cls, code: int, desc: str, reason: str, method: str) -> bool:
         """设置SRC异常
 
