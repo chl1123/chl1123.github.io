@@ -4,6 +4,16 @@ from typing import Optional, Union, Dict, Any
 
 
 class JSONRPCError(Exception):
+    # 标准错误码
+    PARSE = -32700
+    INVALID_REQUEST = -32600
+    METHOD_NOT_FOUND = -32601
+    INVALID_PARAMS = -32602
+    INTERNAL = -32603
+
+    # 自定义错误码
+    INVALID_RESPONSE = -32000
+
     def __init__(self, code: int, message: str, data: Optional[Any] = None):
         super().__init__(message)
         self.code = code
@@ -20,32 +30,32 @@ class JSONRPCError(Exception):
 
 class ParseError(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
-        super().__init__(-32700, "Parse error", data)
+        super().__init__(self.PARSE, "Parse error", data)
 
 
 class InvalidRequest(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
-        super().__init__(-32600, "Invalid Request", data)
+        super().__init__(self.INVALID_REQUEST, "Invalid Request", data)
 
 
 class MethodNotFound(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
-        super().__init__(-32601, "Method not found", data)
+        super().__init__(self.METHOD_NOT_FOUND, "Method not found", data)
 
 
 class InvalidParams(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
-        super().__init__(-32602, "Invalid params", data)
+        super().__init__(self.INVALID_PARAMS, "Invalid params", data)
 
 
 class InternalError(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
-        super().__init__(-32603, "Internal error", data)
+        super().__init__(self.INTERNAL, "Internal error", data)
 
 
 class InvalidResponse(JSONRPCError):
     def __init__(self, data: Optional[Any] = None):
-        super().__init__(-32000, "Invalid response", data)
+        super().__init__(self.INVALID_RESPONSE, "Invalid response", data)
 
 
 class JsonRpcMessage:
@@ -121,20 +131,22 @@ class JSONRPCResponse(JsonRpcMessage):
 
     def set_result(self, result: Any):
         self._result = result
+        self._error = None  # 设置结果时清除错误
 
     def set_error(self, error: JSONRPCError):
         self._error = error
+        self._result = None  # 设置错误时清除结果
 
-    def has_result(self):
-        return self._error is not None
+    def has_result(self) -> bool:
+        return self._result is not None
 
-    def has_error(self):
+    def has_error(self) -> bool:
         return self._error is not None
 
     def get_result(self):
         return self._result
 
-    def get_error(self):
+    def get_error(self) -> Optional[JSONRPCError]:
         return self._error
 
     @classmethod
@@ -173,3 +185,11 @@ class JSONRPCResponse(JsonRpcMessage):
         else:
             response["result"] = self._result
         return response
+
+    def get_print(self) -> str:
+        response = self.to_dict()
+        # 如果结果太长，则只显示长度
+        if len(str(self.get_result())) > 20:
+            response["result"] = "..."
+            response["result_len"] = len(self.get_result())
+        return json.dumps(response)

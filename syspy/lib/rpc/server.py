@@ -51,7 +51,7 @@ class rpcServer:
         rpcServer.FUNCS[method_name] = function
 
         # 发送注册信息到代理
-        request = JSONRPCRequest("register_method", [rpcServer.SCRIPT_NAME, method_name])
+        request = JSONRPCRequest("add_method", [rpcServer.SCRIPT_NAME, method_name])
         log.info(f"Sending registration method message: {request.to_json()}")
 
         self.socket.send_multipart([b"", request.to_json().encode('utf-8')])

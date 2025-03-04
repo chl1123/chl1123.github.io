@@ -7,7 +7,7 @@ import zmq
 
 from syspy.lib.logger import log
 from syspy.lib.rpc import DOUBLE_COLON
-from syspy.lib.rpc.json_rpc import JSONRPCRequest
+from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse
 
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
 
@@ -134,12 +134,17 @@ class rpcStub(object):
             raise Exception("Event wait timeout")
         # event.result 不为空，表示收到响应
         if event.result:
-            response = json.loads(event.result.decode())
-            if "error" in response:
-                log.error(f"res <= {response}")
+            response_json = json.loads(event.result.decode())
+            if "error" in response_json:
+                log.error(f"res <= {response_json}")
             else:
-                log.info(f"res <= {response}")
-                return response["result"]
+                # 记录 响应
+                response = JSONRPCResponse.parse(response_json)
+                if response.has_error():
+                    log.error(f"res <= {response_json}")
+                    return
+                log.info(f"res <= {response.get_print()}")
+                return response.get_result()
         else:  # event.result 为 None
             log.error("poller Timeout")
             raise Exception("poller Timeout")

@@ -7,92 +7,57 @@ from syspy.lib.rpc import DOUBLE_COLON
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InvalidRequest
 
 
-class ServiceMap:
+class RegistryServer:
+    """服务注册"""
+
     def __init__(self):
-        self.service_mapping = {}
+        self._services = {}
 
     def register_service(self, service_name, service_id):
-        if service_name in self.service_mapping:
+        if service_name in self._services:
             log.warning(f"Service with name '{service_name}' already registered. Overwriting old service.")
-        self.service_mapping[service_name] = {}
-        self.service_mapping[service_name]["id"] = service_id
+        self._services[service_name] = {
+            'id': service_id,
+            'methods': set()
+        }
 
     def unregister_service(self, service_name):
-        if service_name in self.service_mapping:
-            del self.service_mapping[service_name]
+        if service_name in self._services:
+            del self._services[service_name]
             log.info(f"Service with name '{service_name}' unregistered.")
         else:
             log.warning(f"Service with name '{service_name}' not found. Cannot unregister.")
 
-    def register_method(self, service_name, method_name):
-        log.info(f"self.service_mapping: {self.service_mapping}")
-        if service_name not in self.service_mapping:
+    def add_method(self, service_name, method_name):
+        log.info(f"self._services: {self._services}")
+        if service_name not in self._services:
             log.warning(f"Service with name '{service_name}' not found. Cannot register method.")
             return False
-        if "method" not in self.service_mapping[service_name]:
-            self.service_mapping[service_name]["method"] = []
-        self.service_mapping[service_name]["method"].append(method_name)
-        log.info(f"self.service_mapping: {self.service_mapping}")
+        self._services[service_name]["methods"].add(method_name)
+        log.info(f"self._services: {self._services}")
         return True
 
     def get_services(self):
-        return self.service_mapping
+        return self._services
 
     def get_service_id(self, service_name):
-        return self.service_mapping.get(service_name, {}).get("id", None)
+        return self._services.get(service_name, {}).get("id", None)
 
     def get_service_methods(self, service_name):
-        return self.service_mapping.get(service_name, {}).get("method", [])
+        return self._services.get(service_name, {}).get("methods", set())
 
 
-class Broker:
-    def __init__(self, frontend_addr, backend_addr):
-        self.context = zmq.Context()
-        self.frontend = None
-        self.frontend_addr = frontend_addr
-        self.backend = None
-        self.backend_addr = backend_addr
-        self.service_mapping = ServiceMap()
-        self._setup_sockets()
-        self._setup_poller()
+class MessageDispatcher:
+    """消息分发器"""
 
-    def _setup_sockets(self):
+    def __init__(self, frontend: zmq.Socket, backend: zmq.Socket):
+        self.frontend = frontend
+        self.backend = backend
+        self.registry_server = RegistryServer()
+
+    def handle_frontend(self, msg: list):
         try:
-            # 创建 ROUTER 套接字监听客户端请求
-            self.frontend = self.context.socket(zmq.ROUTER)
-            self.frontend.bind(self.frontend_addr)
-
-            # 创建 ROUTER 套接字连接到服务端
-            self.backend = self.context.socket(zmq.ROUTER)
-            self.backend.bind(self.backend_addr)
-        except zmq.ZMQError as e:
-            log.error(f"Failed to setup sockets: {e}")
-            raise
-
-    def _setup_poller(self):
-        self.poller = zmq.Poller()
-        self.poller.register(self.frontend, zmq.POLLIN)
-        self.poller.register(self.backend, zmq.POLLIN)
-
-    def start(self):
-        log.info(f"Broker started: frontend={self.frontend_addr}, backend={self.backend_addr}")
-
-        try:
-            while True:
-                socks = dict(self.poller.poll())
-                if self.backend in socks and socks[self.backend] == zmq.POLLIN:
-                    self._handle_backend_message()
-                if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
-                    self._handle_frontend_message()
-        except Exception as e:
-            log.error(f"Broker encountered an error: {e}")
-        finally:
-            self._cleanup()
-
-    def _handle_frontend_message(self):
-
-        try:
-            client_id, empty, request_msg = self.frontend.recv_multipart()
+            client_id, empty, request_msg = msg
             log.info(f"Request <= {client_id}, {request_msg}")
             request_dict = json.loads(request_msg.decode('utf-8'))
 
@@ -110,7 +75,7 @@ class Broker:
             if DOUBLE_COLON in bind_name:
                 # 取出脚本名，方法名
                 script_name, method = bind_name.rsplit(DOUBLE_COLON, 1)
-                service_id = self.service_mapping.get_service_id(script_name)
+                service_id = self.registry_server.get_service_id(script_name)
                 if service_id is None:
                     log.warning(f"No service found for name: {script_name}")
                     response = JSONRPCResponse(request.get_id())
@@ -122,12 +87,14 @@ class Broker:
                 self.backend.send_multipart([service_id, b"", client_id, b"", request.to_json().encode('utf-8')])
                 log.info(f"Response => {service_id}, {client_id}, {request_msg}")
             else:
-                has_method = False
+                service_methods = {
+                    service_name: self.registry_server.get_service_methods(service_name)
+                    for service_name in self.registry_server.get_services()
+                }
+                has_method = any(bind_name in methods for methods in service_methods.values())
                 # 转发请求到多个服务端
-                for service_id in self.service_mapping.get_services().keys():
-                    methods = self.service_mapping.get_service_methods(service_id)
+                for service_id, methods in service_methods:
                     if bind_name in methods:
-                        has_method = True
                         self.backend.send_multipart([service_id, b"", client_id, b"", request_msg])
                         log.info(f"Response => {service_id}, {client_id}, {request_msg}")
                 if not has_method:
@@ -138,12 +105,11 @@ class Broker:
         except Exception as e:
             log.error(f"Error handling frontend message: {e}")
 
-    def _handle_backend_message(self):
+    def handle_backend(self, msg: list):
         try:
-            parts = self.backend.recv_multipart()
-            log.info(f"Request <= {parts}")
-            if len(parts) == 3:  # 注册消息
-                service_id, empty, service_msg = parts
+            log.info(f"Request <= {msg}")
+            if len(msg) == 3:  # 注册消息
+                service_id, empty, service_msg = msg
                 register_info = json.loads(service_msg.decode('utf-8'))
                 request = JSONRPCRequest.parse(register_info)
                 method = request.get_method()
@@ -151,29 +117,72 @@ class Broker:
                 response = JSONRPCResponse(request.get_id())
 
                 if method == "register_service":  # 注册服务
-                    self.service_mapping.register_service(*params, service_id)
+                    self.registry_server.register_service(*params, service_id)
                     response.set_result(True)
-                elif method == "register_method":  # 注册方法
-                    register_method_flag = self.service_mapping.register_method(*params)
-                    if register_method_flag:
+                elif method == "add_method":  # 注册方法
+                    add_method_flag = self.registry_server.add_method(*params)
+                    if add_method_flag:
                         response.set_result(True)
                     else:
                         response.set_error(MethodNotFound(f"Service '{params}' not found. Cannot register method."))
                 elif method == "unregister_service":  # 销毁服务
-                    self.service_mapping.unregister_service(*params)
+                    self.registry_server.unregister_service(*params)
                     response.set_result(True)
                 else:
                     response.set_error(MethodNotFound(f"method: {method} not found"))
                 self.backend.send_multipart([service_id, b"", response.to_json().encode('utf-8')])
                 log.info(f"Response => {service_id}, {response.to_json()}")
-            elif len(parts) == 4:  # 响应消息
-                service_id, client_id, empty, response_msg = parts
+            elif len(msg) == 4:  # 响应消息
+                service_id, client_id, empty, response_msg = msg
                 self.frontend.send_multipart([client_id, b"", response_msg])
                 log.info(f"Response => {client_id}, {response_msg}")
             else:
                 log.error("Invalid message received")
         except Exception as e:
             log.error(f"Error handling backend message: {e}")
+
+
+class Broker:
+    """消息代理"""
+
+    def __init__(self, frontend_addr, backend_addr):
+        """初始化代理服务器
+        
+        Args:
+            frontend_addr: 前端地址（客户端连接）
+            backend_addr: 后端地址（服务端连接）
+        """
+        self.context = zmq.Context()
+        self.frontend_addr = frontend_addr
+        self.backend_addr = backend_addr
+        self.frontend = self._setup_socket(zmq.ROUTER, frontend_addr)
+        self.backend = self._setup_socket(zmq.ROUTER, backend_addr)
+        self.dispatcher = MessageDispatcher(self.frontend, self.backend)
+        self._setup_poller()
+
+    def _setup_socket(self, sock_type: int, addr: str) -> zmq.Socket:
+        sock = self.context.socket(sock_type)
+        sock.bind(addr)
+        return sock
+
+    def _setup_poller(self):
+        self.poller = zmq.Poller()
+        self.poller.register(self.frontend, zmq.POLLIN)
+        self.poller.register(self.backend, zmq.POLLIN)
+
+    def start(self):
+        log.info(f"Broker started: frontend={self.frontend_addr}, backend={self.backend_addr}")
+        try:
+            while True:
+                socks = dict(self.poller.poll())
+                if self.backend in socks and socks[self.backend] == zmq.POLLIN:
+                    self.dispatcher.handle_backend(self.backend.recv_multipart())
+                if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
+                    self.dispatcher.handle_frontend(self.frontend.recv_multipart())
+        except Exception as e:
+            log.error(f"Broker encountered an error: {e}")
+        finally:
+            self._cleanup()
 
     def _cleanup(self):
         self.frontend.close()
