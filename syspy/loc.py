@@ -1,3 +1,4 @@
+import math
 import typing
 
 from .lib.py_rpc import Message
@@ -21,7 +22,7 @@ class Loc(Message[Message_Localization]):
             float: 返回角度值
         """
         if cls.update():
-            return cls.data.x, cls.data.y, cls.data.angle
+            return cls.data.x, cls.data.y, math.degrees(cls.data.angle)
 
     @classmethod
     def get_confidence(cls) -> float:

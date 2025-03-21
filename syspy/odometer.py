@@ -1,3 +1,4 @@
+import math
 import typing
 from typing import List, Tuple
 
@@ -30,10 +31,10 @@ class Odometer(Message[Message_Odometer]):
         Returns:
             float: 返回x坐标值，单位为米
             float: 返回y坐标值，单位为米
-            float: 返回角度值，单位为弧度
+            float: 返回角度值，单位为角度
         """
         if cls.update():
-            return cls.data.x, cls.data.y, cls.data.angle
+            return cls.data.x, cls.data.y, math.degrees(cls.data.angle)
 
     @classmethod
     def get_speeds(cls) -> Tuple[float, float, float]:

@@ -1,6 +1,7 @@
+import math
 from typing import List
 
-from .lib.py_rpc import Message, call_service
+from .lib.py_rpc import Message, call_service, check
 from .protobuf.message import Message_AllLasers, Message_AllLasers3D, Message_Laser3D
 
 
@@ -28,16 +29,17 @@ class Laser(Message[Message_AllLasers]):
         pass
 
     @classmethod
-    @call_service(plugin_name="Perception")
+    @check
     def setLaserAngle(cls, id: int, min_angle: float, max_angle: float):
         """设置激光角度
 
         Args:
             id (int):
-            min_angle (float):
-            max_angle (float):
+            min_angle (float): 最小角度（单位：°）
+            max_angle (float): 最大角度（单位：°）
         """
-        pass
+        cls.rpc_client.call_service("Perception", "setLaserAngle",
+                                    (id, math.radians(min_angle), math.radians(max_angle)))
 
     @classmethod
     @call_service(plugin_name="Perception")

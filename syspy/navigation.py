@@ -1,3 +1,4 @@
+import math
 import typing
 from typing import Tuple
 
@@ -522,6 +523,8 @@ class NavStatus(Message[Message_MoveStatus]):
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = Message_MoveStatus
 
+    not_stop_counts = 0
+
     @classmethod
     @call_service("DSPChassis")
     def getChassisStop(cls) -> bool:
@@ -530,12 +533,49 @@ class NavStatus(Message[Message_MoveStatus]):
         Returns:
             bool: 如果行走电机停止则为True
         """
-        pass
+        is_stop = cls.rpc_client.call_service("DSPChassis", "getChassisStop")
+        if is_stop:
+            is_stop = True
+        else:
+            if cls.not_stop_counts >= 1:
+                is_stop = False
+                cls.not_stop_counts = 0
+            else:
+                # 非停止状态计数
+                cls.not_stop_counts += 1
+        return is_stop
 
     @classmethod
     def get_block(cls):
         if cls.update():
             return cls.data.blocked
+
+    @classmethod
+    def get_turn(cls, v_x, v_y):
+        turn = 0
+        if v_y >= math.radians(1) * 3:
+            '''机身左旋'''
+            if v_x > 0.0:
+                '''机身左旋+前进'''
+                turn = 1
+            elif v_x < 0.0:
+                '''机身左旋+后退'''
+                turn = 2
+            else:
+                """机身原地左旋"""
+                turn = 3
+        elif v_y <= math.radians(-1) * 3:
+            """机身右旋"""
+            if v_x > 0.0:
+                """机身右旋+前进"""
+                turn = 2
+            elif v_x < 0.0:
+                """机身右旋+后退"""
+                turn = 1
+            else:
+                """机身原地右旋"""
+                turn = 3
+        return turn
 
 
 class NavSpeed(Message[Message_NavSpeed]):
