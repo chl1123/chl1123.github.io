@@ -52,6 +52,7 @@ class Logger:
             sys.stdout,
             format=console_format,
             filter=self._exclude_protocol_logs,
+            level="INFO",  # 新增日志级别过滤
             colorize=True  # 显式启用颜色
         )
 
@@ -69,7 +70,7 @@ class Logger:
             format=file_format,
             encoding="utf-8",
             rotation="20 MB",  # 最大文件大小
-            retention=10,  # 最多保留20个文件
+            retention=5,  # 最多保留5个文件
             enqueue=True,  # 异步写入
             backtrace=True,  # 回溯
             diagnose=True,  # 诊断
