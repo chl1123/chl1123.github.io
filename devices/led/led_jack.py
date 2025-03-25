@@ -8,8 +8,7 @@ from syspy.leds.light_type import LightType, Color
 from syspy.lib.logger import Logger
 from syspy.utils.param_server import ParamServer
 
-Loggers = Logger(log_prefix="led", console=True)
-log = Loggers.get_logger()
+log = Logger(log_prefix="led", console=True).get_logger()
 
 
 def signal_handler(signal, frame):
@@ -95,8 +94,8 @@ class LedChassis(LedBase):
         """
         处理机器移动时的灯光效果。
         """
-        v_x, v_y, _ = NavSpeed.get_speeds()
-        turn = NavStatus.get_turn(v_x, v_y)
+        v_x, _, v_w = NavSpeed.get_speeds()
+        turn = NavStatus.get_turn(v_x, v_w)
         if turn == 0:
             if self.is_back_breath and v_x < 0:
                 self.set_effect(LightType.MutableBreath, rgbw=Color.White, period=1000)

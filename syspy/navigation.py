@@ -551,9 +551,9 @@ class NavStatus(Message[Message_MoveStatus]):
             return cls.data.blocked
 
     @classmethod
-    def get_turn(cls, v_x, v_y):
+    def get_turn(cls, v_x, v_w):
         turn = 0
-        if v_y >= math.radians(1) * 3:
+        if v_w >= math.radians(1) * 3:
             '''机身左旋'''
             if v_x > 0.0:
                 '''机身左旋+前进'''
@@ -564,7 +564,7 @@ class NavStatus(Message[Message_MoveStatus]):
             else:
                 """机身原地左旋"""
                 turn = 3
-        elif v_y <= math.radians(-1) * 3:
+        elif v_w <= math.radians(-1) * 3:
             """机身右旋"""
             if v_x > 0.0:
                 """机身右旋+前进"""
