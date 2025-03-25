@@ -8,35 +8,42 @@ import time
 
 import syspy
 from syspy import Di, Motor, Navigation, ScriptStatus
+from syspy.utils.param_server import ParamServer
+
+
+class ConfigParams:
+    param_server = ParamServer(__file__)
+    jack_motor_name = param_server.loadParam("jack_motor_name", type="str", default="Motor-003", comment="顶升电机名称")
+    jack_motor_speed = param_server.loadParam("jack_motor_speed", type="float", default=0.015,
+                                              comment="顶升电机升降速度")
+    jack_lift_zero = param_server.loadParam("jack_lift_zero", type="float", default=0.000, comment="顶升升降零位")
+
+    jack_up_di = param_server.loadParam("jack_up_di", type="int", default=6, comment="顶升机构上极限DI")
+    jack_zero_di = param_server.loadParam("jack_zero_di", type="int", default=3, comment="顶升机构零位DI")
 
 
 class Module(syspy.BasicModule):
     def __init__(self):
         super().__init__()
         self.opt = None
-        self.jack_motor_name = "Motor-003"
-        self.motor_speed = 0.1
-        self.zero_pos = 0.0
-        self.up_di = 6
-        self.zero_di = 3
         self.height = 0.03
-        self.spinAngle = 0
+        self.spin_angle = 0
         self.init_path = True
         self.init_odo = True
-        self.goPath_x = 0
-        self.goPath_y = 0
-        self.goPath_a = 0
+        self.go_path_x = 0
+        self.go_path_y = 0
+        self.go_path_a = 0
 
         self.current_task = None
         self.status = ScriptStatus.NONE
 
     def reset(self):
-        self.spinAngle = 0
+        self.spin_angle = 0
         self.init_path = True
         self.init_odo = True
-        self.goPath_x = 0
-        self.goPath_y = 0
-        self.goPath_a = 0
+        self.go_path_x = 0
+        self.go_path_y = 0
+        self.go_path_a = 0
 
     def run(self):
         self.status = ScriptStatus.RUNNING
@@ -48,12 +55,12 @@ class Module(syspy.BasicModule):
         elif self.opt == "unload":
             self.unload()
         elif self.opt == "spin":
-            self.spinAngle = self.current_task.get('spinAngle', None)
+            self.spin_angle = self.current_task.get('spinAngle', None)
             self.spin()
         elif self.opt == "goPath":
-            self.goPath_x = self.current_task.get('x', 0)
-            self.goPath_y = self.current_task.get('y', 0)
-            self.goPath_a = self.current_task.get('a', 0)
+            self.go_path_x = self.current_task.get('x', 0)
+            self.go_path_y = self.current_task.get('y', 0)
+            self.go_path_a = self.current_task.get('a', 0)
             self.goPath()
         elif self.opt == "getCurrentPathProperty":
             self.getCurrentPathProperty()
@@ -65,24 +72,30 @@ class Module(syspy.BasicModule):
             pass
 
     def load(self):
-        print("load: ", self.jack_motor_name, self.height, self.motor_speed, self.up_di)
+        print("load: ", ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
+              ConfigParams.jack_up_di)
         print("setMotorPosition(): ",
-              Motor.setMotorPosition(self.jack_motor_name, self.height, self.motor_speed, self.up_di))
-        if Di.get_di(self.up_di) or Motor.isMotorReached(self.jack_motor_name):
+              Motor.setMotorPosition(ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
+                                     ConfigParams.jack_up_di))
+        if Di.get_di(ConfigParams.jack_up_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             print("load finish")
             self.status = ScriptStatus.FINISHED
 
     def unload(self):
-        print("unload: ", self.jack_motor_name, self.zero_pos, self.motor_speed, self.zero_di)
+        print("unload: ", ConfigParams.jack_motor_name, ConfigParams.jack_lift_zero, ConfigParams.jack_motor_speed,
+              ConfigParams.jack_zero_di)
         print("setMotorPosition(): ",
-              Motor.setMotorPosition(self.jack_motor_name, self.zero_pos, self.motor_speed, self.zero_di))
-        if Di.get_di(self.zero_di) or Motor.isMotorReached(self.jack_motor_name):
+              Motor.setMotorPosition(ConfigParams.jack_motor_name,
+                                     ConfigParams.jack_lift_zero,
+                                     ConfigParams.jack_motor_speed,
+                                     ConfigParams.jack_zero_di))
+        if Di.get_di(ConfigParams.jack_zero_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             print("unload finish")
             self.status = ScriptStatus.FINISHED
 
     def spin(self):
-        print("spin: ", self.spinAngle)
-        print("setRobotSpinAngle(): ", Navigation.setRobotSpinAngle(self.spinAngle, 0))
+        print("spin: ", self.spin_angle)
+        print("setRobotSpinAngle(): ", Navigation.setRobotSpinAngle(self.spin_angle, 0))
         finished = Navigation.spinRun()
         if finished:
             print("spin finish")
@@ -93,10 +106,10 @@ class Module(syspy.BasicModule):
             print("init_path****************************************")
             self.init_path = False
             Navigation.resetPath()
-            Navigation.setPathOnRobot([0, self.goPath_x], [0, self.goPath_y], self.goPath_a)
+            Navigation.setPathOnRobot([0, self.go_path_x], [0, self.go_path_y], self.go_path_a)
         Navigation.goPathParam({"test": 123})
         finished = Navigation.isPathReached()
-        print("goPath: ", self.goPath_x, self.goPath_y, self.goPath_a, finished)
+        print("goPath: ", self.go_path_x, self.go_path_y, self.go_path_a, finished)
         if finished:
             print("goPath finish")
             self.status = ScriptStatus.FINISHED

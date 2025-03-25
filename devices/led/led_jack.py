@@ -15,30 +15,32 @@ def signal_handler(signal, frame):
     exit(0)
 
 
+class ConfigParam:
+    param_server = ParamServer(__file__)
+    dev = param_server.loadParam('devName', type="str", default="/dev/ttyS8", comment="串行端口对应的设备名")
+    rgbw = param_server.loadParam('rgbwColor', type="list", default=Color.BlueCobalt.value,
+                                  comment="RGBW十进制代码")
+    rgbw_channel = param_server.loadParam('rgbwChannel', type="list", default=[0, 2, 3, 1],
+                                          comment="RGBW通道")
+    turn_pos = param_server.loadParam('turnPos', type="list", default=[4, 3, 1, 2],
+                                      comment="左前/左后/右前/右后方向的灯的位置")
+    turn_num = param_server.loadParam('turnNum', type="list", default=[1, 1, 1, 1],
+                                      comment="左前/左后/右前/右后方向的灯的灯条数")
+    light_total_num = param_server.loadParam('lightTotalNum', type="int", default=4,
+                                             comment="灯条总数")
+    is_show_charging = param_server.loadParam('showCharging', type="bool", default=True,
+                                              comment="是否显示充电状态")
+    is_show_battery = param_server.loadParam('showBattery', type="bool", default=True,
+                                             comment="是否显示电池状态")
+    is_back_breath = param_server.loadParam('isBackBreath', type="bool", default=False,
+                                            comment="是否后退时亮白色呼吸灯")
+    dmx_test_flag = param_server.loadParam('DmxTestFlag', type="bool", default=False,
+                                           comment="DMX测试标志")
+
+
 class LedChassis(LedBase):
     def __init__(self):
-        param_server = ParamServer(__file__)
-        self.dev = param_server.loadParam('devName', type="str", default="/dev/ttyS8", comment="串行端口对应的设备名")
-        self.rgbw = param_server.loadParam('rgbwColor', type="list", default=Color.BlueCobalt.value,
-                                           comment="RGBW十进制代码")
-        self.rgbw_channel = param_server.loadParam('rgbwChannel', type="list", default=[0, 2, 3, 1],
-                                                   comment="RGBW通道")
-        self.turn_pos = param_server.loadParam('turnPos', type="list", default=[4, 3, 1, 2],
-                                               comment="左前/左后/右前/右后方向的灯的位置")
-        self.turn_num = param_server.loadParam('turnNum', type="list", default=[1, 1, 1, 1],
-                                               comment="左前/左后/右前/右后方向的灯的灯条数")
-        self.light_total_num = param_server.loadParam('lightTotalNum', type="int", default=4,
-                                                      comment="灯条总数")
-        self.is_show_charging = param_server.loadParam('showCharging', type="bool", default=True,
-                                                       comment="是否显示充电状态")
-        self.is_show_battery = param_server.loadParam('showBattery', type="bool", default=True,
-                                                      comment="是否显示电池状态")
-        self.is_back_breath = param_server.loadParam('isBackBreath', type="bool", default=False,
-                                                     comment="是否后退时亮白色呼吸灯")
-        self.dmx_test_flag = param_server.loadParam('DmxTestFlag', type="bool", default=False,
-                                                    comment="DMX测试标志")
-
-        super().__init__(param_server)
+        super().__init__(ConfigParam.param_server)
 
     def run(self):
         if self.init():
@@ -53,7 +55,7 @@ class LedChassis(LedBase):
         else:
             battery_exist = True
         self.handle_light_effects(percentage, battery_exist)
-        if self.dmx_test_flag:
+        if ConfigParam.dmx_test_flag:
             self.set_effect(LightType.MutableBreath)
 
     def handle_light_effects(self, dmx_battery: Optional[float], battery_exist: bool):
@@ -97,7 +99,7 @@ class LedChassis(LedBase):
         v_x, _, v_w = NavSpeed.get_speeds()
         turn = NavStatus.get_turn(v_x, v_w)
         if turn == 0:
-            if self.is_back_breath and v_x < 0:
+            if ConfigParam.is_back_breath and v_x < 0:
                 self.set_effect(LightType.MutableBreath, rgbw=Color.White, period=1000)
             self.set_effect(LightType.MutableBreath, period=1000)
         else:
@@ -111,7 +113,7 @@ class LedChassis(LedBase):
         :param dmx_battery: 电池电量
         """
         # 充电中为呼吸灯，颜色根据电池电量变化
-        if self.is_show_charging and Battery.get_is_charging():
+        if ConfigParam.is_show_charging and Battery.get_is_charging():
             rgbw = self.battery_to_color(dmx_battery)
             self.set_effect(
                 LightType.MutableBreath, rgbw=rgbw
@@ -122,7 +124,7 @@ class LedChassis(LedBase):
                 LightType.MutableHorseRace, rgbw=Color.RedDark
             )
         # 常亮灯，颜色根据电池电量变化
-        elif self.is_show_battery:
+        elif ConfigParam.is_show_battery:
             rgbw = self.battery_to_color(dmx_battery)
             self.set_effect(
                 LightType.ConstantLight, rgbw=rgbw

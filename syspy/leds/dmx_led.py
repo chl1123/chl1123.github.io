@@ -4,8 +4,8 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import Union
 
-from syspy.utils.param_server import ParamServer
 from .light_type import LightType, Color
+from ..utils.param_server import ParamServer
 
 
 def adjust_color(rgb, brightness=1.0, saturation=1.0):
