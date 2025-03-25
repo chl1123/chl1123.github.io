@@ -7,19 +7,19 @@ from .py_rpc import Service, default_plugin, call_service
 class Abnormal(Service):
 
     @classmethod
-    def exists(cls, codes: Union[int, List[int]]) -> List[bool]:
+    def exists(cls, codes: Union[int, List[int]]) -> Union[bool, List[bool]]:
         """异常是否存在
 
         Args:
             codes (Union[int, List[int]]): 单个或多个异常码
 
         Returns:
-            List[bool]: 是否异常列表。异常为true, 否则为false
+            Union[bool, List[bool]]: 是否异常。异常为true, 否则为false。输入int, 输出bool; 输入List[int], 输出List[bool]
         """
-        # 将 int 转换为 list
         if isinstance(codes, int):
-            codes = [codes]
-        return cls.rpc_client.call_service("Abnormal", "existsAbnormal", codes)
+            return cls.rpc_client.call_service("Abnormal", "existsAbnormal", [codes])[0]
+        else:
+            return cls.rpc_client.call_service("Abnormal", "existsAbnormal", codes)
 
     @classmethod
     @call_service(func_name="clearAbnormal")
