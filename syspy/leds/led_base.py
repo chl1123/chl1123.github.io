@@ -32,7 +32,7 @@ class LedBase:
         self.__led = DmxLed(param_server)
 
         # 创建并启动发送串口数据
-        send_thread = threading.Thread(target=self.send_data_thread, daemon=True)
+        send_thread = threading.Thread(target=self.send_data_thread, daemon=True, name="LedDmxSerialComm")
         send_thread.start()
 
     def __del__(self):
@@ -52,7 +52,7 @@ class LedBase:
         print("DMXLedTTY init() self.dev:", self.dev)
 
         if self.dmx_serial.open():
-            print("dmx_serial True")
+            print("DMXLed init success")
             if Abnormal.exists(50305):
                 Abnormal.clear(50305)
         else:
@@ -133,7 +133,6 @@ class LedBase:
             led_idx = led_idx[:len(led_idx) // 2]
         elif turn_left_or_right == 2:
             led_idx = led_idx[len(led_idx) // 2:]
-        # print("turn_to_led_idx led_idx", led_idx)
         return led_idx
 
     def battery_to_color(self, battery):
@@ -234,11 +233,13 @@ class LedBase:
             led_idx: 常量灯和闪烁灯的索引。默认应用到所有LED灯
             brightness: 灯光亮度。int、float应用到全部，list应用到指定索引
         """
+        print(f"{light_effect=}, {rgbw=}, {led_idx=}")
         self.__led.show_effect(light_effect, rgbw=rgbw, period=period, led_idx=led_idx, brightness=brightness)
 
     def send_data_thread(self):
-        """串口数据发送线程"""
-        self.__led.update()
-        self.dmx_serial.send(self.__led.dmx_data)
-        # 发送数据的频率可以根据需要调整
-        time.sleep(0.1)  # 发送频率可以低于状态获取频率
+        while True:
+            """串口数据发送线程"""
+            self.__led.update()
+            self.dmx_serial.send(self.__led.dmx_data)
+            # 发送数据的频率可以根据需要调整
+            time.sleep(0.1)  # 发送频率可以低于状态获取频率
