@@ -4,6 +4,10 @@ import queue
 import threading
 import time
 
+from typeguard import install_import_hook
+
+install_import_hook('syspy')
+
 from .battery import Battery
 from .bin import Bin
 from .camera import Camera

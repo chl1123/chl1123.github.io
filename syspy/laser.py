@@ -1,7 +1,7 @@
 import math
 from typing import List
 
-from .lib.py_rpc import Message, call_service, check
+from .lib.py_rpc import Message, call_service
 from .protobuf.message import Message_AllLasers, Message_AllLasers3D, Message_Laser3D
 
 
@@ -29,7 +29,6 @@ class Laser(Message[Message_AllLasers]):
         pass
 
     @classmethod
-    @check
     def setLaserAngle(cls, id: int, min_angle: float, max_angle: float):
         """设置激光角度
 
