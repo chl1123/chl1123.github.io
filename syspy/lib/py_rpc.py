@@ -82,12 +82,7 @@ def call_service(plugin_name=None, func_name=None):
         def wrapper(cls, *args, **kwargs):
             # 使用提供的 plugin_name 或者从对象获取
             service_plugin = plugin_name or getattr(cls, "default_plugin")
-            # 调用原始函数
-            result = func(cls, *args, **kwargs)
-            # 判断是否为 rpcClient 类的实例
-            if hasattr(cls, "rpc_client") and isinstance(cls.rpc_client, rpcClient):
-                return cls.rpc_client.call_service(service_plugin, func_name or func.__name__, *args, **kwargs)
-            return result
+            return cls.rpc_client.call_service(service_plugin, func_name or func.__name__, *args, **kwargs)
 
         return wrapper
 

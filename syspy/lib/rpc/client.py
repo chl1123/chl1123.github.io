@@ -60,19 +60,6 @@ class zmqClient(object):
     def recv(self):
         return self.socket.recv()
 
-    def _init_socket(self):
-        log.warning("zmqClient init the socket")
-        # 销毁旧资源
-        self.socket.close()
-        self.context.term()
-
-        # 创建新资源
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        self.poller = zmq.Poller()
-        self.poller.register(self.socket, zmq.POLLIN)
-        self.connect(self.addr)
-
     def worker(self):
         while not self.stop_flag.is_set():
             try:
@@ -95,7 +82,20 @@ class zmqClient(object):
         log.info("zmqClient worker exit")
 
 
-class rpcStub(object):
+class rpcClient:
+    _instance_lock = threading.Lock()
+    _initialized = False  # 是否初始化完成
+
+    def __init__(self, ipc=PYTHON_CPP_IPC):
+        self.zmq_client = zmqClient()
+        self.zmq_client.connect(ipc)
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        self.zmq_client.close()
+
     def get_message(self, topic: str, plugin: str) -> str:
         return self.handle_request("NetProtocol::getMessage", [topic, plugin])
 
@@ -126,7 +126,7 @@ class rpcStub(object):
         request = JSONRPCRequest(method, params)
         event = ResultEvent()
         # 将请求放入队列，并传入事件对象
-        self.putQueue(request, event)
+        self.zmq_client.putQueue(request, event)
         log.info(f"req => {request.to_json()}")
         # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
         if not event.wait(timeout=5):  # 设置适当的超时时间
@@ -135,26 +135,15 @@ class rpcStub(object):
         # event.result 不为空，表示收到响应
         if event.result:
             response_json = json.loads(event.result.decode())
-            if "error" in response_json:
+            response = JSONRPCResponse.parse(response_json)
+            if response.has_error():
                 log.error(f"res <= {response_json}")
-            else:
-                # 记录 响应
-                response = JSONRPCResponse.parse(response_json)
-                if response.has_error():
-                    log.error(f"res <= {response_json}")
-                    return
-                log.info(f"res <= {response.get_print()}")
-                return response.get_result()
+                raise Exception(response_json)
+            log.info(f"res <= {response.get_print()}")
+            return response.get_result()
         else:  # event.result 为 None
             log.error("poller Timeout")
             raise Exception("poller Timeout")
-
-
-class rpcClient(zmqClient, rpcStub):
-    def __init__(self, ipc=PYTHON_CPP_IPC):
-        zmqClient.__init__(self)
-        rpcStub.__init__(self)
-        self.connect(ipc)
 
 
 if __name__ == "__main__":
