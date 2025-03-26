@@ -533,7 +533,7 @@ class NavStatus(Message[Message_MoveStatus]):
         Returns:
             bool: 如果行走电机停止则为True
         """
-        is_stop = cls.rpc_client.call_service("DSPChassis", "getChassisStop")
+        is_stop = cls.client().call_service("DSPChassis", "getChassisStop")
         if is_stop:
             is_stop = True
         else:

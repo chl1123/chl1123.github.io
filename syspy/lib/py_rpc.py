@@ -7,14 +7,21 @@ from typing import Optional, Type, TypeVar, Generic, Union, List
 from pydantic import BaseModel
 
 from .logger import log
-from .rpc.client import rpcClient
+from .rpc.client import RpcClient
 
 T = TypeVar('T', bound=BaseModel)
 
 
 class Service:
     default_plugin = None
-    rpc_client = rpcClient()
+    _rpc_client = None
+
+    @classmethod
+    def client(cls):
+        if cls._rpc_client is None:
+            log.debug("Lazy initializing RpcClient")
+            cls._rpc_client = RpcClient()
+        return cls._rpc_client
 
 
 class Message(Generic[T], Service):
@@ -46,7 +53,7 @@ class Message(Generic[T], Service):
     def update(cls):
         """刷新状态"""
         if cls.data is None or (time.time() - cls._last_update_time) > cls._update_time:
-            response = cls.rpc_client.get_message(cls._TOPIC, cls._PLUGIN)
+            response = cls.client().get_message(cls._TOPIC, cls._PLUGIN)
             if response:
                 try:
                     parsed_data = json.loads(response)
@@ -82,7 +89,7 @@ def call_service(plugin_name=None, func_name=None):
         def wrapper(cls, *args, **kwargs):
             # 使用提供的 plugin_name 或者从对象获取
             service_plugin = plugin_name or getattr(cls, "default_plugin")
-            return cls.rpc_client.call_service(service_plugin, func_name or func.__name__, *args, **kwargs)
+            return cls.client().call_service(service_plugin, func_name or func.__name__, *args, **kwargs)
 
         return wrapper
 

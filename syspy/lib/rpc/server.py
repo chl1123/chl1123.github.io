@@ -12,7 +12,7 @@ from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFou
 server_addr = "ipc:///tmp/broker2server.ipc"  # 代理的后端地址
 
 
-class rpcServer:
+class RpcServer:
     FUNCS = {}  # 存储注册的函数
     SCRIPT_NAME = ""  # 当前脚本名称
 
@@ -22,7 +22,7 @@ class rpcServer:
         Args:
             name (str): 脚本名称，用于注册到代理。
         """
-        rpcServer.SCRIPT_NAME = name
+        RpcServer.SCRIPT_NAME = name
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.DEALER)  # 使用 DEALER 套接字
         self.socket.connect(server_addr)
@@ -36,7 +36,7 @@ class rpcServer:
             name="zmq_server_thread",
             daemon=True
         )
-        # 注册退出函数，rpcServer结束时自动调用 unregister_server
+        # 注册退出函数，RpcServer结束时自动调用 unregister_server
         atexit.register(self.close)
 
     def registerFunction(self, function, method_name=""):
@@ -48,10 +48,10 @@ class rpcServer:
         """
         if not method_name:
             method_name = function.__name__
-        rpcServer.FUNCS[method_name] = function
+        RpcServer.FUNCS[method_name] = function
 
         # 发送注册信息到代理
-        request = JSONRPCRequest("add_method", [rpcServer.SCRIPT_NAME, method_name])
+        request = JSONRPCRequest("add_method", [RpcServer.SCRIPT_NAME, method_name])
         log.info(f"Sending registration method message: {request.to_json()}")
 
         self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
@@ -69,7 +69,7 @@ class rpcServer:
         if response.has_error():
             log.error(f"Unregister failed: {response.get_error()}")
             return
-        log.info(f"Registered function: {rpcServer.SCRIPT_NAME}::{method_name}")
+        log.info(f"Registered function: {RpcServer.SCRIPT_NAME}::{method_name}")
 
     def start(self):
         self.zmq_server_thread.start()
@@ -95,7 +95,7 @@ class rpcServer:
                 # 处理请求
                 method_name = request.get_method()
                 response = JSONRPCResponse(request.get_id())
-                if method_name in rpcServer.FUNCS:
+                if method_name in RpcServer.FUNCS:
                     try:
                         res = self._process_request(request)
                         response.set_result(res)
@@ -125,7 +125,7 @@ class rpcServer:
         Returns:
             方法返回值
         """
-        func = rpcServer.FUNCS[request.get_method()]
+        func = RpcServer.FUNCS[request.get_method()]
         args = request.get_params()
         if args:
             return func(args)
@@ -178,7 +178,7 @@ class rpcServer:
         log.info(f"Unregistered successfully for {name}")
 
     def close(self):
-        log.info("Closing rpcServer resources...")
+        log.info("Closing RpcServer resources...")
         self.stop_flag.set()
         self.socket.close()  # 关闭 socket 会终止 recv 的阻塞状态
         self.context.term()  # 终止 context
@@ -189,6 +189,6 @@ class rpcServer:
             self.context = zmq.Context()
             self.socket = self.context.socket(zmq.DEALER)  # 使用 DEALER 套接字
             self.socket.connect(server_addr)
-            self._unregister_server(rpcServer.SCRIPT_NAME)
+            self._unregister_server(RpcServer.SCRIPT_NAME)
         except Exception as e:
             log.error(f"Error during unregister: {e}")

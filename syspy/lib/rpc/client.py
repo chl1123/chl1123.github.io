@@ -18,7 +18,7 @@ class ResultEvent(threading.Event):
         self.result = None  # 添加 result 属性
 
 
-class zmqClient(object):
+class ZmqClient:
     def __init__(self):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
@@ -27,7 +27,7 @@ class zmqClient(object):
 
         self.stop_flag = threading.Event()  # 线程关闭标志
         self.queue = queue.Queue()
-        self.worker_thread = threading.Thread(target=self.worker, name="zmqClient", daemon=True)
+        self.worker_thread = threading.Thread(target=self.worker, name="ZmqClient", daemon=True)
         self.worker_thread.start()
         self.addr = PYTHON_CPP_IPC
 
@@ -35,13 +35,14 @@ class zmqClient(object):
         self.close()
 
     def close(self):
-        log.info("zmqClient close the socket")
+        log.info("ZmqClient close the socket")
         self.stop_flag.set()
         self.queue.put((None, None))
-        self.worker_thread.join(timeout=5)  # 设置超时时间，避免无限等待
+        self.worker_thread.join(timeout=2)  # 设置超时时间，避免无限等待
         if self.worker_thread.is_alive():
             log.warning("Worker thread did not exit gracefully")
-        self.socket.close()
+        if self.socket:
+            self.socket.close()
         self.context.term()
 
     def connect(self, addr: str):
@@ -79,16 +80,24 @@ class zmqClient(object):
             except Exception as e:
                 log.error(f"worker error:{e}")
                 break
-        log.info("zmqClient worker exit")
+        log.info("ZmqClient worker exit")
 
 
-class rpcClient:
+class RpcClient:
     _instance_lock = threading.Lock()
     _initialized = False  # 是否初始化完成
 
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(RpcClient, "_instance"):
+            with RpcClient._instance_lock:
+                if not hasattr(RpcClient, "_instance"):
+                    RpcClient._instance = object.__new__(cls)
+        return RpcClient._instance
+
     def __init__(self, ipc=PYTHON_CPP_IPC):
-        self.zmq_client = zmqClient()
-        self.zmq_client.connect(ipc)
+        if not RpcClient._initialized:
+            self.zmq_client = ZmqClient()
+            self.zmq_client.connect(ipc)
 
     def __del__(self):
         self.close()
@@ -147,7 +156,7 @@ class rpcClient:
 
 
 if __name__ == "__main__":
-    client = rpcClient()
+    client = RpcClient()
 
     print("client.setMotorPosition() ", client.call_service("MoveFactory", "setMotorPosition", "doMotor", 1.0, 2.0, 1))
     print("-----------")

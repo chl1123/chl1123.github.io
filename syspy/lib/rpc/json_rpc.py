@@ -189,7 +189,8 @@ class JSONRPCResponse(JsonRpcMessage):
     def get_print(self) -> str:
         response = self.to_dict()
         # 如果结果太长，则只显示长度
-        if len(str(self.get_result())) > 20:
+        length = len(str(self.get_result()))
+        if length > 20:
             response["result"] = "..."
-            response["result_len"] = len(self.get_result())
+            response["result_len"] = length
         return json.dumps(response)

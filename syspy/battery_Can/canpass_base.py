@@ -1,20 +1,20 @@
-import sys,platform,os,json
+import json
+import os
+import platform
+import sys
+
+from google.protobuf.json_format import MessageToJson
 
 import syspy.lib.rpc.server as rs
-from syspy.protobuf.messsage import Message_Battery
-from syspy import Battery, Di, Do
-
-import syspy.lib.udp_debug as ud
-print("import syspy.lib.udp_debug as ud after")
 from syspy import Abnormal
-# _syslog = ud.syslogDebug("can_battery")
-from google.protobuf.json_format import MessageToJson
-DEFAULT_RPC_ADDR = "ipc:///tmp/CanPass_rpc.ipc"
+from syspy import Battery, Di, Do
+from syspy.protobuf.message_battery_pb2 import Message_Battery
+
 
 class canPassBase:
     def __init__(self):
         print("canPassBase __init__")
-        self.__rpc_server = rs.rpcServer()
+        self.__rpc_server = rs.RpcServer()
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
         self.__rpc_server.start()
@@ -33,12 +33,12 @@ class canPassBase:
         self.child.setCallBack(self.handleData)
 
     def createBatteryMessage(self):
-        return self.child.createBatteryMessage()
+        return Message_Battery()
 
     def createCanBus(self, channel, bitrate):
         self.child.createCanBus(channel, bitrate)
 
-    def recCanframe(self,msg):
+    def recCanframe(self, msg):
         return self.child.recCanframe(msg)
 
     def attachCanID(self, *args):
@@ -93,22 +93,23 @@ class canPassBase:
         msg = MessageToJson(battery_info)
         return Battery.publish(msg)
 
-    def getDIStates(self,index):
+    def getDIStates(self, index):
         return Di.get_di(index)
 
-    def getDOStates(self,index):
+    def getDOStates(self, index):
         return Do.get_do(index)
 
     def setTimeout(self):
-        Abnormal.setDevice(54001,"Can battery response time out")
+        Abnormal.setDevice(54001, "CAN battery response time out", "No CAN response",
+                           "check CAN", "battery")
 
     def clearTimeout(self):
         Abnormal.clear(54001)
 
-    def setError(self, errNum, errMessage,reason='battery',method='check out',filename='btCanPass_xx.py'):
-        Abnormal.setDevice(errNum,errMessage,reason,method,filename)
+    def setError(self, errNum, errMessage, reason='battery', method='check out', filename='btCanPass_xx.py'):
+        Abnormal.setDevice(errNum, errMessage, reason, method, filename)
 
-    def errorExists(self,code):
+    def errorExists(self, code):
         return Abnormal.exists(code)
 
     def setChargeStateOn(self):
@@ -126,6 +127,6 @@ class canPassBase:
     def __del__(self):
         self.close()
 
+
 if __name__ == "__main__":
     pass
-

@@ -17,9 +17,9 @@ class Abnormal(Service):
             Union[bool, List[bool]]: 是否异常。异常为true, 否则为false。输入int, 输出bool; 输入List[int], 输出List[bool]
         """
         if isinstance(codes, int):
-            return cls.rpc_client.call_service("Abnormal", "existsAbnormal", [codes])[0]
+            return cls.client().call_service("Abnormal", "existsAbnormal", [codes])[0]
         else:
-            return cls.rpc_client.call_service("Abnormal", "existsAbnormal", codes)
+            return cls.client().call_service("Abnormal", "existsAbnormal", codes)
 
     @classmethod
     @call_service(func_name="clearAbnormal")

@@ -23,8 +23,8 @@ from .lib.model import Model
 from .lib.module import ScriptStatus
 from .lib.net_protocol import NetProtocol
 from .lib.param import Param
-from .lib.rpc.client import rpcClient
-from .lib.rpc.server import rpcServer
+from .lib.rpc.client import RpcClient
+from .lib.rpc.server import RpcServer
 from .lib.trace import Trace
 from .loc import Loc
 from .magnetic import Magnetic
@@ -85,7 +85,7 @@ def init(module_obj=None):
         extracted_path = dir_name  # 如果没有找到 'devices' 或 'tasks'，则保持原路径
 
     if module_obj is not None:
-        rpc_server = rpcServer(extracted_path)
+        rpc_server = RpcServer(extracted_path)
         rpc_server.registerFunction(module_obj.update_cmd, "update_cmd")
         rpc_server.registerFunction(module_obj.suspend, "suspend")
         rpc_server.registerFunction(module_obj.resume, "resume")
@@ -101,7 +101,7 @@ class BasicModule:
         self._info = None
         self._task_id = None
         self.task_queue = queue.Queue()
-        self.rpc_client = rpcClient()
+        self.rpc_client = RpcClient()
 
         self.current_task = None
 
