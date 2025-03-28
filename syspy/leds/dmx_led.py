@@ -212,8 +212,9 @@ class Rainbow(LightEffect):
             [128, 0, 255, 0]
         ]
 
-    def set_rgbw(self, rgb_7_pool, __=None):
-        self.rgb_7_pool = rgb_7_pool
+    def set_rgbw(self, rgb_7_pool: list, __=None):
+        if isinstance(rgb_7_pool, list) and len(rgb_7_pool) == 7:
+            self.rgb_7_pool = rgb_7_pool
 
     def update(self):
         self.__increment += 2
@@ -327,7 +328,7 @@ class DmxLed(object):
             if isinstance(rgbw, Color):
                 rgbw = rgbw.value
             self.current_effect.set_rgbw(rgbw, brightness)
-        else:
+        elif not isinstance(self.current_effect, Rainbow):
             self.current_effect.set_rgbw(self.rgbw, self.brightness)
         if brightness is not None:
             self.set_brightness(brightness)

@@ -101,7 +101,8 @@ class LedChassis(LedBase):
         if turn == 0:
             if ConfigParam.is_back_breath and v_x < 0:
                 self.set_effect(LightType.MutableBreath, rgbw=Color.White, period=1000)
-            self.set_effect(LightType.MutableBreath, period=1000)
+            else:
+                self.set_effect(LightType.MutableBreath, period=1000)
         else:
             led_idx = self.turn_to_led_idx(turn)
             self.set_effect(LightType.Blink, rgbw=Color.Yellow, led_idx=led_idx)
