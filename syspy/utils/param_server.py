@@ -18,11 +18,11 @@ class ParamServer:
 
     def __init__(self, file):
         if not file.startswith(SCRIPTS_DIR):
-            raise Exception("script path error. It must be in the 'scripts' path")
+            raise ValueError("script path error. It must be in the 'scripts' path")
 
         script_dir = file.replace(SCRIPTS_DIR, '')
-        if not script_dir.endswith('.py'):
-            raise Exception("script file error. It must be in the '.py' file")
+        if not script_dir.endswith(PY_SUFFIX):
+            raise ValueError(f"script file error. It must be in the {PY_SUFFIX} file")
 
         script_right_dir, script_file_name = script_dir.rsplit('/', 1)
         config_dir = SCRIPTS_DIR + "/params" + script_right_dir
@@ -30,9 +30,12 @@ class ParamServer:
             os.makedirs(config_dir)
         self.file = config_dir + '/' + script_file_name.replace(PY_SUFFIX, '') + CONFIG_SUFFIX
         self.data = {}
-        if os.path.exists(self.file):
-            with open(self.file, 'r', encoding="utf-8") as f:
-                self.data = json.load(f)
+        if os.path.exists(self.file) and not os.path.getsize(self.file):
+            try:
+                with open(self.file, 'r', encoding="utf-8") as f:
+                    self.data = json.load(f)
+            except Exception as e:
+                raise IOError(f"read file error. {e}")
 
     def loadParam(self, name: str, type: str = "", group: str = "", default=None, **kw):
         def updateKey(data, key, value):
@@ -83,9 +86,9 @@ class ParamServer:
                         json.dump(self.data, f, indent=4, ensure_ascii=False)
                 return self.data[name]["value"]
             else:
-                raise Exception("loadParam no default key")
+                raise ValueError("loadParam no 'default' key")
         else:
-            raise Exception(f"loadParam Type (str, int, float, bool) Error. {type=}")
+            raise TypeError(f"loadParam Type (str, int, float, bool, list) Error. {type=}")
 
     def read(self, name: str):
         if name in self.data:
