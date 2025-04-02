@@ -62,7 +62,7 @@ class RpcServer:
         if len(response_parts) != 2:
             log.error("Invalid registration method response format")
             return
-        empty, register_response_str = response_parts
+        _, register_response_str = response_parts
         register_response = json.loads(register_response_str.decode('utf-8'))
 
         response = JSONRPCResponse.parse(register_response)
@@ -88,7 +88,7 @@ class RpcServer:
                 if len(message_parts) != 4:
                     log.warning(f"Invalid request format: {message_parts}")
                     continue
-                empty, client_id, empty, request_str = message_parts
+                _, client_id, _, request_str = message_parts
                 request_dict = json.loads(request_str.decode('utf-8'))
                 request = JSONRPCRequest(**request_dict)
 
@@ -127,10 +127,15 @@ class RpcServer:
         """
         func = RpcServer.FUNCS[request.get_method()]
         args = request.get_params()
-        if args:
-            return func(args)
+        if args is None:
+            res = func()
+        elif isinstance(args, dict):
+            res = func(**args)
+        elif isinstance(args, list):
+            res = func(*args)
         else:
-            return func()
+            res = func(args)
+        return res
 
     def _register_server(self, name):
         """启动服务器，连接到代理并注册服务。
@@ -151,7 +156,7 @@ class RpcServer:
         if len(response_parts) != 2:
             log.error("Invalid registration response format")
             return
-        empty, register_response_str = response_parts
+        _, register_response_str = response_parts
         register_response = json.loads(register_response_str.decode('utf-8'))
         response = JSONRPCResponse.parse(register_response)
         if response.has_error():
@@ -169,7 +174,7 @@ class RpcServer:
         response_parts = self.socket.recv_multipart()
         if len(response_parts) != 2:
             return
-        empty, register_response_str = response_parts
+        _, register_response_str = response_parts
         register_response = json.loads(register_response_str.decode('utf-8'))
         response = JSONRPCResponse.parse(register_response)
         if response.has_error():
@@ -182,7 +187,7 @@ class RpcServer:
         self.stop_flag.set()
         self.socket.close()  # 关闭 socket 会终止 recv 的阻塞状态
         self.context.term()  # 终止 context
-        log.error(f"context close")
+        log.warning("context close")
         self.zmq_server_thread.join(timeout=2)  # 设置超时时间为2秒，确保线程尽快退出
 
         try:
