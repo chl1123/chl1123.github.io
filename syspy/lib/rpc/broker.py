@@ -1,10 +1,15 @@
+import importlib
 import json
+import os
+import sys
 
 import zmq
 
-from syspy.lib.logger import log
+from syspy.lib.logger import Logger
 from syspy.lib.rpc import DOUBLE_COLON
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InvalidRequest
+
+log = Logger(log_prefix="broker", console=True).get_logger()
 
 
 class RegistryServer:
@@ -29,19 +34,18 @@ class RegistryServer:
             log.warning(f"Service with name '{service_name}' not found. Cannot unregister.")
 
     def add_method(self, service_name, method_name):
-        log.info(f"self._services: {self._services}")
         if service_name not in self._services:
             log.warning(f"Service with name '{service_name}' not found. Cannot register method.")
             return False
         self._services[service_name]["methods"].add(method_name)
-        log.info(f"self._services: {self._services}")
+        log.info(f"{self._services=}")
         return True
 
     def get_services(self):
         return self._services
 
-    def get_service_id(self, service_name):
-        return self._services.get(service_name, {}).get("id", None)
+    def get_service_id(self, service_name) -> int:
+        return self._services.get(service_name, {}).get("id", -1)
 
     def get_service_methods(self, service_name):
         return self._services.get(service_name, {}).get("methods", set())
@@ -57,10 +61,9 @@ class MessageDispatcher:
 
     def handle_frontend(self, msg: list):
         try:
-            client_id, empty, request_msg = msg
-            log.info(f"Request <= {client_id}, {request_msg}")
+            client_id, _, request_msg = msg
+            log.info(f"Request <= {client_id=}, {request_msg=}")
             request_dict = json.loads(request_msg.decode('utf-8'))
-
             # 解析 request_dict 到 JSONRPCRequest 模型
             try:
                 request = JSONRPCRequest.parse(request_dict)
@@ -75,17 +78,23 @@ class MessageDispatcher:
             if DOUBLE_COLON in bind_name:
                 # 取出脚本名，方法名
                 script_name, method = bind_name.rsplit(DOUBLE_COLON, 1)
+                if script_name == "broker" and method == "import":
+                    response = JSONRPCResponse(request.get_id())
+                    response.set_result(create_params(*request.get_params()))
+                    self.frontend.send_multipart([client_id, b"", response.to_json().encode('utf-8')])
+                    log.info(f"Response => {client_id=}, {response.to_json()=}")
+                    return
                 service_id = self.registry_server.get_service_id(script_name)
-                if service_id is None:
+                request.set_method(method)
+                if service_id == -1:
                     log.warning(f"No service found for name: {script_name}")
                     response = JSONRPCResponse(request.get_id())
                     response.set_error(MethodNotFound(f"No service found for name: {script_name}"))
                     self.frontend.send_multipart([client_id, b"", response.to_json().encode('utf-8')])
                     return
-                request.set_method(method)
                 # 转发请求到指定的服务端
                 self.backend.send_multipart([service_id, b"", client_id, b"", request.to_json().encode('utf-8')])
-                log.info(f"Response => {service_id}, {client_id}, {request_msg}")
+                log.info(f"Response => {service_id=}, {client_id=}, {request_msg=}")
             else:
                 service_methods = {
                     service_name: self.registry_server.get_service_methods(service_name)
@@ -96,7 +105,7 @@ class MessageDispatcher:
                 for service_id, methods in service_methods:
                     if bind_name in methods:
                         self.backend.send_multipart([service_id, b"", client_id, b"", request_msg])
-                        log.info(f"Response => {service_id}, {client_id}, {request_msg}")
+                        log.info(f"Response => {service_id=}, {client_id=}, {request_msg=}")
                 if not has_method:
                     log.warning(f"No method found for name: {bind_name}")
                     response = JSONRPCResponse(request.get_id())
@@ -109,7 +118,7 @@ class MessageDispatcher:
         try:
             log.info(f"Request <= {msg}")
             if len(msg) == 3:  # 注册消息
-                service_id, empty, service_msg = msg
+                service_id, _, service_msg = msg
                 register_info = json.loads(service_msg.decode('utf-8'))
                 request = JSONRPCRequest.parse(register_info)
                 method = request.get_method()
@@ -131,11 +140,11 @@ class MessageDispatcher:
                 else:
                     response.set_error(MethodNotFound(f"method: {method} not found"))
                 self.backend.send_multipart([service_id, b"", response.to_json().encode('utf-8')])
-                log.info(f"Response => {service_id}, {response.to_json()}")
+                log.info(f"Response => {service_id=}, {response.to_json()=}")
             elif len(msg) == 4:  # 响应消息
-                service_id, client_id, empty, response_msg = msg
+                service_id, client_id, _, response_msg = msg
                 self.frontend.send_multipart([client_id, b"", response_msg])
-                log.info(f"Response => {client_id}, {response_msg}")
+                log.info(f"Response => {client_id=}, {response_msg=}")
             else:
                 log.error("Invalid message received")
         except Exception as e:
@@ -145,12 +154,12 @@ class MessageDispatcher:
 class Broker:
     """消息代理"""
 
-    def __init__(self, frontend_addr, backend_addr):
+    def __init__(self, frontend_addr: str, backend_addr: str):
         """初始化代理服务器
         
         Args:
-            frontend_addr: 前端地址（客户端连接）
-            backend_addr: 后端地址（服务端连接）
+            frontend_addr (str): 前端地址（客户端连接）
+            backend_addr (str): 后端地址（服务端连接）
         """
         self.context = zmq.Context()
         self.frontend_addr = frontend_addr
@@ -188,6 +197,22 @@ class Broker:
         self.frontend.close()
         self.backend.close()
         self.context.term()
+
+
+scripts_path = "/opt/.data/rbk/resources/scripts/"
+
+
+def create_params(script_name: str):
+    script_full_directory = scripts_path + script_name
+    sys.path.append(scripts_path)
+    module_name = os.path.splitext(os.path.basename(script_full_directory))[0]
+    spec = importlib.util.spec_from_file_location(module_name, script_full_directory)
+    foo = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(foo)
+    except Exception as e:
+        return -1, f"import module error: {e}"
+    return 0, "success"
 
 
 if __name__ == "__main__":
