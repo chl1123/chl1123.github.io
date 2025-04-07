@@ -15,7 +15,7 @@ class JSONRPCError(Exception):
     INVALID_RESPONSE = -32000
 
     def __init__(self, code: int, message: str, data: Optional[Any] = None):
-        super().__init__(message)
+        super().__init__(code, message, data)
         self.code = code
         self.message = message
         self.data = data
@@ -80,7 +80,7 @@ class JsonRpcMessage:
 
 
 class JSONRPCRequest(JsonRpcMessage):
-    def __init__(self, method: str, params: list = None,
+    def __init__(self, method: str, params: Optional[Union[list, dict]] = None,
                  id: Optional[Union[int, str]] = None, jsonrpc: str = "2.0"):
         super().__init__(id or str(uuid.uuid4()), jsonrpc)
         self._method = method
@@ -159,9 +159,8 @@ class JSONRPCResponse(JsonRpcMessage):
             raise InvalidResponse("ID must be int, str or None")
 
         response = cls(id=request_id)
-        result = data.get("result")
-        if result is not None:
-            response.set_result(result)
+        if "result" in data:
+            response.set_result(data.get("result"))
         elif data.get("error") is not None:
             error = data.get("error")
             if not isinstance(error, dict):
@@ -175,7 +174,7 @@ class JSONRPCResponse(JsonRpcMessage):
             error_data = error.get("data")
             response.set_error(JSONRPCError(error_code, error_message, error_data))
         else:
-            raise InvalidRequest("Missing result or error")
+            raise InvalidResponse(f"Missing result or error. {data=}")
         return response
 
     def to_dict(self) -> Dict:
