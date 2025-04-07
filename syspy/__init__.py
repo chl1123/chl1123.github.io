@@ -97,119 +97,120 @@ class BasicModule:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self._run_status = None
-        self._info = None
-        self._task_id = None
-        self._rpc_client = None
-        self.task_queue = queue.Queue()
+        self.__run_status = ScriptStatus.NONE
+        self.__info = None
+        self.__task_id = None
+        self.__rpc_client = None
+        self.__task_queue = queue.Queue()
 
-        self.current_task = None
+        self.__current_task = None
 
     def __del__(self):
-        if self._rpc_client:
-            self._rpc_client.close()
+        if self.__rpc_client:
+            self.__rpc_client.close()
 
     def update_cmd(self, args):
-        self.task_queue.put(args)
+        self.__task_queue.put(args)
 
     def cancel(self):
-        self.status = ScriptStatus.NONE
+        self.set_status(ScriptStatus.NONE)
 
     def suspend(self):
-        if self.status == ScriptStatus.RUNNING:
-            self.status = ScriptStatus.SUSPENDED
+        if self.get_status() == ScriptStatus.RUNNING:
+            self.set_status(ScriptStatus.SUSPENDED)
 
     def resume(self):
-        if self.status == ScriptStatus.SUSPENDED:
-            self.status = ScriptStatus.RUNNING
+        if self.get_status() == ScriptStatus.SUSPENDED:
+            self.set_status(ScriptStatus.RUNNING)
 
-    def _report_data(self):
+    def __report_data(self):
         data = {
             "moveStatus": ScriptStatus.NONE,
             "info": "",
             "taskId": -1
         }
-        if self._run_status is not None:
-            data["moveStatus"] = self._run_status.value
-        if self._info is not None:
-            data["info"] = self._info
-        if self._task_id is not None:
-            data["taskId"] = self._task_id
+        if self.__run_status is not None:
+            data["moveStatus"] = self.__run_status.value
+        if self.__info is not None:
+            data["info"] = self.__info
+        if self.__task_id is not None:
+            data["taskId"] = self.__task_id
         if extracted_path and data:
-            if self._rpc_client is None:
+            if self.__rpc_client is None:
                 from .lib.rpc.client import RpcClient
-                self._rpc_client = RpcClient()
-            self._rpc_client.report(extracted_path, data)
+                self.__rpc_client = RpcClient()
+            self.__rpc_client.report(extracted_path, data)
 
-    @property
-    def task_id(self):
-        with self._lock:
-            return self._task_id
+    def get_task_args(self, name: str = "", default=None):
+        if name:
+            if self.__current_task is not None:
+                return self.__current_task.get(name, default)
+        else:
+            return self.__current_task
 
-    @task_id.setter
-    def task_id(self, task_id):
-        with self._lock:
-            self._task_id = task_id
-            self._report_data()
+    def get_tasks_list(self):
+        return list(self.__task_queue.queue)
 
-    @property
-    def status(self) -> ScriptStatus:
+    def __set_task_id(self, task_id):
         with self._lock:
-            return self._run_status
+            self.__task_id = task_id
+            self.__report_data()
 
-    @status.setter
-    def status(self, status: ScriptStatus):
+    def get_task_id(self):
         with self._lock:
-            self._run_status = status
-            self._report_data()
+            return self.__task_id
 
-    @property
-    def info(self):
+    def get_status(self) -> ScriptStatus:
         with self._lock:
-            return self._info
+            return self.__run_status
 
-    @info.setter
-    def info(self, info):
+    def set_status(self, status: ScriptStatus):
         with self._lock:
-            self._info = info
-            self._report_data()
+            self.__run_status = status
+            self.__report_data()
+
+    def report_info(self, info):
+        with self._lock:
+            self.__info = info
+            self.__report_data()
 
     def init_task_args(self):
         try:
-            self.current_task = self.task_queue.get(True, 5)  # 取出最先入队的任务
-            log.debug(f"{self.current_task=}")
-            self.task_id = self.current_task.get("taskId", None)
-            self.status = ScriptStatus.RUNNING
+            self.__current_task = self.__task_queue.get(True, 5)  # 取出最先入队的任务
+            log.debug(f"{self.__current_task=}")
+            self.__set_task_id(self.__current_task.get("taskId", None))
+            self.set_status(ScriptStatus.RUNNING)
         except queue.Empty:
-            log.info("task_queue is empty")
+            log.info("tasks_list is empty")
             return
 
     def run(self):
-        self.status = ScriptStatus.RUNNING
+        self.set_status(ScriptStatus.RUNNING)
 
     def print_info(self):
         time.sleep(0.05)
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.debug("task queue: ", list(self.task_queue.queue))
-        log.debug("current task: ", self.current_task)
-        log.debug("current task id: ", self.task_id)
-        log.debug("current task status: ", self.status)
+        log.debug("task list: ", self.get_tasks_list())
+        log.debug("current task args: ", self.get_task_args())
+        log.debug("current task id: ", self.get_task_id())
+        log.debug("current task status: ", self.get_status())
 
     def main(self):
         while True:
             # 脚本任务状态管理
-            if self.status is ScriptStatus.NONE:
+            status = self.get_status()
+            if status is ScriptStatus.NONE:
                 self.init_task_args()
-            elif self.status is ScriptStatus.RUNNING:
+            elif status is ScriptStatus.RUNNING:
                 self.run()
-            elif self.status is ScriptStatus.SUSPENDED:
+            elif status is ScriptStatus.SUSPENDED:
                 self.suspend()
-            elif self.status is ScriptStatus.FAILED:
+            elif status is ScriptStatus.FAILED:
                 self.cancel()
-                self.current_task = None
-                self.task_id = None
-            elif self.status is ScriptStatus.FINISHED:
-                self.status = ScriptStatus.NONE
-                self.current_task = None
-                self.task_id = None
+                self.__current_task = None
+                self.__set_task_id(None)
+            elif status is ScriptStatus.FINISHED:
+                self.set_status(ScriptStatus.NONE)
+                self.__current_task = None
+                self.__set_task_id(None)
             self.print_info()

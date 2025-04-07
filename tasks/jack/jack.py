@@ -39,9 +39,6 @@ class Module(syspy.BasicModule):
         self.go_path_y = 0
         self.go_path_a = 0
 
-        self.current_task = None
-        self.status = ScriptStatus.NONE
-
     def reset(self):
         self.spin_angle = 0
         self.init_path = True
@@ -51,21 +48,21 @@ class Module(syspy.BasicModule):
         self.go_path_a = 0
 
     def run(self):
-        self.status = ScriptStatus.RUNNING
-        self.opt = self.current_task.get('operation', None)
-        self.height = self.current_task.get('height', None)
+        self.set_status(ScriptStatus.RUNNING)
+        self.opt = self.get_task_args('operation', None)
+        self.height = self.get_task_args('height', None)
         log.info("opt = ", self.opt, "+++++++++++++++++++++++++++++++++")
         if self.opt == "load":
             self.load()
         elif self.opt == "unload":
             self.unload()
         elif self.opt == "spin":
-            self.spin_angle = self.current_task.get('spinAngle', None)
+            self.spin_angle = self.get_task_args('spinAngle', None)
             self.spin()
         elif self.opt == "goPath":
-            self.go_path_x = self.current_task.get('x', 0)
-            self.go_path_y = self.current_task.get('y', 0)
-            self.go_path_a = self.current_task.get('a', 0)
+            self.go_path_x = self.get_task_args('x', 0)
+            self.go_path_y = self.get_task_args('y', 0)
+            self.go_path_a = self.get_task_args('a', 0)
             self.goPath()
         elif self.opt == "getCurrentPathProperty":
             self.getCurrentPathProperty()
@@ -74,7 +71,7 @@ class Module(syspy.BasicModule):
         elif self.opt == "getLM":
             self.getLM()
         else:
-            self.status = ScriptStatus.FAILED
+            self.set_status(ScriptStatus.FAILED)
 
     def load(self):
         log.debug("load: ", ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
@@ -84,7 +81,7 @@ class Module(syspy.BasicModule):
                                          ConfigParams.jack_up_di))
         if Di.get_di(ConfigParams.jack_up_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             log.debug("load finish")
-            self.status = ScriptStatus.FINISHED
+            self.set_status(ScriptStatus.FINISHED)
 
     def unload(self):
         log.debug("unload: ", ConfigParams.jack_motor_name, ConfigParams.jack_lift_zero, ConfigParams.jack_motor_speed,
@@ -96,7 +93,7 @@ class Module(syspy.BasicModule):
                                          ConfigParams.jack_zero_di))
         if Di.get_di(ConfigParams.jack_zero_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             log.debug("unload finish")
-            self.status = ScriptStatus.FINISHED
+            self.set_status(ScriptStatus.FINISHED)
 
     def spin(self):
         log.debug("spin: ", self.spin_angle)
@@ -104,7 +101,7 @@ class Module(syspy.BasicModule):
         finished = Navigation.spinRun()
         if finished:
             log.debug("spin finish")
-            self.status = ScriptStatus.FINISHED
+            self.set_status(ScriptStatus.FINISHED)
 
     def goPath(self):
         if self.init_path:
@@ -117,19 +114,19 @@ class Module(syspy.BasicModule):
         log.debug("goPath: ", self.go_path_x, self.go_path_y, self.go_path_a, finished)
         if finished:
             log.debug("goPath finish")
-            self.status = ScriptStatus.FINISHED
+            self.set_status(ScriptStatus.FINISHED)
 
     def getCurrentPathProperty(self):
         log.debug("getCurrentPathProperty ==============================================")
         result = Navigation.getCurrentPathProperty()
         log.debug("getCurrentPathProperty", result)
-        self.status = ScriptStatus.FINISHED
+        self.set_status(ScriptStatus.FINISHED)
 
     def getLM(self):
         log.debug("getLM ==============================================")
         result = Navigation.getLM("LM7", True)
         log.debug("getLM", result)
-        self.status = ScriptStatus.FINISHED
+        self.set_status(ScriptStatus.FINISHED)
 
     def odo(self):
         if self.init_odo:
@@ -141,16 +138,15 @@ class Module(syspy.BasicModule):
         log.debug("===========================runOdoMove: ", status, finished)
         if finished:
             log.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!runOdoMove finish")
-            self.status = ScriptStatus.FINISHED
+            self.set_status(ScriptStatus.FINISHED)
 
     def print_info(self):
-        # 睡眠0.05秒
         time.sleep(0.05)
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.info("task queue: ", list(self.task_queue.queue))
-        log.info("current task: ", self.current_task)
-        log.info("current task id: ", self.task_id)
-        log.info("current task status: ", self.status)
+        log.info("task list: ", self.get_tasks_list())
+        log.info("current task args: ", self.get_task_args())
+        log.info("current task id: ", self.get_task_id())
+        log.info("current task status: ", self.get_status())
 
 
 if __name__ == '__main__':
