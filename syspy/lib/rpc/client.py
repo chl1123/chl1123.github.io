@@ -111,7 +111,7 @@ class RpcClient:
     def report(self, name: str, data) -> str:
         if isinstance(data, dict):
             data = json.dumps(data)
-        return self.handle_request("MoveFactory::report", [name, data])
+        return self.handle_request("MoveFactory::scriptReport", [name, data])
 
     def call_service(self, plugin: str, function: str, /, *args, **kwargs):
         if args is None:
