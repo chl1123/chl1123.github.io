@@ -43,7 +43,7 @@ class Logger:
     def _add_console_handler(self):
         """控制台输出配置"""
         console_format = (
-            "<green>{time:YYYYMMDD HH:mm:ss}</green> | "  # 颜色>时间
+            "<green>{time:YYYYMMDD HH:mm:ss.SSS}</green> | "  # 颜色>时间
             "{process.name} | {thread.name} | "  # 进程名 | 线程名
             "<cyan>{module}</cyan>.<cyan>{function}</cyan>:<cyan>{line}</cyan> | "  # 模块名.方法名:行号
             "<level>{level}</level>: <level>{message}</level>"  # 等级: 日志内容
@@ -61,7 +61,7 @@ class Logger:
         log_name = f"{self.log_prefix}_{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}.log"
         log_path = os.path.join(self.log_dir, log_name)
         file_format = (
-            "{time:YYYYMMDD HH:mm:ss} | "  # 时间
+            "{time:YYYYMMDD HH:mm:ss.SSS} | "  # 时间
             "{process.name} | {thread.name} | "  # 进程名 | 线程名
             "{module}.{function}:{line} | {level} | {message}"  # 模块名.方法名:行号
         )
@@ -75,6 +75,7 @@ class Logger:
             backtrace=True,  # 回溯
             diagnose=True,  # 诊断
             filter=self._exclude_protocol_logs,
+            level="DEBUG",  # 新增日志级别过滤
         )
 
     def _exclude_protocol_logs(self, record):
@@ -82,7 +83,3 @@ class Logger:
 
     def get_logger(self):
         return self.logger
-
-
-Loggers = Logger(console=True)
-log = Loggers.get_logger()

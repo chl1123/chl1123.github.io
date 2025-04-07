@@ -1,15 +1,23 @@
 import typing
 
 from .lib.py_rpc import Message
-from .protobuf.message import Message_RFID, Message_RFIDNode
+
+if typing.TYPE_CHECKING:
+    from .protobuf.message import Message_RFIDNode
 
 
-class RFID(Message[Message_RFID]):
+class RFID(Message["Message_RFID"]):
     """RFID类"""
 
     _TOPIC = "rbk.protocol.Message_RFID"
     _PLUGIN = "RFIDSensor"
-    _MODEL_CLASS = Message_RFID
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_RFID
+            cls._MODEL_CLASS = Message_RFID
 
     @classmethod
     def get_rfids(cls) -> typing.List["Message_RFIDNode"]:

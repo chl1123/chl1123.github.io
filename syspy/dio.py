@@ -1,16 +1,23 @@
 import typing
 
-from .lib.py_rpc import Message, default_plugin, call_service
-from .protobuf.message import Message_DI, Message_DO, Message_DINode, Message_DONode
+from syspy.lib.py_rpc import Message, call_service, default_plugin
 
+if typing.TYPE_CHECKING:
+    from .protobuf.message.message_io_p2p import Message_DINode, Message_DONode  # IDE类型提示
 
 @default_plugin("DSPChassis")
-class Di(Message[Message_DI]):
+class Di(Message["Message_DI"]):
     """数字输入类"""
 
     _TOPIC = "rbk.protocol.Message_DI"
     _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = Message_DI
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_DI
+            cls._MODEL_CLASS = Message_DI
 
     @classmethod
     @call_service()
@@ -89,12 +96,17 @@ class Di(Message[Message_DI]):
 
 
 @default_plugin("DSPChassis")
-class Do(Message[Message_DO]):
+class Do(Message["Message_DO"]):
     """数字输出类"""
 
     _TOPIC = "rbk.protocol.Message_DO"
     _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = Message_DO
+    _MODEL_CLASS = None
+
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_DO
+            cls._MODEL_CLASS = Message_DO
 
     @classmethod
     @call_service(plugin_name="MoveFactory")

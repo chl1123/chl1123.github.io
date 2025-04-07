@@ -1,14 +1,19 @@
-from syspy.protobuf.message import CanFrame
 from .py_rpc import Message, default_plugin, call_service
 
 
 @default_plugin("DSPChassis")
-class Can(Message[CanFrame]):
+class Can(Message["CanFrame"]):
     """CAN协议"""
 
     _TOPIC = "CanFrame"
     _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = CanFrame
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from ..protobuf.message import CanFrame
+            cls._MODEL_CLASS = CanFrame
 
     @classmethod
     @call_service(func_name="sendPassThroughCanFrame")

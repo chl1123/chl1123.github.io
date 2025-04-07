@@ -1,14 +1,19 @@
 from .lib.py_rpc import Message, call_service, default_plugin
-from .protobuf.message import Message_Sound
 
 
 @default_plugin("MoveFactory")
-class Sound(Message[Message_Sound]):
+class Sound(Message["Message_Sound"]):
     """音频"""
 
     _TOPIC = "rbk.protocol.Message_Sound"
     _PLUGIN = "Message_Sound"
-    _MODEL_CLASS = Message_Sound
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_Sound
+            cls._MODEL_CLASS = Message_Sound
 
     @classmethod
     @call_service()

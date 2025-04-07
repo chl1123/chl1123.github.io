@@ -1,14 +1,19 @@
-from syspy.lib.py_rpc import Message, call_service, default_plugin
-from syspy.protobuf.message import Message_Battery
+from syspy.lib.py_rpc import Message, default_plugin, call_service
 
 
 @default_plugin("DSPChassis")
-class Battery(Message[Message_Battery]):
+class Battery(Message["Message_Battery"]):
     """电池类"""
 
     _TOPIC = "rbk.protocol.Message_Battery"
     _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = Message_Battery
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_Battery  # 延迟导入
+            cls._MODEL_CLASS = Message_Battery
 
     @classmethod
     def get_percentage(cls) -> float:

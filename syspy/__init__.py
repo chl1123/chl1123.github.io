@@ -4,9 +4,7 @@ import queue
 import threading
 import time
 
-from typeguard import install_import_hook
-
-install_import_hook('syspy')
+from loguru import logger as log
 
 from .battery import Battery
 from .bin import Bin
@@ -23,8 +21,6 @@ from .lib.model import Model
 from .lib.module import ScriptStatus
 from .lib.net_protocol import NetProtocol
 from .lib.param import Param
-from .lib.rpc.client import RpcClient
-from .lib.rpc.server import RpcServer
 from .lib.trace import Trace
 from .loc import Loc
 from .magnetic import Magnetic
@@ -35,6 +31,9 @@ from .odometer import Odometer
 from .pgv import Pgv
 from .rfid import RFID
 from .sound import Sound
+
+# from typeguard import install_import_hook
+# install_import_hook('syspy')
 
 extracted_path = ""
 
@@ -85,6 +84,7 @@ def init(module_obj=None):
         extracted_path = dir_name  # 如果没有找到 'devices' 或 'tasks'，则保持原路径
 
     if module_obj is not None:
+        from .lib.rpc.server import RpcServer
         rpc_server = RpcServer(extracted_path)
         rpc_server.registerFunction(module_obj.update_cmd, "update_cmd")
         rpc_server.registerFunction(module_obj.suspend, "suspend")
@@ -100,13 +100,14 @@ class BasicModule:
         self._run_status = None
         self._info = None
         self._task_id = None
+        self._rpc_client = None
         self.task_queue = queue.Queue()
-        self.rpc_client = RpcClient()
 
         self.current_task = None
 
     def __del__(self):
-        self.rpc_client.close()
+        if self._rpc_client:
+            self._rpc_client.close()
 
     def update_cmd(self, args):
         self.task_queue.put(args)
@@ -134,8 +135,11 @@ class BasicModule:
             data["info"] = self._info
         if self._task_id is not None:
             data["taskId"] = self._task_id
-        if extracted_path != "" and data != {}:
-            self.rpc_client.report(extracted_path, data)
+        if extracted_path and data:
+            if self._rpc_client is None:
+                from .lib.rpc.client import RpcClient
+                self._rpc_client = RpcClient()
+            self._rpc_client.report(extracted_path, data)
 
     @property
     def task_id(self):
@@ -171,27 +175,25 @@ class BasicModule:
             self._report_data()
 
     def init_task_args(self):
-        print("***********************task_queue self.current_task", self.current_task)
         try:
             self.current_task = self.task_queue.get(True, 5)  # 取出最先入队的任务
+            log.debug(f"{self.current_task=}")
             self.task_id = self.current_task.get("taskId", None)
             self.status = ScriptStatus.RUNNING
         except queue.Empty:
-            print("task_queue is empty")
+            log.info("task_queue is empty")
             return
 
     def run(self):
         self.status = ScriptStatus.RUNNING
-        pass
 
     def print_info(self):
-        # 睡眠0.05秒
         time.sleep(0.05)
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        print("task queue: ", list(self.task_queue.queue))
-        print("current task: ", self.current_task)
-        print("current task id: ", self.task_id)
-        print("current task status: ", self.status)
+        log.debug("task queue: ", list(self.task_queue.queue))
+        log.debug("current task: ", self.current_task)
+        log.debug("current task id: ", self.task_id)
+        log.debug("current task status: ", self.status)
 
     def main(self):
         while True:

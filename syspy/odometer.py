@@ -3,16 +3,23 @@ import typing
 from typing import List, Tuple
 
 from .lib.py_rpc import Message
-from .protobuf.message import Message_Odometer
-from .protobuf.message.message_motorinfos_p2p import Message_MotorInfo
+
+if typing.TYPE_CHECKING:
+    from .protobuf.message.message_motorinfos_p2p import Message_MotorInfo
 
 
-class Odometer(Message[Message_Odometer]):
+class Odometer(Message["Message_Odometer"]):
     """里程类"""
 
     _TOPIC = "rbk.protocol.Message_Odometer"
     _PLUGIN = "MCLoc"
-    _MODEL_CLASS = Message_Odometer
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_Odometer
+            cls._MODEL_CLASS = Message_Odometer
 
     @classmethod
     def get_cycle(cls) -> int:

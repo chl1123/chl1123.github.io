@@ -1,15 +1,20 @@
 from typing import List
 
 from .lib.py_rpc import Message, call_service
-from .protobuf.message import Message_AllCameraCloud
 
 
-class Camera(Message[Message_AllCameraCloud]):
+class Camera(Message["Message_AllCameraCloud"]):
     """相机类"""
 
     _TOPIC = "rbk.protocol.Message_AllCameraCloud"
     _PLUGIN = "MultiDcamera"
-    _MODEL_CLASS = Message_AllCameraCloud
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_AllCameraCloud
+            cls._MODEL_CLASS = Message_AllCameraCloud
 
     @classmethod
     @call_service(plugin_name="Perception")

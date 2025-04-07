@@ -4,8 +4,8 @@ import threading
 from typing import Any
 
 import zmq
+from loguru import logger as log
 
-from syspy.lib.logger import log
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InternalError
 
 # 全局变量

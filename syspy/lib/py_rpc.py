@@ -2,14 +2,11 @@ import inspect
 import json
 import time
 from functools import wraps
-from typing import Optional, Type, TypeVar, Generic, Union, List
+from typing import TypeVar, Generic, Union, Optional, List
 
-from pydantic import BaseModel
+from loguru import logger as log
 
-from .logger import log
-from .rpc.client import RpcClient
-
-T = TypeVar('T', bound=BaseModel)
+T = TypeVar('T', bound="BaseModel")
 
 
 class Service:
@@ -20,6 +17,7 @@ class Service:
     def client(cls):
         if cls._rpc_client is None:
             log.debug("Lazy initializing RpcClient")
+            from .rpc.client import RpcClient
             cls._rpc_client = RpcClient()
         return cls._rpc_client
 
@@ -27,16 +25,11 @@ class Service:
 class Message(Generic[T], Service):
     _TOPIC = None  # 消息名
     _PLUGIN = "RBKSim"  # 插件名
-    _MODEL_CLASS: Type[T]  # Pydantic模型类
+    _MODEL_CLASS: None  # Pydantic模型类
 
-    data: T
+    data = T
     _last_update_time: float = 0.0  # 记录上次更新时间
     _update_time: float = 0.05  # 缓存时间，单位为秒
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # 初始化时创建默认数据对象
-        cls.data = cls._MODEL_CLASS()
 
     @classmethod
     def set_update_time(cls, update_time: Union[float, int]):
@@ -50,8 +43,14 @@ class Message(Generic[T], Service):
             return cls.data.model_dump()
 
     @classmethod
+    def init_model_class(cls):
+        pass
+
+    @classmethod
     def update(cls):
         """刷新状态"""
+        if cls._MODEL_CLASS is None:
+            cls.init_model_class()
         if cls.data is None or (time.time() - cls._last_update_time) > cls._update_time:
             response = cls.client().get_message(cls._TOPIC, cls._PLUGIN)
             if response:

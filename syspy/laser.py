@@ -1,16 +1,25 @@
 import math
+import typing
 from typing import List
 
 from .lib.py_rpc import Message, call_service
-from .protobuf.message import Message_AllLasers, Message_AllLasers3D, Message_Laser3D
+
+if typing.TYPE_CHECKING:
+    from .protobuf.message import Message_Laser3D
 
 
-class Laser(Message[Message_AllLasers]):
+class Laser(Message["Message_AllLasers"]):
     """激光类"""
 
     _TOPIC = "rbk.protocol.Message_AllLasers"
     _PLUGIN = "MultiLaser"
-    _MODEL_CLASS = Message_AllLasers
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_AllLasers
+            cls._MODEL_CLASS = Message_AllLasers
 
     @classmethod
     @call_service(plugin_name="Perception")
@@ -37,8 +46,8 @@ class Laser(Message[Message_AllLasers]):
             min_angle (float): 最小角度（单位：°）
             max_angle (float): 最大角度（单位：°）
         """
-        cls.rpc_client.call_service("Perception", "setLaserAngle",
-                                    (id, math.radians(min_angle), math.radians(max_angle)))
+        cls.client().call_service("Perception", "setLaserAngle",
+                                  (id, math.radians(min_angle), math.radians(max_angle)))
 
     @classmethod
     @call_service(plugin_name="Perception")
@@ -108,12 +117,18 @@ class Laser(Message[Message_AllLasers]):
         pass
 
 
-class Laser3D(Message[Message_AllLasers3D]):
+class Laser3D(Message["Message_AllLasers3D"]):
     """激光类"""
 
     _TOPIC = "rbk.protocol.Message_AllLasers3D"
     _PLUGIN = "MultiLaser"
-    _MODEL_CLASS = Message_AllLasers3D
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_AllLasers3D
+            cls._MODEL_CLASS = Message_AllLasers3D
 
     @classmethod
     def get_lasers3d(cls) -> List["Message_Laser3D"]:

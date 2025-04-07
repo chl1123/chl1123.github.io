@@ -1,15 +1,23 @@
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from .lib.py_rpc import Message
-from .protobuf.message import Message_PGV
+
+if TYPE_CHECKING:
+    from .protobuf.message import Message_PGV
 
 
-class Pgv(Message[Message_PGV]):
+class Pgv(Message["Message_PGV"]):
     """PGV类"""
 
     _TOPIC = "rbk.protocol.Message_PGV"
     _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = Message_PGV
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_PGV
+            cls._MODEL_CLASS = Message_PGV
 
     @classmethod
     def get_pgvs(cls) -> List["Message_PGV"]:

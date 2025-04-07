@@ -1,18 +1,25 @@
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from .lib.py_rpc import Message
-from .protobuf.message import Message_Bins
-from .protobuf.message.message_bin_p2p import Message_Bin
+
+if TYPE_CHECKING:
+    from .protobuf.message.message_bin_p2p import Message_Bin  # IDE类型提示
 
 
-class Bin(Message[Message_Bins]):
+class Bin(Message["Message_Bins"]):
     """库位类"""
 
     _TOPIC = "rbk.protocol.Message_Bins"
     _PLUGIN = "RecoFactory"
-    _MODEL_CLASS = Message_Bins
+    _MODEL_CLASS = None
 
     @classmethod
-    def get_bins(cls) -> List[Message_Bin]:
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_Bins
+            cls._MODEL_CLASS = Message_Bins
+
+    @classmethod
+    def get_bins(cls) -> List["Message_Bin"]:
         if cls.update():
             return cls.data.bins

@@ -5,8 +5,8 @@ import time
 from typing import Union
 
 import zmq
+from loguru import logger as log
 
-from syspy.lib.logger import log
 from syspy.lib.rpc import DOUBLE_COLON
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse
 

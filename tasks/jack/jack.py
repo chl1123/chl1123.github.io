@@ -6,9 +6,13 @@
 
 import time
 
+start_time = time.time()
 import syspy
 from syspy import Di, Motor, Navigation, ScriptStatus
+from syspy.lib.logger import Logger
 from syspy.utils.param_server import ParamServer
+
+log = Logger(log_prefix="jack", console=True).get_logger()
 
 
 class ConfigParams:
@@ -20,6 +24,7 @@ class ConfigParams:
 
     jack_up_di = param_server.loadParam("jack_up_di", type="int", default=6, comment="顶升机构上极限DI")
     jack_zero_di = param_server.loadParam("jack_zero_di", type="int", default=3, comment="顶升机构零位DI")
+    log.debug("jack create config params")
 
 
 class Module(syspy.BasicModule):
@@ -49,7 +54,7 @@ class Module(syspy.BasicModule):
         self.status = ScriptStatus.RUNNING
         self.opt = self.current_task.get('operation', None)
         self.height = self.current_task.get('height', None)
-        print("opt = ", self.opt, "+++++++++++++++++++++++++++++++++")
+        log.info("opt = ", self.opt, "+++++++++++++++++++++++++++++++++")
         if self.opt == "load":
             self.load()
         elif self.opt == "unload":
@@ -69,86 +74,88 @@ class Module(syspy.BasicModule):
         elif self.opt == "getLM":
             self.getLM()
         else:
-            pass
+            self.status = ScriptStatus.FAILED
 
     def load(self):
-        print("load: ", ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
-              ConfigParams.jack_up_di)
-        print("setMotorPosition(): ",
-              Motor.setMotorPosition(ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
-                                     ConfigParams.jack_up_di))
+        log.debug("load: ", ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
+                  ConfigParams.jack_up_di)
+        log.debug("setMotorPosition(): ",
+                  Motor.setMotorPosition(ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
+                                         ConfigParams.jack_up_di))
         if Di.get_di(ConfigParams.jack_up_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
-            print("load finish")
+            log.debug("load finish")
             self.status = ScriptStatus.FINISHED
 
     def unload(self):
-        print("unload: ", ConfigParams.jack_motor_name, ConfigParams.jack_lift_zero, ConfigParams.jack_motor_speed,
-              ConfigParams.jack_zero_di)
-        print("setMotorPosition(): ",
-              Motor.setMotorPosition(ConfigParams.jack_motor_name,
-                                     ConfigParams.jack_lift_zero,
-                                     ConfigParams.jack_motor_speed,
-                                     ConfigParams.jack_zero_di))
+        log.debug("unload: ", ConfigParams.jack_motor_name, ConfigParams.jack_lift_zero, ConfigParams.jack_motor_speed,
+                  ConfigParams.jack_zero_di)
+        log.debug("setMotorPosition(): ",
+                  Motor.setMotorPosition(ConfigParams.jack_motor_name,
+                                         ConfigParams.jack_lift_zero,
+                                         ConfigParams.jack_motor_speed,
+                                         ConfigParams.jack_zero_di))
         if Di.get_di(ConfigParams.jack_zero_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
-            print("unload finish")
+            log.debug("unload finish")
             self.status = ScriptStatus.FINISHED
 
     def spin(self):
-        print("spin: ", self.spin_angle)
-        print("setRobotSpinAngle(): ", Navigation.setRobotSpinAngle(self.spin_angle, 0))
+        log.debug("spin: ", self.spin_angle)
+        log.debug("setRobotSpinAngle(): ", Navigation.setRobotSpinAngle(self.spin_angle, 0))
         finished = Navigation.spinRun()
         if finished:
-            print("spin finish")
+            log.debug("spin finish")
             self.status = ScriptStatus.FINISHED
 
     def goPath(self):
         if self.init_path:
-            print("init_path****************************************")
+            log.debug("init_path****************************************")
             self.init_path = False
             Navigation.resetPath()
             Navigation.setPathOnRobot([0, self.go_path_x], [0, self.go_path_y], self.go_path_a)
         Navigation.goPathParam({"test": 123})
         finished = Navigation.isPathReached()
-        print("goPath: ", self.go_path_x, self.go_path_y, self.go_path_a, finished)
+        log.debug("goPath: ", self.go_path_x, self.go_path_y, self.go_path_a, finished)
         if finished:
-            print("goPath finish")
+            log.debug("goPath finish")
             self.status = ScriptStatus.FINISHED
 
     def getCurrentPathProperty(self):
-        print("getCurrentPathProperty ==============================================")
+        log.debug("getCurrentPathProperty ==============================================")
         result = Navigation.getCurrentPathProperty()
-        print("getCurrentPathProperty", result)
+        log.debug("getCurrentPathProperty", result)
         self.status = ScriptStatus.FINISHED
 
     def getLM(self):
-        print("getLM ==============================================")
+        log.debug("getLM ==============================================")
         result = Navigation.getLM("LM7", True)
-        print("getLM", result)
+        log.debug("getLM", result)
         self.status = ScriptStatus.FINISHED
 
     def odo(self):
         if self.init_odo:
-            print("init_odo****************************************")
+            log.info("init_odo****************************************")
             self.init_odo = False
             Navigation.resetOdoMove()
         status = Navigation.runOdoMove({"move_dist": 1.0, "speed_x": 0.5})
         finished = status == 3
-        print("===========================runOdoMove: ", status, finished)
+        log.debug("===========================runOdoMove: ", status, finished)
         if finished:
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!runOdoMove finish")
+            log.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!runOdoMove finish")
             self.status = ScriptStatus.FINISHED
 
     def print_info(self):
         # 睡眠0.05秒
         time.sleep(0.05)
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        print("task queue: ", list(self.task_queue.queue))
-        print("current task: ", self.current_task)
-        print("current task id: ", self.task_id)
-        print("current task status: ", self.status)
+        log.info("task queue: ", list(self.task_queue.queue))
+        log.info("current task: ", self.current_task)
+        log.info("current task id: ", self.task_id)
+        log.info("current task status: ", self.status)
 
 
 if __name__ == '__main__':
     module = Module()
     syspy.init(module)
+    end_time = time.time()
+    log.warning(f"syspy_init_time={end_time - start_time}")
     module.main()

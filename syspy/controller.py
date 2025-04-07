@@ -1,13 +1,18 @@
 from .lib.py_rpc import Message
-from .protobuf.message import Message_Controller
 
 
-class Controller(Message[Message_Controller]):
+class Controller(Message["Message_Controller"]):
     """控制器类"""
 
     _TOPIC = "rbk.protocol.Message_Controller"
     _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = Message_Controller
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_Controller
+            cls._MODEL_CLASS = Message_Controller
 
     @classmethod
     def get_temperature(cls) -> float:

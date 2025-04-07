@@ -2,15 +2,23 @@ import math
 import typing
 
 from .lib.py_rpc import Message
-from .protobuf.message import Message_Localization
+
+if typing.TYPE_CHECKING:
+    from .protobuf.message.message_localization_p2p import Message_Localization  # IDE类型提示
 
 
-class Loc(Message[Message_Localization]):
+class Loc(Message["Message_Localization"]):
     """定位类"""
 
     _TOPIC = "rbk.protocol.Message_Localization"
     _PLUGIN = "MCLoc"
-    _MODEL_CLASS = Message_Localization
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_Localization  # 延迟导入
+            cls._MODEL_CLASS = Message_Localization
 
     @classmethod
     def get_position(cls) -> typing.Tuple[float, float, float]:

@@ -3,8 +3,9 @@ import typing
 from typing import Tuple
 
 from .lib.py_rpc import Service, Message, call_service, default_plugin
-from .protobuf.message import Message_NavSpeed, Message_MoveStatus
-from .protobuf.message.message_navigation_p2p import Message_MotorCmd
+
+if typing.TYPE_CHECKING:
+    from .protobuf.message.message_navigation_p2p import Message_MotorCmd
 
 
 @default_plugin("MoveFactory")
@@ -516,14 +517,19 @@ class Navigation(Service):
 
 
 @default_plugin("MoveFactory")
-class NavStatus(Message[Message_MoveStatus]):
+class NavStatus(Message["Message_MoveStatus"]):
     """导航状态类"""
 
     _TOPIC = "rbk.protocol.Message_MoveStatus"
     _PLUGIN = "MoveFactory"
-    _MODEL_CLASS = Message_MoveStatus
-
+    _MODEL_CLASS = None
     not_stop_counts = 0
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_MoveStatus
+            cls._MODEL_CLASS = Message_MoveStatus
 
     @classmethod
     @call_service("DSPChassis")
@@ -578,12 +584,18 @@ class NavStatus(Message[Message_MoveStatus]):
         return turn
 
 
-class NavSpeed(Message[Message_NavSpeed]):
+class NavSpeed(Message["Message_NavSpeed"]):
     """导航速度类"""
 
     _TOPIC = "rbk.protocol.Message_NavSpeed"
     _PLUGIN = "MoveFactory"
-    _MODEL_CLASS = Message_NavSpeed
+    _MODEL_CLASS = None
+
+    @classmethod
+    def init_model_class(cls):
+        if cls._MODEL_CLASS is None:
+            from .protobuf.message import Message_NavSpeed
+            cls._MODEL_CLASS = Message_NavSpeed
 
     @classmethod
     def get_speeds(cls) -> Tuple[float, float, float]:
