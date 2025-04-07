@@ -2,6 +2,7 @@ import json
 import queue
 import threading
 import time
+from typing import Union
 
 import zmq
 
@@ -38,7 +39,6 @@ class ZmqClient:
         log.info("ZmqClient close the socket")
         self.stop_flag.set()
         self.queue.put((None, None))
-        self.worker_thread.join(timeout=2)  # 设置超时时间，避免无限等待
         if self.worker_thread.is_alive():
             log.warning("Worker thread did not exit gracefully")
         if self.socket:
@@ -118,7 +118,7 @@ class RpcClient:
             args = []
         if plugin is not None:
             function = plugin + DOUBLE_COLON + function
-        return self.handle_request(function, list(args))
+        return self.handle_request(function, args)
 
     def __getattr__(self, function):
         def _func(*args, **kwargs):
@@ -131,7 +131,7 @@ class RpcClient:
         return _func
 
     # 提取公共的部分为方法
-    def handle_request(self, method: str, params: list):
+    def handle_request(self, method: str, params: Union[list, dict]):
         request = JSONRPCRequest(method, params)
         event = ResultEvent()
         # 将请求放入队列，并传入事件对象

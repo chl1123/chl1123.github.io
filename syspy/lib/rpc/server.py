@@ -36,7 +36,7 @@ class RpcServer:
             name="zmq_server_thread",
             daemon=True
         )
-        # 注册退出函数，RpcServer结束时自动调用 unregister_server
+        # 退出函数
         atexit.register(self.close)
 
     def registerFunction(self, function, method_name=""):
@@ -188,7 +188,6 @@ class RpcServer:
         self.socket.close()  # 关闭 socket 会终止 recv 的阻塞状态
         self.context.term()  # 终止 context
         log.warning("context close")
-        self.zmq_server_thread.join(timeout=2)  # 设置超时时间为2秒，确保线程尽快退出
 
         try:
             self.context = zmq.Context()
