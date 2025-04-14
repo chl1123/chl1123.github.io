@@ -33,8 +33,6 @@ from .sound import Sound
 # from typeguard import install_import_hook
 # install_import_hook('syspy')
 
-extracted_path = ""
-
 __all__ = [
     "Abnormal",
     "Trace",
@@ -42,7 +40,6 @@ __all__ = [
     "Can",
     "Model",
     "Param",
-    "BasicModule",
     "ScriptStatus",
     "Battery",
     "Bin",
@@ -69,22 +66,10 @@ __all__ = [
 ]  # 列出所有公共模块
 
 
-def init(module_obj=None):
-    global extracted_path
-    caller_frame = inspect.stack()[1]
-    dir_name = os.path.abspath(caller_frame.filename)
-    # 从dir_name中第一个devices或者tasks到最后
-    # 提取从第一个 'devices' 或 'tasks' 到最后的部分
-    parts = dir_name.split(os.sep)
-    start_index = next((i for i, part in enumerate(parts) if part in ['devices', 'tasks']), None)
-    if start_index is not None:
-        extracted_path = os.sep.join(parts[start_index:])
-    else:
-        extracted_path = dir_name  # 如果没有找到 'devices' 或 'tasks'，则保持原路径
-
+def register(module_obj=None, script_name=""):
     if module_obj is not None:
         from .lib.rpc.server import RpcServer
-        rpc_server = RpcServer(extracted_path)
+        rpc_server = RpcServer(script_name)
         rpc_server.registerFunction(module_obj.update_cmd, "update_cmd")
         rpc_server.registerFunction(module_obj.suspend, "suspend")
         rpc_server.registerFunction(module_obj.resume, "resume")
@@ -92,10 +77,39 @@ def init(module_obj=None):
         rpc_server.start()
 
 
-class BasicModule:
+# 获取脚本启动参数
+def get_args():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("args", nargs='?', type=str, default="{}", help="脚本参数")
+    args = parser.parse_args()
+    if args.args not in ('', '{}'):
+        try:
+            args = json.loads(args.args)
+        except Exception as e:
+            return {}
+        return args
+    return {}
 
+
+class LoopModule(metaclass=abc.ABCMeta):
+    def __init__(self, period=0.1):
+        self.period = period
+
+    @abc.abstractmethod
+    def run(self):
+        pass
+
+    def main(self):
+        while True:
+            self.run()
+            time.sleep(self.period)
+
+
+class TaskModule:
     def __init__(self):
-        self._lock = threading.Lock()
+        from threading import Lock
+        self._lock = Lock()
         self.__run_status = ScriptStatus.NONE
         self.__info = None
         self.__task_id = None
@@ -103,6 +117,18 @@ class BasicModule:
         self.__task_queue = queue.Queue()
 
         self.__current_task = None
+
+        from inspect import getfile
+        full_path = getfile(self.__class__)
+        from .utils import SCRIPTS_DIR
+        # 获取脚本相对路径
+        self.script_name = full_path.split(SCRIPTS_DIR + "/")[-1]
+        self.__is_init = False
+
+        args = get_args()
+        if args != {}:
+            self.update_cmd(args)
+            self.init_task_args()
 
     def __del__(self):
         if self.__rpc_client:
@@ -123,22 +149,18 @@ class BasicModule:
             self.set_status(ScriptStatus.RUNNING)
 
     def __report_data(self):
+        if self.__task_id is None:
+            return
         data = {
-            "moveStatus": ScriptStatus.NONE,
-            "info": "",
-            "taskId": -1
+            "moveStatus": self.__run_status.value or ScriptStatus.NONE,
+            "info": self.__info or "",
+            "taskId": self.__task_id
         }
-        if self.__run_status is not None:
-            data["moveStatus"] = self.__run_status.value
-        if self.__info is not None:
-            data["info"] = self.__info
-        if self.__task_id is not None:
-            data["taskId"] = self.__task_id
-        if extracted_path and data:
+        if self.script_name:
             if self.__rpc_client is None:
                 from .lib.rpc.client import RpcClient
                 self.__rpc_client = RpcClient()
-            self.__rpc_client.report(extracted_path, data)
+            self.__rpc_client.report(self.script_name, data)
 
     def get_task_args(self, name: str = "", default=None):
         if name:
@@ -206,10 +228,11 @@ class BasicModule:
                 self.suspend()
             elif status is ScriptStatus.FAILED:
                 self.cancel()
-                self.__current_task = None
-                self.__set_task_id(None)
+                return
             elif status is ScriptStatus.FINISHED:
                 self.set_status(ScriptStatus.NONE)
-                self.__current_task = None
-                self.__set_task_id(None)
+                return
+            if not self.__is_init:
+                self.__is_init = True
+                register(self, self.script_name)
             self.print_info()

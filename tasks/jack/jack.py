@@ -27,7 +27,7 @@ class ConfigParams:
     log.debug("jack create config params")
 
 
-class Module(syspy.BasicModule):
+class Module(syspy.TaskModule):
     def __init__(self):
         super().__init__()
         self.opt = None
@@ -143,15 +143,12 @@ class Module(syspy.BasicModule):
     def print_info(self):
         time.sleep(0.05)
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.info("task list: ", self.get_tasks_list())
-        log.info("current task args: ", self.get_task_args())
-        log.info("current task id: ", self.get_task_id())
-        log.info("current task status: ", self.get_status())
+        log.info(f"{self.get_tasks_list()=}")
+        log.info(f"{self.get_task_args()=}")
+        log.info(f"{self.get_task_id()=}")
+        log.info(f"{self.get_status()=}", )
 
 
 if __name__ == '__main__':
     module = Module()
-    syspy.init(module)
-    end_time = time.time()
-    log.warning(f"syspy_init_time={end_time - start_time}")
     module.main()

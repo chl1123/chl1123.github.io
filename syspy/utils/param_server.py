@@ -1,7 +1,8 @@
 import json
 import os
 
-SCRIPTS_DIR = "/opt/.data/rbk/resources/scripts"
+from . import SCRIPTS_DIR
+
 PY_SUFFIX = ".py"
 CONFIG_SUFFIX = "_config.json"
 
