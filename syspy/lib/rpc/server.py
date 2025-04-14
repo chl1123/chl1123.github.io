@@ -50,27 +50,6 @@ class RpcServer:
             method_name = function.__name__
         RpcServer.FUNCS[method_name] = function
 
-        # 发送注册信息到代理
-        request = JSONRPCRequest("add_method", [RpcServer.SCRIPT_NAME, method_name])
-        log.info(f"Sending registration method message: {request.to_json()}")
-
-        self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
-
-        # 接收注册响应
-        response_parts = self.socket.recv_multipart()
-        log.info(f"Received registration method response: {response_parts}")
-        if len(response_parts) != 2:
-            log.error("Invalid registration method response format")
-            return
-        _, register_response_str = response_parts
-        register_response = json.loads(register_response_str.decode('utf-8'))
-
-        response = JSONRPCResponse.parse(register_response)
-        if response.has_error():
-            log.error(f"Unregister failed: {response.get_error()}")
-            return
-        log.info(f"Registered function: {RpcServer.SCRIPT_NAME}::{method_name}")
-
     def start(self):
         self.zmq_server_thread.start()
 
