@@ -1,85 +1,63 @@
-import os
-import sys
-import time
+import logging
+from logging.handlers import RotatingFileHandler
+from typing import Any
 
-from loguru import logger
+log_dir = '/opt/.data/diagnosis/ide/logs/'
 
 
 class Logger:
-    """输出日志到文件和控制台"""
 
-    def __init__(self, log_prefix: str = 'syspy', console: bool = False, file: bool = True):
-        self.log_prefix = log_prefix
-        # 文件的命名
-        log_dir = '/opt/.data/diagnosis/ide/logs'  # 日志路径
-        # 初始化路径设置
-        self.log_dir = self._validate_log_dir(log_dir)
-        # 初始化logger核心配置
-        self._configure_logger(console, file)
+    def __init__(self, filename):
+        self.filename = filename
+        self.formatter = '%(asctime)s %(filename)s:%(lineno)d %(levelname)s: %(message)s'
+        self.__logger = self._create_logger()
+        self.__logger.addHandler(self._file_logger())
+        self.__logger.addHandler(self._console_logger())
 
-    def _validate_log_dir(self, path: str) -> str:
-        """路径有效性验证"""
-        try:
-            if not os.path.exists(path):
-                os.makedirs(path, exist_ok=True)
-            return path
-        except OSError as e:
-            fallback_path = "logs"
-            os.makedirs(fallback_path, exist_ok=True)
-            print(f"Failed to create directory {path}: {e}")
-            return fallback_path
+    def _create_logger(self):
+        _logger = logging.getLogger("rbk.script")
+        _logger.setLevel(level=logging.INFO)
+        return _logger
 
-    def _configure_logger(self, console: bool, file: bool):
-        """核心配置方法"""
-        self.logger = logger
-        self.logger.remove()  # 清除默认配置
+    def _file_logger(self):
+        size_rotate_file = RotatingFileHandler(filename=log_dir + self.filename + ".log", maxBytes=1024 * 1024,
+                                               backupCount=5, encoding='utf-8')
+        size_rotate_file.setFormatter(logging.Formatter(self.formatter))
+        size_rotate_file.setLevel(logging.DEBUG)
+        return size_rotate_file
 
-        if console:
-            self._add_console_handler()
+    def _console_logger(self):
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(level=logging.DEBUG)
+        console_handler.setFormatter(logging.Formatter(self.formatter))
+        return console_handler
 
-        if file:
-            self._add_file_handler()
+    def _format_message(self, msg: Any, *args) -> str:
+        """统一消息格式化处理"""
+        if isinstance(msg, str):
+            try:
+                return msg % args  # 尝试标准格式化
+            except (TypeError, ValueError):
+                return f"{msg} {' '.join(map(str, args))}".strip()
+        return f"{msg} {' '.join(map(str, args))}".strip()
 
-    def _add_console_handler(self):
-        """控制台输出配置"""
-        console_format = (
-            "<green>{time:YYYYMMDD HH:mm:ss.SSS}</green> | "  # 颜色>时间
-            "{process.name} | {thread.name} | "  # 进程名 | 线程名
-            "<cyan>{module}</cyan>.<cyan>{function}</cyan>:<cyan>{line}</cyan> | "  # 模块名.方法名:行号
-            "<level>{level}</level>: <level>{message}</level>"  # 等级: 日志内容
-        )
-        self.logger.add(
-            sys.stdout,
-            format=console_format,
-            filter=self._exclude_protocol_logs,
-            level="INFO",  # 新增日志级别过滤
-            colorize=True  # 显式启用颜色
-        )
+    def debug(self, msg: Any, *args, **kwargs):
+        self.__logger.debug(self._format_message(msg, *args), stacklevel=2, **kwargs)
 
-    def _add_file_handler(self):
-        """文件输出配置"""
-        log_name = f"{self.log_prefix}_{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}.log"
-        log_path = os.path.join(self.log_dir, log_name)
-        file_format = (
-            "{time:YYYYMMDD HH:mm:ss.SSS} | "  # 时间
-            "{process.name} | {thread.name} | "  # 进程名 | 线程名
-            "{module}.{function}:{line} | {level} | {message}"  # 模块名.方法名:行号
-        )
-        self.logger.add(
-            log_path,
-            format=file_format,
-            encoding="utf-8",
-            rotation="20 MB",  # 最大文件大小
-            retention=5,  # 最多保留5个文件
-            enqueue=True,  # 异步写入
-            backtrace=True,  # 回溯
-            diagnose=True,  # 诊断
-            filter=self._exclude_protocol_logs,
-            level="DEBUG",  # 新增日志级别过滤
-        )
+    def info(self, msg: Any, *args, **kwargs):
+        self.__logger.info(self._format_message(msg, *args), stacklevel=2, **kwargs)
 
-    def _exclude_protocol_logs(self, record):
-        return not record["module"].startswith("protocol")
+    def warning(self, msg: Any, *args, **kwargs):
+        self.__logger.warning(self._format_message(msg, *args), stacklevel=2, **kwargs)
 
-    def get_logger(self):
-        return self.logger
+    def error(self, msg: Any, *args, **kwargs):
+        self.__logger.error(self._format_message(msg, *args), stacklevel=2, **kwargs)
+
+    def critical(self, msg: Any, *args, **kwargs):
+        self.__logger.critical(self._format_message(msg, *args), stacklevel=2, **kwargs)
+
+
+if __name__ == '__main__':
+    logger = Logger("test")
+    for i in range(100000000):
+        logger.info(i, 1)

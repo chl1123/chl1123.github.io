@@ -5,7 +5,6 @@ import time
 from typing import Union
 
 import zmq
-from loguru import logger as log
 
 from syspy.lib.rpc import DOUBLE_COLON
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse
@@ -36,23 +35,15 @@ class ZmqClient:
         self.close()
 
     def close(self):
-        log.info("ZmqClient close the socket")
+        # log.info("ZmqClient close the socket")
         self.stop_flag.set()
         self.queue.put((None, None))
-        if self.worker_thread.is_alive():
-            log.warning("Worker thread did not exit gracefully")
         if self.socket:
             self.socket.close()
         self.context.term()
 
     def connect(self, addr: str):
-        try:
-            self.socket.connect(addr)
-            log.info(f"Successfully connected to {addr}")
-            return True
-        except zmq.ZMQError as e:
-            log.error(f"Connection failed: {e.strerror} (addr={addr})")
-            return False
+        self.socket.connect(addr)
 
     def putQueue(self, data: JSONRPCRequest, event: ResultEvent):
         # 将请求放入队列，并传入事件对象
@@ -67,20 +58,19 @@ class ZmqClient:
                 data, event = self.queue.get(timeout=1)
                 self.socket.send(data.to_json().encode('utf-8'))  # 发送数据
                 # 利用 self.poller.poll(5000) 对发送的数据进行轮询，等待最多 5000 毫秒
-                events = dict(self.poller.poll(5000))
+                events = dict(self.poller.poll(3000))
                 # 如果 socket 在从 poll 返回的事件中，则表示收到了响应
                 if self.socket in events:
                     response = self.recv()
                     event.result = response
                 else:  # 5秒内没有收到响应（即 socket 不在从 poll 返回的事件中）
                     event.result = None
+                    event.set()
+                    self.stop_flag.set()
                 event.set()
             except queue.Empty:
                 continue
-            except Exception as e:
-                log.error(f"worker error:{e}")
-                break
-        log.info("ZmqClient worker exit")
+        # log.info("ZmqClient worker exit")
 
 
 class RpcClient:
@@ -120,10 +110,7 @@ class RpcClient:
 
     def __getattr__(self, function):
         def _func(*args, **kwargs):
-            try:
-                return self.handle_request(function, list(args))
-            except Exception as e:
-                log.error(f"rpcStub error:{e}")
+            return self.handle_request(function, list(args))
 
         setattr(self, function, _func)
         return _func
@@ -134,23 +121,20 @@ class RpcClient:
         event = ResultEvent()
         # 将请求放入队列，并传入事件对象
         self.zmq_client.putQueue(request, event)
-        log.info(f"req => {request.to_json()}")
+        # log.debug(f"req => {request.to_json()}")
         # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
         if not event.wait(timeout=5):  # 设置适当的超时时间
-            log.error("Event wait timeout")
-            raise Exception("Event wait timeout")
+            raise TimeoutError("Event wait timeout")
         # event.result 不为空，表示收到响应
         if event.result:
             response_json = json.loads(event.result.decode())
             response = JSONRPCResponse.parse(response_json)
             if response.has_error():
-                log.error(f"res <= {response_json}")
                 raise Exception(response_json)
-            log.info(f"res <= {response.get_print()}")
+            # log.debug(f"res <= {response.get_print()}")
             return response.get_result()
         else:  # event.result 为 None
-            log.error("poller Timeout")
-            raise Exception("poller Timeout")
+            raise TimeoutError("poller Timeout")
 
 
 if __name__ == "__main__":
@@ -163,3 +147,7 @@ if __name__ == "__main__":
         print("Message_DI ", client.get_message("rbk.protocol.Message_DI", "RBKSim"))
         print("Message_Battery ", client.get_message("rbk.protocol.Message_Battery", "RBKSim"))
         time.sleep(1)
+
+    # # 模拟RBK RPC Client
+    # client = RpcClient("ipc:///tmp/cpp2broker.ipc")
+    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}, "Instead"))

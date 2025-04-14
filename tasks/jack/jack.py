@@ -12,7 +12,7 @@ from syspy import Di, Motor, Navigation, ScriptStatus
 from syspy.lib.logger import Logger
 from syspy.utils.param_server import ParamServer
 
-log = Logger(log_prefix="jack", console=True).get_logger()
+log = Logger("jack")
 
 
 class ConfigParams:
@@ -123,9 +123,9 @@ class Module(syspy.BasicModule):
         self.set_status(ScriptStatus.FINISHED)
 
     def getLM(self):
-        log.debug("getLM ==============================================")
+        log.info("getLM ==============================================")
         result = Navigation.getLM("LM7", True)
-        log.debug("getLM", result)
+        log.info("getLM", result)
         self.set_status(ScriptStatus.FINISHED)
 
     def odo(self):

@@ -1,10 +1,7 @@
-import inspect
 import json
 import time
 from functools import wraps
 from typing import TypeVar, Generic, Union, Optional, List
-
-from loguru import logger as log
 
 T = TypeVar('T', bound="BaseModel")
 
@@ -16,7 +13,7 @@ class Service:
     @classmethod
     def client(cls):
         if cls._rpc_client is None:
-            log.debug("Lazy initializing RpcClient")
+            # log.debug("Lazy initializing RpcClient")
             from .rpc.client import RpcClient
             cls._rpc_client = RpcClient()
         return cls._rpc_client
@@ -59,19 +56,11 @@ class Message(Generic[T], Service):
                     cls.data = cls._MODEL_CLASS(**parsed_data)
                     cls._last_update_time = time.time()  # 更新最后更新时间
                 except Exception as e:
-                    log.error(f"Error parsing response: {e}")
-                    return False
+                    raise f"Error parsing response: {e}"
             else:
-                log.warning(f"{cls.__name__} message data is null")
+                # log.warning(f"{cls.__name__} message data is null")
                 return False
         return True
-
-
-def get_function_name():
-    """
-    获取正在运行函数(或方法)名称
-    """
-    return inspect.stack()[1][3]
 
 
 def default_plugin(name=None):
