@@ -109,8 +109,6 @@ class RpcClient:
         return self.handle_request("NetProtocol::getMessage", [topic, plugin])
 
     def report(self, name: str, data) -> str:
-        if isinstance(data, dict):
-            data = json.dumps(data)
         return self.handle_request("MoveFactory::scriptReport", [name, data])
 
     def call_service(self, plugin: str, function: str, /, *args, **kwargs):

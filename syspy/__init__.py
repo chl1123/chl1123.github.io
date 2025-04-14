@@ -1,10 +1,7 @@
-import inspect
-import os
+import abc
+import json
 import queue
-import threading
 import time
-
-from loguru import logger as log
 
 from .battery import Battery
 from .bin import Bin
@@ -29,6 +26,7 @@ from .motor import Motor
 from .navigation import Navigation, NavStatus, NavSpeed
 from .odometer import Odometer
 from .pgv import Pgv
+from .recognize import Recognize
 from .rfid import RFID
 from .sound import Sound
 
@@ -66,6 +64,7 @@ __all__ = [
     "Odometer",
     "Pgv",
     "RFID",
+    "Recognize",
     "Sound",
 ]  # 列出所有公共模块
 
@@ -177,12 +176,12 @@ class BasicModule:
     def init_task_args(self):
         try:
             self.__current_task = self.__task_queue.get(True, 5)  # 取出最先入队的任务
-            log.debug(f"{self.__current_task=}")
             self.__set_task_id(self.__current_task.get("taskId", None))
             self.set_status(ScriptStatus.RUNNING)
-        except queue.Empty:
-            log.info("tasks_list is empty")
             return
+        except queue.Empty:
+            pass
+        self.set_status(ScriptStatus.NONE)
 
     def run(self):
         self.set_status(ScriptStatus.RUNNING)
@@ -190,10 +189,10 @@ class BasicModule:
     def print_info(self):
         time.sleep(0.05)
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.debug("task list: ", self.get_tasks_list())
-        log.debug("current task args: ", self.get_task_args())
-        log.debug("current task id: ", self.get_task_id())
-        log.debug("current task status: ", self.get_status())
+        print(f"{self.get_tasks_list()=}")
+        print(f"{self.get_task_args()=}")
+        print(f"{self.get_task_id()=}")
+        print(f"{self.get_status()=}")
 
     def main(self):
         while True:
