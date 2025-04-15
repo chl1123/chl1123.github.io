@@ -1,7 +1,6 @@
 import json
 import queue
 import threading
-import time
 from typing import Union
 
 import zmq
@@ -101,6 +100,9 @@ class RpcClient:
     def report(self, name: str, data) -> str:
         return self.handle_request("MoveFactory::scriptReport", [name, data])
 
+    def set_info(self, info: str):
+        return self.handle_request("MoveFactory::setInfo", [info])
+
     def call_service(self, plugin: str, function: str, /, *args, **kwargs):
         if args is None:
             args = []
@@ -141,7 +143,8 @@ if __name__ == "__main__":
     client = RpcClient()
 
     print("client.setMotorPosition() ", client.call_service("MoveFactory", "setMotorPosition", "doMotor", 1.0, 2.0, 1))
-    print("-----------")
+    import time
+
     while True:
         print("-----------")
         print("Message_DI ", client.get_message("rbk.protocol.Message_DI", "RBKSim"))
@@ -150,4 +153,10 @@ if __name__ == "__main__":
 
     # # 模拟RBK RPC Client
     # client = RpcClient("ipc:///tmp/cpp2broker.ipc")
-    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}, "Instead"))
+    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "suspend"))
+    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "resume"))
+    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "cancel"))
+
+    # print("client.getLM() ", client.call_service(None, "suspend"))
+    # print("client.getLM() ", client.call_service(None, "resume"))
+    # print("client.getLM() ", client.call_service(None, "cancel"))

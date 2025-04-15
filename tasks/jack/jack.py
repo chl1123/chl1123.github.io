@@ -49,6 +49,8 @@ class Module(syspy.TaskModule):
 
     def run(self):
         self.set_status(ScriptStatus.RUNNING)
+        args = self.get_task_args()
+        self.report_info(args)
         self.opt = self.get_task_args('operation', None)
         self.height = self.get_task_args('height', None)
         log.info("opt = ", self.opt, "+++++++++++++++++++++++++++++++++")

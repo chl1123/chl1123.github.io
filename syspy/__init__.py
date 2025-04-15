@@ -2,6 +2,7 @@ import abc
 import json
 import queue
 import time
+from typing import Union
 
 from .battery import Battery
 from .bin import Bin
@@ -111,7 +112,6 @@ class TaskModule:
         from threading import Lock
         self._lock = Lock()
         self.__run_status = ScriptStatus.NONE
-        self.__info = None
         self.__task_id = None
         self.__rpc_client = None
         self.__task_queue = queue.Queue()
@@ -138,7 +138,7 @@ class TaskModule:
         self.__task_queue.put(args)
 
     def cancel(self):
-        self.set_status(ScriptStatus.NONE)
+        self.set_status(ScriptStatus.FINISHED)
 
     def suspend(self):
         if self.get_status() == ScriptStatus.RUNNING:
@@ -153,7 +153,6 @@ class TaskModule:
             return
         data = {
             "moveStatus": self.__run_status.value or ScriptStatus.NONE,
-            "info": self.__info or "",
             "taskId": self.__task_id
         }
         if self.script_name:
@@ -190,10 +189,12 @@ class TaskModule:
             self.__run_status = status
             self.__report_data()
 
-    def report_info(self, info):
+    def report_info(self, info: Union[dict, list]):
         with self._lock:
-            self.__info = info
-            self.__report_data()
+            if self.__rpc_client is None:
+                from .lib.rpc.client import RpcClient
+                self.__rpc_client = RpcClient()
+            self.__rpc_client.set_info(json.dumps(info))
 
     def init_task_args(self):
         try:
