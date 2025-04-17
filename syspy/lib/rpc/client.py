@@ -140,23 +140,32 @@ class RpcClient:
 
 
 if __name__ == "__main__":
-    client = RpcClient()
+    # client = RpcClient()
+    #
+    # print("client.setMotorPosition() ", client.call_service("MoveFactory", "setMotorPosition", "doMotor", 1.0, 2.0, 1))
+    # import time
+    #
+    # while True:
+    #     print("-----------")
+    #     print("Message_DI ", client.get_message("rbk.protocol.Message_DI", "RBKSim"))
+    #     print("Message_Battery ", client.get_message("rbk.protocol.Message_Battery", "RBKSim"))
+    #     time.sleep(1)
 
-    print("client.setMotorPosition() ", client.call_service("MoveFactory", "setMotorPosition", "doMotor", 1.0, 2.0, 1))
-    import time
+    # 模拟RBK RPC Client
+    client = RpcClient("ipc:///tmp/cpp2broker.ipc")
+    # print("client.getLM() ", client.call_service("broker", "start", "tasks/jack/jack.py"))
+    # print("client.getLM() ", client.call_service("broker", "stop", "tasks/jack/jack.py"))
+    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
+    # print("client.getLM() ",
+    #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}, "addition"))
 
-    while True:
-        print("-----------")
-        print("Message_DI ", client.get_message("rbk.protocol.Message_DI", "RBKSim"))
-        print("Message_Battery ", client.get_message("rbk.protocol.Message_Battery", "RBKSim"))
-        time.sleep(1)
+    # print("client.getLM() ",
+    #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "odo"}, "addition"))
 
-    # # 模拟RBK RPC Client
-    # client = RpcClient("ipc:///tmp/cpp2broker.ipc")
     # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "suspend"))
     # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "resume"))
     # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "cancel"))
 
     # print("client.getLM() ", client.call_service(None, "suspend"))
     # print("client.getLM() ", client.call_service(None, "resume"))
-    # print("client.getLM() ", client.call_service(None, "cancel"))
+    print("client.getLM() ", client.call_service(None, "cancel"))

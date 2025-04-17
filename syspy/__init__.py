@@ -67,17 +67,6 @@ __all__ = [
 ]  # 列出所有公共模块
 
 
-def register(module_obj=None, script_name=""):
-    if module_obj is not None:
-        from .lib.rpc.server import RpcServer
-        rpc_server = RpcServer(script_name)
-        rpc_server.registerFunction(module_obj.update_cmd, "update_cmd")
-        rpc_server.registerFunction(module_obj.suspend, "suspend")
-        rpc_server.registerFunction(module_obj.resume, "resume")
-        rpc_server.registerFunction(module_obj.cancel, "cancel")
-        rpc_server.start()
-
-
 # 获取脚本启动参数
 def get_args():
     import argparse
@@ -115,26 +104,35 @@ class TaskModule:
         self.__task_id = None
         self.__rpc_client = None
         self.__task_queue = queue.Queue()
-
         self.__current_task = None
+        self.__is_init = False
+        self.__has_period_run = self.__is_overridden(self, '_period_run')
 
         from inspect import getfile
         full_path = getfile(self.__class__)
         from .utils import SCRIPTS_DIR
         # 获取脚本相对路径
         self.script_name = full_path.split(SCRIPTS_DIR + "/")[-1]
-        self.__is_init = False
 
         args = get_args()
         if args != {}:
             self.update_cmd(args)
             self.init_task_args()
 
+    def register(self):
+        from .lib.rpc.server import RpcServer
+        rpc_server = RpcServer(self.script_name)
+        rpc_server.registerFunction(self.update_cmd, "update_cmd")
+        rpc_server.registerFunction(self.suspend, "suspend")
+        rpc_server.registerFunction(self.resume, "resume")
+        rpc_server.registerFunction(self.cancel, "cancel")
+        rpc_server.start()
+
     def __del__(self):
         if self.__rpc_client:
             self.__rpc_client.close()
 
-    def update_cmd(self, args):
+    def update_cmd(self, args, script_mode="instead"):
         self.__task_queue.put(args)
 
     def cancel(self):
@@ -196,21 +194,31 @@ class TaskModule:
                 self.__rpc_client = RpcClient()
             self.__rpc_client.set_info(json.dumps(info))
 
+    def _period_run(self):
+        pass
+
+    @staticmethod
+    def __is_overridden(instance, method_name):
+        # 检查子类是否重写了指定方法
+        return getattr(instance.__class__, method_name) != getattr(TaskModule, method_name)
+
     def init_task_args(self):
         try:
-            self.__current_task = self.__task_queue.get(True, 5)  # 取出最先入队的任务
+            if not self.__has_period_run:
+                self.__current_task = self.__task_queue.get(True, 5)  # 取出最先入队的任务
+            else:
+                self.__current_task = self.__task_queue.get(False)  # 取出最先入队的任务
             self.__set_task_id(self.__current_task.get("taskId", None))
             self.set_status(ScriptStatus.RUNNING)
             return
         except queue.Empty:
             pass
-        self.set_status(ScriptStatus.NONE)
 
     def run(self):
         self.set_status(ScriptStatus.RUNNING)
 
     def print_info(self):
-        time.sleep(0.05)
+        time.sleep(0.1)
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
         print(f"{self.get_tasks_list()=}")
         print(f"{self.get_task_args()=}")
@@ -224,16 +232,27 @@ class TaskModule:
             if status is ScriptStatus.NONE:
                 self.init_task_args()
             elif status is ScriptStatus.RUNNING:
+                self.set_status(ScriptStatus.RUNNING)
                 self.run()
             elif status is ScriptStatus.SUSPENDED:
                 self.suspend()
             elif status is ScriptStatus.FAILED:
-                self.cancel()
-                return
+                self.__current_task = None
+                self.__set_task_id(None)
+                if self.__task_queue.empty() and not self.__has_period_run:
+                    return
+                else:
+                    self.set_status(ScriptStatus.NONE)
             elif status is ScriptStatus.FINISHED:
-                self.set_status(ScriptStatus.NONE)
-                return
+                self.__current_task = None
+                self.__set_task_id(None)
+                if self.__task_queue.empty() and not self.__has_period_run:
+                    return
+                else:
+                    self.set_status(ScriptStatus.NONE)
             if not self.__is_init:
                 self.__is_init = True
-                register(self, self.script_name)
+                self.register()
             self.print_info()
+            if self.__has_period_run:
+                self._period_run()

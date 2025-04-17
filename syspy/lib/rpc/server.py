@@ -25,7 +25,7 @@ class RpcServer:
         self.socket = self.context.socket(zmq.DEALER)  # 使用 DEALER 套接字
         self.socket.connect(server_addr)
         # log.info(f"Server connected to {server_addr}")
-        self._register_server(name)
+
         self.stop_flag = threading.Event()
         # 启动请求处理线程
         self.zmq_server_thread = threading.Thread(
@@ -49,6 +49,7 @@ class RpcServer:
         RpcServer.FUNCS[method_name] = function
 
     def start(self):
+        self._register_server(RpcServer.SCRIPT_NAME)
         self.zmq_server_thread.start()
 
     def _handle_request(self, socket):
@@ -77,9 +78,10 @@ class RpcServer:
                         res = self._process_request(request)
                         response.set_result(res)
                     except Exception as e:
-                        response.set_error(InternalError())
+                        response.set_error(InternalError(e))
                 else:
-                    response.set_error(MethodNotFound())
+                    response.set_error(
+                        MethodNotFound(f"{self.SCRIPT_NAME=}, Registered methods:{RpcServer.FUNCS.keys()}"))
                 # 构造响应
                 # log.info(f"Response => {response.to_json()}")
 
@@ -123,7 +125,8 @@ class RpcServer:
 
         # 发送注册信息到代理
         # register_msg = {"server": name}
-        request = JSONRPCRequest("register_service", [name])
+        methods_name = list(RpcServer.FUNCS.keys())
+        request = JSONRPCRequest("register_service", [name, methods_name])
         # log.info(f"Sending registration message: {request.to_json()}")
         self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
 
