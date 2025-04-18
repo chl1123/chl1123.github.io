@@ -6,7 +6,7 @@ class Sound(Message["Message_Sound"]):
     """音频"""
 
     _TOPIC = "rbk.protocol.Message_Sound"
-    _PLUGIN = "Message_Sound"
+    _PLUGIN = "SoundPlayer"
     _MODEL_CLASS = None
 
     @classmethod
