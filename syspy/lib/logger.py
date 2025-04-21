@@ -16,6 +16,7 @@ class Logger:
 
     def _create_logger(self):
         _logger = logging.getLogger("rbk.script")
+        _logger.setLevel(logging.DEBUG)
         return _logger
 
     def _file_logger(self):

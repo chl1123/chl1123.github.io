@@ -153,19 +153,23 @@ if __name__ == "__main__":
 
     # 模拟RBK RPC Client
     client = RpcClient("ipc:///tmp/cpp2broker.ipc")
-    # print("client.getLM() ", client.call_service("broker", "start", "tasks/jack/jack.py"))
-    # print("client.getLM() ", client.call_service("broker", "stop", "tasks/jack/jack.py"))
-    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
-    # print("client.getLM() ",
-    #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}, "addition"))
+    # print("client.start() ", client.call_service("broker", "start", "tasks/jack/jack.py"))
+    # print("client.stop() ", client.call_service("broker", "stop", "tasks/jack/jack.py"))
+    print("client.update_cmd() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
+    # print("client.update_cmd() ",
+    #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "odo"}))
 
-    # print("client.getLM() ",
-    #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "odo"}, "addition"))
+    # print("client.update_cmd() ", client.call_service("tasks/jack/go_path.py", "update_cmd", {"operation": "odo"}))
 
-    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "suspend"))
-    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "resume"))
-    # print("client.getLM() ", client.call_service("tasks/jack/jack.py", "cancel"))
+    # print("client.update_cmd() ", client.call_service(
+    #     "tasks/jack/go_path.py",
+    #     "update_cmd",
+    #     {"operation": "odo"}))
 
-    # print("client.getLM() ", client.call_service(None, "suspend"))
-    # print("client.getLM() ", client.call_service(None, "resume"))
-    print("client.getLM() ", client.call_service(None, "cancel"))
+    # print("client.suspend() ", client.call_service("tasks/jack/jack.py", "suspend"))
+    # print("client.resume() ", client.call_service("tasks/jack/jack.py", "resume"))
+    # print("client.cancel() ", client.call_service("tasks/jack/jack.py", "cancel"))
+
+    # print("client.suspend() ", client.call_service(None, "suspend"))
+    # print("client.resume() ", client.call_service(None, "resume"))
+    # print("client.cancel() ", client.call_service(None, "cancel"))

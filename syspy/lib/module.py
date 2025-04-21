@@ -1,5 +1,8 @@
+import json
 import math
 from enum import IntEnum
+from threading import Lock
+from typing import Union
 
 
 class ScriptStatus(IntEnum):
@@ -73,3 +76,134 @@ def Pos2Base(pos2world, base2world):
     pos2base[1] = -x * math.sin(base2world[2]) + y * math.cos(base2world[2])
     pos2base[2] = normalize_theta(pos2world[2] - base2world[2])
     return pos2base
+
+
+class Module:
+    script_name = None
+    __lock = Lock()
+    __run_status = ScriptStatus.NONE
+    __task_id = None
+    __rpc_client = None
+    __task = None
+
+    @classmethod
+    def init(cls):
+        from inspect import stack
+        caller_frame = stack()[1]
+        caller_file = caller_frame.filename
+        from ..utils import SCRIPTS_DIR
+        # 获取脚本相对路径
+        cls.script_name = caller_file.split(SCRIPTS_DIR + "/")[-1]
+        print("script_name: ", cls.script_name)
+        args = cls.__get_args()
+        if args != {}:
+            cls.__task = args
+            cls.__init_task_args()
+        cls.__register()
+
+    # 获取脚本启动参数
+    @classmethod
+    def __get_args(cls):
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument("args", nargs='?', type=str, default="{}", help="脚本参数")
+        args = parser.parse_args()
+        if args.args not in ('', '{}'):
+            try:
+                args = json.loads(args.args)
+            except Exception as e:
+                return {}
+            return args
+        return {}
+
+    @classmethod
+    def __init_task_args(cls):
+        if cls.__task is not None:
+            cls.__set_task_id(cls.__task.get("taskId", None))
+            with cls.__lock:
+                cls.__run_status = ScriptStatus.RUNNING
+
+    @classmethod
+    def __register(cls):
+        from .rpc.server import RpcServer
+        rpc_server = RpcServer(cls.script_name)
+        rpc_server.registerFunction(cls.__update_cmd, "update_cmd")
+        rpc_server.registerFunction(cls.__suspend, "suspend")
+        rpc_server.registerFunction(cls.__resume, "resume")
+        rpc_server.registerFunction(cls.__cancel, "cancel")
+        rpc_server.start()
+
+    def __del__(self):
+        if self.__rpc_client:
+            self.__rpc_client.close()
+
+    @classmethod
+    def __update_cmd(cls, args, script_mode="instead"):
+        cls.__task = args
+        cls.__init_task_args()
+        cls.set_status(ScriptStatus.RUNNING)
+
+    @classmethod
+    def __cancel(cls):
+        cls.set_status(ScriptStatus.FINISHED)
+
+    @classmethod
+    def __suspend(cls):
+        if cls.get_status() == ScriptStatus.RUNNING:
+            cls.set_status(ScriptStatus.SUSPENDED)
+
+    @classmethod
+    def __resume(cls):
+        if cls.get_status() == ScriptStatus.SUSPENDED:
+            cls.set_status(ScriptStatus.RUNNING)
+
+    @classmethod
+    def __report_data(cls):
+        if cls.__task_id is None:
+            return
+        data = {
+            "moveStatus": cls.__run_status.value or ScriptStatus.NONE,
+            "taskId": cls.__task_id
+        }
+        if cls.script_name:
+            if cls.__rpc_client is None:
+                from .rpc.client import RpcClient
+                cls.__rpc_client = RpcClient()
+            cls.__rpc_client.report(cls.script_name, data)
+
+    @classmethod
+    def __set_task_id(cls, task_id):
+        with cls.__lock:
+            cls.__task_id = task_id
+
+    @classmethod
+    def get_task_args(cls, name: str = "", default=None):
+        if name:
+            if cls.__task is not None:
+                return cls.__task.get(name, default)
+        else:
+            return cls.__task
+
+    @classmethod
+    def get_task_id(cls):
+        with cls.__lock:
+            return cls.__task_id
+
+    @classmethod
+    def get_status(cls) -> ScriptStatus:
+        with cls.__lock:
+            return cls.__run_status
+
+    @classmethod
+    def set_status(cls, status: ScriptStatus):
+        with cls.__lock:
+            cls.__run_status = status
+            cls.__report_data()
+
+    @classmethod
+    def report_info(cls, info: Union[dict, list]):
+        with cls.__lock:
+            if cls.__rpc_client is None:
+                from .rpc.client import RpcClient
+                cls.__rpc_client = RpcClient()
+            cls.__rpc_client.set_info(json.dumps(info))
