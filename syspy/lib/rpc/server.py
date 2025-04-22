@@ -1,6 +1,6 @@
-import atexit
 import json
 import threading
+from enum import Enum
 from typing import Any
 
 import zmq
@@ -10,17 +10,23 @@ from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFou
 server_addr = "ipc:///tmp/broker2server.ipc"  # 代理的后端地址
 
 
+class ScriptType(str, Enum):
+    TASK = "task"
+    GENERAL = "usual"
+
+
 class RpcServer:
     FUNCS = {}  # 存储注册的函数
     SCRIPT_NAME = ""  # 当前脚本名称
 
-    def __init__(self, name=""):
+    def __init__(self, name="", script_type: ScriptType = ScriptType.GENERAL):
         """初始化 RPC 服务器，并启动服务线程。
 
         Args:
             name (str): 脚本名称，用于注册到代理。
         """
         RpcServer.SCRIPT_NAME = name
+        self.script_type = script_type
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.DEALER)  # 使用 DEALER 套接字
         self.socket.connect(server_addr)
@@ -34,8 +40,9 @@ class RpcServer:
             name="zmq_server_thread",
             daemon=True
         )
-        # 退出函数
-        atexit.register(self.close)
+
+    def __del__(self):
+        self.close()
 
     def registerFunction(self, function, method_name=""):
         """注册 Python 方法，以便远程调用。
@@ -126,7 +133,7 @@ class RpcServer:
         # 发送注册信息到代理
         # register_msg = {"server": name}
         methods_name = list(RpcServer.FUNCS.keys())
-        request = JSONRPCRequest("register_service", [name, methods_name])
+        request = JSONRPCRequest("register_service", [name, methods_name, self.script_type])
         # log.info(f"Sending registration message: {request.to_json()}")
         self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
 
@@ -140,24 +147,7 @@ class RpcServer:
         response = JSONRPCResponse.parse(register_response)
         if response.has_error():
             raise Exception(f"Registration failed: {response.get_error()}")
-
         # log.info(f"Registered successfully for {name}")
-
-    def _unregister_server(self, name):
-        """注销服务，断开与代理的连接。"""
-        request = JSONRPCRequest("unregister_service", [name])
-        self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
-
-        # 接收注册响应
-        response_parts = self.socket.recv_multipart()
-        if len(response_parts) != 2:
-            raise Exception("Invalid unregister response format, check broker status")
-        _, register_response_str = response_parts
-        register_response = json.loads(register_response_str.decode('utf-8'))
-        response = JSONRPCResponse.parse(register_response)
-        if response.has_error():
-            raise Exception(f"Unregister failed: {response.get_error()}")
-        # log.info(f"Unregistered successfully for {name}")
 
     def close(self):
         # log.info("Closing RpcServer resources...")
@@ -165,8 +155,3 @@ class RpcServer:
         self.socket.close()  # 关闭 socket 会终止 recv 的阻塞状态
         self.context.term()  # 终止 context
         # log.warning("context close")
-
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.DEALER)  # 使用 DEALER 套接字
-        self.socket.connect(server_addr)
-        self._unregister_server(RpcServer.SCRIPT_NAME)

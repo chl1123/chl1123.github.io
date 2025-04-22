@@ -87,6 +87,7 @@ class RpcClient:
         if not RpcClient._initialized:
             self.zmq_client = ZmqClient()
             self.zmq_client.connect(ipc)
+            RpcClient._initialized = True
 
     def __del__(self):
         self.close()
@@ -153,8 +154,8 @@ if __name__ == "__main__":
 
     # 模拟RBK RPC Client
     client = RpcClient("ipc:///tmp/cpp2broker.ipc")
-    # print("client.start() ", client.call_service("broker", "start", "tasks/jack/jack.py"))
-    # print("client.stop() ", client.call_service("broker", "stop", "tasks/jack/jack.py"))
+    # print("client.start() ", client.call_service("broker", "start", "tasks/chl/get_script_data.py"))
+    # print("client.stop() ", client.call_service("broker", "stop", "tasks/chl/get_script_data.py"))
     print("client.update_cmd() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
     # print("client.update_cmd() ",
     #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "odo"}))
@@ -164,7 +165,10 @@ if __name__ == "__main__":
     # print("client.update_cmd() ", client.call_service(
     #     "tasks/jack/go_path.py",
     #     "update_cmd",
-    #     {"operation": "odo"}))
+    #     {"operation": "getCurrentPathProperty"}))
+
+    # print("client.update_cmd() ",
+    #       client.call_service("tasks/chl/get_script_data.py", "update_cmd", {"taskId": 1}))
 
     # print("client.suspend() ", client.call_service("tasks/jack/jack.py", "suspend"))
     # print("client.resume() ", client.call_service("tasks/jack/jack.py", "resume"))

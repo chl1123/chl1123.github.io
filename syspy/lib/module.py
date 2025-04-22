@@ -4,6 +4,8 @@ from enum import IntEnum
 from threading import Lock
 from typing import Union
 
+from syspy.lib.rpc.server import ScriptType
+
 
 class ScriptStatus(IntEnum):
     NONE = 0
@@ -126,7 +128,7 @@ class Module:
     @classmethod
     def __register(cls):
         from .rpc.server import RpcServer
-        rpc_server = RpcServer(cls.script_name)
+        rpc_server = RpcServer(cls.script_name, ScriptType.TASK)
         rpc_server.registerFunction(cls.__update_cmd, "update_cmd")
         rpc_server.registerFunction(cls.__suspend, "suspend")
         rpc_server.registerFunction(cls.__resume, "resume")
