@@ -31,7 +31,7 @@ class ParamServer:
             os.makedirs(config_dir)
         self.file = config_dir + '/' + script_file_name.replace(PY_SUFFIX, '') + CONFIG_SUFFIX
         self.data = {}
-        if os.path.exists(self.file) and not os.path.getsize(self.file):
+        if os.path.exists(self.file) and os.path.getsize(self.file):
             try:
                 with open(self.file, 'r', encoding="utf-8") as f:
                     self.data = json.load(f)
