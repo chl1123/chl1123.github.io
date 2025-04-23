@@ -11,12 +11,13 @@ class Logger:
         self.filename = filename
         self.formatter = '%(asctime)s %(filename)s:%(lineno)d %(levelname)s: %(message)s'
         self.__logger = self._create_logger()
-        self.__logger.addHandler(self._file_logger())
-        self.__logger.addHandler(self._console_logger())
 
     def _create_logger(self):
         _logger = logging.getLogger("rbk.script")
         _logger.setLevel(logging.DEBUG)
+        if not _logger.handlers:
+            _logger.addHandler(self._file_logger())
+            _logger.addHandler(self._console_logger())
         return _logger
 
     def _file_logger(self):
