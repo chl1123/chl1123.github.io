@@ -7,18 +7,37 @@ from typing import Any
 log_dir = '/opt/.data/diagnosis/rbk/logs/scripts/'
 
 
-class TimedRotatingFileHandler(RotatingFileHandler):
-    """
-    自定义 RotatingFileHandler，支持每次轮转时生成带时间戳的新文件名，
-    并限制备份文件的数量。
-    """
-
+class BackupCountRotatingFileHandler(RotatingFileHandler):
     def __init__(self, base_filename: str, maxBytes: int, backupCount: int, encoding: str = None,
-                 totalBackupCount: int = 100):
+                 totalBackupCount: int = 50):
+        """ 按照文件大小、限制同前缀文件个人和总文件个数的轮转处理器
+
+        Args:
+            base_filename: 日志前缀路径
+            maxBytes: 单个文件最大字节数
+            backupCount: 相同前缀限制文件数量
+            encoding: 编码
+            totalBackupCount: log_dir目录限制总文件数量
+        """
         self.base_filename = base_filename
-        self.current_logfile = self._generate_log_filename()
         self.total_backup_count = totalBackupCount
+        # 日志追加
+        self.current_logfile = self._find_existing_log_file() or self._generate_log_filename()
         super().__init__(filename=self.current_logfile, maxBytes=maxBytes, backupCount=backupCount, encoding=encoding)
+
+    def _find_existing_log_file(self):
+        """
+        查找已有日志路径
+        """
+        base_filename_log_files = [
+            f for f in os.listdir(log_dir)
+            if f.startswith(os.path.basename(self.base_filename)) and f.endswith(".log")
+        ]
+        if base_filename_log_files:
+            # 按修改时间排序（最新的在最后）
+            base_filename_log_files.sort(key=lambda f: os.path.getmtime(os.path.join(log_dir, f)), reverse=True)
+            return os.path.join(log_dir, base_filename_log_files[0])
+        return None
 
     def _generate_log_filename(self):
         """
@@ -115,12 +134,12 @@ class Logger:
         """
         使用自定义的 TimedRotatingFileHandler 创建文件日志处理器
         """
-        handler = TimedRotatingFileHandler(
+        handler = BackupCountRotatingFileHandler(
             base_filename=f"{log_dir}{self.filename}",
-            maxBytes=5 * 1024 * 1024,  # 1MB
-            backupCount=5,  # 最多保留5个备份文件
+            maxBytes=5 * 1024 * 1024,  # 5MB
+            backupCount=5,  # 同类日志文件保留5个
             encoding='utf-8',
-            totalBackupCount=25
+            totalBackupCount=50  # 总共保留50个日志文件
         )
         handler.setFormatter(logging.Formatter(self.formatter))
         handler.setLevel(logging.DEBUG)
