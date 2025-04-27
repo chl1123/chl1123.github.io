@@ -37,7 +37,7 @@
 // without any other information (e.g. without reading its imports).
 
 
-syntax = "proto2";
+syntax = "proto3";
 
 package google.protobuf;
 option go_package = "github.com/golang/protobuf/protoc-gen-go/descriptor;descriptor";

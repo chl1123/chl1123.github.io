@@ -1,7 +1,7 @@
-# 要生成pythonic的proto列表
 import os
 import re
 
+# 要生成pythonic的proto列表
 protos = [
     "message_header",
     "message_bin",
@@ -21,14 +21,25 @@ protos = [
     "message_pgv",
     "message_rfid",
     "message_sound",
-    "message_dmx512"
+    "message_dmx512",
+    "message_script"
 ]
+
+
+def gen_protobuf():
+    out_folder_name = "./message"
+    for proto_name in protos:
+        command = f"protoc --proto_path=./proto --python_out={out_folder_name} ./proto/{proto_name}.proto"
+        print(command)
+        os.system(command)
+        print(f"gen '{proto_name}' protobuf success")
+        print()
 
 
 def fix_default_value(proto_name):
     # 打开生成的文件
     # 读取文件内容
-    with open(f"./new_message/{proto_name}_p2p.py", "r") as file:
+    with open(f"./new_pb/{proto_name}_p2p.py", "r") as file:
         lines = file.readlines()
 
     # 替换
@@ -60,17 +71,40 @@ def fix_default_value(proto_name):
         file.writelines(updated_lines)
 
 
-def main():
+def gen_pandantic():
+    out_folder_name = "new_pydantic"
     # 执行python命令
     for proto_name in protos:
         print(
-            f"sudo python3 -m grpc_tools.protoc -I./proto --protobuf-to-pydantic_out=./new_message {proto_name}.proto")
+            f"sudo python3 -m grpc_tools.protoc -I./proto --protobuf-to-pydantic_out=./{out_folder_name} {proto_name}.proto")
         os.system(
-            f"sudo python3 -m grpc_tools.protoc -I./proto --protobuf-to-pydantic_out=./new_message {proto_name}.proto")
+            f"sudo python3 -m grpc_tools.protoc -I./proto --protobuf-to-pydantic_out=./{out_folder_name} {proto_name}.proto")
         print(f"gen {proto_name} pythonic proto success")
         fix_default_value(proto_name)
         print()
 
 
+def gen_models():
+    out_folder_name = "models"
+    # for proto_name in protos:
+    command = f"protoc -I ./proto --python_betterproto_out={out_folder_name} ./proto/*.proto"
+    print(command)
+    os.system(command)
+    print("gen model success")
+
+
+def gen_pyi():
+    out_folder_name = "./message"
+    for proto_name in protos:
+        command = f"protoc -I ./proto --pyi_out={out_folder_name} ./proto/{proto_name}.proto"
+        print(command)
+        os.system(command)
+        print(f"gen {proto_name} pyi success")
+        print()
+
+
 if __name__ == "__main__":
-    main()
+    gen_protobuf()
+    # gen_pandantic()
+    # gen_models()
+    # gen_pyi()

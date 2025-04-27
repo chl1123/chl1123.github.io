@@ -3,7 +3,7 @@ import typing
 from .lib.py_rpc import Message
 
 if typing.TYPE_CHECKING:
-    from .protobuf.message import Message_RFIDNode
+    from .protobuf import Message_RFIDNode
 
 
 class RFID(Message["Message_RFID"]):
@@ -16,7 +16,7 @@ class RFID(Message["Message_RFID"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_RFID
+            from .protobuf import Message_RFID
             cls._MODEL_CLASS = Message_RFID
 
     @classmethod

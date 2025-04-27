@@ -3,44 +3,39 @@ package rbk.protocol;
 import "message_header.proto";
 
 message Message_Localization {
-  enum UpdateReason {
-    None = 0;
-    OdoUpdate = 1;
-    LaserCorrec = 2;
-    LaserThenOdo = 3;
-    PGVCORRECT = 4;
-  }
   Message_Header header = 1;
+  // 单位 m
   double x = 2;
+  // 单位 m
   double y = 3;
-  double angle = 4;
-  double confidence = 5;
-  repeated double correction_errs = 6;
-  repeated double reliabilities = 7;
-  bool in_forbidden_area = 8;
-  UpdateReason update_reason = 9;
-  enum LocState {
-    Normal = 0;
-    Skidding = 1;
-    LowConfidence = 2;
-  }
-  LocState loc_state = 10;
-  double similarity = 11;
-  enum LocMethod
-  {
-    PF_LASER_2D = 0;
-    SLAM_2D = 1;
-    PGV = 2;
-    REFLECTOR = 3;
-    LASER_3D = 4;
-    BAR_CODE = 5;
-  }
-  LocMethod loc_method = 12;
-  // 增加车体相对与水平面的roll和pitch
-  // 单位 deg
-  double roll = 13;
-  // 单位 deg
-  double pitch = 14;
+  // 单位 m
+  double z = 4;
+  // 单位 rad
+  double angle = 5;
+  // 增加车体相对于水平面的roll和pitch
+  // 单位 rad
+  double roll = 6;
+  // 单位 rad
+  double pitch = 7;
+  // 置信度
+  double confidence = 8;
+  // 0：更新配置中
+  // 1：更新地图中
+  // 2：等待传感器数据中
+  // 3：重定位中
+  // 4：定位中
+  uint32 loc_state = 9;
+
+  // 0: 里程计模式
+  // 1: 自然轮廓定位
+  // 2: 反光柱定位
+  // 3: 二维码定位
+  // 4: 3D 定位 (NDT)
+  // 5: 天码定位
+  // 6: 特征定位
+  // 7: 3D 特征定位
+  // 8: 3D KF定位
+  uint32 loc_method = 10;
 }
 
 message Message_LocFinished{

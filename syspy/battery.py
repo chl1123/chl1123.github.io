@@ -12,7 +12,7 @@ class Battery(Message["Message_Battery"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_Battery  # 延迟导入
+            from .protobuf import Message_Battery  # 延迟导入
             cls._MODEL_CLASS = Message_Battery
 
     @classmethod

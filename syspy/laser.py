@@ -5,7 +5,7 @@ from typing import List
 from .lib.py_rpc import Message, call_service
 
 if typing.TYPE_CHECKING:
-    from .protobuf.message import Message_Laser3D
+    from .protobuf import Message_Laser3D
 
 
 class Laser(Message["Message_AllLasers"]):
@@ -18,7 +18,7 @@ class Laser(Message["Message_AllLasers"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_AllLasers
+            from .protobuf import Message_AllLasers
             cls._MODEL_CLASS = Message_AllLasers
 
     @classmethod
@@ -127,7 +127,7 @@ class Laser3D(Message["Message_AllLasers3D"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_AllLasers3D
+            from .protobuf import Message_AllLasers3D
             cls._MODEL_CLASS = Message_AllLasers3D
 
     @classmethod

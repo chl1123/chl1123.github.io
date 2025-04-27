@@ -3,7 +3,8 @@ import typing
 from syspy.lib.py_rpc import Message, call_service, default_plugin
 
 if typing.TYPE_CHECKING:
-    from .protobuf.message.message_io_p2p import Message_DINode, Message_DONode  # IDE类型提示
+    from .protobuf import Message_DINode, Message_DONode  # IDE类型提示
+
 
 @default_plugin("DSPChassis")
 class Di(Message["Message_DI"]):
@@ -16,7 +17,7 @@ class Di(Message["Message_DI"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_DI
+            from .protobuf import Message_DI
             cls._MODEL_CLASS = Message_DI
 
     @classmethod

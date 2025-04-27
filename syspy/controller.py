@@ -11,7 +11,7 @@ class Controller(Message["Message_Controller"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_Controller
+            from .protobuf import Message_Controller
             cls._MODEL_CLASS = Message_Controller
 
     @classmethod

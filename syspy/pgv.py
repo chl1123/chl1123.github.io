@@ -3,7 +3,7 @@ from typing import List, TYPE_CHECKING
 from .lib.py_rpc import Message
 
 if TYPE_CHECKING:
-    from .protobuf.message import Message_PGV
+    from .protobuf import Message_PGV
 
 
 class Pgv(Message["Message_PGV"]):
@@ -16,7 +16,7 @@ class Pgv(Message["Message_PGV"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_PGV
+            from .protobuf import Message_PGV
             cls._MODEL_CLASS = Message_PGV
 
     @classmethod

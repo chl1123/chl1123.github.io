@@ -13,7 +13,7 @@ class ScriptData(Message["Message_Script"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message.message_script_p2p import Message_Script
+            from .protobuf import Message_Script
             cls._MODEL_CLASS = Message_Script
 
     @classmethod

@@ -7,7 +7,6 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf import descriptor_pb2
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -19,9 +18,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='message_dmx512.proto',
   package='rbk.protocol',
   syntax='proto3',
+  serialized_options=None,
   serialized_pb=_b('\n\x14message_dmx512.proto\x12\x0crbk.protocol\"\x8f\x01\n\x0eMessage_Dmx512\x12\x0c\n\x04type\x18\x01 \x01(\r\x12\x0f\n\x07\x62\x61ttery\x18\x02 \x01(\r\x12\x0f\n\x07\x63olor_r\x18\x03 \x01(\r\x12\x0f\n\x07\x63olor_g\x18\x04 \x01(\r\x12\x0f\n\x07\x63olor_b\x18\x05 \x01(\r\x12\x0f\n\x07\x63olor_w\x18\x06 \x01(\r\x12\x1a\n\x12turn_left_or_right\x18\x07 \x01(\rb\x06proto3')
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 
@@ -39,56 +38,56 @@ _MESSAGE_DMX512 = _descriptor.Descriptor(
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='battery', full_name='rbk.protocol.Message_Dmx512.battery', index=1,
       number=2, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='color_r', full_name='rbk.protocol.Message_Dmx512.color_r', index=2,
       number=3, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='color_g', full_name='rbk.protocol.Message_Dmx512.color_g', index=3,
       number=4, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='color_b', full_name='rbk.protocol.Message_Dmx512.color_b', index=4,
       number=5, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='color_w', full_name='rbk.protocol.Message_Dmx512.color_w', index=5,
       number=6, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='turn_left_or_right', full_name='rbk.protocol.Message_Dmx512.turn_left_or_right', index=6,
       number=7, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto3',
   extension_ranges=[],
@@ -99,6 +98,7 @@ _MESSAGE_DMX512 = _descriptor.Descriptor(
 )
 
 DESCRIPTOR.message_types_by_name['Message_Dmx512'] = _MESSAGE_DMX512
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Message_Dmx512 = _reflection.GeneratedProtocolMessageType('Message_Dmx512', (_message.Message,), dict(
   DESCRIPTOR = _MESSAGE_DMX512,

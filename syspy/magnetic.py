@@ -3,7 +3,7 @@ import typing
 from .lib.py_rpc import Message
 
 if typing.TYPE_CHECKING:
-    from .protobuf.message.message_magnetic_p2p import Message_MagneticNode
+    from .protobuf import Message_MagneticNode
 
 
 class Magnetic(Message["Message_Magnetic"]):
@@ -16,7 +16,7 @@ class Magnetic(Message["Message_Magnetic"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_Magnetic
+            from .protobuf import Message_Magnetic
             cls._MODEL_CLASS = Message_Magnetic
 
     @classmethod

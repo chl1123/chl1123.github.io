@@ -11,5 +11,5 @@ class Distance(Message["Message_DistanceSensor"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_DistanceSensor
+            from .protobuf import Message_DistanceSensor
             cls._MODEL_CLASS = Message_DistanceSensor

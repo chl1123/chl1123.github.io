@@ -13,7 +13,7 @@ class Camera(Message["Message_AllCameraCloud"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_AllCameraCloud
+            from .protobuf import Message_AllCameraCloud
             cls._MODEL_CLASS = Message_AllCameraCloud
 
     @classmethod

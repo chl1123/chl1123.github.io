@@ -5,7 +5,7 @@ from typing import Tuple
 from .lib.py_rpc import Service, Message, call_service, default_plugin
 
 if typing.TYPE_CHECKING:
-    from .protobuf.message.message_navigation_p2p import Message_MotorCmd
+    from .protobuf import Message_MotorCmd
 
 
 @default_plugin("MoveFactory")
@@ -528,7 +528,7 @@ class NavStatus(Message["Message_MoveStatus"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_MoveStatus
+            from .protobuf import Message_MoveStatus
             cls._MODEL_CLASS = Message_MoveStatus
 
     @classmethod
@@ -594,7 +594,7 @@ class NavSpeed(Message["Message_NavSpeed"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_NavSpeed
+            from .protobuf import Message_NavSpeed
             cls._MODEL_CLASS = Message_NavSpeed
 
     @classmethod

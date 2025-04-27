@@ -12,7 +12,7 @@ class Sound(Message["Message_Sound"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_Sound
+            from .protobuf import Message_Sound
             cls._MODEL_CLASS = Message_Sound
 
     @classmethod

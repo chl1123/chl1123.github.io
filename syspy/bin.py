@@ -3,7 +3,7 @@ from typing import List, TYPE_CHECKING
 from .lib.py_rpc import Message
 
 if TYPE_CHECKING:
-    from .protobuf.message.message_bin_p2p import Message_Bin  # IDE类型提示
+    from .protobuf import Message_Bin  # IDE类型提示
 
 
 class Bin(Message["Message_Bins"]):
@@ -16,7 +16,7 @@ class Bin(Message["Message_Bins"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf.message import Message_Bins
+            from .protobuf import Message_Bins
             cls._MODEL_CLASS = Message_Bins
 
     @classmethod
