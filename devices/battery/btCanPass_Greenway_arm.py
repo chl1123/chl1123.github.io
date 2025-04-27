@@ -1,13 +1,13 @@
-import sys, json
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
-sys.path.append('/opt/.data/rbk/resources/scripts/')
+import json
 
 # 导入电池基类
 import syspy.battery_Can.canpass_base as cb
-
 # 其他工具类,如定时器
-import syspy.lib.misc_utility as mu
 import syspy.lib.char_utility as cu
+import syspy.lib.misc_utility as mu
+from syspy import Logger
+
+log = Logger("battery")
 
 error_dict = {
     (1, 0): "first-level overvoltage",
@@ -31,15 +31,13 @@ error_dict = {
 }
 
 
-
 class testCanBattery(cb.canPassBase):
 
     def __init__(self):
-        print("testCanBattery")
         super(testCanBattery, self).__init__()
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(2000)
-        self.id1=self.id2=self.id3=self.id4=self.msg_ok=self.msg_userdata=self.wake_up=self.clear = False
+        self.id1 = self.id2 = self.id3 = self.id4 = self.msg_ok = self.msg_userdata = self.wake_up = self.clear = False
         self.first = True
         self.port = self.getBatteryCanPort()
         self.id = self.year = self.week = self.number = ""
@@ -47,20 +45,19 @@ class testCanBattery(cb.canPassBase):
         self.temperature_buffer = []
 
     def handleData(self, msg):
-        self.judgeCanframe(msg)
-        self.judgePublish()
-        # try:
-        #
-        # except ValueError as e:
-        #     print(f"ValueError occurred in handleData: {e}")
-        # except TypeError as e:
-        #     print(f"TypeError occurred in handleData: {e}")
-        # except Exception as e:
-        #     print(f"Unexpected exception in handleData: {e}")
+        try:
+            self.judgeCanframe(msg)
+            self.judgePublish()
+        except ValueError as e:
+            log.error(f"ValueError occurred in handleData: {e}")
+        except TypeError as e:
+            log.error(f"TypeError occurred in handleData: {e}")
+        except Exception as e:
+            log.error(f"Unexpected exception in handleData: {e}")
 
     def judgeCanframe(self, msg):
         if len(msg.data) != 8:
-            print("msg not valid: %s" % (str(msg)))
+            log.warning(f"msg not valid: {str(msg)}")
             return
         if msg.arbitration_id == 0x0DA2F40D and not self.msg_userdata:
             tem = msg.data.hex()
@@ -86,10 +83,10 @@ class testCanBattery(cb.canPassBase):
             cycle = int(tem[4:6] + tem[6:8], 16)
             if self.id1:
                 if abs(cycle - self.battery_info.cycle) > 1:
-                    print(f"cycle jumps form {self.battery_info.cycle} to {cycle}, drop msg:{str(msg)}")
+                    log.warning(f"cycle jumps form {self.battery_info.cycle} to {cycle}, drop msg:{str(msg)}")
                     return
                 elif 0 == cycle or 0 == percentage:
-                    print(f"cycle and SoC cannot be zero,per:{percentage},cycle:{cycle},msg:{str(msg)}")
+                    log.warning(f"cycle and SoC cannot be zero,per:{percentage},cycle:{cycle},msg:{str(msg)}")
                     return
             if int(tem[12:14], 16) == 1:
                 self.battery_info.is_charging = True
@@ -106,10 +103,12 @@ class testCanBattery(cb.canPassBase):
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
             if self.id2:
                 if abs(current - self.battery_info.charge_current) > 100:
-                    print(f"current jumps form {self.battery_info.charge_current} to {current}, drop msg:{str(msg)}")
+                    log.warning(
+                        f"current jumps form {self.battery_info.charge_current} to {current}, drop msg:{str(msg)}")
                     return
                 if abs(voltage - self.battery_info.charge_voltage) > 100:
-                    print(f"voltage jumps form {self.battery_info.charge_voltage} to {voltage}, drop msg:{str(msg)}")
+                    log.warning(
+                        f"voltage jumps form {self.battery_info.charge_voltage} to {voltage}, drop msg:{str(msg)}")
                     return
             self.battery_info.charge_voltage = voltage
             self.battery_info.charge_current = current
@@ -168,14 +167,13 @@ class testCanBattery(cb.canPassBase):
                             self.setError(53140, error_msg)
                         break
 
-
     def judgePublish(self):
         if self.id1 and self.id2 and self.id3 and self.id4:
-            self.publish(self.battery_info)
-            print("self.battery_info", self.battery_info)
-            # syspy.report.set_report(self.battery_info)
+            result = self.publish(self.battery_info)
+            if result == -1:
+                log.error("battery message publish fail")
         else:
-            print(f"wait 4 ids all recv: id1{self.id1} id2{self.id2} id3{self.id3} id4{self.id4}")
+            log.info(f"wait 4 ids all recv: id1{self.id1} id2{self.id2} id3{self.id3} id4{self.id4}")
 
     def judgeMsgok(self):
         if self.msg_ok:
@@ -184,8 +182,9 @@ class testCanBattery(cb.canPassBase):
             self.connect_timeout_t.reset()
             self.wake_up = False
             if not self.clear:
-                if self.errorExists(54001):
-                    print('clear')
+                exist = self.errorExists(54001)
+                if exist:
+                    log.debug('clearTimeout')
                     self.clearTimeout()
                 else:
                     self.clear = True
@@ -193,24 +192,24 @@ class testCanBattery(cb.canPassBase):
             if self.connect_timeout_t.isTimeUp():
                 if not self.wake_up and (self.id == "0b" or self.id == "0d"):
                     self.sendCanframe(self.port, 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
-                    self.wake_up = True # 主动唤醒
-                    print("wake_up")
+                    self.wake_up = True  # 主动唤醒
+                    log.debug('wake_up')
                 else:
                     self.clear = False
-                    print('timeout')
+                    log.error('timeout')
                     self.setTimeout()
 
     def loop(self):
-        mu.sleep_s(3)
+        mu.sleep_s(20)
         self.createCanBus(self.port, 250000)
         self.attachCanID(0x0DA2F40D, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
             mu.sleep_s(2)
             if not self.msg_userdata:
-                self.sendCanframe(self.port, 0x0DA20DF4, 8, True, [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00])
+                self.sendCanframe(self.port, 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
             self.judgeMsgok()
 
+
 if __name__ == '__main__':
-    print("123")
     client = testCanBattery()
     client.loop()

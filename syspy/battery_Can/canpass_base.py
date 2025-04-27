@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import platform
 import sys
@@ -8,22 +9,24 @@ from google.protobuf.json_format import MessageToJson
 import syspy.lib.rpc.server as rs
 from syspy import Abnormal
 from syspy import Battery, Di, Do
-from syspy.protobuf.message_battery_pb2 import Message_Battery
+from syspy.protobuf.message.message_battery_pb2 import Message_Battery
+
+log = logging.getLogger("rbk.script")
 
 
 class canPassBase:
     def __init__(self):
-        print("canPassBase __init__")
+        log.info("canPassBase __init__")
         self.__rpc_server = rs.RpcServer()
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
         self.__rpc_server.start()
         if platform.machine() == 'x86_64':
-            print("platform: x86_64")
+            log.info("platform: x86_64")
             import syspy.battery_Can.canpass_x86 as x86
             self.child = x86.canPassX86()
         elif platform.machine() == 'aarch64':
-            print("platform: aarch64")
+            log.info("platform: aarch64")
             import syspy.battery_Can.canpass_aarch64 as aarch64
             self.child = aarch64.canPassAarch64()
         self.setCallBack()
@@ -64,14 +67,15 @@ class canPassBase:
             ports = (1, 2, 3)
         else:
             ports = ('can0', 'can1', 'can2')
-        print(f'name: {srcname}, ports:{ports}')
+        log.info(f"{srcname=}, {ports=}")
 
         port = Battery.getCanPort()
-        print(f'port: {port}')
+        log.info(f"{port=}")
         if port in (1, 2, 3):
             selected_port = ports[port - 1]  # 根据端口号获取对应的端口
-            print(f'selected_port: {selected_port}')
+            log.info(f"{selected_port=}")
         else:
+            log.error(f"Invalid port number: {port}")
             raise ValueError(f"Invalid port number: {port}")
 
         script_name = os.path.basename(sys.argv[0])

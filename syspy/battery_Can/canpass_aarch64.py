@@ -1,10 +1,14 @@
-import can, threading
-from syspy.protobuf import message_battery_aarch64_pb2
+import logging
+import threading
+
+import can
+
+log = logging.getLogger("rbk.script")
 
 
 class canPassAarch64():
     def __init__(self):
-        print("canPassAarch64 start!")
+        log.info("canPassAarch64 start!")
         self.bus = None
         self.__callback = None
         self.__should_close = threading.Event()  # 使用事件来控制线程关闭
@@ -16,15 +20,12 @@ class canPassAarch64():
         if callable(handleData):
             self.__callback = handleData
         else:
-            print("Set callback error.")
-
-    def createBatteryMessage(self):
-        return message_battery_aarch64_pb2.Message_Battery()
+            log.error("Set callback error.")
 
     def createCanBus(self, channel, bitrate):
         self.bus = can.interface.Bus(bustype='socketcan', channel=channel, bitrate=bitrate, receive_own_messages=False)
-        self.__msg_thread = threading.Thread(target=self.__run, name="run")
-        self.__msg_thread.start()  # FIXME: when to join?
+        self.__msg_thread = threading.Thread(target=self.__run, name="run", daemon=True)
+        self.__msg_thread.start()
 
     # unused filter cuz bus set_filters already done
     #  def can_filter(self, msg):
@@ -42,17 +43,14 @@ class canPassAarch64():
                 can_mask = 0x1FFFFFFF
             filters.append({"can_id": id_, "can_mask": can_mask})
         self.bus.set_filters(filters)
-        print('Attached CAN IDs:', end=' ')
-        for id_ in self.can_ids:
-            print(hex(id_), end=' ')
-        print()
+        log.info(f"Attached CAN IDs: {[hex(id) for id in self.can_ids]}")
 
     def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
         if not self.bus:
-            print("please createCanBus first.")
+            log.warning("please createCanBus first.")
             return
         self.bus.send(can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc))
-        print(f'message send: channel={channel}, can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+        log.info(f'message send: {channel=}, {hex(can_id)=}, {dlc=}, {extend=}, {can_string=}')
 
     def __run(self):
         try:
@@ -67,10 +65,12 @@ class canPassAarch64():
 
     def close(self):
         self.__should_close.set()  # 设置事件，通知线程关闭
-        self.__msg_thread.join()  # 等待线程结束
+        if self.__msg_thread is not None:
+            self.__msg_thread.join()  # 等待线程结束
 
     def __del__(self):
         self.close()  # 确保资源被正确清理
+
 
 if __name__ == "__main__":
     pass
