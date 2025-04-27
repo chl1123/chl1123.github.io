@@ -1,21 +1,21 @@
+import fcntl
+import logging
+import subprocess
+import threading
 
-import sys
-sys.path.insert(0, '/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
-import serial,fcntl,threading,subprocess,can
-import syspy.lib.udp_debug as ud
+import can
+import serial
+from google.protobuf.json_format import MessageToJson
+
 from syspy import Led
+from syspy.protobuf.message import message_dmx512_pb2
 
-DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_dmx512.ipc"
+log = logging.getLogger("rbk.script")
 
 
-from syspy.protobuf.messsage import Message_Dmx512, Message_MoveStatus, Message_Battery, Message_NavSpeed
-
-class dmx512Aarch64():
-    def __init__(self,rpc_client):
-        self.rpc_client = rpc_client
-        # self.__debug_out = ud.udpDebug()
-        # sys.stdout = self.__debug_out
-        print("start dmx512")
+class dmx512Aarch64:
+    def __init__(self):
+        log.info("start arm dmx512")
         self.ser = None
         self.__callback = None
         self.__should_close = False
@@ -26,42 +26,32 @@ class dmx512Aarch64():
 
     def setCallBack(self, handleData):
         if not handleData:
-            print("Set callback error.It should be implemented the func 'handleData'")
+            log.error("Set callback error.It should be implemented the func 'handleData'")
         else:
             self.__callback = handleData
 
-
-
-    ''' LED '''
+    # LED
     def createDmx512Message(self):
-        return Message_Dmx512()
-
-    def createMoveStatusMessage(self):
-        return Message_MoveStatus()
-
-    def createBatteryMessage(self):
-        return Message_Battery()
-
-    def createNavSpeedMessage(self):
-        return Message_NavSpeed()
+        return message_dmx512_pb2.Message_Dmx512()
 
     def sendDmx512(self, dmx512_info):
-        type_exm = Message_Dmx512()
-        if (isinstance(dmx512_info, type(type_exm))):
-            Led.sendArmDmxInfo(dmx512_info.model_dump_json())
+        type_exm = message_dmx512_pb2.Message_Dmx512()
+        if isinstance(dmx512_info, type(type_exm)):
+            msg = MessageToJson(dmx512_info)
+            Led.sendArmDmxInfo(msg)
 
-    ''' Serial '''
+    # Serial
     def createSerial(self, name, baudrate):
-        self.ser = serial.Serial(port=name, baudrate=baudrate, bytesize=8, parity='N', stopbits=1)
+        self.ser = serial.Serial(port=name, baudrate=baudrate, bytesize=8, parity="N", stopbits=1)
         command = "cat /etc/srcname"
         output = subprocess.check_output(command, shell=True)
         output = output.decode("utf-8").strip()
-        print(output)
-        if not output == 'SRC880':
+        log.info(f"{output=}")
+        if not output == "SRC880":
             fcntl.ioctl(self.ser, 0)  # 这行决定了485模式
-        self.__msg_thread = threading.Thread(target=self.__serialRun, name="__serialRun")
-        self.__msg_thread.start()  # FIXME: when to join?
-        print('createSerial  name:{},baudrate:{}'.format(name, baudrate))
+        self.__msg_thread = threading.Thread(target=self.__serialRun, name="__serialRun", daemon=True)
+        self.__msg_thread.start()
+        log.info(f"createSerial  {name=}, {baudrate=}")
 
     def send(self, msg: list):
         self.ser.write(msg)
@@ -81,12 +71,11 @@ class dmx512Aarch64():
             self.ser.close()
             pass
 
-
-    ''' CAN '''
+    # CAN
     def createCanBus(self, channel, bitrate):
-        self.bus = can.interface.Bus(bustype='socketcan', channel=channel, bitrate=bitrate)
-        self.__msg_thread = threading.Thread(target=self.__canRun, name="__canRun")
-        self.__msg_thread.start()  # FIXME: when to join?
+        self.bus = can.interface.Bus(bustype="socketcan", channel=channel, bitrate=bitrate)
+        self.__msg_thread = threading.Thread(target=self.__canRun, name="__canRun", daemon=True)
+        self.__msg_thread.start()
 
     def can_filter(self, msg):
         return msg.arbitration_id in self.can_ids
@@ -102,15 +91,13 @@ class dmx512Aarch64():
                 can_mask = 0x1FFFFFFF
             filters.append({"can_id": id_, "can_mask": can_mask})
         self.bus.set_filters(filters)
-        print('Attached CAN IDs:', end=' ')
-        for id_ in self.can_ids:
-            print(hex(id_), end=' ')
+        log.info(f"Attached CAN IDs: {[hex(id_) for id_ in self.can_ids]}")
 
     def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
         try:
             msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
             self.bus.send(msg)
-            print(f'message send: can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}')
+            log.info(f"message send: can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}")
         except Exception as e:
             print(f"Error sending CAN frame: {e}")
 
@@ -132,7 +119,7 @@ class dmx512Aarch64():
     def __del__(self):
         self.__should_close.set()  # 设置事件，通知线程关闭
         self.__msg_thread.join()  # 等待线程结束
-        self.rpc_client.close()
+
 
 if __name__ == "__main__":
     pass

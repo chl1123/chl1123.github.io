@@ -1,3 +1,4 @@
+import logging
 import math
 import threading
 import time
@@ -9,6 +10,7 @@ from .dmx_serial_comm import DmxSerialComm
 from .light_type import Brightness, LightType, Color
 from ..utils.param_server import ParamServer
 
+log = logging.getLogger("rbk.script")
 CODE_LED_CONN_ERRO = 53142
 
 FASTEST_PERIOD = 1000
@@ -233,7 +235,7 @@ class LedBase:
             led_idx: 常量灯和闪烁灯的索引。默认应用到所有LED灯
             brightness: 灯光亮度。int、float应用到全部，list应用到指定索引
         """
-        print(f"{light_effect=}, {rgbw=}, {led_idx=}")
+        log.debug(f"{light_effect=}, {rgbw=}, {led_idx=}")
         self.__led.show_effect(light_effect, rgbw=rgbw, period=period, led_idx=led_idx, brightness=brightness)
 
     def send_data_thread(self):

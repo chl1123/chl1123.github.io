@@ -3,12 +3,12 @@ import time
 from typing import Optional
 
 from syspy import Battery, Controller, NavStatus, NavSpeed
+from syspy import Logger
+from syspy import ParamServer
 from syspy.leds.led_base import LedBase
 from syspy.leds.light_type import LightType, Color
-from syspy.lib.logger import Logger
-from syspy.utils.param_server import ParamServer
 
-log = Logger(log_prefix="led", console=True).get_logger()
+log = Logger("led")
 
 
 def signal_handler(signal, frame):
