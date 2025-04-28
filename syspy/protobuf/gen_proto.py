@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 
 # 要生成pythonic的proto列表
 protos = [
@@ -22,7 +23,7 @@ protos = [
     "message_rfid",
     "message_sound",
     "message_dmx512",
-    "message_script"
+    "message_script",
 ]
 
 
@@ -101,10 +102,19 @@ def gen_pyi():
         os.system(command)
         print(f"gen {proto_name} pyi success")
         print()
+    # todo 待自动修复 "None: "
+    # 复制message/*.pyi文件到pyi文件夹下
+    for proto_name in protos:
+        # 源文件路径
+        source_file = f"./message/{proto_name}_pb2.pyi"
+        # 目标文件路径
+        target_file = f"./pyi/{proto_name}_pb2.pyi"
+        # 使用python接口复制文件
+        shutil.copyfile(source_file, target_file)
 
 
 if __name__ == "__main__":
-    gen_protobuf()
+    # gen_protobuf()
     # gen_pandantic()
     # gen_models()
-    # gen_pyi()
+    gen_pyi()

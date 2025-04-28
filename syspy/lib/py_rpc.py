@@ -1,9 +1,11 @@
-import json
 import time
 from functools import wraps
-from typing import TypeVar, Generic, Union, Optional, List
+from typing import TypeVar, Generic, Union, Optional, List, Type
 
-T = TypeVar('T', bound="BaseModel")
+from google.protobuf import json_format
+from google.protobuf.message import Message
+
+T = TypeVar('T', bound=Message)
 
 
 class Service:
@@ -22,9 +24,9 @@ class Service:
 class Message(Generic[T], Service):
     _TOPIC = None  # 消息名
     _PLUGIN = "RBKSim"  # 插件名
-    _MODEL_CLASS: None  # Pydantic模型类
+    _MODEL_CLASS: Type[T]  # Pydantic模型类
 
-    data = T
+    data: T = None
     _last_update_time: float = 0.0  # 记录上次更新时间
     _update_time: float = 0.05  # 缓存时间，单位为秒
 
@@ -37,7 +39,7 @@ class Message(Generic[T], Service):
         if cls.update():
             if args is not None:
                 return tuple(getattr(cls.data, arg) for arg in args)
-            return cls.data.model_dump()
+            return json_format.MessageToDict(cls.data)
 
     @classmethod
     def init_model_class(cls):
@@ -52,8 +54,7 @@ class Message(Generic[T], Service):
             response = cls.client().get_message(cls._TOPIC, cls._PLUGIN)
             if response:
                 try:
-                    parsed_data = json.loads(response)
-                    cls.data = cls._MODEL_CLASS(**parsed_data)
+                    cls.data = json_format.Parse(response, cls._MODEL_CLASS(), ignore_unknown_fields=True)
                     cls._last_update_time = time.time()  # 更新最后更新时间
                 except Exception as e:
                     raise f"Error parsing response: {e}"

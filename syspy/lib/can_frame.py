@@ -12,7 +12,7 @@ class Can(Message["CanFrame"]):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from ..protobuf.message import CanFrame
+            from ..protobuf import CanFrame
             cls._MODEL_CLASS = CanFrame
 
     @classmethod

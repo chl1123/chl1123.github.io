@@ -1,22 +1,21 @@
-from .pydantic.CanFrame_p2p import CanFrame
-from .pydantic.message_battery_p2p import Message_Battery
-from .pydantic.message_battery_p2p import Message_Battery
-from .pydantic.message_bin_p2p import *
-from .pydantic.message_controller_p2p import Message_Controller
-from .pydantic.message_depthcamera_p2p import *
-from .pydantic.message_distancesensor_p2p import *
-from .pydantic.message_dmx512_p2p import Message_Dmx512
-from .pydantic.message_io_p2p import *
-from .pydantic.message_laser_p2p import *
-from .pydantic.message_localization_p2p import Message_Localization
-from .pydantic.message_magnetic_p2p import Message_Magnetic, Message_MagneticNode
-from .pydantic.message_motorinfos_p2p import *
-from .pydantic.message_movetask_p2p import Message_MoveStatus
-from .pydantic.message_navigation_p2p import *
-from .pydantic.message_odometer_p2p import Message_Odometer
-from .pydantic.message_pgv_p2p import *
-from .pydantic.message_rfid_p2p import Message_RFID, Message_RFIDNode
-from .pydantic.message_sound_p2p import Message_Sound
+from .message.CanFrame_pb2 import CanFrame
+from .message.message_battery_pb2 import Message_Battery
+from .message.message_bin_pb2 import Message_Bins, Message_Bin
+from .message.message_controller_pb2 import Message_Controller
+from .message.message_depthcamera_pb2 import *
+from .message.message_distancesensor_pb2 import *
+from .message.message_dmx512_pb2 import Message_Dmx512
+from .message.message_io_pb2 import *
+from .message.message_laser_pb2 import *
+from .message.message_localization_pb2 import Message_Localization
+from .message.message_magnetic_pb2 import Message_Magnetic, Message_MagneticNode
+from .message.message_motorinfos_pb2 import *
+from .message.message_movetask_pb2 import Message_MoveStatus
+from .message.message_navigation_pb2 import *
+from .message.message_odometer_pb2 import Message_Odometer
+from .message.message_pgv_pb2 import *
+from .message.message_rfid_pb2 import Message_RFID, Message_RFIDNode
+from .message.message_sound_pb2 import Message_Sound
 
 __all__ = [
     "CanFrame",

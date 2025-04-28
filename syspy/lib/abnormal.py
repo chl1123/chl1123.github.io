@@ -45,8 +45,7 @@ class Abnormal(Service):
         pass
 
     @classmethod
-    @call_service(func_name="setTaskAbnormal")
-    def setTask(cls, code: int, desc: str, reason: str, method: str, task: str) -> bool:
+    def setTask(cls, code: int, desc: str, reason: str, method: str, task: Union[str, list, dict]) -> bool:
         """设置任务异常
 
         Args:
@@ -59,7 +58,7 @@ class Abnormal(Service):
         Returns:
             bool:
         """
-        pass
+        return cls.client().call_service("Abnormal", "setTaskAbnormal", code, desc, reason, method, str(task))
 
     @classmethod
     @call_service(func_name="setMapAbnormal")
