@@ -15,6 +15,7 @@ from .message.message_navigation_pb2 import *
 from .message.message_odometer_pb2 import Message_Odometer
 from .message.message_pgv_pb2 import *
 from .message.message_rfid_pb2 import Message_RFID, Message_RFIDNode
+from .message.message_script_pb2 import Message_Script
 from .message.message_sound_pb2 import Message_Sound
 
 __all__ = [
@@ -63,4 +64,5 @@ __all__ = [
     "Message_RFIDNode",
 
     "Message_Sound",
+    "Message_Script"
 ]  # 列出所有公共模块
