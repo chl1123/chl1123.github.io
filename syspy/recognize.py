@@ -1,3 +1,5 @@
+import json
+
 from .lib.py_rpc import Service, default_plugin, call_service
 
 
@@ -15,11 +17,15 @@ class Recognize(Service):
             theta: float = 0.0,
             radius: float = 0.0,
     ):
-        """
+        """进行识别
+
         Args:
-
-        Returns:
-
+            file(str): 识别文件
+            withRegion(bool): 是否有限制识别区域(扇形)
+            x(float): 识别区域的圆心坐标x（世界坐标系）
+            y(float): 识别区域的圆心坐标y（世界坐标系）
+            theta(float): 识别区域扇形角度
+            radius(float):识别半径
         """
         pass
 
@@ -34,13 +40,32 @@ class Recognize(Service):
         pass
 
     @classmethod
-    @call_service()
-    def recTargetObs(cls, paramJson: str):
-        """
+    def recTargetObs(cls, deviceName: str, x: float, y:float, theta: float, obs_area_min_height: float, obs_area_max_height: float,
+                     obs_area_length: float, obs_area_width: float):
+        """识别指定区域内是否存在障碍物
+
         Args:
-            paramJson (str): JSON string containing the target observation parameters.
+            deviceName(str): 检测设备名称
+            x(float): 区域中心点x坐标
+            y(float): 区域中心点y坐标
+            theta(float): 区域角度
+            obs_area_min_height(float):检测区域为长方体，检测区域最低高度
+            obs_area_max_height(float):检测区域最高高度
+            obs_area_length(float): 检测区域长度
+            obs_area_width(float): 检测区域宽度
         """
-        pass
+        dict_str = {
+            "deviceName": deviceName,
+            "x": x,
+            "y": y,
+            "theta": theta,
+            "obs_area_min_height": obs_area_min_height,
+            "obs_area_max_height": obs_area_max_height,
+            "obs_area_length": obs_area_length,
+            "obs_area_width": obs_area_width
+        }
+
+        cls.client().call_service("RecoFactory", "recTargetObs", json.dumps(dict_str))
 
     @classmethod
     @call_service()
