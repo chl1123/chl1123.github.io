@@ -4,7 +4,7 @@ from enum import IntEnum
 from threading import Lock
 from typing import Union
 
-from syspy.lib.rpc.server import ScriptType
+from ..utils import ScriptType
 
 
 class ScriptStatus(IntEnum):

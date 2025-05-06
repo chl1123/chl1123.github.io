@@ -1,20 +1,15 @@
 import json
 import logging
 import threading
-from enum import Enum
 from typing import Any
 
 import zmq
 
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InternalError
+from ...utils import ScriptType
 
 log = logging.getLogger("rbk.script")
 server_addr = "ipc:///tmp/broker2server.ipc"  # 代理的后端地址
-
-
-class ScriptType(str, Enum):
-    TASK = "task"
-    GENERAL = "usual"
 
 
 class RpcServer:
