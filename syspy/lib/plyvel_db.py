@@ -1,10 +1,11 @@
+import logging
 import os
 import pickle
 
 import fasteners
 import plyvel
 
-from .logger import log
+log = logging.getLogger("rbk.script")
 
 
 class LevelDB:
@@ -35,7 +36,7 @@ class LevelDB:
                     try:
                         cls._db = plyvel.DB(cls._db_path, create_if_missing=True)
                     except Exception as e:
-                        log.error(f"LevelDB: Failed to initialize database: {e}")
+                        log.error("LevelDB: Failed to initialize database: %s", e)
                         return False
         return True
 
@@ -45,10 +46,10 @@ class LevelDB:
         with cls._lock:  # 写锁
             try:
                 cls._db.put(cls._to_bytes(key), cls._to_bytes(value))
-                log.info(f"LevelDB: Data put successfully: {key} -> {value}")
+                log.info("LevelDB: Data put successfully: %s -> %s", key, value)
                 return True
             except Exception as e:
-                log.error(f"LevelDB: Failed to put data into database: {e}")
+                log.error("LevelDB: Failed to put data into database: %s", e)
                 return False
 
     @classmethod
@@ -57,11 +58,11 @@ class LevelDB:
         try:
             result = cls._db.get(cls._to_bytes(key))
             if result is None:
-                log.error(f"LevelDB: Key not found: {key}")
+                log.error("LevelDB: Key not found: %s", key)
                 return None
             return cls._from_bytes(result)  # 返回原始数据类型
         except Exception as e:
-            log.error(f"LevelDB: Failed to get data from database: {e}")
+            log.error("LevelDB: Failed to get data from database: %s", e)
             return None
 
     @classmethod
@@ -70,10 +71,10 @@ class LevelDB:
         with cls._lock:  # 写锁
             try:
                 cls._db.delete(cls._to_bytes(key))
-                log.info(f"LevelDB: Data deleted successfully: '{key}'")
+                log.info("LevelDB: Data deleted successfully: '%s'", key)
                 return True
             except Exception as e:
-                log.error(f"LevelDB: Failed to delete data '{key}' from database: {e}")
+                log.error("LevelDB: Failed to delete data '%s' from database: %s", key, e)
                 return False
 
     @classmethod

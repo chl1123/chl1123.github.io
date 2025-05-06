@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 from enum import Enum
 from typing import Any
@@ -7,6 +8,7 @@ import zmq
 
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InternalError
 
+log = logging.getLogger("rbk.script")
 server_addr = "ipc:///tmp/broker2server.ipc"  # 代理的后端地址
 
 
@@ -30,7 +32,7 @@ class RpcServer:
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.DEALER)  # 使用 DEALER 套接字
         self.socket.connect(server_addr)
-        # log.info(f"Server connected to {server_addr}")
+        log.debug("Server connected to %s", server_addr)
 
         self.stop_flag = threading.Event()
         # 启动请求处理线程
@@ -69,9 +71,9 @@ class RpcServer:
             try:
                 # 接收请求
                 message_parts = socket.recv_multipart()
-                # log.info(f"Received message part: {message_parts}")
+                log.debug("Received message part: %s", message_parts)
                 if len(message_parts) != 4:
-                    # log.warning(f"Invalid request format: {message_parts}")
+                    log.debug("Invalid request format: %s", message_parts)
                     continue
                 _, client_id, _, request_str = message_parts
                 request_dict = json.loads(request_str.decode('utf-8'))
@@ -90,16 +92,16 @@ class RpcServer:
                     response.set_error(
                         MethodNotFound(f"{self.SCRIPT_NAME=}, Registered methods:{RpcServer.FUNCS.keys()}"))
                 # 构造响应
-                # log.info(f"Response => {response.to_json()}")
+                log.debug("Response => %s", response.to_json())
 
                 # 发送响应
                 socket.send_multipart([client_id, b"", response.to_json().encode('utf-8')])
             except zmq.ZMQError as e:
                 if self.stop_flag.is_set():
                     break  # 关闭线程时会触发 ZMQError，结束循环
-                # log.error(f"zmqServer loop error, zmq.ZMQError: {e}")
+                log.error("zmqServer loop error, zmq.ZMQError: %s", e)
             except Exception as e:
-                # log.error(f"Error handling request: {e}")
+                log.error("Error handling request: %s", e)
                 break
 
     def _process_request(self, request: JSONRPCRequest) -> Any:
@@ -134,12 +136,12 @@ class RpcServer:
         # register_msg = {"server": name}
         methods_name = list(RpcServer.FUNCS.keys())
         request = JSONRPCRequest("register_service", [name, methods_name, self.script_type])
-        # log.info(f"Sending registration message: {request.to_json()}")
+        log.debug("Sending registration message: %s", request.to_json())
         self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
 
         # 接收注册响应
         response_parts = self.socket.recv_multipart()
-        # log.info(f"Received registration response: {response_parts}")
+        log.debug("Received registration response: %s", response_parts)
         if len(response_parts) != 2:
             raise Exception("Invalid registration response format, check broker status")
         _, register_response_str = response_parts
@@ -147,11 +149,11 @@ class RpcServer:
         response = JSONRPCResponse.parse(register_response)
         if response.has_error():
             raise Exception(f"Registration failed: {response.get_error()}")
-        # log.info(f"Registered successfully for {name}")
+        log.debug("Registered successfully for %s", name)
 
     def close(self):
-        # log.info("Closing RpcServer resources...")
+        log.debug("Closing RpcServer resources...")
         self.stop_flag.set()
         self.socket.close()  # 关闭 socket 会终止 recv 的阻塞状态
         self.context.term()  # 终止 context
-        # log.warning("context close")
+        log.warning("context close")

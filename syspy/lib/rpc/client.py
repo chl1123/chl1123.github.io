@@ -1,4 +1,5 @@
 import json
+import logging
 import queue
 import threading
 from typing import Union
@@ -8,6 +9,7 @@ import zmq
 from syspy.lib.rpc import DOUBLE_COLON
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse
 
+log = logging.getLogger("rbk.script")
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
 
 
@@ -34,7 +36,7 @@ class ZmqClient:
         self.close()
 
     def close(self):
-        # log.info("ZmqClient close the socket")
+        log.debug("ZmqClient close the socket")
         self.stop_flag.set()
         self.queue.put((None, None))
         if self.socket:
@@ -69,7 +71,7 @@ class ZmqClient:
                 event.set()
             except queue.Empty:
                 continue
-        # log.info("ZmqClient worker exit")
+        log.debug("ZmqClient worker exit")
 
 
 class RpcClient:
@@ -124,7 +126,7 @@ class RpcClient:
         event = ResultEvent()
         # 将请求放入队列，并传入事件对象
         self.zmq_client.putQueue(request, event)
-        # log.debug(f"req => {request.to_json()}")
+        log.debug("req => %s", request.to_json())
         # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
         if not event.wait(timeout=5):  # 设置适当的超时时间
             raise TimeoutError("Event wait timeout")
@@ -134,7 +136,7 @@ class RpcClient:
             response = JSONRPCResponse.parse(response_json)
             if response.has_error():
                 raise Exception(response_json)
-            # log.debug(f"res <= {response.get_print()}")
+            log.debug("res <= %s", response.get_print())
             return response.get_result()
         else:  # event.result 为 None
             raise TimeoutError("poller Timeout")
@@ -154,9 +156,12 @@ if __name__ == "__main__":
 
     # 模拟RBK RPC Client
     client = RpcClient("ipc:///tmp/cpp2broker.ipc")
+
+    print("client.update_cmd() ", client.call_service("broker", "import", "tasks/jack/jack.py"))
+
     # print("client.start() ", client.call_service("broker", "start", "tasks/chl/get_script_data.py"))
     # print("client.stop() ", client.call_service("broker", "stop", "tasks/chl/get_script_data.py"))
-    print("client.update_cmd() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
+    # print("client.update_cmd() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
     # print("client.update_cmd() ",
     #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "odo"}))
 
