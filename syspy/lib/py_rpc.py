@@ -2,7 +2,6 @@ import time
 from functools import wraps
 from typing import TypeVar, Generic, Union, Optional, List, Type
 
-from google.protobuf import json_format
 from google.protobuf.message import Message
 
 T = TypeVar('T', bound=Message)
@@ -39,6 +38,7 @@ class Message(Generic[T], Service):
         if cls.update():
             if args is not None:
                 return tuple(getattr(cls.data, arg) for arg in args)
+            from google.protobuf import json_format
             return json_format.MessageToDict(cls.data)
 
     @classmethod
@@ -54,6 +54,7 @@ class Message(Generic[T], Service):
             response = cls.client().get_message(cls._TOPIC, cls._PLUGIN)
             if response:
                 try:
+                    from google.protobuf import json_format
                     cls.data = json_format.Parse(response, cls._MODEL_CLASS(), ignore_unknown_fields=True)
                     cls._last_update_time = time.time()  # 更新最后更新时间
                 except Exception as e:
