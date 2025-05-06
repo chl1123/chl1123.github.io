@@ -67,8 +67,15 @@ class NetProtocol(Service):
     @classmethod
     @call_service()
     def tcpUploadString(cls, jsonStr: str):
-        """
+        """TCP响应
+
         Args:
-            jsonStr (str):
+            jsonStr (str): 响应内容
         """
+        pass
+
+    @classmethod
+    @call_service()
+    def robotInfo(cls) -> dict:
+        """获取机器人信息"""
         pass

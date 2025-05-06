@@ -6,13 +6,13 @@ class Param(Service):
 
     @classmethod
     @call_service(plugin_name="NetProtocol")
-    def getParam(cls, app_type: str, key_path: str) -> str:
+    def getParam(cls, app_type: str, key_path: str) -> dict:
         """获取参数
         Args:
-            app_type:
-            key_path:
+            app_type: App类型
+            key_path: 参数字段
 
         Returns:
-            str:
+            str: 参数内容
         """
         pass
