@@ -49,15 +49,15 @@ class testCanBattery(cb.canPassBase):
             self.judgeCanframe(msg)
             self.judgePublish()
         except ValueError as e:
-            log.error(f"ValueError occurred in handleData: {e}")
+            log.error(f"ValueError occurred in handleData: %s", e)
         except TypeError as e:
-            log.error(f"TypeError occurred in handleData: {e}")
+            log.error(f"TypeError occurred in handleData: %s", e)
         except Exception as e:
-            log.error(f"Unexpected exception in handleData: {e}")
+            log.error(f"Unexpected exception in handleData: %s", e)
 
     def judgeCanframe(self, msg):
         if len(msg.data) != 8:
-            log.warning(f"msg not valid: {str(msg)}")
+            log.warning(f"msg not valid: %s", str(msg))
             return
         if msg.arbitration_id == 0x0DA2F40D and not self.msg_userdata:
             tem = msg.data.hex()
