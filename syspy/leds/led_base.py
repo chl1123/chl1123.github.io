@@ -2,7 +2,7 @@ import logging
 import math
 import threading
 import time
-from typing import Union
+from typing import Union, Optional
 
 from syspy import Abnormal
 from .dmx_led import DmxLed, LightEffect
@@ -219,21 +219,21 @@ class LedBase:
 
     def set_effect(
             self,
-            light_effect: Union[LightType, LightEffect] = None,
+            light_effect: Union[LightType, LightEffect],
             *,
-            rgbw: Union[Color, list] = None,
-            period=None,
-            led_idx=None,
-            brightness: Union[int, float, list] = None,
+            rgbw: Optional[Union[Color, list]] = None,
+            period: Optional[int] = None,
+            led_idx: Optional[list] = None,
+            brightness: Optional[Union[int, float, list]] = None,
     ):
         """设置灯效
 
         Args:
-            light_effect: 预制灯效类型LightType 或 用户自定义灯效（继承LightEffect）
-            rgbw: RGBW颜色值
-            period: 适用于呼吸灯、流水灯、跑马灯、闪烁灯的周期
-            led_idx: 常量灯和闪烁灯的索引。默认应用到所有LED灯
-            brightness: 灯光亮度。int、float应用到全部，list应用到指定索引
+            light_effect (Union[LightType, LightEffect]): 预制灯效类型LightType 或 用户自定义灯效（继承LightEffect）
+            rgbw (Optional[Union[Color, list]]): RGBW颜色值
+            period (Optional[int]): 适用于呼吸灯、流水灯、跑马灯、闪烁灯的周期
+            led_idx (Optional[list]): 常量灯和闪烁灯的索引。默认应用到所有LED灯
+            brightness (Optional[Union[int, float, list]]): 灯光亮度。int、float应用到全部，list应用到指定索引
         """
         log.debug(f"{light_effect=}, {rgbw=}, {led_idx=}")
         self.__led.show_effect(light_effect, rgbw=rgbw, period=period, led_idx=led_idx, brightness=brightness)

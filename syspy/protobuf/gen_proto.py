@@ -103,6 +103,12 @@ def gen_pyi():
         print(f"gen {proto_name} pyi success")
         print()
     # todo 待自动修复 "None: "
+
+
+def gen_mkdocs_pyi():
+    # 如果pyi路径不存在则创建
+    if not os.path.exists("./pyi"):
+        os.mkdir("./pyi")
     # 复制message/*.pyi文件到pyi文件夹下
     for proto_name in protos:
         # 源文件路径
@@ -111,10 +117,12 @@ def gen_pyi():
         target_file = f"./pyi/{proto_name}_pb2.pyi"
         # 使用python接口复制文件
         shutil.copyfile(source_file, target_file)
+        print(f"cp {source_file} -> {target_file}")
 
 
 if __name__ == "__main__":
     # gen_protobuf()
     # gen_pandantic()
     # gen_models()
-    gen_pyi()
+    # gen_pyi()
+    gen_mkdocs_pyi()

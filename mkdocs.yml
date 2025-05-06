@@ -1,0 +1,234 @@
+INHERIT: ./docs/en/mkdocs.maybe-insiders.yml
+site_name: Syspy | SEER # 设置文档名称
+site_description: Syspy是仙工智能提供的一套基于Python的机器人SDK
+site_url: https://cn.seer-group.com/
+use_directory_urls: false  # 本地文件系统直接访问
+theme:
+  name: material
+  custom_dir: ./docs/en/overrides
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/lightbulb-auto
+        name: Switch to light mode
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/lightbulb
+        name: Switch to dark mode
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to system preference
+  features:
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - content.footnote.tooltips
+    - content.tabs.link
+    - content.tooltips
+    - navigation.footer
+    - navigation.indexes
+
+    - navigation.tabs.sections      # 分段
+    - navigation.tabs.sticky  # 固定标签
+    - navigation.tracking # 页面滚动时，导航栏高亮当前页面
+    - navigation.sections # 使导航栏分块
+
+    - navigation.path
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+  icon:
+  logo: assets/img/icon-white-seer-en.png
+  favicon: assets/img/icon-blue-seer-en-cn.png
+  language: zh
+repo_name: robokit/scripts
+repo_url: https://seer-group.coding.net/p/robokit/d/scripts/git/tree/3.5
+plugins:
+  offline: # 离线本地搜索，和navigation.instant不能同时启用
+  privacy: # 自动识别并下载外部资源
+  gen-files:
+    scripts:
+      - docs/gen_index.py
+
+  search: # 搜索插件
+
+  mkdocstrings:
+    handlers:
+      python:
+        handler: custom_handler.CustomPythonHandler
+        paths: [ ../syspy ]
+        setup_commands:
+          - import sys
+          - sys.path.append('../')
+          - import syspy
+        options:
+          extensions:
+            - griffe_typingdoc
+          show_root_heading: true # 显示根标题
+          show_if_no_docstring: false # 不显示没有文档字符串的成员
+          inherited_members: false # 不显示继承的成员
+          members_order: source # 按源码顺序排序
+          separate_signature: true # 显示签名
+          unwrap_annotated: true # 是否展开Annotated类型以仅显示类型而不显示注释
+          filters:
+            - '!^_'
+          merge_init_into_class: true # 合并初始化方法到类中
+          docstring_options:
+            ignore_init_summary: true
+          docstring_section_style: table
+          signature_crossrefs: true # 是否为签名中的类型注释呈现交叉引用。
+          show_symbol_type_heading: true # 显示符号类型标题
+          show_symbol_type_toc: true # 显示符号类型目录
+          annotations_path: brief # 显示路径方式：简短
+          modernize_annotations: true # 使用PEP
+          show_signature: true # 显示函数和方法签名
+          show_signature_annotations: true # 在方法和函数签名中显示类型注解
+
+nav:
+  - 首页: index.md
+  - 手册:
+      - 手册: guide/index.md
+      - 简介: guide/introduction.md
+      - 安装: guide/install.md
+      - 使用: guide/usage.md
+      - 基础: guide/basic.md
+  - API:
+      - API: api/index.md
+      - 充电桩: api/charger.md
+      - 控制器: api/controller.md
+      - 数字输入/输出: api/dio.md
+
+      - 定位: api/loc.md
+      - 导航: api/navigation.md
+      - 里程: api/odometer.md
+      - 地图: api/map.md
+      - 库位: api/bin.md
+
+      - 电池: api/battery.md
+      - 音频: api/sound.md
+      - 距离传感器: api/distance.md
+      - 磁传感器: api/magnetic.md
+      - 激光: api/laser.md
+      - 相机: api/camera.md
+      - 灯光: api/led.md
+      - 电机: api/motor.md
+      - 位置导引视觉系统: api/pgv.md
+      - 识别: api/recognize.md
+      - 射频识别: api/rfid.md
+  - 消息:
+      - 消息模型: api/message/index.md
+      - 电机消息: api/message/message_motorinfos_pb2.md
+      - 电池消息: api/message/message_battery_pb2.md
+      - 定位消息: api/message/message_localization_pb2.md
+      - 导航消息: api/message/message_navigation_pb2.md
+      - 导航任务消息: api/message/message_movetask_pb2.md
+      - 射频识别消息: api/message/message_rfid_pb2.md
+      - 激光消息: api/message/message_laser_pb2.md
+      - 距离传感器消息: api/message/message_distancesensor_pb2.md
+      - 位置导引视觉系统消息: api/message/message_pgv_pb2.md
+      - 磁传感器消息: api/message/message_magnetic_pb2.md
+      - 控制器消息: api/message/message_controller_pb2.md
+      - 里程消息: api/message/message_odometer_pb2.md
+      - 消息头: api/message/message_header_pb2.md
+      - 灯光消息: api/message/message_dmx512_pb2.md
+      - 相机消息: api/message/message_depthcamera_pb2.md
+      - 输入/输出消息: api/message/message_io_pb2.md
+      - CAN消息: api/message/CanFrame_pb2.md
+      - 音频消息: api/message/message_sound_pb2.md
+      - 库位消息: api/message/message_bin_pb2.md
+      - 脚本消息: api/message/message_script_pb2.md
+  - 常见问题: faq.md
+
+markdown_extensions:
+  # Python Markdown
+  abbr:
+  attr_list:
+  footnotes:
+  md_in_html:
+  tables:
+  toc:
+    permalink: true
+
+  # Python Markdown Extensions
+  pymdownx.betterem:
+  pymdownx.caret:
+  pymdownx.highlight:
+    line_spans: __span
+    anchor_linenums: true
+    linenums: true # 显示行号
+    use_pygments: true # 代码高亮
+    pygments_lang_class: true
+    auto_title: true # 显示编程语言名称
+    linenums_style: pymdownx-inline # 行号样式,防止复制的时候复制行号
+  pymdownx.inlinehilite:
+  pymdownx.keys:
+  pymdownx.mark:
+  pymdownx.superfences:
+    custom_fences:
+      - name: mermaid
+        class: mermaid
+        format: !!python/name:pymdownx.superfences.fence_code_format
+  pymdownx.tilde:
+  pymdownx.magiclink: # 自动识别链接
+  pymdownx.smartsymbols: # 智能符号
+  #    pymdownx blocks:
+  pymdownx.blocks.admonition:
+    types:
+      - note
+      - attention
+      - caution
+      - danger
+      - error
+      - tip
+      - hint
+      - warning
+      # Custom types
+      - info
+      - check
+  pymdownx.blocks.details:
+  pymdownx.blocks.tab:
+    alternate_style: True
+
+  # Other extensions
+  mdx_include:
+
+extra:
+  analytics:
+    provider: google
+    property: G-YNEVN69SC3
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: This page was helpful
+          data: 1
+          note: >-
+            Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: This page could be improved
+          data: 0
+          note: >-
+            Thanks for your feedback!
+
+extra_css:
+  - assets/css/termynal.css
+  - assets/css/custom.css
+
+extra_javascript:
+  - assets/js/termynal.js
+  - assets/js/custom.js
+
+draft_docs: |
+  __pycache__/

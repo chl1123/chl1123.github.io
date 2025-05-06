@@ -1,8 +1,6 @@
 fasteners==0.19
 plyvel-ci==1.5.1
-protobuf_to_pydantic[all]==0.3.0.3
 protobuf<3.21.0
-pydantic==2.10.4
 pyzmq==26.2.0
 python-can==4.5.0
 pyserial==3.5
