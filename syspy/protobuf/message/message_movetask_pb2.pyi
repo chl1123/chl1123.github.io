@@ -147,6 +147,50 @@ class Message_MoveSpeed(_message.Message):
 
 
 class Message_MoveStatus(_message.Message):
+    """表示导航状态信息的模型类。
+
+    Attributes:
+        actual_reach_angle (float): 实际到达的角度，默认值为0.0。
+        actual_reach_dist (float): 实际到达的距离，默认值为0.0。
+        advance_regions (RepeatedCompositeFieldContainer[Message_MovePolygon]): 提前区域列表。
+        area_name (RepeatedScalarFieldContainer[str]): 区域名称列表。
+        block_id (int): 阻挡ID，默认值为0。
+        block_reason (Message_MoveStatus.Reason): 阻挡原因。
+        block_x (float): 阻挡点的x坐标，默认值为0.0。
+        block_y (float): 阻挡点的y坐标，默认值为0.0。
+        blocked (bool): 是否被阻挡，默认值为False。
+        closest_label (str): 最近标签，默认为空字符串。
+        closest_target (str): 最近目标，默认为空字符串。
+        containers (RepeatedCompositeFieldContainer[Message_Container]): 容器列表。
+        dist2goal (float): 到目标的距离，默认值为0.0。
+        finished_path_name (RepeatedScalarFieldContainer[str]): 已完成路径名称列表。
+        goods_region (Message_MovePolygon): 货物区域。
+        info (str): 信息，默认为空字符串。
+        modules (RepeatedCompositeFieldContainer[Message_Module]): 模块列表。
+        nearest_obstacles (RepeatedCompositeFieldContainer[Message_NearestObs]): 最近障碍物列表。
+        removed_regions (RepeatedCompositeFieldContainer[Message_MovePolygon]): 移除区域列表。
+        robot_region (Message_MovePolygon): 机器人区域。
+        robot_shape (Message_RobotShape): 机器人形状。
+        running_status (Message_MoveStatus.RunningStatus): 运行状态。
+        slow_id (int): 减速ID，默认值为0。
+        slow_path (Message_MovePolygon): 减速路径。
+        slow_reason (Message_MoveStatus.Reason): 减速原因。
+        slow_x (float): 减速点的x坐标，默认值为0.0。
+        slow_y (float): 减速点的y坐标，默认值为0.0。
+        slowed (bool): 是否减速，默认值为False。
+        stop_path (Message_MovePolygon): 停止路径。
+        target_angle (float): 目标角度，默认值为0.0。
+        target_dist (float): 到目标的距离，默认值为0.0。
+        target_label (str): 目标标签，默认为空字符串。
+        target_name (str): 目标名称，默认为空字符串。
+        target_x (float): 目标点的x坐标，默认值为0.0。
+        target_y (float): 目标点的y坐标，默认值为0.0。
+        task_id (str): 任务ID，默认为空字符串。
+        task_status (Message_MoveStatus.TaskStatus): 任务状态。
+        task_status_package (Message_TaskStatusPackage): 任务状态包。
+        task_type (Message_MoveStatus.TaskType): 任务类型。
+        unfinished_path_name (RepeatedScalarFieldContainer[str]): 未完成路径名称列表。
+    """
     __slots__ = ["actual_reach_angle", "actual_reach_dist", "advance_regions", "area_name", "block_id", "block_reason",
                  "block_x", "block_y", "blocked", "closest_label", "closest_target", "containers", "dist2goal",
                  "finished_path_name", "goods_region", "info", "modules", "nearest_obstacles", "removed_regions",
@@ -156,15 +200,56 @@ class Message_MoveStatus(_message.Message):
                  "unfinished_path_name"]
 
     class Reason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        """表示障碍物检测原因的枚举类。
+
+        Attributes:
+            Ultrasonic (int): 超声波传感器检测到障碍物。
+            Laser (int): 激光传感器检测到障碍物。
+            Fallingdown (int): 下降检测到障碍物。
+            Collision (int): 碰撞检测到障碍物。
+            Infrared (int): 红外传感器检测到障碍物。
+            Lock (int): 锁定检测到障碍物。
+            APIObstacle (int): 通过API检测到障碍物。
+            VirtualPoint (int): 虚拟点检测到障碍物。
+            DepthCamera (int): 深度摄像头检测到障碍物。
+            DistanceNode (int): 距离节点检测到障碍物。
+            DiUltrasonic (int): 双超声波传感器检测到障碍物。
+        """
         __slots__ = []
 
     class RunningStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
 
     class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        """表示任务状态的枚举类。
+
+        Attributes:
+            StatusNone (int): 无状态。
+            Waiting (int): 等待中。
+            Running (int): 运行中。
+            Suspended (int): 暂停中。
+            Completed (int): 已完成。
+            Failed (int): 失败。
+            Canceled (int): 已取消。
+            OverTime (int): 超时。
+        """
         __slots__ = []
 
     class TaskType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        """表示任务类型的枚举类。
+
+        Attributes:
+            TypeNone (int): 无类型。
+            GoPoint (int): 前往指定点。
+            GoPointId (int): 前往指定点ID。
+            GoId (int): 前往指定ID。
+            Patrol (int): 巡逻。
+            GoIntoShelf (int): 进入货架。
+            TargetTracking (int): 目标跟踪。
+            GoByOdometer (int): 通过里程计前往。
+            GoAlongMagstripe (int): 沿磁条前往。
+            Other (int): 其他类型。
+        """
         __slots__ = []
 
     ACTUAL_REACH_ANGLE_FIELD_NUMBER: ClassVar[int]
