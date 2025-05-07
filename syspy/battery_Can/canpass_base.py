@@ -54,7 +54,16 @@ class canPassBase:
             can_ids = [arg for arg in args]
             self.child.attachCanID(*can_ids)
 
-    def sendCanframe(self, channel, can_id, dlc, extend, can_string):
+    def sendCanframe(self, channel: int, can_id: int, dlc: int, extend: bool, can_string: list):
+        """发送CAN消息
+
+        Args:
+            channel (int): CAN通讯通道。1或2
+            can_id (int): 帧ID（仲裁ID）
+            dlc (int): 数据长度码（Data Length Code）(最大为8)
+            extend (bool): 是否为扩展帧ID
+            can_string (list): 数据内容。例如: [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        """
         self.child.sendCanframe(channel, can_id, dlc, extend, can_string)
 
     def getBatteryCanPort(self):
