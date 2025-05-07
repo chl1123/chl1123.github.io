@@ -75,6 +75,36 @@ class Motor(Service):
         pass
 
     @classmethod
+    def setMotorPositionAdv(cls, name: str, pos: float, maxSpeed: float = None, maxAcc: float = None,
+                            maxDec: float = None, jerk: float = None, stopDI: int = None) -> bool:
+        """控制线性电机到特定位置（可控制加速度）
+
+        Args:
+            name (str): 模型文件中的电机名称
+            pos (float): 目标点位置
+            maxSpeed (float): 最大速度
+            maxAcc (float): 最大加速度
+            maxDec (float): 最大减速度
+            jerk (float): 最大加加速度
+            stopDI (int): 停止DI。该DI触发则表示运动到位
+
+        Returns:
+            bool: 如果不存在这个电机，则返回False
+        """
+        params = {"name": name, "position": pos}
+        if maxSpeed is not None:
+            params["maxSpeed"] = maxSpeed
+        if maxAcc is not None:
+            params["maxAcc"] = maxAcc
+        if maxDec is not None:
+            params["maxDec"] = maxDec
+        if jerk is not None:
+            params["jerk"] = jerk
+        if stopDI is not None:
+            params["stopDI"] = stopDI
+        return cls.client().call_service("MoveFactory", "setMotorPositionAdv", params)
+
+    @classmethod
     @call_service()
     def stopMotor(cls):
         """停止所有非行走的电机"""
