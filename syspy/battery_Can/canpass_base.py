@@ -3,6 +3,7 @@ import logging
 import os
 import platform
 import sys
+from typing import Union
 
 from google.protobuf.json_format import MessageToJson
 
@@ -54,7 +55,7 @@ class canPassBase:
             can_ids = [arg for arg in args]
             self.child.attachCanID(*can_ids)
 
-    def sendCanframe(self, channel: int, can_id: int, dlc: int, extend: bool, can_string: list):
+    def sendCanframe(self, channel: int, can_id: int, dlc: int, extend: bool, can_string: Union[list, str]):
         """发送CAN消息
 
         Args:
@@ -62,7 +63,9 @@ class canPassBase:
             can_id (int): 帧ID（仲裁ID）
             dlc (int): 数据长度码（Data Length Code）(最大为8)
             extend (bool): 是否为扩展帧ID
-            can_string (list): 数据内容。例如: [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            can_string (Union[list, str]): 数据内容。例如:
+                arm: [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                x86: "01 00 00 00 00 00 00 00"
         """
         self.child.sendCanframe(channel, can_id, dlc, extend, can_string)
 
@@ -124,6 +127,9 @@ class canPassBase:
 
     def errorExists(self, code):
         return Abnormal.exists(code)
+
+    def clearError(self, code):
+        Abnormal.clear(code)
 
     def setChargeStateOn(self):
         self.need_charge = True

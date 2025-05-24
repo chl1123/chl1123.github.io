@@ -339,6 +339,7 @@ class DmxLed(object):
 
     def update(self):
         if self.current_effect is None:
-            return
+            return False
         self.dmx_data = [0x00] * (1 + 4 * self.light_total_num)
         self.current_effect.update()
+        return True
