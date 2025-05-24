@@ -1,8 +1,9 @@
 import json
 import math
+import time
 from enum import IntEnum
 from threading import Lock
-from typing import Union
+from typing import Union, Optional
 
 from ..utils import ScriptType
 
@@ -160,11 +161,13 @@ class Module:
             cls.set_status(ScriptStatus.RUNNING)
 
     @classmethod
-    def __report_data(cls):
+    def __report_data(cls, status: Optional[ScriptStatus] = None):
         if cls.__task_id is None:
             return
+        if status is None:
+            status = cls.__run_status
         data = {
-            "moveStatus": cls.__run_status.value or ScriptStatus.NONE,
+            "moveStatus": status.value,
             "taskId": cls.__task_id
         }
         if cls.script_name:
@@ -201,6 +204,11 @@ class Module:
         with cls.__lock:
             cls.__run_status = status
             cls.__report_data()
+            # 脚本FINISHED状态后，需主动上报状态为NONE，因为MF不清除FINISHED
+            if cls.__run_status == ScriptStatus.FINISHED:
+                # tips: 多次设置脚本状态的时间都在MF的单个控制周期内（20ms-50ms），前面设置的状态可能会不生效
+                time.sleep(0.3)
+                cls.__report_data(ScriptStatus.NONE)
 
     @classmethod
     def report_info(cls, info: Union[dict, list]):

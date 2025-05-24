@@ -9,7 +9,7 @@ import time
 start_time = time.time()
 from syspy import Module, ParamServer, Logger, Di, Motor, Navigation, ScriptStatus
 
-log = Logger("jack")
+log = Logger("jack_example")
 
 
 class ConfigParams:
@@ -21,7 +21,7 @@ class ConfigParams:
 
     jack_up_di = param_server.loadParam("jack_up_di", type="int", default=6, comment="顶升机构上极限DI")
     jack_zero_di = param_server.loadParam("jack_zero_di", type="int", default=3, comment="顶升机构零位DI")
-    log.debug("jack create config params")
+    log.debug(f"{param_server.data=}")
 
 
 class Jack:
@@ -87,11 +87,14 @@ class Jack:
         log.info("unload start")
         log.info("unload: ", ConfigParams.jack_motor_name, ConfigParams.jack_lift_zero, ConfigParams.jack_motor_speed,
                  ConfigParams.jack_zero_di)
-        log.info("setMotorPosition(): ",
-                 Motor.setMotorPosition(ConfigParams.jack_motor_name,
-                                        ConfigParams.jack_lift_zero,
-                                        ConfigParams.jack_motor_speed,
-                                        ConfigParams.jack_zero_di))
+        # result = Motor.setMotorPosition(ConfigParams.jack_motor_name,
+        #                                 ConfigParams.jack_lift_zero,
+        #                                 ConfigParams.jack_motor_speed,
+        #                                 ConfigParams.jack_zero_di)
+        # 控制加速度
+        result = Motor.setMotorPositionAdv(ConfigParams.jack_motor_name, ConfigParams.jack_lift_zero, maxAcc=0.001,
+                                           stopDI=ConfigParams.jack_zero_di)
+        log.info("setMotorPosition(): ", result)
         if Di.get_di(ConfigParams.jack_zero_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             log.info("unload finish")
             Module.set_status(ScriptStatus.FINISHED)
@@ -147,19 +150,21 @@ class Jack:
         log.info(f"{Module.get_task_id()=}")
         log.info(f"{Module.get_status()=}")
 
-    def main(self):
-        while True:
-            # 脚本任务状态管理
-            status = Module.get_status()
-            if status is ScriptStatus.RUNNING:
-                self.run()
-            elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-                return
-            self.print_info()
-            time.sleep(0.1)
+
+def main():
+    Module.init()
+    j = Jack()
+
+    while True:
+        # 脚本任务状态管理
+        status = Module.get_status()
+        if status is ScriptStatus.RUNNING:
+            j.run()
+        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+            return
+        j.print_info()
+        time.sleep(0.1)
 
 
 if __name__ == '__main__':
-    Module.init()
-    j = Jack()
-    j.main()
+    main()
