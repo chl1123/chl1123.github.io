@@ -21,107 +21,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax='proto3',
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xb7\x05\n\x14Message_Localization\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05\x61ngle\x18\x04 \x01(\x01\x12\x12\n\nconfidence\x18\x05 \x01(\x01\x12\x17\n\x0f\x63orrection_errs\x18\x06 \x03(\x01\x12\x15\n\rreliabilities\x18\x07 \x03(\x01\x12\x19\n\x11in_forbidden_area\x18\x08 \x01(\x08\x12\x46\n\rupdate_reason\x18\t \x01(\x0e\x32/.rbk.protocol.Message_Localization.UpdateReason\x12>\n\tloc_state\x18\n \x01(\x0e\x32+.rbk.protocol.Message_Localization.LocState\x12\x12\n\nsimilarity\x18\x0b \x01(\x01\x12@\n\nloc_method\x18\x0c \x01(\x0e\x32,.rbk.protocol.Message_Localization.LocMethod\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\"Z\n\x0cUpdateReason\x12\x08\n\x04None\x10\x00\x12\r\n\tOdoUpdate\x10\x01\x12\x0f\n\x0bLaserCorrec\x10\x02\x12\x10\n\x0cLaserThenOdo\x10\x03\x12\x0e\n\nPGVCORRECT\x10\x04\"7\n\x08LocState\x12\n\n\x06Normal\x10\x00\x12\x0c\n\x08Skidding\x10\x01\x12\x11\n\rLowConfidence\x10\x02\"]\n\tLocMethod\x12\x0f\n\x0bPF_LASER_2D\x10\x00\x12\x0b\n\x07SLAM_2D\x10\x01\x12\x07\n\x03PGV\x10\x02\x12\r\n\tREFLECTOR\x10\x03\x12\x0c\n\x08LASER_3D\x10\x04\x12\x0c\n\x08\x42\x41R_CODE\x10\x05\"$\n\x13Message_LocFinished\x12\r\n\x05value\x18\x01 \x01(\x08\"\xa7\x01\n\x0eMessage_3DPose\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\x0b\n\x03q_w\x18\x05 \x01(\x01\x12\x0b\n\x03q_x\x18\x06 \x01(\x01\x12\x0b\n\x03q_y\x18\x07 \x01(\x01\x12\x0b\n\x03q_z\x18\x08 \x01(\x01\x12\x12\n\nextra_data\x18\t \x01(\t\"?\n\x11Message_IRCAMPose\x12*\n\x04pose\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_3DPose\"\x85\x04\n\x12Message_2D_CamInfo\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\x13\n\x0b\x63\x61mera_name\x18\x02 \x01(\t\x12\x12\n\nm_infrared\x18\x03 \x01(\x01\x12\x16\n\x0em_seertag_size\x18\x04 \x01(\x01\x12\x1b\n\x13m_seertag_family_id\x18\x05 \x01(\x01\x12\x12\n\nmodel_type\x18\x06 \x01(\t\x12\x18\n\x10\x64istortion_modle\x18\x07 \x01(\t\x12\x1a\n\x12is_intrinsics_caib\x18\x08 \x01(\x08\x12\x1a\n\x12is_extrinsics_caib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\r\n\x05m_fx_\x18\x10 \x01(\x01\x12\r\n\x05m_fy_\x18\x11 \x01(\x01\x12\r\n\x05m_cx_\x18\x12 \x01(\x01\x12\r\n\x05m_cy_\x18\x13 \x01(\x01\x12\r\n\x05m_k1_\x18\x14 \x01(\x01\x12\r\n\x05m_k2_\x18\x15 \x01(\x01\x12\r\n\x05m_k3_\x18\x16 \x01(\x01\x12\r\n\x05m_k4_\x18\x17 \x01(\x01\x12\r\n\x05m_k5_\x18\x18 \x01(\x01\x12\r\n\x05m_k6_\x18\x19 \x01(\x01\x12\r\n\x05m_p1_\x18\x1a \x01(\x01\x12\r\n\x05m_p2_\x18\x1b \x01(\x01\x62\x06proto3')
+        '\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xcc\x01\n\x14Message_Localization\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x11\n\tloc_state\x18\t \x01(\r\x12\x12\n\nloc_method\x18\n \x01(\r\"$\n\x13Message_LocFinished\x12\r\n\x05value\x18\x01 \x01(\x08\"\xa7\x01\n\x0eMessage_3DPose\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\x0b\n\x03q_w\x18\x05 \x01(\x01\x12\x0b\n\x03q_x\x18\x06 \x01(\x01\x12\x0b\n\x03q_y\x18\x07 \x01(\x01\x12\x0b\n\x03q_z\x18\x08 \x01(\x01\x12\x12\n\nextra_data\x18\t \x01(\t\"?\n\x11Message_IRCAMPose\x12*\n\x04pose\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_3DPose\"\x85\x04\n\x12Message_2D_CamInfo\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\x13\n\x0b\x63\x61mera_name\x18\x02 \x01(\t\x12\x12\n\nm_infrared\x18\x03 \x01(\x01\x12\x16\n\x0em_seertag_size\x18\x04 \x01(\x01\x12\x1b\n\x13m_seertag_family_id\x18\x05 \x01(\x01\x12\x12\n\nmodel_type\x18\x06 \x01(\t\x12\x18\n\x10\x64istortion_modle\x18\x07 \x01(\t\x12\x1a\n\x12is_intrinsics_caib\x18\x08 \x01(\x08\x12\x1a\n\x12is_extrinsics_caib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\r\n\x05m_fx_\x18\x10 \x01(\x01\x12\r\n\x05m_fy_\x18\x11 \x01(\x01\x12\r\n\x05m_cx_\x18\x12 \x01(\x01\x12\r\n\x05m_cy_\x18\x13 \x01(\x01\x12\r\n\x05m_k1_\x18\x14 \x01(\x01\x12\r\n\x05m_k2_\x18\x15 \x01(\x01\x12\r\n\x05m_k3_\x18\x16 \x01(\x01\x12\r\n\x05m_k4_\x18\x17 \x01(\x01\x12\r\n\x05m_k5_\x18\x18 \x01(\x01\x12\r\n\x05m_k6_\x18\x19 \x01(\x01\x12\r\n\x05m_p1_\x18\x1a \x01(\x01\x12\r\n\x05m_p2_\x18\x1b \x01(\x01\x62\x06proto3')
     ,
     dependencies=[message__header__pb2.DESCRIPTOR, ])
-
-_MESSAGE_LOCALIZATION_UPDATEREASON = _descriptor.EnumDescriptor(
-    name='UpdateReason',
-    full_name='rbk.protocol.Message_Localization.UpdateReason',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='None', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='OdoUpdate', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='LaserCorrec', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='LaserThenOdo', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='PGVCORRECT', index=4, number=4,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=520,
-    serialized_end=610,
-)
-_sym_db.RegisterEnumDescriptor(_MESSAGE_LOCALIZATION_UPDATEREASON)
-
-_MESSAGE_LOCALIZATION_LOCSTATE = _descriptor.EnumDescriptor(
-    name='LocState',
-    full_name='rbk.protocol.Message_Localization.LocState',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='Normal', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Skidding', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='LowConfidence', index=2, number=2,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=612,
-    serialized_end=667,
-)
-_sym_db.RegisterEnumDescriptor(_MESSAGE_LOCALIZATION_LOCSTATE)
-
-_MESSAGE_LOCALIZATION_LOCMETHOD = _descriptor.EnumDescriptor(
-    name='LocMethod',
-    full_name='rbk.protocol.Message_Localization.LocMethod',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='PF_LASER_2D', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='SLAM_2D', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='PGV', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='REFLECTOR', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='LASER_3D', index=4, number=4,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='BAR_CODE', index=5, number=5,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=669,
-    serialized_end=762,
-)
-_sym_db.RegisterEnumDescriptor(_MESSAGE_LOCALIZATION_LOCMETHOD)
 
 _MESSAGE_LOCALIZATION = _descriptor.Descriptor(
     name='Message_Localization',
@@ -152,79 +54,51 @@ _MESSAGE_LOCALIZATION = _descriptor.Descriptor(
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
         _descriptor.FieldDescriptor(
-            name='angle', full_name='rbk.protocol.Message_Localization.angle', index=3,
+            name='z', full_name='rbk.protocol.Message_Localization.z', index=3,
             number=4, type=1, cpp_type=5, label=1,
             has_default_value=False, default_value=float(0),
             message_type=None, enum_type=None, containing_type=None,
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
         _descriptor.FieldDescriptor(
-            name='confidence', full_name='rbk.protocol.Message_Localization.confidence', index=4,
+            name='angle', full_name='rbk.protocol.Message_Localization.angle', index=4,
             number=5, type=1, cpp_type=5, label=1,
             has_default_value=False, default_value=float(0),
             message_type=None, enum_type=None, containing_type=None,
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
         _descriptor.FieldDescriptor(
-            name='correction_errs', full_name='rbk.protocol.Message_Localization.correction_errs', index=5,
-            number=6, type=1, cpp_type=5, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='reliabilities', full_name='rbk.protocol.Message_Localization.reliabilities', index=6,
-            number=7, type=1, cpp_type=5, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='in_forbidden_area', full_name='rbk.protocol.Message_Localization.in_forbidden_area', index=7,
-            number=8, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='update_reason', full_name='rbk.protocol.Message_Localization.update_reason', index=8,
-            number=9, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='loc_state', full_name='rbk.protocol.Message_Localization.loc_state', index=9,
-            number=10, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='similarity', full_name='rbk.protocol.Message_Localization.similarity', index=10,
-            number=11, type=1, cpp_type=5, label=1,
+            name='roll', full_name='rbk.protocol.Message_Localization.roll', index=5,
+            number=6, type=1, cpp_type=5, label=1,
             has_default_value=False, default_value=float(0),
             message_type=None, enum_type=None, containing_type=None,
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
         _descriptor.FieldDescriptor(
-            name='loc_method', full_name='rbk.protocol.Message_Localization.loc_method', index=11,
-            number=12, type=14, cpp_type=8, label=1,
+            name='pitch', full_name='rbk.protocol.Message_Localization.pitch', index=6,
+            number=7, type=1, cpp_type=5, label=1,
+            has_default_value=False, default_value=float(0),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='confidence', full_name='rbk.protocol.Message_Localization.confidence', index=7,
+            number=8, type=1, cpp_type=5, label=1,
+            has_default_value=False, default_value=float(0),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='loc_state', full_name='rbk.protocol.Message_Localization.loc_state', index=8,
+            number=9, type=13, cpp_type=3, label=1,
             has_default_value=False, default_value=0,
             message_type=None, enum_type=None, containing_type=None,
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
         _descriptor.FieldDescriptor(
-            name='roll', full_name='rbk.protocol.Message_Localization.roll', index=12,
-            number=13, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='pitch', full_name='rbk.protocol.Message_Localization.pitch', index=13,
-            number=14, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
+            name='loc_method', full_name='rbk.protocol.Message_Localization.loc_method', index=9,
+            number=10, type=13, cpp_type=3, label=1,
+            has_default_value=False, default_value=0,
             message_type=None, enum_type=None, containing_type=None,
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
@@ -233,9 +107,6 @@ _MESSAGE_LOCALIZATION = _descriptor.Descriptor(
     ],
     nested_types=[],
     enum_types=[
-        _MESSAGE_LOCALIZATION_UPDATEREASON,
-        _MESSAGE_LOCALIZATION_LOCSTATE,
-        _MESSAGE_LOCALIZATION_LOCMETHOD,
     ],
     serialized_options=None,
     is_extendable=False,
@@ -244,7 +115,7 @@ _MESSAGE_LOCALIZATION = _descriptor.Descriptor(
     oneofs=[
     ],
     serialized_start=67,
-    serialized_end=762,
+    serialized_end=271,
 )
 
 _MESSAGE_LOCFINISHED = _descriptor.Descriptor(
@@ -273,8 +144,8 @@ _MESSAGE_LOCFINISHED = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=764,
-    serialized_end=800,
+    serialized_start=273,
+    serialized_end=309,
 )
 
 _MESSAGE_3DPOSE = _descriptor.Descriptor(
@@ -359,8 +230,8 @@ _MESSAGE_3DPOSE = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=803,
-    serialized_end=970,
+    serialized_start=312,
+    serialized_end=479,
 )
 
 _MESSAGE_IRCAMPOSE = _descriptor.Descriptor(
@@ -389,8 +260,8 @@ _MESSAGE_IRCAMPOSE = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=972,
-    serialized_end=1035,
+    serialized_start=481,
+    serialized_end=544,
 )
 
 _MESSAGE_2D_CAMINFO = _descriptor.Descriptor(
@@ -601,17 +472,11 @@ _MESSAGE_2D_CAMINFO = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=1038,
-    serialized_end=1555,
+    serialized_start=547,
+    serialized_end=1064,
 )
 
 _MESSAGE_LOCALIZATION.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_LOCALIZATION.fields_by_name['update_reason'].enum_type = _MESSAGE_LOCALIZATION_UPDATEREASON
-_MESSAGE_LOCALIZATION.fields_by_name['loc_state'].enum_type = _MESSAGE_LOCALIZATION_LOCSTATE
-_MESSAGE_LOCALIZATION.fields_by_name['loc_method'].enum_type = _MESSAGE_LOCALIZATION_LOCMETHOD
-_MESSAGE_LOCALIZATION_UPDATEREASON.containing_type = _MESSAGE_LOCALIZATION
-_MESSAGE_LOCALIZATION_LOCSTATE.containing_type = _MESSAGE_LOCALIZATION
-_MESSAGE_LOCALIZATION_LOCMETHOD.containing_type = _MESSAGE_LOCALIZATION
 _MESSAGE_3DPOSE.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
 _MESSAGE_IRCAMPOSE.fields_by_name['pose'].message_type = _MESSAGE_3DPOSE
 _MESSAGE_2D_CAMINFO.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
