@@ -1,0 +1,45 @@
+syntax = "proto3";
+package rbk.protocol;
+
+message Message_DINode {
+    uint32 id = 1;
+    bool status = 2;
+    double x = 3;
+    double y = 4;
+    double z = 5;
+    double yaw = 6;
+    string func = 7;
+    string type = 8;
+    string source = 9;
+    string shape = 10;
+
+    double mindist = 11;
+    double maxdist = 12;
+    double range = 13;
+
+    repeated double posx = 14;
+    repeated double posy = 15;
+
+    bool forbidden = 16;
+}
+
+message Message_DI {
+    repeated Message_DINode node = 1;
+    uint32 max_node = 2;
+}
+
+message Message_DONode {
+    uint32 id = 1;
+    bool status = 2;
+    string source = 3;
+    string func = 4;
+}
+
+message Message_DO {
+    repeated Message_DONode node = 1;
+    uint32 max_node = 2;
+}
+
+message Message_Astern {
+    uint32 status = 1;
+}

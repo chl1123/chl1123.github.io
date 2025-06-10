@@ -1,0 +1,45 @@
+syntax = "proto3";
+package rbk.protocol;
+import "message_header.proto";
+
+// message for data matrix tag
+message Message_PGV_Info{
+	double x = 1;
+	double y = 2;
+	double z = 3;
+    double yaw = 4;
+    string func = 5;
+    string coordinate = 6; //pgv, code
+    double xunit = 7;
+    double yunit = 8;
+    double angle_unit = 9;
+    bool is_upside = 10;
+	double xrange = 11;
+	double yrange = 12;
+}
+message Message_PGV_DMT {
+	double tag_diff_x = 1; // m
+	double tag_diff_y = 2; // m
+	double tag_diff_angle = 3; // rad
+	uint32 tag_value = 4;      // 标签的数据
+	uint32 warning_code = 5;   // Warning 报警码
+	uint32 device_address = 6; // ID
+	bool is_DMT_detected = 7;  // false = 没检测到 Data Matrix, true = 检测到 Data Matrix, 我们用的都是 Data Matrix
+	uint32 error_code = 8;     // Error 报警码
+	Message_Header header = 9;
+	Message_PGV_Info pgv_info = 10;
+	bool is_bar_code = 11;	//是否为条形码（一维）
+}
+message Message_Tag_position
+{
+	Message_Header header = 1;
+	double x = 2 ;
+	double y = 3 ;
+	double angle = 4;
+	uint32 tag_value = 5;
+	bool is_DMT_detected = 6;
+	bool is_in_QR_area = 7;
+}
+message Message_PGV {
+	repeated Message_PGV_DMT pgvs = 1;
+}

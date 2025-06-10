@@ -1,0 +1,22 @@
+syntax = "proto3";
+package rbk.protocol;
+
+message Message_ScriptStatus{
+    enum Status {
+        StatusNone = 0;
+        Waiting = 1;
+        Running = 2;
+        Suspended = 3;
+        Completed = 4;
+        Failed = 5;
+        Canceled = 6;
+        OverTime = 7;
+    }
+    Status status = 1;
+    string res = 2;
+}
+
+// 存储所有脚本的消息
+message Message_Script {
+    map<string, string> script_data = 1; // key 是脚本名称或标识，value 是用户自定义的 JSON 数据
+}

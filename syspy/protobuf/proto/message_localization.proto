@@ -1,0 +1,102 @@
+syntax = "proto3";
+package rbk.protocol;
+import "message_header.proto";
+
+message Message_Localization {
+  Message_Header header = 1;
+  // 单位 m
+  double x = 2;
+  // 单位 m
+  double y = 3;
+  // 单位 m
+  double z = 4;
+  // 单位 rad
+  double angle = 5;
+  // 增加车体相对于水平面的roll和pitch
+  // 单位 rad
+  double roll = 6;
+  // 单位 rad
+  double pitch = 7;
+  // 置信度
+  double confidence = 8;
+  // 0：更新配置中
+  // 1：更新地图中
+  // 2：等待传感器数据中
+  // 3：重定位中
+  // 4：定位中
+  uint32 loc_state = 9;
+
+  // 0: 里程计模式
+  // 1: 自然轮廓定位
+  // 2: 反光柱定位
+  // 3: 二维码定位
+  // 4: 3D 定位 (NDT)
+  // 5: 天码定位
+  // 6: 特征定位
+  // 7: 3D 特征定位
+  // 8: 3D KF定位
+  uint32 loc_method = 10;
+}
+
+message Message_LocFinished{
+  bool value = 1;
+}
+
+
+message Message_3DPose{
+  Message_Header header = 1;
+
+  double x = 2;
+  double y = 3;
+  double z = 4;
+
+  double q_w = 5;
+  double q_x = 6;
+  double q_y = 7;
+  double q_z = 8;
+
+  string extra_data = 9;
+}
+// 红外相机定位消息发布
+message Message_IRCAMPose{
+  Message_3DPose pose = 1;
+}
+
+
+// 2D相机参数信息
+message Message_2D_CamInfo
+{
+  Message_Header header = 1;
+  string camera_name = 2;
+
+  double  m_infrared = 3;
+  double  m_seertag_size = 4;
+  double  m_seertag_family_id = 5;
+  string  model_type = 6; //PINHOLE
+  string  distortion_modle = 7;
+
+  bool is_intrinsics_caib = 8;
+  bool is_extrinsics_caib = 9;
+  // 相机外参
+  double x = 10;
+  double y = 11;
+  double z = 12;
+
+  double roll = 13;
+  double pitch = 14;
+  double yaw = 15;
+
+  // 相机内参
+  double m_fx_ = 16;
+  double m_fy_ = 17;
+  double m_cx_ = 18;
+  double m_cy_ = 19;
+  double m_k1_ = 20;
+  double m_k2_ = 21;
+  double m_k3_ = 22;
+  double m_k4_ = 23;
+  double m_k5_ = 24;
+  double m_k6_ = 25;
+  double m_p1_ = 26;
+  double m_p2_ = 27;
+}

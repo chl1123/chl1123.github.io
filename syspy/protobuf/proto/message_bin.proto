@@ -1,0 +1,19 @@
+syntax = "proto3";
+package rbk.protocol;
+import "message_header.proto";
+
+message Message_Bin {
+    enum Status {
+        Connect = 0;
+        DisConnect = 1;
+    }
+
+    string  binId = 1;
+    bool filled = 2;
+    Status status = 3;   
+}
+
+message Message_Bins {
+    Message_Header header = 1;
+    repeated Message_Bin bins = 2;
+}
