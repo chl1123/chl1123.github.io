@@ -2,7 +2,7 @@ INHERIT: ./docs/en/mkdocs.maybe-insiders.yml
 site_name: Syspy | SEER # 设置文档名称
 site_description: Syspy是仙工智能提供的一套基于Python的机器人SDK
 site_url: https://cn.seer-group.com/
-use_directory_urls: false  # 本地文件系统直接访问
+use_directory_urls: true  # false: 本地文件系统直接访问
 theme:
   name: material
   custom_dir: ./docs/en/overrides

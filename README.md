@@ -36,7 +36,7 @@ jobs: # 工作流的具体内容
       - run: pip install mkdocs-material==9.6.12
       - run: pip install mdx-include==1.4.2
       - run: pip install mkdocs-gen-files==0.5.0
-      - run: pip install griffe-typingdoc==0.2.7
+      - run: pip install griffe-typingdoc==0.2.8
       - run: pip install black==24.8.0
       - run: mkdocs gh-deploy --force # 使用mkdocs-material部署gh-pages分支
 ```
