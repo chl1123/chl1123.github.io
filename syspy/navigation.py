@@ -6,6 +6,7 @@ from .lib.py_rpc import Service, Message, call_service, default_plugin
 
 if typing.TYPE_CHECKING:
     from .protobuf import Message_MotorCmd
+    from .protobuf.pyi.message_movetask_pb2 import Message_MoveStatus
 
 
 @default_plugin("MoveFactory")
@@ -582,6 +583,16 @@ class NavStatus(Message["Message_MoveStatus"]):
                 """机身原地右旋"""
                 turn = 3
         return turn
+
+    @classmethod
+    def get_task_status(cls) -> "Message_MoveStatus.TaskStatus":
+        """获取任务状态
+
+        Returns:
+            Message_MoveStatus.TaskStatus: 返回脚本任务状态
+        """
+        if cls.update():
+            return cls.data.task_status
 
 
 class NavSpeed(Message["Message_NavSpeed"]):

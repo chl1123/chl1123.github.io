@@ -224,14 +224,14 @@ class Message_MoveStatus(_message.Message):
         """表示任务状态的枚举类。
 
         Attributes:
-            StatusNone (int): 无状态。
-            Waiting (int): 等待中。
-            Running (int): 运行中。
-            Suspended (int): 暂停中。
-            Completed (int): 已完成。
-            Failed (int): 失败。
-            Canceled (int): 已取消。
-            OverTime (int): 超时。
+            0 (int): StatusNone-无状态。
+            1 (int): Waiting-等待中。
+            2 (int): Running-运行中。
+            3 (int): Suspended-暂停中。
+            4 (int): Completed-已完成。
+            5 (int): Failed-失败。
+            6 (int): Canceled-已取消。
+            7 (int): OverTime-超时。
         """
         __slots__ = []
 
