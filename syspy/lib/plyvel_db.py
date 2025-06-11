@@ -53,6 +53,21 @@ class LevelDB:
                 return False
 
     @classmethod
+    def put_all(cls, value):
+        cls.init_db()
+        with cls._lock:  # 写锁
+            try:
+                with cls._db.write_batch() as batch:
+                    for key in cls._db.iterator(include_value=False):
+                        batch.put(key, cls._to_bytes(value))
+                        log.info("LevelDB: Data put successfully: %s -> %s", key, value)
+                    batch.write()
+                    return True
+            except Exception as e:
+                log.error("LevelDB: Failed to put data into database: %s", e)
+                return False
+
+    @classmethod
     def get(cls, key: str):
         cls.init_db()
         try:
@@ -63,6 +78,18 @@ class LevelDB:
             return cls._from_bytes(result)  # 返回原始数据类型
         except Exception as e:
             log.error("LevelDB: Failed to get data from database: %s", e)
+            return None
+
+    @classmethod
+    def get_all(cls):
+        cls.init_db()
+        try:
+            result = {}
+            for key, value in cls._db.iterator():
+                result[cls._from_bytes(key)] = cls._from_bytes(value)
+            return result
+        except Exception as e:
+            log.error("LevelDB: Failed to get all data from database: %s", e)
             return None
 
     @classmethod
@@ -78,6 +105,23 @@ class LevelDB:
                 return False
 
     @classmethod
+    def delete_all(cls):
+        """清空数据库中所有键值对."""
+        cls.init_db()
+        with cls._lock:  # 加锁确保多进程安全
+            try:
+                # 使用 write_batch 批量删除所有 key
+                batch = cls._db.write_batch()
+                for key, _ in cls._db.iterator():
+                    batch.delete(key)
+                batch.write()
+                log.info("LevelDB: Successfully deleted all entries from database.")
+                return True
+            except Exception as e:
+                log.error("LevelDB: Failed to delete all entries from database: %s", e)
+                return False
+
+    @classmethod
     def close_db(cls):
         if cls._db is not None:
             cls._db.close()
@@ -86,6 +130,10 @@ class LevelDB:
             return True
         log.info("LevelDB: Database connection was already closed")
         return True
+
+    @classmethod
+    def get_db(cls) -> plyvel.DB:
+        return cls._db
 
 
 # 示例使用方法

@@ -69,23 +69,6 @@ class Di(Message["Message_DI"]):
             return cls.data.node
 
     @classmethod
-    def get_di_status(cls, di: int) -> bool:
-        """获取指定DI的状态
-
-        Args:
-            di (int): 指定 DI
-
-        Returns:
-            bool: 返回指定DI的状态，若DI不存在返回False
-        """
-        if cls.update():
-            if cls.data:
-                for node in cls.data.node:
-                    if node.id == di:
-                        return node.status
-        return False
-
-    @classmethod
     def get_max_di(cls) -> int:
         """获取DI消息中的最大节点数
 
