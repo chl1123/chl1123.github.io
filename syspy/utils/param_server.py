@@ -1,10 +1,15 @@
+import importlib
 import json
 import os
+import sys
+from typing import Any
 
-from . import SCRIPTS_DIR
+SCRIPTS_DIR = "/opt/.data/rbk/resources/scripts"
 
 PY_SUFFIX = ".py"
 CONFIG_SUFFIX = "_config.json"
+INPUT_SUFFIX = "_input.json"
+prefix_dir = ""
 
 
 class ParamServer:
@@ -24,12 +29,13 @@ class ParamServer:
         script_dir = file.replace(SCRIPTS_DIR, '')
         if not script_dir.endswith(PY_SUFFIX):
             raise ValueError(f"script file error. It must be in the {PY_SUFFIX} file")
-
+        global prefix_dir
         script_right_dir, script_file_name = script_dir.rsplit('/', 1)
         config_dir = SCRIPTS_DIR + "/params" + script_right_dir
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
-        self.file = config_dir + '/' + script_file_name.replace(PY_SUFFIX, '') + CONFIG_SUFFIX
+        prefix_dir = config_dir + '/' + script_file_name.replace(PY_SUFFIX, '')
+        self.file = prefix_dir + CONFIG_SUFFIX
         self.data = {}
         if os.path.exists(self.file) and os.path.getsize(self.file):
             try:
@@ -94,3 +100,21 @@ class ParamServer:
     def read(self, name: str):
         if name in self.data:
             return self.data[name]["value"]
+
+
+def load_module_from_path(script_path: str) -> Any:
+    module_name = os.path.splitext(os.path.basename(script_path))[0]
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def gen_param(script_path: str):
+    load_module_from_path(script_path)
+
+
+if __name__ == '__main__':
+    script_name = sys.argv[1]
+    full_path = SCRIPTS_DIR + "/" + script_name  # 替换为你的脚本路径
+    gen_param(full_path)
