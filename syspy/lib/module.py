@@ -1,6 +1,5 @@
 import json
 import math
-import time
 from enum import IntEnum
 from threading import Lock
 from typing import Union, Optional
@@ -204,11 +203,6 @@ class Module:
         with cls.__lock:
             cls.__run_status = status
             cls.__report_data()
-            # 脚本FINISHED状态后，需主动上报状态为NONE，因为MF不清除FINISHED
-            if cls.__run_status == ScriptStatus.FINISHED:
-                # tips: 多次设置脚本状态的时间都在MF的单个控制周期内（20ms-50ms），前面设置的状态可能会不生效
-                time.sleep(0.3)
-                cls.__report_data(ScriptStatus.NONE)
 
     @classmethod
     def report_info(cls, info: Union[dict, list]):
