@@ -1,17 +1,31 @@
 # Welcome to Seer Syspy
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+[mkdocs.org](https://www.mkdocs.org)
 
-## Commands
+## 生成mkdocs文档
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+- 安装python3.9及以上
+- 安装syspy和mkdocs的依赖
 
-## Project layout
+```shell
+cd ./srcipts
+sudo python3 -m pip install -r requirements-dev.txt
+```
 
-    mkdocs.yml    # The configuration file.
+- 生成mkdocs文档
+
+```shell
+mkdocs build
+```
+
+* `mkdocs new [dir-name]` - 创建一个新的mkdocs项目。
+* `mkdocs serve` - 启动实时加载文档服务器。
+* `mkdocs build` - 构建文档，生成网页。
+* `mkdocs -h` - 打印帮助信息并退出。
+
+## mkdocs项目布局
+
+    mkdocs.yml    # mkdocs配置文件
     docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+        index.md  # 文档主页
+        ...       # 其他markdown、图像和文件

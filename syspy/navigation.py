@@ -106,18 +106,6 @@ class Navigation(Service):
 
     @classmethod
     @call_service()
-    def goForkPath(cls):
-        """叉车依据规划的路径导航，需要先调用 resetGoForkPath"""
-        pass
-
-    @classmethod
-    @call_service()
-    def goForkUseStraightLine(cls):
-        """ """
-        pass
-
-    @classmethod
-    @call_service()
     def goMapPath(cls) -> int:
         """按地图路线行走"""
         pass
@@ -191,29 +179,6 @@ class Navigation(Service):
     @call_service()
     def openSpeed(cls, vx: float, vy: float, vw: float):
         """让agv按vx,vy,vw行走，此函数考虑了碰撞检测"""
-        pass
-
-    @classmethod
-    @call_service()
-    def resetGoForkPath(
-            cls,
-            x: float,
-            y: float,
-            yaw: float,
-            back_dist: float,
-            min_ahead_dist: float,
-            ahead_dist: float,
-    ):
-        """重置叉车去往识别点的路径规划
-
-        Args:
-            x (float): 终点x坐标 m
-            y (float): 终点y坐标 m
-            yaw (float): 终点角度坐标 rad
-            back_dist (float): 到终点后的后退距离
-            min_ahead_dist (float): 栈板前直线距离 m
-            ahead_dist (float): 到终点前的直线距离
-        """
         pass
 
     @classmethod
