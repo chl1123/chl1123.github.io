@@ -481,6 +481,28 @@ class Navigation(Service):
         """
         pass
 
+    @classmethod
+    @call_service(func_name="calibRecordService")
+    def calibRecord(cls) -> bool:
+        """XXX
+
+        Returns:
+            bool: 数据记录成功
+        """
+        pass
+
+    @classmethod
+    @call_service(func_name="wheelBaseShift")
+    def wheelBaseShift(cls, flag: bool) -> bool:
+        """变轴距标定时,触发MF中的模型变化响应
+
+        Args:
+            flag : False:放下货叉， True:抬起货叉
+
+        Returns:
+            bool: 是否完成
+        """
+        pass
 
 @default_plugin("MoveFactory")
 class NavStatus(Message["Message_MoveStatus"]):
