@@ -1,3 +1,4 @@
+import ast
 from typing import List, TYPE_CHECKING
 
 from syspy.lib.plyvel_db import LevelDB
@@ -34,7 +35,8 @@ class Container:
         containers (dict): 存储所有背篓及货物的状态，key为背篓名称，值为包含 goods_id、desc 和 has_goods 的字典。
     """
 
-    containers = LevelDB.get_all()
+    db = LevelDB("containers")
+    containers = {}
 
     @staticmethod
     def _empty_container():
@@ -43,6 +45,20 @@ class Container:
             "desc": "",
             "has_goods": False
         }
+
+    @classmethod
+    def init_container_data(cls):
+        model_container_names = []
+        # todo 从模型文件中获取背篓名称
+        raw_data = cls.db.gets(model_container_names)
+        for name, value in zip(model_container_names, raw_data):
+            if value is None:
+                cls.containers[name] = cls._empty_container()
+            else:
+                try:
+                    cls.containers[name] = ast.literal_eval(value)
+                except (SyntaxError, ValueError):
+                    cls.containers[name] = cls._empty_container()
 
     @classmethod
     def setContainer(cls, container_name: str, goods_id: str, desc: str) -> bool:
@@ -61,7 +77,7 @@ class Container:
             "desc": desc,
             "has_goods": True
         }
-        return LevelDB.put(container_name, cls.containers[container_name])
+        return cls.db.put(container_name, str(cls.containers[container_name]))
 
     @classmethod
     def clearContainer(cls, container_name: str) -> bool:
@@ -76,12 +92,14 @@ class Container:
         if container_name == "All":
             for key in cls.containers:
                 cls.containers[key] = cls._empty_container()
-            LevelDB.put_all(cls._empty_container())
+            # 对cls.containers每一个的value都转为str
+            str_containers = {key: str(cls.containers[key]) for key in cls.containers}
+            cls.db.puts(str_containers)
             return True
         else:
             if container_name in cls.containers:
                 cls.containers[container_name] = cls._empty_container()
-                LevelDB.put(container_name, cls._empty_container())
+                cls.db.put(container_name, str(cls._empty_container))
                 return True
             return False
 
@@ -97,12 +115,13 @@ class Container:
         if goods_id == "All":
             for key in cls.containers:
                 cls.containers[key] = cls._empty_container()
-            return LevelDB.delete_all()
+            str_containers = {key: str(cls.containers[key]) for key in cls.containers}
+            return cls.db.puts(str_containers)
         else:
             for key in cls.containers:
                 if cls.containers[key]["goods_id"] == goods_id:
                     cls.containers[key] = cls._empty_container()
-                    LevelDB.put(key, cls._empty_container())
+                    cls.db.put(key, str(cls._empty_container))
                     return True
             return False
 
@@ -200,10 +219,12 @@ class Container:
 
 
 if __name__ == '__main__':
+    Container.init_container_data()
+    print("init data", Container.getContainers())
     Container.setContainer("0", "0", "c0")
     Container.setContainer("1", "1", "c1")
     Container.setContainer("2", "2", "c2")
-    print("setContainer 0 1 2: ", Container.getContainers())
+    print("getContainers 0 1 2: ", Container.getContainers())
 
     Container.clearContainer("0")
     print("clearContainer 0: ", Container.getContainers())
