@@ -22,55 +22,94 @@ class Laser(Message["Message_AllLasers"]):
             cls._MODEL_CLASS = Message_AllLasers
 
     @classmethod
-    @call_service(plugin_name="Perception")
-    def addDisableLaserStrName(cls, ids: list):
-        """禁用多个指定名字的激光雷达
+    @call_service(plugin_name="SensorFuser")
+    def addDisableLaser(cls, device_name: str):
+        """禁用激光设备
 
         Args:
-            ids (List(str)): 指定的激光雷达id列表
+            device_name (str): 激光设备名称
         """
         pass
 
     @classmethod
-    @call_service(plugin_name="Perception")
-    def clearDisableLaserStrName(cls):
-        """清除禁用的激光"""
+    @call_service(plugin_name="SensorFuser")
+    def eraseDisableLaser(cls, device_name: str):
+        """清除已禁用的激光设备
+
+        Args:
+            device_name (str): 激光设备名称
+        """
         pass
 
     @classmethod
-    def setLaserAngle(cls, id: int, min_angle: float, max_angle: float):
-        """设置激光角度
+    @call_service(plugin_name="SensorFuser")
+    def clearDisableLaserAll(cls):
+        """清除所有已禁用的激光设备"""
+        pass
+
+    @classmethod
+    @call_service(plugin_name="SensorFuser")
+    def setLaserWidth(cls, device_name: str, width: float):
+        """设置激光设备宽度
 
         Args:
-            id (int):
-            min_angle (float): 最小角度（单位：°）
-            max_angle (float): 最大角度（单位：°）
+            device_name (str): 激光设备名称
+            width (float): 屏蔽宽度，此范围外的点云被屏蔽
         """
-        cls.client().call_service("Perception", "setLaserAngle",
+        pass
+
+    @classmethod
+    @call_service(plugin_name="SensorFuser")
+    def clearLaserWidth(cls):
+        """清除激光设备宽度"""
+        pass
+
+    @classmethod
+    def setLaserAngle(cls, device_name: str, min_angle: float, max_angle: float):
+        """设置激光设备角度
+
+        Args:
+            device_name (str): 激光设备名称
+            min_angle (float): 最小角度（单位：°），小于此角度的点云被屏蔽
+            max_angle (float): 最大角度（单位：°），大于此角度的点云被屏蔽
+        """
+        cls.client().call_service("SensorFuser", "setLaserAngle",
                                   (id, math.radians(min_angle), math.radians(max_angle)))
 
     @classmethod
-    @call_service(plugin_name="Perception")
+    @call_service(plugin_name="SensorFuser")
     def clearLaserAngle(cls):
-        """清除激光角度"""
+        """清除激光设备角度"""
         pass
 
     @classmethod
-    @call_service(plugin_name="Perception")
-    def setLaserWidth(cls, id: int, width: float):
-        """设置激光宽度
+    @call_service(plugin_name="SensorFuser")
+    def addDisableDepthCamera(cls, device_name: str):
+        """禁用深度相机
 
         Args:
-            id (int):
-            width (float):
+            device_name (str): 深度相机名称
         """
         pass
 
     @classmethod
-    @call_service(plugin_name="Perception")
-    def clearLaserWidth(cls):
-        """清除激光宽度"""
+    @call_service(plugin_name="SensorFuser")
+    def eraseDisableDepthCamera(cls, device_name: str):
+        """清除已禁用的深度相机
+
+        Args:
+            device_name (str): 深度相机名称
+        """
         pass
+
+    @classmethod
+    @call_service(plugin_name="SensorFuser")
+    def clearDisableDepthCameraAll(cls):
+        """清除所有已禁用的深度相机"""
+        pass
+
+    #----------------------------------------------------#
+
 
     @classmethod
     @call_service(plugin_name="Perception")
@@ -139,3 +178,4 @@ class Laser3D(Message["Message_AllLasers3D"]):
         """
         if cls.update():
             return cls.data.lasers3d
+
