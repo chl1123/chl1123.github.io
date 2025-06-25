@@ -504,6 +504,21 @@ class Navigation(Service):
         """
         pass
 
+    @classmethod
+    @call_service(func_name="recordCapture")
+    def recordCapture(cls, fileName: str, filePath: str, camName: str) -> bool:
+        """相机标定时,触发图像采集
+
+        Args:
+            fileName : 文件名称
+            filePath : 文件保存路径
+            camName : 相机名称
+
+        Returns:
+            bool: 是否完成
+        """
+        pass
+
 @default_plugin("MoveFactory")
 class NavStatus(Message["Message_MoveStatus"]):
     """导航状态类"""

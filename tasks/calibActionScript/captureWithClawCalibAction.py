@@ -114,7 +114,7 @@ class CalibMove:
             self.MoveAngleSpeed = Module.get_task_args("MoveAngleSpeed",math.pi / 6)
             self.fileName = Module.get_task_args("fileName","")
             self.filePath = Module.get_task_args("filePath","")
-            self.cam_id = Module.get_task_args("deviceId",0)
+            self.camName = Module.get_task_args("deviceName","Camera-000")
 
         # 实时运行
         if self.move_action == MoveAction.Straight:
@@ -161,9 +161,10 @@ class CalibMove:
             if (self.move_action == MoveAction.Straight  or self.move_action == MoveAction.RightArcStraight or
                  self.move_action == MoveAction.LeftArcStraight ):
 
-                captrue_status =  Navigation.recordCapture(self.fileName,self.filePath,self.cam_id)
+                captrue_status =  Navigation.recordCapture(self.fileName,self.filePath,self.camName)
                 #captrue_status = True
                 if not captrue_status:
+                    self.status = ScriptStatus.RUNNING
                     return ScriptStatus.RUNNING
                 
                 self.cur_num = self.cur_num + 1
@@ -199,7 +200,7 @@ class CalibMove:
         info["cur_num"] = self.cur_num
         info["fileName"] = self.fileName
         info["filePath"] = self.filePath
-        info["cam_id"] = self.cam_id
+        info["camName"] = self.camName
         log.info(json.dumps(info))
 
 def main():

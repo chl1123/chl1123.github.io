@@ -112,7 +112,7 @@ class CalibMove:
 
     def reset(self):
         self.init = True
-        self.status = Navigation.RUNNING
+        self.status = ScriptStatus.RUNNING
         self.move_action = MoveAction.Straight
         self.MoveMaxDist = 1.5
         self.MoveMaxAngle = math.pi / 4
@@ -126,7 +126,7 @@ class CalibMove:
             Module.set_status(ScriptStatus.RUNNING)
             Navigation.resetOdoMove()
             self.init = False
-            self.status = Navigation.RUNNING
+            self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.Straight
             self.cur_time = 1
             self.cur_num = 0
@@ -138,7 +138,7 @@ class CalibMove:
             self.MoveAngleSpeed = Module.get_task_args("MoveAngleSpeed",math.pi / 6)
             self.fileName = Module.get_task_args("fileName","")
             self.filePath = Module.get_task_args("filePath","")
-            self.cam_id = Module.get_task_args("deviceId",0)
+            self.camName = Module.get_task_args("deviceName","Camera-000")
 
         # 实时运行
         if self.move_action == MoveAction.Straight:
@@ -181,14 +181,15 @@ class CalibMove:
             self.status = Navigation.runOdoMove({"move_angle": self.MoveMaxAngle,  "speed_w":-self.MoveAngleSpeed, "action_name":"NoAction"})
 
         # 当前任务完成时改变状态
-        if self.status == Navigation.FINISHED:
+        if self.status == ScriptStatus.FINISHED:
             if (self.move_action == MoveAction.Straight  or self.move_action == MoveAction.RightArcStraight or
                  self.move_action == MoveAction.LeftArcStraight ):
 
-                captrue_status =  Navigation.recordCapture(self.fileName,self.filePath,self.cam_id)
+                captrue_status =  Navigation.recordCapture(self.fileName,self.filePath,self.camName)
                 #captrue_status = True
                 if not captrue_status:
-                    return Navigation.RUNNING
+                    self.status = ScriptStatus.RUNNING
+                    return ScriptStatus.RUNNING
                 
                 self.cur_num = self.cur_num + 1
                 
@@ -200,12 +201,12 @@ class CalibMove:
                 self.cur_num = 0
             if self.move_action != MoveAction.ActionEnd:
                 Navigation.resetOdoMove()
-                self.status = Navigation.RUNNING
+                self.status = ScriptStatus.RUNNING
 
         if self.move_action == MoveAction.ActionEnd and self.cur_time < self.time:
             Navigation.resetOdoMove()
             self.cur_time = self.cur_time + 1
-            self.status = Navigation.RUNNING
+            self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.Straight
 
         return self.status
@@ -223,7 +224,7 @@ class CalibMove:
         info["cur_num"] = self.cur_num
         info["fileName"] = self.fileName
         info["filePath"] = self.filePath
-        info["cam_id"] = self.cam_id
+        info["camName"] = self.camName
         log.info(json.dumps(info))
         
 def main():
