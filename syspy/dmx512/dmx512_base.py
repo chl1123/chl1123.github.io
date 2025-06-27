@@ -4,7 +4,7 @@ from enum import Enum
 
 from syspy import NavStatus, NavSpeed, Battery, Controller, Di, Do, Abnormal, Led
 from syspy.protobuf import Message_MoveStatus, Message_Battery, Message_NavSpeed
-
+from syspy.protobuf.message import message_dmx512_pb2
 log = logging.getLogger("rbk.script")
 
 
@@ -86,7 +86,7 @@ class dmx512Base:
 
     # led
     def createDmx512Message(self):
-        return self.child.createDmx512Message()
+        return message_dmx512_pb2.Message_Dmx512()
 
     def sendDmx512(self, dmx512_info):
         self.child.sendDmx512(dmx512_info)

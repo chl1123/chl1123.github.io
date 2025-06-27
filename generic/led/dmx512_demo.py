@@ -1,12 +1,13 @@
 import math
 
 import syspy.dmx512.dmx512_base as dmx
-# import syspy.lib.udp_debug as ud
 import syspy.lib.misc_utility as mu
 from syspy.battery import Battery
 from syspy.controller import Controller
 from syspy.navigation import NavStatus, NavSpeed
+from syspy import Logger
 
+log = Logger("led_arm")
 
 class demo_dmx512(dmx.dmx512Base):
 
@@ -135,7 +136,7 @@ class demo_dmx512(dmx.dmx512Base):
             else:
                 '''电池类型未配置且机器人静止为彩虹灯'''
                 dmx512_info.type = dmx.LightType.Rainbow.value
-
+            log.info(f"{dmx512_info=}")
             self.sendDmx512(dmx512_info)
 
 
