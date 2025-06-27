@@ -3,6 +3,7 @@ import sys
 import math
 from enum import  IntEnum
 import json
+import time
 from containerRobot import Module as ContainerRobotModule
 sys.path.append("syspy")
 from syspy.rbkSim import SimModule
@@ -52,7 +53,7 @@ class Module(BasicModule):
         self.status = MoveStatus.RUNNING
         self.move_action = MoveAction.Start
         self.cur_angle = 0.0
-        
+
     def Rotate(self, r, pos):
         cur_pos = ModuleTool.get_motor_pos(r, "rotate")
         info = dict()
@@ -79,6 +80,7 @@ class Module(BasicModule):
                 self.angle = float(args["angle"])
             else:
                 self.angle = 50.0
+            self.cancel = False
 
         # 实时运行
         if self.move_action == MoveAction.Start:

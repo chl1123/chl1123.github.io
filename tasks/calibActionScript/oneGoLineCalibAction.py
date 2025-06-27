@@ -2,6 +2,7 @@
 import math
 from enum import Enum, IntEnum
 import json
+import time
 from syspy import Navigation, Logger,Module,ScriptStatus
 
 log = Logger("oneGoLineCalibAction")
@@ -68,6 +69,7 @@ class CalibMove:
             self.move_action = MoveAction.Forward
             self.move_dist = Module.get_task_args("L", 2.0)
             self.speed_x = Module.get_task_args("V", 0.5)
+            self.cancel = False
 
         # 实时运行
         if self.move_action == 0:
@@ -88,14 +90,22 @@ class CalibMove:
         info["speed_x"] = self.speed_x
         log.info(json.dumps(info))
 
+    def cancel(self):
+        print("cancel!!!")
+        self.cancel = True
+
 def main():
     calib_move = CalibMove()
     Module.init()
+    Module.set_cancel_callback(calib_move.cancel)
     while True:
         calib_move.run()
         calib_move.print()
+        time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
             Module.set_status(ScriptStatus.FINISHED)
+            return
+        if calib_move.cancel:
             return
 
 if __name__ == '__main__':

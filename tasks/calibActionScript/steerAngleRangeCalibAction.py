@@ -3,6 +3,7 @@ import math
 import time
 from enum import Enum, IntEnum
 import json
+import time
 from syspy import Navigation, Logger,Module,ScriptStatus,Motor
 
 log = Logger("steerAngleRangeCalibAction")
@@ -64,6 +65,7 @@ class CalibMove:
             self.steer_min_angle = Module.get_task_args("min_angle",-90.0)
             self.steer_offset = Module.get_task_args("offset",0.0)
             self.chassis_mode = Module.get_task_args("chassis_mode","")
+            self.cancel = False
 
         if self.steer_name == "":
             log.info("steer name emtpy!")
@@ -123,16 +125,23 @@ class CalibMove:
         info["d_steer"] = self.d_steer
         log.info(json.dumps(info))
 
+    def cancel(self):
+        print("cancel!!!")
+        self.cancel = True
+
 def main():
     calib_move = CalibMove()
     Module.init()
+    Module.set_cancel_callback(calib_move.cancel)
     while True:
         calib_move.run()
         calib_move.print()
+        time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
             Module.set_status(ScriptStatus.FINISHED)
+            return
+        if calib_move.cancel:
             return
 
 if __name__ == '__main__':
     main()
-
