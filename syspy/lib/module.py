@@ -2,7 +2,7 @@ import json
 import math
 from enum import IntEnum
 from threading import Lock
-from typing import Union, Optional
+from typing import Union, Optional, Callable
 
 from ..utils import ScriptType
 
@@ -87,6 +87,9 @@ class Module:
     __task_id = None
     __rpc_client = None
     __task = None
+    __cancel_callback = None
+    __suspend_callback = None
+    __resume_callback = None
 
     @classmethod
     def init(cls):
@@ -147,17 +150,39 @@ class Module:
 
     @classmethod
     def __cancel(cls):
-        cls.set_status(ScriptStatus.FINISHED)
+        # cls.set_status(ScriptStatus.FINISHED)
+        if cls.__cancel_callback is not None:
+            cls.__cancel_callback()
+        else:
+            cls.set_status(ScriptStatus.FINISHED)
 
     @classmethod
     def __suspend(cls):
-        if cls.get_status() == ScriptStatus.RUNNING:
-            cls.set_status(ScriptStatus.SUSPENDED)
+        if cls.__suspend_callback is not None:
+            cls.__suspend_callback()
+        else:
+            if cls.get_status() == ScriptStatus.RUNNING:
+                cls.set_status(ScriptStatus.SUSPENDED)
 
     @classmethod
     def __resume(cls):
-        if cls.get_status() == ScriptStatus.SUSPENDED:
-            cls.set_status(ScriptStatus.RUNNING)
+        if cls.__resume_callback is not None:
+            cls.__resume_callback()
+        else:
+            if cls.get_status() == ScriptStatus.SUSPENDED:
+                cls.set_status(ScriptStatus.RUNNING)
+
+    @classmethod
+    def set_cancel_callback(cls, callback: Callable[[], None]):
+        cls.__cancel_callback = callback
+
+    @classmethod
+    def set_suspend_callback(cls, callback: Callable[[], None]):
+        cls.__suspend_callback = callback
+
+    @classmethod
+    def set_resume_callback(cls, callback: Callable[[], None]):
+        cls.__resume_callback = callback
 
     @classmethod
     def __report_data(cls, status: Optional[ScriptStatus] = None):
