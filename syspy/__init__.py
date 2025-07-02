@@ -1,5 +1,4 @@
 from .battery import Battery
-from .bin import Bin
 from .camera import Camera
 from .charger import Charger
 from .controller import Controller
@@ -10,10 +9,9 @@ from .led import Led
 from .lib.abnormal import Abnormal
 from .lib.can_frame import Can
 from .lib.logger import Logger
-from .lib.model import Model
 from .lib.module import ScriptStatus, Module
 from .lib.net_protocol import NetProtocol
-from .lib.param import Param
+from .lib.robot_param import RobotParam
 from .lib.trace import Trace
 from .loc import Loc
 from .magnetic import Magnetic
@@ -36,13 +34,11 @@ __all__ = [
     "Logger",
     "NetProtocol",
     "Can",
-    "Model",
-    "Param",
+    "RobotParam",
     "ScriptStatus",
     "Module",
     "ParamServer",
     "Battery",
-    "Bin",
     "Camera",
     "Charger",
     "Controller",
