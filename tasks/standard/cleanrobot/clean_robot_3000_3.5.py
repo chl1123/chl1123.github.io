@@ -5,21 +5,17 @@
 # @Update : 3.5清洁车模板
 
 import json
-import math
 import time
-from email.message import Message
 
 import can
 from enum import IntEnum
-from syspy.utils.time import Timer
 import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
 
 start_time = time.time()
 
-from syspy import Module, ParamServer, Logger, battery, Di, dio, Do, Motor, Navigation, Loc, Abnormal, Recognize, \
-    ScriptStatus, Odometer, Pgv, controller, navigation
-from syspy.lib.module import Pos2Base, Pos2World
+from syspy import Module, ParamServer, Logger, battery, Do, Navigation, Abnormal, \
+    ScriptStatus, Odometer,  controller
 
 log = Logger("clean_robot")
 
