@@ -98,7 +98,7 @@ class CalibMove:
             Module.set_status(ScriptStatus.RUNNING)
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.InitcallGo2QRCenter
-            self.up_side = Module.get_task_args("up_side", False)
+            self.upside = Module.get_task_args("up_side", False)
             self.short_move_dist = Module.get_task_args("distanceBack", 0.2)
             self.short_rot_angle = Module.get_task_args("angleBack", 30.0)*math.pi/180
             self.move_dist = Module.get_task_args("distanceForward", 0.3)

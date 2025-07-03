@@ -3,7 +3,6 @@ import math
 import time
 from enum import Enum, IntEnum
 import json
-import time
 from syspy import Navigation, Logger,Module,ScriptStatus,Motor
 
 log = Logger("steerAngleRangeCalibAction")
