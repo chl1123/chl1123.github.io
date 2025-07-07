@@ -126,7 +126,7 @@ class RpcClient:
         event = ResultEvent()
         # 将请求放入队列，并传入事件对象
         self.zmq_client.putQueue(request, event)
-        log.debug("req => %s", request.to_json())
+        # log.debug("req => %s", request.to_json())
         # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
         if not event.wait(timeout=5):  # 设置适当的超时时间
             raise TimeoutError("Event wait timeout")
@@ -136,7 +136,7 @@ class RpcClient:
             response = JSONRPCResponse.parse(response_json)
             if response.has_error():
                 raise Exception(response_json)
-            log.debug("res <= %s", response.get_print())
+            # log.debug("res <= %s", response.get_print())
             return response.get_result()
         else:  # event.result 为 None
             raise TimeoutError("poller Timeout")
