@@ -3,12 +3,13 @@ from typing import List, TYPE_CHECKING
 
 from syspy.lib.plyvel_db import LevelDB
 from syspy.navigation import Navigation
-from .lib.py_rpc import Message
+from .lib.py_rpc import Message, call_service, default_plugin
 
 if TYPE_CHECKING:
-    from .protobuf import Message_Bin  # IDE类型提示
+    from .protobuf import Message_Bin, Message_Bins  # IDE类型提示
 
 
+@default_plugin("RecoFactory")
 class Bin(Message["Message_Bins"]):
     """库位类"""
 
@@ -26,6 +27,16 @@ class Bin(Message["Message_Bins"]):
     def get_bins(cls) -> List["Message_Bin"]:
         if cls.update():
             return cls.data.bins
+
+    @classmethod
+    @call_service()
+    def binDetection(cls, seq: int):
+        """库位检测
+
+        Args:
+            seq (int): 时间戳
+        """
+        pass
 
 
 class Container:
