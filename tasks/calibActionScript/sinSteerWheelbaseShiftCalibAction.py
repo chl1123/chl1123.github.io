@@ -3,7 +3,7 @@ import math
 from enum import Enum, IntEnum
 import json
 import time
-from syspy import Navigation, Logger,Module,ScriptStatus
+from syspy import Navigation, Logger,Module,ScriptStatus,Motor
 
 log = Logger("sinSteerWheelbaseShiftCalibAction")
 
@@ -55,27 +55,42 @@ class CalibMove:
         # 初始化
         if self.init:
             Navigation.resetOdoMove()
-            Navigation.resetForkHeight()
             Module.set_status(ScriptStatus.RUNNING)
             self.init = False
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.ForkUnload1
             self.rotCount = int(Module.get_task_args("rotCount",3))
             self.speed_w = Module.get_task_args("W", 30) * math.pi / 180
-            Navigation.resetGoPGV()
+            self.wheelBaseMotorName = Module.get_task_args("wheelBaseMotorName", "Motor-002")
+            self.wheelBaseMaxHeight = Module.get_task_args("wheelBaseMaxHeight", 0.205)
+            self.wheelBaseMinHeight = Module.get_task_args("wheelBaseMinHeight", 0.085)
+            self.pos = 0.0
             self.cancel = False
 
+        self.pos = Motor.get_motor_pos(self.wheelBaseMotorName)
         # 实时运行
         if self.move_action == MoveAction.ForkUnload1:
-            self.status = Navigation.runForkHeight({"id":"SELF_POSITION",  "operation":"ForkUnload", "end_height":0.0})
+            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMinHeight, 0.1, -1)
+            if math.fabs(self.pos-self.wheelBaseMinHeight) < 0.01:
+                self.status = ScriptStatus.FINISHED
+            else:
+                self.status = ScriptStatus.RUNNING
         elif self.move_action == MoveAction.Rot1st:
             self.status = Navigation.runOdoMove({"move_angle": self.rotCount * 2 * math.pi,  "speed_w":self.speed_w, "action_name":"Rot1st"})
         elif self.move_action == MoveAction.ForkLoad:
-            self.status = Navigation.runForkHeight({"id":"SELF_POSITION",  "operation":"ForkLoad", "end_height":1.0})
+            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMaxHeight, 0.1, -1)
+            if math.fabs(self.pos-self.wheelBaseMaxHeight) < 0.01:
+                self.status = ScriptStatus.FINISHED
+            else:
+                self.status = ScriptStatus.RUNNING
         elif self.move_action == MoveAction.Rot2nd:
             self.status = Navigation.runOdoMove({"move_angle": self.rotCount * 2 * math.pi,  "speed_w":self.speed_w, "action_name":"Rot2nd"})
         elif self.move_action == MoveAction.ForkUnload2:
-            self.status = Navigation.runForkHeight({"id":"SELF_POSITION",  "operation":"ForkUnload", "end_height":0.0})
+            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMinHeight, 0.1, -1)
+            if math.fabs(self.pos-self.wheelBaseMinHeight) < 0.01:
+                self.status = ScriptStatus.FINISHED
+            else:
+                self.status = ScriptStatus.RUNNING
 
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:
@@ -86,7 +101,6 @@ class CalibMove:
             self.move_action = self.move_action + 1
             if self.move_action != MoveAction.ActionEnd:
                 Navigation.resetOdoMove()
-                Navigation.resetForkHeight()
                 self.status = ScriptStatus.RUNNING
         return self.status
     
@@ -98,6 +112,10 @@ class CalibMove:
         info["rotCount"] = self.rotCount
         info["move_action"] = self.move_action
         info["speed_w"] = self.speed_w
+        info["wheelBaseMotorName"] = self.wheelBaseMotorName
+        info["wheelBaseMaxHeight"] = self.wheelBaseMaxHeight
+        info["wheelBaseMinHeight"] = self.wheelBaseMinHeight
+        info["pos"] = self.pos
         log.info(json.dumps(info))
 
     def cancel(self):
