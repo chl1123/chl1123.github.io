@@ -1,13 +1,15 @@
 import time
+
 start_time = time.time()
 
 import importlib
 import os
 import json
 import sys
-
+from enum import Enum
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from typing_extensions import TypeAlias
 from typing import Any, Dict, List, Optional, Generator, Union, Tuple
 
 SCRIPTS_DIR = "/opt/.data/rbk/resources/scripts"
@@ -16,6 +18,7 @@ PY_SUFFIX = ".py"
 CONFIG_SUFFIX = "_config.json"
 INPUT_SUFFIX = "_input.json"
 prefix_dir = ""
+
 
 def _get_prefix_dir(file):
     if not file.startswith(SCRIPTS_DIR):
@@ -135,6 +138,69 @@ class ParamType:
     STRING_COMBO_LIST = "stringComboList"
     COMBO_BOX_BOOL = "comboBoxBool"
     SHAPE = "shape"
+
+
+class BindType:
+    class Device(Enum):
+        SCREEN = "device:Screen"
+        CHARGING_PORT = "device:ChargingPort"
+        MODEL = "device:Model"
+        CODE_SCANNER = "device:CodeScanner"
+        DO_MOTOR = "device:DoMotor"
+        DI = "device:Di"
+        GNSS = "device:GNSS"
+        LED = "device:LED"
+        MAGNETIC_SENSOR = "device:MagneticSensor"
+        INDICATOR = "device:Indicator"
+        IMU = "device:IMU"
+        MODBUS_IO = "device:ModbusIO"
+        DI_SENSOR = "device:DiSensor"
+        DISTANCE_SENSOR = "device:DistanceSensor"
+        COLLISION_SENSOR = "device:CollisionSensor"
+        MANIPULATORS = "device:Manipulators"
+        LASER = "device:Laser"
+        DO = "device:DO"
+        CAMERA = "device:Camera"
+        MOTOR = "device:Motor"
+        BATTERY = "device:Battery"
+        CAN = "device:Can"
+
+    class App(Enum):
+        CONTROL = "app:Control"
+        FUNCTIONAL_SAFETY = "app:FunctionalSafety"
+        LOCALIZATION = "app:Localization"
+        NAVIGATION = "app:Navigation"
+        RECOGNITION = "app:Recognition"
+
+    class Shape(Enum):
+        RECTANGLE = "shape:rectangle"
+        POLYGON = "shape:polygon"
+
+    class Map(Enum):
+        MARK = "map:mark"
+        PATH = "map:path"
+        LOCATION = "map:location"
+        AREA = "map:area"
+
+    class Script(Enum):
+        GENRIC = "script:generic"
+        BATTERY = "script:generic/battery"
+        LED = "script:generic/led"
+
+    class Audio(Enum):
+        FILE = "audio:file"
+
+
+# 定义联合类型
+BindTypeValue: TypeAlias = Union[
+    BindType.Device,
+    BindType.App,
+    BindType.Shape,
+    BindType.Map,
+    BindType.Script,
+    BindType.Audio,
+    str  # 允许直接使用字符串
+]
 
 
 @dataclass
@@ -349,8 +415,39 @@ class ParamBuilder:
     def TAG(self, *tags: str) -> None:
         self.ADD_FIELD("tag", list(tags))
 
-    def BINDTYPE(self, value: str) -> None:
-        self.ADD_FIELD("bind_type", value)
+    def BINDTYPE(
+            self,
+            value: Union[BindTypeValue, List[BindTypeValue]],
+            multiple_choice: bool = False
+    ) -> None:
+        """绑定类型到字段
+
+        Args:
+            value (Union[BindTypeValue, List[BindTypeValue]]): 要绑定的值，可以是单个类型或多个类型
+            multiple_choice (bool): 是否为多选
+        """
+
+        # 转换枚举值为字符串
+        def to_str(v: Any) -> str:
+            if isinstance(v, Enum):
+                return v.value
+            return v  # 已经是字符串
+
+        if not multiple_choice:
+            # 单选模式
+            if isinstance(value, (list, tuple)):
+                value_str = ",".join(to_str(v) for v in value)
+            else:
+                value_str = to_str(value)
+            self.ADD_FIELD("bind_type", value_str)
+        else:
+            # 多选模式
+            if not isinstance(value, (list, tuple)):
+                value = [value]
+            # 转换为字符串列表
+            str_values = [to_str(v) for v in value]
+            processed_value = f"multiple:{','.join(str_values)}"
+            self.ADD_FIELD("bind_type", processed_value)
 
     def READONLY(self, value: bool) -> None:
         self.ADD_FIELD("is_read_only", value)
@@ -397,7 +494,6 @@ class ParamValidator:
         # 构建参数查找字典
         self.param_index = self._build_param_index()
 
-
     def _build_param_index(self) -> Dict[str, Dict[str, Any]]:
         """构建参数索引字典（key -> 参数定义）"""
         param_index = {}
@@ -430,7 +526,6 @@ class ParamValidator:
             traverse([group])
 
         return param_index
-
 
     def _flatten_input_params(self, input_params: Dict[str, Any]) -> Dict[str, Any]:
         """将路径格式参数转换为平铺格式"""
@@ -763,6 +858,7 @@ class ParamValidator:
             )
 
         return value
+
 
 def load_module_from_path(script_path: str) -> Any:
     module_name = os.path.splitext(os.path.basename(script_path))[0]

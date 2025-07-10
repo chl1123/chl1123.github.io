@@ -1,8 +1,9 @@
 import json
 import time
+
 start_time = time.time()
 from syspy import Logger, Module, ScriptStatus
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
 
 log = Logger("example_input_param")
 
@@ -23,7 +24,7 @@ class ConfigParams:
 def create_jack_height_param(builder: ParamBuilder):
     """创建顶升高度参数（可复用）"""
     with builder.CHILD(key="jack_height", name="Jacking height",
-                      desc="The height for lift operations"):
+                       desc="The height for lift operations"):
         builder.TYPE(ParamType.FLOAT)
         builder.REQUIRED(True)
         builder.MIN_VALUE(0.0)
@@ -31,6 +32,7 @@ def create_jack_height_param(builder: ParamBuilder):
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
         builder.DEFAULTVALUE(0.01)
+
 
 # 生成指定的JSON配置
 class InputParams:
@@ -134,7 +136,36 @@ class InputParams:
                                     builder.TYPE(ParamType.STRING)
                                 with builder.CHILD("2", "2", "2"):
                                     builder.TYPE(ParamType.STRING)
+
+                with builder.CHILD("TestBinType", "Test BinType", "Test BinType"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                    with builder.CHILD(key="battery", name="Battery",
+                                       desc="Battery. Single menu type"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        # 单选单类型
+                        builder.BINDTYPE(BindType.Device.BATTERY)
+
+                    with builder.CHILD(key="battery_led", name="Battery Led",
+                                       desc="Battery Led. single menu multiple types"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        # 单选多类型
+                        builder.BINDTYPE([BindType.Script.BATTERY, BindType.Script.LED])
+
+                    with builder.CHILD(key="led_mutil", name="led_mutil",
+                                       desc="led_mutil. multiple menu type"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        # 多选单类型
+                        builder.BINDTYPE(BindType.Script.LED, True)
+
+                    with builder.CHILD(key="generic_camera_mutil", name="generic_camera_mutil",
+                                       desc="generic_camera_mutil. multiple selection multiple types"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        # 多选多类型
+                        builder.BINDTYPE([BindType.Script.LED, BindType.App.RECOGNITION], True)
+
     builder.save_to_file()
+
 
 class Jack:
     def __init__(self, args):
@@ -153,7 +184,7 @@ class Jack:
         self.report_info["run_time"] = round(time.time() - start_time, 2)
         self.opt = self.args.get('operation', None)
         self.height = self.args.get('height', None)
-        if self.count == 100:
+        if self.count == 1:
             Module.set_status(ScriptStatus.FINISHED)
         ...
 
@@ -226,6 +257,7 @@ def main():
             return
 
         time.sleep(0.1)
+
 
 # 主程序
 if __name__ == "__main__":
