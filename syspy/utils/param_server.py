@@ -582,10 +582,6 @@ class ParamValidator:
             errors.append(f"Missing required parameter: {full_path}")
             return
 
-        # 如果参数未提供且非必填，使用默认值
-        if value is None and 'defaultValue' in param_def:
-            value = param_def['defaultValue']
-
         # 如果值仍然为空，跳过验证
         if value is None:
             return
