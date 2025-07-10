@@ -70,12 +70,8 @@ if dpkg -s script-syspy >/dev/null 2>&1; then
     }
 fi
 
-# 清理目标目录（保留其他包的文件）
-echo "准备安装目录: ${INSTALL_DIR}"
-if [ -d "${INSTALL_DIR}/syspy" ]; then
-    echo "清理现有syspy目录..."
-    rm -rf "${INSTALL_DIR}/syspy"
-fi
+# 不删除整个目录，仅准备覆盖更新
+echo "准备更新syspy SDK到目录: ${INSTALL_DIR}"
 EOF
 
 # 创建postinst安装后脚本
@@ -91,7 +87,8 @@ chmod -R 777 ${INSTALL_DIR}/syspy
 
 # 验证安装结果
 if [ -d "${INSTALL_DIR}/syspy" ]; then
-    echo "syspy SDK 已成功安装到 ${INSTALL_DIR}"
+    echo "syspy SDK 已成功更新到 ${INSTALL_DIR}"
+    echo "更新策略: 仅覆盖同名文件，保留其他文件"
 else
     echo "错误: 安装失败!"
     exit 1
@@ -101,13 +98,9 @@ EOF
 # 创建prerm卸载前脚本
 cat > "${BUILD_DIR}/DEBIAN/prerm" <<EOF
 #!/bin/bash
-# 保留用户数据 - 不删除syspy目录
-# 仅当需要完全卸载时才删除
+# 保留所有用户数据 - 不删除任何文件
 if [ "\$1" = "remove" ] || [ "\$1" = "deconfigure" ]; then
-    # 可以选择保留用户数据
-    echo "保留syspy目录: ${INSTALL_DIR}/syspy"
-    # 或者取消下面一行的注释来完全删除
-    # rm -rf "${INSTALL_DIR}/syspy"
+    echo "保留所有syspy目录内容: ${INSTALL_DIR}/syspy"
 fi
 EOF
 
@@ -123,12 +116,13 @@ Version: ${VERSION}
 Section: base
 Priority: optional
 Architecture: ${ARCH}
-Maintainer: Your Name <your.email@example.com>
+Maintainer: SEER
 Conflicts: script-syspy
 Replaces: script-syspy
 Description: syspy Python SDK
  此软件包将syspy SDK部署到${INSTALL_DIR}目录
  包含冲突解决机制，自动移除旧包
+ 更新策略: 仅覆盖同名文件，保留目录中的其他文件
 EOF
 
 # 构建deb包到临时目录
@@ -151,4 +145,4 @@ echo "----------------------------------------"
 echo "成功生成: ${DEB_NAME}"
 echo "安装命令: sudo dpkg -i --force-overwrite ${DEB_NAME}"
 echo "临时文件已完全清理"
-# ... existing code ...
+echo "更新策略: 安装时仅覆盖同名文件，保留syspy目录中的其他文件"
