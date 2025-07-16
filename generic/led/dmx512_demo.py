@@ -7,7 +7,8 @@ from syspy.controller import Controller
 from syspy.navigation import NavStatus, NavSpeed
 from syspy import Logger
 
-log = Logger("led_arm")
+log = Logger("led")
+
 
 class demo_dmx512(dmx.dmx512Base):
 

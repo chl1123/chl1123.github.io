@@ -8,7 +8,7 @@ from syspy import ParamServer
 from syspy.leds.led_base import LedBase
 from syspy.leds.light_type import LightType, Color
 
-log = Logger("led")
+log = Logger("led_arm")
 
 
 def signal_handler(signal, frame):
@@ -40,13 +40,15 @@ class ConfigParam:
 
 class LedChassis(LedBase):
     def __init__(self):
+        self.robot_status = None
+        self.pre_robot_status = None
         super().__init__(ConfigParam.param_server)
 
     def run(self):
         if self.init():
             while True:
                 self.set_light_type()
-                time.sleep(1)
+                time.sleep(0.1)
 
     def set_light_type(self):
         percentage = Battery.get_percentage()
@@ -68,21 +70,25 @@ class LedChassis(LedBase):
 
         # 报警状态下红色呼吸
         if self.is_alarm():
+            self.robot_status = "Alarm"
             self.set_effect(
                 LightType.MutableBreath, rgbw=Color.Red, period=1000
             )
         # 急停状态下暗红色流水
         elif Controller.get_emc():
+            self.robot_status = "EStop"
             self.set_effect(
                 LightType.Flow, rgbw=Color.RedDark, period=10
             )
         # 被阻挡状态下粉紫色跑马
         elif NavStatus.get_block():
+            self.robot_status = "Blocked"
             self.set_effect(
                 LightType.MutableHorseRace, rgbw=Color.PinkPurple, period=1000
             )
         # 机器移动时的灯光效果
         elif not NavStatus.getChassisStop():
+            self.robot_status = "Moving"
             self.handle_movement_effect()
         # 电池相关的灯光效果
         elif battery_exist:
@@ -92,6 +98,11 @@ class LedChassis(LedBase):
             self.set_effect(LightType.Rainbow)
             log.warning("Effect set to Rainbow.")
 
+        # 仅在状态变化时打印
+        if self.robot_status != self.pre_robot_status:
+            log.info("robot_status=" + self.robot_status)
+            self.pre_robot_status = self.robot_status
+
     def handle_movement_effect(self) -> None:
         """
         处理机器移动时的灯光效果。
@@ -99,11 +110,13 @@ class LedChassis(LedBase):
         v_x, _, v_w = NavSpeed.get_speeds()
         turn = NavStatus.get_turn(v_x, v_w)
         if turn == 0:
+            self.robot_status = "MovingRotation"
             if ConfigParam.is_back_breath and v_x < 0:
                 self.set_effect(LightType.MutableBreath, rgbw=Color.White, period=1000)
             else:
                 self.set_effect(LightType.MutableBreath, period=1000)
         else:
+            self.robot_status = "MovingTurn"
             led_idx = self.turn_to_led_idx(turn)
             self.set_effect(LightType.Blink, rgbw=Color.Yellow, led_idx=led_idx)
 
@@ -115,23 +128,27 @@ class LedChassis(LedBase):
         """
         # 充电中为呼吸灯，颜色根据电池电量变化
         if ConfigParam.is_show_charging and Battery.get_is_charging():
+            self.robot_status = "Charging"
             rgbw = self.battery_to_color(dmx_battery)
             self.set_effect(
-                LightType.MutableBreath, rgbw=rgbw
+                LightType.MutableBreath, rgbw=rgbw, period=1500
             )
         # 电量过低为暗红色跑马灯
         elif dmx_battery * 100 < 10:
+            self.robot_status = "LowBattery"
             self.set_effect(
                 LightType.MutableHorseRace, rgbw=Color.RedDark
             )
         # 常亮灯，颜色根据电池电量变化
         elif ConfigParam.is_show_battery:
+            self.robot_status = "Battery"
             rgbw = self.battery_to_color(dmx_battery)
             self.set_effect(
                 LightType.ConstantLight, rgbw=rgbw
             )
         # 蓝色常亮
         else:
+            self.robot_status = "Normal"
             self.set_effect(LightType.ConstantLight)
 
 
