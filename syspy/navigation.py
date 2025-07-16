@@ -561,7 +561,6 @@ class NavStatus(Message["Message_MoveStatus"]):
     _TOPIC = "rbk.protocol.Message_MoveStatus"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
-    not_stop_counts = 0
 
     @classmethod
     def init_model_class(cls):
@@ -574,19 +573,9 @@ class NavStatus(Message["Message_MoveStatus"]):
         """底盘是否停止（仅通过walk电机判断）
 
         Returns:
-            bool: 如果行走电机停止则为True
+            bool: 停止为True, 否则为False
         """
-        is_stop = cls.client().call_service("DSPChassis", "getChassisStop")
-        if is_stop:
-            is_stop = True
-        else:
-            if cls.not_stop_counts >= 1:
-                is_stop = False
-                cls.not_stop_counts = 0
-            else:
-                # 非停止状态计数
-                cls.not_stop_counts += 1
-        return is_stop
+        return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
     @classmethod
     def get_block(cls):
