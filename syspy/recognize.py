@@ -16,6 +16,7 @@ class Recognize(Service):
             y: float = 0.0,
             theta: float = 0.0,
             radius: float = 0.0,
+            recognition_side: str = "A"
     ):
         """进行识别
 
@@ -26,6 +27,7 @@ class Recognize(Service):
             y (float): 识别区域的圆心坐标y（世界坐标系）
             theta (float): 识别区域扇形角度
             radius (float):识别半径
+            recognition_side (str): 识别面，可选none、A、B、C、D
         """
         pass
 
