@@ -181,6 +181,7 @@ class GoPath:
         self.status = ScriptStatus.NONE
         self.init = False
         self.param = {}
+        Navigation.resetPath()
 
     def print_info(self):
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态

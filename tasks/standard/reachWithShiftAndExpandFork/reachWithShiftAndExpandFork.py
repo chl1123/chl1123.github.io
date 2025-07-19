@@ -1,329 +1,349 @@
 # -*- coding: utf-8 -*-
-# @Time : 2025/07/08
+# @Time : 2025/07/09 20:11
 # @Author : xu
-# @File : reachWithShiftAndExpandFork.py
-# @Request : 可调间距横移前移叉车机器人脚本
-# @Version: 1.0.0
-# @Description: 新建
+# @File: reachWithShiftAndExpandFork.py
+# @FileDescription : 可调间距横移前移叉车机器人脚本
+# @Version: 1.0.1
+# @Description: 适配RBK-3.5
 
-import os
+
 import json
-import time
-import sys
-from enum import IntEnum
 import math
+import os
+import time
 from collections import defaultdict
 from datetime import datetime
+from enum import IntEnum
+from typing import List, Dict, Optional
 
-from syspy import (Module, Logger, battery, Di, Motor, Do, Loc, Recognize, Trace, Distance, Controller,
-                   Navigation, Abnormal, ScriptStatus, Odometer)
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer
-from google.protobuf import json_format
-
+from syspy import (Module, Logger, Di, Motor, Do, Loc, Recognize, Trace, Distance, Navigation, Abnormal, ScriptStatus,
+                   Odometer, RobotParam)
 from syspy.bin import Bin
 from syspy.lib.module import Pos2Base, Pos2World
-from syspy.script_data import ScriptData
 from syspy.lib.py_rpc import Message
-
-from tasks.standard import goPath
+from syspy.script_data import ScriptData
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer
 from syspy.utils.time import Timer
+from tasks.standard import goPath
 
-log = Logger("reachFork_robot")
+log = Logger("Fork_robot")
 
 
 class ConfigParams:
     """生成和定义脚本全局配置参数"""
+
+    # 全局参数
+    # 机器人参数
+    module_type = RobotParam.getDevice("Model-000", "moduleType")
+    if module_type != "reachWithShiftAndExpandFork":
+        Abnormal.setModel(53000, "模块类型不匹配",
+                          f"当前模块类型为{module_type}，应为reachWithShiftAndExpandFork",
+                          "修改参数module_type为reachWithShiftAndExpandFork",
+                          "robot.model", "Model", "Model-000", "moduleType"
+                          )
     param_server = ParamServer(__file__)
     # 底盘类型，是否为全向
-    omni_model = param_server.loadParam("omni_modelModel", type="bool", default=False, group="basic",
-                                        comment="底盘类型是否为全向omni")
-    camera_on_fork = param_server.loadParam("camera_on_fork", type="bool", default=False, group="basic",
+    omni_model = False
+    if (RobotParam.getDevice("Model-000", "getRobotType") == "omni"
+        or RobotParam.getDevice("Model-000", "getRobotType") == "multipleDifferentialSteers") \
+            or (RobotParam.getDevice("Model-000", "getRobotType") == "multiStandardAndDifferentialSteers"
+                or RobotParam.getDevice("Model-000", "getRobotType") == "multiSteers"):
+        omni_model = True
+    module_to_odo_x = RobotParam.getDevice("Model-000",
+                                           "moduleType.reachWithShiftAndExpandFork.installPosition.x")
+    module_to_odo_y = RobotParam.getDevice("Model-000",
+                                           "moduleType.reachWithShiftAndExpandFork.installPosition.y")
+    module_to_odo_z = RobotParam.getDevice("Model-000",
+                                           "moduleType.reachWithShiftAndExpandFork.installPosition.z")
+    module_to_odo_roll = RobotParam.getDevice("Model-000",
+                                              "moduleType.reachWithShiftAndExpandFork.installPosition.roll")
+    module_to_odo_pitch = RobotParam.getDevice("Model-000",
+                                               "moduleType.reachWithShiftAndExpandFork.installPosition.pitch")
+    module_to_odo_yaw = RobotParam.getDevice("Model-000",
+                                             "moduleType.reachWithShiftAndExpandFork.installPosition.yaw")
+
+    # todo
+    camera_on_fork = param_server.loadParam("Camera On Fork", type="bool", default=False, group="Basic",
                                             comment="相机是否标定在叉尖")
-    fork_width = param_server.loadParam("fork_width", type="float", default=0.08, minValue=0.05, maxValue=0.5,
+    fork_width = param_server.loadParam("Fork Width", type="float", default=0.08, minValue=0.05, maxValue=0.5,
                                         unit="m",
-                                        group="basic", comment="单个货叉宽度，识别取货时用于确认是否可以插进栈板")
-    fork_offset_x = param_server.loadParam("forkOffsetX", type="float", default=0, minValue=-2, maxValue=2,
+                                        group="Basic", comment="单个货叉宽度，识别取货时用于确认是否可以插进栈板")
+    fork_offset_x = param_server.loadParam("Fork Offset X", type="float", default=0, minValue=-2, maxValue=2,
                                            unit="m",
-                                           group="basic", comment="货叉在X方向偏置距离")
-    fork_offset_y = param_server.loadParam("forkOffsetY", type="float", default=0, minValue=-3, maxValue=3,
+                                           group="Basic", comment="货叉在X方向偏置距离")
+    fork_offset_y = param_server.loadParam("Fork offset Y", type="float", default=0, minValue=-3, maxValue=3,
                                            unit="m",
-                                           group="basic", comment="货叉叉尖在Y方向偏置距离")
-    fork_offset_theta = param_server.loadParam("forkOffsetTheta", type="float", default=0, minValue=-180,
+                                           group="Basic", comment="货叉叉尖在Y方向偏置距离")
+    fork_offset_theta = param_server.loadParam("Fork Offset Theta", type="float", default=0, minValue=-180,
                                                maxValue=180,
-                                               unit="°", group="basic", comment="货叉相对里程中心旋转角度")
-    pallet2odo = param_server.loadParam("pallet2odo", type="float", default=0.6, minValue=0, maxValue=2, unit="m",
-                                        group="basic",
+                                               unit="°", group="Basic", comment="货叉相对里程中心旋转角度")
+    pallet2odo = param_server.loadParam("Pallet To Odometer", type="float", default=0.6, minValue=0, maxValue=2,
+                                        unit="m",
+                                        group="Basic",
                                         comment="取货后栈板前表面与里程的距离，有货物到位di则是到位DI与里程中心距离")
     if camera_on_fork:
         fork2robot = [fork_offset_x, fork_offset_y,
                       math.radians(fork_offset_theta)]  # 叉尖相对里程中心的位置
     else:
         fork2robot = [0.0, 0.0, 0.0]
+
     # 货叉升降机构参数
-    lift_motor = param_server.loadParam("liftMotor", type="str", default="None",
-                                        group="module-lift", comment="升降电机")
-    lift_zero = param_server.loadParam("liftZero", type="float", default=0.075, minValue=0, maxValue=10, unit="m",
-                                       group="module-lift", comment="货叉升降机构的零位")
-    lift_vel = param_server.loadParam("liftVel", type="float", default=0.4, minValue=0, maxValue=10, unit="m/s",
-                                      group="module-lift", comment="lift电机的规划最大速度")
-    lift_max_height = param_server.loadParam("liftMaxHeight", type="float", default=0.4, minValue=0, maxValue=10,
-                                             unit="m",
-                                             group="module-lift", comment="lift电机的最大高度")
-    lift_up_reach_di = param_server.loadParam("liftUpReachDI", type="int", default=-1, minValue=-1, maxValue=100,
-                                              group="module-lift", comment="货叉升降到位DI的ID")
-    lift_precision = param_server.loadParam("lift_precision", type="float", default=0.001, minValue=0.0,
-                                            maxValue=0.01, unit="m", group="module-lift",
+    lift_motor = RobotParam.getDevice("Model-000",
+                                      "moduleType.reachWithShiftAndExpandFork.liftMotor")
+    lift_max_height = RobotParam.getDevice(f"{lift_motor}", "func.linear.maxLength")
+    lift_zero = RobotParam.getDevice(f"{lift_motor}", "func.linear.minLength")
+    lift_vel = RobotParam.getDevice(f"{lift_motor}", "func.linear.maxSpeed")
+    print(f"{lift_motor=}")
+    print(f"{lift_max_height=}")
+    print(f"{lift_zero=}")
+    print(f"{lift_vel=}")
+    lift_up_reach_di = param_server.loadParam("Lift Up Reach DI", type="int", default=-1, minValue=-1, maxValue=100,
+                                              group="Module Lift", comment="货叉升降到位DI的ID")
+    lift_precision = param_server.loadParam("Lift Precision", type="float", default=0.001, minValue=0.0,
+                                            maxValue=0.01, unit="m", group="Module Lift",
                                             comment="货叉升降电机位置控制精度")
 
     # 货叉开合机构参数
-    expand_motor1 = param_server.loadParam("expand_motor1", type="str", default="None",
-                                           group="module-expand", comment="开合电机1")
-    expand_motor2 = param_server.loadParam("expand_motor2", type="str", default="None",
-                                           group="module-expand", comment="开合电机1")
+    expand_motor1 = RobotParam.getDevice("Model-000",
+                                         "moduleType.reachWithShiftAndExpandFork.expandMotor1")
+    expand_motor1_max_position = RobotParam.getDevice(f"{expand_motor1}", "func.linear.maxLength")
+    expand_motor1_zero_position = RobotParam.getDevice(f"{expand_motor1}", "func.linear.minLength")
+    expand_vel = RobotParam.getDevice(f"{expand_motor1}", "func.linear.maxSpeed")
 
-    expand_vel = param_server.loadParam("expand_vel", type="float", default=0.4, minValue=0, maxValue=10,
-                                        unit="m/s",
-                                        group="module-expand", comment="开合电机的规划最大速度")
-    expand_motor1_zero_position = param_server.loadParam("expand_motor1_zero_position", type="float",
+    expand_motor2 = param_server.loadParam("Expand Motor2", type="str", default="None",
+                                           group="Module Expand", comment="开合电机1")
+    expand_motor2_zero_position = param_server.loadParam("Expand Motor2 Zero Position", type="float",
                                                          default=0.1375,
                                                          minValue=0, maxValue=10, unit="m",
-                                                         group="module-expand", comment="货叉开合电机1的零位")
-    expand_motor1_max_position = param_server.loadParam("expand_motor1_max_position", type="float", default=0.3125,
-                                                        minValue=0, maxValue=10, unit="m",
-                                                        group="module-expand", comment="货叉开合电机1的最大位置")
-    expand_motor2_zero_position = param_server.loadParam("expand_motor2_zero_position", type="float",
-                                                         default=0.1375,
-                                                         minValue=0, maxValue=10, unit="m",
-                                                         group="module-expand",
+                                                         group="Module Expand",
                                                          comment="货叉开合电机2的零位，相对机器人中心的横向距离")
-    expand_motor2_max_position = param_server.loadParam("expand_motor2_max_position", type="float", default=0.3125,
+    expand_motor2_max_position = param_server.loadParam("Expand Motor1 Max Position", type="float", default=0.3125,
                                                         minValue=0, maxValue=10, unit="m",
-                                                        group="module-expand",
+                                                        group="Module Expand",
                                                         comment="货叉开合电机2的最大位置，相对机器人中心的横向距离")
-    expand_motor1_max_limit_di = param_server.loadParam("expand_motor1_max_limit_di", type="int", default=-1,
+    expand_motor1_max_limit_di = param_server.loadParam("Expand Motor1 Max Limit DI", type="int", default=-1,
                                                         minValue=-1,
                                                         maxValue=100,
-                                                        group="module-expand",
+                                                        group="Module Expand",
                                                         comment="货叉开合电机1最大位置限位DI的ID")
-    expand_motor2_max_limit_di = param_server.loadParam("expand_motor2_max_limit_di", type="int", default=-1,
+    expand_motor2_max_limit_di = param_server.loadParam("Expand Motor2 Max Limit DI", type="int", default=-1,
                                                         minValue=-1,
                                                         maxValue=100,
-                                                        group="module-expand",
+                                                        group="Module Expand",
                                                         comment="货叉开合电机2最大位置限位DI的ID")
-    expand_motor1_zero_limit_di = param_server.loadParam("expand_motor1_zero_limit_di", type="int", default=-1,
+    expand_motor1_zero_limit_di = param_server.loadParam("Expand Motor1 Zero Limit DI", type="int", default=-1,
                                                          minValue=-1, maxValue=100,
-                                                         group="module-expand",
+                                                         group="Module Expand",
                                                          comment="货叉开合电机1最小位置限位DI的ID")
-    expand_motor2_zero_limit_di = param_server.loadParam("expand_motor2_zero_limit_di", type="int", default=-1,
+    expand_motor2_zero_limit_di = param_server.loadParam("Expand Motor2 Zero Limit DI", type="int", default=-1,
                                                          minValue=-1, maxValue=100,
-                                                         group="module-expand",
+                                                         group="Module Expand",
                                                          comment="货叉开合电机2最小位置限位DI的ID")
 
     # 货叉横移机构参数
-    lateral_motor = param_server.loadParam("lateral_motor", type="str", default="None",
-                                           group="module-lateral", comment="横移电机")
-    lateral_zero = param_server.loadParam("lateral_zero", type="float", default=0.0, minValue=-10, maxValue=10,
+    lateral_motor = param_server.loadParam("Lateral Motor", type="str", default="None",
+                                           group="Module Lateral", comment="横移电机")
+    lateral_zero = param_server.loadParam("Lateral Zero", type="float", default=0.0, minValue=-10, maxValue=10,
                                           unit="m",
-                                          group="module-lateral", comment="货叉横移机构的零位")
-    lateral_min_pos = param_server.loadParam("lateral_min_pos", type="float", default=0.0, minValue=-10,
+                                          group="Module Lateral", comment="货叉横移机构的零位")
+    lateral_min_pos = param_server.loadParam("Lateral Min_pos", type="float", default=0.0, minValue=-10,
                                              maxValue=10,
                                              unit="m",
-                                             group="module-lateral", comment="货叉横移机构的最小位置")
-    lateral_vel = param_server.loadParam("lateral_vel", type="float", default=0.0, minValue=0, maxValue=10,
+                                             group="Module Lateral", comment="货叉横移机构的最小位置")
+    lateral_vel = param_server.loadParam("Lateral Velocity", type="float", default=0.0, minValue=0, maxValue=10,
                                          unit="m/s",
-                                         group="module-lateral", comment="横移电机的规划最大速度")
-    lateral_max_pos = param_server.loadParam("lateral_max_pos", type="float", default=0.0, minValue=0, maxValue=10,
+                                         group="Module Lateral", comment="横移电机的规划最大速度")
+    lateral_max_pos = param_server.loadParam("Lateral Max_pos", type="float", default=0.0, minValue=0, maxValue=10,
                                              unit="m",
-                                             group="module-lateral", comment="横移电机的最大位置")
-    lateral_left_reachDI = param_server.loadParam("lateral_left_reachDI", type="int", default=-1, minValue=-1,
+                                             group="Module Lateral", comment="横移电机的最大位置")
+    lateral_left_reachDI = param_server.loadParam("Lateral Left Reach DI", type="int", default=-1, minValue=-1,
                                                   maxValue=100,
-                                                  group="module-lateral", comment="货叉横移左限位到位DI的ID")
-    lateral_right_reachDI = param_server.loadParam("lateral_right_reachDI", type="int", default=-1, minValue=-1,
+                                                  group="Module Lateral", comment="货叉横移左限位到位DI的ID")
+    lateral_right_reachDI = param_server.loadParam("Lateral Right Reach DI", type="int", default=-1, minValue=-1,
                                                    maxValue=100,
-                                                   group="module-lateral", comment="货叉横移右限位到位DI的ID")
-    lateral_precision = param_server.loadParam("lateral_precision", type="float", default=0.001, minValue=0.0,
-                                               maxValue=0.01, unit="m", group="module-lateral",
+                                                   group="Module Lateral", comment="货叉横移右限位到位DI的ID")
+    lateral_precision = param_server.loadParam("Lateral Precision", type="float", default=0.001, minValue=0.0,
+                                               maxValue=0.01, unit="m", group="Module Lateral",
                                                comment="货叉横移电机位置控制精度")
+
     # 货叉伸缩机构参数
-    stretch_motor = param_server.loadParam("stretchMotor", type="str", default="None",
-                                           group="module-stretch", comment="前后电机")
-    stretch_zero = param_server.loadParam("stretchZero", type="float", default=0.02, minValue=0.0, maxValue=10,
-                                          unit="m",
-                                          group="module-stretch", comment="伸出机构的零位")
-    stretch_zero_di = param_server.loadParam("stretch_zero_di", type="int", default=-1, minValue=-1, maxValue=100,
-                                             group="module-stretch", comment="货叉前移零位DI")
-    stretch_max_di = param_server.loadParam("stretch_max_di", type="int", default=-1, minValue=-1, maxValue=100,
-                                            group="module-stretch", comment="货叉前移极限DI")
-    stretch_vel = param_server.loadParam("stretch_vel", type="float", default=0.02, minValue=0.0, maxValue=1.5,
-                                         unit="m/s",
-                                         group="module-stretch", comment="stretch电机的规划最大速度")
-    stretch_max_length = param_server.loadParam("stretch_max_length", type="float", default=0.41, minValue=0.0,
-                                                maxValue=3,
-                                                unit="m",
-                                                group="module-stretch", comment="货叉伸出最大距离")
-    stretch_type = param_server.loadParam("stretch_type", type="str", default="position",
-                                          group="module-stretch",
+    reach_motor = RobotParam.getDevice("Model-000",
+                                       "moduleType.reachWithShiftAndExpandFork.reachMotor")
+    stretch_max_length = RobotParam.getDevice(f"{reach_motor}", "func.linear.maxLength")
+    reach_zero = RobotParam.getDevice(f"{reach_motor}", "func.linear.minLength")
+    stretch_vel = RobotParam.getDevice(f"{reach_motor}", "func.linear.maxSpeed")
+
+    reach_zero_di = param_server.loadParam("Stretch Zero DI", type="int", default=-1, minValue=-1, maxValue=100,
+                                           group="Module Stretch", comment="货叉前移零位DI")
+    stretch_max_di = param_server.loadParam("Stretch Max DI", type="int", default=-1, minValue=-1, maxValue=100,
+                                            group="Module Stretch", comment="货叉前移极限DI")
+    stretch_type = param_server.loadParam("Stretch Type", type="str", default="position",
+                                          group="Module Stretch",
                                           comment="叉尺前后伸展电机控制类型，速度控制[speed]、位置控制[position]、DO控制[DO]")
-    stretch_out_do = param_server.loadParam("stretchOutDo", type="int", default=-1, minValue=-1, maxValue=100,
-                                            group="module-stretch", comment="货叉前移伸出控制DO")
-    stretch_in_do = param_server.loadParam("stretchInDo", type="int", default=-1, minValue=-1, maxValue=100,
-                                           group="module-stretch", comment="货叉前移收回控制DO")
-    stretch_slow_down_dist = param_server.loadParam("stretch_slow_down_dist", type="float", default=0.1,
+    stretch_out_do = param_server.loadParam("Stretch Out DO", type="int", default=-1, minValue=-1, maxValue=100,
+                                            group="Module Stretch", comment="货叉前移伸出控制DO")
+    stretch_in_do = param_server.loadParam("Stretch In DO", type="int", default=-1, minValue=-1, maxValue=100,
+                                           group="Module Stretch", comment="货叉前移收回控制DO")
+    stretch_slow_down_dist = param_server.loadParam("Stretch Slow Down Dist", type="float", default=0.1,
                                                     minValue=0.0,
                                                     maxValue=0.3,
-                                                    unit="m", group="module-stretch",
+                                                    unit="m", group="Module Stretch",
                                                     comment="货叉运动时减速距离（距离目标位置）")
-    stretch_slow_down_vel = param_server.loadParam("stretch_slow_down_vel", type="float", default=0.05,
+    stretch_slow_down_vel = param_server.loadParam("Stretch Slow Down Velocity", type="float", default=0.05,
                                                    minValue=0.0,
-                                                   maxValue=0.3, unit="m/s", group="module-stretch",
+                                                   maxValue=0.3, unit="m/s", group="Module Stretch",
                                                    comment="货叉运动时末端速度")
-    stretch_precision = param_server.loadParam("stretch_precision", type="float", default=0.001, minValue=0.0,
-                                               maxValue=0.01, unit="m", group="module-stretch",
+    stretch_precision = param_server.loadParam("Stretch Precision", type="float", default=0.001, minValue=0.0,
+                                               maxValue=0.01, unit="m", group="Module Stretch",
                                                comment="货叉前后伸展电机位置控制精度")
 
     # 俯仰机构参数
-    pitch_motor = param_server.loadParam("pitch_motor", type="str", default="None",
-                                         group="module-pitch", comment="俯仰电机")
-    pitch_vel = param_server.loadParam("pitch_vel", type="float", default=0.4, minValue=0.0, maxValue=1.5,
-                                       unit="m/s",
-                                       group="module-pitch", comment="pitch电机的规划最大速度")
-    pitch_zero_di = param_server.loadParam("pitch_zero_di", type="int", default=-1, minValue=-1, maxValue=100,
-                                           group="module-pitch", comment="货叉俯仰零位DI")
-    pitch_max_di = param_server.loadParam("pitch_max_di", type="int", default=-1, minValue=-1, maxValue=100,
-                                          group="module-pitch", comment="货叉俯仰极限DI")
+    pitch_motor = RobotParam.getDevice("Model-000",
+                                       "moduleType.reachWithShiftAndExpandFork.pitchMotor")
+    pitch_vel = RobotParam.getDevice(f"{pitch_motor}", "func.linear.maxSpeed")
+
+    pitch_zero_di = param_server.loadParam("Pitch Zero DIi", type="int", default=-1, minValue=-1, maxValue=100,
+                                           group="Module Pitch", comment="货叉俯仰零位DI")
+    pitch_max_di = param_server.loadParam("Pitch Max DI", type="int", default=-1, minValue=-1, maxValue=100,
+                                          group="Module Pitch", comment="货叉俯仰极限DI")
 
     # 到位DI
     # reachDi = param_server.loadParam("reachDi", type="int", default=8, comment="货物到位DI的ID")
-    reach_di1 = param_server.loadParam("reach_di1", type="int", default=-1, minValue=-1, maxValue=100,
-                                       group="basic", comment="货物到位DI1的ID")
-    reach_di2 = param_server.loadParam("reach_di2", type="int", default=-1, minValue=-1, maxValue=100,
-                                       group="basic", comment="货物到位DI2的ID")
+    # reach_di1 = RobotParam.getDevice("Model-000",
+    #                                  "moduleType.reachWithShiftAndExpandFork.id")
+    reach_di1 = param_server.loadParam("Reach DI1", type="int", default=-1, minValue=-1, maxValue=100,
+                                       group="Basic", comment="货物到位DI1的ID")
+    reach_di2 = param_server.loadParam("Reach DI2", type="int", default=-1, minValue=-1, maxValue=100,
+                                       group="Basic", comment="货物到位DI2的ID")
     multi_reach_di = [reach_di1, reach_di2]
-    check_all_di = param_server.loadParam("check_all_di", type="bool", default=False,
-                                          group="basic", comment="是否检测全部货物到位DI")
+    check_all_di = param_server.loadParam("Check All DI", type="bool", default=False,
+                                          group="Basic", comment="是否检测全部货物到位DI")
     # back_slow_down_dist = param_server.loadParam("back_slow_down_dist", type="float", default=0.1, minValue=0.0,
     #                                        maxValue=0.3,
-    #                                        unit="m", group="basic", comment="倒车取货运动时减速距离（距离目标位置）")
-    back_slow_down_vel = param_server.loadParam("back_slow_down_vel", type="float", default=0.05, minValue=0.0,
-                                                maxValue=0.3, unit="m/s", group="basic",
+    #                                        unit="m", group="Basic", comment="倒车取货运动时减速距离（距离目标位置）")
+    back_slow_down_vel = param_server.loadParam("Back Slow Down Velocity", type="float", default=0.05, minValue=0.0,
+                                                maxValue=0.3, unit="m/s", group="Basic",
                                                 comment="倒车取货运动时末端速度")
 
     # 距离传感器
-    distance_node_id1 = param_server.loadParam("distance_node_id1", type="int", default=-1, minValue=-1, maxValue=100,
-                                               group="basic", comment="distanceNode1的ID号")
-    distance_node_id2 = param_server.loadParam("distance_node_id2", type="int", default=-1, minValue=-1, maxValue=100,
-                                               group="basic", comment="distanceNode1的ID号")
-    obs_stop_dist = param_server.loadParam("ObsStopDist", type="float", default=0.25, minValue=0.0, maxValue=2,
+    distance_node_id1 = param_server.loadParam("Distance Node ID1", type="int", default=-1, minValue=-1, maxValue=100,
+                                               group="Basic", comment="distanceNode1的ID号")
+    distance_node_id2 = param_server.loadParam("Distance Node ID2", type="int", default=-1, minValue=-1, maxValue=100,
+                                               group="Basic", comment="distanceNode1的ID号")
+    obs_stop_dist = param_server.loadParam("Obs Stop Dist", type="float", default=0.25, minValue=0.0, maxValue=2,
                                            unit="m",
-                                           group="basic",
+                                           group="Basic",
                                            comment="# 报警距离， 这个距离传感器的死区为0.2m，因此不能配置成小于0.2m")
     distance_node_id = (distance_node_id1, distance_node_id2)  # distanceNode的ID号
 
     # 尾部激光
-    back_laser_id1 = param_server.loadParam("back_laser_id1", type="int", default=-1, minValue=-1, maxValue=100,
-                                            group="basic", comment="后置激光1id")
-    back_laser_id2 = param_server.loadParam("back_laser_id2", type="int", default=-1, minValue=-1, maxValue=100,
-                                            group="basic", comment="后置激光2id")
+    back_laser_id1 = param_server.loadParam("Back Laser ID1", type="int", default=-1, minValue=-1, maxValue=100,
+                                            group="Basic", comment="后置激光1id")
+    back_laser_id2 = param_server.loadParam("back Laser ID2", type="int", default=-1, minValue=-1, maxValue=100,
+                                            group="Basic", comment="后置激光2id")
     back_laser = [back_laser_id1, back_laser_id2]
 
     # 叉尖碰撞DI
-    fork_tail_di1 = param_server.loadParam("fork_tail_di1", type="int", default=-1, minValue=-1, maxValue=100,
-                                           group="basic", comment="叉尖碰撞DI1的id")
-    fork_tail_di2 = param_server.loadParam("fork_tail_di2", type="int", default=-1, minValue=-1, maxValue=100,
-                                           group="basic", comment="叉尖碰撞DI2的id")
+    fork_tail_di1 = param_server.loadParam("Fork Tail DI1", type="int", default=-1, minValue=-1, maxValue=100,
+                                           group="Basic", comment="叉尖碰撞DI1的id")
+    fork_tail_di2 = param_server.loadParam("Fork Tail DI2", type="int", default=-1, minValue=-1, maxValue=100,
+                                           group="Basic", comment="叉尖碰撞DI2的id")
 
     # 识别调整参数
-    rec_file1 = param_server.loadParam("rec_file1", type="str", default="plt/p0001.plt",
-                                       group="recognization", comment="modbus脚本识别文件1")
-    rec_file2 = param_server.loadParam("rec_file2", type="str", default="plt/p0002.plt",
-                                       group="recognization", comment="modbus脚本识别文件2")
-    rec_file3 = param_server.loadParam("rec_file3", type="str", default="plt/p0003.plt",
-                                       group="recognization", comment="modbus脚本识别文件3")
-    filled_detect_device = param_server.loadParam("filled_detect_device", type="str", default="None",
-                                                  group="recognization", comment="空间占用状态检测设备")
-    obs_area_min_height = param_server.loadParam("obs_area_min_height", type="float", default=0.1, minValue=0,
+    rec_file1 = param_server.loadParam("Recognition File1", type="str", default="plt/p0001.plt",
+                                       group="Recognition", comment="modbus脚本识别文件1")
+    rec_file2 = param_server.loadParam("Recognition File2", type="str", default="plt/p0002.plt",
+                                       group="Recognition", comment="modbus脚本识别文件2")
+    rec_file3 = param_server.loadParam("Recognition File3", type="str", default="plt/p0003.plt",
+                                       group="Recognition", comment="modbus脚本识别文件3")
+    filled_detect_device = param_server.loadParam("Filled Detect Device", type="str", default="None",
+                                                  group="Recognition", comment="空间占用状态检测设备")
+    obs_area_min_height = param_server.loadParam("Obs Area Min Height", type="float", default=0.1, minValue=0,
                                                  maxValue=10,
-                                                 unit="m", group="recognization", comment="识别范围最小高度")
-    obs_area_max_height = param_server.loadParam("obs_area_max_height", type="float", default=1.0, minValue=0,
+                                                 unit="m", group="Recognition", comment="识别范围最小高度")
+    obs_area_max_height = param_server.loadParam("Obs Area Max Height", type="float", default=1.0, minValue=0,
                                                  maxValue=10,
-                                                 unit="m", group="recognization", comment="识别范围最大高度")
-    obs_area_length = param_server.loadParam("obs_area_length", type="float", default=1.0, minValue=0, maxValue=10,
+                                                 unit="m", group="Recognition", comment="识别范围最大高度")
+    obs_area_length = param_server.loadParam("Obs Area Length", type="float", default=1.0, minValue=0, maxValue=10,
                                              unit="m",
-                                             group="recognization", comment="识别范围长度")
-    obs_area_width = param_server.loadParam("obs_area_width", type="float", default=1.0, minValue=0, maxValue=10,
+                                             group="Recognition", comment="识别范围长度")
+    obs_area_width = param_server.loadParam("Obs Area Width", type="float", default=1.0, minValue=0, maxValue=10,
                                             unit="m",
-                                            group="recognization", comment="识别范围宽度")
-    rec_center_x = param_server.loadParam("rec_center_x", type="float", default=0, minValue=-10, maxValue=10, unit="m",
-                                          group="recognization", comment="识别有效范围中心点x坐标")
-    rec_center_y = param_server.loadParam("rec_center_y", type="float", default=0, minValue=-10, maxValue=10, unit="m",
-                                          group="recognization", comment="识别有效范围中心点y坐标")
-    rec_radius = param_server.loadParam("rec_radius", type="float", default=0.1, minValue=0, maxValue=1, unit="m",
-                                        group="recognization", comment="识别有效范围半径")
-    ahead_dist = param_server.loadParam("AheadDist", type="float", default=0.6, minValue=0.0, maxValue=2, unit="m",
-                                        group="recognization",
+                                            group="Recognition", comment="识别范围宽度")
+    rec_center_x = param_server.loadParam("Recognition Center X", type="float", default=0, minValue=-10, maxValue=10,
+                                          unit="m",
+                                          group="Recognition", comment="识别有效范围中心点x坐标")
+    rec_center_y = param_server.loadParam("Recognition Center Y", type="float", default=0, minValue=-10, maxValue=10,
+                                          unit="m",
+                                          group="Recognition", comment="识别有效范围中心点y坐标")
+    rec_radius = param_server.loadParam("Recognition Radius", type="float", default=0.1, minValue=0, maxValue=1,
+                                        unit="m",
+                                        group="Recognition", comment="识别有效范围半径")
+    ahead_dist = param_server.loadParam("Ahead Dist", type="float", default=0.6, minValue=0.0, maxValue=2, unit="m",
+                                        group="Recognition",
                                         comment="双折线识别调整时，调整距离不够时，第二段折线长度")
-    min_ahead_dist = param_server.loadParam("min_ahead_dist", type="float", default=0.6, minValue=-3.0, maxValue=3.0,
+    min_ahead_dist = param_server.loadParam("Min Ahead Dist", type="float", default=0.6, minValue=-3.0, maxValue=3.0,
                                             unit="m",
-                                            group="recognization",
+                                            group="Recognition",
                                             comment="识别调整偏差后进栈板前，里程中心在栈板前的直线距离")
-    back_dist = param_server.loadParam("back_dist", type="float", default=0.6, minValue=-3.0, maxValue=3.0, unit="m",
-                                       group="recognization",
+    back_dist = param_server.loadParam("Back Dist", type="float", default=0.6, minValue=-3.0, maxValue=3.0, unit="m",
+                                       group="Recognition",
                                        comment="识别调整结束时，里程中心在栈板后的直线距离，不进入栈板为负")
-    adjust_for_str = param_server.loadParam("adjust_for_str", type="float", default=0.3, minValue=0, maxValue=3.0,
+    adjust_for_str = param_server.loadParam("Adjust For Str", type="float", default=0.3, minValue=0, maxValue=3.0,
                                             unit="m",
-                                            group="recognization", comment="识别调整不足时，前进距离")
-    rec_beizer = param_server.loadParam("rec_beizer", type="bool", default=True,
-                                        group="recognization",
+                                            group="Recognition", comment="识别调整不足时，前进距离")
+    rec_beizer = param_server.loadParam("Recognition Beizer", type="bool", default=True,
+                                        group="Recognition",
                                         comment="识别调整时是否使用贝塞尔曲线行驶，beizer、straight")
-    beizer_dist = param_server.loadParam("beizer_dist", type="float", default=1, minValue=0, maxValue=3.0, unit="m",
-                                         group="recognization",
+    beizer_dist = param_server.loadParam("Beizer Dist", type="float", default=1, minValue=0, maxValue=3.0, unit="m",
+                                         group="Recognition",
                                          comment="识别后贝塞尔曲线调整时是否需要先向前行驶的最小调整距离，机器人当前位置与栈板前置点（min_ahead_dist）之间的距离")
-    reach_dist = param_server.loadParam("reach_dist", type="float", default=0.1,
-                                        group="recognization", comment="检测货物到位DI时的位置范围")
-    reach_angle = param_server.loadParam("reach_angle", type="float", default=1, minValue=0, maxValue=10, unit="°",
-                                         group="recognization", comment="检测货物到位DI时的角度范围")
-    lift_up_height = param_server.loadParam("lift_up_height", type="float", default=0.3, minValue=0, maxValue=1.0,
+    reach_dist = param_server.loadParam("Reach Dist", type="float", default=0.1,
+                                        group="Recognition", comment="检测货物到位DI时的位置范围")
+    reach_angle = param_server.loadParam("Reach Angle", type="float", default=1, minValue=0, maxValue=10, unit="°",
+                                         group="Recognition", comment="检测货物到位DI时的角度范围")
+    lift_up_height = param_server.loadParam("Lift Up Height", type="float", default=0.3, minValue=0, maxValue=1.0,
                                             unit="m",
-                                            group="recognization", comment="取货时取到货后抬升高度")
-    lift_down_height = param_server.loadParam("lift_down_height", type="float", default=0.3, minValue=0, maxValue=3.0,
+                                            group="Recognition", comment="取货时取到货后抬升高度")
+    lift_down_height = param_server.loadParam("Lift Down Height", type="float", default=0.3, minValue=0, maxValue=3.0,
                                               unit="m",
-                                              group="recognization", comment="放货时到点后下降高度")
-    readjust = param_server.loadParam("readjust", type="bool", default=False,
-                                      group="recognization", comment="是否开启二次识别调整取货，以提高取货精度 ")
-    adjust_max_times = param_server.loadParam("adjust_max_times", type="int", default=3, minValue=0, maxValue=5,
-                                              group="recognization", comment="二次识别调整次数 ")
-    dist_precision = param_server.loadParam("dist_precision", type="float", default=0.02, minValue=0, maxValue=0.05,
+                                              group="Recognition", comment="放货时到点后下降高度")
+    readjust = param_server.loadParam("Readjust", type="bool", default=False,
+                                      group="Recognition", comment="是否开启二次识别调整取货，以提高取货精度 ")
+    adjust_max_times = param_server.loadParam("Adjust Max Times", type="int", default=3, minValue=0, maxValue=5,
+                                              group="Recognition", comment="二次识别调整次数 ")
+    dist_precision = param_server.loadParam("Dist Precision", type="float", default=0.02, minValue=0, maxValue=0.05,
                                             unit="m",
-                                            group="recognization", comment="识别调整位置精度")
-    angle_precision = param_server.loadParam("angle_precision", type="float", default=0.5, minValue=0, maxValue=5,
+                                            group="Recognition", comment="识别调整位置精度")
+    angle_precision = param_server.loadParam("Angle Precision", type="float", default=0.5, minValue=0, maxValue=5,
                                              unit="°",
-                                             group="recognization", comment="识别调整角度精度")
-    readjust_forward_dist = param_server.loadParam("readjust_forward_dist", type="float", default=1,
+                                             group="Recognition", comment="识别调整角度精度")
+    readjust_forward_dist = param_server.loadParam("Readjust Forward Dist", type="float", default=1,
                                                    minValue=0, maxValue=2, unit="m",
-                                                   group="recognization", comment="二次识别调整前进距离")
-    adjust_dir_first = param_server.loadParam("adjust_dir_first", type="bool", default=True,
-                                              group="recognization", comment="是否开启识别前角度调整")
-    leave_loc = param_server.loadParam("leave_loc", type="bool", default=True,
-                                       group="recognization", comment="取货完成后是否先脱离库位后再调整货叉")
-    load_stretch_first = param_server.loadParam("loadStretchFirst", type="bool", default=True,
-                                                group="recognization", comment="取货调整完成后，先伸货叉再倒车")
-    adjust_speed = param_server.loadParam("adjustSpeed", type="float", default=0.2,
+                                                   group="Recognition", comment="二次识别调整前进距离")
+    adjust_dir_first = param_server.loadParam("Adjust Direction First", type="bool", default=True,
+                                              group="Recognition", comment="是否开启识别前角度调整")
+    leave_loc = param_server.loadParam("Leave Loc", type="bool", default=True,
+                                       group="Recognition", comment="取货完成后是否先脱离库位后再调整货叉")
+    load_stretch_first = param_server.loadParam("Load Stretch First", type="bool", default=True,
+                                                group="Recognition", comment="取货调整完成后，先伸货叉再倒车")
+    adjust_speed = param_server.loadParam("Adjust Speed", type="float", default=0.2,
                                           minValue=0, maxValue=0.5, unit="m/s",
-                                          group="recognization", comment="识别后调整的最大速度")
-    minus_result_filter = param_server.loadParam("minus_result_filter", type="bool", default=False,
-                                                 group="recognization",
+                                          group="Recognition", comment="识别后调整的最大速度")
+    minus_result_filter = param_server.loadParam("Minus Result Filter", type="bool", default=False,
+                                                 group="Recognition",
                                                  comment="识别时过滤掉高度结果为的负值或者0的数据")
 
     # 解垛参数
-    classify_rang = param_server.loadParam("classify_rang", type="float", default=0.03, minValue=0, maxValue=1,
+    classify_rang = param_server.loadParam("Classify Rang", type="float", default=0.03, minValue=0, maxValue=1,
                                            unit="m",
-                                           group="unstack", comment="解垛分类宽度差范围")
-    error_rang = param_server.loadParam("error_rang", type="float", default=0.03, minValue=0, maxValue=1, unit="m",
-                                        group="unstack", comment="解垛类别判断宽度差范围")
-    pallet_normal_count = param_server.loadParam("pallet_normal_count", type="int", default=8, minValue=0, maxValue=50,
-                                                 group="unstack", comment="解垛最大栈板层数")
-    pallet_check = param_server.loadParam("pallet_check", type="bool", default=False,
-                                          group="unstack", comment="解垛过程是否检查栈板类型及数量")
+                                           group="Unstack", comment="解垛分类宽度差范围")
+    error_rang = param_server.loadParam("Error Rang", type="float", default=0.03, minValue=0, maxValue=1, unit="m",
+                                        group="Unstack", comment="解垛类别判断宽度差范围")
+    pallet_normal_count = param_server.loadParam("Pallet Normal Count", type="int", default=8, minValue=0, maxValue=50,
+                                                 group="Unstack", comment="解垛最大栈板层数")
+    pallet_check = param_server.loadParam("Pallet Check", type="bool", default=False,
+                                          group="Unstack", comment="解垛过程是否检查栈板类型及数量")
 
     # # 称重参数
     # weightGoodOn = param_server.loadParam("weightGoodOn", type="bool", default=False,
@@ -349,8 +369,8 @@ def create_end_height(builder: ParamBuilder):
         builder.MIN_VALUE(ConfigParams.lift_zero)
         builder.MAX_VALUE(ConfigParams.lift_max_height)
         builder.UNIT("m")
-        builder.SINGLESTEP(0.01)
-        builder.DEFAULTVALUE(0.1)
+        builder.SINGLESTEP(0.1)
+        builder.DEFAULTVALUE(0.3)
 
 
 def create_start_height(builder: ParamBuilder):
@@ -362,7 +382,7 @@ def create_start_height(builder: ParamBuilder):
         builder.MAX_VALUE(ConfigParams.lift_max_height)
         builder.UNIT("m")
         builder.SINGLESTEP(0.1)
-        builder.DEFAULTVALUE(0.1)
+        builder.DEFAULTVALUE(0.087)
 
 
 def create_rec_height(builder: ParamBuilder):
@@ -377,17 +397,60 @@ def create_rec_height(builder: ParamBuilder):
         builder.DEFAULTVALUE(0.1)
 
 
-def create_recognize(builder: ParamBuilder):
-    with builder.CHILDREN(key="recognize", name="Recognize", desc="Enable recognition or not"):
+def create_stretch_length(builder: ParamBuilder):
+    with builder.CHILD(key="stretch_length", name="Stretch Length",
+                       desc="The stretch length for operations"):
+        builder.TYPE(ParamType.FLOAT)
+        # builder.REQUIRED(True)
+        builder.MIN_VALUE(ConfigParams.lift_zero)
+        builder.MAX_VALUE(ConfigParams.lift_max_height)
+        builder.UNIT("m")
+        builder.SINGLESTEP(0.1)
+        builder.DEFAULTVALUE(0.087)
+
+
+def create_leave_loc(builder: ParamBuilder):
+    with builder.CHILD(key="leave_loc", name="Leave Loc", desc="Enable leave loc or not, when finish load or unload"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        with builder.CHILD(key="ON", name="ON", desc="Enable recognition"):
-            builder.TYPE(ParamType.ARRAY)
-            with builder.CHILDREN():
-                pass
-        with builder.CHILD(key="OFF", name="OFF", desc="Not enable recognition"):
-            builder.TYPE(ParamType.ARRAY)
-            with builder.CHILDREN():
-                pass
+        builder.DEFAULTVALUE(0)
+
+        with builder.CHILDREN():
+            with builder.CHILD(key="OFF", name="OFF", desc="Not enable leave loc"):
+                builder.TYPE(ParamType.ARRAY)
+        with builder.CHILDREN():
+            with builder.CHILD(key="ON", name="ON", desc="Enable leave loc"):
+                builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILDREN():
+                    # 识别文件
+                    with builder.CHILD(key="leave_loc_dist", name="Leave Loc Distance", desc="Leave loc distance"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.MIN_VALUE(-3)
+                        builder.MAX_VALUE(3)
+                        builder.UNIT("m")
+                        builder.SINGLESTEP(0.1)
+                        builder.DEFAULTVALUE(1.2)
+
+
+def create_recognize(builder: ParamBuilder):
+    with builder.CHILD(key="recognize", name="Recognize", desc="Enable recognition or not"):
+        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+        builder.DEFAULTVALUE(0)
+
+        with builder.CHILDREN():
+            with builder.CHILD(key="OFF", name="OFF", desc="Not enable recognition"):
+                builder.TYPE(ParamType.ARRAY)
+        with builder.CHILDREN():
+            with builder.CHILD(key="ON", name="ON", desc="Enable recognition"):
+                builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILDREN():
+                    # 识别文件
+                    with builder.CHILD(key="rec_file", name="rec_file", desc="recognition file name"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        # builder.REQUIRED(True)
+                        builder.BINDTYPE("app:Recognition")
+                        builder.DEFAULTVALUE("321(4).srec")
 
 
 class InputParams:
@@ -395,14 +458,13 @@ class InputParams:
 
     with builder.GROUPS():
         # 公共参数:
-        pass
 
         # 操作组合参数
         with builder.GROUP(key="operation", name="Task Operation", desc="Choose an operation for task"):
             builder.TYPE(ParamType.COMBO_BOX)
 
             with builder.CHILDREN():
-                # Lift，单独控制货叉升降操作
+                # # Lift，单独控制货叉升降操作
                 with builder.CHILD(key="lift", name="Lift", desc="Single lift"):
                     builder.TYPE(ParamType.ARRAY)
 
@@ -417,82 +479,51 @@ class InputParams:
                     builder.TYPE(ParamType.ARRAY)
 
                     with builder.CHILDREN():
-                        # 顶升高度参数
+                        # 开始高度参数
+                        create_start_height(builder)
+
+                        # 结束高度参数
                         create_end_height(builder)
 
                         # 识别参数
-                        with builder.CHILD(key="recognize", name="Shelf leg identification",
-                                           desc="Enable shelf leg recognition"):
+                        create_recognize(builder)
+
+                        # 是否脱离库位
+                        create_leave_loc(builder)
+
+                        # 是否启用到货DI检测
+                        with builder.CHILD(key="check_di", name="Check DI", desc="Enable check di or not"):
                             builder.TYPE(ParamType.BOOL)
                             builder.DEFAULTVALUE(False)
 
-                # JackUnload操作
-                with builder.CHILD(key="jackUnload", name="Unload Operation",
-                                   desc="Lower the robot tray"):
+                with builder.CHILD(key="forkUnload", name="ForkUnload", desc="Lift the robot tray"):
                     builder.TYPE(ParamType.ARRAY)
 
                     with builder.CHILDREN():
-                        # 结束高度
+                        # 开始高度参数
+                        create_start_height(builder)
+
+                        # 结束高度参数
                         create_end_height(builder)
 
-                        # 使用向下PGV参数
-                        with builder.CHILD(key="use_down_pgv", name="Use Down PGV",
-                                           desc="Use downward-facing PGV for position adjustment"):
-                            builder.TYPE(ParamType.BOOL)
-                            builder.DEFAULTVALUE(False)
+                        # 是否脱离库位
+                        create_leave_loc(builder)
 
-                # JackSpin操作
-                with builder.CHILD(key="jackSpin", name="Spin Operation",
-                                   desc="Spin the robot"):
+                with builder.CHILD(key="liftUnload", name="LiftUnload", desc="Lift the robot tray"):
                     builder.TYPE(ParamType.ARRAY)
 
+                with builder.CHILD(key="test", name="Test", desc="test"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="rec_test", name="rec_test", desc="rec_test"):
+                    builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        # 旋转角度参数
-                        with builder.CHILD(key="spin_angle", name="angle",
-                                           desc="机器人原地旋转角度，正值为逆时针，负值为顺时针"):
-                            builder.MIN_VALUE(-360)
-                            builder.MAX_VALUE(360)
-                            builder.TYPE(ParamType.INT)
-                            builder.REQUIRED(True)
-                            builder.UNIT("度")
-                            builder.DEFAULTVALUE(0)
+                        with builder.CHILD(key="rec_file", name="rec_file", desc="recognition file name"):
+                            builder.TYPE(ParamType.BIND_TYPE)
+                            # builder.REQUIRED(True)
+                            builder.BINDTYPE("app:Recognition")
+                            builder.DEFAULTVALUE("321(4).srec")
 
-                        # 使用外部IMU组合框
-                        with builder.CHILD(key="useExternIMU", name="Using Extern IMU",
-                                           desc="using Extern IMU"):
-                            builder.TYPE(ParamType.COMBO_BOX_BOOL)
-                            builder.DEFAULTVALUE(0)
-
-                            with builder.CHILDREN():
-                                # OFF选项
-                                with builder.CHILD(key="OFF", name="Using SRC IMU",
-                                                   desc="using SRC IMU"):
-                                    builder.TYPE(ParamType.ARRAY)
-
-                                    with builder.CHILDREN():
-                                        # IMU字符串测试
-                                        with builder.CHILD(key="IMU", name="IMU string test",
-                                                           desc="IMU test"):
-                                            builder.TYPE(ParamType.STRING)
-                                            builder.REQUIRED(True)
-                                            builder.DEFAULTVALUE("test")
-
-                                # ON选项
-                                with builder.CHILD(key="ON", name="Using Extern IMU",
-                                                   desc="using extern IMU"):
-                                    builder.TYPE(ParamType.ARRAY)
-
-                        with builder.CHILD("spin_type", name="Spin Type", desc="Spin Type"):
-                            builder.TYPE(ParamType.STRING_COMBO_LIST)
-                            builder.DEFAULTVALUE(0)
-
-                            with builder.CHILDREN():
-                                with builder.CHILD("0", "0", "0"):
-                                    builder.TYPE(ParamType.STRING)
-                                with builder.CHILD("1", "1", "1"):
-                                    builder.TYPE(ParamType.STRING)
-                                with builder.CHILD("2", "2", "2"):
-                                    builder.TYPE(ParamType.STRING)
     builder.save_to_file()
 
 
@@ -602,10 +633,10 @@ class Robot:
         self.fork_mid_height = self.task_args.get("fork_mid_height", None)
         self.lift_up_height = self.task_args.get("lift_up_height", ConfigParams.lift_up_height)
         self.lift_down_height = self.task_args.get("lift_down_height", ConfigParams.lift_down_height)
-        self.stretch_length = self.task_args.get("stretch_length", 0.0)
+        self.stretch_length = self.task_args.get("Stretch length", 0.0)
         self.useLoad_rec_height = self.task_args.get("useLoad_rec_height", False)
-        self.stretch_mode = self.task_args.get("stretch_mode", None)
-        self.pitch_mode = self.task_args.get("pitch_mode", None)
+        self.stretch_mode = self.task_args.get("Stretch mode", None)
+        self.pitch_mode = self.task_args.get("Pitch mode", None)
         self.load_pitch = self.task_args.get("load_pitch", False)
         self.forward_dist = self.task_args.get("forward_dist", 0.0)
         self.check_di = self.task_args.get("check_di", False)
@@ -633,6 +664,7 @@ class Robot:
         self.expand_position1 = self.task_args.get("expand_position1", None)
         self.expand_position2 = self.task_args.get("expand_position2", None)
         self.rec_with_region = self.task_args.get("rec_with_region", False)
+        self.recognize = self.task_args.get("recognize", False)
 
         if self.double_lift and (self.load_lift_up_height1 is None or self.load_lift_up_height2 is None):
             Abnormal.setTask(53000, "load need to double_lift, "
@@ -655,12 +687,12 @@ class Robot:
         # 更新车型参数
         if ConfigParams.lift_motor != "None":
             self.is_lift_motor = True
-        if ConfigParams.stretch_motor != "None" or ConfigParams.stretch_out_do != -1:
+        if ConfigParams.reach_motor != "None" or ConfigParams.stretch_out_do != -1:
             self.is_stretch_motor = True
             if ConfigParams.stretch_type == "speed" and (
-                    ConfigParams.stretch_zero_di == -1 or ConfigParams.stretch_max_di == -1):
+                    ConfigParams.reach_zero_di == -1 or ConfigParams.stretch_max_di == -1):
                 Abnormal.setTask(53000,
-                                 f"stretch_type is speed-control, "
+                                 f"Stretch type is speed-control, "
                                  f"but not config the stretch_zero_di or the stretch_max_di. "
                                  f"please check the file of params/{self.py_name}.json !"
                                  , "", "", "")
@@ -681,56 +713,58 @@ class Robot:
         if ConfigParams.expand_motor2 != "None":
             self.is_expand_motor2 = True
 
-        # 更新识别参数
-        if self.rec_file:
-            # 获取识别文件信息
-            recFile = json.loads(Recognize.getRecFile(self.rec_file))
-            self.test_rec_file = Recognize.getRecFile(self.rec_file)
-            # 遍历device_params下的array_param中的params
-            for param in recFile.get("device_params", []):
-                if "array_param" in param:
-                    for item in param["array_param"].get("params", []):
-                        key = item["key"]
-                        if "double_value" in item:
-                            value = item["double_value"]
-                        elif "bool_value" in item:
-                            value = item["bool_value"]
-                        else:
-                            continue
-                        # 添加到recParams中
-                        self.rec_params[key] = value
-                if param["key"] == "template_type":
-                    childKey = param["combo_param"].get("child_key", "")
-                    for item in param["combo_param"].get("child_params", []):
-                        if item["key"] == childKey:
-                            for autoParam in item.get("params", []):
-                                key = autoParam["key"]
-                                if "double_value" in autoParam:
-                                    value = autoParam["double_value"]
-                                elif "bool_value" in autoParam:
-                                    value = autoParam["bool_value"]
-                                else:
-                                    continue
-                                # 添加到recParams中
-                                self.rec_params[key] = value
-            # 添加坐标系名称 recCoordinate
-            if self.rec_params.get('in_global_framework', None):
-                self.rec_params['recCoordinate'] = "world"
-            elif not self.rec_params.get('in_global_framework', None):
-                self.rec_params['recCoordinate'] = "robot"
-            if self.rec_params.get('enable_back_dist', None):
-                ConfigParams.back_dist = self.rec_params['back_dist']
-            if not self.rec_params.get('enable_cargoContactDI', None):
-                self.reachDI1 = -1
-                self.reachDI2 = -1
-                self.multiReachDI = [self.reachDI1, self.reachDI2]
-            if self.rec_params.get('pallet_width', 0) == 0:
-                self.status = ScriptStatus.FAILED
-                Abnormal.setTask(53000, "识别文件 {self.recFile} 中pallet_width为 0"
-                                 , "", "", "")
-                return self.status
-        else:
-            self.recognize = False
+        # # 更新识别参数
+        # if self.rec_file:
+        #     # 获取识别文件信息
+        #     recFile = json.loads(Recognize.getRecFile(self.rec_file))
+        #     self.state["rec_file"] = recFile
+        #     self.test_rec_file = Recognize.getRecFile(self.rec_file)
+        #     # 遍历device_params下的array_param中的params
+        #     for param in recFile.get("device_params", []):
+        #         if "array_param" in param:
+        #             for item in param["array_param"].get("params", []):
+        #                 key = item["key"]
+        #                 if "double_value" in item:
+        #                     value = item["double_value"]
+        #                 elif "bool_value" in item:
+        #                     value = item["bool_value"]
+        #                 else:
+        #                     continue
+        #                 # 添加到recParams中
+        #                 self.rec_params[key] = value
+        #         if param["key"] == "template_type":
+        #             childKey = param["combo_param"].get("child_key", "")
+        #             for item in param["combo_param"].get("child_params", []):
+        #                 if item["key"] == childKey:
+        #                     for autoParam in item.get("params", []):
+        #                         key = autoParam["key"]
+        #                         if "double_value" in autoParam:
+        #                             value = autoParam["double_value"]
+        #                         elif "bool_value" in autoParam:
+        #                             value = autoParam["bool_value"]
+        #                         else:
+        #                             continue
+        #                         # 添加到recParams中
+        #                         self.rec_params[key] = value
+        #     # 添加坐标系名称 recCoordinate
+        #     if self.rec_params.get('in_global_framework', None):
+        #         self.rec_params['recCoordinate'] = "world"
+        #     elif not self.rec_params.get('in_global_framework', None):
+        #         self.rec_params['recCoordinate'] = "robot"
+        #     if self.rec_params.get('enable_back_dist', None):
+        #         ConfigParams.back_dist = self.rec_params['back_dist']
+        #     if not self.rec_params.get('enable_cargoContactDI', None):
+        #         self.reachDI1 = -1
+        #         self.reachDI2 = -1
+        #         ConfigParams.multi_reach_di = [self.reachDI1, self.reachDI2]
+        #     if self.rec_params.get('pallet_width', 0) == 0:
+        #         self.status = ScriptStatus.FAILED
+        #         Abnormal.setTask(53000, "识别文件 {self.recFile} 中pallet_width为 0"
+        #                          , "", "", "")
+        #         return self.status
+        # else:
+        #     self.recognize = False
+        self.rec_params['recCoordinate'] = "world"
 
     # 任务参数检查
     def _init_check_args(self, args):
@@ -761,13 +795,13 @@ class Robot:
         # log.debug(str(odo))
         # 获取点击初始位置
         self.motor_info = Odometer.get_data()["motorInfo"]
-        self.state["motor_info"] = self.motor_info
-        Module.report_info(self.state)
+        # self.state["motor_info"] = self.motor_info
+        # Module.report_info(self.state)
         # # 获取电机数据
         self.lift_pos = Motor.get_motor_pos(ConfigParams.lift_motor)
         self.lift_speed = Motor.get_motor_speed(ConfigParams.lift_motor)
-        self.stretch_pos = Motor.get_motor_pos(ConfigParams.stretch_motor)
-        self.stretch_speed = Motor.get_motor_speed(ConfigParams.stretch_motor)
+        self.stretch_pos = Motor.get_motor_pos(ConfigParams.reach_motor)
+        self.stretch_speed = Motor.get_motor_speed(ConfigParams.reach_motor)
         self.pitch_pos = Motor.get_motor_pos(ConfigParams.pitch_motor)
         self.pitch_speed = Motor.get_motor_speed(ConfigParams.pitch_motor)
         self.lateral_pos = Motor.get_motor_pos(ConfigParams.lateral_motor)
@@ -783,16 +817,18 @@ class Robot:
                                                                       self.expand_pos1, self.expand1_speed,
                                                                       self.expand_pos2, self.expand2_speed))
 
-    def print_info(self):
-        # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.info(f"{Module.get_task_args()=}")
-        log.info(f"{Module.get_task_id()=}")
-        log.info(f"{Module.get_status()=}")
+    # def print_info(self):
+    #     # 打印当前任务队列、当前任务、当前任务id、当前任务状态
+    #     log.info(f"{Module.get_task_args()=}")
+    #     log.info(f"{Module.get_task_id()=}")
+    #     log.info(f"{Module.get_status()=}")
 
     def init_data(self, args):
         if self.init:
             self.init = False
             self.task_args = args
+            log.info(f"{Module.get_task_args()=}")
+            log.info(f"{Module.get_task_id()=}")
             self.init_lift_pos = self.lift_pos
             self.init_stretch_pos = self.stretch_pos
             self.init_pitch_pos = self.pitch_pos
@@ -832,9 +868,9 @@ class Robot:
         speed_dict = {}
         if self.operation == "":
             self.status = ScriptStatus.FINISHED
-        elif self.operation == "load":
+        elif self.operation == "forkLoad":
             self.load()
-        elif self.operation == "unload":
+        elif self.operation == "forkUnload":
             self.unload()
         elif self.operation == "simple_unload":
             self.simple_unload()
@@ -844,7 +880,7 @@ class Robot:
             self.lift_load()
             if self.action_status == ActionStatus.FINISHED:
                 Navigation.setGoodsShape(0.001, 0.001, 0.001)
-        elif self.operation == "lift_unload":
+        elif self.operation == "liftUnload":
             self.lift_unload()
             if self.action_status == ActionStatus.FINISHED:
                 Navigation.clearGoodsShape()
@@ -862,8 +898,8 @@ class Robot:
             self.stepStretch()
         elif self.operation == "zero":
             self.zero()
-        elif self.operation == "rec":
-            self.rec()
+        elif self.operation == "rec_test":
+            self.rec_test()
         elif self.operation == "goStationWithFork":
             self.goStationWithFork()
         # elif self.operation == "weightGood":
@@ -903,8 +939,8 @@ class Robot:
 
         self.state["MoveStatus"] = self.status
         self.state["rec_params"] = self.rec_params
-        if self.is_lift_motor and (self.operation == "lift" or self.operation == "load"
-                                   or self.operation == "unload" or self.operation == "stepLift"
+        if self.is_lift_motor and (self.operation == "lift" or self.operation == "forkLoad"
+                                   or self.operation == "forkUnload" or self.operation == "stepLift"
                                    or self.operation == "zero" or self.operation == "goStationWithFork"):
             lift_status = dict()
             lift_status["isLiftMotor"] = self.is_lift_motor
@@ -914,40 +950,40 @@ class Robot:
             lift_status["maxPos"] = ConfigParams.lift_max_height
             self.state["lift_status"] = lift_status
 
-        if self.is_stretch_motor and (self.operation == "stretch" or self.operation == "load"
-                                      or self.operation == "unload" or self.operation == "stepStretch"
+        if self.is_stretch_motor and (self.operation == "stretch" or self.operation == "forkLoad"
+                                      or self.operation == "forkUnload" or self.operation == "stepStretch"
                                       or self.operation == "zero" or self.operation == "goStationWithFork"):
             stretch_status = dict()
             stretch_status["method"] = ConfigParams.stretch_type
             stretch_status["isStretchMotor"] = self.is_stretch_motor
             stretch_status["stretchPos"] = self.stretch_pos
             stretch_status["stretchSpeed"] = self.stretch_speed
-            stretch_status["minPos"] = ConfigParams.stretch_zero
+            stretch_status["minPos"] = ConfigParams.reach_zero
             stretch_status["maxPos"] = ConfigParams.stretch_max_length
             zero_di = dict()
 
-            zero_di["id"] = ConfigParams.stretch_zero_di
-            zero_di["status"] = Di.get_di(ConfigParams.stretch_zero_di)
+            zero_di["id"] = ConfigParams.reach_zero_di
+            zero_di["status"] = Di.get_di(ConfigParams.reach_zero_di)
             stretch_status["zeroDi"] = zero_di
             max_di = dict()
             max_di["id"] = ConfigParams.stretch_max_di
             max_di["status"] = Di.get_di(ConfigParams.stretch_max_di)
             stretch_status["maxDi"] = max_di
-            self.state["stretch_status"] = stretch_status
+            self.state["Stretch status"] = stretch_status
 
-        if self.is_pitch_motor and (self.operation == "pitch" or self.operation == "load"
-                                    or self.operation == "unload" or self.operation == "zero"):
+        if self.is_pitch_motor and (self.operation == "pitch" or self.operation == "forkLoad"
+                                    or self.operation == "forkUnload" or self.operation == "zero"):
             pitch_status = dict()
             pitch_status["pitchPos"] = self.pitch_pos
             pitch_status["pitchSpeed"] = self.pitch_speed
-            self.state["pitch_status"] = pitch_status
+            self.state["Pitch status"] = pitch_status
 
-        if self.is_lateral_motor and (self.operation == "lateral" or self.operation == "load"
-                                      or self.operation == "unload" or self.operation == "zero"):
+        if self.is_lateral_motor and (self.operation == "lateral" or self.operation == "forkLoad"
+                                      or self.operation == "forkUnload" or self.operation == "zero"):
             lateral_status = dict()
-            lateral_status["lateral_pos"] = self.lateral_pos
-            lateral_status["lateral_speed"] = self.lateral_speed
-            self.state["lateral_status"] = lateral_status
+            lateral_status["Lateral pos"] = self.lateral_pos
+            lateral_status["Lateral speed"] = self.lateral_speed
+            self.state["Lateral status"] = lateral_status
 
         # self.state["lift_reach_state"] = Motor.isMotorReached(self.liftMotor)
         # self.state["testRecFile"] = self.testRecFile
@@ -1086,8 +1122,8 @@ class Robot:
                 self.runTaskList()
             curState = dict()
             curState["state"] = self.action_status
-            curState["lateral_pos"] = self.lateral_pos
-            curState["lateral_speed"] = self.lateral_speed
+            curState["Lateral pos"] = self.lateral_pos
+            curState["Lateral speed"] = self.lateral_speed
             curState["taskId"] = self.task_id
             self.state["lateral"] = curState
 
@@ -1111,7 +1147,8 @@ class Robot:
                 stepLiftHeight = self.init_lift_pos + self.step_height
                 if self.end_height > ConfigParams.lift_max_height:
                     self.end_height = ConfigParams.lift_max_height
-                    Trace.event(f"end_height{stepLiftHeight} is higher than liftMaxHeight{ConfigParams.lift_max_height}")
+                    Trace.event(
+                        f"end_height{stepLiftHeight} is higher than liftMaxHeight{ConfigParams.lift_max_height}")
                 if self.end_height < ConfigParams.lift_zero:
                     self.end_height = ConfigParams.lift_zero
                     Trace.event(f"end_height{stepLiftHeight} is lower than liftZero{ConfigParams.lift_zero}")
@@ -1130,7 +1167,7 @@ class Robot:
 
     def stretch(self):
         if self.is_stretch_motor is False:
-            Abnormal.setTask(53000, "stretch motor1 name is {}".format(ConfigParams.stretch_motor),
+            Abnormal.setTask(53000, "stretch motor1 name is {}".format(ConfigParams.reach_motor),
                              "", "", "")
             self.status = ScriptStatus.FAILED
             return
@@ -1152,19 +1189,19 @@ class Robot:
                     if self.stretch_mode == "max":
                         reachDI = ConfigParams.stretch_max_di
                     elif self.stretch_mode == "zero":
-                        reachDI = ConfigParams.stretch_zero_di
+                        reachDI = ConfigParams.reach_zero_di
                     else:
                         Abnormal.setTask(53000, "stretchMode is not chosen",
                                          "", "", "")
                         self.action_status = ActionStatus.FAILED
                 else:
-                    if self.stretch_length < ConfigParams.stretch_zero:
-                        self.stretch_length = ConfigParams.stretch_zero
-                        Trace.event(f"stretchLength 小于货叉最小伸缩位置{ConfigParams.stretch_zero}")
+                    if self.stretch_length < ConfigParams.reach_zero:
+                        self.stretch_length = ConfigParams.reach_zero
+                        Trace.event(f"stretchLength 小于货叉最小伸缩位置{ConfigParams.reach_zero}")
                     elif self.stretch_length > ConfigParams.stretch_max_length:
                         self.stretch_length = ConfigParams.stretch_max_length
                         Trace.event(f"stretchLength 大于货叉最大伸缩位置{ConfigParams.stretch_max_length}")
-                self.task_list = [stretch(ConfigParams.stretch_motor, self.stretch_mode,
+                self.task_list = [stretch(ConfigParams.reach_motor, self.stretch_mode,
                                           self.stretch_length, ConfigParams.check_all_di, [reachDI])]
                 self.task_id = 0
             else:
@@ -1175,8 +1212,8 @@ class Robot:
             curState["stretchPos"] = self.stretch_pos
             curState["stretchSpeed"] = self.stretch_speed
             if ConfigParams.stretch_type == "speed":
-                curState["stretch_zero_di"] = Di.get_di(ConfigParams.stretch_zero_di)
-                curState["stretch_max_di"] = Di.get_di(ConfigParams.stretch_max_di)
+                curState["Stretch zero_di"] = Di.get_di(ConfigParams.reach_zero_di)
+                curState["Stretch max_di"] = Di.get_di(ConfigParams.stretch_max_di)
             self.state["stretch"] = curState
 
     def stepStretch(self):
@@ -1189,14 +1226,14 @@ class Robot:
                              "", "", "")
             self.status = ScriptStatus.FAILED
         elif ConfigParams.stretch_type != "position":
-            Abnormal.setTask(53000, "stretch_type is not position",
+            Abnormal.setTask(53000, "Stretch type is not position",
                              "", "", "")
             self.status = ScriptStatus.FAILED
         elif self.init_stretch_pos >= ConfigParams.stretch_max_length and self.step_length > 0:
             Trace.event("Current stretch length is stretch_max_length, can not stretch out! "
                         "stretchLength：{}".format(self.init_stretch_pos))
             self.status = ScriptStatus.FINISHED
-        elif self.init_stretch_pos <= ConfigParams.stretch_zero and self.step_length < 0:
+        elif self.init_stretch_pos <= ConfigParams.reach_zero and self.step_length < 0:
             Trace.event("Current stretch length is stretchZero, can not stretch in! "
                         "stretchLength：{}".format(self.init_stretch_pos))
             self.status = ScriptStatus.FINISHED
@@ -1210,12 +1247,12 @@ class Robot:
                     Trace.event(
                         f"stretchLength{stepStretchHeight} is larger "
                         f"than stretch_max_length{ConfigParams.stretch_max_length}")
-                if self.stretch_length < ConfigParams.stretch_zero:
-                    self.stretch_length = ConfigParams.stretch_zero
+                if self.stretch_length < ConfigParams.reach_zero:
+                    self.stretch_length = ConfigParams.reach_zero
                     Trace.event(
-                        f"stretchLength{stepStretchHeight} is smaller than stretchZero{ConfigParams.stretch_zero}")
+                        f"stretchLength{stepStretchHeight} is smaller than stretchZero{ConfigParams.reach_zero}")
                 self.task_list = [
-                    stretch(ConfigParams.stretch_motor, "", self.stretch_length, False, [-1])
+                    stretch(ConfigParams.reach_motor, "", self.stretch_length, False, [-1])
                 ]
                 self.task_id = 0
             else:
@@ -1229,7 +1266,7 @@ class Robot:
 
     def pitch(self):
         if self.is_pitch_motor is False:
-            Abnormal.setTask(53000, "pitch_motor name is {}".format(ConfigParams.stretch_motor),
+            Abnormal.setTask(53000, "Pitch motor name is {}".format(ConfigParams.reach_motor),
                              "", "", "")
             self.status = ScriptStatus.FAILED
             return
@@ -1244,13 +1281,13 @@ class Robot:
             curState["state"] = self.action_status
             curState["taskId"] = self.task_id
             curState["pitchPos"] = self.pitch_pos
-            curState["pitch_zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
-            curState["pitch_max_di"] = Di.get_di(ConfigParams.pitch_max_di)
+            curState["Pitch zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
+            curState["Pitch max_di"] = Di.get_di(ConfigParams.pitch_max_di)
             self.state["pitch"] = curState
 
-    def rec(self):
-        if "recFile" not in self.task_args:
-            Abnormal.setTask(53000, "recFile is empty {}".format(json.dumps(self.task_args)),
+    def rec_test(self):
+        if "rec_file" not in self.task_args:
+            Abnormal.setTask(53000, "rec_file is empty {}".format(json.dumps(self.task_args)),
                              "", "", "")
             self.status = ScriptStatus.FAILED
         else:
@@ -1263,9 +1300,10 @@ class Robot:
             curState = dict()
             curState["state"] = self.action_status
             curState["taskId"] = self.task_id
-            curState["rec_result"] = self.rec_result
+            curState["rec_results"] = self.rec_results
+            self.state["recFile"] = json.loads(Recognize.getRecFile(self.rec_file))
             curState["target"] = self.target
-            self.state["rec"] = curState
+            self.state["rec_test"] = curState
 
     def goMapPathDi(self):
         if self.action_status == ActionStatus.NONE:
@@ -1283,8 +1321,15 @@ class Robot:
     def test(self):
         if self.action_status == ActionStatus.NONE:
             self.action_status = ActionStatus.RUNNING
+            self.task_list = [adjustGo(False, "robot", -1, 0.1, 0.5,
+                                       0, 0, 0, False, [-1])]
+            self.task_id = 0
+        else:
+            self.runTaskList()
+
         curState = dict()
-        self.state["test"] = Navigation.getLM("1FZKSPZCB006", True)
+
+        self.state["diStatus"] = self.batch_check_di_status([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
     def update_data(self):
         self.status = ScriptStatus.FINISHED
@@ -1317,8 +1362,8 @@ class Robot:
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
                     return
-                elif self.stretch_length < ConfigParams.stretch_zero:
-                    self.stretch_length = ConfigParams.stretch_zero
+                elif self.stretch_length < ConfigParams.reach_zero:
+                    self.stretch_length = ConfigParams.reach_zero
 
             self.action_status = ActionStatus.RUNNING
         elif self.action_status == ActionStatus.RUNNING:
@@ -1332,9 +1377,9 @@ class Robot:
                     if self.is_pitch_motor:
                         self.task_list.append(pitch("forward"))
                     if self.is_stretch_motor:
-                        self.task_list.append(stretch(ConfigParams.stretch_motor, "zero",
-                                                      ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                                      [ConfigParams.stretch_zero_di]))
+                        self.task_list.append(stretch(ConfigParams.reach_motor, "zero",
+                                                      ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                                      [ConfigParams.reach_zero_di]))
                     # 调整货叉高度至识别高度
                     self.task_list.append(lift(ConfigParams.lift_motor, self.start_height))
                     # 识别及二次识别
@@ -1401,16 +1446,16 @@ class Robot:
                         # 有前移机构
                         if self.is_stretch_motor:
                             # 如果需要伸出插齿取叉货物
-                            if (self.stretch_length > ConfigParams.stretch_zero
+                            if (self.stretch_length > ConfigParams.reach_zero
                                     or ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO"):
                                 # 先伸货叉再倒车取货
                                 if ConfigParams.load_stretch_first:
                                     self.task_list.extend([
-                                        stretch(ConfigParams.stretch_motor, "max",
+                                        stretch(ConfigParams.reach_motor, "max",
                                                 self.stretch_length, ConfigParams.check_all_di, [-1]),
                                         adjustGo(ConfigParams.omni_model, "robot", -ConfigParams.min_ahead_dist,
                                                  0, 0, ConfigParams.back_dist, 0, 0,
-                                                 ConfigParams.check_all_di, self.multiReachDI)
+                                                 ConfigParams.check_all_di, ConfigParams.multi_reach_di)
                                     ])
 
                                 else:
@@ -1418,15 +1463,16 @@ class Robot:
                                         adjustGo(ConfigParams.omni_model, "robot", -ConfigParams.min_ahead_dist,
                                                  0, 0, ConfigParams.back_dist, 0, 0,
                                                  ConfigParams.check_all_di, [-1]),
-                                        stretch(ConfigParams.stretch_motor, "max",
-                                                self.stretch_length, ConfigParams.check_all_di, self.multiReachDI)
+                                        stretch(ConfigParams.reach_motor, "max",
+                                                self.stretch_length, ConfigParams.check_all_di,
+                                                ConfigParams.multi_reach_di)
                                     ])
                             # 不需要伸出插齿去取叉货
                             else:
                                 self.task_list.extend([
-                                    stretch(ConfigParams.stretch_motor, "zero",
-                                            ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                            [ConfigParams.stretch_zero_di]),
+                                    stretch(ConfigParams.reach_motor, "zero",
+                                            ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                            [ConfigParams.reach_zero_di]),
                                     adjustGo(ConfigParams.omni_model, "robot", -ConfigParams.min_ahead_dist,
                                              0, 0, ConfigParams.back_dist, 0, 0,
                                              ConfigParams.check_all_di, [-1])
@@ -1437,7 +1483,7 @@ class Robot:
                                 # lift(self.liftMotor, self.loadLiftHeight),
                                 adjustGo(ConfigParams.omni_model, "robot",
                                          -ConfigParams.min_ahead_dist, 0, 0, ConfigParams.back_dist,
-                                         0, 0, ConfigParams.check_all_di, self.multiReachDI),
+                                         0, 0, ConfigParams.check_all_di, ConfigParams.multi_reach_di),
                             ]
                         self.task_id = 0
                         self.adjust_task2_init = False
@@ -1463,18 +1509,18 @@ class Robot:
                                                self.rec_result['yaw']]  # 目标点在机器人坐标系的位置
                         if self.is_stretch_motor:
                             # 如果需要伸出插齿取叉货物
-                            if (self.stretch_length > ConfigParams.stretch_zero
+                            if (self.stretch_length > ConfigParams.reach_zero
                                     or ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO"):
                                 if ConfigParams.load_stretch_first:
                                     # 先伸货叉再倒车取货
                                     self.task_list.extend([
-                                        stretch(ConfigParams.stretch_motor, "max",
+                                        stretch(ConfigParams.reach_motor, "max",
                                                 self.stretch_length, ConfigParams.check_all_di, [-1]),
                                         adjustGo(ConfigParams.omni_model, "robot",
                                                  pos2robotTarget[0], pos2robotTarget[1], pos2robotTarget[2],
                                                  ConfigParams.back_dist, ConfigParams.min_ahead_dist,
                                                  ConfigParams.ahead_dist,
-                                                 ConfigParams.check_all_di, self.multiReachDI)
+                                                 ConfigParams.check_all_di, ConfigParams.multi_reach_di)
                                     ])
                                 else:
                                     self.task_list.extend([
@@ -1483,19 +1529,20 @@ class Robot:
                                                  ConfigParams.back_dist, ConfigParams.min_ahead_dist,
                                                  ConfigParams.ahead_dist,
                                                  ConfigParams.check_all_di, [-1]),
-                                        stretch(ConfigParams.stretch_motor, "max",
+                                        stretch(ConfigParams.reach_motor, "max",
                                                 self.stretch_length, ConfigParams.check_all_di, [-1])
                                     ])
                             # 不需要伸出插齿去取叉货
                             else:
                                 self.task_list.extend([
-                                    stretch(ConfigParams.stretch_motor, "zero",
-                                            ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                            [ConfigParams.stretch_zero_di]),
+                                    stretch(ConfigParams.reach_motor, "zero",
+                                            ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                            [ConfigParams.reach_zero_di]),
                                     adjustGo(ConfigParams.omni_model, "robot",
                                              pos2robotTarget[0], pos2robotTarget[1], pos2robotTarget[2],
-                                             ConfigParams.back_dist, ConfigParams.min_ahead_dist, ConfigParams.ahead_dist,
-                                             ConfigParams.check_all_di, self.multiReachDI)
+                                             ConfigParams.back_dist, ConfigParams.min_ahead_dist,
+                                             ConfigParams.ahead_dist,
+                                             ConfigParams.check_all_di, ConfigParams.multi_reach_di)
                                 ])
                         # 无前移机构
                         else:
@@ -1503,7 +1550,7 @@ class Robot:
                                 adjustGo(ConfigParams.omni_model, "robot",
                                          pos2robotTarget[0], pos2robotTarget[1], pos2robotTarget[2],
                                          ConfigParams.back_dist, ConfigParams.min_ahead_dist, ConfigParams.ahead_dist,
-                                         ConfigParams.check_all_di, self.multiReachDI)
+                                         ConfigParams.check_all_di, ConfigParams.multi_reach_di)
                             )
                         self.task_id = 0
                         self.adjust_task2_init = False
@@ -1512,7 +1559,7 @@ class Robot:
                 if self.goods_opt_task_init and not self.adjust_task2_init and self.adjust_task2_status:
                     if not self.double_lift:
                         self.task_list = [
-                            backCheckDi(ConfigParams.check_all_di, self.multiReachDI)
+                            backCheckDi(ConfigParams.check_all_di, ConfigParams.multi_reach_di)
                         ]
                         if self.end_height:
                             self.task_list.append(
@@ -1520,19 +1567,15 @@ class Robot:
                         else:
                             self.task_list.append(lift(ConfigParams.lift_motor, self.start_height + self.lift_up_height,
                                                        ConfigParams.lift_up_reach_di))
-                        self.task_list = [
-                            backCheckDi(ConfigParams.check_all_di, self.multiReachDI),
-                            lift(ConfigParams.lift_motor, self.load_lift_up_height, ConfigParams.lift_up_reach_di)
-                        ]
                         # 俯仰机构是否动作
                         if self.is_pitch_motor and self.load_pitch:
                             self.task_list.append(pitch("backward"))
                         # 收回货叉
                         if self.is_stretch_motor:
                             self.task_list.extend([
-                                stretch(ConfigParams.stretch_motor, "zero",
-                                        ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                        [ConfigParams.stretch_zero_di])
+                                stretch(ConfigParams.reach_motor, "zero",
+                                        ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                        [ConfigParams.reach_zero_di])
                             ])
                         # 脱离库位
                         if self.leave_loc:
@@ -1542,7 +1585,7 @@ class Robot:
                                 self.task_list.append(GoStraight(self.forward_dist, straightMoveMode.forward))
                     else:
                         self.task_list = [
-                            backCheckDi(ConfigParams.check_all_di, self.multiReachDI),
+                            backCheckDi(ConfigParams.check_all_di, ConfigParams.multi_reach_di),
                             lift(ConfigParams.lift_motor, self.load_lift_up_height1, ConfigParams.lift_up_reach_di)
                         ]
                         # 俯仰机构是否动作
@@ -1557,9 +1600,9 @@ class Robot:
                         # 收回货叉
                         if self.is_stretch_motor:
                             self.task_list.extend([
-                                stretch(ConfigParams.stretch_motor, "zero",
-                                        ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                        [ConfigParams.stretch_zero_di])
+                                stretch(ConfigParams.reach_motor, "zero",
+                                        ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                        [ConfigParams.reach_zero_di])
                             ])
                     # 是否调整货叉高度至行走高度
                     if self.load_move_height_enable:
@@ -1573,33 +1616,34 @@ class Robot:
                     # 有前移机构
                     if self.is_stretch_motor:
                         # 需要伸出插齿取叉货物，且先伸货叉
-                        if (self.stretch_length > ConfigParams.stretch_zero
+                        if (self.stretch_length > ConfigParams.reach_zero
                                 or ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO"):
                             if ConfigParams.load_stretch_first:
                                 self.task_list = [
                                     lift(ConfigParams.lift_motor, self.start_height),
-                                    stretch(ConfigParams.stretch_motor, "max",
+                                    stretch(ConfigParams.reach_motor, "max",
                                             self.stretch_length, ConfigParams.check_all_di, [-1]),
                                     goMapPathDi()
                                 ]
                             else:
                                 # 需要伸出插齿取叉货物，且后伸货叉
-                                if (self.stretch_length > ConfigParams.stretch_zero
+                                if (self.stretch_length > ConfigParams.reach_zero
                                         or ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO"):
                                     self.task_list = [
                                         lift(ConfigParams.lift_motor, self.start_height),
                                         goMapPathDi(False),
-                                        stretch(ConfigParams.stretch_motor, "max",
-                                                self.stretch_length, ConfigParams.check_all_di, self.multiReachDI),
-                                        backCheckDi(ConfigParams.check_all_di, self.multiReachDI)
+                                        stretch(ConfigParams.reach_motor, "max",
+                                                self.stretch_length, ConfigParams.check_all_di,
+                                                ConfigParams.multi_reach_di),
+                                        backCheckDi(ConfigParams.check_all_di, ConfigParams.multi_reach_di)
                                     ]
                         # 不需要伸出插齿取叉货
                         else:
                             self.task_list = [
                                 lift(ConfigParams.lift_motor, self.start_height),
-                                stretch(ConfigParams.stretch_motor, "zero",
-                                        ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                        [ConfigParams.stretch_zero_di]),
+                                stretch(ConfigParams.reach_motor, "zero",
+                                        ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                        [ConfigParams.reach_zero_di]),
                                 goMapPathDi()
                             ]
                     # 无前移机构
@@ -1621,9 +1665,9 @@ class Robot:
                         # 收回货叉
                         if self.is_stretch_motor:
                             self.task_list.append(
-                                stretch(ConfigParams.stretch_motor, "zero",
-                                        ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                        [ConfigParams.stretch_zero_di])
+                                stretch(ConfigParams.reach_motor, "zero",
+                                        ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                        [ConfigParams.reach_zero_di])
                             )
                         # 脱离库位
                         if self.leave_loc:
@@ -1647,9 +1691,9 @@ class Robot:
                         # 收回货叉
                         if self.is_stretch_motor:
                             self.task_list.append(
-                                stretch(ConfigParams.stretch_motor, "zero",
-                                        ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                        [ConfigParams.stretch_zero_di])
+                                stretch(ConfigParams.reach_motor, "zero",
+                                        ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                        [ConfigParams.reach_zero_di])
                             )
                     # 是否调整货叉高度至行走高度
                     if self.load_move_height_enable:
@@ -1674,13 +1718,14 @@ class Robot:
                 and self.action_status == ActionStatus.FINISHED):
             self.goods_opt_task_status = True
             Navigation.setGoodsShapeWithName(0.001, 0.001, 0.001, self.task_args.get("recfile", ""))
-            if self.rec_file:
-                width = max(self.rec_params['pallet_width'], self.rec_params['goodsWidth'])
-                length = max(self.rec_params['pallet_length'], self.rec_params['goodsLength'])
-                if ConfigParams.fork_offset_theta != 0:
-                    Navigation.setGoodsShape(width / 2, width / 2, length)
-                else:
-                    Navigation.setGoodsShape(ConfigParams.pallet2odo, length - ConfigParams.pallet2odo, width)
+            # todo
+            # if self.rec_file:
+            #     width = max(self.rec_params['pallet_width'], self.rec_params['goodsWidth'])
+            #     length = max(self.rec_params['pallet_length'], self.rec_params['goodsLength'])
+            #     if ConfigParams.fork_offset_theta != 0:
+            #         Navigation.setGoodsShape(width / 2, width / 2, length)
+            #     else:
+            #         Navigation.setGoodsShape(ConfigParams.pallet2odo, length - ConfigParams.pallet2odo, width)
             Trace.event("moveTask Finish")
             self.status = ScriptStatus.FINISHED
         if self.action_status == ActionStatus.FAILED:
@@ -1692,11 +1737,11 @@ class Robot:
         curState["stretchPos"] = self.stretch_pos
         curState["pitchPos"] = self.pitch_pos
         if self.is_stretch_motor and ConfigParams.stretch_type == "speed":
-            curState["stretch_zero_di"] = Di.get_di(ConfigParams.stretch_zero_di)
-            curState["stretch_max_di"] = Di.get_di(ConfigParams.stretch_max_di)
+            curState["Stretch zero_di"] = Di.get_di(ConfigParams.reach_zero_di)
+            curState["Stretch max_di"] = Di.get_di(ConfigParams.stretch_max_di)
         if self.is_pitch_motor:
-            curState["pitch_zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
-            curState["pitch_max_di"] = Di.get_di(ConfigParams.pitch_max_di)
+            curState["Pitch zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
+            curState["Pitch max_di"] = Di.get_di(ConfigParams.pitch_max_di)
         curState["rec_task_init"] = self.rec_task_init
         curState["adjustTaskInit"] = self.adjust_task1_init
         curState["evaluate_task_init"] = self.evaluate_task_init
@@ -1770,8 +1815,8 @@ class Robot:
                     self.status = ScriptStatus.FAILED
                     return self.status
             if self.stretch_length:
-                if 0 <= self.stretch_length < ConfigParams.stretch_zero:
-                    self.stretch_length = ConfigParams.stretch_zero
+                if 0 <= self.stretch_length < ConfigParams.reach_zero:
+                    self.stretch_length = ConfigParams.reach_zero
                 elif self.stretch_length > ConfigParams.stretch_max_length:
                     self.stretch_length = ConfigParams.stretch_max_length
                     Trace.event(f"stretchLength 大于货叉最大伸缩位置{ConfigParams.stretch_max_length}")
@@ -1785,9 +1830,9 @@ class Robot:
                 if self.is_pitch_motor:
                     self.task_list.append(pitch("forward"))
                 if self.is_stretch_motor:
-                    self.task_list.append(stretch(ConfigParams.stretch_motor, "zero",
-                                                  ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                                  [ConfigParams.stretch_zero_di]))
+                    self.task_list.append(stretch(ConfigParams.reach_motor, "zero",
+                                                  ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                                  [ConfigParams.reach_zero_di]))
                 # 调整货叉高度至识别高度并识别
                 self.task_list.append(lift(ConfigParams.lift_motor, self.start_height))
                 # 是否识别放货
@@ -1803,52 +1848,53 @@ class Robot:
                     self.task_list.append(
                         adjustGo(ConfigParams.omni_model, self.rec_params['recCoordinate'],
                                  self.rec_result['x'], self.rec_result['y'], self.rec_result['yaw'],
-                                 ConfigParams.back_dist, ConfigParams.min_ahead_dist, ConfigParams.ahead_dist, False, [-1])
+                                 ConfigParams.back_dist, ConfigParams.min_ahead_dist, ConfigParams.ahead_dist, False,
+                                 [-1])
                     )
                     if self.is_stretch_motor:
-                        if (self.stretch_length > ConfigParams.stretch_zero
+                        if (self.stretch_length > ConfigParams.reach_zero
                                 or ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO"):
-                            self.task_list.append(stretch(ConfigParams.stretch_motor, "max",
+                            self.task_list.append(stretch(ConfigParams.reach_motor, "max",
                                                           self.stretch_length, ConfigParams.check_all_di, [-1]))
-                        elif (0 <= self.stretch_length <= ConfigParams.stretch_zero
+                        elif (0 <= self.stretch_length <= ConfigParams.reach_zero
                               and ConfigParams.stretch_type == "position"):
-                            self.task_list.append(stretch(ConfigParams.stretch_motor, "zero",
-                                                          ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                                          [ConfigParams.stretch_zero_di]))
+                            self.task_list.append(stretch(ConfigParams.reach_motor, "zero",
+                                                          ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                                          [ConfigParams.reach_zero_di]))
                     self.task_list.append(lift(ConfigParams.lift_motor, self.end_height, ConfigParams.lift_up_reach_di))
                 else:
                     if not self.double_lift:
                         self.task_list.append(goMapPathDi())
                         if self.is_stretch_motor:
-                            if (self.stretch_length > ConfigParams.stretch_zero
+                            if (self.stretch_length > ConfigParams.reach_zero
                                     or ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO"):
-                                self.task_list.append(stretch(ConfigParams.stretch_motor, "max",
+                                self.task_list.append(stretch(ConfigParams.reach_motor, "max",
                                                               self.stretch_length, ConfigParams.check_all_di, [-1]))
-                            elif (0 <= self.stretch_length <= ConfigParams.stretch_zero
+                            elif (0 <= self.stretch_length <= ConfigParams.reach_zero
                                   and ConfigParams.stretch_type == "position"):
-                                self.task_list.append(stretch(ConfigParams.stretch_motor, "zero",
-                                                              ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                                              [ConfigParams.stretch_zero_di]))
+                                self.task_list.append(stretch(ConfigParams.reach_motor, "zero",
+                                                              ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                                              [ConfigParams.reach_zero_di]))
                         self.task_list.append(
                             lift(ConfigParams.lift_motor, self.end_height, ConfigParams.lift_up_reach_di))
                     else:
                         if self.is_stretch_motor:
-                            if (self.stretch_length > ConfigParams.stretch_zero
+                            if (self.stretch_length > ConfigParams.reach_zero
                                     or ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO"):
-                                self.task_list.append(stretch(ConfigParams.stretch_motor, "max",
+                                self.task_list.append(stretch(ConfigParams.reach_motor, "max",
                                                               self.stretch_length, ConfigParams.check_all_di, [-1]))
-                            elif (0 <= self.stretch_length <= ConfigParams.stretch_zero
+                            elif (0 <= self.stretch_length <= ConfigParams.reach_zero
                                   and ConfigParams.stretch_type == "position"):
-                                self.task_list.append(stretch(ConfigParams.stretch_motor, "zero",
-                                                              ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                                              [ConfigParams.stretch_zero_di]))
+                                self.task_list.append(stretch(ConfigParams.reach_motor, "zero",
+                                                              ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                                              [ConfigParams.reach_zero_di]))
                         self.task_list.append(lift(ConfigParams.lift_motor, self.load_lift_up_height1))
                         self.task_list.append(goMapPathDi())
                         self.task_list.append(lift(ConfigParams.lift_motor, self.load_lift_up_height2))
                 if self.is_stretch_motor:
-                    self.task_list.append(stretch(ConfigParams.stretch_motor, "zero",
-                                                  ConfigParams.stretch_zero, ConfigParams.check_all_di,
-                                                  [ConfigParams.stretch_zero_di]))
+                    self.task_list.append(stretch(ConfigParams.reach_motor, "zero",
+                                                  ConfigParams.reach_zero, ConfigParams.check_all_di,
+                                                  [ConfigParams.reach_zero_di]))
                 if self.leave_loc:
                     if ConfigParams.fork_offset_theta != 0:
                         self.task_list.append(GoStraight(self.forward_dist, straightMoveMode.backward, "y"))
@@ -1876,13 +1922,13 @@ class Robot:
         curState["stretchPos"] = self.stretch_pos
         curState["pitchPos"] = self.pitch_pos
         if self.is_stretch_motor and ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO":
-            curState["stretch_zero_di"] = Di.get_di(ConfigParams.stretch_zero_di)
-            curState["stretch_max_di"] = Di.get_di(ConfigParams.stretch_max_di)
+            curState["Stretch zero_di"] = Di.get_di(ConfigParams.reach_zero_di)
+            curState["Stretch max_di"] = Di.get_di(ConfigParams.stretch_max_di)
         if self.is_pitch_motor:
-            curState["pitch_zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
-            curState["pitch_max_di"] = Di.get_di(ConfigParams.pitch_max_di)
+            curState["Pitch zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
+            curState["Pitch max_di"] = Di.get_di(ConfigParams.pitch_max_di)
         curState["taskId"] = self.task_id
-        self.state["unload"] = curState
+        self.state["forkUnload"] = curState
 
     def simple_unload(self):
         if self.action_status == ActionStatus.NONE:
@@ -1890,15 +1936,15 @@ class Robot:
             self.task_list = []
             if self.is_stretch_motor:
                 if self.stretch_length:
-                    if 0 <= self.stretch_length < ConfigParams.stretch_zero:
-                        self.stretch_length = ConfigParams.stretch_zero
+                    if 0 <= self.stretch_length < ConfigParams.reach_zero:
+                        self.stretch_length = ConfigParams.reach_zero
                     elif self.stretch_length > ConfigParams.stretch_max_length:
                         self.stretch_length = ConfigParams.stretch_max_length
                         Trace.event(f"stretchLength 大于货叉最大伸缩位置{ConfigParams.stretch_max_length}")
-                    self.task_list.append(stretch(ConfigParams.stretch_motor, "",
+                    self.task_list.append(stretch(ConfigParams.reach_motor, "",
                                                   self.stretch_length, ConfigParams.check_all_di, [-1]))
                 elif self.stretch_mode and (ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO"):
-                    self.task_list.append(stretch(ConfigParams.stretch_motor, self.stretch_mode,
+                    self.task_list.append(stretch(ConfigParams.reach_motor, self.stretch_mode,
                                                   self.stretch_length, ConfigParams.check_all_di, [-1]))
             if self.end_height:
                 if 0 <= self.end_height < ConfigParams.lift_zero:
@@ -1919,8 +1965,8 @@ class Robot:
         curState["liftPos"] = self.lift_pos
         curState["stretchPos"] = self.stretch_pos
         if self.is_stretch_motor and ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO":
-            curState["stretch_zero_di"] = Di.get_di(ConfigParams.stretch_zero_di)
-            curState["stretch_max_di"] = Di.get_di(ConfigParams.stretch_max_di)
+            curState["Stretch zero_di"] = Di.get_di(ConfigParams.reach_zero_di)
+            curState["Stretch max_di"] = Di.get_di(ConfigParams.stretch_max_di)
         curState["taskId"] = self.task_id
         self.state["simple_unload"] = curState
 
@@ -1928,7 +1974,8 @@ class Robot:
 
         if self.action_status == ActionStatus.NONE:
             self.action_status = ActionStatus.RUNNING
-            self.task_list = [GoMapWithFork(self.fork_mid_height, self.stretch_mode, self.stretch_length, self.fork_move_mode)]
+            self.task_list = [
+                GoMapWithFork(self.fork_mid_height, self.stretch_mode, self.stretch_length, self.fork_move_mode)]
             self.task_id = 0
         else:
             self.runTaskList()
@@ -1938,16 +1985,16 @@ class Robot:
         curState["stretchPos"] = self.stretch_pos
         curState["pitchPos"] = self.pitch_pos
         if self.is_stretch_motor and ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO":
-            curState["stretch_zero_di"] = Di.get_di(ConfigParams.stretch_zero_di)
-            curState["stretch_max_di"] = Di.get_di(ConfigParams.stretch_max_di)
+            curState["Stretch zero_di"] = Di.get_di(ConfigParams.reach_zero_di)
+            curState["Stretch max_di"] = Di.get_di(ConfigParams.stretch_max_di)
         if self.is_pitch_motor:
-            curState["pitch_zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
-            curState["pitch_max_di"] = Di.get_di(ConfigParams.pitch_max_di)
+            curState["Pitch zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
+            curState["Pitch max_di"] = Di.get_di(ConfigParams.pitch_max_di)
         curState["taskId"] = self.task_id
         self.state["goStationWithLift"] = curState
 
     def zero(self):
-        if Navigation.hasGoods() or Di.get_di(self.reachDI1) or Di.get_di(self.reachDI2):
+        if Navigation.hasGoods() or Di.get_di(ConfigParams.reach_di1) or Di.get_di(ConfigParams.reach_di2):
             Abnormal.setTask(53000, "Fork has goods, cannot cannot run operation of zero",
                              "", "", "")
             self.status = ScriptStatus.FAILED
@@ -1960,7 +2007,7 @@ class Robot:
 
             if self.is_stretch_motor:
                 self.task_list.append(
-                    stretch(ConfigParams.stretch_motor, self.stretch_mode, ConfigParams.stretch_zero,
+                    stretch(ConfigParams.reach_motor, self.stretch_mode, ConfigParams.reach_zero,
                             ConfigParams.check_all_di, [reachDI])
                 )
             if self.is_lateral_motor:
@@ -1976,13 +2023,13 @@ class Robot:
         curState["liftPos"] = self.lift_pos
         curState["stretchPos"] = self.stretch_pos
         curState["pitchPos"] = self.pitch_pos
-        curState["lateral_pos"] = self.lateral_pos
+        curState["Lateral pos"] = self.lateral_pos
         if self.is_stretch_motor and ConfigParams.stretch_type == "speed" or ConfigParams.stretch_type == "DO":
-            curState["stretch_zero_di"] = Di.get_di(ConfigParams.stretch_zero_di)
-            curState["stretch_max_di"] = Di.get_di(ConfigParams.stretch_max_di)
+            curState["Stretch zero_di"] = Di.get_di(ConfigParams.reach_zero_di)
+            curState["Stretch max_di"] = Di.get_di(ConfigParams.stretch_max_di)
         if self.is_pitch_motor:
-            curState["pitch_zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
-            curState["pitch_max_di"] = Di.get_di(ConfigParams.pitch_max_di)
+            curState["Pitch zero_di"] = Di.get_di(ConfigParams.pitch_zero_di)
+            curState["Pitch max_di"] = Di.get_di(ConfigParams.pitch_max_di)
         curState["taskId"] = self.task_id
         self.state["zero"] = curState
 
@@ -2146,6 +2193,48 @@ class Robot:
             return True
         return False
 
+    def forkGoodsReach(self, reachDi: list) -> bool:
+        """
+        货叉到位DI检测
+        :return: bool
+        """
+        DI = Di.get_data()
+        if len(reachDi) < 4:
+            # 最多支持4个到位DI，不足时补全
+            num2Add = 4 - len(reachDi)
+            # 使用None补全列表
+            reachDi.extend([-1] * num2Add)
+        self.allDiStatus = self.batch_check_di_status(reachDi)
+        if ConfigParams.check_all_di:
+            if all(self.allDiStatus):
+                return True
+        else:
+            if any(self.allDiStatus):
+                return True
+        return False
+
+    def batch_check_di_status(self, di_ids: List[int]) -> List[Optional[bool]]:
+        """批量查询 DI 状态并返回顺序列表
+
+        Args:
+            di_ids: DI 编号列表，顺序重要 (例如 [0,1,3,4])
+
+        Returns:
+            包含DI状态的列表，顺序与输入di_ids相同
+            (状态为bool类型，出错时为None)
+        """
+        results = []
+        for di_id in di_ids:
+            try:
+                # 调用接口获取单个DI状态
+                status = Di.get_di(di_id)
+                results.append(status)
+            except Exception as e:
+                print(f"查询 DI {di_id} 时出错: {str(e)}")
+                results.append(None)  # 错误时记录 None
+
+        return results
+
     def seqGenerate(self):
         # 获取当前时间
         currentTime = datetime.now()
@@ -2175,17 +2264,18 @@ class Robot:
     def cancel(self):
         Navigation.stopRobot(True)
         log.info("script cancel")
-        self.status = ScriptStatus.NONE
+        Module.set_status(ScriptStatus.NONE)
+        return
 
     def suspend(self):
         Navigation.stopRobot(True)
         log.info("script suspended")
-        self.status = ScriptStatus.SUSPENDED
+        Module.set_status(ScriptStatus.SUSPENDED)
         self.start_connect_time = time.time()
 
     def resume(self):
         log.info("script resume")
-        self.status = ScriptStatus.RUNNING
+        Module.set_status(ScriptStatus.RUNNING)
 
 
 class BaseAction:
@@ -2271,6 +2361,7 @@ class lift(BaseAction):
                     Motor.setMotorPosition(self.motor, self.dist, ConfigParams.lift_vel, -1)
             else:
                 Motor.setMotorPosition(self.motor, self.dist, ConfigParams.lift_vel, -1)
+                robot.state["test"] = "111"
             # if (self.collision is False
             #         and (Motor.isMotorReached(self.motor) or Motor.isMotorPositionReached(self.motor, self.dist, -1)
             #         or (abs(robot.lift_pos - self.dist) <= ConfigParams.lift_precision))):
@@ -2551,14 +2642,14 @@ class stretch(BaseAction):
                     Motor.resetMotor(self.motor)
                     self.init = False
                 if self.status == ActionStatus.RUNNING:
-                    if robot.operation == "load":
+                    if robot.operation == "forkLoad":
                         if self.reachDi[0] != -1 and robot.check_di:
-                            if self.forkGoodsReach():  # 电机前后移到位
+                            if robot.forkGoodsReach(self.reachDi):  # 电机前后移到位
                                 self.status = ScriptStatus.FINISHED
                                 Motor.resetMotor(self.motor)
                                 Navigation.stopRobot(True)
                             else:
-                                if self.speedMoveType == "max" and self.maxLimitCheck(robot):
+                                if self.speedMoveType == "max" and Di.get_di(ConfigParams.stretch_max_di):
                                     if Timer.delay(0.2):
                                         Abnormal.setTask(53000,
                                                          "stretch motor is reached but goods is not reached",
@@ -2567,7 +2658,7 @@ class stretch(BaseAction):
                                 else:
                                     Motor.setMotorSpeed(self.motor, self.stretchVel, -1)
                         else:
-                            if self.speedMoveType == "max" and self.maxLimitCheck(robot):
+                            if self.speedMoveType == "max" and Di.get_di(ConfigParams.stretch_max_di):
                                 if Timer.delay(0.2):
                                     self.status = ScriptStatus.FINISHED
                                     Motor.resetMotor(self.motor)
@@ -2575,9 +2666,10 @@ class stretch(BaseAction):
                             else:
                                 Motor.setMotorSpeed(self.motor, self.stretchVel, -1)
                     else:
-                        if ((self.forkGoodsReach() and self.reachDi[0] != -1) or (
-                                self.speedMoveType == "max" and self.maxLimitCheck(robot))
-                                or (self.speedMoveType == "zero" and self.zeroLimitCheck(robot))):
+                        if ((robot.forkGoodsReach(self.reachDi) and self.reachDi[0] != -1) or (
+                                self.speedMoveType == "max" and Di.get_di(ConfigParams.stretch_max_di))
+                                or (self.speedMoveType == "zero"
+                                    and Di.get_di(ConfigParams.reach_zero_di))):
                             self.status = ScriptStatus.FINISHED
                             Motor.resetMotor(self.motor)
                             Navigation.stopRobot(True)
@@ -2596,15 +2688,15 @@ class stretch(BaseAction):
                     elif self.speedMoveType == "zero":
                         Do.setDO(ConfigParams.stretch_out_do, False)
                         Do.setDO(ConfigParams.stretch_in_do, True)
-                    if robot.operation == "load":
-                        if self.reachDi[0] != -1 and robot.check_di and self.forkGoodsReach():  # 电机前后移到位
+                    if robot.operation == "forkLoad":
+                        if self.reachDi[0] != -1 and robot.check_di and robot.forkGoodsReach(self.reachDi):  # 电机前后移到位
                             Do.setDO(ConfigParams.stretch_out_do, False)
                             Do.setDO(ConfigParams.stretch_in_do, False)
                             self.status = ScriptStatus.FINISHED
                         else:
-                            if self.speedMoveType == "max" and self.maxLimitCheck(robot):
+                            if self.speedMoveType == "max" and Di.get_di(ConfigParams.stretch_max_di):
                                 if Timer.delay(0.2):
-                                    if self.reachDi[0] != -1 and not self.forkGoodsReach():
+                                    if self.reachDi[0] != -1 and not robot.forkGoodsReach(self.reachDi):
                                         Do.setDO(ConfigParams.stretch_out_do, False)
                                         Do.setDO(ConfigParams.stretch_in_do, False)
                                         Abnormal.setTask(53000,
@@ -2612,9 +2704,9 @@ class stretch(BaseAction):
                                                          "", "", "")
                                         self.status = ScriptStatus.FAILED
                     else:
-                        if (self.reachDi[0] != -1 and self.forkGoodsReach() or (
-                                self.speedMoveType == "max" and self.maxLimitCheck(robot))
-                                or (self.speedMoveType == "zero" and self.zeroLimitCheck(robot))):
+                        if (self.reachDi[0] != -1 and robot.forkGoodsReach(self.reachDi) or (
+                                self.speedMoveType == "max" and Di.get_di(ConfigParams.stretch_max_di))
+                                or (self.speedMoveType == "zero" and Di.get_di(ConfigParams.reach_zero_di))):
                             Do.setDO(ConfigParams.stretch_out_do, False)
                             Do.setDO(ConfigParams.stretch_in_do, False)
                             self.status = ScriptStatus.FINISHED
@@ -2651,7 +2743,7 @@ class stretch(BaseAction):
                                                                                          -1)
                             or (abs(robot.stretch_pos - self.stretchLength) <= ConfigParams.camera_on_fork)):
                         if Timer.delay(0.2):
-                            if self.reachDi[0] != -1 and robot.check_di and not self.forkGoodsReach():
+                            if self.reachDi[0] != -1 and robot.check_di and not robot.forkGoodsReach(self.reachDi):
                                 Abnormal.setTask(55300, "stretch motor is reached but goods is not reached",
                                                  "", "", "")
                                 Navigation.stopRobot(True)
@@ -2663,7 +2755,7 @@ class stretch(BaseAction):
                                 Motor.stopMotor()
                                 Motor.resetMotor(self.motor)
                                 self.status = ScriptStatus.FINISHED
-                    if self.reachDi[0] != -1 and self.forkGoodsReach():
+                    if self.reachDi[0] != -1 and robot.forkGoodsReach(self.reachDi):
                         Navigation.stopRobot(True)
                         Motor.stopMotor()
                         Motor.resetMotor(self.motor)
@@ -2688,58 +2780,6 @@ class stretch(BaseAction):
         else:
             self.collision = False
             Abnormal.clear(55300)
-
-    def forkGoodsReach(self) -> bool:
-        """
-        货叉到位DI检测
-        :return: bool
-        """
-        if len(self.reachDi) < 4:
-            # 最多支持4个到位DI，不足时补全
-            num2Add = 4 - len(self.reachDi)
-            # 使用None补全列表
-            self.reachDi.extend([-1] * num2Add)
-        DI = Di.get_data()
-        nodes = DI.get('node', list())
-        self.allDiStatus = [item["status"] for item in nodes if item["id"] in self.reachDi]
-        for node in nodes:
-            if node["id"] in self.reachDi:
-                self.allDiStatusDict[node["id"]] = node["status"]
-        if ConfigParams.check_all_di:
-            if all(self.allDiStatus):
-                return True
-        else:
-            if any(self.allDiStatus):
-                return True
-        return False
-
-    def zeroLimitCheck(self, robot: Robot) -> bool:
-        """
-        货叉到位DI检测
-        :param robot:
-        :return: bool
-        """
-        DI = Di.get_data()
-        nodes = DI.get('node', list())
-        for node in nodes:
-            if node["id"] == ConfigParams.stretch_zero_di:
-                if node['status']:
-                    return True
-        return False
-
-    def maxLimitCheck(self, robot: Robot) -> bool:
-        """
-        货叉到位DI检测
-        :param robot:
-        :return: bool
-        """
-        DI = Di.get_data()
-        nodes = DI.get('node', list())
-        for node in nodes:
-            if node["id"] == ConfigParams.stretch_max_di:
-                if node['status']:
-                    return True
-        return False
 
     def reset(self, ):
         Motor.resetMotor(self.motor)
@@ -2821,7 +2861,7 @@ class rec(BaseAction):
         if recStatus == 3:
             self.recTimes = self.recTimes + 1
             if self.recTimes > self.maxRecTimes:
-                Abnormal.setTask(53000, "rec fail. reach max times {}".format(self.maxRecTimes),
+                Abnormal.setTask(53000, "rec_test fail. reach max times {}".format(self.maxRecTimes),
                                  "", "", "")
                 self.status = ActionStatus.FAILED
             else:
@@ -2874,18 +2914,18 @@ class goMapPathDi(BaseAction):
 
             if self.check_di is None:
                 self.check_di = robot.check_di
-            self.reachDi = robot.multiReachDI
+            self.reachDi = ConfigParams.multi_reach_di
             self.backCheckDi = backCheckDi(ConfigParams.check_all_di, self.reachDi)
             self.allDiStatus = [False] * len(self.reachDi)
         log.info("goMapPath args {}".format(str(self.task)))
         goMapPathStatus = Navigation.goMapPath(json.dumps(self.task))
         if self.check_di:
-            if robot.operation == "load" or robot.operation == "unStack":
-                if self.forkGoodsReach():
+            if robot.operation == "forkLoad" or robot.operation == "unStack":
+                if robot.forkGoodsReach(self.reachDi):
                     Navigation.stopRobot(True)
                     self.status = ActionStatus.FINISHED
                 if goMapPathStatus == ActionStatus.FINISHED:
-                    if self.reachDi[0] != -1 and not self.forkGoodsReach():  # 取货异常
+                    if self.reachDi[0] != -1 and not robot.forkGoodsReach(self.reachDi):  # 取货异常
                         self.backCheckDi.run(robot)
                         # Navigation.stopRobot(True)
                         # self.status = ScriptStatus.FAILED
@@ -2905,30 +2945,6 @@ class goMapPathDi(BaseAction):
         log.info("reset goMapPath")
         self.status = ScriptStatus.RUNNING
         Navigation.resetGoMapPath()
-
-    def forkGoodsReach(self) -> bool:
-        """
-        货叉到位DI检测
-        :return: bool
-        """
-        if len(self.reachDi) < 4:
-            # 最多支持4个到位DI，不足时补全
-            num2Add = 4 - len(self.reachDi)
-            # 使用None补全列表
-            self.reachDi.extend([-1] * num2Add)
-        DI = Di.get_data()
-        nodes = DI.get('node', list())
-        self.allDiStatus = [item["status"] for item in nodes if item["id"] in self.reachDi]
-        for node in nodes:
-            if node["id"] in self.reachDi:
-                self.allDiStatusDict[node["id"]] = node["status"]
-        if ConfigParams.check_all_di:
-            if all(self.allDiStatus):
-                return True
-        else:
-            if any(self.allDiStatus):
-                return True
-        return False
 
 
 class recPallet(BaseAction):
@@ -2954,7 +2970,7 @@ class recPallet(BaseAction):
         if self.init:
             Recognize.resetRec()
             self.init = False
-        if robot.operation == "load" and self.rec(robot):
+        if robot.operation == "forkLoad" and self.rec(robot):
             if robot.load_all:
                 if ConfigParams.minus_result_filter:
                     robot.rec_result = self.filtered_result(robot.rec_results)
@@ -2986,16 +3002,17 @@ class recPallet(BaseAction):
                         robot.load_lift_up_height = robot.end_height
                     if robot.load_lift_up_height > ConfigParams.lift_max_height:
                         robot.load_lift_up_height = ConfigParams.lift_max_height
-                if "palletWidth" in robot.rec_result:
-                    targetPalletWidth = robot.rec_result['palletWidth']
-                    dtWidth = abs(targetPalletWidth - robot.rec_params.get('pallet_width', None))
-                    if dtWidth > 0.3 and ConfigParams.pallet_check:
-                        Abnormal.setTask(53000, "实际栈板宽度{targetPalletWidth}，"
-                                                f"与识别文件中pallet_width{robot.rec_params.get('pallet_width', None)}"
-                                                f"不一致，请检查！",
-                                         "", "", "")
-                        self.status = ScriptStatus.FAILED
-                        return False
+                        # todo
+                # if "palletWidth" in robot.rec_result:
+                #     targetPalletWidth = robot.rec_result['palletWidth']
+                #     dtWidth = abs(targetPalletWidth - robot.rec_params.get('pallet_width', None))
+                #     if dtWidth > 0.3 and ConfigParams.pallet_check:
+                #         Abnormal.setTask(53000, "实际栈板宽度{targetPalletWidth}，"
+                #                                 f"与识别文件中pallet_width{robot.rec_params.get('pallet_width', None)}"
+                #                                 f"不一致，请检查！",
+                #                          "", "", "")
+                #         self.status = ScriptStatus.FAILED
+                #         return False
                 self.status = ScriptStatus.FINISHED
             else:
                 if ConfigParams.pallet_check:
@@ -3121,7 +3138,7 @@ class recPallet(BaseAction):
                 curState["data_raw"] = data_raw
                 curState["end_height_data_time"] = end_height_data_time
                 robot.state["load_lift_height_data"] = curState
-        elif robot.operation == "unload" and self.rec(robot):
+        elif robot.operation == "forkUnload" and self.rec(robot):
             robot.rec_result = robot.rec_results[robot.rec_result_pallet_num - 1]  # 获取第一层的识别结果
             robot.rec_result["z"] = robot.rec_result["z"] + self.recLiftPos - ConfigParams.lift_zero
             robot.unload_lift_height = robot.rec_result["z"] + 0.3
@@ -3130,7 +3147,8 @@ class recPallet(BaseAction):
             robot.rec_result = robot.rec_results[robot.unstack_number - 1]  # 获取指定层的识别结果
             robot.rec_result["z"] = robot.rec_result["z"] + self.recLiftPos - ConfigParams.lift_zero
             self.status = ScriptStatus.FINISHED
-
+        elif robot.operation == "rec_test" and self.rec(robot):
+            self.status = ScriptStatus.FINISHED
         curState = dict()
         recResult_world = []
         curState['recResult'] = robot.rec_result
@@ -3163,7 +3181,7 @@ class recPallet(BaseAction):
         if self.recStatus == 3:
             self.recFailedTime = self.recFailedTime + 1
             if self.recFailedTime > self.maxRecTime:
-                Abnormal.setTask(53000, "rec fail. reach max times {}".format(self.maxRecTime),
+                Abnormal.setTask(53000, "rec_test fail. reach max times {}".format(self.maxRecTime),
                                  "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
@@ -3179,18 +3197,18 @@ class recPallet(BaseAction):
                 else:
                     Recognize.doRec(robot.rec_file, robot.rec_with_region, ConfigParams.rec_center_x,
                                     ConfigParams.rec_center_y, 0, ConfigParams.rec_radius)
-        elif self.recStatus == 0:
-            robot.rec_location = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
-            self.recLiftPos = robot.lift_pos
-            if robot.target[3] != -1:
-                target2world = [robot.target[0], robot.target[1], robot.target[2]]
-                target2robot = Pos2Base(target2world, robot.rec_location)
-                Recognize.doRec(robot.rec_file, robot.rec_with_region, ConfigParams.rec_center_x,
-                                ConfigParams.rec_center_y, 0, ConfigParams.rec_radius)
-            else:
-                Recognize.doRec(robot.rec_file, robot.rec_with_region, ConfigParams.rec_center_x,
-                                ConfigParams.rec_center_y, 0, ConfigParams.rec_radius)
-            self.status = ScriptStatus.RUNNING
+        # elif self.recStatus == 0:
+        #     robot.rec_location = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
+        #     self.recLiftPos = robot.lift_pos
+        #     if robot.target[3] != -1:
+        #         target2world = [robot.target[0], robot.target[1], robot.target[2]]
+        #         target2robot = Pos2Base(target2world, robot.rec_location)
+        #         Recognize.doRec(robot.rec_file, robot.rec_with_region, ConfigParams.rec_center_x,
+        #                         ConfigParams.rec_center_y, 0, ConfigParams.rec_radius)
+        #     else:
+        #         Recognize.doRec(robot.rec_file, robot.rec_with_region, ConfigParams.rec_center_x,
+        #                         ConfigParams.rec_center_y, 0, ConfigParams.rec_radius)
+        #     self.status = ScriptStatus.RUNNING
         elif self.recStatus == 0 or self.recStatus == 1:
             robot.rec_location = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             self.recLiftPos = robot.lift_pos
@@ -3208,7 +3226,7 @@ class recPallet(BaseAction):
             raw_results = Recognize.getRecResults()["reco_list"]
             # 识别结果排序，按照高度从大到小排列
             robot.rec_results = sorted(raw_results, key=lambda item: item['z'], reverse=True)
-            if robot.operation == "load" and not robot.load_all:
+            if robot.operation == "forkLoad" and not robot.load_all:
                 if robot.unstack_number is None:
                     Abnormal.setTask(53000, "请输入取货数量unStackNum",
                                      "", "", "")
@@ -3216,21 +3234,22 @@ class recPallet(BaseAction):
                 robot.rec_result = robot.rec_results[robot.unstack_number - 1]
                 self.pocket_width(robot.rec_result, robot)
                 robot.rec_result["z"] = robot.rec_result["z"] + self.recLiftPos - ConfigParams.lift_zero
-                while robot.get_rec_result_id < robot.rec_result_pallet_num:
-                    recResultTemp = robot.rec_results[robot.get_rec_result_id]
-                    robot.width_data.append(recResultTemp['palletWidth'])
-                    robot.height_data.append(recResultTemp['z'])
-                    robot.get_rec_result_id = robot.get_rec_result_id + 1
-                    targetPalletWidth = recResultTemp['palletWidth']
-                    dtWidth = abs(targetPalletWidth - robot.rec_params.get('pallet_width', None))
-                    if dtWidth > 0.3 and ConfigParams.pallet_check:
-                        Abnormal.setTask(53000,
-                                         "第 {robot.get_rec_result_id} 层栈板实际宽度为{targetPalletWidth}，"
-                                         f"与识别文件中"
-                                         f"pallet_width{robot.rec_params.get('pallet_width', None)}不一致，请检查！",
-                                         "", "", "")
-                        self.status = ScriptStatus.FAILED
-                        return False
+                # todo
+                # while robot.get_rec_result_id < robot.rec_result_pallet_num:
+                #     recResultTemp = robot.rec_results[robot.get_rec_result_id]
+                #     robot.width_data.append(recResultTemp['palletWidth'])
+                #     robot.height_data.append(recResultTemp['z'])
+                #     robot.get_rec_result_id = robot.get_rec_result_id + 1
+                #     targetPalletWidth = recResultTemp['palletWidth']
+                #     dtWidth = abs(targetPalletWidth - robot.rec_params.get('pallet_width', None))
+                #     if dtWidth > 0.3 and ConfigParams.pallet_check:
+                #         Abnormal.setTask(53000,
+                #                          "第 {robot.get_rec_result_id} 层栈板实际宽度为{targetPalletWidth}，"
+                #                          f"与识别文件中"
+                #                          f"pallet_width{robot.rec_params.get('pallet_width', None)}不一致，请检查！",
+                #                          "", "", "")
+                #         self.status = ScriptStatus.FAILED
+                #         return False
             log.debug("recResult:{}".format(robot.rec_result))
             return True
         if robot.goods_check_enable:
@@ -3309,7 +3328,6 @@ class GoStraight(BaseAction):
         super().__init__()
         kwargs = locals()
         del kwargs['self']
-        del kwargs['r']
         del kwargs['__class__']
         self.opt_info = f"{__class__.__name__}{kwargs}"
         self.init = True
@@ -3380,7 +3398,6 @@ class adjustGo(BaseAction):
         super().__init__()
         kwargs = locals()
         del kwargs['self']
-        del kwargs['r']
         del kwargs['__class__']
         self.opt_info = f"{__class__.__name__}{kwargs}"
         self.init = True
@@ -3395,6 +3412,7 @@ class adjustGo(BaseAction):
         self.x = x
         self.y = y
         self.angle = angle
+        self.allDiStatus = None
         self.allDiStatusDict = dict()
         self.backDist = backDist
         ConfigParams.min_ahead_dist = minAheadDist
@@ -3507,13 +3525,13 @@ class adjustGo(BaseAction):
                                         f"当前与目标点距离为{self.dtDist}，角度差{self.dtAngle}", "", "", "")
             else:
                 self.status = self.goForkPathStatus
-            if robot.check_di and self.reachDi[0] != -1 and self.forkGoodsReach():
+            if robot.check_di and self.reachDi[0] != -1 and robot.forkGoodsReach(self.reachDi):
                 Navigation.stopRobot(True)
                 self.status = ScriptStatus.FINISHED
 
         curState = dict()
         curState['adjustStep'] = self.adjustStep
-        curState['forkGoodsReach'] = self.forkGoodsReach()
+        curState['forkGoodsReach'] = robot.forkGoodsReach(self.reachDi)
         curState['allDiStatus'] = self.allDiStatus
         robot.state['adjustGo'] = curState
         log.debug(json.dumps(robot.state))
@@ -3550,30 +3568,6 @@ class adjustGo(BaseAction):
             return True
         return False
 
-    def forkGoodsReach(self) -> bool:
-        """
-        货叉到位DI检测
-        :return: bool
-        """
-        DI = Di.get_data()
-        if len(self.reachDi) < 4:
-            # 最多支持4个到位DI，不足时补全
-            num2Add = 4 - len(self.reachDi)
-            # 使用None补全列表
-            self.reachDi.extend([-1] * num2Add)
-        nodes = DI.get('node', list())
-        self.allDiStatus = [item["status"] for item in nodes if item["id"] in self.reachDi]
-        for node in nodes:
-            if node["id"] in self.reachDi:
-                self.allDiStatusDict[node["id"]] = node["status"]
-        if ConfigParams.check_all_di:
-            if all(self.allDiStatus):
-                return True
-        else:
-            if any(self.allDiStatus):
-                return True
-        return False
-
     def adjustCheck(self, robot) -> bool:
         if self.omni:
             return False
@@ -3589,7 +3583,7 @@ class adjustGo(BaseAction):
             self.adjustDist = math.sqrt(
                 (target2world[0] - Loc.get_position()[0]) ** 2 + (target2world[1] - Loc.get_position()[1]) ** 2)
             # log.info(f"dtDist{self.dtDist},dtAngle{self.dtAngle}")
-            if self.adjustDist < robot.beizer_dist:
+            if self.adjustDist < ConfigParams.beizer_dist:
                 return True
         return False
 
@@ -3605,7 +3599,6 @@ class backCheckDi(BaseAction):
         super().__init__()
         kwargs = locals()
         del kwargs['self']
-        del kwargs['r']
         del kwargs['__class__']
         self.opt_info = f"{__class__.__name__}{kwargs}"
         self.init = True
@@ -3638,11 +3631,11 @@ class backCheckDi(BaseAction):
 
         if self.gopath.status == ActionStatus.RUNNING:
             self.gopath.run(self.moveArgs)
-        if self.reachDi[0] != -1 and self.forkGoodsReach():
+        if self.reachDi[0] != -1 and robot.forkGoodsReach(self.reachDi):
             Navigation.stopRobot(True)
             self.status = ScriptStatus.FINISHED
         elif self.gopath.status == ActionStatus.FINISHED:
-            if self.reachDi[0] != -1 and not self.forkGoodsReach():  # 前移取货异常
+            if self.reachDi[0] != -1 and not robot.forkGoodsReach(self.reachDi):  # 前移取货异常
                 Navigation.stopRobot(True)
                 self.status = ScriptStatus.FAILED
                 # Abnormal.setTask(53000, "已到达目标点且货叉前移已到极限，但未触发货物到位DI")
@@ -3656,27 +3649,6 @@ class backCheckDi(BaseAction):
             self.status = ScriptStatus.FAILED
         return self.status
 
-    def forkGoodsReach(self) -> bool:
-        """
-        货叉到位DI检测
-        :return: bool
-        """
-        DI = Di.get_data()
-        if len(self.reachDi) < 4:
-            # 最多支持4个到位DI，不足时补全
-            num2Add = 4 - len(self.reachDi)
-            # 使用None补全列表
-            self.reachDi.extend([-1] * num2Add)
-        nodes = DI.get('node', list())
-        self.allDiStatus = [item["status"] for item in nodes if item["id"] in self.reachDi]
-        if ConfigParams.check_all_di:
-            if all(self.allDiStatus):
-                return True
-        else:
-            if any(self.allDiStatus):
-                return True
-        return False
-
     def reset(self):
         log.info("reset goForward")
         self.status = ScriptStatus.RUNNING
@@ -3688,7 +3660,6 @@ class dirAdjust(BaseAction):
         super().__init__()
         kwargs = locals()
         del kwargs['self']
-        del kwargs['r']
         del kwargs['__class__']
         self.opt_info = f"{__class__.__name__}{kwargs}"
 
@@ -3748,7 +3719,7 @@ class GoMapWithFork(BaseAction):
         self.liftVel = 0
         self.stretchVel = 0
         self.finishedMode = mode
-        ConfigParams.stretch_zero_di = -1
+        ConfigParams.reach_zero_di = -1
         ConfigParams.stretch_max_di = -1
         self.goMapStatus = ScriptStatus.NONE
 
@@ -3756,14 +3727,14 @@ class GoMapWithFork(BaseAction):
         self.status = ScriptStatus.RUNNING
         if self.init:
             self.init = False
-            self.stretchMotor = ConfigParams.stretch_motor
+            self.stretchMotor = ConfigParams.reach_motor
             if ConfigParams.stretch_type == "DO":
                 self.stretchMotor = "DO_type"
             self.liftMotor = ConfigParams.lift_motor
             self.liftVel = ConfigParams.lift_vel
             self.stretchVel = ConfigParams.stretch_vel
             self.task = Navigation.moveTask()
-            ConfigParams.stretch_zero_di = ConfigParams.stretch_zero_di
+            ConfigParams.reach_zero_di = ConfigParams.reach_zero_di
             ConfigParams.stretch_max_di = ConfigParams.stretch_max_di
             if ConfigParams.stretch_type == "position":
                 self.stretchVel = ConfigParams.stretch_vel
@@ -3839,42 +3810,14 @@ class GoMapWithFork(BaseAction):
                     if Motor.isMotorPositionReached(motorName, position, -1):
                         return True
             if ConfigParams.stretch_type == "speed":
-                if self.stretchMoveType == "max" and self.maxLimitCheck(robot):
+                if self.stretchMoveType == "max" and Di.get_di(ConfigParams.stretch_max_di):
                     return True
-                if self.stretchMoveType == "zero" and self.zeroLimitCheck(robot):
+                if self.stretchMoveType == "zero" and Di.get_di(ConfigParams.reach_zero_di):
                     return True
             if ConfigParams.stretch_type == "DO":
                 return True
         else:
             return False
-
-    def zeroLimitCheck(self, robot: Robot) -> bool:
-        """
-        货叉到位DI检测
-        :param robot:
-        :return: bool
-        """
-        DI = Di.get_data()
-        nodes = DI.get('node', list())
-        for node in nodes:
-            if node["id"] == ConfigParams.stretch_zero_di:
-                if node['status']:
-                    return True
-        return False
-
-    def maxLimitCheck(self, robot: Robot) -> bool:
-        """
-        货叉到位DI检测
-        :param robot:
-        :return: bool
-        """
-        DI = Di.get_data()
-        nodes = DI.get('node', list())
-        for node in nodes:
-            if node["id"] == ConfigParams.stretch_max_di:
-                if node['status']:
-                    return True
-        return False
 
     def reset(self):
         log.info("reset GoMapWithFork")
@@ -3901,7 +3844,7 @@ class GoPathWithFork(BaseAction):
         self.liftVel = 0
         self.stretchVel = 0
         self.finishedMode = mode
-        ConfigParams.stretch_zero_di = -1
+        ConfigParams.reach_zero_di = -1
         ConfigParams.stretch_max_di = -1
         self.goMapStatus = ScriptStatus.NONE
 
@@ -3909,11 +3852,11 @@ class GoPathWithFork(BaseAction):
         self.status = ScriptStatus.RUNNING
         if self.init:
             self.init = False
-            self.stretchMotor = ConfigParams.stretch_motor
+            self.stretchMotor = ConfigParams.reach_motor
             self.liftMotor = ConfigParams.lift_motor
             self.liftVel = ConfigParams.lift_vel
             self.stretchVel = ConfigParams.stretch_vel
-            ConfigParams.stretch_zero_di = ConfigParams.stretch_zero_di
+            ConfigParams.reach_zero_di = ConfigParams.reach_zero_di
             ConfigParams.stretch_max_di = ConfigParams.stretch_max_di
             if self.stretchMoveType == "max":
                 self.stretchVel = ConfigParams.stretch_vel
@@ -3974,40 +3917,12 @@ class GoPathWithFork(BaseAction):
                 if Motor.isMotorPositionReached(motorName, position, -1):
                     return True
         elif motorName == self.stretchMotor and ConfigParams.stretch_type == "speed":
-            if self.stretchMoveType == "max" and self.maxLimitCheck(robot):
+            if self.stretchMoveType == "max" and Di.get_di(ConfigParams.stretch_max_di):
                 return True
-            if self.stretchMoveType == "zero" and self.zeroLimitCheck(robot):
+            if self.stretchMoveType == "zero" and Di.get_di(ConfigParams.reach_zero_di):
                 return True
         else:
             return False
-
-    def zeroLimitCheck(self, robot: Robot) -> bool:
-        """
-        货叉到位DI检测
-        :param robot:
-        :return: bool
-        """
-        DI = Di.get_data()
-        nodes = DI.get('node', list())
-        for node in nodes:
-            if node["id"] == ConfigParams.stretch_zero_di:
-                if node['status']:
-                    return True
-        return False
-
-    def maxLimitCheck(self, robot: Robot) -> bool:
-        """
-        货叉到位DI检测
-        :param robot:
-        :return: bool
-        """
-        DI = Di.get_data()
-        nodes = DI.get('node', list())
-        for node in nodes:
-            if node["id"] == ConfigParams.stretch_max_di:
-                if node['status']:
-                    return True
-        return False
 
     def reset(self):
         log.info("reset GoMapWithFork")
@@ -4350,7 +4265,7 @@ class goodsCheck(BaseAction):
         curState = dict()
         recStatus = Recognize.getRecStatus()  # 获取识别状态 0: 初始化, 1: 识别中, 2: 获得结果, 3：识别出错, -1: 未知错误
         if recStatus == 2 or recStatus == 3 or recStatus == -1:  # 识别成功或失败
-            # Trace.event("rec failed:{}".format(self.result))
+            # Trace.event("rec_test failed:{}".format(self.result))
             if Timer.delay(0.1):
                 self.recTimes = self.recTimes + 1
                 if Abnormal.exists(54906) and Abnormal.exists(54901):
@@ -4447,7 +4362,7 @@ def main():
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED, ScriptStatus.NONE):
             Module.set_status(ScriptStatus.NONE)
             return
-        rob.print_info()
+        # rob.print_info()
         time.sleep(0.1)
 
 
