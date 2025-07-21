@@ -2,7 +2,7 @@ import time
 
 start_time = time.time()
 
-import importlib
+import importlib.util
 import os
 import json
 import sys
