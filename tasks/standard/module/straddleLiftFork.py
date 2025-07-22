@@ -2246,10 +2246,8 @@ class GoStraight(BaseAction):
             self.go_path.run(self.mov_args)
         elif self.go_path.status == ActionStatus.FINISHED:
             self.go_path.reset()
-            Navigation.resetPath()
             self.status = ScriptStatus.FINISHED
         elif self.go_path.status == ActionStatus.FAILED:
-            Navigation.resetPath()
             self.status = ScriptStatus.FAILED
 
         return self.status
@@ -2377,6 +2375,10 @@ class adjustGo(BaseAction):
             if not self.goForkPathStart:
                 Navigation.resetGoForkPath(self.pos2world[0], self.pos2world[1], self.pos2world[2], self.backDist,
                                            ConfigParams.min_ahead_dist, self.aheadDist)
+                print(f"{self.backDist=}")
+                print(f"{ConfigParams.min_ahead_dist=}")
+                print(f"{self.aheadDist=}")
+
                 Navigation.setPathReachAngle(0.01)
                 Navigation.setPathReachDist(0.005)
                 if self.omni:
@@ -2501,12 +2503,12 @@ class backCheckDi(BaseAction):
 
         if self.gopath.status == ActionStatus.RUNNING:
             self.gopath.run(self.moveArgs)
-            print(f"back speed:{NavSpeed.get_speeds()=}")
+            # print(f"back speed:{NavSpeed.get_speeds()=}")
         if self.reachDi[0] != -1 and robot.forkGoodsReach(self.reachDi):
             Navigation.stopRobot(True)
             self.gopath.reset()
-            Navigation.resetPath()
-            print(f"back speed:{NavSpeed.get_speeds()=}")
+            # Navigation.resetPath()
+            # print(f"back speed:{NavSpeed.get_speeds()=}")
             self.status = ScriptStatus.FINISHED
         elif self.gopath.status == ActionStatus.FINISHED:
             if self.reachDi[0] != -1 and not robot.forkGoodsReach(self.reachDi):  # 前移取货异常
