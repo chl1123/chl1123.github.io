@@ -489,7 +489,10 @@ class ParamValidator:
 
     def __init__(self, param_definition: Dict[str, Any]):
         self.param_definition = param_definition
-        self.combo_box_bool_mapping = {}  # 存储COMBO_BOX_BOOL类型映射
+        self.combo_box_bool_mapping = {
+            "OFF": [],
+            "ON": [],
+        }  # 存储COMBO_BOX_BOOL类型映射
         self.leaf_param_keys = set()  # 存储所有叶子节点的键
         # 构建参数查找字典
         self.param_index = self._build_param_index()
@@ -513,10 +516,12 @@ class ParamValidator:
                     for child in param.get('children', []):
                         # 使用整数0/1表示OFF/ON
                         bool_value = False if child['key'] == "OFF" else True
-                        self.combo_box_bool_mapping[child['key']] = {
-                            "parent": param['key'],
-                            "value": bool_value
-                        }
+                        self.combo_box_bool_mapping[child['key']].append(
+                            {
+                                "parent": param['key'],
+                                "value": bool_value
+                            }
+                        )
 
                 # 递归处理子节点
                 if 'children' in param and param['children']:
@@ -546,8 +551,11 @@ class ParamValidator:
 
             # 检查是否是COMBO_BOX_BOOL选项
             if leaf_key in self.combo_box_bool_mapping:
-                mapping = self.combo_box_bool_mapping[leaf_key]
-                flat_params[mapping["parent"]] = mapping["value"]
+                for mapping in self.combo_box_bool_mapping[leaf_key]:
+                    combo_box_boo_key = parts[-2]
+                    if mapping["parent"] == combo_box_boo_key:
+                        flat_params[mapping["parent"]] = mapping["value"]
+                        break
                 continue
 
             # 检查是否是叶子节点参数
