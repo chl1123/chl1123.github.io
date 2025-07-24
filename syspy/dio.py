@@ -87,6 +87,7 @@ class Do(Message["Message_DO"]):
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
 
+    @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import Message_DO
