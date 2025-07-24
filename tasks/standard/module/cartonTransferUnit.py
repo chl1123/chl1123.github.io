@@ -104,11 +104,11 @@ class ConfigParams:
     overlimit_detect_di = p.loadParam("overlimit_detect_di", type="int", default=-1,
                                       group="DI", comment="检测货叉伸出是否超过料箱的DI")
     # 识别文件参数
-    box_code_file = p.loadParam("box_code_file", type="str", default="code/c0001.code",
+    box_code_file = p.loadParam("box_code_file", type="str", default="default.srec",
                                 group="recognize", comment="料箱二维码识别文件")
-    shelf_code_file = p.loadParam("shelf_code_file", type="str", default="code/c0002.code",
+    shelf_code_file = p.loadParam("shelf_code_file", type="str", default="default.srec",
                                   group="recognize", comment="货架二维码识别文件")
-    barcode_file = p.loadParam("barcode_file", type="str", default="tag/t0003.tag",
+    barcode_file = p.loadParam("barcode_file", type="str", default="default.srec",
                                group="recognize", comment="条形码识别文件")
     # 电机速度参数
     lift_motor_speed = p.loadParam("lift_motor_speed", type="float", default=1.5,
@@ -170,7 +170,7 @@ class InputParams:
             builder.TYPE(ParamType.FLOAT)
             builder.REQUIRED(False)
             builder.UNIT("m")
-            builder.DEFAULTVALUE(0)
+            builder.DEFAULTVALUE(0)  # 1.1
 
         with builder.CHILD(key="rotate", name="Rotate", desc="旋转角度"):
             builder.MIN_VALUE(-100)
@@ -178,7 +178,7 @@ class InputParams:
             builder.TYPE(ParamType.DOUBLE)
             builder.REQUIRED(False)
             builder.UNIT("rad")
-            builder.DEFAULTVALUE(0)
+            builder.DEFAULTVALUE(0)  # -1.57
 
         with builder.CHILD(key="stretch", name="Stretch", desc="伸缩机构长度"):
             builder.MIN_VALUE(-100)
@@ -192,9 +192,17 @@ class InputParams:
             builder.TYPE(ParamType.IP)
             builder.DEFAULTVALUE("192.168.192.6")
 
+        with builder.CHILD(key="visionType", name="visionType", desc="visionType"):
+            builder.TYPE(ParamType.STRING)
+            builder.DEFAULTVALUE("box")
+
         with builder.GROUP(key="operation", name="Operation", desc="机构动作选项"):
             builder.TYPE(ParamType.COMBO_BOX)
             with builder.CHILDREN():
+                with builder.CHILD(key="rec_qrcode", name="Rec_Qrcode", desc="识别二维码"):
+                    builder.TYPE(ParamType.ARRAY)
+                with builder.CHILD(key="none", name="none", desc="空"):
+                    builder.TYPE(ParamType.ARRAY)
                 with builder.CHILD(key="zero", name="Zero", desc="机构回零"):
                     builder.TYPE(ParamType.ARRAY)
                 with builder.CHILD(key="load", name="Load", desc="取货"):
@@ -202,8 +210,6 @@ class InputParams:
                 with builder.CHILD(key="unload", name="Unload", desc="放货"):
                     builder.TYPE(ParamType.ARRAY)
                 with builder.CHILD(key="rec_box_barcode", name="Rec_Box_Barcode", desc="识别料箱一维码"):
-                    builder.TYPE(ParamType.ARRAY)
-                with builder.CHILD(key="rec_qrcode", name="Rec_Qrcode", desc="识别二维码"):
                     builder.TYPE(ParamType.ARRAY)
                 with builder.CHILD(key="take_photo", name="Take_Photo", desc="拍照"):
                     builder.TYPE(ParamType.ARRAY)
@@ -318,15 +324,12 @@ class ContainerRobot:
         self.shelf_code_file = ConfigParams.shelf_code_file
 
         self.goPath = GoPath()
+        self.args = {}
         Motor.resetMotor(ConfigParams.lift_motor_name)
         self.validator = ParamValidator(InputParams.builder.to_dict())
+        self.__init_args()
 
-    def run(self):
-        Module.set_status(ScriptStatus.RUNNING)
-        self.check_motor_emc()  # 检测控制器及驱动器急停状态
-        if self.enable_motor and not self.motor_calib_state:  # 使能成功, 且未标零, 则标零
-            self.motor_calib()
-
+    def __init_args(self):
         # 获取并验证参数
         raw_args = Module.get_task_args()
         try:
@@ -338,7 +341,7 @@ class ContainerRobot:
             Abnormal.setTask(53000, f"脚本输入参数验证失败: {e}", "", "", "")
             Module.set_status(ScriptStatus.FAILED)
             return self.status
-
+        self.args = args
         self.goods_id = args.get("goodsId", "")
         self.self_position = args.get("container", self.self_position)
         self.self_position = str(self.self_position) if self.self_position is not None else self.self_position
@@ -378,13 +381,20 @@ class ContainerRobot:
             self.rec = Rec(ConfigParams.box_code_file)
         elif self.target_type == "shelf" and self.code_type == "code":
             self.rec = Rec(ConfigParams.shelf_code_file)
+
+    def run(self):
+        Module.set_status(ScriptStatus.RUNNING)
+        self.check_motor_emc()  # 检测控制器及驱动器急停状态
+        if self.enable_motor and not self.motor_calib_state:  # 使能成功, 且未标零, 则标零
+            self.motor_calib()
+
         if time.time() - self.start_time > ConfigParams.timeout:
             Abnormal.setTask(53000, f"脚本任务运行超时，请重新执行任务！", "", "", "")
             Module.set_status(ScriptStatus.FAILED)
         self.update_report_info()
         if self.motor_calib_state:
-            operation = args.get('operation')
-            if operation:
+            operation = self.operation
+            if operation != 'none':
                 if operation == 'zero':
                     if self.zero():
                         Module.set_status(ScriptStatus.FINISHED)
@@ -417,25 +427,25 @@ class ContainerRobot:
                     Module.set_status(ScriptStatus.FAILED)
             else:
                 # 处理非操作类型的参数（原有逻辑保持不变）
-                if "finger" in args:
+                if "finger" in self.args:
                     if self.finger(self.finger_pos):
                         self.update_finger_info()
                         Module.set_status(ScriptStatus.FINISHED)
-                elif "lift" in args or "rotate" in args:
-                    if "lift" in args and not self.lift_ok:
+                elif "lift" in self.args or "rotate" in self.args:
+                    if "lift" in self.args and not self.lift_ok:
                         self.lift_ok = self.lift(self.lift_height)
                     else:
                         self.lift_ok = True
-                    if "rotate" in args and not self.rotate_ok:
+                    if "rotate" in self.args and not self.rotate_ok:
                         self.rotate_ok = self.rotate(self.rotate_pos)
                     else:
                         self.rotate_ok = True
                     if self.lift_ok and self.rotate_ok:
                         Module.set_status(ScriptStatus.FINISHED)
-                elif "stretch" in args:
+                elif "stretch" in self.args:
                     if self.stretch(self.stretch_length):
                         Module.set_status(ScriptStatus.FINISHED)
-                elif "visionType" in args:
+                elif "visionType" in self.args:
                     if self.code_type == "barcode":
                         if self.rec_barcode():
                             Module.set_status(ScriptStatus.FINISHED)
@@ -443,10 +453,10 @@ class ContainerRobot:
                         if self.rec_qrcode():
                             Module.set_status(ScriptStatus.FINISHED)
         self.update_report_info()
-        report_data = {
+        self.report_info["runtime"] = {
             'script_start_time': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_time)),
             'script_running_time': time.time() - self.start_time,
-            'script_args': args,
+            'script_args': self.args,
             'motor_calib_info': self.motor_calib_info,
             'task_status': self.status,
             'goods_id': self.goods_id,
@@ -461,11 +471,8 @@ class ContainerRobot:
                 'right_finger': self.right_finger_real_pos
             }
         }
-        Module.report_info(report_data)
-        self.status = Module.get_status()
-        if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
-            NetProtocol().release()
-            Do.setDO(self.fill_light_do, False)
+        log.debug(self.report_info)
+        Module.report_info(self.report_info)
         return self.status
 
     @staticmethod
@@ -591,7 +598,6 @@ class ContainerRobot:
             self.zero_step[3] = self.lift(0)
         log.debug(f"zero_step:{self.zero_step}")
         if all(self.zero_step):
-            # r.release()
             return True
         return False
 
@@ -771,6 +777,7 @@ class ContainerRobot:
         """
         指定货叉高度和角度位置识别二维码
         """
+        rec_qrcode_info = {}
         if time.time() - self.start_time > 20:
             Abnormal.setTask(53000, f"未识别到二维码！请检查相机是否对准了二维码！", "", "", "")
             Module.set_status(ScriptStatus.FAILED)
@@ -782,7 +789,7 @@ class ContainerRobot:
             Do.setDO(self.fill_light_do, True)
             if Timer.delay(ConfigParams.light_delay_time):
                 self.opt_step[2] = True
-
+        rec_info = None
         if all(self.opt_step[0:3]) and not self.opt_step[3]:
             if self.rec.status == ScriptStatus.FINISHED:
                 data = {
@@ -798,13 +805,16 @@ class ContainerRobot:
                     }
                 }
                 NetProtocol.tcpUploadString(json.dumps(data))
-                Module.report_info({"rec_qrcode_data": data})
+                rec_qrcode_info["rec_qrcode_data"] = data
                 self.rec.reset()
                 Do.setDO(self.fill_light_do, False)
                 self.opt_step[3] = True
             else:
-                self.rec.run(self)
-
+                rec_info = self.rec.run(self)
+        rec_qrcode_info["rec"] = self.rec.status
+        rec_qrcode_info["opt_step"] = self.opt_step
+        rec_qrcode_info["rec_info"] = rec_info
+        self.report_info["rec_qrcode_info"] = rec_qrcode_info
         if all(self.opt_step[0:4]):
             Module.set_status(ScriptStatus.FINISHED)
 
@@ -1404,19 +1414,17 @@ class ContainerRobot:
             status = Module.get_status()
             if status is ScriptStatus.RUNNING:
                 self.run()
-            elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED, ScriptStatus.NONE):
-                Module.set_status(ScriptStatus.NONE)
+            elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+                NetProtocol().release()
+                Do.setDO(self.fill_light_do, False)
                 return
-            log.info(f"{Module.get_task_args()=}")
-            log.info(f"{Module.get_task_id()=}")
-            log.info(f"{Module.get_status()=}")
+            log.info(f"{Module.get_task_args()=}, {Module.get_task_id()=}, {Module.get_status()=}")
             time.sleep(0.1)
 
 
 class Rec:
     def __init__(self, filename, is_error=None, max_rec_times=10):
         self.status = ScriptStatus.NONE
-        Module.set_status(self.status)
         self.is_error = is_error
         self.filename = filename
         self.rec_times = 0
@@ -1427,9 +1435,8 @@ class Rec:
         self.max_goods_dist = 0.8
 
     def run(self, agv: ContainerRobot = None):
-        self.status = ScriptStatus.NONE
-        Module.set_status(self.status)
-
+        self.status = ScriptStatus.RUNNING
+        rec_results = None
         rec_status = Recognize.getRecStatus()
         if rec_status == 3 or rec_status == -1:
             log.info("rec failed:{}".format(self.result))
@@ -1441,41 +1448,39 @@ class Rec:
                                          f"连续识别{self.max_rec_times}次失败，请检查二维码是否损坏，请手动识别并查看照片是否清晰！",
                                          "", "", "")
                         self.status = ScriptStatus.FAILED
-                        Module.set_status(self.status)
                     else:
                         self.status = ScriptStatus.FINISHED
-                        Module.set_status(self.status)
                 else:
                     Recognize.resetRec()
-
         elif rec_status == 2:
-            self.result = Recognize.getRecResults()
+            rec_results = Recognize.getRecResults()
+            if "reco_list" in rec_results:
+                if len(rec_results["reco_list"]) == 1:
+                    self.result = rec_results["reco_list"][0]
             if "resultImg" in self.result:
                 self.result.pop("resultImg")
             Recognize.resetRec()
             self.has_goods = True
-            if self.result["x"] > self.max_goods_dist:
-                self.goods_out_dist = True
-
+            if "x" in self.result:
+                if self.result["x"] > self.max_goods_dist:
+                    self.goods_out_dist = True
             self.status = ScriptStatus.FINISHED
-            Module.set_status(self.status)
             log.info(f"rec success: {Module.get_status().name} {self.result}")
         else:
             log.info(f"--------------- doRec ----------------")
             Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
 
         cur_state = dict()
-        cur_state['rec_result'] = self.result
+        cur_state['rec_results'] = rec_results
         cur_state['rec_count'] = self.rec_times
         cur_state['rec_task_status'] = self.status
         cur_state['rec_status'] = rec_status
         cur_state['file'] = self.filename
-        Module.report_info({'rec_info': cur_state})
+        return cur_state
 
     def reset(self):
         Recognize.resetRec()
         self.status = ScriptStatus.RUNNING
-        Module.set_status(self.status)
 
 
 class RecAdjust:
@@ -1483,7 +1488,6 @@ class RecAdjust:
         self.rotate_step = None
         self.lift_step = None
         self.status = ScriptStatus.NONE
-        Module.set_status(self.status)
         self.rec = Rec(filename)
         self.result = []
         self.max_rec_fail_times = 10
@@ -1521,7 +1525,6 @@ class RecAdjust:
     def run(self, agv: ContainerRobot):
         cur_state = dict()
         self.status = ScriptStatus.RUNNING
-        Module.set_status(self.status)
         if self.plan_status is not ScriptStatus.FINISHED:
             self.plan_status = ScriptStatus.RUNNING
             if self.rec.status is ScriptStatus.RUNNING or self.rec.status is ScriptStatus.NONE:
@@ -1536,7 +1539,6 @@ class RecAdjust:
                     self.rec.run()
                 else:
                     self.status = ScriptStatus.FAILED
-                    Module.set_status(self.status)
                 log.info("rec fail!!! {}".format(self.rec_fail_time))
             elif self.rec.status is ScriptStatus.FINISHED:
                 log.info(f"------------------ move to adjust -----------------")
@@ -1588,7 +1590,6 @@ class RecAdjust:
 
                 if abs(agv.yaw_adjust) > self.max_yaw_bias:
                     self.status = ScriptStatus.FAILED
-                    Module.set_status(self.status)
                     Abnormal.setTask(53000,
                                      f"识别到角度偏差{agv.yaw_adjust}超出上限值{self.max_yaw_bias}，请检查料箱是否摆正，二维码是否损坏！",
                                      "", "", "")
@@ -1600,16 +1601,13 @@ class RecAdjust:
                     if not bool(ConfigParams.auto_adjust_rotate) and abs(self.rec.result['y']) < self.ok_x:
                         log.info(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = ScriptStatus.FINISHED
-                        Module.set_status(self.status)
                     elif bool(ConfigParams.auto_adjust_rotate) and abs(self.rec.result['y']) < self.ok_x and abs(
                             agv.yaw_adjust) <= self.ok_yaw:
                         log.info(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = ScriptStatus.FINISHED
-                        Module.set_status(self.status)
                     else:
                         if self.adjust_count >= self.max_adjust_time:
                             self.status = ScriptStatus.FAILED
-                            Module.set_status(self.status)
                             Abnormal.setTask(53000,
                                              f"识别调整{self.adjust_count}次未达到精度要求，请检查二维码是否损坏，相机画面是否清晰，精度参数是否设置合理！",
                                              "", "", "")
@@ -1631,7 +1629,6 @@ class RecAdjust:
                     self.rotate_step = True
             elif self.goPath.status == ScriptStatus.FAILED:
                 self.status = ScriptStatus.FAILED
-                Module.set_status(self.status)
             elif self.goPath.status == ScriptStatus.FINISHED and self.rotate_step:
                 self.reset()
                 self.adjust_count += 1
@@ -1657,7 +1654,6 @@ class RecAdjust:
     def reset(self):
         self.rec.reset()
         self.status = ScriptStatus.RUNNING
-        Module.set_status(self.status)
         self.rec_fail_time = 0
         self.goPath.reset()
 
