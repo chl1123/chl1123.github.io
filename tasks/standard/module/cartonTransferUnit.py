@@ -225,7 +225,7 @@ class InputParams:
 
 
 class ContainerRobot:
-    def __init__(self):
+    def __init__(self, args=None):
         super().__init__()
         self.offset_x = None
         self.goods_manger = Container()
@@ -324,24 +324,11 @@ class ContainerRobot:
         self.shelf_code_file = ConfigParams.shelf_code_file
 
         self.goPath = GoPath()
-        self.args = {}
+        self.args = args or {}
         Motor.resetMotor(ConfigParams.lift_motor_name)
-        self.validator = ParamValidator(InputParams.builder.to_dict())
-        self.__init_args()
+        self.__init_args(self.args)
 
-    def __init_args(self):
-        # 获取并验证参数
-        raw_args = Module.get_task_args()
-        try:
-            # 验证参数
-            args = self.validator.validate(raw_args)
-            log.info(f"参数验证成功: {args}")
-        except ValueError as e:
-            log.error(f"参数验证失败: {e}")
-            Abnormal.setTask(53000, f"脚本输入参数验证失败: {e}", "", "", "")
-            Module.set_status(ScriptStatus.FAILED)
-            return self.status
-        self.args = args
+    def __init_args(self, args):
         self.goods_id = args.get("goodsId", "")
         self.self_position = args.get("container", self.self_position)
         self.self_position = str(self.self_position) if self.self_position is not None else self.self_position
@@ -789,7 +776,6 @@ class ContainerRobot:
             Do.setDO(self.fill_light_do, True)
             if Timer.delay(ConfigParams.light_delay_time):
                 self.opt_step[2] = True
-        rec_info = None
         if all(self.opt_step[0:3]) and not self.opt_step[3]:
             if self.rec.status == ScriptStatus.FINISHED:
                 data = {
@@ -810,10 +796,9 @@ class ContainerRobot:
                 Do.setDO(self.fill_light_do, False)
                 self.opt_step[3] = True
             else:
-                rec_info = self.rec.run(self)
-        rec_qrcode_info["rec"] = self.rec.status
+                self.rec.run(self)
         rec_qrcode_info["opt_step"] = self.opt_step
-        rec_qrcode_info["rec_info"] = rec_info
+        rec_qrcode_info["rec_info"] = self.rec.get_info()
         self.report_info["rec_qrcode_info"] = rec_qrcode_info
         if all(self.opt_step[0:4]):
             Module.set_status(ScriptStatus.FINISHED)
@@ -1409,17 +1394,33 @@ class ContainerRobot:
             Module.set_status(ScriptStatus.FAILED)
             return
 
-    def main(self):
-        while True:
-            status = Module.get_status()
-            if status is ScriptStatus.RUNNING:
-                self.run()
-            elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-                NetProtocol().release()
-                Do.setDO(self.fill_light_do, False)
-                return
-            log.info(f"{Module.get_task_args()=}, {Module.get_task_id()=}, {Module.get_status()=}")
-            time.sleep(0.1)
+
+def main():
+    Module.init()
+    # 获取并验证参数
+    raw_args = Module.get_task_args()
+    validator = ParamValidator(InputParams.builder.to_dict())
+    try:
+        # 验证参数
+        args = validator.validate(raw_args)
+        log.info(f"参数验证成功: {args}")
+    except ValueError as e:
+        log.error(f"参数验证失败: {e}")
+        Abnormal.setTask(53000, f"脚本输入参数验证失败: {e}", "", "", "")
+        Module.set_status(ScriptStatus.FAILED)
+        return
+
+    robot = ContainerRobot(args)
+    while True:
+        status = Module.get_status()
+        if status is ScriptStatus.RUNNING:
+            robot.run()
+        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+            NetProtocol().release()
+            Do.setDO(robot.fill_light_do, False)
+            return
+        log.info(f"{Module.get_task_args()=}, {Module.get_task_id()=}, {Module.get_status()=}")
+        time.sleep(0.1)
 
 
 class Rec:
@@ -1433,6 +1434,10 @@ class Rec:
         self.has_goods = None
         self.goods_out_dist = None
         self.max_goods_dist = 0.8
+        self.rec_info = dict()
+
+    def get_info(self):
+        return self.rec_info
 
     def run(self, agv: ContainerRobot = None):
         self.status = ScriptStatus.RUNNING
@@ -1470,13 +1475,11 @@ class Rec:
             log.info(f"--------------- doRec ----------------")
             Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
 
-        cur_state = dict()
-        cur_state['rec_results'] = rec_results
-        cur_state['rec_count'] = self.rec_times
-        cur_state['rec_task_status'] = self.status
-        cur_state['rec_status'] = rec_status
-        cur_state['file'] = self.filename
-        return cur_state
+        self.rec_info['rec_results'] = rec_results
+        self.rec_info['rec_count'] = self.rec_times
+        self.rec_info['rec_task_status'] = self.status
+        self.rec_info['rec_status'] = rec_status
+        self.rec_info['file'] = self.filename
 
     def reset(self):
         Recognize.resetRec()
@@ -1659,6 +1662,4 @@ class RecAdjust:
 
 
 if __name__ == '__main__':
-    Module.init()
-    robot = ContainerRobot()
-    robot.main()
+    main()
