@@ -1,14 +1,10 @@
 import math
-import sys
 import json
 import random
 import time
-import os
 
 start_time = time.time()
 from syspy.utils.time import Timer
-sys.path.append(os.path.dirname(__file__) + "/syspy")
-sys.path.append("../syspy")
 from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Abnormal, Controller, Odometer, Recognize
 from syspy.bin import Container
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ParamValidator
@@ -157,23 +153,29 @@ class ConfigParams:
     max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13,
                                comment="货叉与料箱角度最大偏差, 弧度值")
 
+
 class InputParams:
     builder = ParamBuilder(__file__, desc="Input Params Config")
 
     with builder.GROUPS():
+        with builder.CHILD(key="finger", name="finger", desc="手指"):
+            builder.TYPE(ParamType.INT)
+            builder.REQUIRED(False)
+            builder.DEFAULTVALUE(0)
+
         with builder.CHILD(key="lift", name="Lift", desc="升降高度"):
             builder.MIN_VALUE(0)
             builder.MAX_VALUE(100)
             builder.TYPE(ParamType.FLOAT)
-            builder.REQUIRED(True)
+            builder.REQUIRED(False)
             builder.UNIT("m")
             builder.DEFAULTVALUE(0)
-        
+
         with builder.CHILD(key="rotate", name="Rotate", desc="旋转角度"):
             builder.MIN_VALUE(-100)
             builder.MAX_VALUE(100)
             builder.TYPE(ParamType.DOUBLE)
-            builder.REQUIRED(True)
+            builder.REQUIRED(False)
             builder.UNIT("rad")
             builder.DEFAULTVALUE(0)
 
@@ -181,7 +183,7 @@ class InputParams:
             builder.MIN_VALUE(-100)
             builder.MAX_VALUE(100)
             builder.TYPE(ParamType.FLOAT)
-            builder.REQUIRED(True)
+            builder.REQUIRED(False)
             builder.UNIT("m")
             builder.DEFAULTVALUE(0)
 
@@ -191,7 +193,7 @@ class InputParams:
 
         with builder.GROUP(key="operation", name="Operation", desc="机构动作选项"):
             builder.TYPE(ParamType.COMBO_BOX)
-            with builder.CHILDREN():                
+            with builder.CHILDREN():
                 with builder.CHILD(key="zero", name="Zero", desc="机构回零"):
                     builder.TYPE(ParamType.ARRAY)
                 with builder.CHILD(key="load", name="Load", desc="取货"):
@@ -213,6 +215,7 @@ class InputParams:
                 with builder.CHILD(key="ex_put", name="Ex_Put", desc="外部放货"):
                     builder.TYPE(ParamType.ARRAY)
     builder.save_to_file()
+
 
 class ContainerRobot:
     def __init__(self):
@@ -526,7 +529,7 @@ class ContainerRobot:
         self.close_finger()
         Do.setDO(self.fill_light_do, False)
         Module.set_status(ScriptStatus.NONE)
-    
+
     def update_move_task_params(self):
         """
         获取moveTask参数
@@ -584,7 +587,7 @@ class ContainerRobot:
             self.finger_open_start = time.time()
         else:
             if time.time() - self.finger_open_start > 3:  # 防止手指机构卡死时电机过流烧毁
-                Abnormal.setTask(53000, f"拨指控制超时，请检查拨指是否卡住、检查拨指到位光电是否能正常触发！", "","", "")
+                Abnormal.setTask(53000, f"拨指控制超时，请检查拨指是否卡住、检查拨指到位光电是否能正常触发！", "", "", "")
                 Do.setDO(self.left_finger_up_do, False)
                 Do.setDO(self.right_finger_up_do, False)
                 Do.setDO(self.left_finger_down_do, False)
@@ -600,7 +603,7 @@ class ContainerRobot:
             if Di.get_di(self.right_finger_up_di) and not Di.get_di(self.right_finger_down_di):
                 self.right_finger_real_pos = 1
                 Do.setDO(self.right_finger_up_do, False)
-            if Di.get_di(self.left_finger_up_di) and Di.get_di(self.right_finger_up_di):
+            if self.left_finger_real_pos == 1 and self.right_finger_real_pos == 1:
                 self.finger_open_start = False
                 Module.set_status(ScriptStatus.FINISHED)
                 return True
@@ -617,8 +620,8 @@ class ContainerRobot:
             if Di.get_di(self.right_finger_down_di) and not Di.get_di(self.right_finger_up_di):
                 Do.setDO(self.right_finger_down_do, False)
                 self.right_finger_real_pos = 0
-            if Di.get_di(self.left_finger_down_di) and Di.get_di(self.right_finger_down_di):
-                self.finger_open_start = False  #重置记录拨指动作开始的时刻
+            if self.left_finger_real_pos == 0 and self.right_finger_real_pos == 0:
+                self.finger_open_start = False  # 重置记录拨指动作开始的时刻
                 Module.set_status(ScriptStatus.FINISHED)
                 return True
         return False
@@ -645,10 +648,14 @@ class ContainerRobot:
         log.info(f"----- running stretch ------")
         temp_motor_speed = ConfigParams.stretch_motor_speed
         if ConfigParams.max_stretch_length < length < ConfigParams.max_stretch_length + 0.1:
-            Abnormal.setTask(54000,  f"下发伸出长度值略微超上限，下发值：{length}，上限值：{ConfigParams.max_stretch_length}。请检查货物是否离车体太远了！", "", "", "")
+            Abnormal.setTask(54000,
+                             f"下发伸出长度值略微超上限，下发值：{length}，上限值：{ConfigParams.max_stretch_length}。请检查货物是否离车体太远了！",
+                             "", "", "")
             length = ConfigParams.max_stretch_length
         elif length > ConfigParams.max_stretch_length + 0.1:
-            Abnormal.setTask(53000,f"下发伸出长度值远超上限，下发值：{length}，上限值：{ConfigParams.max_stretch_length}。请检查货物是否离车体太远了！！！", "", "", "")
+            Abnormal.setTask(53000,
+                             f"下发伸出长度值远超上限，下发值：{length}，上限值：{ConfigParams.max_stretch_length}。请检查货物是否离车体太远了！！！",
+                             "", "", "")
             Module.set_status(ScriptStatus.FAILED)
             return False
 
@@ -683,7 +690,7 @@ class ContainerRobot:
         if Motor.isMotorReached(ConfigParams.rotate_motor_name):
             return True
         return False
-    
+
     def rec_barcode(self):
         """
         识别一维码
@@ -697,14 +704,16 @@ class ContainerRobot:
             if self.rec_res and self.rec_res.get("status", 1) == 0:
                 Do.setDO(self.fill_light_do, False)
                 if self.rec_res['barCode'] != self.goods_id:
-                    Abnormal.setTask(53000,f"货物编码不匹配, 任务下发的货物编码: {self.goods_id}, 识别的货物编码: {self.rec_res['barCode']}","", "", "")
+                    Abnormal.setTask(53000,
+                                     f"货物编码不匹配, 任务下发的货物编码: {self.goods_id}, 识别的货物编码: {self.rec_res['barCode']}",
+                                     "", "", "")
                     Module.set_status(ScriptStatus.FAILED)
                 Module.report_info({"barcode": self.rec_res['barCode']})
                 return self.rec_res['barCode']
             else:
                 if Timer.delay(0.05):
                     Recognize.doRec(ConfigParams.barcode_file, False, 0.0, 0.0, 0.0, 0.0)
-                Module.report_info({"barcode":"None"})
+                Module.report_info({"barcode": "None"})
             Module.report_info({"rec_id": self.rec_id})
 
     def rec_box_barcode(self):
@@ -712,7 +721,7 @@ class ContainerRobot:
         指定货叉高度和角度位置识别一维码
         """
         if time.time() - self.start_time > 20:
-            Abnormal.setTask(53000,f"未识别到一维码！请检查相机是否对准了一维码！","", "", "")
+            Abnormal.setTask(53000, f"未识别到一维码！请检查相机是否对准了一维码！", "", "", "")
             Module.set_status(ScriptStatus.FAILED)
         if not self.opt_step[0]:
             self.opt_step[0] = self.lift(self.lift_height)
@@ -731,7 +740,7 @@ class ContainerRobot:
         指定货叉高度和角度位置识别二维码
         """
         if time.time() - self.start_time > 20:
-            Abnormal.setTask(53000,f"未识别到二维码！请检查相机是否对准了二维码！","", "", "")
+            Abnormal.setTask(53000, f"未识别到二维码！请检查相机是否对准了二维码！", "", "", "")
             Module.set_status(ScriptStatus.FAILED)
         if not self.opt_step[0]:
             self.opt_step[0] = self.lift(self.lift_height)
@@ -757,7 +766,7 @@ class ContainerRobot:
                     }
                 }
                 NetProtocol.tcpUploadString(json.dumps(data))
-                Module.report_info({"rec_qrcode_data":data})
+                Module.report_info({"rec_qrcode_data": data})
                 self.rec.reset()
                 Do.setDO(self.fill_light_do, False)
                 self.opt_step[3] = True
@@ -797,7 +806,9 @@ class ContainerRobot:
                 Module.set_status(ScriptStatus.FAILED)
             if self.self_position:
                 if self.goods_manger.has_goods(self.self_position):
-                    Abnormal.setTask(53000,f"第{self.self_position}层背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "","", "")
+                    Abnormal.setTask(53000,
+                                     f"第{self.self_position}层背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "",
+                                     "", "")
                     Module.set_status(ScriptStatus.FAILED)
                 self.cur_c = self.self_position
             else:
@@ -848,7 +859,8 @@ class ContainerRobot:
                 if Di.get_di(self.left_finger_up_di) and Di.get_di(self.right_finger_up_di):
                     self.load_step[6] = self.stretch(self.stretch_length)
                 else:
-                    Abnormal.setTask(53000, f"检测到拨指未打开，取消执行伸出动作！请检查拨指及其到位光电是否正常！", "","", "")
+                    Abnormal.setTask(53000, f"检测到拨指未打开，取消执行伸出动作！请检查拨指及其到位光电是否正常！", "",
+                                     "", "")
                     Module.set_status(ScriptStatus.FAILED)
             elif self.load_step[6] and not self.load_step[7]:
                 self.load_step[7] = self.finger(0)
@@ -879,7 +891,7 @@ class ContainerRobot:
             load_info['lift-height'] = self.lift_height
             load_info['load-height'] = self.load_height
             load_info['lift-real-height'] = self.lift_real_pos
-            Module.report_info({"load_info":load_info})
+            Module.report_info({"load_info": load_info})
             if all(self.load_step):
                 self.goods_manger.setContainer(self.cur_c, self.goods_id, "")
                 return True
@@ -915,7 +927,7 @@ class ContainerRobot:
         in_take_info["in_take_step"] = self.in_take_step[:8]
         in_take_info["cur_container"] = self.cur_c
         in_take_info["goodsId"] = self.goods_id
-        Module.report_info=({"in_take_info":in_take_info})
+        Module.report_info = ({"in_take_info": in_take_info})
         if all(self.in_take_step[:8]):
             Container.clearContainer(self.cur_c)
             goods_id = self.goods_manger.get_goodsId_by_container(self.cur_c)
@@ -949,7 +961,7 @@ class ContainerRobot:
         in_put_info = dict()
         in_put_info["goodsId"] = self.goods_id
         in_put_info["in_put_info"] = self.in_put_step[:7]
-        Module.report_info({"in_take_info":in_put_info})
+        Module.report_info({"in_take_info": in_put_info})
 
         if all(self.in_put_step[0:8]):
             goods_id = self.goods_manger.get_goodsId_by_container("999")
@@ -1046,7 +1058,8 @@ class ContainerRobot:
                     self.rec_box.is_error = None
                     Do.setDO(self.fill_light_do, False)
                     if self.rec_box.has_goods and not self.rec_box.goods_out_dist:
-                        Abnormal.setTask(53000, "检测到货架上已经有货，取消放货动作！请人工核查货架和任务数据！", "","", "")
+                        Abnormal.setTask(53000, "检测到货架上已经有货，取消放货动作！请人工核查货架和任务数据！", "", "",
+                                         "")
                         Module.set_status(ScriptStatus.FAILED)
                         return
                     else:
@@ -1252,7 +1265,7 @@ class ContainerRobot:
             unload_info['unload_step'] = self.unload_step
             unload_info['cur_container'] = self.cur_c
             unload_info['goodsId'] = self.goods_id
-            Module.report_info({"unload_info":unload_info})
+            Module.report_info({"unload_info": unload_info})
 
         if all(self.unload_step):
             Container.clearContainer("999")
@@ -1262,7 +1275,7 @@ class ContainerRobot:
         if self.lift_real_pos > ConfigParams.safe_lift_height:
             return self.lift(ConfigParams.safe_lift_height)
         return True
-    
+
     def update_report_info(self):
         self.lift_real_pos = Motor.get_motor_pos(ConfigParams.lift_motor_name)
         self.stretch_real_pos = Motor.get_motor_pos(ConfigParams.stretch_motor_name)
@@ -1353,7 +1366,7 @@ class ContainerRobot:
             Abnormal.setTask(53000, f"货物{self.goods_id}不存在，请核对货物编号和背篓数据！", "", "", "")
             Module.set_status(ScriptStatus.FAILED)
             return
-        
+
     def main(self):
         while True:
             status = Module.get_status()
@@ -1366,6 +1379,7 @@ class ContainerRobot:
             log.info(f"{Module.get_task_id()=}")
             log.info(f"{Module.get_status()=}")
             time.sleep(0.1)
+
 
 class Rec:
     def __init__(self, filename, is_error=None, max_rec_times=10):
@@ -1424,7 +1438,7 @@ class Rec:
         cur_state['rec_task_status'] = self.status
         cur_state['rec_status'] = rec_status
         cur_state['file'] = self.filename
-        Module.report_info({'rec_info':cur_state})
+        Module.report_info({'rec_info': cur_state})
 
     def reset(self):
         Recognize.resetRec()
@@ -1543,7 +1557,9 @@ class RecAdjust:
                 if abs(agv.yaw_adjust) > self.max_yaw_bias:
                     self.status = ScriptStatus.FAILED
                     Module.set_status(self.status)
-                    Abnormal.setTask(53000, f"识别到角度偏差{agv.yaw_adjust}超出上限值{self.max_yaw_bias}，请检查料箱是否摆正，二维码是否损坏！", "", "", "")
+                    Abnormal.setTask(53000,
+                                     f"识别到角度偏差{agv.yaw_adjust}超出上限值{self.max_yaw_bias}，请检查料箱是否摆正，二维码是否损坏！",
+                                     "", "", "")
                 else:
                     if self.adjust_count >= (self.max_adjust_time - 3):
                         self.ok_x = 0.01
@@ -1604,7 +1620,7 @@ class RecAdjust:
         cur_state["agv_yaw_adjust"] = agv.yaw_adjust / math.pi * 180
         cur_state["last_yaw_adjust"] = self.last_yaw_adjust / math.pi * 180
         cur_state["next_rotate_pos"] = self.next_rotate_pos / math.pi * 180
-        Module.report_info({'rec_adjust':cur_state})
+        Module.report_info({'rec_adjust': cur_state})
 
     def reset(self):
         self.rec.reset()
@@ -1612,6 +1628,7 @@ class RecAdjust:
         Module.set_status(self.status)
         self.rec_fail_time = 0
         self.goPath.reset()
+
 
 if __name__ == '__main__':
     Module.init()
