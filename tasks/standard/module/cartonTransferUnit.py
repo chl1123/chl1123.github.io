@@ -2,6 +2,7 @@ import math
 import json
 import random
 import time
+import uuid
 
 start_time = time.time()
 from syspy.utils.time import Timer
@@ -220,6 +221,7 @@ class InputParams:
 class ContainerRobot:
     def __init__(self):
         super().__init__()
+        self.offset_x = None
         self.goods_manger = Container()
         self.rec_box = None
         self.stretch_motor_stop = None
@@ -312,6 +314,9 @@ class ContainerRobot:
         self.report_info = {}
         self.motor_info = {}
 
+        self.box_code_file = ConfigParams.box_code_file
+        self.shelf_code_file = ConfigParams.shelf_code_file
+
         self.goPath = GoPath()
         Motor.resetMotor(ConfigParams.lift_motor_name)
         self.validator = ParamValidator(InputParams.builder.to_dict())
@@ -343,12 +348,39 @@ class ContainerRobot:
         self.stretch_length = args.get("stretch", 0)
         self.is_auto_stretch = bool("stretch" not in args)  # 输入参数无"stretch"，则自动计算识别长度
         self.rotate_pos = args.get("rotate", 0)
+        self.rec_box_lift = args.get("recBoxLift", 0)
         self.offset_x = args.get("offset_x", ConfigParams.offset_x)
         self.pre_finger = args.get("pre_finger", self.pre_finger)
+        if self.rec_box_lift:
+            self.rec_box = Rec(ConfigParams.box_code_file, max_rec_times=1)
+        self.code_type = args.get("visionBinType", "code")
+        self.target_type = args.get("visionType", None)
+        self.barcode_height = args.get("barcodeHeight", None)
+        self.operation = args.get("operation", None)
+        self.load_height = args.get("loadHeight", ConfigParams.rec_offz_box)
+        self.unload_height = args.get("unloadHeight", ConfigParams.rec_offz_shelf)
+        self.self_position = args.get("container", self.self_position)
+        self.self_position = str(self.self_position) if self.self_position else self.self_position
+        self.rec_id = uuid.uuid4().hex
+        self.box_code_file = args.get("code_file", self.box_code_file)
+        self.shelf_code_file = args.get("shelf_code_file", self.shelf_code_file)
+        if "recAdjust" in args:
+            if self.target_type is None:
+                if self.operation == "load" or self.operation == "ex_take":
+                    self.rec_adjust = RecAdjust(self.box_code_file)
+                elif self.operation == "unload" or self.operation == "ex_put":
+                    self.rec_adjust = RecAdjust(self.shelf_code_file)
+            elif self.target_type == "box":
+                self.rec_adjust = RecAdjust(self.box_code_file)
+            elif self.target_type == "shelf":
+                self.rec_adjust = RecAdjust(self.shelf_code_file)
+        if self.target_type == "box" and self.code_type == "code":
+            self.rec = Rec(ConfigParams.box_code_file)
+        elif self.target_type == "shelf" and self.code_type == "code":
+            self.rec = Rec(ConfigParams.shelf_code_file)
         if time.time() - self.start_time > ConfigParams.timeout:
             Abnormal.setTask(53000, f"脚本任务运行超时，请重新执行任务！", "", "", "")
             Module.set_status(ScriptStatus.FAILED)
-
         self.update_report_info()
         if self.motor_calib_state:
             operation = args.get('operation')
@@ -1394,7 +1426,7 @@ class Rec:
         self.goods_out_dist = None
         self.max_goods_dist = 0.8
 
-    def run(self):
+    def run(self, agv: ContainerRobot = None):
         self.status = ScriptStatus.NONE
         Module.set_status(self.status)
 
