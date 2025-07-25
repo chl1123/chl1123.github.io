@@ -1,14 +1,12 @@
 # coding=utf-8
-import sys
 import math
 from enum import  IntEnum
 import json
 import time
-from containerRobot import Module as ContainerRobotModule
-sys.path.append("syspy")
-from syspy.rbkSim import SimModule
-from syspy.rbk import MoveStatus, BasicModule
-from syspy.robot import ModuleTool
+from syspy import Logger, ScriptStatus, Navigation, Module, Motor, Do
+from tasks.standard.module.cartonTransferUnit import ContainerRobot
+
+log = Logger("goLineCalibAction")
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -42,108 +40,134 @@ class MoveAction(IntEnum):
     Reset = 4
     ActionEnd = 5
 
-class Module(BasicModule):
+class CalibMove:
 
-    def __init__(self, r: SimModule, args):
+    def __init__(self):
         super().__init__()
         self.reset()
 
     def reset(self):
         self.init = True
-        self.status = MoveStatus.RUNNING
+        self.status = ScriptStatus.RUNNING
         self.move_action = MoveAction.Start
         self.cur_angle = 0.0
 
-    def Rotate(self, r, pos):
-        cur_pos = ModuleTool.get_motor_pos(r, "rotate")
-        info = dict()
-        info["cur_pos"] = cur_pos
-        info["pos"] = pos
-        r.setInfo(json.dumps(info))
-        r.logDebug("Rotate][{}|{}".format(cur_pos,pos))
-        if(abs(cur_pos - pos) < 0.001):
-            return MoveStatus.FINISHED
-        else:
-            return self.spk.rotate(r, pos)
+    # def Rotate(self, pos):
+    #     cur_pos = Motor.get_motor_pos(self.motor_name)
+    #     info = dict()
+    #     info["cur_pos"] = cur_pos
+    #     info["pos"] = pos
+    #     info["name"] = self.motor_name
+    #     log.info(json.dumps(info))
+    #     if(abs(cur_pos - pos) < 0.001):
+    #         return ScriptStatus.FINISHED
+    #     else:
+    #         return self.spk.rotate(pos)
 
-    def run(self, r: SimModule, args):
+    def run(self):
         # 初始化
         if self.init:
-            r.resetOdoMove()
+            Navigation.resetOdoMove()
             self.init = False
-            self.status = MoveStatus.RUNNING
+            self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.Start
-            self.spk = ContainerRobotModule(r, args)
+            # self.spk = ContainerRobot()
             self.step_angle = 2.0
             self.cur_angle = self.step_angle
-            if type(args) is dict and "angle" in args:
-                self.angle = float(args["angle"])
-            else:
-                self.angle = 50.0
+            self.angle = Module.get_task_args("angle", 50.0)
+            self.motor_name = Module.get_task_args("name","Motor-005")
             self.cancel = False
 
         # 实时运行
+        self.pos = Motor.get_motor_pos(self.motor_name)
         if self.move_action == MoveAction.Start:
-            if self.Rotate(r, pos=0.0):
-                self.status = MoveStatus.FINISHED
+            self.cur_angle = 0.0
+            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0, 0):
+                if math.fabs(self.pos-self.cur_angle/180*math.pi) < 0.01:
+                    self.status = ScriptStatus.FINISHED
+                else:
+                    self.status = ScriptStatus.RUNNING
             else:
-                self.status = MoveStatus.RUNNING
+                self.status = ScriptStatus.RUNNING
         elif self.move_action == MoveAction.Rotate:
-            if self.Rotate(r, pos=self.cur_angle/180*math.pi):
-                self.status = MoveStatus.FINISHED
+            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0, 0):
+                if math.fabs(self.pos-self.cur_angle/180*math.pi) < 0.01:
+                    self.status = ScriptStatus.FINISHED
+                else:
+                    self.status = ScriptStatus.RUNNING
             else:
-                self.status = MoveStatus.RUNNING
+                self.status = ScriptStatus.RUNNING
         elif self.move_action == MoveAction.RevRotate:
-            if self.Rotate(r, pos=-self.cur_angle/180*math.pi):
-                self.status = MoveStatus.FINISHED
+            if Motor.setMotorPosition(self.motor_name, -self.cur_angle/180*math.pi, 10.0, 0):
+                if math.fabs(self.pos+self.cur_angle/180*math.pi) < 0.01:
+                    self.status = ScriptStatus.FINISHED
+                else:
+                    self.status = ScriptStatus.RUNNING
             else:
-                self.status = MoveStatus.RUNNING
+                self.status = ScriptStatus.RUNNING
         elif self.move_action == MoveAction.Reset:
-            if self.Rotate(r, pos=0.0):
-                self.status = MoveStatus.FINISHED
+            self.cur_angle = 0.0
+            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0, 0):
+                if math.fabs(self.pos-self.cur_angle/180*math.pi) < 0.01:
+                    self.status = ScriptStatus.FINISHED
+                else:
+                    self.status = ScriptStatus.RUNNING
             else:
-                self.status = MoveStatus.RUNNING
+                self.status = ScriptStatus.RUNNING
 
+        # 当前任务完成时改变状态
+        if self.status == ScriptStatus.FINISHED:
+            if self.move_action == MoveAction.Start or \
+                self.move_action == MoveAction.Rotate or \
+                self.move_action == MoveAction.RevRotate:
+                Do.setDO(4, True)
+                record_status =  Navigation.calibRecord()
+                if not record_status:
+                    self.status = ScriptStatus.RUNNING
+                    return ScriptStatus.RUNNING
+                else:
+                    Do.setDO(4, False)
+                if self.move_action == MoveAction.Rotate or self.move_action == MoveAction.RevRotate:
+                    if self.cur_angle < self.angle:
+                        self.cur_angle = self.cur_angle + self.step_angle
+                        self.status = ScriptStatus.RUNNING
+                        return ScriptStatus.RUNNING
+                    else:
+                        self.cur_angle = self.step_angle
+            self.move_action = self.move_action + 1
+            if self.move_action != MoveAction.ActionEnd:
+                Navigation.resetOdoMove()
+                self.status = ScriptStatus.RUNNING
+
+        return self.status
+
+    def print(self):
         # 实时打印
         info = dict()
         info["move_action"] = self.move_action
         info["status"] = self.status
         info["angle"] = self.angle
-        info["cur_angle"] = self.cur_angle
+        info["cur_obj_angle"] = self.cur_angle
+        info["cur_real_angle"] = self.pos*180/math.pi
+        log.info(json.dumps(info))
 
-        r.setInfo(json.dumps(info))
-        r.logDebug("containCameraCalibAction][{}|{}|{}|{}".format(
-                    self.move_action,
-                    self.status,
-                    self.angle,
-                    self.cur_angle))
+    def cancel(self):
+        print("cancel!!!")
+        self.cancel = True
 
-        # 当前任务完成时改变状态
-        if self.status == MoveStatus.FINISHED:
-            if self.move_action == MoveAction.Start or \
-                self.move_action == MoveAction.Rotate or \
-                self.move_action == MoveAction.RevRotate:
-                r.setDO(4, True)
-                record_status =  r.calibRecordService()
-                if not record_status:
-                    return MoveStatus.RUNNING
-                else:
-                    r.setDO(4, False)
-                if self.move_action == MoveAction.Rotate or self.move_action == MoveAction.RevRotate:
-                    if self.cur_angle < self.angle:
-                        self.cur_angle = self.cur_angle + self.step_angle
-                        return MoveStatus.RUNNING
-                    else:
-                        self.cur_angle = self.step_angle
-            self.move_action = self.move_action + 1
-            if self.move_action != MoveAction.ActionEnd:
-                r.resetOdoMove()
-                self.status = MoveStatus.RUNNING
-
-        return self.status
+def main():
+    calib_move = CalibMove()
+    Module.init()
+    Module.set_cancel_callback(calib_move.cancel)
+    while True:
+        calib_move.run()
+        calib_move.print()
+        # time.sleep(0.1)
+        if calib_move.status == ScriptStatus.FINISHED:
+            Module.set_status(ScriptStatus.FINISHED)
+            return
+        if calib_move.cancel:
+            return
 
 if __name__ == '__main__':
-    r = SimModule()
-    m = Module(r, None)
-    args = dict()
-    print(m.run(r, args))
+    main()
