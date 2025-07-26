@@ -3,7 +3,7 @@ from typing import List, TYPE_CHECKING
 
 from syspy.lib.plyvel_db import LevelDB
 from syspy.navigation import Navigation
-from .lib.py_rpc import Message, call_service, default_plugin
+from syspy.lib.py_rpc import Message, call_service, default_plugin
 
 if TYPE_CHECKING:
     from .protobuf import Message_Bin, Message_Bins  # IDE类型提示
@@ -58,9 +58,16 @@ class Container:
         }
 
     @classmethod
-    def init_container_data(cls):
+    def init_container(cls, number: int = 7):
+        """初始化背篓数据。
+
+        Args:
+            number (str): 背篓数量。从模型中的moduleType.cartonTransferUnit.id参数获取
+        """
         model_container_names = []
-        # todo 从模型文件中获取背篓名称
+        model_container_names.append("999")
+        for i in range(number):
+            model_container_names.append(str(i))
         raw_data = cls.db.gets(model_container_names)
         for name, value in zip(model_container_names, raw_data):
             if value is None:
@@ -230,7 +237,10 @@ class Container:
 
 
 if __name__ == '__main__':
-    Container.init_container_data()
+    from syspy import RobotParam
+    container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
+    if isinstance(container_num, int) and container_num > 0:
+        Container.init_container(container_num)
     print("init data", Container.getContainers())
     Container.setContainer("0", "0", "c0")
     Container.setContainer("1", "1", "c1")
