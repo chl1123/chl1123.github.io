@@ -214,6 +214,12 @@ class InputParams:
             builder.UNIT("m")
             builder.DEFAULTVALUE(0)
 
+        with builder.CHILD(key="container", name="Container", desc="背篓编号"):
+            builder.MIN_VALUE(0)
+            builder.MAX_VALUE(998)
+            builder.TYPE(ParamType.INT)
+            builder.DEFAULTVALUE(0)
+
         with builder.CHILD(key="modbus_ip", name="Modbus IP", desc="Modbus TCP IP"):
             builder.TYPE(ParamType.IP)
             builder.DEFAULTVALUE("192.168.192.6")
