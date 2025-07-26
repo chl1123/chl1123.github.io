@@ -1324,7 +1324,10 @@ class ContainerRobot(ModuleBase):
             if all(self.ex_take_step[0:2]) and not self.ex_take_step[2]:
                 self.ex_take_step[2] = self.goods_id == self.rec_barcode()
         else:
-            self.ex_take_step[0:3] = [True] * 3
+            self.ex_take_step[0] = True
+            if not self.ex_take_step[1]:
+                self.ex_take_step[1] = self.rotate(self.rotate_pos)
+            self.ex_take_step[2] = True
 
         if self.rec_adjust is not None:
             if not self.change_step[0]:
