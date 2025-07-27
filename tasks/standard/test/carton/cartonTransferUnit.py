@@ -826,14 +826,14 @@ class ContainerRobot(ModuleBase):
             self.report_info["motorInfo"] = motor_info
             for m_f in motor_info:
                 if m_f["motorName"] == ConfigParams.lift_motor_name:
-                    self.lift_motor_calib = m_f["calib"]
-                    self.lift_motor_stop = m_f["stop"]
+                    self.lift_motor_calib = m_f.get("calib", None)
+                    self.lift_motor_stop = m_f.get("stop", None)
                 if m_f["motorName"] == ConfigParams.stretch_motor_name:
-                    self.stretch_motor_calib = m_f["calib"]
-                    self.stretch_motor_stop = m_f["stop"]
+                    self.stretch_motor_calib = m_f.get("calib", None)
+                    self.stretch_motor_stop = m_f.get("stop", None)
                 if m_f["motorName"] == ConfigParams.rotate_motor_name:
-                    self.rotate_motor_calib = m_f["calib"]
-                    self.rotate_motor_stop = m_f["stop"]
+                    self.rotate_motor_calib = m_f.get("calib", None)
+                    self.rotate_motor_stop = m_f.get("stop", None)
         self.motor_calib_state = self.lift_motor_calib and self.stretch_motor_calib and self.rotate_motor_calib
 
     def force_calib(self):
