@@ -275,6 +275,7 @@ class InputParams:
                         create_rotate_param(builder, "取货前的货叉角度")
                         create_rec_adjust_param(builder, "开启识别时调整机器人位置")
                         create_stretch_param(builder, "取货时货叉伸出长度，缺省时根据识别结果自动计算")
+                        create_container_param(builder, "车体背篓号，指定内部放货的背篓号，缺省时将按照从下往上依次放货")
                         create_goods_id_param(builder, "设置货物编号，缺省时为空字符串")
                 with builder.CHILD(key="unload", name="Unload", desc="放货"):
                     builder.TYPE(ParamType.ARRAY)
@@ -290,6 +291,8 @@ class InputParams:
                         with builder.CHILD(key="pre_finger", name="Pre Finger", desc="放货时提前打开手指，解决推箱子后由于箱体表面不规则结构卡手指"):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1)
+                        create_container_param(builder, "车体背篓号，指定内部取货的背篓号，缺省时将按照从下往上依次取货")
+                        create_goods_id_param(builder, "货物编号，指定要取货的货物编号，若车体背篓中无此goodsId，会报错")
                 with builder.CHILD(key="rec_box_barcode", name="Rec_Box_Barcode", desc="识别料箱一维码"):
                     builder.TYPE(ParamType.ARRAY)
                     create_lift_param(builder, "识别前的货叉高度")
@@ -1606,6 +1609,7 @@ class ContainerRobot(ModuleBase):
                             self.unload_step[6] = self.lift(self.lift_height)
                         if not self.unload_step[7]:
                             self.unload_step[7] = self.rotate(self.rotate_pos)
+                    self.unload_step[5] = self.stretch(0)
                     if self.unload_step[5] and Di.get_di(ConfigParams.goods_check_di):
                         goods_id = Container.get_goodsId_by_container(self.cur_c)
                         Container.setContainer("999", goods_id, "")
