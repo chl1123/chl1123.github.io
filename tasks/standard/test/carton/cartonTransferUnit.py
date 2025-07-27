@@ -493,6 +493,9 @@ class ContainerRobot(ModuleBase):
         self.cur_c = None
         self.script_version = SCRIPT_VERSION
 
+        self.ok_x = ConfigParams.ok_x
+        self.ok_yaw = ConfigParams.ok_yaw
+
         self.args_init = False
         self.script_args = args or {}
         self.status = ScriptStatus.NONE
