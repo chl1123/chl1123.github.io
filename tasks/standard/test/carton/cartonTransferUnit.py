@@ -180,6 +180,60 @@ class ConfigParams:
     max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13,
                                     comment="货叉与料箱角度最大偏差, 弧度值")
 
+def create_container_param(builder: ParamBuilder, desc: str = "车体背篓号"):
+    """创建车体背篓号参数"""
+    with builder.CHILD(key="container", name="Container",
+                       desc=desc):
+        builder.MIN_VALUE(0)
+        builder.MAX_VALUE(998)
+        builder.TYPE(ParamType.INT)
+        builder.DEFAULTVALUE(0)
+
+def create_goods_id_param(builder: ParamBuilder, desc: str = "货物编号"):
+    """创建货物编号参数"""
+    with builder.CHILD(key="goodsId", name="Goods Id", desc=desc):
+        builder.TYPE(ParamType.STRING)
+        builder.DEFAULTVALUE("")
+
+def create_lift_param(builder: ParamBuilder, desc: str = "货叉高度"):
+    """创建货叉高度参数"""
+    with builder.CHILD(key="lift", name="Lift", desc=desc):
+        builder.MIN_VALUE(ConfigParams.min_lift_height)
+        builder.MAX_VALUE(ConfigParams.max_lift_height)
+        builder.TYPE(ParamType.FLOAT)
+        builder.UNIT("m")
+        builder.DEFAULTVALUE(0)  # 1.1
+
+def create_rotate_param(builder: ParamBuilder, desc: str = "旋转角度"):
+    """创建货叉旋转角度参数"""
+    with builder.CHILD(key="rotate", name="Rotate", desc=desc):
+        builder.MIN_VALUE(-ConfigParams.max_rotate_angle)
+        builder.MAX_VALUE(ConfigParams.max_rotate_angle)
+        builder.TYPE(ParamType.DOUBLE)
+        builder.UNIT("rad")
+        builder.DEFAULTVALUE(0)  # -1.57
+
+def create_stretch_param(builder: ParamBuilder, desc: str = "伸缩机构长度"):
+    """创建伸缩机构长度参数"""
+    with builder.CHILD(key="stretch", name="Stretch", desc=desc):
+        builder.MIN_VALUE(0)
+        builder.MAX_VALUE(ConfigParams.max_stretch_length)
+        builder.TYPE(ParamType.FLOAT)
+        builder.UNIT("m")
+        builder.DEFAULTVALUE(0)
+
+def create_vision_type_param(builder: ParamBuilder, desc: str = "识别类型"):
+    """创建识别类型参数"""
+    with builder.CHILD(key="visionType", name="visionType", desc=desc):
+        builder.TYPE(ParamType.STRING)
+        builder.DEFAULTVALUE("box")
+
+def create_rec_adjust_param(builder: ParamBuilder, desc: str = "开启识别控制机器人位置"):
+    """创建识别调整参数"""
+    with builder.CHILD(key="recAdjust", name="Rec Adjust", desc=desc):
+        builder.TYPE(ParamType.INT)
+        builder.DEFAULTVALUE(1)
+
 
 class InputParams:
     builder = ParamBuilder(__file__, desc="Input Params Config")
@@ -190,69 +244,94 @@ class InputParams:
             builder.REQUIRED(False)
             builder.DEFAULTVALUE(0)
 
-        with builder.CHILD(key="lift", name="Lift", desc="升降高度"):
-            builder.MIN_VALUE(0)
-            builder.MAX_VALUE(100)
-            builder.TYPE(ParamType.FLOAT)
-            builder.REQUIRED(False)
-            builder.UNIT("m")
-            builder.DEFAULTVALUE(0)  # 1.1
+        create_lift_param(builder)
 
-        with builder.CHILD(key="rotate", name="Rotate", desc="旋转角度"):
-            builder.MIN_VALUE(-100)
-            builder.MAX_VALUE(100)
-            builder.TYPE(ParamType.DOUBLE)
-            builder.REQUIRED(False)
-            builder.UNIT("rad")
-            builder.DEFAULTVALUE(0)  # -1.57
+        create_rotate_param(builder)
 
-        with builder.CHILD(key="stretch", name="Stretch", desc="伸缩机构长度"):
-            builder.MIN_VALUE(-100)
-            builder.MAX_VALUE(100)
-            builder.TYPE(ParamType.FLOAT)
-            builder.REQUIRED(False)
-            builder.UNIT("m")
-            builder.DEFAULTVALUE(0)
-
-        with builder.CHILD(key="container", name="Container", desc="背篓编号"):
-            builder.MIN_VALUE(0)
-            builder.MAX_VALUE(998)
-            builder.TYPE(ParamType.INT)
-            builder.DEFAULTVALUE(0)
+        create_stretch_param(builder)
 
         with builder.CHILD(key="modbus_ip", name="Modbus IP", desc="Modbus TCP IP"):
             builder.TYPE(ParamType.IP)
             builder.DEFAULTVALUE("192.168.192.6")
 
-        with builder.CHILD(key="visionType", name="visionType", desc="visionType"):
-            builder.TYPE(ParamType.STRING)
-            builder.DEFAULTVALUE("box")
-
         with builder.GROUP(key="operation", name="Operation", desc="机构动作选项"):
             builder.TYPE(ParamType.COMBO_BOX)
             with builder.CHILDREN():
-                with builder.CHILD(key="rec_qrcode", name="Rec_Qrcode", desc="识别二维码"):
-                    builder.TYPE(ParamType.ARRAY)
                 with builder.CHILD(key="none", name="none", desc="空"):
                     builder.TYPE(ParamType.ARRAY)
+                with builder.CHILD(key="rec_qrcode", name="Rec_Qrcode", desc="识别二维码"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_vision_type_param(builder, "识别类型: 'box' 或 'shelf'")
+                        create_lift_param(builder, "识别时的货叉高度")
+                        create_rotate_param(builder, "识别时的货叉角度")
                 with builder.CHILD(key="zero", name="Zero", desc="机构回零"):
                     builder.TYPE(ParamType.ARRAY)
                 with builder.CHILD(key="load", name="Load", desc="取货"):
                     builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_vision_type_param(builder, "识别类型: 'box'或'shelf'，可缺省")
+                        create_lift_param(builder, "取货前识别时的货叉高度")
+                        create_rotate_param(builder, "取货前的货叉角度")
+                        create_rec_adjust_param(builder, "开启识别时调整机器人位置")
+                        create_stretch_param(builder, "取货时货叉伸出长度，缺省时根据识别结果自动计算")
+                        create_goods_id_param(builder, "设置货物编号，缺省时为空字符串")
                 with builder.CHILD(key="unload", name="Unload", desc="放货"):
                     builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_vision_type_param(builder, "识别类型: 'shelf'")
+                        create_lift_param(builder, "放货前识别时的货叉高度")
+                        create_rec_adjust_param(builder, "开启识别时调整机器人位置")
+                        create_rotate_param(builder, "放货前的货叉角度")
+                        create_stretch_param(builder, "放货时货叉伸出长度，缺省时根据识别结果自动计算")
+                        with builder.CHILD(key="recBoxLift", name="Rec Box Lift", desc="识别料箱码的高度，用于放货前先识别库位是否已经有货"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(-1)
+                        with builder.CHILD(key="pre_finger", name="Pre Finger", desc="放货时提前打开手指，解决推箱子后由于箱体表面不规则结构卡手指"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(1)
                 with builder.CHILD(key="rec_box_barcode", name="Rec_Box_Barcode", desc="识别料箱一维码"):
                     builder.TYPE(ParamType.ARRAY)
+                    create_lift_param(builder, "识别前的货叉高度")
+                    create_rotate_param(builder, "识别前的货叉角度")
                 with builder.CHILD(key="take_photo", name="Take_Photo", desc="拍照"):
                     builder.TYPE(ParamType.ARRAY)
-                with builder.CHILD(key="in_take", name="In_Take", desc="内部取货"):
+                    with builder.CHILDREN():
+                        create_lift_param(builder, "拍照前的货叉高度")
+                        create_rotate_param(builder, "拍照前的货叉角度")
+
+                # in_take
+                with builder.CHILD(key="in_take", name="In Take", desc="内部取货"):
                     builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_container_param(builder, "车体背篓号，指定内部取货的背篓号，缺省时将按照从下往上依次取货")
+                        create_goods_id_param(builder, "货物编号，指定要取货的货物编号，若车体背篓中无此goodsId，会报错")
+                        create_rotate_param(builder, "内部取货后货叉停止的角度，可设置为下一个动作的目标角度，缺省时默认为0")
+                        create_lift_param(builder, "内部取货后货叉停止的高度，可设置为下一个动作的目标高度，缺省时默认为0")
+
                 with builder.CHILD(key="in_put", name="In_Put", desc="内部放货"):
                     builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_container_param(builder, "车体背篓号，指定内部放货的背篓号，缺省时将按照从下往上依次放货")
+                        create_goods_id_param(builder, "设置货物编号，缺省时为空字符串")
+
                 with builder.CHILD(key="ex_take", name="Ex_Take", desc="外部取货"):
                     builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_vision_type_param(builder, "识别类型: 'box'或'shelf' ")
+                        create_lift_param(builder, "取货前识别时的货叉高度")
+                        create_rec_adjust_param(builder, "开启识别时调整机器人位置")
+                        create_rotate_param(builder, "取货前的货叉角度")
+                        create_stretch_param(builder, "取货时的伸缩机构长度")
+
                 with builder.CHILD(key="ex_put", name="Ex_Put", desc="外部放货"):
                     builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_vision_type_param(builder, "识别类型: 'shelf'")
+                        create_lift_param(builder, "放货前识别时的货叉高度")
+                        create_rec_adjust_param(builder, "开启识别时调整机器人位置")
+                        create_rotate_param(builder, "放货前的货叉角度")
+                        create_stretch_param(builder, "放货时的伸缩机构长度")
     builder.save_to_file()
 
 
