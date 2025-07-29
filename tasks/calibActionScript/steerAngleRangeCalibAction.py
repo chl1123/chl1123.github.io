@@ -78,15 +78,15 @@ class CalibMove:
 
         if self.steer_dir == SteerDir.CounterClockWise:
             self.send_angle = self.cur_angle + 0.1  
-            if self.chassis_mode == "dualDiff":
-                self.send_angle = min(self.send_angle, (self.steer_offset+150.0)*math.pi/180)
+            # if self.chassis_mode == "dualDiff":
+            self.send_angle = min(self.send_angle, (self.steer_offset+150.0)*math.pi/180)
             if self.reachLimit():
                 self.steer_dir = SteerDir.ClockWise
 
         if self.steer_dir == SteerDir.ClockWise:
             self.send_angle = self.cur_angle - 0.1  
-            if self.chassis_mode == "dualDiff":
-                self.send_angle = max(self.send_angle, (self.steer_offset-150.0)*math.pi/180)
+            # if self.chassis_mode == "dualDiff":
+            self.send_angle = max(self.send_angle, (self.steer_offset-150.0)*math.pi/180)
             if self.reachLimit():
                 self.steer_dir = SteerDir.MoveCenter
 
