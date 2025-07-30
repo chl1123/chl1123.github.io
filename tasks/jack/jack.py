@@ -8,6 +8,7 @@ import time
 
 start_time = time.time()
 from syspy import Module, ParamServer, Logger, Di, Motor, Navigation, ScriptStatus
+from syspy.lib.module import ModuleBase
 
 log = Logger("jack_example")
 
@@ -24,8 +25,8 @@ class ConfigParams:
     log.debug(f"{param_server.data=}")
 
 
-class Jack:
-    def __init__(self):
+class Jack(ModuleBase):
+    def __init__(self, args):
         super().__init__()
         self.opt = None
         self.height = 0.03
@@ -35,6 +36,11 @@ class Jack:
         self.go_path_x = 0
         self.go_path_y = 0
         self.go_path_a = 0
+        self.count = 0
+        self.report_info = {}
+        self.args = args
+        Module.set_status(ScriptStatus.NONE)
+        print("init Jack", args)
 
     def reset(self):
         self.spin_angle = 0
@@ -45,11 +51,13 @@ class Jack:
         self.go_path_a = 0
 
     def run(self):
+        self.count += 1
         Module.set_status(ScriptStatus.RUNNING)
-        args = Module.get_task_args()
-        Module.report_info(args)
-        self.opt = Module.get_task_args('operation', None)
-        self.height = Module.get_task_args('height', None)
+        self.report_info["args"] = self.args
+        self.report_info["count"] = self.count
+        self.report_info["run_time"] = round(time.time() - start_time, 2)
+        self.opt = self.args.get('operation', None)
+        self.height = self.args.get('height', None)
         log.info("opt = ", self.opt, "+++++++++++++++++++++++++++++++++")
         if self.opt == "load":
             self.load()
@@ -124,13 +132,16 @@ class Jack:
         log.debug("getCurrentPathProperty ==============================================")
         result = Navigation.getCurrentPathProperty()
         log.debug("getCurrentPathProperty", result)
-        Module.set_status(ScriptStatus.FINISHED)
+        if self.count == 2:
+            Module.set_status(ScriptStatus.FINISHED)
 
     def getLM(self):
         log.info("getLM ==============================================")
         result = Navigation.getLM("LM7", True)
+        self.report_info["getLM"] = result
         log.info("getLM", result)
-        Module.set_status(ScriptStatus.FINISHED)
+        if self.count == 2:
+            Module.set_status(ScriptStatus.FINISHED)
 
     def odo(self):
         if self.init_odo:
@@ -145,26 +156,43 @@ class Jack:
             Module.set_status(ScriptStatus.FINISHED)
 
     def print_info(self):
-        # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.info(f"{Module.get_task_args()=}")
-        log.info(f"{Module.get_task_id()=}")
-        log.info(f"{Module.get_status()=}")
+        # 打印当前任务id、任务状态、任务指令
+        log.info(f"{Module.get_task_id()=}, {Module.get_status()=}, {Module.get_task_args()=}")
+        Module.report_info(self.report_info)
+
+    def suspend(self):
+        Module.set_status(ScriptStatus.SUSPENDED)
+        log.info("suspend")
+
+    def resume(self):
+        if Module.get_status() == ScriptStatus.SUSPENDED:
+            Module.set_status(ScriptStatus.RUNNING)
+        log.info("resume")
+
+    def cancel(self):
+        Module.set_status(ScriptStatus.FAILED)
+        log.info("cancel")
 
 
 def main():
     Module.init()
-    j = Jack()
 
-    while True:
+    params = {
+        "operation": "load",
+        "height": 0.1
+    }
+    j = Jack(params)
+    while not Module.stop_flag:
         # 脚本任务状态管理
         status = Module.get_status()
-        if status is ScriptStatus.RUNNING:
-            j.run()
-        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            return
+        print("status", status)
+        j.report_info["status"] = status
         j.print_info()
+        if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+            return
+        if status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
+            j.run()
         time.sleep(0.1)
-
 
 if __name__ == '__main__':
     main()

@@ -81,6 +81,7 @@ def Pos2Base(pos2world, base2world):
 
 
 class Module:
+    stop_flag = False
     script_name = None
     __lock = Lock()
     __run_status = ScriptStatus.NONE
@@ -150,11 +151,11 @@ class Module:
 
     @classmethod
     def __cancel(cls):
-        # cls.set_status(ScriptStatus.FINISHED)
+        cls.stop_flag = True
         if cls.__cancel_callback is not None:
             cls.__cancel_callback()
         else:
-            cls.set_status(ScriptStatus.FINISHED)
+            cls.set_status(ScriptStatus.FAILED)
 
     @classmethod
     def __suspend(cls):
@@ -236,3 +237,26 @@ class Module:
                 from .rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.set_info(json.dumps(info))
+
+
+from abc import ABC, abstractmethod
+class ModuleBase(ABC):
+    def __init__(self):
+        Module.set_suspend_callback(self.suspend)
+        Module.set_resume_callback(self.resume)
+        Module.set_cancel_callback(self.cancel)
+        self.stop_flag = False
+
+    @abstractmethod
+    def suspend(self):
+        Module.set_status(ScriptStatus.SUSPENDED)
+
+    @abstractmethod
+    def resume(self):
+        if Module.get_status() == ScriptStatus.SUSPENDED:
+            Module.set_status(ScriptStatus.RUNNING)
+
+    @abstractmethod
+    def cancel(self):
+        Module.stop_flag = True
+        Module.set_status(ScriptStatus.FAILED)
