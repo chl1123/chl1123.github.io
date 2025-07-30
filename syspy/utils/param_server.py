@@ -560,7 +560,19 @@ class ParamValidator:
 
             # 检查是否是叶子节点参数
             if leaf_key in self.leaf_param_keys:
-                flat_params[leaf_key] = value
+                param_def = self.param_index.get(leaf_key)
+                # STRING_COMBO_LIST类型且value是整数，转换为子项键值
+                if (param_def and param_def.get('type') == ParamType.STRING_COMBO_LIST and
+                    isinstance(value, int)):
+                    # 获取STRING_COMBO_LIST的子项
+                    children = param_def.get('children', [])
+                    if 0 <= value < len(children):
+                        flat_params[leaf_key] = children[value]['key']
+                    else:
+                        # 索引无效，保持原值
+                        flat_params[leaf_key] = value
+                else:
+                    flat_params[leaf_key] = value
             # 否则保留原始键（可能是中间节点）
             else:
                 flat_params[key] = value

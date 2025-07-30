@@ -69,6 +69,10 @@ class InputParams:
                             builder.TYPE(ParamType.BOOL)
                             builder.DEFAULTVALUE(False)
 
+                # 没有子项参数的operation
+                with builder.CHILD(key="Zero", name="Zero", desc="Zero"):
+                    builder.TYPE(ParamType.ARRAY)
+
                 # JackUnload操作
                 with builder.CHILD(key="JackUnload", name="Unload Operation",
                                    desc="Lower the robot tray"):
@@ -130,11 +134,11 @@ class InputParams:
                             builder.DEFAULTVALUE(0)
 
                             with builder.CHILDREN():
-                                with builder.CHILD("0", "0", "0"):
+                                with builder.CHILD("a0", "Name a0", "name a0"):
                                     builder.TYPE(ParamType.STRING)
-                                with builder.CHILD("1", "1", "1"):
+                                with builder.CHILD("b1", "Name b0", "name b0"):
                                     builder.TYPE(ParamType.STRING)
-                                with builder.CHILD("2", "2", "2"):
+                                with builder.CHILD("c2", "Name c0", "name c0"):
                                     builder.TYPE(ParamType.STRING)
 
                 with builder.CHILD("TestBinType", "Test BinType", "Test BinType"):
@@ -163,7 +167,7 @@ class InputParams:
                         builder.TYPE(ParamType.BIND_TYPE)
                         # 多选多类型
                         builder.BINDTYPE([BindType.Script.LED, BindType.App.RECOGNITION], True)
-
+                        builder.CLONEABLE(True)
     builder.save_to_file()
 
 
