@@ -119,7 +119,7 @@ class GoPath:
             args = Module.get_task_args()
         if Abnormal.exists(52111):
             self.status = ScriptStatus.FAILED
-            return self.status.value
+            return self.status
         if not self.init:
             self.init = True
             Navigation.resetPath()
