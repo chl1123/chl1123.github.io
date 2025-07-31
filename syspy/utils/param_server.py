@@ -183,9 +183,9 @@ class BindType:
         AREA = "map:area"
 
     class Script(Enum):
-        GENRIC = "script:generic"
-        BATTERY = "script:generic/battery"
-        LED = "script:generic/led"
+        GENERIC = "script:generic"
+        STANDARD_BATTERY = "script:generic/standard/battery"
+        STANDARD_LED = "script:generic/standard/led"
 
     class Audio(Enum):
         FILE = "audio:file"

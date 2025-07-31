@@ -4,6 +4,7 @@ import time
 start_time = time.time()
 from syspy import Logger, Module, ScriptStatus
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
+from syspy.lib.module import ModuleBase
 
 log = Logger("example_input_param")
 
@@ -154,25 +155,26 @@ class InputParams:
                                        desc="Battery Led. single menu multiple types"):
                         builder.TYPE(ParamType.BIND_TYPE)
                         # 单选多类型
-                        builder.BINDTYPE([BindType.Script.BATTERY, BindType.Script.LED])
+                        builder.BINDTYPE([BindType.Script.STANDARD_BATTERY, BindType.Script.STANDARD_LED])
 
                     with builder.CHILD(key="led_mutil", name="led_mutil",
                                        desc="led_mutil. multiple menu type"):
                         builder.TYPE(ParamType.BIND_TYPE)
                         # 多选单类型
-                        builder.BINDTYPE(BindType.Script.LED, True)
+                        builder.BINDTYPE(BindType.Script.STANDARD_LED, True)
 
                     with builder.CHILD(key="generic_camera_mutil", name="generic_camera_mutil",
                                        desc="generic_camera_mutil. multiple selection multiple types"):
                         builder.TYPE(ParamType.BIND_TYPE)
                         # 多选多类型
-                        builder.BINDTYPE([BindType.Script.LED, BindType.App.RECOGNITION], True)
+                        builder.BINDTYPE([BindType.Script.STANDARD_LED, BindType.App.RECOGNITION], True)
                         builder.CLONEABLE(True)
     builder.save_to_file()
 
 
-class Jack:
+class Jack(ModuleBase):
     def __init__(self, args):
+        super().__init__()
         self.opt = None
         self.height = 0.03
         self.spin_angle = 0
@@ -180,6 +182,7 @@ class Jack:
         self.args = args
         self.report_info = {}
         self.report_info["args"] = args
+        Module.set_status(ScriptStatus.NONE)
 
     def run(self):
         self.count += 1
@@ -193,8 +196,8 @@ class Jack:
         ...
 
     def print_info(self):
-        # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.info(f"{Module.get_task_id()=}, {Module.get_status()=}, {self.args=}")
+        # 打印当前任务id、任务状态、任务指令
+        log.info(f"{Module.get_task_id()=}, {Module.get_status()=}, {Module.get_task_args()=}")
         Module.report_info(self.report_info)
 
     def suspend(self):
@@ -202,11 +205,12 @@ class Jack:
         log.info("suspend")
 
     def resume(self):
-        Module.set_status(ScriptStatus.RUNNING)
+        if Module.get_status() == ScriptStatus.SUSPENDED:
+            Module.set_status(ScriptStatus.RUNNING)
         log.info("resume")
 
     def cancel(self):
-        Module.set_status(ScriptStatus.FINISHED)
+        Module.set_status(ScriptStatus.FAILED)
         log.info("cancel")
 
 
@@ -246,22 +250,18 @@ def main():
         print("check error:", e)
 
     j = Jack(validated_params)
-    Module.set_suspend_callback(j.suspend)
-    Module.set_resume_callback(j.resume)
-    Module.set_cancel_callback(j.cancel)
 
-    while True:
+    while not Module.stop_flag:
         # 脚本任务状态管理
         status = Module.get_status()
         j.report_info["status"] = status
         j.print_info()
-        if status is ScriptStatus.RUNNING:
-            j.run()
-        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+        if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             return
-
+        if status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
+            j.run()
         time.sleep(0.1)
-
+    print("script stop")
 
 # 主程序
 if __name__ == "__main__":
