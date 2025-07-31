@@ -615,10 +615,20 @@ class ParamValidator:
                 )
 
         # 3. 验证操作参数
+        operation_def = None
+        for group in self.param_definition.get('groups', []):
+            if group.get('key') == 'operation':
+                operation_def = group
+                break
+
+        # 检查operation是否为必需参数
+        operation_required = operation_def and operation_def.get('required', False)
         operation = flat_params.get('operation')
-        if not operation:
+
+        # 只有当operation为必需参数且未提供时才报错
+        if operation_required and not operation:
             errors.append("Missing required parameter: operation")
-        else:
+        elif operation:
             op_def = self._find_operation_definition(operation)
             if op_def is None:
                 errors.append(f"Invalid operation: {operation}")
