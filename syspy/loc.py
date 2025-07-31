@@ -21,28 +21,27 @@ class Loc(Message["Message_Localization"]):
             cls._MODEL_CLASS = Message_Localization
 
     @classmethod
-    def get_position(cls) -> typing.Tuple[float, float, float]:
-        """获取位置
+    def get_pose(cls) -> typing.Dict[str, float]:
+        """获取机器人位姿（位置和姿态）
 
         Returns:
-            float: 返回x坐标值
-            float: 返回y坐标值
-            float: 返回z坐标
+            typing.Dict[str, float]: 包含以下键值对的字典：
+                - x (float): x坐标
+                - y (float): y坐标
+                - z (float): z坐标
+                - yaw (float): 偏航角（角度制）
+                - roll (float): 翻滚角（角度制）
+                - pitch (float): 俯仰角（角度制）
         """
         if cls.update():
-            return cls.data.x, cls.data.y, cls.data.z
-
-    @classmethod
-    def get_angle(cls) -> typing.Tuple[float, float, float]:
-        """获取角度（单位度）
-
-        Returns:
-            float: 返回偏航角
-            float: 返回横滚角
-            float: 返回俯仰角
-        """
-        if cls.update():
-            return math.degrees(cls.data.angle), math.degrees(cls.data.roll), math.degrees(cls.data.pitch)
+            return {
+                "x": cls.data.x,
+                "y": cls.data.y,
+                "z": cls.data.z,
+                "yaw": math.degrees(cls.data.angle),
+                "roll": math.degrees(cls.data.roll),
+                "pitch": math.degrees(cls.data.pitch),
+            }
 
     @classmethod
     def get_confidence(cls) -> float:
