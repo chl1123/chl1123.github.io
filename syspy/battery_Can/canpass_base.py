@@ -18,7 +18,7 @@ log = logging.getLogger("rbk.script")
 class canPassBase:
     def __init__(self):
         log.info("canPassBase __init__")
-        self.__rpc_server = rs.RpcServer()
+        self.__rpc_server = rs.RpcServer("battery")
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
         self.__rpc_server.start()

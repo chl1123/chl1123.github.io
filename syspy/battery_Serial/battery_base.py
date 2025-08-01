@@ -20,7 +20,7 @@ class batteryBase:
             import syspy.battery_Serial.serialpass_aarch64 as aarch64
             self.child = aarch64.serialPassAarch64()
         self.__rpc_client = rc.RpcClient()
-        self.__rpc_server = rs.RpcServer()
+        self.__rpc_server = rs.RpcServer("battery")
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
         self.__rpc_server.start()
