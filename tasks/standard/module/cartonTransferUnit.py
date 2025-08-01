@@ -1223,7 +1223,7 @@ class ContainerRobot(ModuleBase):
             if self.self_position:
                 if Container.has_goods(self.self_position):
                     Abnormal.setTask(53000,
-                                     f"第{self.self_position + 1}层({self.self_position})号背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "",
+                                     f"第{self.self_position + 1}层({self.self_position}号)背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "",
                                      "", "")
                     self.status = ScriptStatus.FAILED
                 self.cur_c = self.self_position
@@ -1558,11 +1558,11 @@ class ContainerRobot(ModuleBase):
         if not self.cur_c:
             if self.self_position:
                 if Container.get_goodsId_by_container(self.self_position) != self.goods_id:
-                    Abnormal.setTask(53000, f"{self.self_position + 1}层({self.self_position})号背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！",)
+                    Abnormal.setTask(53000, f"{self.self_position + 1}层({self.self_position}号)背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！",)
                     self.status = ScriptStatus.FAILED
                 if not Container.has_goods(self.self_position):
                     Abnormal.setTask(53000,
-                                     f"{self.self_position + 1}层({self.self_position})号背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
+                                     f"{self.self_position + 1}层({self.self_position}号)背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
                 if self.self_position != "999" and Container.has_goods("999"):
@@ -1575,7 +1575,7 @@ class ContainerRobot(ModuleBase):
                     self.cur_c = "999"
                     if Container.get_goodsId_by_container("999") != self.goods_id:
                         # r.setError(f"料斗已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！")
-                        Abnormal.setTask(53000, f"货叉（999号）已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！", "", "",
+                        Abnormal.setTask(53000, f"货叉（999号）已载货，无法先执行背篓的放货任务，必须优先释放货叉的货物！", "", "",
                                          "")
                         self.status = ScriptStatus.FAILED
                         return
@@ -1786,7 +1786,7 @@ class ContainerRobot(ModuleBase):
         """
         if self.self_position:
             if not Container.has_goods(self.self_position):
-                Abnormal.setTask(53000, f"第{self.self_position + 1}层({self.self_position})号背篓是空的，无法执行内部取货动作！", "", "", "")
+                Abnormal.setTask(53000, f"第{self.self_position + 1}层({self.self_position}号)背篓是空的，无法执行内部取货动作！", "", "", "")
                 self.status = ScriptStatus.FAILED
             self.cur_c = self.self_position
         else:
