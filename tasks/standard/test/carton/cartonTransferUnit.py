@@ -916,7 +916,7 @@ class ContainerRobot(ModuleBase):
                 if m_f["motorName"] == ConfigParams.rotate_motor_name:
                     self.rotate_motor_calib = m_f.get("calib", None)
                     self.rotate_motor_stop = m_f.get("stop", None)
-        self.motor_calib_state = self.lift_motor_calib and self.stretch_motor_calib and self.rotate_motor_calib
+        self.motor_calib_state = (self.lift_motor_calib == 2 and self.stretch_motor_calib == 2 and self.rotate_motor_calib == 2)
 
     def force_calib(self):
         if Timer.delay(3):
