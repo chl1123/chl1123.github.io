@@ -8,7 +8,7 @@
 import enum
 import uuid
 
-SCRIPT_VERSION = "V35-20250725"
+SCRIPT_VERSION = "V35-20250801"
 import json
 import math
 import random
@@ -34,41 +34,41 @@ class ConfigParams:
     low = dict()
     high = dict()
     low[0] = p.loadParam("low0", type="float", default=0.4, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第0层背篓取料箱高度, 最低层, 从0计数")
+                         group="trays", comment="第0号背篓取料箱高度, 最低层, 从0号计数")
     high[0] = p.loadParam("high0", type="float", default=0.41, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第0层背篓放料箱高度, 最低层, 从0计数")
+                          group="trays", comment="第0号背篓放料箱高度, 最低层, 从0号计数")
     low[1] = p.loadParam("low1", type="float", default=0.82, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第1层背篓取料箱高度")
+                         group="trays", comment="第1号背篓取料箱高度")
     high[1] = p.loadParam("high1", type="float", default=0.83, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第1层背篓放料箱高度")
+                          group="trays", comment="第1号背篓放料箱高度")
     low[2] = p.loadParam("low2", type="float", default=1.25, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第2层背篓取料箱高度")
+                         group="trays", comment="第2号背篓取料箱高度")
     high[2] = p.loadParam("high2", type="float", default=1.26, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第2层背篓放料箱高度")
+                          group="trays", comment="第2号背篓放料箱高度")
     low[3] = p.loadParam("low3", type="float", default=1.675, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第3层背篓取料箱高度")
+                         group="trays", comment="第3号背篓取料箱高度")
     high[3] = p.loadParam("high3", type="float", default=1.68, maxValue=10000.0, minValue=0.0, unit="m",
-                          comment="第3层背篓放料箱高度")
+                          comment="第3号背篓放料箱高度")
     low[4] = p.loadParam("low4", type="float", default=2.095, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第4层背篓取料箱高度")
+                         group="trays", comment="第4号背篓取料箱高度")
     high[4] = p.loadParam("high4", type="float", default=2.10, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第4层背篓放料箱高度")
+                          group="trays", comment="第4号背篓放料箱高度")
     low[5] = p.loadParam("low5", type="float", default=2.515, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第5层背篓取料箱高度")
+                         group="trays", comment="第5号背篓取料箱高度")
     high[5] = p.loadParam("high5", type="float", default=2.525, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第5层背篓放料箱高度")
+                          group="trays", comment="第5号背篓放料箱高度")
     low[6] = p.loadParam("low6", type="float", default=2.945, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第6层背篓取料箱高度")
+                         group="trays", comment="第6号背篓取料箱高度")
     high[6] = p.loadParam("high6", type="float", default=2.955, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第6层背篓放料箱高度")
+                          group="trays", comment="第6号背篓放料箱高度")
     low[7] = p.loadParam("low7", type="float", default=3.375, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第7层背篓取料箱高度")
+                         group="trays", comment="第7号背篓取料箱高度")
     high[7] = p.loadParam("high7", type="float", default=3.385, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第7层背篓放料箱高度")
+                          group="trays", comment="第7号背篓放料箱高度")
     low[8] = p.loadParam("low8", type="float", default=3.825, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第8层背篓取料箱高度")
+                         group="trays", comment="第8号背篓取料箱高度")
     high[8] = p.loadParam("high8", type="float", default=3.835, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第8层背篓放料箱高度")
+                          group="trays", comment="第8号背篓放料箱高度")
     # 伸缩参数
     stretch_self_length = p.loadParam("stretch_self_length", type="float", default=0.73, maxValue=10000.0,
                                       group="stretch", minValue=0.0, unit="m",
@@ -1223,7 +1223,7 @@ class ContainerRobot(ModuleBase):
             if self.self_position:
                 if Container.has_goods(self.self_position):
                     Abnormal.setTask(53000,
-                                     f"第{self.self_position}层背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "",
+                                     f"第{self.self_position + 1}层({self.self_position})号背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "",
                                      "", "")
                     self.status = ScriptStatus.FAILED
                 self.cur_c = self.self_position
@@ -1237,7 +1237,7 @@ class ContainerRobot(ModuleBase):
             if Container.has_goods("999") and Container.get_goodsId_by_container("999") == self.goods_id:
                 self.load_step[:9] = [True]*9
             elif Container.has_goods("999"):  # 货叉已载货,但不是目标货物
-                Abnormal.setTask(53000, f"料斗已载货，无法执行取货任务！请核对任务数据和背篓数据！", "", "", "")
+                Abnormal.setTask(53000, f"货叉（999号）已载货，无法执行取货任务！请核对任务数据和背篓数据！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
         else:
@@ -1402,7 +1402,7 @@ class ContainerRobot(ModuleBase):
         :return:
         """
         if Container.has_goods("999"):  # 抓斗有货
-            Abnormal.setTask(53000, f"检测到料斗已载货，无法执行外部取货动作！请核对任务数据和背篓数据！", "", "", "")
+            Abnormal.setTask(53000, f"检测到货叉（999号）已载货，无法执行外部取货动作！请核对任务数据和背篓数据！", "", "", "")
             self.status = ScriptStatus.FAILED
             return
         log.info(f"----- running ex_take ------")
@@ -1558,16 +1558,16 @@ class ContainerRobot(ModuleBase):
         if not self.cur_c:
             if self.self_position:
                 if Container.get_goodsId_by_container(self.self_position) != self.goods_id:
-                    Abnormal.setTask(53000, f"{self.self_position}号背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！",)
+                    Abnormal.setTask(53000, f"{self.self_position + 1}层({self.self_position})号背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！",)
                     self.status = ScriptStatus.FAILED
                 if not Container.has_goods(self.self_position):
                     Abnormal.setTask(53000,
-                                     f"{self.self_position}号背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
+                                     f"{self.self_position + 1}层({self.self_position})号背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
                 if self.self_position != "999" and Container.has_goods("999"):
                     # r.setError(f"料斗已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！")
-                    Abnormal.setTask(53000, f"料斗已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！", "", "", "")
+                    Abnormal.setTask(53000, f"货叉（999号）已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！", "", "", "")
                     self.status = ScriptStatus.FAILED
                 self.cur_c = self.self_position
             else:
@@ -1575,7 +1575,7 @@ class ContainerRobot(ModuleBase):
                     self.cur_c = "999"
                     if Container.get_goodsId_by_container("999") != self.goods_id:
                         # r.setError(f"料斗已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！")
-                        Abnormal.setTask(53000, f"料斗已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！", "", "",
+                        Abnormal.setTask(53000, f"货叉（999号）已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！", "", "",
                                          "")
                         self.status = ScriptStatus.FAILED
                         return
@@ -1754,7 +1754,7 @@ class ContainerRobot(ModuleBase):
         :return:
         """
         if not Container.has_goods("999"):  # 货叉无货
-            Abnormal.setTask(57300, f"料斗没有货物，无需内部放货！", "", "", "")
+            Abnormal.setTask(57300, f"货叉（999号）没有货物，无需内部放货！", "", "", "")
             self.status = ScriptStatus.FINISHED
             return
 
@@ -1774,7 +1774,7 @@ class ContainerRobot(ModuleBase):
             self.cur_c = self.search_operable_container('load')  # 查找空位
 
         if self.cur_c is None:  # 车体满载了
-            Abnormal.setTask(57300, f"车体所有背篓已满，货叉载货中", "", "", "")
+            Abnormal.setTask(57300, f"车体所有背篓已满，货叉（999号）载货中", "", "", "")
             self.status = ScriptStatus.FINISHED
             return
 
@@ -1786,7 +1786,7 @@ class ContainerRobot(ModuleBase):
         """
         if self.self_position:
             if not Container.has_goods(self.self_position):
-                Abnormal.setTask(53000, f"第{self.self_position}层背篓是空的，无法执行内部取货动作！", "", "", "")
+                Abnormal.setTask(53000, f"第{self.self_position + 1}层({self.self_position})号背篓是空的，无法执行内部取货动作！", "", "", "")
                 self.status = ScriptStatus.FAILED
             self.cur_c = self.self_position
         else:
