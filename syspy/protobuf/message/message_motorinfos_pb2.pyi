@@ -1,11 +1,9 @@
-from typing import ClassVar, Iterable, Mapping, Optional, Union
-
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import message as _message
+import message_header_pb2 as _message_header_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-
-import message_header_pb2 as _message_header_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from typing import ClassVar, Iterable, Mapping, Optional, Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -30,13 +28,23 @@ class Message_MotorInfo(_message.Message):
         encoder (int): 电机编码器的计数值，默认值为0。
         type (Message_MotorInfo.MotorType): 电机的类型，默认值为MotorType.WALK（值为0）。
         passive (bool): 电机是否处于被动状态的标志，默认值为False，表示非被动状态。
-        calib (bool): 电机是否需要校准的标志，默认值为False，表示不需要校准。
+        calib (Message_MotorInfo.CalibStatus): 电机校准状态，使用CalibStatus枚举。
         follow_err (bool): 电机是否存在跟随误差的标志，默认值为False，表示无跟随误差。
         raw_position (float): 电机的原始位置，为不包含.cp值的转向角度，默认值为0.0。
     """
     __slots__ = ["calib", "can_id", "can_router", "current", "emc", "encoder", "err", "error_code", "follow_err",
                  "header", "motor_name", "passive", "position", "raw_position", "speed", "stop", "temperature", "type",
                  "voltage"]
+
+    class CalibStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        """电机校准状态的枚举类。
+
+        Attributes:
+            0 (int): NOT_CALIBED-未校准状态。
+            1 (int): CALIBING-正在校准状态。
+            2 (int): CALIBED-已校准状态。
+        """
+        __slots__ = []
 
     class MotorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         """电机类型的枚举类。
@@ -51,6 +59,8 @@ class Message_MotorInfo(_message.Message):
         """
         __slots__ = []
 
+    CALIBED: Message_MotorInfo.CalibStatus
+    CALIBING: Message_MotorInfo.CalibStatus
     CALIB_FIELD_NUMBER: ClassVar[int]
     CAN_ID_FIELD_NUMBER: ClassVar[int]
     CAN_ROUTER_FIELD_NUMBER: ClassVar[int]
@@ -64,6 +74,7 @@ class Message_MotorInfo(_message.Message):
     HEADER_FIELD_NUMBER: ClassVar[int]
     LINEAR: Message_MotorInfo.MotorType
     MOTOR_NAME_FIELD_NUMBER: ClassVar[int]
+    NOT_CALIBED: Message_MotorInfo.CalibStatus
     PASSIVE_FIELD_NUMBER: ClassVar[int]
     POSITION_FIELD_NUMBER: ClassVar[int]
     RAW_POSITION_FIELD_NUMBER: ClassVar[int]
@@ -76,7 +87,7 @@ class Message_MotorInfo(_message.Message):
     TYPE_FIELD_NUMBER: ClassVar[int]
     VOLTAGE_FIELD_NUMBER: ClassVar[int]
     WALK: Message_MotorInfo.MotorType
-    calib: bool
+    calib: Message_MotorInfo.CalibStatus
     can_id: int
     can_router: int
     current: float
@@ -101,8 +112,9 @@ class Message_MotorInfo(_message.Message):
                  position: Optional[float] = ..., speed: Optional[float] = ..., current: Optional[float] = ...,
                  voltage: Optional[float] = ..., stop: bool = ..., error_code: Optional[int] = ..., err: bool = ...,
                  emc: bool = ..., temperature: Optional[float] = ..., encoder: Optional[int] = ...,
-                 type: Optional[Union[Message_MotorInfo.MotorType, str]] = ..., passive: bool = ..., calib: bool = ...,
-                 follow_err: bool = ..., raw_position: Optional[float] = ...) -> None: ...
+                 type: Optional[Union[Message_MotorInfo.MotorType, str]] = ..., passive: bool = ...,
+                 calib: Optional[Union[Message_MotorInfo.CalibStatus, str]] = ..., follow_err: bool = ...,
+                 raw_position: Optional[float] = ...) -> None: ...
 
 
 class Message_MotorInfos(_message.Message):

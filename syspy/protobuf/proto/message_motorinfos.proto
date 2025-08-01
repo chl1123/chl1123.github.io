@@ -27,7 +27,12 @@ message Message_MotorInfo {
 	int32 encoder = 14; // cnt
 	MotorType type = 15;
 	bool passive = 16;
-	bool calib = 17;
+	enum CalibStatus{
+		NOT_CALIBED = 0;
+		CALIBING = 1;
+		CALIBED = 2;
+	}
+	CalibStatus calib = 17;
 	bool follow_err = 18;
 	float raw_position = 19;// steer angle without .cp value
 }
