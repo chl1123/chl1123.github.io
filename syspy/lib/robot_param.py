@@ -20,6 +20,19 @@ class RobotParam(Service):
         pass
 
     @classmethod
+    def getConfigCloneSize(cls, app_name: str, param_path: str, file_name="") -> int:
+        """获取机器人配置-克隆类型参数个数
+        Args:
+            app_name (str): App名
+            param_path (str): 参数路径
+            file_name (str): 文件名。缺省则从默认文件中读取。当前只有识别有多个文件，可传入"xxx.srec"。
+
+        Returns:
+            int: 参数个数
+        """
+        return cls.getConfig(app_name, param_path+"._(size", file_name)
+
+    @classmethod
     @call_service(plugin_name="NetProtocol", func_name="getDevice")
     def getDevice(cls, device_name: str, param_path: str) -> Any:
         """获取机器人设备模型参数(devices/robot.model)
@@ -31,6 +44,18 @@ class RobotParam(Service):
             Any: 参数值
         """
         pass
+
+    @classmethod
+    def getDeviceCloneSize(cls, device_name: str, param_path: str) -> int:
+        """获取机器人设备模型-克隆类型参数个数(devices/robot.model)
+        Args:
+            device_name (str): 设备名
+            param_path (str): 参数路径
+
+        Returns:
+            int: 参数个数
+        """
+        return cls.getDevice(device_name, param_path+"._(size")
 
     @classmethod
     @call_service(func_name="getRobotFile")
@@ -72,25 +97,16 @@ if __name__ == '__main__':
     stopConfidenceThd = RobotParam.getConfig("Localization", "localizationType.2D.stopConfidenceThd")
     print(f"{stopConfidenceThd=}")
 
-    # clone
-    charger = RobotParam.getConfig("Recognition", "recognitionObject.charger")
-    print(f"{charger=}")
+    # config clone
+    recognitionSide_key = "recognitionObject.charger.recognitionSide"
+    recognitionSide_size = RobotParam.getConfigCloneSize("Recognition", recognitionSide_key, "default.srec")
+    print(f"{recognitionSide_size=}")
 
-    recognitionSide0 = RobotParam.getConfig("Recognition", "recognitionObject.charger.recognitionSide._0")
-    print(f"{recognitionSide0=}")
-    deviceName0 = RobotParam.getConfig("Recognition",
-                                       "recognitionObject.charger.recognitionSide._0." + recognitionSide0 + ".deviceName")
-    print(f"{deviceName0=}")
-
-    recognitionSide1 = RobotParam.getConfig("Recognition", "recognitionObject.charger.recognitionSide._1")
-    print(f"{recognitionSide1=}")
-    deviceName1 = RobotParam.getConfig("Recognition", "recognitionObject.charger.recognitionSide._1.D.deviceName")
-    print(f"{deviceName1=}")
-
-    recognitionSide2 = RobotParam.getConfig("Recognition", "recognitionObject.charger.recognitionSide._2")
-    print(f"{recognitionSide2=}")
-    deviceName2 = RobotParam.getConfig("Recognition", "recognitionObject.charger.recognitionSide._2.C.deviceName")
-    print(f"{deviceName2=}")
+    for i in range(recognitionSide_size):
+        r_value = RobotParam.getConfig("Recognition", f"{recognitionSide_key}._{i}", "default.srec")
+        print(f"{recognitionSide_key}._{i}={r_value}")
+        d_value = RobotParam.getConfig("Recognition", f"{recognitionSide_key}._{i}.{r_value}.deviceName", "default.srec")
+        print(f"{recognitionSide_key}._{i}.{r_value}.deviceName={d_value}")
 
     # getDevice
     moduleType = RobotParam.getDevice("Model-000", "moduleType")
@@ -99,3 +115,11 @@ if __name__ == '__main__':
     print(f"{liftMotor=}")
     x = RobotParam.getDevice("Model-000", "moduleType.liftFork.installPosition.x")
     print(f"{x=}")
+
+    # device clone
+    liftFork_id_key = "moduleType.liftFork.id"
+    liftFork_id_size = RobotParam.getDeviceCloneSize("Model-000", liftFork_id_key)
+    print(f"{liftFork_id_size=}")
+    for i in range(liftFork_id_size):
+        liftFork_id = RobotParam.getDevice("Model-000", f"{liftFork_id_key}._{i}")
+        print(f"liftFork.id._{i}={liftFork_id}")
