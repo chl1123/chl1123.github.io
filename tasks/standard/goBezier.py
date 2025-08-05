@@ -111,13 +111,12 @@ class GoBezierWorld:
             self.offset_dist += offset_step
 
         if not success:
-            Abnormal.setTask(55900, f"curvature limit exceeded. max_curvature={self.k_max}",
+            Abnormal.setTask(53900, f"curvature limit exceeded. max_curvature={self.k_max}",
                              "The positions of the robot and the target point cannot generate a Bezier curve",
                              "Adjust the robot's position before running this task",
                              "GoBezierWorld")
-            self.action_status = ScriptStatus.FAILED
-            return
-
+            if self.k_max >= 30:
+                Module.set_status(ScriptStatus.FAILED)
         # 成功构造路径,需要将路径分为2段，第一段后退至贝塞尔起始点
         self.control_point = [p0_xy, p1_xy, p2_xy, p3_xy]
         # 记录第一个倒退点
@@ -314,7 +313,7 @@ class GoBezierWorldReturn:
         self.action_status = ScriptStatus.RUNNING
         if self.init:
             self.init = False
-            self.go_bezier_data = json.loads(ScriptData.get("goBezier"))
+            self.go_bezier_data = json.loads(ScriptData.get("goBezier")) #后续在ScriptData.get格式改为dict后删除json.loads
             self.bezier_target_pos_return = self.go_bezier_data["initial_point_world_return"]
             self.bezier_path_world_return = self.go_bezier_data["bezier_path_world_return"]
             self.go_bezier_final_pos = self.go_bezier_data["robot_final_loc"]
