@@ -1,17 +1,22 @@
 import math
+import logging
+import json
 from enum import IntEnum
+import time
 
 from syspy.script_data import ScriptData
-from syspy import Navigation, Loc, Abnormal
+from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus
 from syspy.lib.module import Pos2World
 from tasks.standard import goPath
+
+log = logging.getLogger("rbk.script")
 
 class GoBezierWorld:
     """
         走二阶贝塞尔
     """
     def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0, is_backwards=False,
-                 max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=1, curvature_limit=1.3, path_dist_accuracy=0.01, path_angle_accuracy=0.05):
+                 max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3, path_dist_accuracy=0.01, path_angle_accuracy=0.05):
         del target_world[3:]
         self.target_world = target_world
         self.back_dist = back_dist
@@ -30,7 +35,7 @@ class GoBezierWorld:
         self.path_dist_accuracy = path_dist_accuracy
         self.path_angle_accuracy = path_angle_accuracy
 
-        self.action_status = ActionStatus.INIT
+        self.action_status = ScriptStatus.NONE
         self.init = True
         self.target_robot = [0, 0, 0]
         self.control_point = None
@@ -56,12 +61,11 @@ class GoBezierWorld:
         Navigation.resetPath()
 
         # 获取机器人位置（world系）
-        self.robot_loc = [Loc.get_position()[0],Loc.get_position()[1],Loc.get_angle()[0]]
-        self.robot_loc[2] = math.radians(self.robot_loc[2])
-
+        # self.robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+        self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
         # 计算终点
-        self.end_position_world = Pos2World([self.back_dist, 0, 0], self.target_world)
-        self.target_world = Pos2World([-self.min_ahead_dist, 0, 0], self.target_world)
+        self.end_position_world = Pos2World([-self.back_dist, 0, 0], self.target_world)
+        self.target_world = Pos2World([self.min_ahead_dist, 0, 0], self.target_world)
 
         success = False
         max_offset = self.adjust_dist_for_curvature_limit
@@ -99,8 +103,6 @@ class GoBezierWorld:
                 self.xs.append(x)
                 self.ys.append(y)
 
-            # log.info(f"xs={self.xs}, ys={self.ys}")
-
             # 判断曲率是否超限
             self.k_max = self.bezier_curvature(p0_xy, p1_xy, p2_xy, p3_xy)
             if self.k_max <= self.curvature_limit:
@@ -113,7 +115,7 @@ class GoBezierWorld:
                              "The positions of the robot and the target point cannot generate a Bezier curve",
                              "Adjust the robot's position before running this task",
                              "GoBezierWorld")
-            self.action_status = ActionStatus.FAILED
+            self.action_status = ScriptStatus.FAILED
             return
 
         # 成功构造路径,需要将路径分为2段，第一段后退至贝塞尔起始点
@@ -128,31 +130,33 @@ class GoBezierWorld:
         self.initial_point_world_return = self.robot_loc
         self.bezier_path_world_return = [self.xs_ret, self.ys_ret, self.robot_loc[2]]
 
-        # 规划第一段倒退路线参数
-        Navigation.setPathReachAngle(self.path_angle_accuracy) # 到位精度
-        Navigation.setPathReachDist(self.path_dist_accuracy)
-        Navigation.setPathBackMode(not self.is_backwards) #设置正走倒走
-        Navigation.setPathMaxSpeed(self.max_speed)
-        Navigation.setPathOnWorld([self.robot_loc[0],self.xs[0]],
-                                  [self.robot_loc[0],self.ys[0]],
-                                  self.robot_loc[2])
-        self.param["maxAcc"] = float(self.max_accele)
-        self.param["maxDec"] = float(self.max_decele)
-        Navigation.goPathParam(self.param)
-
     def run(self):
-        self.action_status = ActionStatus.RUNNING
+        self.action_status = ScriptStatus.RUNNING
+        if self.init:
+            self.init = False
+            # 规划第一段倒退路线参数
+            Navigation.setPathReachAngle(self.path_angle_accuracy)  # 到位精度
+            Navigation.setPathReachDist(self.path_dist_accuracy)
+            Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
+            Navigation.setPathMaxSpeed(self.max_speed)
+            Navigation.setPathOnWorld([self.robot_loc[0], self.xs[0]],
+                                      [self.robot_loc[0], self.ys[0]],
+                                      self.robot_loc[2])
+            self.param["maxAcc"] = float(self.max_accele)
+            self.param["maxDec"] = float(self.max_decele)
+            Navigation.goPathParam(self.param)
 
         # 行走到第一个倒退点
-        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED: # 走第一段路线到曲率合适的贝塞尔起点
+        if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED: # 走第一段路线到曲率合适的贝塞尔起点
             self.is_first_path_reached = Navigation.isPathReached()
+            log.info(f"self.is_first_path_reached={self.is_first_path_reached}")
             if self.is_first_path_reached:
                 Navigation.resetPath()
                 Navigation.setPathReachAngle(self.path_angle_accuracy)
                 Navigation.setPathReachDist(self.path_dist_accuracy)
                 Navigation.setPathBackMode(self.is_backwards)
                 Navigation.setPathMaxSpeed(self.max_speed)
-                if self.is_backwards:
+                if not self.is_backwards:
                     self.end_position_world[2] += math.pi
                     self.end_position_world[2] = (self.end_position_world[2] + math.pi) % (2 * math.pi) - math.pi
                 Navigation.setPathOnWorld(self.xs, self.ys, self.end_position_world[2])
@@ -161,14 +165,16 @@ class GoBezierWorld:
                 Navigation.goPathParam(self.param)
 
         # 行走第二段贝塞尔路径
-        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED: # 走贝塞尔到终点
+        if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED: # 走贝塞尔到终点
             is_reached = Navigation.isPathReached()
+            log.info(f"is_reached={is_reached}")
             if is_reached:
-                self.action_status = ActionStatus.FINISHED
+                self.action_status = ScriptStatus.FINISHED
             else:
-                self.action_status = ActionStatus.RUNNING
+                self.action_status = ScriptStatus.RUNNING
 
-            robot_current_loc = list(Loc.get_position())
+            # robot_current_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_cur_loc_end_loc = math.hypot(
                 self.end_position_world[0] - robot_current_loc[0],
                 self.end_position_world[1] - robot_current_loc[1]
@@ -178,18 +184,18 @@ class GoBezierWorld:
                 Navigation.setPathMaxSpeed(0.1)
 
             # 获取机器人位置（world系）
-            self.robot_final_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-            self.robot_final_loc[2] = math.radians(self.robot_final_loc[2])
-            
+            # self.robot_final_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            self.robot_final_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             # 将贝塞尔的路径数据传入scriptData
             ScriptData.set("goBezier",{"bezier_path_world_return":self.bezier_path_world_return,
                                        "initial_point_world_return":self.initial_point_world_return,
                                        "robot_final_loc": self.robot_final_loc})
+            log.info(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
         return self.action_status
 
     def reset(self):
         Navigation.resetPath()
-        self.action_status = ActionStatus.RUNNING
+        self.action_status = ScriptStatus.RUNNING
 
     def compute_bezier_controls_dir(self, p0, p3, alpha=0.3):
         """
@@ -209,7 +215,7 @@ class GoBezierWorld:
 
         # 控制点
         p1 = [x0 + d * math.cos(th0), y0 + d * math.sin(th0)]
-        p2 = [x3 - d * math.cos(th3), y3 - d * math.sin(th3)]
+        p2 = [x3 + d * math.cos(th3), y3 + d * math.sin(th3)]
 
         return [p0, p1, p2, p3]  # 去掉角度，只留坐标
 
@@ -278,21 +284,21 @@ class GoBezierWorldReturn:
     """
         走记录过的贝塞尔曲线返回的路径
     """
-    def __init__(self, is_backwards=True, max_speed=0.3, max_accele=1, max_decele=0.7, decele_dist=1):
+    def __init__(self, is_backwards=True, max_speed=0.3, max_accele=1, max_decele=0.7, decele_dist=0.1):
         self.end_position_world = [0,0,0]
         self.end_position_robot = [0,0,0]
 
-        self.go_bezier_data = ScriptData.get("goBezier")
-        self.bezier_target_pos_return = self.go_bezier_data["initial_point_world_return"]
-        self.bezier_path_world_return = self.go_bezier_data["bezier_path_world_return"]
-        self.go_bezier_final_pos = self.go_bezier_data["robot_final_loc"]
+        self.go_bezier_data = None
+        self.bezier_target_pos_return = None
+        self.bezier_path_world_return = None
+        self.go_bezier_final_pos = None
         self.is_backwards = is_backwards
         self.max_speed = max_speed
         self.max_accele = max_accele
         self.max_decele = max_decele
         self.decele_dist = decele_dist
 
-        self.action_status = ActionStatus.INIT
+        self.action_status = ScriptStatus.NONE
         self.init = True
         self.target_robot = [0, 0, 0]
         self.robot_loc = [0, 0, 0]
@@ -304,28 +310,33 @@ class GoBezierWorldReturn:
         # 第一段线到位标识
         self.is_first_path_reached = False
 
-        Navigation.resetPath()
-        # # 规划第一段倒退路线参数
-        Navigation.setPathReachAngle(0.05) # 到位精度
-        Navigation.setPathReachDist(0.01)
-        Navigation.setPathBackMode(self.is_backwards) #设置正走倒走
-        Navigation.setPathMaxSpeed(self.max_speed)
-        Navigation.setPathOnWorld(self.bezier_path_world_return[0], self.bezier_path_world_return[1], self.bezier_path_world_return[2])
-        self.param["maxAcc"] = float(self.max_accele)
-        self.param["maxDec"] = float(self.max_decele)
-        Navigation.goPathParam(self.param)
-
     def run(self):
-        self.action_status = ActionStatus.RUNNING
+        self.action_status = ScriptStatus.RUNNING
         if self.init:
             self.init = False
-            self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-            self.robot_loc[2] = math.radians(self.robot_loc[2])
+            self.go_bezier_data = json.loads(ScriptData.get("goBezier"))
+            self.bezier_target_pos_return = self.go_bezier_data["initial_point_world_return"]
+            self.bezier_path_world_return = self.go_bezier_data["bezier_path_world_return"]
+            self.go_bezier_final_pos = self.go_bezier_data["robot_final_loc"]
+            # self.robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_bias = math.sqrt((self.go_bezier_final_pos[0] - self.robot_loc[0])**2 + (self.go_bezier_final_pos[1] - self.robot_loc[1])**2)
             if dist_bias >= 0.1:
-                self.action_status = ActionStatus.FAILED
+                self.action_status = ScriptStatus.FAILED
 
-        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED: # 走第一段路线到曲率合适的贝塞尔起点
+            Navigation.resetPath()
+            # # 规划第一段倒退路线参数
+            Navigation.setPathReachAngle(0.05)  # 到位精度
+            Navigation.setPathReachDist(0.01)
+            Navigation.setPathBackMode(self.is_backwards)  # 设置正走倒走
+            Navigation.setPathMaxSpeed(self.max_speed)
+            Navigation.setPathOnWorld(self.bezier_path_world_return[0], self.bezier_path_world_return[1],
+                                      self.bezier_path_world_return[2])
+            self.param["maxAcc"] = float(self.max_accele)
+            self.param["maxDec"] = float(self.max_decele)
+            Navigation.goPathParam(self.param)
+
+        if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED: # 走第一段路线到曲率合适的贝塞尔起点
             self.is_first_path_reached = Navigation.isPathReached()
             if self.is_first_path_reached:
                 Navigation.resetPath()
@@ -338,14 +349,15 @@ class GoBezierWorldReturn:
                 self.param["maxDec"] = float(self.max_decele)
                 Navigation.goPathParam(self.param)
 
-        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED: # 走贝塞尔到终点
+        if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED: # 走贝塞尔到终点
             is_reached = Navigation.isPathReached()
             if is_reached:
-                self.action_status = ActionStatus.FINISHED
+                self.action_status = ScriptStatus.FINISHED
             else:
-                self.action_status = ActionStatus.RUNNING
+                self.action_status = ScriptStatus.RUNNING
 
-            robot_current_loc = list(Loc.get_position())
+            # robot_current_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_cur_loc_end_loc = math.hypot(
                 self.end_position_world[0] - robot_current_loc[0],
                 self.end_position_world[1] - robot_current_loc[1]
@@ -357,10 +369,33 @@ class GoBezierWorldReturn:
         return self.action_status
 
 
-class ActionStatus(IntEnum):
-    """ 动作运行状态枚举，对标 ActionStatus """
-    INIT = 0
-    RUNNING = 1
-    FINISHED = 3
-    FAILED = 4
-    SUSPENDED = 5
+def main():
+    Module.init()
+    go_bezier = GoBezierWorld([-4.066,5.405,0],2,2,1,True)
+    go_bezier_return = GoBezierWorldReturn(False)
+    bezier_status = ScriptStatus.NONE
+    bezier_return_status = ScriptStatus.NONE
+    action_status = ScriptStatus.RUNNING
+    while True:
+        # 脚本任务状态管理
+        if bezier_status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
+            bezier_status= go_bezier.run()
+            log.info(f"bezier_status={bezier_status}")
+        elif bezier_status == ScriptStatus.FAILED:
+            action_status = ScriptStatus.FAILED
+        elif bezier_status == ScriptStatus.FINISHED:
+            if bezier_return_status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
+                bezier_return_status = go_bezier_return.run()
+            elif bezier_return_status == ScriptStatus.FAILED:
+                action_status = ScriptStatus.FAILED
+            elif bezier_return_status == ScriptStatus.FINISHED:
+                action_status = ScriptStatus.FINISHED
+        Module.set_status(action_status)
+        time.sleep(0.1)
+
+
+if __name__ == '__main__':
+    from syspy import Logger
+
+    log = Logger("goBezier.py")
+    main()
