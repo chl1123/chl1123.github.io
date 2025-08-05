@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x10message_io.proto\x12\x0crbk.protocol\"\xf5\x01\n\x0eMessage_DINode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0c\n\x04\x66unc\x18\x07 \x01(\t\x12\x0c\n\x04type\x18\x08 \x01(\t\x12\x0e\n\x06source\x18\t \x01(\t\x12\r\n\x05shape\x18\n \x01(\t\x12\x0f\n\x07mindist\x18\x0b \x01(\x01\x12\x0f\n\x07maxdist\x18\x0c \x01(\x01\x12\r\n\x05range\x18\r \x01(\x01\x12\x0c\n\x04posx\x18\x0e \x03(\x01\x12\x0c\n\x04posy\x18\x0f \x03(\x01\x12\x11\n\tforbidden\x18\x10 \x01(\x08\"J\n\nMessage_DI\x12*\n\x04node\x18\x01 \x03(\x0b\x32\x1c.rbk.protocol.Message_DINode\x12\x10\n\x08max_node\x18\x02 \x01(\r\"J\n\x0eMessage_DONode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\x0e\n\x06source\x18\x03 \x01(\t\x12\x0c\n\x04\x66unc\x18\x04 \x01(\t\"J\n\nMessage_DO\x12*\n\x04node\x18\x01 \x03(\x0b\x32\x1c.rbk.protocol.Message_DONode\x12\x10\n\x08max_node\x18\x02 \x01(\r\" \n\x0eMessage_Astern\x12\x0e\n\x06status\x18\x01 \x01(\rb\x06proto3')
+  serialized_pb=_b('\n\x10message_io.proto\x12\x0crbk.protocol\"\x83\x02\n\x0eMessage_DINode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0c\n\x04\x66unc\x18\x07 \x01(\t\x12\x0c\n\x04type\x18\x08 \x01(\t\x12\x0e\n\x06source\x18\t \x01(\t\x12\r\n\x05shape\x18\n \x01(\t\x12\x0f\n\x07mindist\x18\x0b \x01(\x01\x12\x0f\n\x07maxdist\x18\x0c \x01(\x01\x12\r\n\x05range\x18\r \x01(\x01\x12\x0c\n\x04posx\x18\x0e \x03(\x01\x12\x0c\n\x04posy\x18\x0f \x03(\x01\x12\x11\n\tforbidden\x18\x10 \x01(\x08\x12\x0c\n\x04name\x18\x11 \x01(\t\"J\n\nMessage_DI\x12*\n\x04node\x18\x01 \x03(\x0b\x32\x1c.rbk.protocol.Message_DINode\x12\x10\n\x08max_node\x18\x02 \x01(\r\"X\n\x0eMessage_DONode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\x0e\n\x06source\x18\x03 \x01(\t\x12\x0c\n\x04lock\x18\x04 \x01(\x08\x12\x0c\n\x04name\x18\x05 \x01(\t\"J\n\nMessage_DO\x12*\n\x04node\x18\x01 \x03(\x0b\x32\x1c.rbk.protocol.Message_DONode\x12\x10\n\x08max_node\x18\x02 \x01(\r\" \n\x0eMessage_Astern\x12\x0e\n\x06status\x18\x01 \x01(\rb\x06proto3')
 )
 
 
@@ -144,6 +144,13 @@ _MESSAGE_DINODE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='name', full_name='rbk.protocol.Message_DINode.name', index=16,
+      number=17, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -157,7 +164,7 @@ _MESSAGE_DINODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=35,
-  serialized_end=280,
+  serialized_end=294,
 )
 
 
@@ -194,8 +201,8 @@ _MESSAGE_DI = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=282,
-  serialized_end=356,
+  serialized_start=296,
+  serialized_end=370,
 )
 
 
@@ -228,8 +235,15 @@ _MESSAGE_DONODE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='func', full_name='rbk.protocol.Message_DONode.func', index=3,
-      number=4, type=9, cpp_type=9, label=1,
+      name='lock', full_name='rbk.protocol.Message_DONode.lock', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='name', full_name='rbk.protocol.Message_DONode.name', index=4,
+      number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -246,8 +260,8 @@ _MESSAGE_DONODE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=358,
-  serialized_end=432,
+  serialized_start=372,
+  serialized_end=460,
 )
 
 
@@ -284,8 +298,8 @@ _MESSAGE_DO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=434,
-  serialized_end=508,
+  serialized_start=462,
+  serialized_end=536,
 )
 
 
@@ -315,8 +329,8 @@ _MESSAGE_ASTERN = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=510,
-  serialized_end=542,
+  serialized_start=538,
+  serialized_end=570,
 )
 
 _MESSAGE_DI.fields_by_name['node'].message_type = _MESSAGE_DINODE

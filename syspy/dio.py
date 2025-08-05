@@ -21,32 +21,32 @@ class Di(Message["Message_DI"]):
             cls._MODEL_CLASS = Message_DI
 
     @classmethod
-    @call_service()
-    def setDIValid(cls, index: int, status: bool):
-        """设置指定索引的有效DI
+    @call_service(plugin_name="MoveFactory", func_name="setDIValid")
+    def setDIValid(cls, name: str, status: bool):
+        """设置DI是否生效
 
         Args:
-            index (int):
-            status (bool):
+            name (str): DI名
+            status (bool): True表示生效，False表示不生效
         """
         pass
 
     @classmethod
     @call_service()
-    def setVirtualDI(cls, index: int, status: bool):
-        """设置指定索引的虚拟DI
+    def setVirtualDI(cls, name: str, status: bool):
+        """设置虚拟DI状态
 
         Args:
-            index (int):
-            status (bool):
+            name (str): 虚拟DI名
+            status (bool):虚拟DI状态
         """
         pass
 
     @classmethod
-    def get_di(cls, di: int) -> bool:
+    def get_di(cls, name: str) -> bool:
         """检测单个DI状态信息
         Args:
-            di (int): 需要检测的 DI
+            name (str): DI名
 
         Returns:
             bool: 返回指定DI的状态，若DI不存在返回False
@@ -54,7 +54,7 @@ class Di(Message["Message_DI"]):
         cls.update()
         if cls.data:
             for node in cls.data.node:
-                if node.id == di:
+                if node.name == name:
                     return node.status
         return False
 
@@ -95,11 +95,11 @@ class Do(Message["Message_DO"]):
 
     @classmethod
     @call_service(plugin_name="MoveFactory")
-    def setDO(cls, id: int, status: bool) -> bool:
+    def setDO(cls, name: str, status: bool) -> bool:
         """控制DO的开关
 
         Args:
-            id (int): DO的id
+            name (str): DO名
             status (bool): 是否打开这个DO
 
         Returns:
@@ -108,11 +108,11 @@ class Do(Message["Message_DO"]):
         pass
 
     @classmethod
-    def get_do(cls, do: int) -> bool:
+    def get_do(cls, name: str) -> bool:
         """检测单个DO状态信息
 
         Args:
-            do (int): 需要检测的 DO
+            name (str): DO名
 
         Returns:
             bool: 返回指定DO的状态，若DO不存在返回False
@@ -120,7 +120,7 @@ class Do(Message["Message_DO"]):
         cls.update()
         if cls.data:
             for node in cls.data.node:
-                if node.id == do:
+                if node.name == name:
                     return node.status
         return False
 

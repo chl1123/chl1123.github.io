@@ -21,6 +21,7 @@ message Message_DINode {
     repeated double posy = 15;
 
     bool forbidden = 16;
+    string name = 17;
 }
 
 message Message_DI {
@@ -32,7 +33,8 @@ message Message_DONode {
     uint32 id = 1;
     bool status = 2;
     string source = 3;
-    string func = 4;
+    bool lock = 4;
+    string name = 5;
 }
 
 message Message_DO {
