@@ -19,9 +19,9 @@ from syspy.lib.module import Pos2Base, Pos2World
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
 from syspy.lib.robot_param import RobotParam
 
-# import syspy.goPath
+import tasks.standard.goBezier as GoBezier
 
-log = Logger("jack")
+log = Logger("Fork")
 
 """
 
@@ -68,6 +68,9 @@ class ConfigParams:
                                                    comment="识别取货触发货叉开关后不抬升前移一小段的最大速度",
                                                    group="motion")
     leave_loc = param_server.loadParam("leaveLoc", type="bool", default=True, comment="是否先直线退出", group="motion")
+
+    bezier_return = param_server.loadParam("bezier_return", type="bool", default=True, comment="是否按原路返回",
+                                           group="motion")
 
     # min_height = param_server.loadParam(
     #     "min_height", type="float", default="0.085", unit="m",
@@ -152,6 +155,7 @@ def create_end_height_param(builder: ParamBuilder, min_height: float, max_height
         builder.SINGLESTEP(0.01)
         builder.DEFAULTVALUE(0.1)
 
+
 def create_start_height_param(builder: ParamBuilder, min_height: float, max_height: float):
     with builder.CHILD(key="startHeight", name="Start Height",
                        desc="The fork height before load"):
@@ -162,6 +166,7 @@ def create_start_height_param(builder: ParamBuilder, min_height: float, max_heig
         builder.UNIT("m")
         builder.SINGLESTEP(0.1)
         builder.DEFAULTVALUE(0.1)
+
 
 def create_rec_param(builder: ParamBuilder):
     # 识别参数
@@ -269,12 +274,18 @@ class InputParams:
                 with builder.CHILD(key="test", name="Test",
                                    desc="test"):
                     builder.TYPE(ParamType.ARRAY)
+
+        with builder.CHILD(key="target_name", name="Target Name", desc="Target ID Name"):
+            builder.TYPE(ParamType.STRING)
+            builder.DEFAULTVALUE("AP1")
+
     builder.save_to_file()
 
 
 class Fork:
     def __init__(self, task_args):
         super().__init__()
+        self.target_pos = []
         self.rec_params = dict()
         self.start_time = None
         self.init_args = False
@@ -294,7 +305,8 @@ class Fork:
         self.is_goods_detected = None
         self.goPathArgs = None  # 堆栈的终点坐标点
         self.tail_laser_id = [ConfigParams.tail_laser_id_1, ConfigParams.tail_laser_id_2]
-        self.contact_di = [ConfigParams.contact_di_1, ConfigParams.contact_di_2]
+        # self.contact_di = [ConfigParams.contact_di_1, ConfigParams.contact_di_2]
+        self.contact_di = [9]
         self.recfile = ""
         self.task_args = task_args
         self.move_task = dict()
@@ -325,10 +337,11 @@ class Fork:
             self.rec()
         elif self.opt == "leaveLoc":
             self.leave_loc()
-        elif self.opt == "rec":
+        elif self.opt == "test":
             self.test()
         else:
-            Abnormal.setTask(53000,f"wrong operation:{self.opt}, script failed","input operation not define","check the input param","")
+            Abnormal.setTask(53300, f"wrong operation:{self.opt}, script failed", "input operation not define",
+                             "check the input param", "")
             self.script_status = ScriptStatus.FAILED
 
         self._execute_actions()
@@ -344,43 +357,76 @@ class Fork:
         log.info("resume")
 
     def cancel(self):
-        Module.set_status(ScriptStatus.FINISHED)
         self.script_status = ScriptStatus.NONE
         log.info("cancel")
 
     def get_target_pos(self):
-        move_task = Navigation.moveTask()
-        # target_id = move_task.get("target_name", "")
-        target_id = "AP3"
-        return Navigation.getLM(target_id, True)
+        target_id = self.move_task.get("target_name", "")
+        if target_id == "":
+            target_id = self.task_args.get("target_name")
+        else:
+            target_id = f"AP{target_id}"
+        pos = Navigation.getLM(target_id, True)
+        if pos[3] == -1:
+            Abnormal.setTask(53301, "no target id ,script fail", "", "", "")
+            self.script_status = ScriptStatus.FAILED
+            return
+        return pos
 
     def test(self):
         if not self.operation_init:
             self.operation_init = True
-            world_pos = self.get_target_pos()
-            self.action_list: list[BaseAction] = [
-                # RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
-                # Rec(self.recfile, "RecPallet"),
-                # GoPathWithContactDi(self.contact_di, world_pos, 0.05, "goBezier", args),
-                RecordBezierPath(world_pos)
-            ]
-        if self.action_id < len(self.action_list):
-            current_action = self.action_list[self.action_id]
-            if current_action.action_name == "RecordBezierPath" and current_action.action_status == ActionStatus.FINISHED:
-                self.action_list.append(GoRecordedPath(self.first_point, self.second_path))
-                # self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
-                #                                    ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
-                # self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height,
-                #                                       ConfigParams.jack_motor_speed, ConfigParams.jack_zero_di))
-                self.action_list.append(GoRecordedPathReturn(self.first_point_return, self.second_path_return, False))
+            #     world_pos = self.get_target_pos()
+            #     self.action_list: list[BaseAction] = [
+            #         # RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
+            #         # Rec(self.recfile, "RecPallet"),
+            #         # GoPathWithContactDi(self.contact_di, world_pos, 0.05, "goBezier", args),
+            #         RecordBezierPath(world_pos)
+            #     ]
+            # if self.action_id < len(self.action_list):
+            #     current_action = self.action_list[self.action_id]
+            #     if current_action.action_name == "RecordBezierPath" and current_action.action_status == ActionStatus.FINISHED:
+            #         self.action_list.append(GoRecordedPath(self.first_point, self.second_path))
+            #         # self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
+            #         #                                    ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
+            #         # self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height,
+            #         #                                       ConfigParams.jack_motor_speed, ConfigParams.jack_zero_di))
+            #         self.action_list.append(GoRecordedPathReturn(self.first_point_return, self.second_path_return, False))
+
+            rec_world_pos = Navigation.getLM("AP9", True)
+            # rec_world_pos = [-5.541621685028076, -3.35599684715271, -0.022915121167898178]
+
+            # 根据参数配置是否走贝塞尔曲线选择调整办法
+            args = {
+                "back_dist": ConfigParams.back_dist,
+                "min_ahead_dist": ConfigParams.min_ahead_dist,
+                "adjust_dist": ConfigParams.ahead_dist,
+            }
+            if ConfigParams.use_straight_line:
+                method = "twoStraightLine"
+                args["max_angle"] = 10
+            else:
+                method = "goBezier"
+                args["max_curve"] = 3
+            self.action_list.extend([
+                # RunMotorByPosition(ConfigParams.fork_motor_name, self.rec_result["z"]),
+                GoPathWithContactDi(self.contact_di, rec_world_pos, 0.05, method, args),
+            ])
+
+        if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
+            self.script_status = ScriptStatus.FINISHED
 
     # 识别取货和非识别取货
     def load(self):
         if not self.operation_init:
             self.operation_init = True
+
+            # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
+            self.target_pos = self.get_target_pos()
+            log.info(f"target pos :{self.target_pos}")
             # 如果有货,脚本无法取货并报错
             if Navigation.hasGoods():
-                Abnormal.setTask(53900, f"fork has goods, cannot load, script failed",
+                Abnormal.setTask(53302, f"fork has goods, cannot load, script failed",
                                  "fork has goods",
                                  "unload goods before loading", "load")
                 self.script_status = ScriptStatus.FAILED
@@ -390,39 +436,61 @@ class Fork:
             # 如果需要识别后再取货
             if self.recognize:
                 self.action_list: list[BaseAction] = [
-                    # RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                     Rec(self.recfile, "RecPallet"),
                 ]
 
             # 不需要根据识别结果通过盲走插货
             else:
                 self.action_list = [
-                    GoPathWithContactDi([1, 9], self.get_target_pos(), 0.05, "goPath", {"fork_di_dist": 0.2}),
-                    # RunMotorByPosition(ConfigParams.fork_motor_name, ConfigParams.max_height)
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
+                    GoPathWithContactDi(self.contact_di, self.target_pos, 0.05, "goPath", {"fork_di_dist": 0.2}),
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                 ]
+
+        # 识别结束后动态加调整的类
         if self.action_id < len(self.action_list):
             current_action = self.action_list[self.action_id]
-            if current_action.action_name == "RecPallet" and current_action.action_status == ActionStatus.FINISHED:
-                world_pos = [self.rec_result["x"], self.rec_result["y"], self.rec_result["yaw"]]
-                if self.rec_params['recCoordinate'] == "robot":
-                    robot_pos = Loc.get_data()
-                    world_pos = Pos2World(world_pos, [robot_pos["x"], robot_pos["y"], robot_pos["angle"]])
+
+            if isinstance(current_action,
+                          Rec) and current_action.action_name == "RecPallet" and current_action.action_status == ActionStatus.FINISHED:
+                self.rec_result = current_action.result
+                rec_world_pos = [self.rec_result["x"], self.rec_result["y"], self.rec_result["yaw"]]
+                # if self.rec_params['recCoordinate'] == "robot":
+                #     robot_pos = Loc.get_data()
+                #     rec_world_pos = Pos2World(rec_world_pos, [robot_pos["x"], robot_pos["y"], robot_pos["angle"]])
+
+                # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
+                rec2ap_pos = Pos2Base(rec_world_pos, self.target_pos)
+                angle = math.degrees(rec2ap_pos[2])
+                log.info(
+                    f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}")
+                y = rec2ap_pos[1]
+                if abs(angle) > 10:
+                    Abnormal.setTask(53303, f"rec result yaw angle too large:{angle}°", "", "", "")
+                    self.script_status = ScriptStatus.FAILED
+                    return
+                # if abs(y) > 0.1:
+                #     Abnormal.setTask(53000,f"rec result y too large:{y}m","","","")
+                #     self.script_status = ScriptStatus.FAILED
+                #     return
+
+                # 根据参数配置是否走贝塞尔曲线选择调整办法
                 args = {
                     "back_dist": ConfigParams.back_dist,
                     "min_ahead_dist": ConfigParams.min_ahead_dist,
                     "adjust_dist": ConfigParams.ahead_dist,
                 }
-                method = "goBezier"
-                # if ConfigParams.use_straight_line:
-                #     method = "twoStraightLine"
-                #     args["max_angle"] = 10
-                # else:
-                #     method = "goBezier"
-                #     args["max_curve"] = 3
+                if ConfigParams.use_straight_line:
+                    method = "twoStraightLine"
+                    args["max_angle"] = 20
+                else:
+                    method = "goBezier"
+                    args["max_curve"] = 3
                 self.action_list.extend([
                     # RunMotorByPosition(ConfigParams.fork_motor_name, self.rec_result["z"]),
-                    GoPathWithContactDi(self.contact_di, world_pos, 0.05, method, args),
-                    # RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
+                    GoPathWithContactDi(self.contact_di, rec_world_pos, 0.05, method, args),
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                 ])
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
@@ -446,27 +514,13 @@ class Fork:
                 'maxSpeed': 0.2,
                 'useOdo': 0
             }
-            if ConfigParams.leave_loc:
-                go_forward_args = {
-                    'x': 1,
-                    'y': 0,
-                    'theta': 0,
-                    'coordinate': 'robot',
-                    'backMode': 0,
-                    'maxRot': 10,
-                    'maxSpeed': 0.2,
-                    'useOdo': 0
-                }
+            if ConfigParams.bezier_return:
                 self.action_list = [
-                    GoPath(go_forward_args),
-                    GoPath(args),
+                    GoBezier.GoBezierWorldReturn(False),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                 ]
-            else:
-                self.action_list = [
-                    GoPath(args),
-                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
-                ]
+        if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
+            self.script_status = ScriptStatus.FINISHED
 
     def unload(self):
         if not self.operation_init:
@@ -477,7 +531,6 @@ class Fork:
             #     return
             # target_pos = self.get_target_pos()
             target_pos = Navigation.getLM("LM2", True)
-            print(target_pos)
             args = {
                 'x': target_pos[0],
                 'y': target_pos[1],
@@ -493,6 +546,11 @@ class Fork:
                 GoPath(args),
                 RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
             ]
+
+        # if self.action_id < len(self.action_list):
+        #     current_action = self.action_list[self.action_id]
+        #
+        #     if current_action.action_name == "GoPath" and current_action.action_status == ActionStatus.RUNNING:
 
     def get_ap_pos(self):
         org_task = Navigation.moveTask()
@@ -516,16 +574,17 @@ class Fork:
                 self.action_id += 1
                 # print(3)
             elif current_action.action_status == ActionStatus.FAILED:
-                Abnormal.setTask(53000, f"execute action {current_action} failed!", "", "", "")
+                Abnormal.setTask(53305, f"execute action {current_action} failed!", "", "", "")
                 self.script_status = ActionStatus.FAILED
                 return
             elif current_action.action_status == ActionStatus.INIT:
                 current_action.reset()
                 # print(1)
             else:
-                current_action.run(self)
+                current_action.run()
                 # print(2)
-
+            attr = self.get_all_attrs(current_action)
+            Module.report_info(attr)
         else:
             self.action_status = ActionStatus.FINISHED
 
@@ -539,7 +598,9 @@ class Fork:
         if not self.operation_init:
             self.operation_init = True
             # self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.fork_height)]
-            self.action_list = [RunMotorByPosition("Motor-003", 0,10)]
+            self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.forkHeight, 10)]
+        if self.action_status == ActionStatus.FINISHED:
+            self.script_status = ScriptStatus.FINISHED
 
         # print("action_status:" + json.dumps(cur_status))
 
@@ -580,44 +641,6 @@ class Fork:
             # 解析识别文件
             RobotParam.getDevice("Recognition", "recognitionObject")
 
-            if self.recfile:
-                # 获取识别文件信息
-                recFile = json.loads(Recognize.getRecFile(self.recfile))
-                # 遍历device_params下的array_param中的params
-                for param in recFile.get("device_params", []):
-                    if "array_param" in param:
-                        for item in param["array_param"].get("params", []):
-                            key = item["key"]
-                            if "double_value" in item:
-                                value = item["double_value"]
-                            elif "bool_value" in item:
-                                value = item["bool_value"]
-                            else:
-                                continue
-                            # 添加到recParams中
-                            self.rec_params[key] = value
-                    if param["key"] == "template_type":
-                        childKey = param["combo_param"].get("child_key", "")
-                        for item in param["combo_param"].get("child_params", []):
-                            if item["key"] == childKey:
-                                for autoParam in item.get("params", []):
-                                    key = autoParam["key"]
-                                    if "double_value" in autoParam:
-                                        value = autoParam["double_value"]
-                                    elif "bool_value" in autoParam:
-                                        value = autoParam["bool_value"]
-                                    else:
-                                        continue
-                                    # 添加到recParams中
-                                    self.rec_params[key] = value
-                # 添加坐标系名称 recCoordinate
-                if self.rec_params.get('in_global_framework', None):
-                    self.rec_params['recCoordinate'] = "world"
-                elif not self.rec_params.get('in_global_framework', None):
-                    self.rec_params['recCoordinate'] = "robot"
-                if self.rec_params.get('enable_back_dist', None):
-                    ConfigParams.back_dist = self.rec_params['back_dist']
-
             # 解析任务下发的参数，不含在 script_args 里的参数
             self.move_task = Navigation.moveTask()
 
@@ -632,6 +655,23 @@ class Fork:
             self.script_status = ScriptStatus.FAILED
             return
 
+    def get_all_attrs(self, obj):
+        attrs = {}
+        for attr in dir(obj):
+            if attr.startswith('_'):
+                continue
+            try:
+                value = getattr(obj, attr)
+                if not callable(value):  # 排除方法
+                    # 仅保留 JSON 可序列化的值
+                    json.dumps(value)  # 尝试序列化看看是否报错
+                    attrs[attr] = value
+            except (TypeError, ValueError):
+                pass  # 不能序列化的就跳过
+            except Exception:
+                pass
+        return attrs
+
     def _report(self):
         cur_status = dict()
         if self.action_id < len(self.action_list):
@@ -640,7 +680,6 @@ class Fork:
             cur_status['action_list'] = [str(action) for action in self.action_list]
             cur_status['action_status'] = self.action_list[self.action_id].action_status
             cur_status['script_status'] = self.script_status
-            print(cur_status)
 
     def fork_load(self):
         if not self.operation_init:
@@ -682,9 +721,6 @@ class BaseAction:
     """定义动作的基类"""
 
     def __init__(self, action_name: str = None):
-        self.action_args = locals()
-        self.action_args.pop('self')
-        self.action_args.pop('__class__', None)
         self.action_name = action_name or self.__class__.__name__
 
         self.start_time = time.time()
@@ -692,9 +728,8 @@ class BaseAction:
         self.action_state = {}
         self.init = False
 
-    def run(self, m):
+    def run(self):
         self.action_state["action_runtime"] = time.time() - self.start_time
-        self.action_state["action_args"] = self.action_args
         self.action_state['action_name'] = self.action_name
         pass
 
@@ -750,7 +785,7 @@ class Rec(BaseAction):
         self.success = False
         self.results = list
 
-    def run(self, f: Fork):
+    def run(self):
         if not self.init:
             self.init = True
             self.success = False
@@ -761,16 +796,10 @@ class Rec(BaseAction):
         else:
             # 处理识别结果，并按降序排序，z值最大的结果在前
             results = self.results.get("reco_list", [])
-            z_max_results = sorted(results, key=lambda item: item['z'])
+            z_max_results = sorted(results, key=lambda item: item['z'], reverse=True)
             self.result = z_max_results[0]
-            f.rec_result = self.result
+            log.info(f"rec_status: {self.result}")
             self.action_status = ActionStatus.FINISHED
-        self.action_state['recfile'] = self.recfile
-        self.action_state['status'] = self.action_status
-        self.action_state['rec_status'] = self.rec_status
-        self.action_state['rec_times'] = self.attempts
-        self.action_state['rec_result'] = self.result
-        print(self.action_state)
 
     def reset(self):
         Recognize.resetRec()
@@ -781,14 +810,13 @@ class Rec(BaseAction):
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
             log.debug("rec_result:{}".format(rec_result))
-            print(rec_result)
             return True, rec_status, rec_result
         elif rec_status in (-1, 3):
             if Timer.delay(0.05):
                 self.attempts += 1
                 if self.attempts > self.max_attempts:
                     self.action_status = ActionStatus.FAILED
-                    Abnormal.setTask(53900,
+                    Abnormal.setTask(53306,
                                      "Recognition failed, the maximum number of retries exceeded",
                                      "The recognition distance may be too close or too far, or the sensor used for recognition may be faulty",
                                      "Check whether the recognition distance is too close or too far and whether the sensor used for recognition is normal.",
@@ -835,21 +863,23 @@ class GoPathWithContactDi(BaseAction):
             }
             self.back_action = GoPath(self.back_args)
         elif method == "goBezier":
-            self.back_action = GoBezier(world_pos, args["back_dist"], args["adjust_dist"], args["min_ahead_dist"])
+            self.back_action = GoBezier.GoBezierWorld(world_pos, args["back_dist"], args["adjust_dist"],
+                                                      args["min_ahead_dist"], True,
+                                                      0.2, args["max_curve"])
         elif method == "twoStraightLine":
             self.back_action = GoTwoStraightLine(world_pos, args["min_ahead_dist"], args["adjust_dist"],
                                                  args["back_dist"], 0.2, 10, 1)
         # self.back_status = self.back_action.action_status
 
-    def run(self, f: Module):
+    def run(self):
         self.action_status = ScriptStatus.RUNNING
         if not self.init:
             self.init = True
             self.start_loc = Loc.get_position()
 
         # 开始后退
-        if self.back_action.action_status not in [ActionStatus.FAILED, ActionStatus.FINISHED]:
-            self.back_action.run(f)
+        if self.back_action.action_status not in [ScriptStatus.FAILED, ScriptStatus.FINISHED]:
+            self.back_action.run()
 
         # 如果没有到位 di
         if not self.check_di:
@@ -865,17 +895,18 @@ class GoPathWithContactDi(BaseAction):
         if not self.check_all_contact_di:
             # 检查所有的到位 di ，同时需要考虑到位 di 触发的延时
             if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(1):
-                Abnormal.setTask(53000, f"not trigger di but robot reach goal",
-                                 f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}")
+                Abnormal.setTask(53307, f"not trigger di but robot reach goal",
+                                 f"please check the di dist or reach di:{self.contact_di}")
                 self.action_status = ActionStatus.FAILED
                 return
             if any(self.di_status):
                 Navigation.stopRobot(True)
+                Navigation.resetPath()
                 self.action_status = ActionStatus.FINISHED
-        # 仅检查一个到位 di 的情况
+        # 仅检查所有到位 di 的情况
         else:
             if self.back_action.action_status == ActionStatus.FINISHED and not any(self.di_status) and Timer.delay(1):
-                Abnormal.setTask(53000, f"not trigger di but robot reach goal",
+                Abnormal.setTask(53308, f"not trigger di but robot reach goal",
                                  f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}")
                 self.action_status = ActionStatus.FAILED
                 return
@@ -883,18 +914,18 @@ class GoPathWithContactDi(BaseAction):
                 di_trigger_time = time.time()
                 if all(self.di_status) and (time.time() - di_trigger_time) <= self.di_filter_time:
                     Navigation.stopRobot(True)
+                    Navigation.resetPath()
                     self.action_status = ActionStatus.FINISHED
 
         cur_state = dict()
         cur_state['status'] = self.action_status
         cur_state['method'] = self.method
-        # cur_state['go path args'] = self.back_args
+        cur_state['back status'] = self.back_action.action_status
         cur_state['check_di'] = self.check_di
         cur_state['contact_di'] = self.contact_di
         cur_state['walk_dist'] = self.cal_walk_dist()
         cur_state['di_status'] = self.di_status
         cur_state['obs_dist'] = self.obsDist
-        print(cur_state)
 
     def reset(self):
         self.action_status = ScriptStatus.RUNNING
@@ -925,7 +956,7 @@ class LocDetectGoods(BaseAction):
         self.max_rec_time = 10
         self.rec_status = 0
 
-    def run(self, f: Fork):
+    def run(self):
         self.action_status = ActionStatus.RUNNING
         if self.init:
             self.init = False
@@ -939,7 +970,7 @@ class LocDetectGoods(BaseAction):
                 self.rec_failed_time = self.rec_failed_time + 1
                 if self.rec_failed_time > self.max_rec_time:
                     Abnormal.setTask(57300, f"{self.loc_name} is not filled", "", "", "LocDetectGoods")
-                    f.is_goods_detected = False
+                    # f.is_goods_detected = False
                     self.action_status = ActionStatus.FAILED
                 else:
                     Recognize.recTargetObs(ConfigParams.deviceName, self.target[0], self.target[1], self.target[2],
@@ -955,10 +986,10 @@ class LocDetectGoods(BaseAction):
                 # r.setError(f"result:{self.detectResult}")
                 if self.detect_result:
                     Abnormal.setTask(57300, f"{self.loc_name} is filled", "", "", "LocDetectGoods")
-                    f.is_goods_detected = True
+                    # f.is_goods_detected = True
                     self.action_status = ActionStatus.FINISHED
         else:
-            Abnormal.setTask(53107, f"{self.loc_name} does not exist", "", "", "LocDetectGoods")
+            Abnormal.setTask(53309, f"{self.loc_name} does not exist", "", "", "LocDetectGoods")
             self.action_status = ActionStatus.FAILED
 
         self.action_state["locName"] = self.loc_name
@@ -988,32 +1019,63 @@ class RunMotorByPosition(BaseAction):
         使用示例：
         """
         super().__init__()
+
         self.motor_name = motor_name
         self.position = position
         self.max_speed = max_speed
         self.stop_di = stop_di
         self.init = False
-        Motor.resetMotor(self.motor_name)
-        print(f"motor name:{self.motor_name}, position:{self.position}, max_speed:{self.max_speed}")
 
-    def run(self, f: Fork):
+        self.positions = []
+        self.check_duration = 10
+        self.fork_timestamps = []
+        self.last_sample_time = None
+
+    def run(self):
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.init = True
             Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
+            self.last_sample_time = time.time()
+
         if Motor.isMotorReached(self.motor_name):
             self.action_status = ActionStatus.FINISHED
 
-        self.action_state["motor_name"] = self.motor_name
-        self.action_state["motor_speed"] = Motor.get_motor_speed(self.motor_name)
-        self.action_state["motor_position"] = Motor.get_motor_pos(self.motor_name)
-        self.action_state["status"] = self.action_status
-        log.info(self.action_state)
+        # 检测货叉的运动是否卡住了
+        now = time.time()
+        # 0.5s 采一次数据，50ms过于频繁似乎没有必要
+        if now - self.last_sample_time > 0.5:
+            self.last_sample_time = now
+            cur_fork_height = Motor.get_motor_pos(self.motor_name)
+            self.positions.append(cur_fork_height)
+            self.fork_timestamps.append(now)
+
+            if self.fork_timestamps and now - self.fork_timestamps[0] >= self.check_duration:
+                min_pos = min(self.positions)
+                max_pos = max(self.positions)
+                if abs(max_pos - min_pos) <= 0.005:
+                    Abnormal.setTask(53310,
+                                     f"fork height not change between:{min_pos}m-{max_pos}m in {self.check_duration}s",
+                                     "", "", "")
+                    self.action_status = ActionStatus.FAILED
+
+            while self.fork_timestamps and now - self.fork_timestamps[0] > self.check_duration:
+                self.positions.pop(0)
+                self.fork_timestamps.pop(0)
+
+        # self.action_state["motor_name"] = self.motor_name
+        # self.action_state["motor_speed"] = Motor.get_motor_speed(self.motor_name)
+        # self.action_state["motor_position"] = Motor.get_motor_pos(self.motor_name)
+        # self.action_state["status"] = self.action_status
+        # log.info(self.action_state)
         # print(json.dumps(self.action_state))
 
     def reset(self):
         Motor.resetMotor(self.motor_name)
         self.action_status = ActionStatus.RUNNING
+        self.fork_timestamps.clear()
+        self.positions.clear()
+        self.init = False
 
 
 class RunMotorBySpeed(BaseAction):
@@ -1033,7 +1095,7 @@ class RunMotorBySpeed(BaseAction):
         self.init = False
         Motor.resetMotor(self.motor_name)
 
-    def run(self, f: Fork):
+    def run(self):
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.init = True
@@ -1082,7 +1144,7 @@ class RunMotorByDOInterlock(BaseAction):
         self.start_time = 0
         self.action_state = dict()
 
-    def run(self, f: Fork):
+    def run(self):
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.init = True
@@ -1120,7 +1182,7 @@ class RunMotorByDOInterlock(BaseAction):
                 is_reach = True
             if time.time() - self.start_time > self.up_delay_time:
                 is_reach = True
-                Abnormal.setTask(55900,
+                Abnormal.setTask(53311,
                                  "Motor up timeout",
                                  "",
                                  "",
@@ -1131,7 +1193,7 @@ class RunMotorByDOInterlock(BaseAction):
                 is_reach = True
             if time.time() - self.start_time > self.down_delay_time:
                 is_reach = True
-                Abnormal.setTask(55900,
+                Abnormal.setTask(53312,
                                  "Motor down timeout",
                                  "",
                                  "",
@@ -1172,7 +1234,7 @@ class RunMotorByDOEnable(BaseAction):
         self.down_delay_time = down_delay_time
         self.start_time = 0
 
-    def run(self, f: Fork):
+    def run(self):
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.init = True
@@ -1205,14 +1267,14 @@ class RunMotorByDOEnable(BaseAction):
                 is_reach = True
             if time.time() - self.start_time > self.up_delay_time:
                 is_reach = True
-                Abnormal.setTask(55900, "Motor up timeout", "", "", "RunMotorByDOEnable")
+                Abnormal.setTask(53313, "Motor up timeout", "", "", "RunMotorByDOEnable")
         elif self.operation == "down":
             down_di_status = Di.get_di(self.down_di)
             if down_di_status:
                 is_reach = True
             if time.time() - self.start_time > self.down_delay_time:
                 is_reach = True
-                Abnormal.setTask(55900, "Motor down timeout", "", "", "RunMotorByDOEnable")
+                Abnormal.setTask(53314, "Motor down timeout", "", "", "RunMotorByDOEnable")
         return is_reach
 
     def reset(self):
@@ -1222,9 +1284,9 @@ class RunMotorByDOEnable(BaseAction):
 
 
 # 用于走直线
-class GoPath(BaseAction):
+class GoPath:
     def __init__(self, args: Optional[dict] = None):
-        super().__init__()
+        super().__init__("GoPath")
         self.goal = [0, 0, 0]
         self.init = False
         self.action_status = ActionStatus.INIT
@@ -1240,7 +1302,7 @@ class GoPath(BaseAction):
         """
         print(f"go path init")
 
-    def run(self, f: Fork):
+    def run(self):
         self.action_status = ActionStatus.RUNNING
         args = self.args
         if args is None:
@@ -1295,14 +1357,14 @@ class GoPath(BaseAction):
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                     Navigation.goPathParam(self.param)
                 else:
-                    Abnormal.setTask(55900,
+                    Abnormal.setTask(53315,
                                      f"coordinate wrong",
                                      f"coordinate only support robot and world. Input is {args['coordinate']}",
                                      "coordinate Input 'robot' or 'world'",
                                      "GoPath")
                     self.action_status = ActionStatus.FAILED
             else:
-                Abnormal.setTask(55900,
+                Abnormal.setTask(53316,
                                  f"args wrong",
                                  f"no x or y or coordinate",
                                  "input 'x' , 'y' and 'coordinate'",
@@ -1315,772 +1377,13 @@ class GoPath(BaseAction):
             else:
                 self.action_status = ActionStatus.RUNNING
 
-        self.action_state['status'] = self.action_status
-
     def reset(self):
         Navigation.resetPath()
         self.action_status = ActionStatus.RUNNING
         self.init = False
 
 
-class GoBezier(BaseAction):
-    """
-        走二阶贝塞尔
-    """
-
-    def __init__(self, target_world, back_dist=0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0,
-                 is_backwards=True,
-                 max_speed=0.2, max_accele=0.3, max_decele=0.3, decele_dist=1, curvature_limit=1):
-        super().__init__("GoBezier")
-        self.dec_dist_speed = 0.1
-        del target_world[3:]
-        self.target_world = target_world
-        self.target_world[2] = (self.target_world[2] + math.pi) % (2 * math.pi)
-
-        log.info(f"target_world={target_world}")
-        self.back_dist = back_dist
-        self.end_position_world = [0, 0, 0]
-        self.end_position_robot = [0, 0, 0]
-        self.min_ahead_dist = min_ahead_dist
-        self.adjust_dist_for_curvature_limit = adjust_dist_for_curvature_limit
-
-        self.is_backwards = is_backwards
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-        self.curvature_limit = curvature_limit
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.target_robot = [0, 0, 0]
-        self.control_point = None
-        self.param = {}
-        self.is_set_min_speed = False
-
-        self.go_path = GoPath()
-        # 第一段线到位标识
-        self.is_first_path_reached = False
-        self.xs = []
-        self.ys = []
-        self.offset_dist = 0.0
-        self.k_max = 0  # 定义曲率
-        self.first_point = None
-
-    def run(self, f: Module):
-        if self.init:
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetPath()
-            self.init = False
-
-            # 获取机器人位置（world系）
-            loc_data = Loc.get_data()
-            robot_loc = [loc_data["x"], loc_data["y"], loc_data["angle"]]
-
-            # 计算终点
-            self.end_position_world = Pos2World([self.back_dist, 0, 0], self.target_world)
-            self.target_world = Pos2World([-self.min_ahead_dist, 0, 0], self.target_world)
-
-            # 贝塞尔曲线终点 → robot坐标系
-            self.target_robot = Pos2Base(self.target_world, robot_loc)
-            self.end_position_robot = Pos2Base(self.end_position_world, robot_loc)
-
-            success = False
-            max_offset = self.adjust_dist_for_curvature_limit
-            offset_step = 0.1
-            alpha = 0.35  # 固定控制点比例
-            P0_xy = P1 = P2 = P3_xy = [0, 0, 0]
-
-            while self.offset_dist <= max_offset:
-                # 起点从(0, 0)往后移，作为新的P0
-                if self.is_backwards:
-                    P0 = [self.offset_dist, 0, math.pi]
-                else:
-                    P0 = [-self.offset_dist, 0, 0]
-                # P0 = [self.offset_dist, 0, math.pi]
-                P3 = self.target_robot
-
-                # 生成贝塞尔曲线控制点与路径
-                P0_xy, P1, P2, P3_xy = self.compute_bezier_controls_dir(P0, P3, alpha)
-                self.xs, self.ys = self.bezier_points(P0_xy, P1, P2, P3_xy)
-                log.info(f"xs={self.xs}, ys={self.ys}")
-
-                # 添加末端直线路径
-                self.xs.append(self.end_position_robot[0])
-                self.ys.append(self.end_position_robot[1])
-
-                # 判断曲率是否超限
-                # self.k_max = self.max_curvature(self.xs, self.ys)
-                self.k_max = self.bezier_curvature(P0_xy, P1, P2, P3_xy)
-                if self.k_max <= self.curvature_limit:
-                    success = True
-                    break
-
-                self.offset_dist += offset_step
-            print(f"offset_dist:{self.offset_dist}")
-            self.first_point = [self.xs[0], self.ys[0]]
-
-            if not success:
-                log.info(f"curvature limit exceeded. max_curvature={self.k_max}")
-                self.action_status = ActionStatus.FAILED
-                return
-
-            # 成功构造路径,需要将路径分为2段，第一段后退至贝塞尔起始点
-            self.control_point = [P0_xy, P1, P2, P3_xy]
-            # 规划第一段倒退路线参数
-            Navigation.setPathReachAngle(0.05)  # 到位精度
-            Navigation.setPathReachDist(0.01)
-            Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
-            Navigation.setPathMaxSpeed(self.max_speed)
-            Navigation.setPathOnRobot([0, self.xs[0]], [0, self.ys[0]], 0)
-            self.param["maxAcc"] = float(self.max_accele)
-            self.param["maxDec"] = float(self.max_decele)
-            Navigation.goPathParam(self.param)
-
-        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
-            # Navigation.goPathParam(self.param)
-            self.is_first_path_reached = Navigation.isPathReached()
-            log.info(f"is_first_path_reached:{self.is_first_path_reached}")
-            if self.is_first_path_reached:
-                Navigation.resetPath()
-                if self.is_backwards:
-                    for i in range(len(self.xs)):
-                        self.xs[i] -= self.offset_dist
-                else:
-                    for i in range(len(self.xs)):
-                        self.xs[i] += self.offset_dist
-
-                Navigation.setPathReachAngle(0.05)
-                Navigation.setPathReachDist(0.01)
-                Navigation.setPathBackMode(self.is_backwards)
-                Navigation.setPathMaxSpeed(self.max_speed)
-
-                end_angle_robot = self.end_position_robot[2]
-                if self.is_backwards:
-                    end_angle_robot = (end_angle_robot + math.pi) % (2 * math.pi)
-                    if end_angle_robot > math.pi:
-                        end_angle_robot -= 2 * math.pi
-
-                Navigation.setPathOnRobot(self.xs, self.ys, end_angle_robot)
-                self.param["maxAcc"] = float(self.max_accele)
-                self.param["maxDec"] = float(self.max_decele)
-                Navigation.goPathParam(self.param)
-
-        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走贝塞尔到终点
-            # Navigation.goPathParam(self.param)
-            is_reached = Navigation.isPathReached()
-            log.info(f"is_reached:{is_reached}")
-            if is_reached:
-                self.action_status = ActionStatus.FINISHED
-                return
-            else:
-                self.action_status = ActionStatus.RUNNING
-
-            robot_current_loc = list(Loc.get_position())
-            dist_cur_loc_end_loc = math.hypot(
-                self.end_position_world[0] - robot_current_loc[0],
-                self.end_position_world[1] - robot_current_loc[1]
-            )
-            if dist_cur_loc_end_loc < self.decele_dist and not self.is_set_min_speed:
-                self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(self.dec_dist_speed)
-                # Abnormal.setTask(55900, "has slow the speed", "", "", "")
-
-        robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-        curstate = {
-            "action_status": self.action_status,
-            "k_max": self.k_max,
-            "first_point": self.first_point,
-            "xEnd,yEnd": [self.xs[-1], self.ys[-1]],
-            "target_pos_world": [self.end_position_world[0], self.end_position_world[1]],
-            "max_speed": self.max_speed,
-            "max_accele": self.max_accele,
-            "robot_loc": robot_loc
-        }
-        Module.report_info(curstate)
-
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
-
-    def compute_bezier_controls_dir(self, p0, p3, alpha=0.3):
-        """
-        计算三次 Bezier 的 4 个控制点（含端点），支持端点方向。
-        参数
-        ----
-        p0, p3 : [x, y, theta]   theta 为弧度，表示该点切线方向
-        alpha  : 0~1，控制 P1/P2 到端点的相对距离 (d = alpha * |P3-P0|)
-
-        返回
-        ----
-        [P0_xy, P1, P2, P3_xy]   仅保留 (x, y)
-        """
-        x0, y0, th0 = p0
-        x3, y3, th3 = p3
-
-        # 端点间直线距离
-        dist = math.hypot(x3 - x0, y3 - y0)
-        d = alpha * dist  # 控制点到端点的绝对距离
-
-        # 控制点
-        p1 = [x0 + d * math.cos(th0), y0 + d * math.sin(th0)]
-        p2 = [x3 - d * math.cos(th3), y3 - d * math.sin(th3)]
-
-        return [p0, p1, p2, p3]  # 去掉角度，只留坐标
-
-    def bezier_points(self, p0, p1, p2, p3, steps=100):
-        """
-        生成 Bezier 曲线采样点
-        ----
-        p0~p3 : [x, y]
-        steps : 采样分段数，返回 steps+1 个点
-        返回
-        ----
-        (xs, ys) : 两个长度相等的列表
-        """
-        xs, ys = [], []
-        for i in range(steps + 1):
-            t = i / steps
-            one_t = 1 - t
-
-            # 三次 Bezier 伯恩斯坦基函数
-            b0 = one_t ** 3
-            b1 = 3 * one_t ** 2 * t
-            b2 = 3 * one_t * t ** 2
-            b3 = t ** 3
-
-            x = (b0 * p0[0] + b1 * p1[0] + b2 * p2[0] + b3 * p3[0])
-            y = (b0 * p0[1] + b1 * p1[1] + b2 * p2[1] + b3 * p3[1])
-            xs.append(x)
-            ys.append(y)
-        return xs, ys
-
-    def max_curvature(self, xs, ys):
-        """
-            计算bezier曲线的最大曲率
-            ----
-            (xs, ys) : 途径的每个离散点
-        """
-        k_max = 0.0
-        for i in range(1, len(xs) - 1):
-            x1, y1 = xs[i - 1], ys[i - 1]
-            x2, y2 = xs[i], ys[i]
-            x3, y3 = xs[i + 1], ys[i + 1]
-
-            # 三角形边长
-            a = math.hypot(x2 - x1, y2 - y1)
-            b = math.hypot(x3 - x2, y3 - y2)
-            c = math.hypot(x3 - x1, y3 - y1)
-            if a * b * c == 0:
-                continue
-
-            # 海伦公式求面积，再转曲率
-            s = 0.5 * (a + b + c)
-            area_sq = max(s * (s - a) * (s - b) * (s - c), 0)
-            if area_sq == 0:
-                continue
-            k = 4.0 * math.sqrt(area_sq) / (a * b * c)
-            k_max = max(k_max, k)
-        return k_max
-
-    def bezier_curvature(self, p0, p1, p2, p3, steps=500):
-        """
-        基于导数计算三次贝塞尔曲线最大曲率
-        p0~p3: 控制点[x, y]
-        返回最大曲率
-        比上面的方法更准确
-        """
-        k_max = 0.0
-        for i in range(steps + 1):
-            t = i / steps
-            one_t = 1 - t
-
-            # 一阶导数
-            dx_dt = 3 * one_t ** 2 * (p1[0] - p0[0]) + \
-                    6 * one_t * t * (p2[0] - p1[0]) + \
-                    3 * t ** 2 * (p3[0] - p2[0])
-            dy_dt = 3 * one_t ** 2 * (p1[1] - p0[1]) + \
-                    6 * one_t * t * (p2[1] - p1[1]) + \
-                    3 * t ** 2 * (p3[1] - p2[1])
-
-            # 二阶导数
-            ddx_dt = 6 * one_t * (p2[0] - 2 * p1[0] + p0[0]) + \
-                     6 * t * (p3[0] - 2 * p2[0] + p1[0])
-            ddy_dt = 6 * one_t * (p2[1] - 2 * p1[1] + p0[1]) + \
-                     6 * t * (p3[1] - 2 * p2[1] + p1[1])
-
-            # 曲率公式
-            numerator = abs(dx_dt * ddy_dt - dy_dt * ddx_dt)
-            denominator = (dx_dt ** 2 + dy_dt ** 2) ** 1.5
-            if denominator == 0:
-                continue
-            k = numerator / denominator
-            k_max = max(k_max, k)
-        return k_max
-
-
-class RecordBezierPath(BaseAction):
-    """
-        走二阶贝塞尔
-    """
-
-    def __init__(self, target_world, back_dist=0, adjust_dist_for_curvature_limit=1, min_ahead_dist=0.5,
-                 is_backwards=True, curvature_limit=1.5):
-        super().__init__("RecordBezierPath")
-        del target_world[3:]
-        self.target_world = target_world
-        self.target_world[2] = (self.target_world[2] + math.pi) % (2 * math.pi)
-        log.info(f"target_world={target_world}")
-        self.back_dist = back_dist
-        self.end_position_world = [0, 0, 0]
-        self.end_position_robot = [0, 0, 0]
-        self.end_angle_robot = None
-
-        self.min_ahead_dist = min_ahead_dist
-        self.adjust_dist_for_curvature_limit = adjust_dist_for_curvature_limit
-
-        self.is_backwards = is_backwards
-        self.curvature_limit = curvature_limit
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.target_robot = [0, 0, 0]
-        self.control_point = None
-        self.param = {}
-        self.is_set_min_speed = False
-
-        # self.go_path = GoPath()
-        # 第一段线到位标识
-        self.is_first_path_reached = False
-        self.xs = []
-        self.ys = []
-        self.xs_ret = []
-        self.ys_ret = []
-        self.theta_ret = None
-        self.offset_dist = 0.0
-        self.k_max = 0  # 定义曲率
-        self.first_point = []
-        self.first_point_return = []
-        self.second_path = []
-        self.second_path_return = []
-
-    def run(self, f: Fork):
-        if self.init:
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetPath()
-            self.init = False
-
-            # 获取机器人位置（world系）
-            loc_data = Loc.get_data()
-            robot_loc = [loc_data["x"], loc_data["y"], loc_data["angle"]]
-
-            # 计算终点
-            self.end_position_world = Pos2World([self.back_dist, 0, 0], self.target_world)
-            self.target_world = Pos2World([-self.min_ahead_dist, 0, 0], self.target_world)
-
-            # 贝塞尔曲线终点 → robot坐标系
-            self.target_robot = Pos2Base(self.target_world, robot_loc)
-            self.end_position_robot = Pos2Base(self.end_position_world, robot_loc)
-
-            success = False
-            max_offset = self.adjust_dist_for_curvature_limit
-            offset_step = 0.1
-            alpha = 0.35  # 固定控制点比例
-            P0_xy = P1 = P2 = P3_xy = [0, 0, 0]
-
-            while self.offset_dist <= max_offset:
-                # 起点从(0, 0)往后移，作为新的P0
-                if self.is_backwards:
-                    P0 = [self.offset_dist, 0, math.pi]
-                else:
-                    P0 = [-self.offset_dist, 0, 0]
-                # P0 = [self.offset_dist, 0, 0]
-                P3 = self.target_robot
-
-                # 生成贝塞尔曲线控制点与路径
-                P0_xy, P1, P2, P3_xy = self.compute_bezier_controls_dir(P0, P3, alpha)
-                self.xs, self.ys = self.bezier_points(P0_xy, P1, P2, P3_xy)
-                # log.info(f"xs={self.xs}, ys={self.ys}")
-
-                # 添加末端直线路径
-                self.xs.append(self.end_position_robot[0])
-                self.ys.append(self.end_position_robot[1])
-
-                # 判断曲率是否超限
-                # self.k_max = self.max_curvature(self.xs, self.ys) #海伦公式
-                self.k_max = self.bezier_curvature(P0_xy, P1, P2, P3_xy)  # 二阶导
-                if self.k_max <= self.curvature_limit:
-                    success = True
-                    break
-
-                self.offset_dist += offset_step
-
-            if not success:
-                log.info(f"curvature limit exceeded. max_curvature={self.k_max}")
-                print(f"P0_xy, P1, P2, P3_xy={[P0_xy, P1, P2, P3_xy]}")
-                self.action_status = ActionStatus.FAILED
-                return
-
-            # 成功构造路径,需要将路径分为2段，第一段后退至贝塞尔起始点
-            self.control_point = [P0_xy, P1, P2, P3_xy]
-
-            # 此处记录xs【0】，ys【0】
-            self.first_point = [self.xs[0], self.ys[0]]
-            self.first_point_return = [-self.xs[0], -self.ys[0]]
-
-            if self.is_backwards:
-                for i in range(len(self.xs)):
-                    self.xs[i] -= self.offset_dist
-            else:
-                for i in range(len(self.xs)):
-                    self.xs[i] += self.offset_dist
-
-            self.end_angle_robot = self.end_position_robot[2]
-            if self.is_backwards:
-                self.end_angle_robot = (self.end_angle_robot + math.pi) % (2 * math.pi)
-                if self.end_angle_robot > math.pi:
-                    self.end_angle_robot -= 2 * math.pi
-
-            # 此处记录self.xs & self.ys & end_angle_robot
-            self.second_path = [self.xs, self.ys, self.end_angle_robot]
-            self.xs_ret, self.ys_ret, self.theta_ret = self.generate_return_path(self.xs, self.ys)
-            self.second_path_return = [self.xs_ret, self.ys_ret, self.theta_ret]
-
-        self.action_status = ActionStatus.FINISHED
-
-        robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-        f.cur_state["recordBezier"] = {
-            "action_status": self.action_status,
-            "k_max": self.k_max,
-            "control_point": self.control_point,
-            "xEnd,yEnd": [self.xs[-1], self.ys[-1]],
-            "target_robot": self.target_robot,
-            "target_pos_world": [self.end_position_world[0], self.end_position_world[1]],
-            "robot_loc": robot_loc,
-            "second_path_x": [self.second_path[0][0],self.second_path[0][-1]],
-            "second_path_return_x": [self.second_path_return[0][0],self.second_path_return[0][-1]]
-        }
-        Module.report_info(f.cur_state)
-        print(f.cur_state)
-
-        f.first_point = self.first_point
-        f.second_path = self.second_path
-        f.first_point_return = self.first_point_return
-        del self.second_path_return[0][1]
-        f.second_path_return = self.second_path_return
-        log.info(f"first_point={self.first_point}, second_path={self.second_path}")
-
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
-
-    def compute_bezier_controls_dir(self, p0, p3, alpha=0.3):
-        """
-        计算三次 Bezier 的 4 个控制点（含端点），支持端点方向。
-        :param
-        p0, p3 : [x, y, theta]   theta 为弧度，表示该点切线方向
-        alpha  : 0~1，控制 P1/P2 到端点的相对距离 (d = alpha * |P3-P0|)
-        :return
-        [P0_xy, P1, P2, P3_xy]   仅保留 (x, y)
-        """
-        x0, y0, th0 = p0
-        x3, y3, th3 = p3
-
-        # 端点间直线距离
-        dist = math.hypot(x3 - x0, y3 - y0)
-        d = alpha * dist  # 控制点到端点的绝对距离
-
-        # 控制点
-        p1 = [x0 + d * math.cos(th0), y0 + d * math.sin(th0)]
-        p2 = [x3 - d * math.cos(th3), y3 - d * math.sin(th3)]
-
-        return [p0, p1, p2, p3]  # 去掉角度，只留坐标
-
-    def bezier_points(self, p0, p1, p2, p3, steps=1000):
-        """
-        生成 Bezier 曲线采样点
-        :param
-        p0~p3 : [x, y]
-        steps : 采样分段数，返回 steps+1 个点
-        :return
-        (xs, ys) : 两个长度相等的列表
-        """
-        xs, ys = [], []
-        for i in range(steps + 1):
-            t = i / steps
-            one_t = 1 - t
-
-            # 三次 Bezier 伯恩斯坦基函数
-            b0 = one_t ** 3
-            b1 = 3 * one_t ** 2 * t
-            b2 = 3 * one_t * t ** 2
-            b3 = t ** 3
-
-            x = (b0 * p0[0] + b1 * p1[0] + b2 * p2[0] + b3 * p3[0])
-            y = (b0 * p0[1] + b1 * p1[1] + b2 * p2[1] + b3 * p3[1])
-            x = round(x, 7)
-            y = round(y, 7)
-            xs.append(x)
-            ys.append(y)
-        return xs, ys
-
-    def bezier_curvature(self, p0, p1, p2, p3, steps=500):
-        """
-        基于导数计算三次贝塞尔曲线最大曲率
-        p0~p3: 控制点[x, y]
-        返回最大曲率
-        """
-        k_max = 0.0
-        for i in range(steps + 1):
-            t = i / steps
-            one_t = 1 - t
-
-            # 一阶导数
-            dx_dt = 3 * one_t ** 2 * (p1[0] - p0[0]) + \
-                    6 * one_t * t * (p2[0] - p1[0]) + \
-                    3 * t ** 2 * (p3[0] - p2[0])
-            dy_dt = 3 * one_t ** 2 * (p1[1] - p0[1]) + \
-                    6 * one_t * t * (p2[1] - p1[1]) + \
-                    3 * t ** 2 * (p3[1] - p2[1])
-
-            # 二阶导数
-            ddx_dt = 6 * one_t * (p2[0] - 2 * p1[0] + p0[0]) + \
-                     6 * t * (p3[0] - 2 * p2[0] + p1[0])
-            ddy_dt = 6 * one_t * (p2[1] - 2 * p1[1] + p0[1]) + \
-                     6 * t * (p3[1] - 2 * p2[1] + p1[1])
-
-            # 曲率公式
-            numerator = abs(dx_dt * ddy_dt - dy_dt * ddx_dt)
-            denominator = (dx_dt ** 2 + dy_dt ** 2) ** 1.5
-            if denominator == 0:
-                continue
-            k = numerator / denominator
-            k_max = max(k_max, k)
-        return k_max
-
-    def generate_return_path(self, xs, ys):
-        """
-        基于贝塞尔路径，返回原路倒退路径：机器人坐标系为终点局部坐标系，返回格式为 [xs, ys, theta]
-        """
-        if len(xs) < 2:
-            return [], [], 0.0
-
-        # 末段切线方向作为返回路径的正向角度
-        dx = xs[-1] - xs[-2]
-        dy = ys[-1] - ys[-2]
-        theta_end = math.atan2(dy, dx)
-
-        origin_x = xs[-1]
-        origin_y = ys[-1]
-        world_pts = list(zip(xs, ys))
-        world_pts.reverse()
-
-        cos_t = math.cos(theta_end)
-        sin_t = math.sin(theta_end)
-
-        xs_ret, ys_ret = [], []
-        for wx, wy in world_pts:
-            dx = wx - origin_x
-            dy = wy - origin_y
-            x_r = cos_t * dx + sin_t * dy
-            y_r = -sin_t * dx + cos_t * dy
-            xs_ret.append(-x_r)
-            ys_ret.append(-y_r)
-
-        return xs_ret, ys_ret, theta_end
-
-
-class GoRecordedPath(BaseAction):
-    """
-        走记录过点坐标的路径
-    """
-
-    def __init__(self, first_point, second_path, is_backwards=True, max_speed=0.3, max_accele=1, max_decele=0.7,
-                 decele_dist=1):
-        super().__init__("GoRecordedPath")
-        self.end_position_world = [0, 0, 0]
-        self.end_position_robot = [0, 0, 0]
-
-        self.first_point = first_point
-        self.second_path = second_path
-        self.is_backwards = is_backwards
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.target_robot = [0, 0, 0]
-        self.control_point = None
-        self.param = {}
-        self.is_set_min_speed = False
-
-        # 第一段线到位标识
-        self.is_first_path_reached = False
-
-    def run(self, f: Fork):
-        if self.init:
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetPath()
-            self.init = False
-            # 规划第一段倒退路线参数
-            Navigation.setPathReachAngle(0.05)  # 到位精度
-            Navigation.setPathReachDist(0.01)
-            Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
-            Navigation.setPathMaxSpeed(self.max_speed)
-            Navigation.setPathOnRobot([0, self.first_point[0]], [0, self.first_point[1]], 0)
-            self.param["maxAcc"] = float(self.max_accele)
-            self.param["maxDec"] = float(self.max_decele)
-            Navigation.goPathParam(self.param)
-
-        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
-            self.is_first_path_reached = Navigation.isPathReached()
-            log.info(f"is_first_path_reached:{self.is_first_path_reached}")
-            if self.is_first_path_reached:
-                Navigation.resetPath()
-
-                Navigation.setPathReachAngle(0.05)
-                Navigation.setPathReachDist(0.01)
-                Navigation.setPathBackMode(self.is_backwards)
-                Navigation.setPathMaxSpeed(self.max_speed)
-
-                Navigation.setPathOnRobot(self.second_path[0], self.second_path[1], self.second_path[2])
-                self.param["maxAcc"] = float(self.max_accele)
-                self.param["maxDec"] = float(self.max_decele)
-                Navigation.goPathParam(self.param)
-
-        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走贝塞尔到终点
-            # Navigation.goPathParam(self.param)
-            is_reached = Navigation.isPathReached()
-            log.info(f"is_reached:{is_reached}")
-            if is_reached:
-                self.action_status = ActionStatus.FINISHED
-                # return
-            else:
-                self.action_status = ActionStatus.RUNNING
-
-            robot_current_loc = list(Loc.get_position())
-            dist_cur_loc_end_loc = math.hypot(
-                self.end_position_world[0] - robot_current_loc[0],
-                self.end_position_world[1] - robot_current_loc[1]
-            )
-            if dist_cur_loc_end_loc < self.decele_dist and not self.is_set_min_speed:
-                self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(0.15)
-                # Abnormal.setTask(55900, "has slow the speed", "", "", "")
-
-        robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-        cur_state = {
-            "action_status": self.action_status,
-            "is_first_path_reached": self.is_first_path_reached,
-            "first_point": self.first_point,
-            "second_path": [self.second_path[0][-1], self.second_path[1][-1], self.second_path[2]],
-            "target_pos_world": [self.end_position_world[0], self.end_position_world[1]],
-            "max_speed": self.max_speed,
-            "max_accele": self.max_accele,
-            "robot_loc": robot_loc
-        }
-        Module.report_info(cur_state)
-
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
-        Navigation.resetPath()
-
-
-class GoRecordedPathReturn(BaseAction):
-    """
-        走记录过点坐标的路径
-    """
-
-    def __init__(self, first_point, second_path, is_backwards=True, max_speed=0.3, max_accele=1, max_decele=0.7,
-                 decele_dist=1):
-        super().__init__("GoRecordedPathReturn")
-        self.end_position_world = [0, 0, 0]
-        self.end_position_robot = [0, 0, 0]
-
-        self.first_point = first_point
-        self.second_path = second_path
-        self.is_backwards = is_backwards
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.target_robot = [0, 0, 0]
-        self.control_point = None
-        self.param = {}
-        self.is_set_min_speed = False
-
-        # 第一段线到位标识
-        self.is_first_path_reached = False
-
-    def run(self, f: Fork):
-        if self.init:
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetPath()
-            self.init = False
-            # # 规划第一段倒退路线参数
-            Navigation.setPathReachAngle(0.05)  # 到位精度
-            Navigation.setPathReachDist(0.01)
-            Navigation.setPathBackMode(self.is_backwards)  # 设置正走倒走
-            Navigation.setPathMaxSpeed(self.max_speed)
-            Navigation.setPathOnRobot(self.second_path[0], self.second_path[1], 0)
-            self.param["maxAcc"] = float(self.max_accele)
-            self.param["maxDec"] = float(self.max_decele)
-            Navigation.goPathParam(self.param)
-
-        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
-            self.is_first_path_reached = Navigation.isPathReached()
-            log.info(f"is_first_path_reached:{self.is_first_path_reached}")
-            if self.is_first_path_reached:
-                Navigation.resetPath()
-
-                Navigation.setPathReachAngle(0.05)
-                Navigation.setPathReachDist(0.01)
-                Navigation.setPathBackMode(not self.is_backwards)
-                Navigation.setPathMaxSpeed(self.max_speed)
-                Navigation.setPathOnRobot([0, self.first_point[0]], [0, self.first_point[1]], 0)
-                self.param["maxAcc"] = float(self.max_accele)
-                self.param["maxDec"] = float(self.max_decele)
-                Navigation.goPathParam(self.param)
-
-        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走贝塞尔到终点
-            # Navigation.goPathParam(self.param)
-            is_reached = Navigation.isPathReached()
-            log.info(f"is_reached:{is_reached}")
-            if is_reached:
-                self.action_status = ActionStatus.FINISHED
-                # return
-            else:
-                self.action_status = ActionStatus.RUNNING
-
-            robot_current_loc = list(Loc.get_position())
-            dist_cur_loc_end_loc = math.hypot(
-                self.end_position_world[0] - robot_current_loc[0],
-                self.end_position_world[1] - robot_current_loc[1]
-            )
-            if dist_cur_loc_end_loc < self.decele_dist and not self.is_set_min_speed:
-                self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(0.15)
-                # Abnormal.setTask(55900, "has slow the speed", "", "", "")
-
-        robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-        cur_state = {
-            "action_status": self.action_status,
-            "is_first_path_reached": self.is_first_path_reached,
-            "target_pos_world": [self.end_position_world[0], self.end_position_world[1]],
-            "max_speed": self.max_speed,
-            "max_accele": self.max_accele,
-            "robot_loc": robot_loc
-        }
-        Module.report_info(cur_state)
-
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
-
-
-class GoTwoStraightLine(BaseAction):
+class GoTwoStraightLine:
     def __init__(self, world_target, min_ahead_dist, ahead_dist, back_dist, speed, max_angle, dec_dist):
         self.go3 = None
         self.go2 = None
@@ -2102,7 +1405,7 @@ class GoTwoStraightLine(BaseAction):
         self.action_status = ActionStatus.INIT
         self.init = False
 
-    def run(self, f):
+    def run(self):
         if not self.init:
             self.init = True
             pos = Loc.get_data()
@@ -2145,17 +1448,17 @@ class GoTwoStraightLine(BaseAction):
 
         if not self.go_step[0]:
             if self.go1.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go1.run(f)
+                self.go1.run()
             if self.go1.action_status == ActionStatus.FINISHED:
                 self.go_step[0] = True
         elif self.go_step[0] and not self.go_step[1]:
             if self.go2.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go2.run(f)
+                self.go2.run()
             if self.go2.action_status == ActionStatus.FINISHED:
                 self.go_step[1] = True
         elif self.go_step[1] and not self.go_step[2]:
             if self.go3.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go3.run(f)
+                self.go3.run()
             if self.go3.action_status == ActionStatus.FINISHED:
                 self.go_step[2] = True
         if all(self.go_step):
@@ -2180,7 +1483,7 @@ class GoTwoStraightLine(BaseAction):
                 return angle, temp_start  # 成功，返回当前角度
 
         angle = abs(self.cal_angle(temp_start, self.second_point))
-        print(f"未满足角度要求，当前角度：{angle:.2f}°")
+        log.info(f"未满足角度要求，当前角度：{angle:.2f}°")
         return angle, temp_start
 
     def reset(self):
