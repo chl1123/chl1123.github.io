@@ -65,9 +65,9 @@ class Container:
             number (str): 背篓数量。从模型中的moduleType.cartonTransferUnit.id参数获取
         """
         model_container_names = []
-        model_container_names.append("999")
         for i in range(number):
             model_container_names.append(str(i))
+        model_container_names.append("999")
         raw_data = cls.db.gets(model_container_names)
         for name, value in zip(model_container_names, raw_data):
             if value is None:
