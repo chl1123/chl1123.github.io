@@ -1,15 +1,17 @@
-from .lib.py_rpc import Message
+from abc import ABC
+from syspy.core.rbk_rpc import Message
 
-
-class Distance(Message["Message_DistanceSensor"]):
+class DistanceInterface(ABC, Message):
     """距离传感器类"""
+    pass
 
-    _TOPIC = "rbk.protocol.Message_DistanceSensor"
-    _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = None
 
-    @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_DistanceSensor
-            cls._MODEL_CLASS = Message_DistanceSensor
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.distance import DistanceV3
+    Distance: DistanceInterface = DistanceV3()
+elif rbk_version == 4:
+    from syspy.v4.distance import DistanceV4
+    Distance: DistanceInterface = DistanceV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

@@ -1,32 +1,31 @@
-import math
 import typing
 from typing import Tuple
-
-from .lib.py_rpc import Service, Message, call_service, default_plugin
+from abc import ABC
+from syspy.core.rbk_rpc import Service, Message, RBKVersionError
+from syspy import rbk_version
 
 if typing.TYPE_CHECKING:
-    from .protobuf import Message_MotorCmd
-    from .protobuf.pyi.message_movetask_pb2 import Message_MoveStatus
+    if rbk_version == 3:
+        from syspy.v3.protobuf import Message_MotorCmd
+        from syspy.v3.protobuf import Message_MoveStatus
+    elif rbk_version == 4:
+        pass
 
 
-@default_plugin("MoveFactory")
-class Navigation(Service):
+class NavigationInterface(ABC, Service):
     """导航类"""
 
     @classmethod
-    @call_service()
     def resetPath(cls):
         """让agv沿着规划的线路行驶"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def goPathParam(cls, params: dict):
         """ """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getLM(cls, name: str, flag: bool) -> list:
         """获取点位坐标
 
@@ -37,99 +36,87 @@ class Navigation(Service):
         Returns:
             list: 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def runOdoMove(cls, params: dict):
         """执行按里程运动的任务
 
         Args:
             params (dict):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def clearGoodsShape(cls):
         """去除agv身上的状态"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getCurrentAdvancedArea(cls) -> dict:
         """机器人运行时，当前所在高级区域的属性
 
         Returns:
             dict:
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getCurrentPathProperty(cls) -> dict:
         """机器人运行时，当前路线上的属性
 
         Returns:
             dict:
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getGoodsName(cls) -> str:
         """
 
         Returns:
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getMinDynamicObs(cls) -> list:
         """获得离机器最近的一个动态障碍物坐标。 如果没有障碍物反馈0.,0.
 
         Returns:
             list: 两个元素，分别为x,y。单位为m
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getTargetPGVParam(cls) -> dict:
         """
 
         Returns:
             dict:
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def goForkPath(cls):
         """叉车依据规划的路径导航，需要先调用 resetGoForkPath"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def goForkUseStraightLine(cls):
         """ """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def goMapPath(cls) -> int:
         """按地图路线行走"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def goPath(cls):
         """控制AGV移动"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def goPGVRun(cls, params: dict) -> int:
         """按地图路线行走
 
@@ -139,62 +126,55 @@ class Navigation(Service):
         Returns:
             int:
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def hasGoods(cls) -> bool:
         """获取身上是否有货物的状态
 
         Returns:
             bool: 是否有货物
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def inSpin(cls) -> bool:
         """是否在随动"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def isPathReached(cls) -> bool:
         """agv是否完成线路
 
         Returns:
             bool: 如果完成则返回True
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def laserCollision(cls, ids: list) -> bool:
         """检测激光点是否和自身碰撞
 
         Returns:
             bool: 激光点是否和自身碰撞
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def moveTask(cls) -> dict:
         """获得任务信息以字典类型返回
 
         Returns:
             dict: 具体的任务信息
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def openSpeed(cls, vx: float, vy: float, vw: float):
         """让agv按vx,vy,vw行走，此函数考虑了碰撞检测"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def resetGoForkPath(
             cls,
             x: float,
@@ -214,34 +194,29 @@ class Navigation(Service):
             min_ahead_dist (float): 栈板前直线距离 m
             ahead_dist (float): 到终点前的直线距离
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def resetGoMapPath(cls):
         """行走的动作"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def resetGoPGV(cls):
         """ """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def resetLocalShelfArea(cls):
         """取消顶升上的货架"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def resetOdoMove(cls):
         """ """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setBlockReason(cls, collision_type: int, x: float, y: float, id: int):
         """设置阻挡原因
 
@@ -251,10 +226,9 @@ class Navigation(Service):
             y (float): 障碍物位置
             id (float): 障碍物id
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setGlobalSpinAngle(cls, angle: float, direction: int):
         """
 
@@ -262,10 +236,9 @@ class Navigation(Service):
             angle (float):
             direction (int):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setGoForkForkPos(cls, x: float, y: float, theta: float, hold_dir: float):
         """重置叉车去往识别点的路径规划
 
@@ -276,10 +249,9 @@ class Navigation(Service):
             hold_dir (float): 是车体的横移角度 单位：°
 
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setGoodsShape(cls, head: float, tail: float, width: float):
         """设置货物形状，并且告诉rbk车上装载有货物了。
            如果head,tail, width都小于等于0，则没有货物形状。
@@ -290,10 +262,9 @@ class Navigation(Service):
             tail (float): 货物的尾部长度
             width (float): 货物的宽度
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setGoodsShapeWithName(
             cls, head: float, tail: float, width: float, recfile: str
     ):
@@ -305,20 +276,18 @@ class Navigation(Service):
             width (float):
             recfile (str):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
         """设置货物形状时传入识别文件路径
 
         Args:
             angle (float):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setLocalShelfArea(cls, object_model_path: str) -> bool:
         """加载顶升上的货物模型
 
@@ -328,20 +297,18 @@ class Navigation(Service):
         Returns:
             bool: 如果不存在这个货架模型则报错
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setObsStopDist(cls, dist: float):
         """设置避障距离
 
         Args:
             dist (float): 避障距离，单位 m
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathBackMode(cls, a: bool) -> None:
         """路径导航是否倒走
 
@@ -349,10 +316,9 @@ class Navigation(Service):
             a (bool): 如果倒走则为True
 
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathHoldDir(cls, a: float):
         """路径导航的 hold_dir
 
@@ -360,10 +326,9 @@ class Navigation(Service):
             a (float): 单位度
 
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathMaxRot(cls, a: float):
         """路径导航的最大角速度
 
@@ -371,10 +336,9 @@ class Navigation(Service):
             a (float): 单位rad/s
 
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathMaxSpeed(cls, a: float):
         """路径导航的最大速度
 
@@ -382,10 +346,9 @@ class Navigation(Service):
             a (float): 单位m/s
 
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathOnRobot(cls, x: list, y: list, angle: float):
         """让agv在agv坐标系下以特定线路行走
 
@@ -394,10 +357,9 @@ class Navigation(Service):
             y (list): 线路的y坐标
             angle (float): 终点的朝向
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathOnWorld(cls, x: list, y: list, angle: float):
         """让agv在世界坐标系下以特定线路行走
 
@@ -406,10 +368,9 @@ class Navigation(Service):
             y (list): 线路的y坐标
             angle (float): 终点的朝向
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathReachAngle(cls, a: float):
         """路径导航的到点角度精度
 
@@ -417,30 +378,27 @@ class Navigation(Service):
             a (float): 单位rad
 
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathReachDist(cls, a: float) -> None:
         """路径导航的到点精度
 
         Args:
             a (float): 单位m
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setPathUseOdo(cls, a: bool):
         """路径导航是否用里程定位
 
         Args:
             a (bool): 如果用里程定位则为True
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setRobotSpinAngle(cls, angle: float, direction: int):
         """
 
@@ -448,10 +406,9 @@ class Navigation(Service):
             angle (float):
             direction (int):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setSafeOssdSwitch(cls, id: int, ossdRegion: int):
         """
 
@@ -459,10 +416,9 @@ class Navigation(Service):
             id:
             ossdRegion:
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setSafeZone(
             cls,
             zoneType: int,
@@ -480,10 +436,9 @@ class Navigation(Service):
             muteAudio:
             muteEnable:
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setSteerAngle(cls, name: str, angle: float) -> bool:
         """转动舵角
 
@@ -494,40 +449,36 @@ class Navigation(Service):
         Returns:
             bool: 如果为True电机到位
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def spinRun(cls) -> bool:
         """
 
         Returns:
             bool:
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def stopRobot(cls, flag: bool):
         """让agv停下来
 
         Args:
             flag (bool): 如果是True就是急停，如果是False则以StopAcc停下来
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="calibRecordService")
     def calibRecord(cls) -> bool:
         """XXX
 
         Returns:
             bool: 数据记录成功
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="wheelBaseShift")
     def wheelBaseShift(cls, flag: bool) -> bool:
         """变轴距标定时,触发MF中的模型变化响应
 
@@ -537,10 +488,9 @@ class Navigation(Service):
         Returns:
             bool: 是否完成
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="recordCapture")
     def recordCapture(cls, fileName: str, filePath: str, camName: str) -> bool:
         """相机标定时,触发图像采集
 
@@ -552,21 +502,11 @@ class Navigation(Service):
         Returns:
             bool: 是否完成
         """
-        pass
+        raise RBKVersionError()
 
-@default_plugin("MoveFactory")
-class NavStatus(Message["Message_MoveStatus"]):
+
+class NavStatusInterface(ABC, Message):
     """导航状态类"""
-
-    _TOPIC = "rbk.protocol.Message_MoveStatus"
-    _PLUGIN = "MoveFactory"
-    _MODEL_CLASS = None
-
-    @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_MoveStatus
-            cls._MODEL_CLASS = Message_MoveStatus
 
     @classmethod
     def getChassisStop(cls) -> bool:
@@ -575,39 +515,15 @@ class NavStatus(Message["Message_MoveStatus"]):
         Returns:
             bool: 停止为True, 否则为False
         """
-        return cls.client().call_service("DSPChassis", "isChassisStop", True)
+        raise RBKVersionError()
 
     @classmethod
     def get_block(cls):
-        if cls.update():
-            return cls.data.blocked
+        raise RBKVersionError()
 
     @classmethod
     def get_turn(cls, v_x, v_w):
-        turn = 0
-        if v_w >= math.radians(1) * 3:
-            '''机身左旋'''
-            if v_x > 0.0:
-                '''机身左旋+前进'''
-                turn = 1
-            elif v_x < 0.0:
-                '''机身左旋+后退'''
-                turn = 2
-            else:
-                """机身原地左旋"""
-                turn = 3
-        elif v_w <= math.radians(-1) * 3:
-            """机身右旋"""
-            if v_x > 0.0:
-                """机身右旋+前进"""
-                turn = 2
-            elif v_x < 0.0:
-                """机身右旋+后退"""
-                turn = 1
-            else:
-                """机身原地右旋"""
-                turn = 3
-        return turn
+        raise RBKVersionError()
 
     @classmethod
     def get_task_status(cls) -> "Message_MoveStatus.TaskStatus":
@@ -616,27 +532,15 @@ class NavStatus(Message["Message_MoveStatus"]):
         Returns:
             Message_MoveStatus.TaskStatus: 返回脚本任务状态
         """
-        if cls.update():
-            return cls.data.task_status
+        raise RBKVersionError()
 
 
-class NavSpeed(Message["Message_NavSpeed"]):
+class NavSpeedInterface(ABC, Message):
     """导航速度类"""
-
-    _TOPIC = "rbk.protocol.Message_NavSpeed"
-    _PLUGIN = "MoveFactory"
-    _MODEL_CLASS = None
-
-    @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_NavSpeed
-            cls._MODEL_CLASS = Message_NavSpeed
 
     @classmethod
     def get_speeds(cls) -> Tuple[float, float, float]:
-        if cls.update():
-            return cls.data.x, cls.data.y, cls.data.rotate
+        raise RBKVersionError()
 
     @classmethod
     def get_motor_cmd(cls) -> typing.List["Message_MotorCmd"]:
@@ -645,8 +549,7 @@ class NavSpeed(Message["Message_NavSpeed"]):
         Returns:
             typing.List[Message_MotorCmd]: 返回电机指令列表
         """
-        if cls.update():
-            return cls.data.motor_cmd
+        raise RBKVersionError()
 
     @classmethod
     def get_is2move(cls) -> bool:
@@ -655,5 +558,4 @@ class NavSpeed(Message["Message_NavSpeed"]):
         Returns:
             bool: True表示准备移动，False表示未准备移动
         """
-        if cls.update():
-            return cls.data.is2move
+        raise RBKVersionError()

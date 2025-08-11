@@ -1,12 +1,10 @@
+from abc import ABC
 from typing import Any
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
-from syspy.lib.py_rpc import Service, default_plugin, call_service
 
-
-@default_plugin("NetProtocol")
-class RobotParam(Service):
+class RobotParamInterface(ABC, Service):
     @classmethod
-    @call_service(plugin_name="NetProtocol", func_name="getParam")
     def getConfig(cls, app_name: str, param_path: str, file_name="") -> Any:
         """获取机器人配置参数
         Args:
@@ -17,7 +15,7 @@ class RobotParam(Service):
         Returns:
             Any: 参数值
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
     def getConfigCloneSize(cls, app_name: str, param_path: str, file_name="") -> int:
@@ -33,7 +31,6 @@ class RobotParam(Service):
         return cls.getConfig(app_name, param_path+"._(size", file_name)
 
     @classmethod
-    @call_service(plugin_name="NetProtocol", func_name="getDevice")
     def getDevice(cls, device_name: str, param_path: str) -> Any:
         """获取机器人设备模型参数(devices/robot.model)
         Args:
@@ -43,7 +40,7 @@ class RobotParam(Service):
         Returns:
             Any: 参数值
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
     def getDeviceCloneSize(cls, device_name: str, param_path: str) -> int:
@@ -58,17 +55,15 @@ class RobotParam(Service):
         return cls.getDevice(device_name, param_path+"._(size")
 
     @classmethod
-    @call_service(func_name="getRobotFile")
     def getDeviceFile(cls) -> dict:
         """获得设备模型文件的原始数据
 
         Returns:
             dict: 具体数据以字典类型返回
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def updateModel(cls, file_name: str, data: dict) -> str:
         """更新模型文件
 
@@ -79,7 +74,18 @@ class RobotParam(Service):
         Returns:
             str:
         """
-        pass
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.lib.robot_param import RobotParamV3
+    RobotParam: RobotParamInterface = RobotParamV3()
+elif rbk_version == 4:
+    from syspy.v4.lib.robot_param import RobotParamV4
+    RobotParam: RobotParamInterface = RobotParamV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")
 
 
 if __name__ == '__main__':

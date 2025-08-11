@@ -1,3 +1,4 @@
+from syspy.config import rbk_version
 from .battery import Battery
 from .camera import Camera
 from .charger import Charger
@@ -17,18 +18,41 @@ from .loc import Loc
 from .magnetic import Magnetic
 from .map import Map
 from .motor import Motor
-from .navigation import Navigation, NavStatus, NavSpeed
-from .odometer import Odometer
+from .navigation import NavSpeedInterface, NavigationInterface, NavStatusInterface
+from .odometer import OdometerInterface
 from .pgv import Pgv
 from .recognize import Recognize
 from .rfid import RFID
 from .sound import Sound
 from .utils.param_server import ParamServer
 
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.odometer import OdometerV3
+    Odometer: OdometerInterface = OdometerV3()
+
+    from syspy.v3.navigation import NavigationV3, NavStatusV3, NavSpeedV3
+    Navigation: NavigationInterface = NavigationV3()
+    NavStatus: NavStatusInterface = NavStatusV3()
+    NavSpeed: NavSpeedInterface = NavSpeedV3()
+
+elif rbk_version == 4:
+    from syspy.v4.odometer import OdometerV4
+    Odometer: OdometerInterface = OdometerV4()
+
+    from syspy.v4.navigation import NavigationV4, NavStatusV4, NavSpeedV4
+    Navigation: NavigationInterface = NavigationV4()
+    NavStatus: NavStatusInterface = NavStatusV4()
+    NavSpeed: NavSpeedInterface = NavSpeedV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+
 # from typeguard import install_import_hook
 # install_import_hook('syspy')
 
 __all__ = [
+    "rbk_version",
     "Abnormal",
     "Trace",
     "Logger",

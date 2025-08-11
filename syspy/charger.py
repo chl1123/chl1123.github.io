@@ -1,12 +1,10 @@
-from .lib.py_rpc import Service, call_service, default_plugin
+from abc import ABC
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
-
-@default_plugin("ChargerAdapter")
-class Charger(Service):
+class ChargerInterface(ABC, Service):
     """充电桩类"""
 
     @classmethod
-    @call_service()
     def connectCharger(cls, recFile: str, flag: bool):
         """与充电桩建立通信连接
 
@@ -17,7 +15,6 @@ class Charger(Service):
         pass
 
     @classmethod
-    @call_service()
     def disconnectCharger(cls, recFile: str) -> bool:
         """与充电桩断开通信连接
 
@@ -29,10 +26,9 @@ class Charger(Service):
                 True: 断连成功
                 False: 断连失败
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getChargeStatus(cls, recFile: str) -> int:
         """获取机器人充电状态
 
@@ -43,10 +39,9 @@ class Charger(Service):
             int: 充电桩状态
                 默认 -100; 充电硬件错误 -2; 充电网络错误 -1; 充电等待中 0; 将要充电 1; 充电中 2
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setChargerOn(cls, recFile: str):
         """开始充电
 
@@ -56,10 +51,9 @@ class Charger(Service):
         Notice:
             调用前需判断充电状态是 0 或 -1
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setChargerOff(cls, recFile: str):
         """取消充电
 
@@ -69,4 +63,15 @@ class Charger(Service):
         Notice:
             调用前需判断充电状态是 0 或 -1
         """
-        pass
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.charger import ChargerV3
+    Charger: ChargerInterface = ChargerV3()
+elif rbk_version == 4:
+    from syspy.v4.charger import ChargerV4
+    Charger: ChargerInterface = ChargerV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

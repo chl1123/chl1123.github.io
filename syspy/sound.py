@@ -1,22 +1,11 @@
-from .lib.py_rpc import Message, call_service, default_plugin
+from abc import ABC
+from syspy.core.rbk_rpc import Message, RBKVersionError
 
 
-@default_plugin("MoveFactory")
-class Sound(Message["Message_Sound"]):
+class SoundInterface(ABC, Message):
     """音频"""
 
-    _TOPIC = "rbk.protocol.Message_Sound"
-    _PLUGIN = "SoundPlayer"
-    _MODEL_CLASS = None
-
     @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Sound
-            cls._MODEL_CLASS = Message_Sound
-
-    @classmethod
-    @call_service()
     def setSound(cls, name: str, flag: bool) -> None:
         """播放音乐
 
@@ -24,10 +13,9 @@ class Sound(Message["Message_Sound"]):
             name (str): 音频名称
             flag (bool): 是否循环播放
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setSoundCount(cls, name: str, count: int) -> None:
         """播放音乐
 
@@ -35,17 +23,16 @@ class Sound(Message["Message_Sound"]):
             name (str): 音频名称
             count (int): 播放次数，需要大于0
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def stopSound(cls, flag: bool):
         """停止播放音乐
 
         Args:
             flag (bool): 如果为True则为停止播放音乐
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
     def get_status(cls) -> int:
@@ -54,8 +41,7 @@ class Sound(Message["Message_Sound"]):
         Returns:
             int: 声音状态值
         """
-        if cls.update():
-            return cls.data.status
+        raise RBKVersionError()
 
     @classmethod
     def get_sound_name(cls) -> str:
@@ -64,8 +50,7 @@ class Sound(Message["Message_Sound"]):
         Returns:
             str: 声音名称字符串
         """
-        if cls.update():
-            return cls.data.sound_name
+        raise RBKVersionError()
 
     @classmethod
     def get_loop(cls) -> bool:
@@ -74,8 +59,7 @@ class Sound(Message["Message_Sound"]):
         Returns:
             bool: True表示循环播放，False表示不循环播放
         """
-        if cls.update():
-            return cls.data.loop
+        raise RBKVersionError()
 
     @classmethod
     def get_count(cls) -> int:
@@ -84,5 +68,15 @@ class Sound(Message["Message_Sound"]):
         Returns:
             int: 声音播放次数
         """
-        if cls.update():
-            return cls.data.count
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.sound import SoundV3
+    Sound: SoundInterface = SoundV3()
+elif rbk_version == 4:
+    from syspy.v4.sound import SoundV4
+    Sound: SoundInterface = SoundV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

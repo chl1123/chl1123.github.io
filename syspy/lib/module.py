@@ -4,7 +4,7 @@ from enum import IntEnum
 from threading import Lock
 from typing import Union, Optional, Callable
 
-from ..utils import ScriptType
+from syspy.utils import ScriptType
 
 
 class ScriptStatus(IntEnum):
@@ -131,7 +131,7 @@ class Module:
 
     @classmethod
     def __register(cls):
-        from .rpc.server import RpcServer
+        from syspy.lib.rpc.server import RpcServer
         rpc_server = RpcServer(cls.script_name, ScriptType.TASK)
         rpc_server.registerFunction(cls.__update_cmd, "update_cmd")
         rpc_server.registerFunction(cls.__suspend, "suspend")
@@ -197,7 +197,8 @@ class Module:
         }
         if cls.script_name:
             if cls.__rpc_client is None:
-                from .rpc.client import RpcClient
+                # todo V3独有？
+                from ..v3.lib.rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.report(cls.script_name, data)
 
@@ -234,7 +235,8 @@ class Module:
     def report_info(cls, info: Union[dict, list]):
         with cls.__lock:
             if cls.__rpc_client is None:
-                from .rpc.client import RpcClient
+                # todo V3独有？
+                from ..v3.lib.rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.set_info(json.dumps(info))
 

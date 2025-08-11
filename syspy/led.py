@@ -1,12 +1,11 @@
-from .lib.py_rpc import Service, default_plugin, call_service
+from abc import ABC
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
 
-@default_plugin("DSPChassis")
-class Led(Service):
+class LedInterface(ABC, Service):
     """灯带类"""
     
     @classmethod
-    @call_service()
     def sendX86DmxInfo(cls, dmx512_info: str) -> int:
         """X86发送DMX数据控制灯亮
 
@@ -16,10 +15,9 @@ class Led(Service):
         Returns:
             int: 0: 成功
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def sendArmDmxInfo(cls, dmx512_info: str) -> int:
         """Arm发送DMX数据控制灯亮
 
@@ -29,14 +27,24 @@ class Led(Service):
         Returns:
             int: 0: 成功
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getLedExternalControlInfo(cls) -> str:
         """todo
 
         Returns:
 
         """
-        pass
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.led import LedV3
+    Led: LedInterface = LedV3()
+elif rbk_version == 4:
+    from syspy.v4.led import LedV4
+    Led: LedInterface = LedV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

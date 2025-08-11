@@ -4,26 +4,26 @@ import shutil
 
 # 要生成pythonic的proto列表
 protos = [
-    "message_header",
-    "message_bin",
-    "message_depthcamera",
-    "message_laser",
-    "message_battery",
-    "message_controller",
+    # "message_header",
+    # "message_bin",
+    # "message_depthcamera",
+    # "message_laser",
+    # "message_battery",
+    # "message_controller",
     "message_io",
-    "CanFrame",
-    "message_distancesensor",
-    "message_motorinfos",
-    "message_odometer",
-    "message_movetask",
-    "message_localization",
-    "message_magnetic",
-    "message_navigation",
-    "message_pgv",
-    "message_rfid",
-    "message_sound",
-    "message_dmx512",
-    "message_script",
+    # "CanFrame",
+    # "message_distancesensor",
+    # "message_motorinfos",
+    # "message_odometer",
+    # "message_movetask",
+    # "message_localization",
+    # "message_magnetic",
+    # "message_navigation",
+    # "message_pgv",
+    # "message_rfid",
+    # "message_sound",
+    # "message_dmx512",
+    # "message_script",
 ]
 
 
@@ -107,8 +107,8 @@ def gen_pyi():
 
 def gen_mkdocs_pyi():
     # 如果pyi路径不存在则创建
-    if not os.path.exists("./pyi"):
-        os.mkdir("./pyi")
+    if not os.path.exists("pyi"):
+        os.mkdir("pyi")
     # 复制message/*.pyi文件到pyi文件夹下
     for proto_name in protos:
         # 源文件路径
@@ -124,5 +124,5 @@ if __name__ == "__main__":
     # gen_protobuf()
     # gen_pandantic()
     # gen_models()
-    # gen_pyi()
-    gen_mkdocs_pyi()
+    gen_pyi()
+    # gen_mkdocs_pyi()

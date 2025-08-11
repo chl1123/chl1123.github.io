@@ -1,12 +1,10 @@
-from .lib.py_rpc import Service, default_plugin, call_service
+from abc import ABC
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
-
-@default_plugin("MCLoc")
-class Map(Service):
+class MapInterface(ABC, Service):
     """地图类"""
 
     @classmethod
-    @call_service()
     def switchMap(
             cls,
             map: str,
@@ -27,4 +25,15 @@ class Map(Service):
         Returns:
             int: 2没有进行切换，1切换中，0切换成功，-1不存在地图，-2切换失败
         """
-        pass
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.map import MapV3
+    Map: MapInterface = MapV3()
+elif rbk_version == 4:
+    from syspy.v4.map import MapV4
+    Map: MapInterface = MapV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

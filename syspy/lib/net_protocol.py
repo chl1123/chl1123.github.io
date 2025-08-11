@@ -1,21 +1,19 @@
-from .py_rpc import Service, default_plugin, call_service
+from abc import ABC
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
 
-@default_plugin("NetProtocol")
-class NetProtocol(Service):
+class NetProtocolInterface(ABC, Service):
 
     @classmethod
-    @call_service()
     def release(cls) -> int:
         """释放控制权
 
         Returns:
             int: 0=ok
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def requireByNickName(cls, nick_name: str) -> int:
         """获取控制权
 
@@ -24,20 +22,18 @@ class NetProtocol(Service):
         Returns:
             int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def require(cls) -> int:
         """获取控制权
 
         Returns:
             int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setModbusData(cls, type: str, addr: int, data: list) -> bool:
         """在内部寄存器中写入数据
 
@@ -48,10 +44,9 @@ class NetProtocol(Service):
         Returns:
             bool: 是否写入成功。写入失败时所有数据都不写入。
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getModbusData(cls, type: str, addr: int, size: int) -> list:
         """在内部寄存器中读取数据
 
@@ -62,20 +57,29 @@ class NetProtocol(Service):
         Returns:
             list: 寄存器数据
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def tcpUploadString(cls, jsonStr: str):
         """TCP响应
 
         Args:
             jsonStr (str): 响应内容
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def robotInfo(cls) -> dict:
         """获取机器人信息"""
-        pass
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.lib.net_protocol import NetProtocolV3
+    NetProtocol: NetProtocolInterface = NetProtocolV3()
+elif rbk_version == 4:
+    from syspy.v4.lib.net_protocol import NetProtocolV4
+    NetProtocol: NetProtocolInterface = NetProtocolV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

@@ -1,13 +1,27 @@
-from typing import Union
+import typing
+from typing import Union, List
 
-from .lib.py_rpc import Service, default_plugin, call_service
-from .navigation import NavSpeed
-from .odometer import Odometer
+from abc import ABC
+from syspy.core.rbk_rpc import Message, RBKVersionError
+from syspy import rbk_version
 
+if typing.TYPE_CHECKING:
+    if rbk_version == 3:
+        from syspy.v3.protobuf import Message_MotorInfo
+    elif rbk_version == 4:
+        from v4.include.protocol.messageV4_movetask_pb2 import MessageV4_MInfo as Message_MotorInfo
 
-@default_plugin("MoveFactory")
-class Motor(Service):
+class MotorInterface(ABC, Message):
     """电机类"""
+
+    @staticmethod
+    def get_motor_infos() -> List["Message_MotorInfo"]:
+        """获取电机信息列表
+
+        Returns:
+            List[Message_MotorInfo]: 返回电机信息列表，列表内元素为Message_Odometer对象
+        """
+        raise RBKVersionError()
 
     @staticmethod
     def get_motor_pos(motor_name: str) -> Union[float, int]:
@@ -19,12 +33,7 @@ class Motor(Service):
         Returns:
             Union[float, int]: 返回电机的当前位置，若电机不存在返回 -1
         """
-        motor_pos = -1
-        if Odometer.update():
-            for motor in Odometer.data.motor_info:
-                if motor.motor_name == motor_name:
-                    motor_pos = motor.position
-        return motor_pos
+        raise RBKVersionError()
 
     @staticmethod
     def get_motor_speed(motor_name: str) -> Union[float, int]:
@@ -36,15 +45,9 @@ class Motor(Service):
         Returns:
             Union[float, int]: 返回电机的当前速度，若电机不存在返回 -1
         """
-        motor_speed = -1
-        if NavSpeed.update():
-            for motor in NavSpeed.data.motor_cmd:
-                if motor.motor_name == motor_name:
-                    motor_speed = motor.value
-        return motor_speed
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setMotorSpeed(cls, name: str, vel: float, stopDI: int) -> bool:
         """让电机以某个速度运行，比如滚筒电机
 
@@ -56,10 +59,9 @@ class Motor(Service):
         Returns:
             bool: 如果不存在这个电机，则返回False
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setMotorPosition(cls, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
         """控制线性电机到特定位置
 
@@ -72,7 +74,7 @@ class Motor(Service):
         Returns:
             bool: 如果不存在这个电机，则返回False
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
     def setMotorPositionAdv(cls, name: str, pos: float, maxSpeed: float = None, maxAcc: float = None,
@@ -91,27 +93,14 @@ class Motor(Service):
         Returns:
             bool: 如果不存在这个电机，则返回False
         """
-        params = {"name": name, "position": pos}
-        if maxSpeed is not None:
-            params["maxSpeed"] = maxSpeed
-        if maxAcc is not None:
-            params["maxAcc"] = maxAcc
-        if maxDec is not None:
-            params["maxDec"] = maxDec
-        if jerk is not None:
-            params["jerk"] = jerk
-        if stopDI is not None:
-            params["stopDI"] = stopDI
-        return cls.client().call_service("MoveFactory", "setMotorPositionAdv", params)
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def stopMotor(cls):
         """停止所有非行走的电机"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def resetMotor(cls, motor_name: str) -> bool:
         """将电机重置为不启用状态
 
@@ -121,10 +110,9 @@ class Motor(Service):
         Returns:
             bool: 如果不存在这个电机则报错
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def isMotorReached(cls, motor_name: str) -> bool:
         """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
 
@@ -134,10 +122,9 @@ class Motor(Service):
         Returns:
             bool: 如果到位则返回True
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def isMotorPositionReached(cls, motor_name: str, pos: float, stopDI: int) -> bool:
         """电机是否到达特定位置
 
@@ -149,10 +136,9 @@ class Motor(Service):
         Returns:
             bool: 如果到位则返回True
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def isMotorStop(cls, motor_name: str) -> bool:
         """查询电机是否停止
 
@@ -162,44 +148,51 @@ class Motor(Service):
         Returns:
             bool: 如果电机不存在则返回False
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(plugin_name="DSPChassis")
     def disableMotor(cls, name: str):
         """电机去使能
 
         Args:
             name (str): 电机名称
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(plugin_name="DSPChassis")
     def enableMotor(cls, name: str):
         """电机使能
 
         Args:
             name (str): 电机名称
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(plugin_name="DSPChassis")
     def motorCalib(cls, m: str):
         """电机标零
 
         Args:
             m (str):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(plugin_name="DSPChassis")
     def motorForceCalib(cls, m: str):
         """
 
         Args:
             m (str):
         """
-        pass
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.motor import MotorV3
+    Motor: MotorInterface = MotorV3()
+elif rbk_version == 4:
+    from syspy.v4.motor import MotorV4
+    Motor: MotorInterface = MotorV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

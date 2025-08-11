@@ -1,24 +1,10 @@
-import math
 import typing
-
-from .lib.py_rpc import Message
-
-if typing.TYPE_CHECKING:
-    from .protobuf import Message_Localization  # IDE类型提示
+from abc import ABC
+from syspy.core.rbk_rpc import Message, RBKVersionError
 
 
-class Loc(Message["Message_Localization"]):
+class LocInterface(ABC, Message):
     """定位类"""
-
-    _TOPIC = "rbk.protocol.Message_Localization"
-    _PLUGIN = "MCLoc"
-    _MODEL_CLASS = None
-
-    @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Localization  # 延迟导入
-            cls._MODEL_CLASS = Message_Localization
 
     @classmethod
     def get_pose(cls) -> typing.Dict[str, float]:
@@ -33,15 +19,7 @@ class Loc(Message["Message_Localization"]):
                 - roll (float): 翻滚角（角度制）
                 - pitch (float): 俯仰角（角度制）
         """
-        if cls.update():
-            return {
-                "x": cls.data.x,
-                "y": cls.data.y,
-                "z": cls.data.z,
-                "yaw": math.degrees(cls.data.angle),
-                "roll": math.degrees(cls.data.roll),
-                "pitch": math.degrees(cls.data.pitch),
-            }
+        raise RBKVersionError()
 
     @classmethod
     def get_confidence(cls) -> float:
@@ -50,8 +28,7 @@ class Loc(Message["Message_Localization"]):
         Returns:
             float: 返回定位置信度数值
         """
-        if cls.update():
-            return cls.data.confidence
+        raise RBKVersionError()
 
     @classmethod
     def get_loc_state(cls) -> int:
@@ -65,8 +42,7 @@ class Loc(Message["Message_Localization"]):
                 - 3为重定位中
                 - 4为定位中
         """
-        if cls.update():
-            return cls.data.loc_state
+        raise RBKVersionError()
 
     @classmethod
     def get_loc_method(cls) -> int:
@@ -84,5 +60,15 @@ class Loc(Message["Message_Localization"]):
                 - 7为3D特征定位
                 - 8为3D KF定位
         """
-        if cls.update():
-            return cls.data.loc_method
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.loc import LocV3
+    Loc: LocInterface = LocV3()
+elif rbk_version == 4:
+    from syspy.v4.loc import LocV4
+    Loc: LocInterface = LocV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

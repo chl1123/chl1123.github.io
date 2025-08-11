@@ -1,9 +1,9 @@
+from abc import ABC
 from typing import Union, List, Optional
-
-from .py_rpc import Service, default_plugin, call_service
-
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
 VALID_ABNORMAL_CODE = [(53300, 53599), (53600, 53999)]
+
 
 class AbnormalCodeError(Exception):
     """异常码范围错误异常
@@ -33,6 +33,7 @@ class AbnormalCodeError(Exception):
     def __str__(self):
         return self.message
 
+
 def check_abnormal_code(code: int):
     """验证异常码是否在有效范围内
 
@@ -47,8 +48,7 @@ def check_abnormal_code(code: int):
         raise AbnormalCodeError(code)
 
 
-@default_plugin("Abnormal")
-class Abnormal(Service):
+class AbnormalInterface(ABC, Service):
 
     @classmethod
     def exists(cls, codes: Union[int, List[int]]) -> Union[bool, List[bool]]:
@@ -60,13 +60,9 @@ class Abnormal(Service):
         Returns:
             Union[bool, List[bool]]: 是否异常。异常为True, 否则为False。输入int, 输出bool; 输入List[int], 输出List[bool]
         """
-        if isinstance(codes, int):
-            return cls.client().call_service("Abnormal", "existsAbnormal", [codes])[0]
-        else:
-            return cls.client().call_service("Abnormal", "existsAbnormal", codes)
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="existsDeviceAbnormal")
     def existsDevice(cls, deviceName: str, code: Optional[int] =  None) -> bool:
         """是否存在指定设备名及异常码的异常
 
@@ -77,10 +73,9 @@ class Abnormal(Service):
         Returns:
             bool: 是否异常。异常为True, 否则为False
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="clearAbnormal")
     def clear(cls, code: int) -> bool:
         """清除异常
 
@@ -90,10 +85,9 @@ class Abnormal(Service):
         Returns:
             bool: 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="clearDeviceAbnormal")
     def clearDevice(cls, deviceName: str, code: Optional[int] =  None) -> bool:
         """清除指定设备名及异常码的异常
 
@@ -104,10 +98,9 @@ class Abnormal(Service):
         Returns:
             bool: 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="maskAbnormal")
     def mask(cls, code: int, deviceName: Optional[str] = None) -> bool:
         """屏蔽指定异常码及设备名的异常
 
@@ -118,10 +111,9 @@ class Abnormal(Service):
         Returns:
             bool: 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="unmaskAbnormal")
     def unmask(cls, code: int, deviceName: Optional[str] = None):
         """取消屏蔽指定异常码及设备名的异常
 
@@ -129,10 +121,9 @@ class Abnormal(Service):
             code (int): 需要取消屏蔽的异常码
             deviceName (Optional[str]): 需要取消屏蔽的异常码；缺省时表示取消屏蔽指定code的所有异常
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="isMaskedAbnormal")
     def isMasked(cls, code: int, deviceName: Optional[str] = None) -> bool:
         """断指定异常码及设备名的异常是否被屏蔽
 
@@ -143,17 +134,16 @@ class Abnormal(Service):
         Returns:
             bool: 是否屏蔽异常。屏蔽返回True; 没有屏蔽返回False。
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="getNumAbnormal")
     def getNum(cls) -> int:
         """获取异常码数量
 
         Returns:
             int: 异常的数量
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
     def setTask(cls, code: int, desc: str, reason: str, method: str, task: Union[str, list, dict],
@@ -180,9 +170,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setTaskAbnormal", code, desc, reason, method, str(task),
-                                         fileName, mapType, elementType, elementName, policyName, param)
+        raise RBKVersionError()
 
     @classmethod
     def setMap(cls, code: int, desc: str, reason: str, method: str, fileName: str, mapType: str = "",
@@ -205,9 +193,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setMapAbnormal", code, desc, reason, method, fileName,
-                                         mapType, elementType, elementName)
+        raise RBKVersionError()
 
     @classmethod
     def setModel(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
@@ -230,9 +216,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setModelAbnormal", code, desc, reason, method, fileName,
-                                         deviceType, deviceKey, param)
+        raise RBKVersionError()
 
     @classmethod
     def setConfig(cls, code: int, desc: str, reason: str, method: str, appType: str, fileName: str,
@@ -254,9 +238,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setConfigAbnormal", code, desc, reason, method, appType,
-                                         fileName, param)
+        raise RBKVersionError()
 
     @classmethod
     def setSystem(cls, code: int, desc: str, reason: str, method: str, fileName: str, param: str = "") -> bool:
@@ -276,8 +258,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setSystemAbnormal", code, desc, reason, method, fileName, param)
+        raise RBKVersionError()
 
     @classmethod
     def setEnvironment(cls, code: int, desc: str, reason: str, method: str, position: str = "") -> bool:
@@ -296,8 +277,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setEnvironmentAbnormal", code, desc, reason, method, position)
+        raise RBKVersionError()
 
     @classmethod
     def setDevice(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
@@ -322,9 +302,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setDeviceAbnormal", code, desc, reason, method, fileName,
-                                         deviceType, deviceKey, param, errorCode)
+        raise RBKVersionError()
 
     @classmethod
     def setConnect(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
@@ -347,9 +325,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setConnectionAbnormal", code, desc, reason, method, fileName,
-                                         deviceType, deviceKey, param)
+        raise RBKVersionError()
 
     @classmethod
     def setCalibrate(cls, code: int, desc: str, reason: str, method: str, deviceType: str, deviceKey: str = "") -> bool:
@@ -369,9 +345,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setCalibrationAbnormal", code, desc, reason, method, deviceType,
-                                         deviceKey)
+        raise RBKVersionError()
 
     @classmethod
     def setLicense(
@@ -392,8 +366,7 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setLicenseAbnormal", code, desc, reason, method, licenseType)
+        raise RBKVersionError()
 
     @classmethod
     def setChassis(cls, code: int, desc: str, reason: str, method: str) -> bool:
@@ -411,5 +384,15 @@ class Abnormal(Service):
         Raises:
             AbnormalCodeError: code不在允许的范围内
         """
-        check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setChassisAbnormal", code, desc, reason, method)
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.lib.abnormal import AbnormalV3
+    Abnormal: AbnormalInterface = AbnormalV3()
+elif rbk_version == 4:
+    from syspy.v4.lib.abnormal import AbnormalV4
+    Abnormal: AbnormalInterface = AbnormalV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

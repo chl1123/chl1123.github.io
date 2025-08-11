@@ -1,13 +1,11 @@
 import json
+from abc import ABC
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
-from .lib.py_rpc import Service, default_plugin, call_service
 
-
-@default_plugin("RecoFactory")
-class Recognize(Service):
-
+class RecognizeInterface(ABC, Service):
+    """识别类接口定义"""
     @classmethod
-    @call_service()
     def doRec(
             cls,
             file: str,
@@ -29,17 +27,16 @@ class Recognize(Service):
             radius (float):识别半径
             recognition_side (str): 识别面，可选none、A、B、C、D
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getRecResults(cls) -> dict:
         """获取识别结果
 
         Returns:
             dict: 识别结果的结构体
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
     def recTargetObs(cls, deviceName: str, x: float, y: float, theta: float, obs_area_min_height: float,
@@ -71,7 +68,6 @@ class Recognize(Service):
         cls.client().call_service("RecoFactory", "recTargetObs", json.dumps(dict_str))
 
     @classmethod
-    @call_service()
     def getForkTipObsDist(cls, json: str) -> str:
         """
 
@@ -81,56 +77,50 @@ class Recognize(Service):
         Returns:
             str: 包含检测状态和超时距离的JSON字符串
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setRealtimeDetect(cls, jsonStr: str):
         """
 
         Args:
             jsonStr (str): 包含实时检测参数的JSON字符串
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def resetRec(cls):
         """重置识别模块"""
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def getRecStatus(cls) -> int:
         """获取识别状态
 
         Returns:
             int: 0 刚刚初始化，1识别中，2.获得结果, 3识别出错, -1 未知错误
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def multiShelfDetect(cls, seq: int):
         """
 
         Args:
             seq (int):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def loadStatus(cls, dist: float):
         """
 
         Args:
             dist (float):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(plugin_name="NetProtocol")
     def getRecFile(cls, name: str) -> str:
         """获得识别文件的原始数据
         Args:
@@ -139,4 +129,15 @@ class Recognize(Service):
         Returns:
             dict: 具体数据以字典类型返回
         """
-        pass
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.recognize import RecognizeV3
+    Recognize: RecognizeInterface = RecognizeV3()
+elif rbk_version == 4:
+    from syspy.v4.recognize import RecognizeV4
+    Recognize: RecognizeInterface = RecognizeV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

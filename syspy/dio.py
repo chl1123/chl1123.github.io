@@ -1,27 +1,20 @@
 import typing
-
-from syspy.lib.py_rpc import Message, call_service, default_plugin
+from abc import ABC
+from syspy.core.rbk_rpc import Message, RBKVersionError
+from syspy import rbk_version
 
 if typing.TYPE_CHECKING:
-    from .protobuf import Message_DINode, Message_DONode  # IDE类型提示
+    if rbk_version == 3:
+        from syspy.v3.protobuf import Message_DINode
+        from syspy.v3.protobuf import Message_DONode
+    elif rbk_version == 4:
+        pass
 
 
-@default_plugin("DSPChassis")
-class Di(Message["Message_DI"]):
+class DiInterface(ABC, Message):
     """数字输入类"""
 
-    _TOPIC = "rbk.protocol.Message_DI"
-    _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = None
-
     @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_DI
-            cls._MODEL_CLASS = Message_DI
-
-    @classmethod
-    @call_service(plugin_name="MoveFactory", func_name="setDIValid")
     def setDIValid(cls, name: str, status: bool):
         """设置DI是否生效
 
@@ -29,10 +22,9 @@ class Di(Message["Message_DI"]):
             name (str): DI名
             status (bool): True表示生效，False表示不生效
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service()
     def setVirtualDI(cls, name: str, status: bool):
         """设置虚拟DI状态
 
@@ -51,12 +43,7 @@ class Di(Message["Message_DI"]):
         Returns:
             bool: 返回指定DI的状态，若DI不存在返回False
         """
-        cls.update()
-        if cls.data:
-            for node in cls.data.node:
-                if node.name == name:
-                    return node.status
-        return False
+        raise RBKVersionError()
 
     @classmethod
     def get_dis(cls) -> typing.List["Message_DINode"]:
@@ -65,8 +52,7 @@ class Di(Message["Message_DI"]):
         Returns:
             typing.List[Message_DINode]: DI消息中的节点列表
         """
-        if cls.update():
-            return cls.data.node
+        raise RBKVersionError()
 
     @classmethod
     def get_max_di(cls) -> int:
@@ -75,26 +61,13 @@ class Di(Message["Message_DI"]):
         Returns:
             int: DI消息中的最大节点数
         """
-        if cls.update():
-            return cls.data.max_node
+        raise RBKVersionError()
 
 
-@default_plugin("DSPChassis")
-class Do(Message["Message_DO"]):
+class DoInterface(ABC, Message):
     """数字输出类"""
 
-    _TOPIC = "rbk.protocol.Message_DO"
-    _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = None
-
     @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_DO
-            cls._MODEL_CLASS = Message_DO
-
-    @classmethod
-    @call_service(plugin_name="MoveFactory")
     def setDO(cls, name: str, status: bool) -> bool:
         """控制DO的开关
 
@@ -105,7 +78,7 @@ class Do(Message["Message_DO"]):
         Returns:
             bool: 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
     def get_do(cls, name: str) -> bool:
@@ -117,12 +90,7 @@ class Do(Message["Message_DO"]):
         Returns:
             bool: 返回指定DO的状态，若DO不存在返回False
         """
-        cls.update()
-        if cls.data:
-            for node in cls.data.node:
-                if node.name == name:
-                    return node.status
-        return False
+        raise RBKVersionError()
 
     @classmethod
     def get_dos(cls) -> typing.List["Message_DONode"]:
@@ -131,8 +99,7 @@ class Do(Message["Message_DO"]):
         Returns:
             typing.List[Message_DONode]: DO消息中的节点列表
         """
-        if cls.update():
-            return cls.data.node
+        raise RBKVersionError()
 
     @classmethod
     def get_max_node(cls) -> int:
@@ -141,5 +108,17 @@ class Do(Message["Message_DO"]):
         Returns:
             int: DO消息中的最大节点数
         """
-        if cls.update():
-            return cls.data.max_node
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.dio import DiV3, DoV3
+    Di: DiInterface = DiV3()
+    Do: DoInterface = DoV3()
+elif rbk_version == 4:
+    from syspy.v4.dio import DiV4, DoV4
+    Di: DiInterface = DiV4()
+    Do: DoInterface = DoV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

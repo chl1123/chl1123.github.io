@@ -1,12 +1,12 @@
 import logging
 import time
-from typing import Dict, List
-from syspy.lib.py_rpc import Service, default_plugin, call_service
+from abc import ABC
+from typing import Dict, List, Type
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
 log = logging.getLogger("rbk.script")
 
-@default_plugin("LevelDB")
-class LevelDB(Service):
+class LevelDBInterface(ABC, Service):
     """提供LevelDB数据库的操作接口"""
     def __init__(self, name):
         """初始化LevelDB实例。
@@ -14,19 +14,16 @@ class LevelDB(Service):
         Args:
             name (str): 数据库的名称。
         """
-        self.name = name
-        # 初始化数据库
-        self.__initDB(name)
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="initDB")
     def __initDB(cls, name: str):
         """初始化数据库
 
         Args:
             name (str): 数据库的名称。
         """
-        pass
+        raise RBKVersionError()
 
     def put(self, key: str, value: str):
         """向数据库中插入一条键值对。
@@ -35,7 +32,7 @@ class LevelDB(Service):
             key (str): 键。
             value (str): 值。
         """
-        return self.client().call_service("LevelDB", "putValue", self.name, key, value)
+        raise RBKVersionError()
 
     def puts(self, key_value_maps: Dict[str, str]):
         """批量向数据库中插入键值对。
@@ -43,7 +40,7 @@ class LevelDB(Service):
         Args:
             key_value_maps (Dict[str, str]): 包含多条键值对的字典。
         """
-        return self.client().call_service("LevelDB", "putValues", self.name, key_value_maps)
+        raise RBKVersionError()
 
     def get(self, key: str):
         """从数据库中获取指定键的值。
@@ -51,7 +48,7 @@ class LevelDB(Service):
         Args:
             key (str): 键。
         """
-        return self.client().call_service("LevelDB", "getValue", self.name, key)
+        raise RBKVersionError()
 
     def gets(self, keys: List[str]):
         """批量从数据库中获取指定键的值。
@@ -59,7 +56,7 @@ class LevelDB(Service):
         Args:
             keys (List[str]): 键的列表。
         """
-        return self.client().call_service("LevelDB", "getValues", self.name, keys)
+        raise RBKVersionError()
 
     def delete(self, key: str):
         """从数据库中删除指定键的值。
@@ -67,7 +64,18 @@ class LevelDB(Service):
         Args:
             key (str): 键。
         """
-        self.client().call_service("LevelDB", "delValue", self.name, key)
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.lib.plyvel_db import LevelDBV3
+    LevelDB: Type[LevelDBInterface] = LevelDBV3
+elif rbk_version == 4:
+    from syspy.v4.lib.plyvel_db import LevelDBV4
+    LevelDB: Type[LevelDBInterface] = LevelDBV4
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")
 
 
 # 示例使用方法

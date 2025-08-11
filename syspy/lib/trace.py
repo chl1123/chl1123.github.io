@@ -1,8 +1,9 @@
-from .py_rpc import Service, default_plugin
+from abc import ABC
+
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
 
-@default_plugin("Trace")
-class Trace(Service):
+class TraceInterface(ABC, Service):
     @classmethod
     def event(cls, msg: dict, is_print: bool = True):
         """记录事件（弃用）
@@ -11,9 +12,7 @@ class Trace(Service):
             msg (str): 日志内容。
             is_print (bool): 是否开启print打印。默认开启。
         """
-        if is_print:
-            print("event:", msg)
-        cls.client().call_service("Trace", "traceLog", msg)
+        raise RBKVersionError()
 
     @classmethod
     def chart(cls, msg: dict, is_print: bool = False):
@@ -23,9 +22,7 @@ class Trace(Service):
             msg (dict): 数据内容。根据字典的key value绘制图表。
             is_print (bool): 是否开启print打印。默认不开启。
         """
-        if is_print:
-            print("chart:", msg)
-        cls.client().call_service("Trace", "traceChart", msg)
+        raise RBKVersionError()
 
     @classmethod
     def log(cls, msg: str, is_print: bool = True):
@@ -35,6 +32,15 @@ class Trace(Service):
             msg (str): 日志内容。
             is_print (bool): 是否开启print打印。默认开启。
         """
-        if is_print:
-            print("log:", msg)
-        cls.client().call_service("Trace", "traceLog", msg)
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.lib.trace import TraceV3
+    Trace: TraceInterface = TraceV3()
+elif rbk_version == 4:
+    from syspy.v4.lib.trace import TraceV4
+    Trace: TraceInterface = TraceV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

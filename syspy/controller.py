@@ -1,18 +1,9 @@
-from .lib.py_rpc import Message
+from abc import ABC
+from syspy.core.rbk_rpc import Message, RBKVersionError
 
 
-class Controller(Message["Message_Controller"]):
+class ControllerInterface(ABC, Message):
     """控制器类"""
-
-    _TOPIC = "rbk.protocol.Message_Controller"
-    _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = None
-
-    @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Controller
-            cls._MODEL_CLASS = Message_Controller
 
     @classmethod
     def get_temperature(cls) -> float:
@@ -21,8 +12,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             float: 温度数值
         """
-        if cls.update():
-            return cls.data.temp
+        raise RBKVersionError()
 
     @classmethod
     def get_humidity(cls) -> float:
@@ -31,8 +21,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             float: 湿度数值
         """
-        if cls.update():
-            return cls.data.humi
+        raise RBKVersionError()
 
     @classmethod
     def get_voltage(cls) -> float:
@@ -41,8 +30,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             float: 电压数值
         """
-        if cls.update():
-            return cls.data.voltage
+        raise RBKVersionError()
 
     @classmethod
     def get_emc(cls) -> bool:
@@ -51,8 +39,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: EMC状态，True或False
         """
-        if cls.update():
-            return cls.data.emc
+        raise RBKVersionError()
 
     @classmethod
     def get_brake(cls) -> bool:
@@ -61,8 +48,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: 制动状态，True或False
         """
-        if cls.update():
-            return cls.data.brake
+        raise RBKVersionError()
 
     @classmethod
     def get_driver_EMC(cls) -> bool:
@@ -71,8 +57,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: 驱动EMC状态，True或False
         """
-        if cls.update():
-            return cls.data.driverEmc
+        raise RBKVersionError()
 
     @classmethod
     def get_manual_charge(cls) -> bool:
@@ -81,8 +66,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: 手动充电状态，True或False
         """
-        if cls.update():
-            return cls.data.manualCharge
+        raise RBKVersionError()
 
     @classmethod
     def get_auto_charge(cls) -> bool:
@@ -91,8 +75,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: 自动充电状态，True或False
         """
-        if cls.update():
-            return cls.data.autoCharge
+        raise RBKVersionError()
 
     @classmethod
     def get_electric(cls) -> bool:
@@ -101,8 +84,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: 电动状态，True或False
         """
-        if cls.update():
-            return cls.data.electric
+        raise RBKVersionError()
 
     @classmethod
     def get_soft_EMC(cls) -> bool:
@@ -111,8 +93,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: 软EMC状态，True或False
         """
-        if cls.update():
-            return cls.data.softEMC
+        raise RBKVersionError()
 
     @classmethod
     def get_is_external_control(cls) -> bool:
@@ -121,8 +102,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: 是否为外部控制状态，True或False
         """
-        if cls.update():
-            return cls.data.isExternalControl
+        raise RBKVersionError()
 
     @classmethod
     def get_is_IMU_calibrating(cls) -> bool:
@@ -131,8 +111,7 @@ class Controller(Message["Message_Controller"]):
         Returns:
             bool: IMU是否正在校准状态，True或False
         """
-        if cls.update():
-            return cls.data.isIMUCalibrating
+        raise RBKVersionError()
 
     @classmethod
     def get_ADC_voltage(cls) -> float:
@@ -141,5 +120,15 @@ class Controller(Message["Message_Controller"]):
         Returns:
             float: 通过ADC检测到的外部电压数值
         """
-        if cls.update():
-            return cls.data.voltagebyAdc
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.controller import ControllerV3
+    Controller: ControllerInterface = ControllerV3()
+elif rbk_version == 4:
+    from syspy.v4.controller import ControllerV4
+    Controller: ControllerInterface = ControllerV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

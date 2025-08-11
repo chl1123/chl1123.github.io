@@ -1,143 +1,119 @@
-from syspy.lib.py_rpc import Message, default_plugin, call_service
+from syspy import rbk_version
 
 
-@default_plugin("DSPChassis")
-class Battery(Message["Message_Battery"]):
-    """电池类"""
+class BatteryInterface:
+    """电池模块接口定义"""
 
-    _TOPIC = "rbk.protocol.Message_Battery"
-    _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = None
+    def __init__(self, topic=None):
+        if rbk_version == 3:
+            from syspy.v3.battery import BatteryV3
+            self.child = BatteryV3()
+        elif rbk_version == 4:
+            from syspy.v4.battery import BatteryV4
+            self.child = BatteryV4(topic)
+        else:
+            raise ValueError(f"Unsupported RBK version: {rbk_version}")
 
-    @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Battery  # 延迟导入
-            cls._MODEL_CLASS = Message_Battery
-
-    @classmethod
-    def get_percentage(cls) -> float:
+    def get_percentage(self) -> float:
         """获取电池电量百分比
 
         Returns:
             float: 返回电池电量百分比数值
         """
-        if cls.update():
-            return cls.data.percetage
+        return self.child.get_percentage()
 
-    @classmethod
-    def get_charge_current(cls) -> float:
+    def get_charge_current(self) -> float:
         """获取充电电流
 
         Returns:
             float: 返回充电电流数值
         """
-        if cls.update():
-            return cls.data.charge_current
+        return self.child.get_charge_current()
 
-    @classmethod
-    def get_charge_voltage(cls) -> float:
+    def get_charge_voltage(self) -> float:
         """获取充电电压
 
         Returns:
             float: 返回充电电压数值
         """
-        if cls.update():
-            return cls.data.charge_voltage
+        return self.child.get_charge_voltage()
 
-    @classmethod
-    def get_is_charging(cls) -> bool:
+    def get_is_charging(self) -> bool:
         """获取是否正在充电状态
 
         Returns:
             bool: True表示正在充电，False表示未充电
         """
-        if cls.update():
-            return cls.data.is_charging
+        return self.child.get_is_charging()
 
-    @classmethod
-    def get_temperature(cls) -> float:
+    def get_temperature(self) -> float:
         """获取电池温度
 
         Returns:
             float: 返回电池温度数值
         """
-        if cls.update():
-            return cls.data.temperature
+        return self.child.get_temperature()
 
-    @classmethod
-    def get_cycle(cls) -> int:
+    def get_cycle(self) -> int:
         """获取电池循环次数
 
         Returns:
             int: 返回电池循环次数数值
         """
-        if cls.update():
-            return cls.data.cycle
+        return self.child.get_cycle()
 
-    @classmethod
-    def get_max_charge_current(cls) -> float:
+    def get_max_charge_current(self) -> float:
         """获取最大充电电流
 
         Returns:
             float: 返回最大充电电流数值
         """
-        if cls.update():
-            return cls.data.max_charge_current
+        return self.child.get_max_charge_current()
 
-    @classmethod
-    def get_max_charge_voltage(cls) -> float:
+    def get_max_charge_voltage(self) -> float:
         """获取最大充电电压
 
         Returns:
             float: 返回最大充电电压数值
         """
-        if cls.update():
-            return cls.data.max_charge_voltage
+        return self.child.get_max_charge_voltage()
 
-    @classmethod
-    def get_extra(cls) -> str:
+    def get_extra(self) -> str:
         """获取额外信息
 
         Returns:
             str: 返回额外信息字符串
         """
-        if cls.update():
-            return cls.data.extra
+        return self.child.get_extra()
 
-    @classmethod
-    def get_is_manually_connected(cls) -> bool:
+    def get_is_manually_connected(self) -> bool:
         """获取是否手动连接状态
 
         Returns:
             bool: True表示手动连接，False表示非手动连接
-        """
-        if cls.update():
-            return cls.data.is_manually_connected
 
-    @classmethod
-    def get_user_data(cls) -> bytes:
+        Compatibility:
+            该接口仅在 RBK 版本 3 中可用。
+        """
+        return self.child.get_is_manually_connected()
+
+    def get_user_data(self) -> bytes:
         """获取用户数据
 
         Returns:
             bytes: 返回用户数据字节流
         """
-        if cls.update():
-            return cls.data.user_data
+        return self.child.get_user_data()
 
-    @classmethod
-    @call_service(func_name="getBatteryMaxPercentage")
-    def getAlarmPercentage(cls) -> int:
+    def getAlarmPercentage(self) -> int:
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 
         Returns:
             int:
         """
-        pass
+        return self.child.getAlarmPercentage()
 
-    @classmethod
-    @call_service(func_name="publishBattery")
-    def publish(cls, battery_info: str) -> int:
+    def publish(self, battery_info: str) -> int:
         """发布电池信息
 
         Args:
@@ -146,14 +122,15 @@ class Battery(Message["Message_Battery"]):
         Returns:
             int: -1: 发布失败; 0: 发布成功
         """
-        pass
+        return self.child.publish(battery_info)
 
-    @classmethod
-    @call_service(func_name="getBatteryCanPort")
-    def getCanPort(cls) -> int:
+    def getCanPort(self) -> int:
         """获取CAN端口
 
         Returns:
             int: CAN端口
         """
-        pass
+        return self.child.getCanPort()
+
+
+Battery: BatteryInterface = BatteryInterface()

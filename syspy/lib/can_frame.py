@@ -1,22 +1,11 @@
-from .py_rpc import Message, default_plugin, call_service
+from abc import ABC
+from syspy.core.rbk_rpc import Service, RBKVersionError
 
 
-@default_plugin("DSPChassis")
-class Can(Message["CanFrame"]):
+class CanInterface(ABC, Service):
     """CAN协议"""
 
-    _TOPIC = "CanFrame"
-    _PLUGIN = "DSPChassis"
-    _MODEL_CLASS = None
-
     @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from ..protobuf import CanFrame
-            cls._MODEL_CLASS = CanFrame
-
-    @classmethod
-    @call_service(func_name="sendPassThroughCanFrame")
     def sendPassThroughCanFrame(cls, channel: int, can_id: int, dlc: int, extend: bool, can_string: str):
         """发送CAN帧
 
@@ -27,10 +16,9 @@ class Can(Message["CanFrame"]):
             extend (bool):
             can_string (str):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="sendCanFrame")
     def sendCanFrame(cls, channel: int, can_id: int, dlc: int, extend: bool, can_string: str):
         """发送CAN帧
 
@@ -41,10 +29,9 @@ class Can(Message["CanFrame"]):
             extend (bool):
             can_string (str):
         """
-        pass
+        raise RBKVersionError()
 
     @classmethod
-    @call_service(func_name="canPassThroughRxId")
     def canPassThroughRxId(cls, channel: int, id_nums: int, can_id1: int, can_id2: int, can_id3: int, can_id4: int,
                            can_id5: int) -> int:
         """检查CAN ID是否可以通过指定通道
@@ -61,4 +48,15 @@ class Can(Message["CanFrame"]):
         Returns:
             int:
         """
-        pass
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.lib.can_frame import CanV3
+    Can: CanInterface = CanV3()
+elif rbk_version == 4:
+    from syspy.v4.lib.can_frame import CanV4
+    Can: CanInterface = CanV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")

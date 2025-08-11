@@ -1,53 +1,35 @@
-import ast
+from abc import ABC
 from typing import List, TYPE_CHECKING
+from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 
-from syspy.lib.plyvel_db import LevelDB
-from syspy.navigation import Navigation
-from syspy.lib.py_rpc import Message, call_service, default_plugin
 
 if TYPE_CHECKING:
-    from .protobuf import Message_Bin, Message_Bins  # IDE类型提示
+    from syspy.v3.protobuf import Message_Bin  # IDE类型提示
 
 
-@default_plugin("RecoFactory")
-class Bin(Message["Message_Bins"]):
+class BinInterface(ABC, Message):
     """库位类"""
 
-    _TOPIC = "rbk.protocol.Message_Bins"
-    _PLUGIN = "RecoFactory"
-    _MODEL_CLASS = None
+    @classmethod
+    def get_bins(cls) -> List[Message_Bin]:
+        raise RBKVersionError()
 
     @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Bins
-            cls._MODEL_CLASS = Message_Bins
-
-    @classmethod
-    def get_bins(cls) -> List["Message_Bin"]:
-        if cls.update():
-            return cls.data.bins
-
-    @classmethod
-    @call_service()
     def binDetection(cls, seq: int):
         """库位检测
 
         Args:
             seq (int): 时间戳
         """
-        pass
+        raise RBKVersionError()
 
 
-class Container:
+class ContainerInterface(ABC, Service):
     """背篓类，用于管理机器人上的背篓及货物状态。
 
-    Attributes:
-        containers (dict): 存储所有背篓及货物的状态，key为背篓名称，值为包含 goods_id、desc 和 has_goods 的字典。
+    Compatibility:
+        该接口仅在 RBK 版本 3 中可用。
     """
-
-    db = LevelDB("containers")
-    containers = {}
 
     @staticmethod
     def _empty_container():
@@ -64,19 +46,7 @@ class Container:
         Args:
             number (str): 背篓数量。从模型中的moduleType.cartonTransferUnit.id参数获取
         """
-        model_container_names = []
-        for i in range(number):
-            model_container_names.append(str(i))
-        model_container_names.append("999")
-        raw_data = cls.db.gets(model_container_names)
-        for name, value in zip(model_container_names, raw_data):
-            if value is None:
-                cls.containers[name] = cls._empty_container()
-            else:
-                try:
-                    cls.containers[name] = ast.literal_eval(value)
-                except (SyntaxError, ValueError):
-                    cls.containers[name] = cls._empty_container()
+        raise RBKVersionError()
 
     @classmethod
     def setContainer(cls, container_name: str, goods_id: str, desc: str) -> bool:
@@ -90,12 +60,7 @@ class Container:
         Returns:
             bool: 如果没有库位或者背篓，则返回false
         """
-        cls.containers[container_name] = {
-            "goods_id": goods_id,
-            "desc": desc,
-            "has_goods": True
-        }
-        return cls.db.put(container_name, str(cls.containers[container_name]))
+        raise RBKVersionError()
 
     @classmethod
     def clearContainer(cls, container_name: str) -> bool:
@@ -107,19 +72,7 @@ class Container:
         Returns:
             bool: 如果没有库位或者背篓，则返回false
         """
-        if container_name == "All":
-            for key in cls.containers:
-                cls.containers[key] = cls._empty_container()
-            # 对cls.containers每一个的value都转为str
-            str_containers = {key: str(cls.containers[key]) for key in cls.containers}
-            cls.db.puts(str_containers)
-            return True
-        else:
-            if container_name in cls.containers:
-                cls.containers[container_name] = cls._empty_container()
-                cls.db.put(container_name, str(cls._empty_container))
-                return True
-            return False
+        raise RBKVersionError()
 
     @classmethod
     def clearContainerByGoodsId(cls, goods_id: str) -> bool:
@@ -130,18 +83,7 @@ class Container:
         Returns:
             bool: 如果没有库位或者背篓，则返回false
         """
-        if goods_id == "All":
-            for key in cls.containers:
-                cls.containers[key] = cls._empty_container()
-            str_containers = {key: str(cls.containers[key]) for key in cls.containers}
-            return cls.db.puts(str_containers)
-        else:
-            for key in cls.containers:
-                if cls.containers[key]["goods_id"] == goods_id:
-                    cls.containers[key] = cls._empty_container()
-                    cls.db.put(key, str(cls._empty_container))
-                    return True
-            return False
+        raise RBKVersionError()
 
     @classmethod
     def getContainers(cls) -> list:
@@ -150,11 +92,7 @@ class Container:
         Returns:
             list: 包含所有背篓状态的列表，每个元素是一个字典，包含 container_name、goods_id、desc 和 has_goods。
         """
-        containers = []
-        for c in cls.containers:
-            cls.containers[c]['container_name'] = c
-            containers.append(cls.containers[c])
-        return containers
+        raise RBKVersionError()
 
     @classmethod
     def has_goods(cls, container_name: str = '0') -> bool:
@@ -166,9 +104,7 @@ class Container:
         Returns:
             bool: 如果背篓中有货物，则返回True；否则返回False。
         """
-        if container_name in cls.containers:
-            return cls.containers[container_name].get("has_goods", False)
-        return False
+        raise RBKVersionError()
 
     @classmethod
     def goods_id_exist(cls, goods_id) -> bool:
@@ -180,10 +116,7 @@ class Container:
         Returns:
             bool: 如果存在该货物ID，则返回True；否则返回False。
         """
-        for c in cls.containers:
-            if goods_id == cls.containers[c]['goods_id']:
-                return True
-        return False
+        raise RBKVersionError()
 
     @classmethod
     def get_task_goodsId(cls):
@@ -192,11 +125,7 @@ class Container:
         Returns:
             str: 货物ID，如果没有找到则返回空字符串。
         """
-        move_task = Navigation.moveTask()
-        for p in move_task['params']:
-            if p['key'] == 'goodsId':
-                return p['string_value']
-        return ""
+        raise RBKVersionError()
 
     @classmethod
     def get_goodsId_by_container(cls, container_name: str = '0') -> str:
@@ -208,8 +137,7 @@ class Container:
         Returns:
             str: 货物ID，如果找不到则返回空字符串。
         """
-        if container_name in cls.containers:
-            return cls.containers[container_name].get("goods_id", "")
+        raise RBKVersionError()
 
     @classmethod
     def get_container_by_goodsId(cls, goods_id) -> str:
@@ -221,10 +149,7 @@ class Container:
         Returns:
             str: 找到的背篓名称，如果没有找到或货物未装载，则返回空字符串。
         """
-        for c in cls.containers:
-            if goods_id == cls.containers[c]['goods_id'] and cls.containers[c]['has_goods']:
-                return cls.containers[c]['container_name']
-        return ""
+        raise RBKVersionError()
 
     @classmethod
     def get_json_containers(cls) -> dict:
@@ -233,11 +158,25 @@ class Container:
         Returns:
             dict: key为背篓名称，值为包含 goods_id、desc 和 has_goods 的字典。
         """
-        return cls.containers
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.bin import BinV3, ContainerV3
+    Bin: BinInterface = BinV3()
+    Container: ContainerInterface = ContainerV3()
+elif rbk_version == 4:
+    from syspy.v4.bin import BinV4, ContainerV4
+    Bin: BinInterface = BinV4()
+    Container: ContainerInterface = ContainerV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")
 
 
 if __name__ == '__main__':
-    from syspy import RobotParam
+    if __name__ == '__main__':
+        from syspy import RobotParam
     container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
     if isinstance(container_num, int) and container_num > 0:
         Container.init_container(container_num)

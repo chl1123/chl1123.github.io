@@ -1,20 +1,9 @@
-import json
+from abc import ABC
+from syspy.core.rbk_rpc import Message, RBKVersionError
 
-from .lib.py_rpc import Message
 
-
-class ScriptData(Message["Message_Script"]):
+class ScriptDataInterface(ABC, Message):
     """脚本数据"""
-
-    _TOPIC = "rbk.protocol.Message_Script"
-    _PLUGIN = "NetProtocol"
-    _MODEL_CLASS = None
-
-    @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Script
-            cls._MODEL_CLASS = Message_Script
 
     @classmethod
     def set(cls, name: str, data: dict) -> None:
@@ -24,7 +13,7 @@ class ScriptData(Message["Message_Script"]):
             name (str): 脚本名或标识
             data (bool): 脚本数据
         """
-        return cls.client().call_service("NetProtocol", "setScriptData", name, json.dumps(data))
+        raise RBKVersionError()
 
     @classmethod
     def get(cls, name: str) -> dict:
@@ -33,5 +22,15 @@ class ScriptData(Message["Message_Script"]):
         Args:
             name (str): 脚本名或标识
         """
-        if cls.update():
-            return json.loads(cls.data.script_data.get(name, "{}"))
+        raise RBKVersionError()
+
+
+from syspy.config import rbk_version
+if rbk_version == 3:
+    from syspy.v3.script_data import ScriptDataV3
+    ScriptData: ScriptDataInterface = ScriptDataV3()
+elif rbk_version == 4:
+    from syspy.v4.script_data import ScriptDataV4
+    ScriptData: ScriptDataInterface = ScriptDataV4()
+else:
+    raise ValueError(f"Unsupported RBK version: {rbk_version}")
