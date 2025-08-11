@@ -209,12 +209,14 @@ class CleanRobot:
         # 水位检测，清水空了或者污水满了，结束清洁任务
         if (self.filter_waste_water_level() > ConfigParams.max_waste_water_level or
                 self.filter_clean_water_level() < ConfigParams.min_clean_water_level):
-            Abnormal.setTask(53980, f"Clean water is empty or waste water is full!","water is empty or full","check water","add water or washing")
+
+            Abnormal.setTask(53301, f"Clean water is empty or waste water is full!","water is empty or full","check water","add water or washing")
             if self.operation != "AddWater":  # 终止任务，过滤加水任务
                 self.wash_end()
         else:
-            if Abnormal.exists(53980):
-                Abnormal.clear(53980)
+            # todo 修改
+            if Abnormal.exists(53301):
+                Abnormal.clear(53301)
 
     def update_power_by_speed(self):
         agv_speed = dict()
@@ -383,7 +385,7 @@ class CleanRobot:
         if not is_charging:
             Do.setDO(ConfigParams.add_water_do, False)
             self.machine_operation.ctrl_waste_valve(WorkState.CLOSE)
-            Abnormal.setTask(53000,f"Not in charging state!","charging is not enable","check the charging","add_water")
+            Abnormal.setTask(53300,f"Not in charging state!","charging is not enable","check the charging","add_water")
             Module.set_status(ScriptStatus.FAILED)
         else:
             if not self.add_water_opt_start:
@@ -474,7 +476,7 @@ class CleanRobot:
         self.report_info["work_status"] = info
 
     def cancel(self):
-        Abnormal.setTask(57300,f"script cancel","","","cancel task")
+        Abnormal.setTask(53300,f"script cancel","","","cancel task")
         Do.setDO(ConfigParams.add_water_do, False)
         ConfigParams.close_jet_delay_time = 100
         self.wash_end()
@@ -487,7 +489,7 @@ class CleanRobot:
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
             elif current_action.action_status == ActionStatus.FAILED:
-                Abnormal.setTask(53000, f"execute action {current_action} failed!", "", "", "")
+                Abnormal.setTask(53300, f"execute action {current_action} failed!", "", "", "")
                 self.script_status = ActionStatus.FAILED
                 Module.set_status(ScriptStatus.FAILED)
             else:
@@ -768,7 +770,7 @@ class CanPassAarch64:
             else:
                 return self.default_data
         except Exception as e:
-            Abnormal.setTask(55300,f"can 通信接受异常,{e}","can error","check can message","recv_can")
+            Abnormal.setTask(53300,f"can 通信接受异常,{e}","can error","check can message","recv_can")
             return self.default_data
 
     def __del__(self):
