@@ -85,7 +85,7 @@ class testCanBattery(cb.canPassBase):
 
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
-        mu.sleep_s(5)
+        mu.sleep_s(10)
         self.attachCanID(2, 2, 0x1806E5F4, 0x1800FFF4, 0, 0)
         self.attachCanID(1, 1, 0x019E, 0, 0, 0)
         while True:

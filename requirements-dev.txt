@@ -3,6 +3,8 @@ pyzmq==26.2.0
 python-can==4.5.0
 pyserial==3.5
 typeguard==4.4.0
+typing_extensions==4.13.2
+modbus_tk==1.1.5
 mkdocs==1.6.1
 mkdocstrings-python==1.11.1
 mkdocs-material==9.6.12

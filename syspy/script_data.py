@@ -34,6 +34,4 @@ class ScriptData(Message["Message_Script"]):
             name (str): 脚本名或标识
         """
         if cls.update():
-            if name in cls.data.script_data:
-                return cls.data.script_data[name]
-            return {}
+            return json.loads(cls.data.script_data.get(name, "{}"))

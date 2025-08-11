@@ -1,8 +1,7 @@
-from typing import ClassVar, Iterable, Mapping, Optional, Union
-
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from google.protobuf.internal import containers as _containers
+from typing import ClassVar, Iterable, Mapping, Optional, Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -55,18 +54,20 @@ class Message_DINode(_message.Message):
         shape (str): 节点的形状，默认为空字符串。
         mindist (float): 最小距离，默认为 0.0。
         maxdist (float): 最大距离，默认为 0.0。
+        name (str): 节点名。
         range (float): 范围，默认为 0.0。
         posx (typing.List[float]): x 坐标的列表，默认为空列表。
         posy (typing.List[float]): y 坐标的列表，默认为空列表。
         forbidden (bool): 是否禁止，默认为 False。
     """
-    __slots__ = ["forbidden", "func", "id", "maxdist", "mindist", "posx", "posy", "range", "shape", "source", "status",
-                 "type", "x", "y", "yaw", "z"]
+    __slots__ = ["forbidden", "func", "id", "maxdist", "mindist", "name", "posx", "posy", "range", "shape", "source",
+                 "status", "type", "x", "y", "yaw", "z"]
     FORBIDDEN_FIELD_NUMBER: ClassVar[int]
     FUNC_FIELD_NUMBER: ClassVar[int]
     ID_FIELD_NUMBER: ClassVar[int]
     MAXDIST_FIELD_NUMBER: ClassVar[int]
     MINDIST_FIELD_NUMBER: ClassVar[int]
+    NAME_FIELD_NUMBER: ClassVar[int]
     POSX_FIELD_NUMBER: ClassVar[int]
     POSY_FIELD_NUMBER: ClassVar[int]
     RANGE_FIELD_NUMBER: ClassVar[int]
@@ -83,6 +84,7 @@ class Message_DINode(_message.Message):
     id: int
     maxdist: float
     mindist: float
+    name: str
     posx: _containers.RepeatedScalarFieldContainer[float]
     posy: _containers.RepeatedScalarFieldContainer[float]
     range: float
@@ -99,8 +101,8 @@ class Message_DINode(_message.Message):
                  z: Optional[float] = ..., yaw: Optional[float] = ..., func: Optional[str] = ...,
                  type: Optional[str] = ..., source: Optional[str] = ..., shape: Optional[str] = ...,
                  mindist: Optional[float] = ..., maxdist: Optional[float] = ..., range: Optional[float] = ...,
-                 posx: Optional[Iterable[float]] = ..., posy: Optional[Iterable[float]] = ...,
-                 forbidden: bool = ...) -> None: ...
+                 posx: Optional[Iterable[float]] = ..., posy: Optional[Iterable[float]] = ..., forbidden: bool = ...,
+                 name: Optional[str] = ...) -> None: ...
 
 
 class Message_DO(_message.Message):
@@ -127,19 +129,22 @@ class Message_DONode(_message.Message):
 
     Attributes:
         id (int): 节点的唯一标识符，默认为 0。
-        status (bool): 节点的状态，默认为 False。
+        lock (bool): 是否锁定节点状态，默认为 False。
+        name (str): 节点名。
         source (str): 节点的来源，默认为空字符串。
-        func (str): 节点的功能描述，默认为空字符串。
+        status (bool): 节点的状态，默认为 False。
     """
-    __slots__ = ["func", "id", "source", "status"]
-    FUNC_FIELD_NUMBER: ClassVar[int]
+    __slots__ = ["id", "lock", "name", "source", "status"]
     ID_FIELD_NUMBER: ClassVar[int]
+    LOCK_FIELD_NUMBER: ClassVar[int]
+    NAME_FIELD_NUMBER: ClassVar[int]
     SOURCE_FIELD_NUMBER: ClassVar[int]
     STATUS_FIELD_NUMBER: ClassVar[int]
-    func: str
     id: int
+    lock: bool
+    name: str
     source: str
     status: bool
 
-    def __init__(self, id: Optional[int] = ..., status: bool = ..., source: Optional[str] = ...,
-                 func: Optional[str] = ...) -> None: ...
+    def __init__(self, id: Optional[int] = ..., status: bool = ..., source: Optional[str] = ..., lock: bool = ...,
+                 name: Optional[str] = ...) -> None: ...
