@@ -8,7 +8,7 @@ class CalibMove:
     def __init__(self):
         self.cancel = False
 
-    def cancel(self):
+    def Cancel(self):
         print("cancel!!!")
         self.cancel = True
     
@@ -16,7 +16,7 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.cancel)
+    Module.set_cancel_callback(calib_move.Cancel)
     while True:
         time.sleep(0.1)
         print("run noAction.py")

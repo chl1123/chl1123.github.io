@@ -125,14 +125,14 @@ class CalibMove:
         info["speed_w"] = self.speed_w
         log.info(json.dumps(info))
 
-    def cancel(self):
+    def Cancel(self):
         print("cancel!!!")
         self.cancel = True
 
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.cancel)
+    Module.set_cancel_callback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
