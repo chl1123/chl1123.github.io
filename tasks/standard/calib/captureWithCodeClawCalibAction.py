@@ -18,6 +18,14 @@ log = Logger("captureWithCodeClawCalibAction")
         "maxValue":5.0,
         "minValue":1.0
     },
+    "H": {
+        "value": 1.0,
+        "tips": "高度",
+        "type": "double",
+        "unit":"m",
+        "maxValue":3.0,
+        "minValue":0.0
+    },
     "angle": {
         "value": 30,
         "tips": "角度",
