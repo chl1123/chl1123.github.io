@@ -19,7 +19,7 @@ log = Logger("captureWithCodeClawCalibAction")
         "minValue":1.0
     },
     "H": {
-        "value": 1.0,
+        "value": 0.38,
         "tips": "高度",
         "type": "double",
         "unit":"m",
@@ -27,7 +27,7 @@ log = Logger("captureWithCodeClawCalibAction")
         "minValue":0.0
     },
     "angle": {
-        "value": 30,
+        "value": 40,
         "tips": "角度",
         "type": "double",
         "unit":"°",
@@ -35,7 +35,7 @@ log = Logger("captureWithCodeClawCalibAction")
         "minValue":10
     },
     "num": {
-        "value": 8,
+        "value": 11,
         "tips": "个数",
         "type": "int",
         "unit":"count",
