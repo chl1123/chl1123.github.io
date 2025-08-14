@@ -61,10 +61,10 @@ class CalibMove:
             self.speed_x = Module.get_task_args("V", 0.1)
             self.cancel = False
             self.calibType = Module.get_task_args("calibType", "")
-            self.deviceName = Module.get_task_args("deviceNameList", "")
-            if self.deviceName != "":
-                if self.calibType == "CameraMid360RPZExtrinsicCalib" or self.calibType == "CameraLocMid360RPZExtrinsicCalib":
-                    Camera.addDisableDepthStrName(self.deviceName)
+            # self.deviceName = Module.get_task_args("deviceNameList", "")
+            # if self.deviceName != "":
+            #     if self.calibType == "CameraMid360RPZExtrinsicCalib" or self.calibType == "CameraLocMid360RPZExtrinsicCalib":
+            #         Camera.addDisableDepthStrName(self.deviceName)
 
         # 实时运行
         if self.move_action == MoveAction.Back1:
@@ -99,14 +99,14 @@ class CalibMove:
         info["move_dist"] = self.move_dist
         info["speed_x"] = self.speed_x
         info["calibType"] = self.calibType
-        info["deviceName"] = self.deviceName
+        # info["deviceName"] = self.deviceName
         log.info(json.dumps(info))
 
     def Cancel(self):
         print("cancel!!!")
         self.cancel = True
-        if self.deviceName != "":
-            Camera.clearDisableDepthStrName()
+        # if self.deviceName != "":
+        #     Camera.clearDisableDepthStrName()
 
 def main():
     calib_move = CalibMove()
