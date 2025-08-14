@@ -102,7 +102,6 @@ class Message(Service):
         self._UPDATE_INTERVAL = interval
 
     def update(self) -> bool:
-        print("update cls._TOPIC: ", self._TOPIC)
         if self._MODEL_CLASS is None:
             self.init_model_class()
         """获取最新数据，返回是否更新成功"""
@@ -114,7 +113,8 @@ class Message(Service):
                 self._MODEL_CLASS,
                 self._PLUGIN
             )
-            # print("Message self.data", self.data)
+            if not self.data:
+                return False
             self._last_update = time.time()
             return True
         except Exception as e:
@@ -141,21 +141,31 @@ def default_plugin(name=None):
     return decorator
 
 
-def call_service(plugin_name: str = None, func_name: str = None):
-    def decorator(func: Callable) -> Callable:
+def call_service(plugin_name=None, func_name=None):
+    def decorator(func):
         @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            # 第一个参数是self (实例方法)
-            instance = args[0]
-            service_plugin = plugin_name or getattr(instance, "default_plugin", None)
-            service_method = func_name or func.__name__
+        def wrapper(cls, *args, **kwargs):
+            # 使用提供的 plugin_name 或者从对象获取
+            service_plugin = plugin_name or getattr(cls, "default_plugin")
+            # 获取函数参数名（排除 cls）
+            func_params = func.__code__.co_varnames[1:func.__code__.co_argcount]
 
-            Service.client().call_service(
-                plugin=service_plugin,
-                method=service_method,
-                func=func,
-                args=args[1:],  # 排除self
-                kwargs=kwargs)
+            if rbk_version == 3:
+                # RBK3：将 kwargs 转为位置参数，合并到 args
+                merged_args = list(args)
+                for i, name in enumerate(func_params):
+                    if name in kwargs:
+                        if i < len(merged_args):
+                            merged_args[i] = kwargs[name]  # 替换已有的位置参数
+                        else:
+                            merged_args.append(kwargs[name])  # 补充新的位置参数
+                return cls.client().call_service(service_plugin, func_name or func.__name__, *merged_args)
+
+            elif rbk_version == 4:
+                # RBK4：将 args 转为关键字参数，合并到 kwargs
+                args_as_kwargs = {name: args[i] for i, name in enumerate(func_params) if i < len(args)}
+                merged_kwargs = {**args_as_kwargs, **kwargs}
+                return cls.client().call_service(service_plugin, func_name or func.__name__, **merged_kwargs)
 
         return wrapper
 

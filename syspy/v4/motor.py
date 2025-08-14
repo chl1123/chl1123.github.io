@@ -3,18 +3,17 @@ from typing import Union, List
 
 from syspy.core.rbk_rpc import default_plugin, call_service
 from syspy.motor import MotorInterface
-from .navigation import NavSpeedV4
-from .odometer import OdometerV4
+from syspy import NavSpeed
 
 if typing.TYPE_CHECKING:
     from .include.protocol.messageV4_movetask_pb2 import MessageV4_MInfo as Message_MotorInfo
 
 
-@default_plugin("MoveFactory")  # todo RBK4
+@default_plugin("Navigation")  # todo RBK4
 class MotorV4(MotorInterface):
     """电机类"""
 
-    _TOPIC = ""  # todo RBK4
+    _TOPIC = "Odom"  # todo RBK4
     _MODEL_CLASS = None
 
     @classmethod
@@ -43,7 +42,7 @@ class MotorV4(MotorInterface):
         """
         motor_pos = -1
         if self.update():
-            for motor in OdometerV4.data.motor_info:
+            for motor in self.data.motor_info:
                 if motor.motor_name == motor_name:
                     motor_pos = motor.position
         return motor_pos
@@ -58,8 +57,8 @@ class MotorV4(MotorInterface):
             Union[float, int]: 返回电机的当前速度，若电机不存在返回 -1
         """
         motor_speed = -1
-        if NavSpeedV4.update():
-            for motor in NavSpeedV4.data.motor_cmd:
+        if NavSpeed.update():
+            for motor in NavSpeed.data.motor_cmd:
                 if motor.motor_name == motor_name:
                     motor_speed = motor.value
         return motor_speed
