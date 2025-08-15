@@ -86,8 +86,7 @@ class CalibMove:
             if self.move_action != MoveAction.ActionEnd:
                 Navigation.resetOdoMove()
                 self.status = ScriptStatus.RUNNING
-            if self.status == ScriptStatus.FINISHED and self.deviceName != "":
-                Camera.clearDisableDepthStrName()
+sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
 
         return self.status
 
