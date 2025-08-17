@@ -13,7 +13,7 @@ log = Logger("goLineCalibAction")
 {
     "tagDistance": {
         "value": 0.05,
-        "tips": "The distance between the centers of two tag",
+        "tips": "Distance between two tags,
         "type": "double",
         "unit": "m"
     },
@@ -25,7 +25,7 @@ log = Logger("goLineCalibAction")
     },
     "angle": {
         "value": 50.0,
-        "tips": "Container will rotate this angle",
+        "tips": "Angle the container will rotate",
         "type": "double",
         "unit": "deg"
     }

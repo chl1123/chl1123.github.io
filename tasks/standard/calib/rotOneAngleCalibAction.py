@@ -12,7 +12,7 @@ log = Logger("rotOneAngleCalibAction")
 {
     "W": {
         "value": 45,
-        "tips": "角速度",
+        "tips": "Rotational angular velocity",
         "type": "double",
         "unit":"°/s",
         "maxValue":90,

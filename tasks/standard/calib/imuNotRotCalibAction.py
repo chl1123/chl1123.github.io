@@ -13,7 +13,7 @@ log = Logger("imuNotRotCalibAction")
 {
     "L": {
         "value": 2.0,
-        "tips": "长度",
+        "tips": "Motion range length",
         "type": "double",
         "unit":"m",
         "maxValue":5.0,
@@ -21,7 +21,7 @@ log = Logger("imuNotRotCalibAction")
     },
     "V": {
         "value": 0.5,
-        "tips": "速度",
+        "tips": "Motion Speed",
         "type": "double",
         "unit":"m/s",
         "maxValue":2.0,
@@ -29,7 +29,7 @@ log = Logger("imuNotRotCalibAction")
     },
     "goStraightCnt": {
         "value": 3,
-        "tips": "次数",
+        "tips": "Number of forward/backward straight movements",
         "type": "int",
         "unit":"count",
         "maxValue":10,
@@ -37,7 +37,7 @@ log = Logger("imuNotRotCalibAction")
     },
     "goRotCnt": {
         "value": 2,
-        "tips": "次数",
+        "tips": "Number of in-place rotations",
         "type": "int",
         "unit":"count",
         "maxValue":10,

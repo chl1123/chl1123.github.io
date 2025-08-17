@@ -12,7 +12,7 @@ log = Logger("steerOffsetRotCalibAction")
 {
     "W": {
         "value": 25,
-        "tips": "长度",
+        "tips": "Rotational angular velocity",
         "type": "double",
         "unit":"°/s",
         "maxValue":90,

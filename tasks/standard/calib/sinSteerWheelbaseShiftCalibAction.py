@@ -12,15 +12,15 @@ log = Logger("sinSteerWheelbaseShiftCalibAction")
 {
     "rotCount": {
         "value": 3,
-        "tips": "圈数",
+        "tips": "Number of in-place rotations",
         "type": "int",
-        "unit":"圈",
+        "unit":"count",
         "maxValue":10,
         "minValue":1
     },
     "W": {
         "value": 30,
-        "tips": "角速度",
+        "tips": "Rotational angular velocity",
         "type": "double",
         "unit":"°/s",
         "maxValue":90,

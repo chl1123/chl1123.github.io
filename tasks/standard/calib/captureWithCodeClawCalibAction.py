@@ -12,7 +12,7 @@ log = Logger("captureWithCodeClawCalibAction")
 {
     "L": {
         "value": 1.5,
-        "tips": "长度",
+        "tips": "Motion range length",
         "type": "double",
         "unit":"m",
         "maxValue":5.0,
@@ -20,7 +20,7 @@ log = Logger("captureWithCodeClawCalibAction")
     },
     "H": {
         "value": 0.38,
-        "tips": "高度",
+        "tips": "Height of QR code",
         "type": "double",
         "unit":"m",
         "maxValue":3.0,
@@ -28,7 +28,7 @@ log = Logger("captureWithCodeClawCalibAction")
     },
     "angle": {
         "value": 40,
-        "tips": "角度",
+        "tips": "Rotational angular",
         "type": "double",
         "unit":"°",
         "maxValue":90,
@@ -36,7 +36,7 @@ log = Logger("captureWithCodeClawCalibAction")
     },
     "num": {
         "value": 11,
-        "tips": "个数",
+        "tips": "Image capture count",
         "type": "int",
         "unit":"count",
         "maxValue":30,
@@ -44,7 +44,7 @@ log = Logger("captureWithCodeClawCalibAction")
     } ,
     "time": {
         "value": 1,
-        "tips": "次数",
+        "tips": "Repeat run count",
         "type": "int",
         "unit":"count",
         "maxValue":10,
@@ -52,7 +52,7 @@ log = Logger("captureWithCodeClawCalibAction")
     } ,
     "tagCols": {
         "value": 5,
-        "tips": "二维码阵列一行有多少个二维码数",
+        "tips": "Number of QR codes in one row of the QR code array",
         "type": "int",
         "unit":"count",
         "maxValue":100,
@@ -60,7 +60,7 @@ log = Logger("captureWithCodeClawCalibAction")
     } ,
     "tagRows": {
         "value": 2,
-        "tips": "二维码阵列有多少行",
+        "tips": "Number of rows in the QR code array",
         "type": "int",
         "unit":"count",
         "maxValue":100,
@@ -68,7 +68,7 @@ log = Logger("captureWithCodeClawCalibAction")
     } ,
     "tagSize": {
         "value": 0.35,
-        "tips": "每一个二维码的宽度",
+        "tips": "Width of each QR code",
         "type": "double",
         "unit":"",
         "maxValue":10.0,
@@ -76,7 +76,7 @@ log = Logger("captureWithCodeClawCalibAction")
     } ,
     "tagSpace": {
         "value":0.05,
-        "tips": "与二维码相邻黑块的大小",
+        "tips": "Size of the black block adjacent to the QR code",
         "type": "double",
         "unit":"",
         "maxValue":10.0,

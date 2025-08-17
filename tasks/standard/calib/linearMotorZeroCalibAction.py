@@ -10,7 +10,7 @@ log = Logger("linearMotorZeroCalibAction")
 {
     "sendHeight": {
         "value": 1.0,
-        "tips": "线性电机下发高度",
+        "tips": "Linear motor actuation height",
         "type": "double",
         "unit":"m/s",
         "maxValue":2.0,

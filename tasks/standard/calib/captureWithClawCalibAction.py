@@ -12,7 +12,7 @@ log = Logger("captureWithClawCalibAction")
 {
     "L": {
         "value": 1.5,
-        "tips": "长度",
+        "tips": "Motion range length",
         "type": "double",
         "unit":"m",
         "maxValue":5.0,
@@ -20,7 +20,7 @@ log = Logger("captureWithClawCalibAction")
     },
     "angle": {
         "value": 30,
-        "tips": "角度",
+        "tips": "Rotational angular",
         "type": "double",
         "unit":"°",
         "maxValue":90,
@@ -28,7 +28,7 @@ log = Logger("captureWithClawCalibAction")
     },
     "num": {
         "value": 8,
-        "tips": "个数",
+        "tips": "Image capture count",
         "type": "int",
         "unit":"count",
         "maxValue":30,
@@ -36,7 +36,7 @@ log = Logger("captureWithClawCalibAction")
     } ,
     "factor": {
         "value": 0.75,
-        "tips": "系数",
+        "tips": "Coefficient",
         "type": "double",
         "unit":"",
         "maxValue":1.0,
@@ -44,7 +44,7 @@ log = Logger("captureWithClawCalibAction")
     },
     "time": {
         "value": 1,
-        "tips": "次数",
+        "tips": "Repeat run count",
         "type": "int",
         "unit":"count",
         "maxValue":10,

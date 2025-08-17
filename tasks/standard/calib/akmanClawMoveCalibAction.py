@@ -12,7 +12,7 @@ log = Logger("akmanClawMoveCalibAction")
 {    
     "L": {
         "value": 3.0,
-        "tips": "长度",
+        "tips": "Motion range length",
         "type": "double",
         "unit":"m",
         "maxValue":10.0,
@@ -20,7 +20,7 @@ log = Logger("akmanClawMoveCalibAction")
     },
     "V": {
         "value": 0.5,
-        "tips": "速度",
+        "tips": "Motion Speed",
         "type": "double",
         "unit":"m/s",
         "maxValue":2.0,

@@ -12,7 +12,7 @@ log = Logger("auxSensorCalibAction")
 {
     "L": {
         "value": 0.2,
-        "tips": "长度",
+        "tips": "Motion range length",
         "type": "double",
         "unit":"m",
         "maxValue":10.0,
@@ -20,7 +20,7 @@ log = Logger("auxSensorCalibAction")
     },
     "V": {
         "value": 0.1,
-        "tips": "速度",
+        "tips": "Motion Speed",
         "type": "double",
         "unit":"m/s",
         "maxValue":2.0,

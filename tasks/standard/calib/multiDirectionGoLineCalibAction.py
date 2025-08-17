@@ -12,7 +12,7 @@ log = Logger("multiDirectionGoLineCalibAction")
 {
     "L": {
         "value": 2.0,
-        "tips": "长度",
+        "tips": "Motion range length",
         "type": "double",
         "unit":"m",
         "maxValue":5.0,
@@ -20,7 +20,7 @@ log = Logger("multiDirectionGoLineCalibAction")
     },
     "V": {
         "value": 0.5,
-        "tips": "速度",
+        "tips": "Motion Speed",
         "type": "double",
         "unit":"m/s",
         "maxValue":2.0,

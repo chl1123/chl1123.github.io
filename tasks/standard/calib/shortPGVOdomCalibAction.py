@@ -12,7 +12,7 @@ log = Logger("shortPGVOdomCalibAction")
 {
     "distanceBack": {
         "value": 0.2,
-        "tips": "长度",
+        "tips": "Backward movement distance",
         "type": "double",
         "unit":"m",
         "maxValue":10.0,
@@ -20,7 +20,7 @@ log = Logger("shortPGVOdomCalibAction")
     },
     "angleBack": {
         "value":30,
-        "tips": "角度",
+        "tips": "Clockwise rotation angle",
         "type": "double",
         "unit":"°",
         "maxValue":360.0,
@@ -28,7 +28,7 @@ log = Logger("shortPGVOdomCalibAction")
     },
     "distanceForward": {
         "value": 0.3,
-        "tips": "长度",
+        "tips": "Forward movement distance",
         "type": "double",
         "unit":"m",
         "maxValue":10.0,
@@ -36,7 +36,7 @@ log = Logger("shortPGVOdomCalibAction")
     },
     "angleForward": {
         "value": 360,
-        "tips": "角度",
+        "tips": "Counterclockwise rotation angle",
         "type": "double",
         "unit":"°",
         "maxValue":3600.0,
@@ -44,7 +44,7 @@ log = Logger("shortPGVOdomCalibAction")
     },
     "V": {
         "value": 0.02,
-        "tips": "速度",
+        "tips": "Motion Speed",
         "type": "double",
         "unit":"m/s",
         "maxValue":2.0,
@@ -52,7 +52,7 @@ log = Logger("shortPGVOdomCalibAction")
     },
     "W": {
         "value": 30,
-        "tips": "角速度",
+        "tips": "Rotational angular velocity",
         "type": "double",
         "unit":"°/s",
         "maxValue":360.0,
