@@ -7,8 +7,8 @@
 import time
 
 start_time = time.time()
-from syspy import Module, ParamServer, Logger, Di, Motor, Navigation, ScriptStatus
-from syspy.lib.module import ModuleBase
+from syspy import Module, ParamServer, Logger, Di, Motor, Navigation, ScriptStatus, NetProtocol, Trace
+from syspy.lib.module import ModuleBase, SafeMoveStatus
 
 log = Logger("jack_example")
 
@@ -26,7 +26,7 @@ class ConfigParams:
 
 
 class Jack(ModuleBase):
-    def __init__(self, args):
+    def __init__(self):
         super().__init__()
         self.opt = None
         self.height = 0.03
@@ -38,9 +38,8 @@ class Jack(ModuleBase):
         self.go_path_a = 0
         self.count = 0
         self.report_info = {}
-        self.args = args
+        self.args = {}
         Module.set_status(ScriptStatus.NONE)
-        print("init Jack", args)
 
     def reset(self):
         self.spin_angle = 0
@@ -50,9 +49,14 @@ class Jack(ModuleBase):
         self.go_path_y = 0
         self.go_path_a = 0
 
-    def run(self):
+    def __init_args(self, args):
+        self.args = args or Module.get_task_args()
+        ...
+
+    def run(self, args=None):
         self.count += 1
         Module.set_status(ScriptStatus.RUNNING)
+        self.__init_args(args)
         self.report_info["args"] = self.args
         self.report_info["count"] = self.count
         self.report_info["run_time"] = round(time.time() - start_time, 2)
@@ -114,6 +118,7 @@ class Jack(ModuleBase):
         if finished:
             log.debug("spin finish")
             Module.set_status(ScriptStatus.FINISHED)
+        return Module.get_status()
 
     def goPath(self):
         if self.init_path:
@@ -136,12 +141,14 @@ class Jack(ModuleBase):
             Module.set_status(ScriptStatus.FINISHED)
 
     def getLM(self):
+        self.count += 1
         log.info("getLM ==============================================")
         result = Navigation.getLM("LM7", True)
         self.report_info["getLM"] = result
         log.info("getLM", result)
-        if self.count == 2:
+        if self.count == 20:
             Module.set_status(ScriptStatus.FINISHED)
+        return Module.get_status()
 
     def odo(self):
         if self.init_odo:
@@ -157,7 +164,7 @@ class Jack(ModuleBase):
 
     def print_info(self):
         # 打印当前任务id、任务状态、任务指令
-        log.info(f"{Module.get_task_id()=}, {Module.get_status()=}, {Module.get_task_args()=}")
+        Trace.log(f"task_id={Module.get_task_id()}, status={Module.get_status()}, args={self.args}")
         Module.report_info(self.report_info)
 
     def suspend(self):
@@ -170,28 +177,74 @@ class Jack(ModuleBase):
         log.info("resume")
 
     def cancel(self):
+        # 恢复初始状态
+        # reset()
         Module.set_status(ScriptStatus.FAILED)
         log.info("cancel")
+
+    def safe_move_check(self):
+        self.count += 1
+        status = SafeMoveStatus.RUNNING
+        if self.count == 100:
+            self.count = 0
+            status = SafeMoveStatus.FINISHED
+        self.set_safe_move_status(status)
+        Trace.log(f"safe_move_check {Module.get_safe_move_check()}")
+        if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
+            self.event_safe_move_check = False
+
+    def modbus(self):
+        # modbus解析器
+
+        # 模拟映射表
+        modbus_data2args = {
+            "1": {
+                "height": 0.1
+            },
+            "2": {
+                "height": 0.1
+            },
+            "3": {
+                "spinAngle": 90
+            },
+            "4": {
+                "operation": "load",
+                "height": 0.1
+            }
+        }
+
+        # 读取数据
+        modbus_data = NetProtocol.getModbusData("3x", 0, 1)
+        # 解析映射表
+        args = modbus_data2args.get(modbus_data[0])
+        status = Module.get_status()
+        if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+            self.event_modbus = False
+        # 做对应的动作
+        return args
 
 
 def main():
     Module.init()
-
-    params = {
-        "operation": "load",
-        "height": 0.1
-    }
-    j = Jack(params)
-    while not Module.stop_flag:
+    # params = {
+    #     "operation": "load",
+    #     "height": 0.1
+    # }
+    print("main")
+    j = Jack()
+    while True:
         # 脚本任务状态管理
         status = Module.get_status()
         print("status", status)
         j.report_info["status"] = status
         j.print_info()
-        if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            return
-        if status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
-            j.run()
+        args = Module.get_task_args()
+        if j.event_safe_move_check:
+            j.safe_move_check()
+        if j.event_modbus:
+            args = j.modbus()
+        if status == ScriptStatus.RUNNING:
+            j.run(args)
         time.sleep(0.1)
 
 if __name__ == '__main__':

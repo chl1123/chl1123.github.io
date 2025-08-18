@@ -2,12 +2,20 @@ import json
 import math
 from enum import IntEnum
 from threading import Lock
-from typing import Union, Optional, Callable
-
+from typing import Union, Optional, Callable, Tuple
 from syspy.utils import ScriptType
 
 
 class ScriptStatus(IntEnum):
+    NONE = 0
+    RUNNING = 1
+    NEARTOGOAL = 2
+    FINISHED = 3
+    FAILED = 4
+    SUSPENDED = 5
+
+
+class SafeMoveStatus(IntEnum):
     NONE = 0
     RUNNING = 1
     NEARTOGOAL = 2
@@ -92,6 +100,11 @@ class Module:
     __suspend_callback = None
     __resume_callback = None
 
+    __safe_move_check_callback = None
+    __safe_move_check_id = None
+    __safe_move_check_status = SafeMoveStatus.NONE
+    __modbus_callback = None
+
     @classmethod
     def init(cls):
         from inspect import stack
@@ -126,8 +139,6 @@ class Module:
     def __init_task_args(cls):
         if cls.__task is not None:
             cls.__set_task_id(cls.__task.get("taskId", None))
-            with cls.__lock:
-                cls.__run_status = ScriptStatus.RUNNING
 
     @classmethod
     def __register(cls):
@@ -137,6 +148,10 @@ class Module:
         rpc_server.registerFunction(cls.__suspend, "suspend")
         rpc_server.registerFunction(cls.__resume, "resume")
         rpc_server.registerFunction(cls.__cancel, "cancel")
+
+        rpc_server.registerFunction(cls.safe_move_check, "safe_move_check")
+        rpc_server.registerFunction(cls.get_safe_move_check, "get_safe_move_check")
+        rpc_server.registerFunction(cls.modbus, "modbus")
         rpc_server.start()
 
     def __del__(self):
@@ -174,6 +189,32 @@ class Module:
                 cls.set_status(ScriptStatus.RUNNING)
 
     @classmethod
+    def safe_move_check(cls, task_id: int):
+        if  task_id != cls.__safe_move_check_id:
+            cls.__safe_move_check_id = task_id
+            cls.__safe_move_check_callback()
+
+    @classmethod
+    def get_safe_move_check(cls) -> Tuple[SafeMoveStatus, int]:
+        return cls.__safe_move_check_status, cls.__safe_move_check_id
+
+    @classmethod
+    def set_safe_move_check_status(cls, status: SafeMoveStatus):
+        cls.__safe_move_check_status = status
+
+    @classmethod
+    def modbus(cls):
+        return cls.__modbus_callback()
+
+    @classmethod
+    def set_safe_move_check_callback(cls, callback: Callable[[], None]):
+        cls.__safe_move_check_callback = callback
+
+    @classmethod
+    def set_modbus_callback(cls, callback: Callable[[], None]):
+        cls.__modbus_callback = callback
+
+    @classmethod
     def set_cancel_callback(cls, callback: Callable[[], None]):
         cls.__cancel_callback = callback
 
@@ -198,7 +239,7 @@ class Module:
         if cls.script_name:
             if cls.__rpc_client is None:
                 # todo V3独有？
-                from ..v3.lib.rpc.client import RpcClient
+                from ..lib.rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.report(cls.script_name, data)
 
@@ -236,7 +277,7 @@ class Module:
         with cls.__lock:
             if cls.__rpc_client is None:
                 # todo V3独有？
-                from ..v3.lib.rpc.client import RpcClient
+                from ..lib.rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.set_info(json.dumps(info))
 
@@ -247,7 +288,17 @@ class ModuleBase(ABC):
         Module.set_suspend_callback(self.suspend)
         Module.set_resume_callback(self.resume)
         Module.set_cancel_callback(self.cancel)
+        Module.set_safe_move_check_callback(self.__safe_move_check)
+        Module.set_modbus_callback(self.__modbus)
         self.stop_flag = False
+        self.event_safe_move_check = False
+        self.event_modbus = False
+
+    def __safe_move_check(self):
+        self.event_safe_move_check = True
+
+    def __modbus(self):
+        self.event_modbus = True
 
     @abstractmethod
     def suspend(self):
@@ -262,3 +313,14 @@ class ModuleBase(ABC):
     def cancel(self):
         Module.stop_flag = True
         Module.set_status(ScriptStatus.FAILED)
+
+    @abstractmethod
+    def safe_move_check(self):
+        ...
+
+    @abstractmethod
+    def modbus(self):
+        ...
+
+    def set_safe_move_status(self, status: SafeMoveStatus):
+        Module.set_safe_move_check_status(status)
