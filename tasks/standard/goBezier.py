@@ -15,7 +15,7 @@ class GoBezierWorld:
     """
         走二阶贝塞尔
     """
-    def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0, is_backwards=False, hold_dir=None,
+    def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.0, is_backwards=False, hold_dir=None,
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3, path_dist_accuracy=0.01, path_angle_accuracy=0.05):
         del target_world[3:]
         self.target_world = target_world
@@ -61,8 +61,8 @@ class GoBezierWorld:
         Navigation.resetPath()
 
         # 获取机器人位置（world系）
-        # self.robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-        self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
+        self.robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+        # self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
         # 计算终点
         self.end_position_world = Pos2World([-self.back_dist, 0, 0], self.target_world)
         self.target_world = Pos2World([self.min_ahead_dist, 0, 0], self.target_world)
@@ -177,8 +177,8 @@ class GoBezierWorld:
             else:
                 self.action_status = ScriptStatus.RUNNING
 
-            # robot_current_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-            robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
+            robot_current_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            # robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_cur_loc_end_loc = math.hypot(
                 self.end_position_world[0] - robot_current_loc[0],
                 self.end_position_world[1] - robot_current_loc[1]
@@ -188,8 +188,8 @@ class GoBezierWorld:
                 Navigation.setPathMaxSpeed(0.1)
 
             # 获取机器人位置（world系）
-            # self.robot_final_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-            self.robot_final_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
+            self.robot_final_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            # self.robot_final_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             # 将贝塞尔的路径数据传入scriptData
             ScriptData.set("goBezier",{"bezier_path_world_return":self.bezier_path_world_return,
                                        "initial_point_world_return":self.initial_point_world_return,
@@ -318,12 +318,13 @@ class GoBezierWorldReturn:
         self.action_status = ScriptStatus.RUNNING
         if self.init:
             self.init = False
-            self.go_bezier_data = json.loads(ScriptData.get("goBezier")) #后续在ScriptData.get格式改为dict后删除json.loads
+            # self.go_bezier_data = json.loads(ScriptData.get("goBezier")) #后续在ScriptData.get格式改为dict后删除json.loads
+            self.go_bezier_data = ScriptData.get("goBezier") #后续在ScriptData.get格式改为dict后删除json.loads
             self.bezier_target_pos_return = self.go_bezier_data["initial_point_world_return"]
             self.bezier_path_world_return = self.go_bezier_data["bezier_path_world_return"]
             self.go_bezier_final_pos = self.go_bezier_data["robot_final_loc"]
-            # self.robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-            self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
+            self.robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            # self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_bias = math.sqrt((self.go_bezier_final_pos[0] - self.robot_loc[0])**2 + (self.go_bezier_final_pos[1] - self.robot_loc[1])**2)
             if dist_bias >= 0.1:
                 self.action_status = ScriptStatus.FAILED
@@ -366,8 +367,8 @@ class GoBezierWorldReturn:
             else:
                 self.action_status = ScriptStatus.RUNNING
 
-            # robot_current_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-            robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
+            robot_current_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            # robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_cur_loc_end_loc = math.hypot(
                 self.end_position_world[0] - robot_current_loc[0],
                 self.end_position_world[1] - robot_current_loc[1]
@@ -384,7 +385,8 @@ class GoBezierWorldReturn:
 
 def main():
     Module.init()
-    go_bezier = GoBezierWorld([-4.066,5.405,0],0,2,0,True)
+    ap_world_pos = Navigation.getLM("LM3", True)  # AP在世界坐标系下的位置
+    go_bezier = GoBezierWorld(ap_world_pos,0,2,0.2,True)
     go_bezier_return = GoBezierWorldReturn(False)
     bezier_status = ScriptStatus.NONE
     bezier_return_status = ScriptStatus.NONE
