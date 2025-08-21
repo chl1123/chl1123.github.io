@@ -1,7 +1,7 @@
 import inspect
 from functools import wraps
 
-from syspy.config import rbk_version
+from syspy.config import RBK_VERSION
 import json
 from google.protobuf import message
 from google.protobuf import json_format
@@ -28,7 +28,7 @@ class RBKVersionError(Exception):
                 del frame
 
         self.func_name = func_name
-        self.message = f"Function '{func_name}' is not supported in RBK version {rbk_version}. {message}"
+        self.message = f"Function '{func_name}' is not supported in RBK version {RBK_VERSION}. {message}"
         super().__init__(self.message)
 
 
@@ -80,11 +80,11 @@ class Service:
 
     @classmethod
     def _create_client(cls) -> RpcClient:
-        if rbk_version == 3:
+        if RBK_VERSION == 3:
             return V3RpcClient()
-        elif rbk_version == 4:
+        elif RBK_VERSION == 4:
             return V4RpcClient()
-        raise ValueError(f"Unsupported SDK version: {rbk_version}")
+        raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
 
 class Message(Service):
@@ -150,7 +150,7 @@ def call_service(plugin_name=None, func_name=None):
             # 获取函数参数名（排除 cls）
             func_params = func.__code__.co_varnames[1:func.__code__.co_argcount]
 
-            if rbk_version == 3:
+            if RBK_VERSION == 3:
                 # RBK3：将 kwargs 转为位置参数，合并到 args
                 merged_args = list(args)
                 for i, name in enumerate(func_params):
@@ -161,7 +161,7 @@ def call_service(plugin_name=None, func_name=None):
                             merged_args.append(kwargs[name])  # 补充新的位置参数
                 return cls.client().call_service(service_plugin, func_name or func.__name__, *merged_args)
 
-            elif rbk_version == 4:
+            elif RBK_VERSION == 4:
                 # RBK4：将 args 转为关键字参数，合并到 kwargs
                 args_as_kwargs = {name: args[i] for i, name in enumerate(func_params) if i < len(args)}
                 merged_kwargs = {**args_as_kwargs, **kwargs}

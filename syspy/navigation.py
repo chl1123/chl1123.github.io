@@ -2,13 +2,13 @@ import typing
 from typing import Tuple
 from abc import ABC
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
-from syspy import rbk_version
+from syspy import RBK_VERSION
 
 if typing.TYPE_CHECKING:
-    if rbk_version == 3:
+    if RBK_VERSION == 3:
         from syspy.v3.protobuf import Message_MotorCmd
         from syspy.v3.protobuf import Message_MoveStatus
-    elif rbk_version == 4:
+    elif RBK_VERSION == 4:
         pass
 
 

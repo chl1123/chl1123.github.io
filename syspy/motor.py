@@ -3,12 +3,12 @@ from typing import Union, List
 
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
-from syspy import rbk_version
+from syspy import RBK_VERSION
 
 if typing.TYPE_CHECKING:
-    if rbk_version == 3:
+    if RBK_VERSION == 3:
         from syspy.v3.protobuf import Message_MotorInfo
-    elif rbk_version == 4:
+    elif RBK_VERSION == 4:
         from v4.include.protocol.messageV4_movetask_pb2 import MessageV4_MInfo as Message_MotorInfo
 
 class MotorInterface(ABC, Message):
@@ -187,12 +187,12 @@ class MotorInterface(ABC, Message):
         raise RBKVersionError()
 
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+from syspy.config import RBK_VERSION
+if RBK_VERSION == 3:
     from syspy.v3.motor import MotorV3
     Motor: MotorInterface = MotorV3()
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.motor import MotorV4
     Motor: MotorInterface = MotorV4()
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")

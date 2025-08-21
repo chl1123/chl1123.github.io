@@ -387,12 +387,12 @@ class AbnormalInterface(ABC, Service):
         raise RBKVersionError()
 
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+from syspy.config import RBK_VERSION
+if RBK_VERSION == 3:
     from syspy.v3.lib.abnormal import AbnormalV3
     Abnormal: AbnormalInterface = AbnormalV3()
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.lib.abnormal import AbnormalV4
     Abnormal: AbnormalInterface = AbnormalV4()
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")

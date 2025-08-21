@@ -6,7 +6,7 @@ from syspy.core.rbk_rpc import call_service, default_plugin, RBKVersionError
 from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
 
 
-@default_plugin("MoveFactory")  # todo RBK4
+@default_plugin("Navigation")  # todo RBK4
 class NavigationV4(NavigationInterface):
     """导航类"""
 

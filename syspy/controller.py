@@ -123,12 +123,12 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+from syspy.config import RBK_VERSION
+if RBK_VERSION == 3:
     from syspy.v3.controller import ControllerV3
     Controller: ControllerInterface = ControllerV3()
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.controller import ControllerV4
     Controller: ControllerInterface = ControllerV4()
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")

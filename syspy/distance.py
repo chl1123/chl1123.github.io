@@ -6,12 +6,12 @@ class DistanceInterface(ABC, Message):
     pass
 
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+from syspy.config import RBK_VERSION
+if RBK_VERSION == 3:
     from syspy.v3.distance import DistanceV3
     Distance: DistanceInterface = DistanceV3()
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.distance import DistanceV4
     Distance: DistanceInterface = DistanceV4()
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")

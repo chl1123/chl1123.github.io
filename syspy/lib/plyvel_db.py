@@ -67,15 +67,15 @@ class LevelDBInterface(ABC, Service):
         raise RBKVersionError()
 
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+from syspy.config import RBK_VERSION
+if RBK_VERSION == 3:
     from syspy.v3.lib.plyvel_db import LevelDBV3
     LevelDB: Type[LevelDBInterface] = LevelDBV3
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.lib.plyvel_db import LevelDBV4
     LevelDB: Type[LevelDBInterface] = LevelDBV4
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
 
 # 示例使用方法

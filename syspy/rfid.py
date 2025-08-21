@@ -1,12 +1,12 @@
 import typing
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
-from syspy import rbk_version
+from syspy import RBK_VERSION
 
 if typing.TYPE_CHECKING:
-    if rbk_version == 3:
-        from .protobuf import Message_RFIDNode as Message_RFIDNode
-    elif rbk_version == 4:
+    if RBK_VERSION == 3:
+        from .v3.protobuf import Message_RFIDNode as Message_RFIDNode
+    elif RBK_VERSION == 4:
         from ..include.protocol.messageV4_rfid_pb2 import MessageV4_RFIDNode as Message_RFIDNode
         pass
 
@@ -24,12 +24,12 @@ class RFIDInterface(ABC, Message):
         raise RBKVersionError()
 
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+from syspy.config import RBK_VERSION
+if RBK_VERSION == 3:
     from syspy.v3.rfid import RFIDV3
     RFID: RFIDInterface = RFIDV3()
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.rfid import RFIDV4
     RFID: RFIDInterface = RFIDV4()
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")

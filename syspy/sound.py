@@ -71,12 +71,12 @@ class SoundInterface(ABC, Message):
         raise RBKVersionError()
 
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+from syspy.config import RBK_VERSION
+if RBK_VERSION == 3:
     from syspy.v3.sound import SoundV3
     Sound: SoundInterface = SoundV3()
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.sound import SoundV4
     Sound: SoundInterface = SoundV4()
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")

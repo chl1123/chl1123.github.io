@@ -1,18 +1,18 @@
-from syspy import rbk_version
+from syspy import RBK_VERSION
 
 
 class BatteryInterface:
     """电池模块接口定义"""
 
     def __init__(self, topic=None):
-        if rbk_version == 3:
+        if RBK_VERSION == 3:
             from syspy.v3.battery import BatteryV3
             self.child = BatteryV3()
-        elif rbk_version == 4:
+        elif RBK_VERSION == 4:
             from syspy.v4.battery import BatteryV4
             self.child = BatteryV4(topic)
         else:
-            raise ValueError(f"Unsupported RBK version: {rbk_version}")
+            raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
     def get_percentage(self) -> float:
         """获取电池电量百分比

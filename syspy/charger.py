@@ -66,12 +66,12 @@ class ChargerInterface(ABC, Service):
         raise RBKVersionError()
 
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+from syspy.config import RBK_VERSION
+if RBK_VERSION == 3:
     from syspy.v3.charger import ChargerV3
     Charger: ChargerInterface = ChargerV3()
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.charger import ChargerV4
     Charger: ChargerInterface = ChargerV4()
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")

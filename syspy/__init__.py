@@ -1,9 +1,8 @@
-from syspy.config import rbk_version
+from syspy.config import RBK_VERSION, RBK_FULL_VERSION
 from .navigation import NavSpeedInterface, NavigationInterface, NavStatusInterface
 from .odometer import OdometerInterface
 
-from syspy.config import rbk_version
-if rbk_version == 3:
+if RBK_VERSION == 3:
     from syspy.v3.odometer import OdometerV3
     Odometer: OdometerInterface = OdometerV3()
 
@@ -12,7 +11,7 @@ if rbk_version == 3:
     NavStatus: NavStatusInterface = NavStatusV3()
     NavSpeed: NavSpeedInterface = NavSpeedV3()
 
-elif rbk_version == 4:
+elif RBK_VERSION == 4:
     from syspy.v4.odometer import OdometerV4
     Odometer: OdometerInterface = OdometerV4()
 
@@ -21,7 +20,7 @@ elif rbk_version == 4:
     NavStatus: NavStatusInterface = NavStatusV4()
     NavSpeed: NavSpeedInterface = NavSpeedV4()
 else:
-    raise ValueError(f"Unsupported RBK version: {rbk_version}")
+    raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
 # from typeguard import install_import_hook
 # install_import_hook('syspy')
@@ -53,7 +52,8 @@ from .sound import Sound
 from .utils.param_server import ParamServer
 
 __all__ = [
-    "rbk_version",
+    "RBK_VERSION",
+    "RBK_FULL_VERSION",
     "Abnormal",
     "Trace",
     "Logger",

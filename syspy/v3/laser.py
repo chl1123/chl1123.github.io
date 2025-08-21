@@ -3,7 +3,6 @@ import typing
 from typing import List
 
 from syspy.core.rbk_rpc import call_service, Message
-from .. import rbk_version
 
 if typing.TYPE_CHECKING:
     from .protobuf import Message_Laser3D
