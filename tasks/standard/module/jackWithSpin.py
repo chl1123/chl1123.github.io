@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Date : 2025/07/13
+# @Date : 2025/08/19
 # @Author : zengweibin
 # @Coding : none
 # @Update : 3.5顶升车示例模板
@@ -13,14 +13,14 @@ from syspy.utils.time import Timer
 
 start_time = time.time()
 
-from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
-    Odometer, Pgv
-from syspy.lib.module import Pos2Base, Pos2World
-import goPath
+from syspy import (Module, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus,
+                   Odometer, Pgv, ScriptStatus, NetProtocol, Trace)
+from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
+from tasks.standard import goPath,goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer
 from syspy.lib.robot_param import RobotParam
 
-log = Logger("jackWithSpin")
+log = Logger("jack")
 
 
 # --- Module 类（放在前面） ---
@@ -41,13 +41,19 @@ class ConfigParams:
                                          comment="采用直线(straight)、贝塞尔曲线(bezier)、2段直线(polyline)方式前往识别点")
 
     # 电机相关
-    jack_motor_name = param_server.loadParam("jack_motor_name", type="str", default="Motor-003", comment="顶升电机名称")
+    # jack_motor_name = param_server.loadParam("jack_motor_name", type="str", default="Motor-003", comment="顶升电机名称")
+    module_type = RobotParam.getDevice("Model-000", "moduleType")
+    jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
     jack_motor_speed = param_server.loadParam("jack_motor_speed", type="float", default=0.015,
                                               comment="顶升电机升降速度")
-    jack_min_height = param_server.loadParam("jack_min_height", type="float", default=0.000, comment="顶升升降零位")
-    jack_max_height = param_server.loadParam("jack_max_height", type="float", default=0.03, comment="顶升抬升指定高度")
-    jack_up_di = param_server.loadParam("jack_up_di", type="int", default=6, comment="顶升机构上极限DI")
-    jack_zero_di = param_server.loadParam("jack_zero_di", type="int", default=3, comment="顶升机构零位DI")
+    # jack_min_height = param_server.loadParam("jack_min_height", type="float", default=0.000, comment="顶升升降零位")
+    # jack_max_height = param_server.loadParam("jack_max_height", type="float", default=0.03, comment="顶升抬升指定高度")
+    motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
+    jack_min_height = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.minLength")
+    jack_max_height = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.maxLength")
+    robot_type = RobotParam.getDevice("Model-000", "getRobotType")
+    jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI")
+    jack_zero_di = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.zeroDI")
     spin_motor_name = param_server.loadParam("spin_motor_name", type="str", default="Motor-002",
                                              comment="托盘旋转电机名称")
 
@@ -55,7 +61,6 @@ class ConfigParams:
     go_distance = param_server.loadParam("go_distance", type="float", default=0.5, comment="测试前进距离")
 
     log.debug("jack create config params")
-
 
 def create_start_height(builder: ParamBuilder):
     with builder.CHILD(key="start_height", name="Start Height",
@@ -66,8 +71,7 @@ def create_start_height(builder: ParamBuilder):
         builder.MAX_VALUE(ConfigParams.jack_max_height)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
-        builder.DEFAULTVALUE(0.0)
-
+        builder.DEFAULTVALUE(0.00)
 
 def create_end_height(builder: ParamBuilder):
     """创建顶可被引用参数"""
@@ -81,14 +85,22 @@ def create_end_height(builder: ParamBuilder):
         builder.SINGLESTEP(0.01)
         builder.DEFAULTVALUE(0.05)
 
-
 def create_ap_id(builder: ParamBuilder):
     with builder.CHILD(key="AP_id", name="AP_id",
                        desc="the ap id for operation"):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(True)
-        builder.DEFAULTVALUE("AP3")
+        builder.DEFAULTVALUE("AP1")
 
+def create_recfile(builder: ParamBuilder):
+    with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
+        builder.TYPE(ParamType.STRING)
+        builder.REQUIRED(True)
+        builder.DEFAULTVALUE("shelf-A.srec")
+    with builder.CHILD(key="insert_shelf_dir", name="insert_shelf_dir", desc="direction to go under the shelf"):
+        builder.TYPE(ParamType.STRING)
+        builder.REQUIRED(True)
+        builder.DEFAULTVALUE("A")
 
 def create_bezier(builder: ParamBuilder):
     with builder.CHILD(key="back_dist", name="back_dist", desc="the back dist for goBezier"):
@@ -105,6 +117,10 @@ def create_bezier(builder: ParamBuilder):
         builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.0)
     with builder.CHILD(key="is_backwards", name="is_backwards", desc="Backward or forward mode"):
+        builder.TYPE(ParamType.BOOL)
+        builder.REQUIRED(False)
+        builder.DEFAULTVALUE(False)
+    with builder.CHILD(key="is_hold_dir", name="is_hold_dir", desc="whether the robot will hold direction"):
         builder.TYPE(ParamType.BOOL)
         builder.REQUIRED(False)
         builder.DEFAULTVALUE(False)
@@ -129,6 +145,16 @@ def create_bezier(builder: ParamBuilder):
         builder.TYPE(ParamType.FLOAT)
         builder.REQUIRED(False)
         builder.DEFAULTVALUE(1.3)
+    with builder.CHILD(key="path_dist_accuracy", name="curvature_limit",
+                       desc="Position accuracy of Bezier curve for robot walking"):
+        builder.TYPE(ParamType.FLOAT)
+        builder.REQUIRED(False)
+        builder.DEFAULTVALUE(0.01)
+    with builder.CHILD(key="path_angle_accuracy", name="curvature_limit",
+                       desc="angle accuracy of Bezier curve for robot walking"):
+        builder.TYPE(ParamType.FLOAT)
+        builder.REQUIRED(False)
+        builder.DEFAULTVALUE(0.05)
 
 
 class InputParams:
@@ -143,6 +169,10 @@ class InputParams:
             builder.TYPE(ParamType.COMBO_BOX)
 
             with builder.CHILDREN():
+                with builder.CHILD(key="getLM", name="getLM",
+                                   desc="get the position of LM point"):
+                    builder.TYPE(ParamType.ARRAY)
+
                 with builder.CHILD(key="jackBezierReturn", name="jackBezierReturn",
                                    desc="recognize and go bezier to get the shelf and return"):
                     builder.TYPE(ParamType.ARRAY)
@@ -152,15 +182,7 @@ class InputParams:
                         create_start_height(builder)
                         create_end_height(builder)
                         create_bezier(builder)
-                        with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(True)
-                            builder.DEFAULTVALUE("shelf1.srec")
-                        with builder.CHILD(key="insert_shelf_dir", name="insert_shelf_dir",
-                                           desc="direction to go under the shelf"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(True)
-                            builder.DEFAULTVALUE("A")
+                        create_recfile(builder)
 
                 # 识别取货
                 with builder.CHILD(key="jackLoad", name="JackLoad", desc="recognize and load the shelf"):
@@ -168,20 +190,15 @@ class InputParams:
 
                     with builder.CHILDREN():
                         create_ap_id(builder)
-                        with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(True)
-                            builder.DEFAULTVALUE("shelf1.srec")
+                        create_recfile(builder)
+
                 # 识别放货
                 with builder.CHILD(key="jackUnLoad", name="JackUnLoad", desc="recognize and unload the shelf"):
                     builder.TYPE(ParamType.ARRAY)
 
                     with builder.CHILDREN():
                         create_ap_id(builder)
-                        with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(True)
-                            builder.DEFAULTVALUE("shelf1.srec")
+                        create_recfile(builder)
 
                 # 抬高托盘操作
                 with builder.CHILD(key="jackHeight", name="JackHeight", desc="lift the robot tray"):
@@ -318,18 +335,25 @@ class InputParams:
 
                 with builder.CHILD(key="PGVSecondaryAdjust", name="PGVSecondaryAdjust", desc="pgv secondary adjust"):
                     builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="recTargetObs", name="recTargetObs", desc="recTargetObs"):
+                    builder.TYPE(ParamType.ARRAY)
     builder.save_to_file()
 
 
-class Jack:
-    def __init__(self, args):
+class Jack(ModuleBase):
+    def __init__(self):
         super().__init__()
-        self.task_args = args
+        # 脚本任务管理
+        # safe_move_check test
+        self.count = 0
+        # 脚本运行相关变量
+        self.task_args = None
         self.init_args = False
         self.action_id = 0
         self.action_list = []
         self.operation_init = False
-        # 定义脚本运行相关的成员变量
+        # 定义动作相关的变量
         self.ap_world_pos = None  # 定义ap点在世界坐标系的位置
         self.ap_robot_pos = None  # 定义ap点在机器人坐标系的位置
         self.ap_id = None
@@ -346,33 +370,32 @@ class Jack:
 
         # 货架识别
         self.rec_result = []
-        self.recfile_data = None
-        self.shelfLength = None
         # 二维码识别
         self.code_info = dict()
 
         # 数据打印
         self.report_info = {}
-        log.info(f"self.action_list")
-        Abnormal.clear(55900)
+        Abnormal.clear(53780)
+        Abnormal.clear(53781)
+        Abnormal.clear(53782)
+        Abnormal.clear(53783)
 
         # robotParam
         self.lift_motor = None
 
-        # record bezier path
-        self.first_point = None
-        self.second_path = None
-        self.first_point_return = None
-        self.second_path_return = None
+        log.info(f"module_type = {ConfigParams.module_type}")
+        log.info(f"jack_motor_name = {ConfigParams.jack_motor_name}")
+        log.info(f"jack_min_height = {ConfigParams.jack_min_height}")
+        log.info(f"jack_max_height = {ConfigParams.jack_max_height}")
+        log.info(f"robot_type = {ConfigParams.robot_type}")
+        log.info(f"jack_up_di = {ConfigParams.jack_up_di}")
+        log.info(f"jack_zero_di = {ConfigParams.jack_zero_di}")
 
-        # 打印
-        log.info(f"{self.task_args.get=}")
-        log.info(f"self.task_args={self.task_args}")
+        Module.set_status(ScriptStatus.NONE)
 
     def _init_args(self):
         if not self.init_args:
             self.init_args = True
-
             # 获取任务参数
             self.opt = self.task_args.get("operation", None)
             self.ap_id = self.task_args.get("AP_id", None)
@@ -381,6 +404,7 @@ class Jack:
             self.end_height = self.task_args.get("end_height", None)
             # 识别相关
             self.recfile = self.task_args.get("recfile", None)
+            self.insert_shelf_dir = self.task_args.get("insert_shelf_dir", "A")
             # spin,rotate相关
             self.spin_angle = self.task_args.get("spin_angle", 0)  # 角度
             rad = math.radians(self.spin_angle)  # 把spin_angle转为rad
@@ -398,24 +422,28 @@ class Jack:
             self.adjust_dist_for_curvature_limit = self.task_args.get("adjust_dist_for_curvature_limit", None)
             self.min_ahead_dist = self.task_args.get("min_ahead_dist", None)
             self.is_backwards = self.task_args.get("is_backwards", None)
+            self.is_hold_dir = self.task_args.get("is_hold_dir", None)
             self.max_speed = self.task_args.get("max_speed", None)
             self.max_accele = self.task_args.get("max_accele", None)
             self.max_decele = self.task_args.get("max_decele", None)
             self.decele_dist = self.task_args.get("decele_dist", None)
             self.curvature_limit = self.task_args.get("curvature_limit", None)
+            self.path_dist_accuracy = self.task_args.get("path_dist_accuracy", None)
+            self.path_angle_accuracy = self.task_args.get("path_angle_accuracy", None)
 
             # goPath相关
             self.goPath_x = self.task_args.get("goPath_x", None)
             self.goPath_y = self.task_args.get("goPath_y", None)
             self.goPath_theta = self.task_args.get("goPath_theta", None)
 
-    def run(self):
+    def run(self, args):
         # 获取输入参数
         Module.set_status(ScriptStatus.RUNNING)
+        self.task_args = args
+        print(f"self.task_args={self.task_args}")
         self._init_args()
 
         self.set_vda_param()
-
         # 选择执行动作
         if self.opt == "jackLoad":  # 识别/非识别取货
             self.jack_load()
@@ -423,6 +451,8 @@ class Jack:
             self.jack_unload()
         elif self.opt == "jackBezierReturn":
             self.jack_bezier_return()
+        elif self.opt == "getLM":
+            self.get_lm()
         elif self.opt == "goAPSite":  # 前往ap点，直线，bezier，两段线
             self.go_ap_site()
         elif self.opt == "goBezier":
@@ -447,21 +477,38 @@ class Jack:
             self.go_path()
         elif self.opt == "recShelf":  # 识别货架
             self.rec_shelf()
-        elif self.opt == "getRec":  # 识别货架
-            self.get_recfile_result(object_key="shelf")
         elif self.opt == "PGVSecondaryAdjust":  # 通过pgv二次调整
             self.pgv_adjust()
         elif self.opt == "getRobotData":
             self.get_robot_data()
+        elif self.opt == "recTargetObs":
+            self.rec_target_obs()
         else:
             Module.set_status(ScriptStatus.FAILED)
 
         log.info(f"self.action_list: {self.action_list}")
         self._execute_actions()
 
+    def rec_target_obs(self):
+        if not self.operation_init:
+            self.operation_init = True
+
+            self.action_list.append(RecTargetObs())
+
     def set_vda_param(self):
         # VDA下发的参数
         self.action_parameters = self.task_args.get("action_parameters", None)
+
+    def get_lm(self):
+        log.info("getLM ==============================================")
+        result = Navigation.getLM("LM1", True)
+        self.report_info["getLM"] = {
+            "LM":result
+        }
+        Module.report_info(self.report_info)
+        log.info("getLM", result)
+        Module.set_status(ScriptStatus.FINISHED)
+        return Module.get_status()
 
     def jack_bezier_return(self):
         if not self.operation_init:
@@ -473,7 +520,7 @@ class Jack:
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             self.ap_robot_pos = Navigation.getLM(self.ap_id, False)
-            robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[2]]
+            robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], Loc.get_pose()["yaw"]]
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
             log.info(f'AP_pos: {self.ap_world_pos}')
             log.info(f'ap_to_robot_angle: {ap_to_robot_angle}')
@@ -488,9 +535,7 @@ class Jack:
             self.action_list.append(RobotRotate(ap_to_robot_angle, Coordinate.WORLD, False))
 
             # 第二步判断是否有识别
-            # 如果有识别 # 改为输入参数n
-            self.recfile_data = self.get_recfile_result()  # 获取识别文件数据放入字典中
-            self.shelfLength = self.recfile_data["recognitionParameter"]["shelfLength"]
+            # 如果有识别
             # 转到指向ap点的位置
             self.action_list.append(RecShelf(self.recfile, "FirstRec"))  # 识别货架，得到坐标放入j.rec_result
 
@@ -502,7 +547,7 @@ class Jack:
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
-                robot_pos = Loc.get_position()
+                robot_pos = [Loc.get_pose()["x"],Loc.get_pose()["y"],Loc.get_pose()["yaw"]]
                 result_robot = Pos2Base(result_world, robot_pos)
 
                 # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
@@ -511,19 +556,27 @@ class Jack:
                     self.action_list.append(GoPath([-0.3, 0, 0], Coordinate.ROBOT, 0.2, True))
                     self.action_list.append(RecShelf(self.recfile, "SecondRec"))  # 识别货架，得到坐标放入j.rec_result
                 else:
-                    self.action_list.append(RecordBezierPath(result_world))
+                    self.action_list.append(
+                        GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
+                                 self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                                 self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
+                                 self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
 
             if current_action.action_name == "SecondRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
-                self.action_list.append(RecordBezierPath(result_world))
+                self.action_list.append(
+                    GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
+                             self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                             self.max_speed, self.max_accele, self.max_decele, self.decele_dist, self.curvature_limit,
+                             self.path_dist_accuracy, self.path_angle_accuracy))
 
             if current_action.action_name == "RecordBezierPath" and current_action.action_status == ActionStatus.FINISHED:
-                self.action_list.append(GoRecordedPath(self.first_point, self.second_path))
                 self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height,
                                                    ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
-                self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height,
-                                                      ConfigParams.jack_motor_speed, ConfigParams.jack_zero_di))
-                self.action_list.append(GoRecordedPathReturn(self.first_point_return, self.second_path_return, True))
+                self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
+                self.action_list.append(
+                    GoBezierReturn(self.is_backwards, self.is_hold_dir, self.max_speed,
+                                   self.max_accele, self.max_decele, self.decele_dist))
 
     def jack_load(self):
         # =====完整：旋转车体调整对准——识别货架——导航——二次调整——顶起 流程=====
@@ -536,7 +589,7 @@ class Jack:
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             self.ap_robot_pos = Navigation.getLM(self.ap_id, False)
-            robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[2]]
+            robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], Loc.get_pose()["yaw"]]
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
             log.info(f'AP_pos: {self.ap_world_pos}')
             log.info(f'ap_to_robot_angle: {ap_to_robot_angle}')
@@ -553,20 +606,17 @@ class Jack:
             # 第二步判断是否有识别
             # 如果有识别 # 改为输入参数n
             if ConfigParams.is_recognize:  # 要求启用识别时必须有recfile
-                self.recfile_data = self.get_recfile_result()  # 获取识别文件数据放入字典中
-                self.shelfLength = self.recfile_data["recognitionParameter"]["shelfLength"]
                 # 转到指向ap点的位置
                 self.action_list.append(RecShelf(self.recfile, "FirstRec"))  # 识别货架，得到坐标放入j.rec_result
 
             else:
                 # 如果没有识别，直接前进到任务的AP点坐标
-
                 if ConfigParams.how_go_site == "straight":
                     self.action_list.append(GoPath(self.ap_world_pos, Coordinate.WORLD))
                 elif ConfigParams.how_go_site == "bezier":
                     self.action_list.append(GoBezier(self.ap_world_pos))
                 elif ConfigParams.how_go_site == "polyline":
-                    self.action_list.append(GoPolyline(self.ap_world_pos))
+                    self.action_list.append(GoPolylineNew(self.ap_world_pos))
                 self.jack_load_adjust_and_jack()  # 加入二次调整，取货前托盘调整，抬升托盘动作
 
         # 动态添加action_list
@@ -577,7 +627,7 @@ class Jack:
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
-                robot_pos = Loc.get_position()
+                robot_pos = [Loc.get_pose()["x"], Loc.get_pose()["y"], Loc.get_pose()["yaw"]]
                 result_robot = Pos2Base(result_world, robot_pos)
 
                 # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
@@ -590,8 +640,7 @@ class Jack:
                     # self.jack_load_adjust_and_jack()  # 加入二次调整，取货前托盘调整，抬升托盘动作
                     self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
                                                        ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
-                    self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height,
-                                                          ConfigParams.jack_motor_speed, ConfigParams.jack_zero_di))
+                    self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
 
             if current_action.action_name == "SecondRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
@@ -599,8 +648,7 @@ class Jack:
                 # self.jack_load_adjust_and_jack() # 加入二次调整，取货前托盘调整，抬升托盘动作
                 self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
                                                    ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
-                self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height,
-                                                      ConfigParams.jack_motor_speed, ConfigParams.jack_zero_di))
+                self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
 
     def jack_load_adjust_and_jack(self):
         # 到达货物下方，第三步判断是否有上下视pgv二次调整
@@ -633,7 +681,6 @@ class Jack:
 
             # 第一步判断是否有识别
             if ConfigParams.is_recognize:  # 要求启用识别时必须有recfile
-                self.recfile_data = self.get_recfile_result()  # 获取识别文件数据放入字典中
                 self.action_list.append(RecShelf(self.recfile))  # 识别货架，得到坐标放入self.rec_result
             else:
                 # 在动作类内部选择直线、贝塞尔+直线、二段直线方式前往识别点
@@ -651,7 +698,7 @@ class Jack:
                     elif ConfigParams.how_go_site == "bezier":
                         self.action_list.append(GoBezier(self.ap_world_pos))
                     elif ConfigParams.how_go_site == "polyline":
-                        self.action_list.append(GoPolyline(self.ap_world_pos))
+                        self.action_list.append(GoPolylineNew(self.ap_world_pos))
                 # 加入后续动作
                 self.jack_unload_adjust_and_jack()
 
@@ -684,8 +731,7 @@ class Jack:
                 Spin(self.global_spin_angle_before_jack, "world", self.spin_dir))
 
         # 放货
-        self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height,
-                                              ConfigParams.jack_motor_speed, ConfigParams.jack_zero_di))
+        self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
 
     def go_ap_site(self):
         if not self.operation_init:
@@ -700,7 +746,7 @@ class Jack:
             elif ConfigParams.how_go_site == "bezier":
                 self.action_list.append(GoBezier(self.ap_world_pos))
             elif ConfigParams.how_go_site == "polyline":
-                self.action_list.append(GoPolyline(self.ap_world_pos))
+                self.action_list.append(GoPolylineNew(self.ap_world_pos))
 
     def go_bezier(self):
         if not self.operation_init:
@@ -711,29 +757,18 @@ class Jack:
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             log.info(f'AP_pos: {self.ap_world_pos}')
             self.action_list.append(
-                GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit, self.min_ahead_dist,
-                         self.is_backwards, self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
-                         self.curvature_limit))
+                GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit, self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                 self.max_speed, self.max_accele, self.max_decele, self.decele_dist, self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
 
-    def record_bezier(self):
-        if not self.operation_init:
-            self.operation_init = True
-            if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
-                self.ap_id = "AP" + str(self.ap_id)
-            self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
-            log.info(f'AP_pos: {self.ap_world_pos}')
-            self.action_list.append(RecordBezierPath(self.ap_world_pos))
-            # 动态添加action_list
-            if 0 <= self.action_id < len(self.action_list):
-                current_action = self.action_list[self.action_id]
-                log.info(f'{self.action_id=}, {self.action_list=}')
-                log.info(f'{current_action.action_name=}, {current_action.action_status=}')
+        # 动态添加action_list
+        if 0 <= self.action_id < len(self.action_list):
+            current_action = self.action_list[self.action_id]
+            log.info(f'{self.action_id=}, {self.action_list=}')
+            log.info(f'{current_action.action_name=}, {current_action.action_status=}')
 
-                if current_action.action_name == "RecordBezierPath" and current_action.action_status == ActionStatus.FINISHED:
-                    self.action_list.append(GoRecordedPath(self.first_point, self.second_path))
-                    self.action_list.append(
-                        GoRecordedPathReturn(self.first_point_return, self.second_path_return, True))
+            if current_action.action_name == "GoBezierWorld" and current_action.action_status == ActionStatus.FINISHED:
+                self.action_list.append(
+                    GoBezierReturn(self.is_backwards, self.is_hold_dir, self.max_speed, self.max_accele, self.max_decele, self.decele_dist))
 
     def go_polyline(self):
         if not self.operation_init:
@@ -743,7 +778,7 @@ class Jack:
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
             log.info(f'AP_pos: {self.ap_world_pos}')
-            self.action_list.append(GoPolyline(self.ap_world_pos))
+            self.action_list.append(GoPolylineNew(self.ap_world_pos))
 
     def go_map_path(self):
         if not self.operation_init:
@@ -756,22 +791,23 @@ class Jack:
         if not self.operation_init:
             self.operation_init = True
 
+            # self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height,
+            #                                    ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
             self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height,
-                                               ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
+                                               ConfigParams.jack_motor_speed, 3))
 
     def jack_min_height(self):
         """放货至最低点"""
         if not self.operation_init:
             self.operation_init = True
 
-            self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height,
-                                                  ConfigParams.jack_motor_speed, ConfigParams.jack_zero_di))
+            self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
 
     def spin(self):
         """旋转托盘"""
         if not self.operation_init:
             self.operation_init = True
-
+            print("进入spin动作")
             self.action_list.append(Spin(self.spin_angle, self.coordinate, self.spin_dir))
 
     def spin_zero_deg(self):
@@ -804,7 +840,6 @@ class Jack:
         """识别货架"""
         if not self.operation_init:
             self.operation_init = True
-            self.recfile_data = self.get_recfile_result()
             self.action_list.append(RecShelf(self.recfile))  # 导航到终点
 
     def pgv_adjust(self):
@@ -813,65 +848,10 @@ class Jack:
             self.operation_init = True
             self.action_list.append(GetPGVData())
             self.action_list.append(PGVSecondaryAdjust())
-            # self.action_list.append(PGVSecondaryAdjustTest())
 
     def get_robot_data(self):
         """获取设备数据"""
         self.lift_motor = RobotParam.getDevice("Motor-003", "moduleType")
-
-    def get_recfile_result(self, object_key="shelf"):
-        """
-        读取 recfile，提取 object_key (例如 'shelf' / 'pallet') 下所有 section 的参数。
-        返回:
-            {
-                section_key1: {param_key: value, ...},
-                section_key2: { ... },
-                ...
-            }
-        """
-        # 读文件得到 JSON 字符串
-        rec_str = Recognize.getRecFile(self.recfile)  # ← 你已有的接口
-        if not rec_str:
-            raise ValueError(f"识别文件 '{self.recfile}' 为空")
-
-        # 解析 JSON
-        try:
-            data = json.loads(rec_str)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"JSON 解析失败: {e}")
-
-        stack = [data]
-        while stack:
-            node = stack.pop()
-            if isinstance(node, dict):
-                if node.get("key") == object_key:
-                    obj_node = node
-                    break
-                stack.extend(v for v in node.values() if isinstance(v, (dict, list)))
-            elif isinstance(node, list):
-                stack.extend(node)
-        else:
-            raise KeyError(f"对象 '{object_key}' 未找到")
-
-        # ④ 把对象下所有 section → 参数收集
-        result = {}
-        for section in obj_node.get("children", []):
-            s_key = section.get("key")
-            params = {}
-            for p in section.get("children", []):
-                k = p.get("key")
-                if k:
-                    params[k] = p.get("value", p.get("defaultValue"))
-            result[s_key] = params
-        log.info(f"result: {result}")
-        return result
-
-    '''
-    {
-    'recognitionParameter': {'deviceName': 'Laser-000',xxx},
-    'navigationParameter': {}
-    }
-    '''
 
     def _execute_actions(self):
         if self.action_id < len(self.action_list):
@@ -879,16 +859,18 @@ class Jack:
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
             elif current_action.action_status == ActionStatus.FAILED:
-                Abnormal.setTask(53000, f"execute action {current_action} failed!", "", "", "execute_actions")
+                Abnormal.setTask(53780, f"execute action {current_action} failed!",
+                                 "",
+                                 "",
+                                 "execute_actions")
                 self.script_status = ActionStatus.FAILED
                 Module.set_status(ScriptStatus.FAILED)
-            elif current_action.action_status == ActionStatus.INIT:
-                current_action.reset()
             else:
                 current_action.run(self)
         else:
             self.script_status = ActionStatus.FINISHED
             Module.set_status(ScriptStatus.FINISHED)
+            self.action_list = []
         log.info(f'{self.action_id=}, {self.action_list=}')
         log.info(f"self.action_list: {self.action_list}")
 
@@ -898,49 +880,61 @@ class Jack:
         log.info(f"{Module.get_task_id()=}")
         log.info(f"{Module.get_status()=}")
 
-    # def main(self):
-    #     while True:
-    #         # 脚本任务状态管理
-    #         status = Module.get_status()
-    #         if status is ScriptStatus.RUNNING:
-    #             self.run()
-    #         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED, ScriptStatus.NONE):
-    #             Module.set_status(ScriptStatus.NONE)
-    #             return
-    #         self.print_info()
-    #         time.sleep(0.1)
-
     def suspend(self):
         Module.set_status(ScriptStatus.SUSPENDED)
         log.info("suspend")
 
     def resume(self):
-        Module.set_status(ScriptStatus.RUNNING)
+        if Module.get_status() == ScriptStatus.SUSPENDED:
+            Module.set_status(ScriptStatus.RUNNING)
         log.info("resume")
 
     def cancel(self):
-        Module.set_status(ScriptStatus.FINISHED)
+        Module.set_status(ScriptStatus.FAILED)
         log.info("cancel")
 
+    def safe_move_check(self):
+        self.count += 1
+        status = SafeMoveStatus.RUNNING
+        if self.count == 10:
+            self.count = 0
+            status = SafeMoveStatus.FINISHED
+        self.set_safe_move_status(status)
+        Trace.log(f"safe_move_check {Module.get_safe_move_check()}")
+        if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
+            self.event_safe_move_check = False
 
-# def main():
-#     Module.init()
-#     j = Jack()
-#     Module.set_suspend_callback(j.suspend)
-#     Module.set_resume_callback(j.resume)
-#     Module.set_cancel_callback(j.cancel)
-#     while True:
-#         # 脚本任务状态管理
-#         status = Module.get_status()
-#         j.report_info["status"] = status
-#         j.print_info()
-#         if status is ScriptStatus.RUNNING:
-#             j.run()
-#         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-#             return
-#
-#             time.sleep(0.1)
-
+    def modbus(self):
+        # 模拟映射表
+        modbus_data2args = {
+            "1": {
+                "height": 0.1
+            },
+            "2": {
+                "height": 0.1
+            },
+            "3": {
+                "spinAngle": 90
+            },
+            "4": {
+                "operation": "spinAngle",
+                "spin_angle": 30,
+                "spin_dir": 2,
+                "coordinate":"increase"
+            }
+        }
+        # 读取数据
+        # modbus_data = NetProtocol.getModbusData("3x", 0, 1)
+        modbus_data = ["4"]
+        # 解析映射表
+        args = modbus_data2args.get(modbus_data[0])
+        log.info(f"---------------------------------modbus_args={args}")
+        status = Module.get_status()
+        Module.set_status(ScriptStatus.RUNNING)
+        # if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+        #     self.event_modbus = False
+        # 做对应的动作
+        return args
 
 # --- 以下为各个基础动作类（内容保持不变） ---
 class BaseAction:
@@ -996,6 +990,14 @@ class Spin(BaseAction):  # 托盘旋转到机器人/世界坐标系下固定角�
         self.action_state['spin_angle'] = self.angle
         self.action_state['spin_direction'] = self.dir
 
+        j.report_info["Spin"] = {
+            "action_status": self.action_status,
+            "spin_angle": self.angle,
+            "coordinate": self.coordinate_system,
+            "direction": self.dir
+        }
+        Module.report_info(j.report_info)
+
     def reset(self):
         self.action_status = ActionStatus.RUNNING
 
@@ -1033,7 +1035,7 @@ class RobotRotate(BaseAction):
                 self.move_args["loc_mode"] = 1  # 激光定位
 
                 # ① 当前朝向：Loc 返回的是度 → 立即转弧度 → 归一化
-                cur_angle_rad = self.normalize(math.radians(Loc.get_angle()[0]))
+                cur_angle_rad = self.normalize(math.radians(Loc.get_pose()["yaw"]))
 
                 # ② 目标朝向：假设外部传进来是“度”——> 先转弧度，再归一化
                 target_rad = self.normalize(math.radians(self.angle) if abs(self.angle) > math.pi else self.angle)
@@ -1123,12 +1125,10 @@ class JackHeight(BaseAction):
 class JackMinHeight(BaseAction):
     """顶升动作，通过设置电机位置实现顶升"""
 
-    def __init__(self, motor_name, jack_min_height, jack_motor_speed, jack_zero_di):
+    def __init__(self, motor_name, jack_motor_speed):
         super().__init__("JackMinHeight")
         self.motor_name = motor_name
-        self.jack_min_height = jack_min_height
         self.jack_motor_speed = jack_motor_speed
-        self.jack_zero_di = jack_zero_di
         self.init = False
         Motor.resetMotor(self.motor_name)
 
@@ -1136,7 +1136,8 @@ class JackMinHeight(BaseAction):
         if not self.init:
             self.init = True
             self.action_status = ActionStatus.RUNNING
-        Motor.setMotorPosition(self.motor_name, self.jack_min_height, self.jack_motor_speed, self.jack_zero_di)
+        Motor.setMotorPosition(self.motor_name, ConfigParams.jack_min_height, self.jack_motor_speed,
+                               ConfigParams.jack_zero_di)
         motor_info = Odometer.get_motor_infos()
         log.info(f"{motor_info=}")
         log.info(f"Lowering tray")
@@ -1149,8 +1150,9 @@ class JackMinHeight(BaseAction):
         j.report_info["JackMinHeight"] = {
             "action_status": self.action_status,
             "motor_name": self.motor_name,
+            "jack_min_height": ConfigParams.jack_min_height,
             "jack_motor_speed": self.jack_motor_speed,
-            "jack_zero_di": self.jack_zero_di
+            "jack_zero_di": ConfigParams.jack_zero_di
         }
         Module.report_info(j.report_info)
 
@@ -1246,985 +1248,259 @@ class GoPath(BaseAction):
         Module.report_info(j.report_info)
 
 
-class RecordBezierPath(BaseAction):
-    """
-        走二阶贝塞尔
-    """
-
-    def __init__(self, target_world, back_dist=0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.5,
-                 is_backwards=False, curvature_limit=1.5):
-        super().__init__("RecordBezierPath")
-        del target_world[3:]
-        self.target_world = target_world
-        log.info(f"target_world={target_world}")
-        self.back_dist = back_dist
-        self.end_position_world = [0, 0, 0]
-        self.end_position_robot = [0, 0, 0]
-        self.end_angle_robot = None
-
-        self.min_ahead_dist = min_ahead_dist
-        self.adjust_dist_for_curvature_limit = adjust_dist_for_curvature_limit
-
-        self.is_backwards = is_backwards
-        self.curvature_limit = curvature_limit
-
-        self.action_status = ActionStatus.INIT
+class GoBezierCombined(BaseAction):
+    """执行行走贝塞尔曲线到达取货点"""
+    def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0, is_backwards=False,
+                 max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=1,curvature_limit=1.3, path_dist_accuracy=0.01,
+                 path_angle_accuracy=0.05):
+        super().__init__()
         self.init = True
-        self.target_robot = [0, 0, 0]
-        self.control_point = None
-        self.param = {}
-        self.is_set_min_speed = False
+        self.action_status = ActionStatus.INIT
+        self.bezier_status = ActionStatus.INIT
+        self.bezier_return_status = ActionStatus.INIT
+        self.go_bezier = goBezier.GoBezierWorld(target_world, back_dist, adjust_dist_for_curvature_limit,
+                                                    min_ahead_dist, is_backwards, max_speed, max_accele, max_decele, decele_dist,
+                                                    curvature_limit, path_dist_accuracy, path_angle_accuracy)
+        self.go_bezier_return = goBezier.GoBezierWorldReturn(False)
 
-        self.go_path = goPath.GoPath()
-        # 第一段线到位标识
-        self.is_first_path_reached = False
-        self.xs = []
-        self.ys = []
-        self.xs_ret = []
-        self.ys_ret = []
-        self.theta_ret = None
-        self.offset_dist = 0.0
-        self.k_max = 0  # 定义曲率
-        self.first_point = []
-        self.first_point_return = []
-        self.second_path = []
-        self.second_path_return = []
-
-    def run(self, j: Jack):
+    def run(self, j:Jack):
         if self.init:
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetPath()
             self.init = False
+            self.action_status = ActionStatus.RUNNING
 
-            # 获取机器人位置（world系）
-            loc_data = Loc.get_data()
-            robot_loc = [loc_data["x"], loc_data["y"], loc_data["angle"]]
-
-            # 计算终点
-            self.end_position_world = Pos2World([self.back_dist, 0, 0], self.target_world)
-            self.target_world = Pos2World([-self.min_ahead_dist, 0, 0], self.target_world)
-
-            # 贝塞尔曲线终点 → robot坐标系
-            self.target_robot = Pos2Base(self.target_world, robot_loc)
-            self.end_position_robot = Pos2Base(self.end_position_world, robot_loc)
-
-            success = False
-            max_offset = self.adjust_dist_for_curvature_limit
-            offset_step = 0.1
-            alpha = 0.35  # 固定控制点比例
-            P0_xy = P1 = P2 = P3_xy = [0, 0, 0]
-
-            while self.offset_dist <= max_offset:
-                # 起点从(0, 0)往后移，作为新的P0
-                if self.is_backwards:
-                    P0 = [self.offset_dist, 0, math.pi]
-                else:
-                    P0 = [-self.offset_dist, 0, 0]
-                # P0 = [self.offset_dist, 0, math.pi]
-                P3 = self.target_robot
-
-                # 生成贝塞尔曲线控制点与路径
-                P0_xy, P1, P2, P3_xy = self.compute_bezier_controls_dir(P0, P3, alpha)
-                self.xs, self.ys = self.bezier_points(P0_xy, P1, P2, P3_xy)
-                log.info(f"xs={self.xs}, ys={self.ys}")
-
-                # 添加末端直线路径
-                self.xs.append(self.end_position_robot[0])
-                self.ys.append(self.end_position_robot[1])
-
-                # 判断曲率是否超限
-                # self.k_max = self.max_curvature(self.xs, self.ys) #海伦公式
-                self.k_max = self.bezier_curvature(P0_xy, P1, P2, P3_xy)  # 二阶导
-                if self.k_max <= self.curvature_limit:
-                    success = True
-                    break
-
-                self.offset_dist += offset_step
-
-            if not success:
-                log.info(f"curvature limit exceeded. max_curvature={self.k_max}")
+        if self.bezier_status in (ActionStatus.INIT, ActionStatus.RUNNING):
+            self.bezier_status = self.go_bezier.run()
+            log.info(f"bezier_status={self.bezier_status}")
+        elif self.bezier_status == ActionStatus.FAILED:
+            self.action_status = ActionStatus.FAILED
+        elif self.bezier_status == ActionStatus.FINISHED:
+            if self.bezier_return_status in (ActionStatus.INIT, ActionStatus.RUNNING):
+                self.bezier_return_status = self.go_bezier_return.run()
+                log.info(f"bezier_return_status={self.bezier_return_status}")
+            elif self.bezier_return_status == ActionStatus.FAILED:
                 self.action_status = ActionStatus.FAILED
-                return
-
-            # 成功构造路径,需要将路径分为2段，第一段后退至贝塞尔起始点
-            self.control_point = [P0_xy, P1, P2, P3_xy]
-
-            # 此处记录xs【0】，ys【0】
-            self.first_point = [self.xs[0], self.ys[0]]
-            self.first_point_return = [-self.xs[0], -self.ys[0]]
-
-            if self.is_backwards:
-                for i in range(len(self.xs)):
-                    self.xs[i] -= self.offset_dist
-            else:
-                for i in range(len(self.xs)):
-                    self.xs[i] += self.offset_dist
-
-            self.end_angle_robot = self.end_position_robot[2]
-            if self.is_backwards:
-                self.end_angle_robot = (self.end_angle_robot + math.pi) % (2 * math.pi)
-                if self.end_angle_robot > math.pi:
-                    self.end_angle_robot -= 2 * math.pi
-
-            # 此处记录self.xs & self.ys & end_angle_robot
-            self.second_path = [self.xs, self.ys, self.end_angle_robot]
-            self.xs_ret, self.ys_ret, self.theta_ret = self.generate_return_path(self.xs, self.ys)
-            self.second_path_return = [self.xs_ret, self.ys_ret, self.theta_ret]
-
-        self.action_status = ActionStatus.FINISHED
-
-        robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-        j.report_info["RecordBezierPath"] = {
-            "action_status": self.action_status,
-            "k_max": self.k_max,
-            "xs0,ys0": [self.xs[0], self.ys[0]],
-            "xEnd,yEnd": [self.xs[-1], self.ys[-1]],
-            "target_robot": self.target_robot,
-            "target_pos_world": [self.end_position_world[0], self.end_position_world[1]],
-            "robot_loc": robot_loc
-        }
-        Module.report_info(j.report_info)
-
-        j.first_point = self.first_point
-        j.second_path = self.second_path
-        j.first_point_return = self.first_point_return
-        j.second_path_return = self.second_path_return
-        log.info(f"first_point={self.first_point}, second_path={self.second_path}")
-        log.info(f"first_point_return={self.first_point_return}, second_path_return={self.second_path_return}")
-
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
-
-    def compute_bezier_controls_dir(self, p0, p3, alpha=0.3):
-        """
-        计算三次 Bezier 的 4 个控制点（含端点），支持端点方向。
-        :param
-        p0, p3 : [x, y, theta]   theta 为弧度，表示该点切线方向
-        alpha  : 0~1，控制 P1/P2 到端点的相对距离 (d = alpha * |P3-P0|)
-        :return
-        [P0_xy, P1, P2, P3_xy]   仅保留 (x, y)
-        """
-        x0, y0, th0 = p0
-        x3, y3, th3 = p3
-
-        # 端点间直线距离
-        dist = math.hypot(x3 - x0, y3 - y0)
-        d = alpha * dist  # 控制点到端点的绝对距离
-
-        # 控制点
-        p1 = [x0 + d * math.cos(th0), y0 + d * math.sin(th0)]
-        p2 = [x3 - d * math.cos(th3), y3 - d * math.sin(th3)]
-
-        return [p0, p1, p2, p3]  # 去掉角度，只留坐标
-
-    def bezier_points(self, p0, p1, p2, p3, steps=1000):
-        """
-        生成 Bezier 曲线采样点
-        :param
-        p0~p3 : [x, y]
-        steps : 采样分段数，返回 steps+1 个点
-        :return
-        (xs, ys) : 两个长度相等的列表
-        """
-        xs, ys = [], []
-        for i in range(steps + 1):
-            t = i / steps
-            one_t = 1 - t
-
-            # 三次 Bezier 伯恩斯坦基函数
-            b0 = one_t ** 3
-            b1 = 3 * one_t ** 2 * t
-            b2 = 3 * one_t * t ** 2
-            b3 = t ** 3
-
-            x = (b0 * p0[0] + b1 * p1[0] + b2 * p2[0] + b3 * p3[0])
-            y = (b0 * p0[1] + b1 * p1[1] + b2 * p2[1] + b3 * p3[1])
-            x = round(x, 7)
-            y = round(y, 7)
-            xs.append(x)
-            ys.append(y)
-        return xs, ys
-
-    def bezier_curvature(self, p0, p1, p2, p3, steps=500):
-        """
-        基于导数计算三次贝塞尔曲线最大曲率
-        p0~p3: 控制点[x, y]
-        返回最大曲率
-        """
-        k_max = 0.0
-        for i in range(steps + 1):
-            t = i / steps
-            one_t = 1 - t
-
-            # 一阶导数
-            dx_dt = 3 * one_t ** 2 * (p1[0] - p0[0]) + \
-                    6 * one_t * t * (p2[0] - p1[0]) + \
-                    3 * t ** 2 * (p3[0] - p2[0])
-            dy_dt = 3 * one_t ** 2 * (p1[1] - p0[1]) + \
-                    6 * one_t * t * (p2[1] - p1[1]) + \
-                    3 * t ** 2 * (p3[1] - p2[1])
-
-            # 二阶导数
-            ddx_dt = 6 * one_t * (p2[0] - 2 * p1[0] + p0[0]) + \
-                     6 * t * (p3[0] - 2 * p2[0] + p1[0])
-            ddy_dt = 6 * one_t * (p2[1] - 2 * p1[1] + p0[1]) + \
-                     6 * t * (p3[1] - 2 * p2[1] + p1[1])
-
-            # 曲率公式
-            numerator = abs(dx_dt * ddy_dt - dy_dt * ddx_dt)
-            denominator = (dx_dt ** 2 + dy_dt ** 2) ** 1.5
-            if denominator == 0:
-                continue
-            k = numerator / denominator
-            k_max = max(k_max, k)
-        return k_max
-
-    def generate_return_path(self, xs, ys):
-        """
-        基于贝塞尔路径，返回原路倒退路径：机器人坐标系为终点局部坐标系，返回格式为 [xs, ys, theta]
-        """
-        if len(xs) < 2:
-            return [], [], 0.0
-
-        # 末段切线方向作为返回路径的正向角度
-        dx = xs[-1] - xs[-2]
-        dy = ys[-1] - ys[-2]
-        theta_end = math.atan2(dy, dx)
-
-        origin_x = xs[-1]
-        origin_y = ys[-1]
-        world_pts = list(zip(xs, ys))
-        world_pts.reverse()
-
-        cos_t = math.cos(theta_end)
-        sin_t = math.sin(theta_end)
-
-        xs_ret, ys_ret = [], []
-        for wx, wy in world_pts:
-            dx = wx - origin_x
-            dy = wy - origin_y
-            x_r = cos_t * dx + sin_t * dy
-            y_r = -sin_t * dx + cos_t * dy
-            xs_ret.append(x_r)
-            ys_ret.append(y_r)
-
-        return xs_ret, ys_ret, theta_end
-
-
-class GoRecordedPath(BaseAction):
-    """
-        走记录过点坐标的路径
-    """
-
-    def __init__(self, first_point, second_path, is_backwards=False, max_speed=0.3, max_accele=1, max_decele=0.7,
-                 decele_dist=1):
-        super().__init__("GoRecordedPath")
-        self.end_position_world = [0, 0, 0]
-        self.end_position_robot = [0, 0, 0]
-
-        self.first_point = first_point
-        self.second_path = second_path
-        self.is_backwards = is_backwards
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.target_robot = [0, 0, 0]
-        self.control_point = None
-        self.param = {}
-        self.is_set_min_speed = False
-
-        self.go_path = goPath.GoPath()
-        # 第一段线到位标识
-        self.is_first_path_reached = False
-
-    def run(self, j: Jack):
-        if self.init:
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetPath()
-            self.init = False
-            # 规划第一段倒退路线参数
-            Navigation.setPathReachAngle(0.05)  # 到位精度
-            Navigation.setPathReachDist(0.01)
-            Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
-            Navigation.setPathMaxSpeed(self.max_speed)
-            Navigation.setPathOnRobot([0, self.first_point[0]], [0, self.first_point[1]], 0)
-            self.param["maxAcc"] = float(self.max_accele)
-            self.param["maxDec"] = float(self.max_decele)
-            Navigation.goPathParam(self.param)
-
-        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
-            self.is_first_path_reached = Navigation.isPathReached()
-            log.info(f"is_first_path_reached:{self.is_first_path_reached}")
-            if self.is_first_path_reached:
-                Navigation.resetPath()
-
-                Navigation.setPathReachAngle(0.05)
-                Navigation.setPathReachDist(0.01)
-                Navigation.setPathBackMode(self.is_backwards)
-                Navigation.setPathMaxSpeed(self.max_speed)
-
-                Navigation.setPathOnRobot(self.second_path[0], self.second_path[1], self.second_path[2])
-                self.param["maxAcc"] = float(self.max_accele)
-                self.param["maxDec"] = float(self.max_decele)
-                Navigation.goPathParam(self.param)
-
-        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走贝塞尔到终点
-            # Navigation.goPathParam(self.param)
-            is_reached = Navigation.isPathReached()
-            log.info(f"is_reached:{is_reached}")
-            if is_reached:
+            elif self.bezier_return_status == ActionStatus.FINISHED:
                 self.action_status = ActionStatus.FINISHED
-                # return
-            else:
-                self.action_status = ActionStatus.RUNNING
-
-            robot_current_loc = list(Loc.get_position())
-            dist_cur_loc_end_loc = math.hypot(
-                self.end_position_world[0] - robot_current_loc[0],
-                self.end_position_world[1] - robot_current_loc[1]
-            )
-            if dist_cur_loc_end_loc < self.decele_dist and not self.is_set_min_speed:
-                self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(0.15)
-                # Abnormal.setTask(55900, "has slow the speed", "", "", "")
-
-        robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-        j.report_info["GoRecordedPath"] = {
-            "action_status": self.action_status,
-            "is_first_path_reached": self.is_first_path_reached,
-            "first_point": self.first_point,
-            "second_path": [self.second_path[0][-1], self.second_path[1][-1], self.second_path[2]],
-            "target_pos_world": [self.end_position_world[0], self.end_position_world[1]],
-            "max_speed": self.max_speed,
-            "max_accele": self.max_accele,
-            "robot_loc": robot_loc
-        }
-        Module.report_info(j.report_info)
-
-
-class GoRecordedPathReturn(BaseAction):
-    """
-        走记录过点坐标的路径
-    """
-
-    def __init__(self, first_point, second_path, is_backwards=True, max_speed=0.3, max_accele=1, max_decele=0.7,
-                 decele_dist=1):
-        super().__init__("GoRecordedPathReturn")
-        self.end_position_world = [0, 0, 0]
-        self.end_position_robot = [0, 0, 0]
-
-        self.first_point = first_point
-        self.second_path = second_path
-        self.is_backwards = is_backwards
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.target_robot = [0, 0, 0]
-        self.control_point = None
-        self.param = {}
-        self.is_set_min_speed = False
-
-        self.go_path = goPath.GoPath()
-        # 第一段线到位标识
-        self.is_first_path_reached = False
-
-    def run(self, j: Jack):
-        if self.init:
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetPath()
-            self.init = False
-            # # 规划第一段倒退路线参数
-            Navigation.setPathReachAngle(0.05)  # 到位精度
-            Navigation.setPathReachDist(0.01)
-            Navigation.setPathBackMode(self.is_backwards)  # 设置正走倒走
-            Navigation.setPathMaxSpeed(self.max_speed)
-            Navigation.setPathOnRobot(self.second_path[0], self.second_path[1], 0)
-            self.param["maxAcc"] = float(self.max_accele)
-            self.param["maxDec"] = float(self.max_decele)
-            Navigation.goPathParam(self.param)
-
-        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
-            self.is_first_path_reached = Navigation.isPathReached()
-            log.info(f"is_first_path_reached:{self.is_first_path_reached}")
-            if self.is_first_path_reached:
-                Navigation.resetPath()
-
-                Navigation.setPathReachAngle(0.05)
-                Navigation.setPathReachDist(0.01)
-                Navigation.setPathBackMode(not self.is_backwards)
-                Navigation.setPathMaxSpeed(self.max_speed)
-                Navigation.setPathOnRobot([0, self.first_point[0]], [0, self.first_point[1]], 0)
-                self.param["maxAcc"] = float(self.max_accele)
-                self.param["maxDec"] = float(self.max_decele)
-                Navigation.goPathParam(self.param)
-
-        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走贝塞尔到终点
-            # Navigation.goPathParam(self.param)
-            is_reached = Navigation.isPathReached()
-            log.info(f"is_reached:{is_reached}")
-            if is_reached:
-                self.action_status = ActionStatus.FINISHED
-                # return
-            else:
-                self.action_status = ActionStatus.RUNNING
-
-            robot_current_loc = list(Loc.get_position())
-            dist_cur_loc_end_loc = math.hypot(
-                self.end_position_world[0] - robot_current_loc[0],
-                self.end_position_world[1] - robot_current_loc[1]
-            )
-            if dist_cur_loc_end_loc < self.decele_dist and not self.is_set_min_speed:
-                self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(0.15)
-                # Abnormal.setTask(55900, "has slow the speed", "", "", "")
-
-        robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-        j.report_info["GoRecordedPathReturn"] = {
-            "action_status": self.action_status,
-            "is_first_path_reached": self.is_first_path_reached,
-            "target_pos_world": [self.end_position_world[0], self.end_position_world[1]],
-            "max_speed": self.max_speed,
-            "max_accele": self.max_accele,
-            "robot_loc": robot_loc
-        }
-        Module.report_info(j.report_info)
+        time.sleep(0.1)
 
 
 class GoBezier(BaseAction):
-    """
-        走二阶贝塞尔
-    """
-
-    def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0,
-                 is_backwards=False,
-                 max_speed=0.5, max_accele=0.3, max_decele=0.2, decele_dist=1, curvature_limit=1.3):
-        super().__init__("GoBezier")
-        del target_world[3:]
-        self.target_world = target_world
-        log.info(f"target_world={target_world}")
-        self.back_dist = back_dist
-        self.end_position_world = [0, 0, 0]
-        self.end_position_robot = [0, 0, 0]
-        self.min_ahead_dist = min_ahead_dist
-        self.adjust_dist_for_curvature_limit = adjust_dist_for_curvature_limit
-
-        self.is_backwards = is_backwards
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-        self.curvature_limit = curvature_limit
-
-        self.action_status = ActionStatus.INIT
+    """执行行走贝塞尔曲线到达取货点"""
+    def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.0, is_backwards=False, is_hold_dir=None,
+                 max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3, path_dist_accuracy=0.01, path_angle_accuracy=0.05):
+        super().__init__()
         self.init = True
-        self.target_robot = [0, 0, 0]
-        self.control_point = None
-        self.param = {}
-        self.is_set_min_speed = False
+        self.action_status = ActionStatus.INIT
+        self.go_bezier = goBezier.GoBezierWorld(target_world, back_dist, adjust_dist_for_curvature_limit, min_ahead_dist,
+                                                is_backwards, is_hold_dir, max_speed, max_accele, max_decele, decele_dist,
+                                                curvature_limit, path_dist_accuracy, path_angle_accuracy)
 
-        self.go_path = goPath.GoPath()
-        # 第一段线到位标识
-        self.is_first_path_reached = False
-        self.xs = []
-        self.ys = []
-        self.offset_dist = 0.0
-        self.k_max = 0  # 定义曲率
-
-    def run(self, j: Jack):
+    def run(self, j:Jack):
         if self.init:
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetPath()
             self.init = False
+            self.action_status = ActionStatus.RUNNING
 
-            # 获取机器人位置（world系）
-            loc_data = Loc.get_data()
-            robot_loc = [loc_data["x"], loc_data["y"], loc_data["angle"]]
-
-            # 计算终点
-            self.end_position_world = Pos2World([self.back_dist, 0, 0], self.target_world)
-            self.target_world = Pos2World([-self.min_ahead_dist, 0, 0], self.target_world)
-
-            # 贝塞尔曲线终点 → robot坐标系
-            self.target_robot = Pos2Base(self.target_world, robot_loc)
-            self.end_position_robot = Pos2Base(self.end_position_world, robot_loc)
-
-            success = False
-            max_offset = self.adjust_dist_for_curvature_limit
-            offset_step = 0.1
-            alpha = 0.5  # 固定控制点比例
-            P0_xy = P1 = P2 = P3_xy = [0, 0, 0]
-
-            while self.offset_dist <= max_offset:
-                # 起点从(0, 0)往后移，作为新的P0
-                if self.is_backwards:
-                    P0 = [self.offset_dist, 0, math.pi]
-                else:
-                    P0 = [-self.offset_dist, 0, 0]
-                # P0 = [self.offset_dist, 0, math.pi]
-                P3 = self.target_robot
-
-                # 生成贝塞尔曲线控制点与路径
-                P0_xy, P1, P2, P3_xy = self.compute_bezier_controls_dir(P0, P3, alpha)
-                self.xs, self.ys = self.bezier_points(P0_xy, P1, P2, P3_xy)
-                log.info(f"xs={self.xs}, ys={self.ys}")
-
-                # 添加末端直线路径
-                self.xs.append(self.end_position_robot[0])
-                self.ys.append(self.end_position_robot[1])
-
-                # 判断曲率是否超限
-                # self.k_max = self.max_curvature(self.xs, self.ys)
-                self.k_max = self.bezier_curvature(P0_xy, P1, P2, P3_xy)
-                if self.k_max <= self.curvature_limit:
-                    success = True
-                    break
-
-                self.offset_dist += offset_step
-
-            if not success:
-                log.info(f"curvature limit exceeded. max_curvature={self.k_max}")
-                self.action_status = ActionStatus.FAILED
-                return
-
-            # 成功构造路径,需要将路径分为2段，第一段后退至贝塞尔起始点
-            self.control_point = [P0_xy, P1, P2, P3_xy]
-            # 规划第一段倒退路线参数
-            Navigation.setPathReachAngle(0.05)  # 到位精度
-            Navigation.setPathReachDist(0.01)
-            Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
-            Navigation.setPathMaxSpeed(self.max_speed)
-            Navigation.setPathOnRobot([0, self.xs[0]], [0, self.ys[0]], 0)
-            self.param["maxAcc"] = float(self.max_accele)
-            self.param["maxDec"] = float(self.max_decele)
-            Navigation.goPathParam(self.param)
-
-        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
-            # Navigation.goPathParam(self.param)
-            self.is_first_path_reached = Navigation.isPathReached()
-            log.info(f"is_first_path_reached:{self.is_first_path_reached}")
-            if self.is_first_path_reached:
-                Navigation.resetPath()
-                if self.is_backwards:
-                    for i in range(len(self.xs)):
-                        self.xs[i] -= self.offset_dist
-                else:
-                    for i in range(len(self.xs)):
-                        self.xs[i] += self.offset_dist
-
-                Navigation.setPathReachAngle(0.05)
-                Navigation.setPathReachDist(0.01)
-                Navigation.setPathBackMode(self.is_backwards)
-                Navigation.setPathMaxSpeed(self.max_speed)
-
-                end_angle_robot = self.end_position_robot[2]
-                if self.is_backwards:
-                    end_angle_robot = (end_angle_robot + math.pi) % (2 * math.pi)
-                    if end_angle_robot > math.pi:
-                        end_angle_robot -= 2 * math.pi
-
-                Navigation.setPathOnRobot(self.xs, self.ys, end_angle_robot)
-                self.param["maxAcc"] = float(self.max_accele)
-                self.param["maxDec"] = float(self.max_decele)
-                Navigation.goPathParam(self.param)
-
-        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走贝塞尔到终点
-            # Navigation.goPathParam(self.param)
-            is_reached = Navigation.isPathReached()
-            log.info(f"is_reached:{is_reached}")
-            if is_reached:
-                self.action_status = ActionStatus.FINISHED
-                # return
-            else:
-                self.action_status = ActionStatus.RUNNING
-
-            robot_current_loc = list(Loc.get_position())
-            dist_cur_loc_end_loc = math.hypot(
-                self.end_position_world[0] - robot_current_loc[0],
-                self.end_position_world[1] - robot_current_loc[1]
-            )
-            if dist_cur_loc_end_loc < self.decele_dist and not self.is_set_min_speed:
-                self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(0.5)
-                # Abnormal.setTask(55900, "has slow the speed", "", "", "")
-
-        robot_loc = [Loc.get_position()[0], Loc.get_position()[1], Loc.get_angle()[0]]
-        j.report_info["GoBezier"] = {
-            "action_status": self.action_status,
-            "k_max": self.k_max,
-            "xs0,ys0": [self.xs[0], self.ys[0]],
-            "xEnd,yEnd": [self.xs[-1], self.ys[-1]],
-            "target_pos_world": [self.end_position_world[0], self.end_position_world[1]],
-            "max_speed": self.max_speed,
-            "max_accele": self.max_accele,
-            "robot_loc": robot_loc
-        }
-        Module.report_info(j.report_info)
-
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
-
-    def compute_bezier_controls_dir(self, p0, p3, alpha=0.3):
-        """
-        计算三次 Bezier 的 4 个控制点（含端点），支持端点方向。
-        参数
-        ----
-        p0, p3 : [x, y, theta]   theta 为弧度，表示该点切线方向
-        alpha  : 0~1，控制 P1/P2 到端点的相对距离 (d = alpha * |P3-P0|)
-
-        返回
-        ----
-        [P0_xy, P1, P2, P3_xy]   仅保留 (x, y)
-        """
-        x0, y0, th0 = p0
-        x3, y3, th3 = p3
-
-        # 端点间直线距离
-        dist = math.hypot(x3 - x0, y3 - y0)
-        d = alpha * dist  # 控制点到端点的绝对距离
-
-        # 控制点
-        p1 = [x0 + d * math.cos(th0), y0 + d * math.sin(th0)]
-        p2 = [x3 - d * math.cos(th3), y3 - d * math.sin(th3)]
-
-        return [p0, p1, p2, p3]  # 去掉角度，只留坐标
-
-    def bezier_points(self, p0, p1, p2, p3, steps=1000):
-        """
-        生成 Bezier 曲线采样点
-        ----
-        p0~p3 : [x, y]
-        steps : 采样分段数，返回 steps+1 个点
-        返回
-        ----
-        (xs, ys) : 两个长度相等的列表
-        """
-        xs, ys = [], []
-        for i in range(steps + 1):
-            t = i / steps
-            one_t = 1 - t
-
-            # 三次 Bezier 伯恩斯坦基函数
-            b0 = one_t ** 3
-            b1 = 3 * one_t ** 2 * t
-            b2 = 3 * one_t * t ** 2
-            b3 = t ** 3
-
-            x = (b0 * p0[0] + b1 * p1[0] + b2 * p2[0] + b3 * p3[0])
-            y = (b0 * p0[1] + b1 * p1[1] + b2 * p2[1] + b3 * p3[1])
-            xs.append(x)
-            ys.append(y)
-        return xs, ys
-
-    def bezier_curvature(self, p0, p1, p2, p3, steps=500):
-        """
-        基于导数计算三次贝塞尔曲线最大曲率
-        p0~p3: 控制点[x, y]
-        返回最大曲率
-        """
-        k_max = 0.0
-        for i in range(steps + 1):
-            t = i / steps
-            one_t = 1 - t
-
-            # 一阶导数
-            dx_dt = 3 * one_t ** 2 * (p1[0] - p0[0]) + \
-                    6 * one_t * t * (p2[0] - p1[0]) + \
-                    3 * t ** 2 * (p3[0] - p2[0])
-            dy_dt = 3 * one_t ** 2 * (p1[1] - p0[1]) + \
-                    6 * one_t * t * (p2[1] - p1[1]) + \
-                    3 * t ** 2 * (p3[1] - p2[1])
-
-            # 二阶导数
-            ddx_dt = 6 * one_t * (p2[0] - 2 * p1[0] + p0[0]) + \
-                     6 * t * (p3[0] - 2 * p2[0] + p1[0])
-            ddy_dt = 6 * one_t * (p2[1] - 2 * p1[1] + p0[1]) + \
-                     6 * t * (p3[1] - 2 * p2[1] + p1[1])
-
-            # 曲率公式
-            numerator = abs(dx_dt * ddy_dt - dy_dt * ddx_dt)
-            denominator = (dx_dt ** 2 + dy_dt ** 2) ** 1.5
-            if denominator == 0:
-                continue
-            k = numerator / denominator
-            k_max = max(k_max, k)
-        return k_max
+        if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
+            self.action_status = self.go_bezier.run()
+        log.info(f"bezier_status={self.action_status}")
+        time.sleep(0.1)
 
 
 class GoBezierReturn(BaseAction):
-    """
-    原路返回动作类：基于前进路径点，自动计算终点姿态（位置+切线方向）并生成返程路径
-    """
-
-    def __init__(self, forward_xs, forward_ys, max_speed=0.5, max_accele=1, max_decele=1, decele_dist=1):
-        super().__init__("GoBezierReturn")
-        self.forward_xs = forward_xs
-        self.forward_ys = forward_ys
-
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-
-        self.xs_return = []
-        self.ys_return = []
-        self.action_status = ActionStatus.INIT
+    """执行行走贝塞尔曲线到达取货点"""
+    def __init__(self, is_backwards=True, is_hold_dir=None, max_speed=0.3, max_accele=1, max_decele=0.7, decele_dist=0.1):
+        super().__init__()
         self.init = True
-        self.param = {}
+        self.action_status = ActionStatus.INIT
+        self.go_bezier_return = goBezier.GoBezierWorldReturn(is_backwards, is_hold_dir, max_speed, max_accele, max_decele, decele_dist)
+
+    def run(self, j:Jack):
+        if self.init:
+            self.init = False
+            self.action_status = ActionStatus.RUNNING
+
+        if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
+            self.action_status = self.go_bezier_return.run()
+        log.info(f"bezier_return_status={self.action_status}")
+        time.sleep(0.1)
+
+class GoPolylineNew(BaseAction):
+    def __init__(self, world_target, min_ahead_dist=0, ahead_dist=0, back_dist=0, speed=0.5, max_angle=0.5, dec_dist=1):
+        """
+        target_world, back_dist = 0.0, adjust_dist_for_curvature_limit = 2, min_ahead_dist = 0, is_backwards = False,
+        max_speed = 0.5, max_accele = 0.3, max_decele = 0.2, decele_dist = 1, curvature_limit = 1.3
+        """
+        super().__init__()
+        self.go3 = None
+        self.go2 = None
+        self.go1 = None
+        self.temp_start = []
+        self.first_point = None
+        self.start_pos = []
+        self.world_target = world_target
+        self.min_ahead_dist = min_ahead_dist
+        self.ahead_dist = ahead_dist
+        self.back_dist = back_dist
+        self.speed = speed
+        self.max_angle = max_angle
+        self.dec_dist = dec_dist
+        self.step = 20
+        self.second_point = Pos2World([self.min_ahead_dist, 0, 0], self.world_target)
+        self.third_point = Pos2World([-self.back_dist, 0, 0], self.world_target)
+        self.go_step = [False] * 3
+        self.action_status = ActionStatus.INIT
+        self.init = False
+
+    def run(self, f):
+        if not self.init:
+            self.init = True
+            pos = Loc.get_data()
+            self.start_pos = [pos['x'], pos['y'], pos['angle']]
+            if abs(self.cal_angle(self.start_pos, self.second_point)) > self.max_angle:
+                self.start_pos[2] = self.world_target[2]
+                angle, self.temp_start = self.search_min_angle_str(self.max_angle, self.step)
+            else:
+                self.temp_start = self.start_pos
+            go1_args = {
+                "x": self.temp_start[0],
+                "y": self.temp_start[1],
+                "theta": self.temp_start[2],
+                "backMode": 0,
+                "maxSpeed": 0.2,
+                "maxRot": math.radians(10),
+                "coordinate": Coordinate.WORLD
+            }
+            self.go1 = GoPath(go1_args)
+            go2_args = {
+                "x": self.second_point[0],
+                "y": self.second_point[1],
+                "theta": self.second_point[2],
+                "backMode": 1,
+                "maxSpeed": 0.1,
+                "maxRot": math.radians(10),
+                "coordinate": Coordinate.WORLD
+            }
+            self.go2 = GoPath(go2_args)
+            go3_args = {
+                "x": self.third_point[0],
+                "y": self.third_point[1],
+                "theta": self.third_point[2],
+                "backMode": 1,
+                "maxSpeed": 0.1,
+                "maxRot": math.radians(10),
+                "coordinate": Coordinate.WORLD
+            }
+            self.go3 = GoPath(go3_args)
+
+        if not self.go_step[0]:
+            if self.go1.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go1.run(f)
+            if self.go1.action_status == ActionStatus.FINISHED:
+                self.go_step[0] = True
+        elif self.go_step[0] and not self.go_step[1]:
+            if self.go2.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go2.run(f)
+            if self.go2.action_status == ActionStatus.FINISHED:
+                self.go_step[1] = True
+        elif self.go_step[1] and not self.go_step[2]:
+            if self.go3.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go3.run(f)
+            if self.go3.action_status == ActionStatus.FINISHED:
+                self.go_step[2] = True
+        if all(self.go_step):
+            self.action_status = ActionStatus.FINISHED
+
+    def cal_angle(self, start_pos, end_pos):
+        start2end = Pos2Base(start_pos, end_pos)
+        angle = math.degrees(math.atan2(start2end[1], start2end[0]))
+        print(angle)
+        return angle
+
+    def search_min_angle_str(self, max_angle, step):
+        for n in range(1, step + 1):
+            adjust_dist = self.ahead_dist / self.step * n
+            # 临时构造一个新的起点：在原 start_pos 基础上往前平移
+            temp_start = Pos2World([adjust_dist, 0, 0], self.start_pos)
+            angle = abs(self.cal_angle(temp_start, self.second_point))
+
+            if angle <= max_angle:
+                # self.first_point = temp_start
+                print(f"满足角度要求，当前角度：{angle:.2f}°，使用第 {n} 次调整")
+                return angle, temp_start  # 成功，返回当前角度
+
+        angle = abs(self.cal_angle(temp_start, self.second_point))
+        print(f"未满足角度要求，当前角度：{angle:.2f}°")
+        return angle, temp_start
+
+    def reset(self):
+        self.action_status = ActionStatus.RUNNING
+
+
+class Rec(BaseAction):
+    def __init__(self, recfile, action_name="RecShelf"):
+        super().__init__(action_name)
+        self.init = False
+        self.rec_status = None
+        self.result = dict()
+        self.action_status = ActionStatus.INIT
+        self.recfile = recfile
+        self.attempts = 0
+        self.max_attempts = 3
+        self.success = False
+        self.results = list
 
     def run(self, j: Jack):
-        if self.init:
-            self.action_status = ActionStatus.RUNNING
-            self.init = False
+        if not self.init:
+            self.init = True
+            self.success = False
 
-            Navigation.resetPath()
-            self.xs_return, self.ys_return = self.compute_return_path_auto()
+        self.action_status = ActionStatus.RUNNING
+        if not self.success:
+            self.success, self.rec_status, self.results = self.rec(self.recfile)
+        else:
+            # 处理识别结果，并按降序排序，z值最大的结果在前
+            results = self.results.get("reco_list", [])
+            z_max_results = sorted(results, key=lambda item: item['z'])
+            self.result = z_max_results[0]
+            j.rec_result = self.result
+            self.action_status = ActionStatus.FINISHED
 
-            Navigation.setPathReachAngle(0.5)
-            Navigation.setPathReachDist(0.1)
-            Navigation.setPathBackMode(True)
-            Navigation.setPathMaxSpeed(self.max_speed)
-            Navigation.setPathOnRobot(self.xs_return, self.ys_return, 0)
-
-            self.param = {
-                "maxAcc": float(self.max_accele),
-                "maxDec": float(self.max_decele)
-            }
-
-        if self.action_status == ActionStatus.RUNNING:
-            Navigation.goPathParam(self.param)
-            if Navigation.isPathReached():
-                self.action_status = ActionStatus.FINISHED
-                return
-
-            # 减速控制
-            robot_pos = Loc.get_position()
-            dist = math.hypot(
-                self.xs_return[-1] - robot_pos[0],
-                self.ys_return[-1] - robot_pos[1]
-            )
-            if dist < self.decele_dist:
-                Navigation.setPathMaxSpeed(0.1)
-
-        j.report_info["GoBezierReturn"] = {
+        j.report_info["RecShelf"] = {
             "action_status": self.action_status,
-            "next_point": [self.xs_return[0], self.ys_return[0]],
-            "final_point": [self.xs_return[-1], self.ys_return[-1]],
+            "rec_result": j.rec_result,
+            "recfile": self.recfile,
+            "rec_status": self.rec_status,
+            "rec_times": self.attempts
         }
         Module.report_info(j.report_info)
 
-    def compute_return_path_auto(self):
-        """根据最后两点推导终点姿态，并生成返程路径点（终点为原点，切线方向为x轴）"""
-        xs, ys = self.forward_xs, self.forward_ys
-
-        # 终点坐标 + 朝向（从最后一段切线推导）
-        dx = xs[-1] - xs[-2]
-        dy = ys[-1] - ys[-2]
-        theta_end = math.atan2(dy, dx)
-        origin_x, origin_y = xs[-1], ys[-1]
-
-        # 转为世界坐标（默认原路径就是世界系坐标）
-        world_pts = list(zip(xs, ys))
-        world_pts.reverse()
-
-        # 转回终点为坐标原点的坐标系（机器人坐标系）
-        cos_t = math.cos(theta_end)
-        sin_t = math.sin(theta_end)
-        xs_ret, ys_ret = [], []
-        for wx, wy in world_pts:
-            dx = wx - origin_x
-            dy = wy - origin_y
-            x_r = cos_t * dx + sin_t * dy
-            y_r = -sin_t * dx + cos_t * dy
-            xs_ret.append(x_r)
-            ys_ret.append(y_r)
-        return xs_ret, ys_ret
-
     def reset(self):
-        self.init = True
-        self.action_status = ActionStatus.INIT
-
-
-class GoPolyline(BaseAction):
-    """
-        走两段线取放货
-    """
-
-    def __init__(self, target_world=None, back_dist=0, ahead_dist=1.5, is_backwards=False, max_speed=1, max_accele=1,
-                 max_decele=1, decele_dist=2):
-        super().__init__()
-        del target_world[3:]
-        self.target_world = target_world
-        log.info(f"{target_world=}")
-
-        self.back_dist = back_dist
-        self.end_position_world = Pos2World([self.back_dist, 0, 0], target_world)
-        self.ahead_dist = ahead_dist
-        self.target_world = Pos2World([-self.ahead_dist, 0, 0], target_world)
-        self.is_backwards = is_backwards
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.control_point = None
-        loc_data = Loc.get_data()
-        robot_loc = [loc_data["x"], loc_data["y"], loc_data["angle"]]
-        self.target_robot = Pos2Base(self.target_world, robot_loc)
-        self.end_position_robot = Pos2Base(self.end_position_world, robot_loc)
-        self.param = {}
-        self.is_set_min_speed = False
-        self.go_path = goPath.GoPath()
-        self.is_go_path1 = True
-        self.is_go_path2 = False
-        self.init_go_path = True  # 第二次初始化gopath
-
-    def run(self, j: Jack):
-        if self.init:
-            Navigation.resetPath()
-            self.init = False
-
-            xs = [self.target_world[0], self.end_position_world[0]]
-            ys = [self.target_world[1], self.end_position_world[1]]
-
-        args1 = {
-            "x": self.target_world[0],
-            "y": self.target_world[1],
-            "theta": self.target_world[2],
-            "backMode": self.is_backwards,
-            "maxSpeed": self.max_speed,
-            "maxRot": 0.3,
-            "maxAcc": self.max_accele,
-            "maxDec": self.max_decele,
-            "coordinate": Coordinate.WORLD
-        }
-
-        args2 = {
-            "x": self.end_position_world[0],
-            "y": self.end_position_world[1],
-            "theta": self.end_position_world[2],
-            "backMode": self.is_backwards,
-            "maxSpeed": self.max_speed,
-            "maxRot": 0.3,
-            "maxAcc": self.max_accele,
-            "maxDec": self.max_decele,
-            "coordinate": Coordinate.WORLD
-        }
-        if self.is_go_path1:
-            self.action_status = self.go_path.run(args1)
-            if self.action_status == ActionStatus.FINISHED:
-                self.is_go_path1 = False
-                self.is_go_path2 = True
-                self.action_status = ActionStatus.RUNNING
-        if self.is_go_path2:
-            if self.init_go_path:
-                self.init_go_path = False
-                self.go_path = goPath.GoPath()
-            self.action_status = self.go_path.run(args2)
-
-    def reset(self):
+        Recognize.resetRec()
         self.action_status = ActionStatus.RUNNING
 
-
-class GoPolylineNoStop(BaseAction):
-    """
-        走 2 段折线（起点→target_world→end_position_world）
-    """
-
-    def __init__(self, target_world=None, back_dist=0, min_ahead_dist=1.5, is_backwards=False, max_speed=0.3,
-                 max_accele=1, max_decele=1.5, decele_dist=2):
-        super().__init__()
-        if target_world is not None:
-            del target_world[3:]  # 只保留 x,y,yaw
-        self.target_world = target_world  # 一会儿可能被识别结果覆盖
-        self.back_dist = back_dist
-        self.min_ahead_dist = min_ahead_dist
-
-        self.end_position_world = [0, 0, 0]  # 末端（世界坐标）
-        self.end_position_robot = [0, 0, 0]  # 末端（机器人坐标）
-
-        self.is_backwards = is_backwards
-        self.max_speed = max_speed
-        self.max_accele = max_accele
-        self.max_decele = max_decele
-        self.decele_dist = decele_dist
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.param = {}
-        self.is_set_min_speed = False
-
-    def run(self, j: Jack):
-        # ---------- 第 1 次进来：准备路径 ----------
-        if self.init:
-            self.action_status = ActionStatus.RUNNING
-            self.init = False
-            Navigation.resetPath()
-
-            # ● 1) 获取/修正目标位姿 ---------------------------------
-            if self.target_world is None:
-                rec = j.rec_result
-                self.target_world = [rec[0], rec[1], rec[2]]
-
-            self.end_position_world = Pos2World([self.back_dist, 0, 0],
-                                                self.target_world)
-            self.target_world = Pos2World([-self.min_ahead_dist, 0, 0],
-                                          self.target_world)
-
-            # ● 2) 坐标系变换：世界 → 机器人 ---------------------------
-            loc = Loc.get_data()
-            robot_loc = [loc["x"], loc["y"], loc["angle"]]
-
-            target_robot = Pos2Base(self.target_world, robot_loc)
-            self.end_position_robot = Pos2Base(self.end_position_world, robot_loc)
-
-            # ● 3) 折线路径（3 个点：起点 + 中点 + 终点）---------------
-            xs = [0, target_robot[0], self.end_position_robot[0]]
-            ys = [0, target_robot[1], self.end_position_robot[1]]
-
-            Navigation.setPathReachAngle(0.1)  # 到点角度阈值
-            Navigation.setPathReachDist(0.1)  # 到点距离阈值
-            Navigation.setPathBackMode(self.is_backwards)  # 正/倒
-            Navigation.setPathMaxSpeed(self.max_speed)  # 最高速
-
-            # 末端姿态用 end_position_robot 的 yaw
-            Navigation.setPathOnRobot(xs, ys, self.end_position_robot[2])
-            self.param = {"maxAcc": float(self.max_accele),
-                          "maxDec": float(self.max_decele)}
-
-        # ---------- 后续循环：执行 & 监控 ----------
-        if self.action_status != ActionStatus.FAILED:
-            Navigation.goPathParam(self.param)
-
-            if Navigation.isPathReached():
-                self.action_status = ActionStatus.FINISHED
-                return
-            else:
-                self.action_status = ActionStatus.RUNNING
-
-            # 到终点前 decelerate
-            curr = list(Loc.get_position())
-            dist_to_end = math.hypot(
-                self.end_position_world[0] - curr[0],
-                self.end_position_world[1] - curr[1]
-            )
-            if dist_to_end < self.decele_dist and not self.is_set_min_speed:
-                self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(0.1)
-                Abnormal.setTask(55900, "has slow the speed", "", "", "")
-
-    # 外部强制重置时调用
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
+    def rec(self, recfile):
+        rec_status = Recognize.getRecStatus()
+        if rec_status == 2:
+            rec_result = Recognize.getRecResults()
+            log.debug("rec_result:{}".format(rec_result))
+            print(rec_result)
+            return True, rec_status, rec_result
+        elif rec_status in (-1, 3):
+            if Timer.delay(0.05):
+                self.attempts += 1
+                if self.attempts > self.max_attempts:
+                    self.action_status = ActionStatus.FAILED
+                    Abnormal.setTask(53781,
+                                     "Recognition failed, the maximum number of retries exceeded",
+                                     "The recognition distance may be too close or too far, or the sensor used for recognition may be faulty",
+                                     "Check whether the recognition distance is too close or too far and whether the sensor used for recognition is normal.",
+                                     "Recognize the recTarget")
+                else:
+                    Recognize.resetRec()
+        else:
+            Recognize.doRec(recfile)
+            Timer.delay(0.05)
+        return False, rec_status, list
 
 
 class RecShelf(BaseAction):
@@ -2266,7 +1542,7 @@ class RecShelf(BaseAction):
                 self.attempts += 1
                 if self.attempts > self.max_attempts:
                     self.action_status = ActionStatus.FAILED
-                    Abnormal.setTask(53900,
+                    Abnormal.setTask(53781,
                                      "Recognition failed, the maximum number of retries exceeded",
                                      "The recognition distance may be too close or too far, or the sensor used for recognition may be faulty",
                                      "Check whether the recognition distance is too close or too far and whether the sensor used for recognition is normal.",
@@ -2284,6 +1560,25 @@ class RecShelf(BaseAction):
             "recfile": self.recfile,
             "rec_status": rec_status,
             "rec_times": self.attempts
+        }
+        Module.report_info(j.report_info)
+
+
+class RecTargetObs(BaseAction):
+    """识别货架"""
+
+    def __init__(self, device_name):
+        super().__init__()
+        self.action_status = ActionStatus.INIT
+        self.device_name = device_name
+
+    def run(self, j: Jack):
+        self.action_status = ActionStatus.RUNNING
+        Recognize.resetRec()
+        Recognize.recTargetObs(self.device_name)
+
+        j.report_info["RecTargetObs"] = {
+            "action_status": self.action_status
         }
         Module.report_info(j.report_info)
 
@@ -2319,7 +1614,7 @@ class GetApPosAdjustedViaPgv(BaseAction):
             self.pgv_info[2] = j.code_info["tag_diff_angle"]
             if abs(self.pgv_info[0]) > 0.02 and abs(self.pgv_info[1]) > 0.02:
                 self.action_status = ActionStatus.FAILED
-                Abnormal.setTask(55901,
+                Abnormal.setTask(53783,
                                  f"PGV diff_x or diff_y out of range:0.02",
                                  "The QR code of the goods is too biased",
                                  "Check whether there is any deviation of goods when picking up",
@@ -2379,7 +1674,7 @@ class GetPGVData(BaseAction):
             # pgv相机未扫描到二维码
             self.count = self.count + 1
             if self.count >= self.max_rec_num:
-                Abnormal.setTask(55900,
+                Abnormal.setTask(53782,
                                  f"Rec times over max {self.count} NO shelf_code or recognized code fail or shelf_code is Null",
                                  "The pgv camera is faulty or the robot does not move above or below the QR code",
                                  "Check the position of the QRcode and the installation pos of PGV camera ",
@@ -2432,45 +1727,6 @@ class PGVSecondaryAdjust(BaseAction):  # 二次调整
         Navigation.resetGoPGV()
 
 
-class PGVSecondaryAdjustTest(BaseAction):  # 二次调整,需要先调用GetPGVData()动作
-    def __init__(self):
-        super().__init__("PGVSecondaryAdjust")
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.adjust_param = dict()
-
-    def run(self, j: Jack):
-        if self.init:
-            self.init = False
-            self.reset()
-        self.set_adjust_param(0.3, -0.3)
-        self.action_status = Navigation.goPGVRun(self.adjust_param)
-
-        j.report_info["PGVSecondaryAdjust"] = {
-            "action_status": self.action_status,
-        }
-        Module.report_info(j.report_info)
-
-    def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
-        self.adjust_param['use_pgv'] = False  # 使用上视pgv, args里需要增加use_pgv参数
-        if self.adjust_param['use_pgv']:
-            self.adjust_param['use_down_pgv'] = False  # 使用下视pgv
-        else:
-            self.adjust_param['use_down_pgv'] = True
-        self.adjust_param['pgv_x_adjust'] = True  # 按照x纵方向进行二次调整
-        self.adjust_param['pgv_x_angle_adjust'] = False  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
-        self.adjust_param['pgv_adjust_dist'] = 0.2  # 最大的调整半径,尽量小以二维码中心为圆心
-        self.adjust_param['pgv_adjust_cx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
-        self.adjust_param['pgv_adjust_cy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
-        self.adjust_param['PGV_ReachDist'] = 0.02  # pgv二次调整距离精度
-        self.adjust_param['PGV_ReachAngle'] = 0.02  # pgv二次调整角度精度
-
-    def reset(self):
-        log.info("reset PGV secondary adjustment")
-        self.action_status = ActionStatus.RUNNING
-        Navigation.resetGoPGV()
-
-
 # --- 枚举定义 ---
 class Coordinate:
     """ 坐标系枚举 """
@@ -2499,28 +1755,45 @@ def main():
     Module.init()
 
     validator = ParamValidator(InputParams.builder.to_dict())
-    input_params = Module.get_task_args()
-    print("task args:", json.dumps(input_params, indent=2))
-    validated_params = {}
-    try:
-        # 验证参数
-        validated_params = validator.validate(input_params)
-        print("check ok, args:", json.dumps(validated_params, indent=2))
-    except ValueError as e:
-        print("check error:", e)
-
-    rob = Jack(validated_params)
-
+    j = Jack()
+    modbus_params = None
     while True:
         # 脚本任务状态管理
+        if j.event_safe_move_check:
+            j.safe_move_check()
+        if j.event_modbus:
+            modbus_params = j.modbus()
+            print(f"modbus_validated_params={modbus_params}")
+            j.event_modbus = False
         status = Module.get_status()
-        if status is ScriptStatus.RUNNING:
-            rob.run()
-        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED, ScriptStatus.NONE):
-            Module.set_status(ScriptStatus.NONE)
-            return
-        rob.print_info()
+        print(f"-------------------------status:{status}")
+        if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
+            if modbus_params is None:
+                input_params = Module.get_task_args()
+                print("task args:", json.dumps(input_params, indent=2))
+                validated_params = {}
+                try:
+                    # 验证参数
+                    validated_params = validator.validate(input_params)
+                    print("check ok, args:", json.dumps(validated_params, indent=2))
+                except ValueError as e:
+                    print("check error:", e)
+            else:
+                validated_params = modbus_params
+            j.run(validated_params)
+        elif status in (ScriptStatus.FAILED,ScriptStatus.FINISHED):
+            j.init_args = False
+            j.action_id = 0
+            j.action_list = []
+            j.operation_init = False
+
+        # j.print_info()
         time.sleep(0.1)
+        j.report_info["jackWithSpin"] = {
+            "jack_mode": True,
+            "jack_enable": True,
+        }
+        Module.report_info(j.report_info)
 
 
 if __name__ == '__main__':
