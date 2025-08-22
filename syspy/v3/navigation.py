@@ -553,6 +553,26 @@ class NavigationV3(NavigationInterface):
         """
         pass
 
+    @classmethod
+    def switchPolicy(cls, name: str):
+        """切换策略
+
+        Args:
+            name (str): 策略名
+        """
+        return cls.client().call_service("MoveFactory", "updatePolicy", [name])
+
+    @classmethod
+    def switchPolicyParams(cls, name: str, params: dict):
+        """切换策略参数
+
+        Args:
+            name (str): 策略名
+            params (dict): 待切换的策略参数，没有指定的参数保留旧值
+        """
+        return cls.client().call_service("MoveFactory", "updatePolicy", [], [(name, params)])
+
+
 @default_plugin("MoveFactory")
 class NavStatusV3(NavStatusInterface):
     """导航状态类"""

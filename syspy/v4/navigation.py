@@ -551,6 +551,27 @@ class NavigationV4(NavigationInterface):
         """
         pass
 
+    @classmethod
+    def switchPolicy(cls, name: str):
+        """切换策略
+
+        Args:
+            name (str): 策略名
+        """
+        # todo RBK4
+        return cls.client().call_service("Navigation", "updatePolicy", [name])
+
+    @classmethod
+    def switchPolicyParams(cls, name: str, params: dict):
+        """切换策略参数
+
+        Args:
+            name (str): 策略名
+            params (dict): 待切换的策略参数，没有指定的参数保留旧值
+        """
+        # todo RBK4
+        return cls.client().call_service("Navigation", "updatePolicy", [], [(name, params)])
+
 
 @default_plugin("MoveFactory")  # todo RBK4
 class NavStatusV4(NavStatusInterface):
