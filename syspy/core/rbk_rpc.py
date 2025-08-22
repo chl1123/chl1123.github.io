@@ -5,7 +5,7 @@ from syspy.config import RBK_VERSION
 import json
 from google.protobuf import message
 from google.protobuf import json_format
-from typing import Type, Optional, Any, Callable
+from typing import Type, Optional, Any, List, Union
 import time
 
 
@@ -128,9 +128,12 @@ class Message(Service):
                 (time.time() - self._last_update) > self._UPDATE_INTERVAL
         )
 
-    def get_data(self) -> Optional[message.Message]:
+    def get_data(self, args: Optional[List[str]] = None) -> Union[tuple, dict]:
         """获取当前数据（不触发更新）"""
-        return self.data
+        if self.update():
+            if args is not None:
+                return tuple(getattr(self.data, arg) for arg in args)
+        return json_format.MessageToDict(self.data)
 
 
 def default_plugin(name=None):

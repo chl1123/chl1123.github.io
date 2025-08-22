@@ -211,13 +211,24 @@ class Module:
 
     @classmethod
     def safe_move_check(cls, task_id: int):
+        """移动安全检查
+
+        Args:
+            task_id (int): 检查ID
+        """
         if  task_id != cls.__safe_move_check_id:
             cls.__safe_move_check_id = task_id
             cls.__safe_move_check_callback()
 
     @classmethod
-    def get_safe_move_check(cls) -> Tuple[SafeMoveStatus, int]:
-        return cls.__safe_move_check_status, cls.__safe_move_check_id
+    def get_safe_move_check(cls) -> Tuple[int, int]:
+        """获取移动安全检查状态
+
+        Returns:
+            int: 移动安全检查状态。
+            int: 当前检查id（通过safe_move_check入参获取）
+        """
+        return cls.__safe_move_check_status.value, cls.__safe_move_check_id
 
     @classmethod
     def set_safe_move_check_status(cls, status: SafeMoveStatus):
@@ -225,7 +236,8 @@ class Module:
 
     @classmethod
     def modbus(cls):
-        return cls.__modbus_callback()
+        cls.set_status(ScriptStatus.RUNNING)
+        cls.__modbus_callback()
 
     @classmethod
     def set_safe_move_check_callback(cls, callback: Callable[[], None]):
@@ -335,11 +347,9 @@ class ModuleBase(ABC):
         Module.stop_flag = True
         Module.set_status(ScriptStatus.FAILED)
 
-    @abstractmethod
     def safe_move_check(self):
         ...
 
-    @abstractmethod
     def modbus(self):
         ...
 

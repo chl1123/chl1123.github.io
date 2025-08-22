@@ -157,15 +157,27 @@ if __name__ == "__main__":
     # 模拟RBK RPC Client
     client = RpcClient("ipc:///tmp/cpp2broker.ipc")
 
-    print("client.update_cmd() ", client.call_service("broker", "import", "tasks/jack/jack.py"))
+    # print("client.update_cmd() ", client.call_service("broker", "import", "tasks/jack/jack.py"))
 
     # print("client.start() ", client.call_service("broker", "start", "tasks/chl/get_script_data.py"))
     # print("client.stop() ", client.call_service("broker", "stop", "tasks/chl/get_script_data.py"))
-    # print("client.update_cmd() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
-    # print("client.update_cmd() ",
-    #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "odo"}))
+    # print("client.start() ", client.call_service("broker", "start", "tasks/jack/jack.py"))
+    import time
+    from syspy import ScriptStatus
+    time.sleep(0.5)
+    print("client.update_cmd() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
+    time.sleep(10)
+    # 模拟底盘动，触发调用safe_move_check
+    client.call_service("tasks/jack/jack.py", "safe_move_check", 1)
+    for i in range(10000):
+        status = client.call_service("tasks/jack/jack.py", "get_safe_move_check")
+        print("client.safe_move_check() ", status)
+        if status[0] == ScriptStatus.FINISHED:
+            print("success")
+            break
+        time.sleep(1)
 
-    # print("client.update_cmd() ", client.call_service("tasks/jack/go_path.py", "update_cmd", {"operation": "odo"}))
+    # print("client.modbus() ", client.call_service("tasks/jack/jack.py", "modbus"))
 
     # print("client.update_cmd() ", client.call_service(
     #     "tasks/jack/go_path.py",
