@@ -4,7 +4,9 @@ from enum import IntEnum
 from threading import Lock
 from typing import Union, Optional, Callable, Tuple
 from syspy.utils import ScriptType
-
+from ..utils import SCRIPTS_DIR
+from ..config import RBK_VERSION
+from inspect import stack
 
 class ScriptStatus(IntEnum):
     NONE = 0
@@ -104,21 +106,29 @@ class Module:
     __safe_move_check_id = None
     __safe_move_check_status = SafeMoveStatus.NONE
     __modbus_callback = None
+    script_id = ""
 
     @classmethod
-    def init(cls):
-        from inspect import stack
+    def init(cls, name: str = ""):
+        cls.script_id = name
         caller_frame = stack()[1]
         caller_file = caller_frame.filename
-        from ..utils import SCRIPTS_DIR
         # 获取脚本相对路径
         cls.script_name = caller_file.split(SCRIPTS_DIR + "/")[-1]
+        if name == "":
+            cls.script_id = cls.script_name
+        if RBK_VERSION == 4:
+            from syspy.v4.include.rbk import core
+            core.Init(cls.script_id)
         print("script_name: ", cls.script_name)
+        print("script_id", cls.script_id)
         args = cls.__get_args()
         if args != {}:
             cls.__task = args
-            cls.__init_task_args()
-        cls.__register()
+            if cls.script_name.startswith("tasks/"):
+                cls.__init_task_args()
+        if cls.script_name.startswith("tasks/"):
+            cls.__register()
 
     # 获取脚本启动参数
     @classmethod
@@ -142,17 +152,28 @@ class Module:
 
     @classmethod
     def __register(cls):
-        from syspy.lib.rpc.server import RpcServer
-        rpc_server = RpcServer(cls.script_name, ScriptType.TASK)
-        rpc_server.registerFunction(cls.__update_cmd, "update_cmd")
-        rpc_server.registerFunction(cls.__suspend, "suspend")
-        rpc_server.registerFunction(cls.__resume, "resume")
-        rpc_server.registerFunction(cls.__cancel, "cancel")
+        if RBK_VERSION == 3:
+            from syspy.lib.rpc.server import RpcServer
+            service = RpcServer(cls.script_id, ScriptType.TASK)
+            service.registerFunction(cls.__update_cmd, "update_cmd")
+            service.registerFunction(cls.__suspend, "suspend")
+            service.registerFunction(cls.__resume, "resume")
+            service.registerFunction(cls.__cancel, "cancel")
 
-        rpc_server.registerFunction(cls.safe_move_check, "safe_move_check")
-        rpc_server.registerFunction(cls.get_safe_move_check, "get_safe_move_check")
-        rpc_server.registerFunction(cls.modbus, "modbus")
-        rpc_server.start()
+            service.registerFunction(cls.safe_move_check, "safe_move_check")
+            service.registerFunction(cls.get_safe_move_check, "get_safe_move_check")
+            service.registerFunction(cls.modbus, "modbus")
+            service.start()
+        elif RBK_VERSION == 4:
+            from syspy.v4.include.rbk import core, service
+            service.addService(cls.script_id, "update_cmd", cls.__update_cmd)
+            service.addService(cls.script_id, "suspend", cls.__suspend)
+            service.addService(cls.script_id, "resume", cls.__resume)
+            service.addService(cls.script_id, "cancel", cls.__cancel)
+
+            service.addService(cls.script_id, "safe_move_check", cls.safe_move_check)
+            service.addService(cls.script_id, "get_safe_move_check", cls.get_safe_move_check)
+            service.addService(cls.script_id, "modbus", cls.modbus)
 
     def __del__(self):
         if self.__rpc_client:
