@@ -307,7 +307,7 @@ class Module:
             # 任务失败或完成时清空任务和task_id
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 cls.__task = None
-                cls.__set_task_id(None)
+                cls.__task_id = None
             cls.__report_data()
 
     @classmethod
