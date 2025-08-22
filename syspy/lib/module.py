@@ -303,6 +303,10 @@ class Module:
     def set_status(cls, status: ScriptStatus):
         with cls.__lock:
             cls.__run_status = status
+            # 任务失败或完成时清空任务和task_id
+            if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+                cls.__task = None
+                cls.__set_task_id(None)
             cls.__report_data()
 
     @classmethod
