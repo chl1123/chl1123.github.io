@@ -2,9 +2,7 @@ import math
 
 import syspy.dmx512.dmx512_base as dmx
 import syspy.lib.misc_utility as mu
-from syspy.battery import Battery
-from syspy.controller import Controller
-from syspy.navigation import NavStatus, NavSpeed
+from syspy import Battery, Controller, NavStatus, NavSpeed
 from syspy import Logger
 
 log = Logger("led")

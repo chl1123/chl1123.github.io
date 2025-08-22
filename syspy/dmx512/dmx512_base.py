@@ -1,10 +1,14 @@
 import logging
 import platform
 from enum import Enum
+from syspy import Abnormal, Battery, Do, Di, Controller, NavStatus, Led
+from syspy import RBK_VERSION
 
-from syspy import NavStatus, NavSpeed, Battery, Controller, Di, Do, Abnormal, Led
-from syspy.protobuf import Message_MoveStatus, Message_Battery, Message_NavSpeed
-from syspy.protobuf.message import message_dmx512_pb2
+if RBK_VERSION == 3:
+    from syspy.v3.protobuf.message import message_dmx512_pb2
+if RBK_VERSION == 4:
+    from syspy.v4.include.protocol import messageV4_dmx512_pb2 as message_dmx512_pb2
+
 log = logging.getLogger("rbk.script")
 
 
@@ -32,32 +36,10 @@ class dmx512Base:
         log.info("start dmx512")
 
     # genetic
-    def createMoveStatusMessage(self):
-        return Message_MoveStatus()
-
-    def createBatteryMessage(self):
-        return Message_Battery()
-
-    def createNavSpeedMessage(self):
-        return Message_NavSpeed()
-
-    def recMoveStatus(self) -> Message_MoveStatus:
-        NavStatus.update()
-        return NavStatus.get_data()
-
-    def recBattery(self) -> Message_Battery:
-        Battery.update()
-        return Battery.get_data()
-
-    def recRobotSpeed(self) -> Message_NavSpeed:
-        NavSpeed.update()
-        return NavSpeed.get_data()
-
     def getChassisStop(self) -> bool:
         return NavStatus.getChassisStop()
 
     def getEMCState(self) -> bool:
-        Controller.update()
         return Controller.get_emc()
 
     def getDIStates(self, index) -> bool:
@@ -106,9 +88,6 @@ class dmx512Base:
     # can
     def createCanBus(self, channel, bitrate):
         self.child.createCanBus(channel, bitrate)
-
-    def recCanframe(self, msg):
-        return self.child.recCanframe(msg)
 
     def attachCanID(self, *args):
         can_ids = [arg for arg in args]

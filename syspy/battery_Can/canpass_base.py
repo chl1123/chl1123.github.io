@@ -8,9 +8,13 @@ from typing import Union
 from google.protobuf.json_format import MessageToJson
 
 import syspy.lib.rpc.server as rs
-from syspy import Abnormal
+from syspy import Abnormal, RBK_VERSION
 from syspy import Battery, Di, Do
-from syspy.protobuf.message.message_battery_pb2 import Message_Battery
+
+if RBK_VERSION == 3:
+    from syspy.v3.protobuf.message.message_battery_pb2 import Message_Battery
+if RBK_VERSION == 4:
+    from syspy.v4.include.protocol.messageV4_battery_pb2 import MessageV4_Battery  as Message_Battery
 
 log = logging.getLogger("rbk.script")
 

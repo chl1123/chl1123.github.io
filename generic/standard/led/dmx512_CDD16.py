@@ -4,6 +4,8 @@ import syspy.dmx512.dmx512_base as dmx
 import syspy.lib.udp_debug as ud
 # _syslog = ud.syslogDebug("dmx512")
 import syspy.lib.misc_utility as mu
+from syspy import Battery, NavSpeed, NavStatus
+
 
 class demo_dmx512(dmx.dmx512Base):
 
@@ -23,20 +25,15 @@ class demo_dmx512(dmx.dmx512Base):
 
     def run(self):
         dmx512_info = self.createDmx512Message()
-        dmx_battery = self.createBatteryMessage()
         mu.sleep_s(2)
         while 1:
             mu.sleep_s(1)
             '''从其他插件获取所需相关数据信息'''
-            movestatus_info = self.recMoveStatus()
-            robotspeed_info = self.recRobotSpeed()
             '''cur_w:旋转度, cur_x:前进距离, cur_y:平移距离'''
-            self.cur_w = robotspeed_info.rotate
-            self.cur_x = robotspeed_info.x
-            self.cur_y = robotspeed_info.y
+            self.cur_x, self.cur_y, self.cur_w = NavSpeed.get_speeds()
             '''实时获取电池信息并转换为dmx类型 '''
-            dmx_battery = self.recBattery()
-            tem = (dmx_battery.percetage * 100.0)
+            percentage = Battery.get_percentage()
+            tem = percentage * 100.0
             dmx512_info.battery = int(tem)
             '''非停止状态计数'''
             if self.getChassisStop() == True :
@@ -54,9 +51,10 @@ class demo_dmx512(dmx.dmx512Base):
             dmx512_info.color_b = RGBW[2]
             dmx512_info.color_w = RGBW[3]
 
-            '''判断是否从模型文件读取到'''
-            self.battery_exist = self.modelDeviceEnable(self.str1)
-            if self.warningExists(54001):
+            '''判断是否有电池信息'''''
+            if dmx512_info.battery != 0:
+                self.battery_exist = True
+            else:
                 self.battery_exist = False
 
             if (((self.getErrorNum()>0) and \
@@ -76,7 +74,7 @@ class demo_dmx512(dmx.dmx512Base):
                 dmx512_info.color_b = RGBW[2]
                 dmx512_info.color_w = RGBW[3]
 
-            elif movestatus_info.blocked:
+            elif NavStatus.get_block():
                 '''被阻挡状态下粉紫色跑马'''
                 dmx512_info.type = dmx.LightType.MutableHorseRace.value
                 RGBW = [30, 0, 30, 0]
@@ -151,10 +149,10 @@ class demo_dmx512(dmx.dmx512Base):
             elif self.battery_exist:
                 '''静止状态且battery存在'''
                 maxPer = self.getBatteryMaxPercentage()
-                if dmx_battery.is_charging:
+                if Battery.get_is_charging():
                     '''充电中为橙黄色呼吸'''
                     dmx512_info.type = dmx.LightType.Charging.value
-                elif (dmx_battery.percetage * 100 < maxPer):
+                elif (percentage * 100 < maxPer):
                     '''电量低于20 %（可配置）为暗红色跑马灯'''
                     dmx512_info.type = dmx.LightType.MutableHorseRace.value
                     RGBW = [170, 20, 0, 0]
@@ -165,7 +163,7 @@ class demo_dmx512(dmx.dmx512Base):
                 else:
                     '''显示电量，从绿色至暗红色渐变'''
                     dmx512_info.type = dmx.LightType.Battery.value
-                    tem = (dmx_battery.percetage * 100.0)
+                    tem = (percentage * 100.0)
                     dmx512_info.battery = int(tem)
             else:
                 '''电池类型未配置且机器人静止为彩虹灯'''
