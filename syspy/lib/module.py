@@ -235,7 +235,8 @@ class Module:
         cls.__safe_move_check_status = status
 
     @classmethod
-    def modbus(cls):
+    def modbus(cls, task_id):
+        cls.__set_task_id(task_id)
         cls.set_status(ScriptStatus.RUNNING)
         cls.__modbus_callback()
 
