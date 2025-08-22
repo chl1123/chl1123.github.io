@@ -1,14 +1,7 @@
-import os.path
-import sys
 import json
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../../")
-
-from syspy.v4.include.rbk import core, service
-
-
-name = "Navigation"
-core.Init(name)
+import time
+from syspy.v4.include.rbk import service
+from syspy import Module
 
 # Navigation
 def setMotorPosition(args):
@@ -24,7 +17,6 @@ def setMotorPosition(args):
     ]
     return json.dumps(response)
 
-
 def runOdoMove(params):
     """执行按里程运动的任务"""
     print("runOdoMove", params)
@@ -33,7 +25,14 @@ def runOdoMove(params):
     [250717 152310.155][586335317][ServiceExampleClient][e] [ServiceManager][CallService|Navigation::runOdoMove|Unable to cast Python instance of type <class 'NoneType'> to C++ type '?' (#define PYBIND11_DETAILED_ERROR_MESSAGES or compile in debug mode for details)]
     """
 
+def main():
+    name = "Navigation"
+    Module.init(name)
+    service.addService(name, "setMotorPosition", setMotorPosition)
+    service.addService(name, "runOdoMove", runOdoMove)
+    while True:
+        time.sleep(1)
 
-service.addService(name, "setMotorPosition", setMotorPosition)
-service.addService(name, "runOdoMove", runOdoMove)
-core.WaitForShutdown()
+
+if __name__ == '__main__':
+    main()

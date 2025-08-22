@@ -1,20 +1,19 @@
-import os.path
-import sys
 import time
+from syspy import Module
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../../")
+def main():
+    name = "ServiceExampleClient"
+    Module.init(name)
 
-from syspy.v4.include.rbk import core
+    from syspy import Motor, Navigation
 
-name = "ServiceExampleClient"
-core.Init(name)
+    while True:
+        motor_position = Motor.setMotorPosition("Motor-001", 0.1, 1, -1)
+        print("motor_position=", motor_position)
+        # print("ok=", ok)
 
-from syspy import Motor, Navigation
+        Navigation.runOdoMove({"move_dist": 1, "speed_x": 0.25, "action_name": "GoStraightForward"})
+        time.sleep(1)
 
-while True:
-    motor_position = Motor.setMotorPosition("Motor-001", 0.1, 1, -1)
-    print("motor_position=", motor_position)
-    # print("ok=", ok)
-
-    Navigation.runOdoMove({"move_dist": 1, "speed_x": 0.25, "action_name": "GoStraightForward"})
-    time.sleep(1)
+if __name__ == '__main__':
+    main()
