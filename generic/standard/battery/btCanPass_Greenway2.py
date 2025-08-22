@@ -99,17 +99,21 @@ class testCanBattery(cb.canPassBase):
                 self.previous_temperature = temperature
                 self.temperature_buffer = []  # 如果温差小于10度，重置缓冲区
                 if temperature <= -19:
-                    self.setError(53140, "The current temperature has reached " + str(
-                        temperature) + " degrees , low temperature error!")
+                    pass
+                    # self.setError(53140, "The current temperature has reached " + str(
+                    #     temperature) + " degrees , low temperature error!")
                 elif -19 < temperature <= -15:
-                    self.setWarning(54400, "The current temperature has reached " + str(
-                        temperature) + " degrees , low temperature warning.")
+                    pass
+                    # self.setWarning(54400, "The current temperature has reached " + str(
+                    #     temperature) + " degrees , low temperature warning.")
                 elif 55 <= temperature < 59:
-                    self.setWarning(54400, "The current temperature has reached " + str(
-                        temperature) + " degrees , high temperature warning.")
+                    pass
+                    # self.setWarning(54400, "The current temperature has reached " + str(
+                    #     temperature) + " degrees , high temperature warning.")
                 elif temperature >= 59:
-                    self.setError(53140, "The current temperature has reached " + str(
-                        temperature) + " degrees , high temperature error!")
+                    pass
+                    # self.setError(53140, "The current temperature has reached " + str(
+                    #     temperature) + " degrees , high temperature error!")
 
             self.battery_info.temperature = temperature
             self.msg_ok = True
@@ -135,11 +139,13 @@ class testCanBattery(cb.canPassBase):
                             # 过滤过充保护warning
                             continue
                         if (i == 3 and j == 0) or (i == 1 and j == 0) or (i == 1 and j == 1):
-                            error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
-                            self.setWarning(54400, error_msg)
+                            pass
+                            # error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
+                            # self.setWarning(54400, error_msg)
                         else:
-                            error_msg = "Battery pack number: " + tem[0:2] + " error msg: " + error_dict[(i, j)]
-                            self.setError(53140,error_msg)
+                            pass
+                            # error_msg = "Battery pack number: " + tem[0:2] + " error msg: " + error_dict[(i, j)]
+                            # self.setError(53140,error_msg)
                         self.is_abnormal = True
                         break
 
@@ -155,12 +161,12 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = False
             self.connect_timeout_t.reset()
             self.wake_up = False
-            if not self.clear:
-                if self.warningExists(54001):
-                    print('clear')
-                    self.clearTimeout()
-                else:
-                    self.clear = True
+            # if not self.clear:
+            #     if self.warningExists(54001):
+            #         print('clear')
+            #         self.clearTimeout()
+            #     else:
+            #         self.clear = True
         else:
             if self.connect_timeout_t.isTimeUp():
                 if not self.wake_up and (self.id == "0b" or self.id == "0d" or self.id == "0e"):
@@ -176,14 +182,14 @@ class testCanBattery(cb.canPassBase):
 
         self.handle_abnormal_state()
 
-    def handle_abnormal_state(self, warning_code=54400):
+    def handle_abnormal_state(self):
         if self.is_abnormal:
             self.is_abnormal = False
             self.abnormal_timeout_t.reset()
             print('is_abnormal')
-        elif self.abnormal_timeout_t.isTimeUp() and self.warningExists(warning_code):
-            print('clearWarning')
-            self.clearWarning(warning_code)
+        # elif self.abnormal_timeout_t.isTimeUp() and self.warningExists(warning_code):
+        #     print('clearWarning')
+        #     self.clearWarning(warning_code)
 
     def loop(self):
         mu.sleep_s(5)
