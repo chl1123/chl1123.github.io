@@ -14,8 +14,7 @@ class ScriptDataV4(ScriptDataInterface):
             # todo RBK4
             cls._MODEL_CLASS = None
 
-    @classmethod
-    def set(cls, name: str, data: dict) -> None:
+    def set(self, name: str, data: dict) -> None:
         """设置脚本数据
 
         Args:
@@ -23,7 +22,7 @@ class ScriptDataV4(ScriptDataInterface):
             data (bool): 脚本数据
         """
         # todo RBK4 修改App
-        return cls.client().call_service("NetProtocol", "setScriptData", name, json.dumps(data))
+        return self.client().call_service("NetProtocol", "setScriptData", name, json.dumps(data))
 
     def get(self, name: str) -> dict:
         """获取脚本数据

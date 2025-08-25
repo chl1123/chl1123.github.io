@@ -18,22 +18,20 @@ class ScriptDataV3(ScriptDataInterface):
             from .protobuf import Message_Script
             cls._MODEL_CLASS = Message_Script
 
-    @classmethod
-    def set(cls, name: str, data: dict) -> None:
+    def set(self, name: str, data: dict) -> None:
         """设置脚本数据
 
         Args:
             name (str): 脚本名或标识
             data (bool): 脚本数据
         """
-        return cls.client().call_service("NetProtocol", "setScriptData", name, json.dumps(data))
+        return self.client().call_service("NetProtocol", "setScriptData", name, json.dumps(data))
 
-    @classmethod
-    def get(cls, name: str) -> dict:
+    def get(self, name: str) -> dict:
         """获取脚本数据
 
         Args:
             name (str): 脚本名或标识
         """
-        if cls.update():
-            return json.loads(cls.data.script_data.get(name, "{}"))
+        if self.update():
+            return json.loads(self.data.script_data.get(name, "{}"))
