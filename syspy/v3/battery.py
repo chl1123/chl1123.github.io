@@ -1,7 +1,8 @@
 import typing
-from syspy.core.rbk_rpc import call_service, Message
+from syspy.core.rbk_rpc import call_service, default_plugin, Message
 
 
+@default_plugin("DSPChassis")
 class BatteryV3(Message):
     """RBK3电池实现"""
     _TOPIC = "rbk.protocol.Message_Battery"

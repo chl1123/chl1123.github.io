@@ -1,6 +1,7 @@
-from syspy.core.rbk_rpc import call_service, Message
-from syspy.core.rbk_rpc import RBKVersionError
+from syspy.core.rbk_rpc import call_service, Message, default_plugin, RBKVersionError
 
+
+@default_plugin("DSPChassis")  # todo RBK4
 class BatteryV4(Message):
     """版本4电池实现"""
 
