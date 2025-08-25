@@ -149,6 +149,8 @@ class Module:
     def __init_task_args(cls):
         if cls.__task is not None:
             cls.__set_task_id(cls.__task.get("taskId", None))
+            with cls.__lock:
+                cls.__run_status = ScriptStatus.RUNNING
 
     @classmethod
     def __register(cls):
@@ -195,18 +197,18 @@ class Module:
 
     @classmethod
     def __suspend(cls):
-        if cls.__suspend_callback is not None:
-            cls.__suspend_callback()
-        else:
-            if cls.get_status() == ScriptStatus.RUNNING:
+        if cls.get_status() == ScriptStatus.RUNNING:
+            if cls.__suspend_callback is not None:
+                    cls.__suspend_callback()
+            else:
                 cls.set_status(ScriptStatus.SUSPENDED)
 
     @classmethod
     def __resume(cls):
-        if cls.__resume_callback is not None:
-            cls.__resume_callback()
-        else:
-            if cls.get_status() == ScriptStatus.SUSPENDED:
+        if cls.get_status() == ScriptStatus.SUSPENDED:
+            if cls.__resume_callback is not None:
+                    cls.__resume_callback()
+            else:
                 cls.set_status(ScriptStatus.RUNNING)
 
     @classmethod
