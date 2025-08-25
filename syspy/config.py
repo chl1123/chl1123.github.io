@@ -6,7 +6,7 @@ PACK_FMT_STR = '!BBHLH6s'
 
 
 class rbklib:
-    def __init__(self, ip, timeout_ms=20) -> None:
+    def __init__(self, ip, timeout_s=0.2):
         self.ip = ip
         self.RBK_VERSION = 0
         self.rbk_full_version = ""
@@ -14,7 +14,7 @@ class rbklib:
             # 机器人状态 socket
             self.so_19204 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.so_19204.connect((self.ip, 19204))
-            self.so_19204.settimeout(timeout_ms)
+            self.so_19204.settimeout(timeout_s)
         except:
             self.so_19204 = None
             print("RBK client error")
@@ -113,14 +113,17 @@ class rbklib:
         """
         查询机器人信息
         """
-        if self.so_19204:
-            rbk_info = json.loads(self.request(1000)[1].decode())
-            self.rbk_full_version = rbk_info.get("version", "")
-            if self.rbk_full_version:
-                self.RBK_VERSION = int(self.rbk_full_version.split("v")[1].split(".")[0])
-            else:
-                self.RBK_VERSION = rbk_info.get("version", 0)
-        else:
+        try:
+            if self.so_19204:
+                rbk_info = json.loads(self.request(1000)[1].decode())
+                self.rbk_full_version = rbk_info.get("version", "")
+                if self.rbk_full_version:
+                    self.RBK_VERSION = int(self.rbk_full_version.split("v")[1].split(".")[0])
+                else:
+                    self.RBK_VERSION = rbk_info.get("version", 0)
+        except socket.timeout:
+            print("socket timeout")
+        if self.RBK_VERSION == 0:
             try:
                 with open('/etc/srcname', 'r') as f:
                     output = f.read().strip()
@@ -138,7 +141,7 @@ class rbklib:
         return self.rbk_full_version
 
 
-r = rbklib("127.0.0.1", 20)
+r = rbklib("127.0.0.1", 0.2)
 r.request_rbk_version()
 
 RBK_VERSION = r.get_rbk_version()

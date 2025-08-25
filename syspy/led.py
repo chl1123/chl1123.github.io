@@ -39,7 +39,7 @@ class LedInterface(ABC, Service):
         raise RBKVersionError()
 
 
-from syspy.config import RBK_VERSION
+from syspy import RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.led import LedV3
     Led: LedInterface = LedV3()

@@ -74,7 +74,7 @@ class NetProtocolInterface(ABC, Service):
         raise RBKVersionError()
 
 
-from syspy.config import RBK_VERSION
+from syspy import RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.lib.net_protocol import NetProtocolV3
     NetProtocol: NetProtocolInterface = NetProtocolV3()

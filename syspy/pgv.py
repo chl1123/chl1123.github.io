@@ -24,7 +24,7 @@ class PgvInterface(ABC, Message):
         raise RBKVersionError()
 
 
-from syspy.config import RBK_VERSION
+from syspy import RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.pgv import PgvV3
     Pgv: PgvInterface = PgvV3()

@@ -1,7 +1,7 @@
 import inspect
 from functools import wraps
 
-from syspy.config import RBK_VERSION
+from syspy import RBK_VERSION
 import json
 from google.protobuf import message
 from google.protobuf import json_format

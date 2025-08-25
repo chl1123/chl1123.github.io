@@ -77,7 +77,7 @@ class RobotParamInterface(ABC, Service):
         raise RBKVersionError()
 
 
-from syspy.config import RBK_VERSION
+from syspy import RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.lib.robot_param import RobotParamV3
     RobotParam: RobotParamInterface = RobotParamV3()

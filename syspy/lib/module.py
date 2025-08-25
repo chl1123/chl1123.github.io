@@ -5,7 +5,7 @@ from threading import Lock
 from typing import Union, Optional, Callable, Tuple
 from syspy.utils import ScriptType
 from ..utils import SCRIPTS_DIR
-from ..config import RBK_VERSION
+from syspy import RBK_VERSION
 from inspect import stack
 
 class ScriptStatus(IntEnum):
@@ -103,7 +103,7 @@ class Module:
     __resume_callback = None
 
     __safe_move_check_callback = None
-    __safe_move_check_id = None
+    __safe_move_check_id = 0
     __safe_move_check_status = SafeMoveStatus.NONE
     __modbus_callback = None
     script_id = ""

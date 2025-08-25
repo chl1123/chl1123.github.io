@@ -6,7 +6,7 @@ class DistanceInterface(ABC, Message):
     pass
 
 
-from syspy.config import RBK_VERSION
+from syspy import RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.distance import DistanceV3
     Distance: DistanceInterface = DistanceV3()
