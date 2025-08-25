@@ -95,7 +95,7 @@ class Module:
     script_name = None
     __lock = Lock()
     __run_status = ScriptStatus.NONE
-    __task_id = None
+    __task_id = 0
     __rpc_client = None
     __task = None
     __cancel_callback = None
@@ -262,7 +262,7 @@ class Module:
 
     @classmethod
     def __report_data(cls, status: Optional[ScriptStatus] = None):
-        if cls.__task_id is None:
+        if cls.__task_id == 0:
             return
         if status is None:
             status = cls.__run_status
@@ -304,11 +304,11 @@ class Module:
     def set_status(cls, status: ScriptStatus):
         with cls.__lock:
             cls.__run_status = status
+            cls.__report_data()
             # 任务失败或完成时清空任务和task_id
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 cls.__task = None
-                cls.__task_id = None
-            cls.__report_data()
+                cls.__task_id = 0
 
     @classmethod
     def report_info(cls, info: Union[dict, list]):
