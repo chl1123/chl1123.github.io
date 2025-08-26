@@ -533,6 +533,8 @@ class ParamValidator:
         return param_index
 
     def _flatten_input_params(self, input_params: Dict[str, Any]) -> Dict[str, Any]:
+        if input_params is None:
+            return {}
         """将路径格式参数转换为平铺格式"""
         flat_params = {}
 
@@ -581,6 +583,8 @@ class ParamValidator:
 
     def _extract_operation(self, input_params: Dict[str, Any]) -> Optional[str]:
         """从输入参数中提取operation值"""
+        if input_params is None or len(input_params) == 0:
+            return None
         # 直接提供operation参数
         if "operation" in input_params:
             return input_params["operation"]
