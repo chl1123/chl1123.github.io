@@ -3,12 +3,17 @@
 # @Project: 3.5版本脚本示例
 # @Coding:
 # @Update:
-
+import json
 import time
 
+from syspy.lib.net_protocol import parse_modbus
+
 start_time = time.time()
-from syspy import Module, ParamServer, Logger, Di, Motor, Navigation, ScriptStatus, NetProtocol, Trace
-from syspy.lib.module import ModuleBase, SafeMoveStatus
+from syspy import Di, Motor, Navigation, NetProtocol, Trace
+from syspy.lib.module import SafeMoveStatus
+from syspy import Logger, Module, ScriptStatus
+from syspy.utils.param_server import  ParamValidator, ParamServer, ParamBuilder, ParamType
+from syspy.lib.module import ModuleBase
 
 log = Logger("jack_example")
 
@@ -24,6 +29,56 @@ class ConfigParams:
     jack_zero_di = param_server.loadParam("jack_zero_di", type="int", default=3, comment="顶升机构零位DI")
     log.debug(f"{param_server.data=}")
 
+# 创建可复用的 jack_height 参数
+def create_jack_height_param(builder: ParamBuilder):
+    """创建顶升高度参数（可复用）"""
+    with builder.CHILD(key="height", name="Jacking height",
+                       desc="The height for lift operations"):
+        builder.TYPE(ParamType.FLOAT)
+        builder.REQUIRED(True)
+        builder.MIN_VALUE(0.0)
+        builder.MAX_VALUE(0.06)
+        builder.UNIT("m")
+        builder.SINGLESTEP(0.01)
+        builder.DEFAULTVALUE(0.01)
+
+class InputParams:
+    builder = ParamBuilder(__file__, desc="Input Params Config")
+
+    with builder.GROUPS():
+        # 顶升操作组合框
+        with builder.GROUP(key="operation", name="Lift Operations", desc="Lift Task script input parameters"):
+            builder.TYPE(ParamType.COMBO_BOX)
+            builder.REQUIRED(True)
+
+            with builder.CHILDREN():
+                # load操作
+                with builder.CHILD(key="load", name="Load Operation", desc="Lift the robot tray"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                    with builder.CHILDREN():
+                        # 顶升高度参数
+                        create_jack_height_param(builder)
+
+                # unload操作
+                with builder.CHILD(key="unload", name="Unload Operation",
+                                   desc="Lower the robot tray"):
+                    builder.TYPE(ParamType.STRING)
+
+                # spin
+                with builder.CHILD(key="spin", name="Spin Operation", desc="Spin the robot"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="spinAngle", name="Spin Angle",
+                                           desc="Spin angle"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(True)
+                            builder.UNIT("度")
+                            builder.SINGLESTEP(1)
+
+                with builder.CHILD(key="getCurrentPathProperty", name="Get Current Path Property", desc="Get current path property"):
+                    builder.TYPE(ParamType.ARRAY)
+    builder.save_to_file()
 
 class Jack(ModuleBase):
     def __init__(self):
@@ -39,7 +94,6 @@ class Jack(ModuleBase):
         self.count = 0
         self.report_info = {}
         self.args = {}
-        Module.set_status(ScriptStatus.NONE)
 
     def reset(self):
         self.spin_angle = 0
@@ -68,12 +122,12 @@ class Jack(ModuleBase):
         elif self.opt == "unload":
             self.unload()
         elif self.opt == "spin":
-            self.spin_angle = Module.get_task_args('spinAngle', None)
+            self.spin_angle = self.args.get('spinAngle', None)
             self.spin()
         elif self.opt == "goPath":
-            self.go_path_x = Module.get_task_args('x', 0)
-            self.go_path_y = Module.get_task_args('y', 0)
-            self.go_path_a = Module.get_task_args('a', 0)
+            self.go_path_x = self.args.get('x', 0)
+            self.go_path_y = self.args.get('y', 0)
+            self.go_path_a = self.args.get('a', 0)
             self.goPath()
         elif self.opt == "getCurrentPathProperty":
             self.getCurrentPathProperty()
@@ -112,8 +166,8 @@ class Jack(ModuleBase):
             Module.set_status(ScriptStatus.FINISHED)
 
     def spin(self):
-        log.debug("spin: ", self.spin_angle)
-        log.debug("setRobotSpinAngle(): ", Navigation.setRobotSpinAngle(self.spin_angle, 0))
+        log.info("spin: ", self.spin_angle)
+        log.info("setRobotSpinAngle(): ", Navigation.setRobotSpinAngle(self.spin_angle, 0))
         finished = Navigation.spinRun()
         if finished:
             log.debug("spin finish")
@@ -135,9 +189,9 @@ class Jack(ModuleBase):
 
     def getCurrentPathProperty(self):
         log.debug("getCurrentPathProperty ==============================================")
-        result = Navigation.getCurrentPathProperty()
-        log.debug("getCurrentPathProperty", result)
-        if self.count == 2:
+        # result = Navigation.getCurrentPathProperty()
+        # log.debug("getCurrentPathProperty", result)
+        if self.count == 100:
             Module.set_status(ScriptStatus.FINISHED)
 
     def getLM(self):
@@ -194,56 +248,86 @@ class Jack(ModuleBase):
             self.event_safe_move_check = False
 
     def modbus(self):
-        # modbus解析器
+        """
+        从Modbus读取参数并解析
+        """
+        print("modbus___________ 读取Modbus数据")
+        args = {}
+        # 1. 读取操作码
+        op_data = NetProtocol.getModbusData("4x", 201, 1)
+        if op_data:
+            operation_code = parse_modbus(op_data, 'uint16')
+            print(f"   操作码: {operation_code}")
+            # 根据操作码构建参数
+            if operation_code == 1:
+                args["operation"] = "load"
+                # 读取高度参数
+                height_data = NetProtocol.getModbusData("4x", 202, 2)
+                if len(height_data) >= 2:
+                    height = parse_modbus(height_data, 'float')
+                    print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
+                    print(f"   解析后高度值: {height:.4f}m")
+                    # 限制在有效范围内
+                    args["height"] = max(0.0, min(0.06, height))
+                    print(f"   设置高度: {args['height']:.4f}m")
+            elif operation_code == 2:
+                args["operation"] = "unload"
+            elif operation_code == 3:
+                args["operation"] = "spin"
+                # 3. 读取浮点型参数
+                print("读取浮点型参数:")
+                # 读取角度参数
+                angle_data = NetProtocol.getModbusData("4x", 202, 1)
+                if angle_data:
+                    angle_raw = parse_modbus(angle_data, 'int16')
+                    args["spinAngle"] = angle_raw / 100.0  # 转换为度
+                    print(f"   设置角度: {args['spinAngle']:.2f}度")
+                else:
+                    args["spinAngle"] = 90.0  # 默认角度
+                    print("   使用默认角度")
 
-        # 模拟映射表
-        modbus_data2args = {
-            "1": {
-                "height": 0.1
-            },
-            "2": {
-                "height": 0.1
-            },
-            "3": {
-                "spinAngle": 90
-            },
-            "4": {
-                "operation": "load",
-                "height": 0.1
-            }
-        }
+            elif operation_code == 4:
+                args["operation"] = "getCurrentPathProperty"
+                # 4. 读取字符串参数
+                print("读取字符串参数:")
+                str_data = NetProtocol.getModbusData("4x", 202, 4)
+                if str_data:
+                    # 使用parse_modbus函数解析字符串
+                    device_name = parse_modbus(str_data, 'string', 0, len(str_data))
+                    if device_name:
+                        args["device"] = device_name
+                        print(f"   设备名称: {device_name}")
 
-        # 读取数据
-        modbus_data = NetProtocol.getModbusData("3x", 0, 1)
-        # 解析映射表
-        args = modbus_data2args.get(modbus_data[0])
-        status = Module.get_status()
-        if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            self.event_modbus = False
-        # 做对应的动作
+            print(f"   操作类型: {args.get('operation', 'unknown')}")
         return args
 
 
 def main():
     Module.init()
-    # params = {
-    #     "operation": "load",
-    #     "height": 0.1
-    # }
     print("main")
     j = Jack()
+    validator = ParamValidator(InputParams.builder.to_dict())
+    modbus_args = None
+
     while True:
         # 脚本任务状态管理
         status = Module.get_status()
         print("status", status)
         j.report_info["status"] = status
         j.print_info()
-        args = Module.get_task_args()
         if j.event_safe_move_check:
             j.safe_move_check()
         if j.event_modbus:
-            args = j.modbus()
+            modbus_args = j.modbus()
+            j.event_modbus = False
         if status == ScriptStatus.RUNNING:
+            args = modbus_args or Module.get_task_args()
+            try:
+                # 验证参数
+                args = validator.validate(args)
+                print("check ok, args:", json.dumps(args, indent=2))
+            except ValueError as e:
+                print("check error:", e)
             j.run(args)
         time.sleep(0.1)
 
