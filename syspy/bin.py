@@ -11,7 +11,7 @@ class BinInterface(ABC, Message):
     """库位类"""
 
     @classmethod
-    def get_bins(cls) -> List[Message_Bin]:
+    def get_bins(cls) -> List["Message_Bin"]:
         raise RBKVersionError()
 
     @classmethod
@@ -175,8 +175,7 @@ else:
 
 
 if __name__ == '__main__':
-    if __name__ == '__main__':
-        from syspy import RobotParam
+    from syspy import RobotParam
     container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
     if isinstance(container_num, int) and container_num > 0:
         Container.init_container(container_num)

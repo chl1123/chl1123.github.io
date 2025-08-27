@@ -14,7 +14,7 @@ class LevelDBInterface(ABC, Service):
         Args:
             name (str): 数据库的名称。
         """
-        raise RBKVersionError()
+        ...
 
     @classmethod
     def __initDB(cls, name: str):

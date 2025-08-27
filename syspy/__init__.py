@@ -24,15 +24,7 @@ else:
 
 # from typeguard import install_import_hook
 # install_import_hook('syspy')
-
-from .battery import Battery
-from .camera import Camera
-from .charger import Charger
-from .controller import Controller
-from .dio import Di, Do
-from .distance import Distance
-from .laser import Laser
-from .led import Led
+from .lib.plyvel_db import LevelDB
 from .lib.abnormal import Abnormal
 from .lib.can_frame import Can
 from .lib.logger import Logger
@@ -40,21 +32,33 @@ from .lib.module import ScriptStatus, Module
 from .lib.net_protocol import NetProtocol
 from .lib.robot_param import RobotParam
 from .lib.trace import Trace
+from .utils.param_server import ParamServer
+
+from .battery import Battery
+from .bin import Bin, Container
+from .camera import Camera
+from .charger import Charger
+from .controller import Controller
+from .dio import Di, Do
+from .distance import Distance
+from .laser import Laser
+from .led import Led
 from .loc import Loc
 from .magnetic import Magnetic
 from .map import Map
 from .motor import Motor
-
 from .pgv import Pgv
 from .recognize import Recognize
 from .rfid import RFID
 from .sound import Sound
-from .utils.param_server import ParamServer
+
 
 __all__ = [
     "RBK_VERSION",
     "RBK_FULL_VERSION",
     "Abnormal",
+    "Bin",
+    "Container",
     "Trace",
     "Logger",
     "NetProtocol",

@@ -9,7 +9,7 @@ log = logging.getLogger("rbk.script")
 
 # todo RBK4: 增加LevelDB方法
 @default_plugin("LevelDB")  # todo RBK4
-class LevelDBV4(ABC, LevelDBInterface):
+class LevelDBV4(LevelDBInterface):
     """提供LevelDB数据库的操作接口"""
     def __init__(self, name):
         """初始化LevelDB实例。
@@ -17,6 +17,7 @@ class LevelDBV4(ABC, LevelDBInterface):
         Args:
             name (str): 数据库的名称。
         """
+        super().__init__(name)
         self.name = name
         # 初始化数据库
         self.__initDB(name)
