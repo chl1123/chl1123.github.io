@@ -43,6 +43,7 @@ class Message_DINode(_message.Message):
 
     Attributes:
         id (int): 节点的唯一标识符，默认为 0。
+        key (str): 节点的key。
         status (bool): 节点的状态，默认为 False。
         x (float): 节点的 x 坐标，默认为 0.0。
         y (float): 节点的 y 坐标，默认为 0.0。
@@ -60,11 +61,12 @@ class Message_DINode(_message.Message):
         posy (typing.List[float]): y 坐标的列表，默认为空列表。
         forbidden (bool): 是否禁止，默认为 False。
     """
-    __slots__ = ["forbidden", "func", "id", "maxdist", "mindist", "name", "posx", "posy", "range", "shape", "source",
-                 "status", "type", "x", "y", "yaw", "z"]
+    __slots__ = ["forbidden", "func", "id", "key", "maxdist", "mindist", "name", "posx", "posy", "range", "shape",
+                 "source", "status", "type", "x", "y", "yaw", "z"]
     FORBIDDEN_FIELD_NUMBER: ClassVar[int]
     FUNC_FIELD_NUMBER: ClassVar[int]
     ID_FIELD_NUMBER: ClassVar[int]
+    KEY_FIELD_NUMBER: ClassVar[int]
     MAXDIST_FIELD_NUMBER: ClassVar[int]
     MINDIST_FIELD_NUMBER: ClassVar[int]
     NAME_FIELD_NUMBER: ClassVar[int]
@@ -82,6 +84,7 @@ class Message_DINode(_message.Message):
     forbidden: bool
     func: str
     id: int
+    key: str
     maxdist: float
     mindist: float
     name: str
@@ -102,7 +105,7 @@ class Message_DINode(_message.Message):
                  type: Optional[str] = ..., source: Optional[str] = ..., shape: Optional[str] = ...,
                  mindist: Optional[float] = ..., maxdist: Optional[float] = ..., range: Optional[float] = ...,
                  posx: Optional[Iterable[float]] = ..., posy: Optional[Iterable[float]] = ..., forbidden: bool = ...,
-                 name: Optional[str] = ...) -> None: ...
+                 name: Optional[str] = ..., key: Optional[str] = ...) -> None: ...
 
 
 class Message_DO(_message.Message):
@@ -129,22 +132,25 @@ class Message_DONode(_message.Message):
 
     Attributes:
         id (int): 节点的唯一标识符，默认为 0。
+        key (str): 节点的key。
         lock (bool): 是否锁定节点状态，默认为 False。
         name (str): 节点名。
         source (str): 节点的来源，默认为空字符串。
         status (bool): 节点的状态，默认为 False。
     """
-    __slots__ = ["id", "lock", "name", "source", "status"]
+    __slots__ = ["id", "key", "lock", "name", "source", "status"]
     ID_FIELD_NUMBER: ClassVar[int]
+    KEY_FIELD_NUMBER: ClassVar[int]
     LOCK_FIELD_NUMBER: ClassVar[int]
     NAME_FIELD_NUMBER: ClassVar[int]
     SOURCE_FIELD_NUMBER: ClassVar[int]
     STATUS_FIELD_NUMBER: ClassVar[int]
     id: int
+    key: str
     lock: bool
     name: str
     source: str
     status: bool
 
     def __init__(self, id: Optional[int] = ..., status: bool = ..., source: Optional[str] = ..., lock: bool = ...,
-                 name: Optional[str] = ...) -> None: ...
+                 name: Optional[str] = ..., key: Optional[str] = ...) -> None: ...

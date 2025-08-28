@@ -1,15 +1,39 @@
 syntax = "proto3";
 package rbk.protocol;
 
+/*
+    @NameZh 单个DI节点信息
+    @NameEn single DI node info
+*/
 message Message_DINode {
+    /*
+        @KeyZh @id DI索引
+        @KeyEn @id DI index
+        @NumberType @id
+    */
     uint32 id = 1;
+    /*
+        @KeyZh @status DI状态
+        @KeyEn @status DI status
+        @BooleanType @status
+    */
     bool status = 2;
     double x = 3;
     double y = 4;
     double z = 5;
     double yaw = 6;
+    /*
+        @KeyZh @func DI功能
+        @KeyEn @func DI function
+        @StringType @func
+    */
     string func = 7;
     string type = 8;
+    /*
+        @KeyZh @source DI来源
+        @KeyEn @source DI source
+        @StringType @source
+    */
     string source = 9;
     string shape = 10;
 
@@ -20,25 +44,104 @@ message Message_DINode {
     repeated double posx = 14;
     repeated double posy = 15;
 
+    /*
+        @KeyZh @forbidden DI禁用状态
+        @KeyEn @forbidden DI forbidden status
+        @BooleanType @forbidden
+    */
     bool forbidden = 16;
+    /*
+        @KeyZh @name DI模型名称
+        @KeyEn @name DI model name
+        @StringType @name
+    */
     string name = 17;
+    /*
+        @KeyZh @key DI key
+        @KeyEn @key DI key
+        @StringType @key
+    */
+    string key = 18;
 }
 
+/*
+    @NameZh DI信息
+    @NameEn DI info
+*/
 message Message_DI {
+    /*
+        @KeyZh @node DI节点
+        @KeyEn @node DI node
+        @ProtoType @node
+    */
     repeated Message_DINode node = 1;
+    /*
+        @KeyZh @max_node 最大支持真实DI数量
+        @KeyEn @max_node max Normal DI nums
+        @NumberType @max_node
+    */
     uint32 max_node = 2;
 }
 
+/*
+    @NameZh 单个DO节点信息
+    @NameEn single DO node info
+*/
 message Message_DONode {
+    /*
+        @KeyZh @id DO索引
+        @KeyEn @id DO index
+        @NumberType @id
+    */
     uint32 id = 1;
+    /*
+        @KeyZh @status DO状态
+        @KeyEn @status DO status
+        @BooleanType @status
+    */
     bool status = 2;
+    /*
+        @KeyZh @source DO来源
+        @KeyEn @source DO source
+        @StringType @source
+    */
     string source = 3;
+    /*
+        @KeyZh @lock DO lock 状态
+        @KeyEn @lock DO lock status
+        @BooleanType @lock
+    */
     bool lock = 4;
+    /*
+        @KeyZh @name DO模型名称
+        @KeyEn @name DO model name
+        @StringType @name
+    */
     string name = 5;
+    /*
+        @KeyZh @key DO key
+        @KeyEn @key DO key
+        @StringType @key
+    */
+    string key = 6;
 }
 
+/*
+    @NameZh DO信息
+    @NameEn DO info
+*/
 message Message_DO {
+    /*
+        @KeyZh @node DO节点
+        @KeyEn @node DO node
+        @ProtoType @node
+    */
     repeated Message_DONode node = 1;
+    /*
+        @KeyZh @max_node 最大支持真实DO数量
+        @KeyEn @max_node max Normal DO nums
+        @NumberType @max_node
+    */
     uint32 max_node = 2;
 }
 

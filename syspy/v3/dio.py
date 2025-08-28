@@ -22,30 +22,30 @@ class DiV3(DiInterface):
 
     @classmethod
     @call_service(plugin_name="MoveFactory", func_name="setDIValid")
-    def setDIValid(cls, name: str, status: bool):
+    def setDIValid(cls, key: str, status: bool):
         """设置DI是否生效
 
         Args:
-            name (str): DI名
+            key (str): DI key
             status (bool): True表示生效，False表示不生效
         """
         pass
 
     @classmethod
     @call_service()
-    def setVirtualDI(cls, name: str, status: bool):
+    def setVirtualDI(cls, key: str, status: bool):
         """设置虚拟DI状态
 
         Args:
-            name (str): 虚拟DI名
+            key (str): 虚拟DI key
             status (bool):虚拟DI状态
         """
         pass
 
-    def get_di(self, name: str) -> bool:
+    def get_di(self, key: str) -> bool:
         """检测单个DI状态信息
         Args:
-            name (str): DI名
+            key (str): DI key
 
         Returns:
             bool: 返回指定DI的状态，若DI不存在返回False
@@ -53,7 +53,7 @@ class DiV3(DiInterface):
         self.update()
         if self.data:
             for node in self.data.node:
-                if node.name == name:
+                if node.key == key:
                     return node.status
         return False
 
@@ -95,11 +95,11 @@ class DoV3(DoInterface):
 
     @classmethod
     @call_service(plugin_name="MoveFactory")
-    def setDO(cls, name: str, status: bool) -> bool:
+    def setDO(cls, key: str, status: bool) -> bool:
         """控制DO的开关
 
         Args:
-            name (str): DO名
+            key (str): DO key
             status (bool): 是否打开这个DO
 
         Returns:
@@ -107,11 +107,11 @@ class DoV3(DoInterface):
         """
         pass
 
-    def get_do(self, name: str) -> bool:
+    def get_do(self, key: str) -> bool:
         """检测单个DO状态信息
 
         Args:
-            name (str): DO名
+            key (str): DO名
 
         Returns:
             bool: 返回指定DO的状态，若DO不存在返回False
@@ -119,7 +119,7 @@ class DoV3(DoInterface):
         self.update()
         if self.data:
             for node in self.data.node:
-                if node.name == name:
+                if node.key == key:
                     return node.status
         return False
 
