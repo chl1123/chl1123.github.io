@@ -49,7 +49,7 @@ class V3RpcClient(RpcClient):
 
     def get_message(self, topic: str, model_class: Type[message.Message], plugin: str = "RBKSim") -> message.Message:
         response = self._impl.get_message(topic, plugin)
-        return json_format.Parse(response, model_class())
+        return json_format.Parse(response, model_class(), ignore_unknown_fields=True)
 
     def call_service(self, plugin: str, method: str, *args, **kwargs) -> Any:
         return self._impl.call_service(plugin, method, *args)
