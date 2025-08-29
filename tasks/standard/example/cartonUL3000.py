@@ -111,7 +111,7 @@ class ConfigParams:
                                   group="DI", comment="背篓是否有货物检测传感器，1为有，0为无")
     fork_sensor_di = p.loadParam("fork_sensor_di", type="int", default=9, maxValue=100, minValue=-1, unit="",
                                  group="DI", comment="货叉检测DI")
-    overlimit_detect_di = p.loadParam("overlimit_detect_di", type="int", default=-1,
+    overlimit_detect_di = p.loadParam("overlimit_detect_di", type="str", default="OVERRIDE",
                                       group="DI", comment="检测货叉伸出是否超过料箱的DI")
     # 识别文件参数
     box_code_file = p.loadParam("box_code_file", type="str", default="default.srec",
@@ -163,16 +163,17 @@ class ConfigParams:
                                  comment="手指关闭DO")
 
     # 手指到位DI
-    left_finger_up_di = p.loadParam("left_finger_up_di", type="str", default=19, group="finger",
+    left_finger_up_di = p.loadParam("left_finger_up_di", type="str", default="LeftFingerUpLimit", group="finger",
                                     comment="左手指打开到位DI")
-    left_finger_down_di = p.loadParam("left_finger_down_di", type="str", default=22, group="finger",
+    left_finger_down_di = p.loadParam("left_finger_down_di", type="str", default="LeftFingerDownLimit", group="finger",
                                       comment="左手指关闭到位DI")
-    right_finger_up_di = p.loadParam("right_finger_up_di", type="str", default=18, group="finger",
+    right_finger_up_di = p.loadParam("right_finger_up_di", type="str", default="RightFingerUpLimit", group="finger",
                                      comment="右手指打开到位DI")
-    right_finger_down_di = p.loadParam("right_finger_down_di", type="str", default=16, group="finger",
+    right_finger_down_di = p.loadParam("right_finger_down_di", type="str", default="RightFingerDownLimit",
+                                       group="finger",
                                        comment="右手指关闭到位DI")
 
-    goods_check_di = p.loadParam("goods_check_di", type="int", default=-1, group="goods",
+    goods_check_di = p.loadParam("goods_check_di", type="str", default="CargoTesting", group="goods",
                                  comment="货叉中部货物检测光电DI")
     fill_light_do = p.loadParam("fill_light_do", type="str", default="DO-005", group="light",
                                 comment="补光灯DO")
@@ -733,17 +734,17 @@ class ContainerRobot(ModuleBase):
             self.rec = Rec(self.shelf_code_file)
 
         # 根据货叉货物检测光电更新货叉有无货信息
-        if ConfigParams.goods_check_di > 0:
-            if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
-                if Di.get_di(ConfigParams.goods_check_di) and not Container.has_goods("999"):
-                    Abnormal.setTask(53700, f"货叉光电检测到货叉中有货，但数据显示无货，需要人工核查处理", "", "", "")
-                    self.status = ScriptStatus.FAILED
-                elif not Di.get_di(ConfigParams.goods_check_di):
-                    Container.clearContainer("999")
-        else:
-            Abnormal.setTask(53701, f"请在脚本参数中正确配置 goods_check_di 参数！", "", "", "")
-            log.error(f"请在脚本参数中正确配置 goods_check_di 参数！")
-            self.status = ScriptStatus.FINISHED
+        # if ConfigParams.goods_check_di != "":
+        #     if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
+        #         if Di.get_di(ConfigParams.goods_check_di) and not Container.has_goods("999"):
+        #             Abnormal.setTask(53700, f"货叉光电检测到货叉中有货，但数据显示无货，需要人工核查处理", "", "", "")
+        #             self.status = ScriptStatus.FAILED
+        #         elif not Di.get_di(ConfigParams.goods_check_di):
+        #             Container.clearContainer("999")
+        # else:
+        #     Abnormal.setTask(53701, f"请在脚本参数中正确配置 goods_check_di 参数！", "", "", "")
+        #     log.error(f"请在脚本参数中正确配置 goods_check_di 参数！")
+        #     self.status = ScriptStatus.FINISHED
 
     def run(self):
         self.status = ScriptStatus.RUNNING
@@ -979,7 +980,12 @@ class ContainerRobot(ModuleBase):
         """
         log.info(f"----- running zero ------")
         if not self.zero_step[0]:
+            # print(ConfigParams.left_finger_down_di)
+            # print(ConfigParams.left_finger_up_di)
             self.zero_step[0] = Container.has_goods("999") or self.finger(1)
+            # abc = Di.get_di(ConfigParams.left_finger_up_di)
+            print(f"{self.zero_step[0]=}")
+            # print(f"{abc=}")
         elif self.zero_step[0] and not self.zero_step[1]:
             self.zero_step[1] = self.stretch(0)
         elif self.zero_step[1] and not self.zero_step[2]:
@@ -990,6 +996,8 @@ class ContainerRobot(ModuleBase):
         log.debug(f"zero_step:{self.zero_step}")
         if all(self.zero_step):
             # r.release()
+            Do.setDO(ConfigParams.finger_up_do, False)
+            Container.clearContainer("999")
             return True
         return False
 
@@ -1026,11 +1034,13 @@ class ContainerRobot(ModuleBase):
 
             if Di.get_di(ConfigParams.left_finger_up_di) and not Di.get_di(ConfigParams.left_finger_down_di):
                 self.left_finger_real_pos = 1
+                print(self.left_finger_real_pos)
             if Di.get_di(ConfigParams.right_finger_up_di) and not Di.get_di(ConfigParams.right_finger_down_di):
                 self.right_finger_real_pos = 1
-
+                print(self.right_finger_real_pos)
             if self.left_finger_real_pos == 1 and self.right_finger_real_pos == 1:
                 self.finger_open_start = False
+
                 return True
 
         elif pos == 0:
@@ -1117,7 +1127,7 @@ class ContainerRobot(ModuleBase):
         """
         if not self.change_step[0]:
             Do.setDO(ConfigParams.fill_light_do, True)
-            if Do.get_do(ConfigParams.fill_light_do):
+            if Do.get_do("LightsControllerRelay"):
                 if Timer.delay(ConfigParams.light_delay_time):
                     self.change_step[0] = True
         else:
@@ -1209,7 +1219,7 @@ class ContainerRobot(ModuleBase):
         if all(self.opt_step[0:2]) and not self.opt_step[2]:
             Do.setDO(ConfigParams.fill_light_do, True)
             Recognize.resetRec()  # 重置识别模块
-            if Do.get_do(ConfigParams.fill_light_do):
+            if Do.get_do("LightsControllerRelay"):
                 if Timer.delay(ConfigParams.light_delay_time):
                     self.opt_step[2] = True
         else:
@@ -1288,6 +1298,7 @@ class ContainerRobot(ModuleBase):
                                      "", "")
                     self.status = ScriptStatus.FAILED
             elif self.load_step[6] and not self.load_step[7]:
+                Do.setDO(ConfigParams.finger_up_do, False)
                 self.load_step[7] = self.finger(0)
             elif self.load_step[7] and not self.load_step[8]:
                 self.load_step[8] = self.stretch(0)
@@ -1309,6 +1320,7 @@ class ContainerRobot(ModuleBase):
             elif self.load_step[12] and not self.load_step[13]:
                 self.load_step[13] = self.stretch(0)
             elif self.load_step[13] and not self.load_step[14]:
+                Do.setDO(ConfigParams.finger_up_do, False)
                 self.load_step[14] = self.finger(0)
             elif self.load_step[14] and not self.load_step[15]:
                 self.load_step[15] = self.lift_safe_height()
@@ -1348,6 +1360,7 @@ class ContainerRobot(ModuleBase):
                 if all(self.in_take_step[0:3]) and not self.in_take_step[3]:
                     self.in_take_step[3] = self.stretch(ConfigParams.stretch_self_length)
                 elif self.in_take_step[3] and not self.in_take_step[4]:
+                    Do.setDO(ConfigParams.finger_up_do, False)
                     self.in_take_step[4] = self.finger(0)
                 elif self.in_take_step[4] and not self.in_take_step[5]:
                     self.in_take_step[5] = self.stretch(0)
@@ -1388,6 +1401,7 @@ class ContainerRobot(ModuleBase):
             if all(self.in_put_step[0:5]) and not self.in_put_step[5]:
                 self.in_put_step[5] = self.stretch(0)
             if all(self.in_put_step[0:6]) and not self.in_put_step[6]:
+                Do.setDO(ConfigParams.finger_up_do, False)
                 self.in_put_step[6] = self.finger(0)
             if all(self.in_put_step[0:7]) and not self.in_put_step[7]:
                 self.in_put_step[7] = self.lift_safe_height()
@@ -1436,7 +1450,7 @@ class ContainerRobot(ModuleBase):
             if all(self.change_step[0:2]) and not self.change_step[2]:
                 Do.setDO(ConfigParams.fill_light_do, True)
                 self.rec_adjust.status = ScriptStatus.RUNNING
-                if Do.get_do(ConfigParams.fill_light_do):
+                if Do.get_do("LightsControllerRelay"):
                     if Timer.delay(ConfigParams.light_delay_time):
                         self.change_step[2] = True
             if self.change_step[2] and not self.ex_take_step[3]:
@@ -1458,6 +1472,7 @@ class ContainerRobot(ModuleBase):
         if all(self.ex_take_step[0:7]) and not self.ex_take_step[7]:
             self.ex_take_step[7] = self.stretch(self.stretch_length)
         if all(self.ex_take_step[0:8]) and not self.ex_take_step[8]:
+            Do.setDO(ConfigParams.finger_up_do, False)
             self.ex_take_step[8] = self.finger(0)
         if all(self.ex_take_step[0:9]) and not self.ex_take_step[9]:
             self.ex_take_step[9] = self.stretch(0)
@@ -1492,7 +1507,7 @@ class ContainerRobot(ModuleBase):
                 self.rec_box.status = ScriptStatus.RUNNING
                 self.rec_box.is_error = True
                 Do.setDO(ConfigParams.fill_light_do, True)
-                if Do.get_do(ConfigParams.fill_light_do):
+                if Do.get_do("LightsControllerRelay"):
                     if Timer.delay(ConfigParams.light_delay_time):
                         self.ex_put_step[2] = True
             if all(self.ex_put_step[0:3]) and not self.ex_put_step[3]:
@@ -1524,7 +1539,7 @@ class ContainerRobot(ModuleBase):
                 if not self.change_step[0]:
                     Do.setDO(ConfigParams.fill_light_do, True)
                     self.rec_adjust.status = ScriptStatus.RUNNING
-                    if Do.get_do(ConfigParams.fill_light_do):
+                    if Do.get_do("LightsControllerRelay"):
                         if Timer.delay(ConfigParams.light_delay_time):
                             self.change_step[0] = True
                 else:
@@ -1548,7 +1563,8 @@ class ContainerRobot(ModuleBase):
         if all(self.ex_put_step[0:11]) and not self.ex_put_step[11]:
             self.ex_put_step[11] = self.rotate(0)
         if all(self.ex_put_step[0:11]) and not self.ex_put_step[12]:
-            self.ex_put_step[12] = self.finger(0)
+            if Do.setDO(ConfigParams.finger_up_do, False):
+                self.ex_put_step[12] = self.finger(0)
         if all(self.ex_put_step[0:12]) and not self.ex_put_step[13]:
             self.ex_put_step[13] = self.lift_safe_height()
 
@@ -1613,6 +1629,7 @@ class ContainerRobot(ModuleBase):
                 elif self.unload_step[1] and self.unload_step[2] and not self.unload_step[3]:
                     self.unload_step[3] = self.stretch(ConfigParams.stretch_self_length)
                 elif self.unload_step[3] and not self.unload_step[4]:
+                    Do.setDO(ConfigParams.finger_up_do, False)
                     self.unload_step[4] = self.finger(0)
                 elif self.unload_step[4] and not self.unload_step[5]:
                     if all(self.unload_step[:6]) and (not self.unload_step[6] or not self.unload_step[7]):
@@ -1641,7 +1658,7 @@ class ContainerRobot(ModuleBase):
                                 self.rec_box.status = ScriptStatus.RUNNING
                                 self.rec_box.is_error = True
                                 Do.setDO(ConfigParams.fill_light_do, True)
-                                if Do.get_do(ConfigParams.fill_light_do):
+                                if Do.get_do("LightsControllerRelay"):
                                     if Timer.delay(ConfigParams.light_delay_time):
                                         self.rec_box_lift_step[2] = True
                             if not self.rec_box_lift_step[3] and self.rec_box_lift_step[2]:
@@ -1649,12 +1666,13 @@ class ContainerRobot(ModuleBase):
                                     self.rec_box.reset()
                                     self.rec_box.is_error = None
                                     Do.setDO(ConfigParams.fill_light_do, False)
-                                    if self.rec_box.has_goods and not self.rec_box.goods_out_dist:
-                                        Abnormal.setTask(53726, "检测到货架上有货，取消放货动作！", "", "", "")
-                                        self.status = ScriptStatus.FAILED
-                                        return
-                                    else:
-                                        self.rec_box_lift_step[3] = True
+                                    self.rec_box_lift_step[3] = True
+                                    # if self.rec_box.has_goods and not self.rec_box.goods_out_dist:
+                                    #     Abnormal.setTask(53726, "检测到货架上有货，取消放货动作！", "", "", "")
+                                    #     self.status = ScriptStatus.FAILED
+                                    #     return
+                                    # else:
+                                    #     self.rec_box_lift_step[3] = True
                                 elif self.rec_box.status is ScriptStatus.FAILED:
                                     Do.setDO(ConfigParams.fill_light_do, False)
                                     self.rec_box_lift_step[3] = True
@@ -1676,9 +1694,10 @@ class ContainerRobot(ModuleBase):
                     if not self.change_step[0]:
                         Do.setDO(ConfigParams.fill_light_do, True)
                         self.rec_adjust.status = ScriptStatus.RUNNING
-                        if Do.get_do(ConfigParams.fill_light_do):
+                        if Do.get_do("LightsControllerRelay"):
                             if Timer.delay(ConfigParams.light_delay_time):
                                 self.change_step[0] = True
+                                print(self.change_step[0])
                     else:
                         if self.rec_adjust.status is ScriptStatus.FINISHED:
                             Do.setDO(ConfigParams.fill_light_do, False)
@@ -1703,6 +1722,7 @@ class ContainerRobot(ModuleBase):
                                            or not self.unload_step[14]
                                            or not self.unload_step[15]):
                 if not self.unload_step[13]:
+                    Do.setDO(ConfigParams.finger_up_do, False)
                     self.unload_step[13] = self.finger(0)
                 if not self.unload_step[14]:
                     self.unload_step[14] = self.rotate(0)
@@ -2089,3 +2109,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
