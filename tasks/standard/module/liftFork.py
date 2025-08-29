@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # Author: zzm
 # version: 1.0
-# Time: 2025/05/30
+# Time: 2025/08/29
 # description: CBD15-MF移植
+# update: 08/29 屏蔽激光，支持原地载货卸货
 
 import json
 import math
@@ -10,6 +11,8 @@ import time
 from enum import IntEnum
 from typing import Optional
 from syspy.utils.time import Timer
+from syspy import NavSpeed
+from syspy.script_data import ScriptData
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
 from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
     Odometer, Pgv, Laser, NetProtocol, Trace
@@ -437,19 +440,25 @@ class Fork(ModuleBase):
             self.event_safe_move_check = False
 
     def get_target_pos(self):
-        target_id = self.move_task.get("target_name", "")
+        target_id = self.move_task.get("target_name", "")  # int, 可能是 LM，可能是 AP
 
         if target_id == "":
+            # task_args 里已经是带前缀的字符串
             target_id_str = self.task_args.get("targetName", "")
+            pos = Navigation.getLM(target_id_str, True)
+            return pos
         else:
-            target_id_str = f"AP{target_id}"
-        log.info(f"target_id_str:{target_id_str},target_id:{target_id}")
-        pos = Navigation.getLM(target_id_str, True)
-        # if pos[3] == -1:
-        #     Abnormal.setTask(53301, "no target id ,script fail", "", "", "")
-        #     self.script_status = ScriptStatus.FAILED
-        #     return
-        return pos
+            # 尝试 AP 和 LM 两个前缀
+            for prefix in ["AP", "LM"]:
+                target_id_str = f"{prefix}{target_id}"
+                pos = Navigation.getLM(target_id_str, True)
+                if pos[3] != -1:  # 找到有效结果
+                    log.info(f"target_id_str:{target_id_str}, target_id:{target_id}, pos:{pos}")
+                    return pos  # 优先返回成功的结果
+
+            # 如果走到这里，说明 AP 和 LM 都失败了
+            log.warning(f"Both AP{target_id} and LM{target_id} not found, return last pos:{pos}")
+            return pos
 
     def test(self):
         if not self.operation_init:
@@ -525,7 +534,7 @@ class Fork(ModuleBase):
                                               ConfigParams.up_delay_time, ConfigParams.down_delay_time),
                     ]
                 else:
-                    if not self.target_pos or self.target_pos[2] == -1:
+                    if not self.target_pos or self.target_pos[3] == -1:
                         self.action_list = [
                             RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                         ]
@@ -533,7 +542,7 @@ class Fork(ModuleBase):
                         self.action_list = [
                             RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                             GoPathWithContactDi(ConfigParams.contact_ids_str, self.target_pos, 0.05, "goPath",
-                                                {"fork_di_dist": 0.2}),
+                                                {"fork_di_dist": ConfigParams.fork_di_dist}),
                             RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                         ]
 
@@ -595,7 +604,7 @@ class Fork(ModuleBase):
                         self.script_status = ScriptStatus.FAILED
                         return
 
-                # 根据参数配置是否走贝塞尔曲线选择调整办法
+                # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                 args = {
                     "back_dist": ConfigParams.back_dist,
                     "min_ahead_dist": ConfigParams.min_ahead_dist,
@@ -622,10 +631,12 @@ class Fork(ModuleBase):
             self.operation_init = True
             self.do_fork = self.do_fork_check()
 
-            move_task = Navigation.moveTask()
-            target_id = move_task.get("target_name", "")
-            target_pos = Navigation.getLM(f"LM{target_id}", True)
-
+            target_pos = self.get_target_pos()
+            if target_pos[3] == -1:
+                Abnormal.setTask(53323, f"cannot find point, script failed", "wrong LM point", "check the input param",
+                                 "")
+                self.script_status = ScriptStatus.FAILED
+                return
             args = {
                 'x': target_pos[0],
                 'y': target_pos[1],
@@ -639,6 +650,10 @@ class Fork(ModuleBase):
             if ConfigParams.bezier_return and not ConfigParams.use_straight_line:
                 self.action_list = [
                     GoBezier.GoBezierWorldReturn(False)
+                ]
+            elif ConfigParams.bezier_return and ConfigParams.use_straight_line:
+                self.action_list = [
+                    GoTwoStraightLine(0, 0, 0, 0, 0, 0, 0, True)
                 ]
             else:
                 self.action_list = [
@@ -803,7 +818,6 @@ class Fork(ModuleBase):
     def rec(self):
         if not self.operation_init:
             self.operation_init = True
-            self.target_pos = [-0.985, 0.441, 0]
             self.action_list = [Rec(self.recfile, self.target_pos)]
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
@@ -845,7 +859,7 @@ class Fork(ModuleBase):
 
         # 堆高车处理后激光的屏蔽
         if ConfigParams.module_type == "straddleLiftFork":
-            fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
+            # fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
             # 获取当前避障设备列表
             if fork_height <= ConfigParams.back_laser_enable_height:
                 current_collision_device_str = (RobotParam.getConfig("navigation",
@@ -857,9 +871,11 @@ class Fork(ModuleBase):
                 policy = {
                     "navigation.collisionDetection.detectionDevice": current_collision_device_str
                 }
-                Navigation.switchPolicyParams("policy", policy)
+                Navigation.appendCustomPolicy("policy", policy)
             dev_1 = (RobotParam.getConfig("navigation", "collisionDetection.detectionDevice"))
             log.info(f"Device 1: {dev_1}")
+            # loadMaxSpeed = RobotParam.getConfig("navigation", "basic.load.loadMaxSpeed")
+            # print("loadMax end2", loadMaxSpeed)
 
         # 处理载货时di状态监控
         if Navigation.hasGoods() and ConfigParams.check_goods_while_load and ConfigParams.check_all_contact_dis:
@@ -1070,7 +1086,7 @@ class GoPathWithContactDi(BaseAction):
                                                       None, 0.1)
         elif method == "twoStraightLine":
             self.back_action = GoTwoStraightLine(world_pos, args["min_ahead_dist"], args["adjust_dist"],
-                                                 args["back_dist"], 0.2, 10, 1)
+                                                 args["back_dist"], 0.2, args['max_angle'], 1)
         # self.back_status = self.back_action.action_status
 
     def run(self):
@@ -1090,7 +1106,6 @@ class GoPathWithContactDi(BaseAction):
         # 如果没有到位 di
         if not self.check_di:
             self.action_status = self.back_action.action_status
-            return
 
         # 获取到位 di 的状态
         self.di_status = []
@@ -1105,12 +1120,11 @@ class GoPathWithContactDi(BaseAction):
                 Abnormal.setTask(53307, f"not trigger di but robot reach goal",
                                  f"please check the di dist or reach di:{self.contact_di}", "", "")
                 self.action_status = ActionStatus.FAILED
-                return
             # 一个到位任务结束
             if any(self.di_status):
-                Navigation.stopRobot(True)
-                Navigation.resetPath()
-                self.action_status = ActionStatus.FINISHED
+                if self.stop_robot():
+                    self.action_status = ActionStatus.FINISHED
+
         # 仅检查所有到位 di 的情况
         else:
             # 所有到位 di 没有全部触发，则报错结束任务
@@ -1119,20 +1133,17 @@ class GoPathWithContactDi(BaseAction):
                                  f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
                                  "", "")
                 self.action_status = ActionStatus.FAILED
-                return
             # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
             if any(self.di_status):
                 if Timer.delay(self.di_trigger_time):
                     if all(self.di_status):
-                        Navigation.stopRobot(True)
-                        Navigation.resetPath()
-                        self.action_status = ActionStatus.FINISHED
+                        if self.stop_robot():
+                            self.action_status = ActionStatus.FINISHED
                     else:
                         Abnormal.setTask(53308, f"not all di triggered but robot reach goal",
                                          f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
                                          "", "")
                         self.action_status = ActionStatus.FAILED
-                        return
         if self.action_status in [ActionStatus.FINISHED, ActionStatus.FAILED]:
             Laser.clearLaserWidth()
         # cur_state = dict()
@@ -1154,6 +1165,13 @@ class GoPathWithContactDi(BaseAction):
         cur_dist = math.sqrt(
             (self.start_loc["x"] - cur_loc["x"]) ** 2 + (self.start_loc["y"] - cur_loc["y"]) ** 2)
         return cur_dist
+
+    def stop_robot(self):
+        NavSpeed.set_speeds(0, 0, 0)
+        v_x, v_y, v_w = NavSpeed.get_speeds()
+        if all(abs(v) <= 0.01 for v in (v_x, v_y, v_w)):
+            Navigation.resetPath()
+            return True
 
 
 class LocDetectGoods(BaseAction):
@@ -1290,11 +1308,10 @@ class RunMotorByPosition(BaseAction):
             # Motor.setMotorSpeed(self.motor_name,0.06,5)
 
             Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
-        pos = Motor.get_motor_pos(self.motor_name)
+        # pos = Motor.get_motor_pos(self.motor_name)
 
-        if abs(pos - self.position) < 0.005:
+        if Motor.isMotorReached(ConfigParams.fork_motor_name):
             self.action_status = ActionStatus.FINISHED
-        print(f"is reach:{Motor.isMotorReached(self.motor_name)},pos:{pos}")
 
         # 检测货叉的运动是否卡住了
         now = time.time()
@@ -1549,7 +1566,8 @@ class GoPath(BaseAction):
 
 
 class GoTwoStraightLine:
-    def __init__(self, world_target, min_ahead_dist, ahead_dist, back_dist, speed, max_angle, dec_dist):
+    def __init__(self, world_target, min_ahead_dist, ahead_dist, back_dist, speed, max_angle, dec_dist,
+                 return_back=False):
         self.go3 = None
         self.go2 = None
         self.go1 = None
@@ -1569,46 +1587,97 @@ class GoTwoStraightLine:
         self.go_step = [False] * 3
         self.action_status = ActionStatus.INIT
         self.init = False
-
-    def run(self):
-        if not self.init:
-            self.init = True
-            pos = Loc.get_data()
-            self.start_pos = [pos['x'], pos['y'], pos['angle']]
+        self.return_back = return_back
+        pos = Loc.get_pose()
+        if not self.return_back:
+            self.start_pos = [pos['x'], pos['y'], math.radians(pos['angle'])]
             if abs(self.cal_angle(self.start_pos, self.second_point)) > self.max_angle:
                 self.start_pos[2] = self.world_target[2]
                 angle, self.temp_start = self.search_min_angle_str(self.max_angle, self.step)
             else:
                 self.temp_start = self.start_pos
-            go1_args = {
-                "x": self.temp_start[0],
-                "y": self.temp_start[1],
-                "theta": self.temp_start[2],
-                "backMode": 0,
-                "maxSpeed": 0.2,
-                "maxRot": math.radians(10),
-                "coordinate": Coordinate.WORLD
-            }
+            ScriptData.set('goTwoStraightLine',
+                           {'points': [self.start_pos, self.temp_start, self.second_point, self.world_target]})
+        else:
+            points = ScriptData.get('goTwoStraightLine').get('points', [])
+            if not points:
+                self.action_status = ActionStatus.FAILED
+                Abnormal.setTask(53324, "no route before leave loc, scirpt failed",
+                                 "rec and goStraightLine first",
+                                 "rec and goStraightLine first", "")
+
+            self.temp_start = points[2]  # 退出库位的第一个点，栈板 min_ahead_dist 前置点
+            self.second_point = points[1]  # 退出库位第二个点，ahead_dist 点
+            self.second_point = points[0]  # 退出库位第三个点，前置点
+            check_point = points[3]
+            dist = math.sqrt((check_point[0] - pos['x']) ** 2 + (check_point[1] - pos['x']) ** 2)
+            if dist >= 0.5:
+                Abnormal.setTask(53325, "cannot leave loc when robot is not at last target",
+                                 f"too far:{dist}m", "", "")
+                self.action_status = ActionStatus.FAILED
+            ScriptData.set('goTwoStraightLine', {})
+
+    def run(self):
+        if not self.init:
+            self.init = True
+            if not self.return_back:
+                go1_args = {
+                    "x": self.temp_start[0],
+                    "y": self.temp_start[1],
+                    "theta": self.temp_start[2],
+                    "backMode": 0,
+                    "maxSpeed": 0.2,
+                    "maxRot": math.radians(10),
+                    "coordinate": Coordinate.WORLD
+                }
+                go2_args = {
+                    "x": self.second_point[0],
+                    "y": self.second_point[1],
+                    "theta": self.second_point[2],
+                    "backMode": 1,
+                    "maxSpeed": 0.1,
+                    "maxRot": math.radians(10),
+                    "coordinate": Coordinate.WORLD
+                }
+                go3_args = {
+                    "x": self.third_point[0],
+                    "y": self.third_point[1],
+                    "theta": self.third_point[2],
+                    "backMode": 1,
+                    "maxSpeed": 0.1,
+                    "maxRot": math.radians(10),
+                    "coordinate": Coordinate.WORLD
+                }
+            else:
+                go1_args = {
+                    "x": self.temp_start[0],
+                    "y": self.temp_start[1],
+                    "theta": self.temp_start[2],
+                    "backMode": 0,
+                    "maxSpeed": 0.2,
+                    "maxRot": math.radians(10),
+                    "coordinate": Coordinate.WORLD
+                }
+                go2_args = {
+                    "x": self.second_point[0],
+                    "y": self.second_point[1],
+                    "theta": self.second_point[2],
+                    "backMode": 0,
+                    "maxSpeed": 0.1,
+                    "maxRot": math.radians(10),
+                    "coordinate": Coordinate.WORLD
+                }
+                go3_args = {
+                    "x": self.third_point[0],
+                    "y": self.third_point[1],
+                    "theta": self.third_point[2],
+                    "backMode": 0,
+                    "maxSpeed": 0.1,
+                    "maxRot": math.radians(10),
+                    "coordinate": Coordinate.WORLD
+                }
             self.go1 = GoPath(go1_args)
-            go2_args = {
-                "x": self.second_point[0],
-                "y": self.second_point[1],
-                "theta": self.second_point[2],
-                "backMode": 1,
-                "maxSpeed": 0.1,
-                "maxRot": math.radians(10),
-                "coordinate": Coordinate.WORLD
-            }
             self.go2 = GoPath(go2_args)
-            go3_args = {
-                "x": self.third_point[0],
-                "y": self.third_point[1],
-                "theta": self.third_point[2],
-                "backMode": 1,
-                "maxSpeed": 0.1,
-                "maxRot": math.radians(10),
-                "coordinate": Coordinate.WORLD
-            }
             self.go3 = GoPath(go3_args)
 
         if not self.go_step[0]:
@@ -1701,7 +1770,6 @@ def main():
         # 任务开始时，盛哥会将状态置为 running，并传入任务参数
         input_params = validated_params or Module.get_task_args()
         status = Module.get_status()
-        print(status)
         if status == ScriptStatus.RUNNING:
             args = {}
             if not checked_args:
