@@ -142,7 +142,6 @@ class AbnormalV4(AbnormalInterface):
                                          fileName, mapType, elementType, elementName, policyName, param)
 
     @classmethod
-    @call_service(func_name="setMapAbnormal")
     def setMap(cls, code: int, desc: str, reason: str, method: str, fileName: str, mapType: str = "",
                elementType: str = "", elementName: str = "") -> bool:
         """设置地图异常
@@ -168,7 +167,6 @@ class AbnormalV4(AbnormalInterface):
                                          mapType, elementType, elementName)
 
     @classmethod
-    @call_service(func_name="setModelAbnormal")
     def setModel(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
                  deviceKey: str = "", param: str = "") -> bool:
         """设置模型异常
@@ -194,7 +192,6 @@ class AbnormalV4(AbnormalInterface):
                                          deviceType, deviceKey, param)
 
     @classmethod
-    @call_service(func_name="setConfigAbnormal")
     def setConfig(cls, code: int, desc: str, reason: str, method: str, appType: str, fileName: str,
                param: str = "") -> bool:
         """设置参数配置异常
@@ -219,7 +216,6 @@ class AbnormalV4(AbnormalInterface):
                                          fileName, param)
 
     @classmethod
-    @call_service(func_name="setSystemAbnormal")
     def setSystem(cls, code: int, desc: str, reason: str, method: str, fileName: str, param: str = "") -> bool:
         """设置系统异常
 
@@ -241,7 +237,6 @@ class AbnormalV4(AbnormalInterface):
         return cls.client().call_service("Abnormal", "setSystemAbnormal", code, desc, reason, method, fileName, param)
 
     @classmethod
-    @call_service(func_name="setEnvironmentAbnormal")
     def setEnvironment(cls, code: int, desc: str, reason: str, method: str, position: str = "") -> bool:
         """设置环境异常
 
@@ -262,7 +257,6 @@ class AbnormalV4(AbnormalInterface):
         return cls.client().call_service("Abnormal", "setEnvironmentAbnormal", code, desc, reason, method, position)
 
     @classmethod
-    @call_service(func_name="setDeviceAbnormal")
     def setDevice(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
                   deviceKey: str = "", param: str = "", errorCode: int = 0) -> bool:
         """设置设备异常
@@ -290,7 +284,6 @@ class AbnormalV4(AbnormalInterface):
                                          deviceType, deviceKey, param, errorCode)
 
     @classmethod
-    @call_service(func_name="setConnectionAbnormal")
     def setConnect(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
                    deviceKey: str = "", param: str = "") -> bool:
         """设置连接异常
@@ -316,7 +309,6 @@ class AbnormalV4(AbnormalInterface):
                                          deviceType, deviceKey, param)
 
     @classmethod
-    @call_service(func_name="setCalibrationAbnormal")
     def setCalibrate(cls, code: int, desc: str, reason: str, method: str, deviceType: str, deviceKey: str = "") -> bool:
         """设置标定异常
 
@@ -339,7 +331,6 @@ class AbnormalV4(AbnormalInterface):
                                          deviceKey)
 
     @classmethod
-    @call_service(func_name="setLicenseAbnormal")
     def setLicense(
             cls, code: int, desc: str, reason: str, method: str, licenseType: str = ""
     ) -> bool:
@@ -362,7 +353,6 @@ class AbnormalV4(AbnormalInterface):
         return cls.client().call_service("Abnormal", "setLicenseAbnormal", code, desc, reason, method, licenseType)
 
     @classmethod
-    @call_service(func_name="setChassisAbnormal")
     def setChassis(cls, code: int, desc: str, reason: str, method: str) -> bool:
         """设置车体异常
 
