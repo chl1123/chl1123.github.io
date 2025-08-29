@@ -505,35 +505,43 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def switchPolicy(cls, name: str):
-        """切换策略
+    def appendPolicy(cls, name: str):
+        """增加策略
 
         Args:
             name (str): 策略名
 
         Examples:
-            >>> Navigation.switchPolicy("policy1")  # 切换到"policy1"策略
+            >>> Navigation.appendPolicy("policy1")  # 切换到"policy1"策略
         """
         raise RBKVersionError()
 
     @classmethod
-    def switchPolicyParams(cls, name: str, params: dict):
-        """切换策略参数
+    def appendCustomPolicy(cls, name: str, params: dict):
+        """增加策略参数
 
         Args:
             name (str): 策略名
-            params (dict): 待切换的策略参数，没有指定的参数保留旧值
+            params (dict): 待增加的策略参数，没有指定的参数保留旧值
 
         Examples:
             >>> new_params = {
-            ...     "Navigation.basic.load.loadMaxSpeed":1,
+            ...     "navigation.basic.load.loadMaxSpeed":1,
             ...     "direction": "left"
             ... }
             >>> # 自定义策略"policy2"，修改参数Navigation.basic.load.loadMaxSpeed和direction的值
-            >>> Navigation.switchPolicyParams("policy2", new_params)
+            >>> Navigation.appendCustomPolicy("policy2", new_params)
         """
         raise RBKVersionError()
 
+    @classmethod
+    def clearPolicy(cls):
+        """清除策略
+
+        Examples:
+            >>> Navigation.clearPolicy()  # 清除当前策略
+        """
+        raise RBKVersionError()
 
 class NavStatusInterface(ABC, Message):
     """导航状态类"""
@@ -589,20 +597,3 @@ class NavSpeedInterface(ABC, Message):
             bool: True表示准备移动，False表示未准备移动
         """
         raise RBKVersionError()
-
-
-if __name__ == '__main__':
-    if RBK_VERSION == 3:
-        from syspy.v3.navigation import NavigationV3
-        Navigation: NavigationInterface = NavigationV3()
-    else:
-        from syspy.v4.navigation import NavigationV4
-        Navigation: NavigationInterface = NavigationV4()
-
-    Navigation.switchPolicy("policy1")
-
-    new_policy = {
-        "Navigation.basic.load.loadMaxSpeed":1, # 属于应用参数
-        "direction": "left"
-    }
-    Navigation.switchPolicyParams("policy2", new_policy)
