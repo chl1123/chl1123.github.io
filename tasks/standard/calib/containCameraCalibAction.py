@@ -13,21 +13,27 @@ log = Logger("goLineCalibAction")
 {
     "tagDistance": {
         "value": 0.05,
-        "tips": "Distance between two tags,
+        "tips": "Distance between two tags",
         "type": "double",
-        "unit": "m"
+        "unit":"m",
+        "maxValue":1.0,
+        "minValue":0.01
     },
     "tagSize": {
         "value": 0.1,
         "tips": "Tag size",
         "type": "double",
-        "unit": "m"
+        "unit":"m",
+        "maxValue":1.0,
+        "minValue":0.01
     },
     "angle": {
         "value": 50.0,
         "tips": "Angle the container will rotate",
         "type": "double",
-        "unit": "deg"
+        "unit":"deg",
+        "maxValue":80.0,
+        "minValue":10.0
     }
 }
 ####END DEFAULT ARGS####
@@ -75,7 +81,7 @@ class CalibMove:
             self.step_angle = 2.0
             self.cur_angle = self.step_angle
             self.angle = Module.get_task_args("angle", 50.0)
-            self.motor_name = Module.get_task_args("name","Motor-005")
+            self.motor_name = Module.get_task_args("name","Motor-003")
             self.cancel = False
 
         # 实时运行
@@ -120,13 +126,13 @@ class CalibMove:
             if self.move_action == MoveAction.Start or \
                 self.move_action == MoveAction.Rotate or \
                 self.move_action == MoveAction.RevRotate:
-                Do.setDO(4, True)
+                Do.setDO("DO-005", True)
                 record_status =  Navigation.calibRecord()
                 if not record_status:
                     self.status = ScriptStatus.RUNNING
                     return ScriptStatus.RUNNING
                 else:
-                    Do.setDO(4, False)
+                    Do.setDO("DO-005", False)
                 if self.move_action == MoveAction.Rotate or self.move_action == MoveAction.RevRotate:
                     if self.cur_angle < self.angle:
                         self.cur_angle = self.cur_angle + self.step_angle
