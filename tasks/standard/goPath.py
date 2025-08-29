@@ -160,7 +160,8 @@ class GoPath:
                 if args["coordinate"] == "robot":
                     Navigation.setPathOnRobot([0, self.goal[0]], [0, self.goal[1]], self.goal[2])
                 elif args["coordinate"] == "world":
-                    x, y, __ = Loc.get_position()
+                    x = Loc.get_pose()["x"]
+                    y = Loc.get_pose()["y"]
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                 else:
                     log.error("coordinate only support robot and world. Input is %s", args["coordinate"])
