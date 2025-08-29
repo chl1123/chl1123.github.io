@@ -578,6 +578,25 @@ class NavSpeedInterface(ABC, Message):
 
     @classmethod
     def get_speeds(cls) -> Tuple[float, float, float]:
+        """获取当前速度信息
+
+        Returns:
+            Tuple[float, float, float]: 包含三个速度分量的元组
+                - v_x (float): X轴方向速度，单位 m/s
+                - v_y (float): Y轴方向速度，单位 m/s
+                - v_w (float): 角速度，单位 rad/s
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def set_speeds(cls, v_x: float, v_y: float, v_w: float):
+        """设置目标速度
+
+        Args:
+            v_x (float): X轴方向速度，单位 m/s
+            v_y (float): Y轴方向速度，单位 m/s
+            v_w (float): 角速度，单位 rad/s
+        """
         raise RBKVersionError()
 
     @classmethod

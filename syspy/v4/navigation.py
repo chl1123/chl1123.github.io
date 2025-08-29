@@ -657,6 +657,11 @@ class NavSpeedV4(NavSpeedInterface):
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
+    @classmethod
+    def set_speeds(cls, v_x: float, v_y: float, v_w: float):
+        # todo RBK4
+        return cls.client().call_service("MoveFactory", "setNextSpeed", x=v_x, v=v_y, rotate=v_w)
+
     def get_motor_cmd(self) -> typing.List["MessageV4_MotorCmd"]:
         """获取电机指令列表
 
