@@ -143,6 +143,7 @@ class CalibMove:
             self.move_action = self.move_action + 1
             if self.move_action != MoveAction.ActionEnd:
                 Navigation.resetOdoMove()
+                Motor.resetMotor(self.motor_name)
                 self.status = ScriptStatus.RUNNING
 
         return self.status
