@@ -88,7 +88,7 @@ class CalibMove:
         self.pos = Motor.get_motor_pos(self.motor_name)
         if self.move_action == MoveAction.Start:
             self.cur_angle = 0.0
-            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0, 0):
+            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0):
                 if math.fabs(self.pos-self.cur_angle/180*math.pi) < 0.01:
                     self.status = ScriptStatus.FINISHED
                 else:
@@ -96,7 +96,7 @@ class CalibMove:
             else:
                 self.status = ScriptStatus.RUNNING
         elif self.move_action == MoveAction.Rotate:
-            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0, 0):
+            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0):
                 if math.fabs(self.pos-self.cur_angle/180*math.pi) < 0.01:
                     self.status = ScriptStatus.FINISHED
                 else:
@@ -104,7 +104,7 @@ class CalibMove:
             else:
                 self.status = ScriptStatus.RUNNING
         elif self.move_action == MoveAction.RevRotate:
-            if Motor.setMotorPosition(self.motor_name, -self.cur_angle/180*math.pi, 10.0, 0):
+            if Motor.setMotorPosition(self.motor_name, -self.cur_angle/180*math.pi, 10.0):
                 if math.fabs(self.pos+self.cur_angle/180*math.pi) < 0.01:
                     self.status = ScriptStatus.FINISHED
                 else:
@@ -113,7 +113,7 @@ class CalibMove:
                 self.status = ScriptStatus.RUNNING
         elif self.move_action == MoveAction.Reset:
             self.cur_angle = 0.0
-            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0, 0):
+            if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0):
                 if math.fabs(self.pos-self.cur_angle/180*math.pi) < 0.01:
                     self.status = ScriptStatus.FINISHED
                 else:

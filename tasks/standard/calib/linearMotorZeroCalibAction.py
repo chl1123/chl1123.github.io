@@ -35,7 +35,7 @@ class CalibMove:
 
         self.pos = Motor.get_motor_pos(self.motor_name)
         Motor.resetMotor(self.motor_name)
-        if Motor.setMotorPosition(self.motor_name, self.height, 1.0, 0):
+        if Motor.setMotorPosition(self.motor_name, self.height, 1.0):
             if math.fabs(self.pos-self.height) < 0.01:
                 self.status = ScriptStatus.FINISHED 
             else:

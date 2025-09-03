@@ -70,7 +70,7 @@ class CalibMove:
         self.pos = Motor.get_motor_pos(self.wheelBaseMotorName)
         # 实时运行
         if self.move_action == MoveAction.ForkUnload1:
-            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMinHeight, 0.1, -1)
+            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMinHeight, 0.1)
             if math.fabs(self.pos-self.wheelBaseMinHeight) < 0.01:
                 self.status = ScriptStatus.FINISHED
             else:
@@ -78,7 +78,7 @@ class CalibMove:
         elif self.move_action == MoveAction.Rot1st:
             self.status = Navigation.runOdoMove({"move_angle": self.rotCount * 2 * math.pi,  "speed_w":self.speed_w, "action_name":"Rot1st"})
         elif self.move_action == MoveAction.ForkLoad:
-            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMaxHeight, 0.1, -1)
+            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMaxHeight, 0.1)
             if math.fabs(self.pos-self.wheelBaseMaxHeight) < 0.01:
                 self.status = ScriptStatus.FINISHED
             else:
@@ -86,7 +86,7 @@ class CalibMove:
         elif self.move_action == MoveAction.Rot2nd:
             self.status = Navigation.runOdoMove({"move_angle": self.rotCount * 2 * math.pi,  "speed_w":self.speed_w, "action_name":"Rot2nd"})
         elif self.move_action == MoveAction.ForkUnload2:
-            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMinHeight, 0.1, -1)
+            Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMinHeight, 0.1)
             if math.fabs(self.pos-self.wheelBaseMinHeight) < 0.01:
                 self.status = ScriptStatus.FINISHED
             else:
