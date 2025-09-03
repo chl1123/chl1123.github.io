@@ -3,6 +3,7 @@ from typing import Tuple
 from abc import ABC
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 from syspy import RBK_VERSION
+from syspy.utils import Coordinate
 
 if typing.TYPE_CHECKING:
     if RBK_VERSION == 3:
@@ -542,6 +543,45 @@ class NavigationInterface(ABC, Service):
             >>> Navigation.clearPolicy()  # 清除当前策略
         """
         raise RBKVersionError()
+
+    @classmethod
+    def setClearRegion(cls, name: str, x: typing.List[float], y: typing.List[float], lasers_key: typing.List[str], coordinate: Coordinate):
+        """
+        设置避障扣除区域。
+
+        Args:
+            name (str): 区域名称。
+            x (List[float]): 区域顶点的x坐标列表。
+            y (List[float]): 区域顶点的y坐标列表。
+            lasers_key (List[str]): 激光传感器键值列表。
+            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def deleteClearRegion(cls, name: str, coordinate: Coordinate):
+        """
+        删除避障扣除区域。
+
+        Args:
+            name (str): 要删除的区域名称。
+            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def getClearRegion(cls, coordinate: Coordinate) -> typing.List[str]:
+        """
+        获取避障扣除区域。
+
+        Args:
+            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
+
+        Returns:
+            List[str]: 避障扣除区域名称列表。
+        """
+        raise RBKVersionError()
+
 
 class NavStatusInterface(ABC, Message):
     """导航状态类"""

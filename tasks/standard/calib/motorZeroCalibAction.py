@@ -18,7 +18,7 @@ class CalibMove:
             self.pos = 1.0
 
         self.pos = Motor.get_motor_pos(self.motor_name)
-        if Motor.setMotorPosition(self.motor_name, 0.0, 10.0, 0):
+        if Motor.setMotorPosition(self.motor_name, 0.0, 10.0):
             if math.fabs(self.pos) < 0.01:
                 self.status = ScriptStatus.FINISHED 
             else:

@@ -3,6 +3,7 @@ import typing
 from typing import Tuple
 
 from syspy.core.rbk_rpc import call_service, default_plugin, RBKVersionError
+from ..utils import Coordinate
 from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
 
 
@@ -576,6 +577,53 @@ class NavigationV4(NavigationInterface):
     def clearPolicy(cls):
         """清除策略"""
         return cls.client().call_service("MoveFactory", "updatePolicy", [], [])
+
+    @classmethod
+    def setClearRegion(cls, name: str, x: typing.List[float], y: typing.List[float], lasers_key: typing.List[str], coordinate: Coordinate):
+        """
+        设置避障扣除区域。
+
+        Args:
+            name (str): 区域名称。
+            x (List[float]): 区域顶点的x坐标列表。
+            y (List[float]): 区域顶点的y坐标列表。
+            lasers_key (List[str]): 激光传感器键值列表。
+            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
+        """
+        if coordinate == Coordinate.ROBOT:
+            return cls.client().call_service("MoveFactory", "setClearRegionInRobotFrame", name=name, x=x, y=y, lasers_key=lasers_key)
+        elif coordinate == Coordinate.WORLD:
+            return cls.client().call_service("MoveFactory", "setClearRegionInMapFrame", name=name, x=x, y=y, lasers_key=lasers_key)
+
+    @classmethod
+    def deleteClearRegion(cls, name: str, coordinate: Coordinate):
+        """
+        删除避障扣除区域。
+
+        Args:
+            name (str): 要删除的区域名称。
+            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
+        """
+        if coordinate == Coordinate.ROBOT:
+            cls.client().call_service("MoveFactory", "deleteClearRegionInRobotFrame", name=name)
+        elif coordinate == Coordinate.WORLD:
+            cls.client().call_service("MoveFactory", "deleteClearRegionInMapFrame", name=name)
+
+    @classmethod
+    def getClearRegion(cls, coordinate: Coordinate) -> typing.List[str]:
+        """
+        获取避障扣除区域。
+
+        Args:
+            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
+
+        Returns:
+            List[str]: 避障扣除区域名称列表。
+        """
+        if coordinate == Coordinate.ROBOT:
+            return cls.client().call_service("MoveFactory", "getClearRegionInRobotFrame")
+        elif coordinate == Coordinate.WORLD:
+            return cls.client().call_service("MoveFactory", "getClearRegionInMapFrame")
 
 
 @default_plugin("MoveFactory")  # todo RBK4

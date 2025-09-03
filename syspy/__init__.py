@@ -25,17 +25,18 @@ else:
 # from typeguard import install_import_hook
 # install_import_hook('syspy')
 from .lib.plyvel_db import LevelDB
+from .bin import Bin, Container
 from .lib.abnormal import Abnormal
 from .lib.can_frame import Can
 from .lib.logger import Logger
+from .lib.robot_param import RobotParam
 from .lib.module import ScriptStatus, Module
 from .lib.net_protocol import NetProtocol
-from .lib.robot_param import RobotParam
 from .lib.trace import Trace
 from .utils.param_server import ParamServer
 
 from .battery import Battery
-from .bin import Bin, Container
+
 from .camera import Camera
 from .charger import Charger
 from .controller import Controller

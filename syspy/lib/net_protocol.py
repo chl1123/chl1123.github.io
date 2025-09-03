@@ -115,18 +115,18 @@ def parse_modbus(modbus_data: List[int], data_type: str, start_index: int = 0, l
     elif data_type == 'uint32':
         if start_index + 1 >= len(modbus_data):
             return None
-        return (modbus_data[start_index] << 16) | modbus_data[start_index + 1]
+        return (modbus_data[start_index + 1] << 16) | modbus_data[start_index]
 
     elif data_type == 'int32':
         if start_index + 1 >= len(modbus_data):
             return None
-        combined = (modbus_data[start_index] << 16) | modbus_data[start_index + 1]
+        combined = (modbus_data[start_index + 1] << 16) | modbus_data[start_index]
         return struct.unpack('>i', struct.pack('>I', combined))[0]
 
     elif data_type == 'float':
         if start_index + 1 >= len(modbus_data):
             return None
-        combined = (modbus_data[start_index] << 16) | modbus_data[start_index + 1]
+        combined = (modbus_data[start_index + 1] << 16) | modbus_data[start_index]
         return struct.unpack('>f', struct.pack('>I', combined))[0]
 
     elif data_type == 'string':

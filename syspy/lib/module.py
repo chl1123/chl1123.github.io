@@ -1,11 +1,12 @@
 import json
 import math
+import time
 from enum import IntEnum
 from threading import Lock
 from typing import Union, Optional, Callable, Tuple
 from syspy.utils import ScriptType
 from ..utils import SCRIPTS_DIR
-from syspy import RBK_VERSION
+from syspy import RBK_VERSION, RobotParam, Container
 from inspect import stack
 
 class ScriptStatus(IntEnum):
@@ -106,6 +107,7 @@ class Module:
     __safe_move_check_id = 0
     __safe_move_check_status = SafeMoveStatus.NONE
     __modbus_callback = None
+    __set_container_callback = None
     script_id = ""
 
     @classmethod
@@ -154,6 +156,10 @@ class Module:
 
     @classmethod
     def __register(cls):
+        # 如果是料箱车，初始化container
+        container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
+        is_container = isinstance(container_num, int) and container_num > 0
+
         if RBK_VERSION == 3:
             from syspy.lib.rpc.server import RpcServer
             service = RpcServer(cls.script_id, ScriptType.TASK)
@@ -165,6 +171,8 @@ class Module:
             service.registerFunction(cls.safe_move_check, "safe_move_check")
             service.registerFunction(cls.get_safe_move_check, "get_safe_move_check")
             service.registerFunction(cls.modbus, "modbus")
+            if is_container:
+                service.registerFunction(cls.set_container, "set_container")
             service.start()
         elif RBK_VERSION == 4:
             from syspy.v4.include.rbk import core, service
@@ -176,6 +184,8 @@ class Module:
             service.addService(cls.script_id, "safe_move_check", cls.safe_move_check)
             service.addService(cls.script_id, "get_safe_move_check", cls.get_safe_move_check)
             service.addService(cls.script_id, "modbus", cls.modbus)
+            if is_container:
+                service.addService(cls.script_id, "set_container", cls.set_container)
 
     def __del__(self):
         if self.__rpc_client:
@@ -183,6 +193,7 @@ class Module:
 
     @classmethod
     def __update_cmd(cls, args, script_mode="instead"):
+        time.sleep(0.1)
         cls.__task = args
         cls.__init_task_args()
         cls.set_status(ScriptStatus.RUNNING)
@@ -243,12 +254,20 @@ class Module:
         cls.__modbus_callback()
 
     @classmethod
+    def set_container(cls, container_name: str, goods_id: str, desc: str) -> bool:
+        return cls.__set_container_callback(container_name, goods_id, desc)
+
+    @classmethod
     def set_safe_move_check_callback(cls, callback: Callable[[], None]):
         cls.__safe_move_check_callback = callback
 
     @classmethod
     def set_modbus_callback(cls, callback: Callable[[], None]):
         cls.__modbus_callback = callback
+
+    @classmethod
+    def set_set_container_callback(cls, callback: Callable[[str, str, str], bool]):
+        cls.__set_container_callback = callback
 
     @classmethod
     def set_cancel_callback(cls, callback: Callable[[], None]):
@@ -264,7 +283,7 @@ class Module:
 
     @classmethod
     def __report_data(cls, status: Optional[ScriptStatus] = None):
-        if cls.__task_id == 0:
+        if cls.__task_id == 0 or cls.__task_id is None:
             return
         if status is None:
             status = cls.__run_status
@@ -330,6 +349,7 @@ class ModuleBase(ABC):
         Module.set_cancel_callback(self.cancel)
         Module.set_safe_move_check_callback(self.__safe_move_check)
         Module.set_modbus_callback(self.__modbus)
+        Module.set_set_container_callback(self.set_container)
         self.stop_flag = False
         self.event_safe_move_check = False
         self.event_modbus = False
@@ -362,3 +382,17 @@ class ModuleBase(ABC):
 
     def set_safe_move_status(self, status: SafeMoveStatus):
         Module.set_safe_move_check_status(status)
+
+    def set_container(self, container_name: str, goods_id: str, desc: str) -> bool:
+        """设置车子上库位或者背篓货物
+
+        Args:
+            container_name (str): 库位或者背篓名称
+            goods_id (str): 货物的id
+            desc (str): 描述
+
+        Returns:
+            bool: 如果没有库位或者背篓，则返回false
+        """
+        print("set_container", container_name, goods_id, desc)
+        return Container.setContainer(container_name, goods_id, desc)
