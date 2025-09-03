@@ -57,13 +57,13 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service()
-    def setMotorSpeed(cls, name: str, vel: float, stopDI: int) -> bool:
+    def setMotorSpeed(cls, name: str, vel: float, stopDI: str = "") -> bool:
         """让电机以某个速度运行，比如滚筒电机
 
         Args:
             name (str): 电机名称
             vel (float): 电机速度
-            stopDI (int): 到位DI
+            stopDI (str): 到位DI。缺省或传""表示没有。
 
         Returns:
             bool: 如果不存在这个电机，则返回False
@@ -72,14 +72,14 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service()
-    def setMotorPosition(cls, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
+    def setMotorPosition(cls, motor_name: str, pos: float, maxVel: float, stopDI: str = "") -> bool:
         """控制线性电机到特定位置
 
         Args:
             motor_name (str): 模型文件中的电机名称
             pos (float): 发送目标点位置也可能是角度
             maxVel (float): 运行过程中的最大速度不能超过模型文件中的最大速度
-            stopDI (int): 如果这个StopDI触发则表示运动到位
+            stopDI (str): 如果这个StopDI触发则表示运动到位。缺省或传""表示没有。
 
         Returns:
             bool: 如果不存在这个电机，则返回False
@@ -88,7 +88,7 @@ class MotorV3(MotorInterface):
 
     @classmethod
     def setMotorPositionAdv(cls, name: str, pos: float, maxSpeed: float = None, maxAcc: float = None,
-                            maxDec: float = None, jerk: float = None, stopDI: int = None) -> bool:
+                            maxDec: float = None, jerk: float = None, stopDI: str = "") -> bool:
         """控制线性电机到特定位置（可控制加速度）
 
         Args:
@@ -98,7 +98,7 @@ class MotorV3(MotorInterface):
             maxAcc (float): 最大加速度
             maxDec (float): 最大减速度
             jerk (float): 最大加加速度
-            stopDI (int): 停止DI。该DI触发则表示运动到位
+            stopDI (str): 停止DI。该DI触发则表示运动到位。缺省或传""表示没有。
 
         Returns:
             bool: 如果不存在这个电机，则返回False
@@ -150,13 +150,13 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service()
-    def isMotorPositionReached(cls, motor_name: str, pos: float, stopDI: int) -> bool:
+    def isMotorPositionReached(cls, motor_name: str, pos: float, stopDI: str = "") -> bool:
         """电机是否到达特定位置
 
         Args:
             motor_name (str): 电机名称
             pos (float): 位置
-            stopDI (int): 到位DI
+            stopDI (str): 到位DI。缺省或传""表示没有。
 
         Returns:
             bool: 如果到位则返回True
