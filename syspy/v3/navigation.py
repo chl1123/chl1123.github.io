@@ -534,6 +534,12 @@ class NavigationV3(NavigationInterface):
         pass
 
     @classmethod
+    @call_service()
+    def stopRobotNow(cls):
+        """让agv立即停下来"""
+        pass
+
+    @classmethod
     @call_service(func_name="calibRecordService")
     def calibRecord(cls) -> bool:
         """XXX
@@ -730,15 +736,6 @@ class NavSpeedV3(NavSpeedInterface):
     def get_speeds(self) -> Tuple[float, float, float]:
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
-
-    @classmethod
-    def set_speeds(cls, v_x: float, v_y: float, v_w: float):
-        nav_speed = {
-            "x": v_x,
-            "y": v_y,
-            "rotate": v_w
-        }
-        return cls.client().call_service("MoveFactory", "setNextSpeed", json.dumps(nav_speed))
 
     def get_motor_cmd(self) -> typing.List["Message_MotorCmd"]:
         """获取电机指令列表
