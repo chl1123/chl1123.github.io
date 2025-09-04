@@ -6,7 +6,7 @@ from threading import Lock
 from typing import Union, Optional, Callable, Tuple
 from syspy.utils import ScriptType
 from ..utils import SCRIPTS_DIR
-from syspy import RBK_VERSION, RobotParam, Container
+from syspy import RBK_VERSION, RobotParam, Container, Abnormal
 from inspect import stack
 
 class ScriptStatus(IntEnum):
@@ -90,6 +90,7 @@ def Pos2Base(pos2world, base2world):
     pos2base[2] = normalize_theta(pos2world[2] - base2world[2])
     return pos2base
 
+NEW_TASK_TIMEOUT = 1
 
 class Module:
     stop_flag = False
@@ -193,7 +194,18 @@ class Module:
 
     @classmethod
     def __update_cmd(cls, args, script_mode="instead"):
-        time.sleep(0.1)
+        start_time = time.time()
+        # 脚本任务状态为初始态或终态时，执行新任务
+        while cls.get_status() not in [ScriptStatus.NONE, ScriptStatus.FINISHED, ScriptStatus.FAILED]:
+            wait_time = time.time() - start_time
+            if wait_time > NEW_TASK_TIMEOUT:
+                Abnormal.client().call_service("Abnormal", "setTaskAbnormal", 53221,
+                                               f"Script '{cls.script_name}' task timeout",
+                                               f"Previous task timeout {NEW_TASK_TIMEOUT} second not set to NONE, FINISHED or FAILED status",
+                                               "Check whether the script calls Module.set_status() to set the status of NONE, FINISHED or FAILED after responding to the cancel() method",
+                                               str(args), "", "", "", "", "", "")
+                return
+            time.sleep(0.05)
         cls.__task = args
         cls.__init_task_args()
         cls.set_status(ScriptStatus.RUNNING)
@@ -326,7 +338,7 @@ class Module:
         with cls.__lock:
             cls.__run_status = status
             cls.__report_data()
-            # 任务失败或完成时清空任务和task_id
+            # 任务状态为终态时清空任务和task_id
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 cls.__task = None
                 cls.__task_id = 0

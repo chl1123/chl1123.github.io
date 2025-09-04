@@ -1,17 +1,22 @@
 # -*- coding: utf-8 -*-
 # Author: zzm
 # version: 1.0
-# Time: 2025/08/29
+# Time: 2025/09/04
 # description: CBD15-MF移植
-# update: 08/29 屏蔽激光，支持原地载货卸货
+# update:
+#   08/29 屏蔽激光，支持原地载货卸货
+#   09/04 适配识别文件识别面，不同坐标系，modbus
+
 
 import json
 import math
 import time
+import struct
 from enum import IntEnum
 from typing import Optional
+from syspy.lib.net_protocol import parse_modbus
 from syspy.utils.time import Timer
-from syspy import NavSpeed
+from syspy import NavSpeed, Controller
 from syspy.script_data import ScriptData
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
 from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
@@ -39,6 +44,8 @@ class ConfigParams:
 
     # 从模型文件中获取的参数
 
+    second_rec_yaw = 1
+    second_rec_y = 0.01
     load_unload_check = False
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     fork_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.liftMotor")
@@ -61,7 +68,6 @@ class ConfigParams:
     fork_tip_distance_sensors = RobotParam.getDevice("Model-000",
                                                      f"moduleType.{module_type}.forkTipDistanceSensors").split(",")
     contact_ids_str = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.id").split(",")
-    print(f"contactIds: {contact_ids_str}")
 
     # 如果是搬运车，需要判断一下是否是变轴距的车
     if module_type == "liftFork":
@@ -235,6 +241,11 @@ def create_rec_param(builder: ParamBuilder):
                     builder.TYPE(ParamType.STRING)
                     builder.DEFAULTVALUE("default.srec")
 
+                with builder.CHILD(key="recSide", name="Rec Side",
+                                   desc="Rec Side"):
+                    builder.TYPE(ParamType.STRING)
+                    builder.DEFAULTVALUE("A")
+
 
 class InputParams:
     builder = ParamBuilder(__file__, desc="Input Params Config")
@@ -354,6 +365,9 @@ class Fork(ModuleBase):
         self.second_path_return = None
         self.pallet_width = 0
         self.cur_state = {}
+        self.rec_sides = []
+        self.move_info = {}
+        self.trace_chart = {}
 
     def run(self, args):
         self.script_status = ScriptStatus.RUNNING
@@ -363,9 +377,9 @@ class Fork(ModuleBase):
         if not self.init_args:
             self.init_args = True
             self.task_args = args
+
             self._init_args()
         self._check_timeout()
-        self._report()
 
         if self.opt == "forkLoad":
             self.load()
@@ -391,46 +405,54 @@ class Fork(ModuleBase):
 
     def suspend(self):
         self.script_status = ScriptStatus.SUSPENDED
-        log.info("suspend")
+        Trace.log("suspend")
 
     def resume(self):
         if self.script_status == ScriptStatus.SUSPENDED:
             self.script_status = ScriptStatus.RUNNING
-        log.info("resume")
+        Trace.log("resume")
 
     def cancel(self):
         self.script_status = ScriptStatus.FAILED
-        log.info("cancel")
+        Trace.log("cancel")
 
     def modbus(self):
         # modbus解析器
 
-        # 模拟映射表
-        modbus_data2args = {
-            "1": {
-                "height": 0.1
-            },
-            "2": {
-                "height": 0.1
-            },
-            "3": {
-                "spinAngle": 90
-            },
-            "4": {
-                "operation": "load",
-                "height": 0.1
-            }
-        }
-
         # 读取数据
-        modbus_data = NetProtocol.getModbusData("3x", 0, 1)
+        operation = None
+        operation_int = NetProtocol.getModbusData("4x", 200, 1)
+        if operation_int == 1:
+            operation = "forkHeight"
+
+        modbus_data = NetProtocol.getModbusData("4x", 201, 2)
+        data = parse_modbus(modbus_data, "float")
+
+        print(f"operation:{operation_int}, modbus_data:{modbus_data},fork height:{data}")
+
+        regs = self.float32_to_regs(-1.0)
+        NetProtocol.setModbusData("4x", 13, regs)
+        args = {"operation": operation, "forkHeight": data}
+
         # 解析映射表
-        args = modbus_data2args.get(modbus_data[0])
-        status = Module.get_status()
-        if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            self.event_modbus = False
+        self.event_modbus = False
         # 做对应的动作
         return args
+
+    def to_float32_little(self, data):
+        """
+        data: list of two 16-bit words [low, high]
+        拼接为 float32，小端模式（低位在前）
+        """
+        raw = ((data[1] & 0xFFFF) << 16) | (data[0] & 0xFFFF)
+        return struct.unpack("!f", raw.to_bytes(4, byteorder="big"))[0]
+
+    def float32_to_regs(self, value: float):
+        """float32 转成两个寄存器（小端：低位在前）"""
+        raw = struct.pack("!f", value)  # 转成 4 字节
+        word1 = int.from_bytes(raw[2:], "big")  # 低地址寄存器 = 低 16 位
+        word2 = int.from_bytes(raw[:2], "big")  # 高地址寄存器 = 高 16 位
+        return [word1, word2]
 
     def safe_move_check(self):
         status = SafeMoveStatus.FINISHED
@@ -453,11 +475,11 @@ class Fork(ModuleBase):
                 target_id_str = f"{prefix}{target_id}"
                 pos = Navigation.getLM(target_id_str, True)
                 if pos[3] != -1:  # 找到有效结果
-                    log.info(f"target_id_str:{target_id_str}, target_id:{target_id}, pos:{pos}")
+                    Trace.log(f"target_id_str:{target_id_str}, target_id:{target_id}, pos:{pos}")
                     return pos  # 优先返回成功的结果
 
             # 如果走到这里，说明 AP 和 LM 都失败了
-            log.warning(f"Both AP{target_id} and LM{target_id} not found, return last pos:{pos}")
+            Trace.log(f"Both AP{target_id} and LM{target_id} not found, return last pos:{pos}")
             return pos
 
     def test(self):
@@ -472,7 +494,7 @@ class Fork(ModuleBase):
             # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
             rec2ap_pos = Pos2Base(rec_world_pos, self.target_pos)
             angle = math.degrees(rec2ap_pos[2])
-            log.info(
+            Trace.log(
                 f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}")
             y = rec2ap_pos[1]
             if abs(angle) > ConfigParams.error_rec_angle != -1:
@@ -507,10 +529,14 @@ class Fork(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             self.do_fork = self.do_fork_check()
+            r_loc = Loc.get_pose()
 
             # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
             self.target_pos = self.get_target_pos()
-            log.info(f"target pos :{self.target_pos}")
+
+            target2robot = Pos2Base(self.target_pos, [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])])
+
+            Trace.log(f"target pos :{self.target_pos}")
 
             # 如果有货,脚本无法取货并报错
             if Navigation.hasGoods() and ConfigParams.load_unload_check:
@@ -557,12 +583,14 @@ class Fork(ModuleBase):
                 else:
                     self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)]
 
-                self.action_list.append(Rec(self.recfile, self.target_pos, "RecPallet"))
+                self.action_list.append(Rec(self.recfile, target2robot, "RecPallet"))
+
+            Trace.log(f"task:{self.action_list}")
 
         # 识别结束后动态加调整的类
         if self.action_id < len(self.action_list) and self.recognize:
             current_action = self.action_list[self.action_id]
-
+            r_loc = Loc.get_pose()
             if (isinstance(current_action, Rec)
                     and current_action.action_name == "RecPallet"
                     and current_action.action_status == ActionStatus.FINISHED):
@@ -570,14 +598,19 @@ class Fork(ModuleBase):
 
                 # 处理识别结果时，既需要考虑z方向的，又需要考虑x轴 和 y 轴的。默认取 z 离 startHeight 上下 10cm的结果先过滤一次
                 filter_results_by_z = [result for result in results if abs(result["z"] - self.start_height) <= 0.1]
-                # 拿到 y 最小的值
-                results_in_r = []
-                r_loc = Loc.get_pose()
                 self.pallet_width = filter_results_by_z[0]["palletWidth"]
 
-                for result in filter_results_by_z:
-                    results_in_r.append(Pos2Base([result["x"], result["y"], result["yaw"]],
-                                                 [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])]))
+                # 拿到 y 最小的值
+                results_in_r = []
+
+                if self.rec_info.get("coordinateSystem") == Coordinate.WORLD:
+                    for result in filter_results_by_z:
+                        results_in_r.append(Pos2Base([result["x"], result["y"], result["yaw"]],
+                                                     [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])]))
+                else:
+                    for result in filter_results_by_z:
+                        results_in_r.append([result["x"], result["y"], result["yaw"]])
+
                 # 相对于机器人取 y 最小的
                 min_y_result = min(results_in_r, key=lambda result_in_r: result_in_r[1])
 
@@ -592,7 +625,7 @@ class Fork(ModuleBase):
                 if self.target_pos and self.target_pos[3] != -1:
                     rec2ap_pos = Pos2Base(rec_world_pos, self.target_pos)
                     angle = math.degrees(rec2ap_pos[2])
-                    log.info(
+                    Trace.log(
                         f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}")
                     y = rec2ap_pos[1]
                     if abs(angle) > ConfigParams.error_rec_angle != -1:
@@ -603,6 +636,21 @@ class Fork(ModuleBase):
                         Abnormal.setTask(53321, f"rec result y too large:{y}m", "", "", "")
                         self.script_status = ScriptStatus.FAILED
                         return
+
+                # # 识别二次调整，先靠近，再次识别，再决定进叉还是
+                # if rec_result2r[1] >= ConfigParams.second_rec_y or rec_result2r[2] >= math.radians(
+                #         ConfigParams.second_rec_yaw):
+                #     arg = {
+                #         'x': r_loc["x"],
+                #         'y': r_loc["y"],
+                #         'theta': math.radians(r_loc["yaw"]),
+                #         'coordinate': 'world',
+                #         'backMode': 0,
+                #         'maxRot': 10,
+                #         'maxSpeed': 0.2,
+                #         'useOdo': 0
+                #     }
+                #     self.action_list = [GoPath(arg)]
 
                 # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                 args = {
@@ -740,16 +788,25 @@ class Fork(ModuleBase):
             else:
                 current_action.run()
                 # print(2)
-            attr = self.get_all_attrs(current_action)
-            Module.report_info(attr)
+            self.trace_chart.update(
+                self._flat_attrs(current_action, idx1=self.action_id)
+            )
+
+            self.trace_chart.update({
+                "script.action_id": self.action_id,
+                "script.action_status": self.action_status,
+                "script.cur_action": current_action.action_name,
+                "script.cur_action_status": current_action.action_status,
+                "script.script_state": self.script_status
+            })
         else:
             self.action_status = ActionStatus.FINISHED
 
     def print_info(self):
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.info(f"{Module.get_task_args()=}")
-        log.info(f"{Module.get_task_id()=}")
-        log.info(f"{Module.get_status()=}")
+        Trace.log(f"{Module.get_task_args()=}")
+        Trace.log(f"{Module.get_task_id()=}")
+        Trace.log(f"{Module.get_status()=}")
 
     def fork_move(self):
         if not self.operation_init:
@@ -772,9 +829,45 @@ class Fork(ModuleBase):
         self.recognize = self.task_args.get("recognize")
         self.forkHeight = self.task_args.get("forkHeight")
         self.forkSpeed = self.task_args.get("forkSpeed")
+        self.recSide = self.task_args.get("recSide")
 
         # 解析识别文件
-        RobotParam.getDevice("Recognition", "recognitionObject")
+        if self.recfile:
+            recognitionSide_key = "recognitionObject.pallet.recognitionSide"
+            recognitionSide_size = RobotParam.getConfigCloneSize("recognition", recognitionSide_key, self.recfile)
+            for i in range(recognitionSide_size):
+                side_value = RobotParam.getConfig("recognition", f"{recognitionSide_key}._{i}", self.recfile)
+                coordinateSystem = RobotParam.getConfig("recognition",
+                                                        f"{recognitionSide_key}._{i}.{side_value}.coordinateSystem",
+                                                        self.recfile)
+                enableCargoContactDI = RobotParam.getConfig("recognition",
+                                                            f"{recognitionSide_key}._{i}.{side_value}.enableCargoContactDI",
+                                                            self.recfile)
+                enableBackDistance = RobotParam.getConfig("recognition",
+                                                          f"{recognitionSide_key}._{i}.{side_value}.enableBackDistance",
+                                                          self.recfile)
+                side_info = {
+                    "side_value": side_value,
+                    "coordinateSystem": coordinateSystem,
+                    "enableCargoContactDI": enableCargoContactDI,
+                    "enableBackDistance": enableBackDistance
+                }
+
+                if enableBackDistance:
+                    backDistance = RobotParam.getConfig("recognition",
+                                                        f"{recognitionSide_key}._{i}.{side_value}.backDistance",
+                                                        self.recfile)
+                    side_info["backDistance"] = backDistance
+                self.rec_sides.append(side_info)
+            if self.recSide:
+                self.rec_info = next((s for s in self.rec_sides if s["side_value"] == self.recSide), None)
+            else:
+                self.rec_info = self.rec_sides[0]
+
+            if any(v is None or v == "none" for v in self.rec_info.values()):
+                Abnormal.setTask(53325, f"Invalid side_info, found None: {self.rec_info},script failed",
+                                 "recognize file param wrong", "check the param", "")
+                self.script_status = ScriptStatus.FAILED
 
         # 解析任务下发的参数，不含在 script_args 里的参数
         self.move_task = Navigation.moveTask()
@@ -789,31 +882,37 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FAILED
             return
 
-    def get_all_attrs(self, obj):
-        attrs = {}
-        for attr in dir(obj):
-            if attr.startswith('_'):
+    def _flat_attrs(self, action, idx1: int):
+        """把 action 展平为 {1.Class.attr: value, ...}"""
+        snap = {}
+        cls = action.__class__.__name__
+        for name in dir(action):
+            if name.startswith("_"):
                 continue
             try:
-                value = getattr(obj, attr)
-                if not callable(value):  # 排除方法
-                    # 仅保留 JSON 可序列化的值
-                    json.dumps(value)  # 尝试序列化看看是否报错
-                    attrs[attr] = value
-            except (TypeError, ValueError):
-                pass  # 不能序列化的就跳过
+                val = getattr(action, name)
+                if not callable(val):
+                    # 尝试序列化，不行就转成 str
+                    try:
+                        # 尝试序列化
+                        json.dumps(val)
+                        safe_val = val
+                    except TypeError:
+                        # 序列化失败就转字符串
+                        safe_val = str(val)
+                    snap[f"action.{idx1}.{cls}.{name}"] = safe_val
             except Exception:
                 pass
-        return attrs
+        return snap
 
-    def _report(self):
-        cur_status = dict()
-        if self.action_id < len(self.action_list):
-            cur_status['action_id'] = self.action_id
-            cur_status['action_num'] = len(self.action_list)
-            cur_status['action_list'] = [str(action) for action in self.action_list]
-            cur_status['action_status'] = self.action_list[self.action_id].action_status
-            cur_status['script_status'] = self.script_status
+    # def _report(self):
+    #     cur_status = dict()
+    #     if self.action_id < len(self.action_list):
+    #         cur_status['action_id'] = self.action_id
+    #         cur_status['action_num'] = len(self.action_list)
+    #         cur_status['action_list'] = [str(action) for action in self.action_list]
+    #         cur_status['action_status'] = self.action_list[self.action_id].action_status
+    #         cur_status['script_status'] = self.script_status
 
     def rec(self):
         if not self.operation_init:
@@ -823,7 +922,7 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
 
     def reset(self):
-        self.target_pos = []
+        self.target_pos = [0, 0, 0, -1]
         self.rec_params = dict()
         self.start_time = None
         self.init_args = False
@@ -854,14 +953,23 @@ class Fork(ModuleBase):
 
     def period_run(self):
         fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
+        self.trace_chart.update({
+            "forkHeight": fork_height,  # 货叉高度, 单位 m
+            # "forkHeightInPlace": Motor.isMotorReached(ConfigParams.fork_motor_name),  # 货叉高度是否到位, true = 到位, false = 未到位
+            "forkAutoFlag": not Controller.get_is_external_control(),
+            # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
+        })
+        Module.report_info(self.trace_chart)
+        # print(self.move_info)
 
-        # log.info(f"fork height :{fork_height}, di 5:{Di.get_di('DI-005')},di 2:{Di.get_di('DI-002')}")
+        # Trace.log(f"fork height :{fork_height}, di 5:{Di.get_di('DI-005')},di 2:{Di.get_di('DI-002')}")
 
         # 堆高车处理后激光的屏蔽
         if ConfigParams.module_type == "straddleLiftFork":
             # fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
             # 获取当前避障设备列表
             if fork_height <= ConfigParams.back_laser_enable_height:
+                # print("here")
                 current_collision_device_str = (RobotParam.getConfig("navigation",
                                                                      "collisionDetection.detectionDevice"))
                 current_collision_device = current_collision_device_str.split(",")
@@ -872,8 +980,8 @@ class Fork(ModuleBase):
                     "navigation.collisionDetection.detectionDevice": current_collision_device_str
                 }
                 Navigation.appendCustomPolicy("policy", policy)
-            dev_1 = (RobotParam.getConfig("navigation", "collisionDetection.detectionDevice"))
-            log.info(f"Device 1: {dev_1}")
+            # dev_1 = (RobotParam.getConfig("navigation", "collisionDetection.detectionDevice"))
+            # Trace.log(f"Device 1: {dev_1}")
             # loadMaxSpeed = RobotParam.getConfig("navigation", "basic.load.loadMaxSpeed")
             # print("loadMax end2", loadMaxSpeed)
 
@@ -899,7 +1007,7 @@ class Fork(ModuleBase):
                 if Timer.delay(0.3):
                     if Abnormal.exists(53319):
                         Abnormal.clear(53319)
-            # log.info(f"di status: {di_status}, missing_goods:{missing_goods}")
+            # Trace.log(f"di status: {di_status}, missing_goods:{missing_goods}")
 
     def do_fork_check(self):
         if ConfigParams.fork_motor_name is None:
@@ -916,8 +1024,7 @@ class Fork(ModuleBase):
             # 输出为空的参数，或者返回 True
             if missing_params:
                 Abnormal.setTask(53320, f"when fork lift motor is None, check the do fork config:{missing_params}", "",
-                                 "",
-                                 "")
+                                 "", "")
             else:
                 return True
 
@@ -991,11 +1098,13 @@ class Rec(BaseAction):
         self.success = False
         self.results_dict = {}
         self.results_list = []
+        print(f"rec init")
 
     def run(self):
         if not self.init:
             self.init = True
             self.success = False
+        print(f"rec run")
 
         self.action_status = ActionStatus.RUNNING
         if not self.success:
@@ -1006,7 +1115,8 @@ class Rec(BaseAction):
             if ConfigParams.z_max:
                 z_max_results = sorted(self.results_list, key=lambda item: item['z'], reverse=True)
                 self.result = z_max_results[0]
-                log.info(f"rec_results: {self.result}")
+                Trace.log(f"rec_results: {self.result}")
+
             self.action_status = ActionStatus.FINISHED
 
     def reset(self):
@@ -1017,29 +1127,31 @@ class Rec(BaseAction):
         rec_status = Recognize.getRecStatus()
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
-            log.info("rec_result:{}".format(rec_result))
+            Trace.log(f"rec_result:{rec_result}")
             return True, rec_status, rec_result
         elif rec_status in (-1, 3):
             if Timer.delay(0.05):
                 self.attempts += 1
                 if self.attempts > self.max_attempts:
-                    error_type = Recognize.getRecResults()["error_type"]
-                    log.info(f"error_type: {error_type}")
+                    results = Recognize.getRecResults()
+                    error_type = results["error_type"]
+                    error_msg = results["log_msg"]
+                    Trace.log(f"error_type: {error_type}")
                     self.action_status = ActionStatus.FAILED
                     Abnormal.setTask(53306,
                                      "Recognition failed, the maximum number of retries exceeded",
-                                     "",
+                                     f"{error_msg}",
                                      "",
                                      "")
                 else:
                     Recognize.resetRec()
         else:
-            if self.target_pos is None or self.target_pos[3] == -1:
+            Trace.log(f"target_pos_in_rec: {self.target_pos}")
+
+            if self.target_pos is None or (len(self.target_pos) > 3 and self.target_pos[3]) == -1:
                 Recognize.doRec(recfile, False)
             else:
                 # Recognize.doRec(recfile, False)
-
-                log.info(f"target_pos: {self.target_pos}")
                 Recognize.doRec(recfile, True, self.target_pos[0], self.target_pos[1], self.target_pos[2], 1)
             Timer.delay(0.05)
         return False, rec_status, list
@@ -1056,7 +1168,7 @@ class GoPathWithContactDi(BaseAction):
         self.walk_dist = None
         self.di_status = []
         self.contact_di = contact_dis
-        log.info(f"contact_di: {self.contact_di}")
+        Trace.log(f"contact_di: {self.contact_di}")
         if self.contact_di:
             self.check_di = True
         self.goal = [0, 0, 0]
@@ -1083,7 +1195,7 @@ class GoPathWithContactDi(BaseAction):
         elif method == "goBezier":
             self.back_action = GoBezier.GoBezierWorld(world_pos, args["back_dist"], args["adjust_dist"],
                                                       args["min_ahead_dist"], True,
-                                                      None, 0.1)
+                                                      None, 0.1, 0.3, 0.2, 0.1, args["max_curve"])
         elif method == "twoStraightLine":
             self.back_action = GoTwoStraightLine(world_pos, args["min_ahead_dist"], args["adjust_dist"],
                                                  args["back_dist"], 0.2, args['max_angle'], 1)
@@ -1167,11 +1279,13 @@ class GoPathWithContactDi(BaseAction):
         return cur_dist
 
     def stop_robot(self):
-        NavSpeed.set_speeds(0, 0, 0)
-        v_x, v_y, v_w = NavSpeed.get_speeds()
-        if all(abs(v) <= 0.01 for v in (v_x, v_y, v_w)):
-            Navigation.resetPath()
-            return True
+        # set_speeds = NavSpeed.set_speeds(0, 0, 0)
+        # Trace.log(f"set speeds: {set_speeds}")
+        # v_x, v_y, v_w = NavSpeed.get_speeds()
+        # if all(abs(v) <= 0.01 for v in (v_x, v_y, v_w)):
+        #     return True
+        Navigation.stopRobot(True)
+        Navigation.resetPath()
 
 
 class LocDetectGoods(BaseAction):
@@ -1244,7 +1358,7 @@ class LocDetectGoods(BaseAction):
 class RunMotorByPosition(BaseAction):
     """功能说明：控制线性电机运动，发送电机运行终点高度，触发stop_di时终止运动"""
 
-    def __init__(self, motor_name, position, max_speed=0.1, stop_di=-1):
+    def __init__(self, motor_name, position, max_speed=0.1, stop_di=""):
         """
         Args:
             motor_name(string): 电机名
@@ -1263,7 +1377,7 @@ class RunMotorByPosition(BaseAction):
         self.init = False
 
         self.positions = []
-        self.check_duration = 10
+        self.check_duration = 20
         self.fork_timestamps = []
         self.last_sample_time = None
 
@@ -1339,7 +1453,7 @@ class RunMotorByPosition(BaseAction):
         # self.action_state["motor_speed"] = Motor.get_motor_speed(self.motor_name)
         # self.action_state["motor_position"] = Motor.get_motor_pos(self.motor_name)
         # self.action_state["status"] = self.action_status
-        # log.info(self.action_state)
+        # Trace.log(self.action_state)
         # print(json.dumps(self.action_state))
 
     def reset(self):
@@ -1378,13 +1492,6 @@ class RunMotorBySpeed(BaseAction):
     def reset(self):
         self.action_status = ActionStatus.INIT
         Motor.resetMotor(self.motor_name)
-
-    def __str__(self):
-        self.action_state["motor_name"] = self.motor_name
-        self.action_state["speed"] = Motor.get_motor_speed(self.motor_name)
-        self.action_state["stopDI"] = self.stop_di
-        self.action_state["status"] = self.action_status
-        return json.dumps(self.action_state)
 
 
 class RunMotorByDOInterlock(BaseAction):
@@ -1532,7 +1639,7 @@ class GoPath(BaseAction):
                 if "maxRotDec" in args:
                     self.param["maxRotDec"] = float(args["maxRotDec"])
 
-                log.info("goal: %s", str(self.goal))
+                Trace.log(f"goal: {str(self.goal)}")
                 if args["coordinate"] == "robot":
                     Navigation.setPathOnRobot([0, self.goal[0]], [0, self.goal[1]], self.goal[2])
                 elif args["coordinate"] == "world":
@@ -1540,7 +1647,8 @@ class GoPath(BaseAction):
                     y = Loc.get_pose()["y"]
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                 else:
-                    log.error("coordinate only support robot and world. Input is %s", args["coordinate"])
+                    Abnormal.setTask(53326, f"coordinate only support robot and world. Input is {args["coordinate"]}",
+                                     "wrong coordinate", "", "")
                     self.action_status = ScriptStatus.FAILED
 
             else:
@@ -1590,7 +1698,7 @@ class GoTwoStraightLine:
         self.return_back = return_back
         pos = Loc.get_pose()
         if not self.return_back:
-            self.start_pos = [pos['x'], pos['y'], math.radians(pos['angle'])]
+            self.start_pos = [pos['x'], pos['y'], math.radians(pos['yaw'])]
             if abs(self.cal_angle(self.start_pos, self.second_point)) > self.max_angle:
                 self.start_pos[2] = self.world_target[2]
                 angle, self.temp_start = self.search_min_angle_str(self.max_angle, self.step)
@@ -1612,7 +1720,7 @@ class GoTwoStraightLine:
             check_point = points[3]
             dist = math.sqrt((check_point[0] - pos['x']) ** 2 + (check_point[1] - pos['x']) ** 2)
             if dist >= 0.5:
-                Abnormal.setTask(53325, "cannot leave loc when robot is not at last target",
+                Abnormal.setTask(53325, "cannot leave loc when robot is not at last load point",
                                  f"too far:{dist}m", "", "")
                 self.action_status = ActionStatus.FAILED
             ScriptData.set('goTwoStraightLine', {})
@@ -1717,7 +1825,7 @@ class GoTwoStraightLine:
                 return angle, temp_start  # 成功，返回当前角度
 
         angle = abs(self.cal_angle(temp_start, self.second_point))
-        log.info(f"未满足角度要求，当前角度：{angle:.2f}°")
+        Trace.log(f"未满足角度要求，当前角度：{angle:.2f}°")
         return angle, temp_start
 
     def reset(self):
@@ -1760,16 +1868,21 @@ def main():
     # time.sleep(5)
 
     while True:
+        # print(f"event_modbus_before:{f.event_modbus}")
+
         if f.event_safe_move_check:
             f.safe_move_check()
         if f.event_modbus:
             validated_params = f.modbus()
+        # print(f"event_modbus_after:{f.event_modbus}")
 
         f.period_run()
 
         # 任务开始时，盛哥会将状态置为 running，并传入任务参数
         input_params = validated_params or Module.get_task_args()
         status = Module.get_status()
+        print(f"status: {status}")
+
         if status == ScriptStatus.RUNNING:
             args = {}
             if not checked_args:
@@ -1778,11 +1891,14 @@ def main():
                 try:
                     # 验证参数
                     args = validator.validate(input_params)
-                    log.info("check ok, args:", json.dumps(args, indent=2))
+                    Trace.log(f"check ok, args:{json.dumps(args, indent=2)}")
                 except ValueError as e:
-                    log.info("check error:", e)
+                    Trace.log(f"check error:f{e}")
 
             if f.script_status in [ScriptStatus.FINISHED, ScriptStatus.FAILED] and checked_args:
+                keys_to_delete = [k for k in f.trace_chart if k.startswith("action.")]
+                for k in keys_to_delete:
+                    del f.trace_chart[k]
                 Module.set_status(f.script_status)
                 checked_args = False
                 validated_params = {}
