@@ -24,6 +24,7 @@ from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, A
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
 from syspy.lib.robot_param import RobotParam
 import tasks.standard.goBezier as GoBezier
+from syspy.core.rbk_rpc import Service
 
 log = Logger("Fork")
 
@@ -669,6 +670,7 @@ class Fork(ModuleBase):
                     GoPathWithContactDi(ConfigParams.contact_ids_str, rec_world_pos, 0.05, method, args),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                 ])
+                Trace.log(f"task:{self.action_list}")
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
             Navigation.setGoodsShape(ConfigParams.head, ConfigParams.tail, max(self.pallet_width, ConfigParams.width))
@@ -777,44 +779,43 @@ class Fork(ModuleBase):
             current_action = self.action_list[self.action_id]
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
-                # print(3)
             elif current_action.action_status == ActionStatus.FAILED:
                 Abnormal.setTask(53305, f"execute action {current_action} failed!", "", "", "")
                 self.action_status = ActionStatus.FAILED
                 return
             elif current_action.action_status == ActionStatus.INIT:
                 current_action.reset()
-                # print(1)
             else:
                 current_action.run()
-                # print(2)
             self.trace_chart.update(
                 self._flat_attrs(current_action, idx1=self.action_id)
             )
+            # Trace.chart(self._flat_attrs(current_action, idx1=self.action_id))
 
             self.trace_chart.update({
                 "script.action_id": self.action_id,
-                "script.action_status": self.action_status,
+                "script.all_action_status": self.action_status,
                 "script.cur_action": current_action.action_name,
                 "script.cur_action_status": current_action.action_status,
-                "script.script_state": self.script_status
+                "script.script_status": self.script_status
             })
+            # Trace.chart({
+            #     "script.action_id": self.action_id,
+            #     "script.all_action_status": self.action_status,
+            #     "script.cur_action": current_action.action_name,
+            #     "script.cur_action_status": current_action.action_status,
+            #     "script.script_status": self.script_status
+            # })
         else:
             self.action_status = ActionStatus.FINISHED
-
-    def print_info(self):
-        # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        Trace.log(f"{Module.get_task_args()=}")
-        Trace.log(f"{Module.get_task_id()=}")
-        Trace.log(f"{Module.get_status()=}")
 
     def fork_move(self):
         if not self.operation_init:
             self.operation_init = True
-            self.do_fork = self.do_fork_check()
+            # self.do_fork = self.do_fork_check()
             # forkHeight 和 forkSpeed 为任务输入参数
-            if ConfigParams.fork_motor_name:
-                self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.forkHeight, self.forkSpeed)]
+            # if ConfigParams.fork_motor_name:
+            self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.forkHeight, self.forkSpeed)]
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
         # print("action_status:" + json.dumps(cur_status))
@@ -960,9 +961,7 @@ class Fork(ModuleBase):
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.report_info(self.trace_chart)
-        # print(self.move_info)
-
-        # Trace.log(f"fork height :{fork_height}, di 5:{Di.get_di('DI-005')},di 2:{Di.get_di('DI-002')}")
+        Trace.chart(self.trace_chart)
 
         # 堆高车处理后激光的屏蔽
         if ConfigParams.module_type == "straddleLiftFork":
@@ -1098,13 +1097,11 @@ class Rec(BaseAction):
         self.success = False
         self.results_dict = {}
         self.results_list = []
-        print(f"rec init")
 
     def run(self):
         if not self.init:
             self.init = True
             self.success = False
-        print(f"rec run")
 
         self.action_status = ActionStatus.RUNNING
         if not self.success:
@@ -1279,12 +1276,7 @@ class GoPathWithContactDi(BaseAction):
         return cur_dist
 
     def stop_robot(self):
-        # set_speeds = NavSpeed.set_speeds(0, 0, 0)
-        # Trace.log(f"set speeds: {set_speeds}")
-        # v_x, v_y, v_w = NavSpeed.get_speeds()
-        # if all(abs(v) <= 0.01 for v in (v_x, v_y, v_w)):
-        #     return True
-        Navigation.stopRobot(True)
+        Navigation.stopRobotNow()
         Navigation.resetPath()
 
 
@@ -1364,7 +1356,7 @@ class RunMotorByPosition(BaseAction):
             motor_name(string): 电机名
             position(float): 电机运行目标位置
             max_speed(float): 电机运行速度
-            stop_di(int): 如果这个StopDI触发则表示运动到位
+            stop_di(string): 如果这个StopDI触发则表示运动到位
 
         使用示例：
         """
@@ -1373,6 +1365,10 @@ class RunMotorByPosition(BaseAction):
         self.motor_name = motor_name
         self.position = position
         self.max_speed = max_speed
+        self.is_reach = False
+        # self.motor_name = "DOMotor-000"
+        # self.position = 0.05
+        # self.max_speed = 1
         self.stop_di = stop_di
         self.init = False
 
@@ -1423,8 +1419,8 @@ class RunMotorByPosition(BaseAction):
 
             Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         # pos = Motor.get_motor_pos(self.motor_name)
-
-        if Motor.isMotorReached(ConfigParams.fork_motor_name):
+        self.is_reach = Motor.isMotorReached(self.motor_name)
+        if self.is_reach:
             self.action_status = ActionStatus.FINISHED
 
         # 检测货叉的运动是否卡住了
@@ -1647,7 +1643,7 @@ class GoPath(BaseAction):
                     y = Loc.get_pose()["y"]
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                 else:
-                    Abnormal.setTask(53326, f"coordinate only support robot and world. Input is {args["coordinate"]}",
+                    Abnormal.setTask(53326, f"coordinate only support robot and world. Input is {args['coordinate']}",
                                      "wrong coordinate", "", "")
                     self.action_status = ScriptStatus.FAILED
 
@@ -1881,7 +1877,7 @@ def main():
         # 任务开始时，盛哥会将状态置为 running，并传入任务参数
         input_params = validated_params or Module.get_task_args()
         status = Module.get_status()
-        print(f"status: {status}")
+        Trace.log(f"script status: {status}")
 
         if status == ScriptStatus.RUNNING:
             args = {}
