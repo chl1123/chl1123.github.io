@@ -304,7 +304,22 @@ class NavigationV4(NavigationInterface):
             recfile (str):
         """
         pass
-
+    @classmethod
+    @call_service() 
+    def setGoodsPolyShape(
+            cls, shape, recfile: str
+    ):
+        """设置货物形状时传入识别文件路径
+            shape = [
+            {"x": 1.0, "y": 1.0},
+            {"x": -1.0, "y": 1.0},
+            {"x": -1.0, "y": -1.0},
+            {"x": 1.0, "y": 1.0}]
+        Args:
+            shape (List[Dict[str, float]]):
+            recfile (str):
+        """
+        pass
     @classmethod
     @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
