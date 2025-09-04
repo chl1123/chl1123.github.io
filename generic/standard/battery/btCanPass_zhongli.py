@@ -64,8 +64,9 @@ class ZLCanBattery(cb.canPassBase):  # 创建中立电池类，继承电池基�
                     if i == 0:
                         self.battery_info.is_charging = True
                     elif i in [1, 2, 3, 4, 5, 6, 7]:
-                        error_msg = "Battery pack number:" + tem[14:16] + "error msg" + error_dict[i]
-                        self.setError(53140, error_msg)
+                        pass
+                        # error_msg = "Battery pack number:" + tem[14:16] + "error msg" + error_dict[i]
+                        # self.setError(53140, error_msg)
                     else:
                         self.battery_info.is_charging = False
                     break

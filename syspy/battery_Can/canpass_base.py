@@ -120,11 +120,13 @@ class canPassBase:
         return Do.get_do(index)
 
     def setTimeout(self):
-        Abnormal.setDevice(54001, "CAN battery response time out", "No CAN response",
-                           "check CAN", "battery")
+        pass
+        # Abnormal.setDevice(54001, "CAN battery response time out", "No CAN response",
+        #                    "check CAN", "battery")
 
     def clearTimeout(self):
-        Abnormal.clear(54001)
+        pass
+        # Abnormal.clear(54001)
 
     def setError(self, errNum, errMessage, reason='battery', method='check out', filename='btCanPass_xx.py'):
         Abnormal.setDevice(errNum, errMessage, reason, method, filename)

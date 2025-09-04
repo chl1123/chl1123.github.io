@@ -127,17 +127,21 @@ class testCanBattery(cb.canPassBase):
                 self.previous_temperature = temperature
                 self.temperature_buffer = []  # 如果温差小于10度，重置缓冲区
                 if temperature <= -19:
-                    self.setError(53140, "The current temperature has reached " + str(
-                        temperature) + " degrees , low temperature error!")
+                    pass
+                    # self.setError(53140, "The current temperature has reached " + str(
+                    #     temperature) + " degrees , low temperature error!")
                 elif -19 < temperature <= -15:
-                    self.setError(54400, "The current temperature has reached " + str(
-                        temperature) + " degrees , low temperature warning.")
+                    pass
+                    # self.setError(54400, "The current temperature has reached " + str(
+                    #     temperature) + " degrees , low temperature warning.")
                 elif 55 <= temperature < 59:
-                    self.setError(54400, "The current temperature has reached " + str(
-                        temperature) + " degrees , high temperature warning.")
+                    pass
+                    # self.setError(54400, "The current temperature has reached " + str(
+                    #     temperature) + " degrees , high temperature warning.")
                 elif temperature >= 59:
-                    self.setError(53140, "The current temperature has reached " + str(
-                        temperature) + " degrees , high temperature error!")
+                    pass
+                    # self.setError(53140, "The current temperature has reached " + str(
+                    #     temperature) + " degrees , high temperature error!")
 
             self.battery_info.temperature = temperature
             self.msg_ok = True
@@ -160,11 +164,13 @@ class testCanBattery(cb.canPassBase):
                 for j in range(8):
                     if cu.get_bit_val(msg.data[i], j) == 1:
                         if (i == 3 and j == 0) or (i == 1 and j == 2) or (i == 1 and j == 0) or (i == 1 and j == 1):
-                            error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
-                            self.setError(54400, error_msg)
+                            pass
+                            # error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
+                            # self.setError(54400, error_msg)
                         else:
-                            error_msg = "Battery pack number: " + tem[0:2] + " error msg: " + error_dict[(i, j)]
-                            self.setError(53140, error_msg)
+                            pass
+                            # error_msg = "Battery pack number: " + tem[0:2] + " error msg: " + error_dict[(i, j)]
+                            # self.setError(53140, error_msg)
                         break
 
     def judgePublish(self):
