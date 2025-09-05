@@ -278,7 +278,21 @@ class NavigationInterface(ABC, Service):
             recfile (str):
         """
         raise RBKVersionError()
-
+    @classmethod
+    def setGoodsPolyShape(
+            cls, shape, recfile: str
+    ):
+        """设置货物形状时传入识别文件路径
+            shape = [
+            {"x": 1.0, "y": 1.0},
+            {"x": -1.0, "y": 1.0},
+            {"x": -1.0, "y": -1.0},
+            {"x": 1.0, "y": 1.0}]
+        Args:
+            shape (List[Dict[str, float]]):
+            recfile (str):
+        """
+        raise RBKVersionError()
     @classmethod
     def setIncreaseSpinAngle(cls, angle: float):
         """设置货物形状时传入识别文件路径
@@ -471,6 +485,11 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
+    def stopRobotNow(cls):
+        """让agv立即停下来"""
+        raise RBKVersionError()
+
+    @classmethod
     def calibRecord(cls) -> bool:
         """XXX
 
@@ -625,17 +644,6 @@ class NavSpeedInterface(ABC, Message):
                 - v_x (float): X轴方向速度，单位 m/s
                 - v_y (float): Y轴方向速度，单位 m/s
                 - v_w (float): 角速度，单位 rad/s
-        """
-        raise RBKVersionError()
-
-    @classmethod
-    def set_speeds(cls, v_x: float, v_y: float, v_w: float):
-        """设置目标速度
-
-        Args:
-            v_x (float): X轴方向速度，单位 m/s
-            v_y (float): Y轴方向速度，单位 m/s
-            v_w (float): 角速度，单位 rad/s
         """
         raise RBKVersionError()
 

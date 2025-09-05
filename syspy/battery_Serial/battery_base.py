@@ -58,22 +58,28 @@ class batteryBase:
         return msg
 
     def setTimeout(self):
-        self.__rpc_client.setWarning(54001, "Serail battery response time out")
+        pass
+        # self.__rpc_client.setWarning(54001, "Serail battery response time out")
 
     def clearTimeout(self):
-        self.__rpc_client.clearWarning(54001)
+        pass
+        # self.__rpc_client.clearWarning(54001)
 
     def setWarning(self, warNum, warMessage):
-        self.__rpc_client.setWarning(warNum, warMessage)
+        pass
+        # self.__rpc_client.setWarning(warNum, warMessage)
 
     def setError(self, errNum, errMessage):
-        self.__rpc_client.setError(errNum, errMessage)
+        pass
+        # self.__rpc_client.setError(errNum, errMessage)
 
     def warningExists(self, code):
-        return self.__rpc_client.warningExists(code)
+        pass
+        # return self.__rpc_client.warningExists(code)
 
     def errorExists(self, code):
-        return self.__rpc_client.errorExists(code)
+        pass
+        # return self.__rpc_client.errorExists(code)
 
     def setChargeStateOn(self):
         self.need_charge = True

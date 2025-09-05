@@ -1,15 +1,11 @@
 import math
-import logging
 import json
 from enum import IntEnum
 import time
 
 from syspy.script_data import ScriptData
-from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus
+from syspy import Navigation, Loc, Abnormal, Module, ScriptStatus, Trace
 from syspy.lib.module import Pos2World
-from tasks.standard import goPath
-
-log = logging.getLogger("rbk.script")
 
 class GoBezierWorld:
     """
@@ -151,7 +147,7 @@ class GoBezierWorld:
         # 行走到第一个倒退点后规划贝塞尔路径参数
         if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED: # 走第一段路线到曲率合适的贝塞尔起点
             self.is_first_path_reached = Navigation.isPathReached()
-            log.info(f"self.is_first_path_reached={self.is_first_path_reached}")
+            Trace.log(f"self.is_first_path_reached={self.is_first_path_reached}")
             if self.is_first_path_reached:
                 Navigation.resetPath()
                 Navigation.setPathReachAngle(self.path_angle_accuracy)
@@ -171,7 +167,7 @@ class GoBezierWorld:
         # 行走第二段贝塞尔路径
         if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED: # 走贝塞尔到终点
             is_reached = Navigation.isPathReached()
-            log.info(f"is_reached={is_reached}")
+            Trace.log(f"is_reached={is_reached}")
             if is_reached:
                 self.action_status = ScriptStatus.FINISHED
             else:
@@ -194,7 +190,7 @@ class GoBezierWorld:
             ScriptData.set("goBezier",{"bezier_path_world_return":self.bezier_path_world_return,
                                        "initial_point_world_return":self.initial_point_world_return,
                                        "robot_final_loc": self.robot_final_loc})
-            log.info(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
+            Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
         return self.action_status
 
     def reset(self):
@@ -395,7 +391,7 @@ def main():
         # 脚本任务状态管理
         if bezier_status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
             bezier_status= go_bezier.run()
-            log.info(f"bezier_status={bezier_status}")
+            Trace.log(f"bezier_status={bezier_status}")
         elif bezier_status == ScriptStatus.FAILED:
             action_status = ScriptStatus.FAILED
         elif bezier_status == ScriptStatus.FINISHED:
@@ -410,7 +406,4 @@ def main():
 
 
 if __name__ == '__main__':
-    from syspy import Logger
-
-    log = Logger("goBezier.py")
     main()

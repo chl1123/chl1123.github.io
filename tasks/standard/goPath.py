@@ -1,12 +1,10 @@
 import json
-import logging
 import math
 import time
 from typing import Optional
 
-from syspy import Module, ScriptStatus, Abnormal, Navigation, Loc
+from syspy import Module, ScriptStatus, Abnormal, Navigation, Loc, Trace
 
-log = logging.getLogger("rbk.script")
 
 """
 ####BEGIN DEFAULT ARGS####
@@ -156,7 +154,7 @@ class GoPath:
                     self.param["maxRotAcc"] = float(args["maxRotAcc"])
                 if "maxRotDec" in args:
                     self.param["maxRotDec"] = float(args["maxRotDec"])
-                log.info("goal: %s", str(self.goal))
+                Trace.log(f"goal:{str(self.goal)}")
                 if args["coordinate"] == "robot":
                     Navigation.setPathOnRobot([0, self.goal[0]], [0, self.goal[1]], self.goal[2])
                 elif args["coordinate"] == "world":
@@ -164,10 +162,11 @@ class GoPath:
                     y = Loc.get_pose()["y"]
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                 else:
-                    log.error("coordinate only support robot and world. Input is %s", args["coordinate"])
+                    coordinate = args["coordinate"]
+                    Trace.log(f"coordinate only support robot and world. Input is {coordinate}")
                     self.status = ScriptStatus.FAILED
             else:
-                log.error("args error: %s", json.dumps(args))
+                Trace.log(f"args error: {json.dumps(args)}")
                 self.status = ScriptStatus.FAILED
             Navigation.goPathParam(self.param)
 
@@ -186,9 +185,9 @@ class GoPath:
 
     def print_info(self):
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.info(f"{Module.get_task_args()=}")
-        log.info(f"{Module.get_task_id()=}")
-        log.info(f"{Module.get_status()=}")
+        Trace.log(f"{Module.get_task_args()=}")
+        Trace.log(f"{Module.get_task_id()=}")
+        Trace.log(f"{Module.get_status()=}")
 
 
 def main():
@@ -209,7 +208,4 @@ def main():
 
 
 if __name__ == '__main__':
-    from syspy import Logger
-
-    log = Logger("jack_example")
     main()
