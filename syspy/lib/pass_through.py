@@ -1,13 +1,6 @@
 import threading, zmq, time, sys
 import syspy.lib.udp_debug as ud
 
-# 导入protobuf定义
-try:
-    from syspy.v3.protobuf.message import CanFrame_pb2
-except ImportError:
-    print("Warning: CanFrame_pb2 not found, falling back to bytes comparison")
-
-
 
 class callBack:
     def handleData(self, msg):
@@ -18,19 +11,13 @@ class passThrough:
     def __init__(self):
         self.context = zmq.Context()
         self.__client_sock = self.context.socket(zmq.DEALER)
-        
-        # 配置socket选项以提高实时性
-        self.__client_sock.setsockopt(zmq.RCVHWM, 1)     # 接收高水位设为1，减少缓冲
-        self.__client_sock.setsockopt(zmq.SNDHWM, 1)     # 发送高水位设为1
-        self.__client_sock.setsockopt(zmq.LINGER, 0)     # 关闭时不等待
-        
         self.__addr = ""
         self.__conn_id = ""
         self.__msg_thread = None
         self.__should_close = False
         self.__callback = None
         self.__lock = threading.Lock()  # 创建锁对象
-        print("passThrough start with real-time message settings (HWM=1)")
+        print("passThrough start")
 
     def close(self):
         print("close the socket")
@@ -60,8 +47,7 @@ class passThrough:
         poll.register(self.__client_sock, zmq.POLLIN)
         try:
             while not self.__should_close:
-                # 使用更短的轮询间隔以获得更好的实时性 (5ms)
-                sockets = dict(poll.poll(5))
+                sockets = dict(poll.poll(10))
                 if self.__client_sock in sockets:
                     self.__receive()
         except Exception as e:
@@ -72,28 +58,9 @@ class passThrough:
 
     def __receive(self):
         with self.__lock:
-            latest_msg = {}
-            
-            # 持续读取直到队列为空
-            while True:
-                try:
-                    # 非阻塞接收
-                    msg = self.__client_sock.recv(zmq.NOBLOCK)
-                    rec_canframe = CanFrame_pb2.CanFrame()
-                    rec_canframe.ParseFromString(msg)
-                    latest_msg[rec_canframe.ID]=msg
-                except zmq.Again:
-                    # 队列已空，跳出循环
-                    break
-
-            if len(latest_msg) > 0:
-                #print(f"实时消息: 收到{len(latest_msg)}种类型")
-                
-      
-                for msg_data in latest_msg.values():
-                    if not self.__callback is None:
-                        self.__callback(msg_data)
-
+            msg = self.__client_sock.recv()
+            if not self.__callback is None:
+                self.__callback(msg)
 
     def send(self, data):
         with self.__lock:
