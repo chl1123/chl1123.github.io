@@ -84,8 +84,6 @@ class passThrough:
 
             if len(latest_msg) > 0:
                 #print(f"实时消息: 收到{len(latest_msg)}种类型")
-                
-      
                 for msg_data in latest_msg.values():
                     if not self.__callback is None:
                         self.__callback(msg_data)
