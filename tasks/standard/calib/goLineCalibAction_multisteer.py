@@ -114,6 +114,9 @@ def main():
         if calib_move.status == ScriptStatus.FINISHED:
             Module.set_status(ScriptStatus.FINISHED)
             return
+        if calib_move.status == ScriptStatus.FAILED:
+            Module.set_status(ScriptStatus.FAILED)
+            return
         if calib_move.cancel:
             return
 
