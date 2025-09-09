@@ -13,12 +13,14 @@ from syspy.utils.time import Timer
 
 start_time = time.time()
 
+
 from syspy import (Module, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize,
                    Odometer, Pgv, ScriptStatus, NetProtocol, Trace, NavSpeed, Controller)
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
 from tasks.standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer
 from syspy.lib.robot_param import RobotParam
+from syspy.utils import Coordinate
 
 log = Logger("jack")
 
@@ -348,13 +350,36 @@ class InputParams:
                                    desc="get the position of LM point"):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="test", name="test",
-                                   desc="test laser deduction"):
+                with builder.CHILD(key="laserAreaDeduction", name="laserAreaDeduction",
+                                   desc="laser area deduction"):
                     builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
-                        builder.TYPE(ParamType.STRING)
+
+                    with builder.CHILD(key="coordinate", name="coordinate", desc="Spin coordinate"):
+                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                        builder.DEFAULTVALUE("robot")
                         builder.REQUIRED(True)
-                        builder.DEFAULTVALUE("default.srec")
+                        with builder.CHILDREN():
+                            with builder.CHILD("robot", "robot", "robot"):
+                                builder.TYPE(ParamType.STRING)
+                            with builder.CHILD("world", "world", "world"):
+                                builder.TYPE(ParamType.STRING)
+
+                    with builder.CHILD(key="create_or_delete_deducted_area", name="create_or_delete_deducted_area", desc="create_or_delete_deducted_area"):
+                        builder.TYPE(ParamType.COMBO_BOX)
+                        builder.DEFAULTVALUE("create")
+                        builder.REQUIRED(True)
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="create", name="create", desc="create"):
+                                builder.TYPE(ParamType.ARRAY)
+
+                                with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
+                                    builder.TYPE(ParamType.STRING)
+                                    builder.REQUIRED(True)
+                                    builder.DEFAULTVALUE("default.srec")
+
+                            with builder.CHILD(key="delete", name="delete", desc="delete"):
+                                builder.TYPE(ParamType.ARRAY)
+
 
                 with builder.CHILD(key="jackBezierReturn", name="jackBezierReturn",
                                    desc="recognize and go bezier to get the shelf and return"):
@@ -663,6 +688,9 @@ class Jack(ModuleBase):
             self.PGV_ReachDist = self.task_args.get("PGV_ReachDist", None)
             self.PGV_ReachAngle = self.task_args.get("PGV_ReachAngle", None)
 
+            # laser area deduction
+            self.create_or_delete_deducted_area = self.task_args.get("create_or_delete_deducted_area", None)
+
     def run(self, args):
         # 获取输入参数
         Module.set_status(ScriptStatus.RUNNING)
@@ -680,8 +708,8 @@ class Jack(ModuleBase):
             self.jack_bezier_return()
         elif self.opt == "getLM":
             self.get_lm()
-        elif self.opt == "test":
-            self.test()
+        elif self.opt == "laserAreaDeduction":
+            self.laser_area_deduction()
         elif self.opt == "goAPSite":  # 前往ap点，直线，bezier，两段线
             self.go_ap_site()
         elif self.opt == "goBezier":
@@ -718,36 +746,58 @@ class Jack(ModuleBase):
         log.info(f"self.action_list: {self.action_list}")
         self._execute_actions()
 
-    def test(self):
+    def laser_area_deduction(self):
         if not self.operation_init:
             self.operation_init = True
-            self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
-            robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-            area_world = {
-                "deduct_device": self.laser_area_deduct_info["deduct_device"],
-                "area_world": []
-            }
 
-            for idx, area in enumerate(self.laser_area_deduct_info["area"], start=1):
-                x_world_list = []
-                y_world_list = []
-                for j in range(len(area["x_list"])):
-                    x = area["x_list"][j]
-                    y = area["y_list"][j]
-                    # 调用坐标变换
-                    wx, wy, wz = Pos2World([x, y, 0], robot_loc)
-                    x_world_list.append(wx)
-                    y_world_list.append(wy)
-                area_world["area_world"].append({
-                    "x_list": x_world_list,
-                    "y_list": y_world_list
-                })
-                # 对每个area执行操作
-                # Navigation.setClearRegion(f"ForbiddenArea{idx}", x_world_list, y_world_list, self.laser_area_deduct_info["deduct_device"], Coordinate.ROBOT)
-                # clear_region = Navigation.getClearRegion(Coordinate.ROBOT)
-                # print("clear_region", clear_region)
-                # Navigation.deleteClearRegion(f"ForbiddenArea{idx}", Coordinate.ROBOT)
-            print(area_world)
+            if self.create_or_delete_deducted_area == "create":
+
+                self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
+                robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+                Trace.log(f"robot_loc = {robot_loc}")
+                area_device = {
+                    "deduct_device": self.laser_area_deduct_info["deduct_device"],
+                    "area": []
+                }
+                clear_region = None
+                for idx, area in enumerate(self.laser_area_deduct_info["area"], start=1):
+                    x_list_deduct_area = []
+                    y_list_deduct_area = []
+                    for j in range(len(area["x_list"])):
+                        x = area["x_list"][j]
+                        y = area["y_list"][j]
+                        if self.coordinate == "robot":
+                            x_list_deduct_area.append(x)
+                            y_list_deduct_area.append(y)
+                        else:
+                            # 调用坐标变换
+                            wx, wy, wz = Pos2World([x, y, 0], robot_loc)
+                            x_list_deduct_area.append(wx)
+                            y_list_deduct_area.append(wy)
+                    area_device["area"].append({
+                        "x_list": x_list_deduct_area,
+                        "y_list": y_list_deduct_area
+                    })
+                    # 对每个area执行操作
+                    Navigation.setClearRegion(f"ForbiddenArea{idx}", x_list_deduct_area, y_list_deduct_area, self.laser_area_deduct_info["deduct_device"], Coordinate.ROBOT)
+            
+            elif self.create_or_delete_deducted_area == "delete":
+                
+                if self.coordinate == "robot":
+                    clear_region_robot = Navigation.getClearRegion(Coordinate.ROBOT)
+                    for region in clear_region_robot:
+                        Navigation.deleteClearRegion(region, Coordinate.ROBOT)
+                    self.report_info["test"] = {
+                        "clear_region": clear_region_robot
+                    }
+                elif self.coordinate == "world":
+                    clear_region_world = Navigation.getClearRegion(Coordinate.WORLD)
+                    for region in clear_region_world:
+                        Navigation.deleteClearRegion(region, Coordinate.WORLD)
+                    self.report_info["test"] = {
+                        "clear_region": clear_region_world
+                    }
+                    Module.report_info(self.report_info)
 
     def get_rec_file(self):
         if not self.operation_init:
@@ -2182,11 +2232,11 @@ class PGVSecondaryAdjust(BaseAction):  # 二次调整
 
 
 # --- 枚举定义 ---
-class Coordinate:
-    """ 坐标系枚举 """
-    ROBOT = "robot"
-    WORLD = "world"
-    INCREASE = "increase"
+# class Coordinate:
+#     """ 坐标系枚举 """
+#     ROBOT = "robot"
+#     WORLD = "world"
+#     INCREASE = "increase"
 
 
 class ActionStatus(IntEnum):
