@@ -109,6 +109,8 @@ class Module:
     __safe_move_check_status = SafeMoveStatus.NONE
     __modbus_callback = None
     __set_container_callback = None
+    __clear_container_by_goods_id_callback = None
+    __clear_container_callback = None
     script_id = ""
 
     @classmethod
@@ -173,7 +175,9 @@ class Module:
             service.registerFunction(cls.get_safe_move_check, "get_safe_move_check")
             service.registerFunction(cls.modbus, "modbus")
             if is_container:
-                service.registerFunction(cls.set_container, "set_container")
+                service.registerFunction(cls.set_container, "setContainer")
+                service.registerFunction(cls.clear_container_by_goods_id, "clearContainerByGoodsId")
+                service.registerFunction(cls.clear_container, "clearContainer")
             service.start()
         elif RBK_VERSION == 4:
             from syspy.v4.include.rbk import core, service
@@ -186,7 +190,9 @@ class Module:
             service.addService(cls.script_id, "get_safe_move_check", cls.get_safe_move_check)
             service.addService(cls.script_id, "modbus", cls.modbus)
             if is_container:
-                service.addService(cls.script_id, "set_container", cls.set_container)
+                service.addService(cls.script_id, "setContainer", cls.set_container)
+                service.addService(cls.script_id, "clearContainerByGoodsId", cls.clear_container_by_goods_id)
+                service.addService(cls.script_id, "clearContainer", cls.clear_container)
 
     def __del__(self):
         if self.__rpc_client:
@@ -270,6 +276,14 @@ class Module:
         return cls.__set_container_callback(container_name, goods_id, desc)
 
     @classmethod
+    def clear_container_by_goods_id(cls, goods_id: str) -> bool:
+        return cls.__clear_container_by_goods_id_callback(goods_id)
+
+    @classmethod
+    def clear_container(cls, container_name: str) -> bool:
+        return cls.__clear_container_callback(container_name)
+
+    @classmethod
     def set_safe_move_check_callback(cls, callback: Callable[[], None]):
         cls.__safe_move_check_callback = callback
 
@@ -280,6 +294,14 @@ class Module:
     @classmethod
     def set_set_container_callback(cls, callback: Callable[[str, str, str], bool]):
         cls.__set_container_callback = callback
+
+    @classmethod
+    def set_clear_container_by_goods_id_callback(cls, callback: Callable[[str], bool]):
+        cls.__clear_container_by_goods_id_callback = callback
+
+    @classmethod
+    def set_clear_container_callback(cls, callback: Callable[[str], bool]):
+        cls.__clear_container_callback = callback
 
     @classmethod
     def set_cancel_callback(cls, callback: Callable[[], None]):
@@ -362,6 +384,8 @@ class ModuleBase(ABC):
         Module.set_safe_move_check_callback(self.__safe_move_check)
         Module.set_modbus_callback(self.__modbus)
         Module.set_set_container_callback(self.set_container)
+        Module.set_clear_container_callback(self.clear_container)
+        Module.set_clear_container_by_goods_id_callback(self.clear_container_by_goods_id)
         self.stop_flag = False
         self.event_safe_move_check = False
         self.event_modbus = False
@@ -408,3 +432,24 @@ class ModuleBase(ABC):
         """
         print("set_container", container_name, goods_id, desc)
         return Container.setContainer(container_name, goods_id, desc)
+
+    def clear_container_by_goods_id(self, goods_id: str) -> bool:
+        """清除车上特定库位或者背篓的状态
+
+        Args:
+            goods_id (str): 货物名称，货物名称如果为"All"则全部清除
+        Returns:
+            bool: 如果没有库位或者背篓，则返回false
+        """
+        return Container.clearContainerByGoodsId(goods_id)
+
+    def clear_container(self, container_name: str) -> bool:
+        """清除车上特定库位或者背篓的状态
+
+        Args:
+            container_name (str): 库位或者背篓名称，container_name如果为"All"则全部清除
+
+        Returns:
+            bool: 如果没有库位或者背篓，则返回false
+        """
+        return Container.clearContainer(container_name)

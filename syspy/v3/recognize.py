@@ -23,8 +23,8 @@ class RecognizeV3(RecognizeInterface):
         Args:
             file (str): 识别文件
             withRegion (bool): 是否有限制识别区域(扇形)
-            x (float): 识别区域的圆心坐标x（世界坐标系）
-            y (float): 识别区域的圆心坐标y（世界坐标系）
+            x (float): 识别区域的圆心坐标x（车体坐标系）
+            y (float): 识别区域的圆心坐标y（车体坐标系）
             theta (float): 识别区域扇形角度
             radius (float):识别半径
             recognition_side (str): 识别面，可选none、A、B、C、D
@@ -49,8 +49,8 @@ class RecognizeV3(RecognizeInterface):
 
         Args:
             deviceName (str): 检测设备名称
-            x (float): 区域中心点x坐标
-            y (float): 区域中心点y坐标
+            x (float): 区域中心点x坐标（车体坐标系）
+            y (float): 区域中心点y坐标（车体坐标系）
             theta (float): 区域角度
             obs_area_min_height (float):检测区域为长方体，检测区域最低高度
             obs_area_max_height (float):检测区域最高高度

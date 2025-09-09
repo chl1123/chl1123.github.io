@@ -81,7 +81,8 @@ class testCanBattery(cb.canPassBase):
             self.connect_timeout_t.reset()
         else:
             if self.connect_timeout_t.isTimeUp():
-                self.setTimeout()
+                pass
+                # self.setTimeout()
 
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
