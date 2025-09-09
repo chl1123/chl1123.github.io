@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# @Date: 2025/07/24
-# @Author:
-# @Version: 3.8
-# @Project: 智千料箱车
-# @Update: 适配3.5
+# @Date: 2025/09/04
+# @Author: zhaopengfei
+# @Version: v1.0
+# @Project: SPK-MJ50-HL
+# @Update:
 # @RBK Version: V3.5+
 import enum
 import uuid
 
-SCRIPT_VERSION = "V35-20250725"
+SCRIPT_VERSION = "20250904"
 import json
 import math
 import random
@@ -16,11 +16,12 @@ import time
 
 from syspy.utils.time import Timer
 from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Abnormal, Controller, Odometer, Recognize, \
-    RobotParam
+    RobotParam, Trace
+from syspy.lib.net_protocol import parse_modbus, NetProtocol
 from syspy.bin import Container
+from syspy.lib.module import SafeMoveStatus, ModuleBase
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ParamValidator
 from tasks.standard.goPath import GoPath
-from syspy.lib.net_protocol import NetProtocol
 
 log = Logger("ContainerRobot")
 
@@ -34,41 +35,41 @@ class ConfigParams:
     low = dict()
     high = dict()
     low[0] = p.loadParam("low0", type="float", default=0.4, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第0层背篓取料箱高度, 最低层, 从0计数")
+                         group="trays", comment="第0号背篓取料箱高度, 最低层, 从0号计数")
     high[0] = p.loadParam("high0", type="float", default=0.41, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第0层背篓放料箱高度, 最低层, 从0计数")
+                          group="trays", comment="第0号背篓放料箱高度, 最低层, 从0号计数")
     low[1] = p.loadParam("low1", type="float", default=0.82, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第1层背篓取料箱高度")
+                         group="trays", comment="第1号背篓取料箱高度")
     high[1] = p.loadParam("high1", type="float", default=0.83, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第1层背篓放料箱高度")
+                          group="trays", comment="第1号背篓放料箱高度")
     low[2] = p.loadParam("low2", type="float", default=1.25, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第2层背篓取料箱高度")
+                         group="trays", comment="第2号背篓取料箱高度")
     high[2] = p.loadParam("high2", type="float", default=1.26, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第2层背篓放料箱高度")
+                          group="trays", comment="第2号背篓放料箱高度")
     low[3] = p.loadParam("low3", type="float", default=1.675, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第3层背篓取料箱高度")
+                         group="trays", comment="第3号背篓取料箱高度")
     high[3] = p.loadParam("high3", type="float", default=1.68, maxValue=10000.0, minValue=0.0, unit="m",
-                          comment="第3层背篓放料箱高度")
+                          comment="第3号背篓放料箱高度")
     low[4] = p.loadParam("low4", type="float", default=2.095, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第4层背篓取料箱高度")
+                         group="trays", comment="第4号背篓取料箱高度")
     high[4] = p.loadParam("high4", type="float", default=2.10, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第4层背篓放料箱高度")
+                          group="trays", comment="第4号背篓放料箱高度")
     low[5] = p.loadParam("low5", type="float", default=2.515, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第5层背篓取料箱高度")
+                         group="trays", comment="第5号背篓取料箱高度")
     high[5] = p.loadParam("high5", type="float", default=2.525, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第5层背篓放料箱高度")
+                          group="trays", comment="第5号背篓放料箱高度")
     low[6] = p.loadParam("low6", type="float", default=2.945, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第6层背篓取料箱高度")
+                         group="trays", comment="第6号背篓取料箱高度")
     high[6] = p.loadParam("high6", type="float", default=2.955, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第6层背篓放料箱高度")
+                          group="trays", comment="第6号背篓放料箱高度")
     low[7] = p.loadParam("low7", type="float", default=3.375, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第7层背篓取料箱高度")
+                         group="trays", comment="第7号背篓取料箱高度")
     high[7] = p.loadParam("high7", type="float", default=3.385, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第7层背篓放料箱高度")
+                          group="trays", comment="第7号背篓放料箱高度")
     low[8] = p.loadParam("low8", type="float", default=3.825, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第8层背篓取料箱高度")
+                         group="trays", comment="第8号背篓取料箱高度")
     high[8] = p.loadParam("high8", type="float", default=3.835, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第8层背篓放料箱高度")
+                          group="trays", comment="第8号背篓放料箱高度")
     # 伸缩参数
     stretch_self_length = p.loadParam("stretch_self_length", type="float", default=0.73, maxValue=10000.0,
                                       group="stretch", minValue=0.0, unit="m",
@@ -109,14 +110,14 @@ class ConfigParams:
                                   group="DI", comment="货叉是否有货物检测传感器，1为有，0为无")
     has_tray_sensor = p.loadParam("has_tray_sensor", type="int", default=0,
                                   group="DI", comment="背篓是否有货物检测传感器，1为有，0为无")
-    fork_sensor_di = p.loadParam("fork_sensor_di", type="int", default=9, maxValue=100, minValue=-1, unit="",
+    fork_sensor_di = p.loadParam("fork_sensor_di", type="str", default="DI-009", maxValue=100, minValue=-1, unit="",
                                  group="DI", comment="货叉检测DI")
-    overlimit_detect_di = p.loadParam("overlimit_detect_di", type="int", default=-1,
+    overlimit_detect_di = p.loadParam("overlimit_detect_di", type="str", default=-1,
                                       group="DI", comment="检测货叉伸出是否超过料箱的DI")
     # 识别文件参数
     box_code_file = p.loadParam("box_code_file", type="str", default="default.srec",
                                 group="recognize", comment="料箱二维码识别文件")
-    shelf_code_file = p.loadParam("shelf_code_file", type="str", default="default.srec",
+    shelf_code_file = p.loadParam("shelf_code_file", type="str", default="default1.srec",
                                   group="recognize", comment="货架二维码识别文件")
     barcode_file = p.loadParam("barcode_file", type="str", default="default.srec",
                                group="recognize", comment="条形码识别文件")
@@ -156,24 +157,24 @@ class ConfigParams:
     rec_box_extra_height = p.loadParam("rec_box_extra_height", type="float", default=0.0,
                                             comment="放货识别货架上是否有货物时，在放货高度上需要额外抬升的高度，该值可设置为货架码到料箱码的高度差")
     # 手指控制DO
-    left_finger_up_do = p.loadParam("left_finger_up_do", type="int", default=9, group="finger",
+    left_finger_up_do = p.loadParam("left_finger_up_do", type="str", default="DO-009", group="finger",
                                          comment="左手指打开DO")
-    left_finger_down_do = p.loadParam("left_finger_down_do", type="int", default=8, group="finger",
+    left_finger_down_do = p.loadParam("left_finger_down_do", type="str", default="DO-008", group="finger",
                                            comment="左手指关闭DO")
-    right_finger_up_do = p.loadParam("right_finger_up_do", type="int", default=7, group="finger",
+    right_finger_up_do = p.loadParam("right_finger_up_do", type="str", default="DO-007", group="finger",
                                           comment="右手指打开DO")
-    right_finger_down_do = p.loadParam("right_finger_down_do", type="int", default=6, group="finger",
+    right_finger_down_do = p.loadParam("right_finger_down_do", type="str", default="DO-006", group="finger",
                                             comment="右手指关闭DO")
     # 手指到位DI
-    left_finger_up_di = p.loadParam("left_finger_up_di", type="int", default=4, group="finger",
+    left_finger_up_di = p.loadParam("left_finger_up_di", type="str", default="DI-003", group="finger",
                                          comment="左手指打开到位DI")
-    left_finger_down_di = p.loadParam("left_finger_down_di", type="int", default=1, group="finger",
+    left_finger_down_di = p.loadParam("left_finger_down_di", type="str", default="DI-000", group="finger",
                                            comment="左手指关闭到位DI")
-    right_finger_up_di = p.loadParam("right_finger_up_di", type="int", default=5, group="finger",
+    right_finger_up_di = p.loadParam("right_finger_up_di", type="str", default="DI-004", group="finger",
                                           comment="右手指打开到位DI")
-    right_finger_down_di = p.loadParam("right_finger_down_di", type="int", default=6, group="finger",
+    right_finger_down_di = p.loadParam("right_finger_down_di", type="str", default="DI-005", group="finger",
                                             comment="右手指关闭到位DI")
-    goods_check_di = p.loadParam("goods_check_di", type="int", default=-1, group="goods",
+    goods_check_di = p.loadParam("goods_check_di", type="str", default="DI-008", group="goods",
                                       comment="货叉中部货物检测光电DI")
     ok_x = p.loadParam("ok_x", type="float", default=0.01, comment="x方向行走调整完成阈值")
     ok_yaw = p.loadParam("ok_yaw", type="float", default=0.015, comment="调整完成弧度阈值")
@@ -361,11 +362,11 @@ class MotorRun:
         """
         self.status = ScriptStatus.RUNNING
         if self.motor_type == MotorType.LINEAR_MOTOR:
-            Motor.setMotorPosition(self.motor_name, pos, max_vel, self.stop_di)
+            Motor.setMotorPosition(self.motor_name, pos, max_vel)
         elif self.motor_type == MotorType.ROLLER_MOTOR:
-            Motor.setMotorSpeed(self.motor_name, vel, self.stop_di)
+            Motor.setMotorSpeed(self.motor_name, vel)
         else:
-            log.error(f"motor type error {self.motor_type}")
+            Trace.log(f"motor type error {self.motor_type}")
             self.status = ScriptStatus.FAILED
         if Motor.isMotorReached(self.motor_name):
             Motor.resetMotor(self.motor_name)
@@ -377,7 +378,7 @@ class MotorRun:
         self.state['motor_status'] = self.status
 
     def reset(self):
-        log.info(f"motor reset: {self.motor_name}")
+        Trace.log(f"motor reset: {self.motor_name}")
         Motor.resetMotor(self.motor_name)
         self.status = ScriptStatus.RUNNING
 
@@ -540,29 +541,6 @@ class RobotRun:
         return False
 
 
-from abc import ABC, abstractmethod
-class ModuleBase(ABC):
-    def __init__(self):
-        Module.set_suspend_callback(self.suspend)
-        Module.set_resume_callback(self.resume)
-        Module.set_cancel_callback(self.cancel)
-        self.stop_flag = False
-
-    @abstractmethod
-    def suspend(self):
-        pass
-
-    @abstractmethod
-    def resume(self):
-        pass
-
-    @abstractmethod
-    def cancel(self):
-        print("ModuleBase", "cancel")
-        Module.stop_flag = True
-        Module.set_status(ScriptStatus.FAILED)
-
-
 class ContainerRobot(ModuleBase):
     def __init__(self, args=None):
         super().__init__()
@@ -603,7 +581,7 @@ class ContainerRobot(ModuleBase):
         self.unload_height = 0
         self.rec_height_diff = 0
 
-        self.fill_light_do = 4  # 补光灯DO
+        self.fill_light_do = "DO-004"  # 补光灯DO
         self.collision_di = 0  # 碰撞条DI
         self.light_st_time = None
 
@@ -663,73 +641,78 @@ class ContainerRobot(ModuleBase):
         self.stretch_ok = False
 
         self.counter = 0
-        self.init_script_args()
-        log.info(f"init args: {args}")
+        self.count = 0
+        Trace.log(f"init args: {args}")
 
-    def init_script_args(self):
-        self.goods_id = self.script_args.get("goodsId", "")
-        self.self_position = self.script_args.get("container", self.self_position)
-        self.self_position = str(self.self_position) if self.self_position is not None else self.self_position
-        self.update_move_task_params()
-        self.finger_pos = self.script_args.get("finger", 0)
-        self.lift_height = self.script_args.get("lift", 0)
-        self.door_height = self.script_args.get("lift-door", 0)
-        self.stretch_length = self.script_args.get("stretch", 0)
-        self.is_auto_stretch = bool("stretch" not in self.script_args)  # 输入参数无"stretch"，则自动计算识别长度
-        self.rotate_pos = self.script_args.get("rotate", 0)
-        self.offset_x = self.script_args.get("offset_x", ConfigParams.offset_x)
-        self.pre_finger = self.script_args.get("pre_finger", self.pre_finger)
-        if ConfigParams.rec_box_extra_height == 0:
-            self.rec_box_lift = 0
-        else:
-            self.rec_box_lift = self.lift_height + ConfigParams.rec_box_extra_height
-        self.rec_box_lift = self.script_args.get("recBoxLift", self.rec_box_lift)
-        if self.rec_box_lift:
-            self.rec_box = Rec(ConfigParams.box_code_file, max_rec_times=1)
-        self.code_type = self.script_args.get("visionBinType", "code")
-        self.target_type = self.script_args.get("visionType", None)
-        self.barcode_height = self.script_args.get("barcodeHeight", None)
-        self.operation = self.script_args.get("operation", None)
-        self.load_height = self.script_args.get("loadHeight", ConfigParams.rec_offz_box)
-        self.unload_height = self.script_args.get("unloadHeight", ConfigParams.rec_offz_shelf)
-        container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
-        # 如果container_num为数字且>0
-        if isinstance(container_num, int) and container_num > 0:
-            Container.init_container(container_num)
-        self.containers = Container.getContainers()
-        self.rec_id = uuid.uuid4().hex
-        self.box_code_file = self.script_args.get("code_file", ConfigParams.box_code_file)
-        self.shelf_code_file = self.script_args.get("shelf_code_file", ConfigParams.shelf_code_file)
-        Abnormal.clear(53000)
-        Abnormal.clear(55300)
-        Abnormal.clear(57300)
-        if "recAdjust" in self.script_args:
-            if self.target_type is None:
-                if self.operation == "load" or self.operation == "ex_take":
+    def init_script_args(self, args):
+        self.script_args = args or Module.get_task_args()
+        if args:
+            self.goods_id = self.script_args.get("goodsId", "")
+            self.self_position = self.script_args.get("container", self.self_position)
+            self.self_position = str(self.self_position) if self.self_position is not None else self.self_position
+            self.update_move_task_params()
+            self.finger_pos = self.script_args.get("finger", 0)
+            self.lift_height = self.script_args.get("lift", 0)
+            self.door_height = self.script_args.get("lift-door", 0)
+            self.stretch_length = self.script_args.get("stretch", 0)
+            self.is_auto_stretch = bool("stretch" not in self.script_args)  # 输入参数无"stretch"，则自动计算识别长度
+            self.rotate_pos = self.script_args.get("rotate", 0)
+            self.offset_x = self.script_args.get("offset_x", ConfigParams.offset_x)
+            self.pre_finger = self.script_args.get("pre_finger", self.pre_finger)
+            if ConfigParams.rec_box_extra_height == 0:
+                self.rec_box_lift = 0
+            else:
+                self.rec_box_lift = self.lift_height + ConfigParams.rec_box_extra_height
+            self.rec_box_lift = self.script_args.get("recBoxLift", self.rec_box_lift)
+            if self.rec_box_lift:
+                self.rec_box = Rec(ConfigParams.box_code_file, max_rec_times=1)
+            self.code_type = self.script_args.get("visionBinType", "code")
+            self.target_type = self.script_args.get("visionType", None)
+            self.barcode_height = self.script_args.get("barcodeHeight", None)
+            self.operation = self.script_args.get("operation", None)
+            self.load_height = self.script_args.get("loadHeight", ConfigParams.rec_offz_box)
+            self.unload_height = self.script_args.get("unloadHeight", ConfigParams.rec_offz_shelf)
+            container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
+            # 如果container_num为数字且>0
+            if isinstance(container_num, int) and container_num > 0:
+                Container.init_container(container_num)
+            self.containers = Container.getContainers()
+            self.rec_id = uuid.uuid4().hex
+            self.box_code_file = self.script_args.get("code_file", ConfigParams.box_code_file)
+            self.shelf_code_file = self.script_args.get("shelf_code_file", ConfigParams.shelf_code_file)
+            Abnormal.clear(53300)
+            Abnormal.clear(53310)
+            Abnormal.clear(53320)
+            if "recAdjust" in self.script_args:
+                if self.target_type is None:
+                    if self.operation == "load" or self.operation == "ex_take":
+                        self.rec_adjust = RecAdjust(self.box_code_file)
+                    elif self.operation == "unload" or self.operation == "ex_put":
+                        self.rec_adjust = RecAdjust(self.shelf_code_file)
+                elif self.target_type == "box":
                     self.rec_adjust = RecAdjust(self.box_code_file)
-                elif self.operation == "unload" or self.operation == "ex_put":
+                elif self.target_type == "shelf":
                     self.rec_adjust = RecAdjust(self.shelf_code_file)
-            elif self.target_type == "box":
-                self.rec_adjust = RecAdjust(self.box_code_file)
-            elif self.target_type == "shelf":
-                self.rec_adjust = RecAdjust(self.shelf_code_file)
-        if self.target_type == "box" and self.code_type == "code":
-            self.rec = Rec(self.box_code_file)
-        elif self.target_type == "shelf" and self.code_type == "code":
-            self.rec = Rec(self.shelf_code_file)
+            if self.target_type == "box" and self.code_type == "code":
+                self.rec = Rec(self.box_code_file)
+            elif self.target_type == "shelf" and self.code_type == "code":
+                self.rec = Rec(self.shelf_code_file)
 
-        # 根据货叉货物检测光电更新货叉有无货信息
-        if ConfigParams.goods_check_di > 0:
-            if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
-                if Di.get_di(ConfigParams.goods_check_di) and not Container.has_goods("999"):
-                    Abnormal.setTask(57300, f"货叉光电检测到货叉中有货，但数据显示无货，需要人工核查处理", "", "", "")
-                    self.status = ScriptStatus.FAILED
-                elif not Di.get_di(ConfigParams.goods_check_di):
-                    Container.clearContainer("999")
-        else:
-            Abnormal.setTask(53000, f"请在脚本参数中正确配置 goods_check_di 参数！", "", "", "")
-            log.error(f"请在脚本参数中正确配置 goods_check_di 参数！")
-            self.status = ScriptStatus.FINISHED
+            # 根据货叉货物检测光电更新货叉有无货信息
+            if ConfigParams.goods_check_di != "":
+                if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
+                    if Di.get_di(ConfigParams.goods_check_di) and not Container.has_goods("999"):
+                        Abnormal.setTask(53700, f"货叉光电检测到货叉中有货，但数据显示无货，需要人工核查处理", "", "", "")
+                        self.status = ScriptStatus.FAILED
+                    elif not Di.get_di(ConfigParams.goods_check_di):
+                        Container.clearContainer("999")
+            else:
+                Abnormal.setTask(53701, f"请在脚本参数中正确配置 goods_check_di 参数！", "", "", "")
+                Trace.log(f"请在脚本参数中正确配置 goods_check_di 参数！")
+                self.status = ScriptStatus.FINISHED
+
+            self.start_time = time.time()
+            self.status = ScriptStatus.RUNNING
 
     def run(self):
         self.status = ScriptStatus.RUNNING
@@ -741,7 +724,7 @@ class ContainerRobot(ModuleBase):
             self.motor_calib()
 
         if time.time() - self.start_time > ConfigParams.timeout:
-            Abnormal.setTask(53000, f"脚本任务运行超时，请重新执行任务！", "", "", "")
+            Abnormal.setTask(53702, f"脚本任务运行超时，请重新执行任务！", "", "", "")
             self.status = ScriptStatus.FAILED
 
         if self.motor_calib_state:
@@ -780,7 +763,7 @@ class ContainerRobot(ModuleBase):
                     if self.ex_put():
                         self.status = ScriptStatus.FINISHED
                 else:
-                    Abnormal.setTask(55300, f"脚本输入参数错误!", "'operation'不合法", "检查任务参数'operation'",
+                    Abnormal.setTask(53703, f"脚本输入参数错误!", "'operation'不合法", "检查任务参数'operation'",
                                      self.script_args)
                     self.status = ScriptStatus.FAILED
             else:
@@ -827,10 +810,8 @@ class ContainerRobot(ModuleBase):
             # r.disableMotor(ConfigParams.lift_motor_name)
             NetProtocol.release()
             Do.setDO(self.fill_light_do, False)
-            log.info(f"script finished: {json.dumps(self.report_info)}")
+            Trace.log(f"script finished: {json.dumps(self.report_info)}")
         Module.report_info(self.report_info)
-        log.debug(self.report_info)
-
         return self.status
 
     @staticmethod
@@ -844,8 +825,6 @@ class ContainerRobot(ModuleBase):
     def check_motor_emc(self):
         """
         检测急停状态, 驱动器上使能
-        :param r:
-        :return:
         """
         controller_emc = Controller.get_emc()
         lift_motor_info = self.get_motor_info(ConfigParams.lift_motor_name)  # 能查询到电机数据,说明驱动器已供电
@@ -916,7 +895,8 @@ class ContainerRobot(ModuleBase):
                 if m_f["motorName"] == ConfigParams.rotate_motor_name:
                     self.rotate_motor_calib = m_f.get("calib", None)
                     self.rotate_motor_stop = m_f.get("stop", None)
-        self.motor_calib_state = (self.lift_motor_calib == 2 and self.stretch_motor_calib == 2 and self.rotate_motor_calib == 2)
+        # self.motor_calib_state = (self.lift_motor_calib == 2 and self.stretch_motor_calib == 2 and self.rotate_motor_calib == 2)
+        self.motor_calib_state = True
 
     def force_calib(self):
         if Timer.delay(3):
@@ -942,7 +922,7 @@ class ContainerRobot(ModuleBase):
         self.close_finger()
         Do.setDO(self.fill_light_do, False)
         self.status = ScriptStatus.FAILED
-        log.info("carton cancel")
+        Trace.log("carton cancel")
 
     def update_move_task_params(self):
         """
@@ -961,7 +941,7 @@ class ContainerRobot(ModuleBase):
         :param zero_height:
         :return:
         """
-        log.info(f"----- running zero ------")
+        Trace.log(f"----- running zero ------")
 
         if not self.zero_step[0]:
             self.zero_step[0] = Container.has_goods("999") or self.finger(1)
@@ -972,23 +952,23 @@ class ContainerRobot(ModuleBase):
             self.zero_step[3] = self.lift(zero_height)
         elif self.zero_step[2] and not self.zero_step[3]:
             self.zero_step[3] = self.lift(zero_height)
-        log.debug(f"zero_step:{self.zero_step}")
+        Trace.log(f"zero_step:{self.zero_step}")
         if all(self.zero_step):
             # r.release()
             return True
         return False
 
     def lift(self, height):
-        log.info(f"----- running lift ------")
+        Trace.log(f"----- running lift ------")
         if height < ConfigParams.min_lift_height:
             height = ConfigParams.min_lift_height
         if height > ConfigParams.max_lift_height:
-            Abnormal.setTask(53000, f"下发升降高度超上限，最大值：{ConfigParams.max_lift_height}，下发值：{height}", "", "",
+            Abnormal.setTask(53704, f"下发升降高度超上限，最大值：{ConfigParams.max_lift_height}，下发值：{height}", "", "",
                              "")
             self.status = ScriptStatus.FAILED
             return False
         if self.stretch_real_pos > ConfigParams.safe_stretch_length:
-            Abnormal.setTask(53000, f"检测到伸缩机构未回零，无法执行升降，请先执行标零复位！", "", "", "")
+            Abnormal.setTask(53705, f"检测到伸缩机构未回零，无法执行升降，请先执行标零复位！", "", "", "")
             self.status = ScriptStatus.FAILED
             return False
         if self.container_robot.lift(self.lift_motor, height, ConfigParams.lift_motor_speed):
@@ -996,12 +976,12 @@ class ContainerRobot(ModuleBase):
         return False
 
     def finger(self, pos):
-        log.info(f"----- running finger ------")
+        Trace.log(f"----- running finger ------")
         if not self.finger_open_start:
             self.finger_open_start = time.time()
         else:
             if time.time() - self.finger_open_start > 3:  # 防止手指机构卡死时电机过流烧毁
-                Abnormal.setTask(53000, f"拨指控制超时，请检查拨指是否卡住、检查拨指到位光电是否能正常触发！", "", "", "")
+                Abnormal.setTask(53706, f"拨指控制超时，请检查拨指是否卡住、检查拨指到位光电是否能正常触发！", "", "", "")
                 Do.setDO(ConfigParams.left_finger_up_do, False)
                 Do.setDO(ConfigParams.right_finger_up_do, False)
                 Do.setDO(ConfigParams.left_finger_down_do, False)
@@ -1024,7 +1004,7 @@ class ContainerRobot(ModuleBase):
 
         elif pos == 0:
             if Di.get_di(ConfigParams.overlimit_detect_di):
-                Abnormal.setTask(53000, f"伸出长度不够，货叉超限光电检测到障碍物！可上调取货伸出补偿参数值！", "", "", "")
+                Abnormal.setTask(53707, f"伸出长度不够，货叉超限光电检测到障碍物！可上调取货伸出补偿参数值！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return False
             Do.setDO(ConfigParams.left_finger_down_do, True)
@@ -1035,7 +1015,6 @@ class ContainerRobot(ModuleBase):
             if Di.get_di(ConfigParams.right_finger_down_di) and not Di.get_di(ConfigParams.right_finger_up_di):
                 Do.setDO(ConfigParams.right_finger_down_do, False)
                 self.right_finger_real_pos = 0
-
             if self.left_finger_real_pos == 0 and self.right_finger_real_pos == 0:
                 self.finger_open_start = False
                 return True
@@ -1060,15 +1039,15 @@ class ContainerRobot(ModuleBase):
         self.finger_info["right_finger"] = self.right_finger_real_pos
 
     def stretch(self, length):
-        log.info(f"----- running stretch ------")
+        Trace.log(f"----- running stretch ------")
         temp_motor_speed = ConfigParams.stretch_motor_speed
         if ConfigParams.max_stretch_length < length < ConfigParams.max_stretch_length + 0.1:
-            Abnormal.setTask(54000,
+            Abnormal.setTask(53708,
                              f"下发伸出长度值略微超上限，下发值：{length}，上限值：{ConfigParams.max_stretch_length}。请检查货物是否离车体太远了！",
                              "", "", "")
             length = ConfigParams.max_stretch_length
         elif length > ConfigParams.max_stretch_length + 0.1:
-            Abnormal.setTask(53000,
+            Abnormal.setTask(53708,
                              f"下发伸出长度值远超上限，下发值：{length}，上限值：{ConfigParams.max_stretch_length}。请检查货物是否离车体太远了！！！",
                              "", "", "")
             self.status = ScriptStatus.FAILED
@@ -1081,16 +1060,16 @@ class ContainerRobot(ModuleBase):
         return False
 
     def rotate(self, pos, max_speed=None):
-        log.info(f"----- running rotate ------")
+        Trace.log(f"----- running rotate ------")
         if abs(pos) > abs(ConfigParams.max_rotate_angle / 180 * math.pi):
-            Abnormal.setTask(53000,
+            Abnormal.setTask(53709,
                              f"下发角度值超上限，下发值：{pos / math.pi * 180}，上限值：{ConfigParams.max_rotate_angle}，请检查箱子是否摆歪，二维码是否破损！",
                              "", "", "")
             self.status = ScriptStatus.FAILED
             return False
 
         if self.stretch_real_pos > ConfigParams.safe_stretch_length:
-            Abnormal.setTask(53000, f"检测到伸缩机构未回零，无法执行旋转动作，请先执行标零复位！", "", "", "")
+            Abnormal.setTask(53710, f"检测到伸缩机构未回零，无法执行旋转动作，请先执行标零复位！", "", "", "")
             self.status = ScriptStatus.FAILED
             return False
 
@@ -1118,7 +1097,7 @@ class ContainerRobot(ModuleBase):
             if self.rec_res and self.rec_res.get("status", 1) == 0:
                 Do.setDO(self.fill_light_do, False)
                 if self.rec_res['barCode'] != self.goods_id:
-                    Abnormal.setTask(53000,
+                    Abnormal.setTask(53711,
                                      f"货物编码不匹配, 任务下发的货物编码: {self.goods_id}, 识别的货物编码: {self.rec_res['barCode']}",
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
@@ -1135,7 +1114,7 @@ class ContainerRobot(ModuleBase):
         指定货叉高度和角度位置识别一维码
         """
         if time.time() - self.start_time > 20:
-            Abnormal.setTask(53000, f"未识别到一维码！请检查相机是否对准了一维码！", "", "", "")
+            Abnormal.setTask(53712, f"未识别到一维码！请检查相机是否对准了一维码！", "", "", "")
             self.status = ScriptStatus.FAILED
         if not self.opt_step[0]:
             self.opt_step[0] = self.lift(self.lift_height)
@@ -1154,7 +1133,7 @@ class ContainerRobot(ModuleBase):
         指定货叉高度和角度位置识别二维码
         """
         if time.time() - self.start_time > 20:
-            Abnormal.setTask(53000, f"未识别到二维码！请检查相机是否对准了二维码！", "", "", "")
+            Abnormal.setTask(53713, f"未识别到二维码！请检查相机是否对准了二维码！", "", "", "")
             self.status = ScriptStatus.FAILED
         if not self.opt_step[0]:
             self.opt_step[0] = self.lift(self.lift_height)
@@ -1213,31 +1192,31 @@ class ContainerRobot(ModuleBase):
                 self.status = ScriptStatus.FINISHED
 
     def load(self):
-        log.info(f"----- running load  {self.goods_id}------")
+        Trace.log(f"----- running load  {self.goods_id}------")
         load_info = dict()
         if not self.cur_c:
             if (self.goods_id and Container.goods_id_exist(self.goods_id) and
                     Container.get_container_by_goodsId(self.goods_id) != "999"):
-                Abnormal.setTask(53000, f"货物{self.goods_id}已存在，请检查是否重复下发任务！", "", "", "")
+                Abnormal.setTask(53714, f"货物{self.goods_id}已存在，请检查是否重复下发任务！", "", "", "")
                 self.status = ScriptStatus.FAILED
             if self.self_position:
                 if Container.has_goods(self.self_position):
-                    Abnormal.setTask(53000,
-                                     f"第{self.self_position}层背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "",
+                    Abnormal.setTask(53715,
+                                     f"第{self.self_position + 1}层({self.self_position}号)背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "",
                                      "", "")
                     self.status = ScriptStatus.FAILED
                 self.cur_c = self.self_position
             else:
                 self.cur_c = self.search_operable_container('load')
-            log.info(f"load begin: {json.dumps(self.containers)}")
+            Trace.log(f"load begin: {json.dumps(self.containers)}")
             if self.cur_c is None:  # 车体满载了
-                Abnormal.setTask(53000, f"车体所有背篓已满，无法继续取货！", "", "", "")
+                Abnormal.setTask(53716, f"车体所有背篓已满，无法继续取货！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
             if Container.has_goods("999") and Container.get_goodsId_by_container("999") == self.goods_id:
                 self.load_step[:9] = [True]*9
             elif Container.has_goods("999"):  # 货叉已载货,但不是目标货物
-                Abnormal.setTask(53000, f"料斗已载货，无法执行取货任务！请核对任务数据和背篓数据！", "", "", "")
+                Abnormal.setTask(53717, f"货叉（999号）已载货，无法执行取货任务！请核对任务数据和背篓数据！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
         else:
@@ -1277,7 +1256,7 @@ class ContainerRobot(ModuleBase):
                 if Di.get_di(ConfigParams.left_finger_up_di) and Di.get_di(ConfigParams.right_finger_up_di):
                     self.load_step[6] = self.stretch(self.stretch_length)
                 else:
-                    Abnormal.setTask(53000, f"检测到拨指未打开，取消执行伸出动作！请检查拨指及其到位光电是否正常！", "",
+                    Abnormal.setTask(53718, f"检测到拨指未打开，取消执行伸出动作！请检查拨指及其到位光电是否正常！", "",
                                      "", "")
                     self.status = ScriptStatus.FAILED
             elif self.load_step[6] and not self.load_step[7]:
@@ -1322,8 +1301,6 @@ class ContainerRobot(ModuleBase):
     def in_take(self):
         """
         内部取货： 从背篓取货到货叉
-        :param r:
-        :return:
         """
         in_take_info = dict()
         if not self.cur_c:
@@ -1362,8 +1339,6 @@ class ContainerRobot(ModuleBase):
     def in_put(self):
         """
         内部放货： 从货叉放货到背篓
-        :param r:
-        :return:
         """
         if not self.cur_c:
             self.check_put()
@@ -1384,7 +1359,7 @@ class ContainerRobot(ModuleBase):
                 self.in_put_step[6] = self.finger(0)
             if all(self.in_put_step[0:7]) and not self.in_put_step[7]:
                 self.in_put_step[7] = self.lift_safe_height()
-        log.info(f"----- running in_put ------")
+        Trace.log(f"----- running in_put ------")
         in_put_info = dict()
         in_put_info["goodsId"] = self.goods_id
         in_put_info["in_put_step"] = self.in_put_step[:7]
@@ -1398,14 +1373,12 @@ class ContainerRobot(ModuleBase):
     def ex_take(self):
         """
         外部取货： 从货架取货到货叉
-        :param r:
-        :return:
         """
         if Container.has_goods("999"):  # 抓斗有货
-            Abnormal.setTask(53000, f"检测到料斗已载货，无法执行外部取货动作！请核对任务数据和背篓数据！", "", "", "")
+            Abnormal.setTask(53719, f"检测到货叉（999号）已载货，无法执行外部取货动作！请核对任务数据和背篓数据！", "", "", "")
             self.status = ScriptStatus.FAILED
             return
-        log.info(f"----- running ex_take ------")
+        Trace.log(f"----- running ex_take ------")
         ex_take_info = dict()
         if self.barcode_height is not None:
             if not self.ex_take_step[0]:
@@ -1467,10 +1440,8 @@ class ContainerRobot(ModuleBase):
     def ex_put(self):
         """
         外部放货： 从货叉放货到货架
-        :param r:
-        :return:
         """
-        log.info(f"----- running ex_put ------")
+        Trace.log(f"----- running ex_put ------")
         if not Container.has_goods("999"):  # 抓斗没货
             return self.unload()
 
@@ -1493,7 +1464,7 @@ class ContainerRobot(ModuleBase):
                     self.rec_box.is_error = None
                     Do.setDO(self.fill_light_do, False)
                     if self.rec_box.has_goods and not self.rec_box.goods_out_dist:
-                        Abnormal.setTask(53000, "检测到货架上已经有货，取消放货动作！请人工核查货架和任务数据！", "", "",
+                        Abnormal.setTask(53720, "检测到货架上已经有货，取消放货动作！请人工核查货架和任务数据！", "", "",
                                          "")
                         self.status = ScriptStatus.FAILED
                         return
@@ -1552,22 +1523,22 @@ class ContainerRobot(ModuleBase):
             return True
 
     def unload(self):
-        log.info(f"----- running unload ------")
+        Trace.log(f"----- running unload ------")
         unload_info = dict()
 
         if not self.cur_c:
             if self.self_position:
                 if Container.get_goodsId_by_container(self.self_position) != self.goods_id:
-                    Abnormal.setTask(53000, f"{self.self_position}号背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！",)
+                    Abnormal.setTask(53721, f"{self.self_position + 1}层({self.self_position}号)背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！","","","")
                     self.status = ScriptStatus.FAILED
                 if not Container.has_goods(self.self_position):
-                    Abnormal.setTask(53000,
-                                     f"{self.self_position}号背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
+                    Abnormal.setTask(53722,
+                                     f"{self.self_position + 1}层({self.self_position}号)背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
                 if self.self_position != "999" and Container.has_goods("999"):
                     # r.setError(f"料斗已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！")
-                    Abnormal.setTask(53000, f"料斗已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！", "", "", "")
+                    Abnormal.setTask(53723, f"货叉（999号）已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！", "", "", "")
                     self.status = ScriptStatus.FAILED
                 self.cur_c = self.self_position
             else:
@@ -1575,7 +1546,7 @@ class ContainerRobot(ModuleBase):
                     self.cur_c = "999"
                     if Container.get_goodsId_by_container("999") != self.goods_id:
                         # r.setError(f"料斗已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！")
-                        Abnormal.setTask(53000, f"料斗已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！", "", "",
+                        Abnormal.setTask(53724, f"货叉（999号）已载货，无法先执行背篓的放货任务，必须优先释放货叉的货物！", "", "",
                                          "")
                         self.status = ScriptStatus.FAILED
                         return
@@ -1583,11 +1554,11 @@ class ContainerRobot(ModuleBase):
                     self.cur_c = Container.get_container_by_goodsId(self.goods_id)
 
             if not self.cur_c:
-                Abnormal.setTask(53000, f"背篓中不存在货物: {self.goods_id}，无法执行放货任务！请核对任务数据和背篓数据！",
+                Abnormal.setTask(53725, f"背篓中不存在货物: {self.goods_id}，无法执行放货任务！请核对任务数据和背篓数据！",
                                  "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
-            log.info(f"unload begin: {json.dumps(self.containers)}")
+            Trace.log(f"unload begin: {json.dumps(self.containers)}")
         else:
             if self.cur_c == "999":
                 self.unload_step[:6] = [True] * 6
@@ -1639,7 +1610,7 @@ class ContainerRobot(ModuleBase):
                                     self.rec_box.is_error = None
                                     Do.setDO(self.fill_light_do, False)
                                     if self.rec_box.has_goods and not self.rec_box.goods_out_dist:
-                                        Abnormal.setTask(53000, "检测到货架上有货，取消放货动作！", "", "", "")
+                                        Abnormal.setTask(53726, "检测到货架上有货，取消放货动作！", "", "", "")
                                         self.status = ScriptStatus.FAILED
                                         return
                                     else:
@@ -1728,7 +1699,7 @@ class ContainerRobot(ModuleBase):
         self.report_info["current_pos"] = module_pos
 
     def has_goods_id(self, goods_id: str):
-        log.info(f"goodsId: {goods_id}")
+        Trace.log(f"goodsId: {goods_id}")
         for c in self.containers:
             if goods_id == c['goods_id']:
                 return True
@@ -1750,23 +1721,21 @@ class ContainerRobot(ModuleBase):
     def check_put(self):
         """
         放货到背篓前，检查背篓有空位且货叉有货
-        :param r:
-        :return:
         """
         if not Container.has_goods("999"):  # 货叉无货
-            Abnormal.setTask(57300, f"料斗没有货物，无需内部放货！", "", "", "")
+            Abnormal.setTask(53727, f"货叉（999号）没有货物，无需内部放货！", "", "", "")
             self.status = ScriptStatus.FINISHED
             return
 
         # 货物在背篓里
         if self.goods_id and Container.goods_id_exist(self.goods_id):
-            Abnormal.setTask(57300, f"货物已存在", "", "", "")
+            Abnormal.setTask(53728, f"货物已存在", "", "", "")
             self.status = ScriptStatus.FINISHED
             return
 
         if self.self_position:
             if Container.has_goods(self.self_position):
-                Abnormal.setTask(57300, f"货物已在背篓中", "", "", "")
+                Abnormal.setTask(53729, f"货物已在背篓中", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
             self.cur_c = self.self_position
@@ -1774,19 +1743,17 @@ class ContainerRobot(ModuleBase):
             self.cur_c = self.search_operable_container('load')  # 查找空位
 
         if self.cur_c is None:  # 车体满载了
-            Abnormal.setTask(57300, f"车体所有背篓已满，货叉载货中", "", "", "")
+            Abnormal.setTask(53730, f"车体所有背篓已满，货叉（999号）载货中", "", "", "")
             self.status = ScriptStatus.FINISHED
             return
 
     def check_take(self):
         """
         从背篓取货前检测背篓货物信息，检查货叉为空
-        :param r:
-        :return:
         """
         if self.self_position:
             if not Container.has_goods(self.self_position):
-                Abnormal.setTask(53000, f"第{self.self_position}层背篓是空的，无法执行内部取货动作！", "", "", "")
+                Abnormal.setTask(53731, f"第{self.self_position + 1}层({self.self_position}号)背篓是空的，无法执行内部取货动作！", "", "", "")
                 self.status = ScriptStatus.FAILED
             self.cur_c = self.self_position
         else:
@@ -1796,9 +1763,74 @@ class ContainerRobot(ModuleBase):
             self.cur_c = "999"
 
         if not self.cur_c:
-            Abnormal.setTask(53000, f"货物{self.goods_id}不存在，请核对货物编号和背篓数据！", "", "", "")
+            Abnormal.setTask(53732, f"货物{self.goods_id}不存在，请核对货物编号和背篓数据！", "", "", "")
             self.status = ScriptStatus.FAILED
             return
+
+    def safe_move_check(self):
+        self.count += 1
+        status = SafeMoveStatus.RUNNING
+        if self.count == 100:
+            self.count = 0
+            status = SafeMoveStatus.FINISHED
+        self.set_safe_move_status(status)
+        Trace.log(f"safe_move_check {Module.get_safe_move_check()}")
+        if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
+            self.event_safe_move_check = False
+
+    def modbus(self):
+        """
+        从Modbus读取参数并解析
+        """
+        print("modbus___________ 读取Modbus数据")
+        args = {}
+        # 1. 读取操作码
+        op_data = NetProtocol.getModbusData("4x", 201, 1)
+        if op_data:
+            operation_code = parse_modbus(op_data, 'uint16')
+            print(f"   操作码: {operation_code}")
+            # 根据操作码构建参数
+            if operation_code == 1:
+                args["operation"] = "load"
+                # 读取高度参数
+                height_data = NetProtocol.getModbusData("4x", 202, 2)
+                if len(height_data) >= 2:
+                    height = parse_modbus(height_data, 'float')
+                    print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
+                    print(f"   解析后高度值: {height:.4f}m")
+                    # 限制在有效范围内
+                    args["height"] = max(0.0, min(0.06, height))
+                    print(f"   设置高度: {args['height']:.4f}m")
+            elif operation_code == 2:
+                args["operation"] = "unload"
+            elif operation_code == 3:
+                args["operation"] = "spin"
+                # 3. 读取浮点型参数
+                print("读取浮点型参数:")
+                # 读取角度参数
+                angle_data = NetProtocol.getModbusData("4x", 202, 1)
+                if angle_data:
+                    angle_raw = parse_modbus(angle_data, 'int16')
+                    args["spinAngle"] = angle_raw / 100.0  # 转换为度
+                    print(f"   设置角度: {args['spinAngle']:.2f}度")
+                else:
+                    args["spinAngle"] = 90.0  # 默认角度
+                    print("   使用默认角度")
+
+            elif operation_code == 4:
+                args["operation"] = "getCurrentPathProperty"
+                # 4. 读取字符串参数
+                print("读取字符串参数:")
+                str_data = NetProtocol.getModbusData("4x", 202, 4)
+                if str_data:
+                    # 使用parse_modbus函数解析字符串
+                    device_name = parse_modbus(str_data, 'string', 0, len(str_data))
+                    if device_name:
+                        args["device"] = device_name
+                        print(f"   设备名称: {device_name}")
+
+            print(f"   操作类型: {args.get('operation', 'unknown')}")
+        return args
 
 
 class Rec:
@@ -1812,17 +1844,18 @@ class Rec:
         self.has_goods = None
         self.goods_out_dist = None
         self.max_goods_dist = 0.8  # 料箱距离货叉里程中心最远距离，单位：米
-
+        Recognize.resetRec()
+        Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
     def run(self, agv):
         self.status = ScriptStatus.RUNNING
         rec_status = Recognize.getRecStatus()  # 获取识别状态 0: 初始化, 1: 识别中, 2: 获得结果, 3：识别出错, -1: 未知错误
         if rec_status == 3 or rec_status == -1:  # 识别失败的状态
-            log.info("rec failed:{}".format(self.result))
+            Trace.log("rec failed:{}".format(self.result))
             if Timer.delay(0.05):
                 self.rec_times = self.rec_times + 1
                 if self.rec_times > self.max_rec_times:
                     if not self.is_error:
-                        Abnormal.setTask(53000,
+                        Abnormal.setTask(53733,
                                          f"连续识别{self.max_rec_times}次失败，请检查二维码是否损坏，请手动识别并查看照片是否清晰！",
                                          "", "", "")
                         self.status = ScriptStatus.FAILED
@@ -1830,7 +1863,7 @@ class Rec:
                         self.status = ScriptStatus.FINISHED
                 else:
                     Recognize.resetRec()
-
+                    Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
         elif rec_status == 2:  # 识别成功,获得结果
             rec_results = Recognize.getRecResults()
             if "reco_list" in rec_results:
@@ -1843,10 +1876,7 @@ class Rec:
             if self.result["x"] > self.max_goods_dist:
                 self.goods_out_dist = True
             self.status = ScriptStatus.FINISHED
-            log.info(f"rec success: {self.status.name} {self.result}")
-        else:
-            log.info(f"--------------- doRec ----------------")
-            Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
+            Trace.log(f"rec success: {self.status.name} {self.result}")
 
         cur_state = dict()
         cur_state['rec_result'] = self.result
@@ -1858,8 +1888,8 @@ class Rec:
 
     def reset(self):
         Recognize.resetRec()
+        Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
         self.status = ScriptStatus.RUNNING
-
 
 class RecAdjust:
     def __init__(self, filename):
@@ -1907,7 +1937,7 @@ class RecAdjust:
         if self.plan_status is not ScriptStatus.FINISHED:
             self.plan_status = ScriptStatus.RUNNING
             if self.rec.status is ScriptStatus.RUNNING or self.rec.status is ScriptStatus.NONE:
-                log.info(f"----- rec to adjust {self.rec.status.name}------")
+                Trace.log(f"----- rec to adjust {self.rec.status.name}------")
                 self.rec.run(agv)
             elif self.rec.status is ScriptStatus.FAILED:
                 self.rec_fail_time = self.rec_fail_time + 1
@@ -1918,9 +1948,9 @@ class RecAdjust:
                     self.rec.run(agv)
                 else:
                     self.status = ScriptStatus.FAILED
-                log.info("rec fail!!! {}".format(self.rec_fail_time))
+                Trace.log("rec fail!!! {}".format(self.rec_fail_time))
             elif self.rec.status is ScriptStatus.FINISHED:
-                log.info(f"------------------ move to adjust -----------------")
+                Trace.log(f"------------------ move to adjust -----------------")
                 self.rec_fail_time = 0
                 # 通过参数配置，使识别结果为二维码在料斗坐标系下的坐标位置, (右手坐标系)x轴向前，y轴向左, z轴向上
 
@@ -1973,7 +2003,7 @@ class RecAdjust:
 
                 if abs(agv.yaw_adjust) > ConfigParams.max_yaw_bias:
                     self.status = ScriptStatus.FAILED
-                    Abnormal.setTask(53000,
+                    Abnormal.setTask(53734,
                                      f"识别到角度偏差{agv.yaw_adjust}超出上限值{ConfigParams.max_yaw_bias}，请检查料箱是否摆正，二维码是否损坏！",
                                      "", "", "")
                 else:
@@ -1982,16 +2012,16 @@ class RecAdjust:
                         agv.ok_yaw = 0.02
                     # 精度满足, 识别调整任务完成
                     if not bool(ConfigParams.auto_adjust_rotate) and abs(self.rec.result['y']) < agv.ok_x:
-                        log.info(f"adjust finished, adjust count: {self.adjust_count}")
+                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = ScriptStatus.FINISHED
                     elif bool(ConfigParams.auto_adjust_rotate) and abs(self.rec.result['y']) < agv.ok_x and abs(
                             agv.yaw_adjust) <= agv.ok_yaw:
-                        log.info(f"adjust finished, adjust count: {self.adjust_count}")
+                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = ScriptStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
                             self.status = ScriptStatus.FAILED
-                            Abnormal.setTask(53000,
+                            Abnormal.setTask(53735,
                                              f"识别调整{self.adjust_count}次未达到精度要求，请检查二维码是否损坏，相机画面是否清晰，精度参数是否设置合理！",
                                              "", "", "")
                 self.plan_status = ScriptStatus.FINISHED
@@ -2032,7 +2062,7 @@ class RecAdjust:
         cur_state["last_yaw_adjust"] = self.last_yaw_adjust / math.pi * 180
         cur_state["next_rotate_pos"] = self.next_rotate_pos / math.pi * 180
         agv.report_info["rec_adjust"] = cur_state
-        log.debug(f"[ContainerRobot][{agv.lift_real_pos}|{agv.stretch_real_pos}|{agv.rotate_real_pos / math.pi * 180}|"
+        Trace.log(f"[ContainerRobot][{agv.lift_real_pos}|{agv.stretch_real_pos}|{agv.rotate_real_pos / math.pi * 180}|"
                    f"{self.rec.result.get('x', 0)}|{self.rec.result.get('y', 0)}|{self.rec.result.get('z', 0)}|{self.rec.result.get('yaw', 0)}|"
                    f"{agv.yaw_adjust / math.pi * 180}|{self.last_yaw_adjust / math.pi * 180}|{self.next_rotate_pos / math.pi * 180}|"
                    f"{self.rec_fail_time}|{self.adjust_count}|{self.rec.rec_times}|{self.go_args.get('x', 0)}|")
@@ -2046,32 +2076,48 @@ class RecAdjust:
 
 def main():
     Module.init()
-    # 获取并验证参数
-    raw_args = Module.get_task_args()
-    log.info("raw task args:", json.dumps(raw_args, indent=2))
+    print("main")
+    robot = ContainerRobot()
     validator = ParamValidator(InputParams.builder.to_dict())
-    try:
-        # 验证参数
-        args = validator.validate(raw_args)
-        log.info(f"参数验证成功: {args}")
-    except ValueError as e:
-        log.error(f"参数验证失败: {e}")
-        Abnormal.setTask(53000, f"脚本输入参数验证失败: {e}", "", "", "")
-        Module.set_status(ScriptStatus.FAILED)
-        return
+    modbus_args = None
+    container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
+    # 如果container_num为数字且>0
+    if isinstance(container_num, int) and container_num > 0:
+        Container.init_container(container_num)
 
-    robot = ContainerRobot(args)
-    while not robot.stop_flag:
+    while True:
+        # 脚本任务状态管理
         status = robot.status
         Module.set_status(status)
-        log.info(f"{Module.get_task_args()=}, {Module.get_task_id()=}, {status=}")
-        if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            return
-
-        if status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
+        containers = Container.getContainers()
+        robot.report_info['containers'] = containers
+        Module.report_info(robot.report_info)
+        robot.report_info["status"] = status
+        if robot.event_safe_move_check:
+            robot.safe_move_check()
+        if robot.event_modbus:
+            modbus_args = robot.modbus()
+            robot.event_modbus = False
+        if status == ScriptStatus.NONE:
+            args = modbus_args or Module.get_task_args()
+            if args:
+                try:
+                    # 验证参数
+                    args = validator.validate(args)
+                    print("check ok, args:", json.dumps(args, indent=2))
+                except ValueError as e:
+                    print("check error:", e)
+                robot = ContainerRobot()
+                robot.init_script_args(args)
+        elif status == ScriptStatus.RUNNING:
             robot.run()
+        elif status == ScriptStatus.SUSPENDED:
+            robot.suspend()
+        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+            modbus_args = None
+            robot.status = ScriptStatus.NONE
+
         time.sleep(0.1)
-    print("结束")
 
 if __name__ == '__main__':
     main()
