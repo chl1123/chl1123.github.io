@@ -41,7 +41,7 @@ class ContainerV4(ContainerInterface):
         containers (dict): 存储所有背篓及货物的状态，key为背篓名称，值为包含 goods_id、desc 和 has_goods 的字典。
     """
 
-    db = LevelDBV4("containers")
+    db = None
     containers = {}
 
     @staticmethod
@@ -59,6 +59,7 @@ class ContainerV4(ContainerInterface):
         Args:
             number (str): 背篓数量。从模型中的moduleType.cartonTransferUnit.id参数获取
         """
+        cls.db = LevelDBV4("containers")
         model_container_names = []
         for i in range(number):
             model_container_names.append(str(i))
