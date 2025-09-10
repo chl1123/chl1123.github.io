@@ -4,7 +4,6 @@ import time
 from syspy.v4.include.rbk import logger, datapool
 import google.protobuf.message as base_message
 from syspy import Battery, Motor, Module
-from syspy.battery import BatteryInterface
 
 def msg_cb(msg: base_message, timestamp: int):
     logger.LogInfo(f"callback, temperature: {msg.temperature}, timestamp: {timestamp}")
@@ -24,21 +23,18 @@ def subscribe_and_unsubscribe():
 
 def get_msg():
     while True:
-        # 4.0电池消息channel不固定
-        battery1 = BatteryInterface("battery1")
-        print(f"{battery1.get_temperature()=}")
-        print(f"{battery1.get_percentage()=}")
-        logger.LogInfo(f"temperature: {battery1.get_temperature()}")
-        logger.LogInfo(f"percentage: {battery1.get_percentage()}")
+        # 默认topic为Battery-000
+        print("default get_temperature", Battery.get_temperature())
+        print("default get_percentage", Battery.get_percentage())
 
-        # 3.5 TOPIC固定
-        # print(f"{Battery.get_temperature()}")
-        # print(f"{Battery.get_percentage()=}")
+        # 指定topic为Battery-001
+        print("Battery-001 get_temperature", Battery.get_temperature(topic="Battery-001"))
+        print("Battery-001 get_percentage", Battery.get_percentage(topic="Battery-001"))
 
-        motor_pos = Motor.get_motor_pos("Motor-001")
-        print("motor_pos=", motor_pos)
-        logger.LogInfo(f"motor_pos={motor_pos}")
-        time.sleep(0.1)
+        # motor_pos = Motor.get_motor_pos("Motor-001")
+        # print("motor_pos=", motor_pos)
+        # logger.LogInfo(f"motor_pos={motor_pos}")
+        time.sleep(1)
 
 
 def main():

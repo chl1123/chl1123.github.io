@@ -5,7 +5,7 @@ from syspy import RBK_VERSION
 import json
 from google.protobuf import message
 from google.protobuf import json_format
-from typing import Type, Optional, Any, List, Union
+from typing import Type, Optional, Any, List, Union, Dict
 import time
 
 
@@ -88,12 +88,19 @@ class Service:
 
 
 class Message(Service):
-    _TOPIC: str = None  # 消息订阅主题
+    _TOPIC: str = ""  # 消息订阅主题
     _PLUGIN = "RBKSim"  # 消息发布插件-3.5
     _MODEL_CLASS: Type[message.Message] = None  # 消息模型类
     _UPDATE_INTERVAL: float = 0.05
     data: message.Message = None
     _last_update: float = 0.0
+
+    def __init__(self, topic_prefix: str = "", topic_suffix: str = ""):
+        self._TOPIC_PREFIX = topic_prefix
+        self._TOPIC_SUFFIX = topic_suffix
+        # 为每个topic维护独立的数据和更新时间
+        self._topic_data: Dict[str, message.Message] = {}  # 存储每个topic的数据
+        self._topic_last_update: Dict[str, float] = {}  # 存储每个topic的最后更新时间
 
     def init_model_class(self):
         pass
@@ -101,39 +108,62 @@ class Message(Service):
     def set_update_interval(self, interval: float):
         self._UPDATE_INTERVAL = interval
 
-    def update(self) -> bool:
+    def update(self, topic: str = None) -> bool:
         if self._MODEL_CLASS is None:
             self.init_model_class()
+
         """获取最新数据，返回是否更新成功"""
-        if not self._requires_update():
-            return bool(self.data)
+        full_topic = self._TOPIC_PREFIX + (topic or self._TOPIC) + self._TOPIC_SUFFIX
+        if not self._requires_update(topic):
+            if topic is None:
+                return bool(self.data)
+            else:
+                return bool(self._topic_data.get(topic))
         try:
-            self.data = Service.client().get_message(
-                self._TOPIC,
+            data = Service.client().get_message(
+                full_topic,
                 self._MODEL_CLASS,
                 self._PLUGIN
             )
-            if not self.data:
+            if not data:
                 return False
-            self._last_update = time.time()
+            # 为该topic存储数据和更新时间
+            if topic is None:
+                self.data = data
+                self._last_update = time.time()
+            else:
+                self._topic_data[topic] = data
+                self._topic_last_update[topic] = time.time()
             return True
         except Exception as e:
             # 添加日志记录
             return False
 
-    def _requires_update(self) -> bool:
-        """检查是否需要更新"""
+    def _requires_update(self, topic: str = None) -> bool:
+        """检查指定topic是否需要更新"""
+        if topic is None:
+            last_update = self._last_update
+            data = self.data
+        else:
+            last_update = self._topic_last_update.get(topic, 0)
+            data = self._topic_data.get(topic)
         return (
-                self.data is None or
-                (time.time() - self._last_update) > self._UPDATE_INTERVAL
+                data is None or
+                (time.time() - last_update) > self._UPDATE_INTERVAL
         )
 
-    def get_data(self, args: Optional[List[str]] = None) -> Union[tuple, dict]:
-        """获取当前数据（不触发更新）"""
-        if self.update():
-            if args is not None:
-                return tuple(getattr(self.data, arg) for arg in args)
-        return json_format.MessageToDict(self.data)
+    def get_data(self, args: Optional[List[str]] = None, *, topic: str = None, ) -> Union[tuple, dict]:
+        """获取指定topic的当前数据（不触发更新）"""
+        if  self.update(topic):
+            if topic is None:
+                data = self.data
+            else:
+                data = self._topic_data.get(topic)
+            if data:
+                if args is not None:
+                    return tuple(getattr(data, arg) for arg in args)
+                return json_format.MessageToDict(data, preserving_proto_field_name=True)
+        return {}
 
 
 def default_plugin(name=None):

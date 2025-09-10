@@ -1,5 +1,5 @@
 import typing
-from syspy.core.rbk_rpc import call_service, default_plugin, Message
+from syspy.core.rbk_rpc import default_plugin, Message
 
 
 @default_plugin("DSPChassis")
@@ -18,18 +18,16 @@ class BatteryV3(Message):
             from .protobuf import Message_Battery
             cls._MODEL_CLASS = Message_Battery
     
-    def get_percentage(self) -> float:
+    def get_percentage(self, *, topic: str = "Battery-000") -> float:
         """获取电池电量百分比
 
         Returns:
             float: 返回电池电量百分比数值
         """
         if self.update():
-            # print("self.data", self.data)
-            # print("get_percentage", self.data.percetage)
             return self.data.percetage
     
-    def get_charge_current(self) -> float:
+    def get_charge_current(self, *, topic: str = "Battery-000") -> float:
         """获取充电电流
 
         Returns:
@@ -38,7 +36,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.charge_current
     
-    def get_charge_voltage(self) -> float:
+    def get_charge_voltage(self, *, topic: str = "Battery-000") -> float:
         """获取充电电压
 
         Returns:
@@ -47,7 +45,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.charge_voltage
 
-    def get_is_charging(self) -> bool:
+    def get_is_charging(self, *, topic: str = "Battery-000") -> bool:
         """获取是否正在充电状态
 
         Returns:
@@ -56,7 +54,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.is_charging
 
-    def get_temperature(self) -> float:
+    def get_temperature(self, *, topic: str = "Battery-000") -> float:
         """获取电池温度
 
         Returns:
@@ -65,7 +63,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.temperature
     
-    def get_cycle(self) -> int:
+    def get_cycle(self, *, topic: str = "Battery-000") -> int:
         """获取电池循环次数
 
         Returns:
@@ -74,7 +72,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.cycle
     
-    def get_max_charge_current(self) -> float:
+    def get_max_charge_current(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电流
 
         Returns:
@@ -83,7 +81,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.max_charge_current
 
-    def get_max_charge_voltage(self) -> float:
+    def get_max_charge_voltage(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电压
 
         Returns:
@@ -92,7 +90,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.max_charge_voltage
     
-    def get_extra(self) -> str:
+    def get_extra(self, *, topic: str = "Battery-000") -> str:
         """获取额外信息
 
         Returns:
@@ -101,7 +99,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.extra
 
-    def get_is_manually_connected(self) -> bool:
+    def get_is_manually_connected(self, *, topic: str = "Battery-000") -> bool:
         """获取是否手动连接状态
 
         Returns:
@@ -110,7 +108,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.is_manually_connected
     
-    def get_user_data(self) -> bytes:
+    def get_user_data(self, *, topic: str = "Battery-000") -> bytes:
         """获取用户数据
 
         Returns:
@@ -119,17 +117,15 @@ class BatteryV3(Message):
         if self.update():
             return self.data.user_data
     
-    @call_service(func_name="getBatteryMaxPercentage")
-    def getAlarmPercentage(self) -> int:
+    def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 
         Returns:
             int:
         """
-        pass
+        return self.client().call_service("DSPChassis", "getBatteryMaxPercentage")
     
-    @call_service(func_name="publishBattery")
-    def publish(self, battery_info: str) -> int:
+    def publish(self, battery_info: str, *, topic: str = "Battery-000") -> int:
         """发布电池信息
 
         Args:
@@ -138,13 +134,12 @@ class BatteryV3(Message):
         Returns:
             int: -1: 发布失败; 0: 发布成功
         """
-        pass
+        return self.client().call_service("DSPChassis", "publishBattery", battery_info)
     
-    @call_service(func_name="getBatteryCanPort")
-    def getCanPort(self) -> int:
+    def getCanPort(self, *, topic: str = "Battery-000") -> int:
         """获取CAN端口
 
         Returns:
             int: CAN端口
         """
-        pass
+        return self.client().call_service("DSPChassis", "getBatteryCanPort")
