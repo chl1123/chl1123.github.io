@@ -101,7 +101,7 @@ def create_recfile(builder: ParamBuilder):
     with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(True)
-        builder.DEFAULTVALUE("shelf-A.srec")
+        builder.DEFAULTVALUE("default.srec")
     with builder.CHILD(key="insert_shelf_dir", name="insert_shelf_dir", desc="direction to go under the shelf"):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(True)
@@ -317,6 +317,7 @@ def create_jack_load(builder: ParamBuilder):
 
             with builder.CHILD(key="polyline", name="polyline", desc="polyline"):
                 builder.TYPE(ParamType.ARRAY)
+                create_polyline(builder)
 
     with builder.CHILD(key="is_secondary_adjust", name="whether the loading progress need secondary adjust",
                        desc="Enable secondary adjust"):
@@ -415,6 +416,15 @@ class InputParams:
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_end_height(builder)
+                        with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
+                            builder.TYPE(ParamType.STRING)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE("default.srec")
+                        with builder.CHILD(key="insert_shelf_dir", name="insert_shelf_dir",
+                                           desc="direction to go under the shelf"):
+                            builder.TYPE(ParamType.STRING)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE("A")
 
                 with builder.CHILD(key="jackMinHeight", name="JackMinHeight", desc="lift the robot tray"):
                     builder.TYPE(ParamType.ARRAY)
@@ -966,7 +976,7 @@ class Jack(ModuleBase):
                 # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
                 if result_robot[0] < 1:
                     log.info(f'{current_action.action_name=}')
-                    self.action_list.append(GoPath([-0.3, 0, 0], Coordinate.ROBOT, 0.2, True))
+                    self.action_list.append(GoPath([-0.3, 0, 0], Coordinate.ROBOT, True))
                     self.action_list.append(RecShelf(self.recfile, "SecondRec"))  # 识别货架，得到坐标放入j.rec_result
                 else:
                     # 如果用户未传入back_dist数值，则用识别文件中的数值（需要enableBackDistance启用，否则为back_distance为0）
@@ -1007,8 +1017,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             # 下降到起始高度
-            self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.start_height,
-                                               ConfigParams.jack_motor_speed, ConfigParams.jack_zero_di))
+            self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.start_height, ConfigParams.jack_motor_speed))
 
             # 获取AP点坐标
             if not self.ap_id:
@@ -1094,7 +1103,7 @@ class Jack(ModuleBase):
                 self.action_list.append(GoBezier(result_world))
                 # self.jack_load_adjust_and_jack() # 加入二次调整，取货前托盘调整，抬升托盘动作
                 self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
-                                                   ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
+                                                   ConfigParams.jack_motor_speed))
                 self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
 
     def jack_load_adjust_and_jack(self):
@@ -1107,7 +1116,7 @@ class Jack(ModuleBase):
 
         # 抬升托盘取货
         self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
-                                           ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
+                                           ConfigParams.jack_motor_speed))
         log.info(f"self.action_list: {self.action_list}")
 
     def jack_unload(self):
@@ -1150,20 +1159,6 @@ class Jack(ModuleBase):
         if ConfigParams.is_secondary_adjust:
             self.action_list.append(GetPGVData())
             self.action_list.append(PGVSecondaryAdjust())
-
-        # 第四步在放货前旋转托盘角度，根据输入的参数决定如何调整
-        if self.robot_spin_angle_before_jack is not None:
-            self.robot_spin_angle_before_jack = math.pi * self.robot_spin_angle_before_jack / 180
-            self.action_list.append(
-                Spin(self.robot_spin_angle_before_jack, "robot", self.spin_dir))
-        if self.increase_spin_angle_before_jack is not None:
-            self.increase_spin_angle_before_jack = math.pi * self.increase_spin_angle_before_jack / 180
-            self.action_list.append(
-                Spin(self.increase_spin_angle_before_jack, "increase", 0))
-        if self.global_spin_angle_before_jack is not None:
-            self.global_spin_angle_before_jack = math.pi * self.global_spin_angle_before_jack / 180
-            self.action_list.append(
-                Spin(self.global_spin_angle_before_jack, "world", self.spin_dir))
 
         # 放货
         self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
@@ -1219,7 +1214,7 @@ class Jack(ModuleBase):
             self.operation_init = True
 
             self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height,
-                                               ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
+                                               ConfigParams.jack_motor_speed))
 
     def jack_min_height(self):
         """放货至最低点"""
@@ -1550,22 +1545,47 @@ class RobotRotate(BaseAction):
 class JackHeight(BaseAction):
     """顶升动作，通过设置电机位置实现顶升"""
 
-    def __init__(self, motor_name, target_height, jack_motor_speed, jack_up_di):
+    def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf"):
         super().__init__("JackHeight")
         self.motor_name = motor_name
         self.target_height = target_height
         self.jack_motor_speed = jack_motor_speed
-        self.jack_up_di = jack_up_di
+        self.recfile = recfile
+        self.object_key = object_key
         self.init = False
+        self.jack_start_height = None
         Motor.resetMotor(self.motor_name)
 
     def run(self, j: Jack):
         if not self.init:
             self.init = True
             self.action_status = ActionStatus.RUNNING
-            Motor.setMotorPosition(self.motor_name, self.target_height, self.jack_motor_speed, self.jack_up_di)
+            self.jack_start_height = Motor.get_motor_pos(ConfigParams.jack_motor_name)
+            if self.target_height > self.jack_start_height:
+                Motor.setMotorPosition(self.motor_name, self.target_height, self.jack_motor_speed, ConfigParams.jack_up_di)
+            else:
+                Motor.setMotorPosition(self.motor_name, self.target_height, self.jack_motor_speed, ConfigParams.jack_zero_di)
+
             if self.target_height > ConfigParams.jack_min_height:
-                Navigation.setGoodsShape(0.35, 0.35, 0.5)
+                # Navigation.setGoodsShape(0.35, 0.35, 0.5)
+                if self.recfile:
+                    # 路径前缀：recognitionObject.{object_key}.goodsParameter
+                    recognition_goodsParameter_path = f"recognitionObject.{self.object_key}.goodsParameter"
+                    # 1) 获取goodsShape
+                    goods_shape = RobotParam.getConfig("recognition",
+                                                        f"{recognition_goodsParameter_path}.goodsShape",
+                                                        self.recfile)
+                    # 转换为 Python 对象
+                    shapes = json.loads(goods_shape)
+                    print(f"shapes={shapes}")
+                    shape = shapes[0]["points"]
+                else:
+                    shape = [
+                    {"x": 0.5, "y": 0.5},
+                    {"x": -0.5, "y": 0.5},
+                    {"x": -0.5, "y": -0.5},
+                    {"x": 0.5, "y": -0.5}]
+                Navigation.setGoodsPolyShape(shape, "shelf")
             else:
                 Navigation.clearGoodsShape()
 
@@ -1573,16 +1593,20 @@ class JackHeight(BaseAction):
         log.info(f"{motor_info=}")
         log.info(f"{self.target_height=}")
 
-        if Motor.isMotorReached(self.motor_name) or Di.get_di(ConfigParams.jack_up_di):
-            self.action_status = ActionStatus.FINISHED
-            Motor.resetMotor(self.motor_name)
+        if self.target_height > self.jack_start_height:
+            if Motor.isMotorReached(self.motor_name) or Di.get_di(ConfigParams.jack_up_di):
+                self.action_status = ActionStatus.FINISHED
+                Motor.resetMotor(self.motor_name)
+        else:
+            if Motor.isMotorReached(self.motor_name) or Di.get_di(ConfigParams.jack_zero_di):
+                self.action_status = ActionStatus.FINISHED
+                Motor.resetMotor(self.motor_name)
 
         j.report_info["JackHeight"] = {
             "action_status": self.action_status,
             "motor_name": self.motor_name,
             "target_height": self.target_height,
             "jack_motor_speed": self.jack_motor_speed,
-            "jack_up_di": self.jack_up_di
         }
         Module.report_info(j.report_info)
 
@@ -1601,10 +1625,7 @@ class JackMinHeight(BaseAction):
         if not self.init:
             self.init = True
             self.action_status = ActionStatus.RUNNING
-        Motor.setMotorPosition(self.motor_name, ConfigParams.jack_min_height, self.jack_motor_speed,
-                               ConfigParams.jack_zero_di)
-        motor_info = Odometer.get_motor_infos()
-        log.info(f"{motor_info=}")
+            Motor.setMotorPosition(self.motor_name, ConfigParams.jack_min_height, self.jack_motor_speed, ConfigParams.jack_zero_di)
         log.info(f"Lowering tray")
 
         if Motor.isMotorReached(self.motor_name) or Di.get_di(ConfigParams.jack_zero_di):
@@ -1841,9 +1862,12 @@ class GoPolyline(BaseAction):
         max_speed = 0.5, max_accele = 0.3, max_decele = 0.2, decele_dist = 1, curvature_limit = 1.3
         """
         super().__init__()
-        self.go3 = None
-        self.go2 = None
-        self.go1 = None
+        self.go3 = goPath.GoPath()
+        self.go2 = goPath.GoPath()
+        self.go1 = goPath.GoPath()
+        self.go3_args = None
+        self.go2_args = None
+        self.go1_args = None
         self.temp_start = []
         self.first_point = None
         self.start_pos = []
@@ -1871,51 +1895,48 @@ class GoPolyline(BaseAction):
                 angle, self.temp_start = self.search_min_angle_str(self.max_angle, self.step)
             else:
                 self.temp_start = self.start_pos
-            go1_args = {
+            self.go1_args = {
                 "x": self.temp_start[0],
                 "y": self.temp_start[1],
                 "theta": self.temp_start[2],
-                "backMode": 0,
+                "backMode": 1,
                 "maxSpeed": 0.2,
                 "maxRot": math.radians(10),
                 "coordinate": Coordinate.WORLD
             }
-            self.go1 = GoPath(go1_args)
-            go2_args = {
+            self.go2_args = {
                 "x": self.second_point[0],
                 "y": self.second_point[1],
                 "theta": self.second_point[2],
-                "backMode": 1,
+                "backMode": 0,
                 "maxSpeed": 0.1,
                 "maxRot": math.radians(10),
                 "coordinate": Coordinate.WORLD
             }
-            self.go2 = GoPath(go2_args)
-            go3_args = {
+            self.go3_args = {
                 "x": self.third_point[0],
                 "y": self.third_point[1],
                 "theta": self.third_point[2],
-                "backMode": 1,
+                "backMode": 0,
                 "maxSpeed": 0.1,
                 "maxRot": math.radians(10),
                 "coordinate": Coordinate.WORLD
             }
-            self.go3 = GoPath(go3_args)
 
         if not self.go_step[0]:
-            if self.go1.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go1.run(f)
-            if self.go1.action_status == ActionStatus.FINISHED:
+            if self.go1.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go1.run(self.go1_args)
+            if self.go1.status == ActionStatus.FINISHED:
                 self.go_step[0] = True
         elif self.go_step[0] and not self.go_step[1]:
-            if self.go2.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go2.run(f)
-            if self.go2.action_status == ActionStatus.FINISHED:
+            if self.go2.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go2.run(self.go2_args)
+            if self.go2.status == ActionStatus.FINISHED:
                 self.go_step[1] = True
         elif self.go_step[1] and not self.go_step[2]:
-            if self.go3.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go3.run(f)
-            if self.go3.action_status == ActionStatus.FINISHED:
+            if self.go3.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go3.run(self.go3_args)
+            if self.go3.status == ActionStatus.FINISHED:
                 self.go_step[2] = True
         if all(self.go_step):
             self.action_status = ActionStatus.FINISHED
@@ -1927,6 +1948,7 @@ class GoPolyline(BaseAction):
         return angle
 
     def search_min_angle_str(self, max_angle, step):
+        temp_start = []
         for n in range(1, step + 1):
             adjust_dist = self.ahead_dist / self.step * n
             # 临时构造一个新的起点：在原 start_pos 基础上往前平移
@@ -1947,17 +1969,20 @@ class GoPolyline(BaseAction):
 
 
 class Rec(BaseAction):
-    def __init__(self, recfile, action_name="RecShelf"):
+    def __init__(self, recfile, action_name="RecShelf", recognition_side="A"):
         super().__init__(action_name)
         self.init = False
         self.rec_status = None
         self.result = dict()
         self.action_status = ActionStatus.INIT
         self.recfile = recfile
+        self.recognition_side = recognition_side
         self.attempts = 0
         self.max_attempts = 3
         self.success = False
         self.results = list
+        self.do_rec = False
+        Recognize.resetRec()
 
     def run(self, j: Jack):
         if not self.init:
@@ -1972,7 +1997,12 @@ class Rec(BaseAction):
             results = self.results.get("reco_list", [])
             z_max_results = sorted(results, key=lambda item: item['z'])
             self.result = z_max_results[0]
-            j.rec_result = self.result
+            rec_x = self.result['x']
+            rec_y = self.result['y']
+            rec_yaw = self.result['yaw']
+            rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
+            rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
+            j.rec_result = rec_x_y_yaw
             self.action_status = ActionStatus.FINISHED
 
         j.report_info["RecShelf"] = {
@@ -1995,6 +2025,7 @@ class Rec(BaseAction):
             log.debug("rec_result:{}".format(rec_result))
             print(rec_result)
             return True, rec_status, rec_result
+
         elif rec_status in (-1, 3):
             if Timer.delay(0.05):
                 self.attempts += 1
@@ -2008,8 +2039,10 @@ class Rec(BaseAction):
                 else:
                     Recognize.resetRec()
         else:
-            Recognize.doRec(recfile)
-            Timer.delay(0.05)
+            if not self.do_rec:
+                self.do_rec = True
+                Recognize.doRec(self.recfile, False, 0, 0, 0, 0, self.recognition_side)
+                Timer.delay(0.05)
         return False, rec_status, list
 
 
@@ -2255,6 +2288,11 @@ class RotateDirection(IntEnum):
     COUNTERCLOCKWISE = 1
     CLOCKWISE = -1
 
+class Coordinate:
+    """ 坐标系枚举 """
+    ROBOT = "robot"
+    WORLD = "world"
+    INCREASE = "increase"
 
 def main():
     Module.init()
