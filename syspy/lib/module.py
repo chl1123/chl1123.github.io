@@ -171,6 +171,8 @@ class Module:
             service.registerFunction(cls.__resume, "resume")
             service.registerFunction(cls.__cancel, "cancel")
 
+            service.registerFunction(cls.__get_task, "get_task")
+
             service.registerFunction(cls.safe_move_check, "safe_move_check")
             service.registerFunction(cls.get_safe_move_check, "get_safe_move_check")
             service.registerFunction(cls.modbus, "modbus")
@@ -185,6 +187,8 @@ class Module:
             service.addService(cls.script_id, "suspend", cls.__suspend)
             service.addService(cls.script_id, "resume", cls.__resume)
             service.addService(cls.script_id, "cancel", cls.__cancel)
+
+            service.addService(cls.script_id, "get_task", cls.__get_task)
 
             service.addService(cls.script_id, "safe_move_check", cls.safe_move_check)
             service.addService(cls.script_id, "get_safe_move_check", cls.get_safe_move_check)
@@ -223,6 +227,16 @@ class Module:
             cls.__cancel_callback()
         else:
             cls.set_status(ScriptStatus.FAILED)
+
+    @classmethod
+    def __get_task(cls):
+        """获取脚本任务"""
+        return {
+            "script_name": cls.script_name,
+            "script_status": cls.__run_status.value,
+            "script_task": cls.__task,
+            "task_id": cls.__task_id
+        }
 
     @classmethod
     def __suspend(cls):
@@ -325,6 +339,7 @@ class Module:
             "moveStatus": status.value,
             "taskId": cls.__task_id
         }
+        print("report data:", data)
         if cls.script_name:
             if cls.__rpc_client is None:
                 # todo V3独有？
