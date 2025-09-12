@@ -39,13 +39,13 @@ class passThrough:
         self.__addr = addr
         now = time.time()
         self.__conn_id = "py_client_" + str(now)
-        self.__msg_thread = threading.Thread(target=self.__run, name="run")
+        self.__msg_thread = threading.Thread(target=self.__run, name="run",daemon=True)
         self.__msg_thread.start()  # FIXME: when to join?
 
     def canConnect(self, addr, connid):
         self.__addr = addr
         self.__conn_id = connid
-        self.__msg_thread = threading.Thread(target=self.__run, name="run")
+        self.__msg_thread = threading.Thread(target=self.__run, name="run",daemon=True)
         self.__msg_thread.start()  # FIXME: when to join?
 
     def __run(self):
