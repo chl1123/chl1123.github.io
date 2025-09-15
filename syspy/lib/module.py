@@ -225,11 +225,12 @@ class Module:
 
     @classmethod
     def __cancel(cls):
-        cls.stop_flag = True
-        if cls.__cancel_callback is not None:
-            cls.__cancel_callback()
-        else:
-            cls.set_status(ScriptStatus.FAILED)
+        if cls.get_status() in [ScriptStatus.RUNNING, ScriptStatus.NEARTOGOAL, ScriptStatus.SUSPENDED]:
+            cls.stop_flag = True
+            if cls.__cancel_callback is not None:
+                cls.__cancel_callback()
+            else:
+                cls.set_status(ScriptStatus.FAILED)
 
     @classmethod
     def __get_task(cls):
