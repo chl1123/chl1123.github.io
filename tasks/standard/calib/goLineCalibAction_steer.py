@@ -75,6 +75,21 @@ class CalibMove:
             self.speed_x = self.speed*self.speed_x_rate
             self.speed_y = self.speed*self.speed_y_rate
             self.cancel = False
+            # 定位策略切换
+            self.locType = Module.get_task_args("locType", "")
+            self.locName = Module.get_task_args("locName", "")
+            if self.locType != "" and self.locName != "":
+                policy = dict()
+                if self.locType == "Laser":
+                    policy = {"localization.localizationType": "2D",
+                              "localization.localizationType.2D.localizationLaser": self.locName}
+                elif self.locType == "Camera":
+                    policy = {"localization.localizationType": "3D",
+                              "localization.localizationType.3D.localizationLaser": self.locName}
+                elif self.locType == "CodeScanner":
+                    policy = {"localization.localizationType": "codeScanner",
+                              "localization.localizationType.codeScanner.localizationCodeScanner": self.locName}
+                Navigation.appendCustomPolicy("policy", policy)
 
         # 实时运行
         if self.move_action == 0:
@@ -95,6 +110,8 @@ class CalibMove:
         info["move_action"] = self.move_action
         info["move_dist"] = self.move_dist
         info["speed_x"] = self.speed_x
+        info["locType"] = self.locType
+        info["locName"] = self.locName
         log.info(json.dumps(info))
 
     def Cancel(self):

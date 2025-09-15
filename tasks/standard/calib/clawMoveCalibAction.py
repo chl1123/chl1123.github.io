@@ -79,6 +79,21 @@ class CalibMove:
             self.RotRadius = Module.get_task_args("RotRadius", 10.0)
             self.speed_x = Module.get_task_args("V", 0.5)
             self.cancel = False
+            # 定位策略切换
+            self.locType = Module.get_task_args("locType", "")
+            self.locName = Module.get_task_args("locName", "")
+            if self.locType != "" and self.locName != "":
+                policy = dict()
+                if self.locType == "Laser":
+                    policy = {"localization.localizationType": "2D",
+                              "localization.localizationType.2D.localizationLaser": self.locName}
+                elif self.locType == "Camera":
+                    policy = {"localization.localizationType": "3D",
+                              "localization.localizationType.3D.localizationLaser": self.locName}
+                elif self.locType == "CodeScanner":
+                    policy = {"localization.localizationType": "codeScanner",
+                              "localization.localizationType.codeScanner.localizationCodeScanner": self.locName}
+                Navigation.appendCustomPolicy("policy", policy)
 
         # 实时运行
         if self.move_action == MoveAction.Straight:
@@ -130,6 +145,8 @@ class CalibMove:
         info["status"] = self.status
         info["speed_x"] = self.speed_x
         info["RotRadius"] = self.RotRadius
+        info["locType"] = self.locType
+        info["locName"] = self.locName
         log.info(json.dumps(info))
 
     def Cancel(self):
