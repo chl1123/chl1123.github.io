@@ -97,9 +97,10 @@ class Module:
     script_name = None
     __lock = Lock()
     __run_status = ScriptStatus.NONE
-    __task_id = 0
     __rpc_client = None
     __task = None
+    __task_id = 0
+    __task_args = {}
     __cancel_callback = None
     __suspend_callback = None
     __resume_callback = None
@@ -154,6 +155,8 @@ class Module:
     def __init_task_args(cls):
         if cls.__task is not None:
             cls.__set_task_id(cls.__task.get("taskId", None))
+            cls.__task_args = cls.__task.copy()
+            cls.__task_args.pop("taskId", None)
             with cls.__lock:
                 cls.__run_status = ScriptStatus.RUNNING
 
@@ -234,7 +237,7 @@ class Module:
         return {
             "script_name": cls.script_name,
             "script_status": cls.__run_status.value,
-            "script_task": cls.__task,
+            "script_task": cls.__task_args,
             "task_id": cls.__task_id
         }
 
@@ -343,7 +346,7 @@ class Module:
         if cls.script_name:
             if cls.__rpc_client is None:
                 # todo V3独有？
-                from ..lib.rpc.client import RpcClient
+                from ..v3.lib.rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.report(cls.script_name, data)
 
@@ -385,7 +388,7 @@ class Module:
         with cls.__lock:
             if cls.__rpc_client is None:
                 # todo V3独有？
-                from ..lib.rpc.client import RpcClient
+                from ..v3.lib.rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.set_info(json.dumps(info))
 

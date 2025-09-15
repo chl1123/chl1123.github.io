@@ -6,13 +6,14 @@
 import json
 import time
 
+from syspy.core.rbk_rpc import Service
 from syspy.lib.net_protocol import parse_modbus
 
 start_time = time.time()
 from syspy import Di, Motor, Navigation, NetProtocol, Trace
 from syspy.lib.module import SafeMoveStatus
 from syspy import Logger, Module, ScriptStatus
-from syspy.utils.param_server import  ParamValidator, ParamServer, ParamBuilder, ParamType
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ParamValidator
 from syspy.lib.module import ModuleBase
 
 log = Logger("jack_example")
@@ -25,8 +26,8 @@ class ConfigParams:
                                               comment="顶升电机升降速度")
     jack_lift_zero = param_server.loadParam("jack_lift_zero", type="float", default=0.000, comment="顶升升降零位")
 
-    jack_up_di = param_server.loadParam("jack_up_di", type="int", default=6, comment="顶升机构上极限DI")
-    jack_zero_di = param_server.loadParam("jack_zero_di", type="int", default=3, comment="顶升机构零位DI")
+    jack_up_di = param_server.loadParam("jack_up_di", type="str", default="DI-006", comment="顶升机构上极限DI")
+    jack_zero_di = param_server.loadParam("jack_zero_di", type="str", default="DI-003", comment="顶升机构零位DI")
     log.debug(f"{param_server.data=}")
 
 # 创建可复用的 jack_height 参数
@@ -52,6 +53,9 @@ class InputParams:
             builder.REQUIRED(True)
 
             with builder.CHILDREN():
+                with builder.CHILD(key="up_down", name="up down", desc="上下"):
+                    builder.TYPE(ParamType.ARRAY)
+
                 # load操作
                 with builder.CHILD(key="load", name="Load Operation", desc="Lift the robot tray"):
                     builder.TYPE(ParamType.ARRAY)
@@ -97,6 +101,8 @@ class Jack(ModuleBase):
 
         self.status = ScriptStatus.NONE
 
+        self.up_down_step = [False] * 3
+
     def reset(self):
         self.spin_angle = 0
         self.init_path = True
@@ -121,9 +127,11 @@ class Jack(ModuleBase):
         self.height = self.args.get('height', None)
         log.info("opt = ", self.opt, "+++++++++++++++++++++++++++++++++")
         if self.opt == "load":
-            self.load()
+            if self.load(self.height):
+                self.status = ScriptStatus.FINISHED
         elif self.opt == "unload":
-            self.unload()
+            if self.unload():
+                self.status = ScriptStatus.FINISHED
         elif self.opt == "spin":
             self.spin_angle = self.args.get('spinAngle', None)
             self.spin()
@@ -138,19 +146,44 @@ class Jack(ModuleBase):
             self.odo()
         elif self.opt == "getLM":
             self.getLM()
+        elif self.opt == "up_down":
+            if self.up_down():
+                self.status = ScriptStatus.FINISHED
         else:
             self.status = ScriptStatus.FAILED
 
-    def load(self):
+    def up_down(self):
+        up_down_info = {}
+        if not self.up_down_step[0]:
+            if self.count == 20:
+                self.up_down_step[0] = True
+        elif self.up_down_step[0] and not self.up_down_step[1]:
+            if self.count == 40:
+                self.up_down_step[1] = True
+
+        self.up_down_step[2] = Service.client().call_service("MoveFactory", "currentTargetIsPrePoint")
+
+        log.info(f"zero_step:{self.up_down_step}")
+        up_down_info["up_down_step"]= self.up_down_step
+        up_down_info["currentTargetIsPrePoint"]= self.up_down_step[2]
+        self.report_info["up_down"] = up_down_info
+
+        if all(self.up_down_step):
+            self.count = 0
+            return True
+        return False
+
+    def load(self, height):
         log.info("load start")
-        log.info("load: ", ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
+        log.info("load: ", ConfigParams.jack_motor_name, height, ConfigParams.jack_motor_speed,
                  ConfigParams.jack_up_di)
         log.info("setMotorPosition(): ",
-                 Motor.setMotorPosition(ConfigParams.jack_motor_name, self.height, ConfigParams.jack_motor_speed,
+                 Motor.setMotorPosition(ConfigParams.jack_motor_name, height, ConfigParams.jack_motor_speed,
                                         ConfigParams.jack_up_di))
         if Di.get_di(ConfigParams.jack_up_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             log.info("load finish")
-            self.status = ScriptStatus.FINISHED
+            return True
+        return False
 
     def unload(self):
         log.info("unload start")
@@ -166,7 +199,8 @@ class Jack(ModuleBase):
         log.info("setMotorPosition(): ", result)
         if Di.get_di(ConfigParams.jack_zero_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             log.info("unload finish")
-            self.status = ScriptStatus.FINISHED
+            return True
+        return False
 
     def spin(self):
         log.info("spin: ", self.spin_angle)
@@ -196,15 +230,16 @@ class Jack(ModuleBase):
         # log.debug("getCurrentPathProperty", result)
         if self.count == 100:
             self.status = ScriptStatus.FINISHED
+            self.count = 0
 
     def getLM(self):
-        self.count += 1
         log.info("getLM ==============================================")
         result = Navigation.getLM("LM7", True)
         self.report_info["getLM"] = result
         log.info("getLM", result)
         if self.count == 20:
             self.status = ScriptStatus.FINISHED
+            self.count = 0
         return Module.get_status()
 
     def odo(self):

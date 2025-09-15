@@ -1,6 +1,6 @@
 import platform
 
-import syspy.lib.rpc.client as rc
+import syspy.v3.lib.rpc.client as rc
 import syspy.lib.rpc.server as rs
 import syspy.lib.udp_debug as ud
 from syspy import Battery, Di, Do
