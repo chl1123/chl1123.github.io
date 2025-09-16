@@ -55,11 +55,11 @@ class LedBase:
 
         if self.dmx_serial.open():
             print("DMXLed init success")
-            if Abnormal.exists(50305):
-                Abnormal.clear(50305)
+            if Abnormal.exists(58050):
+                Abnormal.clear(58050)
         else:
             print("DMXLed init failed")
-            Abnormal.setDevice(50305, "Error opening serial port", "Error opening serial port",
+            Abnormal.setDevice(58050, "Error opening serial port", "Error opening serial port",
                                "check port baudrate", "battery/*.py", "battery")
             return False
         return True
@@ -69,7 +69,7 @@ class LedBase:
         if msg not in cls.__50305_error_v:
             cls.__50305_error_v.append(msg)
             err = ' & '.join(cls.__50305_error_v)
-            Abnormal.setDevice(50305, err, "turnlight config error", "check turnlight",
+            Abnormal.setDevice(58050, err, "turnlight config error", "check turnlight",
                                "battery/*.py", "battery")
 
     @classmethod
@@ -77,11 +77,11 @@ class LedBase:
         if msg in cls.__50305_error_v:
             cls.__50305_error_v.remove(msg)
         if not cls.__50305_error_v:
-            if Abnormal.exists(50305):
-                Abnormal.clear(50305)
+            if Abnormal.exists(58050):
+                Abnormal.clear(58050)
         else:
             err = ' & '.join(cls.__50305_error_v)
-            Abnormal.setDevice(50305, err, "turnlight config error", "check turnlight",
+            Abnormal.setDevice(58050, err, "turnlight config error", "check turnlight",
                                "battery/*.py", "battery")
 
     @staticmethod
