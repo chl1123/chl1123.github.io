@@ -367,7 +367,7 @@ class InputParams:
 
                     with builder.CHILD(key="create_or_delete_deducted_area", name="create_or_delete_deducted_area", desc="create_or_delete_deducted_area"):
                         builder.TYPE(ParamType.COMBO_BOX)
-                        builder.DEFAULTVALUE("create")
+                        # builder.DEFAULTVALUE("create")
                         builder.REQUIRED(False)
                         with builder.CHILDREN():
                             with builder.CHILD(key="create", name="create", desc="create"):
@@ -375,12 +375,11 @@ class InputParams:
 
                                 with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
                                     builder.TYPE(ParamType.STRING)
-                                    builder.REQUIRED(True)
+                                    builder.REQUIRED(False)
                                     builder.DEFAULTVALUE("default.srec")
 
                             with builder.CHILD(key="delete", name="delete", desc="delete"):
                                 builder.TYPE(ParamType.ARRAY)
-
 
                 with builder.CHILD(key="jackBezierReturn", name="jackBezierReturn",
                                    desc="recognize and go bezier to get the shelf and return"):
@@ -435,6 +434,58 @@ class InputParams:
                         create_polyline(builder)
 
                 # JackSpin操作
+                # with builder.CHILD(key="spinAngle", name="spinAngle", desc="Spin the tray"):
+                #     builder.TYPE(ParamType.ARRAY)
+                #
+                #     with builder.CHILDREN():
+                #         # 旋转角度参数
+                #         with builder.CHILD(key="spin_angle", name="spin_angle", desc="the angle that the tray spin"):
+                #             builder.MIN_VALUE(-360)
+                #             builder.MAX_VALUE(360)
+                #             builder.TYPE(ParamType.FLOAT)
+                #             builder.REQUIRED(True)
+                #             builder.UNIT("degree")
+                #             builder.DEFAULTVALUE(0)
+                #
+                #         with builder.CHILD(key="spin_mode", name="spin_mode", desc="Spin mode(robot coordinate/world coordinate/increase)"):
+                #             builder.TYPE(ParamType.COMBO_BOX)
+                #             builder.REQUIRED(False)
+                #             with builder.CHILDREN():
+                #                 with builder.CHILD("robot", "robot", "robot"):
+                #                     builder.TYPE(ParamType.ARRAY)
+                #                     with builder.CHILDREN():
+                #                         with builder.CHILD(key="spin_dir", name="spin_dir",
+                #                                            desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
+                #                             builder.TYPE(ParamType.STRING_COMBO_LIST)
+                #                             builder.REQUIRED(True)
+                #                             builder.DEFAULTVALUE(0)
+                #                             with builder.CHILDREN():
+                #                                 with builder.CHILD(0, "shortest", "shortest"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #                                 with builder.CHILD(-1, "clockwise", "clockwise"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #                                 with builder.CHILD(1, "counterclockwise", "counterclockwise"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #
+                #                 with builder.CHILD("world", "world", "world"):
+                #                     builder.TYPE(ParamType.ARRAY)
+                #                     with builder.CHILDREN():
+                #                         with builder.CHILD(key="spin_dir", name="spin_dir",
+                #                                            desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
+                #                             builder.TYPE(ParamType.STRING_COMBO_LIST)
+                #                             builder.REQUIRED(True)
+                #                             builder.DEFAULTVALUE(0)
+                #                             with builder.CHILDREN():
+                #                                 with builder.CHILD(0, "shortest", "shortest"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #                                 with builder.CHILD(-1, "clockwise", "clockwise"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #                                 with builder.CHILD(1, "counterclockwise", "counterclockwise"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #
+                #                 with builder.CHILD("increase", "increase", "increase"):
+                #                     builder.TYPE(ParamType.ARRAY)
+
                 with builder.CHILD(key="spinAngle", name="spinAngle", desc="Spin the tray"):
                     builder.TYPE(ParamType.ARRAY)
 
@@ -449,43 +500,30 @@ class InputParams:
                             builder.DEFAULTVALUE(0)
 
                         with builder.CHILD(key="spin_mode", name="spin_mode", desc="Spin mode(robot coordinate/world coordinate/increase)"):
-                            builder.TYPE(ParamType.COMBO_BOX)
-                            builder.REQUIRED(False)
+                            builder.TYPE(ParamType.STRING_COMBO_LIST)
+                            builder.DEFAULTVALUE("robot")
+                            builder.REQUIRED(True)
                             with builder.CHILDREN():
                                 with builder.CHILD("robot", "robot", "robot"):
-                                    builder.TYPE(ParamType.ARRAY)
-                                    with builder.CHILDREN():
-                                        with builder.CHILD(key="spin_dir", name="spin_dir",
-                                                           desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
-                                            builder.TYPE(ParamType.STRING_COMBO_LIST)
-                                            builder.REQUIRED(True)
-                                            builder.DEFAULTVALUE(0)
-                                            with builder.CHILDREN():
-                                                with builder.CHILD(0, "shortest", "shortest"):
-                                                    builder.TYPE(ParamType.STRING)
-                                                with builder.CHILD(-1, "clockwise", "clockwise"):
-                                                    builder.TYPE(ParamType.STRING)
-                                                with builder.CHILD(1, "counterclockwise", "counterclockwise"):
-                                                    builder.TYPE(ParamType.STRING)
-
+                                    builder.TYPE(ParamType.STRING)
                                 with builder.CHILD("world", "world", "world"):
-                                    builder.TYPE(ParamType.ARRAY)
-                                    with builder.CHILDREN():
-                                        with builder.CHILD(key="spin_dir", name="spin_dir",
-                                                           desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
-                                            builder.TYPE(ParamType.STRING_COMBO_LIST)
-                                            builder.REQUIRED(True)
-                                            builder.DEFAULTVALUE(0)
-                                            with builder.CHILDREN():
-                                                with builder.CHILD(0, "shortest", "shortest"):
-                                                    builder.TYPE(ParamType.STRING)
-                                                with builder.CHILD(-1, "clockwise", "clockwise"):
-                                                    builder.TYPE(ParamType.STRING)
-                                                with builder.CHILD(1, "counterclockwise", "counterclockwise"):
-                                                    builder.TYPE(ParamType.STRING)
-
+                                    builder.TYPE(ParamType.STRING)
                                 with builder.CHILD("increase", "increase", "increase"):
-                                    builder.TYPE(ParamType.ARRAY)
+                                    builder.TYPE(ParamType.STRING)
+
+                        with builder.CHILD(key="spin_dir", name="spin_dir",
+                                           desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
+                            builder.TYPE(ParamType.STRING_COMBO_LIST)
+                            builder.REQUIRED(True)
+                            builder.DEFAULTVALUE(0)
+                            with builder.CHILDREN():
+                                with builder.CHILD(0, "shortest", "shortest"):
+                                    builder.TYPE(ParamType.STRING)
+                                with builder.CHILD(-1, "clockwise", "clockwise"):
+                                    builder.TYPE(ParamType.STRING)
+                                with builder.CHILD(1, "counterclockwise", "counterclockwise"):
+                                    builder.TYPE(ParamType.STRING)
+
 
                 with builder.CHILD(key="rotateHoldSpin", name="rotateHoldSpin", desc="Rotate the robot"):
                     builder.TYPE(ParamType.ARRAY)
@@ -801,6 +839,54 @@ class Jack(ModuleBase):
                     }
                     Module.report_info(self.report_info)
 
+    def laser_area_deduct(self, recfile, object_key: str = "shelf"):
+        # 激光区域扣除
+        if recfile:
+            # 路径前缀：recognitionObject.{object_key}.recognitionSide
+            recognition_obstacle_deduction_path = f"recognitionObject.{object_key}.obstacleDeduction"
+
+            # 1) 获取obstacle_deduction
+            deduct_device = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductDevice", recfile).spilt(",")
+            deduct_shape = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductShape", recfile)
+
+            # 转换为 Python 对象
+            shapes = json.loads(deduct_shape)
+
+            # 设备列表
+            device_list = [deduct_device]
+
+            info = {
+                "deduct_device": device_list,
+                "area": []
+            }
+
+            for shape in shapes:
+                x_list = [p["x"] for p in shape["points"]]
+                y_list = [p["y"] for p in shape["points"]]
+                info["area"].append({
+                    "x_list": x_list,
+                    "y_list": y_list
+                })
+
+            Trace.log(f"laser_area_deduct_info={info}")
+            return info
+
+    """
+    {
+    'deduct_device': 'Laser-000',
+    'area': [
+        {'x_list': [0.437025, 0.691281, 0.691281, 0.437025],
+        'y_list': [0.36353, 0.36353, 0.652118, 0.652118]},
+        {'x_list': [0.437025, 0.69012, 0.69012, 0.437025],
+        'y_list': [-0.595992, -0.595992, -0.355722, -0.355722]},
+        {'x_list': [-0.412432, -0.412432, -0.619763, -0.619763],
+        'y_list': [0.35816, 0.622824, 0.622824, 0.35816]},
+        {'x_list': [-0.412432, -0.642432, -0.642432, -0.412432],
+        'y_list': [-0.595992, -0.595992, -0.365992, -0.365992]}
+            ]
+    }
+    """
+
 
     def get_rec_file(self):
         if not self.operation_init:
@@ -856,53 +942,6 @@ class Jack(ModuleBase):
         Trace.log(f"backDistanceInfo = {info}")
         return info
 
-    def laser_area_deduct(self, recfile, object_key: str = "shelf"):
-        # 激光区域扣除
-        if self.recfile:
-            # 路径前缀：recognitionObject.{object_key}.recognitionSide
-            recognition_obstacle_deduction_path = f"recognitionObject.{object_key}.obstacleDeduction"
-
-            # 1) 获取obstacle_deduction
-            deduct_device = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductDevice", recfile)
-            deduct_shape = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductShape", recfile)
-
-            # 转换为 Python 对象
-            shapes = json.loads(deduct_shape)
-
-            # 设备列表
-            device_list = [deduct_device]
-
-            info = {
-                "deduct_device": device_list,
-                "area": []
-            }
-
-            for shape in shapes:
-                x_list = [p["x"] for p in shape["points"]]
-                y_list = [p["y"] for p in shape["points"]]
-                info["area"].append({
-                    "x_list": x_list,
-                    "y_list": y_list
-                })
-
-            Trace.log(f"laser_area_deduct_info={info}")
-            return info
-
-    """
-    {
-    'deduct_device': 'Laser-000',
-    'area': [
-        {'x_list': [0.437025, 0.691281, 0.691281, 0.437025],
-        'y_list': [0.36353, 0.36353, 0.652118, 0.652118]},
-        {'x_list': [0.437025, 0.69012, 0.69012, 0.437025],
-        'y_list': [-0.595992, -0.595992, -0.355722, -0.355722]},
-        {'x_list': [-0.412432, -0.412432, -0.619763, -0.619763],
-        'y_list': [0.35816, 0.622824, 0.622824, 0.35816]},
-        {'x_list': [-0.412432, -0.642432, -0.642432, -0.412432],
-        'y_list': [-0.595992, -0.595992, -0.365992, -0.365992]}
-            ]
-    }
-    """
 
     def rec_target_obs(self):
         if not self.operation_init:
@@ -916,7 +955,7 @@ class Jack(ModuleBase):
 
     def get_lm(self):
         Trace.log("getLM ==============================================")
-        result = Navigation.getLM("LM1", True)
+        result = Navigation.getLM(self.ap_id, True)
         self.report_info["getLM"] = {
             "LM": result
         }
@@ -947,8 +986,8 @@ class Jack(ModuleBase):
             }
 
             # 第一步转到指向ap点的方向
-            self.action_list.append(RobotRotate(ap_to_robot_angle, Coordinate.WORLD, False))
-
+            self.action_list.append(RobotRotate(ap_to_robot_angle, "world", False))
+            self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.start_height, ConfigParams.jack_motor_speed, self.recfile))
             # 转到指向ap点的位置
             self.action_list.append(RecShelf(self.recfile, "FirstRec"))  # 识别货架，得到坐标放入j.rec_result
 
@@ -994,10 +1033,8 @@ class Jack(ModuleBase):
                              self.path_dist_accuracy, self.path_angle_accuracy))
 
             if current_action.action_name == "GoBezier" and current_action.action_status == ActionStatus.FINISHED:
-                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height,
-                                                   ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
-                # self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
                 self.action_list.append(Spin(0, "robot", 0))
+                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height, ConfigParams.jack_motor_speed))
                 self.action_list.append(
                     GoBezierReturn(not self.is_backwards, self.is_hold_dir, self.max_speed,
                                    self.max_accele, self.max_decele, self.decele_dist))
@@ -1053,7 +1090,13 @@ class Jack(ModuleBase):
                                    self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
 
                 # 加入二次调整，取货前托盘调整，抬升托盘动作
-                self.jack_load_adjust_and_jack()
+                if self.is_secondary_adjust:
+                    self.action_list.append(GetPGVData())
+                    self.action_list.append(
+                        PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+                                           self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
+                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
+                                                   ConfigParams.jack_motor_speed))
 
         # 动态添加action_list，仅在有识别时有效
         if 0 <= self.action_id < len(self.action_list):
@@ -1451,7 +1494,7 @@ class Spin(BaseAction):
 class RobotRotate(BaseAction):
     """只转车不转托盘"""
 
-    def __init__(self, angle, coordinate, spin=True, direction=2):
+    def __init__(self, angle, coordinate, spin=True, direction=0):
         super().__init__("RobotRotate")
         self.action_status = ActionStatus.INIT
         self.init = True
@@ -1459,7 +1502,7 @@ class RobotRotate(BaseAction):
         self.angle = angle  # 角度或弧度
         self.coordinate = coordinate
         self.spin = spin
-        self.direction = direction  # 0 counterclockwise; 1 clockwise; 2 shortest
+        self.direction = direction  # 0 shortest; -1 cw; 1 ccw
         self.speed = 0.7
         self.move_args = dict()
         self.robot_ang = []
