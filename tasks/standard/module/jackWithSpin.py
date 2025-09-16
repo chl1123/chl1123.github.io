@@ -23,7 +23,6 @@ from syspy.utils import Coordinate
 
 log = Logger("jack")
 
-
 # --- Module 类（放在前面） ---
 class ConfigParams:
     """生成和定义配置参数的示例"""
