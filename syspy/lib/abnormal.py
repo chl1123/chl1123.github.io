@@ -2,16 +2,22 @@ from abc import ABC
 from typing import Union, List, Optional
 from syspy.core.rbk_rpc import Service, RBKVersionError
 
-VALID_ABNORMAL_CODE = [(53300, 53599), (53600, 53999)]
-
+TASK_ABNORMAL_CODE = [(53300, 53599), (53600, 53999)]
+GENERIC_ABNORMAL_CODE = [(58000, 58099), (58100, 58199)]
+RESERVED_ABNORMAL_CODE = [(58200, 58999)]
 
 class AbnormalCodeError(Exception):
     """异常码范围错误异常
 
     当提供的异常码不在有效范围内时抛出此异常。
     有效的异常码范围为：
-    - 标准脚本范围：53300-53599
-    - 用户自定义脚本范围：53600-53999
+    任务脚本
+        - 标准脚本范围：53300-53599
+        - 用户自定义脚本范围：53600-53999
+    通用脚本
+        - 标准脚本范围：58000-58099
+        - 用户自定义脚本范围：58100-58199
+    预留码：58200-58999
     """
 
     def __init__(self, code: int, message: str = None):
@@ -24,8 +30,11 @@ class AbnormalCodeError(Exception):
         self.code = code
         if message is None:
             message = (f"Abnormal code '{code}' is out of valid range. "
-                       f"standard scripts '{VALID_ABNORMAL_CODE[0][0]}-{VALID_ABNORMAL_CODE[0][1]}'. "
-                       f"custom scripts '{VALID_ABNORMAL_CODE[1][0]}-{VALID_ABNORMAL_CODE[1][1]}'")
+                       f"Standard task scripts '{TASK_ABNORMAL_CODE[0][0]}-{TASK_ABNORMAL_CODE[0][1]}', "
+                       f"Custom task scripts '{TASK_ABNORMAL_CODE[1][0]}-{TASK_ABNORMAL_CODE[1][1]}'. "
+                       f"Standard generic scripts '{GENERIC_ABNORMAL_CODE[0][0]}-{GENERIC_ABNORMAL_CODE[0][1]}', "
+                       f"Custom generic scripts '{GENERIC_ABNORMAL_CODE[1][0]}-{GENERIC_ABNORMAL_CODE[1][1]}'. "
+                       f"Reserved abnormal code '{RESERVED_ABNORMAL_CODE[0][0]}-{RESERVED_ABNORMAL_CODE[0][1]}'.")
 
         self.message = message
         super().__init__(self.message)
@@ -44,7 +53,7 @@ def check_abnormal_code(code: int):
         AbnormalCodeError: 如果异常码不在有效范围内
     """
 
-    if not (VALID_ABNORMAL_CODE[0][0] <= code <= VALID_ABNORMAL_CODE[1][1]):
+    if not (TASK_ABNORMAL_CODE[0][0] <= code <= TASK_ABNORMAL_CODE[1][1] or GENERIC_ABNORMAL_CODE[0][0] <= code <= RESERVED_ABNORMAL_CODE[0][1]):
         raise AbnormalCodeError(code)
 
 
@@ -152,7 +161,7 @@ class AbnormalInterface(ABC, Service):
         """设置任务异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -178,7 +187,7 @@ class AbnormalInterface(ABC, Service):
         """设置地图异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -201,7 +210,7 @@ class AbnormalInterface(ABC, Service):
         """设置模型异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -224,7 +233,7 @@ class AbnormalInterface(ABC, Service):
         """设置参数配置异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -245,7 +254,7 @@ class AbnormalInterface(ABC, Service):
         """设置系统异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -265,7 +274,7 @@ class AbnormalInterface(ABC, Service):
         """设置环境异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -285,7 +294,7 @@ class AbnormalInterface(ABC, Service):
         """设置设备异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -310,7 +319,7 @@ class AbnormalInterface(ABC, Service):
         """设置连接异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -332,7 +341,7 @@ class AbnormalInterface(ABC, Service):
         """设置标定异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -354,7 +363,7 @@ class AbnormalInterface(ABC, Service):
         """设置证书异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
@@ -373,7 +382,7 @@ class AbnormalInterface(ABC, Service):
         """设置车体异常
 
         Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
+            code (int): 异常码。标准任务脚本：53300-53599；用户自定义任务脚本：53600-53999。标准通用脚本：58000-58099；用户自定义通用脚本：58100-58199。超出该范围抛出异常。
             desc (str): 异常现象描述
             reason (str): 异常原因
             method (str): 异常处理方法
