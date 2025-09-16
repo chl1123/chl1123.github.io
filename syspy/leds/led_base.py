@@ -22,7 +22,7 @@ MIN_ANGULAR_SPEED = 0
 
 
 class LedBase:
-    __50305_error_v = []
+    __58050_error_v = []
 
     def __init__(self, param_server: ParamServer):
         self.dev = param_server.read("devName")
@@ -42,11 +42,11 @@ class LedBase:
 
     def init(self):
         if self.check_config():
-            self.set50305("led model: turnlight config error")
+            self.set58050("led model: turnlight config error")
             print("led model: turnlight config error")
             return False
 
-        self.clear50305("led model: turnlight config error")
+        self.clear58050("led model: turnlight config error")
         print("Configuration is valid.")
 
         if self.dmx_serial is not None:
@@ -65,22 +65,22 @@ class LedBase:
         return True
 
     @classmethod
-    def set50305(cls, msg):
-        if msg not in cls.__50305_error_v:
-            cls.__50305_error_v.append(msg)
-            err = ' & '.join(cls.__50305_error_v)
+    def set58050(cls, msg):
+        if msg not in cls.__58050_error_v:
+            cls.__58050_error_v.append(msg)
+            err = ' & '.join(cls.__58050_error_v)
             Abnormal.setDevice(58050, err, "turnlight config error", "check turnlight",
                                "battery/*.py", "battery")
 
     @classmethod
-    def clear50305(cls, msg):
-        if msg in cls.__50305_error_v:
-            cls.__50305_error_v.remove(msg)
-        if not cls.__50305_error_v:
+    def clear58050(cls, msg):
+        if msg in cls.__58050_error_v:
+            cls.__58050_error_v.remove(msg)
+        if not cls.__58050_error_v:
             if Abnormal.exists(58050):
                 Abnormal.clear(58050)
         else:
-            err = ' & '.join(cls.__50305_error_v)
+            err = ' & '.join(cls.__58050_error_v)
             Abnormal.setDevice(58050, err, "turnlight config error", "check turnlight",
                                "battery/*.py", "battery")
 
