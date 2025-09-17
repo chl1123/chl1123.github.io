@@ -1,5 +1,5 @@
 import math
-
+import time
 import syspy.dmx512.dmx512_base as dmx
 import syspy.lib.misc_utility as mu
 from syspy import Battery, Controller, NavStatus, NavSpeed
@@ -51,9 +51,9 @@ class demo_dmx512(dmx.dmx512Base):
 
             if (((self.getErrorNum() > 0) and \
                  not (self.getErrorNum() == 1 and self.errorExists(52200)) and \
-                 not (self.getErrorNum() == 1 and self.errorExists(52702)) and \
-                 not (self.getErrorNum() == 2 and self.errorExists(52200) and self.errorExists(52702))) \
-                    or self.getFatalNum() > 0):
+                 not (self.getErrorNum() == 1 and self.errorExists(52201)) and \
+                 not (self.getErrorNum() == 2 and self.errorExists(52200) and self.errorExists(52201))) \
+                   ):
                 '''报错状态下红色呼吸'''
                 dmx512_info.type = dmx.LightType.Errofatal.value
 
@@ -137,6 +137,7 @@ class demo_dmx512(dmx.dmx512Base):
                 dmx512_info.type = dmx.LightType.Rainbow.value
             log.info(f"{dmx512_info=}")
             self.sendDmx512(dmx512_info)
+            time.sleep(0.3)
 
 
 if __name__ == '__main__':
