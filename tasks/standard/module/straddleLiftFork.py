@@ -371,47 +371,60 @@ def delete_deduct_area(names, coordinate):
         Navigation.deleteClearRegion(region, coordinate)
 
 
-def set_deduct_area(area_info, base_pos, prefix: str, coordinate):
+def set_deduct_area(area_infos, base_pos, prefix: str, coordinate):
     """
     扣除栈板相关的内容，区域名称以PalletWorldDeductArea[idx]命名
     """
-    for idx, area in enumerate(area_info["area"], start=1):
-        x_list_deduct_area = []
-        y_list_deduct_area = []
-        for j in range(len(area["x_list"])):
-            x = area["x_list"][j]
-            y = area["y_list"][j]
-            wx, wy, wz = Pos2World([x, y, 0], base_pos)
-            x_list_deduct_area.append(wx)
-            y_list_deduct_area.append(wy)
-        # 对每个area执行操作
-        Navigation.setClearRegion(f"{prefix}{idx}", x_list_deduct_area, y_list_deduct_area,
-                                  area_info["deduct_device"], coordinate)
+    for info_idx,area_info in area_infos:
+        for idx, area in enumerate(area_info["area"], start=1):
+            x_coords, y_coords = [], []
+            for x, y in zip(area["x_list"], area["y_list"]):
+                wx, wy, wz = Pos2World([x, y, 0], base_pos)
+                x_coords.append(wx)
+                y_coords.append(wy)
+
+            # 对每个area执行操作
+            if len(x_coords) == len(y_coords) and x_coords:
+                region_name = f"{prefix}{info_idx}_{idx}"
+                Navigation.setClearRegion(
+                    region_name,
+                    x_coords,
+                    y_coords,
+                    area_info["deduct_device"],
+                    coordinate
+                )
+            else:
+                Trace.log(f"skip invalid area idx={idx}, device={area_info['deduct_device']}")
 
 
 def get_deduct_area(recfile):
     # 处理扣除区域
     pallet_deduct_info = {}
     recognition_obstacle_deduction_path = f"recognitionObject.pallet.obstacleDeduction"
-    # 1) 获取obstacle_deduction
-    deduct_device = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductDevice",
-                                         recfile).split(",")
-    deduct_shape = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductShape",
-                                        recfile)
-    if deduct_shape:
-        shapes = json.loads(deduct_shape)
-        pallet_deduct_info = {
-            "deduct_device": deduct_device,
-            "area": []
-        }
-        for shape in shapes:
-            x_list = [p["x"] for p in shape["points"]]
-            y_list = [p["y"] for p in shape["points"]]
-            pallet_deduct_info["area"].append({
-                "x_list": x_list,
-                "y_list": y_list
-            })
-    return pallet_deduct_info
+
+    size = RobotParam.getConfigCloneSize("recognition", recognition_obstacle_deduction_path, recfile)
+    pallet_deduct_infos = []
+    for i in range(size):
+        # 1) 获取obstacle_deduction
+        deduct_device = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}._{i}.deductDevice",
+                                             recfile).split(",")
+        deduct_shape = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}._{i}.deductShape",
+                                            recfile)
+        if deduct_shape:
+            shapes = json.loads(deduct_shape)
+            pallet_deduct_info = {
+                "deduct_device": deduct_device,
+                "area": []
+            }
+            for shape in shapes:
+                x_list = [p["x"] for p in shape["points"]]
+                y_list = [p["y"] for p in shape["points"]]
+                pallet_deduct_info["area"].append({
+                    "x_list": x_list,
+                    "y_list": y_list
+                })
+        pallet_deduct_infos.append(pallet_deduct_info)
+    return pallet_deduct_infos
 
 
 def get_rec_side_info(recfile, rec_side):
@@ -507,6 +520,30 @@ def convex_hull(points1, points2=None, points3=None):
 
     hull = lower[:-1] + upper[:-1]
     return [{"x": x, "y": y} for x, y in hull]
+
+
+def _flat_attrs(action, idx1: int):
+    """把 action 展平为 {1.Class.attr: value, ...}"""
+    snap = {}
+    cls = action.__class__.__name__
+    for name in dir(action):
+        if name.startswith("_"):
+            continue
+        try:
+            val = getattr(action, name)
+            if not callable(val):
+                # 尝试序列化，不行就转成 str
+                try:
+                    # 尝试序列化
+                    json.dumps(val)
+                    safe_val = val
+                except TypeError:
+                    # 序列化失败就转字符串
+                    safe_val = str(val)
+                snap[f"action.{idx1}.{cls}.{name}"] = safe_val
+        except Exception:
+            pass
+    return snap
 
 
 class Fork(ModuleBase):
@@ -980,7 +1017,7 @@ class Fork(ModuleBase):
             else:
                 current_action.run()
             self.trace_chart.update(
-                self._flat_attrs(current_action, idx1=self.action_id)
+                _flat_attrs(current_action, idx1=self.action_id)
             )
             # Trace.chart(self._flat_attrs(current_action, idx1=self.action_id))
 
@@ -1028,12 +1065,13 @@ class Fork(ModuleBase):
         # 解析识别文件
         if self.recfile:
             # 处理扣除区域
-            self.pallet_deduct_info = get_deduct_area(self.recfile)
-            if (not self.pallet_deduct_info or not self.pallet_deduct_info["deduct_device"]
-                    or not self.pallet_deduct_info["area"]):
-                Abnormal.setTask(53328, f"no deductShape in recfile", "no deductShape in recfile",
-                                 "fill the deductShape in recfile", "")
-                self.script_status = ScriptStatus.FAILED
+            self.pallet_deduct_infos = get_deduct_area(self.recfile)
+            for pallet_deduct_info in self.pallet_deduct_infos:
+                if (not pallet_deduct_info or not pallet_deduct_info["deduct_device"]
+                        or not self.pallet_deduct_info["area"]):
+                    Abnormal.setTask(53328, f"no deductShape in recfile", "no deductShape in recfile",
+                                     "fill the deductShape in recfile", "")
+                    self.script_status = ScriptStatus.FAILED
 
             # 处理载具和货物形状
             recognition_pallet_path = f"recognitionObject.pallet"
@@ -1079,29 +1117,6 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FAILED
             return
 
-    def _flat_attrs(self, action, idx1: int):
-        """把 action 展平为 {1.Class.attr: value, ...}"""
-        snap = {}
-        cls = action.__class__.__name__
-        for name in dir(action):
-            if name.startswith("_"):
-                continue
-            try:
-                val = getattr(action, name)
-                if not callable(val):
-                    # 尝试序列化，不行就转成 str
-                    try:
-                        # 尝试序列化
-                        json.dumps(val)
-                        safe_val = val
-                    except TypeError:
-                        # 序列化失败就转字符串
-                        safe_val = str(val)
-                    snap[f"action.{idx1}.{cls}.{name}"] = safe_val
-            except Exception:
-                pass
-        return snap
-
     # def _report(self):
     #     cur_status = dict()
     #     if self.action_id < len(self.action_list):
@@ -1139,7 +1154,6 @@ class Fork(ModuleBase):
         self.is_goods_detected = None
         self.goPathArgs = None  # 堆栈的终点坐标点
         # self.contact_di = [ConfigParams.contact_di_1, ConfigParams.contact_di_2]
-        self.contact_di = [9]
         self.recfile = ""
         self.move_task = dict()
         self.first_point = None
@@ -1163,24 +1177,13 @@ class Fork(ModuleBase):
         modbus_list_fork_height = float_to_modbus_little_byte_swap(fork_height)
         NetProtocol.setModbusData("3x", 57, modbus_list_fork_height)
 
-        # 堆高车处理后激光的屏蔽
         if ConfigParams.module_type == "straddleLiftFork":
             fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
-            # 获取当前避障设备列表
-            # if fork_height <= ConfigParams.back_laser_enable_height:
-            #     # 通过屏蔽激光处理
-            #     current_collision_device_str = (RobotParam.getConfig("navigation",
-            #                                                          "collisionDetection.detectionDevice"))
-            #     current_collision_device = current_collision_device_str.split(",")
-            #     if ConfigParams.fork_root_2D_lasers in current_collision_device:
-            #         current_collision_device.remove(ConfigParams.fork_root_2D_lasers)
-            #         current_collision_device_str = ",".join(current_collision_device)
-            #     policy = {
-            #         "navigation.collisionDetection.detectionDevice": current_collision_device_str
-            #     }
-            #     Navigation.appendCustomPolicy("policy", policy)
 
-            # 处理货叉的屏蔽
+            # back_collision = Navigation.laserCollision([ConfigParams.fork_root_2D_lasers])
+            # print(f"back_collision: {back_collision}")
+
+            # 堆高车处理后激光的屏蔽
             if fork_height <= ConfigParams.back_laser_enable_height and not self.set_fork_region_by_height:
                 self.set_fork_region_by_height = True
                 self.clear_fork_region_by_height = False
@@ -1200,7 +1203,7 @@ class Fork(ModuleBase):
             # 有货还得处理栈板的屏蔽
             if Navigation.hasGoods():
                 recfile = Navigation.getGoodsName()
-                print(f"recfile: {recfile},set_pallet_region_by_height: {self.set_pallet_region_by_height},clear_pallet_region_by_height:{self.clear_pallet_region_by_height}")
+                # print(f"recfile: {recfile},set_pallet_region_by_height: {self.set_pallet_region_by_height},clear_pallet_region_by_height:{self.clear_pallet_region_by_height}")
                 if fork_height <= ConfigParams.back_laser_enable_height and not self.set_pallet_region_by_height:
                     self.set_pallet_region_by_height = True
                     self.clear_pallet_region_by_height = False
