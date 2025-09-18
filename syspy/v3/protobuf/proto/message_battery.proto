@@ -11,5 +11,6 @@ message Message_Battery {
 	double max_charge_voltage = 8;
 	string extra = 9;
 	bool is_manually_connected = 10;
+	uint32 errorCode =11;
 	bytes user_data = 30;
 }
