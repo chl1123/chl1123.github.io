@@ -116,27 +116,6 @@ class AbnormalV4(AbnormalInterface):
     def setTask(cls, code: int, desc: str, reason: str, method: str, task: Union[str, list, dict],
                 fileName: str = "", mapType: str = "", elementType: str = "", elementName: str = "",
                 policyName: str = "", param: str = "") -> bool:
-        """设置任务异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            task (str): 异常任务内容
-            fileName (str): 地图文件名
-            mapType (str): 地图类型
-            elementType (str): 图元类型
-            elementName (str): 图元名称
-            policyName (str): 策略名称
-            param (str): 异常参数
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setTaskAbnormal", code, desc, reason, method, str(task),
                                          fileName, mapType, elementType, elementName, policyName, param)
@@ -144,24 +123,6 @@ class AbnormalV4(AbnormalInterface):
     @classmethod
     def setMap(cls, code: int, desc: str, reason: str, method: str, fileName: str, mapType: str = "",
                elementType: str = "", elementName: str = "") -> bool:
-        """设置地图异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            fileName (str): 异常（地图）文件名
-            mapType (str): 地图类型：2D、3D、vslam、纹理等(可缺省)
-            elementType (str): 异常图元类型(可缺省)
-            elementName (str): 异常图元名字(可缺省)
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setMapAbnormal", code, desc, reason, method, fileName,
                                          mapType, elementType, elementName)
@@ -169,24 +130,6 @@ class AbnormalV4(AbnormalInterface):
     @classmethod
     def setModel(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
                  deviceKey: str = "", param: str = "") -> bool:
-        """设置模型异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            fileName (str): 异常（设备模型）文件名
-            deviceType (str): 异常设备类型(可缺省)
-            deviceKey (str): 异常设备(可缺省)
-            param (str): 异常参数(可缺省)
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setModelAbnormal", code, desc, reason, method, fileName,
                                          deviceType, deviceKey, param)
@@ -194,91 +137,23 @@ class AbnormalV4(AbnormalInterface):
     @classmethod
     def setConfig(cls, code: int, desc: str, reason: str, method: str, appType: str, fileName: str,
                param: str = "") -> bool:
-        """设置参数配置异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            appType (str): App类型
-            fileName (str): 异常（应用）文件名(可缺省)
-            param (str): 异常参数（包含路径）(可缺省)
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setConfigAbnormal", code, desc, reason, method, appType,
                                          fileName, param)
 
     @classmethod
     def setSystem(cls, code: int, desc: str, reason: str, method: str, fileName: str, param: str = "") -> bool:
-        """设置系统异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            fileName (str): 异常（应用）文件名
-            param (str): 异常参数（包含路径）
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setSystemAbnormal", code, desc, reason, method, fileName, param)
 
     @classmethod
     def setEnvironment(cls, code: int, desc: str, reason: str, method: str, position: str = "") -> bool:
-        """设置环境异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            position (str): 异常坐标位置
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setEnvironmentAbnormal", code, desc, reason, method, position)
 
     @classmethod
     def setDevice(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
                   deviceKey: str = "", param: str = "", errorCode: int = 0) -> bool:
-        """设置设备异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            fileName (str): 异常（设备模型）文件名
-            deviceType (str): 异常设备类型
-            deviceKey (str): 异常设备名
-            param (str): 异常参数
-            errorCode (int): device上报
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setDeviceAbnormal", code, desc, reason, method, fileName,
                                          deviceType, deviceKey, param, errorCode)
@@ -286,46 +161,12 @@ class AbnormalV4(AbnormalInterface):
     @classmethod
     def setConnect(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
                    deviceKey: str = "", param: str = "") -> bool:
-        """设置连接异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            fileName (str): 异常（设备模型）文件名
-            deviceType (str): 异常设备类型
-            deviceKey (str): 异常设备key
-            param (str): 异常参数
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setConnectionAbnormal", code, desc, reason, method, fileName,
                                          deviceType, deviceKey, param)
 
     @classmethod
     def setCalibrate(cls, code: int, desc: str, reason: str, method: str, deviceType: str, deviceKey: str = "") -> bool:
-        """设置标定异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            deviceType (str): 异常设备文件名
-            deviceKey (str): 异常设备key
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setCalibrationAbnormal", code, desc, reason, method, deviceType,
                                          deviceKey)
@@ -334,39 +175,10 @@ class AbnormalV4(AbnormalInterface):
     def setLicense(
             cls, code: int, desc: str, reason: str, method: str, licenseType: str = ""
     ) -> bool:
-        """设置证书异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-            licenseType (str): 证书类型
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setLicenseAbnormal", code, desc, reason, method, licenseType)
 
     @classmethod
     def setChassis(cls, code: int, desc: str, reason: str, method: str) -> bool:
-        """设置车体异常
-
-        Args:
-            code (int): 异常码。标准脚本：53300-53599；用户自定义脚本：53600-53999。超出该范围抛出异常。
-            desc (str): 异常现象描述
-            reason (str): 异常原因
-            method (str): 异常处理方法
-
-        Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
-
-        Raises:
-            AbnormalCodeError: code不在允许的范围内
-        """
         check_abnormal_code(code)
         return cls.client().call_service("Abnormal", "setChassisAbnormal", code, desc, reason, method)

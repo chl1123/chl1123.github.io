@@ -97,9 +97,10 @@ class Module:
     script_name = None
     __lock = Lock()
     __run_status = ScriptStatus.NONE
-    __task_id = 0
     __rpc_client = None
     __task = None
+    __task_id = 0
+    __task_args = {}
     __cancel_callback = None
     __suspend_callback = None
     __resume_callback = None
@@ -154,6 +155,8 @@ class Module:
     def __init_task_args(cls):
         if cls.__task is not None:
             cls.__set_task_id(cls.__task.get("taskId", None))
+            cls.__task_args = cls.__task.copy()
+            cls.__task_args.pop("taskId", None)
             with cls.__lock:
                 cls.__run_status = ScriptStatus.RUNNING
 
@@ -171,6 +174,8 @@ class Module:
             service.registerFunction(cls.__resume, "resume")
             service.registerFunction(cls.__cancel, "cancel")
 
+            service.registerFunction(cls.__get_task, "get_task")
+
             service.registerFunction(cls.safe_move_check, "safe_move_check")
             service.registerFunction(cls.get_safe_move_check, "get_safe_move_check")
             service.registerFunction(cls.modbus, "modbus")
@@ -185,6 +190,8 @@ class Module:
             service.addService(cls.script_id, "suspend", cls.__suspend)
             service.addService(cls.script_id, "resume", cls.__resume)
             service.addService(cls.script_id, "cancel", cls.__cancel)
+
+            service.addService(cls.script_id, "get_task", cls.__get_task)
 
             service.addService(cls.script_id, "safe_move_check", cls.safe_move_check)
             service.addService(cls.script_id, "get_safe_move_check", cls.get_safe_move_check)
@@ -218,11 +225,22 @@ class Module:
 
     @classmethod
     def __cancel(cls):
-        cls.stop_flag = True
-        if cls.__cancel_callback is not None:
-            cls.__cancel_callback()
-        else:
-            cls.set_status(ScriptStatus.FAILED)
+        if cls.get_status() in [ScriptStatus.RUNNING, ScriptStatus.NEARTOGOAL, ScriptStatus.SUSPENDED]:
+            cls.stop_flag = True
+            if cls.__cancel_callback is not None:
+                cls.__cancel_callback()
+            else:
+                cls.set_status(ScriptStatus.FAILED)
+
+    @classmethod
+    def __get_task(cls):
+        """获取脚本任务"""
+        return {
+            "script_name": cls.script_name,
+            "script_status": cls.__run_status.value,
+            "script_task": cls.__task_args,
+            "task_id": cls.__task_id
+        }
 
     @classmethod
     def __suspend(cls):
@@ -325,10 +343,11 @@ class Module:
             "moveStatus": status.value,
             "taskId": cls.__task_id
         }
+        print("report data:", data)
         if cls.script_name:
             if cls.__rpc_client is None:
                 # todo V3独有？
-                from ..lib.rpc.client import RpcClient
+                from ..v3.lib.rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.report(cls.script_name, data)
 
@@ -370,7 +389,7 @@ class Module:
         with cls.__lock:
             if cls.__rpc_client is None:
                 # todo V3独有？
-                from ..lib.rpc.client import RpcClient
+                from ..v3.lib.rpc.client import RpcClient
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.set_info(json.dumps(info))
 

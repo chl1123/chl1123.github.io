@@ -44,7 +44,7 @@ class RpcClient:
 
 class V3RpcClient(RpcClient):
     def __init__(self):
-        from ..v3.rpc import client  # v3专用实现
+        from ..v3.lib.rpc import client  # v3专用实现
         self._impl = client.RpcClient()
 
     def get_message(self, topic: str, model_class: Type[message.Message], plugin: str = "RBKSim") -> message.Message:

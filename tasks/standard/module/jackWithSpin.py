@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Date : 2025/08/28
+# @Date : 2025/09/10
 # @Author : zengweibin
 # @Coding : none
 # @Update : 3.5顶升车示例模板
@@ -13,7 +13,6 @@ from syspy.utils.time import Timer
 
 start_time = time.time()
 
-
 from syspy import (Module, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize,
                    Odometer, Pgv, ScriptStatus, NetProtocol, Trace, NavSpeed, Controller)
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
@@ -23,7 +22,6 @@ from syspy.lib.robot_param import RobotParam
 from syspy.utils import Coordinate
 
 log = Logger("jack")
-
 
 # --- Module 类（放在前面） ---
 class ConfigParams:
@@ -271,12 +269,12 @@ def create_secondary_adjust_pgv(builder: ParamBuilder):
         builder.REQUIRED(True)
         builder.DEFAULTVALUE(0.2)
 
-    with builder.CHILD(key="PGV_ReachDist", name="PGV_ReachDist", desc="PGV secondary adjustment distance accuracy"):
+    with builder.CHILD(key="pgv_reach_dist", name="pgv_reach_dist", desc="PGV secondary adjustment distance accuracy"):
         builder.TYPE(ParamType.FLOAT)
         builder.REQUIRED(True)
         builder.DEFAULTVALUE(0.02)
 
-    with builder.CHILD(key="PGV_ReachAngle", name="PGV_ReachAngle", desc="PGV secondary adjustment angle accuracy"):
+    with builder.CHILD(key="pgv_reach_angle", name="pgv_reach_angle", desc="PGV secondary adjustment angle accuracy"):
         builder.TYPE(ParamType.FLOAT)
         builder.REQUIRED(True)
         builder.DEFAULTVALUE(0.02)
@@ -348,8 +346,9 @@ class InputParams:
 
             with builder.CHILDREN():
                 with builder.CHILD(key="getLM", name="getLM",
-                                   desc="get the position of LM point"):
+                                   desc="get the position of landmark"):
                     builder.TYPE(ParamType.ARRAY)
+                    create_ap_id(builder)
 
                 with builder.CHILD(key="laserAreaDeduction", name="laserAreaDeduction",
                                    desc="laser area deduction"):
@@ -367,20 +366,19 @@ class InputParams:
 
                     with builder.CHILD(key="create_or_delete_deducted_area", name="create_or_delete_deducted_area", desc="create_or_delete_deducted_area"):
                         builder.TYPE(ParamType.COMBO_BOX)
-                        builder.DEFAULTVALUE("create")
-                        builder.REQUIRED(True)
+                        # builder.DEFAULTVALUE("create")
+                        builder.REQUIRED(False)
                         with builder.CHILDREN():
                             with builder.CHILD(key="create", name="create", desc="create"):
                                 builder.TYPE(ParamType.ARRAY)
 
                                 with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
                                     builder.TYPE(ParamType.STRING)
-                                    builder.REQUIRED(True)
+                                    builder.REQUIRED(False)
                                     builder.DEFAULTVALUE("default.srec")
 
                             with builder.CHILD(key="delete", name="delete", desc="delete"):
                                 builder.TYPE(ParamType.ARRAY)
-
 
                 with builder.CHILD(key="jackBezierReturn", name="jackBezierReturn",
                                    desc="recognize and go bezier to get the shelf and return"):
@@ -416,18 +414,7 @@ class InputParams:
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_end_height(builder)
-                        with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(False)
-                            builder.DEFAULTVALUE("default.srec")
-                        with builder.CHILD(key="insert_shelf_dir", name="insert_shelf_dir",
-                                           desc="direction to go under the shelf"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(False)
-                            builder.DEFAULTVALUE("A")
-
-                with builder.CHILD(key="jackMinHeight", name="JackMinHeight", desc="lift the robot tray"):
-                    builder.TYPE(ParamType.ARRAY)
+                        create_recfile(builder)
 
                 with builder.CHILD(key="goBezier", name="goBezier", desc="go bezier line to target position"):
                     builder.TYPE(ParamType.ARRAY)
@@ -443,8 +430,61 @@ class InputParams:
                     with builder.CHILDREN():
                         # 旋转角度参数
                         create_ap_id(builder)
+                        create_polyline(builder)
 
                 # JackSpin操作
+                # with builder.CHILD(key="spinAngle", name="spinAngle", desc="Spin the tray"):
+                #     builder.TYPE(ParamType.ARRAY)
+                #
+                #     with builder.CHILDREN():
+                #         # 旋转角度参数
+                #         with builder.CHILD(key="spin_angle", name="spin_angle", desc="the angle that the tray spin"):
+                #             builder.MIN_VALUE(-360)
+                #             builder.MAX_VALUE(360)
+                #             builder.TYPE(ParamType.FLOAT)
+                #             builder.REQUIRED(True)
+                #             builder.UNIT("degree")
+                #             builder.DEFAULTVALUE(0)
+                #
+                #         with builder.CHILD(key="spin_mode", name="spin_mode", desc="Spin mode(robot coordinate/world coordinate/increase)"):
+                #             builder.TYPE(ParamType.COMBO_BOX)
+                #             builder.REQUIRED(False)
+                #             with builder.CHILDREN():
+                #                 with builder.CHILD("robot", "robot", "robot"):
+                #                     builder.TYPE(ParamType.ARRAY)
+                #                     with builder.CHILDREN():
+                #                         with builder.CHILD(key="spin_dir", name="spin_dir",
+                #                                            desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
+                #                             builder.TYPE(ParamType.STRING_COMBO_LIST)
+                #                             builder.REQUIRED(True)
+                #                             builder.DEFAULTVALUE(0)
+                #                             with builder.CHILDREN():
+                #                                 with builder.CHILD(0, "shortest", "shortest"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #                                 with builder.CHILD(-1, "clockwise", "clockwise"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #                                 with builder.CHILD(1, "counterclockwise", "counterclockwise"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #
+                #                 with builder.CHILD("world", "world", "world"):
+                #                     builder.TYPE(ParamType.ARRAY)
+                #                     with builder.CHILDREN():
+                #                         with builder.CHILD(key="spin_dir", name="spin_dir",
+                #                                            desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
+                #                             builder.TYPE(ParamType.STRING_COMBO_LIST)
+                #                             builder.REQUIRED(True)
+                #                             builder.DEFAULTVALUE(0)
+                #                             with builder.CHILDREN():
+                #                                 with builder.CHILD(0, "shortest", "shortest"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #                                 with builder.CHILD(-1, "clockwise", "clockwise"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #                                 with builder.CHILD(1, "counterclockwise", "counterclockwise"):
+                #                                     builder.TYPE(ParamType.STRING)
+                #
+                #                 with builder.CHILD("increase", "increase", "increase"):
+                #                     builder.TYPE(ParamType.ARRAY)
+
                 with builder.CHILD(key="spinAngle", name="spinAngle", desc="Spin the tray"):
                     builder.TYPE(ParamType.ARRAY)
 
@@ -458,7 +498,7 @@ class InputParams:
                             builder.UNIT("degree")
                             builder.DEFAULTVALUE(0)
 
-                        with builder.CHILD(key="coordinate", name="coordinate", desc="Spin coordinate"):
+                        with builder.CHILD(key="spin_mode", name="spin_mode", desc="Spin mode(robot coordinate/world coordinate/increase)"):
                             builder.TYPE(ParamType.STRING_COMBO_LIST)
                             builder.DEFAULTVALUE("robot")
                             builder.REQUIRED(True)
@@ -471,25 +511,23 @@ class InputParams:
                                     builder.TYPE(ParamType.STRING)
 
                         with builder.CHILD(key="spin_dir", name="spin_dir",
-                                           desc="Spin direction(clockwise0/counterclockwise1/shortest2)"):
+                                           desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
                             builder.TYPE(ParamType.STRING_COMBO_LIST)
                             builder.REQUIRED(True)
-                            builder.DEFAULTVALUE(2)
+                            builder.DEFAULTVALUE(0)
                             with builder.CHILDREN():
-                                with builder.CHILD(0, "clockwise", "clockwise"):
+                                with builder.CHILD(0, "shortest", "shortest"):
+                                    builder.TYPE(ParamType.STRING)
+                                with builder.CHILD(-1, "clockwise", "clockwise"):
                                     builder.TYPE(ParamType.STRING)
                                 with builder.CHILD(1, "counterclockwise", "counterclockwise"):
                                     builder.TYPE(ParamType.STRING)
-                                with builder.CHILD(2, "shortest", "shortest"):
-                                    builder.TYPE(ParamType.STRING)
 
-                with builder.CHILD(key="spinZero", name="spinZero", desc="Spin the tray to 0 degree"):
-                    builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILD(key="rotateHoldSpin", name="rotateHoldSpin", desc="Rotate the robot"):
                     builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="spin_angle", name="spin_angle", desc="the angle that the tray spin"):
+                    with builder.CHILD(key="spin_angle", name="rotate_angle", desc="the angle that the robot rotate"):
                         builder.MIN_VALUE(-360)
                         builder.MAX_VALUE(360)
                         builder.TYPE(ParamType.FLOAT)
@@ -497,7 +535,7 @@ class InputParams:
                         builder.UNIT("degree")
                         builder.DEFAULTVALUE(0)
                     with builder.CHILD(key="is_spin_follow", name="is_spin_follow",
-                                       desc="whether the tray will follow"):
+                                       desc="whether the tray will keep the angle on world coordinate"):
                         builder.TYPE(ParamType.BOOL)
                         builder.REQUIRED(True)
                         builder.DEFAULTVALUE(False)
@@ -549,14 +587,8 @@ class InputParams:
                                 builder.TYPE(ParamType.STRING)
                             with builder.CHILD("world", "world", "world"):
                                 builder.TYPE(ParamType.STRING)
-                    with builder.CHILD(key="max_speed", name="max_speed", desc="max_speed when goPath"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.REQUIRED(False)
-                        builder.DEFAULTVALUE(0.5)
-                    with builder.CHILD(key="is_backwards", name="is_backwards", desc="Backward or forward mode"):
-                        builder.TYPE(ParamType.BOOL)
-                        builder.REQUIRED(False)
-                        builder.DEFAULTVALUE(False)
+
+                    create_gopath(builder)
 
                 with builder.CHILD(key="PGVSecondaryAdjust", name="PGVSecondaryAdjust", desc="pgv secondary adjust"):
                     builder.TYPE(ParamType.ARRAY)
@@ -569,7 +601,7 @@ class InputParams:
                                        desc="the file for recognize"):
                         builder.TYPE(ParamType.STRING)
                         builder.REQUIRED(True)
-                        builder.DEFAULTVALUE("shelf-A.srec")
+                        builder.DEFAULTVALUE("default.srec")
 
                 with builder.CHILD(key="getRecfile", name="getRecfile", desc="get Recfile"):
                     builder.TYPE(ParamType.ARRAY)
@@ -578,7 +610,7 @@ class InputParams:
                                        desc="the file for recognize"):
                         builder.TYPE(ParamType.STRING)
                         builder.REQUIRED(True)
-                        builder.DEFAULTVALUE("shelf-A.srec")
+                        builder.DEFAULTVALUE("default.srec")
 
                 with builder.CHILD(key="recTargetObs", name="recTargetObs", desc="recTargetObs"):
                     builder.TYPE(ParamType.ARRAY)
@@ -637,13 +669,13 @@ class Jack(ModuleBase):
         # robotParam
         self.lift_motor = None
 
-        log.info(f"module_type = {ConfigParams.module_type}")
-        log.info(f"jack_motor_name = {ConfigParams.jack_motor_name}")
-        log.info(f"spin_motor_name = {ConfigParams.spin_motor_name}")
-        log.info(f"jack_min_height = {ConfigParams.jack_min_height}")
-        log.info(f"jack_max_height = {ConfigParams.jack_max_height}")
-        log.info(f"jack_up_di = {ConfigParams.jack_up_di}")
-        log.info(f"jack_zero_di = {ConfigParams.jack_zero_di}")
+        Trace.log(f"module_type = {ConfigParams.module_type}")
+        Trace.log(f"jack_motor_name = {ConfigParams.jack_motor_name}")
+        Trace.log(f"spin_motor_name = {ConfigParams.spin_motor_name}")
+        Trace.log(f"jack_min_height = {ConfigParams.jack_min_height}")
+        Trace.log(f"jack_max_height = {ConfigParams.jack_max_height}")
+        Trace.log(f"jack_up_di = {ConfigParams.jack_up_di}")
+        Trace.log(f"jack_zero_di = {ConfigParams.jack_zero_di}")
 
         # Module.set_status(ScriptStatus.NONE)
 
@@ -666,6 +698,7 @@ class Jack(ModuleBase):
             self.spin_angle = (rad + math.pi) % (2 * math.pi) - math.pi  # 归一化到 (-pi, pi]
             self.spin_dir = self.task_args.get("spin_dir", 0)
             self.coordinate = self.task_args.get("coordinate", "world")
+            self.spin_mode = self.task_args.get("spin_mode", "increase")
             self.is_spin_follow = self.task_args.get("is_spin_follow", False)
             # jackLoad/jackUnload
             self.how_go_site = self.task_args.get("how_go_site", None)
@@ -695,8 +728,8 @@ class Jack(ModuleBase):
             self.pgv_x_adjust = self.task_args.get("pgv_x_adjust", None)
             self.pgv_x_angle_adjust = self.task_args.get("pgv_x_angle_adjust", None)
             self.pgv_adjust_dist = self.task_args.get("pgv_adjust_dist", None)
-            self.PGV_ReachDist = self.task_args.get("PGV_ReachDist", None)
-            self.PGV_ReachAngle = self.task_args.get("PGV_ReachAngle", None)
+            self.pgv_reach_dist = self.task_args.get("pgv_reach_dist", None)
+            self.pgv_reach_angle = self.task_args.get("pgv_reach_angle", None)
 
             # laser area deduction
             self.create_or_delete_deducted_area = self.task_args.get("create_or_delete_deducted_area", None)
@@ -728,12 +761,8 @@ class Jack(ModuleBase):
             self.go_polyline()
         elif self.opt == "jackHeight":  # 控制托盘抬升高度
             self.jack_target_height()
-        elif self.opt == "jackMinHeight":  # 控制托盘高度降到最低
-            self.jack_min_height()
         elif self.opt == "spinAngle":  # 托盘旋转指定角度
             self.spin()
-        elif self.opt == "spinZero":  # 托盘旋转到0度
-            self.spin_zero_deg()
         elif self.opt == "rotateHoldSpin":  # 随动转
             self.rotate_hold_spin()
         elif self.opt == "goMapPath":  # 前进一段距离
@@ -753,7 +782,7 @@ class Jack(ModuleBase):
         else:
             Module.set_status(ScriptStatus.FAILED)
 
-        log.info(f"self.action_list: {self.action_list}")
+        Trace.log(f"self.action_list: {self.action_list}")
         self._execute_actions()
 
     def laser_area_deduction(self):
@@ -809,6 +838,54 @@ class Jack(ModuleBase):
                     }
                     Module.report_info(self.report_info)
 
+    def laser_area_deduct(self, recfile, object_key: str = "shelf"):
+        # 激光区域扣除
+        if recfile:
+            # 路径前缀：recognitionObject.{object_key}.recognitionSide
+            recognition_obstacle_deduction_path = f"recognitionObject.{object_key}.obstacleDeduction"
+
+            # 1) 获取obstacle_deduction
+            deduct_device = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductDevice", recfile).spilt(",")
+            deduct_shape = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductShape", recfile)
+
+            # 转换为 Python 对象
+            shapes = json.loads(deduct_shape)
+
+            # 设备列表
+            device_list = [deduct_device]
+
+            info = {
+                "deduct_device": device_list,
+                "area": []
+            }
+
+            for shape in shapes:
+                x_list = [p["x"] for p in shape["points"]]
+                y_list = [p["y"] for p in shape["points"]]
+                info["area"].append({
+                    "x_list": x_list,
+                    "y_list": y_list
+                })
+
+            Trace.log(f"laser_area_deduct_info={info}")
+            return info
+
+    """
+    {
+    'deduct_device': 'Laser-000',
+    'area': [
+        {'x_list': [0.437025, 0.691281, 0.691281, 0.437025],
+        'y_list': [0.36353, 0.36353, 0.652118, 0.652118]},
+        {'x_list': [0.437025, 0.69012, 0.69012, 0.437025],
+        'y_list': [-0.595992, -0.595992, -0.355722, -0.355722]},
+        {'x_list': [-0.412432, -0.412432, -0.619763, -0.619763],
+        'y_list': [0.35816, 0.622824, 0.622824, 0.35816]},
+        {'x_list': [-0.412432, -0.642432, -0.642432, -0.412432],
+        'y_list': [-0.595992, -0.595992, -0.365992, -0.365992]}
+            ]
+    }
+    """
+
 
     def get_rec_file(self):
         if not self.operation_init:
@@ -861,77 +938,28 @@ class Jack(ModuleBase):
                              "recognize file param wrong", "check the param", "get_back_distance_info")
             Module.set_status(ScriptStatus.FAILED)
 
-        log.info(f"backDistanceInfo = {info}")
+        Trace.log(f"backDistanceInfo = {info}")
         return info
 
-    def laser_area_deduct(self, recfile, object_key: str = "shelf"):
-        # 激光区域扣除
-        if self.recfile:
-            # 路径前缀：recognitionObject.{object_key}.recognitionSide
-            recognition_obstacle_deduction_path = f"recognitionObject.{object_key}.obstacleDeduction"
-
-            # 1) 获取obstacle_deduction
-            deduct_device = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductDevice",
-                                                 recfile)
-            deduct_shape = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductShape",
-                                                recfile)
-
-            # 转换为 Python 对象
-            shapes = json.loads(deduct_shape)
-
-            # 设备列表
-            device_list = [deduct_device]
-
-            info = {
-                "deduct_device": device_list,
-                "area": []
-            }
-
-            for shape in shapes:
-                x_list = [p["x"] for p in shape["points"]]
-                y_list = [p["y"] for p in shape["points"]]
-                info["area"].append({
-                    "x_list": x_list,
-                    "y_list": y_list
-                })
-
-            print(info)
-            return info
-
-    """
-    {
-    'deduct_device': 'Laser-000',
-    'area': [
-        {'x_list': [0.437025, 0.691281, 0.691281, 0.437025],
-        'y_list': [0.36353, 0.36353, 0.652118, 0.652118]},
-        {'x_list': [0.437025, 0.69012, 0.69012, 0.437025],
-        'y_list': [-0.595992, -0.595992, -0.355722, -0.355722]},
-        {'x_list': [-0.412432, -0.412432, -0.619763, -0.619763],
-        'y_list': [0.35816, 0.622824, 0.622824, 0.35816]},
-        {'x_list': [-0.412432, -0.642432, -0.642432, -0.412432],
-        'y_list': [-0.595992, -0.595992, -0.365992, -0.365992]}
-            ]
-    }
-    """
 
     def rec_target_obs(self):
         if not self.operation_init:
             self.operation_init = True
 
-            self.action_list.append(RecTargetObs())
+            self.action_list.append(RecTargetObs("laser1"))
 
     def set_vda_param(self):
         # VDA下发的参数
         self.action_parameters = self.task_args.get("action_parameters", None)
 
     def get_lm(self):
-        log.info("getLM ==============================================")
-        result = Navigation.getLM("LM1", True)
+        Trace.log("getLM ==============================================")
+        result = Navigation.getLM(self.ap_id, True)
         self.report_info["getLM"] = {
             "LM": result
         }
         Module.report_info(self.report_info)
-        log.info("getLM", result)
+        Trace.log(f"getLM={result}")
         Module.set_status(ScriptStatus.FINISHED)
         return Module.get_status()
 
@@ -947,8 +975,8 @@ class Jack(ModuleBase):
             self.ap_robot_pos = Navigation.getLM(self.ap_id, False)
             robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
-            log.info(f'AP_pos: {self.ap_world_pos}')
-            log.info(f'ap_to_robot_angle: {ap_to_robot_angle}')
+            Trace.log(f'AP_pos: {self.ap_world_pos}')
+            Trace.log(f'ap_to_robot_angle: {ap_to_robot_angle}')
 
             self.report_info["jack_load"] = {
                 "ap_to_robot_angle": ap_to_robot_angle,
@@ -957,16 +985,16 @@ class Jack(ModuleBase):
             }
 
             # 第一步转到指向ap点的方向
-            self.action_list.append(RobotRotate(ap_to_robot_angle, Coordinate.WORLD, False))
-
+            self.action_list.append(RobotRotate(ap_to_robot_angle, "world", False))
+            self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.start_height, ConfigParams.jack_motor_speed, self.recfile))
             # 转到指向ap点的位置
             self.action_list.append(RecShelf(self.recfile, "FirstRec"))  # 识别货架，得到坐标放入j.rec_result
 
             # 动态添加action_list
         if 0 <= self.action_id < len(self.action_list):
             current_action = self.action_list[self.action_id]
-            log.info(f'{self.action_id=}, {self.action_list=}')
-            log.info(f'{current_action.action_name=}, {current_action.action_status=}')
+            Trace.log(f'{self.action_id=}, {self.action_list=}')
+            Trace.log(f'{current_action.action_name=}, {current_action.action_status=}')
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
@@ -975,8 +1003,8 @@ class Jack(ModuleBase):
 
                 # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
                 if result_robot[0] < 1:
-                    log.info(f'{current_action.action_name=}')
-                    self.action_list.append(GoPath([-0.3, 0, 0], Coordinate.ROBOT, True))
+                    Trace.log(f'{current_action.action_name=}')
+                    self.action_list.append(GoPath([-0.3, 0, 0], "robot", True))
                     self.action_list.append(RecShelf(self.recfile, "SecondRec"))  # 识别货架，得到坐标放入j.rec_result
                 else:
                     # 如果用户未传入back_dist数值，则用识别文件中的数值（需要enableBackDistance启用，否则为back_distance为0）
@@ -1004,10 +1032,8 @@ class Jack(ModuleBase):
                              self.path_dist_accuracy, self.path_angle_accuracy))
 
             if current_action.action_name == "GoBezier" and current_action.action_status == ActionStatus.FINISHED:
-                # self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height,
-                #                                    ConfigParams.jack_motor_speed, ConfigParams.jack_up_di))
-                # self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
-                # self.action_list.append(Spin(0, "robot", 2))
+                self.action_list.append(Spin(0, "robot", 0))
+                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height, ConfigParams.jack_motor_speed))
                 self.action_list.append(
                     GoBezierReturn(not self.is_backwards, self.is_hold_dir, self.max_speed,
                                    self.max_accele, self.max_decele, self.decele_dist))
@@ -1027,8 +1053,8 @@ class Jack(ModuleBase):
             self.ap_robot_pos = Navigation.getLM(self.ap_id, False)
             robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
-            log.info(f'AP_pos: {self.ap_world_pos}')
-            log.info(f'ap_to_robot_angle: {ap_to_robot_angle}')
+            Trace.log(f'AP_pos: {self.ap_world_pos}')
+            Trace.log(f'ap_to_robot_angle: {ap_to_robot_angle}')
 
             self.report_info["jack_load"] = {
                 "ap_to_robot_angle": ap_to_robot_angle,
@@ -1049,7 +1075,7 @@ class Jack(ModuleBase):
                 # 直接前进到任务的AP点坐标
                 if self.how_go_site == "straight":
                     self.action_list.append(
-                        GoPath(self.ap_world_pos, Coordinate.WORLD, self.is_backwards, self.is_hold_dir, self.max_speed,
+                        GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir, self.max_speed,
                                self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
                 elif self.how_go_site == "bezier":
                     self.action_list.append(
@@ -1063,13 +1089,19 @@ class Jack(ModuleBase):
                                    self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
 
                 # 加入二次调整，取货前托盘调整，抬升托盘动作
-                self.jack_load_adjust_and_jack()
+                if self.is_secondary_adjust:
+                    self.action_list.append(GetPGVData())
+                    self.action_list.append(
+                        PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+                                           self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
+                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
+                                                   ConfigParams.jack_motor_speed))
 
         # 动态添加action_list，仅在有识别时有效
         if 0 <= self.action_id < len(self.action_list):
             current_action = self.action_list[self.action_id]
-            log.info(f'{self.action_id=}, {self.action_list=}')
-            log.info(f'{current_action.action_name=}, {current_action.action_status=}')
+            Trace.log(f'{self.action_id=}, {self.action_list=}')
+            Trace.log(f'{current_action.action_name=}, {current_action.action_status=}')
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
@@ -1078,14 +1110,14 @@ class Jack(ModuleBase):
 
                 # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
                 if result_robot[0] < 1:
-                    self.action_list.append(GoPath([-0.3, 0, 0], Coordinate.ROBOT, False, False))
-                    log.info(f"go back 0.3m to recognize again")
+                    self.action_list.append(GoPath([-0.3, 0, 0], "robot", not self.is_backwards, self.is_hold_dir))
+                    Trace.log(f"go back 0.3m to recognize again")
                     self.action_list.append(RecShelf(self.recfile, "SecondRec"))  # 识别货架，得到坐标放入j.rec_result
                 else:
 
                     if self.how_go_site == "straight":
                         self.action_list.append(
-                            GoPath(self.ap_world_pos, Coordinate.WORLD, self.is_backwards, self.is_hold_dir,
+                            GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
                                    self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
                     elif self.how_go_site == "bezier":
                         self.action_list.append(
@@ -1101,23 +1133,14 @@ class Jack(ModuleBase):
             if current_action.action_name == "SecondRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
                 self.action_list.append(GoBezier(result_world))
-                # self.jack_load_adjust_and_jack() # 加入二次调整，取货前托盘调整，抬升托盘动作
+                # 加入二次调整，取货前托盘调整，抬升托盘动作
+                if self.is_secondary_adjust:
+                    self.action_list.append(GetPGVData())
+                    self.action_list.append(
+                        PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+                                           self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
                 self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
                                                    ConfigParams.jack_motor_speed))
-                self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
-
-    def jack_load_adjust_and_jack(self):
-        # 到达货物下方，第三步判断是否有上下视pgv二次调整
-        if self.is_secondary_adjust:
-            self.action_list.append(GetPGVData())
-            self.action_list.append(PGVSecondaryAdjust())
-
-        # 第四步在取货前旋转托盘角度，根据输入的参数决定如何调整
-
-        # 抬升托盘取货
-        self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
-                                           ConfigParams.jack_motor_speed))
-        log.info(f"self.action_list: {self.action_list}")
 
     def jack_unload(self):
         if not self.operation_init:
@@ -1127,7 +1150,7 @@ class Jack(ModuleBase):
             if ConfigParams.is_recognize:  # 要求启用识别时必须有recfile
                 self.action_list.append(RecShelf(self.recfile))  # 识别货架，得到坐标放入self.rec_result
             else:
-                # 在动作类内部选择直线、贝塞尔+直线、二段直线方式前往识别点
+                # 如果没有识别
                 # 第二步选择是否需要根据货物下方的二维码调整放货位置
                 if ConfigParams.is_goods_qrcode:
                     self.action_list.append(GetApPosAdjustedViaPgv())  # 前往识别点,并根据货物二维码调整放货坐标
@@ -1136,32 +1159,58 @@ class Jack(ModuleBase):
                         self.ap_id = Navigation.moveTask().get("target_name", None)
                         self.ap_id = "AP" + str(self.ap_id)
                     self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
-                    log.info(f'AP_pos: {self.ap_world_pos}')
-                    if self.how_go_site == "straight":
-                        self.action_list.append(GoPath(self.ap_world_pos, Coordinate.WORLD))
-                    elif self.how_go_site == "bezier":
-                        self.action_list.append(GoBezier(self.ap_world_pos))
-                    elif self.how_go_site == "polyline":
-                        self.action_list.append(GoPolyline(self.ap_world_pos))
-                # 加入后续动作
-                self.jack_unload_adjust_and_jack()
+                    Trace.log(f'AP_pos: {self.ap_world_pos}')
+                # 在动作类内部选择直线、贝塞尔、二段线方式前往识别点
+                if self.how_go_site == "straight":
+                    self.action_list.append(
+                        GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
+                               self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
+                elif self.how_go_site == "bezier":
+                    self.action_list.append(
+                        GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
+                                 self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                                 self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
+                                 self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
+                elif self.how_go_site == "polyline":
+                    self.action_list.append(
+                        GoPolyline(self.ap_world_pos, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
+                                   self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
+                # 加入二次调整
+                if self.is_secondary_adjust:
+                    self.action_list.append(GetPGVData())
+                    self.action_list.append(
+                        PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+                                           self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
 
         if 0 <= self.action_id < len(self.action_list):
             current_action = self.action_list[self.action_id]
             if current_action.action_name == "RecShelf" and current_action.action_status == ActionStatus.FINISHED:
                 result = self.rec_result
-                self.action_list.append(GoBezier(result))
-                # 加入后续动作
-                self.jack_unload_adjust_and_jack()
+                # 在动作类内部选择直线、贝塞尔、二段线方式前往识别点
+                if self.how_go_site == "straight":
+                    self.action_list.append(
+                        GoPath(result, "world", self.is_backwards, self.is_hold_dir,
+                               self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
+                elif self.how_go_site == "bezier":
+                    self.action_list.append(
+                        GoBezier(result, self.back_dist, self.adjust_dist_for_curvature_limit,
+                                 self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                                 self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
+                                 self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
+                elif self.how_go_site == "polyline":
+                    self.action_list.append(
+                        GoPolyline(result, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
+                                   self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
+                # 加入二次调整
+                if self.is_secondary_adjust:
+                    self.action_list.append(GetPGVData())
+                    self.action_list.append(
+                        PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+                                           self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
 
-    def jack_unload_adjust_and_jack(self):
-        # 到达放货点，第三步判断是否有下视pgv二次调整
-        if ConfigParams.is_secondary_adjust:
-            self.action_list.append(GetPGVData())
-            self.action_list.append(PGVSecondaryAdjust())
+                # 放货
+                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height, ConfigParams.jack_motor_speed))
 
-        # 放货
-        self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
 
     def go_ap_site(self):
         if not self.operation_init:
@@ -1170,9 +1219,9 @@ class Jack(ModuleBase):
                 self.ap_id = Navigation.moveTask().get("target_name", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
-            log.info(f'AP_pos: {self.ap_world_pos}')
+            Trace.log(f'AP_pos: {self.ap_world_pos}')
             if self.how_go_site == "straight":
-                self.action_list.append(GoPath(self.ap_world_pos, Coordinate.WORLD))
+                self.action_list.append(GoPath(self.ap_world_pos, "world"))
             elif self.how_go_site == "bezier":
                 self.action_list.append(GoBezier(self.ap_world_pos))
             elif self.how_go_site == "polyline":
@@ -1185,7 +1234,7 @@ class Jack(ModuleBase):
                 self.ap_id = Navigation.moveTask().get("target_name", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
-            log.info(f'AP_pos: {self.ap_world_pos}')
+            Trace.log(f'AP_pos: {self.ap_world_pos}')
             self.action_list.append(
                 GoBezierCombined(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
                                  self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
@@ -1199,7 +1248,7 @@ class Jack(ModuleBase):
                 self.ap_id = Navigation.moveTask().get("target_name", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
-            log.info(f'AP_pos: {self.ap_world_pos}')
+            Trace.log(f'AP_pos: {self.ap_world_pos}')
             self.action_list.append(GoPolyline(self.ap_world_pos))
 
     def go_map_path(self):
@@ -1216,24 +1265,12 @@ class Jack(ModuleBase):
             self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height,
                                                ConfigParams.jack_motor_speed))
 
-    def jack_min_height(self):
-        """放货至最低点"""
-        if not self.operation_init:
-            self.operation_init = True
-            self.action_list.append(JackMinHeight(ConfigParams.jack_motor_name, ConfigParams.jack_motor_speed))
-
     def spin(self):
         """旋转托盘"""
         if not self.operation_init:
             self.operation_init = True
             print("进入spin动作")
-            self.action_list.append(Spin(self.spin_angle, self.coordinate, self.spin_dir))
-
-    def spin_zero_deg(self):
-        """旋转托盘到0度位置"""
-        if not self.operation_init:
-            self.operation_init = True
-            self.action_list.append(Spin(0, "robot", 2))
+            self.action_list.append(Spin(self.spin_angle, self.spin_mode, self.spin_dir))
 
     def rotate_hold_spin(self):
         """旋转车体时启动随动"""
@@ -1253,14 +1290,12 @@ class Jack(ModuleBase):
             self.operation_init = True
             self.action_list.append(
                 GoPath([self.goPath_x, self.goPath_y, self.goPath_theta], self.coordinate, self.is_backwards,
-                       self.is_hold_dir, self.max_speed, self.max_rot, self.path_dist_accuracy,
-                       self.path_angle_accuracy))
+                       self.is_hold_dir, self.max_speed, self.max_rot, self.path_dist_accuracy,self.path_angle_accuracy))
 
     def rec_shelf(self):
         """识别货架"""
         if not self.operation_init:
             self.operation_init = True
-            # self.action_list.append(RecShelf(self.recfile))  # 导航到终点
             self.action_list.append(Rec(self.recfile))  # 导航到终点
 
     def pgv_adjust(self):
@@ -1268,7 +1303,8 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             self.action_list.append(GetPGVData())
-            self.action_list.append(PGVSecondaryAdjust())
+            self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+                                                       self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
 
     def _execute_actions(self):
         if self.action_id < len(self.action_list):
@@ -1288,27 +1324,27 @@ class Jack(ModuleBase):
             self.script_status = ActionStatus.FINISHED
             Module.set_status(ScriptStatus.FINISHED)
             self.action_list = []
-        log.info(f'{self.action_id=}, {self.action_list=}')
-        log.info(f"self.action_list: {self.action_list}")
+        Trace.log(f'{self.action_id=}, {self.action_list=}')
+        Trace.log(f"self.action_list: {self.action_list}")
 
     def print_info(self):
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        log.info(f"{self.task_args=}")
-        log.info(f"{Module.get_task_id()=}")
-        log.info(f"{Module.get_status()=}")
+        Trace.log(f"{self.task_args=}")
+        Trace.log(f"{Module.get_task_id()=}")
+        Trace.log(f"{Module.get_status()=}")
 
     def suspend(self):
         Module.set_status(ScriptStatus.SUSPENDED)
-        log.info("suspend")
+        Trace.log("suspend")
 
     def resume(self):
         if Module.get_status() == ScriptStatus.SUSPENDED:
             Module.set_status(ScriptStatus.RUNNING)
-        log.info("resume")
+        Trace.log("resume")
 
     def cancel(self):
         Module.set_status(ScriptStatus.FAILED)
-        log.info("cancel")
+        Trace.log("cancel")
 
     def safe_move_check(self):
         self.count += 1
@@ -1345,7 +1381,7 @@ class Jack(ModuleBase):
         modbus_data = ["4"]
         # 解析映射表
         args = modbus_data2args.get(modbus_data[0])
-        log.info(f"---------------------------------modbus_args={args}")
+        Trace.log(f"---------------------------------modbus_args={args}")
         status = Module.get_status()
         Module.set_status(ScriptStatus.RUNNING)
         # if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
@@ -1415,13 +1451,13 @@ class BaseAction:
 class Spin(BaseAction):
     """托盘旋转到机器人/世界坐标系下固定角度，额外旋转固定角度"""
 
-    def __init__(self, angle, coordinate="world", direction=2):
+    def __init__(self, angle, spin_mode="world", direction=None):
         super().__init__("Spin")
         self.action_status = ActionStatus.INIT
         self.init = True
         self.angle = angle
         self.dir = direction  # 0 counterclockwise; 1 clockwise; 2 shortest
-        self.coordinate_system = coordinate
+        self.coordinate_system = spin_mode
         Motor.resetMotor(ConfigParams.spin_motor_name)
 
     def run(self, j: Jack):
@@ -1429,27 +1465,23 @@ class Spin(BaseAction):
             self.init = False
             self.action_status = ActionStatus.RUNNING
             if self.coordinate_system == "robot":
+                Trace.log("setRobotSpinAngle")
                 Navigation.setRobotSpinAngle(self.angle, self.dir)
-                log.info("setRobotSpinAngle")
             elif self.coordinate_system == "world":
+                Trace.log("setGlobalSpinAngle")
                 Navigation.setGlobalSpinAngle(self.angle, self.dir)
-                log.info("setGlobalSpinAngle")
             elif self.coordinate_system == "increase":
+                Trace.log("setIncreaseSpinAngle")
                 Navigation.setIncreaseSpinAngle(self.angle)
-                log.info("setIncreaseSpinAngle")
         if Navigation.spinRun():
             self.action_status = ActionStatus.FINISHED
-        log.info(f"弧度{self.angle=}")
-        log.info(f"坐标系{self.coordinate_system=}")
-
-        self.action_state['spin_state'] = self.action_status
-        self.action_state['spin_angle'] = self.angle
-        self.action_state['spin_direction'] = self.dir
+        Trace.log(f"弧度{self.angle=}")
+        Trace.log(f"坐标系{self.coordinate_system=}")
 
         j.report_info["Spin"] = {
             "action_status": self.action_status,
             "spin_angle": self.angle,
-            "coordinate": self.coordinate_system,
+            "spin_mode": self.coordinate_system,
             "direction": self.dir
         }
         Module.report_info(j.report_info)
@@ -1461,7 +1493,7 @@ class Spin(BaseAction):
 class RobotRotate(BaseAction):
     """只转车不转托盘"""
 
-    def __init__(self, angle, coordinate, spin=True, direction=2):
+    def __init__(self, angle, coordinate, spin=True, direction=0):
         super().__init__("RobotRotate")
         self.action_status = ActionStatus.INIT
         self.init = True
@@ -1469,7 +1501,7 @@ class RobotRotate(BaseAction):
         self.angle = angle  # 角度或弧度
         self.coordinate = coordinate
         self.spin = spin
-        self.direction = direction  # 0 counterclockwise; 1 clockwise; 2 shortest
+        self.direction = direction  # 0 shortest; -1 cw; 1 ccw
         self.speed = 0.7
         self.move_args = dict()
         self.robot_ang = []
@@ -1519,7 +1551,7 @@ class RobotRotate(BaseAction):
                 })
 
         status = Navigation.runOdoMove(self.move_args)
-        log.info(f"{status=}")
+        Trace.log(f"{status=}")
         if status == ActionStatus.FINISHED:
             self.action_status = ActionStatus.FINISHED
 
@@ -1534,7 +1566,7 @@ class RobotRotate(BaseAction):
 
     def reset(self):
         Navigation.resetOdoMove()
-        log.info("reset RobotRotate")
+        Trace.log("reset RobotRotate")
         self.action_status = ActionStatus.RUNNING
 
     def normalize(self, rad: float) -> float:
@@ -1590,8 +1622,8 @@ class JackHeight(BaseAction):
                 Navigation.clearGoodsShape()
 
         motor_info = Odometer.get_motor_infos()
-        log.info(f"{motor_info=}")
-        log.info(f"{self.target_height=}")
+        Trace.log(f"{motor_info=}")
+        Trace.log(f"{self.target_height=}")
 
         if self.target_height > self.jack_start_height:
             if Motor.isMotorReached(self.motor_name) or Di.get_di(ConfigParams.jack_up_di):
@@ -1611,38 +1643,6 @@ class JackHeight(BaseAction):
         Module.report_info(j.report_info)
 
 
-class JackMinHeight(BaseAction):
-    """顶升动作，通过设置电机位置实现顶升"""
-
-    def __init__(self, motor_name, jack_motor_speed):
-        super().__init__("JackMinHeight")
-        self.motor_name = motor_name
-        self.jack_motor_speed = jack_motor_speed
-        self.init = False
-        Motor.resetMotor(self.motor_name)
-
-    def run(self, j: Jack):
-        if not self.init:
-            self.init = True
-            self.action_status = ActionStatus.RUNNING
-            Motor.setMotorPosition(self.motor_name, ConfigParams.jack_min_height, self.jack_motor_speed, ConfigParams.jack_zero_di)
-        log.info(f"Lowering tray")
-
-        if Motor.isMotorReached(self.motor_name) or Di.get_di(ConfigParams.jack_zero_di):
-            self.action_status = ActionStatus.FINISHED
-            Navigation.clearGoodsShape()
-            Motor.resetMotor(self.motor_name)
-
-        j.report_info["JackMinHeight"] = {
-            "action_status": self.action_status,
-            "motor_name": self.motor_name,
-            "jack_min_height": ConfigParams.jack_min_height,
-            "jack_motor_speed": self.jack_motor_speed,
-            "jack_zero_di": ConfigParams.jack_zero_di
-        }
-        Module.report_info(j.report_info)
-
-
 class GoMapPath(BaseAction):
     """前进指定距离"""
 
@@ -1658,7 +1658,7 @@ class GoMapPath(BaseAction):
             self.init = False
             self.action_status = ActionStatus.RUNNING
             Navigation.resetGoMapPath()
-        finished = Navigation.goMapPath(json.dumps(self.task))
+        finished = Navigation.goMapPath()
         if finished:
             self.action_status = ActionStatus.FINISHED
 
@@ -1773,13 +1773,13 @@ class GoBezierCombined(BaseAction):
 
         if self.bezier_status in (ActionStatus.INIT, ActionStatus.RUNNING):
             self.bezier_status = self.go_bezier.run()
-            log.info(f"bezier_status={self.bezier_status}")
+            Trace.log(f"bezier_status={self.bezier_status}")
         elif self.bezier_status == ActionStatus.FAILED:
             self.action_status = ActionStatus.FAILED
         elif self.bezier_status == ActionStatus.FINISHED:
             if self.bezier_return_status in (ActionStatus.INIT, ActionStatus.RUNNING):
                 self.bezier_return_status = self.go_bezier_return.run()
-                log.info(f"bezier_return_status={self.bezier_return_status}")
+                Trace.log(f"bezier_return_status={self.bezier_return_status}")
             elif self.bezier_return_status == ActionStatus.FAILED:
                 self.action_status = ActionStatus.FAILED
             elif self.bezier_return_status == ActionStatus.FINISHED:
@@ -1810,7 +1810,7 @@ class GoBezier(BaseAction):
 
         if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
             self.action_status = self.go_bezier.run()
-        log.info(f"bezier_status={self.action_status}")
+        Trace.log(f"bezier_status={self.action_status}")
         time.sleep(0.1)
 
         j.report_info["GoBezier"] = {
@@ -1850,7 +1850,7 @@ class GoBezierReturn(BaseAction):
 
         if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
             self.action_status = self.go_bezier_return.run()
-        log.info(f"bezier_return_status={self.action_status}")
+        Trace.log(f"bezier_return_status={self.action_status}")
         time.sleep(0.1)
 
 
@@ -2061,22 +2061,22 @@ class RecShelf(BaseAction):
 
     def run(self, j: Jack):
         self.action_status = ActionStatus.RUNNING
-        log.info("recognizing the shelf")
+        Trace.log("recognizing the shelf")
         rec_status = Recognize.getRecStatus()
-        log.info(f"{rec_status=}")
+        Trace.log(f"{rec_status=}")
         # rec_result = Recognize.getRecFile(self.recfile)  # 读到识别文件原始数据
-        # log.info(f"{rec_result=}")
+        # Trace.log(f"{rec_result=}")
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
-            log.info(f"{rec_result=}")
+            Trace.log(f"{rec_result=}")
             Recognize.resetRec()
-            log.info(f"rec_result={rec_result}")
+            Trace.log(f"rec_result={rec_result}")
             rec_x = rec_result['reco_list'][0]['x']
             rec_y = rec_result['reco_list'][0]['y']
             rec_yaw = rec_result['reco_list'][0]['yaw']
             rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
             rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
-            log.info(f"{rec_x_y_yaw=}")
+            Trace.log(f"{rec_x_y_yaw=}")
             j.rec_result = rec_x_y_yaw
             self.action_status = ActionStatus.FINISHED
         elif rec_status in (3, -1):
@@ -2113,7 +2113,7 @@ class RecTargetObs(BaseAction):
     def run(self, j: Jack):
         self.action_status = ActionStatus.RUNNING
         Recognize.resetRec()
-        Recognize.recTargetObs(self.device_name)
+        Recognize.recTargetObs(self.device_name,0,0,0,0,0,0,0)
 
         j.report_info["RecTargetObs"] = {
             "action_status": self.action_status
@@ -2160,10 +2160,9 @@ class GetApPosAdjustedViaPgv(BaseAction):
 
             else:
                 # 将车体终点位置，加入二维码的偏差补偿
-                self.target_world_pos = Pos2World(self.pgv_info, [self.target_world_pos[0], self.target_world_pos[1],
-                                                                  self.target_world_pos[2]])
-
-        return self.target_world_pos
+                self.target_world_pos = Pos2World(self.pgv_info, [self.target_world_pos[0], self.target_world_pos[1], self.target_world_pos[2]])
+                j.ap_world_pos = self.target_world_pos
+                self.action_status = ActionStatus.FINISHED
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
@@ -2206,7 +2205,7 @@ class GetPGVData(BaseAction):
             "tag_diff_angle": self.tag_diff_angle
         }
         if self.is_DMT_detected and self.tag_value != "":  # 当识别二维码成功并且读到的码值不是空值
-            log.info(f"read code success: {self.tag_value}")
+            Trace.log(f"read code success: {self.tag_value}")
             self.action_status = ActionStatus.FINISHED
         else:
             # pgv相机未扫描到二维码
@@ -2226,11 +2225,17 @@ class GetPGVData(BaseAction):
 
 
 class PGVSecondaryAdjust(BaseAction):  # 二次调整
-    def __init__(self):
+    def __init__(self, use_which_pgv, pgv_x_adjust, pgv_x_angle_adjust, pgv_adjust_dist, pgv_reach_dist, pgv_reach_angle):
         super().__init__("PGVSecondaryAdjust")
         self.action_status = ActionStatus.INIT
         self.init = True
         self.adjust_param = dict()
+        self.use_which_pgv = use_which_pgv
+        self.pgv_x_adjust = pgv_x_adjust
+        self.pgv_x_angle_adjust = pgv_x_angle_adjust
+        self.pgv_adjust_dist = pgv_adjust_dist
+        self.pgv_reach_dist = pgv_reach_dist
+        self.pgv_reach_angle = pgv_reach_angle
 
     def run(self, j: Jack):
         if self.init:
@@ -2246,21 +2251,22 @@ class PGVSecondaryAdjust(BaseAction):  # 二次调整
         Module.report_info(j.report_info)
 
     def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
-        self.adjust_param['use_pgv'] = False  # 使用上视pgv, args里需要增加use_pgv参数
-        if self.adjust_param['use_pgv']:
-            self.adjust_param['use_down_pgv'] = False  # 使用下视pgv
+        if self.use_which_pgv == "use_down_pgv":
+            self.adjust_param['use_pgv'] = False  # 使用上视pgv, args里需要增加use_pgv参数
+            self.adjust_param['use_down_pgv'] = True  # 使用下视pgv
         else:
-            self.adjust_param['use_down_pgv'] = True
-        self.adjust_param['pgv_x_adjust'] = True  # 按照x纵方向进行二次调整
-        self.adjust_param['pgv_x_angle_adjust'] = False  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
-        self.adjust_param['pgv_adjust_dist'] = 0.2  # 最大的调整半径,尽量小以二维码中心为圆心
+            self.adjust_param['use_pgv'] = True  # 使用上视pgv, args里需要增加use_pgv参数
+            self.adjust_param['use_down_pgv'] = False
+        self.adjust_param['pgv_x_adjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
+        self.adjust_param['pgv_x_angle_adjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
+        self.adjust_param['pgv_adjust_dist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
         self.adjust_param['pgv_adjust_cx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
         self.adjust_param['pgv_adjust_cy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
-        self.adjust_param['PGV_ReachDist'] = 0.02  # pgv二次调整距离精度
-        self.adjust_param['PGV_ReachAngle'] = 0.02  # pgv二次调整角度精度
+        self.adjust_param['PGV_ReachDist'] = self.pgv_reach_dist  # pgv二次调整距离精度
+        self.adjust_param['PGV_ReachAngle'] = self.pgv_reach_angle  # pgv二次调整角度精度
 
     def reset(self):
-        log.info("reset PGV secondary adjustment")
+        Trace.log("reset PGV secondary adjustment")
         self.action_status = ActionStatus.RUNNING
         Navigation.resetGoPGV()
 
@@ -2287,12 +2293,6 @@ class RotateDirection(IntEnum):
     NEARBY = 0
     COUNTERCLOCKWISE = 1
     CLOCKWISE = -1
-
-class Coordinate:
-    """ 坐标系枚举 """
-    ROBOT = "robot"
-    WORLD = "world"
-    INCREASE = "increase"
 
 def main():
     Module.init()

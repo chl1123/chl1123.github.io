@@ -6,7 +6,7 @@ from typing import Any
 import zmq
 
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse, MethodNotFound, InternalError
-from ...utils import ScriptType
+from syspy.utils import ScriptType
 
 log = logging.getLogger("rbk.script")
 server_addr = "ipc:///tmp/broker2server.ipc"  # 代理的后端地址
@@ -82,7 +82,7 @@ class RpcServer:
                         res = self._process_request(request)
                         response.set_result(res)
                     except Exception as e:
-                        response.set_error(InternalError(e))
+                        response.set_error(InternalError(str(e)))
                 else:
                     response.set_error(
                         MethodNotFound(f"{self.SCRIPT_NAME=}, Registered methods:{RpcServer.FUNCS.keys()}"))
