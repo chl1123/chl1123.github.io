@@ -949,7 +949,6 @@ class ContainerRobot(ModuleBase):
             self.zero_step[1] = self.stretch(0)
         elif self.zero_step[1] and not self.zero_step[2]:
             self.zero_step[2] = self.rotate(0)
-            self.zero_step[3] = self.lift(zero_height)
         elif self.zero_step[2] and not self.zero_step[3]:
             self.zero_step[3] = self.lift(zero_height)
         Trace.log(f"zero_step:{self.zero_step}")
@@ -1768,10 +1767,8 @@ class ContainerRobot(ModuleBase):
             return
 
     def safe_move_check(self):
-        self.count += 1
         status = SafeMoveStatus.RUNNING
-        if self.count == 100:
-            self.count = 0
+        if self.zero(0):
             status = SafeMoveStatus.FINISHED
         self.set_safe_move_status(status)
         Trace.log(f"safe_move_check {Module.get_safe_move_check()}")

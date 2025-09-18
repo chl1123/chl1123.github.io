@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# @Date: 2025/07/24
+# @Date: 2025/09/10
 # @Author:
 # @Version: 3.8
-# @Project: 智千、河狸料箱车
+# @Project: 海外SCT-UL
 # @Update: 适配3.5
 # @RBK Version: V3.5+
 import enum
 import uuid
 
-SCRIPT_VERSION = "V35-20250831"
+SCRIPT_VERSION = "V35-20250910"
 import json
 import math
 import random
@@ -376,9 +376,9 @@ class MotorRun:
         """
         self.status = ScriptStatus.RUNNING
         if self.motor_type == MotorType.LINEAR_MOTOR:
-            Motor.setMotorPosition(self.motor_name, pos, max_vel, self.stop_di)
+            Motor.setMotorPosition(self.motor_name, pos, max_vel)
         elif self.motor_type == MotorType.ROLLER_MOTOR:
-            Motor.setMotorSpeed(self.motor_name, vel, self.stop_di)
+            Motor.setMotorSpeed(self.motor_name, vel)
         else:
             log.error(f"motor type error {self.motor_type}")
             self.status = ScriptStatus.FAILED
@@ -594,7 +594,6 @@ class ContainerRobot(ModuleBase):
         self.load_height = 0
         self.unload_height = 0
         self.rec_height_diff = 0
-        self.count = 0
 
         self.collision_di = 0  # 碰撞条DI
         self.light_st_time = None
@@ -686,9 +685,6 @@ class ContainerRobot(ModuleBase):
             self.load_height = self.script_args.get("loadHeight", ConfigParams.rec_offz_box)
             self.unload_height = self.script_args.get("unloadHeight", ConfigParams.rec_offz_shelf)
             container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
-            # 如果container_num为数字且>0
-            if isinstance(container_num, int) and container_num > 0:
-                Container.init_container(container_num)
             self.containers = Container.getContainers()
             self.rec_id = uuid.uuid4().hex
             self.box_code_file = self.script_args.get("code_file", ConfigParams.box_code_file)
@@ -804,7 +800,7 @@ class ContainerRobot(ModuleBase):
                     elif self.code_type == "code":
                         if self.rec_qrcode():
                             self.status = ScriptStatus.FINISHED
-        self.update_report_info()
+        # self.update_report_info()
         self.report_info['script_args'] = self.script_args
         self.report_info['script_start_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_time))
         self.report_info['script_running_time'] = time.time() - self.start_time
@@ -975,7 +971,9 @@ class ContainerRobot(ModuleBase):
         if all(self.zero_step):
             # r.release()
             Do.setDO(ConfigParams.finger_up_do, False)
-            Container.clearContainer("999")
+            # Container.clearContainer("1")
+            print("123")
+            Container.setContainer("1", self.goods_id, "")
             return True
         return False
 
@@ -1802,10 +1800,8 @@ class ContainerRobot(ModuleBase):
             return
 
     def safe_move_check(self):
-        self.count += 1
         status = SafeMoveStatus.RUNNING
-        if self.count == 100:
-            self.count = 0
+        if self.zero(0):
             status = SafeMoveStatus.FINISHED
         self.set_safe_move_status(status)
         Trace.log(f"safe_move_check {Module.get_safe_move_check()}")
@@ -1898,10 +1894,11 @@ class Rec:
                     Recognize.resetRec()
 
         elif rec_status == 2:  # 识别成功,获得结果
-            rec_results = Recognize.getRecResults()
-            if "reco_list" in rec_results:
-                if len(rec_results["reco_list"]) == 1:
-                    self.result = rec_results["reco_list"][0]
+            self.result = Recognize.getRecResults()
+            # rec_results = Recognize.getRecResults()
+            # if "reco_list" in rec_results:
+            #     if len(rec_results["reco_list"]) == 1:
+            #         self.result = rec_results["reco_list"][0]
             if "resultImg" in self.result:
                 self.result.pop("resultImg")
             Recognize.resetRec()
@@ -1958,14 +1955,18 @@ class RecAdjust:
         """
         if rotate_pos > 0:
             if yaw > 0:
-                return -dy - dx * math.tan(math.pi - yaw) - offset_x
+                # return -dy - dx * math.tan(math.pi - yaw) - offset_x
+                return -(-dy - dx * math.tan(math.pi - yaw) - offset_x)
             elif yaw < 0:
-                return -dy + dx * math.tan(math.pi + yaw) - offset_x
+                # return -dy + dx * math.tan(math.pi + yaw) - offset_x
+                return -(-dy + dx * math.tan(math.pi + yaw) - offset_x)
         else:
             if yaw > 0:
-                return dy + dx * math.tan(math.pi - yaw) + offset_x
+                # return dy + dx * math.tan(math.pi - yaw) + offset_x
+                return -(dy + dx * math.tan(math.pi - yaw) + offset_x)
             elif yaw < 0:
-                return dy - dx * math.tan(math.pi + yaw) + offset_x
+                # return dy - dx * math.tan(math.pi + yaw) + offset_x
+                return -(dy - dx * math.tan(math.pi + yaw) + offset_x)
 
     def run(self, agv: ContainerRobot):
         cur_state = dict()
@@ -2022,7 +2023,7 @@ class RecAdjust:
                     rec_yaw = math.pi
                 x_dist = self.move_x(self.rec.result['x'], self.rec.result['y'], rec_yaw, agv.rotate_real_pos,
                                      agv.offset_x)
-                self.go_args["x"] = x_dist
+                self.go_args["x"] = -x_dist
                 self.go_args["coordinate"] = "robot"
                 self.go_args["y"] = 0
                 self.go_args["theta"] = 0
@@ -2044,7 +2045,7 @@ class RecAdjust:
                                      "", "", "")
                 else:
                     if self.adjust_count >= (self.max_adjust_time - 3):
-                        agv.ok_x = 0.01
+                        agv.ok_x = 0.015
                         agv.ok_yaw = 0.02
                     # 精度满足, 识别调整任务完成
                     if not bool(ConfigParams.auto_adjust_rotate) and abs(self.rec.result['y']) < agv.ok_x:
@@ -2073,17 +2074,19 @@ class RecAdjust:
                 if abs(agv.yaw_adjust) <= 0.01:  # 调整值小于货叉旋转精度
                     self.rotate_step = True
                 if not self.rotate_step and bool(ConfigParams.auto_adjust_rotate):
-                    self.rotate_step = agv.rotate(self.next_rotate_pos, max_speed=0.3)  # 货叉角度偏移修正
+                    self.rotate_step = agv.rotate(self.next_rotate_pos, max_speed=0.1)  # 货叉角度偏移修正
                 else:
                     self.rotate_step = True
             elif self.goPath.status == ScriptStatus.FAILED:
                 self.status = ScriptStatus.FAILED
             elif self.goPath.status == ScriptStatus.FINISHED and self.rotate_step:
-                self.reset()
-                self.adjust_count += 1
-                self.last_yaw_adjust = agv.yaw_adjust
-                self.plan_status = ScriptStatus.NONE
-                self.rotate_step = False
+                if Odometer.get_data().get("vel_y", 0.0) == 0:
+                    if Timer.delay(1.5):
+                        self.reset()
+                        self.adjust_count += 1
+                        self.last_yaw_adjust = agv.yaw_adjust
+                        self.plan_status = ScriptStatus.NONE
+                        self.rotate_step = False
         cur_state["auto_stretch_length"] = agv.stretch_length
         cur_state["go_path_status"] = self.goPath.status
         cur_state["go_args"] = self.go_args
@@ -2116,11 +2119,16 @@ def main():
     robot = ContainerRobot()
     validator = ParamValidator(InputParams.builder.to_dict())
     modbus_args = None
+    container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
+    # 如果container_num为数字且>0
+    if isinstance(container_num, int) and container_num > 0:
+        Container.init_container(container_num)
 
     while True:
-        # 脚本任务状态管理
         status = robot.status
         Module.set_status(status)
+        containers = Container.getContainers()
+        robot.report_info['containers'] = containers
         Module.report_info(robot.report_info)
         robot.report_info["status"] = status
         if robot.event_safe_move_check:
@@ -2137,6 +2145,7 @@ def main():
                     print("check ok, args:", json.dumps(args, indent=2))
                 except ValueError as e:
                     print("check error:", e)
+                robot = ContainerRobot()
                 robot.init_script_args(args)
         elif status == ScriptStatus.RUNNING:
             robot.run()
@@ -2144,7 +2153,6 @@ def main():
             robot.suspend()
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             modbus_args = None
-            robot.status = ScriptStatus.NONE
 
         time.sleep(0.1)
 
