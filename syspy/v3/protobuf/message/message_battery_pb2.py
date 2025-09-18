@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x15message_battery.proto\x12\x0crbk.protocol\"\x86\x02\n\x0fMessage_Battery\x12\x11\n\tpercetage\x18\x01 \x01(\x01\x12\x16\n\x0e\x63harge_current\x18\x02 \x01(\x01\x12\x16\n\x0e\x63harge_voltage\x18\x03 \x01(\x01\x12\x13\n\x0bis_charging\x18\x04 \x01(\x08\x12\x13\n\x0btemperature\x18\x05 \x01(\x01\x12\r\n\x05\x63ycle\x18\x06 \x01(\x05\x12\x1a\n\x12max_charge_current\x18\x07 \x01(\x01\x12\x1a\n\x12max_charge_voltage\x18\x08 \x01(\x01\x12\r\n\x05\x65xtra\x18\t \x01(\t\x12\x1d\n\x15is_manually_connected\x18\n \x01(\x08\x12\x11\n\tuser_data\x18\x1e \x01(\x0c\x62\x06proto3')
+  serialized_pb=_b('\n\x15message_battery.proto\x12\x0crbk.protocol\"\x99\x02\n\x0fMessage_Battery\x12\x11\n\tpercetage\x18\x01 \x01(\x01\x12\x16\n\x0e\x63harge_current\x18\x02 \x01(\x01\x12\x16\n\x0e\x63harge_voltage\x18\x03 \x01(\x01\x12\x13\n\x0bis_charging\x18\x04 \x01(\x08\x12\x13\n\x0btemperature\x18\x05 \x01(\x01\x12\r\n\x05\x63ycle\x18\x06 \x01(\x05\x12\x1a\n\x12max_charge_current\x18\x07 \x01(\x01\x12\x1a\n\x12max_charge_voltage\x18\x08 \x01(\x01\x12\r\n\x05\x65xtra\x18\t \x01(\t\x12\x1d\n\x15is_manually_connected\x18\n \x01(\x08\x12\x11\n\terrorCode\x18\x0b \x01(\r\x12\x11\n\tuser_data\x18\x1e \x01(\x0c\x62\x06proto3')
 )
 
 
@@ -103,7 +103,14 @@ _MESSAGE_BATTERY = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='user_data', full_name='rbk.protocol.Message_Battery.user_data', index=10,
+      name='errorCode', full_name='rbk.protocol.Message_Battery.errorCode', index=10,
+      number=11, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='user_data', full_name='rbk.protocol.Message_Battery.user_data', index=11,
       number=30, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
@@ -122,7 +129,7 @@ _MESSAGE_BATTERY = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=40,
-  serialized_end=302,
+  serialized_end=321,
 )
 
 DESCRIPTOR.message_types_by_name['Message_Battery'] = _MESSAGE_BATTERY
