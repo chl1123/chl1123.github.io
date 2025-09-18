@@ -1,5 +1,5 @@
-from abc import ABC
-from typing import Any
+import json
+from typing import Any, List, Dict
 
 from syspy.core.rbk_rpc import default_plugin, call_service
 from syspy.lib.robot_param import RobotParamInterface
@@ -82,3 +82,43 @@ class RobotParamV3(RobotParamInterface):
             str:
         """
         pass
+
+    def getCloneValues(self, name: str, param_path: str, clone_keys: List[str]) -> List[Dict[str, Any]]:
+        param_size = self.getConfigCloneSize(name, param_path)
+        values = []
+        if param_size:
+            for i in range(param_size):
+                values.append(
+                    {
+                        clone_key: self.getConfig(name, f"{param_path}._{i}.{clone_key}")
+                        for clone_key in clone_keys
+                    }
+                )
+        return values
+
+    def getCollisionModel(self) -> Dict[str, List[Dict[str, str]]]:
+        """获取碰撞检测模型"""
+        name = "navigation"
+        param_path = "collisionDetection.collisionModel"
+        clone_keys = ["collisionDevice", "collisionShape"]
+        return {
+            f"{name}.{param_path}": self.getCloneValues(name, param_path, clone_keys)
+        }
+
+    def getDeductModel(self) -> Dict[str, List[Dict[str, Any]]]:
+        """获取扣除模型"""
+        name = "navigation"
+        param_path = "collisionDetection.deductModel"
+        clone_keys = ["deductDevice", "deductShape", "ignoreZ", "zMax", "zMin"]
+        return {
+            f"{name}.{param_path}": self.getCloneValues(name, param_path, clone_keys)
+        }
+
+    def getDoRegion(self) -> Dict[str, List[Dict[str, Any]]]:
+        """获取DO区域"""
+        name = "navigation"
+        param_path = "collisionDetection.doRegion"
+        clone_keys = ["shape", "do", "filterNum"]
+        return {
+            f"{name}.{param_path}": self.getCloneValues(name, param_path, clone_keys)
+        }

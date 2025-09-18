@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any
+from typing import Any, Dict, List
 from syspy.core.rbk_rpc import Service, RBKVersionError
 
 
@@ -73,6 +73,67 @@ class RobotParamInterface(ABC, Service):
 
         Returns:
             str:
+        """
+        raise RBKVersionError()
+
+    def getCollisionModel(self) -> Dict[str, List[Dict[str, str]]]:
+        """获取碰撞检测模型
+
+        Returns:
+            Dict[str, List[Dict[str, str]]]:
+                返回的字典结构：
+
+                - key："navigation.collisionDetection.collisionModel" (str)
+                - value：参数值列表 (List[Dict[str, str]])
+
+                列表的每个元素包含以下字段：
+
+                | 字段名             | 类型  | 含义            |
+                | ----------        | ---- | ---------------|
+                | collisionDevice   | str  | 碰撞检测设备     |
+                | collisionShape    | str  | 碰撞形状        |
+        """
+        raise RBKVersionError()
+
+    def getDeductModel(self) -> Dict[str, List[Dict[str, Any]]]:
+        """获取扣除模型
+
+        Returns:
+            Dict[str, List[Dict[str, Any]]]:
+                返回的字典结构：
+
+                - key："navigation.collisionDetection.deductModel" (str)
+                - value：参数值列表 (List[Dict[str, Any]])
+
+                列表的每个元素包含以下字段：
+
+                | 字段名          | 类型  | 含义                |
+                | ----------    | ---- | ---------------      |
+                | deductDevice  | str  | 扣除设备              |
+                | deductShape   | str  | 扣除形状              |
+                | ignoreZ      | bool  | 激光扣除区域忽略z轴    |
+                | zMax         | float  | 激光扣除区域Z最大值  |
+                | zMin        | float  | 激光扣除区域Z最小值   |
+        """
+        raise RBKVersionError()
+
+    def getDoRegion(self) -> Dict[str, List[Dict[str, Any]]]:
+        """获取DO区域
+
+        Returns:
+            Dict[str, List[Dict[str, Any]]]:
+                返回的字典结构：
+
+                - key："navigation.collisionDetection.doRegion" (str)
+                - value：参数值列表 (List[Dict[str, Any]])
+
+                列表的每个元素包含以下字段：
+
+                | 字段名      | 类型  | 含义           |
+                | ---------- | ---- | --------------|
+                | shape      | str  | 	区域形状     |
+                | do         | str  | 	数字输出    |
+                | filterNum  | int  | 	滤波数量    |
         """
         raise RBKVersionError()
 

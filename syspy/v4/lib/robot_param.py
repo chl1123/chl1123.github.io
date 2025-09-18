@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict, List
 
 from syspy.core.rbk_rpc import default_plugin, call_service
 from syspy.lib.robot_param import RobotParamInterface
@@ -82,45 +82,42 @@ class RobotParamV4(RobotParamInterface):
         """
         pass
 
+    def getCloneValues(self, name: str, param_path: str, clone_keys: List[str]) -> List[Dict[str, Any]]:
+        param_size = self.getConfigCloneSize(name, param_path)
+        values = []
+        if param_size:
+            for i in range(param_size):
+                values.append(
+                    {
+                        clone_key: self.getConfig(name, f"{param_path}._{i}.{clone_key}")
+                        for clone_key in clone_keys
+                    }
+                )
+        return values
 
-if __name__ == '__main__':
-    # getConfig
-    recognitionObject = RobotParam.getConfig("Recognition", "recognitionObject")
-    print(f"default.srec {recognitionObject=}")
-    recognitionObject = RobotParam.getConfig("Recognition", "recognitionObject", "default(1).srec")
-    print(f"default(1).srec {recognitionObject=}")
+    def getCollisionModel(self) -> Dict[str, List[Dict[str, str]]]:
+        """获取碰撞检测模型"""
+        name = "navigation"
+        param_path = "collisionDetection.collisionModel"
+        clone_keys = ["collisionDevice", "collisionShape"]
+        return {
+            f"{name}.{param_path}": self.getCloneValues(name, param_path, clone_keys)
+        }
 
-    goodsHeight = RobotParam.getConfig("Recognition", "recognitionObject.shelf.goodsParameter.goodsHeight")
-    print(f"default.srec {goodsHeight=}")
-    goodsHeight = RobotParam.getConfig("Recognition", "recognitionObject.shelf.goodsParameter.goodsHeight", "default(1).srec")
-    print(f"default(1).srec {goodsHeight=}")
+    def getDeductModel(self) -> Dict[str, List[Dict[str, Any]]]:
+        """获取扣除模型"""
+        name = "navigation"
+        param_path = "collisionDetection.deductModel"
+        clone_keys = ["deductDevice", "deductShape", "ignoreZ", "zMax", "zMin"]
+        return {
+            f"{name}.{param_path}": self.getCloneValues(name, param_path, clone_keys)
+        }
 
-    stopConfidenceThd = RobotParam.getConfig("Localization", "localizationType.2D.stopConfidenceThd")
-    print(f"{stopConfidenceThd=}")
-
-    # config clone
-    recognitionSide_key = "recognitionObject.charger.recognitionSide"
-    recognitionSide_size = RobotParam.getConfigCloneSize("Recognition", recognitionSide_key, "default.srec")
-    print(f"{recognitionSide_size=}")
-
-    for i in range(recognitionSide_size):
-        r_value = RobotParam.getConfig("Recognition", f"{recognitionSide_key}._{i}", "default.srec")
-        print(f"{recognitionSide_key}._{i}={r_value}")
-        d_value = RobotParam.getConfig("Recognition", f"{recognitionSide_key}._{i}.{r_value}.deviceName", "default.srec")
-        print(f"{recognitionSide_key}._{i}.{r_value}.deviceName={d_value}")
-
-    # getDevice
-    moduleType = RobotParam.getDevice("Model-000", "moduleType")
-    print(f"{moduleType=}")
-    liftMotor = RobotParam.getDevice("Model-000", "moduleType.liftFork.liftMotor")
-    print(f"{liftMotor=}")
-    x = RobotParam.getDevice("Model-000", "moduleType.liftFork.installPosition.x")
-    print(f"{x=}")
-
-    # device clone
-    liftFork_id_key = "moduleType.liftFork.id"
-    liftFork_id_size = RobotParam.getDeviceCloneSize("Model-000", liftFork_id_key)
-    print(f"{liftFork_id_size=}")
-    for i in range(liftFork_id_size):
-        liftFork_id = RobotParam.getDevice("Model-000", f"{liftFork_id_key}._{i}")
-        print(f"liftFork.id._{i}={liftFork_id}")
+    def getDoRegion(self) -> Dict[str, List[Dict[str, Any]]]:
+        """获取DO区域"""
+        name = "navigation"
+        param_path = "collisionDetection.doRegion"
+        clone_keys = ["shape", "do", "filterNum"]
+        return {
+            f"{name}.{param_path}": self.getCloneValues(name, param_path, clone_keys)
+        }
