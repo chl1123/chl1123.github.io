@@ -1,7 +1,6 @@
-import json
 import math
 import typing
-from typing import Tuple
+from typing import Tuple, List
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
@@ -648,6 +647,30 @@ class NavigationV3(NavigationInterface):
             return cls.client().call_service("MoveFactory", "getClearRegionInRobotFrame")
         elif coordinate == Coordinate.WORLD:
             return cls.client().call_service("MoveFactory", "getClearRegionInMapFrame")
+
+    @classmethod
+    def collisionDetection(cls, device_keys: List[str], x: List[float], y: List[float]) -> bool:
+        """检测指定传感器设备与指定机器人坐标系下的区域是否发生碰撞
+
+        Args:
+            device_keys (List[str]): 参与碰撞检测的传感器（支持相机、激光、距离传感器）列表。（如["Laser-000", "Camera-001"]表示使用key为"Laser-000", "Camera-001"的传感器）
+            x (List[float]): 区域顶点的x坐标列表。
+            y (List[float]): 区域顶点的y坐标列表。
+
+        Returns:
+            bool: 碰撞检测结果。发生碰撞返回True，未碰撞返回False
+
+        Raises:
+            ValueError: device_keys只支持"Laser"、"Camera"和"DistanceSensor"
+        """
+        if not device_keys:
+            raise ValueError("collisionDetection method param cannot be empty")
+
+        supported_prefixes = ("Laser", "Camera", "DistanceSensor")
+        if any(not key.startswith(supported_prefixes) for key in device_keys):
+            raise ValueError("collisionDetection method param only support 'Laser', 'Camera', 'DistanceSensor'")
+
+        return cls.client().call_service("MoveFactory", "collisionDetection", device_keys, x, y)
 
 
 @default_plugin("MoveFactory")
