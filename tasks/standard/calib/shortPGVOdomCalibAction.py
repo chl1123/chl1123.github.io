@@ -152,6 +152,7 @@ class CalibMove:
     def Cancel(self):
         print("cancel!!!")
         self.cancel = True
+        Navigation.resetGoPGV()
 
 def main():
     calib_move = CalibMove()
@@ -166,8 +167,10 @@ def main():
             return
         if calib_move.status == ScriptStatus.FAILED:
             Module.set_status(ScriptStatus.FAILED)
+            calib_move.Cancel()
             return
         if calib_move.cancel:
+            Module.set_status(ScriptStatus.FAILED)
             return
 
 if __name__ == '__main__':
