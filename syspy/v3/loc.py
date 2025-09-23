@@ -54,11 +54,10 @@ class LocV3(LocInterface):
 
         Returns:
             int: 返回定位状态值：
-                - 0为更新配置中
-                - 1为更新地图中
-                - 2为等待传感器数据中
-                - 3为重定位中
-                - 4为定位中
+                - 0：未初始化
+                - 1：重定位成功
+                - 2：重定位中
+                - 3：地图载入中
         """
         if self.update():
             return self.data.loc_state
