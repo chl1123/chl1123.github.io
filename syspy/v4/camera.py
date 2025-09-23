@@ -11,7 +11,7 @@ class CameraV4(Message):
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
             # todo RBK4: 增加Bin proto
-            from syspy.v4.include.protocol.messageV4_3dcameradata_pb2 import MessageV4_CameraData
+            from syspy.v4.protobuf.message.messageV4_3dcameradata_pb2 import MessageV4_CameraData
             cls._MODEL_CLASS = MessageV4_CameraData
 
     @call_service(plugin_name="Perception")

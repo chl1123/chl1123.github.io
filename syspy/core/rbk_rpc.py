@@ -57,7 +57,7 @@ class V3RpcClient(RpcClient):
 
 class V4RpcClient(RpcClient):
     def __init__(self):
-        from ..v4.include.rbk import datapool, service
+        from ..v4.lib.rbk import datapool, service
         self.datapool = datapool
         self.service = service
 

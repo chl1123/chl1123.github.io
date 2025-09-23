@@ -6,7 +6,7 @@ from syspy.motor import MotorInterface
 from syspy import NavSpeed
 
 if typing.TYPE_CHECKING:
-    from .include.protocol.messageV4_movetask_pb2 import MessageV4_MInfo as Message_MotorInfo
+    from syspy.v4.protobuf.message.messageV4_movetask_pb2 import MessageV4_MInfo as Message_MotorInfo
 
 
 @default_plugin("Navigation")  # todo RBK4
@@ -19,7 +19,7 @@ class MotorV4(MotorInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .include.protocol.messageV4_movetask_pb2 import MessageV4_Odo
+            from syspy.v4.protobuf.message.messageV4_movetask_pb2 import MessageV4_Odo
             cls._MODEL_CLASS = MessageV4_Odo
 
     def get_motor_infos(self) -> List["Message_MotorInfo"]:

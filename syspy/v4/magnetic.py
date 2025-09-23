@@ -11,7 +11,7 @@ class MagneticV4(MagneticInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .include.protocol.messageV4_magnetic_pb2 import MessageV4_Magnetic
+            from syspy.v4.protobuf.message.messageV4_magnetic_pb2 import MessageV4_Magnetic
             cls._MODEL_CLASS = MessageV4_Magnetic
 
     def get_magnetics(self) -> typing.List["MessageV4_MagneticNode"]:

@@ -681,7 +681,7 @@ class NavStatusV4(NavStatusInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .include.protocol.messageV4_movetask_pb2 import MessageV4_MoveStatus
+            from .protobuf.message.messageV4_movetask_pb2 import MessageV4_MoveStatus
             cls._MODEL_CLASS = MessageV4_MoveStatus
 
     @classmethod
@@ -743,7 +743,7 @@ class NavSpeedV4(NavSpeedInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .include.protocol.messageV4_navigation_pb2 import MessageV4_NavSpeed
+            from .protobuf.message.messageV4_navigation_pb2 import MessageV4_NavSpeed
             cls._MODEL_CLASS = MessageV4_NavSpeed
 
     def get_speeds(self) -> Tuple[float, float, float]:

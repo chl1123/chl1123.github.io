@@ -1,0 +1,989 @@
+import sys
+
+_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf import reflection as _reflection
+from google.protobuf import symbol_database as _symbol_database
+
+_sym_db = _symbol_database.Default()
+from . import messageV4_header_pb2 as messageV4__header__pb2
+
+DESCRIPTOR = _descriptor.FileDescriptor(
+    name="messageV4_debug.proto",
+    package="rbk4.protocol",
+    syntax="proto3",
+    serialized_options=None,
+    serialized_pb=_b(
+        '\n\x15messageV4_debug.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"9\n\x12MessageV4_DebugPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01"J\n\x16MessageV4_DebugPosList\x120\n\x05poses\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_DebugPos"w\n\x13MessageV4_DebugLine\x120\n\x05start\x18\x01 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12.\n\x03end\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos"L\n\x17MessageV4_DebugLineList\x121\n\x05lines\x18\x01 \x03(\x0b2".rbk4.protocol.MessageV4_DebugLine"y\n\x14MessageV4_ColorPoint\x12\x0f\n\x07color_r\x18\x01 \x01(\x05\x12\x0f\n\x07color_g\x18\x02 \x01(\x05\x12\x0f\n\x07color_b\x18\x03 \x01(\x05\x12.\n\x03pos\x18\x04 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos"U\n\x18MessageV4_ColorPointList\x129\n\x0ccolor_points\x18\x01 \x03(\x0b2#.rbk4.protocol.MessageV4_ColorPoint"ª\x01\n\x13MessageV4_ColorLine\x120\n\x05start\x18\x01 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12.\n\x03end\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12\x0f\n\x07color_r\x18\x03 \x01(\x05\x12\x0f\n\x07color_g\x18\x04 \x01(\x05\x12\x0f\n\x07color_b\x18\x05 \x01(\x05"R\n\x17MessageV4_ColorLineList\x127\n\x0bcolor_lines\x18\x01 \x03(\x0b2".rbk4.protocol.MessageV4_ColorLine"\x80\x07\n\x0fMessageV4_Debug\x12\r\n\x05title\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\x05\x12\x0e\n\x06radius\x18\x03 \x01(\x01\x120\n\x04line\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_DebugLine\x129\n\tline_list\x18\x05 \x01(\x0b2&.rbk4.protocol.MessageV4_DebugLineList\x121\n\x06center\x18\x06 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12\x0e\n\x06length\x18\x07 \x01(\x01\x12\r\n\x05width\x18\x08 \x01(\x01\x12\r\n\x05color\x18\t \x01(\x05\x12\x12\n\nline_width\x18\n \x01(\x05\x12\x0c\n\x04text\x18\x0b \x01(\t\x127\n\x08pos_list\x18\x0c \x01(\x0b2%.rbk4.protocol.MessageV4_DebugPosList\x12A\n\x10color_point_list\x18\r \x01(\x0b2\'.rbk4.protocol.MessageV4_ColorPointList\x12?\n\x0fcolor_line_list\x18\x0e \x01(\x0b2&.rbk4.protocol.MessageV4_ColorLineList\x12/\n\x06header\x18\x0f \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"\xad\x01\n\x04TYPE\x12\r\n\tTYPE_NULL\x10\x00\x12\t\n\x05CROSS\x10\x01\x12\n\n\x06CIRCLE\x10\x02\x12\x08\n\x04LINE\x10\x03\x12\x08\n\x04RECT\x10\x04\x12\x07\n\x03POS\x10\x05\x12\x08\n\x04TEXT\x10\x06\x12\x0e\n\nCIRCLELIST\x10\x07\x12\x0c\n\x08LINELIST\x10\x08\x12\x0b\n\x07POSLIST\x10\t\x12\x08\n\x04PATH\x10\n\x12\x10\n\x0cCOLORPOSLIST\x10\x0b\x12\x11\n\rCOLORLINELIST\x10\x0c"±\x01\n\x05COLOR\x12\x0e\n\nCOLOR_NULL\x10\x00\x12\t\n\x05BLACK\x10\x02\x12\t\n\x05WHITE\x10\x03\x12\x0c\n\x08DARKGRAY\x10\x04\x12\x08\n\x04GRAY\x10\x05\x12\r\n\tLIGHTGRAY\x10\x06\x12\x07\n\x03RED\x10\x07\x12\t\n\x05GREEN\x10\x08\x12\x08\n\x04BLUE\x10\t\x12\x08\n\x04CYAN\x10\n\x12\x0b\n\x07MAGENTA\x10\x0b\x12\n\n\x06YELLOW\x10\x0c\x12\x0b\n\x07DARKRED\x10\r\x12\r\n\tDARKGREEN\x10\x0eb\x06proto3'
+    ),
+    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+)
+_MESSAGEV4_DEBUG_TYPE = _descriptor.EnumDescriptor(
+    name="TYPE",
+    full_name="rbk4.protocol.MessageV4_Debug.TYPE",
+    filename=None,
+    file=DESCRIPTOR,
+    values=[
+        _descriptor.EnumValueDescriptor(
+            name="TYPE_NULL", index=0, number=0, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="CROSS", index=1, number=1, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="CIRCLE", index=2, number=2, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="LINE", index=3, number=3, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="RECT", index=4, number=4, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="POS", index=5, number=5, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="TEXT", index=6, number=6, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="CIRCLELIST", index=7, number=7, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="LINELIST", index=8, number=8, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="POSLIST", index=9, number=9, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="PATH", index=10, number=10, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="COLORPOSLIST", index=11, number=11, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="COLORLINELIST",
+            index=12,
+            number=12,
+            serialized_options=None,
+            type=None,
+        ),
+    ],
+    containing_type=None,
+    serialized_options=None,
+    serialized_start=1409,
+    serialized_end=1582,
+)
+_sym_db.RegisterEnumDescriptor(_MESSAGEV4_DEBUG_TYPE)
+_MESSAGEV4_DEBUG_COLOR = _descriptor.EnumDescriptor(
+    name="COLOR",
+    full_name="rbk4.protocol.MessageV4_Debug.COLOR",
+    filename=None,
+    file=DESCRIPTOR,
+    values=[
+        _descriptor.EnumValueDescriptor(
+            name="COLOR_NULL", index=0, number=0, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="BLACK", index=1, number=2, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="WHITE", index=2, number=3, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="DARKGRAY", index=3, number=4, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="GRAY", index=4, number=5, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="LIGHTGRAY", index=5, number=6, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="RED", index=6, number=7, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="GREEN", index=7, number=8, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="BLUE", index=8, number=9, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="CYAN", index=9, number=10, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="MAGENTA", index=10, number=11, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="YELLOW", index=11, number=12, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="DARKRED", index=12, number=13, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="DARKGREEN", index=13, number=14, serialized_options=None, type=None
+        ),
+    ],
+    containing_type=None,
+    serialized_options=None,
+    serialized_start=1585,
+    serialized_end=1762,
+)
+_sym_db.RegisterEnumDescriptor(_MESSAGEV4_DEBUG_COLOR)
+_MESSAGEV4_DEBUGPOS = _descriptor.Descriptor(
+    name="MessageV4_DebugPos",
+    full_name="rbk4.protocol.MessageV4_DebugPos",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="x",
+            full_name="rbk4.protocol.MessageV4_DebugPos.x",
+            index=0,
+            number=1,
+            type=1,
+            cpp_type=5,
+            label=1,
+            has_default_value=False,
+            default_value=float(0),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="y",
+            full_name="rbk4.protocol.MessageV4_DebugPos.y",
+            index=1,
+            number=2,
+            type=1,
+            cpp_type=5,
+            label=1,
+            has_default_value=False,
+            default_value=float(0),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="angle",
+            full_name="rbk4.protocol.MessageV4_DebugPos.angle",
+            index=2,
+            number=3,
+            type=1,
+            cpp_type=5,
+            label=1,
+            has_default_value=False,
+            default_value=float(0),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=64,
+    serialized_end=121,
+)
+_MESSAGEV4_DEBUGPOSLIST = _descriptor.Descriptor(
+    name="MessageV4_DebugPosList",
+    full_name="rbk4.protocol.MessageV4_DebugPosList",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="poses",
+            full_name="rbk4.protocol.MessageV4_DebugPosList.poses",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=123,
+    serialized_end=197,
+)
+_MESSAGEV4_DEBUGLINE = _descriptor.Descriptor(
+    name="MessageV4_DebugLine",
+    full_name="rbk4.protocol.MessageV4_DebugLine",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="start",
+            full_name="rbk4.protocol.MessageV4_DebugLine.start",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="end",
+            full_name="rbk4.protocol.MessageV4_DebugLine.end",
+            index=1,
+            number=2,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=199,
+    serialized_end=318,
+)
+_MESSAGEV4_DEBUGLINELIST = _descriptor.Descriptor(
+    name="MessageV4_DebugLineList",
+    full_name="rbk4.protocol.MessageV4_DebugLineList",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="lines",
+            full_name="rbk4.protocol.MessageV4_DebugLineList.lines",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=320,
+    serialized_end=396,
+)
+_MESSAGEV4_COLORPOINT = _descriptor.Descriptor(
+    name="MessageV4_ColorPoint",
+    full_name="rbk4.protocol.MessageV4_ColorPoint",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="color_r",
+            full_name="rbk4.protocol.MessageV4_ColorPoint.color_r",
+            index=0,
+            number=1,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="color_g",
+            full_name="rbk4.protocol.MessageV4_ColorPoint.color_g",
+            index=1,
+            number=2,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="color_b",
+            full_name="rbk4.protocol.MessageV4_ColorPoint.color_b",
+            index=2,
+            number=3,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="pos",
+            full_name="rbk4.protocol.MessageV4_ColorPoint.pos",
+            index=3,
+            number=4,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=398,
+    serialized_end=519,
+)
+_MESSAGEV4_COLORPOINTLIST = _descriptor.Descriptor(
+    name="MessageV4_ColorPointList",
+    full_name="rbk4.protocol.MessageV4_ColorPointList",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="color_points",
+            full_name="rbk4.protocol.MessageV4_ColorPointList.color_points",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=521,
+    serialized_end=606,
+)
+_MESSAGEV4_COLORLINE = _descriptor.Descriptor(
+    name="MessageV4_ColorLine",
+    full_name="rbk4.protocol.MessageV4_ColorLine",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="start",
+            full_name="rbk4.protocol.MessageV4_ColorLine.start",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="end",
+            full_name="rbk4.protocol.MessageV4_ColorLine.end",
+            index=1,
+            number=2,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="color_r",
+            full_name="rbk4.protocol.MessageV4_ColorLine.color_r",
+            index=2,
+            number=3,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="color_g",
+            full_name="rbk4.protocol.MessageV4_ColorLine.color_g",
+            index=3,
+            number=4,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="color_b",
+            full_name="rbk4.protocol.MessageV4_ColorLine.color_b",
+            index=4,
+            number=5,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=609,
+    serialized_end=779,
+)
+_MESSAGEV4_COLORLINELIST = _descriptor.Descriptor(
+    name="MessageV4_ColorLineList",
+    full_name="rbk4.protocol.MessageV4_ColorLineList",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="color_lines",
+            full_name="rbk4.protocol.MessageV4_ColorLineList.color_lines",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=781,
+    serialized_end=863,
+)
+_MESSAGEV4_DEBUG = _descriptor.Descriptor(
+    name="MessageV4_Debug",
+    full_name="rbk4.protocol.MessageV4_Debug",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="title",
+            full_name="rbk4.protocol.MessageV4_Debug.title",
+            index=0,
+            number=1,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="type",
+            full_name="rbk4.protocol.MessageV4_Debug.type",
+            index=1,
+            number=2,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="radius",
+            full_name="rbk4.protocol.MessageV4_Debug.radius",
+            index=2,
+            number=3,
+            type=1,
+            cpp_type=5,
+            label=1,
+            has_default_value=False,
+            default_value=float(0),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="line",
+            full_name="rbk4.protocol.MessageV4_Debug.line",
+            index=3,
+            number=4,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="line_list",
+            full_name="rbk4.protocol.MessageV4_Debug.line_list",
+            index=4,
+            number=5,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="center",
+            full_name="rbk4.protocol.MessageV4_Debug.center",
+            index=5,
+            number=6,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="length",
+            full_name="rbk4.protocol.MessageV4_Debug.length",
+            index=6,
+            number=7,
+            type=1,
+            cpp_type=5,
+            label=1,
+            has_default_value=False,
+            default_value=float(0),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="width",
+            full_name="rbk4.protocol.MessageV4_Debug.width",
+            index=7,
+            number=8,
+            type=1,
+            cpp_type=5,
+            label=1,
+            has_default_value=False,
+            default_value=float(0),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="color",
+            full_name="rbk4.protocol.MessageV4_Debug.color",
+            index=8,
+            number=9,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="line_width",
+            full_name="rbk4.protocol.MessageV4_Debug.line_width",
+            index=9,
+            number=10,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="text",
+            full_name="rbk4.protocol.MessageV4_Debug.text",
+            index=10,
+            number=11,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="pos_list",
+            full_name="rbk4.protocol.MessageV4_Debug.pos_list",
+            index=11,
+            number=12,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="color_point_list",
+            full_name="rbk4.protocol.MessageV4_Debug.color_point_list",
+            index=12,
+            number=13,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="color_line_list",
+            full_name="rbk4.protocol.MessageV4_Debug.color_line_list",
+            index=13,
+            number=14,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="header",
+            full_name="rbk4.protocol.MessageV4_Debug.header",
+            index=14,
+            number=15,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[_MESSAGEV4_DEBUG_TYPE, _MESSAGEV4_DEBUG_COLOR],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=866,
+    serialized_end=1762,
+)
+_MESSAGEV4_DEBUGPOSLIST.fields_by_name["poses"].message_type = _MESSAGEV4_DEBUGPOS
+_MESSAGEV4_DEBUGLINE.fields_by_name["start"].message_type = _MESSAGEV4_DEBUGPOS
+_MESSAGEV4_DEBUGLINE.fields_by_name["end"].message_type = _MESSAGEV4_DEBUGPOS
+_MESSAGEV4_DEBUGLINELIST.fields_by_name["lines"].message_type = _MESSAGEV4_DEBUGLINE
+_MESSAGEV4_COLORPOINT.fields_by_name["pos"].message_type = _MESSAGEV4_DEBUGPOS
+_MESSAGEV4_COLORPOINTLIST.fields_by_name["color_points"].message_type = (
+    _MESSAGEV4_COLORPOINT
+)
+_MESSAGEV4_COLORLINE.fields_by_name["start"].message_type = _MESSAGEV4_DEBUGPOS
+_MESSAGEV4_COLORLINE.fields_by_name["end"].message_type = _MESSAGEV4_DEBUGPOS
+_MESSAGEV4_COLORLINELIST.fields_by_name["color_lines"].message_type = (
+    _MESSAGEV4_COLORLINE
+)
+_MESSAGEV4_DEBUG.fields_by_name["line"].message_type = _MESSAGEV4_DEBUGLINE
+_MESSAGEV4_DEBUG.fields_by_name["line_list"].message_type = _MESSAGEV4_DEBUGLINELIST
+_MESSAGEV4_DEBUG.fields_by_name["center"].message_type = _MESSAGEV4_DEBUGPOS
+_MESSAGEV4_DEBUG.fields_by_name["pos_list"].message_type = _MESSAGEV4_DEBUGPOSLIST
+_MESSAGEV4_DEBUG.fields_by_name["color_point_list"].message_type = (
+    _MESSAGEV4_COLORPOINTLIST
+)
+_MESSAGEV4_DEBUG.fields_by_name["color_line_list"].message_type = (
+    _MESSAGEV4_COLORLINELIST
+)
+_MESSAGEV4_DEBUG.fields_by_name["header"].message_type = (
+    messageV4__header__pb2._MESSAGEV4_HEADER
+)
+_MESSAGEV4_DEBUG_TYPE.containing_type = _MESSAGEV4_DEBUG
+_MESSAGEV4_DEBUG_COLOR.containing_type = _MESSAGEV4_DEBUG
+DESCRIPTOR.message_types_by_name["MessageV4_DebugPos"] = _MESSAGEV4_DEBUGPOS
+DESCRIPTOR.message_types_by_name["MessageV4_DebugPosList"] = _MESSAGEV4_DEBUGPOSLIST
+DESCRIPTOR.message_types_by_name["MessageV4_DebugLine"] = _MESSAGEV4_DEBUGLINE
+DESCRIPTOR.message_types_by_name["MessageV4_DebugLineList"] = _MESSAGEV4_DEBUGLINELIST
+DESCRIPTOR.message_types_by_name["MessageV4_ColorPoint"] = _MESSAGEV4_COLORPOINT
+DESCRIPTOR.message_types_by_name["MessageV4_ColorPointList"] = _MESSAGEV4_COLORPOINTLIST
+DESCRIPTOR.message_types_by_name["MessageV4_ColorLine"] = _MESSAGEV4_COLORLINE
+DESCRIPTOR.message_types_by_name["MessageV4_ColorLineList"] = _MESSAGEV4_COLORLINELIST
+DESCRIPTOR.message_types_by_name["MessageV4_Debug"] = _MESSAGEV4_DEBUG
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
+MessageV4_DebugPos = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_DebugPos",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_DEBUGPOS, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_DebugPos)
+MessageV4_DebugPosList = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_DebugPosList",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_DEBUGPOSLIST, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_DebugPosList)
+MessageV4_DebugLine = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_DebugLine",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_DEBUGLINE, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_DebugLine)
+MessageV4_DebugLineList = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_DebugLineList",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_DEBUGLINELIST, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_DebugLineList)
+MessageV4_ColorPoint = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_ColorPoint",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_COLORPOINT, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_ColorPoint)
+MessageV4_ColorPointList = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_ColorPointList",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_COLORPOINTLIST, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_ColorPointList)
+MessageV4_ColorLine = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_ColorLine",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_COLORLINE, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_ColorLine)
+MessageV4_ColorLineList = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_ColorLineList",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_COLORLINELIST, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_ColorLineList)
+MessageV4_Debug = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_Debug",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_DEBUG, __module__="messageV4_debug_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_Debug)

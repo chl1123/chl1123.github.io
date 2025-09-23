@@ -1,0 +1,350 @@
+import sys
+
+_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf import reflection as _reflection
+from google.protobuf import symbol_database as _symbol_database
+
+_sym_db = _symbol_database.Default()
+DESCRIPTOR = _descriptor.FileDescriptor(
+    name="messageV4_universal.proto",
+    package="rbk4.protocol",
+    syntax="proto3",
+    serialized_options=None,
+    serialized_pb=_b(
+        '\n\x19messageV4_universal.proto\x12\rrbk4.protocol"\x95\x02\n\x17MessageV4_UniversalData\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x16\n\x0cstring_value\x18\x03 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x04 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x05 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x06 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x07 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\x08 \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\t \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\n \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\x0b \x01(\x0cH\x00B\r\n\x0boneof_value"P\n\x18MessageV4_UniversalDatas\x124\n\x04data\x18\x01 \x03(\x0b2&.rbk4.protocol.MessageV4_UniversalDatab\x06proto3'
+    ),
+)
+_MESSAGEV4_UNIVERSALDATA = _descriptor.Descriptor(
+    name="MessageV4_UniversalData",
+    full_name="rbk4.protocol.MessageV4_UniversalData",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="key",
+            full_name="rbk4.protocol.MessageV4_UniversalData.key",
+            index=0,
+            number=1,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="type",
+            full_name="rbk4.protocol.MessageV4_UniversalData.type",
+            index=1,
+            number=2,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="string_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.string_value",
+            index=2,
+            number=3,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="bool_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.bool_value",
+            index=3,
+            number=4,
+            type=8,
+            cpp_type=7,
+            label=1,
+            has_default_value=False,
+            default_value=False,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="int32_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.int32_value",
+            index=4,
+            number=5,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="uint32_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.uint32_value",
+            index=5,
+            number=6,
+            type=13,
+            cpp_type=3,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="int64_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.int64_value",
+            index=6,
+            number=7,
+            type=3,
+            cpp_type=2,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="uint64_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.uint64_value",
+            index=7,
+            number=8,
+            type=4,
+            cpp_type=4,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="float_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.float_value",
+            index=8,
+            number=9,
+            type=2,
+            cpp_type=6,
+            label=1,
+            has_default_value=False,
+            default_value=float(0),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="double_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.double_value",
+            index=9,
+            number=10,
+            type=1,
+            cpp_type=5,
+            label=1,
+            has_default_value=False,
+            default_value=float(0),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="bytes_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.bytes_value",
+            index=10,
+            number=11,
+            type=12,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b(""),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[
+        _descriptor.OneofDescriptor(
+            name="oneof_value",
+            full_name="rbk4.protocol.MessageV4_UniversalData.oneof_value",
+            index=0,
+            containing_type=None,
+            fields=[],
+        )
+    ],
+    serialized_start=45,
+    serialized_end=322,
+)
+_MESSAGEV4_UNIVERSALDATAS = _descriptor.Descriptor(
+    name="MessageV4_UniversalDatas",
+    full_name="rbk4.protocol.MessageV4_UniversalDatas",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="data",
+            full_name="rbk4.protocol.MessageV4_UniversalDatas.data",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=324,
+    serialized_end=404,
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["string_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["string_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["bool_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["bool_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["int32_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["int32_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["uint32_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["uint32_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["int64_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["int64_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["uint64_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["uint64_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["float_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["float_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["double_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["double_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"].fields.append(
+    _MESSAGEV4_UNIVERSALDATA.fields_by_name["bytes_value"]
+)
+_MESSAGEV4_UNIVERSALDATA.fields_by_name["bytes_value"].containing_oneof = (
+    _MESSAGEV4_UNIVERSALDATA.oneofs_by_name["oneof_value"]
+)
+_MESSAGEV4_UNIVERSALDATAS.fields_by_name["data"].message_type = _MESSAGEV4_UNIVERSALDATA
+DESCRIPTOR.message_types_by_name["MessageV4_UniversalData"] = _MESSAGEV4_UNIVERSALDATA
+DESCRIPTOR.message_types_by_name["MessageV4_UniversalDatas"] = _MESSAGEV4_UNIVERSALDATAS
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
+MessageV4_UniversalData = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_UniversalData",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_UNIVERSALDATA, __module__="messageV4_universal_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_UniversalData)
+MessageV4_UniversalDatas = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_UniversalDatas",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_UNIVERSALDATAS, __module__="messageV4_universal_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_UniversalDatas)

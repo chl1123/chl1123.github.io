@@ -7,7 +7,7 @@ if typing.TYPE_CHECKING:
     if RBK_VERSION == 3:
         from .v3.protobuf import Message_RFIDNode as Message_RFIDNode
     elif RBK_VERSION == 4:
-        from ..include.protocol.messageV4_rfid_pb2 import MessageV4_RFIDNode as Message_RFIDNode
+        from .v4.protobuf.message.messageV4_rfid_pb2 import MessageV4_RFIDNode as Message_RFIDNode
         pass
 
 

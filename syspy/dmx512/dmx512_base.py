@@ -7,7 +7,7 @@ from syspy import RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message import message_dmx512_pb2
 if RBK_VERSION == 4:
-    from syspy.v4.include.protocol import messageV4_dmx512_pb2 as message_dmx512_pb2
+    from syspy.v4.protobuf.message import messageV4_dmx512_pb2 as message_dmx512_pb2
 
 log = logging.getLogger("rbk.script")
 

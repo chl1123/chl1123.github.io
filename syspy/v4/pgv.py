@@ -10,7 +10,7 @@ class PgvV4(PgvInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .include.protocol.messageV4_pgv_pb2 import MessageV4_PGV
+            from syspy.v4.protobuf.message.messageV4_pgv_pb2 import MessageV4_PGV
             cls._MODEL_CLASS = MessageV4_PGV
 
     def get_pgvs(self) -> List["MessageV4_PGV_DMT"]:

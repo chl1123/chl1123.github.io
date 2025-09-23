@@ -8,7 +8,7 @@ if TYPE_CHECKING:
         from .v3.protobuf import Message_PGV_DMT as Message_PGV_DMT
         pass
     elif RBK_VERSION == 4:
-        from ..include.protocol.messageV4_pgv_pb2 import MessageV4_PGV_DMT as Message_PGV_DMT
+        from .v4.protobuf.message.messageV4_pgv_pb2 import MessageV4_PGV_DMT as Message_PGV_DMT
 
 
 class PgvInterface(ABC, Message):

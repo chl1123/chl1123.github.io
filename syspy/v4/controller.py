@@ -9,7 +9,7 @@ class ControllerV4(ControllerInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from syspy.v4.include.protocol.messageV4_controller_pb2 import MessageV4_Controller
+            from syspy.v4.protobuf.message.messageV4_controller_pb2 import MessageV4_Controller
             cls._MODEL_CLASS = MessageV4_Controller
 
     def get_temperature(self) -> float:

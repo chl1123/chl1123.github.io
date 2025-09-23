@@ -8,5 +8,5 @@ class DistanceV4(DistanceInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from syspy.v4.include.protocol.messageV4_sensor_pb2 import MessageV4_DistanceSensor
+            from syspy.v4.protobuf.message.messageV4_sensor_pb2 import MessageV4_DistanceSensor
             cls._MODEL_CLASS = MessageV4_DistanceSensor

@@ -9,7 +9,7 @@ if typing.TYPE_CHECKING:
     if RBK_VERSION == 3:
         from syspy.v3.protobuf import Message_MotorInfo
     elif RBK_VERSION == 4:
-        from v4.include.protocol.messageV4_movetask_pb2 import MessageV4_MInfo as Message_MotorInfo
+        from v4.protobuf.message.messageV4_movetask_pb2 import MessageV4_MInfo as Message_MotorInfo
 
 class MotorInterface(ABC, Message):
     """电机类"""

@@ -12,7 +12,7 @@ class SoundV4(SoundInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .include.protocol.messageV4_sound_pb2 import MessageV4_Sound
+            from syspy.v4.protobuf.message.messageV4_sound_pb2 import MessageV4_Sound
             cls._MODEL_CLASS = MessageV4_Sound
 
     @classmethod

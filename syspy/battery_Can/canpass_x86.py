@@ -5,7 +5,7 @@ from syspy.v3.protobuf.message import CanFrame_pb2
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import Message_Battery
 if RBK_VERSION == 4:
-    from syspy.v4.include.protocol.messageV4_battery_pb2 import MessageV4_Battery  as Message_Battery
+    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as Message_Battery
     # todo RBK4没有CanFrame Message
 
 DEFAULT_PASS_ADDR = "ipc:///tmp/CanPass_udp.ipc"

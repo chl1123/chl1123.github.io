@@ -15,7 +15,7 @@ class OdometerV4(OdometerInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .include.protocol.messageV4_odometer_pb2 import MessageV4_Odometer
+            from syspy.v4.protobuf.message.messageV4_odometer_pb2 import MessageV4_Odometer
             cls._MODEL_CLASS = MessageV4_Odometer
 
     def get_cycle(self) -> int:

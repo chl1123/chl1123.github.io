@@ -11,7 +11,7 @@ class LocV4(LocInterface):
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .include.protocol.message_localization_pb2 import Message_Localization  # 延迟导入
+            from syspy.v4.protobuf.message.message_localization_pb2 import Message_Localization  # 延迟导入
             cls._MODEL_CLASS = Message_Localization
 
     def get_pose(self) -> typing.Dict[str, float]:

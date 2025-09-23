@@ -1,6 +1,6 @@
 from syspy.core.rbk_rpc import Message, RBKVersionError
-from syspy.v4.include.rbk import datapool
-from syspy.v4.include.protocol.messageV4_battery_pb2 import MessageV4_Battery
+from syspy.v4.lib.rbk import datapool
+from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery
 
 class BatteryV4(Message):
     """版本4电池实现"""

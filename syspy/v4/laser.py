@@ -5,7 +5,7 @@ from typing import List
 from syspy.core.rbk_rpc import call_service, Message
 
 if typing.TYPE_CHECKING:
-    from .include.protocol.messageV4_laser_pb2 import MessageV4_Laser, MessageV4_Laser3D
+    from syspy.v4.protobuf.message.messageV4_laser_pb2 import MessageV4_Laser, MessageV4_Laser3D
 
 
 class LaserV4(Message):

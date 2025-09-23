@@ -124,7 +124,7 @@ class Module:
         if name == "":
             cls.script_id = cls.script_name
         if RBK_VERSION == 4:
-            from syspy.v4.include.rbk import core
+            from syspy.v4.lib.rbk import core
             core.Init(cls.script_id)
         print("script_name: ", cls.script_name)
         print("script_id", cls.script_id)
@@ -185,7 +185,7 @@ class Module:
                 service.registerFunction(cls.clear_container, "clearContainer")
             service.start()
         elif RBK_VERSION == 4:
-            from syspy.v4.include.rbk import core, service
+            from syspy.v4.lib.rbk import core, service
             service.addService(cls.script_id, "update_cmd", cls.__update_cmd)
             service.addService(cls.script_id, "suspend", cls.__suspend)
             service.addService(cls.script_id, "resume", cls.__resume)
