@@ -22,40 +22,40 @@ class LaserInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def addDisableLaser(cls, device_name: str):
+    def addDisableLaser(self, device_name: str):
         """禁用激光设备
 
         Args:
             device_name (str): 激光设备名称
         """
-        cls.child.addDisableLaser(device_name)
+        self.child.addDisableLaser(device_name)
 
-    def eraseDisableLaser(cls, device_name: str):
+    def eraseDisableLaser(self, device_name: str):
         """清除已禁用的激光设备
 
         Args:
             device_name (str): 激光设备名称
         """
-        cls.child.eraseDisableLaser(device_name)
+        self.child.eraseDisableLaser(device_name)
 
-    def clearDisableLaserAll(cls):
+    def clearDisableLaserAll(self):
         """清除所有已禁用的激光设备"""
-        cls.child.clearDisableLaserAll()
+        self.child.clearDisableLaserAll()
 
-    def setLaserWidth(cls, device_name: str, width: float):
+    def setLaserWidth(self, device_name: str, width: float):
         """设置激光设备宽度
 
         Args:
             device_name (str): 激光设备名称
             width (float): 屏蔽宽度，此范围外的点云被屏蔽
         """
-        cls.child.setLaserWidth(device_name, width)
+        self.child.setLaserWidth(device_name, width)
 
-    def clearLaserWidth(cls):
+    def clearLaserWidth(self):
         """清除激光设备宽度"""
-        cls.child.clearLaserWidth()
+        self.child.clearLaserWidth()
 
-    def setLaserAngle(cls, device_name: str, min_angle: float, max_angle: float):
+    def setLaserAngle(self, device_name: str, min_angle: float, max_angle: float):
         """设置激光设备角度
 
         Args:
@@ -63,70 +63,73 @@ class LaserInterface:
             min_angle (float): 最小角度（单位：°），小于此角度的点云被屏蔽
             max_angle (float): 最大角度（单位：°），大于此角度的点云被屏蔽
         """
-        cls.child.setLaserAngle(device_name, min_angle, max_angle)
+        self.child.setLaserAngle(device_name, min_angle, max_angle)
 
-    def clearLaserAngle(cls):
+    def clearLaserAngle(self):
         """清除激光设备角度"""
-        cls.child.clearLaserAngle()
+        self.child.clearLaserAngle()
 
-    def addDisableDepthCamera(cls, device_name: str):
+    def addDisableDepthCamera(self, device_name: str):
         """禁用深度相机
 
         Args:
             device_name (str): 深度相机名称
         """
-        cls.child.addDisableDepthCamera(device_name)
+        self.child.addDisableDepthCamera(device_name)
 
-    def eraseDisableDepthCamera(cls, device_name: str):
+    def eraseDisableDepthCamera(self, device_name: str):
         """清除已禁用的深度相机
 
         Args:
             device_name (str): 深度相机名称
         """
-        cls.child.eraseDisableDepthCamera(device_name)
+        self.child.eraseDisableDepthCamera(device_name)
 
-    def clearDisableDepthCameraAll(cls):
+    def clearDisableDepthCameraAll(self):
         """清除所有已禁用的深度相机"""
-        cls.child.clearDisableDepthCameraAll()
+        self.child.clearDisableDepthCameraAll()
 
     #----------------------------------------------------#
 
 
-    def sensorPointCloud(cls) -> dict:
+    def sensorPointCloud(self) -> dict:
         """获得后视激光点云信息以字典类型返回
 
         Returns:
             dict: 具体的任务信息
         """
-        return cls.child.sensorPointCloud()
+        return self.child.sensorPointCloud()
 
-    def getNearestLaserPoint(cls, laser_id: int) -> List[float]:
+    def getNearestLaserPoint(self, laser_key: str) -> List[float]:
         """获取与指定激光距离最近的激光点与激光中心的距离和朝向
 
         Args:
-            laser_id (int): 激光 id 号
+            laser_key (str): 激光设备的key
 
         Returns:
             List[float]: 最近激光点与激光中心的距离、最近激光点与激光中心的夹角
         """
-        return cls.child.getNearestLaserPoint(laser_id)
+        return self.child.getNearestLaserPoint(laser_key)
 
-    def safeLaserMuteStatus(cls) -> str:
-        """
-
-        Returns:
-            str:
-        """
-        return cls.child.safeLaserMuteStatus()
-
-    def setSafeLaserMute(cls, id: int, enable: bool):
-        """
+    def safeLaserMuteStatus(self, laser_key: str) -> int:
+        """获取激光抑制状态
 
         Args:
-            id:
-            enable:
+            laser_key (str)：激光设备的key。
+
+        Returns:
+            int: 激光状态，1表示启用，0表示禁用
         """
-        cls.child.setSafeLaserMute(id, enable)
+        return self.child.safeLaserMuteStatus(laser_key)
+
+    def setSafeLaserMute(self, laser_key: str, enable: bool):
+        """设置激光抑制(muting)
+
+        Args:
+            laser_key (str)：激光设备的key。""表示选择全部激光。
+            enable (int)：表示是否启用激光muting，true启用，false禁用
+        """
+        self.child.setSafeLaserMute(laser_key, enable)
 
 
 class Laser3DInterface:
@@ -142,13 +145,13 @@ class Laser3DInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def get_lasers3d(cls) -> List["Message_Laser3D"]:
+    def get_lasers3d(self) -> List["Message_Laser3D"]:
         """获取所有3D激光数据列表
 
         Returns:
             List[Message_Laser3D]: 返回所有3D激光数据的列表
         """
-        return cls.child.get_lasers3d()
+        return self.child.get_lasers3d()
 
 Laser: LaserInterface = LaserInterface()
 Laser3D: Laser3DInterface = Laser3DInterface()

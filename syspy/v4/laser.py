@@ -124,11 +124,11 @@ class LaserV4(Message):
 
     @classmethod
     @call_service(plugin_name="MoveFactory")  # todo RBK4 App名
-    def getNearestLaserPoint(cls, laser_id: int) -> List[float]:
+    def getNearestLaserPoint(cls, laser_key: str) -> List[float]:
         """获取与指定激光距离最近的激光点与激光中心的距离和朝向
 
         Args:
-            laser_id (int): 激光 id 号
+            laser_key (str): 激光设备的key
 
         Returns:
             List[float]: 最近激光点与激光中心的距离、最近激光点与激光中心的夹角
@@ -136,23 +136,26 @@ class LaserV4(Message):
         pass
 
     @classmethod
-    @call_service(plugin_name="MoveFactory")  # todo RBK4 App名
-    def safeLaserMuteStatus(cls) -> str:
-        """
+    @call_service(plugin_name="DSPChassis")  # todo RBK4 App名
+    def safeLaserMuteStatus(cls, laser_key: str) -> int:
+        """获取激光抑制状态
+
+        Args:
+            laser_key (str)：激光设备的key。
 
         Returns:
-            str:
+            int: 激光状态，1表示启用，0表示禁用
         """
         pass
 
     @classmethod
     @call_service(plugin_name="MoveFactory")  # todo RBK4 App名
-    def setSafeLaserMute(cls, id: int, enable: bool):
-        """
+    def setSafeLaserMute(cls, laser_key: str, enable: bool):
+        """设置激光抑制(muting)
 
         Args:
-            id:
-            enable:
+            laser_key (str)：激光设备的key。""表示选择全部激光。
+            enable (int)：表示是否启用激光muting，true启用，false禁用
         """
         pass
 

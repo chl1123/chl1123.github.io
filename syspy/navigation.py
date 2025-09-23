@@ -218,14 +218,14 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setBlockReason(cls, collision_type: int, x: float, y: float, id: int):
+    def setBlockReason(cls, collision_type: int, x: float, y: float, key: str):
         """设置阻挡原因
 
         Args:
-            collision_type (int): 阻挡原因见rbk.py脚本中的CollisionType类
+            collision_type (int): 阻挡原因见syspy/lib/module.py脚本中的CollisionType类
             x (float): 障碍物位置
             y (float): 障碍物位置
-            id (float): 障碍物id
+            key (str): 障碍物key
         """
         raise RBKVersionError()
 
@@ -424,12 +424,12 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setSafeOssdSwitch(cls, id: int, ossdRegion: int):
-        """
+    def setSafeOssdSwitch(cls, laser_key: str, ossdRegion: int):
+        """设置OSSD区域组切换
 
         Args:
-            id:
-            ossdRegion:
+            laser_key (str)：激光设备的key。
+            ossdRegion (int)：表示需要切换到的OSSD区域组，0代表未载货或者载小货，1代表已载货或者载大货
         """
         raise RBKVersionError()
 
