@@ -1,8 +1,4 @@
-import os.path
-import sys
 from .pymodule import PyModule
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../")
 
 
 def canTransformStatic(target_frame, source_frame, time_sec):
