@@ -128,7 +128,7 @@ class BatteryInterface:
         """
         return self.child.publish(battery_info, topic=topic)
 
-    def getCanPort(self, *, topic: str = "Battery-000") -> int:
+    def getCanPort(self, *, topic: str = "Battery-000") -> str:
         """获取CAN端口
 
         Returns:

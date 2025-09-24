@@ -136,7 +136,7 @@ class BatteryV3(Message):
         """
         return self.client().call_service("DSPChassis", "publishBattery", battery_info)
     
-    def getCanPort(self, *, topic: str = "Battery-000") -> int:
+    def getCanPort(self, *, topic: str = "Battery-000") -> str:
         """获取CAN端口
 
         Returns:

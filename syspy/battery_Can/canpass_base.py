@@ -86,6 +86,7 @@ class canPassBase:
         log.info(f"{srcname=}, {ports=}")
 
         port = Battery.getCanPort()
+        port = int(port.replace("port","")) # "port1" ---> 1 "port2"---> 2
         log.info(f"{port=}")
         if port in (1, 2, 3):
             selected_port = ports[port - 1]  # 根据端口号获取对应的端口
