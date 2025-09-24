@@ -428,7 +428,7 @@ class NavigationInterface(ABC, Service):
         """设置OSSD区域组切换
 
         Args:
-            laser_key (str)：激光设备的key。
+            laser_key (str)：激光设备的key。""表示选择全部激光。
             ossdRegion (int)：表示需要切换到的OSSD区域组，0代表未载货或者载小货，1代表已载货或者载大货
         """
         raise RBKVersionError()
