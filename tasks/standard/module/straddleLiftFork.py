@@ -17,7 +17,7 @@ from typing import Optional
 from syspy.lib.net_protocol import parse_modbus
 from syspy.utils import Coordinate
 from syspy.utils.time import Timer
-from syspy import NavSpeed, Controller
+from syspy import NavSpeed, Controller, NavStatus
 from syspy.script_data import ScriptData
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
 from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
@@ -307,7 +307,7 @@ class InputParams:
                     with builder.CHILD(key="forkSpeed", name="Fork Speed", desc="fork lift speed"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.SINGLESTEP(0.01)
-                        builder.REQUIRED(True)
+                        # builder.REQUIRED(True)
                         builder.DEFAULTVALUE(ConfigParams.fork_max_speed)
 
                 with builder.CHILD(key="rec", name="Rec", desc="Rec the pallet"):
@@ -344,16 +344,37 @@ def float32_to_regs(value: float):
     word2 = int.from_bytes(raw[:2], "big")  # 高地址寄存器 = 高 16 位
     return [word1, word2]
 
+#
+# def float_to_modbus_little_byte_swap(value: float):
+#     """
+#     将 float 转换为 Modbus Poll 使用的寄存器顺序（Little-endian + byte swap）
+#     """
+#     packed = struct.pack('<f', value)  # float32 小端
+#     # 小端打包后是 [b0, b1, b2, b3] → 我们要按照 [b3, b2, b1, b0] 排序后组成两个寄存器
+#     byte3, byte2, byte1, byte0 = packed[3], packed[2], packed[1], packed[0]
+#     reg1 = (byte3 << 8) + byte2
+#     reg2 = (byte1 << 8) + byte0
+#     print(f"float32值: {value:.6f} → [reg1, reg2] = [{reg1}, {reg2}]")
+#     return [reg1, reg2]
 
-def float_to_modbus_little_byte_swap(value: float):
+
+def float_to_modbus_poll_regs(value: float):
     """
-    将 float 转成 Modbus 32位浮点 (Little-endian + byte swap)
-    返回寄存器列表 [reg1, reg2]
+    将 float 数值转换为两个 uint16 的 Modbus Poll 寄存器值，符合小端序（B0 B1 B2 B3 → reg1 = B3B2, reg2 = B1B0）
     """
-    packed = struct.pack('<f', value)  # 小端 float32
-    reg1 = int.from_bytes(packed[0:2], byteorder='big')
-    reg2 = int.from_bytes(packed[2:4], byteorder='big')
+    # 强制 float32 精度（模拟 numpy.float32）
+    value = struct.unpack('<f', struct.pack('<f', value))[0]
+
+    # 打包为小端 float32，结果是字节数组 [B0, B1, B2, B3]
+    packed = struct.pack('<f', value)
+    b0, b1, b2, b3 = packed
+
+    # 拼成两个 uint16 寄存器，顺序为：reg1 = B3B2，reg2 = B1B0
+    reg1 = (b1 << 8) + b0
+    reg2 = (b3 << 8) + b2
+
     return [reg1, reg2]
+
 
 
 def delete_deduct_area(names, coordinate):
@@ -375,7 +396,7 @@ def set_deduct_area(area_infos, base_pos, prefix: str, coordinate):
     """
     扣除栈板相关的内容，区域名称以PalletWorldDeductArea[idx]命名
     """
-    for info_idx,area_info in area_infos:
+    for info_idx, area_info in area_infos:
         for idx, area in enumerate(area_info["area"], start=1):
             x_coords, y_coords = [], []
             for x, y in zip(area["x_list"], area["y_list"]):
@@ -574,6 +595,11 @@ class Fork(ModuleBase):
                              {"x": -ConfigParams.tail, "y": self.outer},
                              {"x": -ConfigParams.tail, "y": self.inner},
                              {"x": ConfigParams.module_x, "y": self.inner}]
+
+        self.fork_points = [{"x": ConfigParams.module_x - 0.05, "y": ConfigParams.width / 2},
+                            {"x": -ConfigParams.tail, "y": ConfigParams.width / 2},
+                            {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2},
+                            {"x": ConfigParams.module_x - 0.05, "y": -ConfigParams.width / 2}]
         self.carrier_shape = []
         self.goods_shape = []
         self.check_di = True
@@ -669,21 +695,13 @@ class Fork(ModuleBase):
         # modbus解析器
 
         # 读取数据
-        operation = None
-        operation_int = NetProtocol.getModbusData("4x", 200, 1)
-        if operation_int == 1:
-            operation = "forkHeight"
+        if NetProtocol.getModbusData("4x", 200, 1):
 
-        modbus_data = NetProtocol.getModbusData("4x", 201, 2)
-        data = parse_modbus(modbus_data, "float")
-
-        print(f"operation:{operation_int}, modbus_data:{modbus_data},fork height:{data}")
-
-        regs = float32_to_regs(-1.0)
-        NetProtocol.setModbusData("4x", 13, regs)
-        args = {"operation": operation, "forkHeight": data}
-        self.event_modbus = False
-        return args
+            modbus_data = NetProtocol.getModbusData("4x", 201, 2)
+            data = parse_modbus(modbus_data, "float")
+            args = {"operation": "forkHeight", "forkHeight": data}
+            self.event_modbus = False
+            return args
 
     def to_float32_little(self, data):
         """
@@ -722,8 +740,8 @@ class Fork(ModuleBase):
             return pos
 
     def test(self):
-        delete_deduct_area([],Coordinate.ROBOT)
-        delete_deduct_area([],Coordinate.WORLD)
+        delete_deduct_area([], Coordinate.ROBOT)
+        delete_deduct_area([], Coordinate.WORLD)
         self.set_fork_region_by_height = False
         time.sleep(1)
         self.script_status = ScriptStatus.FINISHED
@@ -750,18 +768,18 @@ class Fork(ModuleBase):
             if not self.recognize:
                 self.check_di = ConfigParams.enable_contact_di_no_rec
 
-            # if self.do_fork:
-            #     self.action_list = [
-            #         RunMotorByDOInterlock("down", ConfigParams.pump_do, ConfigParams.leak_do,
-            #                               ConfigParams.up_di_dofork, ConfigParams.down_di_dofork,
-            #                               ConfigParams.up_delay_time, ConfigParams.down_delay_time),
-            #         GoPathWithContactDi(ConfigParams.contact_ids_str, self.target_pos, None, "goPath",
-            #                             {"fork_di_dist": ConfigParams.fork_di_dist}, self.check_di),
-            #         RunMotorByDOInterlock("up", ConfigParams.pump_do, ConfigParams.leak_do,
-            #                               ConfigParams.up_di_dofork, ConfigParams.down_di_dofork,
-            #                               ConfigParams.up_delay_time, ConfigParams.down_delay_time),
-            #     ]
-            # else:
+                # if self.do_fork:
+                #     self.action_list = [
+                #         RunMotorByDOInterlock("down", ConfigParams.pump_do, ConfigParams.leak_do,
+                #                               ConfigParams.up_di_dofork, ConfigParams.down_di_dofork,
+                #                               ConfigParams.up_delay_time, ConfigParams.down_delay_time),
+                #         GoPathWithContactDi(ConfigParams.contact_ids_str, self.target_pos, None, "goPath",
+                #                             {"fork_di_dist": ConfigParams.fork_di_dist}, self.check_di),
+                #         RunMotorByDOInterlock("up", ConfigParams.pump_do, ConfigParams.leak_do,
+                #                               ConfigParams.up_di_dofork, ConfigParams.down_di_dofork,
+                #                               ConfigParams.up_delay_time, ConfigParams.down_delay_time),
+                #     ]
+                # else:
                 if not self.target_pos or self.target_pos[3] == -1:
                     self.action_list = [
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
@@ -782,7 +800,7 @@ class Fork(ModuleBase):
                     deduct2world = []
                     for point in deduct2ap:
                         point2ap = Pos2World([point["x"], point["y"], 0],
-                                             [self.target_pos[0],self.target_pos[1],self.target_pos[2]])
+                                             [self.target_pos[0], self.target_pos[1], self.target_pos[2]])
                         deduct2world.append({"x": point2ap[0], "y": point2ap[1]})
                     Navigation.setClearRegion("noRecDeduct2World", [p["x"] for p in deduct2world],
                                               [p["y"] for p in deduct2world],
@@ -1059,7 +1077,7 @@ class Fork(ModuleBase):
         self.end_height = self.task_args.get("endHeight", 0.2)
         self.recognize = self.task_args.get("recognize")
         self.forkHeight = self.task_args.get("forkHeight")
-        self.forkSpeed = self.task_args.get("forkSpeed")
+        self.forkSpeed = self.task_args.get("forkSpeed", ConfigParams.fork_max_speed)
         self.recSide = self.task_args.get("recSide")
 
         # 解析识别文件
@@ -1174,31 +1192,40 @@ class Fork(ModuleBase):
         Trace.chart(self.trace_chart)
 
         # 写modbus寄存器
-        modbus_list_fork_height = float_to_modbus_little_byte_swap(fork_height)
+        modbus_list_fork_height = float_to_modbus_poll_regs(fork_height)
         NetProtocol.setModbusData("3x", 57, modbus_list_fork_height)
 
         if ConfigParams.module_type == "straddleLiftFork":
-            fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
 
-            # back_collision = Navigation.laserCollision([ConfigParams.fork_root_2D_lasers])
-            # print(f"back_collision: {back_collision}")
+            fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
+            task_status = NavStatus.get_task_status()
+            print(f"task_status{task_status}")
+
+            if task_status == 2:
+                x_list = [p["x"] for p in self.fork_points]
+                y_list = [p["y"] for p in self.fork_points]
+                collision_device = [ConfigParams.fork_root_2D_lasers]
+                Trace.log(f"collision_device:{collision_device}, x_list: {x_list},y_list: {y_list}")
+                back_collision = Navigation.collisionDetection(collision_device, x_list, y_list)
+                Trace.log(f"collision_device:{collision_device},back_collision: {back_collision}, x_list: {x_list},y_list: {y_list}")
 
             # 堆高车处理后激光的屏蔽
-            if fork_height <= ConfigParams.back_laser_enable_height and not self.set_fork_region_by_height:
-                self.set_fork_region_by_height = True
-                self.clear_fork_region_by_height = False
-                Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
-                                          [p["y"] for p in self.points_left],
-                                          [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                Navigation.setClearRegion(self.name_right, [p["x"] for p in self.points_right],
-                                          [p["y"] for p in self.points_right],
-                                          [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+            if Loc.get_loc_state() == 1:
+                if fork_height <= ConfigParams.back_laser_enable_height and not self.set_fork_region_by_height:
+                    self.set_fork_region_by_height = True
+                    self.clear_fork_region_by_height = False
+                    Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
+                                              [p["y"] for p in self.points_left],
+                                              [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                    Navigation.setClearRegion(self.name_right, [p["x"] for p in self.points_right],
+                                              [p["y"] for p in self.points_right],
+                                              [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
 
-            elif fork_height > ConfigParams.back_laser_enable_height and not self.clear_fork_region_by_height:
-                self.clear_fork_region_by_height = True
-                self.set_fork_region_by_height = False
-                Navigation.deleteClearRegion(self.name_left, Coordinate.ROBOT)
-                Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
+                elif fork_height > ConfigParams.back_laser_enable_height and not self.clear_fork_region_by_height:
+                    self.clear_fork_region_by_height = True
+                    self.set_fork_region_by_height = False
+                    Navigation.deleteClearRegion(self.name_left, Coordinate.ROBOT)
+                    Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
 
             # 有货还得处理栈板的屏蔽
             if Navigation.hasGoods():
@@ -2132,13 +2159,14 @@ def main():
 
         if f.event_safe_move_check:
             f.safe_move_check()
+
+        operation_int = NetProtocol.getModbusData("4x", 200, 1)
+
         if f.event_modbus:
             validated_params = f.modbus()
-        # print(f"event_modbus_after:{f.event_modbus}")
 
         f.period_run()
 
-        # 任务开始时，盛哥会将状态置为 running，并传入任务参数
         input_params = validated_params or Module.get_task_args()
         status = Module.get_status()
         Trace.log(f"script status: {status}")
