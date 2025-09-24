@@ -133,7 +133,7 @@ class BatteryV4(Message):
             self.is_publish = True
         datapool.put("/BatteryInfo/" + topic, battery_info)
 
-    def getCanPort(self, *, topic: str = "Battery-000") -> int:
+    def getCanPort(self, *, topic: str = "Battery-000") -> str:
         """获取CAN端口
 
         Returns:

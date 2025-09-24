@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import platform
+import subprocess
 import sys
 from typing import Union
 
@@ -15,6 +16,7 @@ if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import Message_Battery
 if RBK_VERSION == 4:
     from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as Message_Battery
+    from syspy.v4.include.rbk import core, service
 
 log = logging.getLogger("rbk.script")
 
@@ -26,16 +28,43 @@ class canPassBase:
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
         self.__rpc_server.start()
+
+        command = "cat /etc/srcname"
+        output = subprocess.check_output(command, shell=True)
+        output = output.decode("utf-8").strip()
+        log.info(f"{output=}")
+
         if platform.machine() == 'x86_64':
             log.info("platform: x86_64")
             import syspy.battery_Can.canpass_x86 as x86
             self.child = x86.canPassX86()
-        elif platform.machine() == 'aarch64':
+        elif platform.machine() == 'aarch64'or "SRC5000" in output:
             log.info("platform: aarch64")
             import syspy.battery_Can.canpass_aarch64 as aarch64
             self.child = aarch64.canPassAarch64()
+
+        if RBK_VERSION == 4:
+            name="pyBatteryServer"
+            core.Init(name)
+            service.addService(name, "serviceDispatcher", self.serviceDispatcher)
+
         self.setCallBack()
         self.need_charge = False
+
+
+    def serviceDispatcher(self,route_json: str):
+        request = json.loads(route_json)
+        print(f"request={request}")
+        response = dict()
+        func_name = request["func_name"]
+        if func_name == "getBatteryMsg":
+            response["result"] = self.get_battery_msg()
+            return json.dumps(response)
+    
+    
+    def get_battery_msg(self) -> dict:
+        return json.loads(self.msg)
+        
 
     def setCallBack(self):
         self.child.setCallBack(self.handleData)
