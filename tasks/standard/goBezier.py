@@ -142,7 +142,7 @@ class GoBezierWorld:
                 Navigation.setPathHoldDir(self.is_hold_dir) # 用于全向车
             Navigation.setPathMaxSpeed(self.max_speed)
             Navigation.setPathOnWorld([self.robot_loc[0], self.xs[0]],
-                                      [self.robot_loc[0], self.ys[0]],
+                                      [self.robot_loc[1], self.ys[0]],
                                       self.robot_loc[2])
             self.param["maxAcc"] = float(self.max_accele)
             self.param["maxDec"] = float(self.max_decele)
