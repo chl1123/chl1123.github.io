@@ -42,7 +42,7 @@ def serviceDispatcher(route_json: str) -> tuple[str, str]:
         response = [True, func1(request.get("arg", ""))]
     elif func_name == "func2":
         response = [True, func2(request.get("arg", ""))]
-    return "", json.dumps(response)
+    return json.dumps(response), "route_ret"
 
 
 server_name = "pyServiceExampleServer"

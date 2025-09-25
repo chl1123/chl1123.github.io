@@ -1,10 +1,9 @@
 from typing import Union, List, Optional
 
-from syspy.core.rbk_rpc import default_plugin, call_service
+from .rbk import abnormal
 from syspy.lib.abnormal import AbnormalInterface, check_abnormal_code
 
 
-@default_plugin("Abnormal")  # todo RBK4
 class AbnormalV4(AbnormalInterface):
 
     @classmethod
@@ -18,13 +17,12 @@ class AbnormalV4(AbnormalInterface):
             Union[bool, List[bool]]: 是否异常。异常为True, 否则为False。输入int, 输出bool; 输入List[int], 输出List[bool]
         """
         if isinstance(codes, int):
-            return cls.client().call_service("Abnormal", "existsAbnormal", [codes])[0]
+            return abnormal.exists(codes)
         else:
-            return cls.client().call_service("Abnormal", "existsAbnormal", codes)
+            return [abnormal.exists(code) for code in codes]
 
     @classmethod
-    @call_service(func_name="existsDeviceAbnormal")
-    def existsDevice(cls, deviceName: str, code: Optional[int] =  None) -> bool:
+    def existsDevice(cls, deviceName: str, code: Optional[int] = None) -> bool:
         """是否存在指定设备名及异常码的异常
 
         Args:
@@ -34,10 +32,12 @@ class AbnormalV4(AbnormalInterface):
         Returns:
             bool: 是否异常。异常为True, 否则为False
         """
-        pass
+        if code is None:
+            return abnormal.existsDevice(deviceName)
+        else:
+            return abnormal.exists(code, deviceName)
 
     @classmethod
-    @call_service(func_name="clearAbnormal")
     def clear(cls, code: int) -> bool:
         """清除异常
 
@@ -47,11 +47,10 @@ class AbnormalV4(AbnormalInterface):
         Returns:
             bool: 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
         """
-        pass
+        return abnormal.clear(code)
 
     @classmethod
-    @call_service(func_name="clearDeviceAbnormal")
-    def clearDevice(cls, deviceName: str, code: Optional[int] =  None) -> bool:
+    def clearDevice(cls, deviceName: str, code: Optional[int] = None) -> bool:
         """清除指定设备名及异常码的异常
 
         Args:
@@ -61,10 +60,12 @@ class AbnormalV4(AbnormalInterface):
         Returns:
             bool: 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
         """
-        pass
+        if code is None:
+            return abnormal.clearDevice(deviceName)
+        else:
+            return abnormal.clear(code, deviceName)
 
     @classmethod
-    @call_service(func_name="maskAbnormal")
     def mask(cls, code: int, deviceName: Optional[str] = None) -> bool:
         """屏蔽指定异常码及设备名的异常
 
@@ -75,10 +76,9 @@ class AbnormalV4(AbnormalInterface):
         Returns:
             bool: 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
         """
-        pass
+        return True
 
     @classmethod
-    @call_service(func_name="unmaskAbnormal")
     def unmask(cls, code: int, deviceName: Optional[str] = None):
         """取消屏蔽指定异常码及设备名的异常
 
@@ -89,7 +89,6 @@ class AbnormalV4(AbnormalInterface):
         pass
 
     @classmethod
-    @call_service(func_name="isMaskedAbnormal")
     def isMasked(cls, code: int, deviceName: Optional[str] = None) -> bool:
         """断指定异常码及设备名的异常是否被屏蔽
 
@@ -100,85 +99,234 @@ class AbnormalV4(AbnormalInterface):
         Returns:
             bool: 是否屏蔽异常。屏蔽返回True; 没有屏蔽返回False。
         """
-        pass
+        return False
 
     @classmethod
-    @call_service(func_name="getNumAbnormal")
     def getNum(cls) -> int:
         """获取异常码数量
 
         Returns:
             int: 异常的数量
         """
-        pass
+        return abnormal.getNum()
 
     @classmethod
-    def setTask(cls, code: int, desc: str, reason: str, method: str, task: Union[str, list, dict],
-                fileName: str = "", mapType: str = "", elementType: str = "", elementName: str = "",
-                policyName: str = "", param: str = "") -> bool:
+    def setTask(
+        cls,
+        code: int,
+        desc: str,
+        reason: str,
+        method: str,
+        task: Union[str, list, dict],
+        fileName: str = "",
+        mapType: str = "",
+        elementType: str = "",
+        elementName: str = "",
+        policyName: str = "",
+        param: str = "",
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setTaskAbnormal", code, desc, reason, method, str(task),
-                                         fileName, mapType, elementType, elementName, policyName, param)
+        return abnormal.setTask(
+            code,
+            desc,
+            reason,
+            method,
+            str(task),
+            fileName,
+            mapType,
+            elementType,
+            elementName,
+            policyName,
+            param,
+        )
 
     @classmethod
-    def setMap(cls, code: int, desc: str, reason: str, method: str, fileName: str, mapType: str = "",
-               elementType: str = "", elementName: str = "") -> bool:
+    def setMap(
+        cls,
+        code: int,
+        desc: str,
+        reason: str,
+        method: str,
+        fileName: str,
+        mapType: str = "",
+        elementType: str = "",
+        elementName: str = "",
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setMapAbnormal", code, desc, reason, method, fileName,
-                                         mapType, elementType, elementName)
+        return abnormal.setMap(
+            code,
+            desc,
+            reason,
+            method,
+            fileName,
+            mapType,
+            elementType,
+            elementName,
+        )
 
     @classmethod
-    def setModel(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
-                 deviceKey: str = "", param: str = "") -> bool:
+    def setModel(
+        cls,
+        code: int,
+        desc: str,
+        reason: str,
+        method: str,
+        fileName: str,
+        deviceType: str = "",
+        deviceKey: str = "",
+        param: str = "",
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setModelAbnormal", code, desc, reason, method, fileName,
-                                         deviceType, deviceKey, param)
+        return abnormal.setModel(
+            code,
+            desc,
+            reason,
+            method,
+            fileName,
+            deviceType,
+            deviceKey,
+            param,
+        )
 
     @classmethod
-    def setConfig(cls, code: int, desc: str, reason: str, method: str, appType: str, fileName: str,
-               param: str = "") -> bool:
+    def setConfig(
+        cls,
+        code: int,
+        desc: str,
+        reason: str,
+        method: str,
+        appType: str,
+        fileName: str,
+        param: str = "",
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setConfigAbnormal", code, desc, reason, method, appType,
-                                         fileName, param)
+        return abnormal.setConfig(
+            code,
+            desc,
+            reason,
+            method,
+            appType,
+            fileName,
+            param,
+        )
 
     @classmethod
-    def setSystem(cls, code: int, desc: str, reason: str, method: str, fileName: str, param: str = "") -> bool:
+    def setSystem(
+        cls,
+        code: int,
+        desc: str,
+        reason: str,
+        method: str,
+        fileName: str,
+        param: str = "",
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setSystemAbnormal", code, desc, reason, method, fileName, param)
+        return abnormal.setSystem(
+            code,
+            desc,
+            reason,
+            method,
+            fileName,
+            param,
+        )
 
     @classmethod
-    def setEnvironment(cls, code: int, desc: str, reason: str, method: str, position: str = "") -> bool:
+    def setEnvironment(
+        cls, code: int, desc: str, reason: str, method: str, position: str = ""
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setEnvironmentAbnormal", code, desc, reason, method, position)
+        return abnormal.setEnvironment(
+            code,
+            desc,
+            reason,
+            method,
+            position,
+        )
 
     @classmethod
-    def setDevice(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
-                  deviceKey: str = "", param: str = "", errorCode: int = 0) -> bool:
+    def setDevice(
+        cls,
+        code: int,
+        desc: str,
+        reason: str,
+        method: str,
+        fileName: str,
+        deviceType: str = "",
+        deviceKey: str = "",
+        param: str = "",
+        errorCode: int = 0,
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setDeviceAbnormal", code, desc, reason, method, fileName,
-                                         deviceType, deviceKey, param, errorCode)
+        return abnormal.setDevice(
+            code,
+            desc,
+            reason,
+            method,
+            fileName,
+            deviceType,
+            deviceKey,
+            param,
+            errorCode,
+        )
 
     @classmethod
-    def setConnect(cls, code: int, desc: str, reason: str, method: str, fileName: str, deviceType: str = "",
-                   deviceKey: str = "", param: str = "") -> bool:
+    def setConnect(
+        cls,
+        code: int,
+        desc: str,
+        reason: str,
+        method: str,
+        fileName: str,
+        deviceType: str = "",
+        deviceKey: str = "",
+        param: str = "",
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setConnectionAbnormal", code, desc, reason, method, fileName,
-                                         deviceType, deviceKey, param)
+        return abnormal.setConnect(
+            code,
+            desc,
+            reason,
+            method,
+            fileName,
+            deviceType,
+            deviceKey,
+            param,
+        )
 
     @classmethod
-    def setCalibrate(cls, code: int, desc: str, reason: str, method: str, deviceType: str, deviceKey: str = "") -> bool:
+    def setCalibrate(
+        cls,
+        code: int,
+        desc: str,
+        reason: str,
+        method: str,
+        deviceType: str,
+        deviceKey: str = "",
+    ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setCalibrationAbnormal", code, desc, reason, method, deviceType,
-                                         deviceKey)
+        return abnormal.setCalibrate(
+            code,
+            desc,
+            reason,
+            method,
+            deviceType,
+            deviceKey,
+        )
 
     @classmethod
     def setLicense(
-            cls, code: int, desc: str, reason: str, method: str, licenseType: str = ""
+        cls, code: int, desc: str, reason: str, method: str, licenseType: str = ""
     ) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setLicenseAbnormal", code, desc, reason, method, licenseType)
+        return abnormal.setLicense(
+            code,
+            desc,
+            reason,
+            method,
+            licenseType,
+        )
 
     @classmethod
     def setChassis(cls, code: int, desc: str, reason: str, method: str) -> bool:
         check_abnormal_code(code)
-        return cls.client().call_service("Abnormal", "setChassisAbnormal", code, desc, reason, method)
+        return abnormal.setChassis(code, desc, reason, method)

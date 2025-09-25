@@ -38,11 +38,11 @@ print(json.loads(ret.decode()))
     request={"func_name": "func1", "arg": "test"},
     dispatcher=True,
 )
-print(json.loads(route_ret.decode()))
+print(json.loads(bytes_ret.decode()))
 [bytes_ret, route_ret] = service.callService(
     server_name,
     "serviceDispatcher",
     request={"func_name": "func2", "arg": "test"},
     dispatcher=True,
 )
-print(json.loads(route_ret.decode()))
+print(json.loads(bytes_ret.decode()))
