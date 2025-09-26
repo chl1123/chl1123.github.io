@@ -56,7 +56,7 @@ class ConfigParams:
     tail = RobotParam.getDevice("Model-000", f"shape.{shape}.tail")
     width = RobotParam.getDevice("Model-000", f"shape.{shape}.width")
     module_x = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.installPosition.x")
-    fork_tip_width = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.forkTipWidth")
+    fork_tip_width = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.forkWidth")
     center_distance_between_forks = RobotParam.getDevice("Model-000",
                                                          f"moduleType.{module_type}.centerDistanceBetweenForks")
 
@@ -1196,11 +1196,10 @@ class Fork(ModuleBase):
         NetProtocol.setModbusData("3x", 57, modbus_list_fork_height)
 
         if ConfigParams.module_type == "straddleLiftFork":
-
-            fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
             task_status = NavStatus.get_task_status()
             print(f"task_status{task_status}")
 
+            # 有任务时用后激光做碰撞检测，有障碍物时不动。
             if task_status == 2:
                 x_list = [p["x"] for p in self.fork_points]
                 y_list = [p["y"] for p in self.fork_points]
@@ -1255,7 +1254,6 @@ class Fork(ModuleBase):
                     if recfile is None or recfile == "":
                         pass
                     elif recfile == "no_rec_deduct_pallet_area":
-                        print("here")
                         Navigation.deleteClearRegion("no_rec_deduct_pallet_area", Coordinate.ROBOT)
                     else:
                         delete_deduct_area("PalletRobotRegionByHeight", Coordinate.ROBOT)
