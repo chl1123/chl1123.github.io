@@ -262,7 +262,7 @@ class ParamField:
             result["children"] = [child.to_dict() for child in self.children]
 
         # 清理空值
-        return {k: v for k, v in result.items() if v not in (None, "", [], {}) and not (isinstance(v, list) and not v)}
+        return {k: v for k, v in result.items() if v not in (None, [], {}) and not (isinstance(v, list) and not v)}
 
 
 class ParamBuilder:
