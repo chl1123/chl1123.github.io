@@ -2,7 +2,7 @@ import json
 import logging
 import queue
 import threading
-from typing import Union
+from typing import Union, Optional
 
 import zmq
 
@@ -20,9 +20,15 @@ class ResultEvent(threading.Event):
 
 
 class ZmqClient:
-    def __init__(self):
+    def __init__(self, identity: Optional[str] = None):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
+        if identity:
+            self.socket.setsockopt(zmq.IDENTITY, ("py::" + identity).encode("utf-8"))
+        else:
+            # 随机标识符
+            self.socket.setsockopt(zmq.IDENTITY, ("py::" + str(id(self))).encode("utf-8"))
+
         self.poller = zmq.Poller()
         self.poller.register(self.socket, zmq.POLLIN)
 
@@ -85,9 +91,9 @@ class RpcClient:
                     RpcClient._instance = object.__new__(cls)
         return RpcClient._instance
 
-    def __init__(self, ipc=PYTHON_CPP_IPC):
+    def __init__(self, ipc=PYTHON_CPP_IPC, identity=None):
         if not RpcClient._initialized:
-            self.zmq_client = ZmqClient()
+            self.zmq_client = ZmqClient(identity)
             self.zmq_client.connect(ipc)
             RpcClient._initialized = True
 
