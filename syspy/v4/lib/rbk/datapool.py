@@ -12,10 +12,6 @@ def subscribe(channel_name: str, message_type, function: callable = None):
         PyModule.subscribe(channel_name, message_type.DESCRIPTOR.full_name, function)
 
 
-def unsubscribe(channel_name: str, message_type):
-    PyModule.unsubscribe(channel_name, message_type.DESCRIPTOR.full_name)
-
-
 def put(channel_name: str, msg):
     PyModule.put(channel_name, msg)
 
