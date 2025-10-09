@@ -3,31 +3,23 @@ import json
 from syspy.core.rbk_rpc import default_plugin, call_service
 from syspy.recognize import RecognizeInterface
 
+
 @default_plugin("RecoFactory")
 class RecognizeV3(RecognizeInterface):
-
     @classmethod
     @call_service()
     def doRec(
-            cls,
-            file: str,
-            withRegion: bool,
-            x: float = 0.0,
-            y: float = 0.0,
-            theta: float = 0.0,
-            radius: float = 0.0,
-            recognition_side: str = "A"
+        cls,
+        objectModelPath: str,
+        recognitionRegion: str = "",
+        recognitionSide: str = "A",
     ):
         """进行识别
 
         Args:
-            file (str): 识别文件
-            withRegion (bool): 是否有限制识别区域(扇形)
-            x (float): 识别区域的圆心坐标x（车体坐标系）
-            y (float): 识别区域的圆心坐标y（车体坐标系）
-            theta (float): 识别区域扇形角度
-            radius (float):识别半径
-            recognition_side (str): 识别面，可选none、A、B、C、D
+            objectModelPath (str): 识别文件名称
+            recognitionRegion (str): 识别区域 (json 对象序列化后的字符串), 作用: 确定识别方向, 剔除干扰识别结果
+            recognitionSide (str): 识别面, 可选none、A、B、C、D
         """
         pass
 
@@ -42,9 +34,17 @@ class RecognizeV3(RecognizeInterface):
         pass
 
     @classmethod
-    def recTargetObs(cls, deviceName: str, x: float, y: float, theta: float, obs_area_min_height: float,
-                     obs_area_max_height: float,
-                     obs_area_length: float, obs_area_width: float):
+    def recTargetObs(
+        cls,
+        deviceName: str,
+        x: float,
+        y: float,
+        theta: float,
+        obs_area_min_height: float,
+        obs_area_max_height: float,
+        obs_area_length: float,
+        obs_area_width: float,
+    ):
         """识别指定区域内是否存在障碍物
 
         Args:
@@ -65,7 +65,7 @@ class RecognizeV3(RecognizeInterface):
             "obs_area_min_height": obs_area_min_height,
             "obs_area_max_height": obs_area_max_height,
             "obs_area_length": obs_area_length,
-            "obs_area_width": obs_area_width
+            "obs_area_width": obs_area_width,
         }
 
         cls.client().call_service("RecoFactory", "recTargetObs", json.dumps(dict_str))
