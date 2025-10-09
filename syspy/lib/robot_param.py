@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Callable
 from syspy.core.rbk_rpc import Service, RBKVersionError
 
 
@@ -74,6 +74,10 @@ class RobotParamInterface(ABC, Service):
         Returns:
             str:
         """
+        raise RBKVersionError()
+
+    @classmethod
+    def setDeviceChangeCallBack(cls, callback: Callable[[List[str]], None]):
         raise RBKVersionError()
 
     def getCollisionModel(self) -> Dict[str, List[Dict[str, str]]]:

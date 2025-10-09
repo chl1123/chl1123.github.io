@@ -37,24 +37,32 @@ class RpcServer:
             name="zmq_server_thread",
             daemon=True
         )
+        self.zmq_server_thread.start()
 
     def __del__(self):
         self.close()
 
-    def registerFunction(self, function, method_name=""):
+    def registerFunction(self, function, method_name="", is_immediately=False):
         """注册 Python 方法，以便远程调用。
 
         Args:
             function (callable): 要注册的函数。
             method_name (str): 方法名称，默认为函数名。
+            is_immediately (bool): 是否立即生效，默认为False。
         """
         if not method_name:
             method_name = function.__name__
         RpcServer.FUNCS[method_name] = function
 
+        if is_immediately:
+            # 发送注册信息到代理
+            request = JSONRPCRequest("add_method", [RpcServer.SCRIPT_NAME, method_name])
+            log.debug(f"Sending registration method message: {request.to_json()}")
+
+            self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
+
     def start(self):
         self._register_server(RpcServer.SCRIPT_NAME)
-        self.zmq_server_thread.start()
 
     def _handle_request(self, socket):
         """处理来自客户端的请求。
@@ -133,18 +141,6 @@ class RpcServer:
         request = JSONRPCRequest("register_service", [name, methods_name, self.script_type])
         log.debug("Sending registration message: %s", request.to_json())
         self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
-
-        # 接收注册响应
-        response_parts = self.socket.recv_multipart()
-        log.debug("Received registration response: %s", response_parts)
-        if len(response_parts) != 2:
-            raise Exception("Invalid registration response format, check broker status")
-        _, register_response_str = response_parts
-        register_response = json.loads(register_response_str.decode('utf-8'))
-        response = JSONRPCResponse.parse(register_response)
-        if response.has_error():
-            raise Exception(f"Registration failed: {response.get_error()}")
-        log.debug("Registered successfully for %s", name)
 
     def close(self):
         log.debug("Closing RpcServer resources...")

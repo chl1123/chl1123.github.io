@@ -1,12 +1,12 @@
-import json
-from typing import Any, List, Dict
-
-from syspy.core.rbk_rpc import default_plugin, call_service
+from typing import Any, List, Dict, Callable
+from syspy.core.rbk_rpc import default_plugin, call_service, Service
 from syspy.lib.robot_param import RobotParamInterface
 
 
 @default_plugin("NetProtocol")
 class RobotParamV3(RobotParamInterface):
+    device_change_callBack: Callable[[List[str]], None] = None
+
     @classmethod
     @call_service(plugin_name="NetProtocol", func_name="getParam")
     def getConfig(cls, app_name: str, param_path: str, file_name="") -> Any:
@@ -82,6 +82,11 @@ class RobotParamV3(RobotParamInterface):
             str:
         """
         pass
+
+    @classmethod
+    def setDeviceChangeCallBack(cls, callback: Callable[[List[str]], None]):
+        cls.device_change_callBack = callback
+        Service.server().register_function(cls.device_change_callBack, "device_changed_subscriber", True)
 
     def getCloneValues(self, name: str, param_path: str, clone_keys: List[str]) -> List[Dict[str, Any]]:
         param_size = self.getConfigCloneSize(name, param_path)
