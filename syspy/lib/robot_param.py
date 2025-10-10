@@ -77,7 +77,21 @@ class RobotParamInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
+    def setConfigChangeCallBack(cls, callback: Callable[[Dict[str, Any]], None]):
+        """设置配置参数改变回调
+
+        Args:
+            callback (Callable[[Dict[str, Any]]): 回调方法
+        """
+        raise RBKVersionError()
+
+    @classmethod
     def setDeviceChangeCallBack(cls, callback: Callable[[List[str]], None]):
+        """设置设备参数改变回调
+
+        Args:
+            callback (Callable[[Dict[str, Any]]): 回调方法
+        """
         raise RBKVersionError()
 
     def getCollisionModel(self) -> Dict[str, List[Dict[str, str]]]:

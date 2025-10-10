@@ -5,6 +5,7 @@ from syspy.lib.robot_param import RobotParamInterface
 
 @default_plugin("NetProtocol")
 class RobotParamV3(RobotParamInterface):
+    config_change_callBack: Callable[[Dict[str, Any]], None] = None
     device_change_callBack: Callable[[List[str]], None] = None
 
     @classmethod
@@ -82,6 +83,11 @@ class RobotParamV3(RobotParamInterface):
             str:
         """
         pass
+
+    @classmethod
+    def setConfigChangeCallBack(cls, callback: Callable[[Dict[str, Any]], None]):
+        cls.config_change_callBack = callback
+        Service.server().register_function(cls.config_change_callBack, "config_changed_subscriber", True)
 
     @classmethod
     def setDeviceChangeCallBack(cls, callback: Callable[[List[str]], None]):
