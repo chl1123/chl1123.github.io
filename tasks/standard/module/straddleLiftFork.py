@@ -13,7 +13,7 @@ import math
 import time
 import struct
 from enum import IntEnum
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from syspy.lib.net_protocol import parse_modbus
 from syspy.utils import Coordinate
 from syspy.utils.time import Timer
@@ -27,12 +27,6 @@ from syspy.lib.robot_param import RobotParam
 import tasks.standard.goBezier as GoBezier
 from syspy.core.rbk_rpc import Service
 
-log = Logger("Fork")
-
-"""
-
-"""
-
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
@@ -41,53 +35,134 @@ def clamp(val, lo, hi):
 EPS = 1e-6  # 浮点比较公差
 
 
+def _robot_device_change_callback(device_change_set: List[str]):
+    """机器人设备参数改变回调"""
+    """设备参数变化回调"""
+    if "Model" in device_change_set:
+        ConfigParams.get_device_model_param()
+    if "Motor" in device_change_set:
+        ConfigParams.get_device_motor_param()
+
+
+def _robot_config_change_callback(diff_map: Dict[str, Any]):
+    """机器人配置参数变化回调"""
+    pass
+    # for key, value in diff_map.items():
+    #     if key == "manualControl.manualBlock.on.manualSlowDownDist":
+    #         robot_param["manualSlowDownDist"] = value
+    #     elif key == "manualControl.manualBlock.on.manualStopAngle":
+    #         robot_param["manualStopAngle"] = value
+    #     elif key == "localizationType.2D.localizationLaser":
+    #         robot_param["localizationLaser"] = value
+    #     elif key == "basic.unload.maxSpeed":
+    #         robot_param["unloadMaxSpeed"] = value
+    #     elif key == "recognitionObject.pallet.carrierParameter.carrierHeight":
+    #         robot_param["carrierHeight"] = value
+
+
 class ConfigParams:
     """生成和定义配置参数的示例"""
+    module_type: str = ""
+    shape: str = ""
+    head: float = 0.0
+    tail: float = 0.0
+    width: float = 0.0
+    module_x: float = 0.0
+    fork_tip_width: float = 0.0
+    center_distance_between_forks: float = 0.0
+    fork_motor_name: str = ""
+    motor_func: str = ""
+    min_height: float = 0.0
+    max_height: float = 0.0
+    up_di: str = ""
+    down_di: str = ""
+    fork_max_speed: float = 0.0
+    base_shift = False
+    fork_root_3D_camera: str = ""
+    fork_root_2D_lasers: str = ""
+    fork_tip_3D_cameras: list = []
+    fork_tip_2D_lasers: list = []
+    fork_tip_di_sensors: list = []
+    fork_tip_distance_sensors: list = []
+    contact_ids_str: list = []
+
+    @staticmethod
+    def _safe_get_device(device_name: str, param_path: str, default):
+        """
+        安全读取设备参数：如果 getDevice 返回 None，则返回与 default 类型一致的空值。
+        """
+        value = RobotParam.getDevice(device_name, param_path)
+
+        # 类型安全转换
+        if value is None:
+            if isinstance(default, float):
+                return 0.0
+            elif isinstance(default, str):
+                return ""
+            elif isinstance(default, list):
+                return []
+            elif isinstance(default, bool):
+                return False
+            else:
+                return default  # 兜底
+        return value
+
+    @classmethod
+    def init(cls):
+        """初始化所有设备参数"""
+        cls.get_device_model_param()
+        cls.get_device_motor_param()
 
     # 从模型文件中获取的参数
+    @classmethod
+    def get_device_model_param(cls):
+        cls.module_type = cls._safe_get_device("Model-000", "moduleType", "")
+        cls.fork_motor_name = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.liftMotor", "")
+        cls.shape = cls._safe_get_device("Model-000", "shape", "")
 
-    second_rec_yaw = 1
-    second_rec_y = 0.01
-    load_unload_check = False
-    module_type = RobotParam.getDevice("Model-000", "moduleType")
-    fork_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.liftMotor")
-    shape = RobotParam.getDevice("Model-000", "shape")
-    head = RobotParam.getDevice("Model-000", f"shape.{shape}.head")
-    tail = RobotParam.getDevice("Model-000", f"shape.{shape}.tail")
-    width = RobotParam.getDevice("Model-000", f"shape.{shape}.width")
-    module_x = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.installPosition.x")
-    fork_tip_width = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.forkWidth")
-    center_distance_between_forks = RobotParam.getDevice("Model-000",
-                                                         f"moduleType.{module_type}.centerDistanceBetweenForks")
+        cls.head = float(cls._safe_get_device("Model-000", f"shape.{cls.shape}.head", 0.0))
+        cls.tail = float(cls._safe_get_device("Model-000", f"shape.{cls.shape}.tail", 0.0))
+        cls.width = float(cls._safe_get_device("Model-000", f"shape.{cls.shape}.width", 0.0))
+        cls.module_x = float(cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.installPosition.x", 0.0))
+        cls.fork_tip_width = float(cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkWidth", 0.0))
+        cls.center_distance_between_forks = float(
+            cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.centerDistanceBetweenForks", 0.0)
+        )
 
-    # 先判断是否是线性电机
-    motor_func = RobotParam.getDevice(f"{fork_motor_name}", "func")
-    min_height = RobotParam.getDevice(f"{fork_motor_name}", f"func.{motor_func}.minLength")
-    max_height = RobotParam.getDevice(f"{fork_motor_name}", f"func.{motor_func}.maxLength")
-    up_di = RobotParam.getDevice(f"{fork_motor_name}", f"func.{motor_func}.upLimitDI")
-    down_di = RobotParam.getDevice(f"{fork_motor_name}", f"func.{motor_func}.DownLimitDI")
-    fork_max_speed = RobotParam.getDevice(f"{fork_motor_name}", f"func.{motor_func}.maxSpeed")
-    fork_root_3D_camera = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.forkRoot3DCamera")
-    fork_root_2D_lasers = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.forkRoot2DLasers")
-    fork_tip_3D_cameras = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.forkTip3DCameras").split(",")
-    fork_tip_2D_lasers = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.forkTip2DLasers").split(",")
-    fork_tip_di_sensors = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.diSensor").split(",")
-    fork_tip_distance_sensors = RobotParam.getDevice("Model-000",
-                                                     f"moduleType.{module_type}.forkTipDistanceSensors").split(",")
-    contact_ids_str = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.id").split(",")
+        cls.fork_root_3D_camera = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot3DCamera", "")
+        cls.fork_root_2D_lasers = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot2DLasers", "")
+        cls.fork_tip_3D_cameras = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip3DCameras", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip3DCameras", "") else []
+        cls.fork_tip_2D_lasers = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip2DLasers", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip2DLasers", "") else []
+        cls.fork_tip_di_sensors = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.diSensor", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.diSensor", "") else []
+        cls.fork_tip_distance_sensors = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTipDistanceSensors", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTipDistanceSensors", "") else []
+        cls.contact_ids_str = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.id", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.id", "") else []
 
-    # 如果是搬运车，需要判断一下是否是变轴距的车
-    if module_type == "liftFork":
-        robot_type = RobotParam.getDevice("Model-000", "getRobotType")
-        if (robot_type == "variableWheelbaseSingleStandardSteer"
-                or robot_type == "variableWheelbaseSingleDifferentialSteer"):
-            base_shift = True
-    elif module_type == "straddleLiftFork":
-        pass
+        # 如果是搬运车，需要判断一下是否是变轴距的车
+        if cls.module_type == "liftFork":
+            robot_type = cls._safe_get_device("Model-000", "getRobotType", "")
+            if robot_type in ("variableWheelbaseSingleStandardSteer", "variableWheelbaseSingleDifferentialSteer"):
+                cls.base_shift = True
+        elif cls.module_type == "straddleLiftFork":
+            cls.base_shift = False
+
+        print("moduleType", cls.module_type,"di contact_ids_str",cls.contact_ids_str)
+
+    @classmethod
+    def get_device_motor_param(cls):
+        """读取电机相关参数（线性电机）"""
+        cls.motor_func = cls._safe_get_device(f"{cls.fork_motor_name}", "func", "")
+        cls.min_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.minLength", 0.0))
+        cls.max_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxLength", 0.0))
+        cls.up_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI", "")
+        cls.down_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI", "")
+        cls.fork_max_speed = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed", 0.0))
 
     # 从脚本配置参数里定义的参数，显示为小驼峰
     param_server = ParamServer(__file__)
 
+    second_rec_yaw = 1
+    second_rec_y = 0.01
+    load_unload_check = False
     # 脚本相关
     timeout = param_server.loadParam(
         "timeout", type="float", default=120, comment="脚本超时时间", group="script")
@@ -343,20 +418,6 @@ def float32_to_regs(value: float):
     word1 = int.from_bytes(raw[2:], "big")  # 低地址寄存器 = 低 16 位
     word2 = int.from_bytes(raw[:2], "big")  # 高地址寄存器 = 高 16 位
     return [word1, word2]
-
-#
-# def float_to_modbus_little_byte_swap(value: float):
-#     """
-#     将 float 转换为 Modbus Poll 使用的寄存器顺序（Little-endian + byte swap）
-#     """
-#     packed = struct.pack('<f', value)  # float32 小端
-#     # 小端打包后是 [b0, b1, b2, b3] → 我们要按照 [b3, b2, b1, b0] 排序后组成两个寄存器
-#     byte3, byte2, byte1, byte0 = packed[3], packed[2], packed[1], packed[0]
-#     reg1 = (byte3 << 8) + byte2
-#     reg2 = (byte1 << 8) + byte0
-#     print(f"float32值: {value:.6f} → [reg1, reg2] = [{reg1}, {reg2}]")
-#     return [reg1, reg2]
-
 
 def float_to_modbus_poll_regs(value: float):
     """
@@ -720,7 +781,7 @@ class Fork(ModuleBase):
 
     def get_target_pos(self):
         target_id = self.move_task.get("target_name", "")  # int, 可能是 LM，可能是 AP
-
+        pos = []
         if target_id == "":
             # task_args 里已经是带前缀的字符串
             target_id_str = self.task_args.get("targetName", "")
@@ -1159,26 +1220,17 @@ class Fork(ModuleBase):
         self.action_id = 0
         self.action_list = list()
         self.operation_init = False
-        self.script_status = ScriptStatus.NONE
         self.action_status = ActionStatus.INIT
         # 识别相关
         self.rec_result = dict()
         # 定义脚本运行相关的成员变量
         self.opt = ""
         self.hasReachDi = None
-        self.fork_cur_height = None
-        self.motor_infos = dict()
-        self.nav_speed = dict()
-        self.is_goods_detected = None
-        self.goPathArgs = None  # 堆栈的终点坐标点
-        # self.contact_di = [ConfigParams.contact_di_1, ConfigParams.contact_di_2]
         self.recfile = ""
         self.move_task = dict()
-        self.first_point = None
-        self.second_path = None
-        self.first_point_return = None
-        self.second_path_return = None
         self.cur_state = {}
+        delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
+        delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
 
     def period_run(self):
         fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
@@ -1197,16 +1249,17 @@ class Fork(ModuleBase):
 
         if ConfigParams.module_type == "straddleLiftFork":
             task_status = NavStatus.get_task_status()
-            print(f"task_status{task_status}")
+            # print(f"task_status{task_status}")
 
             # 有任务时用后激光做碰撞检测，有障碍物时不动。
             if task_status == 2:
                 x_list = [p["x"] for p in self.fork_points]
                 y_list = [p["y"] for p in self.fork_points]
-                collision_device = [ConfigParams.fork_root_2D_lasers]
-                Trace.log(f"collision_device:{collision_device}, x_list: {x_list},y_list: {y_list}")
-                back_collision = Navigation.collisionDetection(collision_device, x_list, y_list)
-                Trace.log(f"collision_device:{collision_device},back_collision: {back_collision}, x_list: {x_list},y_list: {y_list}")
+                if ConfigParams.fork_tip_2D_lasers:
+                    collision_device = [ConfigParams.fork_root_2D_lasers]
+                    # Trace.log(f"collision_device:{collision_device}, x_list: {x_list},y_list: {y_list}")
+                    Navigation.collisionDetection(collision_device, x_list, y_list)
+                    # Trace.log(f"collision_device:{collision_device},back_collision: {back_collision}, x_list: {x_list},y_list: {y_list}")
 
             # 堆高车处理后激光的屏蔽
             if Loc.get_loc_state() == 1:
@@ -1358,7 +1411,7 @@ class BaseAction:
 #         self.init = False
 
 
-# 用于识别栈板并获取识别的栈板坐标，坐标为世界坐标系，且plt文件勾选in global
+# 用于识别栈板并获取识别的栈板坐标
 class Rec(BaseAction):
     def __init__(self, pallet_file, target_pos=None, action_name="RecPallet"):
         super().__init__(action_name)
@@ -1389,7 +1442,9 @@ class Rec(BaseAction):
             if ConfigParams.z_max:
                 z_max_results = sorted(self.results_list, key=lambda item: item['z'], reverse=True)
                 self.result = z_max_results[0]
-                Trace.log(f"rec_results: {self.result}")
+            else:
+                self.result = self.results_list[0]
+            Trace.log(f"rec_results: {self.result}")
 
             self.action_status = ActionStatus.FINISHED
 
@@ -1421,10 +1476,11 @@ class Rec(BaseAction):
                     Recognize.resetRec()
         else:
             if self.target_pos is None or (len(self.target_pos) > 3 and self.target_pos[3]) == -1:
-                Recognize.doRec(recfile, False)
+                Recognize.doRec(recfile, "")
             else:
                 # Recognize.doRec(recfile, False)
-                Recognize.doRec(recfile, True, self.target_pos[0], self.target_pos[1], self.target_pos[2], 1)
+                region = {"point":{"x":0.36,"y":0.37},"radius":1.865074,"shape":"circle"}
+                Recognize.doRec(recfile, json.dumps(region))
             Timer.delay(0.05)
         return False, rec_status, list
 
@@ -1673,9 +1729,16 @@ class RunMotorByPosition(BaseAction):
         self.check_duration = 20
         self.fork_timestamps = []
         self.last_sample_time = None
+        self.start_time = time.time()
 
     def run(self):
         cur_fork_height = Motor.get_motor_pos(self.motor_name)
+        # running_time = time.time() - self.start_time
+        # print(running_time)
+        #
+        # if running_time> 3:
+        #     self.action_status = ActionStatus.FAILED
+        #     return
 
         if not self.init:
             self.action_status = ActionStatus.RUNNING
@@ -1712,7 +1775,7 @@ class RunMotorByPosition(BaseAction):
                         max_speed = min(max_speed, ConfigParams.down_max_speed_with_goods)
 
             self.max_speed = max_speed
-            # Motor.setMotorSpeed(self.motor_name,0.06,5)
+            # self.max_speed = -0.15
 
             Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         # pos = Motor.get_motor_pos(self.motor_name)
@@ -2143,23 +2206,22 @@ class RotateDirection(IntEnum):
 
 def main():
     Module.init()
+    ConfigParams.init()
 
     validated_params = {}
     validator = ParamValidator(InputParams.builder.to_dict())
     checked_args = False
 
     f = Fork()
+    f.reset()
 
-    # time.sleep(5)
+    RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
+    RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
 
     while True:
         # print(f"event_modbus_before:{f.event_modbus}")
-
         if f.event_safe_move_check:
             f.safe_move_check()
-
-        operation_int = NetProtocol.getModbusData("4x", 200, 1)
-
         if f.event_modbus:
             validated_params = f.modbus()
 
@@ -2186,11 +2248,10 @@ def main():
                 for k in keys_to_delete:
                     del f.trace_chart[k]
                 Module.set_status(f.script_status)
-                delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
-                delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
+                time.sleep(0.5)
                 checked_args = False
                 validated_params = {}
-                # f.reset()   # 我为啥要初始化所有的参数
+                f.reset()
             f.run(args)
 
         time.sleep(0.1)
