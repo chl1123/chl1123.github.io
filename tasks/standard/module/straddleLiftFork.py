@@ -129,13 +129,27 @@ class ConfigParams:
             cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.centerDistanceBetweenForks", 0.0)
         )
 
-        cls.fork_root_3D_camera = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot3DCamera", "")
-        cls.fork_root_2D_lasers = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot2DLasers", "")
-        cls.fork_tip_3D_cameras = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip3DCameras", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip3DCameras", "") else []
-        cls.fork_tip_2D_lasers = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip2DLasers", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip2DLasers", "") else []
-        cls.fork_tip_di_sensors = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.diSensor", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.diSensor", "") else []
-        cls.fork_tip_distance_sensors = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTipDistanceSensors", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTipDistanceSensors", "") else []
-        cls.contact_ids_str = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.id", "").split(",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.id", "") else []
+        cls.fork_root_3D_camera = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot3DCamera",
+                                                       "")
+        cls.fork_root_2D_lasers = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot2DLasers",
+                                                       "")
+        cls.fork_tip_3D_cameras = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip3DCameras",
+                                                       "").split(",") if cls._safe_get_device("Model-000",
+                                                                                              f"moduleType.{cls.module_type}.forkTip3DCameras",
+                                                                                              "") else []
+        cls.fork_tip_2D_lasers = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip2DLasers",
+                                                      "").split(",") if cls._safe_get_device("Model-000",
+                                                                                             f"moduleType.{cls.module_type}.forkTip2DLasers",
+                                                                                             "") else []
+        cls.fork_tip_di_sensors = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.diSensor", "").split(
+            ",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.diSensor", "") else []
+        cls.fork_tip_distance_sensors = cls._safe_get_device("Model-000",
+                                                             f"moduleType.{cls.module_type}.forkTipDistanceSensors",
+                                                             "").split(",") if cls._safe_get_device("Model-000",
+                                                                                                    f"moduleType.{cls.module_type}.forkTipDistanceSensors",
+                                                                                                    "") else []
+        cls.contact_ids_str = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.id", "").split(
+            ",") if cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.id", "") else []
 
         # 如果是搬运车，需要判断一下是否是变轴距的车
         if cls.module_type == "liftFork":
@@ -145,7 +159,7 @@ class ConfigParams:
         elif cls.module_type == "straddleLiftFork":
             cls.base_shift = False
 
-        print("moduleType", cls.module_type,"di contact_ids_str",cls.contact_ids_str)
+        print("moduleType", cls.module_type, "di contact_ids_str", cls.contact_ids_str)
 
     @classmethod
     def get_device_motor_param(cls):
@@ -155,7 +169,8 @@ class ConfigParams:
         cls.max_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxLength", 0.0))
         cls.up_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI", "")
         cls.down_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI", "")
-        cls.fork_max_speed = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed", 0.0))
+        cls.fork_max_speed = float(
+            cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed", 0.0))
 
     # 从脚本配置参数里定义的参数，显示为小驼峰
     param_server = ParamServer(__file__)
@@ -263,6 +278,9 @@ class ConfigParams:
         group="Recognition")
 
 
+ConfigParams.init()
+
+
 def create_fork_height_param(builder: ParamBuilder, min_height: float, max_height: float):
     """创建顶升高度参数（可复用）"""
     with builder.CHILD(key="forkHeight", name="Fork Height",
@@ -332,84 +350,89 @@ def create_rec_param(builder: ParamBuilder):
 class InputParams:
     builder = ParamBuilder(__file__, desc="Input Params Config")
 
-    min_height = ConfigParams.min_height
-    max_height = ConfigParams.max_height
+    @classmethod
+    def init(cls):
+        min_height = ConfigParams.min_height
+        max_height = ConfigParams.max_height
 
-    with builder.GROUPS():
-        # 公共参数:
-        # 使用PGV参数
-        # with builder.CHILD(key="use_pgv", name="Use PGV", desc="Use PGV for position adjustment"):
-        #     builder.TYPE(ParamType.BOOL)
-        #     builder.DEFAULTVALUE(False)
+        with cls.builder.GROUPS():
+            # 公共参数:
+            # 使用PGV参数
+            # with builder.CHILD(key="use_pgv", name="Use PGV", desc="Use PGV for position adjustment"):
+            #     builder.TYPE(ParamType.BOOL)
+            #     builder.DEFAULTVALUE(False)
 
-        # 操作组合框
-        with builder.GROUP(key="operation", name="Operations", desc="Task script input parameters"):
-            builder.TYPE(ParamType.COMBO_BOX)
+            # 操作组合框
+            with cls.builder.GROUP(key="operation", name="Operations", desc="Task script input parameters"):
+                cls.builder.TYPE(ParamType.COMBO_BOX)
 
-            with builder.CHILDREN():
-                # 取货操作
-                with builder.CHILD(key="forkLoad", name="Fork Load", desc="load the pallet"):
-                    builder.TYPE(ParamType.ARRAY)
+                with cls.builder.CHILDREN():
+                    # 取货操作
+                    with cls.builder.CHILD(key="forkLoad", name="Fork Load", desc="load the pallet"):
+                        cls.builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILDREN():
-                        # 取货路径导航前的货叉高度
-                        create_start_height_param(builder, min_height, max_height)
+                        with cls.builder.CHILDREN():
+                            # 取货路径导航前的货叉高度
+                            create_start_height_param(cls.builder, min_height, max_height)
 
-                        # 取完后的货叉高度
-                        create_end_height_param(builder, min_height, max_height)
+                            # 取完后的货叉高度
+                            create_end_height_param(cls.builder, min_height, max_height)
 
-                        # 识别参数
-                        create_rec_param(builder)
+                            # 识别参数
+                            create_rec_param(cls.builder)
 
-                # 放货操作
-                with builder.CHILD(key="forkUnload", name="Fork Unload",
-                                   desc="unload the pallet"):
-                    builder.TYPE(ParamType.ARRAY)
+                    # 放货操作
+                    with cls.builder.CHILD(key="forkUnload", name="Fork Unload",
+                                           desc="unload the pallet"):
+                        cls.builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILDREN():
-                        # 取货路径导航前的货叉高度
-                        create_start_height_param(builder, min_height, max_height)
+                        with cls.builder.CHILDREN():
+                            # 取货路径导航前的货叉高度
+                            create_start_height_param(cls.builder, min_height, max_height)
 
-                        # 取完后的货叉高度
-                        create_end_height_param(builder, min_height, max_height)
+                            # 取完后的货叉高度
+                            create_end_height_param(cls.builder, min_height, max_height)
 
-                # ForkHeight 操作
-                with builder.CHILD(key="forkHeight", name="Fork Height",
-                                   desc="Lift the fork"):
-                    builder.TYPE(ParamType.ARRAY)
-                    create_fork_height_param(builder, min_height, max_height)
+                    # ForkHeight 操作
+                    with cls.builder.CHILD(key="forkHeight", name="Fork Height",
+                                           desc="Lift the fork"):
+                        cls.builder.TYPE(ParamType.ARRAY)
+                        create_fork_height_param(cls.builder, min_height, max_height)
 
-                    with builder.CHILD(key="forkSpeed", name="Fork Speed", desc="fork lift speed"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.SINGLESTEP(0.01)
-                        # builder.REQUIRED(True)
-                        builder.DEFAULTVALUE(ConfigParams.fork_max_speed)
+                        with cls.builder.CHILD(key="forkSpeed", name="Fork Speed", desc="fork lift speed"):
+                            cls.builder.TYPE(ParamType.FLOAT)
+                            cls.builder.SINGLESTEP(0.01)
+                            # builder.REQUIRED(True)
+                            cls.builder.DEFAULTVALUE(ConfigParams.fork_max_speed)
 
-                with builder.CHILD(key="rec", name="Rec", desc="Rec the pallet"):
-                    builder.TYPE(ParamType.ARRAY)
+                    with cls.builder.CHILD(key="rec", name="Rec", desc="Rec the pallet"):
+                        cls.builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="recfile", name="Recognition File Name",
-                                       desc="Recognition file name"):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("default.srec")
+                        with cls.builder.CHILD(key="recfile", name="Recognition File Name",
+                                               desc="Recognition file name"):
+                            cls.builder.TYPE(ParamType.STRING)
+                            cls.builder.DEFAULTVALUE("default.srec")
 
-                # 脱离库位操作
-                with builder.CHILD(key="leaveLoc", name="Leave Loc",
-                                   desc="Leave loc after load"):
-                    builder.TYPE(ParamType.ARRAY)
+                    # 脱离库位操作
+                    with cls.builder.CHILD(key="leaveLoc", name="Leave Loc",
+                                           desc="Leave loc after load"):
+                        cls.builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILDREN():
-                        create_end_height_param(builder, min_height, max_height)
+                        with cls.builder.CHILDREN():
+                            create_end_height_param(cls.builder, min_height, max_height)
 
-                with builder.CHILD(key="test", name="Test",
-                                   desc="test"):
-                    builder.TYPE(ParamType.ARRAY)
+                    with cls.builder.CHILD(key="test", name="Test",
+                                           desc="test"):
+                        cls.builder.TYPE(ParamType.ARRAY)
 
-        with builder.CHILD(key="targetName", name="Target Name", desc="Target ID Name"):
-            builder.TYPE(ParamType.STRING)
-            builder.DEFAULTVALUE("AP1")
+            with cls.builder.CHILD(key="targetName", name="Target Name", desc="Target ID Name"):
+                cls.builder.TYPE(ParamType.STRING)
+                cls.builder.DEFAULTVALUE("AP1")
 
-    builder.save_to_file()
+        cls.builder.save_to_file()
+
+
+InputParams.init()
 
 
 def float32_to_regs(value: float):
@@ -418,6 +441,7 @@ def float32_to_regs(value: float):
     word1 = int.from_bytes(raw[2:], "big")  # 低地址寄存器 = 低 16 位
     word2 = int.from_bytes(raw[:2], "big")  # 高地址寄存器 = 高 16 位
     return [word1, word2]
+
 
 def float_to_modbus_poll_regs(value: float):
     """
@@ -435,7 +459,6 @@ def float_to_modbus_poll_regs(value: float):
     reg2 = (b3 << 8) + b2
 
     return [reg1, reg2]
-
 
 
 def delete_deduct_area(names, coordinate):
@@ -704,15 +727,15 @@ class Fork(ModuleBase):
         self.pallet_deduct_info = {}
 
     def run(self, args):
-        self.script_status = ScriptStatus.RUNNING
         if Abnormal.exists(53320):
             self.script_status = ScriptStatus.FAILED
             return
         if not self.init_args:
+            self.script_status = ScriptStatus.RUNNING
             self.init_args = True
             self.task_args = args
-
             self._init_args()
+
         self._check_timeout()
 
         if self.opt == "forkLoad":
@@ -748,29 +771,42 @@ class Fork(ModuleBase):
 
     def cancel(self):
         self.script_status = ScriptStatus.FAILED
-        delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
-        delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
+        self.reset()
         Trace.log("cancel")
+        return
+
+    def reset(self):
+        self.target_pos = [0, 0, 0, -1]
+        self.rec_params = dict()
+        self.start_time = time.time()
+        self.action_id = 0
+        self.action_list = list()
+        self.operation_init = False
+        # self.script_status = ScriptStatus.NONE
+        self.action_status = ActionStatus.INIT
+        # 识别相关
+        self.rec_result = dict()
+        # 定义脚本运行相关的成员变量
+        self.hasReachDi = None
+        self.recfile = ""
+        self.move_task = dict()
+        self.cur_state = {}
+        delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
+        Motor.resetMotor(ConfigParams.fork_motor_name)
+        delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
+        Navigation.deleteClearRegion(self.name_left, Coordinate.ROBOT)
+        Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
+        # Navigation.clearGoodsShape()
 
     def modbus(self):
         # modbus解析器
-
         # 读取数据
         if NetProtocol.getModbusData("4x", 200, 1):
-
             modbus_data = NetProtocol.getModbusData("4x", 201, 2)
             data = parse_modbus(modbus_data, "float")
             args = {"operation": "forkHeight", "forkHeight": data}
             self.event_modbus = False
             return args
-
-    def to_float32_little(self, data):
-        """
-        data: list of two 16-bit words [low, high]
-        拼接为 float32，小端模式（低位在前）
-        """
-        raw = ((data[1] & 0xFFFF) << 16) | (data[0] & 0xFFFF)
-        return struct.unpack("!f", raw.to_bytes(4, byteorder="big"))[0]
 
     def safe_move_check(self):
         status = SafeMoveStatus.FINISHED
@@ -1043,7 +1079,6 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
 
     def unload(self):
-        print(self.operation_init)
         if not self.operation_init:
             self.operation_init = True
             self.do_fork = self.do_fork_check()
@@ -1193,8 +1228,8 @@ class Fork(ModuleBase):
     def _check_timeout(self):
         self.script_runtime = time.time() - self.start_time
         if self.script_runtime > ConfigParams.timeout:
+            print(1)
             self.script_status = ScriptStatus.FAILED
-            return
 
     # def _report(self):
     #     cur_status = dict()
@@ -1211,26 +1246,6 @@ class Fork(ModuleBase):
             self.action_list = [Rec(self.recfile, self.target_pos)]
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
-
-    def reset(self):
-        self.target_pos = [0, 0, 0, -1]
-        self.rec_params = dict()
-        self.start_time = None
-        self.init_args = False
-        self.action_id = 0
-        self.action_list = list()
-        self.operation_init = False
-        self.action_status = ActionStatus.INIT
-        # 识别相关
-        self.rec_result = dict()
-        # 定义脚本运行相关的成员变量
-        self.opt = ""
-        self.hasReachDi = None
-        self.recfile = ""
-        self.move_task = dict()
-        self.cur_state = {}
-        delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
-        delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
 
     def period_run(self):
         fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
@@ -1479,7 +1494,7 @@ class Rec(BaseAction):
                 Recognize.doRec(recfile, "")
             else:
                 # Recognize.doRec(recfile, False)
-                region = {"point":{"x":0.36,"y":0.37},"radius":1.865074,"shape":"circle"}
+                region = {"point": {"x": 0.36, "y": 0.37}, "radius": 1.865074, "shape": "circle"}
                 Recognize.doRec(recfile, json.dumps(region))
             Timer.delay(0.05)
         return False, rec_status, list
@@ -2206,20 +2221,17 @@ class RotateDirection(IntEnum):
 
 def main():
     Module.init()
-    ConfigParams.init()
 
     validated_params = {}
     validator = ParamValidator(InputParams.builder.to_dict())
     checked_args = False
 
     f = Fork()
-    f.reset()
 
     RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
     RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
 
     while True:
-        # print(f"event_modbus_before:{f.event_modbus}")
         if f.event_safe_move_check:
             f.safe_move_check()
         if f.event_modbus:
@@ -2235,10 +2247,14 @@ def main():
             args = {}
             if not checked_args:
                 checked_args = True
+                f.init_args = False
                 f.reset()
+                Trace.log(f"script status1: {status}")
+
                 try:
                     # 验证参数
                     args = validator.validate(input_params)
+                    f.script_status = ScriptStatus.RUNNING
                     Trace.log(f"check ok, args:{json.dumps(args, indent=2)}")
                 except ValueError as e:
                     Trace.log(f"check error:f{e}")
@@ -2248,10 +2264,11 @@ def main():
                 for k in keys_to_delete:
                     del f.trace_chart[k]
                 Module.set_status(f.script_status)
-                time.sleep(0.5)
                 checked_args = False
                 validated_params = {}
                 f.reset()
+                continue
+
             f.run(args)
 
         time.sleep(0.1)
