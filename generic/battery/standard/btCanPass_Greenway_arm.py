@@ -188,7 +188,7 @@ class testCanBattery(cb.canPassBase):
             self.connect_timeout_t.reset()
             self.wake_up = False
             if not self.clear:
-                exist = self.errorExists(54001)
+                exist = self.errorExists(57040)
                 if exist:
                     log.debug('clearTimeout')
                     self.clearTimeout()

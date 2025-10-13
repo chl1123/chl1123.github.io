@@ -161,12 +161,12 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = False
             self.connect_timeout_t.reset()
             self.wake_up = False
-            # if not self.clear:
-            #     if self.warningExists(54001):
-            #         print('clear')
-            #         self.clearTimeout()
-            #     else:
-            #         self.clear = True
+            if not self.clear:
+                if self.warningExists(57040):
+                    print('clear')
+                    self.clearTimeout()
+                else:
+                    self.clear = True
         else:
             if self.connect_timeout_t.isTimeUp():
                 if not self.wake_up and (self.id == "0b" or self.id == "0d" or self.id == "0e"):

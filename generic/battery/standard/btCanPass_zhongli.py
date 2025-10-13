@@ -106,7 +106,7 @@ class ZLCanBattery(cb.canPassBase):  # 创建中立电池类，继承电池基�
             self.msg_ok = False
             self.connect_timeout_t.reset()
             if not self.clear:
-                if self.warningExists(54001):
+                if self.warningExists(57040):
                     print('clear')
                     self.clearTimeout()
                 else:
