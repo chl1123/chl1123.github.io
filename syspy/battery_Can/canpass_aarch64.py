@@ -11,6 +11,8 @@ class canPassAarch64():
         self.__callback = None
         self.can_ids = []
         self.notifier = None
+        self.channel = None
+        self.bitrate = None
 
     def setCallBack(self, handleData):
         if callable(handleData):
@@ -24,7 +26,9 @@ class canPassAarch64():
             self.__callback(msg)
 
     def createCanBus(self, channel, bitrate):
-        self.bus = can.interface.Bus(bustype='socketcan', channel=channel, bitrate=bitrate, receive_own_messages=False)
+        self.channel = channel
+        self.bitrate = bitrate
+        self.bus = can.interface.Bus(bustype='socketcan', channel=self.channel, bitrate=self.bitrate, receive_own_messages=False)
         self.notifier = can.Notifier(self.bus, [self.__on_message_received], timeout=5)
 
     # unused filter cuz bus set_filters already done
@@ -45,12 +49,35 @@ class canPassAarch64():
         self.bus.set_filters(filters)
         log.info(f"Attached CAN IDs: {[hex(id) for id in self.can_ids]}")
 
+    def __resetBus(self):
+        """重启 CAN 接口并重新创建 bus"""
+        try:
+            if self.notifier:
+                self.notifier.stop()
+            if self.bus:
+                self.bus.shutdown()
+        except Exception:
+            pass
+
+        log.warning("[CAN] Resetting CAN interface due to tx buffer full")
+        self.createCanBus(self.channel,self.bitrate)
+        self.attachCanID(*self.can_ids)
+        log.info(f'[CAN] Config Ok')
+        
     def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
         if not self.bus:
             log.warning("please createCanBus first.")
             return
-        self.bus.send(can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc))
-        log.info(f'message send: {channel=}, {hex(can_id)=}, {dlc=}, {extend=}, {can_string=}')
+        try:
+            self.bus.send(can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc))
+            log.info(f'message send: {channel=}, {hex(can_id)=}, {dlc=}, {extend=}, {can_string=}')
+        except can.CanError as e:
+            log.error(f"Send failed: {e}")
+            if "buffer" in str(e).lower():
+                self.__resetBus()
+                log.info(f'please check can bus connection, the tx buffer is full due to unsuccess communication')
+
+        
 
     def close(self):
         if self.notifier:
