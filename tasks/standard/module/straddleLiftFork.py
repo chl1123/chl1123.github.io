@@ -25,7 +25,10 @@ from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, A
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
 from syspy.lib.robot_param import RobotParam
 import tasks.standard.goBezier as GoBezier
+from syspy import LevelDB
 from syspy.core.rbk_rpc import Service
+
+db = LevelDB("containers")
 
 
 def clamp(val, lo, hi):
@@ -42,6 +45,7 @@ def _robot_device_change_callback(device_change_set: List[str]):
         ConfigParams.get_device_model_param()
     if "Motor" in device_change_set:
         ConfigParams.get_device_motor_param()
+    # InputParams.init()
 
 
 def _robot_config_change_callback(diff_map: Dict[str, Any]):
@@ -85,6 +89,8 @@ class ConfigParams:
     fork_tip_di_sensors: list = []
     fork_tip_distance_sensors: list = []
     contact_ids_str: list = []
+    reach_up_dist: float = 0.001
+    reach_down_dist: float = 0.001
 
     @staticmethod
     def _safe_get_device(device_name: str, param_path: str, default):
@@ -171,6 +177,10 @@ class ConfigParams:
         cls.down_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI", "")
         cls.fork_max_speed = float(
             cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed", 0.0))
+        cls.reach_up_dist = float(
+            cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachUpDist", 0.001))
+        cls.reach_down_dist = float(
+            cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist", 0.001))
 
     # 从脚本配置参数里定义的参数，显示为小驼峰
     param_server = ParamServer(__file__)
@@ -725,6 +735,20 @@ class Fork(ModuleBase):
         self.trace_chart = {}
         self.rec_info = {}
         self.pallet_deduct_info = {}
+        self.fork_height_in_place = True
+
+        # 处理货叉里程数据
+
+        self.mileage_total_key = "fork_mileage"
+        self.mileage_up_key = "fork_mileage_up"
+        self.mileage_down_key = "fork_mileage_down"
+        self.total_dist = float(db.get(key=self.mileage_total_key) or 0)
+        self.up_dist = float(db.get(self.mileage_up_key) or 0)
+        self.down_dist = float(db.get(self.mileage_down_key) or 0)
+        self.last_saved_total = self.total_dist  # ← 记录上次保存值
+        self.last_pos = None
+        self.last_save_ts = time.time()
+        self.save_interval = 60  # 每60秒保存一次
 
     def run(self, args):
         if Abnormal.exists(53320):
@@ -888,21 +912,23 @@ class Fork(ModuleBase):
                                             {"fork_di_dist": ConfigParams.fork_di_dist}, self.check_di),
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                     ]
-                    # 非识别取货的话扣掉AP点
-                    deduct2ap = [{"x": ConfigParams.head + 0.15, "y": ConfigParams.width / 2 + 0.15},
-                                 {"x": -ConfigParams.tail, "y": ConfigParams.width / 2 + 0.15},
-                                 {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2 - 0.15},
-                                 {"x": ConfigParams.head + 0.15, "y": -ConfigParams.width / 2 - 0.15}]
 
-                    deduct2world = []
-                    for point in deduct2ap:
-                        point2ap = Pos2World([point["x"], point["y"], 0],
-                                             [self.target_pos[0], self.target_pos[1], self.target_pos[2]])
-                        deduct2world.append({"x": point2ap[0], "y": point2ap[1]})
-                    Navigation.setClearRegion("noRecDeduct2World", [p["x"] for p in deduct2world],
-                                              [p["y"] for p in deduct2world],
-                                              [ConfigParams.fork_root_2D_lasers] + ConfigParams.fork_tip_2D_lasers +
-                                              ConfigParams.fork_tip_distance_sensors, Coordinate.WORLD)
+                    if ConfigParams.module_type == "straddleLiftFork":
+                        # 非识别取货的话扣掉AP点
+                        deduct2ap = [{"x": ConfigParams.head + 0.15, "y": ConfigParams.width / 2 + 0.15},
+                                     {"x": -ConfigParams.tail, "y": ConfigParams.width / 2 + 0.15},
+                                     {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2 - 0.15},
+                                     {"x": ConfigParams.head + 0.15, "y": -ConfigParams.width / 2 - 0.15}]
+
+                        deduct2world = []
+                        for point in deduct2ap:
+                            point2ap = Pos2World([point["x"], point["y"], 0],
+                                                 [self.target_pos[0], self.target_pos[1], self.target_pos[2]])
+                            deduct2world.append({"x": point2ap[0], "y": point2ap[1]})
+
+                        Navigation.setClearRegion("noRecDeduct2World", [p["x"] for p in deduct2world],
+                                                  [p["y"] for p in deduct2world],
+                                                  [ConfigParams.fork_root_2D_lasers], Coordinate.WORLD)
             # 如果需要识别后再取货
             else:
                 if self.target_pos[3] == -1:
@@ -1013,23 +1039,27 @@ class Fork(ModuleBase):
                     GoPathWithContactDi(ConfigParams.contact_ids_str, rec_world_pos, None, method, args, self.check_di),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                 ])
-                Trace.log(f"task:{self.action_list}")
+                Trace.log(f"task after rec:{self.action_list}")
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
             goods_point2robot = []
 
             if self.recfile:
+                # 取最外面的包络，货物模型、栈板模型、识别出来的外部包络
                 outer_points = convex_hull(self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec)
                 for point in outer_points:
                     point2ap = Pos2World([point["x"], point["y"], 0], [ConfigParams.module_x, 0, 0])
                     goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
+                # 设置货物形状
                 Navigation.setGoodsPolyShape(goods_point2robot, self.recfile)
+                # 删掉地图上的扣除区域
                 delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
             # 没有识别文件
             else:
                 for point in self.no_rec_deduct_pallet_area:
                     point2ap = Pos2World([point["x"], point["y"], 0], [ConfigParams.module_x, 0, 0])
                     goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
+                # 设置货物形状
                 Navigation.setGoodsPolyShape(goods_point2robot, "no_rec_deduct_pallet_area")
             self.script_status = ScriptStatus.FINISHED
 
@@ -1155,6 +1185,7 @@ class Fork(ModuleBase):
 
     def fork_move(self):
         if not self.operation_init:
+            self.fork_height_in_place = False
             self.operation_init = True
             # self.do_fork = self.do_fork_check()
             # forkHeight 和 forkSpeed 为任务输入参数
@@ -1162,6 +1193,7 @@ class Fork(ModuleBase):
             self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.forkHeight, self.forkSpeed)]
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
+            self.fork_height_in_place = True
         # print("action_status:" + json.dumps(cur_status))
 
     def _init_args(self):
@@ -1247,16 +1279,42 @@ class Fork(ModuleBase):
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
 
+    def save_mileage(self):
+        if self.total_dist != self.last_saved_total:
+            db.puts({
+                self.mileage_total_key: str(self.total_dist),
+                self.mileage_up_key: str(self.up_dist),
+                self.mileage_down_key: str(self.down_dist),
+            })
+            self.last_saved_total = self.total_dist
+
     def period_run(self):
         fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
         self.trace_chart.update({
             "forkHeight": fork_height,  # 货叉高度, 单位 m
-            # "forkHeightInPlace": Motor.isMotorReached(ConfigParams.fork_motor_name),  # 货叉高度是否到位, true = 到位, false = 未到位
+            "forkHeightInPlace": self.fork_height_in_place,  # 货叉高度是否到位, true = 到位, false = 未到位
             "forkAutoFlag": not Controller.get_is_external_control(),
+            "forkMileage": self.total_dist
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.report_info(self.trace_chart)
         Trace.chart(self.trace_chart)
+
+        if self.last_pos is not None:
+            delta = fork_height - self.last_pos
+            if delta > ConfigParams.reach_up_dist:
+                self.up_dist += delta
+                self.total_dist += delta
+            elif delta < -ConfigParams.reach_down_dist:
+                d = -delta
+                self.down_dist += d
+                self.total_dist += d
+
+        self.last_pos = fork_height
+
+        if time.time() - self.last_save_ts > self.save_interval:
+            self.save_mileage()
+            self.last_save_ts = time.time()
 
         # 写modbus寄存器
         modbus_list_fork_height = float_to_modbus_poll_regs(fork_height)
@@ -2249,7 +2307,6 @@ def main():
                 checked_args = True
                 f.init_args = False
                 f.reset()
-                Trace.log(f"script status1: {status}")
 
                 try:
                     # 验证参数
@@ -2263,6 +2320,8 @@ def main():
                 keys_to_delete = [k for k in f.trace_chart if k.startswith("action.")]
                 for k in keys_to_delete:
                     del f.trace_chart[k]
+
+                f.save_mileage()
                 Module.set_status(f.script_status)
                 checked_args = False
                 validated_params = {}
