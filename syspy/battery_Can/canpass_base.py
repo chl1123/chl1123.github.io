@@ -150,8 +150,8 @@ class canPassBase:
         return Do.get_do(index)
 
     def setTimeout(self):
-        Abnormal.setConnect(57040, "CAN battery response time out", "No CAN response",
-                           "check CAN","robot.model","battery","Battery-000")
+        Abnormal.setConnect(57040, "Battery response time out", "No data response",
+                           "Check the battery or wiring","robot.model","battery","Battery-000")
 
     def clearTimeout(self):
         Abnormal.clear(57040)
