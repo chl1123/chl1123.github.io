@@ -19,105 +19,105 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x18message_controller.proto\x12\x0crbk.protocol\"\x88\x02\n\x12Message_Controller\x12\x0c\n\x04temp\x18\x01 \x01(\x01\x12\x0c\n\x04humi\x18\x02 \x01(\x01\x12\x0f\n\x07voltage\x18\x03 \x01(\x01\x12\x0b\n\x03\x65mc\x18\x04 \x01(\x08\x12\r\n\x05\x62rake\x18\x05 \x01(\x08\x12\x11\n\tdriverEmc\x18\x06 \x01(\x08\x12\x14\n\x0cmanualCharge\x18\x07 \x01(\x08\x12\x12\n\nautoCharge\x18\x08 \x01(\x08\x12\x10\n\x08\x65lectric\x18\t \x01(\x08\x12\x0f\n\x07softEMC\x18\n \x01(\x08\x12\x19\n\x11isExternalControl\x18\x0b \x01(\x08\x12\x18\n\x10isIMUCalibrating\x18\x0c \x01(\x08\x12\x14\n\x0cvoltagebyAdc\x18\r \x01(\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x18message_controller.proto\x12\x0crbk.protocol\"\x83\x02\n\rmsgController\x12\x0c\n\x04temp\x18\x01 \x01(\x01\x12\x0c\n\x04humi\x18\x02 \x01(\x01\x12\x0f\n\x07voltage\x18\x03 \x01(\x01\x12\x0b\n\x03\x65mc\x18\x04 \x01(\x08\x12\r\n\x05\x62rake\x18\x05 \x01(\x08\x12\x11\n\tdriverEmc\x18\x06 \x01(\x08\x12\x14\n\x0cmanualCharge\x18\x07 \x01(\x08\x12\x12\n\nautoCharge\x18\x08 \x01(\x08\x12\x10\n\x08\x65lectric\x18\t \x01(\x08\x12\x0f\n\x07softEMC\x18\n \x01(\x08\x12\x19\n\x11isExternalControl\x18\x0b \x01(\x08\x12\x18\n\x10isIMUCalibrating\x18\x0c \x01(\x08\x12\x14\n\x0cvoltagebyAdc\x18\r \x01(\x01\x62\x06proto3')
 )
 
 
 
 
-_MESSAGE_CONTROLLER = _descriptor.Descriptor(
-  name='Message_Controller',
-  full_name='rbk.protocol.Message_Controller',
+_MSGCONTROLLER = _descriptor.Descriptor(
+  name='msgController',
+  full_name='rbk.protocol.msgController',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='temp', full_name='rbk.protocol.Message_Controller.temp', index=0,
+      name='temp', full_name='rbk.protocol.msgController.temp', index=0,
       number=1, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='humi', full_name='rbk.protocol.Message_Controller.humi', index=1,
+      name='humi', full_name='rbk.protocol.msgController.humi', index=1,
       number=2, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='voltage', full_name='rbk.protocol.Message_Controller.voltage', index=2,
+      name='voltage', full_name='rbk.protocol.msgController.voltage', index=2,
       number=3, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='emc', full_name='rbk.protocol.Message_Controller.emc', index=3,
+      name='emc', full_name='rbk.protocol.msgController.emc', index=3,
       number=4, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='brake', full_name='rbk.protocol.Message_Controller.brake', index=4,
+      name='brake', full_name='rbk.protocol.msgController.brake', index=4,
       number=5, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='driverEmc', full_name='rbk.protocol.Message_Controller.driverEmc', index=5,
+      name='driverEmc', full_name='rbk.protocol.msgController.driverEmc', index=5,
       number=6, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='manualCharge', full_name='rbk.protocol.Message_Controller.manualCharge', index=6,
+      name='manualCharge', full_name='rbk.protocol.msgController.manualCharge', index=6,
       number=7, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='autoCharge', full_name='rbk.protocol.Message_Controller.autoCharge', index=7,
+      name='autoCharge', full_name='rbk.protocol.msgController.autoCharge', index=7,
       number=8, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='electric', full_name='rbk.protocol.Message_Controller.electric', index=8,
+      name='electric', full_name='rbk.protocol.msgController.electric', index=8,
       number=9, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='softEMC', full_name='rbk.protocol.Message_Controller.softEMC', index=9,
+      name='softEMC', full_name='rbk.protocol.msgController.softEMC', index=9,
       number=10, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='isExternalControl', full_name='rbk.protocol.Message_Controller.isExternalControl', index=10,
+      name='isExternalControl', full_name='rbk.protocol.msgController.isExternalControl', index=10,
       number=11, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='isIMUCalibrating', full_name='rbk.protocol.Message_Controller.isIMUCalibrating', index=11,
+      name='isIMUCalibrating', full_name='rbk.protocol.msgController.isIMUCalibrating', index=11,
       number=12, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='voltagebyAdc', full_name='rbk.protocol.Message_Controller.voltagebyAdc', index=12,
+      name='voltagebyAdc', full_name='rbk.protocol.msgController.voltagebyAdc', index=12,
       number=13, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
@@ -136,18 +136,18 @@ _MESSAGE_CONTROLLER = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=43,
-  serialized_end=307,
+  serialized_end=302,
 )
 
-DESCRIPTOR.message_types_by_name['Message_Controller'] = _MESSAGE_CONTROLLER
+DESCRIPTOR.message_types_by_name['msgController'] = _MSGCONTROLLER
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_Controller = _reflection.GeneratedProtocolMessageType('Message_Controller', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_CONTROLLER,
+msgController = _reflection.GeneratedProtocolMessageType('msgController', (_message.Message,), dict(
+  DESCRIPTOR = _MSGCONTROLLER,
   __module__ = 'message_controller_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Controller)
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgController)
   ))
-_sym_db.RegisterMessage(Message_Controller)
+_sym_db.RegisterMessage(msgController)
 
 
 # @@protoc_insertion_point(module_scope)

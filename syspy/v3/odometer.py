@@ -7,18 +7,18 @@ from syspy.odometer import OdometerInterface
 class OdometerV3(OdometerInterface):
     """里程类"""
 
-    _TOPIC = "rbk.protocol.Message_Odometer"
+    _TOPIC = "rbk.protocol.msgOdometer"
     _PLUGIN = "MCLoc"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_Odometer
-        data: Message_Odometer = None
+        from .protobuf import msgOdometer, msgMotorInfo
+        data: msgOdometer = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Odometer
-            cls._MODEL_CLASS = Message_Odometer
+            from .protobuf import msgOdometer
+            cls._MODEL_CLASS = msgOdometer
 
     def get_cycle(self) -> int:
         """获取周期计数
@@ -49,7 +49,7 @@ class OdometerV3(OdometerInterface):
             float: 返回旋转速度值，单位为弧度每秒
         """
         if self.update():
-            return self.data.vel_x, self.data.vel_y, self.data.vel_rotate
+            return self.data.velX, self.data.velY, self.data.velRotate
 
     def get_is_stop(self) -> bool:
         """获取是否停止状态
@@ -58,7 +58,7 @@ class OdometerV3(OdometerInterface):
             bool: True表示停止，False表示未停止
         """
         if self.update():
-            return self.data.is_stop
+            return self.data.isStop
 
     def get_detect_skid(self) -> bool:
         """获取是否检测到打滑
@@ -67,13 +67,13 @@ class OdometerV3(OdometerInterface):
             bool: True表示检测到打滑，False表示未检测到
         """
         if self.update():
-            return self.data.detect_skid
+            return self.data.detectSkid
 
-    def get_motor_infos(self) -> List["Message_MotorInfo"]:
+    def get_motor_infos(self) -> List["msgMotorInfo"]:
         """获取电机信息列表
 
         Returns:
-            List[Message_MotorInfo]: 返回电机信息列表，列表内元素为Message_Odometer对象
+            List[msgMotorInfo]: 返回电机信息列表，列表内元素为msgOdometer对象
         """
         if self.update():
-            return self.data.motor_info
+            return self.data.motorInfo

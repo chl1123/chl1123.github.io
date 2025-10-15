@@ -4,33 +4,43 @@ import shutil
 
 # 要生成pythonic的proto列表
 protos = [
-    # "message_header",
-    # "message_bin",
-    # "message_depthcamera",
-    # "message_laser",
-    # "message_battery",
-    # "message_controller",
+    "message_header",
+    "message_bin",
+    "message_geometry",
+    "message_recogresult",
+    "message_calibstatus",
+    "message_calibration",
+    "message_depthcamera",
+    "message_laser",
+    "message_battery",
+    "message_controller",
     "message_io",
-    # "CanFrame",
-    # "message_distancesensor",
-    # "message_motorinfos",
-    # "message_odometer",
-    # "message_movetask",
-    # "message_localization",
-    # "message_magnetic",
-    # "message_navigation",
-    # "message_pgv",
-    # "message_rfid",
-    # "message_sound",
-    # "message_dmx512",
-    # "message_script",
+    "CanFrame",
+    "message_distancesensor",
+    "message_motorinfos",
+    "message_odometer",
+    "message_movetask",
+    "message_localization",
+    "message_magnetic",
+    "message_navigation",
+    "message_codescanner",
+    "message_rfid",
+    "message_sound",
+    "message_dmx512",
+    "message_script",
 ]
 
 
 def gen_protobuf():
     out_folder_name = "./message"
+    chmod_command = f"chmod +x ./protoc-3.6.1-linux-x86_64/bin/protoc"
+    print(chmod_command)
+    os.system(chmod_command)
+    print(f"chmod_command success")
+    print()
+
     for proto_name in protos:
-        command = f"protoc --proto_path=./proto --python_out={out_folder_name} ./proto/{proto_name}.proto"
+        command = f"./protoc-3.6.1-linux-x86_64/bin/protoc --proto_path=./proto --python_out={out_folder_name} ./proto/{proto_name}.proto"
         print(command)
         os.system(command)
         print(f"gen '{proto_name}' protobuf success")
@@ -121,8 +131,8 @@ def gen_mkdocs_pyi():
 
 
 if __name__ == "__main__":
-    # gen_protobuf()
+    gen_protobuf()
     # gen_pandantic()
     # gen_models()
     gen_pyi()
-    # gen_mkdocs_pyi()
+    gen_mkdocs_pyi()

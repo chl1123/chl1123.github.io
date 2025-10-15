@@ -5,20 +5,20 @@ from syspy.rfid import RFIDInterface
 class RFIDV3(RFIDInterface):
     """RFID类"""
 
-    _TOPIC = "rbk.protocol.Message_RFID"
+    _TOPIC = "rbk.protocol.msgRFID"
     _PLUGIN = "RFIDSensor"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_RFID
-        data: Message_RFID = None
+        from .protobuf import msgRFID
+        data: msgRFID = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_RFID
-            cls._MODEL_CLASS = Message_RFID
+            from .protobuf import msgRFID
+            cls._MODEL_CLASS = msgRFID
 
-    def get_rfids(self) -> typing.List["Message_RFIDNode"]:
+    def get_rfids(self) -> typing.List["msgRFIDNode"]:
         """获取RFID节点列表
 
         Returns:

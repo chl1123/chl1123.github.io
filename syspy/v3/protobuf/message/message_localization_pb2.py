@@ -2,524 +2,491 @@
 # source: message_localization.proto
 
 import sys
-
-_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode('latin1'))
+_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
+
 from . import message_header_pb2 as message__header__pb2
 
+
 DESCRIPTOR = _descriptor.FileDescriptor(
-    name='message_localization.proto',
-    package='rbk.protocol',
-    syntax='proto3',
-    serialized_options=None,
-    serialized_pb=_b(
-        '\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xcc\x01\n\x14Message_Localization\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x11\n\tloc_state\x18\t \x01(\r\x12\x12\n\nloc_method\x18\n \x01(\r\"$\n\x13Message_LocFinished\x12\r\n\x05value\x18\x01 \x01(\x08\"\xa7\x01\n\x0eMessage_3DPose\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\x0b\n\x03q_w\x18\x05 \x01(\x01\x12\x0b\n\x03q_x\x18\x06 \x01(\x01\x12\x0b\n\x03q_y\x18\x07 \x01(\x01\x12\x0b\n\x03q_z\x18\x08 \x01(\x01\x12\x12\n\nextra_data\x18\t \x01(\t\"?\n\x11Message_IRCAMPose\x12*\n\x04pose\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_3DPose\"\x85\x04\n\x12Message_2D_CamInfo\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\x13\n\x0b\x63\x61mera_name\x18\x02 \x01(\t\x12\x12\n\nm_infrared\x18\x03 \x01(\x01\x12\x16\n\x0em_seertag_size\x18\x04 \x01(\x01\x12\x1b\n\x13m_seertag_family_id\x18\x05 \x01(\x01\x12\x12\n\nmodel_type\x18\x06 \x01(\t\x12\x18\n\x10\x64istortion_modle\x18\x07 \x01(\t\x12\x1a\n\x12is_intrinsics_caib\x18\x08 \x01(\x08\x12\x1a\n\x12is_extrinsics_caib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\r\n\x05m_fx_\x18\x10 \x01(\x01\x12\r\n\x05m_fy_\x18\x11 \x01(\x01\x12\r\n\x05m_cx_\x18\x12 \x01(\x01\x12\r\n\x05m_cy_\x18\x13 \x01(\x01\x12\r\n\x05m_k1_\x18\x14 \x01(\x01\x12\r\n\x05m_k2_\x18\x15 \x01(\x01\x12\r\n\x05m_k3_\x18\x16 \x01(\x01\x12\r\n\x05m_k4_\x18\x17 \x01(\x01\x12\r\n\x05m_k5_\x18\x18 \x01(\x01\x12\r\n\x05m_k6_\x18\x19 \x01(\x01\x12\r\n\x05m_p1_\x18\x1a \x01(\x01\x12\r\n\x05m_p2_\x18\x1b \x01(\x01\x62\x06proto3')
-    ,
-    dependencies=[message__header__pb2.DESCRIPTOR, ])
+  name='message_localization.proto',
+  package='rbk.protocol',
+  syntax='proto3',
+  serialized_options=None,
+  serialized_pb=_b('\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xc0\x01\n\x0fmsgLocalization\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x10\n\x08locState\x18\t \x01(\r\x12\x11\n\tlocMethod\x18\n \x01(\r\"\x1f\n\x0emsgLocFinished\x12\r\n\x05value\x18\x01 \x01(\x08\"\x98\x01\n\tmsg3DPose\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\n\n\x02qW\x18\x05 \x01(\x01\x12\n\n\x02qX\x18\x06 \x01(\x01\x12\n\n\x02qY\x18\x07 \x01(\x01\x12\n\n\x02qZ\x18\x08 \x01(\x01\x12\x11\n\textraData\x18\t \x01(\t\"\xd5\x03\n\x0cmsg2DCamInfo\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x12\n\ncameraName\x18\x02 \x01(\t\x12\x11\n\tmInfrared\x18\x03 \x01(\x01\x12\x14\n\x0cmSeertagSize\x18\x04 \x01(\x01\x12\x18\n\x10mSeertagFamilyID\x18\x05 \x01(\x01\x12\x11\n\tmodelType\x18\x06 \x01(\t\x12\x17\n\x0f\x64istortionModel\x18\x07 \x01(\t\x12\x18\n\x10isIntrinsicsCaib\x18\x08 \x01(\x08\x12\x18\n\x10isExtrinsicsCaib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\x0b\n\x03mFx\x18\x10 \x01(\x01\x12\x0b\n\x03mFy\x18\x11 \x01(\x01\x12\x0b\n\x03mCx\x18\x12 \x01(\x01\x12\x0b\n\x03mCy\x18\x13 \x01(\x01\x12\x0b\n\x03mK1\x18\x14 \x01(\x01\x12\x0b\n\x03mK2\x18\x15 \x01(\x01\x12\x0b\n\x03mK3\x18\x16 \x01(\x01\x12\x0b\n\x03mK4\x18\x17 \x01(\x01\x12\x0b\n\x03mK5\x18\x18 \x01(\x01\x12\x0b\n\x03mK6\x18\x19 \x01(\x01\x12\x0b\n\x03mP1\x18\x1a \x01(\x01\x12\x0b\n\x03mP2\x18\x1b \x01(\x01\x62\x06proto3')
+  ,
+  dependencies=[message__header__pb2.DESCRIPTOR,])
 
-_MESSAGE_LOCALIZATION = _descriptor.Descriptor(
-    name='Message_Localization',
-    full_name='rbk.protocol.Message_Localization',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_Localization.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_Localization.x', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_Localization.y', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='z', full_name='rbk.protocol.Message_Localization.z', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='angle', full_name='rbk.protocol.Message_Localization.angle', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='roll', full_name='rbk.protocol.Message_Localization.roll', index=5,
-            number=6, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='pitch', full_name='rbk.protocol.Message_Localization.pitch', index=6,
-            number=7, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='confidence', full_name='rbk.protocol.Message_Localization.confidence', index=7,
-            number=8, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='loc_state', full_name='rbk.protocol.Message_Localization.loc_state', index=8,
-            number=9, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='loc_method', full_name='rbk.protocol.Message_Localization.loc_method', index=9,
-            number=10, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=67,
-    serialized_end=271,
+
+
+
+_MSGLOCALIZATION = _descriptor.Descriptor(
+  name='msgLocalization',
+  full_name='rbk.protocol.msgLocalization',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgLocalization.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgLocalization.x', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgLocalization.y', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='rbk.protocol.msgLocalization.z', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angle', full_name='rbk.protocol.msgLocalization.angle', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='roll', full_name='rbk.protocol.msgLocalization.roll', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='pitch', full_name='rbk.protocol.msgLocalization.pitch', index=6,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='confidence', full_name='rbk.protocol.msgLocalization.confidence', index=7,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='locState', full_name='rbk.protocol.msgLocalization.locState', index=8,
+      number=9, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='locMethod', full_name='rbk.protocol.msgLocalization.locMethod', index=9,
+      number=10, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=67,
+  serialized_end=259,
 )
 
-_MESSAGE_LOCFINISHED = _descriptor.Descriptor(
-    name='Message_LocFinished',
-    full_name='rbk.protocol.Message_LocFinished',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='value', full_name='rbk.protocol.Message_LocFinished.value', index=0,
-            number=1, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=273,
-    serialized_end=309,
+
+_MSGLOCFINISHED = _descriptor.Descriptor(
+  name='msgLocFinished',
+  full_name='rbk.protocol.msgLocFinished',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='value', full_name='rbk.protocol.msgLocFinished.value', index=0,
+      number=1, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=261,
+  serialized_end=292,
 )
 
-_MESSAGE_3DPOSE = _descriptor.Descriptor(
-    name='Message_3DPose',
-    full_name='rbk.protocol.Message_3DPose',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_3DPose.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_3DPose.x', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_3DPose.y', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='z', full_name='rbk.protocol.Message_3DPose.z', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='q_w', full_name='rbk.protocol.Message_3DPose.q_w', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='q_x', full_name='rbk.protocol.Message_3DPose.q_x', index=5,
-            number=6, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='q_y', full_name='rbk.protocol.Message_3DPose.q_y', index=6,
-            number=7, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='q_z', full_name='rbk.protocol.Message_3DPose.q_z', index=7,
-            number=8, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='extra_data', full_name='rbk.protocol.Message_3DPose.extra_data', index=8,
-            number=9, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=312,
-    serialized_end=479,
+
+_MSG3DPOSE = _descriptor.Descriptor(
+  name='msg3DPose',
+  full_name='rbk.protocol.msg3DPose',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msg3DPose.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msg3DPose.x', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msg3DPose.y', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='rbk.protocol.msg3DPose.z', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='qW', full_name='rbk.protocol.msg3DPose.qW', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='qX', full_name='rbk.protocol.msg3DPose.qX', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='qY', full_name='rbk.protocol.msg3DPose.qY', index=6,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='qZ', full_name='rbk.protocol.msg3DPose.qZ', index=7,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='extraData', full_name='rbk.protocol.msg3DPose.extraData', index=8,
+      number=9, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=295,
+  serialized_end=447,
 )
 
-_MESSAGE_IRCAMPOSE = _descriptor.Descriptor(
-    name='Message_IRCAMPose',
-    full_name='rbk.protocol.Message_IRCAMPose',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='pose', full_name='rbk.protocol.Message_IRCAMPose.pose', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=481,
-    serialized_end=544,
+
+_MSG2DCAMINFO = _descriptor.Descriptor(
+  name='msg2DCamInfo',
+  full_name='rbk.protocol.msg2DCamInfo',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msg2DCamInfo.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='cameraName', full_name='rbk.protocol.msg2DCamInfo.cameraName', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mInfrared', full_name='rbk.protocol.msg2DCamInfo.mInfrared', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mSeertagSize', full_name='rbk.protocol.msg2DCamInfo.mSeertagSize', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mSeertagFamilyID', full_name='rbk.protocol.msg2DCamInfo.mSeertagFamilyID', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='modelType', full_name='rbk.protocol.msg2DCamInfo.modelType', index=5,
+      number=6, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='distortionModel', full_name='rbk.protocol.msg2DCamInfo.distortionModel', index=6,
+      number=7, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isIntrinsicsCaib', full_name='rbk.protocol.msg2DCamInfo.isIntrinsicsCaib', index=7,
+      number=8, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isExtrinsicsCaib', full_name='rbk.protocol.msg2DCamInfo.isExtrinsicsCaib', index=8,
+      number=9, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msg2DCamInfo.x', index=9,
+      number=10, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msg2DCamInfo.y', index=10,
+      number=11, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='rbk.protocol.msg2DCamInfo.z', index=11,
+      number=12, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='roll', full_name='rbk.protocol.msg2DCamInfo.roll', index=12,
+      number=13, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='pitch', full_name='rbk.protocol.msg2DCamInfo.pitch', index=13,
+      number=14, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='yaw', full_name='rbk.protocol.msg2DCamInfo.yaw', index=14,
+      number=15, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mFx', full_name='rbk.protocol.msg2DCamInfo.mFx', index=15,
+      number=16, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mFy', full_name='rbk.protocol.msg2DCamInfo.mFy', index=16,
+      number=17, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mCx', full_name='rbk.protocol.msg2DCamInfo.mCx', index=17,
+      number=18, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mCy', full_name='rbk.protocol.msg2DCamInfo.mCy', index=18,
+      number=19, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mK1', full_name='rbk.protocol.msg2DCamInfo.mK1', index=19,
+      number=20, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mK2', full_name='rbk.protocol.msg2DCamInfo.mK2', index=20,
+      number=21, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mK3', full_name='rbk.protocol.msg2DCamInfo.mK3', index=21,
+      number=22, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mK4', full_name='rbk.protocol.msg2DCamInfo.mK4', index=22,
+      number=23, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mK5', full_name='rbk.protocol.msg2DCamInfo.mK5', index=23,
+      number=24, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mK6', full_name='rbk.protocol.msg2DCamInfo.mK6', index=24,
+      number=25, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mP1', full_name='rbk.protocol.msg2DCamInfo.mP1', index=25,
+      number=26, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mP2', full_name='rbk.protocol.msg2DCamInfo.mP2', index=26,
+      number=27, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=450,
+  serialized_end=919,
 )
 
-_MESSAGE_2D_CAMINFO = _descriptor.Descriptor(
-    name='Message_2D_CamInfo',
-    full_name='rbk.protocol.Message_2D_CamInfo',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_2D_CamInfo.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='camera_name', full_name='rbk.protocol.Message_2D_CamInfo.camera_name', index=1,
-            number=2, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_infrared', full_name='rbk.protocol.Message_2D_CamInfo.m_infrared', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_seertag_size', full_name='rbk.protocol.Message_2D_CamInfo.m_seertag_size', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_seertag_family_id', full_name='rbk.protocol.Message_2D_CamInfo.m_seertag_family_id', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='model_type', full_name='rbk.protocol.Message_2D_CamInfo.model_type', index=5,
-            number=6, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='distortion_modle', full_name='rbk.protocol.Message_2D_CamInfo.distortion_modle', index=6,
-            number=7, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is_intrinsics_caib', full_name='rbk.protocol.Message_2D_CamInfo.is_intrinsics_caib', index=7,
-            number=8, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is_extrinsics_caib', full_name='rbk.protocol.Message_2D_CamInfo.is_extrinsics_caib', index=8,
-            number=9, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_2D_CamInfo.x', index=9,
-            number=10, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_2D_CamInfo.y', index=10,
-            number=11, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='z', full_name='rbk.protocol.Message_2D_CamInfo.z', index=11,
-            number=12, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='roll', full_name='rbk.protocol.Message_2D_CamInfo.roll', index=12,
-            number=13, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='pitch', full_name='rbk.protocol.Message_2D_CamInfo.pitch', index=13,
-            number=14, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='yaw', full_name='rbk.protocol.Message_2D_CamInfo.yaw', index=14,
-            number=15, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_fx_', full_name='rbk.protocol.Message_2D_CamInfo.m_fx_', index=15,
-            number=16, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_fy_', full_name='rbk.protocol.Message_2D_CamInfo.m_fy_', index=16,
-            number=17, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_cx_', full_name='rbk.protocol.Message_2D_CamInfo.m_cx_', index=17,
-            number=18, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_cy_', full_name='rbk.protocol.Message_2D_CamInfo.m_cy_', index=18,
-            number=19, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_k1_', full_name='rbk.protocol.Message_2D_CamInfo.m_k1_', index=19,
-            number=20, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_k2_', full_name='rbk.protocol.Message_2D_CamInfo.m_k2_', index=20,
-            number=21, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_k3_', full_name='rbk.protocol.Message_2D_CamInfo.m_k3_', index=21,
-            number=22, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_k4_', full_name='rbk.protocol.Message_2D_CamInfo.m_k4_', index=22,
-            number=23, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_k5_', full_name='rbk.protocol.Message_2D_CamInfo.m_k5_', index=23,
-            number=24, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_k6_', full_name='rbk.protocol.Message_2D_CamInfo.m_k6_', index=24,
-            number=25, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_p1_', full_name='rbk.protocol.Message_2D_CamInfo.m_p1_', index=25,
-            number=26, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='m_p2_', full_name='rbk.protocol.Message_2D_CamInfo.m_p2_', index=26,
-            number=27, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=547,
-    serialized_end=1064,
-)
-
-_MESSAGE_LOCALIZATION.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_3DPOSE.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_IRCAMPOSE.fields_by_name['pose'].message_type = _MESSAGE_3DPOSE
-_MESSAGE_2D_CAMINFO.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-DESCRIPTOR.message_types_by_name['Message_Localization'] = _MESSAGE_LOCALIZATION
-DESCRIPTOR.message_types_by_name['Message_LocFinished'] = _MESSAGE_LOCFINISHED
-DESCRIPTOR.message_types_by_name['Message_3DPose'] = _MESSAGE_3DPOSE
-DESCRIPTOR.message_types_by_name['Message_IRCAMPose'] = _MESSAGE_IRCAMPOSE
-DESCRIPTOR.message_types_by_name['Message_2D_CamInfo'] = _MESSAGE_2D_CAMINFO
+_MSGLOCALIZATION.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSG3DPOSE.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSG2DCAMINFO.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+DESCRIPTOR.message_types_by_name['msgLocalization'] = _MSGLOCALIZATION
+DESCRIPTOR.message_types_by_name['msgLocFinished'] = _MSGLOCFINISHED
+DESCRIPTOR.message_types_by_name['msg3DPose'] = _MSG3DPOSE
+DESCRIPTOR.message_types_by_name['msg2DCamInfo'] = _MSG2DCAMINFO
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_Localization = _reflection.GeneratedProtocolMessageType('Message_Localization', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LOCALIZATION,
-    __module__='message_localization_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Localization)
-))
-_sym_db.RegisterMessage(Message_Localization)
+msgLocalization = _reflection.GeneratedProtocolMessageType('msgLocalization', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLOCALIZATION,
+  __module__ = 'message_localization_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLocalization)
+  ))
+_sym_db.RegisterMessage(msgLocalization)
 
-Message_LocFinished = _reflection.GeneratedProtocolMessageType('Message_LocFinished', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LOCFINISHED,
-    __module__='message_localization_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LocFinished)
-))
-_sym_db.RegisterMessage(Message_LocFinished)
+msgLocFinished = _reflection.GeneratedProtocolMessageType('msgLocFinished', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLOCFINISHED,
+  __module__ = 'message_localization_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLocFinished)
+  ))
+_sym_db.RegisterMessage(msgLocFinished)
 
-Message_3DPose = _reflection.GeneratedProtocolMessageType('Message_3DPose', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_3DPOSE,
-    __module__='message_localization_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_3DPose)
-))
-_sym_db.RegisterMessage(Message_3DPose)
+msg3DPose = _reflection.GeneratedProtocolMessageType('msg3DPose', (_message.Message,), dict(
+  DESCRIPTOR = _MSG3DPOSE,
+  __module__ = 'message_localization_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msg3DPose)
+  ))
+_sym_db.RegisterMessage(msg3DPose)
 
-Message_IRCAMPose = _reflection.GeneratedProtocolMessageType('Message_IRCAMPose', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_IRCAMPOSE,
-    __module__='message_localization_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_IRCAMPose)
-))
-_sym_db.RegisterMessage(Message_IRCAMPose)
+msg2DCamInfo = _reflection.GeneratedProtocolMessageType('msg2DCamInfo', (_message.Message,), dict(
+  DESCRIPTOR = _MSG2DCAMINFO,
+  __module__ = 'message_localization_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msg2DCamInfo)
+  ))
+_sym_db.RegisterMessage(msg2DCamInfo)
 
-Message_2D_CamInfo = _reflection.GeneratedProtocolMessageType('Message_2D_CamInfo', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_2D_CAMINFO,
-    __module__='message_localization_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_2D_CamInfo)
-))
-_sym_db.RegisterMessage(Message_2D_CamInfo)
 
 # @@protoc_insertion_point(module_scope)

@@ -10,7 +10,7 @@ class LedInterface(ABC, Service):
         """X86发送DMX数据控制灯亮
 
         Args:
-            dmx512_info (str): Message_Dmx512转换的str
+            dmx512_info (str): msgDmx512转换的str
 
         Returns:
             int: 0: 成功
@@ -22,7 +22,7 @@ class LedInterface(ABC, Service):
         """Arm发送DMX数据控制灯亮
 
         Args:
-            dmx512_info: (str): Message_Dmx512转换的str
+            dmx512_info: (str): msgDmx512转换的str
 
         Returns:
             int: 0: 成功

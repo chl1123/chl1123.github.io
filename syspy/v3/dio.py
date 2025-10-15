@@ -7,18 +7,18 @@ from syspy.core.rbk_rpc import call_service, default_plugin
 class DiV3(DiInterface):
     """数字输入类"""
 
-    _TOPIC = "rbk.protocol.Message_DI"
+    _TOPIC = "rbk.protocol.msgDI"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_DI
-        data: Message_DI = None
+        from .protobuf import msgDI, msgDINode
+        data: msgDI = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_DI
-            cls._MODEL_CLASS = Message_DI
+            from .protobuf import msgDI
+            cls._MODEL_CLASS = msgDI
 
     @classmethod
     @call_service(plugin_name="MoveFactory", func_name="setDIValid")
@@ -57,11 +57,11 @@ class DiV3(DiInterface):
                     return node.status
         return False
 
-    def get_dis(self) -> typing.List["Message_DINode"]:
+    def get_dis(self) -> typing.List["msgDINode"]:
         """获取DI消息中的节点列表
 
         Returns:
-            typing.List[Message_DINode]: DI消息中的节点列表
+            typing.List[msgDINode]: DI消息中的节点列表
         """
         if self.update():
             return self.data.node
@@ -73,25 +73,25 @@ class DiV3(DiInterface):
             int: DI消息中的最大节点数
         """
         if self.update():
-            return self.data.max_node
+            return self.data.maxNode
 
 
 @default_plugin("DSPChassis")
 class DoV3(DoInterface):
     """数字输出类"""
 
-    _TOPIC = "rbk.protocol.Message_DO"
+    _TOPIC = "rbk.protocol.msgDO"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_DO
-        data: Message_DO = None
+        from .protobuf import msgDO, msgDONode
+        data: msgDO = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_DO
-            cls._MODEL_CLASS = Message_DO
+            from .protobuf import msgDO
+            cls._MODEL_CLASS = msgDO
 
     @classmethod
     @call_service(plugin_name="MoveFactory")
@@ -123,11 +123,11 @@ class DoV3(DoInterface):
                     return node.status
         return False
 
-    def get_dos(self) -> typing.List["Message_DONode"]:
+    def get_dos(self) -> typing.List["msgDONode"]:
         """获取DO消息中的节点列表
 
         Returns:
-            typing.List[Message_DONode]: DO消息中的节点列表
+            typing.List[msgDONode]: DO消息中的节点列表
         """
         if self.update():
             return self.data.node
@@ -139,4 +139,4 @@ class DoV3(DoInterface):
             int: DO消息中的最大节点数
         """
         if self.update():
-            return self.data.max_node
+            return self.data.maxNode

@@ -68,7 +68,7 @@ class dmx512Base:
 
     # led
     def createDmx512Message(self):
-        return message_dmx512_pb2.Message_Dmx512()
+        return message_dmx512_pb2.msgDmx512()
 
     def sendDmx512(self, dmx512_info):
         self.child.sendDmx512(dmx512_info)

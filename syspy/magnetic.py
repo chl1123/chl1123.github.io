@@ -5,7 +5,7 @@ from syspy import RBK_VERSION
 
 if typing.TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import Message_MagneticNode
+        from syspy.v3.protobuf import msgMagneticNode
     elif RBK_VERSION == 4:
         pass
 
@@ -14,11 +14,11 @@ class MagneticInterface(ABC, Message):
     """磁传感器类"""
 
     @classmethod
-    def get_magnetics(cls) -> typing.List["Message_MagneticNode"]:
+    def get_magnetics(cls) -> typing.List["msgMagneticNode"]:
         """获取磁节点列表
 
         Returns:
-            typing.List[Message_MagneticNode]: 包含所有磁节点信息的列表
+            typing.List[msgMagneticNode]: 包含所有磁节点信息的列表
         """
         raise RBKVersionError()
 

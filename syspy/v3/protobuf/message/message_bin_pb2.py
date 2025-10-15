@@ -2,153 +2,157 @@
 # source: message_bin.proto
 
 import sys
-
-_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode('latin1'))
+_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
+
 from . import message_header_pb2 as message__header__pb2
 
+
 DESCRIPTOR = _descriptor.FileDescriptor(
-    name='message_bin.proto',
-    package='rbk.protocol',
-    syntax='proto3',
-    serialized_options=None,
-    serialized_pb=_b(
-        '\n\x11message_bin.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\x85\x01\n\x0bMessage_Bin\x12\r\n\x05\x62inId\x18\x01 \x01(\t\x12\x0e\n\x06\x66illed\x18\x02 \x01(\x08\x12\x30\n\x06status\x18\x03 \x01(\x0e\x32 .rbk.protocol.Message_Bin.Status\"%\n\x06Status\x12\x0b\n\x07\x43onnect\x10\x00\x12\x0e\n\nDisConnect\x10\x01\"e\n\x0cMessage_Bins\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\'\n\x04\x62ins\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.Message_Binb\x06proto3')
-    ,
-    dependencies=[message__header__pb2.DESCRIPTOR, ])
+  name='message_bin.proto',
+  package='rbk.protocol',
+  syntax='proto3',
+  serialized_options=None,
+  serialized_pb=_b('\n\x11message_bin.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"~\n\x06msgBin\x12\r\n\x05\x62inId\x18\x01 \x01(\t\x12\x0e\n\x06\x66illed\x18\x02 \x01(\x08\x12.\n\tbinStatus\x18\x03 \x01(\x0e\x32\x1b.rbk.protocol.msgBin.status\"%\n\x06status\x12\x0b\n\x07\x63onnect\x10\x00\x12\x0e\n\ndisConnect\x10\x01\"V\n\x07msgBins\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\"\n\x04\x62ins\x18\x02 \x03(\x0b\x32\x14.rbk.protocol.msgBinb\x06proto3')
+  ,
+  dependencies=[message__header__pb2.DESCRIPTOR,])
 
-_MESSAGE_BIN_STATUS = _descriptor.EnumDescriptor(
-    name='Status',
-    full_name='rbk.protocol.Message_Bin.Status',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='Connect', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DisConnect', index=1, number=1,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=154,
-    serialized_end=191,
+
+
+_MSGBIN_STATUS = _descriptor.EnumDescriptor(
+  name='status',
+  full_name='rbk.protocol.msgBin.status',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='connect', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='disConnect', index=1, number=1,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=146,
+  serialized_end=183,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_BIN_STATUS)
+_sym_db.RegisterEnumDescriptor(_MSGBIN_STATUS)
 
-_MESSAGE_BIN = _descriptor.Descriptor(
-    name='Message_Bin',
-    full_name='rbk.protocol.Message_Bin',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='binId', full_name='rbk.protocol.Message_Bin.binId', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='filled', full_name='rbk.protocol.Message_Bin.filled', index=1,
-            number=2, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='status', full_name='rbk.protocol.Message_Bin.status', index=2,
-            number=3, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-        _MESSAGE_BIN_STATUS,
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=58,
-    serialized_end=191,
-)
 
-_MESSAGE_BINS = _descriptor.Descriptor(
-    name='Message_Bins',
-    full_name='rbk.protocol.Message_Bins',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_Bins.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='bins', full_name='rbk.protocol.Message_Bins.bins', index=1,
-            number=2, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=193,
-    serialized_end=294,
+_MSGBIN = _descriptor.Descriptor(
+  name='msgBin',
+  full_name='rbk.protocol.msgBin',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='binId', full_name='rbk.protocol.msgBin.binId', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='filled', full_name='rbk.protocol.msgBin.filled', index=1,
+      number=2, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='binStatus', full_name='rbk.protocol.msgBin.binStatus', index=2,
+      number=3, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGBIN_STATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=57,
+  serialized_end=183,
 )
 
-_MESSAGE_BIN.fields_by_name['status'].enum_type = _MESSAGE_BIN_STATUS
-_MESSAGE_BIN_STATUS.containing_type = _MESSAGE_BIN
-_MESSAGE_BINS.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_BINS.fields_by_name['bins'].message_type = _MESSAGE_BIN
-DESCRIPTOR.message_types_by_name['Message_Bin'] = _MESSAGE_BIN
-DESCRIPTOR.message_types_by_name['Message_Bins'] = _MESSAGE_BINS
+
+_MSGBINS = _descriptor.Descriptor(
+  name='msgBins',
+  full_name='rbk.protocol.msgBins',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgBins.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='bins', full_name='rbk.protocol.msgBins.bins', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=185,
+  serialized_end=271,
+)
+
+_MSGBIN.fields_by_name['binStatus'].enum_type = _MSGBIN_STATUS
+_MSGBIN_STATUS.containing_type = _MSGBIN
+_MSGBINS.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGBINS.fields_by_name['bins'].message_type = _MSGBIN
+DESCRIPTOR.message_types_by_name['msgBin'] = _MSGBIN
+DESCRIPTOR.message_types_by_name['msgBins'] = _MSGBINS
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_Bin = _reflection.GeneratedProtocolMessageType('Message_Bin', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_BIN,
-    __module__='message_bin_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Bin)
-))
-_sym_db.RegisterMessage(Message_Bin)
+msgBin = _reflection.GeneratedProtocolMessageType('msgBin', (_message.Message,), dict(
+  DESCRIPTOR = _MSGBIN,
+  __module__ = 'message_bin_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgBin)
+  ))
+_sym_db.RegisterMessage(msgBin)
 
-Message_Bins = _reflection.GeneratedProtocolMessageType('Message_Bins', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_BINS,
-    __module__='message_bin_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Bins)
-))
-_sym_db.RegisterMessage(Message_Bins)
+msgBins = _reflection.GeneratedProtocolMessageType('msgBins', (_message.Message,), dict(
+  DESCRIPTOR = _MSGBINS,
+  __module__ = 'message_bin_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgBins)
+  ))
+_sym_db.RegisterMessage(msgBins)
+
 
 # @@protoc_insertion_point(module_scope)

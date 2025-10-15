@@ -10,20 +10,20 @@ from syspy.core.rbk_rpc import call_service, default_plugin
 class BinV3(BinInterface):
     """库位类"""
 
-    _TOPIC = "rbk.protocol.Message_Bins"
+    _TOPIC = "rbk.protocol.msgBins"
     _PLUGIN = "RecoFactory"
     _MODEL_CLASS = None
     if TYPE_CHECKING:
-        from .protobuf import Message_Bins  # IDE类型提示
-        data: Message_Bins = None
+        from .protobuf import msgBins, msgBin  # IDE类型提示
+        data: msgBins = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Bins
-            cls._MODEL_CLASS = Message_Bins
+            from .protobuf import msgBins
+            cls._MODEL_CLASS = msgBins
 
-    def get_bins(cls) -> List["Message_Bin"]:
+    def get_bins(cls) -> List["msgBin"]:
         if cls.update():
             return cls.data.bins
 

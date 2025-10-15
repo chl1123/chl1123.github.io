@@ -5,18 +5,18 @@ from syspy.core.rbk_rpc import default_plugin, Message
 @default_plugin("DSPChassis")
 class BatteryV3(Message):
     """RBK3电池实现"""
-    _TOPIC = "rbk.protocol.Message_Battery"
+    _TOPIC = "rbk.protocol.msgBattery"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_Battery
-        data: Message_Battery = None
+        from .protobuf import msgBattery
+        data: msgBattery = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Battery
-            cls._MODEL_CLASS = Message_Battery
+            from .protobuf import msgBattery
+            cls._MODEL_CLASS = msgBattery
     
     def get_percentage(self, *, topic: str = "Battery-000") -> float:
         """获取电池电量百分比
@@ -25,7 +25,7 @@ class BatteryV3(Message):
             float: 返回电池电量百分比数值
         """
         if self.update():
-            return self.data.percetage
+            return self.data.percentage
     
     def get_charge_current(self, *, topic: str = "Battery-000") -> float:
         """获取充电电流
@@ -34,7 +34,7 @@ class BatteryV3(Message):
             float: 返回充电电流数值
         """
         if self.update():
-            return self.data.charge_current
+            return self.data.chargeCurrent
     
     def get_charge_voltage(self, *, topic: str = "Battery-000") -> float:
         """获取充电电压
@@ -43,7 +43,7 @@ class BatteryV3(Message):
             float: 返回充电电压数值
         """
         if self.update():
-            return self.data.charge_voltage
+            return self.data.chargeVoltage
 
     def get_is_charging(self, *, topic: str = "Battery-000") -> bool:
         """获取是否正在充电状态
@@ -52,7 +52,7 @@ class BatteryV3(Message):
             bool: True表示正在充电，False表示未充电
         """
         if self.update():
-            return self.data.is_charging
+            return self.data.isCharging
 
     def get_temperature(self, *, topic: str = "Battery-000") -> float:
         """获取电池温度
@@ -79,7 +79,7 @@ class BatteryV3(Message):
             float: 返回最大充电电流数值
         """
         if self.update():
-            return self.data.max_charge_current
+            return self.data.maxChargeCurrent
 
     def get_max_charge_voltage(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电压
@@ -88,7 +88,7 @@ class BatteryV3(Message):
             float: 返回最大充电电压数值
         """
         if self.update():
-            return self.data.max_charge_voltage
+            return self.data.maxChargeVoltage
     
     def get_extra(self, *, topic: str = "Battery-000") -> str:
         """获取额外信息
@@ -106,7 +106,7 @@ class BatteryV3(Message):
             bool: True表示手动连接，False表示非手动连接
         """
         if self.update():
-            return self.data.is_manually_connected
+            return self.data.isManuallyConnected
     
     def get_user_data(self, *, topic: str = "Battery-000") -> bytes:
         """获取用户数据
@@ -115,7 +115,7 @@ class BatteryV3(Message):
             bytes: 返回用户数据字节流
         """
         if self.update():
-            return self.data.user_data
+            return self.data.userData
     
     def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
@@ -129,7 +129,7 @@ class BatteryV3(Message):
         """发布电池信息
 
         Args:
-            battery_info (str): json字符串, message_battery_pb2.Message_Battery类型转化的json字符串
+            battery_info (str): json字符串, message_battery_pb2.msgBattery类型转化的json字符串
 
         Returns:
             int: -1: 发布失败; 0: 发布成功

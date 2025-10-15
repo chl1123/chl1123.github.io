@@ -2,1715 +2,1847 @@
 # source: message_movetask.proto
 
 import sys
-
-_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode('latin1'))
+_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
+
 from google.protobuf import wrappers_pb2 as google_dot_protobuf_dot_wrappers__pb2
-from . import message_odometer_pb2 as message__odometer__pb2
 from . import message_motorinfos_pb2 as message__motorinfos__pb2
 
+
 DESCRIPTOR = _descriptor.FileDescriptor(
-    name='message_movetask.proto',
-    package='rbk.protocol',
-    syntax='proto3',
-    serialized_options=None,
-    serialized_pb=_b(
-        '\n\x16message_movetask.proto\x12\x0crbk.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x16message_odometer.proto\x1a\x18message_motorinfos.proto\"\x81\x02\n\x11Message_MoveParam\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x16\n\x0cstring_value\x18\x02 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x03 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x04 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x05 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x06 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\x07 \x01(\x04H\x00\x12\x15\n\x0b\x66loat_value\x18\x08 \x01(\x02H\x00\x12\x16\n\x0c\x64ouble_value\x18\t \x01(\x01H\x00\x12\x15\n\x0b\x62ytes_value\x18\n \x01(\x0cH\x00\x42\r\n\x0boneof_value\"\xea\x0c\n\x10Message_MoveTask\x12\x12\n\nskill_name\x18\x01 \x01(\t\x12.\n\x08target_x\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08target_y\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0ctarget_angle\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0btarget_name\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x30\n\nreach_dist\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0breach_angle\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0creach_method\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x31\n\x0breach_vel_x\x18\t \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0breach_vel_y\x18\n \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0breach_vel_w\x18\x0b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_x\x18\x0c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_y\x18\r \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_w\x18\x0e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmax_speed\x18\x0f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07max_acc\x18\x10 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07max_rot\x18\x11 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bmax_rot_acc\x18\x12 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x33\n\rslowdown_dist\x18\x13 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nblock_dist\x18\x14 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmove_dist\x18\x15 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nmove_angle\x18\x16 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmove_time\x18\x17 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\x06params\x18\x18 \x03(\x0b\x32\x1f.rbk.protocol.Message_MoveParam\x12-\n\x07task_id\x18\x19 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12-\n\x07max_dec\x18\x1a \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bmax_rot_dec\x18\x1b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x33\n\robs_stop_dist\x18\x1c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cobs_dec_dist\x18\x1d \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x33\n\robs_dec_speed\x18\x1e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x33\n\robs_expansion\x18\x1f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x37\n\x11\x64\x65\x63_obs_expansion\x18  \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bsource_name\x18( \x01(\x0b\x32\x1c.google.protobuf.StringValue\"N\n\x14Message_MoveTaskList\x12\x36\n\x0emove_task_list\x18\x01 \x03(\x0b\x32\x1e.rbk.protocol.Message_MoveTask\"0\n\x18Message_MovePolygonPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"Z\n\x13Message_MovePolygon\x12\x35\n\x05point\x18\x01 \x03(\x0b\x32&.rbk.protocol.Message_MovePolygonPoint\x12\x0c\n\x04name\x18\x02 \x01(\t\"^\n\x12Message_RobotShape\x12\r\n\x05shape\x18\x01 \x01(\r\x12\x0c\n\x04head\x18\x02 \x01(\x01\x12\x0c\n\x04tail\x18\x03 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06radius\x18\x05 \x01(\x01\"*\n\x12Message_NearestObs\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"^\n\x11Message_Container\x12\x16\n\x0e\x63ontainer_name\x18\x01 \x01(\t\x12\x10\n\x08goods_id\x18\x02 \x01(\t\x12\x11\n\thas_goods\x18\x03 \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x04 \x01(\t\"\xe2\x0f\n\x12Message_MoveStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\x12\x0f\n\x07\x62lock_x\x18\x02 \x01(\x01\x12\x0f\n\x07\x62lock_y\x18\x03 \x01(\x01\x12=\n\x0c\x62lock_reason\x18\x04 \x01(\x0e\x32\'.rbk.protocol.Message_MoveStatus.Reason\x12\x13\n\x0btarget_name\x18\x05 \x01(\t\x12\x10\n\x08target_x\x18\x06 \x01(\x01\x12\x10\n\x08target_y\x18\x07 \x01(\x01\x12\x14\n\x0ctarget_angle\x18\x08 \x01(\x01\x12@\n\x0btask_status\x18\t \x01(\x0e\x32+.rbk.protocol.Message_MoveStatus.TaskStatus\x12<\n\ttask_type\x18\n \x01(\x0e\x32).rbk.protocol.Message_MoveStatus.TaskType\x12\x11\n\tarea_name\x18\x0b \x03(\t\x12\x1a\n\x12\x66inished_path_name\x18\x0c \x03(\t\x12\x1c\n\x14unfinished_path_name\x18\r \x03(\t\x12\x10\n\x08\x62lock_id\x18\x0e \x01(\x05\x12\x0f\n\x07task_id\x18\x10 \x01(\t\x12\x37\n\x0crobot_region\x18\x11 \x01(\x0b\x32!.rbk.protocol.Message_MovePolygon\x12\x37\n\x0cgoods_region\x18\x12 \x01(\x0b\x32!.rbk.protocol.Message_MovePolygon\x12:\n\x0fremoved_regions\x18\x13 \x03(\x0b\x32!.rbk.protocol.Message_MovePolygon\x12\x46\n\x0erunning_status\x18\x14 \x01(\x0e\x32..rbk.protocol.Message_MoveStatus.RunningStatus\x12\x16\n\x0e\x63losest_target\x18\x15 \x01(\t\x12\x19\n\x11\x61\x63tual_reach_dist\x18\x16 \x01(\x01\x12\x1a\n\x12\x61\x63tual_reach_angle\x18\x17 \x01(\x01\x12\x35\n\x0brobot_shape\x18\x18 \x01(\x0b\x32 .rbk.protocol.Message_RobotShape\x12\x0e\n\x06slowed\x18\x19 \x01(\x08\x12\x0e\n\x06slow_x\x18\x1a \x01(\x01\x12\x0e\n\x06slow_y\x18\x1b \x01(\x01\x12<\n\x0bslow_reason\x18\x1c \x01(\x0e\x32\'.rbk.protocol.Message_MoveStatus.Reason\x12\x0f\n\x07slow_id\x18\x1d \x01(\x05\x12\x34\n\tstop_path\x18\x1f \x01(\x0b\x32!.rbk.protocol.Message_MovePolygon\x12\x34\n\tslow_path\x18  \x01(\x0b\x32!.rbk.protocol.Message_MovePolygon\x12-\n\x07modules\x18! \x03(\x0b\x32\x1c.rbk.protocol.Message_Module\x12:\n\x0f\x61\x64vance_regions\x18\" \x03(\x0b\x32!.rbk.protocol.Message_MovePolygon\x12\x0c\n\x04info\x18# \x01(\t\x12\x13\n\x0btarget_dist\x18$ \x01(\x01\x12\x44\n\x13task_status_package\x18( \x01(\x0b\x32\'.rbk.protocol.Message_TaskStatusPackage\x12\x14\n\x0ctarget_label\x18) \x01(\t\x12\x15\n\rclosest_label\x18* \x01(\t\x12;\n\x11nearest_obstacles\x18+ \x03(\x0b\x32 .rbk.protocol.Message_NearestObs\x12\x33\n\ncontainers\x18, \x03(\x0b\x32\x1f.rbk.protocol.Message_Container\x12\x11\n\tdist2goal\x18- \x01(\x01\"\xb3\x01\n\x06Reason\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0b\x46\x61llingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x08\n\x04Lock\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\x12\x10\n\x0cVirtualPoint\x10\x07\x12\x0f\n\x0b\x44\x65pthCamera\x10\x08\x12\x10\n\x0c\x44istanceNode\x10\t\x12\x10\n\x0c\x44iUltrasonic\x10\n\"|\n\nTaskStatus\x12\x0e\n\nStatusNone\x10\x00\x12\x0b\n\x07Waiting\x10\x01\x12\x0b\n\x07Running\x10\x02\x12\r\n\tSuspended\x10\x03\x12\r\n\tCompleted\x10\x04\x12\n\n\x06\x46\x61iled\x10\x05\x12\x0c\n\x08\x43\x61nceled\x10\x06\x12\x0c\n\x08OverTime\x10\x07\"\xa2\x01\n\x08TaskType\x12\x0c\n\x08TypeNone\x10\x00\x12\x0b\n\x07GoPoint\x10\x01\x12\r\n\tGoPointId\x10\x02\x12\x08\n\x04GoId\x10\x03\x12\n\n\x06Patrol\x10\x04\x12\x0f\n\x0bGoIntoShelf\x10\x05\x12\x12\n\x0eTargetTracking\x10\x06\x12\x10\n\x0cGoByOdometer\x10\x07\x12\x14\n\x10GoAlongMagstripe\x10\x08\x12\t\n\x05Other\x10\x64\"U\n\rRunningStatus\x12\t\n\x05RNone\x10\x00\x12\x0c\n\x08RRunning\x10\x01\x12\x0f\n\x0bRNearToGoal\x10\x02\x12\r\n\tRFinished\x10\x03\x12\x0b\n\x07RFailed\x10\x04\"\x9f\x01\n\x16Message_TaskStatusInfo\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x37\n\x04type\x18\x0b \x01(\x0e\x32).rbk.protocol.Message_MoveStatus.TaskType\x12;\n\x06status\x18\x0c \x01(\x0e\x32+.rbk.protocol.Message_MoveStatus.TaskStatus\"\x94\x02\n\x19Message_TaskStatusPackage\x12>\n\x10task_status_list\x18\x01 \x03(\x0b\x32$.rbk.protocol.Message_TaskStatusInfo\x12\x16\n\x0e\x63losest_target\x18\x02 \x01(\t\x12\x13\n\x0bsource_name\x18\x03 \x01(\t\x12\x13\n\x0btarget_name\x18\x04 \x01(\t\x12\x12\n\npercentage\x18\x05 \x01(\x01\x12\x10\n\x08\x64istance\x18\x06 \x01(\x01\x12\x14\n\x0csource_label\x18\x07 \x01(\t\x12\x14\n\x0ctarget_label\x18\x08 \x01(\t\x12\x15\n\rclosest_label\x18\t \x01(\t\x12\x0c\n\x04info\x18\x1f \x01(\t\"4\n\x11Message_MoveSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01w\x18\x03 \x01(\x01\"7\n\x10Message_MovePose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"\x97\x01\n\x10Message_MovePath\x12\x12\n\nskill_name\x18\x01 \x01(\t\x12,\n\x04pose\x18\x02 \x03(\x0b\x32\x1e.rbk.protocol.Message_MovePose\x12.\n\x05speed\x18\x03 \x03(\x0b\x32\x1f.rbk.protocol.Message_MoveSpeed\x12\x11\n\tfind_path\x18\x04 \x01(\x08\"\xa2\x02\n\x0eMessage_Module\x12\x13\n\x0bmodule_name\x18\x01 \x01(\t\x12@\n\rmodule_status\x18\x02 \x01(\x0e\x32).rbk.protocol.Message_Module.ModuleStatus\x12\x13\n\x0b\x61\x63tion_body\x18\x03 \x01(\t\x12\x14\n\x0c\x63\x61rgo_status\x18\x04 \x01(\x08\x12/\n\x06motors\x18\x05 \x03(\x0b\x32\x1f.rbk.protocol.Message_MotorInfo\"]\n\x0cModuleStatus\x12\x08\n\x04None\x10\x00\x12\x0b\n\x07Running\x10\x01\x12\r\n\tSuspended\x10\x02\x12\r\n\tCompleted\x10\x03\x12\n\n\x06\x46\x61iled\x10\x04\x12\x0c\n\x08\x43\x61nceled\x10\x05\x62\x06proto3')
-    ,
-    dependencies=[google_dot_protobuf_dot_wrappers__pb2.DESCRIPTOR, message__odometer__pb2.DESCRIPTOR,
-                  message__motorinfos__pb2.DESCRIPTOR, ])
+  name='message_movetask.proto',
+  package='rbk.protocol',
+  syntax='proto3',
+  serialized_options=None,
+  serialized_pb=_b('\n\x16message_movetask.proto\x12\x0crbk.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x18message_motorinfos.proto\"\xf2\x01\n\x0cmsgMoveParam\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x15\n\x0bstringValue\x18\x02 \x01(\tH\x00\x12\x13\n\tboolValue\x18\x03 \x01(\x08H\x00\x12\x14\n\nint32Value\x18\x04 \x01(\x05H\x00\x12\x15\n\x0buint32Value\x18\x05 \x01(\rH\x00\x12\x14\n\nint64Value\x18\x06 \x01(\x03H\x00\x12\x15\n\x0buint64Value\x18\x07 \x01(\x04H\x00\x12\x14\n\nfloatValue\x18\x08 \x01(\x02H\x00\x12\x15\n\x0b\x64oubleValue\x18\t \x01(\x01H\x00\x12\x14\n\nbytesValue\x18\n \x01(\x0cH\x00\x42\x0c\n\noneofValue\"\xb7\x0c\n\x0bmsgMoveTask\x12\x11\n\tskillName\x18\x01 \x01(\t\x12-\n\x07targetX\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07targetY\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0btargetAngle\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\ntargetName\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachDist\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nreachAngle\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0breachMethod\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachVelX\x18\t \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelY\x18\n \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelW\x18\x0b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedX\x18\x0c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedY\x18\r \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedW\x18\x0e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08maxSpeed\x18\x0f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxAcc\x18\x10 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxRot\x18\x11 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotAcc\x18\x12 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cslowdownDist\x18\x13 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tblockDist\x18\x14 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveDist\x18\x15 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmoveAngle\x18\x16 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveTime\x18\x17 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12*\n\x06params\x18\x18 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveParam\x12,\n\x06taskId\x18\x19 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12,\n\x06maxDec\x18\x1a \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotDec\x18\x1b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsStopDist\x18\x1c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nobsDecDist\x18\x1d \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsDecSpeed\x18\x1e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cobsExpansion\x18\x1f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x35\n\x0f\x64\x65\x63ObsExpansion\x18  \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nsourceName\x18( \x01(\x0b\x32\x1c.google.protobuf.StringValue\"B\n\x0fmsgMoveTaskList\x12/\n\x0cmoveTaskList\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgMoveTask\"+\n\x13msgMovePolygonPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"P\n\x0emsgMovePolygon\x12\x30\n\x05point\x18\x01 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\x12\x0c\n\x04name\x18\x02 \x01(\t\"\x8c\x01\n\rmsgRobotShape\x12\r\n\x05shape\x18\x01 \x01(\r\x12\x0c\n\x04head\x18\x02 \x01(\x01\x12\x0c\n\x04tail\x18\x03 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06radius\x18\x05 \x01(\x01\x12\x31\n\x06points\x18\x06 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\"%\n\rmsgNearestObs\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"V\n\x0cmsgContainer\x12\x15\n\rcontainerName\x18\x01 \x01(\t\x12\x0f\n\x07goodsId\x18\x02 \x01(\t\x12\x10\n\x08hasGoods\x18\x03 \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x04 \x01(\t\"\xb7\x0f\n\rmsgMoveStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\x12\x0e\n\x06\x62lockX\x18\x02 \x01(\x01\x12\x0e\n\x06\x62lockY\x18\x03 \x01(\x01\x12\x37\n\x0b\x62lockReason\x18\x04 \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x12\n\ntargetName\x18\x05 \x01(\t\x12\x0f\n\x07targetX\x18\x06 \x01(\x01\x12\x0f\n\x07targetY\x18\x07 \x01(\x01\x12\x13\n\x0btargetAngle\x18\x08 \x01(\x01\x12\x36\n\ntaskStatus\x18\t \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\x12\x32\n\x08taskType\x18\n \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x10\n\x08\x61reaName\x18\x0b \x03(\t\x12\x18\n\x10\x66inishedPathName\x18\x0c \x03(\t\x12\x1a\n\x12unfinishedPathName\x18\r \x03(\t\x12\x0f\n\x07\x62lockId\x18\x0e \x01(\x05\x12\x0e\n\x06taskId\x18\x10 \x01(\t\x12\x31\n\x0brobotRegion\x18\x11 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x31\n\x0bgoodsRegion\x18\x12 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x34\n\x0eremovedRegions\x18\x13 \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12:\n\rrunningStatus\x18\x14 \x01(\x0e\x32#.rbk.protocol.msgMoveStatus.rStatus\x12\x15\n\rclosestTarget\x18\x15 \x01(\t\x12\x17\n\x0f\x61\x63tualReachDist\x18\x16 \x01(\x01\x12\x18\n\x10\x61\x63tualReachAngle\x18\x17 \x01(\x01\x12/\n\nrobotShape\x18\x18 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12\x0e\n\x06slowed\x18\x19 \x01(\x08\x12\r\n\x05slowX\x18\x1a \x01(\x01\x12\r\n\x05slowY\x18\x1b \x01(\x01\x12\x36\n\nslowReason\x18\x1c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x0e\n\x06slowId\x18\x1d \x01(\x05\x12.\n\x08stopPath\x18\x1f \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12.\n\x08slowPath\x18  \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12(\n\x07modules\x18! \x03(\x0b\x32\x17.rbk.protocol.msgModule\x12\x34\n\x0e\x61\x64vanceRegions\x18\" \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x0c\n\x04info\x18# \x01(\t\x12\x12\n\ntargetDist\x18$ \x01(\x01\x12=\n\x11taskStatusPackage\x18( \x01(\x0b\x32\".rbk.protocol.msgTaskStatusPackage\x12\x13\n\x0btargetLabel\x18) \x01(\t\x12\x14\n\x0c\x63losestLabel\x18* \x01(\t\x12\x35\n\x10nearestObstacles\x18+ \x03(\x0b\x32\x1b.rbk.protocol.msgNearestObs\x12.\n\ncontainers\x18, \x03(\x0b\x32\x1a.rbk.protocol.msgContainer\x12\x11\n\tdist2goal\x18- \x01(\x01\x12\x16\n\x0esafeCuttingsId\x18. \x01(\x05\x12%\n\x05mates\x18/ \x01(\x0b\x32\x16.rbk.protocol.msgMates\x12,\n\tmoveTasks\x18\x30 \x01(\x0b\x32\x19.rbk.protocol.msgMoveTask\"\xb3\x01\n\x06reason\x12\x0e\n\nultrasonic\x10\x00\x12\t\n\x05laser\x10\x01\x12\x0f\n\x0b\x66\x61llingDown\x10\x02\x12\r\n\tcollision\x10\x03\x12\x0c\n\x08infrared\x10\x04\x12\x08\n\x04lock\x10\x05\x12\x0f\n\x0b\x61piObstacle\x10\x06\x12\x10\n\x0cvirtualPoint\x10\x07\x12\x0f\n\x0b\x64\x65pthCamera\x10\x08\x12\x10\n\x0c\x64istanceNode\x10\t\x12\x10\n\x0c\x64iUltrasonic\x10\n\"x\n\x06status\x12\x0e\n\nstatusNone\x10\x00\x12\x0b\n\x07waiting\x10\x01\x12\x0b\n\x07running\x10\x02\x12\r\n\tsuspended\x10\x03\x12\r\n\tcompleted\x10\x04\x12\n\n\x06\x66\x61iled\x10\x05\x12\x0c\n\x08\x63\x61nceled\x10\x06\x12\x0c\n\x08overTime\x10\x07\"\x9e\x01\n\x04type\x12\x0c\n\x08typeNone\x10\x00\x12\x0b\n\x07goPoint\x10\x01\x12\r\n\tgoPointId\x10\x02\x12\x08\n\x04goId\x10\x03\x12\n\n\x06patrol\x10\x04\x12\x0f\n\x0bgoIntoShelf\x10\x05\x12\x12\n\x0etargetTracking\x10\x06\x12\x10\n\x0cgoByOdometer\x10\x07\x12\x14\n\x10goAlongMagstripe\x10\x08\x12\t\n\x05other\x10\x64\"O\n\x07rStatus\x12\t\n\x05rNone\x10\x00\x12\x0c\n\x08rRunning\x10\x01\x12\x0f\n\x0brNearToGoal\x10\x02\x12\r\n\trFinished\x10\x03\x12\x0b\n\x07rFailed\x10\x04\"\x87\x01\n\x11msgTaskStatusInfo\x12\x0e\n\x06taskId\x18\x01 \x01(\t\x12.\n\x04type\x18\x0b \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x32\n\x06status\x18\x0c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\"\x82\x02\n\x14msgTaskStatusPackage\x12\x37\n\x0etaskStatusList\x18\x01 \x03(\x0b\x32\x1f.rbk.protocol.msgTaskStatusInfo\x12\x15\n\rclosestTarget\x18\x02 \x01(\t\x12\x12\n\nsourceName\x18\x03 \x01(\t\x12\x12\n\ntargetName\x18\x04 \x01(\t\x12\x12\n\npercentage\x18\x05 \x01(\x01\x12\x10\n\x08\x64istance\x18\x06 \x01(\x01\x12\x13\n\x0bsourceLabel\x18\x07 \x01(\t\x12\x13\n\x0btargetLabel\x18\x08 \x01(\t\x12\x14\n\x0c\x63losestLabel\x18\t \x01(\t\x12\x0c\n\x04info\x18\x1f \x01(\t\"/\n\x0cmsgMoveSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01w\x18\x03 \x01(\x01\"2\n\x0bmsgMovePose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"\x86\x01\n\x0bmsgMovePath\x12\x11\n\tskillName\x18\x01 \x01(\t\x12\'\n\x04pose\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\x12)\n\x05speed\x18\x03 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveSpeed\x12\x10\n\x08\x66indPath\x18\x04 \x01(\x08\"\x89\x02\n\tmsgModule\x12\x12\n\nmoduleName\x18\x01 \x01(\t\x12\x34\n\x06status\x18\x02 \x01(\x0e\x32$.rbk.protocol.msgModule.moduleStatus\x12\x12\n\nactionBody\x18\x03 \x01(\t\x12\x13\n\x0b\x63\x61rgoStatus\x18\x04 \x01(\x08\x12*\n\x06motors\x18\x05 \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfo\"]\n\x0cmoduleStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tsuspended\x10\x02\x12\r\n\tcompleted\x10\x03\x12\n\n\x06\x66\x61iled\x10\x04\x12\x0c\n\x08\x63\x61nceled\x10\x05\"n\n\x0cmsgMateRobot\x12/\n\nrobotShape\x18\x01 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12-\n\nfuturePath\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\"9\n\x08msgMates\x12-\n\tmatesList\x18\x01 \x03(\x0b\x32\x1a.rbk.protocol.msgMateRobotb\x06proto3')
+  ,
+  dependencies=[google_dot_protobuf_dot_wrappers__pb2.DESCRIPTOR,message__motorinfos__pb2.DESCRIPTOR,])
 
-_MESSAGE_MOVESTATUS_REASON = _descriptor.EnumDescriptor(
-    name='Reason',
-    full_name='rbk.protocol.Message_MoveStatus.Reason',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='Ultrasonic', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Laser', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Fallingdown', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Collision', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Infrared', index=4, number=4,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Lock', index=5, number=5,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='APIObstacle', index=6, number=6,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='VirtualPoint', index=7, number=7,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DepthCamera', index=8, number=8,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DistanceNode', index=9, number=9,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DiUltrasonic', index=10, number=10,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=3947,
-    serialized_end=4126,
+
+
+_MSGMOVESTATUS_REASON = _descriptor.EnumDescriptor(
+  name='reason',
+  full_name='rbk.protocol.msgMoveStatus.reason',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='ultrasonic', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='laser', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='fallingDown', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='collision', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='infrared', index=4, number=4,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='lock', index=5, number=5,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='apiObstacle', index=6, number=6,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='virtualPoint', index=7, number=7,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='depthCamera', index=8, number=8,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='distanceNode', index=9, number=9,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='diUltrasonic', index=10, number=10,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=3835,
+  serialized_end=4014,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOVESTATUS_REASON)
+_sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_REASON)
 
-_MESSAGE_MOVESTATUS_TASKSTATUS = _descriptor.EnumDescriptor(
-    name='TaskStatus',
-    full_name='rbk.protocol.Message_MoveStatus.TaskStatus',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='StatusNone', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Waiting', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Running', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Suspended', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Completed', index=4, number=4,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Failed', index=5, number=5,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Canceled', index=6, number=6,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='OverTime', index=7, number=7,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=4128,
-    serialized_end=4252,
+_MSGMOVESTATUS_STATUS = _descriptor.EnumDescriptor(
+  name='status',
+  full_name='rbk.protocol.msgMoveStatus.status',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='statusNone', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='waiting', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='running', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='suspended', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='completed', index=4, number=4,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='failed', index=5, number=5,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='canceled', index=6, number=6,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='overTime', index=7, number=7,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=4016,
+  serialized_end=4136,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOVESTATUS_TASKSTATUS)
+_sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_STATUS)
 
-_MESSAGE_MOVESTATUS_TASKTYPE = _descriptor.EnumDescriptor(
-    name='TaskType',
-    full_name='rbk.protocol.Message_MoveStatus.TaskType',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='TypeNone', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='GoPoint', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='GoPointId', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='GoId', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Patrol', index=4, number=4,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='GoIntoShelf', index=5, number=5,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TargetTracking', index=6, number=6,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='GoByOdometer', index=7, number=7,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='GoAlongMagstripe', index=8, number=8,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Other', index=9, number=100,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=4255,
-    serialized_end=4417,
+_MSGMOVESTATUS_TYPE = _descriptor.EnumDescriptor(
+  name='type',
+  full_name='rbk.protocol.msgMoveStatus.type',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='typeNone', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='goPoint', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='goPointId', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='goId', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='patrol', index=4, number=4,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='goIntoShelf', index=5, number=5,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='targetTracking', index=6, number=6,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='goByOdometer', index=7, number=7,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='goAlongMagstripe', index=8, number=8,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='other', index=9, number=100,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=4139,
+  serialized_end=4297,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOVESTATUS_TASKTYPE)
+_sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_TYPE)
 
-_MESSAGE_MOVESTATUS_RUNNINGSTATUS = _descriptor.EnumDescriptor(
-    name='RunningStatus',
-    full_name='rbk.protocol.Message_MoveStatus.RunningStatus',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='RNone', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='RRunning', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='RNearToGoal', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='RFinished', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='RFailed', index=4, number=4,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=4419,
-    serialized_end=4504,
+_MSGMOVESTATUS_RSTATUS = _descriptor.EnumDescriptor(
+  name='rStatus',
+  full_name='rbk.protocol.msgMoveStatus.rStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='rNone', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='rRunning', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='rNearToGoal', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='rFinished', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='rFailed', index=4, number=4,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=4299,
+  serialized_end=4378,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOVESTATUS_RUNNINGSTATUS)
+_sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_RSTATUS)
 
-_MESSAGE_MODULE_MODULESTATUS = _descriptor.EnumDescriptor(
-    name='ModuleStatus',
-    full_name='rbk.protocol.Message_Module.ModuleStatus',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='None', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Running', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Suspended', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Completed', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Failed', index=4, number=4,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Canceled', index=5, number=5,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=5410,
-    serialized_end=5503,
+_MSGMODULE_MODULESTATUS = _descriptor.EnumDescriptor(
+  name='moduleStatus',
+  full_name='rbk.protocol.msgModule.moduleStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='none', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='running', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='suspended', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='completed', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='failed', index=4, number=4,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='canceled', index=5, number=5,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=5190,
+  serialized_end=5283,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MODULE_MODULESTATUS)
+_sym_db.RegisterEnumDescriptor(_MSGMODULE_MODULESTATUS)
 
-_MESSAGE_MOVEPARAM = _descriptor.Descriptor(
-    name='Message_MoveParam',
-    full_name='rbk.protocol.Message_MoveParam',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='key', full_name='rbk.protocol.Message_MoveParam.key', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='string_value', full_name='rbk.protocol.Message_MoveParam.string_value', index=1,
-            number=2, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='bool_value', full_name='rbk.protocol.Message_MoveParam.bool_value', index=2,
-            number=3, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='int32_value', full_name='rbk.protocol.Message_MoveParam.int32_value', index=3,
-            number=4, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='uint32_value', full_name='rbk.protocol.Message_MoveParam.uint32_value', index=4,
-            number=5, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='int64_value', full_name='rbk.protocol.Message_MoveParam.int64_value', index=5,
-            number=6, type=3, cpp_type=2, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='uint64_value', full_name='rbk.protocol.Message_MoveParam.uint64_value', index=6,
-            number=7, type=4, cpp_type=4, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='float_value', full_name='rbk.protocol.Message_MoveParam.float_value', index=7,
-            number=8, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='double_value', full_name='rbk.protocol.Message_MoveParam.double_value', index=8,
-            number=9, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='bytes_value', full_name='rbk.protocol.Message_MoveParam.bytes_value', index=9,
-            number=10, type=12, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b(""),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-        _descriptor.OneofDescriptor(
-            name='oneof_value', full_name='rbk.protocol.Message_MoveParam.oneof_value',
-            index=0, containing_type=None, fields=[]),
-    ],
-    serialized_start=123,
-    serialized_end=380,
-)
 
-_MESSAGE_MOVETASK = _descriptor.Descriptor(
-    name='Message_MoveTask',
-    full_name='rbk.protocol.Message_MoveTask',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='skill_name', full_name='rbk.protocol.Message_MoveTask.skill_name', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_x', full_name='rbk.protocol.Message_MoveTask.target_x', index=1,
-            number=2, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_y', full_name='rbk.protocol.Message_MoveTask.target_y', index=2,
-            number=3, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_angle', full_name='rbk.protocol.Message_MoveTask.target_angle', index=3,
-            number=4, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_name', full_name='rbk.protocol.Message_MoveTask.target_name', index=4,
-            number=5, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='reach_dist', full_name='rbk.protocol.Message_MoveTask.reach_dist', index=5,
-            number=6, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='reach_angle', full_name='rbk.protocol.Message_MoveTask.reach_angle', index=6,
-            number=7, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='reach_method', full_name='rbk.protocol.Message_MoveTask.reach_method', index=7,
-            number=8, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='reach_vel_x', full_name='rbk.protocol.Message_MoveTask.reach_vel_x', index=8,
-            number=9, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='reach_vel_y', full_name='rbk.protocol.Message_MoveTask.reach_vel_y', index=9,
-            number=10, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='reach_vel_w', full_name='rbk.protocol.Message_MoveTask.reach_vel_w', index=10,
-            number=11, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='speed_x', full_name='rbk.protocol.Message_MoveTask.speed_x', index=11,
-            number=12, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='speed_y', full_name='rbk.protocol.Message_MoveTask.speed_y', index=12,
-            number=13, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='speed_w', full_name='rbk.protocol.Message_MoveTask.speed_w', index=13,
-            number=14, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='max_speed', full_name='rbk.protocol.Message_MoveTask.max_speed', index=14,
-            number=15, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='max_acc', full_name='rbk.protocol.Message_MoveTask.max_acc', index=15,
-            number=16, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='max_rot', full_name='rbk.protocol.Message_MoveTask.max_rot', index=16,
-            number=17, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='max_rot_acc', full_name='rbk.protocol.Message_MoveTask.max_rot_acc', index=17,
-            number=18, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='slowdown_dist', full_name='rbk.protocol.Message_MoveTask.slowdown_dist', index=18,
-            number=19, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='block_dist', full_name='rbk.protocol.Message_MoveTask.block_dist', index=19,
-            number=20, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='move_dist', full_name='rbk.protocol.Message_MoveTask.move_dist', index=20,
-            number=21, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='move_angle', full_name='rbk.protocol.Message_MoveTask.move_angle', index=21,
-            number=22, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='move_time', full_name='rbk.protocol.Message_MoveTask.move_time', index=22,
-            number=23, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='params', full_name='rbk.protocol.Message_MoveTask.params', index=23,
-            number=24, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='task_id', full_name='rbk.protocol.Message_MoveTask.task_id', index=24,
-            number=25, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='max_dec', full_name='rbk.protocol.Message_MoveTask.max_dec', index=25,
-            number=26, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='max_rot_dec', full_name='rbk.protocol.Message_MoveTask.max_rot_dec', index=26,
-            number=27, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='obs_stop_dist', full_name='rbk.protocol.Message_MoveTask.obs_stop_dist', index=27,
-            number=28, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='obs_dec_dist', full_name='rbk.protocol.Message_MoveTask.obs_dec_dist', index=28,
-            number=29, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='obs_dec_speed', full_name='rbk.protocol.Message_MoveTask.obs_dec_speed', index=29,
-            number=30, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='obs_expansion', full_name='rbk.protocol.Message_MoveTask.obs_expansion', index=30,
-            number=31, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='dec_obs_expansion', full_name='rbk.protocol.Message_MoveTask.dec_obs_expansion', index=31,
-            number=32, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='source_name', full_name='rbk.protocol.Message_MoveTask.source_name', index=32,
-            number=40, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=383,
-    serialized_end=2025,
+_MSGMOVEPARAM = _descriptor.Descriptor(
+  name='msgMoveParam',
+  full_name='rbk.protocol.msgMoveParam',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='rbk.protocol.msgMoveParam.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='stringValue', full_name='rbk.protocol.msgMoveParam.stringValue', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='boolValue', full_name='rbk.protocol.msgMoveParam.boolValue', index=2,
+      number=3, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='int32Value', full_name='rbk.protocol.msgMoveParam.int32Value', index=3,
+      number=4, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='uint32Value', full_name='rbk.protocol.msgMoveParam.uint32Value', index=4,
+      number=5, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='int64Value', full_name='rbk.protocol.msgMoveParam.int64Value', index=5,
+      number=6, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='uint64Value', full_name='rbk.protocol.msgMoveParam.uint64Value', index=6,
+      number=7, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='floatValue', full_name='rbk.protocol.msgMoveParam.floatValue', index=7,
+      number=8, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='doubleValue', full_name='rbk.protocol.msgMoveParam.doubleValue', index=8,
+      number=9, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='bytesValue', full_name='rbk.protocol.msgMoveParam.bytesValue', index=9,
+      number=10, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+    _descriptor.OneofDescriptor(
+      name='oneofValue', full_name='rbk.protocol.msgMoveParam.oneofValue',
+      index=0, containing_type=None, fields=[]),
+  ],
+  serialized_start=99,
+  serialized_end=341,
 )
 
-_MESSAGE_MOVETASKLIST = _descriptor.Descriptor(
-    name='Message_MoveTaskList',
-    full_name='rbk.protocol.Message_MoveTaskList',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='move_task_list', full_name='rbk.protocol.Message_MoveTaskList.move_task_list', index=0,
-            number=1, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2027,
-    serialized_end=2105,
+
+_MSGMOVETASK = _descriptor.Descriptor(
+  name='msgMoveTask',
+  full_name='rbk.protocol.msgMoveTask',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='skillName', full_name='rbk.protocol.msgMoveTask.skillName', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetX', full_name='rbk.protocol.msgMoveTask.targetX', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetY', full_name='rbk.protocol.msgMoveTask.targetY', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetAngle', full_name='rbk.protocol.msgMoveTask.targetAngle', index=3,
+      number=4, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetName', full_name='rbk.protocol.msgMoveTask.targetName', index=4,
+      number=5, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='reachDist', full_name='rbk.protocol.msgMoveTask.reachDist', index=5,
+      number=6, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='reachAngle', full_name='rbk.protocol.msgMoveTask.reachAngle', index=6,
+      number=7, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='reachMethod', full_name='rbk.protocol.msgMoveTask.reachMethod', index=7,
+      number=8, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='reachVelX', full_name='rbk.protocol.msgMoveTask.reachVelX', index=8,
+      number=9, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='reachVelY', full_name='rbk.protocol.msgMoveTask.reachVelY', index=9,
+      number=10, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='reachVelW', full_name='rbk.protocol.msgMoveTask.reachVelW', index=10,
+      number=11, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='speedX', full_name='rbk.protocol.msgMoveTask.speedX', index=11,
+      number=12, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='speedY', full_name='rbk.protocol.msgMoveTask.speedY', index=12,
+      number=13, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='speedW', full_name='rbk.protocol.msgMoveTask.speedW', index=13,
+      number=14, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxSpeed', full_name='rbk.protocol.msgMoveTask.maxSpeed', index=14,
+      number=15, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxAcc', full_name='rbk.protocol.msgMoveTask.maxAcc', index=15,
+      number=16, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxRot', full_name='rbk.protocol.msgMoveTask.maxRot', index=16,
+      number=17, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxRotAcc', full_name='rbk.protocol.msgMoveTask.maxRotAcc', index=17,
+      number=18, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='slowdownDist', full_name='rbk.protocol.msgMoveTask.slowdownDist', index=18,
+      number=19, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='blockDist', full_name='rbk.protocol.msgMoveTask.blockDist', index=19,
+      number=20, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='moveDist', full_name='rbk.protocol.msgMoveTask.moveDist', index=20,
+      number=21, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='moveAngle', full_name='rbk.protocol.msgMoveTask.moveAngle', index=21,
+      number=22, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='moveTime', full_name='rbk.protocol.msgMoveTask.moveTime', index=22,
+      number=23, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='params', full_name='rbk.protocol.msgMoveTask.params', index=23,
+      number=24, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='taskId', full_name='rbk.protocol.msgMoveTask.taskId', index=24,
+      number=25, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxDec', full_name='rbk.protocol.msgMoveTask.maxDec', index=25,
+      number=26, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxRotDec', full_name='rbk.protocol.msgMoveTask.maxRotDec', index=26,
+      number=27, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='obsStopDist', full_name='rbk.protocol.msgMoveTask.obsStopDist', index=27,
+      number=28, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='obsDecDist', full_name='rbk.protocol.msgMoveTask.obsDecDist', index=28,
+      number=29, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='obsDecSpeed', full_name='rbk.protocol.msgMoveTask.obsDecSpeed', index=29,
+      number=30, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='obsExpansion', full_name='rbk.protocol.msgMoveTask.obsExpansion', index=30,
+      number=31, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='decObsExpansion', full_name='rbk.protocol.msgMoveTask.decObsExpansion', index=31,
+      number=32, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='sourceName', full_name='rbk.protocol.msgMoveTask.sourceName', index=32,
+      number=40, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=344,
+  serialized_end=1935,
 )
 
-_MESSAGE_MOVEPOLYGONPOINT = _descriptor.Descriptor(
-    name='Message_MovePolygonPoint',
-    full_name='rbk.protocol.Message_MovePolygonPoint',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_MovePolygonPoint.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_MovePolygonPoint.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2107,
-    serialized_end=2155,
+
+_MSGMOVETASKLIST = _descriptor.Descriptor(
+  name='msgMoveTaskList',
+  full_name='rbk.protocol.msgMoveTaskList',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='moveTaskList', full_name='rbk.protocol.msgMoveTaskList.moveTaskList', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1937,
+  serialized_end=2003,
 )
 
-_MESSAGE_MOVEPOLYGON = _descriptor.Descriptor(
-    name='Message_MovePolygon',
-    full_name='rbk.protocol.Message_MovePolygon',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='point', full_name='rbk.protocol.Message_MovePolygon.point', index=0,
-            number=1, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='name', full_name='rbk.protocol.Message_MovePolygon.name', index=1,
-            number=2, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2157,
-    serialized_end=2247,
+
+_MSGMOVEPOLYGONPOINT = _descriptor.Descriptor(
+  name='msgMovePolygonPoint',
+  full_name='rbk.protocol.msgMovePolygonPoint',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgMovePolygonPoint.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgMovePolygonPoint.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2005,
+  serialized_end=2048,
 )
 
-_MESSAGE_ROBOTSHAPE = _descriptor.Descriptor(
-    name='Message_RobotShape',
-    full_name='rbk.protocol.Message_RobotShape',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='shape', full_name='rbk.protocol.Message_RobotShape.shape', index=0,
-            number=1, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='head', full_name='rbk.protocol.Message_RobotShape.head', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='tail', full_name='rbk.protocol.Message_RobotShape.tail', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='width', full_name='rbk.protocol.Message_RobotShape.width', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='radius', full_name='rbk.protocol.Message_RobotShape.radius', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2249,
-    serialized_end=2343,
+
+_MSGMOVEPOLYGON = _descriptor.Descriptor(
+  name='msgMovePolygon',
+  full_name='rbk.protocol.msgMovePolygon',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='point', full_name='rbk.protocol.msgMovePolygon.point', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='name', full_name='rbk.protocol.msgMovePolygon.name', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2050,
+  serialized_end=2130,
 )
 
-_MESSAGE_NEARESTOBS = _descriptor.Descriptor(
-    name='Message_NearestObs',
-    full_name='rbk.protocol.Message_NearestObs',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_NearestObs.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_NearestObs.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2345,
-    serialized_end=2387,
+
+_MSGROBOTSHAPE = _descriptor.Descriptor(
+  name='msgRobotShape',
+  full_name='rbk.protocol.msgRobotShape',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='shape', full_name='rbk.protocol.msgRobotShape.shape', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='head', full_name='rbk.protocol.msgRobotShape.head', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='tail', full_name='rbk.protocol.msgRobotShape.tail', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='width', full_name='rbk.protocol.msgRobotShape.width', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='radius', full_name='rbk.protocol.msgRobotShape.radius', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='points', full_name='rbk.protocol.msgRobotShape.points', index=5,
+      number=6, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2133,
+  serialized_end=2273,
 )
 
-_MESSAGE_CONTAINER = _descriptor.Descriptor(
-    name='Message_Container',
-    full_name='rbk.protocol.Message_Container',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='container_name', full_name='rbk.protocol.Message_Container.container_name', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='goods_id', full_name='rbk.protocol.Message_Container.goods_id', index=1,
-            number=2, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='has_goods', full_name='rbk.protocol.Message_Container.has_goods', index=2,
-            number=3, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='desc', full_name='rbk.protocol.Message_Container.desc', index=3,
-            number=4, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2389,
-    serialized_end=2483,
+
+_MSGNEARESTOBS = _descriptor.Descriptor(
+  name='msgNearestObs',
+  full_name='rbk.protocol.msgNearestObs',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgNearestObs.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgNearestObs.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2275,
+  serialized_end=2312,
 )
 
-_MESSAGE_MOVESTATUS = _descriptor.Descriptor(
-    name='Message_MoveStatus',
-    full_name='rbk.protocol.Message_MoveStatus',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='blocked', full_name='rbk.protocol.Message_MoveStatus.blocked', index=0,
-            number=1, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='block_x', full_name='rbk.protocol.Message_MoveStatus.block_x', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='block_y', full_name='rbk.protocol.Message_MoveStatus.block_y', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='block_reason', full_name='rbk.protocol.Message_MoveStatus.block_reason', index=3,
-            number=4, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_name', full_name='rbk.protocol.Message_MoveStatus.target_name', index=4,
-            number=5, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_x', full_name='rbk.protocol.Message_MoveStatus.target_x', index=5,
-            number=6, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_y', full_name='rbk.protocol.Message_MoveStatus.target_y', index=6,
-            number=7, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_angle', full_name='rbk.protocol.Message_MoveStatus.target_angle', index=7,
-            number=8, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='task_status', full_name='rbk.protocol.Message_MoveStatus.task_status', index=8,
-            number=9, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='task_type', full_name='rbk.protocol.Message_MoveStatus.task_type', index=9,
-            number=10, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='area_name', full_name='rbk.protocol.Message_MoveStatus.area_name', index=10,
-            number=11, type=9, cpp_type=9, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='finished_path_name', full_name='rbk.protocol.Message_MoveStatus.finished_path_name', index=11,
-            number=12, type=9, cpp_type=9, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='unfinished_path_name', full_name='rbk.protocol.Message_MoveStatus.unfinished_path_name', index=12,
-            number=13, type=9, cpp_type=9, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='block_id', full_name='rbk.protocol.Message_MoveStatus.block_id', index=13,
-            number=14, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='task_id', full_name='rbk.protocol.Message_MoveStatus.task_id', index=14,
-            number=16, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='robot_region', full_name='rbk.protocol.Message_MoveStatus.robot_region', index=15,
-            number=17, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='goods_region', full_name='rbk.protocol.Message_MoveStatus.goods_region', index=16,
-            number=18, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='removed_regions', full_name='rbk.protocol.Message_MoveStatus.removed_regions', index=17,
-            number=19, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='running_status', full_name='rbk.protocol.Message_MoveStatus.running_status', index=18,
-            number=20, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='closest_target', full_name='rbk.protocol.Message_MoveStatus.closest_target', index=19,
-            number=21, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='actual_reach_dist', full_name='rbk.protocol.Message_MoveStatus.actual_reach_dist', index=20,
-            number=22, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='actual_reach_angle', full_name='rbk.protocol.Message_MoveStatus.actual_reach_angle', index=21,
-            number=23, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='robot_shape', full_name='rbk.protocol.Message_MoveStatus.robot_shape', index=22,
-            number=24, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='slowed', full_name='rbk.protocol.Message_MoveStatus.slowed', index=23,
-            number=25, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='slow_x', full_name='rbk.protocol.Message_MoveStatus.slow_x', index=24,
-            number=26, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='slow_y', full_name='rbk.protocol.Message_MoveStatus.slow_y', index=25,
-            number=27, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='slow_reason', full_name='rbk.protocol.Message_MoveStatus.slow_reason', index=26,
-            number=28, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='slow_id', full_name='rbk.protocol.Message_MoveStatus.slow_id', index=27,
-            number=29, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='stop_path', full_name='rbk.protocol.Message_MoveStatus.stop_path', index=28,
-            number=31, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='slow_path', full_name='rbk.protocol.Message_MoveStatus.slow_path', index=29,
-            number=32, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='modules', full_name='rbk.protocol.Message_MoveStatus.modules', index=30,
-            number=33, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='advance_regions', full_name='rbk.protocol.Message_MoveStatus.advance_regions', index=31,
-            number=34, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='info', full_name='rbk.protocol.Message_MoveStatus.info', index=32,
-            number=35, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_dist', full_name='rbk.protocol.Message_MoveStatus.target_dist', index=33,
-            number=36, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='task_status_package', full_name='rbk.protocol.Message_MoveStatus.task_status_package', index=34,
-            number=40, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_label', full_name='rbk.protocol.Message_MoveStatus.target_label', index=35,
-            number=41, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='closest_label', full_name='rbk.protocol.Message_MoveStatus.closest_label', index=36,
-            number=42, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nearest_obstacles', full_name='rbk.protocol.Message_MoveStatus.nearest_obstacles', index=37,
-            number=43, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='containers', full_name='rbk.protocol.Message_MoveStatus.containers', index=38,
-            number=44, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='dist2goal', full_name='rbk.protocol.Message_MoveStatus.dist2goal', index=39,
-            number=45, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-        _MESSAGE_MOVESTATUS_REASON,
-        _MESSAGE_MOVESTATUS_TASKSTATUS,
-        _MESSAGE_MOVESTATUS_TASKTYPE,
-        _MESSAGE_MOVESTATUS_RUNNINGSTATUS,
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2486,
-    serialized_end=4504,
+
+_MSGCONTAINER = _descriptor.Descriptor(
+  name='msgContainer',
+  full_name='rbk.protocol.msgContainer',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='containerName', full_name='rbk.protocol.msgContainer.containerName', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='goodsId', full_name='rbk.protocol.msgContainer.goodsId', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='hasGoods', full_name='rbk.protocol.msgContainer.hasGoods', index=2,
+      number=3, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='desc', full_name='rbk.protocol.msgContainer.desc', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2314,
+  serialized_end=2400,
 )
 
-_MESSAGE_TASKSTATUSINFO = _descriptor.Descriptor(
-    name='Message_TaskStatusInfo',
-    full_name='rbk.protocol.Message_TaskStatusInfo',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='task_id', full_name='rbk.protocol.Message_TaskStatusInfo.task_id', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='type', full_name='rbk.protocol.Message_TaskStatusInfo.type', index=1,
-            number=11, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='status', full_name='rbk.protocol.Message_TaskStatusInfo.status', index=2,
-            number=12, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=4507,
-    serialized_end=4666,
+
+_MSGMOVESTATUS = _descriptor.Descriptor(
+  name='msgMoveStatus',
+  full_name='rbk.protocol.msgMoveStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='blocked', full_name='rbk.protocol.msgMoveStatus.blocked', index=0,
+      number=1, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='blockX', full_name='rbk.protocol.msgMoveStatus.blockX', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='blockY', full_name='rbk.protocol.msgMoveStatus.blockY', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='blockReason', full_name='rbk.protocol.msgMoveStatus.blockReason', index=3,
+      number=4, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetName', full_name='rbk.protocol.msgMoveStatus.targetName', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetX', full_name='rbk.protocol.msgMoveStatus.targetX', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetY', full_name='rbk.protocol.msgMoveStatus.targetY', index=6,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetAngle', full_name='rbk.protocol.msgMoveStatus.targetAngle', index=7,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='taskStatus', full_name='rbk.protocol.msgMoveStatus.taskStatus', index=8,
+      number=9, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='taskType', full_name='rbk.protocol.msgMoveStatus.taskType', index=9,
+      number=10, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='areaName', full_name='rbk.protocol.msgMoveStatus.areaName', index=10,
+      number=11, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='finishedPathName', full_name='rbk.protocol.msgMoveStatus.finishedPathName', index=11,
+      number=12, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='unfinishedPathName', full_name='rbk.protocol.msgMoveStatus.unfinishedPathName', index=12,
+      number=13, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='blockId', full_name='rbk.protocol.msgMoveStatus.blockId', index=13,
+      number=14, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='taskId', full_name='rbk.protocol.msgMoveStatus.taskId', index=14,
+      number=16, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='robotRegion', full_name='rbk.protocol.msgMoveStatus.robotRegion', index=15,
+      number=17, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='goodsRegion', full_name='rbk.protocol.msgMoveStatus.goodsRegion', index=16,
+      number=18, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='removedRegions', full_name='rbk.protocol.msgMoveStatus.removedRegions', index=17,
+      number=19, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='runningStatus', full_name='rbk.protocol.msgMoveStatus.runningStatus', index=18,
+      number=20, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='closestTarget', full_name='rbk.protocol.msgMoveStatus.closestTarget', index=19,
+      number=21, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='actualReachDist', full_name='rbk.protocol.msgMoveStatus.actualReachDist', index=20,
+      number=22, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='actualReachAngle', full_name='rbk.protocol.msgMoveStatus.actualReachAngle', index=21,
+      number=23, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='robotShape', full_name='rbk.protocol.msgMoveStatus.robotShape', index=22,
+      number=24, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='slowed', full_name='rbk.protocol.msgMoveStatus.slowed', index=23,
+      number=25, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='slowX', full_name='rbk.protocol.msgMoveStatus.slowX', index=24,
+      number=26, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='slowY', full_name='rbk.protocol.msgMoveStatus.slowY', index=25,
+      number=27, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='slowReason', full_name='rbk.protocol.msgMoveStatus.slowReason', index=26,
+      number=28, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='slowId', full_name='rbk.protocol.msgMoveStatus.slowId', index=27,
+      number=29, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='stopPath', full_name='rbk.protocol.msgMoveStatus.stopPath', index=28,
+      number=31, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='slowPath', full_name='rbk.protocol.msgMoveStatus.slowPath', index=29,
+      number=32, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='modules', full_name='rbk.protocol.msgMoveStatus.modules', index=30,
+      number=33, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='advanceRegions', full_name='rbk.protocol.msgMoveStatus.advanceRegions', index=31,
+      number=34, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='info', full_name='rbk.protocol.msgMoveStatus.info', index=32,
+      number=35, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetDist', full_name='rbk.protocol.msgMoveStatus.targetDist', index=33,
+      number=36, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='taskStatusPackage', full_name='rbk.protocol.msgMoveStatus.taskStatusPackage', index=34,
+      number=40, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetLabel', full_name='rbk.protocol.msgMoveStatus.targetLabel', index=35,
+      number=41, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='closestLabel', full_name='rbk.protocol.msgMoveStatus.closestLabel', index=36,
+      number=42, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='nearestObstacles', full_name='rbk.protocol.msgMoveStatus.nearestObstacles', index=37,
+      number=43, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='containers', full_name='rbk.protocol.msgMoveStatus.containers', index=38,
+      number=44, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dist2goal', full_name='rbk.protocol.msgMoveStatus.dist2goal', index=39,
+      number=45, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='safeCuttingsId', full_name='rbk.protocol.msgMoveStatus.safeCuttingsId', index=40,
+      number=46, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='mates', full_name='rbk.protocol.msgMoveStatus.mates', index=41,
+      number=47, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='moveTasks', full_name='rbk.protocol.msgMoveStatus.moveTasks', index=42,
+      number=48, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGMOVESTATUS_REASON,
+    _MSGMOVESTATUS_STATUS,
+    _MSGMOVESTATUS_TYPE,
+    _MSGMOVESTATUS_RSTATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2403,
+  serialized_end=4378,
 )
 
-_MESSAGE_TASKSTATUSPACKAGE = _descriptor.Descriptor(
-    name='Message_TaskStatusPackage',
-    full_name='rbk.protocol.Message_TaskStatusPackage',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='task_status_list', full_name='rbk.protocol.Message_TaskStatusPackage.task_status_list', index=0,
-            number=1, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='closest_target', full_name='rbk.protocol.Message_TaskStatusPackage.closest_target', index=1,
-            number=2, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='source_name', full_name='rbk.protocol.Message_TaskStatusPackage.source_name', index=2,
-            number=3, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_name', full_name='rbk.protocol.Message_TaskStatusPackage.target_name', index=3,
-            number=4, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='percentage', full_name='rbk.protocol.Message_TaskStatusPackage.percentage', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='distance', full_name='rbk.protocol.Message_TaskStatusPackage.distance', index=5,
-            number=6, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='source_label', full_name='rbk.protocol.Message_TaskStatusPackage.source_label', index=6,
-            number=7, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='target_label', full_name='rbk.protocol.Message_TaskStatusPackage.target_label', index=7,
-            number=8, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='closest_label', full_name='rbk.protocol.Message_TaskStatusPackage.closest_label', index=8,
-            number=9, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='info', full_name='rbk.protocol.Message_TaskStatusPackage.info', index=9,
-            number=31, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=4669,
-    serialized_end=4945,
+
+_MSGTASKSTATUSINFO = _descriptor.Descriptor(
+  name='msgTaskStatusInfo',
+  full_name='rbk.protocol.msgTaskStatusInfo',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='taskId', full_name='rbk.protocol.msgTaskStatusInfo.taskId', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='type', full_name='rbk.protocol.msgTaskStatusInfo.type', index=1,
+      number=11, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='status', full_name='rbk.protocol.msgTaskStatusInfo.status', index=2,
+      number=12, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=4381,
+  serialized_end=4516,
 )
 
-_MESSAGE_MOVESPEED = _descriptor.Descriptor(
-    name='Message_MoveSpeed',
-    full_name='rbk.protocol.Message_MoveSpeed',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_MoveSpeed.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_MoveSpeed.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='w', full_name='rbk.protocol.Message_MoveSpeed.w', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=4947,
-    serialized_end=4999,
+
+_MSGTASKSTATUSPACKAGE = _descriptor.Descriptor(
+  name='msgTaskStatusPackage',
+  full_name='rbk.protocol.msgTaskStatusPackage',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='taskStatusList', full_name='rbk.protocol.msgTaskStatusPackage.taskStatusList', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='closestTarget', full_name='rbk.protocol.msgTaskStatusPackage.closestTarget', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='sourceName', full_name='rbk.protocol.msgTaskStatusPackage.sourceName', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetName', full_name='rbk.protocol.msgTaskStatusPackage.targetName', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='percentage', full_name='rbk.protocol.msgTaskStatusPackage.percentage', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='distance', full_name='rbk.protocol.msgTaskStatusPackage.distance', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='sourceLabel', full_name='rbk.protocol.msgTaskStatusPackage.sourceLabel', index=6,
+      number=7, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='targetLabel', full_name='rbk.protocol.msgTaskStatusPackage.targetLabel', index=7,
+      number=8, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='closestLabel', full_name='rbk.protocol.msgTaskStatusPackage.closestLabel', index=8,
+      number=9, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='info', full_name='rbk.protocol.msgTaskStatusPackage.info', index=9,
+      number=31, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=4519,
+  serialized_end=4777,
 )
 
-_MESSAGE_MOVEPOSE = _descriptor.Descriptor(
-    name='Message_MovePose',
-    full_name='rbk.protocol.Message_MovePose',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_MovePose.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_MovePose.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='angle', full_name='rbk.protocol.Message_MovePose.angle', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=5001,
-    serialized_end=5056,
+
+_MSGMOVESPEED = _descriptor.Descriptor(
+  name='msgMoveSpeed',
+  full_name='rbk.protocol.msgMoveSpeed',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgMoveSpeed.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgMoveSpeed.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='w', full_name='rbk.protocol.msgMoveSpeed.w', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=4779,
+  serialized_end=4826,
 )
 
-_MESSAGE_MOVEPATH = _descriptor.Descriptor(
-    name='Message_MovePath',
-    full_name='rbk.protocol.Message_MovePath',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='skill_name', full_name='rbk.protocol.Message_MovePath.skill_name', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='pose', full_name='rbk.protocol.Message_MovePath.pose', index=1,
-            number=2, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='speed', full_name='rbk.protocol.Message_MovePath.speed', index=2,
-            number=3, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='find_path', full_name='rbk.protocol.Message_MovePath.find_path', index=3,
-            number=4, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=5059,
-    serialized_end=5210,
+
+_MSGMOVEPOSE = _descriptor.Descriptor(
+  name='msgMovePose',
+  full_name='rbk.protocol.msgMovePose',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgMovePose.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgMovePose.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angle', full_name='rbk.protocol.msgMovePose.angle', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=4828,
+  serialized_end=4878,
 )
 
-_MESSAGE_MODULE = _descriptor.Descriptor(
-    name='Message_Module',
-    full_name='rbk.protocol.Message_Module',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='module_name', full_name='rbk.protocol.Message_Module.module_name', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='module_status', full_name='rbk.protocol.Message_Module.module_status', index=1,
-            number=2, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='action_body', full_name='rbk.protocol.Message_Module.action_body', index=2,
-            number=3, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='cargo_status', full_name='rbk.protocol.Message_Module.cargo_status', index=3,
-            number=4, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='motors', full_name='rbk.protocol.Message_Module.motors', index=4,
-            number=5, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-        _MESSAGE_MODULE_MODULESTATUS,
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=5213,
-    serialized_end=5503,
+
+_MSGMOVEPATH = _descriptor.Descriptor(
+  name='msgMovePath',
+  full_name='rbk.protocol.msgMovePath',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='skillName', full_name='rbk.protocol.msgMovePath.skillName', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='pose', full_name='rbk.protocol.msgMovePath.pose', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='speed', full_name='rbk.protocol.msgMovePath.speed', index=2,
+      number=3, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='findPath', full_name='rbk.protocol.msgMovePath.findPath', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=4881,
+  serialized_end=5015,
 )
 
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['string_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['string_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['bool_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['bool_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['int32_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['int32_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['uint32_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['uint32_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['int64_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['int64_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['uint64_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['uint64_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['float_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['float_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['double_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['double_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value'].fields.append(
-    _MESSAGE_MOVEPARAM.fields_by_name['bytes_value'])
-_MESSAGE_MOVEPARAM.fields_by_name['bytes_value'].containing_oneof = _MESSAGE_MOVEPARAM.oneofs_by_name['oneof_value']
-_MESSAGE_MOVETASK.fields_by_name['target_x'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['target_y'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['target_angle'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['target_name'].message_type = google_dot_protobuf_dot_wrappers__pb2._STRINGVALUE
-_MESSAGE_MOVETASK.fields_by_name['reach_dist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['reach_angle'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['reach_method'].message_type = google_dot_protobuf_dot_wrappers__pb2._STRINGVALUE
-_MESSAGE_MOVETASK.fields_by_name['reach_vel_x'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['reach_vel_y'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['reach_vel_w'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['speed_x'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['speed_y'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['speed_w'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['max_speed'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['max_acc'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['max_rot'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['max_rot_acc'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['slowdown_dist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['block_dist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['move_dist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['move_angle'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['move_time'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['params'].message_type = _MESSAGE_MOVEPARAM
-_MESSAGE_MOVETASK.fields_by_name['task_id'].message_type = google_dot_protobuf_dot_wrappers__pb2._STRINGVALUE
-_MESSAGE_MOVETASK.fields_by_name['max_dec'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['max_rot_dec'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['obs_stop_dist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['obs_dec_dist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['obs_dec_speed'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['obs_expansion'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['dec_obs_expansion'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
-_MESSAGE_MOVETASK.fields_by_name['source_name'].message_type = google_dot_protobuf_dot_wrappers__pb2._STRINGVALUE
-_MESSAGE_MOVETASKLIST.fields_by_name['move_task_list'].message_type = _MESSAGE_MOVETASK
-_MESSAGE_MOVEPOLYGON.fields_by_name['point'].message_type = _MESSAGE_MOVEPOLYGONPOINT
-_MESSAGE_MOVESTATUS.fields_by_name['block_reason'].enum_type = _MESSAGE_MOVESTATUS_REASON
-_MESSAGE_MOVESTATUS.fields_by_name['task_status'].enum_type = _MESSAGE_MOVESTATUS_TASKSTATUS
-_MESSAGE_MOVESTATUS.fields_by_name['task_type'].enum_type = _MESSAGE_MOVESTATUS_TASKTYPE
-_MESSAGE_MOVESTATUS.fields_by_name['robot_region'].message_type = _MESSAGE_MOVEPOLYGON
-_MESSAGE_MOVESTATUS.fields_by_name['goods_region'].message_type = _MESSAGE_MOVEPOLYGON
-_MESSAGE_MOVESTATUS.fields_by_name['removed_regions'].message_type = _MESSAGE_MOVEPOLYGON
-_MESSAGE_MOVESTATUS.fields_by_name['running_status'].enum_type = _MESSAGE_MOVESTATUS_RUNNINGSTATUS
-_MESSAGE_MOVESTATUS.fields_by_name['robot_shape'].message_type = _MESSAGE_ROBOTSHAPE
-_MESSAGE_MOVESTATUS.fields_by_name['slow_reason'].enum_type = _MESSAGE_MOVESTATUS_REASON
-_MESSAGE_MOVESTATUS.fields_by_name['stop_path'].message_type = _MESSAGE_MOVEPOLYGON
-_MESSAGE_MOVESTATUS.fields_by_name['slow_path'].message_type = _MESSAGE_MOVEPOLYGON
-_MESSAGE_MOVESTATUS.fields_by_name['modules'].message_type = _MESSAGE_MODULE
-_MESSAGE_MOVESTATUS.fields_by_name['advance_regions'].message_type = _MESSAGE_MOVEPOLYGON
-_MESSAGE_MOVESTATUS.fields_by_name['task_status_package'].message_type = _MESSAGE_TASKSTATUSPACKAGE
-_MESSAGE_MOVESTATUS.fields_by_name['nearest_obstacles'].message_type = _MESSAGE_NEARESTOBS
-_MESSAGE_MOVESTATUS.fields_by_name['containers'].message_type = _MESSAGE_CONTAINER
-_MESSAGE_MOVESTATUS_REASON.containing_type = _MESSAGE_MOVESTATUS
-_MESSAGE_MOVESTATUS_TASKSTATUS.containing_type = _MESSAGE_MOVESTATUS
-_MESSAGE_MOVESTATUS_TASKTYPE.containing_type = _MESSAGE_MOVESTATUS
-_MESSAGE_MOVESTATUS_RUNNINGSTATUS.containing_type = _MESSAGE_MOVESTATUS
-_MESSAGE_TASKSTATUSINFO.fields_by_name['type'].enum_type = _MESSAGE_MOVESTATUS_TASKTYPE
-_MESSAGE_TASKSTATUSINFO.fields_by_name['status'].enum_type = _MESSAGE_MOVESTATUS_TASKSTATUS
-_MESSAGE_TASKSTATUSPACKAGE.fields_by_name['task_status_list'].message_type = _MESSAGE_TASKSTATUSINFO
-_MESSAGE_MOVEPATH.fields_by_name['pose'].message_type = _MESSAGE_MOVEPOSE
-_MESSAGE_MOVEPATH.fields_by_name['speed'].message_type = _MESSAGE_MOVESPEED
-_MESSAGE_MODULE.fields_by_name['module_status'].enum_type = _MESSAGE_MODULE_MODULESTATUS
-_MESSAGE_MODULE.fields_by_name['motors'].message_type = message__motorinfos__pb2._MESSAGE_MOTORINFO
-_MESSAGE_MODULE_MODULESTATUS.containing_type = _MESSAGE_MODULE
-DESCRIPTOR.message_types_by_name['Message_MoveParam'] = _MESSAGE_MOVEPARAM
-DESCRIPTOR.message_types_by_name['Message_MoveTask'] = _MESSAGE_MOVETASK
-DESCRIPTOR.message_types_by_name['Message_MoveTaskList'] = _MESSAGE_MOVETASKLIST
-DESCRIPTOR.message_types_by_name['Message_MovePolygonPoint'] = _MESSAGE_MOVEPOLYGONPOINT
-DESCRIPTOR.message_types_by_name['Message_MovePolygon'] = _MESSAGE_MOVEPOLYGON
-DESCRIPTOR.message_types_by_name['Message_RobotShape'] = _MESSAGE_ROBOTSHAPE
-DESCRIPTOR.message_types_by_name['Message_NearestObs'] = _MESSAGE_NEARESTOBS
-DESCRIPTOR.message_types_by_name['Message_Container'] = _MESSAGE_CONTAINER
-DESCRIPTOR.message_types_by_name['Message_MoveStatus'] = _MESSAGE_MOVESTATUS
-DESCRIPTOR.message_types_by_name['Message_TaskStatusInfo'] = _MESSAGE_TASKSTATUSINFO
-DESCRIPTOR.message_types_by_name['Message_TaskStatusPackage'] = _MESSAGE_TASKSTATUSPACKAGE
-DESCRIPTOR.message_types_by_name['Message_MoveSpeed'] = _MESSAGE_MOVESPEED
-DESCRIPTOR.message_types_by_name['Message_MovePose'] = _MESSAGE_MOVEPOSE
-DESCRIPTOR.message_types_by_name['Message_MovePath'] = _MESSAGE_MOVEPATH
-DESCRIPTOR.message_types_by_name['Message_Module'] = _MESSAGE_MODULE
+
+_MSGMODULE = _descriptor.Descriptor(
+  name='msgModule',
+  full_name='rbk.protocol.msgModule',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='moduleName', full_name='rbk.protocol.msgModule.moduleName', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='status', full_name='rbk.protocol.msgModule.status', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='actionBody', full_name='rbk.protocol.msgModule.actionBody', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='cargoStatus', full_name='rbk.protocol.msgModule.cargoStatus', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='motors', full_name='rbk.protocol.msgModule.motors', index=4,
+      number=5, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGMODULE_MODULESTATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=5018,
+  serialized_end=5283,
+)
+
+
+_MSGMATEROBOT = _descriptor.Descriptor(
+  name='msgMateRobot',
+  full_name='rbk.protocol.msgMateRobot',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='robotShape', full_name='rbk.protocol.msgMateRobot.robotShape', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='futurePath', full_name='rbk.protocol.msgMateRobot.futurePath', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=5285,
+  serialized_end=5395,
+)
+
+
+_MSGMATES = _descriptor.Descriptor(
+  name='msgMates',
+  full_name='rbk.protocol.msgMates',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='matesList', full_name='rbk.protocol.msgMates.matesList', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=5397,
+  serialized_end=5454,
+)
+
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['stringValue'])
+_MSGMOVEPARAM.fields_by_name['stringValue'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['boolValue'])
+_MSGMOVEPARAM.fields_by_name['boolValue'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['int32Value'])
+_MSGMOVEPARAM.fields_by_name['int32Value'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['uint32Value'])
+_MSGMOVEPARAM.fields_by_name['uint32Value'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['int64Value'])
+_MSGMOVEPARAM.fields_by_name['int64Value'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['uint64Value'])
+_MSGMOVEPARAM.fields_by_name['uint64Value'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['floatValue'])
+_MSGMOVEPARAM.fields_by_name['floatValue'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['doubleValue'])
+_MSGMOVEPARAM.fields_by_name['doubleValue'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
+  _MSGMOVEPARAM.fields_by_name['bytesValue'])
+_MSGMOVEPARAM.fields_by_name['bytesValue'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
+_MSGMOVETASK.fields_by_name['targetX'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['targetY'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['targetAngle'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['targetName'].message_type = google_dot_protobuf_dot_wrappers__pb2._STRINGVALUE
+_MSGMOVETASK.fields_by_name['reachDist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['reachAngle'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['reachMethod'].message_type = google_dot_protobuf_dot_wrappers__pb2._STRINGVALUE
+_MSGMOVETASK.fields_by_name['reachVelX'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['reachVelY'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['reachVelW'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['speedX'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['speedY'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['speedW'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['maxSpeed'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['maxAcc'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['maxRot'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['maxRotAcc'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['slowdownDist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['blockDist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['moveDist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['moveAngle'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['moveTime'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['params'].message_type = _MSGMOVEPARAM
+_MSGMOVETASK.fields_by_name['taskId'].message_type = google_dot_protobuf_dot_wrappers__pb2._STRINGVALUE
+_MSGMOVETASK.fields_by_name['maxDec'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['maxRotDec'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['obsStopDist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['obsDecDist'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['obsDecSpeed'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['obsExpansion'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['decObsExpansion'].message_type = google_dot_protobuf_dot_wrappers__pb2._DOUBLEVALUE
+_MSGMOVETASK.fields_by_name['sourceName'].message_type = google_dot_protobuf_dot_wrappers__pb2._STRINGVALUE
+_MSGMOVETASKLIST.fields_by_name['moveTaskList'].message_type = _MSGMOVETASK
+_MSGMOVEPOLYGON.fields_by_name['point'].message_type = _MSGMOVEPOLYGONPOINT
+_MSGROBOTSHAPE.fields_by_name['points'].message_type = _MSGMOVEPOLYGONPOINT
+_MSGMOVESTATUS.fields_by_name['blockReason'].enum_type = _MSGMOVESTATUS_REASON
+_MSGMOVESTATUS.fields_by_name['taskStatus'].enum_type = _MSGMOVESTATUS_STATUS
+_MSGMOVESTATUS.fields_by_name['taskType'].enum_type = _MSGMOVESTATUS_TYPE
+_MSGMOVESTATUS.fields_by_name['robotRegion'].message_type = _MSGMOVEPOLYGON
+_MSGMOVESTATUS.fields_by_name['goodsRegion'].message_type = _MSGMOVEPOLYGON
+_MSGMOVESTATUS.fields_by_name['removedRegions'].message_type = _MSGMOVEPOLYGON
+_MSGMOVESTATUS.fields_by_name['runningStatus'].enum_type = _MSGMOVESTATUS_RSTATUS
+_MSGMOVESTATUS.fields_by_name['robotShape'].message_type = _MSGROBOTSHAPE
+_MSGMOVESTATUS.fields_by_name['slowReason'].enum_type = _MSGMOVESTATUS_REASON
+_MSGMOVESTATUS.fields_by_name['stopPath'].message_type = _MSGMOVEPOLYGON
+_MSGMOVESTATUS.fields_by_name['slowPath'].message_type = _MSGMOVEPOLYGON
+_MSGMOVESTATUS.fields_by_name['modules'].message_type = _MSGMODULE
+_MSGMOVESTATUS.fields_by_name['advanceRegions'].message_type = _MSGMOVEPOLYGON
+_MSGMOVESTATUS.fields_by_name['taskStatusPackage'].message_type = _MSGTASKSTATUSPACKAGE
+_MSGMOVESTATUS.fields_by_name['nearestObstacles'].message_type = _MSGNEARESTOBS
+_MSGMOVESTATUS.fields_by_name['containers'].message_type = _MSGCONTAINER
+_MSGMOVESTATUS.fields_by_name['mates'].message_type = _MSGMATES
+_MSGMOVESTATUS.fields_by_name['moveTasks'].message_type = _MSGMOVETASK
+_MSGMOVESTATUS_REASON.containing_type = _MSGMOVESTATUS
+_MSGMOVESTATUS_STATUS.containing_type = _MSGMOVESTATUS
+_MSGMOVESTATUS_TYPE.containing_type = _MSGMOVESTATUS
+_MSGMOVESTATUS_RSTATUS.containing_type = _MSGMOVESTATUS
+_MSGTASKSTATUSINFO.fields_by_name['type'].enum_type = _MSGMOVESTATUS_TYPE
+_MSGTASKSTATUSINFO.fields_by_name['status'].enum_type = _MSGMOVESTATUS_STATUS
+_MSGTASKSTATUSPACKAGE.fields_by_name['taskStatusList'].message_type = _MSGTASKSTATUSINFO
+_MSGMOVEPATH.fields_by_name['pose'].message_type = _MSGMOVEPOSE
+_MSGMOVEPATH.fields_by_name['speed'].message_type = _MSGMOVESPEED
+_MSGMODULE.fields_by_name['status'].enum_type = _MSGMODULE_MODULESTATUS
+_MSGMODULE.fields_by_name['motors'].message_type = message__motorinfos__pb2._MSGMOTORINFO
+_MSGMODULE_MODULESTATUS.containing_type = _MSGMODULE
+_MSGMATEROBOT.fields_by_name['robotShape'].message_type = _MSGROBOTSHAPE
+_MSGMATEROBOT.fields_by_name['futurePath'].message_type = _MSGMOVEPOSE
+_MSGMATES.fields_by_name['matesList'].message_type = _MSGMATEROBOT
+DESCRIPTOR.message_types_by_name['msgMoveParam'] = _MSGMOVEPARAM
+DESCRIPTOR.message_types_by_name['msgMoveTask'] = _MSGMOVETASK
+DESCRIPTOR.message_types_by_name['msgMoveTaskList'] = _MSGMOVETASKLIST
+DESCRIPTOR.message_types_by_name['msgMovePolygonPoint'] = _MSGMOVEPOLYGONPOINT
+DESCRIPTOR.message_types_by_name['msgMovePolygon'] = _MSGMOVEPOLYGON
+DESCRIPTOR.message_types_by_name['msgRobotShape'] = _MSGROBOTSHAPE
+DESCRIPTOR.message_types_by_name['msgNearestObs'] = _MSGNEARESTOBS
+DESCRIPTOR.message_types_by_name['msgContainer'] = _MSGCONTAINER
+DESCRIPTOR.message_types_by_name['msgMoveStatus'] = _MSGMOVESTATUS
+DESCRIPTOR.message_types_by_name['msgTaskStatusInfo'] = _MSGTASKSTATUSINFO
+DESCRIPTOR.message_types_by_name['msgTaskStatusPackage'] = _MSGTASKSTATUSPACKAGE
+DESCRIPTOR.message_types_by_name['msgMoveSpeed'] = _MSGMOVESPEED
+DESCRIPTOR.message_types_by_name['msgMovePose'] = _MSGMOVEPOSE
+DESCRIPTOR.message_types_by_name['msgMovePath'] = _MSGMOVEPATH
+DESCRIPTOR.message_types_by_name['msgModule'] = _MSGMODULE
+DESCRIPTOR.message_types_by_name['msgMateRobot'] = _MSGMATEROBOT
+DESCRIPTOR.message_types_by_name['msgMates'] = _MSGMATES
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_MoveParam = _reflection.GeneratedProtocolMessageType('Message_MoveParam', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOVEPARAM,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MoveParam)
-))
-_sym_db.RegisterMessage(Message_MoveParam)
+msgMoveParam = _reflection.GeneratedProtocolMessageType('msgMoveParam', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVEPARAM,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMoveParam)
+  ))
+_sym_db.RegisterMessage(msgMoveParam)
 
-Message_MoveTask = _reflection.GeneratedProtocolMessageType('Message_MoveTask', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOVETASK,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MoveTask)
-))
-_sym_db.RegisterMessage(Message_MoveTask)
+msgMoveTask = _reflection.GeneratedProtocolMessageType('msgMoveTask', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVETASK,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMoveTask)
+  ))
+_sym_db.RegisterMessage(msgMoveTask)
 
-Message_MoveTaskList = _reflection.GeneratedProtocolMessageType('Message_MoveTaskList', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOVETASKLIST,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MoveTaskList)
-))
-_sym_db.RegisterMessage(Message_MoveTaskList)
+msgMoveTaskList = _reflection.GeneratedProtocolMessageType('msgMoveTaskList', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVETASKLIST,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMoveTaskList)
+  ))
+_sym_db.RegisterMessage(msgMoveTaskList)
 
-Message_MovePolygonPoint = _reflection.GeneratedProtocolMessageType('Message_MovePolygonPoint', (_message.Message,),
-                                                                    dict(
-                                                                        DESCRIPTOR=_MESSAGE_MOVEPOLYGONPOINT,
-                                                                        __module__='message_movetask_pb2'
-                                                                        # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MovePolygonPoint)
-                                                                    ))
-_sym_db.RegisterMessage(Message_MovePolygonPoint)
+msgMovePolygonPoint = _reflection.GeneratedProtocolMessageType('msgMovePolygonPoint', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVEPOLYGONPOINT,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMovePolygonPoint)
+  ))
+_sym_db.RegisterMessage(msgMovePolygonPoint)
 
-Message_MovePolygon = _reflection.GeneratedProtocolMessageType('Message_MovePolygon', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOVEPOLYGON,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MovePolygon)
-))
-_sym_db.RegisterMessage(Message_MovePolygon)
+msgMovePolygon = _reflection.GeneratedProtocolMessageType('msgMovePolygon', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVEPOLYGON,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMovePolygon)
+  ))
+_sym_db.RegisterMessage(msgMovePolygon)
 
-Message_RobotShape = _reflection.GeneratedProtocolMessageType('Message_RobotShape', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_ROBOTSHAPE,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_RobotShape)
-))
-_sym_db.RegisterMessage(Message_RobotShape)
+msgRobotShape = _reflection.GeneratedProtocolMessageType('msgRobotShape', (_message.Message,), dict(
+  DESCRIPTOR = _MSGROBOTSHAPE,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgRobotShape)
+  ))
+_sym_db.RegisterMessage(msgRobotShape)
 
-Message_NearestObs = _reflection.GeneratedProtocolMessageType('Message_NearestObs', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NEARESTOBS,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NearestObs)
-))
-_sym_db.RegisterMessage(Message_NearestObs)
+msgNearestObs = _reflection.GeneratedProtocolMessageType('msgNearestObs', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNEARESTOBS,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNearestObs)
+  ))
+_sym_db.RegisterMessage(msgNearestObs)
 
-Message_Container = _reflection.GeneratedProtocolMessageType('Message_Container', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_CONTAINER,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Container)
-))
-_sym_db.RegisterMessage(Message_Container)
+msgContainer = _reflection.GeneratedProtocolMessageType('msgContainer', (_message.Message,), dict(
+  DESCRIPTOR = _MSGCONTAINER,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgContainer)
+  ))
+_sym_db.RegisterMessage(msgContainer)
 
-Message_MoveStatus = _reflection.GeneratedProtocolMessageType('Message_MoveStatus', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOVESTATUS,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MoveStatus)
-))
-_sym_db.RegisterMessage(Message_MoveStatus)
+msgMoveStatus = _reflection.GeneratedProtocolMessageType('msgMoveStatus', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVESTATUS,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMoveStatus)
+  ))
+_sym_db.RegisterMessage(msgMoveStatus)
 
-Message_TaskStatusInfo = _reflection.GeneratedProtocolMessageType('Message_TaskStatusInfo', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_TASKSTATUSINFO,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_TaskStatusInfo)
-))
-_sym_db.RegisterMessage(Message_TaskStatusInfo)
+msgTaskStatusInfo = _reflection.GeneratedProtocolMessageType('msgTaskStatusInfo', (_message.Message,), dict(
+  DESCRIPTOR = _MSGTASKSTATUSINFO,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgTaskStatusInfo)
+  ))
+_sym_db.RegisterMessage(msgTaskStatusInfo)
 
-Message_TaskStatusPackage = _reflection.GeneratedProtocolMessageType('Message_TaskStatusPackage', (_message.Message,),
-                                                                     dict(
-                                                                         DESCRIPTOR=_MESSAGE_TASKSTATUSPACKAGE,
-                                                                         __module__='message_movetask_pb2'
-                                                                         # @@protoc_insertion_point(class_scope:rbk.protocol.Message_TaskStatusPackage)
-                                                                     ))
-_sym_db.RegisterMessage(Message_TaskStatusPackage)
+msgTaskStatusPackage = _reflection.GeneratedProtocolMessageType('msgTaskStatusPackage', (_message.Message,), dict(
+  DESCRIPTOR = _MSGTASKSTATUSPACKAGE,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgTaskStatusPackage)
+  ))
+_sym_db.RegisterMessage(msgTaskStatusPackage)
 
-Message_MoveSpeed = _reflection.GeneratedProtocolMessageType('Message_MoveSpeed', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOVESPEED,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MoveSpeed)
-))
-_sym_db.RegisterMessage(Message_MoveSpeed)
+msgMoveSpeed = _reflection.GeneratedProtocolMessageType('msgMoveSpeed', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVESPEED,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMoveSpeed)
+  ))
+_sym_db.RegisterMessage(msgMoveSpeed)
 
-Message_MovePose = _reflection.GeneratedProtocolMessageType('Message_MovePose', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOVEPOSE,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MovePose)
-))
-_sym_db.RegisterMessage(Message_MovePose)
+msgMovePose = _reflection.GeneratedProtocolMessageType('msgMovePose', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVEPOSE,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMovePose)
+  ))
+_sym_db.RegisterMessage(msgMovePose)
 
-Message_MovePath = _reflection.GeneratedProtocolMessageType('Message_MovePath', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOVEPATH,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MovePath)
-))
-_sym_db.RegisterMessage(Message_MovePath)
+msgMovePath = _reflection.GeneratedProtocolMessageType('msgMovePath', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOVEPATH,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMovePath)
+  ))
+_sym_db.RegisterMessage(msgMovePath)
 
-Message_Module = _reflection.GeneratedProtocolMessageType('Message_Module', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MODULE,
-    __module__='message_movetask_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Module)
-))
-_sym_db.RegisterMessage(Message_Module)
+msgModule = _reflection.GeneratedProtocolMessageType('msgModule', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMODULE,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgModule)
+  ))
+_sym_db.RegisterMessage(msgModule)
+
+msgMateRobot = _reflection.GeneratedProtocolMessageType('msgMateRobot', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMATEROBOT,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMateRobot)
+  ))
+_sym_db.RegisterMessage(msgMateRobot)
+
+msgMates = _reflection.GeneratedProtocolMessageType('msgMates', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMATES,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMates)
+  ))
+_sym_db.RegisterMessage(msgMates)
+
 
 # @@protoc_insertion_point(module_scope)

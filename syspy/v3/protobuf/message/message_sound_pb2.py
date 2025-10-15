@@ -19,42 +19,42 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x13message_sound.proto\x12\x0crbk.protocol\"P\n\rMessage_Sound\x12\x0e\n\x06status\x18\x01 \x01(\x05\x12\x12\n\nsound_name\x18\x02 \x01(\t\x12\x0c\n\x04loop\x18\x03 \x01(\x08\x12\r\n\x05\x63ount\x18\x04 \x01(\x05\x62\x06proto3')
+  serialized_pb=_b('\n\x13message_sound.proto\x12\x0crbk.protocol\"J\n\x08msgSound\x12\x0e\n\x06status\x18\x01 \x01(\x05\x12\x11\n\tsoundName\x18\x02 \x01(\t\x12\x0c\n\x04loop\x18\x03 \x01(\x08\x12\r\n\x05\x63ount\x18\x04 \x01(\x05\x62\x06proto3')
 )
 
 
 
 
-_MESSAGE_SOUND = _descriptor.Descriptor(
-  name='Message_Sound',
-  full_name='rbk.protocol.Message_Sound',
+_MSGSOUND = _descriptor.Descriptor(
+  name='msgSound',
+  full_name='rbk.protocol.msgSound',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='status', full_name='rbk.protocol.Message_Sound.status', index=0,
+      name='status', full_name='rbk.protocol.msgSound.status', index=0,
       number=1, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='sound_name', full_name='rbk.protocol.Message_Sound.sound_name', index=1,
+      name='soundName', full_name='rbk.protocol.msgSound.soundName', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='loop', full_name='rbk.protocol.Message_Sound.loop', index=2,
+      name='loop', full_name='rbk.protocol.msgSound.loop', index=2,
       number=3, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='count', full_name='rbk.protocol.Message_Sound.count', index=3,
+      name='count', full_name='rbk.protocol.msgSound.count', index=3,
       number=4, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -73,18 +73,18 @@ _MESSAGE_SOUND = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=37,
-  serialized_end=117,
+  serialized_end=111,
 )
 
-DESCRIPTOR.message_types_by_name['Message_Sound'] = _MESSAGE_SOUND
+DESCRIPTOR.message_types_by_name['msgSound'] = _MSGSOUND
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_Sound = _reflection.GeneratedProtocolMessageType('Message_Sound', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_SOUND,
+msgSound = _reflection.GeneratedProtocolMessageType('msgSound', (_message.Message,), dict(
+  DESCRIPTOR = _MSGSOUND,
   __module__ = 'message_sound_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Sound)
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgSound)
   ))
-_sym_db.RegisterMessage(Message_Sound)
+_sym_db.RegisterMessage(msgSound)
 
 
 # @@protoc_insertion_point(module_scope)

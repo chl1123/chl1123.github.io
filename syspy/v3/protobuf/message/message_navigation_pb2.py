@@ -2,844 +2,898 @@
 # source: message_navigation.proto
 
 import sys
-
-_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode('latin1'))
+_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
+
 from . import message_header_pb2 as message__header__pb2
 
+
 DESCRIPTOR = _descriptor.FileDescriptor(
-    name='message_navigation.proto',
-    package='rbk.protocol',
-    syntax='proto3',
-    serialized_options=None,
-    serialized_pb=_b(
-        '\n\x18message_navigation.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"$\n\x11Message_NavStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\"\xbe\x03\n\x10Message_MotorCmd\x12\x12\n\nmotor_name\x18\x01 \x01(\t\x12\x12\n\ncan_router\x18\x02 \x01(\r\x12\x0e\n\x06\x63\x61n_id\x18\x03 \x01(\r\x12\r\n\x05value\x18\x04 \x01(\x01\x12\x34\n\x06io_cmd\x18\x05 \x01(\x0e\x32$.rbk.protocol.Message_MotorCmd.IOCmd\x12\x36\n\x04type\x18\x06 \x01(\x0e\x32(.rbk.protocol.Message_MotorCmd.MotorType\x12:\n\tmove_type\x18\x07 \x01(\x0e\x32\'.rbk.protocol.Message_MotorCmd.MoveType\"L\n\tMotorType\x12\x08\n\x04WALK\x10\x00\x12\t\n\x05STEER\x10\x01\x12\x08\n\x04SPIN\x10\x02\x12\n\n\x06LINEAR\x10\x03\x12\x0c\n\x08ROTATION\x10\x04\x12\x06\n\x02\x44O\x10\x05\"A\n\x05IOCmd\x12\x0c\n\x08\x43MD_NONE\x10\x00\x12\x0f\n\x0bTO_POSITIVE\x10\x01\x12\x0f\n\x0bTO_NEGATIVE\x10\x02\x12\x08\n\x04STOP\x10\x03\"(\n\x08MoveType\x12\n\n\x06NORMAL\x10\x00\x12\x07\n\x03\x41\x43\x43\x10\x01\x12\x07\n\x03\x44\x45\x43\x10\x02\"\xaa\x01\n\x10Message_NavSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12,\n\x06header\x18\x04 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\x31\n\tmotor_cmd\x18\x05 \x03(\x0b\x32\x1e.rbk.protocol.Message_MotorCmd\x12\x0f\n\x07is2move\x18\x06 \x01(\x08\"Q\n\x13Message_ManualSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12\x14\n\x0csteer_angles\x18\x04 \x03(\x01\"6\n\x0fMessage_NavPose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"0\n\x13Message_NavTopoPose\x12\n\n\x02id\x18\x01 \x01(\x05\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"~\n\x10Message_NavState\x12+\n\x04pose\x18\x01 \x01(\x0b\x32\x1d.rbk.protocol.Message_NavPose\x12-\n\x05speed\x18\x02 \x01(\x0b\x32\x1e.rbk.protocol.Message_NavSpeed\x12\x0e\n\x06radius\x18\x03 \x01(\x01\"T\n\x0fMessage_NavPath\x12.\n\x06states\x18\x01 \x03(\x0b\x32\x1e.rbk.protocol.Message_NavState\x12\x11\n\tfind_path\x18\x02 \x01(\x08\"\x9a\x01\n\x11Message_NavTarget\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\x12\x10\n\x08run_mode\x18\x04 \x01(\x05\x12\x16\n\x0etopo_target_id\x18\x05 \x01(\x05\"6\n\x04MODE\x12\r\n\tNULL_MODE\x10\x00\x12\x10\n\x0c\x46ORWARD_MODE\x10\x01\x12\r\n\tBACK_MODE\x10\x02\"\xa5\x03\n\x0fMessage_NavInfo\x12\x10\n\x08nav_mode\x18\x01 \x01(\x05\x12\x0f\n\x07nav_cmd\x18\x02 \x01(\x05\x12\x14\n\x0cnav_target_x\x18\x03 \x01(\x01\x12\x14\n\x0cnav_target_y\x18\x04 \x01(\x01\x12\x18\n\x10nav_target_theta\x18\x05 \x01(\x01\x12\x17\n\x0fnav_target_mode\x18\x06 \x01(\x01\x12\x13\n\x0bnav_speed_x\x18\x07 \x01(\x01\x12\x13\n\x0bnav_speed_y\x18\x08 \x01(\x01\x12\x13\n\x0bnav_speed_w\x18\t \x01(\x01\x12\x16\n\x0etopo_target_id\x18\n \x01(\x05\"_\n\x07NavMode\x12\x0f\n\x0bNullNavMode\x10\x00\x12\x17\n\x13TaskTargetReachMode\x10\x01\x12\x14\n\x10SpeedControlMode\x10\x02\x12\x14\n\x10TopoPosReachMode\x10\x03\"X\n\x06NavCmd\x12\x0e\n\nNULLNavCmd\x10\x00\x12\x0e\n\nTaskCancel\x10\x01\x12\x0f\n\x0bTaskSuspend\x10\x02\x12\x0e\n\nTaskResume\x10\x03\x12\r\n\tTaskBegin\x10\x04\x62\x06proto3')
-    ,
-    dependencies=[message__header__pb2.DESCRIPTOR, ])
+  name='message_navigation.proto',
+  package='rbk.protocol',
+  syntax='proto3',
+  serialized_options=None,
+  serialized_pb=_b('\n\x18message_navigation.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\x1f\n\x0cmsgNavStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\"\x98\x03\n\x0bmsgMotorCmd\x12\x11\n\tmotorName\x18\x01 \x01(\t\x12\x11\n\tcanRouter\x18\x02 \x01(\r\x12\r\n\x05\x63\x61nId\x18\x03 \x01(\r\x12\r\n\x05value\x18\x04 \x01(\x01\x12,\n\x05ioCmd\x18\x05 \x01(\x0e\x32\x1d.rbk.protocol.msgMotorCmd.cmd\x12\x31\n\x04type\x18\x06 \x01(\x0e\x32#.rbk.protocol.msgMotorCmd.motorType\x12\x31\n\x08moveType\x18\x07 \x01(\x0e\x32\x1f.rbk.protocol.msgMotorCmd.mType\"L\n\tmotorType\x12\x08\n\x04walk\x10\x00\x12\t\n\x05steer\x10\x01\x12\x08\n\x04spin\x10\x02\x12\n\n\x06linear\x10\x03\x12\x0c\n\x08rotation\x10\x04\x12\x06\n\x02\x64o\x10\x05\"<\n\x03\x63md\x12\x0b\n\x07\x63mdNone\x10\x00\x12\x0e\n\ntoPositive\x10\x01\x12\x0e\n\ntoNegative\x10\x02\x12\x08\n\x04stop\x10\x03\"%\n\x05mType\x12\n\n\x06normal\x10\x00\x12\x07\n\x03\x61\x63\x63\x10\x01\x12\x07\n\x03\x64\x65\x63\x10\x02\"\x9b\x01\n\x0bmsgNavSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12\'\n\x06header\x18\x04 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12+\n\x08motorCmd\x18\x05 \x03(\x0b\x32\x19.rbk.protocol.msgMotorCmd\x12\x10\n\x08isToMove\x18\x06 \x01(\x08\"K\n\x0emsgManualSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12\x13\n\x0bsteerAngles\x18\x04 \x03(\x01\"1\n\nmsgNavPose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"+\n\x0emsgNavTopoPose\x12\n\n\x02id\x18\x01 \x01(\x05\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"o\n\x0bmsgNavState\x12&\n\x04pose\x18\x01 \x01(\x0b\x32\x18.rbk.protocol.msgNavPose\x12(\n\x05speed\x18\x02 \x01(\x0b\x32\x19.rbk.protocol.msgNavSpeed\x12\x0e\n\x06radius\x18\x03 \x01(\x01\"I\n\nmsgNavPath\x12)\n\x06states\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgNavState\x12\x10\n\x08\x66indPath\x18\x02 \x01(\x08\":\n\x0fmsgMultiNavPath\x12\'\n\x05paths\x18\x01 \x03(\x0b\x32\x18.rbk.protocol.msgNavPath\"\x8f\x01\n\x0cmsgNavTarget\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\x12\x0f\n\x07runMode\x18\x04 \x01(\x05\x12\x14\n\x0ctopoTargetId\x18\x05 \x01(\x05\"3\n\x04mode\x12\x0c\n\x08nullMode\x10\x00\x12\x0f\n\x0b\x66orwardMode\x10\x01\x12\x0c\n\x08\x62\x61\x63kMode\x10\x02\"\xc5\x03\n\nmsgNavInfo\x12.\n\x07navMode\x18\x01 \x01(\x0e\x32\x1d.rbk.protocol.msgNavInfo.mode\x12,\n\x06navCmd\x18\x02 \x01(\x0e\x32\x1c.rbk.protocol.msgNavInfo.cmd\x12\x12\n\nnavTargetX\x18\x03 \x01(\x01\x12\x12\n\nnavTargetY\x18\x04 \x01(\x01\x12\x16\n\x0enavTargetTheta\x18\x05 \x01(\x01\x12\x15\n\rnavTargetMode\x18\x06 \x01(\x01\x12\x11\n\tnavSpeedX\x18\x07 \x01(\x01\x12\x11\n\tnavSpeedY\x18\x08 \x01(\x01\x12\x11\n\tnavSpeedW\x18\t \x01(\x01\x12\x14\n\x0ctopoTargetId\x18\n \x01(\x05\"\\\n\x04mode\x12\x0f\n\x0bnullNavMode\x10\x00\x12\x17\n\x13taskTargetReachMode\x10\x01\x12\x14\n\x10speedControlMode\x10\x02\x12\x14\n\x10topoPosReachMode\x10\x03\"U\n\x03\x63md\x12\x0e\n\nnullNavCmd\x10\x00\x12\x0e\n\ntaskCancel\x10\x01\x12\x0f\n\x0btaskSuspend\x10\x02\x12\x0e\n\ntaskResume\x10\x03\x12\r\n\ttaskBegin\x10\x04\x62\x06proto3')
+  ,
+  dependencies=[message__header__pb2.DESCRIPTOR,])
 
-_MESSAGE_MOTORCMD_MOTORTYPE = _descriptor.EnumDescriptor(
-    name='MotorType',
-    full_name='rbk.protocol.Message_MotorCmd.MotorType',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='WALK', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='STEER', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='SPIN', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='LINEAR', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='ROTATION', index=4, number=4,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DO', index=5, number=5,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=364,
-    serialized_end=440,
+
+
+_MSGMOTORCMD_MOTORTYPE = _descriptor.EnumDescriptor(
+  name='motorType',
+  full_name='rbk.protocol.msgMotorCmd.motorType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='walk', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='steer', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='spin', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='linear', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='rotation', index=4, number=4,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='do', index=5, number=5,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=329,
+  serialized_end=405,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOTORCMD_MOTORTYPE)
+_sym_db.RegisterEnumDescriptor(_MSGMOTORCMD_MOTORTYPE)
 
-_MESSAGE_MOTORCMD_IOCMD = _descriptor.EnumDescriptor(
-    name='IOCmd',
-    full_name='rbk.protocol.Message_MotorCmd.IOCmd',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='CMD_NONE', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TO_POSITIVE', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TO_NEGATIVE', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='STOP', index=3, number=3,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=442,
-    serialized_end=507,
+_MSGMOTORCMD_CMD = _descriptor.EnumDescriptor(
+  name='cmd',
+  full_name='rbk.protocol.msgMotorCmd.cmd',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='cmdNone', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='toPositive', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='toNegative', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='stop', index=3, number=3,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=407,
+  serialized_end=467,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOTORCMD_IOCMD)
+_sym_db.RegisterEnumDescriptor(_MSGMOTORCMD_CMD)
 
-_MESSAGE_MOTORCMD_MOVETYPE = _descriptor.EnumDescriptor(
-    name='MoveType',
-    full_name='rbk.protocol.Message_MotorCmd.MoveType',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='NORMAL', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='ACC', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DEC', index=2, number=2,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=509,
-    serialized_end=549,
+_MSGMOTORCMD_MTYPE = _descriptor.EnumDescriptor(
+  name='mType',
+  full_name='rbk.protocol.msgMotorCmd.mType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='normal', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='acc', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='dec', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=469,
+  serialized_end=506,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOTORCMD_MOVETYPE)
+_sym_db.RegisterEnumDescriptor(_MSGMOTORCMD_MTYPE)
 
-_MESSAGE_NAVTARGET_MODE = _descriptor.EnumDescriptor(
-    name='MODE',
-    full_name='rbk.protocol.Message_NavTarget.MODE',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='NULL_MODE', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='FORWARD_MODE', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='BACK_MODE', index=2, number=2,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=1228,
-    serialized_end=1282,
+_MSGNAVTARGET_MODE = _descriptor.EnumDescriptor(
+  name='mode',
+  full_name='rbk.protocol.msgNavTarget.mode',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='nullMode', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='forwardMode', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='backMode', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=1180,
+  serialized_end=1231,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_NAVTARGET_MODE)
+_sym_db.RegisterEnumDescriptor(_MSGNAVTARGET_MODE)
 
-_MESSAGE_NAVINFO_NAVMODE = _descriptor.EnumDescriptor(
-    name='NavMode',
-    full_name='rbk.protocol.Message_NavInfo.NavMode',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='NullNavMode', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TaskTargetReachMode', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='SpeedControlMode', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TopoPosReachMode', index=3, number=3,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=1521,
-    serialized_end=1616,
+_MSGNAVINFO_MODE = _descriptor.EnumDescriptor(
+  name='mode',
+  full_name='rbk.protocol.msgNavInfo.mode',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='nullNavMode', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='taskTargetReachMode', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='speedControlMode', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='topoPosReachMode', index=3, number=3,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=1508,
+  serialized_end=1600,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_NAVINFO_NAVMODE)
+_sym_db.RegisterEnumDescriptor(_MSGNAVINFO_MODE)
 
-_MESSAGE_NAVINFO_NAVCMD = _descriptor.EnumDescriptor(
-    name='NavCmd',
-    full_name='rbk.protocol.Message_NavInfo.NavCmd',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='NULLNavCmd', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TaskCancel', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TaskSuspend', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TaskResume', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='TaskBegin', index=4, number=4,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=1618,
-    serialized_end=1706,
+_MSGNAVINFO_CMD = _descriptor.EnumDescriptor(
+  name='cmd',
+  full_name='rbk.protocol.msgNavInfo.cmd',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='nullNavCmd', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='taskCancel', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='taskSuspend', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='taskResume', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='taskBegin', index=4, number=4,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=1602,
+  serialized_end=1687,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_NAVINFO_NAVCMD)
+_sym_db.RegisterEnumDescriptor(_MSGNAVINFO_CMD)
 
-_MESSAGE_NAVSTATUS = _descriptor.Descriptor(
-    name='Message_NavStatus',
-    full_name='rbk.protocol.Message_NavStatus',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='blocked', full_name='rbk.protocol.Message_NavStatus.blocked', index=0,
-            number=1, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=64,
-    serialized_end=100,
-)
 
-_MESSAGE_MOTORCMD = _descriptor.Descriptor(
-    name='Message_MotorCmd',
-    full_name='rbk.protocol.Message_MotorCmd',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='motor_name', full_name='rbk.protocol.Message_MotorCmd.motor_name', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='can_router', full_name='rbk.protocol.Message_MotorCmd.can_router', index=1,
-            number=2, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='can_id', full_name='rbk.protocol.Message_MotorCmd.can_id', index=2,
-            number=3, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='value', full_name='rbk.protocol.Message_MotorCmd.value', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='io_cmd', full_name='rbk.protocol.Message_MotorCmd.io_cmd', index=4,
-            number=5, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='type', full_name='rbk.protocol.Message_MotorCmd.type', index=5,
-            number=6, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='move_type', full_name='rbk.protocol.Message_MotorCmd.move_type', index=6,
-            number=7, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-        _MESSAGE_MOTORCMD_MOTORTYPE,
-        _MESSAGE_MOTORCMD_IOCMD,
-        _MESSAGE_MOTORCMD_MOVETYPE,
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=103,
-    serialized_end=549,
+_MSGNAVSTATUS = _descriptor.Descriptor(
+  name='msgNavStatus',
+  full_name='rbk.protocol.msgNavStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='blocked', full_name='rbk.protocol.msgNavStatus.blocked', index=0,
+      number=1, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=64,
+  serialized_end=95,
 )
 
-_MESSAGE_NAVSPEED = _descriptor.Descriptor(
-    name='Message_NavSpeed',
-    full_name='rbk.protocol.Message_NavSpeed',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_NavSpeed.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_NavSpeed.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='rotate', full_name='rbk.protocol.Message_NavSpeed.rotate', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_NavSpeed.header', index=3,
-            number=4, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='motor_cmd', full_name='rbk.protocol.Message_NavSpeed.motor_cmd', index=4,
-            number=5, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is2move', full_name='rbk.protocol.Message_NavSpeed.is2move', index=5,
-            number=6, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=552,
-    serialized_end=722,
+
+_MSGMOTORCMD = _descriptor.Descriptor(
+  name='msgMotorCmd',
+  full_name='rbk.protocol.msgMotorCmd',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='motorName', full_name='rbk.protocol.msgMotorCmd.motorName', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='canRouter', full_name='rbk.protocol.msgMotorCmd.canRouter', index=1,
+      number=2, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='canId', full_name='rbk.protocol.msgMotorCmd.canId', index=2,
+      number=3, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='rbk.protocol.msgMotorCmd.value', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='ioCmd', full_name='rbk.protocol.msgMotorCmd.ioCmd', index=4,
+      number=5, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='type', full_name='rbk.protocol.msgMotorCmd.type', index=5,
+      number=6, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='moveType', full_name='rbk.protocol.msgMotorCmd.moveType', index=6,
+      number=7, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGMOTORCMD_MOTORTYPE,
+    _MSGMOTORCMD_CMD,
+    _MSGMOTORCMD_MTYPE,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=98,
+  serialized_end=506,
 )
 
-_MESSAGE_MANUALSPEED = _descriptor.Descriptor(
-    name='Message_ManualSpeed',
-    full_name='rbk.protocol.Message_ManualSpeed',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_ManualSpeed.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_ManualSpeed.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='rotate', full_name='rbk.protocol.Message_ManualSpeed.rotate', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='steer_angles', full_name='rbk.protocol.Message_ManualSpeed.steer_angles', index=3,
-            number=4, type=1, cpp_type=5, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=724,
-    serialized_end=805,
+
+_MSGNAVSPEED = _descriptor.Descriptor(
+  name='msgNavSpeed',
+  full_name='rbk.protocol.msgNavSpeed',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgNavSpeed.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgNavSpeed.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='rotate', full_name='rbk.protocol.msgNavSpeed.rotate', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgNavSpeed.header', index=3,
+      number=4, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='motorCmd', full_name='rbk.protocol.msgNavSpeed.motorCmd', index=4,
+      number=5, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isToMove', full_name='rbk.protocol.msgNavSpeed.isToMove', index=5,
+      number=6, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=509,
+  serialized_end=664,
 )
 
-_MESSAGE_NAVPOSE = _descriptor.Descriptor(
-    name='Message_NavPose',
-    full_name='rbk.protocol.Message_NavPose',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_NavPose.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_NavPose.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='angle', full_name='rbk.protocol.Message_NavPose.angle', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=807,
-    serialized_end=861,
+
+_MSGMANUALSPEED = _descriptor.Descriptor(
+  name='msgManualSpeed',
+  full_name='rbk.protocol.msgManualSpeed',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgManualSpeed.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgManualSpeed.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='rotate', full_name='rbk.protocol.msgManualSpeed.rotate', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='steerAngles', full_name='rbk.protocol.msgManualSpeed.steerAngles', index=3,
+      number=4, type=1, cpp_type=5, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=666,
+  serialized_end=741,
 )
 
-_MESSAGE_NAVTOPOPOSE = _descriptor.Descriptor(
-    name='Message_NavTopoPose',
-    full_name='rbk.protocol.Message_NavTopoPose',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='id', full_name='rbk.protocol.Message_NavTopoPose.id', index=0,
-            number=1, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='angle', full_name='rbk.protocol.Message_NavTopoPose.angle', index=1,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=863,
-    serialized_end=911,
+
+_MSGNAVPOSE = _descriptor.Descriptor(
+  name='msgNavPose',
+  full_name='rbk.protocol.msgNavPose',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgNavPose.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgNavPose.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angle', full_name='rbk.protocol.msgNavPose.angle', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=743,
+  serialized_end=792,
 )
 
-_MESSAGE_NAVSTATE = _descriptor.Descriptor(
-    name='Message_NavState',
-    full_name='rbk.protocol.Message_NavState',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='pose', full_name='rbk.protocol.Message_NavState.pose', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='speed', full_name='rbk.protocol.Message_NavState.speed', index=1,
-            number=2, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='radius', full_name='rbk.protocol.Message_NavState.radius', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=913,
-    serialized_end=1039,
+
+_MSGNAVTOPOPOSE = _descriptor.Descriptor(
+  name='msgNavTopoPose',
+  full_name='rbk.protocol.msgNavTopoPose',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='id', full_name='rbk.protocol.msgNavTopoPose.id', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angle', full_name='rbk.protocol.msgNavTopoPose.angle', index=1,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=794,
+  serialized_end=837,
 )
 
-_MESSAGE_NAVPATH = _descriptor.Descriptor(
-    name='Message_NavPath',
-    full_name='rbk.protocol.Message_NavPath',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='states', full_name='rbk.protocol.Message_NavPath.states', index=0,
-            number=1, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='find_path', full_name='rbk.protocol.Message_NavPath.find_path', index=1,
-            number=2, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=1041,
-    serialized_end=1125,
+
+_MSGNAVSTATE = _descriptor.Descriptor(
+  name='msgNavState',
+  full_name='rbk.protocol.msgNavState',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='pose', full_name='rbk.protocol.msgNavState.pose', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='speed', full_name='rbk.protocol.msgNavState.speed', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='radius', full_name='rbk.protocol.msgNavState.radius', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=839,
+  serialized_end=950,
 )
 
-_MESSAGE_NAVTARGET = _descriptor.Descriptor(
-    name='Message_NavTarget',
-    full_name='rbk.protocol.Message_NavTarget',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_NavTarget.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_NavTarget.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='angle', full_name='rbk.protocol.Message_NavTarget.angle', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='run_mode', full_name='rbk.protocol.Message_NavTarget.run_mode', index=3,
-            number=4, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='topo_target_id', full_name='rbk.protocol.Message_NavTarget.topo_target_id', index=4,
-            number=5, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-        _MESSAGE_NAVTARGET_MODE,
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=1128,
-    serialized_end=1282,
+
+_MSGNAVPATH = _descriptor.Descriptor(
+  name='msgNavPath',
+  full_name='rbk.protocol.msgNavPath',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='states', full_name='rbk.protocol.msgNavPath.states', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='findPath', full_name='rbk.protocol.msgNavPath.findPath', index=1,
+      number=2, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=952,
+  serialized_end=1025,
 )
 
-_MESSAGE_NAVINFO = _descriptor.Descriptor(
-    name='Message_NavInfo',
-    full_name='rbk.protocol.Message_NavInfo',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='nav_mode', full_name='rbk.protocol.Message_NavInfo.nav_mode', index=0,
-            number=1, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nav_cmd', full_name='rbk.protocol.Message_NavInfo.nav_cmd', index=1,
-            number=2, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nav_target_x', full_name='rbk.protocol.Message_NavInfo.nav_target_x', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nav_target_y', full_name='rbk.protocol.Message_NavInfo.nav_target_y', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nav_target_theta', full_name='rbk.protocol.Message_NavInfo.nav_target_theta', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nav_target_mode', full_name='rbk.protocol.Message_NavInfo.nav_target_mode', index=5,
-            number=6, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nav_speed_x', full_name='rbk.protocol.Message_NavInfo.nav_speed_x', index=6,
-            number=7, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nav_speed_y', full_name='rbk.protocol.Message_NavInfo.nav_speed_y', index=7,
-            number=8, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='nav_speed_w', full_name='rbk.protocol.Message_NavInfo.nav_speed_w', index=8,
-            number=9, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='topo_target_id', full_name='rbk.protocol.Message_NavInfo.topo_target_id', index=9,
-            number=10, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-        _MESSAGE_NAVINFO_NAVMODE,
-        _MESSAGE_NAVINFO_NAVCMD,
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=1285,
-    serialized_end=1706,
+
+_MSGMULTINAVPATH = _descriptor.Descriptor(
+  name='msgMultiNavPath',
+  full_name='rbk.protocol.msgMultiNavPath',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='paths', full_name='rbk.protocol.msgMultiNavPath.paths', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1027,
+  serialized_end=1085,
 )
 
-_MESSAGE_MOTORCMD.fields_by_name['io_cmd'].enum_type = _MESSAGE_MOTORCMD_IOCMD
-_MESSAGE_MOTORCMD.fields_by_name['type'].enum_type = _MESSAGE_MOTORCMD_MOTORTYPE
-_MESSAGE_MOTORCMD.fields_by_name['move_type'].enum_type = _MESSAGE_MOTORCMD_MOVETYPE
-_MESSAGE_MOTORCMD_MOTORTYPE.containing_type = _MESSAGE_MOTORCMD
-_MESSAGE_MOTORCMD_IOCMD.containing_type = _MESSAGE_MOTORCMD
-_MESSAGE_MOTORCMD_MOVETYPE.containing_type = _MESSAGE_MOTORCMD
-_MESSAGE_NAVSPEED.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_NAVSPEED.fields_by_name['motor_cmd'].message_type = _MESSAGE_MOTORCMD
-_MESSAGE_NAVSTATE.fields_by_name['pose'].message_type = _MESSAGE_NAVPOSE
-_MESSAGE_NAVSTATE.fields_by_name['speed'].message_type = _MESSAGE_NAVSPEED
-_MESSAGE_NAVPATH.fields_by_name['states'].message_type = _MESSAGE_NAVSTATE
-_MESSAGE_NAVTARGET_MODE.containing_type = _MESSAGE_NAVTARGET
-_MESSAGE_NAVINFO_NAVMODE.containing_type = _MESSAGE_NAVINFO
-_MESSAGE_NAVINFO_NAVCMD.containing_type = _MESSAGE_NAVINFO
-DESCRIPTOR.message_types_by_name['Message_NavStatus'] = _MESSAGE_NAVSTATUS
-DESCRIPTOR.message_types_by_name['Message_MotorCmd'] = _MESSAGE_MOTORCMD
-DESCRIPTOR.message_types_by_name['Message_NavSpeed'] = _MESSAGE_NAVSPEED
-DESCRIPTOR.message_types_by_name['Message_ManualSpeed'] = _MESSAGE_MANUALSPEED
-DESCRIPTOR.message_types_by_name['Message_NavPose'] = _MESSAGE_NAVPOSE
-DESCRIPTOR.message_types_by_name['Message_NavTopoPose'] = _MESSAGE_NAVTOPOPOSE
-DESCRIPTOR.message_types_by_name['Message_NavState'] = _MESSAGE_NAVSTATE
-DESCRIPTOR.message_types_by_name['Message_NavPath'] = _MESSAGE_NAVPATH
-DESCRIPTOR.message_types_by_name['Message_NavTarget'] = _MESSAGE_NAVTARGET
-DESCRIPTOR.message_types_by_name['Message_NavInfo'] = _MESSAGE_NAVINFO
+
+_MSGNAVTARGET = _descriptor.Descriptor(
+  name='msgNavTarget',
+  full_name='rbk.protocol.msgNavTarget',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgNavTarget.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgNavTarget.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angle', full_name='rbk.protocol.msgNavTarget.angle', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='runMode', full_name='rbk.protocol.msgNavTarget.runMode', index=3,
+      number=4, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='topoTargetId', full_name='rbk.protocol.msgNavTarget.topoTargetId', index=4,
+      number=5, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGNAVTARGET_MODE,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1088,
+  serialized_end=1231,
+)
+
+
+_MSGNAVINFO = _descriptor.Descriptor(
+  name='msgNavInfo',
+  full_name='rbk.protocol.msgNavInfo',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='navMode', full_name='rbk.protocol.msgNavInfo.navMode', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='navCmd', full_name='rbk.protocol.msgNavInfo.navCmd', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='navTargetX', full_name='rbk.protocol.msgNavInfo.navTargetX', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='navTargetY', full_name='rbk.protocol.msgNavInfo.navTargetY', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='navTargetTheta', full_name='rbk.protocol.msgNavInfo.navTargetTheta', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='navTargetMode', full_name='rbk.protocol.msgNavInfo.navTargetMode', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='navSpeedX', full_name='rbk.protocol.msgNavInfo.navSpeedX', index=6,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='navSpeedY', full_name='rbk.protocol.msgNavInfo.navSpeedY', index=7,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='navSpeedW', full_name='rbk.protocol.msgNavInfo.navSpeedW', index=8,
+      number=9, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='topoTargetId', full_name='rbk.protocol.msgNavInfo.topoTargetId', index=9,
+      number=10, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGNAVINFO_MODE,
+    _MSGNAVINFO_CMD,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1234,
+  serialized_end=1687,
+)
+
+_MSGMOTORCMD.fields_by_name['ioCmd'].enum_type = _MSGMOTORCMD_CMD
+_MSGMOTORCMD.fields_by_name['type'].enum_type = _MSGMOTORCMD_MOTORTYPE
+_MSGMOTORCMD.fields_by_name['moveType'].enum_type = _MSGMOTORCMD_MTYPE
+_MSGMOTORCMD_MOTORTYPE.containing_type = _MSGMOTORCMD
+_MSGMOTORCMD_CMD.containing_type = _MSGMOTORCMD
+_MSGMOTORCMD_MTYPE.containing_type = _MSGMOTORCMD
+_MSGNAVSPEED.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGNAVSPEED.fields_by_name['motorCmd'].message_type = _MSGMOTORCMD
+_MSGNAVSTATE.fields_by_name['pose'].message_type = _MSGNAVPOSE
+_MSGNAVSTATE.fields_by_name['speed'].message_type = _MSGNAVSPEED
+_MSGNAVPATH.fields_by_name['states'].message_type = _MSGNAVSTATE
+_MSGMULTINAVPATH.fields_by_name['paths'].message_type = _MSGNAVPATH
+_MSGNAVTARGET_MODE.containing_type = _MSGNAVTARGET
+_MSGNAVINFO.fields_by_name['navMode'].enum_type = _MSGNAVINFO_MODE
+_MSGNAVINFO.fields_by_name['navCmd'].enum_type = _MSGNAVINFO_CMD
+_MSGNAVINFO_MODE.containing_type = _MSGNAVINFO
+_MSGNAVINFO_CMD.containing_type = _MSGNAVINFO
+DESCRIPTOR.message_types_by_name['msgNavStatus'] = _MSGNAVSTATUS
+DESCRIPTOR.message_types_by_name['msgMotorCmd'] = _MSGMOTORCMD
+DESCRIPTOR.message_types_by_name['msgNavSpeed'] = _MSGNAVSPEED
+DESCRIPTOR.message_types_by_name['msgManualSpeed'] = _MSGMANUALSPEED
+DESCRIPTOR.message_types_by_name['msgNavPose'] = _MSGNAVPOSE
+DESCRIPTOR.message_types_by_name['msgNavTopoPose'] = _MSGNAVTOPOPOSE
+DESCRIPTOR.message_types_by_name['msgNavState'] = _MSGNAVSTATE
+DESCRIPTOR.message_types_by_name['msgNavPath'] = _MSGNAVPATH
+DESCRIPTOR.message_types_by_name['msgMultiNavPath'] = _MSGMULTINAVPATH
+DESCRIPTOR.message_types_by_name['msgNavTarget'] = _MSGNAVTARGET
+DESCRIPTOR.message_types_by_name['msgNavInfo'] = _MSGNAVINFO
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_NavStatus = _reflection.GeneratedProtocolMessageType('Message_NavStatus', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NAVSTATUS,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NavStatus)
-))
-_sym_db.RegisterMessage(Message_NavStatus)
+msgNavStatus = _reflection.GeneratedProtocolMessageType('msgNavStatus', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNAVSTATUS,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNavStatus)
+  ))
+_sym_db.RegisterMessage(msgNavStatus)
 
-Message_MotorCmd = _reflection.GeneratedProtocolMessageType('Message_MotorCmd', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MOTORCMD,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MotorCmd)
-))
-_sym_db.RegisterMessage(Message_MotorCmd)
+msgMotorCmd = _reflection.GeneratedProtocolMessageType('msgMotorCmd', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOTORCMD,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMotorCmd)
+  ))
+_sym_db.RegisterMessage(msgMotorCmd)
 
-Message_NavSpeed = _reflection.GeneratedProtocolMessageType('Message_NavSpeed', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NAVSPEED,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NavSpeed)
-))
-_sym_db.RegisterMessage(Message_NavSpeed)
+msgNavSpeed = _reflection.GeneratedProtocolMessageType('msgNavSpeed', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNAVSPEED,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNavSpeed)
+  ))
+_sym_db.RegisterMessage(msgNavSpeed)
 
-Message_ManualSpeed = _reflection.GeneratedProtocolMessageType('Message_ManualSpeed', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_MANUALSPEED,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_ManualSpeed)
-))
-_sym_db.RegisterMessage(Message_ManualSpeed)
+msgManualSpeed = _reflection.GeneratedProtocolMessageType('msgManualSpeed', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMANUALSPEED,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgManualSpeed)
+  ))
+_sym_db.RegisterMessage(msgManualSpeed)
 
-Message_NavPose = _reflection.GeneratedProtocolMessageType('Message_NavPose', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NAVPOSE,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NavPose)
-))
-_sym_db.RegisterMessage(Message_NavPose)
+msgNavPose = _reflection.GeneratedProtocolMessageType('msgNavPose', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNAVPOSE,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNavPose)
+  ))
+_sym_db.RegisterMessage(msgNavPose)
 
-Message_NavTopoPose = _reflection.GeneratedProtocolMessageType('Message_NavTopoPose', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NAVTOPOPOSE,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NavTopoPose)
-))
-_sym_db.RegisterMessage(Message_NavTopoPose)
+msgNavTopoPose = _reflection.GeneratedProtocolMessageType('msgNavTopoPose', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNAVTOPOPOSE,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNavTopoPose)
+  ))
+_sym_db.RegisterMessage(msgNavTopoPose)
 
-Message_NavState = _reflection.GeneratedProtocolMessageType('Message_NavState', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NAVSTATE,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NavState)
-))
-_sym_db.RegisterMessage(Message_NavState)
+msgNavState = _reflection.GeneratedProtocolMessageType('msgNavState', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNAVSTATE,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNavState)
+  ))
+_sym_db.RegisterMessage(msgNavState)
 
-Message_NavPath = _reflection.GeneratedProtocolMessageType('Message_NavPath', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NAVPATH,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NavPath)
-))
-_sym_db.RegisterMessage(Message_NavPath)
+msgNavPath = _reflection.GeneratedProtocolMessageType('msgNavPath', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNAVPATH,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNavPath)
+  ))
+_sym_db.RegisterMessage(msgNavPath)
 
-Message_NavTarget = _reflection.GeneratedProtocolMessageType('Message_NavTarget', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NAVTARGET,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NavTarget)
-))
-_sym_db.RegisterMessage(Message_NavTarget)
+msgMultiNavPath = _reflection.GeneratedProtocolMessageType('msgMultiNavPath', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMULTINAVPATH,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMultiNavPath)
+  ))
+_sym_db.RegisterMessage(msgMultiNavPath)
 
-Message_NavInfo = _reflection.GeneratedProtocolMessageType('Message_NavInfo', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_NAVINFO,
-    __module__='message_navigation_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_NavInfo)
-))
-_sym_db.RegisterMessage(Message_NavInfo)
+msgNavTarget = _reflection.GeneratedProtocolMessageType('msgNavTarget', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNAVTARGET,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNavTarget)
+  ))
+_sym_db.RegisterMessage(msgNavTarget)
+
+msgNavInfo = _reflection.GeneratedProtocolMessageType('msgNavInfo', (_message.Message,), dict(
+  DESCRIPTOR = _MSGNAVINFO,
+  __module__ = 'message_navigation_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNavInfo)
+  ))
+_sym_db.RegisterMessage(msgNavInfo)
+
 
 # @@protoc_insertion_point(module_scope)

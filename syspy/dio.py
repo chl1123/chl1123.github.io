@@ -5,8 +5,8 @@ from syspy import RBK_VERSION
 
 if typing.TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import Message_DINode
-        from syspy.v3.protobuf import Message_DONode
+        from syspy.v3.protobuf import msgDINode
+        from syspy.v3.protobuf import msgDONode
     elif RBK_VERSION == 4:
         pass
 
@@ -46,11 +46,11 @@ class DiInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_dis(cls) -> typing.List["Message_DINode"]:
+    def get_dis(cls) -> typing.List["msgDINode"]:
         """获取DI消息中的节点列表
 
         Returns:
-            typing.List[Message_DINode]: DI消息中的节点列表
+            typing.List[msgDINode]: DI消息中的节点列表
         """
         raise RBKVersionError()
 
@@ -93,11 +93,11 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_dos(cls) -> typing.List["Message_DONode"]:
+    def get_dos(cls) -> typing.List["msgDONode"]:
         """获取DO消息中的节点列表
 
         Returns:
-            typing.List[Message_DONode]: DO消息中的节点列表
+            typing.List[msgDONode]: DO消息中的节点列表
         """
         raise RBKVersionError()
 

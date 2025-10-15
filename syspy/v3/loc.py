@@ -5,18 +5,18 @@ from syspy.loc import LocInterface
 class LocV3(LocInterface):
     """定位类"""
 
-    _TOPIC = "rbk.protocol.Message_Localization"
+    _TOPIC = "rbk.protocol.msgLocalization"
     _PLUGIN = "MCLoc"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_Localization
-        data: Message_Localization = None
+        from .protobuf import msgLocalization
+        data: msgLocalization = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Localization  # 延迟导入
-            cls._MODEL_CLASS = Message_Localization
+            from .protobuf import msgLocalization  # 延迟导入
+            cls._MODEL_CLASS = msgLocalization
 
     def get_pose(self) -> typing.Dict[str, float]:
         """获取机器人位姿（位置和姿态）
@@ -60,7 +60,7 @@ class LocV3(LocInterface):
                 - 3：地图载入中
         """
         if self.update():
-            return self.data.loc_state
+            return self.data.locState
 
     def get_loc_method(self) -> int:
         """获取定位方法
@@ -78,4 +78,4 @@ class LocV3(LocInterface):
                 - 8为3D KF定位
         """
         if self.update():
-            return self.data.loc_method
+            return self.data.locMethod
