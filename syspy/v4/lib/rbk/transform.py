@@ -1,5 +1,8 @@
 from .pymodule import PyModule
 
+# 导入消息模块, 避免报错
+import syspy.v4.protobuf.message.messageV4_stampedtransform_pb2
+
 
 def canTransformStatic(target_frame, source_frame, time_sec):
     return PyModule.canTransformStatic(target_frame, source_frame, time_sec)
