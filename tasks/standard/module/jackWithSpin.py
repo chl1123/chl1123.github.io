@@ -96,7 +96,7 @@ def create_ap_id(builder: ParamBuilder):
 
 
 def create_recfile(builder: ParamBuilder):
-    with builder.CHILD(key="recfile", name="Recfile", desc="file for recognizing"):
+    with builder.CHILD(key="recFile", name="Recfile", desc="file for recognizing"):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(True)
         builder.DEFAULTVALUE("default.srec")
@@ -372,7 +372,7 @@ class InputParams:
                             with builder.CHILD(key="create", name="create", desc="create"):
                                 builder.TYPE(ParamType.ARRAY)
 
-                                with builder.CHILD(key="recfile", name="recfile", desc="file for recognize"):
+                                with builder.CHILD(key="recFile", name="recfile", desc="file for recognize"):
                                     builder.TYPE(ParamType.STRING)
                                     builder.REQUIRED(False)
                                     builder.DEFAULTVALUE("default.srec")
@@ -597,7 +597,7 @@ class InputParams:
                 with builder.CHILD(key="recShelf", name="recShelf", desc="recognize the shelf"):
                     builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="recfile", name="recfile",
+                    with builder.CHILD(key="recFile", name="recfile",
                                        desc="the file for recognize"):
                         builder.TYPE(ParamType.STRING)
                         builder.REQUIRED(True)
@@ -606,7 +606,7 @@ class InputParams:
                 with builder.CHILD(key="getRecfile", name="getRecfile", desc="get Recfile"):
                     builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="recfile", name="recfile",
+                    with builder.CHILD(key="recFile", name="recfile",
                                        desc="the file for recognize"):
                         builder.TYPE(ParamType.STRING)
                         builder.REQUIRED(True)
