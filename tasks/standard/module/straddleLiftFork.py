@@ -28,7 +28,7 @@ import tasks.standard.goBezier as GoBezier
 from syspy import LevelDB
 from syspy.core.rbk_rpc import Service
 
-db = LevelDB("containers")
+db = LevelDB("fork")
 
 
 def clamp(val, lo, hi):
@@ -1609,6 +1609,9 @@ class GoPathWithContactDi(BaseAction):
         self.start_loc = None
         self.method = method
         self.di_trigger_time = None
+        self.set_policy = False
+        self.clear_policy = False
+        self.policy = {}
 
         if method == "goPath":
             if self.check_di:
@@ -1640,7 +1643,6 @@ class GoPathWithContactDi(BaseAction):
         if not self.init:
             self.init = True
             self.start_loc = Loc.get_pose()
-            policy = {}
 
             if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
                 for laser in ConfigParams.fork_tip_2D_lasers:
@@ -1654,15 +1656,24 @@ class GoPathWithContactDi(BaseAction):
                 if ConfigParams.fork_tip_di_sensors in current_collision_device:
                     current_collision_device.remove(ConfigParams.fork_tip_di_sensors)
                     current_collision_device_str = ",".join(current_collision_device)
-                policy = {
+                self.policy = {
                     "navigation.collisionDetection.detectionDevice": current_collision_device_str,
                 }
-            policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.obs_dist
-            Navigation.appendCustomPolicy("policy", policy)
+            self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.obs_dist
+            Navigation.appendCustomPolicy("policy", self.policy)
 
         # 开始后退
         if self.back_action.action_status not in [ScriptStatus.FAILED, ScriptStatus.FINISHED]:
             self.back_action.run()
+
+        if NavSpeed.get_speeds()[0] >= 0.005 and not self.clear_policy:
+            Navigation.clearPolicy()
+            self.clear_policy = True
+            self.set_policy = False
+        elif NavSpeed.get_speeds()[0] <= -0.005 and not self.set_policy:
+            Navigation.appendCustomPolicy("policy", self.policy)
+            self.clear_policy = False
+            self.set_policy = True
 
         # 如果没有到位 di
         if not self.check_di:
