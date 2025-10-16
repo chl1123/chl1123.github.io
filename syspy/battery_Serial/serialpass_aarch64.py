@@ -49,7 +49,7 @@ class serialPassAarch64:
             self.__callback = handleData
 
     def createBatteryMessage(self):
-        return message_battery_pb2.Message_Battery()
+        return Message_Battery()
 
     def __run(self):
         try:
