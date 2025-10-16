@@ -8,18 +8,18 @@ from syspy.sound import SoundInterface
 class SoundV3(SoundInterface):
     """音频"""
 
-    _TOPIC = "rbk.protocol.Message_Sound"
+    _TOPIC = "rbk.protocol.msgSound"
     _PLUGIN = "SoundPlayer"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_Sound
-        data: Message_Sound = None
+        from .protobuf import msgSound
+        data: msgSound = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Sound
-            cls._MODEL_CLASS = Message_Sound
+            from .protobuf import msgSound
+            cls._MODEL_CLASS = msgSound
 
     @classmethod
     @call_service()

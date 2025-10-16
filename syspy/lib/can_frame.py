@@ -1,8 +1,8 @@
 from abc import ABC
-from syspy.core.rbk_rpc import Service, RBKVersionError
+from syspy.core.rbk_rpc import Message, RBKVersionError
 
 
-class CanInterface(ABC, Service):
+class CanInterface(ABC, Message):
     """CAN协议"""
 
     @classmethod

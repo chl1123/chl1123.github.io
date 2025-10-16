@@ -15,34 +15,34 @@ STUFF_ERROR: ERROR_TYPE
 TX: DIRE_ENUM
 
 class CanErrorRecord(_message.Message):
-    __slots__ = ["Errorcount", "Errortype"]
+    __slots__ = ["errorcount", "errortype"]
     ERRORCOUNT_FIELD_NUMBER: ClassVar[int]
     ERRORTYPE_FIELD_NUMBER: ClassVar[int]
-    Errorcount: int
-    Errortype: int
-    def __init__(self, Errortype: Optional[int] = ..., Errorcount: Optional[int] = ...) -> None: ...
+    errorcount: int
+    errortype: int
+    def __init__(self, errortype: Optional[int] = ..., errorcount: Optional[int] = ...) -> None: ...
 
 class CanFrame(_message.Message):
-    __slots__ = ["Canerror", "Channel", "DLC", "Data", "Direction", "Extended", "ID", "Remote", "Timestamp"]
+    __slots__ = ["DLC", "ID", "canError", "channel", "data", "direction", "extended", "remote", "timestamp"]
     CANERROR_FIELD_NUMBER: ClassVar[int]
     CHANNEL_FIELD_NUMBER: ClassVar[int]
-    Canerror: _containers.RepeatedCompositeFieldContainer[CanErrorRecord]
-    Channel: int
     DATA_FIELD_NUMBER: ClassVar[int]
     DIRECTION_FIELD_NUMBER: ClassVar[int]
     DLC: int
     DLC_FIELD_NUMBER: ClassVar[int]
-    Data: bytes
-    Direction: bool
     EXTENDED_FIELD_NUMBER: ClassVar[int]
-    Extended: bool
     ID: int
     ID_FIELD_NUMBER: ClassVar[int]
     REMOTE_FIELD_NUMBER: ClassVar[int]
-    Remote: bool
     TIMESTAMP_FIELD_NUMBER: ClassVar[int]
-    Timestamp: int
-    def __init__(self, ID: Optional[int] = ..., Extended: bool = ..., Remote: bool = ..., DLC: Optional[int] = ..., Data: Optional[bytes] = ..., Channel: Optional[int] = ..., Timestamp: Optional[int] = ..., Direction: bool = ..., Canerror: Optional[Iterable[Union[CanErrorRecord, Mapping]]] = ...) -> None: ...
+    canError: _containers.RepeatedCompositeFieldContainer[CanErrorRecord]
+    channel: int
+    data: bytes
+    direction: bool
+    extended: bool
+    remote: bool
+    timestamp: int
+    def __init__(self, ID: Optional[int] = ..., extended: bool = ..., remote: bool = ..., DLC: Optional[int] = ..., data: Optional[bytes] = ..., channel: Optional[int] = ..., timestamp: Optional[int] = ..., direction: bool = ..., canError: Optional[Iterable[Union[CanErrorRecord, Mapping]]] = ...) -> None: ...
 
 class DIRE_ENUM(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []

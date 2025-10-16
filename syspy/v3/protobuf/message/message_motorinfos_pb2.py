@@ -20,212 +20,212 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x18message_motorinfos.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xd7\x04\n\x11Message_MotorInfo\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\x12\n\nmotor_name\x18\x02 \x01(\t\x12\x12\n\ncan_router\x18\x03 \x01(\r\x12\x0e\n\x06\x63\x61n_id\x18\x04 \x01(\r\x12\x10\n\x08position\x18\x05 \x01(\x02\x12\r\n\x05speed\x18\x06 \x01(\x02\x12\x0f\n\x07\x63urrent\x18\x07 \x01(\x02\x12\x0f\n\x07voltage\x18\x08 \x01(\x02\x12\x0c\n\x04stop\x18\t \x01(\x08\x12\x12\n\nerror_code\x18\n \x01(\r\x12\x0b\n\x03\x65rr\x18\x0b \x01(\x08\x12\x0b\n\x03\x65mc\x18\x0c \x01(\x08\x12\x13\n\x0btemperature\x18\r \x01(\x02\x12\x0f\n\x07\x65ncoder\x18\x0e \x01(\x05\x12\x37\n\x04type\x18\x0f \x01(\x0e\x32).rbk.protocol.Message_MotorInfo.MotorType\x12\x0f\n\x07passive\x18\x10 \x01(\x08\x12:\n\x05\x63\x61lib\x18\x11 \x01(\x0e\x32+.rbk.protocol.Message_MotorInfo.CalibStatus\x12\x12\n\nfollow_err\x18\x12 \x01(\x08\x12\x14\n\x0craw_position\x18\x13 \x01(\x02\"L\n\tMotorType\x12\x08\n\x04WALK\x10\x00\x12\t\n\x05STEER\x10\x01\x12\x08\n\x04SPIN\x10\x02\x12\n\n\x06LINEAR\x10\x03\x12\x0c\n\x08ROTATION\x10\x04\x12\x06\n\x02\x44O\x10\x05\"9\n\x0b\x43\x61libStatus\x12\x0f\n\x0bNOT_CALIBED\x10\x00\x12\x0c\n\x08\x43\x41LIBING\x10\x01\x12\x0b\n\x07\x43\x41LIBED\x10\x02\"I\n\x12Message_MotorInfos\x12\x33\n\nmotor_info\x18\x01 \x03(\x0b\x32\x1f.rbk.protocol.Message_MotorInfob\x06proto3')
+  serialized_pb=_b('\n\x18message_motorinfos.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xbb\x04\n\x0cmsgMotorInfo\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x11\n\tmotorName\x18\x02 \x01(\t\x12\x11\n\tcanRouter\x18\x03 \x01(\r\x12\r\n\x05\x63\x61nID\x18\x04 \x01(\r\x12\x10\n\x08position\x18\x05 \x01(\x02\x12\r\n\x05speed\x18\x06 \x01(\x02\x12\x0f\n\x07\x63urrent\x18\x07 \x01(\x02\x12\x0f\n\x07voltage\x18\x08 \x01(\x02\x12\x0c\n\x04stop\x18\t \x01(\x08\x12\x11\n\terrorCode\x18\n \x01(\r\x12\x0b\n\x03\x65rr\x18\x0b \x01(\x08\x12\x0b\n\x03\x65mc\x18\x0c \x01(\x08\x12\x13\n\x0btemperature\x18\r \x01(\x02\x12\x0f\n\x07\x65ncoder\x18\x0e \x01(\x05\x12\x32\n\x04type\x18\x0f \x01(\x0e\x32$.rbk.protocol.msgMotorInfo.motorType\x12\x0f\n\x07passive\x18\x10 \x01(\x08\x12\x35\n\x05\x63\x61lib\x18\x11 \x01(\x0e\x32&.rbk.protocol.msgMotorInfo.calibStatus\x12\x11\n\tfollowErr\x18\x12 \x01(\x08\x12\x13\n\x0brawPosition\x18\x13 \x01(\x02\"L\n\tmotorType\x12\x08\n\x04walk\x10\x00\x12\t\n\x05steer\x10\x01\x12\x08\n\x04spin\x10\x02\x12\n\n\x06linear\x10\x03\x12\x0c\n\x08rotation\x10\x04\x12\x06\n\x02\x64o\x10\x05\"7\n\x0b\x63\x61libStatus\x12\r\n\tnotClibed\x10\x00\x12\x0c\n\x08\x63\x61libing\x10\x01\x12\x0b\n\x07\x63\x61libed\x10\x02\">\n\rmsgMotorInfos\x12-\n\tmotorInfo\x18\x01 \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfob\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
 
 
-_MESSAGE_MOTORINFO_MOTORTYPE = _descriptor.EnumDescriptor(
-  name='MotorType',
-  full_name='rbk.protocol.Message_MotorInfo.MotorType',
+_MSGMOTORINFO_MOTORTYPE = _descriptor.EnumDescriptor(
+  name='motorType',
+  full_name='rbk.protocol.msgMotorInfo.motorType',
   filename=None,
   file=DESCRIPTOR,
   values=[
     _descriptor.EnumValueDescriptor(
-      name='WALK', index=0, number=0,
+      name='walk', index=0, number=0,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='STEER', index=1, number=1,
+      name='steer', index=1, number=1,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='SPIN', index=2, number=2,
+      name='spin', index=2, number=2,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='LINEAR', index=3, number=3,
+      name='linear', index=3, number=3,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='ROTATION', index=4, number=4,
+      name='rotation', index=4, number=4,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='DO', index=5, number=5,
+      name='do', index=5, number=5,
       serialized_options=None,
       type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=529,
-  serialized_end=605,
+  serialized_start=503,
+  serialized_end=579,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOTORINFO_MOTORTYPE)
+_sym_db.RegisterEnumDescriptor(_MSGMOTORINFO_MOTORTYPE)
 
-_MESSAGE_MOTORINFO_CALIBSTATUS = _descriptor.EnumDescriptor(
-  name='CalibStatus',
-  full_name='rbk.protocol.Message_MotorInfo.CalibStatus',
+_MSGMOTORINFO_CALIBSTATUS = _descriptor.EnumDescriptor(
+  name='calibStatus',
+  full_name='rbk.protocol.msgMotorInfo.calibStatus',
   filename=None,
   file=DESCRIPTOR,
   values=[
     _descriptor.EnumValueDescriptor(
-      name='NOT_CALIBED', index=0, number=0,
+      name='notClibed', index=0, number=0,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='CALIBING', index=1, number=1,
+      name='calibing', index=1, number=1,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='CALIBED', index=2, number=2,
+      name='calibed', index=2, number=2,
       serialized_options=None,
       type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=607,
-  serialized_end=664,
+  serialized_start=581,
+  serialized_end=636,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_MOTORINFO_CALIBSTATUS)
+_sym_db.RegisterEnumDescriptor(_MSGMOTORINFO_CALIBSTATUS)
 
 
-_MESSAGE_MOTORINFO = _descriptor.Descriptor(
-  name='Message_MotorInfo',
-  full_name='rbk.protocol.Message_MotorInfo',
+_MSGMOTORINFO = _descriptor.Descriptor(
+  name='msgMotorInfo',
+  full_name='rbk.protocol.msgMotorInfo',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='header', full_name='rbk.protocol.Message_MotorInfo.header', index=0,
+      name='header', full_name='rbk.protocol.msgMotorInfo.header', index=0,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='motor_name', full_name='rbk.protocol.Message_MotorInfo.motor_name', index=1,
+      name='motorName', full_name='rbk.protocol.msgMotorInfo.motorName', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='can_router', full_name='rbk.protocol.Message_MotorInfo.can_router', index=2,
+      name='canRouter', full_name='rbk.protocol.msgMotorInfo.canRouter', index=2,
       number=3, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='can_id', full_name='rbk.protocol.Message_MotorInfo.can_id', index=3,
+      name='canID', full_name='rbk.protocol.msgMotorInfo.canID', index=3,
       number=4, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='position', full_name='rbk.protocol.Message_MotorInfo.position', index=4,
+      name='position', full_name='rbk.protocol.msgMotorInfo.position', index=4,
       number=5, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='speed', full_name='rbk.protocol.Message_MotorInfo.speed', index=5,
+      name='speed', full_name='rbk.protocol.msgMotorInfo.speed', index=5,
       number=6, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='current', full_name='rbk.protocol.Message_MotorInfo.current', index=6,
+      name='current', full_name='rbk.protocol.msgMotorInfo.current', index=6,
       number=7, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='voltage', full_name='rbk.protocol.Message_MotorInfo.voltage', index=7,
+      name='voltage', full_name='rbk.protocol.msgMotorInfo.voltage', index=7,
       number=8, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='stop', full_name='rbk.protocol.Message_MotorInfo.stop', index=8,
+      name='stop', full_name='rbk.protocol.msgMotorInfo.stop', index=8,
       number=9, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='error_code', full_name='rbk.protocol.Message_MotorInfo.error_code', index=9,
+      name='errorCode', full_name='rbk.protocol.msgMotorInfo.errorCode', index=9,
       number=10, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='err', full_name='rbk.protocol.Message_MotorInfo.err', index=10,
+      name='err', full_name='rbk.protocol.msgMotorInfo.err', index=10,
       number=11, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='emc', full_name='rbk.protocol.Message_MotorInfo.emc', index=11,
+      name='emc', full_name='rbk.protocol.msgMotorInfo.emc', index=11,
       number=12, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='temperature', full_name='rbk.protocol.Message_MotorInfo.temperature', index=12,
+      name='temperature', full_name='rbk.protocol.msgMotorInfo.temperature', index=12,
       number=13, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='encoder', full_name='rbk.protocol.Message_MotorInfo.encoder', index=13,
+      name='encoder', full_name='rbk.protocol.msgMotorInfo.encoder', index=13,
       number=14, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='type', full_name='rbk.protocol.Message_MotorInfo.type', index=14,
+      name='type', full_name='rbk.protocol.msgMotorInfo.type', index=14,
       number=15, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='passive', full_name='rbk.protocol.Message_MotorInfo.passive', index=15,
+      name='passive', full_name='rbk.protocol.msgMotorInfo.passive', index=15,
       number=16, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='calib', full_name='rbk.protocol.Message_MotorInfo.calib', index=16,
+      name='calib', full_name='rbk.protocol.msgMotorInfo.calib', index=16,
       number=17, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='follow_err', full_name='rbk.protocol.Message_MotorInfo.follow_err', index=17,
+      name='followErr', full_name='rbk.protocol.msgMotorInfo.followErr', index=17,
       number=18, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='raw_position', full_name='rbk.protocol.Message_MotorInfo.raw_position', index=18,
+      name='rawPosition', full_name='rbk.protocol.msgMotorInfo.rawPosition', index=18,
       number=19, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
@@ -236,8 +236,8 @@ _MESSAGE_MOTORINFO = _descriptor.Descriptor(
   ],
   nested_types=[],
   enum_types=[
-    _MESSAGE_MOTORINFO_MOTORTYPE,
-    _MESSAGE_MOTORINFO_CALIBSTATUS,
+    _MSGMOTORINFO_MOTORTYPE,
+    _MSGMOTORINFO_CALIBSTATUS,
   ],
   serialized_options=None,
   is_extendable=False,
@@ -246,19 +246,19 @@ _MESSAGE_MOTORINFO = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=65,
-  serialized_end=664,
+  serialized_end=636,
 )
 
 
-_MESSAGE_MOTORINFOS = _descriptor.Descriptor(
-  name='Message_MotorInfos',
-  full_name='rbk.protocol.Message_MotorInfos',
+_MSGMOTORINFOS = _descriptor.Descriptor(
+  name='msgMotorInfos',
+  full_name='rbk.protocol.msgMotorInfos',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='motor_info', full_name='rbk.protocol.Message_MotorInfos.motor_info', index=0,
+      name='motorInfo', full_name='rbk.protocol.msgMotorInfos.motorInfo', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -276,33 +276,33 @@ _MESSAGE_MOTORINFOS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=666,
-  serialized_end=739,
+  serialized_start=638,
+  serialized_end=700,
 )
 
-_MESSAGE_MOTORINFO.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_MOTORINFO.fields_by_name['type'].enum_type = _MESSAGE_MOTORINFO_MOTORTYPE
-_MESSAGE_MOTORINFO.fields_by_name['calib'].enum_type = _MESSAGE_MOTORINFO_CALIBSTATUS
-_MESSAGE_MOTORINFO_MOTORTYPE.containing_type = _MESSAGE_MOTORINFO
-_MESSAGE_MOTORINFO_CALIBSTATUS.containing_type = _MESSAGE_MOTORINFO
-_MESSAGE_MOTORINFOS.fields_by_name['motor_info'].message_type = _MESSAGE_MOTORINFO
-DESCRIPTOR.message_types_by_name['Message_MotorInfo'] = _MESSAGE_MOTORINFO
-DESCRIPTOR.message_types_by_name['Message_MotorInfos'] = _MESSAGE_MOTORINFOS
+_MSGMOTORINFO.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGMOTORINFO.fields_by_name['type'].enum_type = _MSGMOTORINFO_MOTORTYPE
+_MSGMOTORINFO.fields_by_name['calib'].enum_type = _MSGMOTORINFO_CALIBSTATUS
+_MSGMOTORINFO_MOTORTYPE.containing_type = _MSGMOTORINFO
+_MSGMOTORINFO_CALIBSTATUS.containing_type = _MSGMOTORINFO
+_MSGMOTORINFOS.fields_by_name['motorInfo'].message_type = _MSGMOTORINFO
+DESCRIPTOR.message_types_by_name['msgMotorInfo'] = _MSGMOTORINFO
+DESCRIPTOR.message_types_by_name['msgMotorInfos'] = _MSGMOTORINFOS
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_MotorInfo = _reflection.GeneratedProtocolMessageType('Message_MotorInfo', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_MOTORINFO,
+msgMotorInfo = _reflection.GeneratedProtocolMessageType('msgMotorInfo', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOTORINFO,
   __module__ = 'message_motorinfos_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MotorInfo)
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMotorInfo)
   ))
-_sym_db.RegisterMessage(Message_MotorInfo)
+_sym_db.RegisterMessage(msgMotorInfo)
 
-Message_MotorInfos = _reflection.GeneratedProtocolMessageType('Message_MotorInfos', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_MOTORINFOS,
+msgMotorInfos = _reflection.GeneratedProtocolMessageType('msgMotorInfos', (_message.Message,), dict(
+  DESCRIPTOR = _MSGMOTORINFOS,
   __module__ = 'message_motorinfos_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_MotorInfos)
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgMotorInfos)
   ))
-_sym_db.RegisterMessage(Message_MotorInfos)
+_sym_db.RegisterMessage(msgMotorInfos)
 
 
 # @@protoc_insertion_point(module_scope)

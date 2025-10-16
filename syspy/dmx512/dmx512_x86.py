@@ -14,7 +14,7 @@ class dmx512X86:
         log.info("start x86 dmx512")
 
     def sendDmx512(self, dmx512_info):
-        type_exm = message_dmx512_pb2.Message_Dmx512()
+        type_exm = message_dmx512_pb2.msgDmx512()
         if isinstance(dmx512_info, type(type_exm)):
             msg = MessageToJson(dmx512_info)
             Led.sendX86DmxInfo(msg)

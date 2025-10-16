@@ -1,128 +1,114 @@
-from typing import ClassVar, Iterable, Mapping, Optional, Union
-
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import message as _message
 from google.protobuf import wrappers_pb2 as _wrappers_pb2
+import message_motorinfos_pb2 as _message_motorinfos_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-
-import message_motorinfos_pb2 as _message_motorinfos_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from typing import ClassVar, Iterable, Mapping, Optional, Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-
-class Message_Container(_message.Message):
-    __slots__ = ["container_name", "desc", "goods_id", "has_goods"]
-    CONTAINER_NAME_FIELD_NUMBER: ClassVar[int]
+class msgContainer(_message.Message):
+    __slots__ = ["containerName", "desc", "goodsId", "hasGoods"]
+    CONTAINERNAME_FIELD_NUMBER: ClassVar[int]
     DESC_FIELD_NUMBER: ClassVar[int]
-    GOODS_ID_FIELD_NUMBER: ClassVar[int]
-    HAS_GOODS_FIELD_NUMBER: ClassVar[int]
-    container_name: str
+    GOODSID_FIELD_NUMBER: ClassVar[int]
+    HASGOODS_FIELD_NUMBER: ClassVar[int]
+    containerName: str
     desc: str
-    goods_id: str
-    has_goods: bool
+    goodsId: str
+    hasGoods: bool
+    def __init__(self, containerName: Optional[str] = ..., goodsId: Optional[str] = ..., hasGoods: bool = ..., desc: Optional[str] = ...) -> None: ...
 
-    def __init__(self, container_name: Optional[str] = ..., goods_id: Optional[str] = ..., has_goods: bool = ...,
-                 desc: Optional[str] = ...) -> None: ...
+class msgMateRobot(_message.Message):
+    __slots__ = ["futurePath", "robotShape"]
+    FUTUREPATH_FIELD_NUMBER: ClassVar[int]
+    ROBOTSHAPE_FIELD_NUMBER: ClassVar[int]
+    futurePath: _containers.RepeatedCompositeFieldContainer[msgMovePose]
+    robotShape: msgRobotShape
+    def __init__(self, robotShape: Optional[Union[msgRobotShape, Mapping]] = ..., futurePath: Optional[Iterable[Union[msgMovePose, Mapping]]] = ...) -> None: ...
 
+class msgMates(_message.Message):
+    __slots__ = ["matesList"]
+    MATESLIST_FIELD_NUMBER: ClassVar[int]
+    matesList: _containers.RepeatedCompositeFieldContainer[msgMateRobot]
+    def __init__(self, matesList: Optional[Iterable[Union[msgMateRobot, Mapping]]] = ...) -> None: ...
 
-class Message_Module(_message.Message):
-    __slots__ = ["action_body", "cargo_status", "module_name", "module_status", "motors"]
-
-    class ModuleStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class msgModule(_message.Message):
+    __slots__ = ["actionBody", "cargoStatus", "moduleName", "motors", "status"]
+    class moduleStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
-
-    ACTION_BODY_FIELD_NUMBER: ClassVar[int]
-    CARGO_STATUS_FIELD_NUMBER: ClassVar[int]
-    Canceled: Message_Module.ModuleStatus
-    Completed: Message_Module.ModuleStatus
-    Failed: Message_Module.ModuleStatus
-    MODULE_NAME_FIELD_NUMBER: ClassVar[int]
-    MODULE_STATUS_FIELD_NUMBER: ClassVar[int]
+    ACTIONBODY_FIELD_NUMBER: ClassVar[int]
+    CARGOSTATUS_FIELD_NUMBER: ClassVar[int]
+    MODULENAME_FIELD_NUMBER: ClassVar[int]
     MOTORS_FIELD_NUMBER: ClassVar[int]
-    NONE: Message_Module.ModuleStatus
-    Running: Message_Module.ModuleStatus
-    Suspended: Message_Module.ModuleStatus
-    action_body: str
-    cargo_status: bool
-    module_name: str
-    module_status: Message_Module.ModuleStatus
-    motors: _containers.RepeatedCompositeFieldContainer[_message_motorinfos_pb2.Message_MotorInfo]
+    STATUS_FIELD_NUMBER: ClassVar[int]
+    actionBody: str
+    canceled: msgModule.moduleStatus
+    cargoStatus: bool
+    completed: msgModule.moduleStatus
+    failed: msgModule.moduleStatus
+    moduleName: str
+    motors: _containers.RepeatedCompositeFieldContainer[_message_motorinfos_pb2.msgMotorInfo]
+    none: msgModule.moduleStatus
+    running: msgModule.moduleStatus
+    status: msgModule.moduleStatus
+    suspended: msgModule.moduleStatus
+    def __init__(self, moduleName: Optional[str] = ..., status: Optional[Union[msgModule.moduleStatus, str]] = ..., actionBody: Optional[str] = ..., cargoStatus: bool = ..., motors: Optional[Iterable[Union[_message_motorinfos_pb2.msgMotorInfo, Mapping]]] = ...) -> None: ...
 
-    def __init__(self, module_name: Optional[str] = ...,
-                 module_status: Optional[Union[Message_Module.ModuleStatus, str]] = ...,
-                 action_body: Optional[str] = ..., cargo_status: bool = ..., motors: Optional[
-                Iterable[Union[_message_motorinfos_pb2.Message_MotorInfo, Mapping]]] = ...) -> None: ...
-
-
-class Message_MoveParam(_message.Message):
-    __slots__ = ["bool_value", "bytes_value", "double_value", "float_value", "int32_value", "int64_value", "key",
-                 "string_value", "uint32_value", "uint64_value"]
-    BOOL_VALUE_FIELD_NUMBER: ClassVar[int]
-    BYTES_VALUE_FIELD_NUMBER: ClassVar[int]
-    DOUBLE_VALUE_FIELD_NUMBER: ClassVar[int]
-    FLOAT_VALUE_FIELD_NUMBER: ClassVar[int]
-    INT32_VALUE_FIELD_NUMBER: ClassVar[int]
-    INT64_VALUE_FIELD_NUMBER: ClassVar[int]
+class msgMoveParam(_message.Message):
+    __slots__ = ["boolValue", "bytesValue", "doubleValue", "floatValue", "int32Value", "int64Value", "key", "stringValue", "uint32Value", "uint64Value"]
+    BOOLVALUE_FIELD_NUMBER: ClassVar[int]
+    BYTESVALUE_FIELD_NUMBER: ClassVar[int]
+    DOUBLEVALUE_FIELD_NUMBER: ClassVar[int]
+    FLOATVALUE_FIELD_NUMBER: ClassVar[int]
+    INT32VALUE_FIELD_NUMBER: ClassVar[int]
+    INT64VALUE_FIELD_NUMBER: ClassVar[int]
     KEY_FIELD_NUMBER: ClassVar[int]
-    STRING_VALUE_FIELD_NUMBER: ClassVar[int]
-    UINT32_VALUE_FIELD_NUMBER: ClassVar[int]
-    UINT64_VALUE_FIELD_NUMBER: ClassVar[int]
-    bool_value: bool
-    bytes_value: bytes
-    double_value: float
-    float_value: float
-    int32_value: int
-    int64_value: int
+    STRINGVALUE_FIELD_NUMBER: ClassVar[int]
+    UINT32VALUE_FIELD_NUMBER: ClassVar[int]
+    UINT64VALUE_FIELD_NUMBER: ClassVar[int]
+    boolValue: bool
+    bytesValue: bytes
+    doubleValue: float
+    floatValue: float
+    int32Value: int
+    int64Value: int
     key: str
-    string_value: str
-    uint32_value: int
-    uint64_value: int
+    stringValue: str
+    uint32Value: int
+    uint64Value: int
+    def __init__(self, key: Optional[str] = ..., stringValue: Optional[str] = ..., boolValue: bool = ..., int32Value: Optional[int] = ..., uint32Value: Optional[int] = ..., int64Value: Optional[int] = ..., uint64Value: Optional[int] = ..., floatValue: Optional[float] = ..., doubleValue: Optional[float] = ..., bytesValue: Optional[bytes] = ...) -> None: ...
 
-    def __init__(self, key: Optional[str] = ..., string_value: Optional[str] = ..., bool_value: bool = ...,
-                 int32_value: Optional[int] = ..., uint32_value: Optional[int] = ..., int64_value: Optional[int] = ...,
-                 uint64_value: Optional[int] = ..., float_value: Optional[float] = ...,
-                 double_value: Optional[float] = ..., bytes_value: Optional[bytes] = ...) -> None: ...
-
-
-class Message_MovePath(_message.Message):
-    __slots__ = ["find_path", "pose", "skill_name", "speed"]
-    FIND_PATH_FIELD_NUMBER: ClassVar[int]
+class msgMovePath(_message.Message):
+    __slots__ = ["findPath", "pose", "skillName", "speed"]
+    FINDPATH_FIELD_NUMBER: ClassVar[int]
     POSE_FIELD_NUMBER: ClassVar[int]
-    SKILL_NAME_FIELD_NUMBER: ClassVar[int]
+    SKILLNAME_FIELD_NUMBER: ClassVar[int]
     SPEED_FIELD_NUMBER: ClassVar[int]
-    find_path: bool
-    pose: _containers.RepeatedCompositeFieldContainer[Message_MovePose]
-    skill_name: str
-    speed: _containers.RepeatedCompositeFieldContainer[Message_MoveSpeed]
+    findPath: bool
+    pose: _containers.RepeatedCompositeFieldContainer[msgMovePose]
+    skillName: str
+    speed: _containers.RepeatedCompositeFieldContainer[msgMoveSpeed]
+    def __init__(self, skillName: Optional[str] = ..., pose: Optional[Iterable[Union[msgMovePose, Mapping]]] = ..., speed: Optional[Iterable[Union[msgMoveSpeed, Mapping]]] = ..., findPath: bool = ...) -> None: ...
 
-    def __init__(self, skill_name: Optional[str] = ...,
-                 pose: Optional[Iterable[Union[Message_MovePose, Mapping]]] = ...,
-                 speed: Optional[Iterable[Union[Message_MoveSpeed, Mapping]]] = ..., find_path: bool = ...) -> None: ...
-
-
-class Message_MovePolygon(_message.Message):
+class msgMovePolygon(_message.Message):
     __slots__ = ["name", "point"]
     NAME_FIELD_NUMBER: ClassVar[int]
     POINT_FIELD_NUMBER: ClassVar[int]
     name: str
-    point: _containers.RepeatedCompositeFieldContainer[Message_MovePolygonPoint]
+    point: _containers.RepeatedCompositeFieldContainer[msgMovePolygonPoint]
+    def __init__(self, point: Optional[Iterable[Union[msgMovePolygonPoint, Mapping]]] = ..., name: Optional[str] = ...) -> None: ...
 
-    def __init__(self, point: Optional[Iterable[Union[Message_MovePolygonPoint, Mapping]]] = ...,
-                 name: Optional[str] = ...) -> None: ...
-
-
-class Message_MovePolygonPoint(_message.Message):
+class msgMovePolygonPoint(_message.Message):
     __slots__ = ["x", "y"]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
     x: float
     y: float
-
     def __init__(self, x: Optional[float] = ..., y: Optional[float] = ...) -> None: ...
 
-
-class Message_MovePose(_message.Message):
+class msgMovePose(_message.Message):
     __slots__ = ["angle", "x", "y"]
     ANGLE_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
@@ -130,11 +116,9 @@ class Message_MovePose(_message.Message):
     angle: float
     x: float
     y: float
-
     def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ...) -> None: ...
 
-
-class Message_MoveSpeed(_message.Message):
+class msgMoveSpeed(_message.Message):
     __slots__ = ["w", "x", "y"]
     W_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
@@ -142,441 +126,270 @@ class Message_MoveSpeed(_message.Message):
     w: float
     x: float
     y: float
-
     def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., w: Optional[float] = ...) -> None: ...
 
-
-class Message_MoveStatus(_message.Message):
-    """表示导航状态信息的模型类。
-
-    Attributes:
-        actual_reach_angle (float): 实际到达的角度，默认值为0.0。
-        actual_reach_dist (float): 实际到达的距离，默认值为0.0。
-        advance_regions (RepeatedCompositeFieldContainer[Message_MovePolygon]): 提前区域列表。
-        area_name (RepeatedScalarFieldContainer[str]): 区域名称列表。
-        block_id (int): 阻挡ID，默认值为0。
-        block_reason (Message_MoveStatus.Reason): 阻挡原因。
-        block_x (float): 阻挡点的x坐标，默认值为0.0。
-        block_y (float): 阻挡点的y坐标，默认值为0.0。
-        blocked (bool): 是否被阻挡，默认值为False。
-        closest_label (str): 最近标签，默认为空字符串。
-        closest_target (str): 最近目标，默认为空字符串。
-        containers (RepeatedCompositeFieldContainer[Message_Container]): 容器列表。
-        dist2goal (float): 到目标的距离，默认值为0.0。
-        finished_path_name (RepeatedScalarFieldContainer[str]): 已完成路径名称列表。
-        goods_region (Message_MovePolygon): 货物区域。
-        info (str): 信息，默认为空字符串。
-        modules (RepeatedCompositeFieldContainer[Message_Module]): 模块列表。
-        nearest_obstacles (RepeatedCompositeFieldContainer[Message_NearestObs]): 最近障碍物列表。
-        removed_regions (RepeatedCompositeFieldContainer[Message_MovePolygon]): 移除区域列表。
-        robot_region (Message_MovePolygon): 机器人区域。
-        robot_shape (Message_RobotShape): 机器人形状。
-        running_status (Message_MoveStatus.RunningStatus): 运行状态。
-        slow_id (int): 减速ID，默认值为0。
-        slow_path (Message_MovePolygon): 减速路径。
-        slow_reason (Message_MoveStatus.Reason): 减速原因。
-        slow_x (float): 减速点的x坐标，默认值为0.0。
-        slow_y (float): 减速点的y坐标，默认值为0.0。
-        slowed (bool): 是否减速，默认值为False。
-        stop_path (Message_MovePolygon): 停止路径。
-        target_angle (float): 目标角度，默认值为0.0。
-        target_dist (float): 到目标的距离，默认值为0.0。
-        target_label (str): 目标标签，默认为空字符串。
-        target_name (str): 目标名称，默认为空字符串。
-        target_x (float): 目标点的x坐标，默认值为0.0。
-        target_y (float): 目标点的y坐标，默认值为0.0。
-        task_id (str): 任务ID，默认为空字符串。
-        task_status (Message_MoveStatus.TaskStatus): 任务状态。
-        task_status_package (Message_TaskStatusPackage): 任务状态包。
-        task_type (Message_MoveStatus.TaskType): 任务类型。
-        unfinished_path_name (RepeatedScalarFieldContainer[str]): 未完成路径名称列表。
-    """
-    __slots__ = ["actual_reach_angle", "actual_reach_dist", "advance_regions", "area_name", "block_id", "block_reason",
-                 "block_x", "block_y", "blocked", "closest_label", "closest_target", "containers", "dist2goal",
-                 "finished_path_name", "goods_region", "info", "modules", "nearest_obstacles", "removed_regions",
-                 "robot_region", "robot_shape", "running_status", "slow_id", "slow_path", "slow_reason", "slow_x",
-                 "slow_y", "slowed", "stop_path", "target_angle", "target_dist", "target_label", "target_name",
-                 "target_x", "target_y", "task_id", "task_status", "task_status_package", "task_type",
-                 "unfinished_path_name"]
-
-    class Reason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-        """表示障碍物检测原因的枚举类。
-
-        Attributes:
-            Ultrasonic (int): 超声波传感器检测到障碍物。
-            Laser (int): 激光传感器检测到障碍物。
-            Fallingdown (int): 下降检测到障碍物。
-            Collision (int): 碰撞检测到障碍物。
-            Infrared (int): 红外传感器检测到障碍物。
-            Lock (int): 锁定检测到障碍物。
-            APIObstacle (int): 通过API检测到障碍物。
-            VirtualPoint (int): 虚拟点检测到障碍物。
-            DepthCamera (int): 深度摄像头检测到障碍物。
-            DistanceNode (int): 距离节点检测到障碍物。
-            DiUltrasonic (int): 双超声波传感器检测到障碍物。
-        """
+class msgMoveStatus(_message.Message):
+    __slots__ = ["actualReachAngle", "actualReachDist", "advanceRegions", "areaName", "blockId", "blockReason", "blockX", "blockY", "blocked", "closestLabel", "closestTarget", "containers", "dist2goal", "finishedPathName", "goodsRegion", "info", "mates", "modules", "moveTasks", "nearestObstacles", "removedRegions", "robotRegion", "robotShape", "runningStatus", "safeCuttingsId", "slowId", "slowPath", "slowReason", "slowX", "slowY", "slowed", "stopPath", "targetAngle", "targetDist", "targetLabel", "targetName", "targetX", "targetY", "taskId", "taskStatus", "taskStatusPackage", "taskType", "unfinishedPathName"]
+    class rStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
-
-    class RunningStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    class reason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
-
-    class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-        """表示任务状态的枚举类。
-
-        Attributes:
-            0 (int): StatusNone-无状态。
-            1 (int): Waiting-等待中。
-            2 (int): Running-运行中。
-            3 (int): Suspended-暂停中。
-            4 (int): Completed-已完成。
-            5 (int): Failed-失败。
-            6 (int): Canceled-已取消。
-            7 (int): OverTime-超时。
-        """
+    class status(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
-
-    class TaskType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-        """表示任务类型的枚举类。
-
-        Attributes:
-            TypeNone (int): 无类型。
-            GoPoint (int): 前往指定点。
-            GoPointId (int): 前往指定点ID。
-            GoId (int): 前往指定ID。
-            Patrol (int): 巡逻。
-            GoIntoShelf (int): 进入货架。
-            TargetTracking (int): 目标跟踪。
-            GoByOdometer (int): 通过里程计前往。
-            GoAlongMagstripe (int): 沿磁条前往。
-            Other (int): 其他类型。
-        """
+    class type(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
-
-    ACTUAL_REACH_ANGLE_FIELD_NUMBER: ClassVar[int]
-    ACTUAL_REACH_DIST_FIELD_NUMBER: ClassVar[int]
-    ADVANCE_REGIONS_FIELD_NUMBER: ClassVar[int]
-    APIObstacle: Message_MoveStatus.Reason
-    AREA_NAME_FIELD_NUMBER: ClassVar[int]
+    ACTUALREACHANGLE_FIELD_NUMBER: ClassVar[int]
+    ACTUALREACHDIST_FIELD_NUMBER: ClassVar[int]
+    ADVANCEREGIONS_FIELD_NUMBER: ClassVar[int]
+    AREANAME_FIELD_NUMBER: ClassVar[int]
     BLOCKED_FIELD_NUMBER: ClassVar[int]
-    BLOCK_ID_FIELD_NUMBER: ClassVar[int]
-    BLOCK_REASON_FIELD_NUMBER: ClassVar[int]
-    BLOCK_X_FIELD_NUMBER: ClassVar[int]
-    BLOCK_Y_FIELD_NUMBER: ClassVar[int]
-    CLOSEST_LABEL_FIELD_NUMBER: ClassVar[int]
-    CLOSEST_TARGET_FIELD_NUMBER: ClassVar[int]
+    BLOCKID_FIELD_NUMBER: ClassVar[int]
+    BLOCKREASON_FIELD_NUMBER: ClassVar[int]
+    BLOCKX_FIELD_NUMBER: ClassVar[int]
+    BLOCKY_FIELD_NUMBER: ClassVar[int]
+    CLOSESTLABEL_FIELD_NUMBER: ClassVar[int]
+    CLOSESTTARGET_FIELD_NUMBER: ClassVar[int]
     CONTAINERS_FIELD_NUMBER: ClassVar[int]
-    Canceled: Message_MoveStatus.TaskStatus
-    Collision: Message_MoveStatus.Reason
-    Completed: Message_MoveStatus.TaskStatus
     DIST2GOAL_FIELD_NUMBER: ClassVar[int]
-    DepthCamera: Message_MoveStatus.Reason
-    DiUltrasonic: Message_MoveStatus.Reason
-    DistanceNode: Message_MoveStatus.Reason
-    FINISHED_PATH_NAME_FIELD_NUMBER: ClassVar[int]
-    Failed: Message_MoveStatus.TaskStatus
-    Fallingdown: Message_MoveStatus.Reason
-    GOODS_REGION_FIELD_NUMBER: ClassVar[int]
-    GoAlongMagstripe: Message_MoveStatus.TaskType
-    GoByOdometer: Message_MoveStatus.TaskType
-    GoId: Message_MoveStatus.TaskType
-    GoIntoShelf: Message_MoveStatus.TaskType
-    GoPoint: Message_MoveStatus.TaskType
-    GoPointId: Message_MoveStatus.TaskType
+    FINISHEDPATHNAME_FIELD_NUMBER: ClassVar[int]
+    GOODSREGION_FIELD_NUMBER: ClassVar[int]
     INFO_FIELD_NUMBER: ClassVar[int]
-    Infrared: Message_MoveStatus.Reason
-    Laser: Message_MoveStatus.Reason
-    Lock: Message_MoveStatus.Reason
+    MATES_FIELD_NUMBER: ClassVar[int]
     MODULES_FIELD_NUMBER: ClassVar[int]
-    NEAREST_OBSTACLES_FIELD_NUMBER: ClassVar[int]
-    Other: Message_MoveStatus.TaskType
-    OverTime: Message_MoveStatus.TaskStatus
-    Patrol: Message_MoveStatus.TaskType
-    REMOVED_REGIONS_FIELD_NUMBER: ClassVar[int]
-    RFailed: Message_MoveStatus.RunningStatus
-    RFinished: Message_MoveStatus.RunningStatus
-    RNearToGoal: Message_MoveStatus.RunningStatus
-    RNone: Message_MoveStatus.RunningStatus
-    ROBOT_REGION_FIELD_NUMBER: ClassVar[int]
-    ROBOT_SHAPE_FIELD_NUMBER: ClassVar[int]
-    RRunning: Message_MoveStatus.RunningStatus
-    RUNNING_STATUS_FIELD_NUMBER: ClassVar[int]
-    Running: Message_MoveStatus.TaskStatus
+    MOVETASKS_FIELD_NUMBER: ClassVar[int]
+    NEARESTOBSTACLES_FIELD_NUMBER: ClassVar[int]
+    REMOVEDREGIONS_FIELD_NUMBER: ClassVar[int]
+    ROBOTREGION_FIELD_NUMBER: ClassVar[int]
+    ROBOTSHAPE_FIELD_NUMBER: ClassVar[int]
+    RUNNINGSTATUS_FIELD_NUMBER: ClassVar[int]
+    SAFECUTTINGSID_FIELD_NUMBER: ClassVar[int]
     SLOWED_FIELD_NUMBER: ClassVar[int]
-    SLOW_ID_FIELD_NUMBER: ClassVar[int]
-    SLOW_PATH_FIELD_NUMBER: ClassVar[int]
-    SLOW_REASON_FIELD_NUMBER: ClassVar[int]
-    SLOW_X_FIELD_NUMBER: ClassVar[int]
-    SLOW_Y_FIELD_NUMBER: ClassVar[int]
-    STOP_PATH_FIELD_NUMBER: ClassVar[int]
-    StatusNone: Message_MoveStatus.TaskStatus
-    Suspended: Message_MoveStatus.TaskStatus
-    TARGET_ANGLE_FIELD_NUMBER: ClassVar[int]
-    TARGET_DIST_FIELD_NUMBER: ClassVar[int]
-    TARGET_LABEL_FIELD_NUMBER: ClassVar[int]
-    TARGET_NAME_FIELD_NUMBER: ClassVar[int]
-    TARGET_X_FIELD_NUMBER: ClassVar[int]
-    TARGET_Y_FIELD_NUMBER: ClassVar[int]
-    TASK_ID_FIELD_NUMBER: ClassVar[int]
-    TASK_STATUS_FIELD_NUMBER: ClassVar[int]
-    TASK_STATUS_PACKAGE_FIELD_NUMBER: ClassVar[int]
-    TASK_TYPE_FIELD_NUMBER: ClassVar[int]
-    TargetTracking: Message_MoveStatus.TaskType
-    TypeNone: Message_MoveStatus.TaskType
-    UNFINISHED_PATH_NAME_FIELD_NUMBER: ClassVar[int]
-    Ultrasonic: Message_MoveStatus.Reason
-    VirtualPoint: Message_MoveStatus.Reason
-    Waiting: Message_MoveStatus.TaskStatus
-    actual_reach_angle: float
-    actual_reach_dist: float
-    advance_regions: _containers.RepeatedCompositeFieldContainer[Message_MovePolygon]
-    area_name: _containers.RepeatedScalarFieldContainer[str]
-    block_id: int
-    block_reason: Message_MoveStatus.Reason
-    block_x: float
-    block_y: float
+    SLOWID_FIELD_NUMBER: ClassVar[int]
+    SLOWPATH_FIELD_NUMBER: ClassVar[int]
+    SLOWREASON_FIELD_NUMBER: ClassVar[int]
+    SLOWX_FIELD_NUMBER: ClassVar[int]
+    SLOWY_FIELD_NUMBER: ClassVar[int]
+    STOPPATH_FIELD_NUMBER: ClassVar[int]
+    TARGETANGLE_FIELD_NUMBER: ClassVar[int]
+    TARGETDIST_FIELD_NUMBER: ClassVar[int]
+    TARGETLABEL_FIELD_NUMBER: ClassVar[int]
+    TARGETNAME_FIELD_NUMBER: ClassVar[int]
+    TARGETX_FIELD_NUMBER: ClassVar[int]
+    TARGETY_FIELD_NUMBER: ClassVar[int]
+    TASKID_FIELD_NUMBER: ClassVar[int]
+    TASKSTATUSPACKAGE_FIELD_NUMBER: ClassVar[int]
+    TASKSTATUS_FIELD_NUMBER: ClassVar[int]
+    TASKTYPE_FIELD_NUMBER: ClassVar[int]
+    UNFINISHEDPATHNAME_FIELD_NUMBER: ClassVar[int]
+    actualReachAngle: float
+    actualReachDist: float
+    advanceRegions: _containers.RepeatedCompositeFieldContainer[msgMovePolygon]
+    apiObstacle: msgMoveStatus.reason
+    areaName: _containers.RepeatedScalarFieldContainer[str]
+    blockId: int
+    blockReason: msgMoveStatus.reason
+    blockX: float
+    blockY: float
     blocked: bool
-    closest_label: str
-    closest_target: str
-    containers: _containers.RepeatedCompositeFieldContainer[Message_Container]
+    canceled: msgMoveStatus.status
+    closestLabel: str
+    closestTarget: str
+    collision: msgMoveStatus.reason
+    completed: msgMoveStatus.status
+    containers: _containers.RepeatedCompositeFieldContainer[msgContainer]
+    depthCamera: msgMoveStatus.reason
+    diUltrasonic: msgMoveStatus.reason
     dist2goal: float
-    finished_path_name: _containers.RepeatedScalarFieldContainer[str]
-    goods_region: Message_MovePolygon
+    distanceNode: msgMoveStatus.reason
+    failed: msgMoveStatus.status
+    fallingDown: msgMoveStatus.reason
+    finishedPathName: _containers.RepeatedScalarFieldContainer[str]
+    goAlongMagstripe: msgMoveStatus.type
+    goByOdometer: msgMoveStatus.type
+    goId: msgMoveStatus.type
+    goIntoShelf: msgMoveStatus.type
+    goPoint: msgMoveStatus.type
+    goPointId: msgMoveStatus.type
+    goodsRegion: msgMovePolygon
     info: str
-    modules: _containers.RepeatedCompositeFieldContainer[Message_Module]
-    nearest_obstacles: _containers.RepeatedCompositeFieldContainer[Message_NearestObs]
-    removed_regions: _containers.RepeatedCompositeFieldContainer[Message_MovePolygon]
-    robot_region: Message_MovePolygon
-    robot_shape: Message_RobotShape
-    running_status: Message_MoveStatus.RunningStatus
-    slow_id: int
-    slow_path: Message_MovePolygon
-    slow_reason: Message_MoveStatus.Reason
-    slow_x: float
-    slow_y: float
+    infrared: msgMoveStatus.reason
+    laser: msgMoveStatus.reason
+    lock: msgMoveStatus.reason
+    mates: msgMates
+    modules: _containers.RepeatedCompositeFieldContainer[msgModule]
+    moveTasks: msgMoveTask
+    nearestObstacles: _containers.RepeatedCompositeFieldContainer[msgNearestObs]
+    other: msgMoveStatus.type
+    overTime: msgMoveStatus.status
+    patrol: msgMoveStatus.type
+    rFailed: msgMoveStatus.rStatus
+    rFinished: msgMoveStatus.rStatus
+    rNearToGoal: msgMoveStatus.rStatus
+    rNone: msgMoveStatus.rStatus
+    rRunning: msgMoveStatus.rStatus
+    removedRegions: _containers.RepeatedCompositeFieldContainer[msgMovePolygon]
+    robotRegion: msgMovePolygon
+    robotShape: msgRobotShape
+    running: msgMoveStatus.status
+    runningStatus: msgMoveStatus.rStatus
+    safeCuttingsId: int
+    slowId: int
+    slowPath: msgMovePolygon
+    slowReason: msgMoveStatus.reason
+    slowX: float
+    slowY: float
     slowed: bool
-    stop_path: Message_MovePolygon
-    target_angle: float
-    target_dist: float
-    target_label: str
-    target_name: str
-    target_x: float
-    target_y: float
-    task_id: str
-    task_status: Message_MoveStatus.TaskStatus
-    task_status_package: Message_TaskStatusPackage
-    task_type: Message_MoveStatus.TaskType
-    unfinished_path_name: _containers.RepeatedScalarFieldContainer[str]
+    statusNone: msgMoveStatus.status
+    stopPath: msgMovePolygon
+    suspended: msgMoveStatus.status
+    targetAngle: float
+    targetDist: float
+    targetLabel: str
+    targetName: str
+    targetTracking: msgMoveStatus.type
+    targetX: float
+    targetY: float
+    taskId: str
+    taskStatus: msgMoveStatus.status
+    taskStatusPackage: msgTaskStatusPackage
+    taskType: msgMoveStatus.type
+    typeNone: msgMoveStatus.type
+    ultrasonic: msgMoveStatus.reason
+    unfinishedPathName: _containers.RepeatedScalarFieldContainer[str]
+    virtualPoint: msgMoveStatus.reason
+    waiting: msgMoveStatus.status
+    def __init__(self, blocked: bool = ..., blockX: Optional[float] = ..., blockY: Optional[float] = ..., blockReason: Optional[Union[msgMoveStatus.reason, str]] = ..., targetName: Optional[str] = ..., targetX: Optional[float] = ..., targetY: Optional[float] = ..., targetAngle: Optional[float] = ..., taskStatus: Optional[Union[msgMoveStatus.status, str]] = ..., taskType: Optional[Union[msgMoveStatus.type, str]] = ..., areaName: Optional[Iterable[str]] = ..., finishedPathName: Optional[Iterable[str]] = ..., unfinishedPathName: Optional[Iterable[str]] = ..., blockId: Optional[int] = ..., taskId: Optional[str] = ..., robotRegion: Optional[Union[msgMovePolygon, Mapping]] = ..., goodsRegion: Optional[Union[msgMovePolygon, Mapping]] = ..., removedRegions: Optional[Iterable[Union[msgMovePolygon, Mapping]]] = ..., runningStatus: Optional[Union[msgMoveStatus.rStatus, str]] = ..., closestTarget: Optional[str] = ..., actualReachDist: Optional[float] = ..., actualReachAngle: Optional[float] = ..., robotShape: Optional[Union[msgRobotShape, Mapping]] = ..., slowed: bool = ..., slowX: Optional[float] = ..., slowY: Optional[float] = ..., slowReason: Optional[Union[msgMoveStatus.reason, str]] = ..., slowId: Optional[int] = ..., stopPath: Optional[Union[msgMovePolygon, Mapping]] = ..., slowPath: Optional[Union[msgMovePolygon, Mapping]] = ..., modules: Optional[Iterable[Union[msgModule, Mapping]]] = ..., advanceRegions: Optional[Iterable[Union[msgMovePolygon, Mapping]]] = ..., info: Optional[str] = ..., targetDist: Optional[float] = ..., taskStatusPackage: Optional[Union[msgTaskStatusPackage, Mapping]] = ..., targetLabel: Optional[str] = ..., closestLabel: Optional[str] = ..., nearestObstacles: Optional[Iterable[Union[msgNearestObs, Mapping]]] = ..., containers: Optional[Iterable[Union[msgContainer, Mapping]]] = ..., dist2goal: Optional[float] = ..., safeCuttingsId: Optional[int] = ..., mates: Optional[Union[msgMates, Mapping]] = ..., moveTasks: Optional[Union[msgMoveTask, Mapping]] = ...) -> None: ...
 
-    def __init__(self, blocked: bool = ..., block_x: Optional[float] = ..., block_y: Optional[float] = ...,
-                 block_reason: Optional[Union[Message_MoveStatus.Reason, str]] = ..., target_name: Optional[str] = ...,
-                 target_x: Optional[float] = ..., target_y: Optional[float] = ..., target_angle: Optional[float] = ...,
-                 task_status: Optional[Union[Message_MoveStatus.TaskStatus, str]] = ...,
-                 task_type: Optional[Union[Message_MoveStatus.TaskType, str]] = ...,
-                 area_name: Optional[Iterable[str]] = ..., finished_path_name: Optional[Iterable[str]] = ...,
-                 unfinished_path_name: Optional[Iterable[str]] = ..., block_id: Optional[int] = ...,
-                 task_id: Optional[str] = ..., robot_region: Optional[Union[Message_MovePolygon, Mapping]] = ...,
-                 goods_region: Optional[Union[Message_MovePolygon, Mapping]] = ...,
-                 removed_regions: Optional[Iterable[Union[Message_MovePolygon, Mapping]]] = ...,
-                 running_status: Optional[Union[Message_MoveStatus.RunningStatus, str]] = ...,
-                 closest_target: Optional[str] = ..., actual_reach_dist: Optional[float] = ...,
-                 actual_reach_angle: Optional[float] = ...,
-                 robot_shape: Optional[Union[Message_RobotShape, Mapping]] = ..., slowed: bool = ...,
-                 slow_x: Optional[float] = ..., slow_y: Optional[float] = ...,
-                 slow_reason: Optional[Union[Message_MoveStatus.Reason, str]] = ..., slow_id: Optional[int] = ...,
-                 stop_path: Optional[Union[Message_MovePolygon, Mapping]] = ...,
-                 slow_path: Optional[Union[Message_MovePolygon, Mapping]] = ...,
-                 modules: Optional[Iterable[Union[Message_Module, Mapping]]] = ...,
-                 advance_regions: Optional[Iterable[Union[Message_MovePolygon, Mapping]]] = ...,
-                 info: Optional[str] = ..., target_dist: Optional[float] = ...,
-                 task_status_package: Optional[Union[Message_TaskStatusPackage, Mapping]] = ...,
-                 target_label: Optional[str] = ..., closest_label: Optional[str] = ...,
-                 nearest_obstacles: Optional[Iterable[Union[Message_NearestObs, Mapping]]] = ...,
-                 containers: Optional[Iterable[Union[Message_Container, Mapping]]] = ...,
-                 dist2goal: Optional[float] = ...) -> None: ...
-
-
-class Message_MoveTask(_message.Message):
-    __slots__ = ["block_dist", "dec_obs_expansion", "max_acc", "max_dec", "max_rot", "max_rot_acc", "max_rot_dec",
-                 "max_speed", "move_angle", "move_dist", "move_time", "obs_dec_dist", "obs_dec_speed", "obs_expansion",
-                 "obs_stop_dist", "params", "reach_angle", "reach_dist", "reach_method", "reach_vel_w", "reach_vel_x",
-                 "reach_vel_y", "skill_name", "slowdown_dist", "source_name", "speed_w", "speed_x", "speed_y",
-                 "target_angle", "target_name", "target_x", "target_y", "task_id"]
-    BLOCK_DIST_FIELD_NUMBER: ClassVar[int]
-    DEC_OBS_EXPANSION_FIELD_NUMBER: ClassVar[int]
-    MAX_ACC_FIELD_NUMBER: ClassVar[int]
-    MAX_DEC_FIELD_NUMBER: ClassVar[int]
-    MAX_ROT_ACC_FIELD_NUMBER: ClassVar[int]
-    MAX_ROT_DEC_FIELD_NUMBER: ClassVar[int]
-    MAX_ROT_FIELD_NUMBER: ClassVar[int]
-    MAX_SPEED_FIELD_NUMBER: ClassVar[int]
-    MOVE_ANGLE_FIELD_NUMBER: ClassVar[int]
-    MOVE_DIST_FIELD_NUMBER: ClassVar[int]
-    MOVE_TIME_FIELD_NUMBER: ClassVar[int]
-    OBS_DEC_DIST_FIELD_NUMBER: ClassVar[int]
-    OBS_DEC_SPEED_FIELD_NUMBER: ClassVar[int]
-    OBS_EXPANSION_FIELD_NUMBER: ClassVar[int]
-    OBS_STOP_DIST_FIELD_NUMBER: ClassVar[int]
+class msgMoveTask(_message.Message):
+    __slots__ = ["blockDist", "decObsExpansion", "maxAcc", "maxDec", "maxRot", "maxRotAcc", "maxRotDec", "maxSpeed", "moveAngle", "moveDist", "moveTime", "obsDecDist", "obsDecSpeed", "obsExpansion", "obsStopDist", "params", "reachAngle", "reachDist", "reachMethod", "reachVelW", "reachVelX", "reachVelY", "skillName", "slowdownDist", "sourceName", "speedW", "speedX", "speedY", "targetAngle", "targetName", "targetX", "targetY", "taskId"]
+    BLOCKDIST_FIELD_NUMBER: ClassVar[int]
+    DECOBSEXPANSION_FIELD_NUMBER: ClassVar[int]
+    MAXACC_FIELD_NUMBER: ClassVar[int]
+    MAXDEC_FIELD_NUMBER: ClassVar[int]
+    MAXROTACC_FIELD_NUMBER: ClassVar[int]
+    MAXROTDEC_FIELD_NUMBER: ClassVar[int]
+    MAXROT_FIELD_NUMBER: ClassVar[int]
+    MAXSPEED_FIELD_NUMBER: ClassVar[int]
+    MOVEANGLE_FIELD_NUMBER: ClassVar[int]
+    MOVEDIST_FIELD_NUMBER: ClassVar[int]
+    MOVETIME_FIELD_NUMBER: ClassVar[int]
+    OBSDECDIST_FIELD_NUMBER: ClassVar[int]
+    OBSDECSPEED_FIELD_NUMBER: ClassVar[int]
+    OBSEXPANSION_FIELD_NUMBER: ClassVar[int]
+    OBSSTOPDIST_FIELD_NUMBER: ClassVar[int]
     PARAMS_FIELD_NUMBER: ClassVar[int]
-    REACH_ANGLE_FIELD_NUMBER: ClassVar[int]
-    REACH_DIST_FIELD_NUMBER: ClassVar[int]
-    REACH_METHOD_FIELD_NUMBER: ClassVar[int]
-    REACH_VEL_W_FIELD_NUMBER: ClassVar[int]
-    REACH_VEL_X_FIELD_NUMBER: ClassVar[int]
-    REACH_VEL_Y_FIELD_NUMBER: ClassVar[int]
-    SKILL_NAME_FIELD_NUMBER: ClassVar[int]
-    SLOWDOWN_DIST_FIELD_NUMBER: ClassVar[int]
-    SOURCE_NAME_FIELD_NUMBER: ClassVar[int]
-    SPEED_W_FIELD_NUMBER: ClassVar[int]
-    SPEED_X_FIELD_NUMBER: ClassVar[int]
-    SPEED_Y_FIELD_NUMBER: ClassVar[int]
-    TARGET_ANGLE_FIELD_NUMBER: ClassVar[int]
-    TARGET_NAME_FIELD_NUMBER: ClassVar[int]
-    TARGET_X_FIELD_NUMBER: ClassVar[int]
-    TARGET_Y_FIELD_NUMBER: ClassVar[int]
-    TASK_ID_FIELD_NUMBER: ClassVar[int]
-    block_dist: _wrappers_pb2.DoubleValue
-    dec_obs_expansion: _wrappers_pb2.DoubleValue
-    max_acc: _wrappers_pb2.DoubleValue
-    max_dec: _wrappers_pb2.DoubleValue
-    max_rot: _wrappers_pb2.DoubleValue
-    max_rot_acc: _wrappers_pb2.DoubleValue
-    max_rot_dec: _wrappers_pb2.DoubleValue
-    max_speed: _wrappers_pb2.DoubleValue
-    move_angle: _wrappers_pb2.DoubleValue
-    move_dist: _wrappers_pb2.DoubleValue
-    move_time: _wrappers_pb2.DoubleValue
-    obs_dec_dist: _wrappers_pb2.DoubleValue
-    obs_dec_speed: _wrappers_pb2.DoubleValue
-    obs_expansion: _wrappers_pb2.DoubleValue
-    obs_stop_dist: _wrappers_pb2.DoubleValue
-    params: _containers.RepeatedCompositeFieldContainer[Message_MoveParam]
-    reach_angle: _wrappers_pb2.DoubleValue
-    reach_dist: _wrappers_pb2.DoubleValue
-    reach_method: _wrappers_pb2.StringValue
-    reach_vel_w: _wrappers_pb2.DoubleValue
-    reach_vel_x: _wrappers_pb2.DoubleValue
-    reach_vel_y: _wrappers_pb2.DoubleValue
-    skill_name: str
-    slowdown_dist: _wrappers_pb2.DoubleValue
-    source_name: _wrappers_pb2.StringValue
-    speed_w: _wrappers_pb2.DoubleValue
-    speed_x: _wrappers_pb2.DoubleValue
-    speed_y: _wrappers_pb2.DoubleValue
-    target_angle: _wrappers_pb2.DoubleValue
-    target_name: _wrappers_pb2.StringValue
-    target_x: _wrappers_pb2.DoubleValue
-    target_y: _wrappers_pb2.DoubleValue
-    task_id: _wrappers_pb2.StringValue
+    REACHANGLE_FIELD_NUMBER: ClassVar[int]
+    REACHDIST_FIELD_NUMBER: ClassVar[int]
+    REACHMETHOD_FIELD_NUMBER: ClassVar[int]
+    REACHVELW_FIELD_NUMBER: ClassVar[int]
+    REACHVELX_FIELD_NUMBER: ClassVar[int]
+    REACHVELY_FIELD_NUMBER: ClassVar[int]
+    SKILLNAME_FIELD_NUMBER: ClassVar[int]
+    SLOWDOWNDIST_FIELD_NUMBER: ClassVar[int]
+    SOURCENAME_FIELD_NUMBER: ClassVar[int]
+    SPEEDW_FIELD_NUMBER: ClassVar[int]
+    SPEEDX_FIELD_NUMBER: ClassVar[int]
+    SPEEDY_FIELD_NUMBER: ClassVar[int]
+    TARGETANGLE_FIELD_NUMBER: ClassVar[int]
+    TARGETNAME_FIELD_NUMBER: ClassVar[int]
+    TARGETX_FIELD_NUMBER: ClassVar[int]
+    TARGETY_FIELD_NUMBER: ClassVar[int]
+    TASKID_FIELD_NUMBER: ClassVar[int]
+    blockDist: _wrappers_pb2.DoubleValue
+    decObsExpansion: _wrappers_pb2.DoubleValue
+    maxAcc: _wrappers_pb2.DoubleValue
+    maxDec: _wrappers_pb2.DoubleValue
+    maxRot: _wrappers_pb2.DoubleValue
+    maxRotAcc: _wrappers_pb2.DoubleValue
+    maxRotDec: _wrappers_pb2.DoubleValue
+    maxSpeed: _wrappers_pb2.DoubleValue
+    moveAngle: _wrappers_pb2.DoubleValue
+    moveDist: _wrappers_pb2.DoubleValue
+    moveTime: _wrappers_pb2.DoubleValue
+    obsDecDist: _wrappers_pb2.DoubleValue
+    obsDecSpeed: _wrappers_pb2.DoubleValue
+    obsExpansion: _wrappers_pb2.DoubleValue
+    obsStopDist: _wrappers_pb2.DoubleValue
+    params: _containers.RepeatedCompositeFieldContainer[msgMoveParam]
+    reachAngle: _wrappers_pb2.DoubleValue
+    reachDist: _wrappers_pb2.DoubleValue
+    reachMethod: _wrappers_pb2.StringValue
+    reachVelW: _wrappers_pb2.DoubleValue
+    reachVelX: _wrappers_pb2.DoubleValue
+    reachVelY: _wrappers_pb2.DoubleValue
+    skillName: str
+    slowdownDist: _wrappers_pb2.DoubleValue
+    sourceName: _wrappers_pb2.StringValue
+    speedW: _wrappers_pb2.DoubleValue
+    speedX: _wrappers_pb2.DoubleValue
+    speedY: _wrappers_pb2.DoubleValue
+    targetAngle: _wrappers_pb2.DoubleValue
+    targetName: _wrappers_pb2.StringValue
+    targetX: _wrappers_pb2.DoubleValue
+    targetY: _wrappers_pb2.DoubleValue
+    taskId: _wrappers_pb2.StringValue
+    def __init__(self, skillName: Optional[str] = ..., targetX: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., targetY: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., targetAngle: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., targetName: Optional[Union[_wrappers_pb2.StringValue, Mapping]] = ..., reachDist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., reachAngle: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., reachMethod: Optional[Union[_wrappers_pb2.StringValue, Mapping]] = ..., reachVelX: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., reachVelY: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., reachVelW: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., speedX: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., speedY: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., speedW: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., maxSpeed: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., maxAcc: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., maxRot: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., maxRotAcc: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., slowdownDist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., blockDist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., moveDist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., moveAngle: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., moveTime: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., params: Optional[Iterable[Union[msgMoveParam, Mapping]]] = ..., taskId: Optional[Union[_wrappers_pb2.StringValue, Mapping]] = ..., maxDec: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., maxRotDec: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., obsStopDist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., obsDecDist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., obsDecSpeed: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., obsExpansion: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., decObsExpansion: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ..., sourceName: Optional[Union[_wrappers_pb2.StringValue, Mapping]] = ...) -> None: ...
 
-    def __init__(self, skill_name: Optional[str] = ...,
-                 target_x: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 target_y: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 target_angle: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 target_name: Optional[Union[_wrappers_pb2.StringValue, Mapping]] = ...,
-                 reach_dist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 reach_angle: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 reach_method: Optional[Union[_wrappers_pb2.StringValue, Mapping]] = ...,
-                 reach_vel_x: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 reach_vel_y: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 reach_vel_w: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 speed_x: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 speed_y: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 speed_w: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 max_speed: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 max_acc: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 max_rot: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 max_rot_acc: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 slowdown_dist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 block_dist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 move_dist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 move_angle: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 move_time: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 params: Optional[Iterable[Union[Message_MoveParam, Mapping]]] = ...,
-                 task_id: Optional[Union[_wrappers_pb2.StringValue, Mapping]] = ...,
-                 max_dec: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 max_rot_dec: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 obs_stop_dist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 obs_dec_dist: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 obs_dec_speed: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 obs_expansion: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 dec_obs_expansion: Optional[Union[_wrappers_pb2.DoubleValue, Mapping]] = ...,
-                 source_name: Optional[Union[_wrappers_pb2.StringValue, Mapping]] = ...) -> None: ...
+class msgMoveTaskList(_message.Message):
+    __slots__ = ["moveTaskList"]
+    MOVETASKLIST_FIELD_NUMBER: ClassVar[int]
+    moveTaskList: _containers.RepeatedCompositeFieldContainer[msgMoveTask]
+    def __init__(self, moveTaskList: Optional[Iterable[Union[msgMoveTask, Mapping]]] = ...) -> None: ...
 
-
-class Message_MoveTaskList(_message.Message):
-    __slots__ = ["move_task_list"]
-    MOVE_TASK_LIST_FIELD_NUMBER: ClassVar[int]
-    move_task_list: _containers.RepeatedCompositeFieldContainer[Message_MoveTask]
-
-    def __init__(self, move_task_list: Optional[Iterable[Union[Message_MoveTask, Mapping]]] = ...) -> None: ...
-
-
-class Message_NearestObs(_message.Message):
+class msgNearestObs(_message.Message):
     __slots__ = ["x", "y"]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
     x: float
     y: float
-
     def __init__(self, x: Optional[float] = ..., y: Optional[float] = ...) -> None: ...
 
-
-class Message_RobotShape(_message.Message):
-    __slots__ = ["head", "radius", "shape", "tail", "width"]
+class msgRobotShape(_message.Message):
+    __slots__ = ["head", "points", "radius", "shape", "tail", "width"]
     HEAD_FIELD_NUMBER: ClassVar[int]
+    POINTS_FIELD_NUMBER: ClassVar[int]
     RADIUS_FIELD_NUMBER: ClassVar[int]
     SHAPE_FIELD_NUMBER: ClassVar[int]
     TAIL_FIELD_NUMBER: ClassVar[int]
     WIDTH_FIELD_NUMBER: ClassVar[int]
     head: float
+    points: _containers.RepeatedCompositeFieldContainer[msgMovePolygonPoint]
     radius: float
     shape: int
     tail: float
     width: float
+    def __init__(self, shape: Optional[int] = ..., head: Optional[float] = ..., tail: Optional[float] = ..., width: Optional[float] = ..., radius: Optional[float] = ..., points: Optional[Iterable[Union[msgMovePolygonPoint, Mapping]]] = ...) -> None: ...
 
-    def __init__(self, shape: Optional[int] = ..., head: Optional[float] = ..., tail: Optional[float] = ...,
-                 width: Optional[float] = ..., radius: Optional[float] = ...) -> None: ...
-
-
-class Message_TaskStatusInfo(_message.Message):
-    __slots__ = ["status", "task_id", "type"]
+class msgTaskStatusInfo(_message.Message):
+    __slots__ = ["status", "taskId", "type"]
     STATUS_FIELD_NUMBER: ClassVar[int]
-    TASK_ID_FIELD_NUMBER: ClassVar[int]
+    TASKID_FIELD_NUMBER: ClassVar[int]
     TYPE_FIELD_NUMBER: ClassVar[int]
-    status: Message_MoveStatus.TaskStatus
-    task_id: str
-    type: Message_MoveStatus.TaskType
+    status: msgMoveStatus.status
+    taskId: str
+    type: msgMoveStatus.type
+    def __init__(self, taskId: Optional[str] = ..., type: Optional[Union[msgMoveStatus.type, str]] = ..., status: Optional[Union[msgMoveStatus.status, str]] = ...) -> None: ...
 
-    def __init__(self, task_id: Optional[str] = ..., type: Optional[Union[Message_MoveStatus.TaskType, str]] = ...,
-                 status: Optional[Union[Message_MoveStatus.TaskStatus, str]] = ...) -> None: ...
-
-
-class Message_TaskStatusPackage(_message.Message):
-    __slots__ = ["closest_label", "closest_target", "distance", "info", "percentage", "source_label", "source_name",
-                 "target_label", "target_name", "task_status_list"]
-    CLOSEST_LABEL_FIELD_NUMBER: ClassVar[int]
-    CLOSEST_TARGET_FIELD_NUMBER: ClassVar[int]
+class msgTaskStatusPackage(_message.Message):
+    __slots__ = ["closestLabel", "closestTarget", "distance", "info", "percentage", "sourceLabel", "sourceName", "targetLabel", "targetName", "taskStatusList"]
+    CLOSESTLABEL_FIELD_NUMBER: ClassVar[int]
+    CLOSESTTARGET_FIELD_NUMBER: ClassVar[int]
     DISTANCE_FIELD_NUMBER: ClassVar[int]
     INFO_FIELD_NUMBER: ClassVar[int]
     PERCENTAGE_FIELD_NUMBER: ClassVar[int]
-    SOURCE_LABEL_FIELD_NUMBER: ClassVar[int]
-    SOURCE_NAME_FIELD_NUMBER: ClassVar[int]
-    TARGET_LABEL_FIELD_NUMBER: ClassVar[int]
-    TARGET_NAME_FIELD_NUMBER: ClassVar[int]
-    TASK_STATUS_LIST_FIELD_NUMBER: ClassVar[int]
-    closest_label: str
-    closest_target: str
+    SOURCELABEL_FIELD_NUMBER: ClassVar[int]
+    SOURCENAME_FIELD_NUMBER: ClassVar[int]
+    TARGETLABEL_FIELD_NUMBER: ClassVar[int]
+    TARGETNAME_FIELD_NUMBER: ClassVar[int]
+    TASKSTATUSLIST_FIELD_NUMBER: ClassVar[int]
+    closestLabel: str
+    closestTarget: str
     distance: float
     info: str
     percentage: float
-    source_label: str
-    source_name: str
-    target_label: str
-    target_name: str
-    task_status_list: _containers.RepeatedCompositeFieldContainer[Message_TaskStatusInfo]
-
-    def __init__(self, task_status_list: Optional[Iterable[Union[Message_TaskStatusInfo, Mapping]]] = ...,
-                 closest_target: Optional[str] = ..., source_name: Optional[str] = ...,
-                 target_name: Optional[str] = ..., percentage: Optional[float] = ..., distance: Optional[float] = ...,
-                 source_label: Optional[str] = ..., target_label: Optional[str] = ...,
-                 closest_label: Optional[str] = ..., info: Optional[str] = ...) -> None: ...
+    sourceLabel: str
+    sourceName: str
+    targetLabel: str
+    targetName: str
+    taskStatusList: _containers.RepeatedCompositeFieldContainer[msgTaskStatusInfo]
+    def __init__(self, taskStatusList: Optional[Iterable[Union[msgTaskStatusInfo, Mapping]]] = ..., closestTarget: Optional[str] = ..., sourceName: Optional[str] = ..., targetName: Optional[str] = ..., percentage: Optional[float] = ..., distance: Optional[float] = ..., sourceLabel: Optional[str] = ..., targetLabel: Optional[str] = ..., closestLabel: Optional[str] = ..., info: Optional[str] = ...) -> None: ...

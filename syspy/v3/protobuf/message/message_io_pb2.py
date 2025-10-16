@@ -19,140 +19,140 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x10message_io.proto\x12\x0crbk.protocol\"\x90\x02\n\x0eMessage_DINode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0c\n\x04\x66unc\x18\x07 \x01(\t\x12\x0c\n\x04type\x18\x08 \x01(\t\x12\x0e\n\x06source\x18\t \x01(\t\x12\r\n\x05shape\x18\n \x01(\t\x12\x0f\n\x07mindist\x18\x0b \x01(\x01\x12\x0f\n\x07maxdist\x18\x0c \x01(\x01\x12\r\n\x05range\x18\r \x01(\x01\x12\x0c\n\x04posx\x18\x0e \x03(\x01\x12\x0c\n\x04posy\x18\x0f \x03(\x01\x12\x11\n\tforbidden\x18\x10 \x01(\x08\x12\x0c\n\x04name\x18\x11 \x01(\t\x12\x0b\n\x03key\x18\x12 \x01(\t\"J\n\nMessage_DI\x12*\n\x04node\x18\x01 \x03(\x0b\x32\x1c.rbk.protocol.Message_DINode\x12\x10\n\x08max_node\x18\x02 \x01(\r\"e\n\x0eMessage_DONode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\x0e\n\x06source\x18\x03 \x01(\t\x12\x0c\n\x04lock\x18\x04 \x01(\x08\x12\x0c\n\x04name\x18\x05 \x01(\t\x12\x0b\n\x03key\x18\x06 \x01(\t\"J\n\nMessage_DO\x12*\n\x04node\x18\x01 \x03(\x0b\x32\x1c.rbk.protocol.Message_DONode\x12\x10\n\x08max_node\x18\x02 \x01(\r\" \n\x0eMessage_Astern\x12\x0e\n\x06status\x18\x01 \x01(\rb\x06proto3')
+  serialized_pb=_b('\n\x10message_io.proto\x12\x0crbk.protocol\"\x8b\x02\n\tmsgDINode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0c\n\x04\x66unc\x18\x07 \x01(\t\x12\x0c\n\x04type\x18\x08 \x01(\t\x12\x0e\n\x06source\x18\t \x01(\t\x12\r\n\x05shape\x18\n \x01(\t\x12\x0f\n\x07minDist\x18\x0b \x01(\x01\x12\x0f\n\x07maxDist\x18\x0c \x01(\x01\x12\r\n\x05range\x18\r \x01(\x01\x12\x0c\n\x04posX\x18\x0e \x03(\x01\x12\x0c\n\x04posY\x18\x0f \x03(\x01\x12\x11\n\tforbidden\x18\x10 \x01(\x08\x12\x0c\n\x04name\x18\x11 \x01(\t\x12\x0b\n\x03key\x18\x12 \x01(\t\"?\n\x05msgDI\x12%\n\x04node\x18\x01 \x03(\x0b\x32\x17.rbk.protocol.msgDINode\x12\x0f\n\x07maxNode\x18\x02 \x01(\r\"`\n\tmsgDONode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\x0e\n\x06source\x18\x03 \x01(\t\x12\x0c\n\x04lock\x18\x04 \x01(\x08\x12\x0c\n\x04name\x18\x05 \x01(\t\x12\x0b\n\x03key\x18\x06 \x01(\t\"?\n\x05msgDO\x12%\n\x04node\x18\x01 \x03(\x0b\x32\x17.rbk.protocol.msgDONode\x12\x0f\n\x07maxNode\x18\x02 \x01(\rb\x06proto3')
 )
 
 
 
 
-_MESSAGE_DINODE = _descriptor.Descriptor(
-  name='Message_DINode',
-  full_name='rbk.protocol.Message_DINode',
+_MSGDINODE = _descriptor.Descriptor(
+  name='msgDINode',
+  full_name='rbk.protocol.msgDINode',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='id', full_name='rbk.protocol.Message_DINode.id', index=0,
+      name='id', full_name='rbk.protocol.msgDINode.id', index=0,
       number=1, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='status', full_name='rbk.protocol.Message_DINode.status', index=1,
+      name='status', full_name='rbk.protocol.msgDINode.status', index=1,
       number=2, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='x', full_name='rbk.protocol.Message_DINode.x', index=2,
+      name='x', full_name='rbk.protocol.msgDINode.x', index=2,
       number=3, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='y', full_name='rbk.protocol.Message_DINode.y', index=3,
+      name='y', full_name='rbk.protocol.msgDINode.y', index=3,
       number=4, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='z', full_name='rbk.protocol.Message_DINode.z', index=4,
+      name='z', full_name='rbk.protocol.msgDINode.z', index=4,
       number=5, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='yaw', full_name='rbk.protocol.Message_DINode.yaw', index=5,
+      name='yaw', full_name='rbk.protocol.msgDINode.yaw', index=5,
       number=6, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='func', full_name='rbk.protocol.Message_DINode.func', index=6,
+      name='func', full_name='rbk.protocol.msgDINode.func', index=6,
       number=7, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='type', full_name='rbk.protocol.Message_DINode.type', index=7,
+      name='type', full_name='rbk.protocol.msgDINode.type', index=7,
       number=8, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='source', full_name='rbk.protocol.Message_DINode.source', index=8,
+      name='source', full_name='rbk.protocol.msgDINode.source', index=8,
       number=9, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='shape', full_name='rbk.protocol.Message_DINode.shape', index=9,
+      name='shape', full_name='rbk.protocol.msgDINode.shape', index=9,
       number=10, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='mindist', full_name='rbk.protocol.Message_DINode.mindist', index=10,
+      name='minDist', full_name='rbk.protocol.msgDINode.minDist', index=10,
       number=11, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='maxdist', full_name='rbk.protocol.Message_DINode.maxdist', index=11,
+      name='maxDist', full_name='rbk.protocol.msgDINode.maxDist', index=11,
       number=12, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='range', full_name='rbk.protocol.Message_DINode.range', index=12,
+      name='range', full_name='rbk.protocol.msgDINode.range', index=12,
       number=13, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='posx', full_name='rbk.protocol.Message_DINode.posx', index=13,
+      name='posX', full_name='rbk.protocol.msgDINode.posX', index=13,
       number=14, type=1, cpp_type=5, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='posy', full_name='rbk.protocol.Message_DINode.posy', index=14,
+      name='posY', full_name='rbk.protocol.msgDINode.posY', index=14,
       number=15, type=1, cpp_type=5, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='forbidden', full_name='rbk.protocol.Message_DINode.forbidden', index=15,
+      name='forbidden', full_name='rbk.protocol.msgDINode.forbidden', index=15,
       number=16, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='name', full_name='rbk.protocol.Message_DINode.name', index=16,
+      name='name', full_name='rbk.protocol.msgDINode.name', index=16,
       number=17, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='key', full_name='rbk.protocol.Message_DINode.key', index=17,
+      name='key', full_name='rbk.protocol.msgDINode.key', index=17,
       number=18, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -171,26 +171,26 @@ _MESSAGE_DINODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=35,
-  serialized_end=307,
+  serialized_end=302,
 )
 
 
-_MESSAGE_DI = _descriptor.Descriptor(
-  name='Message_DI',
-  full_name='rbk.protocol.Message_DI',
+_MSGDI = _descriptor.Descriptor(
+  name='msgDI',
+  full_name='rbk.protocol.msgDI',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='node', full_name='rbk.protocol.Message_DI.node', index=0,
+      name='node', full_name='rbk.protocol.msgDI.node', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='max_node', full_name='rbk.protocol.Message_DI.max_node', index=1,
+      name='maxNode', full_name='rbk.protocol.msgDI.maxNode', index=1,
       number=2, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -208,55 +208,55 @@ _MESSAGE_DI = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=309,
-  serialized_end=383,
+  serialized_start=304,
+  serialized_end=367,
 )
 
 
-_MESSAGE_DONODE = _descriptor.Descriptor(
-  name='Message_DONode',
-  full_name='rbk.protocol.Message_DONode',
+_MSGDONODE = _descriptor.Descriptor(
+  name='msgDONode',
+  full_name='rbk.protocol.msgDONode',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='id', full_name='rbk.protocol.Message_DONode.id', index=0,
+      name='id', full_name='rbk.protocol.msgDONode.id', index=0,
       number=1, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='status', full_name='rbk.protocol.Message_DONode.status', index=1,
+      name='status', full_name='rbk.protocol.msgDONode.status', index=1,
       number=2, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='source', full_name='rbk.protocol.Message_DONode.source', index=2,
+      name='source', full_name='rbk.protocol.msgDONode.source', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='lock', full_name='rbk.protocol.Message_DONode.lock', index=3,
+      name='lock', full_name='rbk.protocol.msgDONode.lock', index=3,
       number=4, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='name', full_name='rbk.protocol.Message_DONode.name', index=4,
+      name='name', full_name='rbk.protocol.msgDONode.name', index=4,
       number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='key', full_name='rbk.protocol.Message_DONode.key', index=5,
+      name='key', full_name='rbk.protocol.msgDONode.key', index=5,
       number=6, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -274,27 +274,27 @@ _MESSAGE_DONODE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=385,
-  serialized_end=486,
+  serialized_start=369,
+  serialized_end=465,
 )
 
 
-_MESSAGE_DO = _descriptor.Descriptor(
-  name='Message_DO',
-  full_name='rbk.protocol.Message_DO',
+_MSGDO = _descriptor.Descriptor(
+  name='msgDO',
+  full_name='rbk.protocol.msgDO',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='node', full_name='rbk.protocol.Message_DO.node', index=0,
+      name='node', full_name='rbk.protocol.msgDO.node', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='max_node', full_name='rbk.protocol.Message_DO.max_node', index=1,
+      name='maxNode', full_name='rbk.protocol.msgDO.maxNode', index=1,
       number=2, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -312,84 +312,45 @@ _MESSAGE_DO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=488,
-  serialized_end=562,
+  serialized_start=467,
+  serialized_end=530,
 )
 
-
-_MESSAGE_ASTERN = _descriptor.Descriptor(
-  name='Message_Astern',
-  full_name='rbk.protocol.Message_Astern',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='rbk.protocol.Message_Astern.status', index=0,
-      number=1, type=13, cpp_type=3, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=564,
-  serialized_end=596,
-)
-
-_MESSAGE_DI.fields_by_name['node'].message_type = _MESSAGE_DINODE
-_MESSAGE_DO.fields_by_name['node'].message_type = _MESSAGE_DONODE
-DESCRIPTOR.message_types_by_name['Message_DINode'] = _MESSAGE_DINODE
-DESCRIPTOR.message_types_by_name['Message_DI'] = _MESSAGE_DI
-DESCRIPTOR.message_types_by_name['Message_DONode'] = _MESSAGE_DONODE
-DESCRIPTOR.message_types_by_name['Message_DO'] = _MESSAGE_DO
-DESCRIPTOR.message_types_by_name['Message_Astern'] = _MESSAGE_ASTERN
+_MSGDI.fields_by_name['node'].message_type = _MSGDINODE
+_MSGDO.fields_by_name['node'].message_type = _MSGDONODE
+DESCRIPTOR.message_types_by_name['msgDINode'] = _MSGDINODE
+DESCRIPTOR.message_types_by_name['msgDI'] = _MSGDI
+DESCRIPTOR.message_types_by_name['msgDONode'] = _MSGDONODE
+DESCRIPTOR.message_types_by_name['msgDO'] = _MSGDO
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_DINode = _reflection.GeneratedProtocolMessageType('Message_DINode', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_DINODE,
+msgDINode = _reflection.GeneratedProtocolMessageType('msgDINode', (_message.Message,), dict(
+  DESCRIPTOR = _MSGDINODE,
   __module__ = 'message_io_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_DINode)
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgDINode)
   ))
-_sym_db.RegisterMessage(Message_DINode)
+_sym_db.RegisterMessage(msgDINode)
 
-Message_DI = _reflection.GeneratedProtocolMessageType('Message_DI', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_DI,
+msgDI = _reflection.GeneratedProtocolMessageType('msgDI', (_message.Message,), dict(
+  DESCRIPTOR = _MSGDI,
   __module__ = 'message_io_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_DI)
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgDI)
   ))
-_sym_db.RegisterMessage(Message_DI)
+_sym_db.RegisterMessage(msgDI)
 
-Message_DONode = _reflection.GeneratedProtocolMessageType('Message_DONode', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_DONODE,
+msgDONode = _reflection.GeneratedProtocolMessageType('msgDONode', (_message.Message,), dict(
+  DESCRIPTOR = _MSGDONODE,
   __module__ = 'message_io_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_DONode)
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgDONode)
   ))
-_sym_db.RegisterMessage(Message_DONode)
+_sym_db.RegisterMessage(msgDONode)
 
-Message_DO = _reflection.GeneratedProtocolMessageType('Message_DO', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_DO,
+msgDO = _reflection.GeneratedProtocolMessageType('msgDO', (_message.Message,), dict(
+  DESCRIPTOR = _MSGDO,
   __module__ = 'message_io_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_DO)
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgDO)
   ))
-_sym_db.RegisterMessage(Message_DO)
-
-Message_Astern = _reflection.GeneratedProtocolMessageType('Message_Astern', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE_ASTERN,
-  __module__ = 'message_io_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Astern)
-  ))
-_sym_db.RegisterMessage(Message_Astern)
+_sym_db.RegisterMessage(msgDO)
 
 
 # @@protoc_insertion_point(module_scope)

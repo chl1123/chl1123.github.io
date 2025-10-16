@@ -2,147 +2,343 @@
 # source: message_odometer.proto
 
 import sys
-
-_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode('latin1'))
+_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
+
 from . import message_header_pb2 as message__header__pb2
 from . import message_motorinfos_pb2 as message__motorinfos__pb2
 
-DESCRIPTOR = _descriptor.FileDescriptor(
-    name='message_odometer.proto',
-    package='rbk.protocol',
-    syntax='proto3',
-    serialized_options=None,
-    serialized_pb=_b(
-        '\n\x16message_odometer.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x18message_motorinfos.proto\"\x95\x02\n\x10Message_Odometer\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\r\n\x05\x63ycle\x18\x02 \x01(\r\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x02\x12\x0f\n\x07is_stop\x18\x06 \x01(\x08\x12\r\n\x05vel_x\x18\x07 \x01(\x02\x12\r\n\x05vel_y\x18\x08 \x01(\x02\x12\x12\n\nvel_rotate\x18\t \x01(\x02\x12\x13\n\x0b\x64\x65tect_skid\x18\n \x01(\x08\x12\x33\n\nmotor_info\x18\x0b \x03(\x0b\x32\x1f.rbk.protocol.Message_MotorInfo\x12\x12\n\nfollow_err\x18\x0c \x01(\x08\x62\x06proto3')
-    ,
-    dependencies=[message__header__pb2.DESCRIPTOR, message__motorinfos__pb2.DESCRIPTOR, ])
 
-_MESSAGE_ODOMETER = _descriptor.Descriptor(
-    name='Message_Odometer',
-    full_name='rbk.protocol.Message_Odometer',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_Odometer.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='cycle', full_name='rbk.protocol.Message_Odometer.cycle', index=1,
-            number=2, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_Odometer.x', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_Odometer.y', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='angle', full_name='rbk.protocol.Message_Odometer.angle', index=4,
-            number=5, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is_stop', full_name='rbk.protocol.Message_Odometer.is_stop', index=5,
-            number=6, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='vel_x', full_name='rbk.protocol.Message_Odometer.vel_x', index=6,
-            number=7, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='vel_y', full_name='rbk.protocol.Message_Odometer.vel_y', index=7,
-            number=8, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='vel_rotate', full_name='rbk.protocol.Message_Odometer.vel_rotate', index=8,
-            number=9, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='detect_skid', full_name='rbk.protocol.Message_Odometer.detect_skid', index=9,
-            number=10, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='motor_info', full_name='rbk.protocol.Message_Odometer.motor_info', index=10,
-            number=11, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='follow_err', full_name='rbk.protocol.Message_Odometer.follow_err', index=11,
-            number=12, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=89,
-    serialized_end=366,
+DESCRIPTOR = _descriptor.FileDescriptor(
+  name='message_odometer.proto',
+  package='rbk.protocol',
+  syntax='proto3',
+  serialized_options=None,
+  serialized_pb=_b('\n\x16message_odometer.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x18message_motorinfos.proto\"7\n\x07msgSlip\x12\x0c\n\x04slip\x18\x01 \x01(\x02\x12\x10\n\x08slipTime\x18\x02 \x01(\x02\x12\x0c\n\x04name\x18\x03 \x01(\t\"\xf9\x01\n\rmsgSlipSensor\x12\x32\n\x04type\x18\x01 \x01(\x0e\x32$.rbk.protocol.msgSlipSensor.slipType\x12!\n\x02vx\x18\x02 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12!\n\x02vy\x18\x03 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12!\n\x02vw\x18\x04 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12$\n\x05motor\x18\x05 \x03(\x0b\x32\x15.rbk.protocol.msgSlip\"%\n\x08slipType\x12\x07\n\x03imu\x10\x00\x12\x07\n\x03loc\x10\x01\x12\x07\n\x03opt\x10\x02\"B\n\x0emsgSlipSensors\x12\x30\n\x0bslipSensors\x18\x01 \x03(\x0b\x32\x1b.rbk.protocol.msgSlipSensor\"\xff\x01\n\x0bmsgOdometer\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05\x63ycle\x18\x02 \x01(\r\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x02\x12\x0e\n\x06isStop\x18\x06 \x01(\x08\x12\x0c\n\x04velX\x18\x07 \x01(\x02\x12\x0c\n\x04velY\x18\x08 \x01(\x02\x12\x11\n\tvelRotate\x18\t \x01(\x02\x12\x12\n\ndetectSkid\x18\n \x01(\x08\x12-\n\tmotorInfo\x18\x0b \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfo\x12\x11\n\tfollowErr\x18\x0c \x01(\x08\x62\x06proto3')
+  ,
+  dependencies=[message__header__pb2.DESCRIPTOR,message__motorinfos__pb2.DESCRIPTOR,])
+
+
+
+_MSGSLIPSENSOR_SLIPTYPE = _descriptor.EnumDescriptor(
+  name='slipType',
+  full_name='rbk.protocol.msgSlipSensor.slipType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='imu', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='loc', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='opt', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=358,
+  serialized_end=395,
+)
+_sym_db.RegisterEnumDescriptor(_MSGSLIPSENSOR_SLIPTYPE)
+
+
+_MSGSLIP = _descriptor.Descriptor(
+  name='msgSlip',
+  full_name='rbk.protocol.msgSlip',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='slip', full_name='rbk.protocol.msgSlip.slip', index=0,
+      number=1, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='slipTime', full_name='rbk.protocol.msgSlip.slipTime', index=1,
+      number=2, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='name', full_name='rbk.protocol.msgSlip.name', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=88,
+  serialized_end=143,
 )
 
-_MESSAGE_ODOMETER.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_ODOMETER.fields_by_name['motor_info'].message_type = message__motorinfos__pb2._MESSAGE_MOTORINFO
-DESCRIPTOR.message_types_by_name['Message_Odometer'] = _MESSAGE_ODOMETER
+
+_MSGSLIPSENSOR = _descriptor.Descriptor(
+  name='msgSlipSensor',
+  full_name='rbk.protocol.msgSlipSensor',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='type', full_name='rbk.protocol.msgSlipSensor.type', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='vx', full_name='rbk.protocol.msgSlipSensor.vx', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='vy', full_name='rbk.protocol.msgSlipSensor.vy', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='vw', full_name='rbk.protocol.msgSlipSensor.vw', index=3,
+      number=4, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='motor', full_name='rbk.protocol.msgSlipSensor.motor', index=4,
+      number=5, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGSLIPSENSOR_SLIPTYPE,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=146,
+  serialized_end=395,
+)
+
+
+_MSGSLIPSENSORS = _descriptor.Descriptor(
+  name='msgSlipSensors',
+  full_name='rbk.protocol.msgSlipSensors',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='slipSensors', full_name='rbk.protocol.msgSlipSensors.slipSensors', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=397,
+  serialized_end=463,
+)
+
+
+_MSGODOMETER = _descriptor.Descriptor(
+  name='msgOdometer',
+  full_name='rbk.protocol.msgOdometer',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgOdometer.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='cycle', full_name='rbk.protocol.msgOdometer.cycle', index=1,
+      number=2, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgOdometer.x', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgOdometer.y', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angle', full_name='rbk.protocol.msgOdometer.angle', index=4,
+      number=5, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isStop', full_name='rbk.protocol.msgOdometer.isStop', index=5,
+      number=6, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='velX', full_name='rbk.protocol.msgOdometer.velX', index=6,
+      number=7, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='velY', full_name='rbk.protocol.msgOdometer.velY', index=7,
+      number=8, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='velRotate', full_name='rbk.protocol.msgOdometer.velRotate', index=8,
+      number=9, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='detectSkid', full_name='rbk.protocol.msgOdometer.detectSkid', index=9,
+      number=10, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='motorInfo', full_name='rbk.protocol.msgOdometer.motorInfo', index=10,
+      number=11, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='followErr', full_name='rbk.protocol.msgOdometer.followErr', index=11,
+      number=12, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=466,
+  serialized_end=721,
+)
+
+_MSGSLIPSENSOR.fields_by_name['type'].enum_type = _MSGSLIPSENSOR_SLIPTYPE
+_MSGSLIPSENSOR.fields_by_name['vx'].message_type = _MSGSLIP
+_MSGSLIPSENSOR.fields_by_name['vy'].message_type = _MSGSLIP
+_MSGSLIPSENSOR.fields_by_name['vw'].message_type = _MSGSLIP
+_MSGSLIPSENSOR.fields_by_name['motor'].message_type = _MSGSLIP
+_MSGSLIPSENSOR_SLIPTYPE.containing_type = _MSGSLIPSENSOR
+_MSGSLIPSENSORS.fields_by_name['slipSensors'].message_type = _MSGSLIPSENSOR
+_MSGODOMETER.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGODOMETER.fields_by_name['motorInfo'].message_type = message__motorinfos__pb2._MSGMOTORINFO
+DESCRIPTOR.message_types_by_name['msgSlip'] = _MSGSLIP
+DESCRIPTOR.message_types_by_name['msgSlipSensor'] = _MSGSLIPSENSOR
+DESCRIPTOR.message_types_by_name['msgSlipSensors'] = _MSGSLIPSENSORS
+DESCRIPTOR.message_types_by_name['msgOdometer'] = _MSGODOMETER
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_Odometer = _reflection.GeneratedProtocolMessageType('Message_Odometer', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_ODOMETER,
-    __module__='message_odometer_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Odometer)
-))
-_sym_db.RegisterMessage(Message_Odometer)
+msgSlip = _reflection.GeneratedProtocolMessageType('msgSlip', (_message.Message,), dict(
+  DESCRIPTOR = _MSGSLIP,
+  __module__ = 'message_odometer_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgSlip)
+  ))
+_sym_db.RegisterMessage(msgSlip)
+
+msgSlipSensor = _reflection.GeneratedProtocolMessageType('msgSlipSensor', (_message.Message,), dict(
+  DESCRIPTOR = _MSGSLIPSENSOR,
+  __module__ = 'message_odometer_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgSlipSensor)
+  ))
+_sym_db.RegisterMessage(msgSlipSensor)
+
+msgSlipSensors = _reflection.GeneratedProtocolMessageType('msgSlipSensors', (_message.Message,), dict(
+  DESCRIPTOR = _MSGSLIPSENSORS,
+  __module__ = 'message_odometer_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgSlipSensors)
+  ))
+_sym_db.RegisterMessage(msgSlipSensors)
+
+msgOdometer = _reflection.GeneratedProtocolMessageType('msgOdometer', (_message.Message,), dict(
+  DESCRIPTOR = _MSGODOMETER,
+  __module__ = 'message_odometer_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgOdometer)
+  ))
+_sym_db.RegisterMessage(msgOdometer)
+
 
 # @@protoc_insertion_point(module_scope)

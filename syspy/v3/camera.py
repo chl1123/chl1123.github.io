@@ -1,20 +1,10 @@
 from typing import List
 
-from syspy.core.rbk_rpc import Message
+from syspy.core.rbk_rpc import Service
 from syspy.core.rbk_rpc import call_service
 
-class CameraV3(Message):
+class CameraV3(Service):
     """相机类"""
-
-    _TOPIC = "rbk.protocol.Message_AllCameraCloud"
-    _PLUGIN = "MultiDcamera"
-    _MODEL_CLASS = None
-
-    @classmethod
-    def init_model_class(cls):
-        if cls._MODEL_CLASS is None:
-            from .protobuf import Message_AllCameraCloud
-            cls._MODEL_CLASS = Message_AllCameraCloud
 
     @call_service(plugin_name="Perception")
     def addDisableDepthStrName(cls, ids: List[str]):

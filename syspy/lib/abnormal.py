@@ -5,6 +5,7 @@ from syspy.core.rbk_rpc import Service, RBKVersionError
 TASK_ABNORMAL_CODE = [(53300, 53599), (53600, 53999)]
 GENERIC_ABNORMAL_CODE = [(58000, 58099), (58100, 58199)]
 RESERVED_ABNORMAL_CODE = [(58200, 58999)]
+DSP_ABNORMAL_CODE = [57040]
 
 class AbnormalCodeError(Exception):
     """异常码范围错误异常
@@ -53,7 +54,7 @@ def check_abnormal_code(code: int):
         AbnormalCodeError: 如果异常码不在有效范围内
     """
 
-    if not (TASK_ABNORMAL_CODE[0][0] <= code <= TASK_ABNORMAL_CODE[1][1] or GENERIC_ABNORMAL_CODE[0][0] <= code <= RESERVED_ABNORMAL_CODE[0][1]):
+    if not (TASK_ABNORMAL_CODE[0][0] <= code <= TASK_ABNORMAL_CODE[1][1] or GENERIC_ABNORMAL_CODE[0][0] <= code <= RESERVED_ABNORMAL_CODE[0][1] or code in DSP_ABNORMAL_CODE):
         raise AbnormalCodeError(code)
 
 

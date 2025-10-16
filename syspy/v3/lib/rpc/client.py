@@ -156,8 +156,8 @@ if __name__ == "__main__":
     #
     # while True:
     #     print("-----------")
-    #     print("Message_DI ", client.get_message("rbk.protocol.Message_DI", "RBKSim"))
-    #     print("Message_Battery ", client.get_message("rbk.protocol.Message_Battery", "RBKSim"))
+    #     print("msgDI ", client.get_message("rbk.protocol.msgDI", "RBKSim"))
+    #     print("msgBattery ", client.get_message("rbk.protocol.msgBattery", "RBKSim"))
     #     time.sleep(1)
 
     # 模拟RBK RPC Client

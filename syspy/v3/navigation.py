@@ -7,7 +7,7 @@ from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedIn
 from ..utils import Coordinate
 
 if typing.TYPE_CHECKING:
-    from .protobuf import Message_MotorCmd
+    from .protobuf import msgMotorCmd
 
 
 @default_plugin("MoveFactory")
@@ -677,19 +677,19 @@ class NavigationV3(NavigationInterface):
 class NavStatusV3(NavStatusInterface):
     """导航状态类"""
 
-    _TOPIC = "rbk.protocol.Message_MoveStatus"
+    _TOPIC = "rbk.protocol.msgMoveStatus"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_MoveStatus
-        data: Message_MoveStatus = None
+        from .protobuf import msgMoveStatus
+        data: msgMoveStatus = None
 
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_MoveStatus
-            cls._MODEL_CLASS = Message_MoveStatus
+            from .protobuf import msgMoveStatus
+            cls._MODEL_CLASS = msgMoveStatus
 
     @classmethod
     def getChassisStop(cls) -> bool:
@@ -731,43 +731,43 @@ class NavStatusV3(NavStatusInterface):
                 turn = 3
         return turn
 
-    def get_task_status(self) -> "Message_MoveStatus.TaskStatus":
+    def get_task_status(self) -> "msgMoveStatus.taskStatus":
         """获取任务状态
 
         Returns:
-            Message_MoveStatus.TaskStatus: 返回脚本任务状态
+            msgMoveStatus.TaskStatus: 返回脚本任务状态
         """
         if self.update():
-            return self.data.task_status
+            return self.data.taskStatus
 
 class NavSpeedV3(NavSpeedInterface):
     """导航速度类"""
 
-    _TOPIC = "rbk.protocol.Message_NavSpeed"
+    _TOPIC = "rbk.protocol.msgNavSpeed"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_NavSpeed
-        data: Message_NavSpeed = None
+        from .protobuf import msgNavSpeed
+        data: msgNavSpeed = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_NavSpeed
-            cls._MODEL_CLASS = Message_NavSpeed
+            from .protobuf import msgNavSpeed
+            cls._MODEL_CLASS = msgNavSpeed
 
     def get_speeds(self) -> Tuple[float, float, float]:
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
-    def get_motor_cmd(self) -> typing.List["Message_MotorCmd"]:
+    def get_motor_cmd(self) -> typing.List["msgMotorCmd"]:
         """获取电机指令列表
 
         Returns:
-            typing.List[Message_MotorCmd]: 返回电机指令列表
+            typing.List[msgMotorCmd]: 返回电机指令列表
         """
         if self.update():
-            return self.data.motor_cmd
+            return self.data.motorCmd
 
     def get_is2move(self) -> bool:
         """获取是否准备移动的标志位
@@ -776,4 +776,4 @@ class NavSpeedV3(NavSpeedInterface):
             bool: True表示准备移动，False表示未准备移动
         """
         if self.update():
-            return self.data.is2move
+            return self.data.isToMove

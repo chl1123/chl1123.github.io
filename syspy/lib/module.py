@@ -5,6 +5,7 @@ from enum import IntEnum
 from threading import Lock
 from typing import Union, Optional, Callable, Tuple
 from syspy.utils import ScriptType
+from ..core.rbk_rpc import Service
 from ..utils import SCRIPTS_DIR
 from syspy import RBK_VERSION, RobotParam, Container, Abnormal
 from inspect import stack
@@ -95,6 +96,7 @@ NEW_TASK_TIMEOUT = 1
 class Module:
     stop_flag = False
     script_name = None
+    script_type = ScriptType.GENERAL
     __lock = Lock()
     __run_status = ScriptStatus.NONE
     __rpc_client = None
@@ -112,6 +114,7 @@ class Module:
     __set_container_callback = None
     __clear_container_by_goods_id_callback = None
     __clear_container_callback = None
+    __service = None
     script_id = ""
 
     @classmethod
@@ -121,11 +124,13 @@ class Module:
         caller_file = caller_frame.filename
         # 获取脚本相对路径
         cls.script_name = caller_file.split(SCRIPTS_DIR + "/")[-1]
+        if cls.script_name.startswith("tasks/"):
+            cls.script_type = ScriptType.TASK
         if name == "":
             cls.script_id = cls.script_name
-        if RBK_VERSION == 4:
-            from syspy.v4.lib.rbk import core
-            core.Init(cls.script_id)
+
+        Service.init(cls.script_id, cls.script_type)
+
         print("script_name: ", cls.script_name)
         print("script_id", cls.script_id)
         args = cls.__get_args()
@@ -166,40 +171,20 @@ class Module:
         container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
         is_container = isinstance(container_num, int) and container_num > 0
 
+        Service.server().register_function(cls.__update_cmd, "update_cmd")
+        Service.server().register_function(cls.__suspend, "suspend")
+        Service.server().register_function(cls.__resume, "resume")
+        Service.server().register_function(cls.__cancel, "cancel")
+        Service.server().register_function(cls.__get_task, "get_task")
+        Service.server().register_function(cls.safe_move_check, "safe_move_check")
+        Service.server().register_function(cls.get_safe_move_check, "get_safe_move_check")
+        Service.server().register_function(cls.modbus, "modbus")
+        if is_container:
+            Service.server().register_function(cls.set_container, "setContainer")
+            Service.server().register_function(cls.clear_container_by_goods_id, "clearContainerByGoodsId")
+            Service.server().register_function(cls.clear_container, "clearContainer")
         if RBK_VERSION == 3:
-            from syspy.lib.rpc.server import RpcServer
-            service = RpcServer(cls.script_id, ScriptType.TASK)
-            service.registerFunction(cls.__update_cmd, "update_cmd")
-            service.registerFunction(cls.__suspend, "suspend")
-            service.registerFunction(cls.__resume, "resume")
-            service.registerFunction(cls.__cancel, "cancel")
-
-            service.registerFunction(cls.__get_task, "get_task")
-
-            service.registerFunction(cls.safe_move_check, "safe_move_check")
-            service.registerFunction(cls.get_safe_move_check, "get_safe_move_check")
-            service.registerFunction(cls.modbus, "modbus")
-            if is_container:
-                service.registerFunction(cls.set_container, "setContainer")
-                service.registerFunction(cls.clear_container_by_goods_id, "clearContainerByGoodsId")
-                service.registerFunction(cls.clear_container, "clearContainer")
-            service.start()
-        elif RBK_VERSION == 4:
-            from syspy.v4.lib.rbk import core, service
-            service.addService(cls.script_id, "update_cmd", cls.__update_cmd)
-            service.addService(cls.script_id, "suspend", cls.__suspend)
-            service.addService(cls.script_id, "resume", cls.__resume)
-            service.addService(cls.script_id, "cancel", cls.__cancel)
-
-            service.addService(cls.script_id, "get_task", cls.__get_task)
-
-            service.addService(cls.script_id, "safe_move_check", cls.safe_move_check)
-            service.addService(cls.script_id, "get_safe_move_check", cls.get_safe_move_check)
-            service.addService(cls.script_id, "modbus", cls.modbus)
-            if is_container:
-                service.addService(cls.script_id, "setContainer", cls.set_container)
-                service.addService(cls.script_id, "clearContainerByGoodsId", cls.clear_container_by_goods_id)
-                service.addService(cls.script_id, "clearContainer", cls.clear_container)
+            Service.server().start()
 
     def __del__(self):
         if self.__rpc_client:

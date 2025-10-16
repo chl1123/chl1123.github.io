@@ -5,25 +5,25 @@ from typing import List
 from syspy.core.rbk_rpc import call_service, Message
 
 if typing.TYPE_CHECKING:
-    from .protobuf import Message_Laser3D
+    from .protobuf import msgLaser3D
 
 
 class LaserV3(Message):
     """激光类"""
 
-    _TOPIC = "rbk.protocol.Message_AllLasers"
+    _TOPIC = "rbk.protocol.msgAllLasers"
     _PLUGIN = "MultiLaser"
     _MODEL_CLASS = None
 
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_AllLasers
-        data: Message_AllLasers = None
+        from .protobuf import msgAllLasers
+        data: msgAllLasers = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_AllLasers
-            cls._MODEL_CLASS = Message_AllLasers
+            from .protobuf import msgAllLasers
+            cls._MODEL_CLASS = msgAllLasers
 
     @classmethod
     @call_service(plugin_name="SensorFuser")
@@ -166,25 +166,25 @@ class LaserV3(Message):
 class Laser3DV3(Message):
     """激光类"""
 
-    _TOPIC = "rbk.protocol.Message_AllLasers3D"
+    _TOPIC = "rbk.protocol.msgAllLasers3D"
     _PLUGIN = "MultiLaser"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_AllLasers3D
-        data: Message_AllLasers3D = None
+        from .protobuf import msgAllLasers3D, msgLaser3D
+        data: msgAllLasers3D = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_AllLasers3D
-            cls._MODEL_CLASS = Message_AllLasers3D
+            from .protobuf import msgAllLasers3D
+            cls._MODEL_CLASS = msgAllLasers3D
 
-    def get_lasers3d(self) -> List["Message_Laser3D"]:
+    def get_lasers3d(self) -> List["msgLaser3D"]:
         """获取所有3D激光数据列表
 
         Returns:
-            List[Message_Laser3D]: 返回所有3D激光数据的列表
+            List[msgLaser3D]: 返回所有3D激光数据的列表
         """
         if self.update():
-            return self.data.lasers3d
+            return self.data.lasers3D
 

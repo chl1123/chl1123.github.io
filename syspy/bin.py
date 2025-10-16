@@ -4,14 +4,14 @@ from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 
 
 if TYPE_CHECKING:
-    from syspy.v3.protobuf import Message_Bin  # IDE类型提示
+    from syspy.v3.protobuf import msgBin  # IDE类型提示
 
 
 class BinInterface(ABC, Message):
     """库位类"""
 
     @classmethod
-    def get_bins(cls) -> List["Message_Bin"]:
+    def get_bins(cls) -> List["msgBin"]:
         raise RBKVersionError()
 
     @classmethod

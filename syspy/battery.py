@@ -1,8 +1,8 @@
 from syspy import RBK_VERSION
 if RBK_VERSION == 3:
-    from syspy.v3.protobuf.message.message_battery_pb2 import Message_Battery
+    from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
 elif RBK_VERSION == 4:
-    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery as Message_Battery
+    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery as msgBattery
 
 
 class BatteryInterface:
@@ -117,11 +117,11 @@ class BatteryInterface:
         """
         return self.child.getAlarmPercentage(topic=topic)
 
-    def publish(self, battery_info: "Message_Battery", *, topic: str = "Battery-000") -> int:
+    def publish(self, battery_info: "msgBattery", *, topic: str = "Battery-000") -> int:
         """发布电池信息
 
         Args:
-            battery_info ("Message_Battery"): proto消息
+            battery_info ("msgBattery"): proto消息
 
         Returns:
             int: -1: 发布失败; 0: 发布成功

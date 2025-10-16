@@ -2,1482 +2,1504 @@
 # source: message_laser.proto
 
 import sys
-
-_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode('latin1'))
+_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
+
 from . import message_header_pb2 as message__header__pb2
 
+
 DESCRIPTOR = _descriptor.FileDescriptor(
-    name='message_laser.proto',
-    package='rbk.protocol',
-    syntax='proto3',
-    serialized_options=None,
-    serialized_pb=_b(
-        '\n\x13message_laser.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"X\n\x18Message_LaserInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0b\n\x03yaw\x18\x04 \x01(\x01\x12\x0e\n\x06upside\x18\x05 \x01(\x08\"\xeb\x01\n\x17Message_LaserDeviceInfo\x12\x13\n\x0b\x64\x65vice_name\x18\x01 \x01(\t\x12\x11\n\tmin_range\x18\x02 \x01(\x01\x12\x11\n\tmax_range\x18\x03 \x01(\x01\x12\x11\n\tmin_angle\x18\x04 \x01(\x01\x12\x11\n\tmax_angle\x18\x05 \x01(\x01\x12\x11\n\treal_step\x18\x06 \x01(\x01\x12\x10\n\x08pub_step\x18\x07 \x01(\x01\x12\x16\n\x0etime_increment\x18\x08 \x01(\x01\x12\x11\n\tscan_freq\x18\t \x01(\x01\x12\n\n\x02id\x18\n \x01(\r\x12\x13\n\x0bisClockWise\x18\x0b \x01(\x08\"\xba\x01\n\x11Message_LaserBeam\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\r\n\x05\x61ngle\x18\x02 \x01(\x01\x12\x0c\n\x04\x64ist\x18\x03 \x01(\x01\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\x0c\n\x04rssi\x18\x06 \x01(\x01\x12\r\n\x05valid\x18\x07 \x01(\x08\x12\x12\n\nis_virtual\x18\x08 \x01(\x08\x12\x13\n\x0bis_obstacle\x18\t \x01(\x08\"\xb1\x01\n\x13Message_LaserBeam3D\x12\n\n\x02id\x18\x01 \x01(\r\x12\t\n\x01x\x18\x02 \x01(\x02\x12\t\n\x01y\x18\x03 \x01(\x02\x12\t\n\x01z\x18\x04 \x01(\x02\x12\x11\n\tintensity\x18\x05 \x01(\r\x12\x0c\n\x04ring\x18\x06 \x01(\r\x12\x11\n\ttimestamp\x18\x07 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x08 \x01(\x0c\x12\x14\n\x0c\x66irstAzimuth\x18\t \x01(\x02\x12\x15\n\rsecondAzimuth\x18\n \x01(\x02\"\xea\x02\n\rMessage_Laser\x12:\n\x0b\x64\x65vice_info\x18\x01 \x01(\x0b\x32%.rbk.protocol.Message_LaserDeviceInfo\x12<\n\x0cinstall_info\x18\x02 \x01(\x0b\x32&.rbk.protocol.Message_LaserInstallInfo\x12,\n\x06header\x18\x03 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12.\n\x05\x62\x65\x61ms\x18\x04 \x03(\x0b\x32\x1f.rbk.protocol.Message_LaserBeam\x12\x12\n\nuse_forLoc\x18\x05 \x01(\x08\x12\x36\n\rbeams_not_use\x18\x06 \x03(\x0b\x32\x1f.rbk.protocol.Message_LaserBeam\x12\x18\n\x10is3DLocalization\x18\x07 \x01(\x08\x12\x1b\n\x13use_forBinDetection\x18\x08 \x01(\x08\"\xcc\x03\n\x0fMessage_Laser3D\x12:\n\x0b\x64\x65vice_info\x18\x01 \x01(\x0b\x32%.rbk.protocol.Message_LaserDeviceInfo\x12<\n\x0cinstall_info\x18\x02 \x01(\x0b\x32&.rbk.protocol.Message_LaserInstallInfo\x12,\n\x06header\x18\x03 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\x32\n\x07\x62\x65\x61ms3D\x18\x04 \x03(\x0b\x32!.rbk.protocol.Message_LaserBeam3D\x12\x12\n\nuse_forLoc\x18\x05 \x01(\x08\x12\x36\n\rbeams_not_use\x18\x06 \x03(\x0b\x32\x1f.rbk.protocol.Message_LaserBeam\x12\x18\n\x10is3DLocalization\x18\x07 \x01(\x08\x12\x11\n\tlasertype\x18\x08 \x01(\r\x12\x0e\n\x06\x66\x61\x63tor\x18\t \x01(\x02\x12\x19\n\x11\x61zimuthcorrection\x18\n \x03(\x02\x12\x1a\n\x12verticalcorrection\x18\x0b \x03(\x02\x12\x1d\n\x15is3DobstacleDetection\x18\x0c \x01(\x08\"?\n\x11Message_AllLasers\x12*\n\x05laser\x18\x01 \x03(\x0b\x32\x1b.rbk.protocol.Message_Laser\"F\n\x13Message_AllLasers3D\x12/\n\x08lasers3d\x18\x01 \x03(\x0b\x32\x1d.rbk.protocol.Message_Laser3D\"\xd3\x02\n\x1bMessage_LaserClusterFeature\x12\x10\n\x08\x61vg_rssi\x18\x01 \x01(\x01\x12\x12\n\nnum_points\x18\x02 \x01(\x01\x12\x0b\n\x03std\x18\x03 \x01(\x01\x12\x16\n\x0e\x61vg_median_dev\x18\x04 \x01(\x01\x12\x11\n\tprev_jump\x18\x05 \x01(\x01\x12\x11\n\tnext_jump\x18\x06 \x01(\x01\x12\r\n\x05width\x18\x07 \x01(\x01\x12\x11\n\tlinearity\x18\x08 \x01(\x01\x12\x13\n\x0b\x63ircularity\x18\t \x01(\x01\x12\x0e\n\x06radius\x18\n \x01(\x01\x12\x17\n\x0f\x62oundary_length\x18\x0b \x01(\x01\x12\x10\n\x08\x61ng_diff\x18\x0c \x01(\x01\x12\x16\n\x0emean_curvature\x18\r \x01(\x01\x12\x1b\n\x13\x62oundary_regularity\x18\x0e \x01(\x01\x12\x0b\n\x03iav\x18\x0f \x01(\x01\x12\x0f\n\x07std_iav\x18\x10 \x01(\x01\"\xab\x02\n\x14Message_LaserCluster\x12:\n\x0b\x64\x65vice_info\x18\x01 \x01(\x0b\x32%.rbk.protocol.Message_LaserDeviceInfo\x12<\n\x0cinstall_info\x18\x02 \x01(\x0b\x32&.rbk.protocol.Message_LaserInstallInfo\x12,\n\x06header\x18\x03 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12.\n\x05\x62\x65\x61ms\x18\x04 \x03(\x0b\x32\x1f.rbk.protocol.Message_LaserBeam\x12;\n\x08\x66\x65\x61tures\x18\x05 \x01(\x0b\x32).rbk.protocol.Message_LaserClusterFeature\"|\n\x16Message_LaserSegResult\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12\x34\n\x08\x63lusters\x18\x02 \x03(\x0b\x32\".rbk.protocol.Message_LaserCluster\"3\n\x0cMessage_Grid\x12\r\n\x05value\x18\x01 \x01(\x05\x12\t\n\x01x\x18\x02 \x01(\x05\x12\t\n\x01y\x18\x03 \x01(\x05\"P\n\x0fMessage_CostMap\x12\x12\n\nresolution\x18\x01 \x01(\x05\x12)\n\x05grids\x18\x02 \x03(\x0b\x32\x1a.rbk.protocol.Message_Grid\"f\n\x13Message_SensorPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x13\n\x0bis_obstacle\x18\x04 \x01(\x08\x12\x0c\n\x04rssi\x18\x05 \x01(\x01\x12\x0b\n\x03tag\x18\x06 \x01(\t\"\xac\x03\n\x1aMessage_SensorPointCluster\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12;\n\x04type\x18\x02 \x01(\x0e\x32-.rbk.protocol.Message_SensorPointCluster.Type\x12\n\n\x02id\x18\x03 \x01(\t\x12\x30\n\x05point\x18\x04 \x03(\x0b\x32!.rbk.protocol.Message_SensorPoint\"\xe4\x01\n\x04Type\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0b\x46\x61llingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x10\n\x0cVirtualPoint\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\x12\x11\n\rReservedPoint\x10\x07\x12\x10\n\x0c\x44iUltrasonic\x10\x08\x12\x0f\n\x0b\x44\x65pthCamera\x10\t\x12\x17\n\x13ReservedDepthCamera\x10\n\x12\x10\n\x0c\x44istanceNode\x10\x0b\x12\x0f\n\x0b\x41\x44\x43ollision\x10\x0c\"\x9d\x01\n\x18Message_SensorPointCloud\x12@\n\x0eglobal_cluster\x18\x01 \x03(\x0b\x32(.rbk.protocol.Message_SensorPointCluster\x12?\n\rlocal_cluster\x18\x02 \x03(\x0b\x32(.rbk.protocol.Message_SensorPointCluster\"\xa0\x02\n\x12Message_LaserPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x33\n\x04type\x18\x04 \x01(\x0e\x32%.rbk.protocol.Message_LaserPoint.Type\x12\n\n\x02id\x18\x05 \x01(\t\x12\x13\n\x0bis_obstacle\x18\x06 \x01(\x08\x12\x0c\n\x04rssi\x18\x07 \x01(\x01\x12\x11\n\tdata_nsec\x18\x08 \x01(\x04\"r\n\x04Type\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0b\x46\x61llingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x10\n\x0cVirtualPoint\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\"x\n\x17Message_LaserPointCloud\x12,\n\x06header\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.Message_Header\x12/\n\x05point\x18\x02 \x03(\x0b\x32 .rbk.protocol.Message_LaserPointb\x06proto3')
-    ,
-    dependencies=[message__header__pb2.DESCRIPTOR, ])
+  name='message_laser.proto',
+  package='rbk.protocol',
+  syntax='proto3',
+  serialized_options=None,
+  serialized_pb=_b('\n\x13message_laser.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"`\n\x13msgLaserInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0c\n\x04roll\x18\x04 \x01(\x01\x12\r\n\x05pitch\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\"\xdd\x01\n\x12msgLaserDeviceInfo\x12\x12\n\ndeviceName\x18\x01 \x01(\t\x12\x10\n\x08minRange\x18\x02 \x01(\x01\x12\x10\n\x08maxRange\x18\x03 \x01(\x01\x12\x10\n\x08minAngle\x18\x04 \x01(\x01\x12\x10\n\x08maxAngle\x18\x05 \x01(\x01\x12\x10\n\x08realStep\x18\x06 \x01(\x01\x12\x0f\n\x07pubStep\x18\x07 \x01(\x01\x12\x15\n\rtimeIncrement\x18\x08 \x01(\x01\x12\x10\n\x08scanFreq\x18\t \x01(\x01\x12\n\n\x02id\x18\n \x01(\r\x12\x13\n\x0bisClockWise\x18\x0b \x01(\x08\"\xae\x01\n\x0cmsgLaserBeam\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05\x61ngle\x18\x02 \x01(\x01\x12\x0c\n\x04\x64ist\x18\x03 \x01(\x01\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\x0c\n\x04rssi\x18\x06 \x01(\x01\x12\r\n\x05valid\x18\x07 \x01(\x08\x12\x11\n\tisVirtual\x18\x08 \x01(\x08\x12\x12\n\nisObstacle\x18\t \x01(\x08\"\xac\x01\n\x0emsgLaserBeam3D\x12\n\n\x02id\x18\x01 \x01(\r\x12\t\n\x01x\x18\x02 \x01(\x02\x12\t\n\x01y\x18\x03 \x01(\x02\x12\t\n\x01z\x18\x04 \x01(\x02\x12\x11\n\tintensity\x18\x05 \x01(\r\x12\x0c\n\x04ring\x18\x06 \x01(\r\x12\x11\n\ttimestamp\x18\x07 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x08 \x01(\x0c\x12\x14\n\x0c\x66irstAzimuth\x18\t \x01(\x02\x12\x15\n\rsecondAzimuth\x18\n \x01(\x02\"\xc6\x02\n\x08msgLaser\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12)\n\x05\x62\x65\x61ms\x18\x04 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x11\n\tuseForLoc\x18\x05 \x01(\x08\x12/\n\x0b\x62\x65\x61msNotUse\x18\x06 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x18\n\x10is3DLocalization\x18\x07 \x01(\x08\x12\x1a\n\x12useForBinDetection\x18\x08 \x01(\x08\"\xa9\x03\n\nmsgLaser3D\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12-\n\x07\x62\x65\x61ms3D\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgLaserBeam3D\x12\x11\n\tuseForLoc\x18\x05 \x01(\x08\x12/\n\x0b\x62\x65\x61msNotUse\x18\x06 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x18\n\x10is3DLocalization\x18\x07 \x01(\x08\x12\x11\n\tlaserType\x18\x08 \x01(\r\x12\x0e\n\x06\x66\x61\x63tor\x18\t \x01(\x02\x12\x19\n\x11\x61zimuthCorrection\x18\n \x03(\x02\x12\x1a\n\x12verticalCorrection\x18\x0b \x03(\x02\x12\x1d\n\x15is3DobstacleDetection\x18\x0c \x01(\x08\"5\n\x0cmsgAllLasers\x12%\n\x05laser\x18\x01 \x03(\x0b\x32\x16.rbk.protocol.msgLaser\"<\n\x0emsgAllLasers3D\x12*\n\x08lasers3D\x18\x01 \x03(\x0b\x32\x18.rbk.protocol.msgLaser3D\"\xc3\x02\n\x16msgLaserClusterFeature\x12\x0f\n\x07\x61vgRssi\x18\x01 \x01(\x01\x12\x11\n\tnumPoints\x18\x02 \x01(\x01\x12\x0b\n\x03std\x18\x03 \x01(\x01\x12\x14\n\x0c\x61vgMedianDev\x18\x04 \x01(\x01\x12\x10\n\x08prevJump\x18\x05 \x01(\x01\x12\x10\n\x08nextJump\x18\x06 \x01(\x01\x12\r\n\x05width\x18\x07 \x01(\x01\x12\x11\n\tlinearity\x18\x08 \x01(\x01\x12\x13\n\x0b\x63ircularity\x18\t \x01(\x01\x12\x0e\n\x06radius\x18\n \x01(\x01\x12\x16\n\x0e\x62oundaryLength\x18\x0b \x01(\x01\x12\x0f\n\x07\x61ngDiff\x18\x0c \x01(\x01\x12\x15\n\rmeanCurvature\x18\r \x01(\x01\x12\x1a\n\x12\x62oundaryRegularity\x18\x0e \x01(\x01\x12\x0b\n\x03iav\x18\x0f \x01(\x01\x12\x0e\n\x06stdIav\x18\x10 \x01(\x01\"\x8b\x02\n\x0fmsgLaserCluster\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12)\n\x05\x62\x65\x61ms\x18\x04 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x36\n\x08\x66\x65\x61tures\x18\x05 \x01(\x0b\x32$.rbk.protocol.msgLaserClusterFeature\"m\n\x11msgLaserSegResult\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12/\n\x08\x63lusters\x18\x02 \x03(\x0b\x32\x1d.rbk.protocol.msgLaserCluster\".\n\x07msgGrid\x12\r\n\x05value\x18\x01 \x01(\x05\x12\t\n\x01x\x18\x02 \x01(\x05\x12\t\n\x01y\x18\x03 \x01(\x05\"F\n\nmsgCostMap\x12\x12\n\nresolution\x18\x01 \x01(\x05\x12$\n\x05grids\x18\x02 \x03(\x0b\x32\x15.rbk.protocol.msgGrid\"`\n\x0emsgSensorPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x12\n\nisObstacle\x18\x04 \x01(\x08\x12\x0c\n\x04rssi\x18\x05 \x01(\x01\x12\x0b\n\x03tag\x18\x06 \x01(\t\"\xa6\x03\n\x15msgSensorPointCluster\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12=\n\x04type\x18\x02 \x01(\x0e\x32/.rbk.protocol.msgSensorPointCluster.clusterType\x12\n\n\x02id\x18\x03 \x01(\t\x12+\n\x05point\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgSensorPoint\"\xeb\x01\n\x0b\x63lusterType\x12\x0e\n\nultrasonic\x10\x00\x12\t\n\x05laser\x10\x01\x12\x0f\n\x0b\x66\x61llingDown\x10\x02\x12\r\n\tcollision\x10\x03\x12\x0c\n\x08infrared\x10\x04\x12\x10\n\x0cvirtualPoint\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\x12\x11\n\rreservedPoint\x10\x07\x12\x10\n\x0c\x44IUltrasonic\x10\x08\x12\x0f\n\x0b\x64\x65pthCamera\x10\t\x12\x17\n\x13reservedDepthCamera\x10\n\x12\x10\n\x0c\x64istanceNode\x10\x0b\x12\x0f\n\x0b\x41\x44\x43ollision\x10\x0c\"\x8c\x01\n\x13msgSensorPointCloud\x12:\n\rglobalCluster\x18\x01 \x03(\x0b\x32#.rbk.protocol.msgSensorPointCluster\x12\x39\n\x0clocalCluster\x18\x02 \x03(\x0b\x32#.rbk.protocol.msgSensorPointCluster\"\x94\x02\n\rmsgLaserPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12.\n\x04type\x18\x04 \x01(\x0e\x32 .rbk.protocol.msgLaserPoint.Type\x12\n\n\x02id\x18\x05 \x01(\t\x12\x12\n\nisObstacle\x18\x06 \x01(\x08\x12\x0c\n\x04rssi\x18\x07 \x01(\x01\x12\x10\n\x08\x64\x61taNSec\x18\x08 \x01(\x04\"r\n\x04Type\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0b\x46\x61llingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x10\n\x0cVirtualPoint\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\"i\n\x12msgLaserPointCloud\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12*\n\x05point\x18\x02 \x03(\x0b\x32\x1b.rbk.protocol.msgLaserPointb\x06proto3')
+  ,
+  dependencies=[message__header__pb2.DESCRIPTOR,])
 
-_MESSAGE_SENSORPOINTCLUSTER_TYPE = _descriptor.EnumDescriptor(
-    name='Type',
-    full_name='rbk.protocol.Message_SensorPointCluster.Type',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='Ultrasonic', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Laser', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Fallingdown', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Collision', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Infrared', index=4, number=4,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='VirtualPoint', index=5, number=5,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='APIObstacle', index=6, number=6,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='ReservedPoint', index=7, number=7,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DiUltrasonic', index=8, number=8,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DepthCamera', index=9, number=9,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='ReservedDepthCamera', index=10, number=10,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='DistanceNode', index=11, number=11,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='ADCollision', index=12, number=12,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=2931,
-    serialized_end=3159,
+
+
+_MSGSENSORPOINTCLUSTER_CLUSTERTYPE = _descriptor.EnumDescriptor(
+  name='clusterType',
+  full_name='rbk.protocol.msgSensorPointCluster.clusterType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='ultrasonic', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='laser', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='fallingDown', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='collision', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='infrared', index=4, number=4,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='virtualPoint', index=5, number=5,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='APIObstacle', index=6, number=6,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='reservedPoint', index=7, number=7,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='DIUltrasonic', index=8, number=8,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='depthCamera', index=9, number=9,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='reservedDepthCamera', index=10, number=10,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='distanceNode', index=11, number=11,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='ADCollision', index=12, number=12,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=2720,
+  serialized_end=2955,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_SENSORPOINTCLUSTER_TYPE)
+_sym_db.RegisterEnumDescriptor(_MSGSENSORPOINTCLUSTER_CLUSTERTYPE)
 
-_MESSAGE_LASERPOINT_TYPE = _descriptor.EnumDescriptor(
-    name='Type',
-    full_name='rbk.protocol.Message_LaserPoint.Type',
-    filename=None,
-    file=DESCRIPTOR,
-    values=[
-        _descriptor.EnumValueDescriptor(
-            name='Ultrasonic', index=0, number=0,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Laser', index=1, number=1,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Fallingdown', index=2, number=2,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Collision', index=3, number=3,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='Infrared', index=4, number=4,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='VirtualPoint', index=5, number=5,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='APIObstacle', index=6, number=6,
-            serialized_options=None,
-            type=None),
-    ],
-    containing_type=None,
-    serialized_options=None,
-    serialized_start=2931,
-    serialized_end=3045,
+_MSGLASERPOINT_TYPE = _descriptor.EnumDescriptor(
+  name='Type',
+  full_name='rbk.protocol.msgLaserPoint.Type',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='Ultrasonic', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='Laser', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='Fallingdown', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='Collision', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='Infrared', index=4, number=4,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='VirtualPoint', index=5, number=5,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='APIObstacle', index=6, number=6,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=3263,
+  serialized_end=3377,
 )
-_sym_db.RegisterEnumDescriptor(_MESSAGE_LASERPOINT_TYPE)
+_sym_db.RegisterEnumDescriptor(_MSGLASERPOINT_TYPE)
 
-_MESSAGE_LASERINSTALLINFO = _descriptor.Descriptor(
-    name='Message_LaserInstallInfo',
-    full_name='rbk.protocol.Message_LaserInstallInfo',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_LaserInstallInfo.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_LaserInstallInfo.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='z', full_name='rbk.protocol.Message_LaserInstallInfo.z', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='yaw', full_name='rbk.protocol.Message_LaserInstallInfo.yaw', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='upside', full_name='rbk.protocol.Message_LaserInstallInfo.upside', index=4,
-            number=5, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=59,
-    serialized_end=147,
-)
 
-_MESSAGE_LASERDEVICEINFO = _descriptor.Descriptor(
-    name='Message_LaserDeviceInfo',
-    full_name='rbk.protocol.Message_LaserDeviceInfo',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='device_name', full_name='rbk.protocol.Message_LaserDeviceInfo.device_name', index=0,
-            number=1, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='min_range', full_name='rbk.protocol.Message_LaserDeviceInfo.min_range', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='max_range', full_name='rbk.protocol.Message_LaserDeviceInfo.max_range', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='min_angle', full_name='rbk.protocol.Message_LaserDeviceInfo.min_angle', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='max_angle', full_name='rbk.protocol.Message_LaserDeviceInfo.max_angle', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='real_step', full_name='rbk.protocol.Message_LaserDeviceInfo.real_step', index=5,
-            number=6, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='pub_step', full_name='rbk.protocol.Message_LaserDeviceInfo.pub_step', index=6,
-            number=7, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='time_increment', full_name='rbk.protocol.Message_LaserDeviceInfo.time_increment', index=7,
-            number=8, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='scan_freq', full_name='rbk.protocol.Message_LaserDeviceInfo.scan_freq', index=8,
-            number=9, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='id', full_name='rbk.protocol.Message_LaserDeviceInfo.id', index=9,
-            number=10, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='isClockWise', full_name='rbk.protocol.Message_LaserDeviceInfo.isClockWise', index=10,
-            number=11, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=150,
-    serialized_end=385,
+_MSGLASERINSTALLINFO = _descriptor.Descriptor(
+  name='msgLaserInstallInfo',
+  full_name='rbk.protocol.msgLaserInstallInfo',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgLaserInstallInfo.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgLaserInstallInfo.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='rbk.protocol.msgLaserInstallInfo.z', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='roll', full_name='rbk.protocol.msgLaserInstallInfo.roll', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='pitch', full_name='rbk.protocol.msgLaserInstallInfo.pitch', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='yaw', full_name='rbk.protocol.msgLaserInstallInfo.yaw', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=59,
+  serialized_end=155,
 )
 
-_MESSAGE_LASERBEAM = _descriptor.Descriptor(
-    name='Message_LaserBeam',
-    full_name='rbk.protocol.Message_LaserBeam',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_LaserBeam.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='angle', full_name='rbk.protocol.Message_LaserBeam.angle', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='dist', full_name='rbk.protocol.Message_LaserBeam.dist', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_LaserBeam.x', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_LaserBeam.y', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='rssi', full_name='rbk.protocol.Message_LaserBeam.rssi', index=5,
-            number=6, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='valid', full_name='rbk.protocol.Message_LaserBeam.valid', index=6,
-            number=7, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is_virtual', full_name='rbk.protocol.Message_LaserBeam.is_virtual', index=7,
-            number=8, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is_obstacle', full_name='rbk.protocol.Message_LaserBeam.is_obstacle', index=8,
-            number=9, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=388,
-    serialized_end=574,
+
+_MSGLASERDEVICEINFO = _descriptor.Descriptor(
+  name='msgLaserDeviceInfo',
+  full_name='rbk.protocol.msgLaserDeviceInfo',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='deviceName', full_name='rbk.protocol.msgLaserDeviceInfo.deviceName', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='minRange', full_name='rbk.protocol.msgLaserDeviceInfo.minRange', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxRange', full_name='rbk.protocol.msgLaserDeviceInfo.maxRange', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='minAngle', full_name='rbk.protocol.msgLaserDeviceInfo.minAngle', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxAngle', full_name='rbk.protocol.msgLaserDeviceInfo.maxAngle', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='realStep', full_name='rbk.protocol.msgLaserDeviceInfo.realStep', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='pubStep', full_name='rbk.protocol.msgLaserDeviceInfo.pubStep', index=6,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='timeIncrement', full_name='rbk.protocol.msgLaserDeviceInfo.timeIncrement', index=7,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='scanFreq', full_name='rbk.protocol.msgLaserDeviceInfo.scanFreq', index=8,
+      number=9, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='id', full_name='rbk.protocol.msgLaserDeviceInfo.id', index=9,
+      number=10, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isClockWise', full_name='rbk.protocol.msgLaserDeviceInfo.isClockWise', index=10,
+      number=11, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=158,
+  serialized_end=379,
 )
 
-_MESSAGE_LASERBEAM3D = _descriptor.Descriptor(
-    name='Message_LaserBeam3D',
-    full_name='rbk.protocol.Message_LaserBeam3D',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='id', full_name='rbk.protocol.Message_LaserBeam3D.id', index=0,
-            number=1, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_LaserBeam3D.x', index=1,
-            number=2, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_LaserBeam3D.y', index=2,
-            number=3, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='z', full_name='rbk.protocol.Message_LaserBeam3D.z', index=3,
-            number=4, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='intensity', full_name='rbk.protocol.Message_LaserBeam3D.intensity', index=4,
-            number=5, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='ring', full_name='rbk.protocol.Message_LaserBeam3D.ring', index=5,
-            number=6, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='timestamp', full_name='rbk.protocol.Message_LaserBeam3D.timestamp', index=6,
-            number=7, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='data', full_name='rbk.protocol.Message_LaserBeam3D.data', index=7,
-            number=8, type=12, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b(""),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='firstAzimuth', full_name='rbk.protocol.Message_LaserBeam3D.firstAzimuth', index=8,
-            number=9, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='secondAzimuth', full_name='rbk.protocol.Message_LaserBeam3D.secondAzimuth', index=9,
-            number=10, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=577,
-    serialized_end=754,
+
+_MSGLASERBEAM = _descriptor.Descriptor(
+  name='msgLaserBeam',
+  full_name='rbk.protocol.msgLaserBeam',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgLaserBeam.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angle', full_name='rbk.protocol.msgLaserBeam.angle', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dist', full_name='rbk.protocol.msgLaserBeam.dist', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgLaserBeam.x', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgLaserBeam.y', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='rssi', full_name='rbk.protocol.msgLaserBeam.rssi', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='valid', full_name='rbk.protocol.msgLaserBeam.valid', index=6,
+      number=7, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isVirtual', full_name='rbk.protocol.msgLaserBeam.isVirtual', index=7,
+      number=8, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isObstacle', full_name='rbk.protocol.msgLaserBeam.isObstacle', index=8,
+      number=9, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=382,
+  serialized_end=556,
 )
 
-_MESSAGE_LASER = _descriptor.Descriptor(
-    name='Message_Laser',
-    full_name='rbk.protocol.Message_Laser',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='device_info', full_name='rbk.protocol.Message_Laser.device_info', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='install_info', full_name='rbk.protocol.Message_Laser.install_info', index=1,
-            number=2, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_Laser.header', index=2,
-            number=3, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='beams', full_name='rbk.protocol.Message_Laser.beams', index=3,
-            number=4, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='use_forLoc', full_name='rbk.protocol.Message_Laser.use_forLoc', index=4,
-            number=5, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='beams_not_use', full_name='rbk.protocol.Message_Laser.beams_not_use', index=5,
-            number=6, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is3DLocalization', full_name='rbk.protocol.Message_Laser.is3DLocalization', index=6,
-            number=7, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='use_forBinDetection', full_name='rbk.protocol.Message_Laser.use_forBinDetection', index=7,
-            number=8, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=757,
-    serialized_end=1119,
+
+_MSGLASERBEAM3D = _descriptor.Descriptor(
+  name='msgLaserBeam3D',
+  full_name='rbk.protocol.msgLaserBeam3D',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='id', full_name='rbk.protocol.msgLaserBeam3D.id', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgLaserBeam3D.x', index=1,
+      number=2, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgLaserBeam3D.y', index=2,
+      number=3, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='rbk.protocol.msgLaserBeam3D.z', index=3,
+      number=4, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='intensity', full_name='rbk.protocol.msgLaserBeam3D.intensity', index=4,
+      number=5, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='ring', full_name='rbk.protocol.msgLaserBeam3D.ring', index=5,
+      number=6, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='timestamp', full_name='rbk.protocol.msgLaserBeam3D.timestamp', index=6,
+      number=7, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='data', full_name='rbk.protocol.msgLaserBeam3D.data', index=7,
+      number=8, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='firstAzimuth', full_name='rbk.protocol.msgLaserBeam3D.firstAzimuth', index=8,
+      number=9, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='secondAzimuth', full_name='rbk.protocol.msgLaserBeam3D.secondAzimuth', index=9,
+      number=10, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=559,
+  serialized_end=731,
 )
 
-_MESSAGE_LASER3D = _descriptor.Descriptor(
-    name='Message_Laser3D',
-    full_name='rbk.protocol.Message_Laser3D',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='device_info', full_name='rbk.protocol.Message_Laser3D.device_info', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='install_info', full_name='rbk.protocol.Message_Laser3D.install_info', index=1,
-            number=2, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_Laser3D.header', index=2,
-            number=3, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='beams3D', full_name='rbk.protocol.Message_Laser3D.beams3D', index=3,
-            number=4, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='use_forLoc', full_name='rbk.protocol.Message_Laser3D.use_forLoc', index=4,
-            number=5, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='beams_not_use', full_name='rbk.protocol.Message_Laser3D.beams_not_use', index=5,
-            number=6, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is3DLocalization', full_name='rbk.protocol.Message_Laser3D.is3DLocalization', index=6,
-            number=7, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='lasertype', full_name='rbk.protocol.Message_Laser3D.lasertype', index=7,
-            number=8, type=13, cpp_type=3, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='factor', full_name='rbk.protocol.Message_Laser3D.factor', index=8,
-            number=9, type=2, cpp_type=6, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='azimuthcorrection', full_name='rbk.protocol.Message_Laser3D.azimuthcorrection', index=9,
-            number=10, type=2, cpp_type=6, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='verticalcorrection', full_name='rbk.protocol.Message_Laser3D.verticalcorrection', index=10,
-            number=11, type=2, cpp_type=6, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is3DobstacleDetection', full_name='rbk.protocol.Message_Laser3D.is3DobstacleDetection', index=11,
-            number=12, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=1122,
-    serialized_end=1582,
+
+_MSGLASER = _descriptor.Descriptor(
+  name='msgLaser',
+  full_name='rbk.protocol.msgLaser',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='deviceInfo', full_name='rbk.protocol.msgLaser.deviceInfo', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='installInfo', full_name='rbk.protocol.msgLaser.installInfo', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgLaser.header', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='beams', full_name='rbk.protocol.msgLaser.beams', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='useForLoc', full_name='rbk.protocol.msgLaser.useForLoc', index=4,
+      number=5, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='beamsNotUse', full_name='rbk.protocol.msgLaser.beamsNotUse', index=5,
+      number=6, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='is3DLocalization', full_name='rbk.protocol.msgLaser.is3DLocalization', index=6,
+      number=7, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='useForBinDetection', full_name='rbk.protocol.msgLaser.useForBinDetection', index=7,
+      number=8, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=734,
+  serialized_end=1060,
 )
 
-_MESSAGE_ALLLASERS = _descriptor.Descriptor(
-    name='Message_AllLasers',
-    full_name='rbk.protocol.Message_AllLasers',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='laser', full_name='rbk.protocol.Message_AllLasers.laser', index=0,
-            number=1, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=1584,
-    serialized_end=1647,
+
+_MSGLASER3D = _descriptor.Descriptor(
+  name='msgLaser3D',
+  full_name='rbk.protocol.msgLaser3D',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='deviceInfo', full_name='rbk.protocol.msgLaser3D.deviceInfo', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='installInfo', full_name='rbk.protocol.msgLaser3D.installInfo', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgLaser3D.header', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='beams3D', full_name='rbk.protocol.msgLaser3D.beams3D', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='useForLoc', full_name='rbk.protocol.msgLaser3D.useForLoc', index=4,
+      number=5, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='beamsNotUse', full_name='rbk.protocol.msgLaser3D.beamsNotUse', index=5,
+      number=6, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='is3DLocalization', full_name='rbk.protocol.msgLaser3D.is3DLocalization', index=6,
+      number=7, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='laserType', full_name='rbk.protocol.msgLaser3D.laserType', index=7,
+      number=8, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='factor', full_name='rbk.protocol.msgLaser3D.factor', index=8,
+      number=9, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='azimuthCorrection', full_name='rbk.protocol.msgLaser3D.azimuthCorrection', index=9,
+      number=10, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='verticalCorrection', full_name='rbk.protocol.msgLaser3D.verticalCorrection', index=10,
+      number=11, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='is3DobstacleDetection', full_name='rbk.protocol.msgLaser3D.is3DobstacleDetection', index=11,
+      number=12, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1063,
+  serialized_end=1488,
 )
 
-_MESSAGE_ALLLASERS3D = _descriptor.Descriptor(
-    name='Message_AllLasers3D',
-    full_name='rbk.protocol.Message_AllLasers3D',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='lasers3d', full_name='rbk.protocol.Message_AllLasers3D.lasers3d', index=0,
-            number=1, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=1649,
-    serialized_end=1719,
+
+_MSGALLLASERS = _descriptor.Descriptor(
+  name='msgAllLasers',
+  full_name='rbk.protocol.msgAllLasers',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='laser', full_name='rbk.protocol.msgAllLasers.laser', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1490,
+  serialized_end=1543,
 )
 
-_MESSAGE_LASERCLUSTERFEATURE = _descriptor.Descriptor(
-    name='Message_LaserClusterFeature',
-    full_name='rbk.protocol.Message_LaserClusterFeature',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='avg_rssi', full_name='rbk.protocol.Message_LaserClusterFeature.avg_rssi', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='num_points', full_name='rbk.protocol.Message_LaserClusterFeature.num_points', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='std', full_name='rbk.protocol.Message_LaserClusterFeature.std', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='avg_median_dev', full_name='rbk.protocol.Message_LaserClusterFeature.avg_median_dev', index=3,
-            number=4, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='prev_jump', full_name='rbk.protocol.Message_LaserClusterFeature.prev_jump', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='next_jump', full_name='rbk.protocol.Message_LaserClusterFeature.next_jump', index=5,
-            number=6, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='width', full_name='rbk.protocol.Message_LaserClusterFeature.width', index=6,
-            number=7, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='linearity', full_name='rbk.protocol.Message_LaserClusterFeature.linearity', index=7,
-            number=8, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='circularity', full_name='rbk.protocol.Message_LaserClusterFeature.circularity', index=8,
-            number=9, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='radius', full_name='rbk.protocol.Message_LaserClusterFeature.radius', index=9,
-            number=10, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='boundary_length', full_name='rbk.protocol.Message_LaserClusterFeature.boundary_length', index=10,
-            number=11, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='ang_diff', full_name='rbk.protocol.Message_LaserClusterFeature.ang_diff', index=11,
-            number=12, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='mean_curvature', full_name='rbk.protocol.Message_LaserClusterFeature.mean_curvature', index=12,
-            number=13, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='boundary_regularity', full_name='rbk.protocol.Message_LaserClusterFeature.boundary_regularity',
-            index=13,
-            number=14, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='iav', full_name='rbk.protocol.Message_LaserClusterFeature.iav', index=14,
-            number=15, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='std_iav', full_name='rbk.protocol.Message_LaserClusterFeature.std_iav', index=15,
-            number=16, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=1722,
-    serialized_end=2061,
+
+_MSGALLLASERS3D = _descriptor.Descriptor(
+  name='msgAllLasers3D',
+  full_name='rbk.protocol.msgAllLasers3D',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='lasers3D', full_name='rbk.protocol.msgAllLasers3D.lasers3D', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1545,
+  serialized_end=1605,
 )
 
-_MESSAGE_LASERCLUSTER = _descriptor.Descriptor(
-    name='Message_LaserCluster',
-    full_name='rbk.protocol.Message_LaserCluster',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='device_info', full_name='rbk.protocol.Message_LaserCluster.device_info', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='install_info', full_name='rbk.protocol.Message_LaserCluster.install_info', index=1,
-            number=2, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_LaserCluster.header', index=2,
-            number=3, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='beams', full_name='rbk.protocol.Message_LaserCluster.beams', index=3,
-            number=4, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='features', full_name='rbk.protocol.Message_LaserCluster.features', index=4,
-            number=5, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2064,
-    serialized_end=2363,
+
+_MSGLASERCLUSTERFEATURE = _descriptor.Descriptor(
+  name='msgLaserClusterFeature',
+  full_name='rbk.protocol.msgLaserClusterFeature',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='avgRssi', full_name='rbk.protocol.msgLaserClusterFeature.avgRssi', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='numPoints', full_name='rbk.protocol.msgLaserClusterFeature.numPoints', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='std', full_name='rbk.protocol.msgLaserClusterFeature.std', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='avgMedianDev', full_name='rbk.protocol.msgLaserClusterFeature.avgMedianDev', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='prevJump', full_name='rbk.protocol.msgLaserClusterFeature.prevJump', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='nextJump', full_name='rbk.protocol.msgLaserClusterFeature.nextJump', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='width', full_name='rbk.protocol.msgLaserClusterFeature.width', index=6,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='linearity', full_name='rbk.protocol.msgLaserClusterFeature.linearity', index=7,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='circularity', full_name='rbk.protocol.msgLaserClusterFeature.circularity', index=8,
+      number=9, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='radius', full_name='rbk.protocol.msgLaserClusterFeature.radius', index=9,
+      number=10, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='boundaryLength', full_name='rbk.protocol.msgLaserClusterFeature.boundaryLength', index=10,
+      number=11, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angDiff', full_name='rbk.protocol.msgLaserClusterFeature.angDiff', index=11,
+      number=12, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='meanCurvature', full_name='rbk.protocol.msgLaserClusterFeature.meanCurvature', index=12,
+      number=13, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='boundaryRegularity', full_name='rbk.protocol.msgLaserClusterFeature.boundaryRegularity', index=13,
+      number=14, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='iav', full_name='rbk.protocol.msgLaserClusterFeature.iav', index=14,
+      number=15, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='stdIav', full_name='rbk.protocol.msgLaserClusterFeature.stdIav', index=15,
+      number=16, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1608,
+  serialized_end=1931,
 )
 
-_MESSAGE_LASERSEGRESULT = _descriptor.Descriptor(
-    name='Message_LaserSegResult',
-    full_name='rbk.protocol.Message_LaserSegResult',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_LaserSegResult.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='clusters', full_name='rbk.protocol.Message_LaserSegResult.clusters', index=1,
-            number=2, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2365,
-    serialized_end=2489,
+
+_MSGLASERCLUSTER = _descriptor.Descriptor(
+  name='msgLaserCluster',
+  full_name='rbk.protocol.msgLaserCluster',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='deviceInfo', full_name='rbk.protocol.msgLaserCluster.deviceInfo', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='installInfo', full_name='rbk.protocol.msgLaserCluster.installInfo', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgLaserCluster.header', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='beams', full_name='rbk.protocol.msgLaserCluster.beams', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='features', full_name='rbk.protocol.msgLaserCluster.features', index=4,
+      number=5, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1934,
+  serialized_end=2201,
 )
 
-_MESSAGE_GRID = _descriptor.Descriptor(
-    name='Message_Grid',
-    full_name='rbk.protocol.Message_Grid',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='value', full_name='rbk.protocol.Message_Grid.value', index=0,
-            number=1, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_Grid.x', index=1,
-            number=2, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_Grid.y', index=2,
-            number=3, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2491,
-    serialized_end=2542,
+
+_MSGLASERSEGRESULT = _descriptor.Descriptor(
+  name='msgLaserSegResult',
+  full_name='rbk.protocol.msgLaserSegResult',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgLaserSegResult.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='clusters', full_name='rbk.protocol.msgLaserSegResult.clusters', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2203,
+  serialized_end=2312,
 )
 
-_MESSAGE_COSTMAP = _descriptor.Descriptor(
-    name='Message_CostMap',
-    full_name='rbk.protocol.Message_CostMap',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='resolution', full_name='rbk.protocol.Message_CostMap.resolution', index=0,
-            number=1, type=5, cpp_type=1, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='grids', full_name='rbk.protocol.Message_CostMap.grids', index=1,
-            number=2, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2544,
-    serialized_end=2624,
+
+_MSGGRID = _descriptor.Descriptor(
+  name='msgGrid',
+  full_name='rbk.protocol.msgGrid',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='value', full_name='rbk.protocol.msgGrid.value', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgGrid.x', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgGrid.y', index=2,
+      number=3, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2314,
+  serialized_end=2360,
 )
 
-_MESSAGE_SENSORPOINT = _descriptor.Descriptor(
-    name='Message_SensorPoint',
-    full_name='rbk.protocol.Message_SensorPoint',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_SensorPoint.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_SensorPoint.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='z', full_name='rbk.protocol.Message_SensorPoint.z', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is_obstacle', full_name='rbk.protocol.Message_SensorPoint.is_obstacle', index=3,
-            number=4, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='rssi', full_name='rbk.protocol.Message_SensorPoint.rssi', index=4,
-            number=5, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='tag', full_name='rbk.protocol.Message_SensorPoint.tag', index=5,
-            number=6, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2626,
-    serialized_end=2728,
+
+_MSGCOSTMAP = _descriptor.Descriptor(
+  name='msgCostMap',
+  full_name='rbk.protocol.msgCostMap',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='resolution', full_name='rbk.protocol.msgCostMap.resolution', index=0,
+      number=1, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='grids', full_name='rbk.protocol.msgCostMap.grids', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2362,
+  serialized_end=2432,
 )
 
-_MESSAGE_SENSORPOINTCLUSTER = _descriptor.Descriptor(
-    name='Message_SensorPointCluster',
-    full_name='rbk.protocol.Message_SensorPointCluster',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_SensorPointCluster.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='type', full_name='rbk.protocol.Message_SensorPointCluster.type', index=1,
-            number=2, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='id', full_name='rbk.protocol.Message_SensorPointCluster.id', index=2,
-            number=3, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='point', full_name='rbk.protocol.Message_SensorPointCluster.point', index=3,
-            number=4, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-        _MESSAGE_SENSORPOINTCLUSTER_TYPE,
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=2731,
-    serialized_end=3159,
+
+_MSGSENSORPOINT = _descriptor.Descriptor(
+  name='msgSensorPoint',
+  full_name='rbk.protocol.msgSensorPoint',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgSensorPoint.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgSensorPoint.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='rbk.protocol.msgSensorPoint.z', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isObstacle', full_name='rbk.protocol.msgSensorPoint.isObstacle', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='rssi', full_name='rbk.protocol.msgSensorPoint.rssi', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='tag', full_name='rbk.protocol.msgSensorPoint.tag', index=5,
+      number=6, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2434,
+  serialized_end=2530,
 )
 
-_MESSAGE_SENSORPOINTCLOUD = _descriptor.Descriptor(
-    name='Message_SensorPointCloud',
-    full_name='rbk.protocol.Message_SensorPointCloud',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='global_cluster', full_name='rbk.protocol.Message_SensorPointCloud.global_cluster', index=0,
-            number=1, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='local_cluster', full_name='rbk.protocol.Message_SensorPointCloud.local_cluster', index=1,
-            number=2, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=3162,
-    serialized_end=3319,
+
+_MSGSENSORPOINTCLUSTER = _descriptor.Descriptor(
+  name='msgSensorPointCluster',
+  full_name='rbk.protocol.msgSensorPointCluster',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgSensorPointCluster.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='type', full_name='rbk.protocol.msgSensorPointCluster.type', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='id', full_name='rbk.protocol.msgSensorPointCluster.id', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='point', full_name='rbk.protocol.msgSensorPointCluster.point', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGSENSORPOINTCLUSTER_CLUSTERTYPE,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2533,
+  serialized_end=2955,
 )
 
-_MESSAGE_LASERPOINT = _descriptor.Descriptor(
-    name='Message_LaserPoint',
-    full_name='rbk.protocol.Message_LaserPoint',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='x', full_name='rbk.protocol.Message_LaserPoint.x', index=0,
-            number=1, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='y', full_name='rbk.protocol.Message_LaserPoint.y', index=1,
-            number=2, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='z', full_name='rbk.protocol.Message_LaserPoint.z', index=2,
-            number=3, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='type', full_name='rbk.protocol.Message_LaserPoint.type', index=3,
-            number=4, type=14, cpp_type=8, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='id', full_name='rbk.protocol.Message_LaserPoint.id', index=4,
-            number=5, type=9, cpp_type=9, label=1,
-            has_default_value=False, default_value=_b("").decode('utf-8'),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='is_obstacle', full_name='rbk.protocol.Message_LaserPoint.is_obstacle', index=5,
-            number=6, type=8, cpp_type=7, label=1,
-            has_default_value=False, default_value=False,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='rssi', full_name='rbk.protocol.Message_LaserPoint.rssi', index=6,
-            number=7, type=1, cpp_type=5, label=1,
-            has_default_value=False, default_value=float(0),
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='data_nsec', full_name='rbk.protocol.Message_LaserPoint.data_nsec', index=7,
-            number=8, type=4, cpp_type=4, label=1,
-            has_default_value=False, default_value=0,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-        _MESSAGE_LASERPOINT_TYPE,
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=3322,
-    serialized_end=3610,
+
+_MSGSENSORPOINTCLOUD = _descriptor.Descriptor(
+  name='msgSensorPointCloud',
+  full_name='rbk.protocol.msgSensorPointCloud',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='globalCluster', full_name='rbk.protocol.msgSensorPointCloud.globalCluster', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='localCluster', full_name='rbk.protocol.msgSensorPointCloud.localCluster', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2958,
+  serialized_end=3098,
 )
 
-_MESSAGE_LASERPOINTCLOUD = _descriptor.Descriptor(
-    name='Message_LaserPointCloud',
-    full_name='rbk.protocol.Message_LaserPointCloud',
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name='header', full_name='rbk.protocol.Message_LaserPointCloud.header', index=0,
-            number=1, type=11, cpp_type=10, label=1,
-            has_default_value=False, default_value=None,
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-        _descriptor.FieldDescriptor(
-            name='point', full_name='rbk.protocol.Message_LaserPointCloud.point', index=1,
-            number=2, type=11, cpp_type=10, label=3,
-            has_default_value=False, default_value=[],
-            message_type=None, enum_type=None, containing_type=None,
-            is_extension=False, extension_scope=None,
-            serialized_options=None, file=DESCRIPTOR),
-    ],
-    extensions=[
-    ],
-    nested_types=[],
-    enum_types=[
-    ],
-    serialized_options=None,
-    is_extendable=False,
-    syntax='proto3',
-    extension_ranges=[],
-    oneofs=[
-    ],
-    serialized_start=3612,
-    serialized_end=3732,
+
+_MSGLASERPOINT = _descriptor.Descriptor(
+  name='msgLaserPoint',
+  full_name='rbk.protocol.msgLaserPoint',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgLaserPoint.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgLaserPoint.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='rbk.protocol.msgLaserPoint.z', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='type', full_name='rbk.protocol.msgLaserPoint.type', index=3,
+      number=4, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='id', full_name='rbk.protocol.msgLaserPoint.id', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isObstacle', full_name='rbk.protocol.msgLaserPoint.isObstacle', index=5,
+      number=6, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='rssi', full_name='rbk.protocol.msgLaserPoint.rssi', index=6,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dataNSec', full_name='rbk.protocol.msgLaserPoint.dataNSec', index=7,
+      number=8, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGLASERPOINT_TYPE,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=3101,
+  serialized_end=3377,
 )
 
-_MESSAGE_LASERBEAM.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_LASER.fields_by_name['device_info'].message_type = _MESSAGE_LASERDEVICEINFO
-_MESSAGE_LASER.fields_by_name['install_info'].message_type = _MESSAGE_LASERINSTALLINFO
-_MESSAGE_LASER.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_LASER.fields_by_name['beams'].message_type = _MESSAGE_LASERBEAM
-_MESSAGE_LASER.fields_by_name['beams_not_use'].message_type = _MESSAGE_LASERBEAM
-_MESSAGE_LASER3D.fields_by_name['device_info'].message_type = _MESSAGE_LASERDEVICEINFO
-_MESSAGE_LASER3D.fields_by_name['install_info'].message_type = _MESSAGE_LASERINSTALLINFO
-_MESSAGE_LASER3D.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_LASER3D.fields_by_name['beams3D'].message_type = _MESSAGE_LASERBEAM3D
-_MESSAGE_LASER3D.fields_by_name['beams_not_use'].message_type = _MESSAGE_LASERBEAM
-_MESSAGE_ALLLASERS.fields_by_name['laser'].message_type = _MESSAGE_LASER
-_MESSAGE_ALLLASERS3D.fields_by_name['lasers3d'].message_type = _MESSAGE_LASER3D
-_MESSAGE_LASERCLUSTER.fields_by_name['device_info'].message_type = _MESSAGE_LASERDEVICEINFO
-_MESSAGE_LASERCLUSTER.fields_by_name['install_info'].message_type = _MESSAGE_LASERINSTALLINFO
-_MESSAGE_LASERCLUSTER.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_LASERCLUSTER.fields_by_name['beams'].message_type = _MESSAGE_LASERBEAM
-_MESSAGE_LASERCLUSTER.fields_by_name['features'].message_type = _MESSAGE_LASERCLUSTERFEATURE
-_MESSAGE_LASERSEGRESULT.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_LASERSEGRESULT.fields_by_name['clusters'].message_type = _MESSAGE_LASERCLUSTER
-_MESSAGE_COSTMAP.fields_by_name['grids'].message_type = _MESSAGE_GRID
-_MESSAGE_SENSORPOINTCLUSTER.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_SENSORPOINTCLUSTER.fields_by_name['type'].enum_type = _MESSAGE_SENSORPOINTCLUSTER_TYPE
-_MESSAGE_SENSORPOINTCLUSTER.fields_by_name['point'].message_type = _MESSAGE_SENSORPOINT
-_MESSAGE_SENSORPOINTCLUSTER_TYPE.containing_type = _MESSAGE_SENSORPOINTCLUSTER
-_MESSAGE_SENSORPOINTCLOUD.fields_by_name['global_cluster'].message_type = _MESSAGE_SENSORPOINTCLUSTER
-_MESSAGE_SENSORPOINTCLOUD.fields_by_name['local_cluster'].message_type = _MESSAGE_SENSORPOINTCLUSTER
-_MESSAGE_LASERPOINT.fields_by_name['type'].enum_type = _MESSAGE_LASERPOINT_TYPE
-_MESSAGE_LASERPOINT_TYPE.containing_type = _MESSAGE_LASERPOINT
-_MESSAGE_LASERPOINTCLOUD.fields_by_name['header'].message_type = message__header__pb2._MESSAGE_HEADER
-_MESSAGE_LASERPOINTCLOUD.fields_by_name['point'].message_type = _MESSAGE_LASERPOINT
-DESCRIPTOR.message_types_by_name['Message_LaserInstallInfo'] = _MESSAGE_LASERINSTALLINFO
-DESCRIPTOR.message_types_by_name['Message_LaserDeviceInfo'] = _MESSAGE_LASERDEVICEINFO
-DESCRIPTOR.message_types_by_name['Message_LaserBeam'] = _MESSAGE_LASERBEAM
-DESCRIPTOR.message_types_by_name['Message_LaserBeam3D'] = _MESSAGE_LASERBEAM3D
-DESCRIPTOR.message_types_by_name['Message_Laser'] = _MESSAGE_LASER
-DESCRIPTOR.message_types_by_name['Message_Laser3D'] = _MESSAGE_LASER3D
-DESCRIPTOR.message_types_by_name['Message_AllLasers'] = _MESSAGE_ALLLASERS
-DESCRIPTOR.message_types_by_name['Message_AllLasers3D'] = _MESSAGE_ALLLASERS3D
-DESCRIPTOR.message_types_by_name['Message_LaserClusterFeature'] = _MESSAGE_LASERCLUSTERFEATURE
-DESCRIPTOR.message_types_by_name['Message_LaserCluster'] = _MESSAGE_LASERCLUSTER
-DESCRIPTOR.message_types_by_name['Message_LaserSegResult'] = _MESSAGE_LASERSEGRESULT
-DESCRIPTOR.message_types_by_name['Message_Grid'] = _MESSAGE_GRID
-DESCRIPTOR.message_types_by_name['Message_CostMap'] = _MESSAGE_COSTMAP
-DESCRIPTOR.message_types_by_name['Message_SensorPoint'] = _MESSAGE_SENSORPOINT
-DESCRIPTOR.message_types_by_name['Message_SensorPointCluster'] = _MESSAGE_SENSORPOINTCLUSTER
-DESCRIPTOR.message_types_by_name['Message_SensorPointCloud'] = _MESSAGE_SENSORPOINTCLOUD
-DESCRIPTOR.message_types_by_name['Message_LaserPoint'] = _MESSAGE_LASERPOINT
-DESCRIPTOR.message_types_by_name['Message_LaserPointCloud'] = _MESSAGE_LASERPOINTCLOUD
+
+_MSGLASERPOINTCLOUD = _descriptor.Descriptor(
+  name='msgLaserPointCloud',
+  full_name='rbk.protocol.msgLaserPointCloud',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgLaserPointCloud.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='point', full_name='rbk.protocol.msgLaserPointCloud.point', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=3379,
+  serialized_end=3484,
+)
+
+_MSGLASERBEAM.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGLASER.fields_by_name['deviceInfo'].message_type = _MSGLASERDEVICEINFO
+_MSGLASER.fields_by_name['installInfo'].message_type = _MSGLASERINSTALLINFO
+_MSGLASER.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGLASER.fields_by_name['beams'].message_type = _MSGLASERBEAM
+_MSGLASER.fields_by_name['beamsNotUse'].message_type = _MSGLASERBEAM
+_MSGLASER3D.fields_by_name['deviceInfo'].message_type = _MSGLASERDEVICEINFO
+_MSGLASER3D.fields_by_name['installInfo'].message_type = _MSGLASERINSTALLINFO
+_MSGLASER3D.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGLASER3D.fields_by_name['beams3D'].message_type = _MSGLASERBEAM3D
+_MSGLASER3D.fields_by_name['beamsNotUse'].message_type = _MSGLASERBEAM
+_MSGALLLASERS.fields_by_name['laser'].message_type = _MSGLASER
+_MSGALLLASERS3D.fields_by_name['lasers3D'].message_type = _MSGLASER3D
+_MSGLASERCLUSTER.fields_by_name['deviceInfo'].message_type = _MSGLASERDEVICEINFO
+_MSGLASERCLUSTER.fields_by_name['installInfo'].message_type = _MSGLASERINSTALLINFO
+_MSGLASERCLUSTER.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGLASERCLUSTER.fields_by_name['beams'].message_type = _MSGLASERBEAM
+_MSGLASERCLUSTER.fields_by_name['features'].message_type = _MSGLASERCLUSTERFEATURE
+_MSGLASERSEGRESULT.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGLASERSEGRESULT.fields_by_name['clusters'].message_type = _MSGLASERCLUSTER
+_MSGCOSTMAP.fields_by_name['grids'].message_type = _MSGGRID
+_MSGSENSORPOINTCLUSTER.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGSENSORPOINTCLUSTER.fields_by_name['type'].enum_type = _MSGSENSORPOINTCLUSTER_CLUSTERTYPE
+_MSGSENSORPOINTCLUSTER.fields_by_name['point'].message_type = _MSGSENSORPOINT
+_MSGSENSORPOINTCLUSTER_CLUSTERTYPE.containing_type = _MSGSENSORPOINTCLUSTER
+_MSGSENSORPOINTCLOUD.fields_by_name['globalCluster'].message_type = _MSGSENSORPOINTCLUSTER
+_MSGSENSORPOINTCLOUD.fields_by_name['localCluster'].message_type = _MSGSENSORPOINTCLUSTER
+_MSGLASERPOINT.fields_by_name['type'].enum_type = _MSGLASERPOINT_TYPE
+_MSGLASERPOINT_TYPE.containing_type = _MSGLASERPOINT
+_MSGLASERPOINTCLOUD.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGLASERPOINTCLOUD.fields_by_name['point'].message_type = _MSGLASERPOINT
+DESCRIPTOR.message_types_by_name['msgLaserInstallInfo'] = _MSGLASERINSTALLINFO
+DESCRIPTOR.message_types_by_name['msgLaserDeviceInfo'] = _MSGLASERDEVICEINFO
+DESCRIPTOR.message_types_by_name['msgLaserBeam'] = _MSGLASERBEAM
+DESCRIPTOR.message_types_by_name['msgLaserBeam3D'] = _MSGLASERBEAM3D
+DESCRIPTOR.message_types_by_name['msgLaser'] = _MSGLASER
+DESCRIPTOR.message_types_by_name['msgLaser3D'] = _MSGLASER3D
+DESCRIPTOR.message_types_by_name['msgAllLasers'] = _MSGALLLASERS
+DESCRIPTOR.message_types_by_name['msgAllLasers3D'] = _MSGALLLASERS3D
+DESCRIPTOR.message_types_by_name['msgLaserClusterFeature'] = _MSGLASERCLUSTERFEATURE
+DESCRIPTOR.message_types_by_name['msgLaserCluster'] = _MSGLASERCLUSTER
+DESCRIPTOR.message_types_by_name['msgLaserSegResult'] = _MSGLASERSEGRESULT
+DESCRIPTOR.message_types_by_name['msgGrid'] = _MSGGRID
+DESCRIPTOR.message_types_by_name['msgCostMap'] = _MSGCOSTMAP
+DESCRIPTOR.message_types_by_name['msgSensorPoint'] = _MSGSENSORPOINT
+DESCRIPTOR.message_types_by_name['msgSensorPointCluster'] = _MSGSENSORPOINTCLUSTER
+DESCRIPTOR.message_types_by_name['msgSensorPointCloud'] = _MSGSENSORPOINTCLOUD
+DESCRIPTOR.message_types_by_name['msgLaserPoint'] = _MSGLASERPOINT
+DESCRIPTOR.message_types_by_name['msgLaserPointCloud'] = _MSGLASERPOINTCLOUD
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Message_LaserInstallInfo = _reflection.GeneratedProtocolMessageType('Message_LaserInstallInfo', (_message.Message,),
-                                                                    dict(
-                                                                        DESCRIPTOR=_MESSAGE_LASERINSTALLINFO,
-                                                                        __module__='message_laser_pb2'
-                                                                        # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserInstallInfo)
-                                                                    ))
-_sym_db.RegisterMessage(Message_LaserInstallInfo)
+msgLaserInstallInfo = _reflection.GeneratedProtocolMessageType('msgLaserInstallInfo', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERINSTALLINFO,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserInstallInfo)
+  ))
+_sym_db.RegisterMessage(msgLaserInstallInfo)
 
-Message_LaserDeviceInfo = _reflection.GeneratedProtocolMessageType('Message_LaserDeviceInfo', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASERDEVICEINFO,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserDeviceInfo)
-))
-_sym_db.RegisterMessage(Message_LaserDeviceInfo)
+msgLaserDeviceInfo = _reflection.GeneratedProtocolMessageType('msgLaserDeviceInfo', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERDEVICEINFO,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserDeviceInfo)
+  ))
+_sym_db.RegisterMessage(msgLaserDeviceInfo)
 
-Message_LaserBeam = _reflection.GeneratedProtocolMessageType('Message_LaserBeam', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASERBEAM,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserBeam)
-))
-_sym_db.RegisterMessage(Message_LaserBeam)
+msgLaserBeam = _reflection.GeneratedProtocolMessageType('msgLaserBeam', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERBEAM,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserBeam)
+  ))
+_sym_db.RegisterMessage(msgLaserBeam)
 
-Message_LaserBeam3D = _reflection.GeneratedProtocolMessageType('Message_LaserBeam3D', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASERBEAM3D,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserBeam3D)
-))
-_sym_db.RegisterMessage(Message_LaserBeam3D)
+msgLaserBeam3D = _reflection.GeneratedProtocolMessageType('msgLaserBeam3D', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERBEAM3D,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserBeam3D)
+  ))
+_sym_db.RegisterMessage(msgLaserBeam3D)
 
-Message_Laser = _reflection.GeneratedProtocolMessageType('Message_Laser', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASER,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Laser)
-))
-_sym_db.RegisterMessage(Message_Laser)
+msgLaser = _reflection.GeneratedProtocolMessageType('msgLaser', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASER,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaser)
+  ))
+_sym_db.RegisterMessage(msgLaser)
 
-Message_Laser3D = _reflection.GeneratedProtocolMessageType('Message_Laser3D', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASER3D,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Laser3D)
-))
-_sym_db.RegisterMessage(Message_Laser3D)
+msgLaser3D = _reflection.GeneratedProtocolMessageType('msgLaser3D', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASER3D,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaser3D)
+  ))
+_sym_db.RegisterMessage(msgLaser3D)
 
-Message_AllLasers = _reflection.GeneratedProtocolMessageType('Message_AllLasers', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_ALLLASERS,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_AllLasers)
-))
-_sym_db.RegisterMessage(Message_AllLasers)
+msgAllLasers = _reflection.GeneratedProtocolMessageType('msgAllLasers', (_message.Message,), dict(
+  DESCRIPTOR = _MSGALLLASERS,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgAllLasers)
+  ))
+_sym_db.RegisterMessage(msgAllLasers)
 
-Message_AllLasers3D = _reflection.GeneratedProtocolMessageType('Message_AllLasers3D', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_ALLLASERS3D,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_AllLasers3D)
-))
-_sym_db.RegisterMessage(Message_AllLasers3D)
+msgAllLasers3D = _reflection.GeneratedProtocolMessageType('msgAllLasers3D', (_message.Message,), dict(
+  DESCRIPTOR = _MSGALLLASERS3D,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgAllLasers3D)
+  ))
+_sym_db.RegisterMessage(msgAllLasers3D)
 
-Message_LaserClusterFeature = _reflection.GeneratedProtocolMessageType('Message_LaserClusterFeature',
-                                                                       (_message.Message,), dict(
-        DESCRIPTOR=_MESSAGE_LASERCLUSTERFEATURE,
-        __module__='message_laser_pb2'
-        # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserClusterFeature)
-    ))
-_sym_db.RegisterMessage(Message_LaserClusterFeature)
+msgLaserClusterFeature = _reflection.GeneratedProtocolMessageType('msgLaserClusterFeature', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERCLUSTERFEATURE,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserClusterFeature)
+  ))
+_sym_db.RegisterMessage(msgLaserClusterFeature)
 
-Message_LaserCluster = _reflection.GeneratedProtocolMessageType('Message_LaserCluster', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASERCLUSTER,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserCluster)
-))
-_sym_db.RegisterMessage(Message_LaserCluster)
+msgLaserCluster = _reflection.GeneratedProtocolMessageType('msgLaserCluster', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERCLUSTER,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserCluster)
+  ))
+_sym_db.RegisterMessage(msgLaserCluster)
 
-Message_LaserSegResult = _reflection.GeneratedProtocolMessageType('Message_LaserSegResult', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASERSEGRESULT,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserSegResult)
-))
-_sym_db.RegisterMessage(Message_LaserSegResult)
+msgLaserSegResult = _reflection.GeneratedProtocolMessageType('msgLaserSegResult', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERSEGRESULT,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserSegResult)
+  ))
+_sym_db.RegisterMessage(msgLaserSegResult)
 
-Message_Grid = _reflection.GeneratedProtocolMessageType('Message_Grid', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_GRID,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_Grid)
-))
-_sym_db.RegisterMessage(Message_Grid)
+msgGrid = _reflection.GeneratedProtocolMessageType('msgGrid', (_message.Message,), dict(
+  DESCRIPTOR = _MSGGRID,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgGrid)
+  ))
+_sym_db.RegisterMessage(msgGrid)
 
-Message_CostMap = _reflection.GeneratedProtocolMessageType('Message_CostMap', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_COSTMAP,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_CostMap)
-))
-_sym_db.RegisterMessage(Message_CostMap)
+msgCostMap = _reflection.GeneratedProtocolMessageType('msgCostMap', (_message.Message,), dict(
+  DESCRIPTOR = _MSGCOSTMAP,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgCostMap)
+  ))
+_sym_db.RegisterMessage(msgCostMap)
 
-Message_SensorPoint = _reflection.GeneratedProtocolMessageType('Message_SensorPoint', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_SENSORPOINT,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_SensorPoint)
-))
-_sym_db.RegisterMessage(Message_SensorPoint)
+msgSensorPoint = _reflection.GeneratedProtocolMessageType('msgSensorPoint', (_message.Message,), dict(
+  DESCRIPTOR = _MSGSENSORPOINT,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgSensorPoint)
+  ))
+_sym_db.RegisterMessage(msgSensorPoint)
 
-Message_SensorPointCluster = _reflection.GeneratedProtocolMessageType('Message_SensorPointCluster', (_message.Message,),
-                                                                      dict(
-                                                                          DESCRIPTOR=_MESSAGE_SENSORPOINTCLUSTER,
-                                                                          __module__='message_laser_pb2'
-                                                                          # @@protoc_insertion_point(class_scope:rbk.protocol.Message_SensorPointCluster)
-                                                                      ))
-_sym_db.RegisterMessage(Message_SensorPointCluster)
+msgSensorPointCluster = _reflection.GeneratedProtocolMessageType('msgSensorPointCluster', (_message.Message,), dict(
+  DESCRIPTOR = _MSGSENSORPOINTCLUSTER,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgSensorPointCluster)
+  ))
+_sym_db.RegisterMessage(msgSensorPointCluster)
 
-Message_SensorPointCloud = _reflection.GeneratedProtocolMessageType('Message_SensorPointCloud', (_message.Message,),
-                                                                    dict(
-                                                                        DESCRIPTOR=_MESSAGE_SENSORPOINTCLOUD,
-                                                                        __module__='message_laser_pb2'
-                                                                        # @@protoc_insertion_point(class_scope:rbk.protocol.Message_SensorPointCloud)
-                                                                    ))
-_sym_db.RegisterMessage(Message_SensorPointCloud)
+msgSensorPointCloud = _reflection.GeneratedProtocolMessageType('msgSensorPointCloud', (_message.Message,), dict(
+  DESCRIPTOR = _MSGSENSORPOINTCLOUD,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgSensorPointCloud)
+  ))
+_sym_db.RegisterMessage(msgSensorPointCloud)
 
-Message_LaserPoint = _reflection.GeneratedProtocolMessageType('Message_LaserPoint', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASERPOINT,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserPoint)
-))
-_sym_db.RegisterMessage(Message_LaserPoint)
+msgLaserPoint = _reflection.GeneratedProtocolMessageType('msgLaserPoint', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERPOINT,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserPoint)
+  ))
+_sym_db.RegisterMessage(msgLaserPoint)
 
-Message_LaserPointCloud = _reflection.GeneratedProtocolMessageType('Message_LaserPointCloud', (_message.Message,), dict(
-    DESCRIPTOR=_MESSAGE_LASERPOINTCLOUD,
-    __module__='message_laser_pb2'
-    # @@protoc_insertion_point(class_scope:rbk.protocol.Message_LaserPointCloud)
-))
-_sym_db.RegisterMessage(Message_LaserPointCloud)
+msgLaserPointCloud = _reflection.GeneratedProtocolMessageType('msgLaserPointCloud', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLASERPOINTCLOUD,
+  __module__ = 'message_laser_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLaserPointCloud)
+  ))
+_sym_db.RegisterMessage(msgLaserPointCloud)
+
 
 # @@protoc_insertion_point(module_scope)

@@ -5,21 +5,21 @@ from syspy import RBK_VERSION
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from .v3.protobuf import Message_PGV_DMT as Message_PGV_DMT
+        from .v3.protobuf import msgPGV_DMT as msgPGV_DMT
         pass
     elif RBK_VERSION == 4:
-        from .v4.protobuf.message.messageV4_pgv_pb2 import MessageV4_PGV_DMT as Message_PGV_DMT
+        from .v4.protobuf.message.messageV4_pgv_pb2 import MessageV4_PGV_DMT as msgPGV_DMT
 
 
 class PgvInterface(ABC, Message):
     """PGV类"""
 
     @classmethod
-    def get_pgvs(cls) -> List["Message_PGV_DMT"]:
-        """获取Message_PGV_DMT对象列表
+    def get_pgvs(cls) -> List["msgPGV_DMT"]:
+        """获取msgPGV_DMT对象列表
 
         Returns:
-            Message_PGV_DMT对象列表
+            msgPGV_DMT对象列表
         """
         raise RBKVersionError()
 

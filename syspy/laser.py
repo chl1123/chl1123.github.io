@@ -4,7 +4,7 @@ from syspy import RBK_VERSION
 
 if typing.TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import Message_Laser3D
+        from syspy.v3.protobuf import msgLaser3D
     elif RBK_VERSION == 4:
         pass
 
@@ -21,6 +21,10 @@ class LaserInterface:
             self.child = LaserV4(topic)
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
+
+    def get_data(self, args: typing.Optional[List[str]] = None, *, topic: str = None, ) -> typing.Union[tuple, dict]:
+        """获取指定topic的当前数据"""
+        return self.child.get_data(args, topic=topic)
 
     def addDisableLaser(self, device_name: str):
         """禁用激光设备
@@ -145,11 +149,11 @@ class Laser3DInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def get_lasers3d(self) -> List["Message_Laser3D"]:
+    def get_lasers3d(self) -> List["msgLaser3D"]:
         """获取所有3D激光数据列表
 
         Returns:
-            List[Message_Laser3D]: 返回所有3D激光数据的列表
+            List[msgLaser3D]: 返回所有3D激光数据的列表
         """
         return self.child.get_lasers3d()
 

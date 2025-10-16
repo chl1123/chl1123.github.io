@@ -1,68 +1,67 @@
 from .message.CanFrame_pb2 import CanFrame
-from .message.message_battery_pb2 import Message_Battery
-from .message.message_bin_pb2 import Message_Bins, Message_Bin
-from .message.message_controller_pb2 import Message_Controller
+from .message.message_battery_pb2 import msgBattery
+from .message.message_bin_pb2 import msgBins, msgBin
+from .message.message_controller_pb2 import msgController
 from .message.message_depthcamera_pb2 import *
 from .message.message_distancesensor_pb2 import *
-from .message.message_dmx512_pb2 import Message_Dmx512
+from .message.message_dmx512_pb2 import msgDmx512
 from .message.message_io_pb2 import *
 from .message.message_laser_pb2 import *
-from .message.message_localization_pb2 import Message_Localization
-from .message.message_magnetic_pb2 import Message_Magnetic, Message_MagneticNode
+from .message.message_localization_pb2 import msgLocalization
+from .message.message_magnetic_pb2 import msgMagnetic, msgMagneticNode
 from .message.message_motorinfos_pb2 import *
-from .message.message_movetask_pb2 import Message_MoveStatus
+from .message.message_movetask_pb2 import msgMoveStatus
 from .message.message_navigation_pb2 import *
-from .message.message_odometer_pb2 import Message_Odometer
-from .message.message_pgv_pb2 import *
-from .message.message_rfid_pb2 import Message_RFID, Message_RFIDNode
-from .message.message_script_pb2 import Message_Script
-from .message.message_sound_pb2 import Message_Sound
+from .message.message_odometer_pb2 import msgOdometer
+from .message.message_codescanner_pb2 import *
+from .message.message_rfid_pb2 import msgRFID, msgRFIDNode
+from .message.message_script_pb2 import msgScript
+from .message.message_sound_pb2 import msgSound
 
 __all__ = [
     "CanFrame",
-    "Message_Battery",
-    "Message_Bins",
-    "Message_Bin",
+    "msgBattery",
+    "msgBins",
+    "msgBin",
 
-    "Message_Controller",
-    "Message_AllCameraCloud",
+    "msgController",
 
-    "Message_DistanceSensor",
-    "Message_DistanceNode",
+    "msgDistanceSensor",
+    "msgDistanceNode",
 
-    "Message_Dmx512",
-    "Message_DI",
-    "Message_DINode",
-    "Message_DO",
-    "Message_DONode",
+    "msgDmx512",
+    "msgDI",
+    "msgDINode",
+    "msgDO",
+    "msgDONode",
 
-    "Message_MotorInfo",
+    "msgMotorInfo",
 
-    "Message_AllLasers",
-    "Message_AllLasers3D",
-    "Message_Laser3D",
-    "Message_Laser",
-    "Message_LaserDeviceInfo",
-    "Message_LaserBeam3D",
-    "Message_LaserBeam",
+    "msgAllLasers",
+    "msgAllLasers3D",
+    "msgLaser3D",
+    "msgLaser",
+    "msgLaserDeviceInfo",
+    "msgLaserBeam3D",
+    "msgLaserBeam",
 
-    "Message_Localization",
-    "Message_MoveStatus",
+    "msgLocalization",
+    "msgMoveStatus",
 
-    "Message_Magnetic",
-    "Message_MagneticNode",
+    "msgMagnetic",
+    "msgMagneticNode",
 
-    "Message_NavSpeed",
-    "Message_MotorCmd",
+    "msgNavSpeed",
+    "msgMotorCmd",
 
-    "Message_Odometer",
-    "Message_PGV",
-    "Message_PGV_DMT",
-    "Message_PGV_Info",
+    "msgOdometer",
+    "msgCodeScanner",
+    "msgCodeScannerDMT",
+    "msgCodeScannerInfo",
 
-    "Message_RFID",
-    "Message_RFIDNode",
+    "msgRFID",
+    "msgRFIDNode",
 
-    "Message_Sound",
-    "Message_Script"
+    "msgSound",
+    "msgScript"
 ]  # 列出所有公共模块

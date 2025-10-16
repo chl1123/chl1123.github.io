@@ -13,9 +13,9 @@ from syspy import Abnormal, RBK_VERSION
 from syspy import Battery, Di, Do
 
 if RBK_VERSION == 3:
-    from syspy.v3.protobuf.message.message_battery_pb2 import Message_Battery
+    from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
 if RBK_VERSION == 4:
-    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as Message_Battery
+    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as msgBattery
     from syspy.v4.include.rbk import core, service
 
 log = logging.getLogger("rbk.script")
@@ -70,7 +70,7 @@ class canPassBase:
         self.child.setCallBack(self.handleData)
 
     def createBatteryMessage(self):
-        return Message_Battery()
+        return msgBattery()
 
     def createCanBus(self, channel, bitrate):
         self.child.createCanBus(channel, bitrate)
@@ -139,7 +139,7 @@ class canPassBase:
 
         return selected_port
 
-    def publish(self, battery_info: Message_Battery) -> int:
+    def publish(self, battery_info: msgBattery) -> int:
         msg = MessageToJson(battery_info)
         return Battery.publish(msg)
 
@@ -150,13 +150,11 @@ class canPassBase:
         return Do.get_do(index)
 
     def setTimeout(self):
-        pass
-        # Abnormal.setDevice(54001, "CAN battery response time out", "No CAN response",
-        #                    "check CAN", "battery")
+        Abnormal.setConnect(57040, "Battery response time out", "No data response",
+                           "Check the battery or wiring","robot.model","battery","Battery-000")
 
     def clearTimeout(self):
-        pass
-        # Abnormal.clear(54001)
+        Abnormal.clear(57040)
 
     def setError(self, errNum, errMessage, reason='battery', method='check out', filename='btCanPass_xx.py'):
         Abnormal.setDevice(errNum, errMessage, reason, method, filename)

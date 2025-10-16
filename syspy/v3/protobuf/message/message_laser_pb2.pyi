@@ -1,53 +1,33 @@
-from typing import ClassVar, Iterable, Mapping, Optional, Union
-
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import message as _message
+import message_header_pb2 as _message_header_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-
-import message_header_pb2 as _message_header_pb2
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from typing import ClassVar, Iterable, Mapping, Optional, Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-
-class Message_AllLasers(_message.Message):
-    """包含多个激光信息的模型类
-
-    Attributes:
-        laser (typing.List[Message_Laser]): 激光信息列表，包含多个Message_Laser对象，默认值为空列表。
-    """
+class msgAllLasers(_message.Message):
     __slots__ = ["laser"]
     LASER_FIELD_NUMBER: ClassVar[int]
-    laser: _containers.RepeatedCompositeFieldContainer[Message_Laser]
+    laser: _containers.RepeatedCompositeFieldContainer[msgLaser]
+    def __init__(self, laser: Optional[Iterable[Union[msgLaser, Mapping]]] = ...) -> None: ...
 
-    def __init__(self, laser: Optional[Iterable[Union[Message_Laser, Mapping]]] = ...) -> None: ...
-
-
-class Message_AllLasers3D(_message.Message):
-    """包含多个3D激光信息的模型类
-
-    Attributes:
-        lasers3d (typing.List[Message_Laser3D]): 3D激光信息列表，包含多个Message_Laser3D对象，默认值为空列表。
-    """
-    __slots__ = ["lasers3d"]
+class msgAllLasers3D(_message.Message):
+    __slots__ = ["lasers3D"]
     LASERS3D_FIELD_NUMBER: ClassVar[int]
-    lasers3d: _containers.RepeatedCompositeFieldContainer[Message_Laser3D]
+    lasers3D: _containers.RepeatedCompositeFieldContainer[msgLaser3D]
+    def __init__(self, lasers3D: Optional[Iterable[Union[msgLaser3D, Mapping]]] = ...) -> None: ...
 
-    def __init__(self, lasers3d: Optional[Iterable[Union[Message_Laser3D, Mapping]]] = ...) -> None: ...
-
-
-class Message_CostMap(_message.Message):
+class msgCostMap(_message.Message):
     __slots__ = ["grids", "resolution"]
     GRIDS_FIELD_NUMBER: ClassVar[int]
     RESOLUTION_FIELD_NUMBER: ClassVar[int]
-    grids: _containers.RepeatedCompositeFieldContainer[Message_Grid]
+    grids: _containers.RepeatedCompositeFieldContainer[msgGrid]
     resolution: int
+    def __init__(self, resolution: Optional[int] = ..., grids: Optional[Iterable[Union[msgGrid, Mapping]]] = ...) -> None: ...
 
-    def __init__(self, resolution: Optional[int] = ...,
-                 grids: Optional[Iterable[Union[Message_Grid, Mapping]]] = ...) -> None: ...
-
-
-class Message_Grid(_message.Message):
+class msgGrid(_message.Message):
     __slots__ = ["value", "x", "y"]
     VALUE_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
@@ -55,158 +35,79 @@ class Message_Grid(_message.Message):
     value: int
     x: int
     y: int
-
     def __init__(self, value: Optional[int] = ..., x: Optional[int] = ..., y: Optional[int] = ...) -> None: ...
 
-
-class Message_Laser(_message.Message):
-    """表示激光信息的模型。
-
-    Attributes:
-        device_info (typing.Optional[Message_LaserDeviceInfo]): 激光设备的信息，可选字段，默认值为None。
-        install_info (typing.Optional[Message_LaserInstallInfo]): 激光安装信息，可选字段，默认值为None。
-        header (typing.Optional[Message_Header]): 消息头，可选字段，默认值为None。
-        beams (typing.List[Message_LaserBeam]): 激光束列表，默认值为空列表。
-        use_forLoc (bool): 是否用于定位，默认值为False。
-        beams_not_use (typing.List[Message_LaserBeam]): 未使用的激光束列表，默认值为空列表。
-        is3DLocalization (bool): 是否进行3D定位，默认值为False。
-        use_forBinDetection (bool): 是否用于箱子检测，默认值为False。
-    """
-    __slots__ = ["beams", "beams_not_use", "device_info", "header", "install_info", "is3DLocalization",
-                 "use_forBinDetection", "use_forLoc"]
+class msgLaser(_message.Message):
+    __slots__ = ["beams", "beamsNotUse", "deviceInfo", "header", "installInfo", "is3DLocalization", "useForBinDetection", "useForLoc"]
+    BEAMSNOTUSE_FIELD_NUMBER: ClassVar[int]
     BEAMS_FIELD_NUMBER: ClassVar[int]
-    BEAMS_NOT_USE_FIELD_NUMBER: ClassVar[int]
-    DEVICE_INFO_FIELD_NUMBER: ClassVar[int]
+    DEVICEINFO_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
-    INSTALL_INFO_FIELD_NUMBER: ClassVar[int]
+    INSTALLINFO_FIELD_NUMBER: ClassVar[int]
     IS3DLOCALIZATION_FIELD_NUMBER: ClassVar[int]
-    USE_FORBINDETECTION_FIELD_NUMBER: ClassVar[int]
-    USE_FORLOC_FIELD_NUMBER: ClassVar[int]
-    beams: _containers.RepeatedCompositeFieldContainer[Message_LaserBeam]
-    beams_not_use: _containers.RepeatedCompositeFieldContainer[Message_LaserBeam]
-    device_info: Message_LaserDeviceInfo
-    header: _message_header_pb2.Message_Header
-    install_info: Message_LaserInstallInfo
+    USEFORBINDETECTION_FIELD_NUMBER: ClassVar[int]
+    USEFORLOC_FIELD_NUMBER: ClassVar[int]
+    beams: _containers.RepeatedCompositeFieldContainer[msgLaserBeam]
+    beamsNotUse: _containers.RepeatedCompositeFieldContainer[msgLaserBeam]
+    deviceInfo: msgLaserDeviceInfo
+    header: _message_header_pb2.msgHeader
+    installInfo: msgLaserInstallInfo
     is3DLocalization: bool
-    use_forBinDetection: bool
-    use_forLoc: bool
+    useForBinDetection: bool
+    useForLoc: bool
+    def __init__(self, deviceInfo: Optional[Union[msgLaserDeviceInfo, Mapping]] = ..., installInfo: Optional[Union[msgLaserInstallInfo, Mapping]] = ..., header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., beams: Optional[Iterable[Union[msgLaserBeam, Mapping]]] = ..., useForLoc: bool = ..., beamsNotUse: Optional[Iterable[Union[msgLaserBeam, Mapping]]] = ..., is3DLocalization: bool = ..., useForBinDetection: bool = ...) -> None: ...
 
-    def __init__(self, device_info: Optional[Union[Message_LaserDeviceInfo, Mapping]] = ...,
-                 install_info: Optional[Union[Message_LaserInstallInfo, Mapping]] = ...,
-                 header: Optional[Union[_message_header_pb2.Message_Header, Mapping]] = ...,
-                 beams: Optional[Iterable[Union[Message_LaserBeam, Mapping]]] = ..., use_forLoc: bool = ...,
-                 beams_not_use: Optional[Iterable[Union[Message_LaserBeam, Mapping]]] = ...,
-                 is3DLocalization: bool = ..., use_forBinDetection: bool = ...) -> None: ...
-
-
-class Message_Laser3D(_message.Message):
-    """3D激光信息模型类
-
-    Attributes:
-        device_info (typing.Optional[Message_LaserDeviceInfo]): 激光设备的信息，可选字段，默认值为None。
-        header (typing.Optional[Message_Header]): 消息头，可选字段，默认值为None。
-        beams3D (typing.List[Message_LaserBeam3D]): 3D激光束列表，默认值为空列表。
-        use_forLoc (bool): 是否用于定位，默认值为False。
-        beams_not_use (typing.List[Message_LaserBeam]): 未使用的激光束列表，默认值为空列表。
-        is3DLocalization (bool): 是否进行3D定位，默认值为False。
-        lasertype (int): 激光类型，默认值为0。1表示robosense 16，2表示robosense helios，3表示velodyne 16。
-        factor (float): 因子，默认值为0.0。
-        azimuthcorrection (typing.List[float]): 方位角校正值列表，默认值为空列表。
-        verticalcorrection (typing.List[float]): 垂直校正值列表，默认值为空列表。
-        is3DobstacleDetection (bool): 是否进行3D障碍物检测，默认值为False。
-    """
-    __slots__ = ["azimuthcorrection", "beams3D", "beams_not_use", "device_info", "factor", "header", "install_info",
-                 "is3DLocalization", "is3DobstacleDetection", "lasertype", "use_forLoc", "verticalcorrection"]
+class msgLaser3D(_message.Message):
+    __slots__ = ["azimuthCorrection", "beams3D", "beamsNotUse", "deviceInfo", "factor", "header", "installInfo", "is3DLocalization", "is3DobstacleDetection", "laserType", "useForLoc", "verticalCorrection"]
     AZIMUTHCORRECTION_FIELD_NUMBER: ClassVar[int]
     BEAMS3D_FIELD_NUMBER: ClassVar[int]
-    BEAMS_NOT_USE_FIELD_NUMBER: ClassVar[int]
-    DEVICE_INFO_FIELD_NUMBER: ClassVar[int]
+    BEAMSNOTUSE_FIELD_NUMBER: ClassVar[int]
+    DEVICEINFO_FIELD_NUMBER: ClassVar[int]
     FACTOR_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
-    INSTALL_INFO_FIELD_NUMBER: ClassVar[int]
+    INSTALLINFO_FIELD_NUMBER: ClassVar[int]
     IS3DLOCALIZATION_FIELD_NUMBER: ClassVar[int]
     IS3DOBSTACLEDETECTION_FIELD_NUMBER: ClassVar[int]
     LASERTYPE_FIELD_NUMBER: ClassVar[int]
-    USE_FORLOC_FIELD_NUMBER: ClassVar[int]
+    USEFORLOC_FIELD_NUMBER: ClassVar[int]
     VERTICALCORRECTION_FIELD_NUMBER: ClassVar[int]
-    azimuthcorrection: _containers.RepeatedScalarFieldContainer[float]
-    beams3D: _containers.RepeatedCompositeFieldContainer[Message_LaserBeam3D]
-    beams_not_use: _containers.RepeatedCompositeFieldContainer[Message_LaserBeam]
-    device_info: Message_LaserDeviceInfo
+    azimuthCorrection: _containers.RepeatedScalarFieldContainer[float]
+    beams3D: _containers.RepeatedCompositeFieldContainer[msgLaserBeam3D]
+    beamsNotUse: _containers.RepeatedCompositeFieldContainer[msgLaserBeam]
+    deviceInfo: msgLaserDeviceInfo
     factor: float
-    header: _message_header_pb2.Message_Header
-    install_info: Message_LaserInstallInfo
+    header: _message_header_pb2.msgHeader
+    installInfo: msgLaserInstallInfo
     is3DLocalization: bool
     is3DobstacleDetection: bool
-    lasertype: int
-    use_forLoc: bool
-    verticalcorrection: _containers.RepeatedScalarFieldContainer[float]
+    laserType: int
+    useForLoc: bool
+    verticalCorrection: _containers.RepeatedScalarFieldContainer[float]
+    def __init__(self, deviceInfo: Optional[Union[msgLaserDeviceInfo, Mapping]] = ..., installInfo: Optional[Union[msgLaserInstallInfo, Mapping]] = ..., header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., beams3D: Optional[Iterable[Union[msgLaserBeam3D, Mapping]]] = ..., useForLoc: bool = ..., beamsNotUse: Optional[Iterable[Union[msgLaserBeam, Mapping]]] = ..., is3DLocalization: bool = ..., laserType: Optional[int] = ..., factor: Optional[float] = ..., azimuthCorrection: Optional[Iterable[float]] = ..., verticalCorrection: Optional[Iterable[float]] = ..., is3DobstacleDetection: bool = ...) -> None: ...
 
-    def __init__(self, device_info: Optional[Union[Message_LaserDeviceInfo, Mapping]] = ...,
-                 install_info: Optional[Union[Message_LaserInstallInfo, Mapping]] = ...,
-                 header: Optional[Union[_message_header_pb2.Message_Header, Mapping]] = ...,
-                 beams3D: Optional[Iterable[Union[Message_LaserBeam3D, Mapping]]] = ..., use_forLoc: bool = ...,
-                 beams_not_use: Optional[Iterable[Union[Message_LaserBeam, Mapping]]] = ...,
-                 is3DLocalization: bool = ..., lasertype: Optional[int] = ..., factor: Optional[float] = ...,
-                 azimuthcorrection: Optional[Iterable[float]] = ...,
-                 verticalcorrection: Optional[Iterable[float]] = ..., is3DobstacleDetection: bool = ...) -> None: ...
-
-
-class Message_LaserBeam(_message.Message):
-    """激光束信息模型类
-
-    Attributes:
-        header (typing.Optional[Message_Header]): 激光束的消息头，可选字段，默认值为None。
-        angle (float): 激光束的角度，默认值为0.0。
-        dist (float): 激光束的距离，默认值为0.0。
-        x (float): 激光束在X轴的坐标，默认值为0.0。
-        y (float): 激光束在Y轴的坐标，默认值为0.0。
-        rssi (float): 激光束的接收信号强度指示，默认值为0.0。
-        valid (bool): 激光束是否有效，默认值为False。
-        is_virtual (bool): 激光束是否为虚拟的，默认值为False。
-        is_obstacle (bool): 激光束是否表示障碍物，默认值为False。
-    """
-    __slots__ = ["angle", "dist", "header", "is_obstacle", "is_virtual", "rssi", "valid", "x", "y"]
+class msgLaserBeam(_message.Message):
+    __slots__ = ["angle", "dist", "header", "isObstacle", "isVirtual", "rssi", "valid", "x", "y"]
     ANGLE_FIELD_NUMBER: ClassVar[int]
     DIST_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
-    IS_OBSTACLE_FIELD_NUMBER: ClassVar[int]
-    IS_VIRTUAL_FIELD_NUMBER: ClassVar[int]
+    ISOBSTACLE_FIELD_NUMBER: ClassVar[int]
+    ISVIRTUAL_FIELD_NUMBER: ClassVar[int]
     RSSI_FIELD_NUMBER: ClassVar[int]
     VALID_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
     angle: float
     dist: float
-    header: _message_header_pb2.Message_Header
-    is_obstacle: bool
-    is_virtual: bool
+    header: _message_header_pb2.msgHeader
+    isObstacle: bool
+    isVirtual: bool
     rssi: float
     valid: bool
     x: float
     y: float
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., angle: Optional[float] = ..., dist: Optional[float] = ..., x: Optional[float] = ..., y: Optional[float] = ..., rssi: Optional[float] = ..., valid: bool = ..., isVirtual: bool = ..., isObstacle: bool = ...) -> None: ...
 
-    def __init__(self, header: Optional[Union[_message_header_pb2.Message_Header, Mapping]] = ...,
-                 angle: Optional[float] = ..., dist: Optional[float] = ..., x: Optional[float] = ...,
-                 y: Optional[float] = ..., rssi: Optional[float] = ..., valid: bool = ..., is_virtual: bool = ...,
-                 is_obstacle: bool = ...) -> None: ...
-
-
-class Message_LaserBeam3D(_message.Message):
-    """3D激光束信息模型类
-
-    Attributes:
-        id (int): 3D激光束的ID，默认值为0。
-        x (float): 3D激光束在X轴的坐标，默认值为0.0。
-        y (float): 3D激光束在Y轴的坐标，默认值为0.0。
-        z (float): 3D激光束在Z轴的坐标，默认值为0.0。
-        intensity (int): 3D激光束的强度，默认值为0。
-        ring (int): 3D激光束所在的环编号，默认值为0。
-        timestamp (int): 3D激光束的时间戳，默认值为0。
-        data (bytes): 3D激光束的数据，默认值为空字节串。
-        firstAzimuth (float): 3D激光束的第一个方位角，默认值为0.0。
-        secondAzimuth (float): 3D激光束的第二个方位角，默认值为0.0。
-    """
+class msgLaserBeam3D(_message.Message):
     __slots__ = ["data", "firstAzimuth", "id", "intensity", "ring", "secondAzimuth", "timestamp", "x", "y", "z"]
     DATA_FIELD_NUMBER: ClassVar[int]
     FIRSTAZIMUTH_FIELD_NUMBER: ClassVar[int]
@@ -228,268 +129,192 @@ class Message_LaserBeam3D(_message.Message):
     x: float
     y: float
     z: float
+    def __init__(self, id: Optional[int] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., intensity: Optional[int] = ..., ring: Optional[int] = ..., timestamp: Optional[int] = ..., data: Optional[bytes] = ..., firstAzimuth: Optional[float] = ..., secondAzimuth: Optional[float] = ...) -> None: ...
 
-    def __init__(self, id: Optional[int] = ..., x: Optional[float] = ..., y: Optional[float] = ...,
-                 z: Optional[float] = ..., intensity: Optional[int] = ..., ring: Optional[int] = ...,
-                 timestamp: Optional[int] = ..., data: Optional[bytes] = ..., firstAzimuth: Optional[float] = ...,
-                 secondAzimuth: Optional[float] = ...) -> None: ...
-
-
-class Message_LaserCluster(_message.Message):
-    __slots__ = ["beams", "device_info", "features", "header", "install_info"]
+class msgLaserCluster(_message.Message):
+    __slots__ = ["beams", "deviceInfo", "features", "header", "installInfo"]
     BEAMS_FIELD_NUMBER: ClassVar[int]
-    DEVICE_INFO_FIELD_NUMBER: ClassVar[int]
+    DEVICEINFO_FIELD_NUMBER: ClassVar[int]
     FEATURES_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
-    INSTALL_INFO_FIELD_NUMBER: ClassVar[int]
-    beams: _containers.RepeatedCompositeFieldContainer[Message_LaserBeam]
-    device_info: Message_LaserDeviceInfo
-    features: Message_LaserClusterFeature
-    header: _message_header_pb2.Message_Header
-    install_info: Message_LaserInstallInfo
+    INSTALLINFO_FIELD_NUMBER: ClassVar[int]
+    beams: _containers.RepeatedCompositeFieldContainer[msgLaserBeam]
+    deviceInfo: msgLaserDeviceInfo
+    features: msgLaserClusterFeature
+    header: _message_header_pb2.msgHeader
+    installInfo: msgLaserInstallInfo
+    def __init__(self, deviceInfo: Optional[Union[msgLaserDeviceInfo, Mapping]] = ..., installInfo: Optional[Union[msgLaserInstallInfo, Mapping]] = ..., header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., beams: Optional[Iterable[Union[msgLaserBeam, Mapping]]] = ..., features: Optional[Union[msgLaserClusterFeature, Mapping]] = ...) -> None: ...
 
-    def __init__(self, device_info: Optional[Union[Message_LaserDeviceInfo, Mapping]] = ...,
-                 install_info: Optional[Union[Message_LaserInstallInfo, Mapping]] = ...,
-                 header: Optional[Union[_message_header_pb2.Message_Header, Mapping]] = ...,
-                 beams: Optional[Iterable[Union[Message_LaserBeam, Mapping]]] = ...,
-                 features: Optional[Union[Message_LaserClusterFeature, Mapping]] = ...) -> None: ...
-
-
-class Message_LaserClusterFeature(_message.Message):
-    __slots__ = ["ang_diff", "avg_median_dev", "avg_rssi", "boundary_length", "boundary_regularity", "circularity",
-                 "iav", "linearity", "mean_curvature", "next_jump", "num_points", "prev_jump", "radius", "std",
-                 "std_iav", "width"]
-    ANG_DIFF_FIELD_NUMBER: ClassVar[int]
-    AVG_MEDIAN_DEV_FIELD_NUMBER: ClassVar[int]
-    AVG_RSSI_FIELD_NUMBER: ClassVar[int]
-    BOUNDARY_LENGTH_FIELD_NUMBER: ClassVar[int]
-    BOUNDARY_REGULARITY_FIELD_NUMBER: ClassVar[int]
+class msgLaserClusterFeature(_message.Message):
+    __slots__ = ["angDiff", "avgMedianDev", "avgRssi", "boundaryLength", "boundaryRegularity", "circularity", "iav", "linearity", "meanCurvature", "nextJump", "numPoints", "prevJump", "radius", "std", "stdIav", "width"]
+    ANGDIFF_FIELD_NUMBER: ClassVar[int]
+    AVGMEDIANDEV_FIELD_NUMBER: ClassVar[int]
+    AVGRSSI_FIELD_NUMBER: ClassVar[int]
+    BOUNDARYLENGTH_FIELD_NUMBER: ClassVar[int]
+    BOUNDARYREGULARITY_FIELD_NUMBER: ClassVar[int]
     CIRCULARITY_FIELD_NUMBER: ClassVar[int]
     IAV_FIELD_NUMBER: ClassVar[int]
     LINEARITY_FIELD_NUMBER: ClassVar[int]
-    MEAN_CURVATURE_FIELD_NUMBER: ClassVar[int]
-    NEXT_JUMP_FIELD_NUMBER: ClassVar[int]
-    NUM_POINTS_FIELD_NUMBER: ClassVar[int]
-    PREV_JUMP_FIELD_NUMBER: ClassVar[int]
+    MEANCURVATURE_FIELD_NUMBER: ClassVar[int]
+    NEXTJUMP_FIELD_NUMBER: ClassVar[int]
+    NUMPOINTS_FIELD_NUMBER: ClassVar[int]
+    PREVJUMP_FIELD_NUMBER: ClassVar[int]
     RADIUS_FIELD_NUMBER: ClassVar[int]
+    STDIAV_FIELD_NUMBER: ClassVar[int]
     STD_FIELD_NUMBER: ClassVar[int]
-    STD_IAV_FIELD_NUMBER: ClassVar[int]
     WIDTH_FIELD_NUMBER: ClassVar[int]
-    ang_diff: float
-    avg_median_dev: float
-    avg_rssi: float
-    boundary_length: float
-    boundary_regularity: float
+    angDiff: float
+    avgMedianDev: float
+    avgRssi: float
+    boundaryLength: float
+    boundaryRegularity: float
     circularity: float
     iav: float
     linearity: float
-    mean_curvature: float
-    next_jump: float
-    num_points: float
-    prev_jump: float
+    meanCurvature: float
+    nextJump: float
+    numPoints: float
+    prevJump: float
     radius: float
     std: float
-    std_iav: float
+    stdIav: float
     width: float
+    def __init__(self, avgRssi: Optional[float] = ..., numPoints: Optional[float] = ..., std: Optional[float] = ..., avgMedianDev: Optional[float] = ..., prevJump: Optional[float] = ..., nextJump: Optional[float] = ..., width: Optional[float] = ..., linearity: Optional[float] = ..., circularity: Optional[float] = ..., radius: Optional[float] = ..., boundaryLength: Optional[float] = ..., angDiff: Optional[float] = ..., meanCurvature: Optional[float] = ..., boundaryRegularity: Optional[float] = ..., iav: Optional[float] = ..., stdIav: Optional[float] = ...) -> None: ...
 
-    def __init__(self, avg_rssi: Optional[float] = ..., num_points: Optional[float] = ..., std: Optional[float] = ...,
-                 avg_median_dev: Optional[float] = ..., prev_jump: Optional[float] = ...,
-                 next_jump: Optional[float] = ..., width: Optional[float] = ..., linearity: Optional[float] = ...,
-                 circularity: Optional[float] = ..., radius: Optional[float] = ...,
-                 boundary_length: Optional[float] = ..., ang_diff: Optional[float] = ...,
-                 mean_curvature: Optional[float] = ..., boundary_regularity: Optional[float] = ...,
-                 iav: Optional[float] = ..., std_iav: Optional[float] = ...) -> None: ...
-
-
-class Message_LaserDeviceInfo(_message.Message):
-    """表示激光设备信息的模型。
-
-    Attributes:
-        device_name (str): 激光设备的名称，默认值为空字符串。
-        min_range (float): 激光设备的最小探测范围，默认值为0.0。
-        max_range (float): 激光设备的最大探测范围，默认值为0.0。
-        min_angle (float): 激光设备的最小探测角度，默认值为0.0。
-        max_angle (float): 激光设备的最大探测角度，默认值为0.0。
-        real_step (float): 激光设备的实际扫描步长，默认值为0.0。
-        pub_step (float): 激光设备的发布扫描步长，默认值为0.0。
-        time_increment (float): 激光设备的时间增量，默认值为0.0。
-        scan_freq (float): 激光设备的扫描频率，默认值为0.0。
-        id (int): 激光设备的ID，默认值为0。
-        isClockWise (bool): 激光设备是否为顺时针扫描，默认值为False。
-    """
-    __slots__ = ["device_name", "id", "isClockWise", "max_angle", "max_range", "min_angle", "min_range", "pub_step",
-                 "real_step", "scan_freq", "time_increment"]
-    DEVICE_NAME_FIELD_NUMBER: ClassVar[int]
+class msgLaserDeviceInfo(_message.Message):
+    __slots__ = ["deviceName", "id", "isClockWise", "maxAngle", "maxRange", "minAngle", "minRange", "pubStep", "realStep", "scanFreq", "timeIncrement"]
+    DEVICENAME_FIELD_NUMBER: ClassVar[int]
     ID_FIELD_NUMBER: ClassVar[int]
     ISCLOCKWISE_FIELD_NUMBER: ClassVar[int]
-    MAX_ANGLE_FIELD_NUMBER: ClassVar[int]
-    MAX_RANGE_FIELD_NUMBER: ClassVar[int]
-    MIN_ANGLE_FIELD_NUMBER: ClassVar[int]
-    MIN_RANGE_FIELD_NUMBER: ClassVar[int]
-    PUB_STEP_FIELD_NUMBER: ClassVar[int]
-    REAL_STEP_FIELD_NUMBER: ClassVar[int]
-    SCAN_FREQ_FIELD_NUMBER: ClassVar[int]
-    TIME_INCREMENT_FIELD_NUMBER: ClassVar[int]
-    device_name: str
+    MAXANGLE_FIELD_NUMBER: ClassVar[int]
+    MAXRANGE_FIELD_NUMBER: ClassVar[int]
+    MINANGLE_FIELD_NUMBER: ClassVar[int]
+    MINRANGE_FIELD_NUMBER: ClassVar[int]
+    PUBSTEP_FIELD_NUMBER: ClassVar[int]
+    REALSTEP_FIELD_NUMBER: ClassVar[int]
+    SCANFREQ_FIELD_NUMBER: ClassVar[int]
+    TIMEINCREMENT_FIELD_NUMBER: ClassVar[int]
+    deviceName: str
     id: int
     isClockWise: bool
-    max_angle: float
-    max_range: float
-    min_angle: float
-    min_range: float
-    pub_step: float
-    real_step: float
-    scan_freq: float
-    time_increment: float
+    maxAngle: float
+    maxRange: float
+    minAngle: float
+    minRange: float
+    pubStep: float
+    realStep: float
+    scanFreq: float
+    timeIncrement: float
+    def __init__(self, deviceName: Optional[str] = ..., minRange: Optional[float] = ..., maxRange: Optional[float] = ..., minAngle: Optional[float] = ..., maxAngle: Optional[float] = ..., realStep: Optional[float] = ..., pubStep: Optional[float] = ..., timeIncrement: Optional[float] = ..., scanFreq: Optional[float] = ..., id: Optional[int] = ..., isClockWise: bool = ...) -> None: ...
 
-    def __init__(self, device_name: Optional[str] = ..., min_range: Optional[float] = ...,
-                 max_range: Optional[float] = ..., min_angle: Optional[float] = ..., max_angle: Optional[float] = ...,
-                 real_step: Optional[float] = ..., pub_step: Optional[float] = ...,
-                 time_increment: Optional[float] = ..., scan_freq: Optional[float] = ..., id: Optional[int] = ...,
-                 isClockWise: bool = ...) -> None: ...
-
-
-class Message_LaserInstallInfo(_message.Message):
-    """表示激光安装信息的模型。
-
-    Attributes:
-        x (float): 激光安装位置的X坐标，默认值为0.0。
-        y (float): 激光安装位置的Y坐标，默认值为0.0。
-        z (float): 激光安装位置的Z坐标，默认值为0.0。
-        yaw (float): 激光安装的偏航角，默认值为0.0。
-        upside (bool): 激光是否倒置安装，默认值为False。
-    """
-    __slots__ = ["upside", "x", "y", "yaw", "z"]
-    UPSIDE_FIELD_NUMBER: ClassVar[int]
+class msgLaserInstallInfo(_message.Message):
+    __slots__ = ["pitch", "roll", "x", "y", "yaw", "z"]
+    PITCH_FIELD_NUMBER: ClassVar[int]
+    ROLL_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
     YAW_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
     Z_FIELD_NUMBER: ClassVar[int]
-    upside: bool
+    pitch: float
+    roll: float
     x: float
     y: float
     yaw: float
     z: float
+    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., roll: Optional[float] = ..., pitch: Optional[float] = ..., yaw: Optional[float] = ...) -> None: ...
 
-    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ...,
-                 yaw: Optional[float] = ..., upside: bool = ...) -> None: ...
-
-
-class Message_LaserPoint(_message.Message):
-    __slots__ = ["data_nsec", "id", "is_obstacle", "rssi", "type", "x", "y", "z"]
-
+class msgLaserPoint(_message.Message):
+    __slots__ = ["dataNSec", "id", "isObstacle", "rssi", "type", "x", "y", "z"]
     class Type(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
-
-    APIObstacle: Message_LaserPoint.Type
-    Collision: Message_LaserPoint.Type
-    DATA_NSEC_FIELD_NUMBER: ClassVar[int]
-    Fallingdown: Message_LaserPoint.Type
+    APIObstacle: msgLaserPoint.Type
+    Collision: msgLaserPoint.Type
+    DATANSEC_FIELD_NUMBER: ClassVar[int]
+    Fallingdown: msgLaserPoint.Type
     ID_FIELD_NUMBER: ClassVar[int]
-    IS_OBSTACLE_FIELD_NUMBER: ClassVar[int]
-    Infrared: Message_LaserPoint.Type
-    Laser: Message_LaserPoint.Type
+    ISOBSTACLE_FIELD_NUMBER: ClassVar[int]
+    Infrared: msgLaserPoint.Type
+    Laser: msgLaserPoint.Type
     RSSI_FIELD_NUMBER: ClassVar[int]
     TYPE_FIELD_NUMBER: ClassVar[int]
-    Ultrasonic: Message_LaserPoint.Type
-    VirtualPoint: Message_LaserPoint.Type
+    Ultrasonic: msgLaserPoint.Type
+    VirtualPoint: msgLaserPoint.Type
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
     Z_FIELD_NUMBER: ClassVar[int]
-    data_nsec: int
+    dataNSec: int
     id: str
-    is_obstacle: bool
+    isObstacle: bool
     rssi: float
-    type: Message_LaserPoint.Type
+    type: msgLaserPoint.Type
     x: float
     y: float
     z: float
+    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., type: Optional[Union[msgLaserPoint.Type, str]] = ..., id: Optional[str] = ..., isObstacle: bool = ..., rssi: Optional[float] = ..., dataNSec: Optional[int] = ...) -> None: ...
 
-    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ...,
-                 type: Optional[Union[Message_LaserPoint.Type, str]] = ..., id: Optional[str] = ...,
-                 is_obstacle: bool = ..., rssi: Optional[float] = ..., data_nsec: Optional[int] = ...) -> None: ...
-
-
-class Message_LaserPointCloud(_message.Message):
+class msgLaserPointCloud(_message.Message):
     __slots__ = ["header", "point"]
     HEADER_FIELD_NUMBER: ClassVar[int]
     POINT_FIELD_NUMBER: ClassVar[int]
-    header: _message_header_pb2.Message_Header
-    point: _containers.RepeatedCompositeFieldContainer[Message_LaserPoint]
+    header: _message_header_pb2.msgHeader
+    point: _containers.RepeatedCompositeFieldContainer[msgLaserPoint]
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., point: Optional[Iterable[Union[msgLaserPoint, Mapping]]] = ...) -> None: ...
 
-    def __init__(self, header: Optional[Union[_message_header_pb2.Message_Header, Mapping]] = ...,
-                 point: Optional[Iterable[Union[Message_LaserPoint, Mapping]]] = ...) -> None: ...
-
-
-class Message_LaserSegResult(_message.Message):
+class msgLaserSegResult(_message.Message):
     __slots__ = ["clusters", "header"]
     CLUSTERS_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
-    clusters: _containers.RepeatedCompositeFieldContainer[Message_LaserCluster]
-    header: _message_header_pb2.Message_Header
+    clusters: _containers.RepeatedCompositeFieldContainer[msgLaserCluster]
+    header: _message_header_pb2.msgHeader
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., clusters: Optional[Iterable[Union[msgLaserCluster, Mapping]]] = ...) -> None: ...
 
-    def __init__(self, header: Optional[Union[_message_header_pb2.Message_Header, Mapping]] = ...,
-                 clusters: Optional[Iterable[Union[Message_LaserCluster, Mapping]]] = ...) -> None: ...
-
-
-class Message_SensorPoint(_message.Message):
-    __slots__ = ["is_obstacle", "rssi", "tag", "x", "y", "z"]
-    IS_OBSTACLE_FIELD_NUMBER: ClassVar[int]
+class msgSensorPoint(_message.Message):
+    __slots__ = ["isObstacle", "rssi", "tag", "x", "y", "z"]
+    ISOBSTACLE_FIELD_NUMBER: ClassVar[int]
     RSSI_FIELD_NUMBER: ClassVar[int]
     TAG_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
     Z_FIELD_NUMBER: ClassVar[int]
-    is_obstacle: bool
+    isObstacle: bool
     rssi: float
     tag: str
     x: float
     y: float
     z: float
+    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., isObstacle: bool = ..., rssi: Optional[float] = ..., tag: Optional[str] = ...) -> None: ...
 
-    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ...,
-                 is_obstacle: bool = ..., rssi: Optional[float] = ..., tag: Optional[str] = ...) -> None: ...
+class msgSensorPointCloud(_message.Message):
+    __slots__ = ["globalCluster", "localCluster"]
+    GLOBALCLUSTER_FIELD_NUMBER: ClassVar[int]
+    LOCALCLUSTER_FIELD_NUMBER: ClassVar[int]
+    globalCluster: _containers.RepeatedCompositeFieldContainer[msgSensorPointCluster]
+    localCluster: _containers.RepeatedCompositeFieldContainer[msgSensorPointCluster]
+    def __init__(self, globalCluster: Optional[Iterable[Union[msgSensorPointCluster, Mapping]]] = ..., localCluster: Optional[Iterable[Union[msgSensorPointCluster, Mapping]]] = ...) -> None: ...
 
-
-class Message_SensorPointCloud(_message.Message):
-    __slots__ = ["global_cluster", "local_cluster"]
-    GLOBAL_CLUSTER_FIELD_NUMBER: ClassVar[int]
-    LOCAL_CLUSTER_FIELD_NUMBER: ClassVar[int]
-    global_cluster: _containers.RepeatedCompositeFieldContainer[Message_SensorPointCluster]
-    local_cluster: _containers.RepeatedCompositeFieldContainer[Message_SensorPointCluster]
-
-    def __init__(self, global_cluster: Optional[Iterable[Union[Message_SensorPointCluster, Mapping]]] = ...,
-                 local_cluster: Optional[Iterable[Union[Message_SensorPointCluster, Mapping]]] = ...) -> None: ...
-
-
-class Message_SensorPointCluster(_message.Message):
+class msgSensorPointCluster(_message.Message):
     __slots__ = ["header", "id", "point", "type"]
-
-    class Type(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    class clusterType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
-
-    ADCollision: Message_SensorPointCluster.Type
-    APIObstacle: Message_SensorPointCluster.Type
-    Collision: Message_SensorPointCluster.Type
-    DepthCamera: Message_SensorPointCluster.Type
-    DiUltrasonic: Message_SensorPointCluster.Type
-    DistanceNode: Message_SensorPointCluster.Type
-    Fallingdown: Message_SensorPointCluster.Type
+    ADCollision: msgSensorPointCluster.clusterType
+    APIObstacle: msgSensorPointCluster.clusterType
+    DIUltrasonic: msgSensorPointCluster.clusterType
     HEADER_FIELD_NUMBER: ClassVar[int]
     ID_FIELD_NUMBER: ClassVar[int]
-    Infrared: Message_SensorPointCluster.Type
-    Laser: Message_SensorPointCluster.Type
     POINT_FIELD_NUMBER: ClassVar[int]
-    ReservedDepthCamera: Message_SensorPointCluster.Type
-    ReservedPoint: Message_SensorPointCluster.Type
     TYPE_FIELD_NUMBER: ClassVar[int]
-    Ultrasonic: Message_SensorPointCluster.Type
-    VirtualPoint: Message_SensorPointCluster.Type
-    header: _message_header_pb2.Message_Header
+    collision: msgSensorPointCluster.clusterType
+    depthCamera: msgSensorPointCluster.clusterType
+    distanceNode: msgSensorPointCluster.clusterType
+    fallingDown: msgSensorPointCluster.clusterType
+    header: _message_header_pb2.msgHeader
     id: str
-    point: _containers.RepeatedCompositeFieldContainer[Message_SensorPoint]
-    type: Message_SensorPointCluster.Type
-
-    def __init__(self, header: Optional[Union[_message_header_pb2.Message_Header, Mapping]] = ...,
-                 type: Optional[Union[Message_SensorPointCluster.Type, str]] = ..., id: Optional[str] = ...,
-                 point: Optional[Iterable[Union[Message_SensorPoint, Mapping]]] = ...) -> None: ...
+    infrared: msgSensorPointCluster.clusterType
+    laser: msgSensorPointCluster.clusterType
+    point: _containers.RepeatedCompositeFieldContainer[msgSensorPoint]
+    reservedDepthCamera: msgSensorPointCluster.clusterType
+    reservedPoint: msgSensorPointCluster.clusterType
+    type: msgSensorPointCluster.clusterType
+    ultrasonic: msgSensorPointCluster.clusterType
+    virtualPoint: msgSensorPointCluster.clusterType
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., type: Optional[Union[msgSensorPointCluster.clusterType, str]] = ..., id: Optional[str] = ..., point: Optional[Iterable[Union[msgSensorPoint, Mapping]]] = ...) -> None: ...

@@ -6,7 +6,7 @@ from syspy import RBK_VERSION
 
 if typing.TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import Message_MotorInfo
+        from syspy.v3.protobuf import msgMotorInfo
 
 
 class OdometerInterface(ABC, Message):
@@ -62,10 +62,10 @@ class OdometerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_motor_infos(cls) -> List["Message_MotorInfo"]:
+    def get_motor_infos(cls) -> List["msgMotorInfo"]:
         """获取电机信息列表
 
         Returns:
-            List[Message_MotorInfo]: 返回电机信息列表，列表内元素为Message_Odometer对象
+            List[msgMotorInfo]: 返回电机信息列表，列表内元素为msgOdometer对象
         """
         raise RBKVersionError()

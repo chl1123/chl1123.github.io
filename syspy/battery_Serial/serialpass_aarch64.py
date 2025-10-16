@@ -5,7 +5,11 @@ import threading
 
 import serial
 
-from syspy.protobuf.message import message_battery_pb2
+from syspy import RBK_VERSION
+if RBK_VERSION == 3:
+    from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
+if RBK_VERSION == 4:
+    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as msgBattery
 
 log = logging.getLogger("rbk.script")
 
@@ -45,7 +49,7 @@ class serialPassAarch64:
             self.__callback = handleData
 
     def createBatteryMessage(self):
-        return message_battery_pb2.Message_Battery()
+        return msgBattery()
 
     def __run(self):
         try:

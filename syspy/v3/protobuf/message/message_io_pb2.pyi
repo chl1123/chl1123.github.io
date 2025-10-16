@@ -5,64 +5,16 @@ from typing import ClassVar, Iterable, Mapping, Optional, Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-
-class Message_Astern(_message.Message):
-    """Astern
-
-    Attributes:
-        status (int): 状态值，默认为 0。
-    """
-    __slots__ = ["status"]
-    STATUS_FIELD_NUMBER: ClassVar[int]
-    status: int
-
-    def __init__(self, status: Optional[int] = ...) -> None: ...
-
-
-class Message_DI(_message.Message):
-    """
-    表示数字输入相关的消息。
-
-    Attributes:
-        node (typing.List[Message_DINode]): 数字输入节点的列表，默认为空列表。
-        max_node (int): 最大节点数，默认为 0。
-    """
-    __slots__ = ["max_node", "node"]
-    MAX_NODE_FIELD_NUMBER: ClassVar[int]
+class msgDI(_message.Message):
+    __slots__ = ["maxNode", "node"]
+    MAXNODE_FIELD_NUMBER: ClassVar[int]
     NODE_FIELD_NUMBER: ClassVar[int]
-    max_node: int
-    node: _containers.RepeatedCompositeFieldContainer[Message_DINode]
+    maxNode: int
+    node: _containers.RepeatedCompositeFieldContainer[msgDINode]
+    def __init__(self, node: Optional[Iterable[Union[msgDINode, Mapping]]] = ..., maxNode: Optional[int] = ...) -> None: ...
 
-    def __init__(self, node: Optional[Iterable[Union[Message_DINode, Mapping]]] = ...,
-                 max_node: Optional[int] = ...) -> None: ...
-
-
-class Message_DINode(_message.Message):
-    """
-    表示数字输入节点的相关信息。
-
-    Attributes:
-        id (int): 节点的唯一标识符，默认为 0。
-        key (str): 节点的key。
-        status (bool): 节点的状态，默认为 False。
-        x (float): 节点的 x 坐标，默认为 0.0。
-        y (float): 节点的 y 坐标，默认为 0.0。
-        z (float): 节点的 z 坐标，默认为 0.0。
-        yaw (float): 节点的偏航角，默认为 0.0。
-        func (str): 节点的功能描述，默认为空字符串。
-        type (str): 节点的类型，默认为空字符串。
-        source (str): 节点的来源，默认为空字符串。
-        shape (str): 节点的形状，默认为空字符串。
-        mindist (float): 最小距离，默认为 0.0。
-        maxdist (float): 最大距离，默认为 0.0。
-        name (str): 节点名。
-        range (float): 范围，默认为 0.0。
-        posx (typing.List[float]): x 坐标的列表，默认为空列表。
-        posy (typing.List[float]): y 坐标的列表，默认为空列表。
-        forbidden (bool): 是否禁止，默认为 False。
-    """
-    __slots__ = ["forbidden", "func", "id", "key", "maxdist", "mindist", "name", "posx", "posy", "range", "shape",
-                 "source", "status", "type", "x", "y", "yaw", "z"]
+class msgDINode(_message.Message):
+    __slots__ = ["forbidden", "func", "id", "key", "maxDist", "minDist", "name", "posX", "posY", "range", "shape", "source", "status", "type", "x", "y", "yaw", "z"]
     FORBIDDEN_FIELD_NUMBER: ClassVar[int]
     FUNC_FIELD_NUMBER: ClassVar[int]
     ID_FIELD_NUMBER: ClassVar[int]
@@ -85,11 +37,11 @@ class Message_DINode(_message.Message):
     func: str
     id: int
     key: str
-    maxdist: float
-    mindist: float
+    maxDist: float
+    minDist: float
     name: str
-    posx: _containers.RepeatedScalarFieldContainer[float]
-    posy: _containers.RepeatedScalarFieldContainer[float]
+    posX: _containers.RepeatedScalarFieldContainer[float]
+    posY: _containers.RepeatedScalarFieldContainer[float]
     range: float
     shape: str
     source: str
@@ -99,45 +51,17 @@ class Message_DINode(_message.Message):
     y: float
     yaw: float
     z: float
+    def __init__(self, id: Optional[int] = ..., status: bool = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., yaw: Optional[float] = ..., func: Optional[str] = ..., type: Optional[str] = ..., source: Optional[str] = ..., shape: Optional[str] = ..., minDist: Optional[float] = ..., maxDist: Optional[float] = ..., range: Optional[float] = ..., posX: Optional[Iterable[float]] = ..., posY: Optional[Iterable[float]] = ..., forbidden: bool = ..., name: Optional[str] = ..., key: Optional[str] = ...) -> None: ...
 
-    def __init__(self, id: Optional[int] = ..., status: bool = ..., x: Optional[float] = ..., y: Optional[float] = ...,
-                 z: Optional[float] = ..., yaw: Optional[float] = ..., func: Optional[str] = ...,
-                 type: Optional[str] = ..., source: Optional[str] = ..., shape: Optional[str] = ...,
-                 mindist: Optional[float] = ..., maxdist: Optional[float] = ..., range: Optional[float] = ...,
-                 posx: Optional[Iterable[float]] = ..., posy: Optional[Iterable[float]] = ..., forbidden: bool = ...,
-                 name: Optional[str] = ..., key: Optional[str] = ...) -> None: ...
-
-
-class Message_DO(_message.Message):
-    """
-    表示数字输出相关的消息。
-
-    Attributes:
-        node (typing.List[Message_DONode]): 数字输出节点的列表，默认为空列表。
-        max_node (int): 最大节点数，默认为 0。
-    """
-    __slots__ = ["max_node", "node"]
-    MAX_NODE_FIELD_NUMBER: ClassVar[int]
+class msgDO(_message.Message):
+    __slots__ = ["maxNode", "node"]
+    MAXNODE_FIELD_NUMBER: ClassVar[int]
     NODE_FIELD_NUMBER: ClassVar[int]
-    max_node: int
-    node: _containers.RepeatedCompositeFieldContainer[Message_DONode]
+    maxNode: int
+    node: _containers.RepeatedCompositeFieldContainer[msgDONode]
+    def __init__(self, node: Optional[Iterable[Union[msgDONode, Mapping]]] = ..., maxNode: Optional[int] = ...) -> None: ...
 
-    def __init__(self, node: Optional[Iterable[Union[Message_DONode, Mapping]]] = ...,
-                 max_node: Optional[int] = ...) -> None: ...
-
-
-class Message_DONode(_message.Message):
-    """
-    表示数字输出节点的相关信息。
-
-    Attributes:
-        id (int): 节点的唯一标识符，默认为 0。
-        key (str): 节点的key。
-        lock (bool): 是否锁定节点状态，默认为 False。
-        name (str): 节点名。
-        source (str): 节点的来源，默认为空字符串。
-        status (bool): 节点的状态，默认为 False。
-    """
+class msgDONode(_message.Message):
     __slots__ = ["id", "key", "lock", "name", "source", "status"]
     ID_FIELD_NUMBER: ClassVar[int]
     KEY_FIELD_NUMBER: ClassVar[int]
@@ -151,6 +75,4 @@ class Message_DONode(_message.Message):
     name: str
     source: str
     status: bool
-
-    def __init__(self, id: Optional[int] = ..., status: bool = ..., source: Optional[str] = ..., lock: bool = ...,
-                 name: Optional[str] = ..., key: Optional[str] = ...) -> None: ...
+    def __init__(self, id: Optional[int] = ..., status: bool = ..., source: Optional[str] = ..., lock: bool = ..., name: Optional[str] = ..., key: Optional[str] = ...) -> None: ...

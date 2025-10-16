@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Callable
 from syspy.core.rbk_rpc import Service, RBKVersionError
 
 
@@ -73,6 +73,24 @@ class RobotParamInterface(ABC, Service):
 
         Returns:
             str:
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def setConfigChangeCallBack(cls, callback: Callable[[Dict[str, Any]], None]):
+        """设置配置参数改变回调
+
+        Args:
+            callback (Callable[[Dict[str, Any]], None]): 回调方法
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def setDeviceChangeCallBack(cls, callback: Callable[[List[str]], None]):
+        """设置设备参数改变回调
+
+        Args:
+            callback (Callable[[List[str]], None]): 回调方法
         """
         raise RBKVersionError()
 
@@ -151,28 +169,28 @@ else:
 
 if __name__ == '__main__':
     # getConfig
-    recognitionObject = RobotParam.getConfig("Recognition", "recognitionObject")
+    recognitionObject = RobotParam.getConfig("recognition", "recognitionObject")
     print(f"default.srec {recognitionObject=}")
-    recognitionObject = RobotParam.getConfig("Recognition", "recognitionObject", "default(1).srec")
+    recognitionObject = RobotParam.getConfig("recognition", "recognitionObject", "default(1).srec")
     print(f"default(1).srec {recognitionObject=}")
 
-    goodsHeight = RobotParam.getConfig("Recognition", "recognitionObject.shelf.goodsParameter.goodsHeight")
+    goodsHeight = RobotParam.getConfig("recognition", "recognitionObject.shelf.goodsParameter.goodsHeight")
     print(f"default.srec {goodsHeight=}")
-    goodsHeight = RobotParam.getConfig("Recognition", "recognitionObject.shelf.goodsParameter.goodsHeight", "default(1).srec")
+    goodsHeight = RobotParam.getConfig("recognition", "recognitionObject.shelf.goodsParameter.goodsHeight", "default(1).srec")
     print(f"default(1).srec {goodsHeight=}")
 
-    stopConfidenceThd = RobotParam.getConfig("Localization", "localizationType.2D.stopConfidenceThd")
+    stopConfidenceThd = RobotParam.getConfig("localization", "localizationType.2D.stopConfidenceThd")
     print(f"{stopConfidenceThd=}")
 
     # config clone
     recognitionSide_key = "recognitionObject.charger.recognitionSide"
-    recognitionSide_size = RobotParam.getConfigCloneSize("Recognition", recognitionSide_key, "default.srec")
+    recognitionSide_size = RobotParam.getConfigCloneSize("recognition", recognitionSide_key, "default.srec")
     print(f"{recognitionSide_size=}")
 
     for i in range(recognitionSide_size):
-        r_value = RobotParam.getConfig("Recognition", f"{recognitionSide_key}._{i}", "default.srec")
+        r_value = RobotParam.getConfig("recognition", f"{recognitionSide_key}._{i}", "default.srec")
         print(f"{recognitionSide_key}._{i}={r_value}")
-        d_value = RobotParam.getConfig("Recognition", f"{recognitionSide_key}._{i}.{r_value}.deviceName", "default.srec")
+        d_value = RobotParam.getConfig("recognition", f"{recognitionSide_key}._{i}.{r_value}.deviceName", "default.srec")
         print(f"{recognitionSide_key}._{i}.{r_value}.deviceName={d_value}")
 
     # getDevice

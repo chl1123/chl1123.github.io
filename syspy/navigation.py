@@ -7,8 +7,8 @@ from syspy.utils import Coordinate
 
 if typing.TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import Message_MotorCmd
-        from syspy.v3.protobuf import Message_MoveStatus
+        from syspy.v3.protobuf import msgMotorCmd
+        from syspy.v3.protobuf import msgMoveStatus
     elif RBK_VERSION == 4:
         pass
 
@@ -640,11 +640,11 @@ class NavStatusInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_task_status(cls) -> "Message_MoveStatus.TaskStatus":
+    def get_task_status(cls) -> "msgMoveStatus.TaskStatus":
         """获取任务状态
 
         Returns:
-            Message_MoveStatus.TaskStatus: 返回脚本任务状态
+            msgMoveStatus.TaskStatus: 返回脚本任务状态
         """
         raise RBKVersionError()
 
@@ -665,11 +665,11 @@ class NavSpeedInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_motor_cmd(cls) -> typing.List["Message_MotorCmd"]:
+    def get_motor_cmd(cls) -> typing.List["msgMotorCmd"]:
         """获取电机指令列表
 
         Returns:
-            typing.List[Message_MotorCmd]: 返回电机指令列表
+            typing.List[msgMotorCmd]: 返回电机指令列表
         """
         raise RBKVersionError()
 

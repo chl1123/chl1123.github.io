@@ -6,19 +6,19 @@ from syspy.controller import ControllerInterface
 class ControllerV3(ControllerInterface):
     """控制器类"""
 
-    _TOPIC = "rbk.protocol.Message_Controller"
+    _TOPIC = "rbk.protocol.msgController"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
 
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_Controller
-        data: Message_Controller = None
+        from .protobuf import msgController
+        data: msgController = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Controller
-            cls._MODEL_CLASS = Message_Controller
+            from .protobuf import msgController
+            cls._MODEL_CLASS = msgController
 
     def get_temperature(self) -> float:
         """获取温度值

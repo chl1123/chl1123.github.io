@@ -10,14 +10,14 @@ class MotorV3(MotorInterface):
     """电机类"""
 
     @staticmethod
-    def get_motor_infos() -> List["Message_MotorInfo"]:
+    def get_motor_infos() -> List["msgMotorInfo"]:
         """获取电机信息列表
 
         Returns:
-            List[Message_MotorInfo]: 返回电机信息列表，列表内元素为Message_Odometer对象
+            List[msgMotorInfo]: 返回电机信息列表，列表内元素为msgOdometer对象
         """
         from syspy import Odometer
-        return Odometer.data.motor_info
+        return Odometer.data.motorInfo
 
     @staticmethod
     def get_motor_pos(motor_name: str) -> Union[float, int]:
@@ -32,7 +32,7 @@ class MotorV3(MotorInterface):
         from syspy import Odometer
         motor_pos = -1
         if Odometer.update():
-            for motor in Odometer.data.motor_info:
+            for motor in Odometer.data.motorInfo:
                 if motor.motor_name == motor_name:
                     motor_pos = motor.position
         return motor_pos
@@ -47,11 +47,11 @@ class MotorV3(MotorInterface):
         Returns:
             Union[float, int]: 返回电机的当前速度，若电机不存在返回 -1
         """
-        from syspy import Odometer, NavSpeed
+        from syspy import NavSpeed
         motor_speed = -1
         if NavSpeed.update():
-            for motor in NavSpeed.data.motor_cmd:
-                if motor.motor_name == motor_name:
+            for motor in NavSpeed.data.motorCmd:
+                if motor.motorName == motor_name:
                     motor_speed = motor.value
         return motor_speed
 

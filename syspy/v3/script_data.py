@@ -5,18 +5,18 @@ from syspy.script_data import ScriptDataInterface
 class ScriptDataV3(ScriptDataInterface):
     """脚本数据"""
 
-    _TOPIC = "rbk.protocol.Message_Script"
+    _TOPIC = "rbk.protocol.msgScript"
     _PLUGIN = "NetProtocol"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import Message_Script
-        data: Message_Script = None
+        from .protobuf import msgScript
+        data: msgScript = None
 
     @classmethod
     def init_model_class(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import Message_Script
-            cls._MODEL_CLASS = Message_Script
+            from .protobuf import msgScript
+            cls._MODEL_CLASS = msgScript
 
     def set(self, name: str, data: dict) -> None:
         """设置脚本数据
@@ -34,4 +34,4 @@ class ScriptDataV3(ScriptDataInterface):
             name (str): 脚本名或标识
         """
         if self.update():
-            return json.loads(self.data.script_data.get(name, "{}"))
+            return json.loads(self.data.scriptData.get(name, "{}"))

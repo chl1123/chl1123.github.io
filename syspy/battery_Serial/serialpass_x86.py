@@ -4,9 +4,9 @@ from syspy import RBK_VERSION
 DEFAULT_PASS_ADDR = "ipc:///tmp/python2dsp_udp.ipc"
 
 if RBK_VERSION == 3:
-    from syspy.v3.protobuf.message.message_battery_pb2 import Message_Battery
+    from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
 if RBK_VERSION == 4:
-    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as Message_Battery
+    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as msgBattery
 
 import logging
 
@@ -20,7 +20,7 @@ class serialPassX86:
         self.__pass.serialConnect(DEFAULT_PASS_ADDR)
 
     def createBatteryMessage(self):
-        return Message_Battery()
+        return msgBattery()
 
     def send(self, msg: list):
         if isinstance(msg, list):

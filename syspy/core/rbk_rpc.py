@@ -1,4 +1,5 @@
 import inspect
+from collections.abc import Callable
 from functools import wraps
 
 from syspy import RBK_VERSION
@@ -7,6 +8,8 @@ from google.protobuf import message
 from google.protobuf import json_format
 from typing import Type, Optional, Any, List, Union, Dict
 import time
+
+from syspy.utils import ScriptType
 
 
 class RBKVersionError(Exception):
@@ -34,6 +37,9 @@ class RBKVersionError(Exception):
 
 class RpcClient:
     """统一RPC客户端接口"""
+    def __init__(self, script_id: str = "", script_type: ScriptType = ScriptType.GENERAL):
+        self.script_id = script_id
+        self.script_type = script_type
 
     def get_message(self, topic: str, model_class: Type[message.Message], plugin: str = "") -> Optional[message.Message]:
         raise NotImplementedError
@@ -43,9 +49,10 @@ class RpcClient:
 
 
 class V3RpcClient(RpcClient):
-    def __init__(self):
+    def __init__(self, script_id: str = "", script_type: ScriptType = ScriptType.GENERAL):
+        super().__init__(script_id, script_type)
         from ..v3.lib.rpc import client  # v3专用实现
-        self._impl = client.RpcClient()
+        self._impl = client.RpcClient(identity=script_id)
 
     def get_message(self, topic: str, model_class: Type[message.Message], plugin: str = "RBKSim") -> message.Message:
         response = self._impl.get_message(topic, plugin)
@@ -56,7 +63,8 @@ class V3RpcClient(RpcClient):
 
 
 class V4RpcClient(RpcClient):
-    def __init__(self):
+    def __init__(self, script_id: str = "", script_type: ScriptType = ScriptType.GENERAL):
+        super().__init__(script_id, script_type)
         from ..v4.lib.rbk import datapool, service
         self.datapool = datapool
         self.service = service
@@ -69,8 +77,63 @@ class V4RpcClient(RpcClient):
         return tuple(json.loads(response.decode('utf-8'))) if response else None
 
 
+class RpcServer:
+    def __init__(self, script_id: str, script_type: ScriptType = ScriptType.GENERAL):
+        self.script_id = script_id
+        self.script_type = script_type
+
+    def register_function(self, function: Callable, method_name: str = "", is_immediately: bool = False):
+        raise NotImplementedError
+
+    def start(self):
+        pass
+
+
+class V3RpcServer(RpcServer):
+    def __init__(self, script_id: str, script_type: ScriptType = ScriptType.GENERAL):
+        super().__init__(script_id, script_type)
+        from syspy.lib.rpc import server
+        self.__service = server.RpcServer(script_id, script_type)
+
+    def register_function(self, function: Callable, method_name: str = "", is_immediately: bool = False):
+        self.__service.registerFunction(function, method_name, is_immediately)
+
+    def start(self):
+        self.__service.start()
+
+
+class V4RpcServer(RpcServer):
+    def __init__(self, script_id: str, script_type: ScriptType = ScriptType.GENERAL):
+        super().__init__(script_id, script_type)
+        from ..v4.lib.rbk import service
+        self.__service = service
+
+    def register_function(self, function: Callable, method_name: str = "", is_immediately: bool = True):
+        if not method_name:
+            method_name = function.__name__
+        self.__service.addService(self.script_id, method_name, function)
+
+
 class Service:
     _client: RpcClient = None
+    _server: RpcServer = None
+    _script_id: str = ""
+    _script_type: ScriptType = ScriptType.GENERAL
+
+    @classmethod
+    def init(cls, script_id: str, script_type: ScriptType = ScriptType.GENERAL):
+        cls._script_id = script_id
+        cls._script_type = script_type
+        if RBK_VERSION == 3:
+            cls._client = V3RpcClient(script_id, script_type)
+            cls._server = V3RpcServer(script_id, script_type)
+        elif RBK_VERSION == 4:
+            from syspy.v4.lib.rbk import core
+            core.Init(script_id)
+            cls._client = V4RpcClient(script_id, script_type)
+            cls._server = V4RpcServer(script_id, script_type)
+        else:
+            raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
     @classmethod
     def client(cls) -> RpcClient:
@@ -86,6 +149,19 @@ class Service:
             return V4RpcClient()
         raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
+    @classmethod
+    def server(cls) -> RpcServer:
+        if not cls._server:
+            cls._server = cls._create_server()
+        return cls._server
+
+    @classmethod
+    def _create_server(cls) -> RpcServer:
+        if RBK_VERSION == 3:
+            return V3RpcServer(cls._script_id, cls._script_type)
+        elif RBK_VERSION == 4:
+            return V4RpcServer(cls._script_id, cls._script_type)
+        raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
 class Message(Service):
     _TOPIC: str = ""  # 消息订阅主题

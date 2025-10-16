@@ -1,5 +1,5 @@
 import sys
 
-sys.path.append("/home/yinxu/rbk40x/bin/release/linux/x86_64/tools/pymodule")
+sys.path.append("/opt/data/rbk/tools/pymodule")
 
 import libpymodule as PyModule

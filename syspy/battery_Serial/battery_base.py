@@ -4,6 +4,7 @@ import syspy.v3.lib.rpc.client as rc
 import syspy.lib.rpc.server as rs
 import syspy.lib.udp_debug as ud
 from syspy import Battery, Di, Do
+from syspy import Abnormal, RBK_VERSION
 
 _syslog = ud.syslogDebug("serial_battery")
 from google.protobuf.json_format import MessageToJson
@@ -58,28 +59,21 @@ class batteryBase:
         return msg
 
     def setTimeout(self):
-        pass
-        # self.__rpc_client.setWarning(54001, "Serail battery response time out")
+        Abnormal.setConnect(57040, "Battery response time out", "No data response",
+                           "Check the battery or wiring","robot.model","battery","Battery-000")
 
     def clearTimeout(self):
-        pass
-        # self.__rpc_client.clearWarning(54001)
+        Abnormal.clear(57040)
 
-    def setWarning(self, warNum, warMessage):
-        pass
-        # self.__rpc_client.setWarning(warNum, warMessage)
 
-    def setError(self, errNum, errMessage):
-        pass
-        # self.__rpc_client.setError(errNum, errMessage)
-
-    def warningExists(self, code):
-        pass
-        # return self.__rpc_client.warningExists(code)
+    def setError(self, errNum, errMessage, reason='battery', method='check out', filename='net2Serial_xx.py'):
+        Abnormal.setDevice(errNum, errMessage, reason, method, filename)
 
     def errorExists(self, code):
-        pass
-        # return self.__rpc_client.errorExists(code)
+            return Abnormal.exists(code)
+
+    def clearError(self, code):
+        Abnormal.clear(code)
 
     def setChargeStateOn(self):
         self.need_charge = True
