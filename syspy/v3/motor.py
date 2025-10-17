@@ -33,7 +33,7 @@ class MotorV3(MotorInterface):
         motor_pos = -1
         if Odometer.update():
             for motor in Odometer.data.motorInfo:
-                if motor.motor_name == motor_name:
+                if motor.motorName == motor_name:
                     motor_pos = motor.position
         return motor_pos
 
