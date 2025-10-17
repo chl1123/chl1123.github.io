@@ -1,7 +1,7 @@
 from typing import List
-from syspy.pgv import PgvInterface
+from syspy.code_scanner import CodeScannerInterface
 
-class PgvV4(PgvInterface):
+class CodeScannerV4(CodeScannerInterface):
     """PGV类"""
 
     _TOPIC = ""  # todo RBK4
@@ -13,7 +13,7 @@ class PgvV4(PgvInterface):
             from syspy.v4.protobuf.message.messageV4_pgv_pb2 import MessageV4_PGV
             cls._MODEL_CLASS = MessageV4_PGV
 
-    def get_pgvs(self) -> List["MessageV4_PGV_DMT"]:
+    def get_code_scanners(self) -> List["MessageV4_PGV_DMT"]:
         """获取Message_PGV_DMT对象列表
 
         Returns:

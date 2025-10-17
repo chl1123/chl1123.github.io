@@ -48,7 +48,7 @@ from .loc import Loc
 from .magnetic import Magnetic
 from .map import Map
 from .motor import Motor
-from .pgv import Pgv
+from .code_scanner import CodeScanner
 from .recognize import Recognize
 from .rfid import RFID
 from .sound import Sound
@@ -85,7 +85,7 @@ __all__ = [
     "NavStatus",
     "NavSpeed",
     "Odometer",
-    "Pgv",
+    "CodeScanner",
     "RFID",
     "Recognize",
     "Sound",
