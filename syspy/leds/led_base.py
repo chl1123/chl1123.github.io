@@ -26,9 +26,9 @@ class LedBase:
 
     def __init__(self, param_server: ParamServer):
         self.dev = param_server.read("devName")
-        self.turn_pos = param_server.read("turnPos")
-        self.turn_num = param_server.read("turnNum")
-        self.light_total_num = param_server.read("lightTotalNum")
+        self.turn_pos = list(map(int,param_server.read("turnPos")))
+        self.turn_num = list(map(int,param_server.read("turnNum")))
+        self.light_total_num = int(param_server.read("lightTotalNum"))
 
         self.dmx_serial = DmxSerialComm(self.dev)
         self.__led = DmxLed(param_server)
