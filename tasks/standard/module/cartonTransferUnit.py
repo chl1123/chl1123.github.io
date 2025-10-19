@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2025/09/04
+# @Date: 2025/10/19
 # @Author: zhaopengfei
 # @Version: v1.0
 # @Project: SPK-MJ50-HL
-# @Update:
+# @Update: 修改对外参数key为小驼峰
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -251,7 +251,7 @@ class InputParams:
 
         create_stretch_param(builder)
 
-        with builder.CHILD(key="modbus_ip", name="Modbus IP", desc="Modbus TCP IP"):
+        with builder.CHILD(key="modbusIp", name="Modbus IP", desc="Modbus TCP IP"):
             builder.TYPE(ParamType.IP)
             builder.DEFAULTVALUE("192.168.192.6")
 
@@ -260,7 +260,7 @@ class InputParams:
             with builder.CHILDREN():
                 with builder.CHILD(key="none", name="none", desc="空"):
                     builder.TYPE(ParamType.ARRAY)
-                with builder.CHILD(key="rec_qrcode", name="Rec_Qrcode", desc="识别二维码"):
+                with builder.CHILD(key="recQrcode", name="Rec_Qrcode", desc="识别二维码"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_vision_type_param(builder, "识别类型: 'box' 或 'shelf'")
@@ -289,23 +289,23 @@ class InputParams:
                         with builder.CHILD(key="recBoxLift", name="Rec Box Lift", desc="识别料箱码的高度，用于放货前先识别库位是否已经有货"):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(-1)
-                        with builder.CHILD(key="pre_finger", name="Pre Finger", desc="放货时提前打开手指，解决推箱子后由于箱体表面不规则结构卡手指"):
+                        with builder.CHILD(key="preFinger", name="Pre Finger", desc="放货时提前打开手指，解决推箱子后由于箱体表面不规则结构卡手指"):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1)
                         create_container_param(builder, "车体背篓号，指定内部取货的背篓号，缺省时将按照从下往上依次取货")
                         create_goods_id_param(builder, "货物编号，指定要取货的货物编号，若车体背篓中无此goodsId，会报错")
-                with builder.CHILD(key="rec_box_barcode", name="Rec_Box_Barcode", desc="识别料箱一维码"):
+                with builder.CHILD(key="recBoxBarcode", name="Rec_Box_Barcode", desc="识别料箱一维码"):
                     builder.TYPE(ParamType.ARRAY)
                     create_lift_param(builder, "识别前的货叉高度")
                     create_rotate_param(builder, "识别前的货叉角度")
-                with builder.CHILD(key="take_photo", name="Take_Photo", desc="拍照"):
+                with builder.CHILD(key="takePhoto", name="Take_Photo", desc="拍照"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_lift_param(builder, "拍照前的货叉高度")
                         create_rotate_param(builder, "拍照前的货叉角度")
 
                 # in_take
-                with builder.CHILD(key="in_take", name="In Take", desc="内部取货"):
+                with builder.CHILD(key="inTake", name="In Take", desc="内部取货"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_container_param(builder, "车体背篓号，指定内部取货的背篓号，缺省时将按照从下往上依次取货")
@@ -313,13 +313,13 @@ class InputParams:
                         create_rotate_param(builder, "内部取货后货叉停止的角度，可设置为下一个动作的目标角度，缺省时默认为0")
                         create_lift_param(builder, "内部取货后货叉停止的高度，可设置为下一个动作的目标高度，缺省时默认为0")
 
-                with builder.CHILD(key="in_put", name="In_Put", desc="内部放货"):
+                with builder.CHILD(key="inPut", name="In_Put", desc="内部放货"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_container_param(builder, "车体背篓号，指定内部放货的背篓号，缺省时将按照从下往上依次放货")
                         create_goods_id_param(builder, "设置货物编号，缺省时为空字符串")
 
-                with builder.CHILD(key="ex_take", name="Ex_Take", desc="外部取货"):
+                with builder.CHILD(key="exTake", name="Ex_Take", desc="外部取货"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_vision_type_param(builder, "识别类型: 'box'或'shelf' ")
@@ -328,7 +328,7 @@ class InputParams:
                         create_rotate_param(builder, "取货前的货叉角度")
                         create_stretch_param(builder, "取货时的伸缩机构长度")
 
-                with builder.CHILD(key="ex_put", name="Ex_Put", desc="外部放货"):
+                with builder.CHILD(key="exPut", name="Ex_Put", desc="外部放货"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_vision_type_param(builder, "识别类型: 'shelf'")
@@ -371,11 +371,11 @@ class MotorRun:
         if Motor.isMotorReached(self.motor_name):
             Motor.resetMotor(self.motor_name)
             self.status = ScriptStatus.FINISHED
-        self.state['motor_name'] = self.motor_name
-        self.state['motor_type'] = self.motor_type
-        self.state['motor_pos'] = Motor.get_motor_pos(self.motor_name)
-        self.state['motor_speed'] = Motor.get_motor_speed(self.motor_name)
-        self.state['motor_status'] = self.status
+        self.state['motorName'] = self.motor_name
+        self.state['motorType'] = self.motor_type
+        self.state['motorPos'] = Motor.get_motor_pos(self.motor_name)
+        self.state['motorSpeed'] = Motor.get_motor_speed(self.motor_name)
+        self.state['motorStatus'] = self.status
 
     def reset(self):
         Trace.log(f"motor reset: {self.motor_name}")
@@ -385,7 +385,7 @@ class MotorRun:
     def stop(self):
         Motor.isMotorStop(self.motor_name)
         self.status = ScriptStatus.NONE
-        self.state['motor_status'] = self.status
+        self.state['motorStatus'] = self.status
 
 
 class RobotRun:
@@ -657,8 +657,8 @@ class ContainerRobot(ModuleBase):
             self.stretch_length = self.script_args.get("stretch", 0)
             self.is_auto_stretch = bool("stretch" not in self.script_args)  # 输入参数无"stretch"，则自动计算识别长度
             self.rotate_pos = self.script_args.get("rotate", 0)
-            self.offset_x = self.script_args.get("offset_x", ConfigParams.offset_x)
-            self.pre_finger = self.script_args.get("pre_finger", self.pre_finger)
+            self.offset_x = self.script_args.get("offsetX", ConfigParams.offset_x)
+            self.pre_finger = self.script_args.get("preFinger", self.pre_finger)
             if ConfigParams.rec_box_extra_height == 0:
                 self.rec_box_lift = 0
             else:
@@ -678,16 +678,16 @@ class ContainerRobot(ModuleBase):
                 Container.init_container(container_num)
             self.containers = Container.getContainers()
             self.rec_id = uuid.uuid4().hex
-            self.box_code_file = self.script_args.get("code_file", ConfigParams.box_code_file)
-            self.shelf_code_file = self.script_args.get("shelf_code_file", ConfigParams.shelf_code_file)
+            self.box_code_file = self.script_args.get("codeFile", ConfigParams.box_code_file)
+            self.shelf_code_file = self.script_args.get("shelfCodeFile", ConfigParams.shelf_code_file)
             Abnormal.clear(53300)
             Abnormal.clear(53310)
             Abnormal.clear(53320)
             if "recAdjust" in self.script_args:
                 if self.target_type is None:
-                    if self.operation == "load" or self.operation == "ex_take":
+                    if self.operation == "load" or self.operation == "exTake":
                         self.rec_adjust = RecAdjust(self.box_code_file)
-                    elif self.operation == "unload" or self.operation == "ex_put":
+                    elif self.operation == "unload" or self.operation == "exPut":
                         self.rec_adjust = RecAdjust(self.shelf_code_file)
                 elif self.target_type == "box":
                     self.rec_adjust = RecAdjust(self.box_code_file)
@@ -707,8 +707,8 @@ class ContainerRobot(ModuleBase):
                     elif not Di.get_di(ConfigParams.goods_check_di):
                         Container.clearContainer("999")
             else:
-                Abnormal.setTask(53701, f"请在脚本参数中正确配置 goods_check_di 参数！", "", "", "")
-                Trace.log(f"请在脚本参数中正确配置 goods_check_di 参数！")
+                Abnormal.setTask(53701, f"请在脚本参数中正确配置 goodsCheckDi 参数！", "", "", "")
+                Trace.log(f"请在脚本参数中正确配置 goodsCheckDi 参数！")
                 self.status = ScriptStatus.FINISHED
 
             self.start_time = time.time()
@@ -718,7 +718,7 @@ class ContainerRobot(ModuleBase):
         self.status = ScriptStatus.RUNNING
         self.counter += 1
         self.update_report_info()
-        self.report_info["getCount_run"] = self.counter
+        self.report_info["getCountRun"] = self.counter
         self.check_motor_emc()  # 检测控制器及驱动器急停状态
         if self.enable_motor and not self.motor_calib_state:  # 使能成功, 且未标零, 则标零
             self.motor_calib()
@@ -734,7 +734,7 @@ class ContainerRobot(ModuleBase):
                         self.status = ScriptStatus.FINISHED
                 elif self.operation == "calib":
                     self.force_calib()
-                elif self.operation == "zero_with_lift":
+                elif self.operation == "zeroWithLift":
                     self.lift_height = min(self.lift_real_pos, self.lift_height)
                     if self.zero(self.lift_height):
                         self.status = ScriptStatus.FINISHED
@@ -744,22 +744,22 @@ class ContainerRobot(ModuleBase):
                 elif self.operation == "unload":
                     if self.unload():
                         self.status = ScriptStatus.FINISHED
-                elif self.operation == "rec_box_barcode":
+                elif self.operation == "recBoxBarcode":
                     self.rec_box_barcode()
-                elif self.operation == "rec_qrcode":
+                elif self.operation == "recQrcode":
                     self.rec_qrcode()
-                elif self.operation == "take_photo":
+                elif self.operation == "takePhoto":
                     self.take_photo()
-                elif self.operation == "in_take":
+                elif self.operation == "inTake":
                     if self.in_take():
                         self.status = ScriptStatus.FINISHED
-                elif self.operation == "in_put":
+                elif self.operation == "inPut":
                     if self.in_put():
                         self.status = ScriptStatus.FINISHED
-                elif self.operation == "ex_take":
+                elif self.operation == "exTake":
                     if self.ex_take():
                         self.status = ScriptStatus.FINISHED
-                elif self.operation == "ex_put":
+                elif self.operation == "exPut":
                     if self.ex_put():
                         self.status = ScriptStatus.FINISHED
                 else:
@@ -793,19 +793,19 @@ class ContainerRobot(ModuleBase):
                         if self.rec_qrcode():
                             self.status = ScriptStatus.FINISHED
         self.update_report_info()
-        self.report_info['script_args'] = self.script_args
-        self.report_info['script_start_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_time))
-        self.report_info['script_running_time'] = time.time() - self.start_time
-        self.motor_calib_info['all_motor_enable'] = self.enable_motor
-        self.motor_calib_info['lift_motor_calib'] = self.lift_motor_calib
-        self.motor_calib_info['stretch_motor_calib'] = self.stretch_motor_calib
-        self.motor_calib_info['rotate_motor_calib'] = self.rotate_motor_calib
-        self.motor_calib_info['all_motor_calib'] = self.motor_calib_state
-        self.report_info['motor_calib_info'] = self.motor_calib_info
-        self.report_info['task_status'] = self.status
+        self.report_info['scriptArgs'] = self.script_args
+        self.report_info['scriptStartTime'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_time))
+        self.report_info['scriptRunningTime'] = time.time() - self.start_time
+        self.motor_calib_info['allMotorEnable'] = self.enable_motor
+        self.motor_calib_info['liftMotorCalib'] = self.lift_motor_calib
+        self.motor_calib_info['stretchMotorCalib'] = self.stretch_motor_calib
+        self.motor_calib_info['rotateMotorCalib'] = self.rotate_motor_calib
+        self.motor_calib_info['allMotorCalib'] = self.motor_calib_state
+        self.report_info['motorCalibInfo'] = self.motor_calib_info
+        self.report_info['taskStatus'] = self.status
         self.report_info['goodsId'] = self.goods_id
         self.report_info['containers'] = self.containers
-        self.report_info['motor_info'] = self.container_robot.state or -1
+        self.report_info['motorInfo'] = self.container_robot.state or -1
         if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
             # r.disableMotor(ConfigParams.lift_motor_name)
             NetProtocol.release()
@@ -833,23 +833,23 @@ class ContainerRobot(ModuleBase):
         lift_motor_emc = lift_motor_info.get("emc", False)
         stretch_motor_emc = stretch_motor_info.get("emc", False)
         rotate_motor_emc = rotate_motor_info.get("emc", False)
-        self.motor_calib_info["lift_motor_emc"] = lift_motor_emc
-        self.motor_calib_info["stretch_motor_emc"] = stretch_motor_emc
-        self.motor_calib_info["rotate_motor_emc"] = rotate_motor_emc
-        self.motor_calib_info["controller_emc"] = controller_emc
+        self.motor_calib_info["liftMotorEmc"] = lift_motor_emc
+        self.motor_calib_info["stretchMotorEmc"] = stretch_motor_emc
+        self.motor_calib_info["rotateMotorEmc"] = rotate_motor_emc
+        self.motor_calib_info["controllerEmc"] = controller_emc
         self.enable_motor = not lift_motor_emc and not rotate_motor_emc and not stretch_motor_emc  # 驱动器使能状态
         if not controller_emc and time.time() - self.enable_motor_time > 0.5:  # 控制器未急停
             self.enable_motor_time = time.time()
             if Abnormal.getNum() == 0:
                 if lift_motor_info and lift_motor_emc:  # 控制器未急停但是驱动器急停，给电机上使能
                     Motor.enableMotor(ConfigParams.lift_motor_name)
-                    self.report_info['lift_motor_info'] = lift_motor_info
+                    self.report_info['liftMotorInfo'] = lift_motor_info
                 if stretch_motor_info and stretch_motor_emc:
                     Motor.enableMotor(ConfigParams.stretch_motor_name)
-                    self.report_info['stretch_motor_info'] = stretch_motor_info
+                    self.report_info['stretchMotorInfo'] = stretch_motor_info
                 if rotate_motor_info and rotate_motor_emc:
                     Motor.enableMotor(ConfigParams.rotate_motor_name)
-                    self.report_info['rotate_motor_info'] = rotate_motor_info
+                    self.report_info['rotateMotorInfo'] = rotate_motor_info
 
     def motor_calib(self):
         self.get_motor_calib_state()
@@ -931,9 +931,9 @@ class ContainerRobot(ModuleBase):
         move_task = Navigation.moveTask()
         for p in move_task['params']:
             if p['key'] == 'goodsId':
-                self.goods_id = p['string_value']
-            if p['key'] == '#containerName' and p['string_value'] != "":
-                self.self_position = p['string_value']
+                self.goods_id = p['stringValue']
+            if p['key'] == '#containerName' and p['stringValue'] != "":
+                self.self_position = p['stringValue']
 
     def zero(self, zero_height=0):
         """
@@ -1034,8 +1034,8 @@ class ContainerRobot(ModuleBase):
             self.right_finger_real_pos = 0
         elif Di.get_di(ConfigParams.right_finger_up_di) and not Di.get_di(ConfigParams.right_finger_down_di):
             self.right_finger_real_pos = 1
-        self.finger_info["left_finger"] = self.left_finger_real_pos
-        self.finger_info["right_finger"] = self.right_finger_real_pos
+        self.finger_info["leftFinger"] = self.left_finger_real_pos
+        self.finger_info["rightFinger"] = self.right_finger_real_pos
 
     def stretch(self, length):
         Trace.log(f"----- running stretch ------")
@@ -1100,13 +1100,13 @@ class ContainerRobot(ModuleBase):
                                      f"货物编码不匹配, 任务下发的货物编码: {self.goods_id}, 识别的货物编码: {self.rec_res['barCode']}",
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
-                self.report_info["barcode"] = self.rec_res['barCode']
+                self.report_info["barCode"] = self.rec_res['barCode']
                 return self.rec_res['barCode']
             else:
                 if Timer.delay(0.05):
                     Recognize.doRec(ConfigParams.barcode_file, False, 0.0, 0.0, 0.0, 0.0)
-                self.report_info["barcode"] = "None"
-            self.report_info["rec_id"] = self.rec_id
+                self.report_info["barCode"] = "None"
+            self.report_info["recId"] = self.rec_id
 
     def rec_box_barcode(self):
         """
@@ -1157,7 +1157,7 @@ class ContainerRobot(ModuleBase):
                     }
                 }
                 NetProtocol.tcpUploadString(json.dumps(data))  # 将数据传递给 Roboshop
-                self.report_info["rec_qrcode_data"] = data
+                self.report_info["recQrcodeData"] = data
                 self.rec.reset()
                 Do.setDO(self.fill_light_do, False)
                 self.opt_step[3] = True
@@ -1284,13 +1284,13 @@ class ContainerRobot(ModuleBase):
             elif self.load_step[14] and not self.load_step[15]:
                 self.load_step[15] = self.lift_safe_height()
 
-            load_info['cur_container'] = self.cur_c
+            load_info['curContainer'] = self.cur_c
             load_info['goodsId'] = self.goods_id
-            load_info['load_step'] = self.load_step
+            load_info['loadStep'] = self.load_step
             load_info['lift-height'] = self.lift_height
             load_info['load-height'] = self.load_height
             load_info['lift-real-height'] = self.lift_real_pos
-            self.report_info["load_info"] = load_info
+            self.report_info["loadInfo"] = load_info
             if all(self.load_step):
                 # 在完成取货的所有动作后，增加背篓货物数据
                 Container.clearContainer("999")
@@ -1325,10 +1325,10 @@ class ContainerRobot(ModuleBase):
                 if self.in_take_step[5] and not self.in_take_step[7]:
                     self.in_take_step[7] = self.lift(self.lift_height)
 
-        in_take_info["in_take_step"] = self.in_take_step[:8]
-        in_take_info["cur_container"] = self.cur_c
+        in_take_info["inTakeStep"] = self.in_take_step[:8]
+        in_take_info["curContainer"] = self.cur_c
         in_take_info["goodsId"] = self.goods_id
-        self.report_info["in_take_info"] = in_take_info
+        self.report_info["inTakeInfo"] = in_take_info
         if all(self.in_take_step[:8]):
             Container.clearContainer(self.cur_c)
             goods_id = Container.get_goodsId_by_container(self.cur_c)
@@ -1361,8 +1361,8 @@ class ContainerRobot(ModuleBase):
         Trace.log(f"----- running in_put ------")
         in_put_info = dict()
         in_put_info["goodsId"] = self.goods_id
-        in_put_info["in_put_step"] = self.in_put_step[:7]
-        self.report_info["in_put_info"] = in_put_info
+        in_put_info["inPutStep"] = self.in_put_step[:7]
+        self.report_info["inPutInfo"] = in_put_info
         if all(self.in_put_step[0:8]):
             goods_id = Container.get_goodsId_by_container("999")
             Container.setContainer(self.cur_c, goods_id, "")
@@ -1429,9 +1429,9 @@ class ContainerRobot(ModuleBase):
         #     self.ex_take_step[10] = self.rotate(0)
 
         ex_take_info['goodsId'] = self.goods_id
-        ex_take_info['cur_container'] = self.cur_c
-        ex_take_info['ex_take_step'] = self.ex_take_step[:10]
-        self.report_info["ex_take_info"] = ex_take_info
+        ex_take_info['curContainer'] = self.cur_c
+        ex_take_info['exTakeStep'] = self.ex_take_step[:10]
+        self.report_info["exTakeInfo"] = ex_take_info
         if all(self.ex_take_step[:10]):
             Container.setContainer("999", self.goods_id, "")
             return True
@@ -1514,9 +1514,9 @@ class ContainerRobot(ModuleBase):
         if all(self.ex_put_step[0:12]) and not self.ex_put_step[13]:
             self.ex_put_step[13] = self.lift_safe_height()
 
-        ex_put_info["ex_put_info"] = self.ex_put_step[:13]
+        ex_put_info["exPutInfo"] = self.ex_put_step[:13]
         ex_put_info["goodsId"] = self.goods_id
-        self.report_info["ex_put_info"] = ex_put_info
+        self.report_info["exPutInfo"] = ex_put_info
         if all(self.ex_put_step[:14]):
             Container.clearContainer("999")
             return True
@@ -1668,10 +1668,10 @@ class ContainerRobot(ModuleBase):
                 if not self.unload_step[15]:
                     self.unload_step[15] = self.lift_safe_height()
 
-            unload_info['unload_step'] = self.unload_step
-            unload_info['cur_container'] = self.cur_c
+            unload_info['unloadStep'] = self.unload_step
+            unload_info['curContainer'] = self.cur_c
             unload_info['goodsId'] = self.goods_id
-            self.report_info["unload_info"] = unload_info
+            self.report_info["unloadInfo"] = unload_info
 
         if all(self.unload_step):
             # 在所有的动作完成后，将自身背篓的获取清除
@@ -1692,15 +1692,15 @@ class ContainerRobot(ModuleBase):
         module_pos['lift'] = round(self.lift_real_pos, 3)
         module_pos['stretch'] = round(self.stretch_real_pos, 3)
         module_pos['rotate'] = round(self.rotate_real_pos * 180 / math.pi, 3)
-        module_pos['left_finger'] = self.left_finger_real_pos
-        module_pos['right_finger'] = self.right_finger_real_pos
+        module_pos['leftFinger'] = self.left_finger_real_pos
+        module_pos['rightFinger'] = self.right_finger_real_pos
         self.containers = Container.getContainers()
-        self.report_info["current_pos"] = module_pos
+        self.report_info["currentPos"] = module_pos
 
     def has_goods_id(self, goods_id: str):
         Trace.log(f"goodsId: {goods_id}")
         for c in self.containers:
-            if goods_id == c['goods_id']:
+            if goods_id == c['goodsId']:
                 return True
         return False
 
@@ -1708,13 +1708,13 @@ class ContainerRobot(ModuleBase):
         ct = None
         if opt == 'load':
             for c in self.containers:
-                if not c['has_goods']:
-                    ct = c['container_name']
+                if not c['hasGoods']:
+                    ct = c['containerName']
                     break
         elif opt == 'unload':
             for c in self.containers:
-                if c['has_goods'] and self.goods_id == c['goods_id']:
-                    ct = c['container_name']
+                if c['hasGoods'] and self.goods_id == c['goodsId']:
+                    ct = c['containerName']
         return ct
 
     def check_put(self):
@@ -1863,9 +1863,9 @@ class Rec:
                     Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
         elif rec_status == 2:  # 识别成功,获得结果
             rec_results = Recognize.getRecResults()
-            if "reco_list" in rec_results:
-                if len(rec_results["reco_list"]) == 1:
-                    self.result = rec_results["reco_list"][0]
+            if "recoList" in rec_results:
+                if len(rec_results["recoList"]) == 1:
+                    self.result = rec_results["recoList"][0]
             if "resultImg" in self.result:
                 self.result.pop("resultImg")
             Recognize.resetRec()
@@ -1876,12 +1876,12 @@ class Rec:
             Trace.log(f"rec success: {self.status.name} {self.result}")
 
         cur_state = dict()
-        cur_state['rec_result'] = self.result
-        cur_state['rec_count'] = self.rec_times
-        cur_state['rec_task_status'] = self.status
-        cur_state['rec_status'] = rec_status
+        cur_state['recResult'] = self.result
+        cur_state['recCount'] = self.rec_times
+        cur_state['recTaskStatus'] = self.status
+        cur_state['recStatus'] = rec_status
         cur_state['file'] = self.filename
-        agv.report_info['rec_info'] = cur_state
+        agv.report_info['recInfo'] = cur_state
 
     def reset(self):
         Recognize.resetRec()
@@ -2045,20 +2045,20 @@ class RecAdjust:
                 self.last_yaw_adjust = agv.yaw_adjust
                 self.plan_status = ScriptStatus.NONE
                 self.rotate_step = False
-        cur_state["auto_stretch_length"] = agv.stretch_length
-        cur_state["go_path_status"] = self.goPath.status
-        cur_state["go_args"] = self.go_args
-        cur_state["rec_result"] = self.rec.result
-        cur_state["rec_fail_time"] = self.rec_fail_time
-        cur_state["adjust_count"] = self.adjust_count
-        cur_state["cur_rotate"] = agv.rotate_real_pos / math.pi * 180
-        cur_state["cur_lift"] = agv.lift_real_pos
-        cur_state["cur_stretch"] = agv.stretch_real_pos
+        cur_state["autoStretchLength"] = agv.stretch_length
+        cur_state["goPathStatus"] = self.goPath.status
+        cur_state["goArgs"] = self.go_args
+        cur_state["recResult"] = self.rec.result
+        cur_state["recFailTime"] = self.rec_fail_time
+        cur_state["adjustCount"] = self.adjust_count
+        cur_state["curRotate"] = agv.rotate_real_pos / math.pi * 180
+        cur_state["curLift"] = agv.lift_real_pos
+        cur_state["curStretch"] = agv.stretch_real_pos
         cur_state["status"] = self.status
-        cur_state["agv_yaw_adjust"] = agv.yaw_adjust / math.pi * 180
-        cur_state["last_yaw_adjust"] = self.last_yaw_adjust / math.pi * 180
-        cur_state["next_rotate_pos"] = self.next_rotate_pos / math.pi * 180
-        agv.report_info["rec_adjust"] = cur_state
+        cur_state["agvYawAdjust"] = agv.yaw_adjust / math.pi * 180
+        cur_state["lastYawAdjust"] = self.last_yaw_adjust / math.pi * 180
+        cur_state["nextRotatePos"] = self.next_rotate_pos / math.pi * 180
+        agv.report_info["recAdjust"] = cur_state
         Trace.log(f"[ContainerRobot][{agv.lift_real_pos}|{agv.stretch_real_pos}|{agv.rotate_real_pos / math.pi * 180}|"
                    f"{self.rec.result.get('x', 0)}|{self.rec.result.get('y', 0)}|{self.rec.result.get('z', 0)}|{self.rec.result.get('yaw', 0)}|"
                    f"{agv.yaw_adjust / math.pi * 180}|{self.last_yaw_adjust / math.pi * 180}|{self.next_rotate_pos / math.pi * 180}|"
