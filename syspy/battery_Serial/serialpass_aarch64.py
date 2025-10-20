@@ -28,8 +28,8 @@ class serialPassAarch64:
         output = subprocess.check_output(command, shell=True)
         output = output.decode("utf-8").strip()
         log.info(f"{output=}")
-        if output not in ['SRC880', 'SRC1000',"SRC1100","SRCF10","SRCR10"]:
-            fcntl.ioctl(self.ser, 0)  # 485模式
+        if output in ['SRC800', 'SRC3000']:
+            fcntl.ioctl(self.ser, 0)  # 这行决定了485模式
         self.__msg_thread = threading.Thread(target=self.__run, name="run")
         self.__msg_thread.start()  # FIXME: when to join?
         log.info("createSerial  name:{},baudrate:{}".format(name, baudrate))
