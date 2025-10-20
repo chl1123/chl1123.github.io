@@ -21,7 +21,7 @@ from syspy import NavSpeed, Controller, NavStatus
 from syspy.script_data import ScriptData
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
 from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
-    Odometer, Pgv, Laser, NetProtocol, Trace
+    Odometer, Laser, NetProtocol, Trace
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
 from syspy.lib.robot_param import RobotParam
 import tasks.standard.goBezier as GoBezier
