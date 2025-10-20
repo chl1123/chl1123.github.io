@@ -14,7 +14,7 @@ from syspy.utils.time import Timer
 start_time = time.time()
 
 from syspy import (Module, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize,
-                   Odometer, Pgv, ScriptStatus, NetProtocol, Trace, NavSpeed, Controller)
+                   Odometer, CodeScanner, ScriptStatus, NetProtocol, Trace, NavSpeed, Controller)
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
 from tasks.standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer
@@ -114,15 +114,15 @@ def create_bezier(builder: ParamBuilder):
     with builder.CHILD(key="adjustDistForCurvatureLimit", name="adjust_dist_for_curvature_limit",
                        desc="the adjust dist for decreasing curvature limit"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(2.0)
     with builder.CHILD(key="minAheadDist", name="min_ahead_dist", desc="the min ahead dist for goBezier"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.0)
     with builder.CHILD(key="isBackwards", name="is_backwards", desc="Backward or forward mode"):
         builder.TYPE(ParamType.BOOL)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(False)
     with builder.CHILD(key="isHoldDir", name="is_hold_dir", desc="whether the robot will hold direction"):
         builder.TYPE(ParamType.BOOL)
@@ -130,34 +130,34 @@ def create_bezier(builder: ParamBuilder):
         builder.DEFAULTVALUE(False)
     with builder.CHILD(key="maxSpeed", name="max_speed", desc="max_speed when goBezier"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.5)
     with builder.CHILD(key="maxAccele", name="max_accele", desc="max_acceleration when goBezier"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.3)
     with builder.CHILD(key="maxDecele", name="max_decele", desc="max_deceleration when goBezier"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.2)
     with builder.CHILD(key="deceleDist", name="decele_dist",
                        desc="The speed will slow down after reaching this distance from the target point."):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(1)
     with builder.CHILD(key="curvatureLimit", name="curvature_limit", desc="Curvature limits for Bezier paths"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(1.3)
     with builder.CHILD(key="pathDistAccuracy", name="path_dist_accuracy",
                        desc="Position accuracy of Bezier curve for robot walking"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.01)
     with builder.CHILD(key="pathAngleAccuracy", name="path_angle_accuracy",
                        desc="angle accuracy of Bezier curve for robot walking"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.05)
 
 
@@ -169,15 +169,15 @@ def create_polyline(builder: ParamBuilder):
     with builder.CHILD(key="aheadDist", name="ahead_dist",
                        desc="the adjust dist for decreasing the angle between two straight lines"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(2.0)
     with builder.CHILD(key="minAheadDist", name="min_ahead_dist", desc="the min ahead dist for goBezier"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.0)
     with builder.CHILD(key="isBackwards", name="is_backwards", desc="Backward or forward mode"):
         builder.TYPE(ParamType.BOOL)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(False)
     with builder.CHILD(key="isHoldDir", name="is_hold_dir", desc="whether the robot will hold direction"):
         builder.TYPE(ParamType.BOOL)
@@ -185,34 +185,34 @@ def create_polyline(builder: ParamBuilder):
         builder.DEFAULTVALUE(False)
     with builder.CHILD(key="maxSpeed", name="max_speed", desc="max_speed when goBezier"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.5)
     with builder.CHILD(key="maxAccele", name="max_accele", desc="max_acceleration when goBezier"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.3)
     with builder.CHILD(key="maxDecele", name="max_decele", desc="max_deceleration when goBezier"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.2)
     with builder.CHILD(key="deceleDist", name="decele_dist",
                        desc="The speed will slow down after reaching this distance from the target point."):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(1)
     with builder.CHILD(key="maxAngle", name="max_angle", desc="max angle for the two lines"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(1.3)
     with builder.CHILD(key="pathDistAccuracy", name="path_dist_accuracy",
                        desc="Position accuracy of Bezier curve for robot walking"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.01)
     with builder.CHILD(key="pathAngleAccuracy", name="path_angle_accuracy",
                        desc="angle accuracy of Bezier curve for robot walking"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE(0.05)
 
 
@@ -284,6 +284,7 @@ def create_jack_load(builder: ParamBuilder):
     create_ap_id(builder)
     create_start_height(builder)
     create_end_height(builder)
+    create_recfile(builder)
 
     with builder.CHILD(key="isRecognize", name="whether the loading progress need recognition",
                        desc="Enable recognition"):
@@ -298,7 +299,6 @@ def create_jack_load(builder: ParamBuilder):
             with builder.CHILD(key="ON", name="Recognize",
                                desc="Load With Recognition"):
                 builder.TYPE(ParamType.ARRAY)
-                create_recfile(builder)
 
     with builder.CHILD(key="howGoSite", name="how_go_site", desc="choose the way to the landmark"):
         builder.TYPE(ParamType.COMBO_BOX)
@@ -615,6 +615,9 @@ class InputParams:
                 with builder.CHILD(key="recTargetObs", name="recTargetObs", desc="recTargetObs"):
                     builder.TYPE(ParamType.ARRAY)
 
+                with builder.CHILD(key="stopMotor", name="stopMotor", desc="stop all motors except walking motors"):
+                    builder.TYPE(ParamType.ARRAY)
+
     builder.save_to_file()
 
 
@@ -690,7 +693,7 @@ class Jack(ModuleBase):
             self.end_height = self.task_args.get("endHeight", None)
             # 识别相关
             self.is_recognize = self.task_args.get("isRecognize", None)
-            self.recfile = self.task_args.get("recfile", None)
+            self.recfile = self.task_args.get("recFile", None)
             self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
             # spin,rotate相关
             self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
@@ -703,19 +706,19 @@ class Jack(ModuleBase):
             # jackLoad/jackUnload
             self.how_go_site = self.task_args.get("howGoSite", None)
             # path相关
-            self.back_dist = self.task_args.get("backDist", None)
-            self.adjust_dist_for_curvature_limit = self.task_args.get("adjustDistForCurvatureLimit", None)
-            self.min_ahead_dist = self.task_args.get("minAheadDist", None)
-            self.is_backwards = self.task_args.get("isBackwards", None)
-            self.is_hold_dir = self.task_args.get("isHoldDir", None)
-            self.max_speed = self.task_args.get("maxSpeed", None)
+            self.back_dist = self.task_args.get("backDist", 0.0)
+            self.adjust_dist_for_curvature_limit = self.task_args.get("adjustDistForCurvatureLimit", 2.0)
+            self.min_ahead_dist = self.task_args.get("minAheadDist", 0)
+            self.is_backwards = self.task_args.get("isBackwards", False)
+            self.is_hold_dir = self.task_args.get("isHoldDir", False)
+            self.max_speed = self.task_args.get("maxSpeed", 0.5)
             self.max_rot = self.task_args.get("max_rot", None)
-            self.max_accele = self.task_args.get("maxAccele", None)
-            self.max_decele = self.task_args.get("maxDecele", None)
-            self.decele_dist = self.task_args.get("deceleDist", None)
-            self.curvature_limit = self.task_args.get("curvatureLimit", None)
-            self.path_dist_accuracy = self.task_args.get("pathDistAccuracy", None)
-            self.path_angle_accuracy = self.task_args.get("pathAngleAccuracy", None)
+            self.max_accele = self.task_args.get("maxAccele", 0.3)
+            self.max_decele = self.task_args.get("maxDecele", 0.2)
+            self.decele_dist = self.task_args.get("deceleDist", 1)
+            self.curvature_limit = self.task_args.get("curvatureLimit", 1.3)
+            self.path_dist_accuracy = self.task_args.get("pathDistAccuracy", 0.01)
+            self.path_angle_accuracy = self.task_args.get("pathAngleAccuracy", 0.05)
 
             # goPath相关
             self.goPath_x = self.task_args.get("goPathX", None)
@@ -779,6 +782,8 @@ class Jack(ModuleBase):
             self.rec_target_obs()
         elif self.opt == "getRecfile":
             self.get_rec_file()
+        elif self.opt == "stopMotor":
+            self.stop_motor()
         else:
             Module.set_status(ScriptStatus.FAILED)
 
@@ -1043,7 +1048,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             # 下降到起始高度
-            self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.start_height, ConfigParams.jack_motor_speed))
+            self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.start_height, ConfigParams.jack_motor_speed, self.recfile))
 
             # 获取AP点坐标
             if not self.ap_id:
@@ -1263,7 +1268,7 @@ class Jack(ModuleBase):
             self.operation_init = True
 
             self.action_list.append(JackHeight(ConfigParams.jack_motor_name, self.end_height,
-                                               ConfigParams.jack_motor_speed))
+                                               ConfigParams.jack_motor_speed, self.recfile))
 
     def spin(self):
         """旋转托盘"""
@@ -1305,6 +1310,13 @@ class Jack(ModuleBase):
             self.action_list.append(GetPGVData())
             self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                                        self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
+
+    def stop_motor(self):
+        if not self.operation_init:
+            self.operation_init = True
+            Motor.stopMotor()
+            Motor.resetMotor(ConfigParams.jack_motor_name)
+            Motor.resetMotor(ConfigParams.spin_motor_name)
 
     def _execute_actions(self):
         if self.action_id < len(self.action_list):
@@ -1411,7 +1423,7 @@ class Jack(ModuleBase):
             "jackMode": True,
             "jackEnable": True,
             # "jack_state": jack_state,
-            "jackApeed": self.jack_speed,
+            "jackSpeed": self.jack_speed,
             "jackEmc": self.jack_emc,
             "jackIsFull": self.jack_isFull,
             "jackHeight": self.jack_height,
@@ -1613,10 +1625,10 @@ class JackHeight(BaseAction):
                     shape = shapes[0]["points"]
                 else:
                     shape = [
-                    {"x": 0.5, "y": 0.5},
-                    {"x": -0.5, "y": 0.5},
-                    {"x": -0.5, "y": -0.5},
-                    {"x": 0.5, "y": -0.5}]
+                    {"x": 0.5, "y": 0.3},
+                    {"x": -0.5, "y": 0.3},
+                    {"x": -0.5, "y": -0.3},
+                    {"x": 0.5, "y": -0.3}]
                 Navigation.setGoodsPolyShape(shape, "shelf")
             else:
                 Navigation.clearGoodsShape()
@@ -2041,7 +2053,7 @@ class Rec(BaseAction):
         else:
             if not self.do_rec:
                 self.do_rec = True
-                Recognize.doRec(self.recfile, False, 0, 0, 0, 0, self.recognition_side)
+                Recognize.doRec(self.recfile, "", self.recognition_side)
                 Timer.delay(0.05)
         return False, rec_status, list
 
@@ -2056,7 +2068,9 @@ class RecShelf(BaseAction):
         self.attempts = 0
         self.max_attempts = 3
         Recognize.resetRec()
-        Recognize.doRec(self.recfile, False, 0, 0, 0, 0, "A")
+        recognitionRegion = [{"points":[{"x":0.69,"y":-0.3},{"x":1.08,"y":-0.3},{"x":1.08,"y":0.32},{"x":0.69,"y":0.32}],"shape":"rectangle"}]
+        recognitionRegion = json.dumps(recognitionRegion)
+        Recognize.doRec(self.recfile, recognitionRegion, "A")
         self.report_info = {}
 
     def run(self, j: Jack):
@@ -2188,13 +2202,13 @@ class GetPGVData(BaseAction):
             self.action_status = ActionStatus.RUNNING
             self.init = False
 
-        pgv_data = Pgv.get_pgvs()
+        pgv_data = CodeScanner.get_code_scanners()
         for pgv in pgv_data:
-            self.tag_value = pgv.tag_value
-            self.tag_diff_x = pgv.tag_diff_x
-            self.tag_diff_y = pgv.tag_diff_y
-            self.tag_diff_angle = pgv.tag_diff_angle
-            self.is_DMT_detected = pgv.is_DMT_detected
+            self.tag_value = pgv.tagValue
+            self.tag_diff_x = pgv.tagDiffX
+            self.tag_diff_y = pgv.tagDiffY
+            self.tag_diff_angle = pgv.tagDiffAngle
+            self.is_DMT_detected = pgv.isDMTDetected
 
         # 将信息传出至j.code_info, 方便后续调用
         j.code_info = {
