@@ -6,7 +6,8 @@ import syspy.battery_Can.canpass_base as cb
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu 
-
+from syspy import Logger
+log = Logger("battery")
 class testCanBattery(cb.canPassBase):
 
     def __init__(self):
@@ -31,14 +32,14 @@ class testCanBattery(cb.canPassBase):
             temperature = round(int(tem[10:12], 16)-40, 2)
             current = round(cu.hexStr_to_int(tem[4:6] + tem[6:8],16) * 0.1, 2)
             if current < 0:
-                is_charging = False
+                isCharging = False
             else:
-                is_charging = True
-            self.battery_info.charge_voltage = voltage
-            self.battery_info.charge_current = current
-            self.battery_info.percetage = percentage
+                isCharging = True
+            self.battery_info.chargeVoltage = voltage
+            self.battery_info.chargeCurrent = current
+            self.battery_info.percentage = percentage
             self.battery_info.temperature = temperature
-            self.battery_info.is_charging = is_charging
+            self.battery_info.isCharging = isCharging
             self.publish(self.battery_info)
             self.msg_ok = True
 

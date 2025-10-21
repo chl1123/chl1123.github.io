@@ -7,7 +7,8 @@ import syspy.lib.char_utility as cu
 #other tools,like Timer
 import syspy.lib.misc_utility as mu
 import message_battery_pb2
-
+from syspy import Logger
+log = Logger("battery")
 class testBattery(bb.batteryBase):
    
     def __init__(self):
@@ -24,12 +25,12 @@ class testBattery(bb.batteryBase):
                 voltage = cu.merge2bytesTo1(self.data_buff[16],self.data_buff[15]) * 0.01
                 current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[10],self.data_buff[9])) * 0.1
                 temp = cu.u16Toint16(self.data_buff[17])
-                percetage = (cu.merge2bytesTo1(self.data_buff[22],self.data_buff[21]) / cu.merge2bytesTo1(self.data_buff[24],self.data_buff[23]))
+                percentage = (cu.merge2bytesTo1(self.data_buff[22],self.data_buff[21]) / cu.merge2bytesTo1(self.data_buff[24],self.data_buff[23]))
                 battery_info = self.createBatteryMessage() 
-                battery_info.percetage = ( percetage)  
+                battery_info.percentage = ( percentage)  
                 battery_info.temperature = (temp) 
-                battery_info.charge_current = (current)
-                battery_info.charge_voltage = (voltage)
+                battery_info.chargeCurrent = (current)
+                battery_info.chargeVoltage = (voltage)
                 self.publish(battery_info)  
                 self.data_buff = []
                 # print("true")

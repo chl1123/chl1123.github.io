@@ -6,7 +6,8 @@ import syspy.battery_Can.canpass_base as cb
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu
-
+from syspy import Logger
+log = Logger("battery")
 
 error_dict = {
     1: "lowTemperature",
@@ -56,19 +57,19 @@ class ZLCanBattery(cb.canPassBase):  # 创建中立电池类，继承电池基�
             voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)  # 解析电压 保留2位
             current = round(self.zl_hexStr_to_int(tem[4:6] + tem[6:8], 16) * 0.1, 2)  # 解析电流
             percentage = round(int(tem[12:14], 16) * 0.01, 2)  # 解析电池电量百分比
-            self.battery_info.percetage = percentage  # 传入电池电量百分比
-            self.battery_info.charge_voltage = voltage  # 传入电池电压
-            self.battery_info.charge_current = current  # 传入电池电流
+            self.battery_info.percentage = percentage  # 传入电池电量百分比
+            self.battery_info.chargeVoltage = voltage  # 传入电池电压
+            self.battery_info.chargeCurrent = current  # 传入电池电流
             for i in range(8):
                 if cu.get_bit_val(canframe.Data[7], i) == 1:
                     if i == 0:
-                        self.battery_info.is_charging = True
+                        self.battery_info.isCharging = True
                     elif i in [1, 2, 3, 4, 5, 6, 7]:
                         pass
                         # error_msg = "Battery pack number:" + tem[14:16] + "error msg" + error_dict[i]
                         # self.setError(53140, error_msg)
                     else:
-                        self.battery_info.is_charging = False
+                        self.battery_info.isCharging = False
                     break
             self.msg_ok = True
             self.id1 = True
@@ -83,13 +84,13 @@ class ZLCanBattery(cb.canPassBase):  # 创建中立电池类，继承电池基�
         # elif canframe.ID == 0x0F4:
         #     tem = canframe.Data.hex()
         #     if self.isNeedCharge():
-        #         max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
-        #         max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
-        #         self.battery_info.max_charge_current = max_charge_current
-        #         self.battery_info.max_charge_voltage = max_charge_voltage
+        #         maxChargeVoltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
+        #         maxChargeCurrent = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
+        #         self.battery_info.maxChargeCurrent = maxChargeCurrent
+        #         self.battery_info.maxChargeVoltage = maxChargeVoltage
         #     else:
-        #         self.battery_info.max_charge_current = 0
-        #         self.battery_info.max_charge_voltage = 0
+        #         self.battery_info.maxChargeCurrent = 0
+        #         self.battery_info.maxChargeVoltage = 0
         #     self.msg_ok = True
         #     self.id3 = True
 

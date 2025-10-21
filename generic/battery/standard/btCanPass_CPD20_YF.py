@@ -6,7 +6,8 @@ import syspy.battery_Can.canpass_base as cb
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
-
+from syspy import Logger
+log = Logger("battery")
 class testCanBattery(cb.canPassBase):
 
     def __init__(self):
@@ -35,9 +36,9 @@ class testCanBattery(cb.canPassBase):
             current = -round((int(tem[6:8] + tem[4:6], 16) - 32000) * 0.1, 2)
             voltage = round(int(tem[2:4] + tem[0:2], 16) * 0.1, 2)
             percentage = round(int(tem[8:10], 16) * 0.004, 2)
-            self.battery_info.charge_voltage = voltage
-            self.battery_info.charge_current = current
-            self.battery_info.percetage = percentage
+            self.battery_info.chargeVoltage = voltage
+            self.battery_info.chargeCurrent = current
+            self.battery_info.percentage = percentage
             self.msg_ok = True
         elif canframe.ID == 0x1806E5F4:
             self.clearTimeout()
@@ -50,8 +51,8 @@ class testCanBattery(cb.canPassBase):
                 self.sendCanframe(2, 0x18FF50E5, 8, True, can_string)
             max_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             max_current = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
-            self.battery_info.max_charge_current = max_current
-            self.battery_info.max_charge_voltage = max_voltage
+            self.battery_info.maxChargeCurrent = max_current
+            self.battery_info.maxChargeVoltage = max_voltage
             self.msg_ok = True
         elif canframe.ID == 0x1800FFF4:
             self.clearTimeout()

@@ -7,7 +7,8 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu 
 #其他工具类,如定时器 
 import syspy.lib.misc_utility as mu 
-
+from syspy import Logger
+log = Logger("battery")
 class testBattery(bb.batteryBase):
     """
     继承电池基类
@@ -44,8 +45,8 @@ class testBattery(bb.batteryBase):
                         current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[5],self.data_buff[6])) * 0.1 #exchange to int16
             
                         # save to battery_info object
-                        self.battery_info.charge_current = float("%.2f" % current) 
-                        self.battery_info.charge_voltage = float("%.2f" % voltage)
+                        self.battery_info.chargeCurrent = float("%.2f" % current) 
+                        self.battery_info.chargeVoltage = float("%.2f" % voltage)
                         self.data_buff = []          
                         self.msg_ok = True
                         self.rec_flag[0]=True
@@ -63,9 +64,9 @@ class testBattery(bb.batteryBase):
                         self.rec_flag[1]=True
 
                 elif self.buff_type == 'percentage'and len(self.data_buff) >= (5+datasize):
-                        percetage = cu.merge2bytesTo1(self.data_buff[5],self.data_buff[6]) / cu.merge2bytesTo1(self.data_buff[3],self.data_buff[4])
+                        percentage = cu.merge2bytesTo1(self.data_buff[5],self.data_buff[6]) / cu.merge2bytesTo1(self.data_buff[3],self.data_buff[4])
                          # save to battery_info object
-                        self.battery_info.percetage = float("%.2f" % percetage) 
+                        self.battery_info.percentage = float("%.2f" % percentage) 
 
                         self.data_buff = []
                         self.msg_ok = True

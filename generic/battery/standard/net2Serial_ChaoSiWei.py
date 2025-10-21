@@ -7,7 +7,8 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-
+from syspy import Logger
+log = Logger("battery")
 class testBattery(bb.batteryBase):
     """
     继承电池基类
@@ -64,14 +65,14 @@ class testBattery(bb.batteryBase):
                     c = []
                     lists2 = [self.data_buff[21],self.data_buff[22]]
                     def resultsss(listes1):
-                        for percetage0 in listes1:
-                            if (percetage0 >= 0x30 and percetage0 <= 0x39) :
-                                c.append(percetage0 - 0x30)
-                            elif(percetage0 >= 0x41 and percetage0 <= 0x46):
-                                c.append(percetage0 - 55)
+                        for percentage0 in listes1:
+                            if (percentage0 >= 0x30 and percentage0 <= 0x39) :
+                                c.append(percentage0 - 0x30)
+                            elif(percentage0 >= 0x41 and percentage0 <= 0x46):
+                                c.append(percentage0 - 55)
                     resultsss(lists2)                    
-                    percetage = (c[0] * 16**1 + c[1] * 16**0) * 0.01
-                    # print(percetage)
+                    percentage = (c[0] * 16**1 + c[1] * 16**0) * 0.01
+                    # print(percentage)
 
                     #电量------------------------------------------
                     d = []
@@ -89,10 +90,10 @@ class testBattery(bb.batteryBase):
                         #创建一个电池信息的proto对象
                     battery_info = self.createBatteryMessage() 
                         #解析后塞入相应字段
-                    battery_info.percetage = percetage  
+                    battery_info.percentage = percentage  
                     battery_info.temperature = temperature
-                    battery_info.charge_current = current
-                    battery_info.charge_voltage = voltage
+                    battery_info.chargeCurrent = current
+                    battery_info.chargeVoltage = voltage
                         #发步电池数据给rbk
                     self.publish(battery_info)  
                         #清空缓冲区列表

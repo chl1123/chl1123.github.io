@@ -8,7 +8,8 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-
+from syspy import Logger
+log = Logger("battery")
 class testBattery(bb.batteryBase):
     """
     继承电池基类
@@ -45,14 +46,14 @@ class testBattery(bb.batteryBase):
                 temperature = temp16_1
                 if temp16_1 < temp16_2:
                     temperature = temp16_2
-                percetage = cu.merge2bytesTo1(self.data_buff[83],self.data_buff[84]) * 0.01
+                percentage = cu.merge2bytesTo1(self.data_buff[83],self.data_buff[84]) * 0.01
                 #创建一个电池信息的proto对象
                 battery_info = self.createBatteryMessage()
                 #解析后塞入相应字段
-                battery_info.percetage = percetage
+                battery_info.percentage = percentage
                 battery_info.temperature = temperature
-                battery_info.charge_current = current
-                battery_info.charge_voltage = voltage
+                battery_info.chargeCurrent = current
+                battery_info.chargeVoltage = voltage
                 #发步电池数据给rbk
                 self.publish(battery_info)
                 # 清除超时报警

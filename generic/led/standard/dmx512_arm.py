@@ -36,6 +36,7 @@ class ConfigParam:
                                             comment="是否后退时亮白色呼吸灯")
     dmx_test_flag = param_server.loadParam('DmxTestFlag', type="bool", default=False,
                                            comment="DMX测试标志")
+    log.warning("light_total_num=" + str(light_total_num) + " turn_pos=" + str(turn_pos) + " turn_num=" + str(turn_num))
 
 
 class LedChassis(LedBase):

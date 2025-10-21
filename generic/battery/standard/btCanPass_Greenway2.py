@@ -5,7 +5,8 @@ import syspy.battery_Can.canpass_base as cb
 import syspy.lib.misc_utility as mu
 import syspy.lib.char_utility as cu
 import json
-
+from syspy import Logger
+log = Logger("battery")
 error_dict = {
     (1, 0): "first-level overvoltage",
     (1, 1): "second-level overvoltage",
@@ -61,7 +62,7 @@ class testCanBattery(cb.canPassBase):
                 elif int(tem[1:2], 16) == 3:
                     self.number = hex(int(tem[15:16]))[2:].zfill(8)
                 if (self.id and self.year and self.week and self.number) != "":
-                    self.battery_info.user_data = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
+                    self.battery_info.userData = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
                     self.msg_userdata = True
                     self.msg_ok = True
         if canframe.ID == 0x0EA0F40D:
@@ -70,10 +71,10 @@ class testCanBattery(cb.canPassBase):
             SOH = round(int(tem[2:4], 16) * 0.01, 2)
             cycle = int(tem[4:6] + tem[6:8], 16)
             if int(tem[12:14], 16) == 1:
-                self.battery_info.is_charging = True
+                self.battery_info.isCharging = True
             else:
-                self.battery_info.is_charging = False
-            self.battery_info.percetage = percentage
+                self.battery_info.isCharging = False
+            self.battery_info.percentage = percentage
             self.battery_info.extra = json.dumps({"SOH": SOH})
             self.battery_info.cycle = cycle
             self.msg_ok = True
@@ -82,8 +83,8 @@ class testCanBattery(cb.canPassBase):
             tem = canframe.Data.hex()
             current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
-            self.battery_info.charge_voltage = voltage
-            self.battery_info.charge_current = current
+            self.battery_info.chargeVoltage = voltage
+            self.battery_info.chargeCurrent = current
             self.msg_ok = True
             self.id2 = True
         elif canframe.ID == 0x0EA2F40D:
@@ -121,13 +122,13 @@ class testCanBattery(cb.canPassBase):
         elif canframe.ID == 0x0EA4F40D:
             tem = canframe.Data.hex()
             if self.isNeedCharge():
-                max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
-                max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
-                self.battery_info.max_charge_current = max_charge_current
-                self.battery_info.max_charge_voltage = max_charge_voltage
+                maxChargeVoltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
+                maxChargeCurrent = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
+                self.battery_info.maxChargeCurrent = maxChargeCurrent
+                self.battery_info.maxChargeVoltage = maxChargeVoltage
             else:
-                self.battery_info.max_charge_current = 0
-                self.battery_info.max_charge_voltage = 0
+                self.battery_info.maxChargeCurrent = 0
+                self.battery_info.maxChargeVoltage = 0
             self.msg_ok = True
             self.id4 = True
         elif canframe.ID == 0x1EA7F40D:

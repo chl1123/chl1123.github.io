@@ -6,7 +6,8 @@ import syspy.lib.char_utility as cu
 #其他工具类,如定时器 
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
-
+from syspy import Logger
+log = Logger("battery")
 class testBattery(bb.batteryBase):
     def __init__(self):
         #初始化基类,必须做
@@ -33,21 +34,21 @@ class testBattery(bb.batteryBase):
                 temperature = temp16_1  # 电池温度
                 if temp16_1 < temp16_2:
                     temperature = temp16_2
-                percetage = cu.u16Toint16(self.data_buff[23]) * 0.01  # 电池电量百分比
+                percentage = cu.u16Toint16(self.data_buff[23]) * 0.01  # 电池电量百分比
                 cycle = cu.merge2bytesTo1(self.data_buff[12], self.data_buff[13])  # 电池循环次数
                 dianchi_str = "富士康-20221206"
-                user_data = dianchi_str.encode('utf-8')
+                userData = dianchi_str.encode('utf-8')
                 # 创建一个电池信息的proto对象
                 battery_info = self.createBatteryMessage()
                 # 解析后塞入相应字段
-                battery_info.percetage = percetage
+                battery_info.percentage = percentage
                 battery_info.temperature = temperature
-                battery_info.charge_current = current  # 电池电流：正表示在充电，负表示在放电
-                battery_info.charge_voltage = voltage
+                battery_info.chargeCurrent = current  # 电池电流：正表示在充电，负表示在放电
+                battery_info.chargeVoltage = voltage
                 battery_info.cycle = cycle
-                battery_info.max_charge_voltage = 58.4  # 最大充电电压
-                battery_info.max_charge_current = 30  # 最大持续充电电流
-                battery_info.user_data = user_data
+                battery_info.maxChargeVoltage = 58.4  # 最大充电电压
+                battery_info.maxChargeCurrent = 30  # 最大持续充电电流
+                battery_info.userData = userData
                 # 发步电池数据给rbk
                 self.publish(battery_info)
                 self.clearTimeout()

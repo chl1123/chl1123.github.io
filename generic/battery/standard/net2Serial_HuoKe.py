@@ -7,7 +7,8 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-
+from syspy import Logger
+log = Logger("battery")
 """
 霍克能源集团有限公司YY系列BMS均支持标准工业modbus 协议
 
@@ -49,14 +50,14 @@ class BatteryHuoKeYy(bb.batteryBase):
                 temperature = temp16_1
                 if temp16_1 < temp16_2:
                     temperature = temp16_2
-                percetage = cu.merge2bytesTo1(self.data_buff[23], self.data_buff[24]) * 0.04
+                percentage = cu.merge2bytesTo1(self.data_buff[23], self.data_buff[24]) * 0.04
                 # 创建一个电池信息的proto对象
                 battery_info = self.createBatteryMessage()
                 # 解析后塞入相应字段
-                battery_info.percetage = percetage
+                battery_info.percentage = percentage
                 battery_info.temperature = temperature
-                battery_info.charge_current = current
-                battery_info.charge_voltage = voltage
+                battery_info.chargeCurrent = current
+                battery_info.chargeVoltage = voltage
                 # 发步电池数据给rbk
                 self.publish(battery_info)
                 # 清空缓冲区列表

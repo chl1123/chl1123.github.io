@@ -5,7 +5,8 @@ import syspy.battery_Can.canpass_base as cb
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu
-
+from syspy import Logger
+log = Logger("battery")
 class testCanBattery(cb.canPassBase):
 
     def __init__(self):
@@ -35,14 +36,14 @@ class testCanBattery(cb.canPassBase):
             print("voltage")
             tem = canframe.Data.hex()
             voltage = round(int(tem[2:4] + tem[0:2], 16) * 0.1, 2)
-            self.battery_info.charge_voltage = voltage
+            self.battery_info.chargeVoltage = voltage
             # 发步电池数据给rbk
             self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x37:
             tem = canframe.Data.hex()
             current = round(cu.hexStr_to_int(tem[0:2] + tem[2:4], 8) * 0.1, 2)
-            self.battery_info.charge_current = current
+            self.battery_info.chargeCurrent = current
             # 发步电池数据给rbk
             self.publish(self.battery_info)
             self.msg_ok = True

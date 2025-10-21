@@ -73,7 +73,7 @@ class testCanBattery(cb.canPassBase):
                 elif int(tem[1:2], 16) == 3:
                     self.number = hex(int(tem[15:16]))[2:].zfill(8)
                 if (self.id and self.year and self.week and self.number) != "":
-                    self.battery_info.user_data = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
+                    self.battery_info.userData = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
                     self.msg_userdata = True
                     self.msg_ok = True
         elif msg.arbitration_id == 0x0EA0F40D:
@@ -89,10 +89,10 @@ class testCanBattery(cb.canPassBase):
                     log.warning(f"cycle and SoC cannot be zero,per:{percentage},cycle:{cycle},msg:{str(msg)}")
                     return
             if int(tem[12:14], 16) == 1:
-                self.battery_info.is_charging = True
+                self.battery_info.isCharging = True
             else:
-                self.battery_info.is_charging = False
-            self.battery_info.percetage = percentage
+                self.battery_info.isCharging = False
+            self.battery_info.percentage = percentage
             self.battery_info.extra = json.dumps({"SOH": SOH})
             self.battery_info.cycle = cycle
             self.msg_ok = True
@@ -102,16 +102,16 @@ class testCanBattery(cb.canPassBase):
             current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
             if self.id2:
-                if abs(current - self.battery_info.charge_current) > 100:
+                if abs(current - self.battery_info.chargeCurrent) > 100:
                     log.warning(
-                        f"current jumps form {self.battery_info.charge_current} to {current}, drop msg:{str(msg)}")
+                        f"current jumps form {self.battery_info.chargeCurrent} to {current}, drop msg:{str(msg)}")
                     return
-                if abs(voltage - self.battery_info.charge_voltage) > 100:
+                if abs(voltage - self.battery_info.chargeVoltage) > 100:
                     log.warning(
-                        f"voltage jumps form {self.battery_info.charge_voltage} to {voltage}, drop msg:{str(msg)}")
+                        f"voltage jumps form {self.battery_info.chargeVoltage} to {voltage}, drop msg:{str(msg)}")
                     return
-            self.battery_info.charge_voltage = voltage
-            self.battery_info.charge_current = current
+            self.battery_info.chargeVoltage = voltage
+            self.battery_info.chargeCurrent = current
             self.msg_ok = True
             self.id2 = True
         elif msg.arbitration_id == 0x0EA2F40D:
@@ -149,13 +149,13 @@ class testCanBattery(cb.canPassBase):
         elif msg.arbitration_id == 0x0EA4F40D:
             tem = msg.data.hex()
             if self.isNeedCharge():
-                max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
-                max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
-                self.battery_info.max_charge_current = max_charge_current
-                self.battery_info.max_charge_voltage = max_charge_voltage
+                maxChargeVoltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
+                maxChargeCurrent = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
+                self.battery_info.maxChargeCurrent = maxChargeCurrent
+                self.battery_info.maxChargeVoltage = maxChargeVoltage
             else:
-                self.battery_info.max_charge_current = 0
-                self.battery_info.max_charge_voltage = 0
+                self.battery_info.maxChargeCurrent = 0
+                self.battery_info.maxChargeVoltage = 0
             self.msg_ok = True
             self.id4 = True
         elif msg.arbitration_id == 0x1EA7F40D:

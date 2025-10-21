@@ -6,7 +6,8 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 # 打印工具类
 import syspy.lib.udp_debug as ud
-
+from syspy import Logger
+log = Logger("battery")
 class testBattery(bb.batteryBase):
     """
     继承电池基类
@@ -58,7 +59,7 @@ class testBattery(bb.batteryBase):
                 # 转换电池数据
                 self.max_cell_voltage = round(cu.merge2bytesTo1(self.data_buff[12], self.data_buff[11]) * 0.001,2)
                 self.min_cell_voltage = round(cu.merge2bytesTo1(self.data_buff[14], self.data_buff[13]) * 0.001,2)
-                self.battery_info.charge_voltage = cu.merge2bytesTo1(self.data_buff[16], self.data_buff[15]) * 0.01
+                self.battery_info.chargeVoltage = cu.merge2bytesTo1(self.data_buff[16], self.data_buff[15]) * 0.01
                 self.max_cell_temp = cu.u16Toint16(self.data_buff[17])
                 self.battery_info.temperature = self.max_cell_temp
                 self.min_cell_temp = cu.u16Toint16(self.data_buff[18])
@@ -85,7 +86,7 @@ class testBattery(bb.batteryBase):
                 # 转换电池数据
                 self.state_info = cu.merge4bytesTo1(self.data_buff[8], self.data_buff[7], self.data_buff[6],self.data_buff[5])
 
-                self.battery_info.charge_current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[10], self.data_buff[9])) * 0.1  # 是int16类型
+                self.battery_info.chargeCurrent = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[10], self.data_buff[9])) * 0.1  # 是int16类型
 
                 voltage_number = cu.u16Toint16(self.data_buff[11])
                 for i in range(12, voltage_number * 2 + 12, 2):
@@ -105,7 +106,7 @@ class testBattery(bb.batteryBase):
                 temp_capacity = cu.merge2bytesTo1(self.data_buff[52], self.data_buff[51]) * 0.1  # 剩余容量
                 battery_capacity = cu.merge2bytesTo1(self.data_buff[54], self.data_buff[53]) * 0.1  # 总容量
                 self.battery_capacity = round(battery_capacity,2)
-                self.battery_info.percetage = round(temp_capacity / battery_capacity, 2)  # 计算百分比
+                self.battery_info.percentage = round(temp_capacity / battery_capacity, 2)  # 计算百分比
 
                 # 清空缓冲区列表
                 self.data_buff = []

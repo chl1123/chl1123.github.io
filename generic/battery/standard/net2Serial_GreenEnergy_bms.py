@@ -7,7 +7,8 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu 
 #其他工具类,如定时器 
 import syspy.lib.misc_utility as mu 
-
+from syspy import Logger
+log = Logger("battery")
 
 class testBattery(bb.batteryBase):
     """
@@ -89,10 +90,10 @@ class testBattery(bb.batteryBase):
                 self.connect_timeout_t.reset()
 
         if not False in self.rec_flag:
-            self.battery_info.percetage = self.soc #percentage
+            self.battery_info.percentage = self.soc #percentage
             self.battery_info.temperature = self.max_temp #temperature
-            self.battery_info.charge_current = self.current
-            self.battery_info.charge_voltage = self.voltage
+            self.battery_info.chargeCurrent = self.current
+            self.battery_info.chargeVoltage = self.voltage
             #发步电池数据给rbk
             self.publish(self.battery_info)  
             #清空缓冲区列表

@@ -8,6 +8,18 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
+from syspy import Logger
+log = Logger("battery")
+from syspy import ParamServer
+
+class ConfigParam:
+    def __init__(self):
+        self.param_server = ParamServer(__file__)
+        self.dev = self.param_server.loadParam('devName', type="str", default="/dev/RS485_0", comment="串行端口对应的设备名")
+        self.baudrate = self.param_server.loadParam('baudrate', type="int", default=9600,comment="波特率")
+        self.timeoutThreshold = self.param_server.loadParam('timeoutThreshold', type="int", default=2000,comment="超时时间阈值(ms)")
+        log.info("dev_name=" + str(self.dev) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
+
 
 class testBattery(bb.batteryBase):
     """
@@ -16,16 +28,19 @@ class testBattery(bb.batteryBase):
     def __init__(self):
         #初始化基类,必须做
         super(testBattery,self).__init__()
+        self.params = ConfigParam()
         # aarch64穿透需要初始化串口信息，880控制器串口uart0对应/dev/ttyS8
-        self.createSerial('/dev/RS485_0', 9600)
+        self.createSerial(self.params.dev, self.params.baudrate)
+        log.info(f'Create Serial Finished')
         #创建一个超时定时器
-        self.connect_timeout_t = mu.Timer(2000)
+        self.connect_timeout_t = mu.Timer(self.params.timeoutThreshold)
         #创建一个列表用来缓冲接收数据
         self.data_buff = []
         #用来表示数据是否已经正确接收
         self.msg_ok = False
         self.sema_a = threading.Semaphore(1)  
         self.sema_b = threading.Semaphore(0)
+        log.info(f'Class Init Finished')
 
     def handleData(self, msg:list):
         """
@@ -36,7 +51,9 @@ class testBattery(bb.batteryBase):
         if len(self.data_buff)==0 or len(self.data_buff)>112:
             if len(self.data_buff)>112:
                 self.data_buff = []
+                log.info(f'sema_a release')
                 self.sema_a.release()
+            log.info(f'sema_b acquire')
             self.sema_b.acquire()
         self.data_buff.extend(msg)
         #print(len(self.data_buff))
@@ -63,9 +80,9 @@ class testBattery(bb.batteryBase):
                     voltage=(result[pack_base+2] << 8 & 0xFF00)|(result[pack_base+3]& 0x00FF)
                     voltage*=(0.001)
 
-                    percetage=(result[pack_base+4] << 8 & 0xFF00)|(result[pack_base+5]& 0x00FF)
+                    percentage=(result[pack_base+4] << 8 & 0xFF00)|(result[pack_base+5]& 0x00FF)
 
-                    percetage/=(result[pack_base+7] << 8 & 0xFF00)|(result[pack_base+8]& 0x00FF)
+                    percentage/=(result[pack_base+7] << 8 & 0xFF00)|(result[pack_base+8]& 0x00FF)
                     circle=(result[pack_base+9] << 8 & 0xFF00)|(result[pack_base+10]& 0x00FF)
                     temp16_0=(result[temper_base+1] << 8 & 0xFF00)|(result[temper_base+2]& 0x00FF)
                     temp16_1=(result[temper_base+3] << 8 & 0xFF00)|(result[temper_base+4]& 0x00FF)
@@ -76,19 +93,20 @@ class testBattery(bb.batteryBase):
 
                     battery_info = self.createBatteryMessage()
                     #解析后塞入相应字段
-                    battery_info.percetage = percetage
+                    battery_info.percentage = percentage
                     battery_info.temperature = temperature
                     battery_info.cycle=circle
-                    battery_info.charge_current = current
-                    battery_info.charge_voltage = voltage
+                    battery_info.chargeCurrent = current
+                    battery_info.chargeVoltage = voltage
                     #发步电池数据给rbk
                     self.publish(battery_info)
                     # 清除超时报警
-                    print("finish")
+                    log.warning("finish")
                 except Exception as e:
-                        print(f"Error in handleData: {e}")
+                        log.warning(f"Error in handleData: {e}")
                 finally:
                     # 确保释放 sema_a
+                    log.info(f'sema_a release')
                     self.sema_a.release()
                     self.clearTimeout()
                     #清空缓冲区列表
@@ -99,6 +117,7 @@ class testBattery(bb.batteryBase):
             else:
                 # 第一个字节有误则去除
                 self.data_buff = []
+                log.info(f'sema_a release')
                 self.sema_a.release()
 
 
@@ -111,6 +130,7 @@ class testBattery(bb.batteryBase):
         else:
             if self.connect_timeout_t.isTimeUp():
                 self.setTimeout()
+                log.warning(f"Connection timeout")
 
     def loop(self):
         """
@@ -118,11 +138,13 @@ class testBattery(bb.batteryBase):
         """
         while True:
             # 初始化查询报文list
-            self.sema_a.acquire()
+            log.info(f'sema_a acquire')
+            self.sema_a.acquire(timeout=5)
             request = [0x7E, 0x32, 0x30, 0x30, 0x31, 0x34, 0x36, 0x34, 0x32, 0x45, 0x30, 0x30, 0x32, 0x30, 0x31, 0x46,
                        0x44, 0x33, 0x35, 0x0D]
             # 发送查询报文
             self.send(request)
+            log.info(f'sema_b release')
             self.sema_b.release() 
             # 循环检测是否超时
             self.judgeMsgok()
@@ -130,5 +152,6 @@ class testBattery(bb.batteryBase):
 
 
 if __name__ == '__main__':
+    log.info(f"Scripts Start.")
     client = testBattery()
     client.loop()
