@@ -27,33 +27,7 @@ class LaserV3(Message):
 
     @classmethod
     @call_service(plugin_name="SensorFuser")
-    def addDisableLaser(cls, device_name: str):
-        """禁用激光设备
-
-        Args:
-            device_name (str): 激光设备名称
-        """
-        pass
-
-    @classmethod
-    @call_service(plugin_name="SensorFuser")
-    def eraseDisableLaser(cls, device_name: str):
-        """清除已禁用的激光设备
-
-        Args:
-            device_name (str): 激光设备名称
-        """
-        pass
-
-    @classmethod
-    @call_service(plugin_name="SensorFuser")
-    def clearDisableLaserAll(cls):
-        """清除所有已禁用的激光设备"""
-        pass
-
-    @classmethod
-    @call_service(plugin_name="SensorFuser")
-    def setLaserWidth(cls, device_name: str, width: float):
+    def set2DLaserWidth(cls, device_name: str, width: float):
         """设置激光设备宽度
 
         Args:
@@ -64,12 +38,16 @@ class LaserV3(Message):
 
     @classmethod
     @call_service(plugin_name="SensorFuser")
-    def clearLaserWidth(cls):
-        """清除激光设备宽度"""
+    def clear2DLaserWidth(cls, device_list: List[str]):
+        """清除激光设备宽度
+        
+        Args:
+            device_name (str): 激光设备名称列表
+        """
         pass
 
     @classmethod
-    def setLaserAngle(cls, device_name: str, min_angle: float, max_angle: float):
+    def set2DLaserAngle(cls, device_name: str, min_angle: float, max_angle: float):
         """设置激光设备角度
 
         Args:
@@ -77,53 +55,20 @@ class LaserV3(Message):
             min_angle (float): 最小角度（单位：°），小于此角度的点云被屏蔽
             max_angle (float): 最大角度（单位：°），大于此角度的点云被屏蔽
         """
-        cls.client().call_service("SensorFuser", "setLaserAngle",
-                                  (id, math.radians(min_angle), math.radians(max_angle)))
+        cls.client().call_service("SensorFuser", "set2DLaserAngle",
+                                  device_name, math.radians(min_angle), math.radians(max_angle))
 
     @classmethod
     @call_service(plugin_name="SensorFuser")
-    def clearLaserAngle(cls):
-        """清除激光设备角度"""
-        pass
-
-    @classmethod
-    @call_service(plugin_name="SensorFuser")
-    def addDisableDepthCamera(cls, device_name: str):
-        """禁用深度相机
-
+    def clear2DLaserAngle(cls, device_list: List[str]):
+        """清除激光设备角度
+        
         Args:
-            device_name (str): 深度相机名称
+            device_name (str): 激光设备名称列表
         """
-        pass
-
-    @classmethod
-    @call_service(plugin_name="SensorFuser")
-    def eraseDisableDepthCamera(cls, device_name: str):
-        """清除已禁用的深度相机
-
-        Args:
-            device_name (str): 深度相机名称
-        """
-        pass
-
-    @classmethod
-    @call_service(plugin_name="SensorFuser")
-    def clearDisableDepthCameraAll(cls):
-        """清除所有已禁用的深度相机"""
         pass
 
     #----------------------------------------------------#
-
-
-    @classmethod
-    @call_service(plugin_name="Perception")
-    def sensorPointCloud(cls) -> dict:
-        """获得后视激光点云信息以字典类型返回
-
-        Returns:
-            dict: 具体的任务信息
-        """
-        pass
 
     @classmethod
     @call_service(plugin_name="MoveFactory")
