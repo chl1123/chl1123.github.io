@@ -21,7 +21,7 @@ from syspy import NavSpeed, Controller, NavStatus
 from syspy.script_data import ScriptData
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
 from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
-    Odometer, Pgv, Laser, NetProtocol, Trace
+    Odometer, Laser, NetProtocol, Trace
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
 from syspy.lib.robot_param import RobotParam
 import tasks.standard.goBezier as GoBezier
@@ -1646,7 +1646,7 @@ class GoPathWithContactDi(BaseAction):
 
             if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
                 for laser in ConfigParams.fork_tip_2D_lasers:
-                    Laser.setLaserWidth(laser, 0.05)
+                    Laser.set2DLaserWidth(laser, 0.05)
 
             # 把 di sensor 屏蔽掉
             if ConfigParams.fork_tip_di_sensors:
@@ -1718,7 +1718,7 @@ class GoPathWithContactDi(BaseAction):
                                          "", "")
                         self.action_status = ActionStatus.FAILED
         if self.action_status in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-            Laser.clearLaserWidth()
+            Laser.clear2DLaserWidth(ConfigParams.fork_tip_2D_lasers)
             Navigation.clearPolicy()
         # cur_state = dict()
         # cur_state['status'] = self.action_status
