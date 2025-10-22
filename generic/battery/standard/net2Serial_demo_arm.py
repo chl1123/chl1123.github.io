@@ -9,7 +9,16 @@ import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
 from syspy import Logger
+from syspy import ParamServer
+
 log = Logger("battery")
+class ConfigParam:
+    def __init__(self):
+        self.param_server = ParamServer(__file__)
+        self.dev = self.param_server.loadParam('devName', type="str", default="/dev/ttyS8", comment="串行端口对应的设备名")
+        self.baudrate = self.param_server.loadParam('baudrate', type="int", default=9600,comment="波特率")
+        self.timeoutThreshold = self.param_server.loadParam('timeoutThreshold', type="int", default=2000,comment="超时时间阈值(ms)")
+        log.info("dev_name=" + str(self.dev) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
 class testBattery(bb.batteryBase):
     """
     继承电池基类
@@ -17,10 +26,11 @@ class testBattery(bb.batteryBase):
     def __init__(self):
         #初始化基类,必须做
         super(testBattery,self).__init__()
+        self.params = ConfigParam()
         # aarch64穿透需要初始化串口信息，880控制器串口uart0对应/dev/ttyS8
-        self.createSerial('/dev/ttyS8', 9600)
+        self.createSerial(self.params.dev, self.params.baudrate)
         #创建一个超时定时器
-        self.connect_timeout_t = mu.Timer(2000)
+        self.connect_timeout_t = mu.Timer(self.params.timeoutThreshold)
         #创建一个列表用来缓冲接收数据
         self.data_buff = []
         #用来表示数据是否已经正确接收

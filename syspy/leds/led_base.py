@@ -244,4 +244,4 @@ class LedBase:
             self.__led.update()
             self.dmx_serial.send(self.__led.dmx_data)
             # 发送数据的频率可以根据需要调整
-            time.sleep(0.1)  # 发送频率可以低于状态获取频率
+            time.sleep(0.025)  # 25ms发送一次，与DSP保持一致

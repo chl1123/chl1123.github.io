@@ -59,7 +59,7 @@ class LedChassis(LedBase):
             battery_exist = True
         self.handle_light_effects(percentage, battery_exist)
         if ConfigParam.dmx_test_flag:
-            self.set_effect(LightType.MutableBreath)
+            self.set_effect(LightType.MutableBreath, rgbw=Color.Red, period=3200)
 
     def handle_light_effects(self, dmx_battery: Optional[float], battery_exist: bool):
         """
@@ -73,7 +73,7 @@ class LedChassis(LedBase):
         if self.is_alarm():
             self.robot_status = "Alarm"
             self.set_effect(
-                LightType.MutableBreath, rgbw=Color.Red, period=1000
+                LightType.MutableBreath, rgbw=Color.Red, period=3200
             )
         # 急停状态下暗红色流水
         elif Controller.get_emc():
@@ -85,7 +85,7 @@ class LedChassis(LedBase):
         elif NavStatus.get_block():
             self.robot_status = "Blocked"
             self.set_effect(
-                LightType.MutableHorseRace, rgbw=Color.PinkPurple, period=1000
+                LightType.MutableHorseRace, rgbw=Color.PinkPurple, period=3200
             )
         # 机器移动时的灯光效果
         elif not NavStatus.getChassisStop():
@@ -113,9 +113,9 @@ class LedChassis(LedBase):
         if turn == 0:
             self.robot_status = "MovingRotation"
             if ConfigParam.is_back_breath and v_x < 0:
-                self.set_effect(LightType.MutableBreath, rgbw=Color.White, period=1000)
+                self.set_effect(LightType.MutableBreath, rgbw=Color.White, period=3200)
             else:
-                self.set_effect(LightType.MutableBreath, period=1000)
+                self.set_effect(LightType.MutableBreath, period=3200)
         else:
             self.robot_status = "MovingTurn"
             led_idx = self.turn_to_led_idx(turn)
@@ -132,13 +132,13 @@ class LedChassis(LedBase):
             self.robot_status = "Charging"
             rgbw = self.battery_to_color(dmx_battery)
             self.set_effect(
-                LightType.MutableBreath, rgbw=rgbw, period=1500
+                LightType.MutableBreath, rgbw=rgbw, period=3200
             )
         # 电量过低为暗红色跑马灯
         elif dmx_battery * 100 < 10:
             self.robot_status = "LowBattery"
             self.set_effect(
-                LightType.MutableHorseRace, rgbw=Color.RedDark
+                LightType.MutableHorseRace, rgbw=Color.RedDark,period=2000
             )
         # 常亮灯，颜色根据电池电量变化
         elif ConfigParam.is_show_battery:

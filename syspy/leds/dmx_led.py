@@ -92,47 +92,36 @@ class ConstantLight(LightEffect):
 
 
 class MutableBreath(LightEffect):
-    def __init__(self, dmx_led, rgbw, period=3000):
+    def __init__(self, dmx_led, rgbw, period=3200):
         super().__init__(dmx_led, rgbw)
         self.breath_period = period
         self.next_period = period
-        self.position_in_cycle = 0
-        self.last_update_time = int(time.time() * 1000)
+        self.start_time = time.perf_counter() * 1000
+        self.last_brightness = 0.0
 
     def set_period(self, period):
         self.next_period = period
 
     def update(self):
-        t_ms_now = int(time.time() * 1000)
+        t_ms_now = time.perf_counter() * 1000
 
-        # 计算自上次更新以来的时间差
-        delta_time = t_ms_now - self.last_update_time
-
-        # 更新上次更新时间
-        self.last_update_time = t_ms_now
-
-        # 计算当前周期位置
-        self.position_in_cycle = (self.position_in_cycle + delta_time) % self.breath_period
-
-        # 归一化位置到 [0, 1)
-        position_in_cycle = self.position_in_cycle / self.breath_period
-
-        # 计算亮度
-        sin_value = math.sin(position_in_cycle * 2 * math.pi - math.pi / 2)
-
-        brightness = (sin_value + 1) / 2
-
-        # 平滑过渡到新周期
         if self.breath_period != self.next_period:
-            # 根据当前周期位置平滑过渡到新周期位置
-            new_position_in_cycle = (self.position_in_cycle / self.breath_period) * self.next_period
-            self.position_in_cycle = new_position_in_cycle
+            ratio = (t_ms_now - self.start_time) / self.breath_period
             self.breath_period = self.next_period
+            self.start_time = t_ms_now - ratio * self.breath_period
 
-        # 计算 RGBW 值
-        rgbw = list(self._rgbw)
-        rgbw = [int(channel * brightness) for channel in rgbw]
-        # 更新 DMX 数据
+        elapsed = (t_ms_now - self.start_time) % self.breath_period
+        position = elapsed / self.breath_period
+
+        brightness = (1 - math.cos(position * 2 * math.pi)) / 2
+
+        gamma = 1.2
+        brightness = pow(brightness, 1 / gamma)
+
+        # brightness = 0.85 * self.last_brightness + 0.15 * brightness
+        # self.last_brightness = brightness
+
+        rgbw = [int(channel * brightness) for channel in self._rgbw]
         self.data_packet(rgbw)
 
 
