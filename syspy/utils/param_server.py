@@ -1,4 +1,5 @@
 import time
+from syspy.core.rbk_rpc import Service
 
 start_time = time.time()
 
@@ -10,7 +11,7 @@ from enum import Enum
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing_extensions import TypeAlias
-from typing import Any, Dict, List, Optional, Generator, Union, Tuple
+from typing import Any, Dict, List, Optional, Generator, Union, Tuple, Callable
 
 SCRIPTS_DIR = "/opt/.data/rbk/resources/scripts"
 
@@ -114,6 +115,76 @@ class ParamServer:
     def read(self, name: str):
         if name in self.data:
             return self.data[name]["value"]
+
+
+# 参数加载器类 - 用于在运行时加载参数
+class ScriptParam:
+    """参数加载器，用于在运行时加载配置参数和输入参数"""
+
+    def __init__(self, script_file: str):
+        _get_prefix_dir(script_file)
+        self.config_file = prefix_dir + CONFIG_SUFFIX
+        self.input_file = prefix_dir + INPUT_SUFFIX
+
+    def builder_config(self):
+        return ParamBuilder(self.config_file, "Script Configuration Parameters", "config")
+
+    def builder_input(self):
+        return ParamBuilder(self.input_file, "Script Input Parameters", "input")
+
+    def load_config(self) -> Dict[str, Any]:
+        """加载配置参数"""
+        if not os.path.exists(self.config_file):
+            raise FileNotFoundError(f"Config file not found: {self.config_file}")
+
+        with open(self.config_file, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+        # 使用ParamValidator验证配置
+        validator = ParamValidator(config_data)
+        e = self._extract_values(config_data)
+        return validator.validate(e)
+
+    def load_input(self, input_params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """加载输入参数"""
+        if not os.path.exists(self.input_file):
+            raise FileNotFoundError(f"Input file not found: {self.input_file}")
+
+        with open(self.input_file, 'r', encoding='utf-8') as f:
+            input_def = json.load(f)
+
+        # 使用ParamValidator验证输入
+        validator = ParamValidator(input_def)
+        return validator.validate(input_params or {})
+
+    @classmethod
+    def setConfigChangeCallBack(cls, callback: Callable[[], None]):
+        """设置脚本配置参数改变回调
+
+        Args:
+            callback (Callable[[], None]): 回调方法
+        """
+        Service.server().register_function(callback, "script_config_changed", True)
+
+    def _extract_values(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """从参数定义中提取值"""
+        values = {}
+
+        def _extract_from_node(node: Dict[str, Any], parent_path: str = ''):
+
+            full_path = f"{parent_path}.{node['key']}" if parent_path else node['key']
+
+            if 'key' in node and ('value' in node or 'defaultValue' in node):
+                value = node.get('value', node.get('defaultValue'))
+                values[full_path] = value
+
+            if 'children' in node:
+                for child in node['children']:
+                    _extract_from_node(child, full_path)
+
+        for group in data.get('groups', []):
+            _extract_from_node(group)
+
+        return values
 
 
 # 参数类型常量
@@ -264,11 +335,11 @@ class ParamField:
         # 清理空值
         return {k: v for k, v in result.items() if v not in (None, [], {}) and not (isinstance(v, list) and not v)}
 
-
+# 输入参数和配置参数枚举
 class ParamBuilder:
     """参数配置构建器，支持嵌套结构"""
 
-    def __init__(self, caller_file: str = None, desc: str = ""):
+    def __init__(self, caller_file: str = None, desc: str = "", p_type: str = "input"):
         if not prefix_dir:
             _get_prefix_dir(caller_file)
         self.root = {"desc": desc, "groups": []}
@@ -276,6 +347,7 @@ class ParamBuilder:
         self._current_node: Optional[ParamField] = None
         self._current_children: List[ParamField] = self.root["groups"]
         self._context_stack: List[Tuple[Optional[ParamField], List[ParamField], List[str]]] = []
+        self.p_type = p_type
 
     @contextmanager
     def GROUPS(self) -> Generator[None, None, None]:
@@ -398,6 +470,9 @@ class ParamBuilder:
     def DEFAULTVALUE(self, value: Any, min_value: Optional[Union[int, float]] = None,
                      max_value: Optional[Union[int, float]] = None) -> None:
         self.ADD_FIELD("default_value", value)
+        # 校验min_value和max_value
+        if min_value is not None and max_value is not None and min_value > max_value:
+            raise ValueError("min_value must be less than max_value")
         if min_value is not None:
             self.ADD_FIELD("min_value", min_value)
         if max_value is not None:
@@ -483,6 +558,151 @@ class ParamBuilder:
         with open(filename, "w", encoding="utf-8") as f:
             f.write(self.to_json(indent))
 
+    def save(self, merge: bool = False) -> None:
+        """将配置保存到文件
+
+        Args:
+            merge (bool): 是否和原参数文件合并。True：合并（不会删除旧参数）；False：替换。
+        """
+        if self.p_type ==  "config":
+            suffix = CONFIG_SUFFIX
+        else:
+            # 后缀
+            suffix = INPUT_SUFFIX
+        filename = prefix_dir + suffix
+
+        # 如果是配置参数且需要合并，则读取现有文件并合并
+        if merge and os.path.exists(filename) and os.path.getsize(filename):
+            existing_data = {}
+            try:
+                with open(filename, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except Exception as e:
+                raise IOError(f"read file error. {e}")
+            # 合并现有数据
+            merged_data = self._merge_with_existing(existing_data)
+            # 保存合并后的数据
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(merged_data, f, ensure_ascii=False, indent=2)
+        else:
+            # 直接保存新数据
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(self.to_json(2))
+
+    def _index_params(self, node: Dict[str, Any], index: Dict[str, Any], parent_path: str = "") -> None:
+        """递归索引参数"""
+        key = node.get("key")
+        if key:
+            full_path = f"{parent_path}.{key}" if parent_path else key
+            index[full_path] = node
+
+        # 递归处理子节点
+        for child in node.get("children", []):
+            self._index_params(child, index, parent_path=key if key else parent_path)
+
+    def _merge_with_existing(self, existing_data: Dict[str, Any]) -> Dict[str, Any]:
+        """将新定义与现有数据合并
+
+        策略：
+        1. 保留现有文件中的所有参数（不删除任何参数）
+        2. 如果参数在新定义中存在，则更新其属性（名称、描述、类型等）
+        3. 如果参数在新定义中不存在，则保留原样
+        4. 新增的参数添加到对应的组中
+        """
+        new_data = self.to_dict()
+        # 创建现有参数的索引
+        existing_params = {}
+        for group in existing_data.get("groups", []):
+            self._index_params(group, existing_params)
+
+        # 创建新参数的索引
+        new_params = {}
+        for group in new_data.get("groups", []):
+            self._index_params(group, new_params)
+
+        # 合并数据
+        merged_groups = []
+
+        # 首先处理现有组
+        for existing_group in existing_data.get("groups", []):
+            group_key = existing_group.get("key")
+
+            # 查找对应的新组定义
+            new_group = None
+            for ng in new_data.get("groups", []):
+                if ng.get("key") == group_key:
+                    new_group = ng
+                    break
+
+            # 如果新定义中有这个组，则合并组属性
+            if new_group:
+                merged_group = {**existing_group, **new_group}
+
+                # 合并子参数
+                merged_children = self._merge_children(
+                    existing_group.get("children", []),
+                    new_group.get("children", [])
+                )
+
+                if merged_children:
+                    merged_group["children"] = merged_children
+
+                merged_groups.append(merged_group)
+            else:
+                # 新定义中没有这个组，保留原样
+                merged_groups.append(existing_group)
+
+        # 添加新定义中新增的组
+        for new_group in new_data.get("groups", []):
+            group_key = new_group.get("key")
+            if not any(g.get("key") == group_key for g in merged_groups):
+                merged_groups.append(new_group)
+
+        return {"desc": new_data.get("desc", ""), "groups": merged_groups}
+
+
+    def _merge_children(self, existing_children: List[Dict[str, Any]], new_children: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """合并子参数列表"""
+        merged_children = []
+
+        # 首先处理现有参数
+        for existing_child in existing_children:
+            child_key = existing_child.get("key")
+
+            # 查找对应的新参数定义
+            new_child = None
+            for nc in new_children:
+                if nc.get("key") == child_key:
+                    new_child = nc
+                    break
+
+            # 如果新定义中有这个参数，则合并属性
+            if new_child:
+                merged_child = {**existing_child, **new_child}
+
+                # 递归合并子参数
+                if "children" in existing_child or "children" in new_child:
+                    merged_child_children = self._merge_children(
+                        existing_child.get("children", []),
+                        new_child.get("children", [])
+                    )
+
+                    if merged_child_children:
+                        merged_child["children"] = merged_child_children
+
+                merged_children.append(merged_child)
+            else:
+                # 新定义中没有这个参数，保留原样
+                merged_children.append(existing_child)
+
+        # 添加新定义中新增的参数
+        for new_child in new_children:
+            child_key = new_child.get("key")
+            if not any(c.get("key") == child_key for c in merged_children):
+                merged_children.append(new_child)
+
+        return merged_children
+
 
 class ParamValidator:
     """参数验证器，基于参数定义文件验证输入参数"""
@@ -509,7 +729,8 @@ class ParamValidator:
                 if 'type' in param:
                     param_index[param['key']] = param
                     param_index[full_path] = param
-                    self.leaf_param_keys.add(param['key'])
+                    if param['type'] != ParamType.ARRAY:
+                        self.leaf_param_keys.add(param['key'])
 
                 # 特殊处理COMBO_BOX_BOOL类型
                 if param.get('type') == ParamType.COMBO_BOX_BOOL:
@@ -538,16 +759,8 @@ class ParamValidator:
         """将路径格式参数转换为平铺格式"""
         flat_params = {}
 
-        # 1. 提取operation参数
-        operation = self._extract_operation(input_params)
-        if operation:
-            flat_params["operation"] = operation
-
-        # 2. 处理其他参数
+        # 处理所有参数
         for key, value in input_params.items():
-            if key == "operation":
-                continue  # 已处理
-
             parts = key.split('.')
             leaf_key = parts[-1]
 
@@ -560,125 +773,76 @@ class ParamValidator:
                         break
                 continue
 
-            # 检查是否是叶子节点参数
-            if leaf_key in self.leaf_param_keys:
-                param_def = self.param_index.get(leaf_key)
-                # STRING_COMBO_LIST类型且value是整数，转换为子项键值
-                if (param_def and param_def.get('type') == ParamType.STRING_COMBO_LIST and
-                    isinstance(value, int)):
-                    # 获取STRING_COMBO_LIST的子项
-                    children = param_def.get('children', [])
-                    if 0 <= value < len(children):
-                        flat_params[leaf_key] = children[value]['key']
-                    else:
-                        # 索引无效，保持原值
-                        flat_params[leaf_key] = value
-                else:
-                    flat_params[leaf_key] = value
-            # 否则保留原始键（可能是中间节点）
+            # 添加对中间节点的处理
+            # 对于路径参数，需要同时保留完整路径和各个节点
+            if len(parts) > 1:
+                # 保留中间节点的值（用于组合框等参数识别）
+                for i in range(len(parts)):
+                    node_key = parts[i]
+                    if node_key in self.leaf_param_keys:
+                        # 检查参数类型并做相应处理
+                        param_def = self.param_index.get(node_key)
+                        processed_value = self._process_param_value(param_def, value, node_key)
+                        # 只有当该节点还没有值时才设置，避免覆盖
+                        if node_key not in flat_params:
+                            flat_params[node_key] = processed_value
             else:
-                flat_params[key] = value
+                # 检查是否是叶子节点参数
+                if leaf_key in self.leaf_param_keys:
+                    param_def = self.param_index.get(leaf_key)
+                    processed_value = self._process_param_value(param_def, value, leaf_key)
+                    flat_params[leaf_key] = processed_value
+                # 否则保留原始键（可能是中间节点）
+                else:
+                    flat_params[key] = value
 
         return flat_params
 
-    def _extract_operation(self, input_params: Dict[str, Any]) -> Optional[str]:
-        """从输入参数中提取operation值"""
-        if input_params is None or len(input_params) == 0:
-            return None
-        # 直接提供operation参数
-        if "operation" in input_params:
-            return input_params["operation"]
+    # 在 ParamValidator 类中添加新的辅助方法
+    def _process_param_value(self, param_def: Dict[str, Any], value: Any, param_key: str) -> Any:
+        """处理参数值，根据参数类型做相应的转换"""
+        if not param_def:
+            return value
 
-        # 从路径中提取operation
-        for key in input_params:
-            if key.startswith("operation."):
-                parts = key.split('.')
-                if len(parts) > 1:
-                    # 返回第一个非"operation"的部分
-                    for part in parts[1:]:
-                        if part and part != "":
-                            return part
-        return None
+        param_type = param_def.get('type')
+
+        # 处理 COMBO_BOX 类型参数
+        if param_type == ParamType.COMBO_BOX and isinstance(value, int):
+            children = param_def.get('children', [])
+            if 0 <= value < len(children):
+                return children[value]['key']
+            else:
+                # 索引无效，保持原值
+                return value
+
+        # 处理 STRING_COMBO_LIST 类型参数
+        elif param_type == ParamType.STRING_COMBO_LIST and isinstance(value, int):
+            children = param_def.get('children', [])
+            if 0 <= value < len(children):
+                return children[value]['key']
+            else:
+                # 索引无效，保持原值
+                return value
+
+        # 其他类型保持原值
+        return value
 
     def validate(self, input_params: Dict[str, Any]) -> Dict[str, Any]:
-        """验证输入参数并返回处理后的参数"""
+        """验证输入参数并返回处理后的参数（通用版本）"""
         # 1. 转换为平铺格式
         flat_params = self._flatten_input_params(input_params)
         validated_params = {}
         errors = []
 
-        # 2. 验证全局参数
-        for param_def in self.param_definition.get('groups', []):
-            if 'type' in param_def:
+        # 2. 递归验证所有参数
+        def validate_all_params(params_def: List[Dict[str, Any]], parent_path: str = ""):
+            for param_def in params_def:
+                full_path = f"{parent_path}.{param_def['key']}" if parent_path else param_def['key']
+                # 验证当前参数
                 self._validate_param(
                     param_def,
                     flat_params.get(param_def['key']),
                     flat_params,
-                    validated_params,
-                    errors
-                )
-
-        # 3. 验证操作参数
-        operation_def = None
-        for group in self.param_definition.get('groups', []):
-            if group.get('key') == 'operation':
-                operation_def = group
-                break
-
-        # 检查operation是否为必需参数
-        operation_required = operation_def and operation_def.get('required', False)
-        operation = flat_params.get('operation')
-
-        # 只有当operation为必需参数且未提供时才报错
-        if operation_required and not operation:
-            errors.append("Missing required parameter: operation")
-        elif operation:
-            op_def = self._find_operation_definition(operation)
-            if op_def is None:
-                errors.append(f"Invalid operation: {operation}")
-            else:
-                self._validate_operation_params(
-                    op_def,
-                    flat_params,
-                    validated_params,
-                    errors
-                )
-
-        if errors:
-            raise ValueError("\n".join(errors))
-
-        return validated_params
-
-    def _find_operation_definition(self, operation: str) -> Optional[Dict[str, Any]]:
-        """查找操作定义"""
-        # 查找operation组
-        for group in self.param_definition.get('groups', []):
-            if group.get('key') == 'operation':
-                # 在子节点中查找具体操作
-                for child in group.get('children', []):
-                    if child.get('key') == operation:
-                        return child
-        return None
-
-    def _validate_operation_params(
-            self,
-            op_def: Dict[str, Any],
-            input_params: Dict[str, Any],
-            validated_params: Dict[str, Any],
-            errors: List[str]
-    ):
-        """验证操作特定参数"""
-
-        # 递归验证操作参数
-        def validate_params(params_def: List[Dict[str, Any]], parent_path: str = ""):
-            for param_def in params_def:
-                full_path = f"{parent_path}.{param_def['key']}" if parent_path else param_def['key']
-
-                # 验证当前参数
-                self._validate_param(
-                    param_def,
-                    input_params.get(param_def['key']),
-                    input_params,
                     validated_params,
                     errors,
                     full_path
@@ -686,11 +850,16 @@ class ParamValidator:
 
                 # 递归验证子参数
                 if 'children' in param_def and param_def['children']:
-                    validate_params(param_def['children'], full_path)
+                    in_input = any(key.startswith(full_path) for key in input_params.keys())
+                    if in_input or (not in_input and param_def.get('required', False) == True):
+                        validate_all_params(param_def['children'], full_path)
 
-        # 从操作定义的子节点开始验证
-        if 'children' in op_def and op_def['children']:
-            validate_params(op_def['children'])
+        # 从根节点开始验证所有参数
+        validate_all_params(self.param_definition.get('groups', []))
+
+        if errors:
+            raise ValueError("\n".join(errors))
+        return validated_params
 
     def _validate_param(
             self,
@@ -703,13 +872,18 @@ class ParamValidator:
     ):
         """验证单个参数"""
         key = param_def['key']
-        param_type = param_def['type']
+        param_type = param_def.get('type')
         full_path = full_path or key
+
+        # 如果没有类型定义，说明是分组节点，不需要验证值
+        if not param_type:
+            return
 
         # 检查必填参数
         if param_def.get('required', False) and value is None:
             errors.append(f"Missing required parameter: {full_path}")
-            return
+            raise ValueError("Missing required parameter: " + full_path)
+            # return
 
         # 如果值仍然为空，跳过验证
         if value is None:
@@ -739,6 +913,17 @@ class ParamValidator:
 
             elif param_type == ParamType.COMBO_BOX_BOOL:
                 validated_value = self._validate_combo_bool(value, full_path)
+
+            elif param_type == ParamType.COMBO_BOX:
+                # 对于COMBO_BOX类型，如果是数字索引则转换为对应的key
+                if isinstance(value, int):
+                    children = param_def.get('children', [])
+                    if 0 <= value < len(children):
+                        validated_value = children[value]['key']
+                    else:
+                        validated_value = value  # 保持原值
+                else:
+                    validated_value = value
 
             else:
                 # 其他类型不做转换
