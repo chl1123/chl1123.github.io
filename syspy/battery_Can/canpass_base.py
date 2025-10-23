@@ -6,6 +6,8 @@ import subprocess
 import sys
 from typing import Union
 
+from google.protobuf.json_format import MessageToJson
+
 import syspy.lib.rpc.server as rs
 from syspy import Abnormal, RBK_VERSION
 from syspy import Battery, Di, Do
@@ -46,10 +48,11 @@ class canPassBase:
         if RBK_VERSION == 4:
             name="pyBatteryServer"
             core.Init(name)
-            service.addService(name, "serviceDispatcher", self.serviceDispatcher)
+            service.addService(name, "serviceDispatcher", self.serviceDispatcher, dispatcher=True)
 
         self.setCallBack()
         self.need_charge = False
+        self.msg_str = dict()
 
 
     def serviceDispatcher(self,route_json: str):
@@ -59,11 +62,14 @@ class canPassBase:
         func_name = request["func_name"]
         if func_name == "getBatteryMsg":
             response["result"] = self.get_battery_msg()
-            return json.dumps(response)
+            return json.dumps(response), ""
+        else:
+            response["result"] = "Invalid function name"
+            return json.dumps(response), ""
     
     
     def get_battery_msg(self) -> dict:
-        return json.loads(self.msg)
+        return json.loads(self.msg_str)
         
 
     def setCallBack(self):
@@ -140,6 +146,7 @@ class canPassBase:
         return selected_port
 
     def publish(self, battery_msg: msgBattery) -> int:
+        self.msg_str = MessageToJson(battery_msg)
         return Battery.publish(battery_msg)
 
     def getDIStates(self, index):
