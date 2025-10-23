@@ -24,11 +24,11 @@ MIN_ANGULAR_SPEED = 0
 class LedBase:
     __58050_error_v = []
 
-    def __init__(self, param_server: ParamServer):
-        self.dev = param_server.read("devName")
-        self.turn_pos = list(map(int,param_server.read("turnPos")))
-        self.turn_num = list(map(int,param_server.read("turnNum")))
-        self.light_total_num = int(param_server.read("lightTotalNum"))
+    def __init__(self, param_server):
+        self.dev = param_server.devName
+        self.turn_pos = param_server.turnPos
+        self.turn_num = param_server.turnNum
+        self.light_total_num = param_server.lightTotalNum
 
         self.dmx_serial = DmxSerialComm(self.dev)
         self.__led = DmxLed(param_server)

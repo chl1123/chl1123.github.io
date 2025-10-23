@@ -255,17 +255,17 @@ class BlinkLight(LightEffect):
 
 
 class DmxLed(object):
-    def __init__(self, param_server: ParamServer):
-        self.rgbw = param_server.read("rgbwColor")
+    def __init__(self, param_server):
+        self.rgbw = param_server.rgbwColor
         self.brightness = 1.0
-        self.rgbw_channel = param_server.read('rgbwChannel')
+        self.rgbw_channel = param_server.rgbwChannel
 
         self.red_channel = self.rgbw_channel[0]
         self.green_channel = self.rgbw_channel[1]
         self.blue_channel = self.rgbw_channel[2]
         self.white_channel = self.rgbw_channel[3]
 
-        self.light_total_num = param_server.read('lightTotalNum')
+        self.light_total_num = param_server.lightTotalNum
         self.dmx_data = [0x00] * (1 + 4 * self.light_total_num)
         self.turn_left_or_right = 0
 
