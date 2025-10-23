@@ -20,11 +20,77 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xc0\x01\n\x0fmsgLocalization\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x10\n\x08locState\x18\t \x01(\r\x12\x11\n\tlocMethod\x18\n \x01(\r\"\x1f\n\x0emsgLocFinished\x12\r\n\x05value\x18\x01 \x01(\x08\"\x98\x01\n\tmsg3DPose\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\n\n\x02qW\x18\x05 \x01(\x01\x12\n\n\x02qX\x18\x06 \x01(\x01\x12\n\n\x02qY\x18\x07 \x01(\x01\x12\n\n\x02qZ\x18\x08 \x01(\x01\x12\x11\n\textraData\x18\t \x01(\t\"\xd5\x03\n\x0cmsg2DCamInfo\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x12\n\ncameraName\x18\x02 \x01(\t\x12\x11\n\tmInfrared\x18\x03 \x01(\x01\x12\x14\n\x0cmSeertagSize\x18\x04 \x01(\x01\x12\x18\n\x10mSeertagFamilyID\x18\x05 \x01(\x01\x12\x11\n\tmodelType\x18\x06 \x01(\t\x12\x17\n\x0f\x64istortionModel\x18\x07 \x01(\t\x12\x18\n\x10isIntrinsicsCaib\x18\x08 \x01(\x08\x12\x18\n\x10isExtrinsicsCaib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\x0b\n\x03mFx\x18\x10 \x01(\x01\x12\x0b\n\x03mFy\x18\x11 \x01(\x01\x12\x0b\n\x03mCx\x18\x12 \x01(\x01\x12\x0b\n\x03mCy\x18\x13 \x01(\x01\x12\x0b\n\x03mK1\x18\x14 \x01(\x01\x12\x0b\n\x03mK2\x18\x15 \x01(\x01\x12\x0b\n\x03mK3\x18\x16 \x01(\x01\x12\x0b\n\x03mK4\x18\x17 \x01(\x01\x12\x0b\n\x03mK5\x18\x18 \x01(\x01\x12\x0b\n\x03mK6\x18\x19 \x01(\x01\x12\x0b\n\x03mP1\x18\x1a \x01(\x01\x12\x0b\n\x03mP2\x18\x1b \x01(\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\x97\x01\n\x17msgLocalTagLocalization\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05\x61ngle\x18\x04 \x01(\x01\x12\x12\n\nconfidence\x18\x05 \x01(\x01\x12\x1a\n\x12\x64istanceNotFindTag\x18\x06 \x01(\x01\"\xf9\x01\n\x0fmsgLocalization\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x10\n\x08locState\x18\t \x01(\r\x12\x11\n\tlocMethod\x18\n \x01(\r\x12\x37\n\x08localTag\x18\x0b \x01(\x0b\x32%.rbk.protocol.msgLocalTagLocalization\"\x1f\n\x0emsgLocFinished\x12\r\n\x05value\x18\x01 \x01(\x08\"\x98\x01\n\tmsg3DPose\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\n\n\x02qW\x18\x05 \x01(\x01\x12\n\n\x02qX\x18\x06 \x01(\x01\x12\n\n\x02qY\x18\x07 \x01(\x01\x12\n\n\x02qZ\x18\x08 \x01(\x01\x12\x11\n\textraData\x18\t \x01(\t\"\xd5\x03\n\x0cmsg2DCamInfo\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x12\n\ncameraName\x18\x02 \x01(\t\x12\x11\n\tmInfrared\x18\x03 \x01(\x01\x12\x14\n\x0cmSeertagSize\x18\x04 \x01(\x01\x12\x18\n\x10mSeertagFamilyID\x18\x05 \x01(\x01\x12\x11\n\tmodelType\x18\x06 \x01(\t\x12\x17\n\x0f\x64istortionModel\x18\x07 \x01(\t\x12\x18\n\x10isIntrinsicsCaib\x18\x08 \x01(\x08\x12\x18\n\x10isExtrinsicsCaib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\x0b\n\x03mFx\x18\x10 \x01(\x01\x12\x0b\n\x03mFy\x18\x11 \x01(\x01\x12\x0b\n\x03mCx\x18\x12 \x01(\x01\x12\x0b\n\x03mCy\x18\x13 \x01(\x01\x12\x0b\n\x03mK1\x18\x14 \x01(\x01\x12\x0b\n\x03mK2\x18\x15 \x01(\x01\x12\x0b\n\x03mK3\x18\x16 \x01(\x01\x12\x0b\n\x03mK4\x18\x17 \x01(\x01\x12\x0b\n\x03mK5\x18\x18 \x01(\x01\x12\x0b\n\x03mK6\x18\x19 \x01(\x01\x12\x0b\n\x03mP1\x18\x1a \x01(\x01\x12\x0b\n\x03mP2\x18\x1b \x01(\x01\x62\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
 
+
+
+_MSGLOCALTAGLOCALIZATION = _descriptor.Descriptor(
+  name='msgLocalTagLocalization',
+  full_name='rbk.protocol.msgLocalTagLocalization',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='header', full_name='rbk.protocol.msgLocalTagLocalization.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgLocalTagLocalization.x', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgLocalTagLocalization.y', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='angle', full_name='rbk.protocol.msgLocalTagLocalization.angle', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='confidence', full_name='rbk.protocol.msgLocalTagLocalization.confidence', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='distanceNotFindTag', full_name='rbk.protocol.msgLocalTagLocalization.distanceNotFindTag', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=67,
+  serialized_end=218,
+)
 
 
 _MSGLOCALIZATION = _descriptor.Descriptor(
@@ -104,6 +170,13 @@ _MSGLOCALIZATION = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='localTag', full_name='rbk.protocol.msgLocalization.localTag', index=10,
+      number=11, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -116,8 +189,8 @@ _MSGLOCALIZATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=67,
-  serialized_end=259,
+  serialized_start=221,
+  serialized_end=470,
 )
 
 
@@ -147,8 +220,8 @@ _MSGLOCFINISHED = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=261,
-  serialized_end=292,
+  serialized_start=472,
+  serialized_end=503,
 )
 
 
@@ -234,8 +307,8 @@ _MSG3DPOSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=295,
-  serialized_end=447,
+  serialized_start=506,
+  serialized_end=658,
 )
 
 
@@ -447,18 +520,28 @@ _MSG2DCAMINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=450,
-  serialized_end=919,
+  serialized_start=661,
+  serialized_end=1130,
 )
 
+_MSGLOCALTAGLOCALIZATION.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
 _MSGLOCALIZATION.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGLOCALIZATION.fields_by_name['localTag'].message_type = _MSGLOCALTAGLOCALIZATION
 _MSG3DPOSE.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
 _MSG2DCAMINFO.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+DESCRIPTOR.message_types_by_name['msgLocalTagLocalization'] = _MSGLOCALTAGLOCALIZATION
 DESCRIPTOR.message_types_by_name['msgLocalization'] = _MSGLOCALIZATION
 DESCRIPTOR.message_types_by_name['msgLocFinished'] = _MSGLOCFINISHED
 DESCRIPTOR.message_types_by_name['msg3DPose'] = _MSG3DPOSE
 DESCRIPTOR.message_types_by_name['msg2DCamInfo'] = _MSG2DCAMINFO
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
+
+msgLocalTagLocalization = _reflection.GeneratedProtocolMessageType('msgLocalTagLocalization', (_message.Message,), dict(
+  DESCRIPTOR = _MSGLOCALTAGLOCALIZATION,
+  __module__ = 'message_localization_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgLocalTagLocalization)
+  ))
+_sym_db.RegisterMessage(msgLocalTagLocalization)
 
 msgLocalization = _reflection.GeneratedProtocolMessageType('msgLocalization', (_message.Message,), dict(
   DESCRIPTOR = _MSGLOCALIZATION,

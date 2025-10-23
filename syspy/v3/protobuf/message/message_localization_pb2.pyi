@@ -91,11 +91,28 @@ class msgLocFinished(_message.Message):
     value: bool
     def __init__(self, value: bool = ...) -> None: ...
 
+class msgLocalTagLocalization(_message.Message):
+    __slots__ = ["angle", "confidence", "distanceNotFindTag", "header", "x", "y"]
+    ANGLE_FIELD_NUMBER: ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: ClassVar[int]
+    DISTANCENOTFINDTAG_FIELD_NUMBER: ClassVar[int]
+    HEADER_FIELD_NUMBER: ClassVar[int]
+    X_FIELD_NUMBER: ClassVar[int]
+    Y_FIELD_NUMBER: ClassVar[int]
+    angle: float
+    confidence: float
+    distanceNotFindTag: float
+    header: _message_header_pb2.msgHeader
+    x: float
+    y: float
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ..., confidence: Optional[float] = ..., distanceNotFindTag: Optional[float] = ...) -> None: ...
+
 class msgLocalization(_message.Message):
-    __slots__ = ["angle", "confidence", "header", "locMethod", "locState", "pitch", "roll", "x", "y", "z"]
+    __slots__ = ["angle", "confidence", "header", "locMethod", "locState", "localTag", "pitch", "roll", "x", "y", "z"]
     ANGLE_FIELD_NUMBER: ClassVar[int]
     CONFIDENCE_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
+    LOCALTAG_FIELD_NUMBER: ClassVar[int]
     LOCMETHOD_FIELD_NUMBER: ClassVar[int]
     LOCSTATE_FIELD_NUMBER: ClassVar[int]
     PITCH_FIELD_NUMBER: ClassVar[int]
@@ -108,9 +125,10 @@ class msgLocalization(_message.Message):
     header: _message_header_pb2.msgHeader
     locMethod: int
     locState: int
+    localTag: msgLocalTagLocalization
     pitch: float
     roll: float
     x: float
     y: float
     z: float
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., angle: Optional[float] = ..., roll: Optional[float] = ..., pitch: Optional[float] = ..., confidence: Optional[float] = ..., locState: Optional[int] = ..., locMethod: Optional[int] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., angle: Optional[float] = ..., roll: Optional[float] = ..., pitch: Optional[float] = ..., confidence: Optional[float] = ..., locState: Optional[int] = ..., locMethod: Optional[int] = ..., localTag: Optional[Union[msgLocalTagLocalization, Mapping]] = ...) -> None: ...
