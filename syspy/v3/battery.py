@@ -1,4 +1,5 @@
 import typing
+from google.protobuf.json_format import MessageToJson
 from syspy.core.rbk_rpc import default_plugin, Message
 
 
@@ -125,16 +126,16 @@ class BatteryV3(Message):
         """
         return self.client().call_service("DSPChassis", "getBatteryMaxPercentage")
     
-    def publish(self, battery_info: str, *, topic: str = "Battery-000") -> int:
+    def publish(self, battery_msg: "msgBattery", *, topic: str = "Battery-000") -> int:
         """发布电池信息
 
         Args:
-            battery_info (str): json字符串, message_battery_pb2.msgBattery类型转化的json字符串
+            battery_msg (msgBattery): msgBattery对象
 
         Returns:
             int: -1: 发布失败; 0: 发布成功
         """
-        return self.client().call_service("DSPChassis", "publishBattery", battery_info)
+        return self.client().call_service("DSPChassis", "publishBattery", MessageToJson(battery_msg))
     
     def getCanPort(self, *, topic: str = "Battery-000") -> str:
         """获取CAN端口

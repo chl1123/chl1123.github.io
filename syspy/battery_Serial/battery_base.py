@@ -7,7 +7,10 @@ from syspy import Battery, Di, Do
 from syspy import Abnormal, RBK_VERSION
 
 _syslog = ud.syslogDebug("serial_battery")
-from google.protobuf.json_format import MessageToJson
+if RBK_VERSION == 3:
+    from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
+if RBK_VERSION == 4:
+    from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as msgBattery
 
 DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_rpc.ipc"
 
@@ -40,9 +43,8 @@ class batteryBase:
     def send(self, msg: list):
         self.child.send(msg)
 
-    def publish(self, battery_info):
-        msg = MessageToJson(battery_info)
-        Battery.publish(msg)
+    def publish(self, battery_msg: msgBattery):
+        Battery.publish(battery_msg)
 
     def getDIStates(self, index):
         return Di.get_di(index)

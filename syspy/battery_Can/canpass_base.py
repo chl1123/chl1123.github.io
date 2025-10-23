@@ -6,8 +6,6 @@ import subprocess
 import sys
 from typing import Union
 
-from google.protobuf.json_format import MessageToJson
-
 import syspy.lib.rpc.server as rs
 from syspy import Abnormal, RBK_VERSION
 from syspy import Battery, Di, Do
@@ -141,9 +139,8 @@ class canPassBase:
 
         return selected_port
 
-    def publish(self, battery_info: msgBattery) -> int:
-        msg = MessageToJson(battery_info)
-        return Battery.publish(msg)
+    def publish(self, battery_msg: msgBattery) -> int:
+        return Battery.publish(battery_msg)
 
     def getDIStates(self, index):
         return Di.get_di(index)

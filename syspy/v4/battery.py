@@ -121,17 +121,17 @@ class BatteryV4(Message):
         # todo RBK4
         return self.client().call_service("DSPChassis", "getBatteryMaxPercentage", topic=topic)
 
-    def publish(self, battery_info: "MessageV4_Battery", *, topic: str = "Battery-000"):
+    def publish(self, battery_msg: "MessageV4_Battery", *, topic: str = "Battery-000"):
         """发布电池信息
 
         Args:
-            battery_info ("MessageV4_Battery"): json字符串, message_battery_pb2.Message_Battery类型转化的json字符串
+            battery_msg ("MessageV4_Battery"): MessageV4_Battery对象
             topic (str): 电池消息channel后缀，同电池key
         """
         if not self.is_publish:
             datapool.publish("/BatteryInfo/" + topic, MessageV4_Battery)
             self.is_publish = True
-        datapool.put("/BatteryInfo/" + topic, battery_info)
+        datapool.put("/BatteryInfo/" + topic, battery_msg)
 
     def getCanPort(self, *, topic: str = "Battery-000") -> str:
         """获取CAN端口
