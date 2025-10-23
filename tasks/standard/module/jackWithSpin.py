@@ -29,25 +29,12 @@ class ConfigParams:
     param_server = ParamServer(__file__)
     timeout = param_server.loadParam("timeout", type="int", default=120, maxValue=999, minValue=0, unit="s",
                                      group="", comment="脚本运行超时时间")
-    # 是否有识别、二次调整
-    is_recognize = param_server.loadParam("is_recognize", type="bool", default=True, comment="取货是否有识别")
-    is_secondary_adjust = param_server.loadParam("is_secondary_adjust", type="bool", default=False,
-                                                 comment="是否有二次调整")
-    is_goods_qrcode = param_server.loadParam("goods_qrcode", type="bool", default=False,
-                                             comment="放货时是否需要根据货物在托盘上的位置补偿AP点偏差")
-
-    # 采用什么方式前往AP点
-    how_go_site = param_server.loadParam("how_go_site", type="str", default="bezier",
-                                         comment="采用直线(straight)、贝塞尔曲线(bezier)、2段直线(polyline)方式前往识别点")
-
     # 电机相关
     # jack_motor_name = param_server.loadParam("jack_motor_name", type="str", default="Motor-003", comment="顶升电机名称")
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
     jack_motor_speed = param_server.loadParam("jack_motor_speed", type="float", default=0.015,
                                               comment="顶升电机升降速度")
-    # jack_min_height = param_server.loadParam("jack_min_height", type="float", default=0.000, comment="顶升升降零位")
-    # jack_max_height = param_server.loadParam("jack_max_height", type="float", default=0.03, comment="顶升抬升指定高度")
     motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
     resetBySpeed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
     jack_min_height = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.minLength")
@@ -55,9 +42,6 @@ class ConfigParams:
     jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI")
     jack_zero_di = RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{resetBySpeed}.zeroDI")
     spin_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.spinMotor")
-
-    # 测试前近距离
-    go_distance = param_server.loadParam("go_distance", type="float", default=0.5, comment="测试前进距离")
 
     log.debug("jack create config params")
 
@@ -1119,7 +1103,6 @@ class Jack(ModuleBase):
                     Trace.log(f"go back 0.3m to recognize again")
                     self.action_list.append(RecShelf(self.recfile, "SecondRec"))  # 识别货架，得到坐标放入j.rec_result
                 else:
-
                     if self.how_go_site == "straight":
                         self.action_list.append(
                             GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
@@ -1148,28 +1131,46 @@ class Jack(ModuleBase):
                                                    ConfigParams.jack_motor_speed))
 
     def jack_unload(self):
+        # =====完整：旋转车体调整对准——识别货架——导航——二次调整——顶起 流程=====
         if not self.operation_init:
             self.operation_init = True
+            # 下降到起始高度
+            self.action_list.append(
+                JackHeight(ConfigParams.jack_motor_name, self.start_height, ConfigParams.jack_motor_speed,
+                           self.recfile))
 
-            # 第一步判断是否有识别
-            if ConfigParams.is_recognize:  # 要求启用识别时必须有recfile
-                self.action_list.append(RecShelf(self.recfile))  # 识别货架，得到坐标放入self.rec_result
+            # 获取AP点坐标
+            if not self.ap_id:
+                self.ap_id = Navigation.moveTask().get("target_name", None)
+                self.ap_id = "AP" + str(self.ap_id)
+            self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
+            self.ap_robot_pos = Navigation.getLM(self.ap_id, False)
+            robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
+            Trace.log(f'AP_pos: {self.ap_world_pos}')
+            Trace.log(f'ap_to_robot_angle: {ap_to_robot_angle}')
+
+            self.report_info["jack_load"] = {
+                "apToRobotAngle": ap_to_robot_angle,
+                "robotLoc": robot_loc,
+                "apWorldPos": self.ap_world_pos
+            }
+
+            # 第一步转到指向ap点的方向
+            self.action_list.append(RobotRotate(ap_to_robot_angle, Coordinate.WORLD, False))
+
+            # 第二步判断是否有识别
+            # 如果有识别
+            if self.is_recognize:  # 要求启用识别时必须有recfile
+                # 转到指向ap点的位置
+                self.action_list.append(RecShelf(self.recfile, "FirstRec"))  # 识别货架，得到坐标放入j.rec_result
+            # 如果没有识别
             else:
-                # 如果没有识别
-                # 第二步选择是否需要根据货物下方的二维码调整放货位置
-                if ConfigParams.is_goods_qrcode:
-                    self.action_list.append(GetApPosAdjustedViaPgv())  # 前往识别点,并根据货物二维码调整放货坐标
-                else:
-                    if not self.ap_id:
-                        self.ap_id = Navigation.moveTask().get("target_name", None)
-                        self.ap_id = "AP" + str(self.ap_id)
-                    self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
-                    Trace.log(f'AP_pos: {self.ap_world_pos}')
-                # 在动作类内部选择直线、贝塞尔、二段线方式前往识别点
+                # 直接前进到任务的AP点坐标
                 if self.how_go_site == "straight":
                     self.action_list.append(
-                        GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
-                               self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
+                        GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir, self.max_speed,
+                               self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
                 elif self.how_go_site == "bezier":
                     self.action_list.append(
                         GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
@@ -1180,42 +1181,60 @@ class Jack(ModuleBase):
                     self.action_list.append(
                         GoPolyline(self.ap_world_pos, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
                                    self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
-                # 加入二次调整
+
+                # 加入二次调整，取货前托盘调整，抬升托盘动作
                 if self.is_secondary_adjust:
                     self.action_list.append(GetPGVData())
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
+                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
+                                                   ConfigParams.jack_motor_speed))
 
+        # 动态添加action_list，仅在有识别时有效
         if 0 <= self.action_id < len(self.action_list):
             current_action = self.action_list[self.action_id]
-            if current_action.action_name == "RecShelf" and current_action.action_status == ActionStatus.FINISHED:
-                result = self.rec_result
-                # 在动作类内部选择直线、贝塞尔、二段线方式前往识别点
-                if self.how_go_site == "straight":
-                    self.action_list.append(
-                        GoPath(result, "world", self.is_backwards, self.is_hold_dir,
-                               self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
-                elif self.how_go_site == "bezier":
-                    self.action_list.append(
-                        GoBezier(result, self.back_dist, self.adjust_dist_for_curvature_limit,
-                                 self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
-                                 self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
-                                 self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
-                elif self.how_go_site == "polyline":
-                    self.action_list.append(
-                        GoPolyline(result, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
-                                   self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
-                # 加入二次调整
+            Trace.log(f'{self.action_id=}, {self.action_list=}')
+            Trace.log(f'{current_action.action_name=}, {current_action.action_status=}')
+
+            if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
+                result_world = self.rec_result
+                robot_pos = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+                result_robot = Pos2Base(result_world, robot_pos)
+
+                # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
+                if result_robot[0] < 1:
+                    self.action_list.append(GoPath([-0.3, 0, 0], "robot", not self.is_backwards, self.is_hold_dir))
+                    Trace.log(f"go back 0.3m to recognize again")
+                    self.action_list.append(RecShelf(self.recfile, "SecondRec"))  # 识别货架，得到坐标放入j.rec_result
+                else:
+
+                    if self.how_go_site == "straight":
+                        self.action_list.append(
+                            GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
+                                   self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
+                    elif self.how_go_site == "bezier":
+                        self.action_list.append(
+                            GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
+                                     self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                                     self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
+                                     self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
+                    elif self.how_go_site == "polyline":
+                        self.action_list.append(
+                            GoPolyline(self.ap_world_pos, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
+                                       self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
+
+            if current_action.action_name == "SecondRec" and current_action.action_status == ActionStatus.FINISHED:
+                result_world = self.rec_result
+                self.action_list.append(GoBezier(result_world))
+                # 加入二次调整，取货前托盘调整，抬升托盘动作
                 if self.is_secondary_adjust:
                     self.action_list.append(GetPGVData())
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
-
-                # 放货
-                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_min_height, ConfigParams.jack_motor_speed))
-
+                self.action_list.append(JackHeight(ConfigParams.jack_motor_name, ConfigParams.jack_max_height,
+                                                   ConfigParams.jack_motor_speed))
 
     def go_ap_site(self):
         if not self.operation_init:
@@ -2265,12 +2284,12 @@ class PGVSecondaryAdjust(BaseAction):  # 二次调整
         Module.report_info(j.report_info)
 
     def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
-        if self.use_which_pgv == "use_down_pgv":
-            self.adjust_param['use_pgv'] = False  # 使用上视pgv, args里需要增加use_pgv参数
-            self.adjust_param['use_down_pgv'] = True  # 使用下视pgv
-        else:
+        if self.use_which_pgv == "useUpPgv":
             self.adjust_param['use_pgv'] = True  # 使用上视pgv, args里需要增加use_pgv参数
-            self.adjust_param['use_down_pgv'] = False
+            self.adjust_param['use_down_pgv'] = False  # 使用下视pgv
+        elif self.use_which_pgv == "useDownPgv":
+            self.adjust_param['use_pgv'] = False  # 使用上视pgv, args里需要增加use_pgv参数
+            self.adjust_param['use_down_pgv'] = True
         self.adjust_param['pgv_x_adjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
         self.adjust_param['pgv_x_angle_adjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
         self.adjust_param['pgv_adjust_dist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
