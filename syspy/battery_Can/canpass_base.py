@@ -16,7 +16,7 @@ if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
 if RBK_VERSION == 4:
     from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as msgBattery
-    from syspy.v4.include.rbk import core, service
+    from syspy.v4.lib.rbk import core, service
 
 log = logging.getLogger("rbk.script")
 
@@ -34,10 +34,12 @@ class canPassBase:
         output = output.decode("utf-8").strip()
         log.info(f"{output=}")
 
-        if platform.machine() == 'x86_64':
+        # 只有 SRC2000 控制器是 CAN 透传形式
+        if platform.machine() == 'x86_64' and "SRC2000" in output:
             log.info("platform: x86_64")
             import syspy.battery_Can.canpass_x86 as x86
             self.child = x86.canPassX86()
+        # TODO: 这里的派生类及判断需要优化
         elif platform.machine() == 'aarch64'or "SRC5000" in output:
             log.info("platform: aarch64")
             import syspy.battery_Can.canpass_aarch64 as aarch64
