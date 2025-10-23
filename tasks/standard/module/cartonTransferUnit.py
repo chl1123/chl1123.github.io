@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
-# @Date: 2025/10/19
+# @Date: 2025/10/22
 # @Author: zhaopengfei
 # @Version: v1.0
 # @Project: SPK-MJ50-HL
-# @Update: 修改对外参数key为小驼峰
+# @Update: 适配动态脚本参数回调
 # @RBK Version: V3.5+
 import enum
 import uuid
 
-SCRIPT_VERSION = "20250904"
+SCRIPT_VERSION = "20251022"
 import json
 import math
 import random
 import time
+from typing import List
 
 from syspy.utils.time import Timer
 from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Abnormal, Controller, Odometer, Recognize, \
@@ -20,167 +21,442 @@ from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Abnor
 from syspy.lib.net_protocol import parse_modbus, NetProtocol
 from syspy.bin import Container
 from syspy.lib.module import SafeMoveStatus, ModuleBase
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ParamValidator
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ParamValidator, ScriptParam
 from tasks.standard.goPath import GoPath
 
 log = Logger("ContainerRobot")
-
+param_loader = ScriptParam(__file__)
 
 class ConfigParams:
-    p = ParamServer(__file__)
-    # 超时参数
-    timeout = p.loadParam("timeout", type="int", default=120, maxValue=300, minValue=0, unit="s",
-                          group="script", comment="运行超时时间")
-    # 背篓层高参数
-    low = dict()
+    config = {}
     high = dict()
-    low[0] = p.loadParam("low0", type="float", default=0.4, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第0号背篓取料箱高度, 最低层, 从0号计数")
-    high[0] = p.loadParam("high0", type="float", default=0.41, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第0号背篓放料箱高度, 最低层, 从0号计数")
-    low[1] = p.loadParam("low1", type="float", default=0.82, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第1号背篓取料箱高度")
-    high[1] = p.loadParam("high1", type="float", default=0.83, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第1号背篓放料箱高度")
-    low[2] = p.loadParam("low2", type="float", default=1.25, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第2号背篓取料箱高度")
-    high[2] = p.loadParam("high2", type="float", default=1.26, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第2号背篓放料箱高度")
-    low[3] = p.loadParam("low3", type="float", default=1.675, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第3号背篓取料箱高度")
-    high[3] = p.loadParam("high3", type="float", default=1.68, maxValue=10000.0, minValue=0.0, unit="m",
-                          comment="第3号背篓放料箱高度")
-    low[4] = p.loadParam("low4", type="float", default=2.095, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第4号背篓取料箱高度")
-    high[4] = p.loadParam("high4", type="float", default=2.10, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第4号背篓放料箱高度")
-    low[5] = p.loadParam("low5", type="float", default=2.515, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第5号背篓取料箱高度")
-    high[5] = p.loadParam("high5", type="float", default=2.525, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第5号背篓放料箱高度")
-    low[6] = p.loadParam("low6", type="float", default=2.945, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第6号背篓取料箱高度")
-    high[6] = p.loadParam("high6", type="float", default=2.955, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第6号背篓放料箱高度")
-    low[7] = p.loadParam("low7", type="float", default=3.375, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第7号背篓取料箱高度")
-    high[7] = p.loadParam("high7", type="float", default=3.385, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第7号背篓放料箱高度")
-    low[8] = p.loadParam("low8", type="float", default=3.825, maxValue=10000.0, minValue=0.0, unit="m",
-                         group="trays", comment="第8号背篓取料箱高度")
-    high[8] = p.loadParam("high8", type="float", default=3.835, maxValue=10000.0, minValue=0.0, unit="m",
-                          group="trays", comment="第8号背篓放料箱高度")
-    # 伸缩参数
-    stretch_self_length = p.loadParam("stretch_self_length", type="float", default=0.73, maxValue=10000.0,
-                                      group="stretch", minValue=0.0, unit="m",
-                                      comment="取放自身背篓货物时伸出长度")
-    # 识别偏移参数
-    rec_offz_box = p.loadParam("rec_offz_box", type="float", default=-0.08, maxValue=1000.0, minValue=-1000.0,
-                               group="recognize", unit="m", comment="识别料箱码后抓取料箱时调整高度")
-    rec_offz_shelf = p.loadParam("rec_offz_shelf", type="float", default=0.02, maxValue=1000.0,
-                                 minValue=-1000.0, group="recognize", unit="m",
-                                 comment="识别货架码后放置料箱时调整高度")
-    # DI参数
-    fork_up_limit = p.loadParam("fork_up_limit", type="int", default=2, maxValue=100, minValue=-1, unit="",
-                                group="lift", comment="货叉上限位DI")
-    fork_down_limit = p.loadParam("fork_down_limit", type="int", default=2, maxValue=100, minValue=-1, unit="",
-                                  group="lift", comment="货叉下限位DI")
-    fork_limit = p.loadParam("fork_limit", type="int", default=3, maxValue=100, minValue=-1, unit="",
-                             group="lift", comment="货叉升降机械限位限位DI")
-    # 高度限制参数
-    min_lift_height = p.loadParam("min_fork_height", type="float", default=0.38, maxValue=10000.0,
-                                  minValue=0.0, unit="m", comment="货叉最低高度")
-    max_lift_height = p.loadParam("max_fork_height", type="float", default=4.5, maxValue=10000.0,
-                                  group="lift", minValue=0.0, unit="m", comment="货叉最大高度")
-    # 角度限制参数
-    max_rotate_angle = p.loadParam("max_rotate_angle", type="float", default=100,
-                                   group="rotate", comment="货叉最大旋转角度值")
-    # 伸缩限制参数
-    max_stretch_length = p.loadParam("max_stretch_length", type="float", default=0.90, unit="m",
-                                     group="stretch", comment="货叉最大伸出长度")
-    safe_stretch_length = p.loadParam("safe_stretch_length", type="float", default=0.05, maxValue=10000.0,
-                                      group="stretch", minValue=0.0, unit="m",
-                                      comment="货叉升降、旋转操作时伸缩臂安全长度")
-    # 安全高度参数
-    safe_lift_height = p.loadParam("safe_lift_height", type="float", default=1.0, maxValue=10000.0,
-                                   group="lift", minValue=0.0, unit="m",
-                                   comment="货叉安全高度, 货叉导航过程中的最高高度")
-    # 传感器参数
-    has_fork_sensor = p.loadParam("has_fork_sensor", type="int", default=0,
-                                  group="DI", comment="货叉是否有货物检测传感器，1为有，0为无")
-    has_tray_sensor = p.loadParam("has_tray_sensor", type="int", default=0,
-                                  group="DI", comment="背篓是否有货物检测传感器，1为有，0为无")
-    fork_sensor_di = p.loadParam("fork_sensor_di", type="str", default="DI-009", maxValue=100, minValue=-1, unit="",
-                                 group="DI", comment="货叉检测DI")
-    overlimit_detect_di = p.loadParam("overlimit_detect_di", type="str", default=-1,
-                                      group="DI", comment="检测货叉伸出是否超过料箱的DI")
-    # 识别文件参数
-    box_code_file = p.loadParam("box_code_file", type="str", default="default.srec",
-                                group="recognize", comment="料箱二维码识别文件")
-    shelf_code_file = p.loadParam("shelf_code_file", type="str", default="default1.srec",
-                                  group="recognize", comment="货架二维码识别文件")
-    barcode_file = p.loadParam("barcode_file", type="str", default="default.srec",
-                               group="recognize", comment="条形码识别文件")
-    # 电机速度参数
-    lift_motor_speed = p.loadParam("lift_motor_speed", type="float", default=1.5,
-                                   group="lift", comment="升降电机运转速度")
-    stretch_motor_speed = p.loadParam("stretch_motor_speed", type="float", default=1.0,
-                                      group="stretch", comment="伸缩电机运转速度")
-    rotate_motor_speed = p.loadParam("rotate_motor_speed", type="float", default=1.0,
-                                     group="rotate", comment="旋转电机运转速度")
-    # 电机名称参数
-    lift_motor_name = p.loadParam("lift_motor_name", type="str", default="Motor-003",
-                                  group="lift", comment="升降电机名称")
-    stretch_motor_name = p.loadParam("stretch_motor_name", type="str", default="Motor-000",
-                                     group="stretch", comment="伸缩电机名称")
-    rotate_motor_name = p.loadParam("rotate_motor_name", type="str", default="Motor-004",
-                                    group="rotate", comment="旋转电机名称")
-    # 自动计算参数
-    auto_stretch_box_len = p.loadParam("auto_stretch_box_len", type="float", default=0.6, maxValue=100,
-                                       group="stretch", minValue=-1, unit="", comment="箱子长度")
-    auto_load_stretch_dist = p.loadParam("auto_load_stretch_dist", type="float", default=0.01,
-                                         group="stretch", unit="m", comment="自动计算取货伸出长度时的补偿值")
-    auto_unload_stretch_dist = p.loadParam("auto_unload_stretch_dist", type="float", default=0.01,
-                                           group="stretch", unit="m", comment="自动计算放货伸出长度时的补偿值")
-    auto_stretch_odo_len = p.loadParam("auto_stretch_odo_len", type="float", default=0.38, maxValue=100,
-                                       group="stretch", minValue=20, unit="",
-                                       comment="手指机构到货叉旋转中心的距离")
-    auto_adjust_rotate = p.loadParam("auto_adjust_rotate", type="int", default=1,
-                                     group="rotate", comment="识别时是否需要自动调整货叉角度，1：需要 0：不需要")
-    # 识别补偿参数
-    offset_x = p.loadParam("offset_x", type="float", default=0.,
-                           group="recognize", comment="针对识别结果误差在x方向的补偿值")
-    light_delay_time = p.loadParam("light_delay_time", type="float", default=0.3,
-                                   group="recognize", comment="补光灯延时拍照时间")
-    load_rec_lift_diff = p.loadParam("load_rec_lift_diff", type="float", default=0.05,
-                                     group="recognize", comment="取货识别料箱高度与货架上表面的高度差")
-    rec_box_extra_height = p.loadParam("rec_box_extra_height", type="float", default=0.0,
-                                            comment="放货识别货架上是否有货物时，在放货高度上需要额外抬升的高度，该值可设置为货架码到料箱码的高度差")
-    # 手指控制DO
-    left_finger_up_do = p.loadParam("left_finger_up_do", type="str", default="DO-009", group="finger",
-                                         comment="左手指打开DO")
-    left_finger_down_do = p.loadParam("left_finger_down_do", type="str", default="DO-008", group="finger",
-                                           comment="左手指关闭DO")
-    right_finger_up_do = p.loadParam("right_finger_up_do", type="str", default="DO-007", group="finger",
-                                          comment="右手指打开DO")
-    right_finger_down_do = p.loadParam("right_finger_down_do", type="str", default="DO-006", group="finger",
-                                            comment="右手指关闭DO")
-    # 手指到位DI
-    left_finger_up_di = p.loadParam("left_finger_up_di", type="str", default="DI-003", group="finger",
-                                         comment="左手指打开到位DI")
-    left_finger_down_di = p.loadParam("left_finger_down_di", type="str", default="DI-000", group="finger",
-                                           comment="左手指关闭到位DI")
-    right_finger_up_di = p.loadParam("right_finger_up_di", type="str", default="DI-004", group="finger",
-                                          comment="右手指打开到位DI")
-    right_finger_down_di = p.loadParam("right_finger_down_di", type="str", default="DI-005", group="finger",
-                                            comment="右手指关闭到位DI")
-    goods_check_di = p.loadParam("goods_check_di", type="str", default="DI-008", group="goods",
-                                      comment="货叉中部货物检测光电DI")
-    ok_x = p.loadParam("ok_x", type="float", default=0.01, comment="x方向行走调整完成阈值")
-    ok_yaw = p.loadParam("ok_yaw", type="float", default=0.015, comment="调整完成弧度阈值")
-    max_yaw_bias = p.loadParam("max_yaw_bias", type="float", default=0.13,
-                                    comment="货叉与料箱角度最大偏差, 弧度值")
+    low = dict()
+    """配置管理器，用于管理动态配置参数"""
 
+    def __init__(self):
+        self._build_and_load_config()
+
+    @classmethod
+    def _build_and_load_config(cls):
+        """构建并加载配置参数"""
+        builder = param_loader.builder_config()
+
+        with builder.GROUPS():
+            # 背篓组
+            with builder.GROUP(key="trays_config", name="Trays Config", desc="Backpack layer height parameters, Counted from No. 0"):
+                builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILDREN():
+                    # 构筑背篓
+                    with builder.CHILD(key="low0", name="Low0", desc="Height of the No. 0 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.400)
+                    with builder.CHILD(key="high0", name="High0", desc="Height of the No. 0 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.410)
+                    with builder.CHILD(key="low1", name="Low1", desc="Height of the No. 1 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.805)
+                    with builder.CHILD(key="high1", name="High1", desc="Height of the No. 1 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.815)
+                    with builder.CHILD(key="low2", name="Low2", desc="Height of the No. 2 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(1.210)
+                    with builder.CHILD(key="high2", name="High2", desc="Height of the No. 2 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(1.220)
+                    with builder.CHILD(key="low3", name="Low3", desc="Height of the No. 3 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(1.620)
+                    with builder.CHILD(key="high3", name="High3", desc="Height of the No. 3 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(1.630)
+                    with builder.CHILD(key="low4", name="Low4", desc="Height of the No. 4 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(2.040)
+                    with builder.CHILD(key="high4", name="High4", desc="Height of the No. 4 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(2.045)
+                    with builder.CHILD(key="low5", name="Low5", desc="Height of the No. 5 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(2.440)
+                    with builder.CHILD(key="high5", name="High5", desc="Height of the No. 5 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(2.445)
+                    with builder.CHILD(key="low6", name="Low6", desc="Height of the No. 6 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(2.945)
+                    with builder.CHILD(key="high6", name="High6", desc="Height of the No. 6 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(2.955)
+                    with builder.CHILD(key="low7", name="Low7", desc="Height of the No. 7 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(3.375)
+                    with builder.CHILD(key="high7", name="High7", desc="Height of the No. 7 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(3.385)
+                    with builder.CHILD(key="low8", name="Low8", desc="Height of the No. 8 Backboard Retrieval Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(3.825)
+                    with builder.CHILD(key="high8", name="High8", desc="Height of the No. 8 Backbasket Material Box"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(3.835)
+
+            # 识别组
+            with builder.GROUP(key="recognize_config", name="Recognize Config", desc="Recognition relevant parameters"):
+                builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILDREN():
+                    # 识别取箱时二次调整高度
+                    with builder.CHILD(key="rec_offz_box", name="rec Offz Box", desc="Adjust Height Twice for Pick"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(-0.030)
+                    # 识别放箱时二次调整高度
+                    with builder.CHILD(key="rec_offz_shelf", name="Rec Offz Shelf", desc="Adjust Height Twice for Place"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.030)
+                    # 料箱码识别配置文件
+                    with builder.CHILD(key="box_code_file", name="Box Code File", desc="Box Code Recognition Config"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("default.srec")
+                    # 货架码识别配置文件
+                    with builder.CHILD(key="shelf_code_file", name="Shelf Code File", desc="Shelf Code Recognition Config"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("default1.srec")
+                    # 一维码识别配置文件
+                    with builder.CHILD(key="barcode_file", name="Barcode File", desc="Barcode Recognition Config"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("default2.srec")
+                    # 针对识别结果误差在行走方向的补偿值
+                    with builder.CHILD(key="offset_x", name="Offset X", desc="Walking Direction Offset"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.000)
+                    # 补光灯延时拍照时间
+                    with builder.CHILD(key="load_rec_lift_diff", name="Load Rec Lift Diff", desc="Height difference from bin to shelf"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.050)
+                    # 放货识别货架上是否有货物时，在放货高度上需要额外抬升的高度，该值可设置为货架码到料箱码的高度差
+                    with builder.CHILD(key="rec_box_extra_height", name="Rec Box Extra Height", desc="Lift height for shelf stock detection"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.000)
+                    # 行走方向识别调整完成阈值
+                    with builder.CHILD(key="ok_x", name="Ok X", desc="Walking Direction Recognition Threshold"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.01)
+                    # 识别调整完成弧度阈值
+                    with builder.CHILD(key="ok_yaw", name="Ok Yaw", desc="Adjustment Completion Threshold"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.015)
+                    # 货叉与料箱角度最大偏差, 弧度值
+                    with builder.CHILD(key="max_yaw_bias", name="Max Yaw Bias", desc="Max Fork Angle Offset (rad)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.13)
+
+            # 电机组
+            with builder.GROUP(key="motor_config", name="Motor Configuration", desc="Motor related configuration parameters"):
+                builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILDREN():
+                    # 升降电机名称
+                    with builder.CHILD(key="lift_motor_name", name="Lift Motor Name", desc="Name of the lift motor"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("Motor-003")
+                        builder.REQUIRED(True)
+
+                    # 升降电机速度
+                    with builder.CHILD(key="lift_motor_speed", name="Lift Motor Speed", desc="Speed of the lift motor"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(1.500)
+                        builder.UNIT("m/s")
+                        builder.SINGLESTEP(0.1)
+
+                    # 升降最高位
+                    with builder.CHILD(key="max_fork_height", name="Max Lift Height", desc="Maximum position for lift"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(4.500)
+                        builder.UNIT("m")
+
+                    # 升降最低位
+                    with builder.CHILD(key="min_fork_height", name="Min Lift Height", desc="Zero position for lift"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.380)
+                        builder.UNIT("m")
+
+                    # 安全升降高度, 货叉导航过程中的最高高度
+                    with builder.CHILD(key="safe_lift_height", name="Safe Lift Height", desc="Safe position for lift, the highest height during forklift navigation"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(1.000)
+                        builder.UNIT("m")
+
+
+                with builder.CHILDREN():
+                    # 旋转电机名称
+                    with builder.CHILD(key="rotate_motor_name", name="Rotate Motor Name", desc="Name of the rotate motor"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("Motor-004")
+                        builder.REQUIRED(True)
+
+                    # 旋转电机速度
+                    with builder.CHILD(key="rotate_motor_speed", name="Rotate Motor Speed", desc="Speed of the rotate motor"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(1.000)
+                        builder.UNIT("m/s")
+                        builder.SINGLESTEP(0.1)
+
+                    # 旋转最大位
+                    with builder.CHILD(key="max_rotate_angle", name="Max Rotate Angle", desc="Maximum angle for rotate"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(100)
+                        builder.UNIT("m")
+
+                    # 识别时是否需要自动调整货叉角度
+                    with builder.CHILD(key="auto_adjust_rotate", name="Auto Adjust Rotate", desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
+                        builder.TYPE(ParamType.BOOL)
+
+
+                with builder.CHILDREN():
+                    # 伸缩电机名称
+                    with builder.CHILD(key="stretch_motor_name", name="Stretch Motor Name", desc="Name of the stretch motor"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("Motor-000")
+                        builder.REQUIRED(True)
+
+                    # 伸缩电机速度
+                    with builder.CHILD(key="stretch_motor_speed", name="Stretch Motor Speed", desc="Speed of the stretch motor"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(1.000)
+                        builder.UNIT("m/s")
+                        builder.SINGLESTEP(0.1)
+
+                    # 伸缩最大长度
+                    with builder.CHILD(key="max_stretch_length", name="Max Stretch Length", desc="Maximum length of fork"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.900)
+                        builder.UNIT("m")
+
+                    # 伸缩安全长度, 货叉升降、旋转操作时伸缩臂安全长度
+                    with builder.CHILD(key="safe_stretch_length", name="Safe Stretch Length", desc="Safe length of telescopic arm during forklift lifting and rotating operations"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.900)
+                        builder.UNIT("m")
+
+                    # 取放自身背篓货物时伸出长度
+                    with builder.CHILD(key="stretch_self_length", name="Stretch Self Length", desc="The length when picking up and placing goods in one's own backpack"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.760)
+                        builder.UNIT("m")
+
+                    # 箱子长度, 用于自动计算货叉伸出长度
+                    with builder.CHILD(key="auto_stretch_box_len", name="Auto Stretch Box Len", desc="The length of box, Used for automatic calculation of fork extension length"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.600)
+                        builder.UNIT("m")
+
+                    # 自动计算取货伸出长度时的补偿值
+                    with builder.CHILD(key="auto_load_stretch_dist", name="Auto Load Stretch Dist", desc="The compensation value for the extended length of the pickup fork when picking up goods"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.010)
+                        builder.UNIT("m")
+
+                    # 自动计算放货伸出长度时的补偿值
+                    with builder.CHILD(key="auto_unload_stretch_dist", name="Auto Unload Stretch Dist", desc="The compensation value for the extended length of the pickup fork when putting down goods"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.010)
+                        builder.UNIT("m")
+
+                    # 手指机构到货叉旋转中心的距离, 用于自动计算货叉伸出长度
+                    with builder.CHILD(key="auto_stretch_odo_len", name="Auto Stretch Odo Len", desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.380)
+                        builder.UNIT("m")
+
+            # 拨指组
+            with builder.GROUP(key="finger_config", name="Finger Configuration", desc="Finger related configuration parameters"):
+                builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILDREN():
+                    # 左拨指打开DO
+                    with builder.CHILD(key="left_finger_up_do", name="Left Finger Up Do", desc="Open Left Fingers"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-009")
+                        builder.REQUIRED(True)
+                    # 左拨指关闭DO
+                    with builder.CHILD(key="left_finger_down_do", name="Left Finger Down Do", desc="Close Left Fingers"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-008")
+                        builder.REQUIRED(True)
+                    # 右拨指打开DO
+                    with builder.CHILD(key="right_finger_up_do", name="Right Finger Up Do", desc="Open Right Fingers"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-007")
+                        builder.REQUIRED(True)
+                    # 右拨指关闭DO
+                    with builder.CHILD(key="right_finger_down_do", name="Right Finger Down Do", desc="Close Right Fingers"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-006")
+                        builder.REQUIRED(True)
+
+                    # 左拨指打开DI
+                    with builder.CHILD(key="left_finger_up_di", name="Left Finger Up Di", desc="Open Left Fingers"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DI-003")
+                        builder.REQUIRED(True)
+
+                    # 左拨指关闭DI
+                    with builder.CHILD(key="left_finger_down_di", name="Left Finger Down Di", desc="Close Left Fingers"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DI-000")
+                        builder.REQUIRED(True)
+
+                    # 右拨指打开DI
+                    with builder.CHILD(key="right_finger_up_di", name="Right Finger Up Di", desc="Open Right Fingers"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DI-004")
+                        builder.REQUIRED(True)
+
+                    # 右拨指关闭DI
+                    with builder.CHILD(key="right_finger_down_di", name="Right Finger Down Di", desc="Close Right Fingers"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DI-005")
+                        builder.REQUIRED(True)
+
+            # 其他组
+            with builder.GROUP(key="other_config", name="Other Configuration", desc="Other configuration parameters"):
+                builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILDREN():
+                    # 超时时间
+                    with builder.CHILD(key="timeout", name="Timeout", desc="Execution Timeout"):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(120, min_value= 0, max_value= 300)
+                    # 货叉中部货物检测光电DI
+                    with builder.CHILD(key="goods_check_di", name="Goods Check Di", desc="Fork Midpoint Detection DI"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DI-008")
+                        builder.REQUIRED(True)
+                    # 货叉安全限位DI
+                    with builder.CHILD(key="overlimit_detect_di", name="Overlimit Detect Di", desc="Fork Safe Travel Limit"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DI-009")
+                        builder.REQUIRED(True)
+
+        # 保存配置参数到文件
+        builder.save(merge=True)
+        cls.reload_config()
+
+    @classmethod
+    def reload_config(cls):
+        """重新加载配置参数"""
+        log.info("Reloading config parameters")
+        cls.config = param_loader.load_config()
+        log.info(f"Loaded config: {cls.config}")
+        cls.low[0] = cls.config.get("low0")
+        cls.high[0] = cls.config.get("high0")
+        cls.low[1] = cls.config.get("low1")
+        cls.high[1] = cls.config.get("high1")
+        cls.low[2] = cls.config.get("low2")
+        cls.high[2] = cls.config.get("high2")
+        cls.low[3] = cls.config.get("low3")
+        cls.high[3] = cls.config.get("high3")
+        cls.low[4] = cls.config.get("low4")
+        cls.high[4] = cls.config.get("high4")
+        cls.low[5] = cls.config.get("low5")
+        cls.high[5] = cls.config.get("high5")
+        cls.low[6] = cls.config.get("low6")
+        cls.high[6] = cls.config.get("high6")
+        cls.low[7] = cls.config.get("low7")
+        cls.high[7] = cls.config.get("high7")
+        cls.low[8] = cls.config.get("low8")
+        cls.high[8] = cls.config.get("high8")
+
+        cls.rec_offz_box = cls.config.get("rec_offz_box")
+        cls.rec_offz_shelf = cls.config.get("rec_offz_shelf")
+        cls.box_code_file = cls.config.get("box_code_file")
+        cls.shelf_code_file = cls.config.get("shelf_code_file")
+        cls.barcode_file = cls.config.get("barcode_file")
+        cls.offset_x = cls.config.get("offset_x")
+        cls.load_rec_lift_diff = cls.config.get("load_rec_lift_diff")
+        cls.rec_box_extra_height = cls.config.get("rec_box_extra_height")
+        cls.ok_x = cls.config.get("ok_x")
+        cls.ok_yaw = cls.config.get("ok_yaw")
+        cls.max_yaw_bias = cls.config.get("max_yaw_bias")
+
+        cls.lift_motor_name = cls.config.get("lift_motor_name")
+        cls.lift_motor_speed = cls.config.get("lift_motor_speed")
+        cls.max_lift_height = cls.config.get("max_fork_height")
+        cls.min_lift_height = cls.config.get("min_fork_height")
+        cls.safe_lift_height= cls.config.get("safe_lift_height")
+        cls.rotate_motor_name = cls.config.get("rotate_motor_name")
+        cls.rotate_motor_speed = cls.config.get("rotate_motor_speed")
+        cls.max_rotate_angle= cls.config.get("max_rotate_angle")
+        cls.auto_adjust_rotate = cls.config.get("auto_adjust_rotate")
+        cls.stretch_motor_name = cls.config.get("stretch_motor_name")
+        cls.stretch_motor_speed = cls.config.get("stretch_motor_speed")
+        cls.max_stretch_length= cls.config.get("max_stretch_length")
+        cls.safe_stretch_length = cls.config.get("safe_stretch_length")
+        cls.stretch_self_length = cls.config.get("stretch_self_length")
+        cls.auto_stretch_box_len = cls.config.get("auto_stretch_box_len")
+        cls.auto_load_stretch_dist = cls.config.get("auto_load_stretch_dist")
+        cls.auto_unload_stretch_dist= cls.config.get("auto_unload_stretch_dist")
+        cls.auto_stretch_odo_len = cls.config.get("auto_stretch_odo_len")
+
+
+        cls.left_finger_up_do = cls.config.get("left_finger_up_do")
+        cls.left_finger_down_do = cls.config.get("left_finger_down_do")
+        cls.right_finger_up_do= cls.config.get("right_finger_up_do")
+        cls.right_finger_down_do = cls.config.get("right_finger_down_do")
+        cls.left_finger_up_di= cls.config.get("left_finger_up_di")
+        cls.left_finger_down_di = cls.config.get("left_finger_down_di")
+        cls.right_finger_up_di = cls.config.get("right_finger_up_di")
+        cls.right_finger_down_di= cls.config.get("right_finger_down_di")
+
+
+        cls.timeout = cls.config.get("timeout")
+        cls.goods_check_di = cls.config.get("goods_check_di")
+        cls.overlimit_detect_di= cls.config.get("overlimit_detect_di")
+        log.info(f"Updated config: {cls.config}")
+
+# 创建全局配置管理器实例
+config_params = ConfigParams()
+
+def script_config_callback():
+    log.info("Reloading script config parameters")
+    config_params.reload_config()
+
+def params_callback(device_change_set: List[str]):
+    log.info(f"{device_change_set=}")
+    for device in device_change_set:
+        if device == "Model":
+            config_params.reload_config()
+
+# 创建可复用的参数
 def create_container_param(builder: ParamBuilder, desc: str = "车体背篓号"):
     """创建车体背篓号参数"""
     with builder.CHILD(key="container", name="Container",
@@ -234,7 +510,6 @@ def create_rec_adjust_param(builder: ParamBuilder, desc: str = "开启识别控�
     with builder.CHILD(key="recAdjust", name="Rec Adjust", desc=desc):
         builder.TYPE(ParamType.INT)
         builder.DEFAULTVALUE(1)
-
 
 class InputParams:
     builder = ParamBuilder(__file__, desc="Input Params Config")
@@ -1514,7 +1789,7 @@ class ContainerRobot(ModuleBase):
         if all(self.ex_put_step[0:12]) and not self.ex_put_step[13]:
             self.ex_put_step[13] = self.lift_safe_height()
 
-        ex_put_info["exPutInfo"] = self.ex_put_step[:13]
+        ex_put_info["exPutStep"] = self.ex_put_step[:13]
         ex_put_info["goodsId"] = self.goods_id
         self.report_info["exPutInfo"] = ex_put_info
         if all(self.ex_put_step[:14]):
@@ -1977,7 +2252,7 @@ class RecAdjust:
                     self.next_rotate_pos = agv.rotate_real_pos + agv.yaw_adjust
 
                 # 计算移动距离
-                if bool(ConfigParams.auto_adjust_rotate):
+                if ConfigParams.auto_adjust_rotate:
                     rec_yaw = self.rec.result['yaw']
                 else:
                     rec_yaw = math.pi
@@ -2008,10 +2283,10 @@ class RecAdjust:
                         agv.ok_x = 0.01
                         agv.ok_yaw = 0.02
                     # 精度满足, 识别调整任务完成
-                    if not bool(ConfigParams.auto_adjust_rotate) and abs(self.rec.result['y']) < agv.ok_x:
+                    if not ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x:
                         Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = ScriptStatus.FINISHED
-                    elif bool(ConfigParams.auto_adjust_rotate) and abs(self.rec.result['y']) < agv.ok_x and abs(
+                    elif ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x and abs(
                             agv.yaw_adjust) <= agv.ok_yaw:
                         Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = ScriptStatus.FINISHED
@@ -2033,7 +2308,7 @@ class RecAdjust:
             elif not self.rotate_step and self.goPath.status == ScriptStatus.FINISHED:
                 if abs(agv.yaw_adjust) <= 0.01:  # 调整值小于货叉旋转精度
                     self.rotate_step = True
-                if not self.rotate_step and bool(ConfigParams.auto_adjust_rotate):
+                if not self.rotate_step and ConfigParams.auto_adjust_rotate:
                     self.rotate_step = agv.rotate(self.next_rotate_pos, max_speed=0.3)  # 货叉角度偏移修正
                 else:
                     self.rotate_step = True
@@ -2072,6 +2347,8 @@ class RecAdjust:
 
 
 def main():
+    ScriptParam.setConfigChangeCallBack(script_config_callback)
+    RobotParam.setDeviceChangeCallBack(params_callback)
     Module.init()
     print("main")
     robot = ContainerRobot()
