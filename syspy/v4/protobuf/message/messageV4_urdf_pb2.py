@@ -13,7 +13,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x14messageV4_urdf.proto\x12\rrbk4.protocol"3\n\x10MessageV4_ORGXYZ\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01"<\n\x10MessageV4_ORGRPY\x12\x0c\n\x04roll\x18\x01 \x01(\x01\x12\r\n\x05pitch\x18\x02 \x01(\x01\x12\x0b\n\x03yaw\x18\x03 \x01(\x01"n\n\x10MessageV4_Origin\x12,\n\x03xyz\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_ORGXYZ\x12,\n\x03rpy\x18\x02 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_ORGRPY"a\n\x11MessageV4_Inertia\x12\x0b\n\x03ixx\x18\x01 \x01(\x01\x12\x0b\n\x03ixy\x18\x02 \x01(\x01\x12\x0b\n\x03ixz\x18\x03 \x01(\x01\x12\x0b\n\x03iyy\x18\x04 \x01(\x01\x12\x0b\n\x03iyz\x18\x05 \x01(\x01\x12\x0b\n\x03izz\x18\x06 \x01(\x01"Ç\x01\n\x12MessageV4_Inertial\x12/\n\x06origin\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin\x12\x0c\n\x04mass\x18\x02 \x01(\x01\x121\n\x07inertia\x18\x03 \x01(\x0b2 .rbk4.protocol.MessageV4_Inertia\x12\x0f\n\x07isCalib\x18\x04 \x01(\x08\x12.\n\x05delta\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin"ë\x04\n\x16MessageV4_URDFGeometry\x12:\n\x05shape\x18\x01 \x01(\x0e2+.rbk4.protocol.MessageV4_URDFGeometry.Shape\x12B\n\x03box\x18\x02 \x01(\x0b23.rbk4.protocol.MessageV4_URDFGeometry.MessageV4_BoxH\x00\x12L\n\x08cylinder\x18\x03 \x01(\x0b28.rbk4.protocol.MessageV4_URDFGeometry.MessageV4_CylinderH\x00\x12H\n\x06sphere\x18\x04 \x01(\x0b26.rbk4.protocol.MessageV4_URDFGeometry.MessageV4_SphereH\x00\x12D\n\x04mesh\x18\x05 \x01(\x0b24.rbk4.protocol.MessageV4_URDFGeometry.MessageV4_MeshH\x00\x1a0\n\rMessageV4_Box\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x1a4\n\x12MessageV4_Cylinder\x12\x0e\n\x06radius\x18\x01 \x01(\x01\x12\x0e\n\x06length\x18\x02 \x01(\x01\x1a"\n\x10MessageV4_Sphere\x12\x0e\n\x06radius\x18\x01 \x01(\x01\x1a"\n\x0eMessageV4_Mesh\x12\x10\n\x08filename\x18\x01 \x01(\t"4\n\x05Shape\x12\x07\n\x03BOX\x10\x00\x12\x0c\n\x08CYLINDER\x10\x01\x12\n\n\x06SPHERE\x10\x02\x12\x08\n\x04MESH\x10\x03B\r\n\x0boneof_shape"\x8d\x01\n\x13MessageV4_Collision\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\x06origin\x18\x02 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin\x127\n\x08geometry\x18\x03 \x01(\x0b2%.rbk4.protocol.MessageV4_URDFGeometry"¾\x01\n\x0eMessageV4_Link\x12\x0c\n\x04name\x18\x01 \x01(\t\x123\n\x08inertial\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_Inertial\x125\n\tcollision\x18\x03 \x03(\x0b2".rbk4.protocol.MessageV4_Collision\x122\n\x05group\x18\x04 \x03(\x0b2#.rbk4.protocol.MessageV4_ParamGroup"ª\x03\n\x0fMessageV4_Joint\x12\x0c\n\x04name\x18\x01 \x01(\t\x126\n\x04type\x18\x02 \x01(\x0e2(.rbk4.protocol.MessageV4_Joint.JointType\x12/\n\x06origin\x18\x03 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin\x12\x0f\n\x07isCalib\x18\x04 \x01(\x08\x12.\n\x05delta\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin\x12\x0e\n\x06parent\x18\x06 \x01(\t\x12\r\n\x05child\x18\x07 \x01(\t\x12-\n\x04axis\x18\x08 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_ORGXYZ\x122\n\x05group\x18\t \x03(\x0b2#.rbk4.protocol.MessageV4_ParamGroup"]\n\tJointType\x12\x0c\n\x08REVOLUTE\x10\x00\x12\x0e\n\nCONTINUOUS\x10\x01\x12\r\n\tPRISMATIC\x10\x02\x12\t\n\x05FIXED\x10\x03\x12\x0c\n\x08FLOATING\x10\x04\x12\n\n\x06PLANAR\x10\x05"\x8d\x02\n\x0fMessageV4_Field\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x16\n\x0cstring_value\x18\x03 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x04 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x05 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x06 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x07 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\x08 \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\t \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\n \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\x0b \x01(\x0cH\x00B\r\n\x0boneof_Value"\x86\x01\n\x14MessageV4_ParamGroup\x12\x0b\n\x03key\x18\x01 \x01(\t\x122\n\x05child\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_ParamGroup\x12-\n\x05field\x18\x03 \x03(\x0b2\x1e.rbk4.protocol.MessageV4_Field"ð\x01\n\x0eMessageV4_URDF\x12\x0f\n\x07version\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12+\n\x04link\x18\x03 \x03(\x0b2\x1d.rbk4.protocol.MessageV4_Link\x12-\n\x05joint\x18\x04 \x03(\x0b2\x1e.rbk4.protocol.MessageV4_Joint\x122\n\x05group\x18\x05 \x03(\x0b2#.rbk4.protocol.MessageV4_ParamGroup\x12\x10\n\x08urdfData\x18\x06 \x01(\x0c\x12\x0c\n\x04type\x18\x07 \x01(\t\x12\x0f\n\x07chassis\x18\x08 \x01(\t")\n\x15MessageV4_CurrentURDF\x12\x10\n\x08filename\x18\x01 \x01(\tb\x06proto3'
+        '\n\x14messageV4_urdf.proto\x12\rrbk4.protocol"3\n\x10MessageV4_ORGXYZ\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01"<\n\x10MessageV4_ORGRPY\x12\x0c\n\x04roll\x18\x01 \x01(\x01\x12\r\n\x05pitch\x18\x02 \x01(\x01\x12\x0b\n\x03yaw\x18\x03 \x01(\x01"n\n\x10MessageV4_Origin\x12,\n\x03xyz\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_ORGXYZ\x12,\n\x03rpy\x18\x02 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_ORGRPY"a\n\x11MessageV4_Inertia\x12\x0b\n\x03ixx\x18\x01 \x01(\x01\x12\x0b\n\x03ixy\x18\x02 \x01(\x01\x12\x0b\n\x03ixz\x18\x03 \x01(\x01\x12\x0b\n\x03iyy\x18\x04 \x01(\x01\x12\x0b\n\x03iyz\x18\x05 \x01(\x01\x12\x0b\n\x03izz\x18\x06 \x01(\x01"Ç\x01\n\x12MessageV4_Inertial\x12/\n\x06origin\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin\x12\x0c\n\x04mass\x18\x02 \x01(\x01\x121\n\x07inertia\x18\x03 \x01(\x0b2 .rbk4.protocol.MessageV4_Inertia\x12\x0f\n\x07isCalib\x18\x04 \x01(\x08\x12.\n\x05delta\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin"ë\x04\n\x16MessageV4_URDFGeometry\x12:\n\x05shape\x18\x01 \x01(\x0e2+.rbk4.protocol.MessageV4_URDFGeometry.Shape\x12B\n\x03box\x18\x02 \x01(\x0b23.rbk4.protocol.MessageV4_URDFGeometry.MessageV4_BoxH\x00\x12L\n\x08cylinder\x18\x03 \x01(\x0b28.rbk4.protocol.MessageV4_URDFGeometry.MessageV4_CylinderH\x00\x12H\n\x06sphere\x18\x04 \x01(\x0b26.rbk4.protocol.MessageV4_URDFGeometry.MessageV4_SphereH\x00\x12D\n\x04mesh\x18\x05 \x01(\x0b24.rbk4.protocol.MessageV4_URDFGeometry.MessageV4_MeshH\x00\x1a0\n\rMessageV4_Box\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x1a4\n\x12MessageV4_Cylinder\x12\x0e\n\x06radius\x18\x01 \x01(\x01\x12\x0e\n\x06length\x18\x02 \x01(\x01\x1a"\n\x10MessageV4_Sphere\x12\x0e\n\x06radius\x18\x01 \x01(\x01\x1a"\n\x0eMessageV4_Mesh\x12\x10\n\x08filename\x18\x01 \x01(\t"4\n\x05Shape\x12\x07\n\x03BOX\x10\x00\x12\x0c\n\x08CYLINDER\x10\x01\x12\n\n\x06SPHERE\x10\x02\x12\x08\n\x04MESH\x10\x03B\r\n\x0boneof_shape"\x8d\x01\n\x13MessageV4_Collision\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\x06origin\x18\x02 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin\x127\n\x08geometry\x18\x03 \x01(\x0b2%.rbk4.protocol.MessageV4_URDFGeometry"¾\x01\n\x0eMessageV4_Link\x12\x0c\n\x04name\x18\x01 \x01(\t\x123\n\x08inertial\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_Inertial\x125\n\tcollision\x18\x03 \x03(\x0b2".rbk4.protocol.MessageV4_Collision\x122\n\x05group\x18\x04 \x03(\x0b2#.rbk4.protocol.MessageV4_ParamGroup"ª\x03\n\x0fMessageV4_Joint\x12\x0c\n\x04name\x18\x01 \x01(\t\x126\n\x04type\x18\x02 \x01(\x0e2(.rbk4.protocol.MessageV4_Joint.JointType\x12/\n\x06origin\x18\x03 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin\x12\x0f\n\x07isCalib\x18\x04 \x01(\x08\x12.\n\x05delta\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Origin\x12\x0e\n\x06parent\x18\x06 \x01(\t\x12\r\n\x05child\x18\x07 \x01(\t\x12-\n\x04axis\x18\x08 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_ORGXYZ\x122\n\x05group\x18\t \x03(\x0b2#.rbk4.protocol.MessageV4_ParamGroup"]\n\tJointType\x12\x0c\n\x08REVOLUTE\x10\x00\x12\x0e\n\nCONTINUOUS\x10\x01\x12\r\n\tPRISMATIC\x10\x02\x12\t\n\x05FIXED\x10\x03\x12\x0c\n\x08FLOATING\x10\x04\x12\n\n\x06PLANAR\x10\x05"\x8d\x02\n\x0fMessageV4_Field\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x16\n\x0cstring_value\x18\x03 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x04 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x05 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x06 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x07 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\x08 \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\t \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\n \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\x0b \x01(\x0cH\x00B\r\n\x0boneof_Value"\x86\x01\n\x14MessageV4_ParamGroup\x12\x0b\n\x03key\x18\x01 \x01(\t\x122\n\x05child\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_ParamGroup\x12-\n\x05field\x18\x03 \x03(\x0b2\x1e.rbk4.protocol.MessageV4_Field"ð\x01\n\x0eMessageV4_URDF\x12\x0f\n\x07version\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12+\n\x04link\x18\x03 \x03(\x0b2\x1d.rbk4.protocol.MessageV4_Link\x12-\n\x05joint\x18\x04 \x03(\x0b2\x1e.rbk4.protocol.MessageV4_Joint\x122\n\x05group\x18\x05 \x03(\x0b2#.rbk4.protocol.MessageV4_ParamGroup\x12\x10\n\x08urdfData\x18\x06 \x01(\x0c\x12\x0c\n\x04type\x18\x07 \x01(\t\x12\x0f\n\x07chassis\x18\x08 \x01(\tb\x06proto3'
     ),
 )
 _MESSAGEV4_URDFGEOMETRY_SHAPE = _descriptor.EnumDescriptor(
@@ -1639,43 +1639,6 @@ _MESSAGEV4_URDF = _descriptor.Descriptor(
     serialized_start=2365,
     serialized_end=2605,
 )
-_MESSAGEV4_CURRENTURDF = _descriptor.Descriptor(
-    name="MessageV4_CurrentURDF",
-    full_name="rbk4.protocol.MessageV4_CurrentURDF",
-    filename=None,
-    file=DESCRIPTOR,
-    containing_type=None,
-    fields=[
-        _descriptor.FieldDescriptor(
-            name="filename",
-            full_name="rbk4.protocol.MessageV4_CurrentURDF.filename",
-            index=0,
-            number=1,
-            type=9,
-            cpp_type=9,
-            label=1,
-            has_default_value=False,
-            default_value=_b("").decode("utf-8"),
-            message_type=None,
-            enum_type=None,
-            containing_type=None,
-            is_extension=False,
-            extension_scope=None,
-            serialized_options=None,
-            file=DESCRIPTOR,
-        )
-    ],
-    extensions=[],
-    nested_types=[],
-    enum_types=[],
-    serialized_options=None,
-    is_extendable=False,
-    syntax="proto3",
-    extension_ranges=[],
-    oneofs=[],
-    serialized_start=2607,
-    serialized_end=2648,
-)
 _MESSAGEV4_ORIGIN.fields_by_name["xyz"].message_type = _MESSAGEV4_ORGXYZ
 _MESSAGEV4_ORIGIN.fields_by_name["rpy"].message_type = _MESSAGEV4_ORGRPY
 _MESSAGEV4_INERTIAL.fields_by_name["origin"].message_type = _MESSAGEV4_ORIGIN
@@ -1807,7 +1770,6 @@ DESCRIPTOR.message_types_by_name["MessageV4_Joint"] = _MESSAGEV4_JOINT
 DESCRIPTOR.message_types_by_name["MessageV4_Field"] = _MESSAGEV4_FIELD
 DESCRIPTOR.message_types_by_name["MessageV4_ParamGroup"] = _MESSAGEV4_PARAMGROUP
 DESCRIPTOR.message_types_by_name["MessageV4_URDF"] = _MESSAGEV4_URDF
-DESCRIPTOR.message_types_by_name["MessageV4_CurrentURDF"] = _MESSAGEV4_CURRENTURDF
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 MessageV4_ORGXYZ = _reflection.GeneratedProtocolMessageType(
     "MessageV4_ORGXYZ",
@@ -1920,9 +1882,3 @@ MessageV4_URDF = _reflection.GeneratedProtocolMessageType(
     dict(DESCRIPTOR=_MESSAGEV4_URDF, __module__="messageV4_urdf_pb2"),
 )
 _sym_db.RegisterMessage(MessageV4_URDF)
-MessageV4_CurrentURDF = _reflection.GeneratedProtocolMessageType(
-    "MessageV4_CurrentURDF",
-    (_message.Message,),
-    dict(DESCRIPTOR=_MESSAGEV4_CURRENTURDF, __module__="messageV4_urdf_pb2"),
-)
-_sym_db.RegisterMessage(MessageV4_CurrentURDF)

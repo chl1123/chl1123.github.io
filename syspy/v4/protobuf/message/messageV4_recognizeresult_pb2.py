@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1fmessageV4_recognizeresult.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x15messageV4_image.proto\x1a messageV4_stampedtransform.proto\x1a\x1fmessageV4_cameraintrinsic.proto"²\x02\n\x16MessageV4_PercepResAPI\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\n\n\x02ID\x18\x02 \x01(\t\x129\n\x0btranslation\x18\x03 \x01(\x0b2$.rbk4.protocol.MessageV4_Translation\x123\n\x08rotation\x18\x04 \x01(\x0b2!.rbk4.protocol.MessageV4_Rotation\x121\n\tresultImg\x18\x05 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12\x0c\n\x04info\x18\x06 \x01(\t\x12\x16\n\x0ereco_file_name\x18\x07 \x01(\t\x12/\n\x06header\x18\x08 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"R\n\x19MessageV4_AllPercepResAPI\x125\n\x06result\x18\x01 \x03(\x0b2%.rbk4.protocol.MessageV4_PercepResAPI"\x81\x01\n\x12MessageV4_GraspRes\x12&\n\x04type\x18\x01 \x01(\x0e2\x18.rbk4.protocol.GraspType\x125\n\tgrasp_pos\x18\x02 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x12\x0c\n\x04info\x18\x03 \x01(\t"Î\x01\n\x15MessageV4_GraspResAPI\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x12\n\nclass_name\x18\x02 \x01(\t\x12\n\n\x02ID\x18\x03 \x01(\t\x121\n\x06grasps\x18\x04 \x03(\x0b2!.rbk4.protocol.MessageV4_GraspRes\x121\n\tresultImg\x18\x06 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"P\n\x18MessageV4_AllGraspResAPI\x124\n\x06result\x18\x01 \x03(\x0b2$.rbk4.protocol.MessageV4_GraspResAPI*3\n\tGraspType\x12\t\n\x05GRASP\x10\x00\x12\x08\n\x04PUSH\x10\x01\x12\x08\n\x04PULL\x10\x02\x12\x07\n\x03HUG\x10\x03b\x06proto3'
+        '\n\x1fmessageV4_recognizeresult.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x15messageV4_image.proto\x1a messageV4_stampedtransform.proto\x1a\x1fmessageV4_cameraintrinsic.proto"²\x02\n\x16MessageV4_PercepResAPI\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\n\n\x02ID\x18\x02 \x01(\t\x129\n\x0btranslation\x18\x03 \x01(\x0b2$.rbk4.protocol.MessageV4_Translation\x123\n\x08rotation\x18\x04 \x01(\x0b2!.rbk4.protocol.MessageV4_Rotation\x121\n\tresultImg\x18\x05 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12\x0c\n\x04info\x18\x06 \x01(\t\x12\x16\n\x0ereco_file_name\x18\x07 \x01(\t\x12/\n\x06header\x18\x08 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"R\n\x19MessageV4_AllPercepResAPI\x125\n\x06result\x18\x01 \x03(\x0b2%.rbk4.protocol.MessageV4_PercepResAPI"\x81\x01\n\x12MessageV4_GraspRes\x12&\n\x04type\x18\x01 \x01(\x0e2\x18.rbk4.protocol.GraspType\x125\n\tgrasp_pos\x18\x02 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x12\x0c\n\x04info\x18\x03 \x01(\t"Î\x01\n\x15MessageV4_GraspResAPI\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x12\n\nclass_name\x18\x02 \x01(\t\x12\n\n\x02ID\x18\x03 \x01(\t\x121\n\x06grasps\x18\x04 \x03(\x0b2!.rbk4.protocol.MessageV4_GraspRes\x121\n\tresultImg\x18\x06 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"P\n\x18MessageV4_AllGraspResAPI\x124\n\x06result\x18\x01 \x03(\x0b2$.rbk4.protocol.MessageV4_GraspResAPI*3\n\tGraspType\x12\t\n\x05Grasp\x10\x00\x12\x08\n\x04Push\x10\x01\x12\x08\n\x04Pull\x10\x02\x12\x07\n\x03Hug\x10\x03b\x06proto3'
     ),
     dependencies=[
         messageV4__header__pb2.DESCRIPTOR,
@@ -35,16 +35,16 @@ _GRASPTYPE = _descriptor.EnumDescriptor(
     file=DESCRIPTOR,
     values=[
         _descriptor.EnumValueDescriptor(
-            name="GRASP", index=0, number=0, serialized_options=None, type=None
+            name="Grasp", index=0, number=0, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="PUSH", index=1, number=1, serialized_options=None, type=None
+            name="Push", index=1, number=1, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="PULL", index=2, number=2, serialized_options=None, type=None
+            name="Pull", index=2, number=2, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="HUG", index=3, number=3, serialized_options=None, type=None
+            name="Hug", index=3, number=3, serialized_options=None, type=None
         ),
     ],
     containing_type=None,
@@ -54,10 +54,10 @@ _GRASPTYPE = _descriptor.EnumDescriptor(
 )
 _sym_db.RegisterEnumDescriptor(_GRASPTYPE)
 GraspType = enum_type_wrapper.EnumTypeWrapper(_GRASPTYPE)
-GRASP = 0
-PUSH = 1
-PULL = 2
-HUG = 3
+Grasp = 0
+Push = 1
+Pull = 2
+Hug = 3
 _MESSAGEV4_PERCEPRESAPI = _descriptor.Descriptor(
     name="MessageV4_PercepResAPI",
     full_name="rbk4.protocol.MessageV4_PercepResAPI",

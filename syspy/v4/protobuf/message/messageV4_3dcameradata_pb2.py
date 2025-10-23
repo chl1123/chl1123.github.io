@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1cmessageV4_3dcameradata.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x1amessageV4_pointcloud.proto\x1a\x15messageV4_image.proto\x1a\x1fmessageV4_cameraintrinsic.proto"Ö\x01\n\x16MessageV4_MaskedObject\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x0f\n\x07classid\x18\x02 \x01(\x05\x12\x12\n\nconfidence\x18\x03 \x01(\x02\x12\x0c\n\x04left\x18\x04 \x01(\x05\x12\x0b\n\x03top\x18\x05 \x01(\x05\x12\r\n\x05width\x18\x06 \x01(\x05\x12\x0e\n\x06height\x18\x07 \x01(\x05\x12,\n\x04mask\x18\x08 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"º\x01\n\x15MessageV4_InstanceSeg\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x126\n\x07results\x18\x02 \x03(\x0b2%.rbk4.protocol.MessageV4_MaskedObject\x128\n\x0bcamera_data\x18\x03 \x01(\x0b2#.rbk4.protocol.MessageV4_CameraData"ã\x03\n\x14MessageV4_CameraData\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x122\n\x05cloud\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_PointCloud\x12+\n\x03rgb\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12*\n\x02ir\x18\x04 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x122\n\x05depth\x18\x05 \x01(\x0b2#.rbk4.protocol.MessageV4_DepthImage\x129\n\x05calib\x18\x06 \x01(\x0b2*.rbk4.protocol.MessageV4_CameraCalibration\x12.\n\x06normal\x18\x07 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x128\n\x0cinstall_extr\x18\x08 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x08loc_extr\x18\t \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic"p\n\x16MessageV4_SemanticsTag\x12\x0f\n\x07classid\x18\x01 \x01(\x05\x12\x0f\n\x07indices\x18\x02 \x03(\r\x124\n\x08obj_pose\x18\x03 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic"î\x01\n\x17MessageV4_CameraDataTag\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x125\n\x08cam_data\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_CameraData\x123\n\x04tags\x18\x05 \x03(\x0b2%.rbk4.protocol.MessageV4_SemanticsTag\x126\n\x08inst_seg\x18\x06 \x01(\x0b2$.rbk4.protocol.MessageV4_InstanceSeg"¢\x02\n\x16MessageV4_CloudDataTag\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x122\n\x05cloud\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_PointCloud\x128\n\x0cinstall_extr\x18\x03 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x08loc_extr\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x123\n\x04tags\x18\x05 \x03(\x0b2%.rbk4.protocol.MessageV4_SemanticsTag"\x90\x01\n\x16MessageV4_PercepFusion\x12;\n\x0bcamera_tags\x18\x01 \x03(\x0b2&.rbk4.protocol.MessageV4_CameraDataTag\x129\n\ncloud_tags\x18\x02 \x03(\x0b2%.rbk4.protocol.MessageV4_CloudDataTag"B\n\x10MessageV4_DMatch\x12\r\n\x05query\x18\x01 \x01(\r\x12\r\n\x05train\x18\x02 \x01(\r\x12\x10\n\x08distance\x18\x03 \x01(\x02"9\n\x12MessageV4_KeyPoint\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\r\n\x05angle\x18\x03 \x01(\x02"Ö\x01\n\x14MessageV4_FeatPoints\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12+\n\x03rgb\x18\x02 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12,\n\x04desc\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x122\n\x07key_pts\x18\x04 \x03(\x0b2!.rbk4.protocol.MessageV4_KeyPoint"ç\x01\n\x14MessageV4_FeatMatchs\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x125\n\x08lhs_feat\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_FeatPoints\x125\n\x08rhs_feat\x18\x03 \x01(\x0b2#.rbk4.protocol.MessageV4_FeatPoints\x120\n\x07matches\x18\x04 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_DMatch*7\n\tRecogType\x12\n\n\x06PALLET\x10\x00\x12\x07\n\x03TAG\x10\x01\x12\x08\n\x04CAGE\x10\x02\x12\x0b\n\x07WORKBIN\x10\x03b\x06proto3'
+        '\n\x1cmessageV4_3dcameradata.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x1amessageV4_pointcloud.proto\x1a\x15messageV4_image.proto\x1a\x1fmessageV4_cameraintrinsic.proto"û\x01\n\x16MessageV4_MaskedObject\x124\n\x0bdata_header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\n\n\x02ID\x18\x02 \x01(\t\x12\x0f\n\x07classid\x18\x03 \x01(\x05\x12\x12\n\nclass_name\x18\x04 \x01(\t\x12\x12\n\nconfidence\x18\x05 \x01(\x02\x12\x0c\n\x04left\x18\x06 \x01(\x05\x12\x0b\n\x03top\x18\x07 \x01(\x05\x12\r\n\x05width\x18\x08 \x01(\x05\x12\x0e\n\x06height\x18\t \x01(\x05\x12,\n\x04mask\x18\n \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"¼\x01\n\x15MessageV4_InstanceSeg\x128\n\x0bcamera_data\x18\x01 \x01(\x0b2#.rbk4.protocol.MessageV4_CameraData\x126\n\x07results\x18\x02 \x03(\x0b2%.rbk4.protocol.MessageV4_MaskedObject\x121\n\tresultImg\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"ã\x03\n\x14MessageV4_CameraData\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x122\n\x05cloud\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_PointCloud\x12+\n\x03rgb\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12*\n\x02ir\x18\x04 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x122\n\x05depth\x18\x05 \x01(\x0b2#.rbk4.protocol.MessageV4_DepthImage\x129\n\x05calib\x18\x06 \x01(\x0b2*.rbk4.protocol.MessageV4_CameraCalibration\x12.\n\x06normal\x18\x07 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x128\n\x0cinstall_extr\x18\x08 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x08loc_extr\x18\t \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic"º\x01\n\x16MessageV4_SemanticsTag\x12\x0f\n\x07classid\x18\x01 \x01(\x05\x12\x12\n\nclass_name\x18\x02 \x01(\t\x12\x0f\n\x07indices\x18\x03 \x03(\r\x124\n\x08obj_pose\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x0bdata_header\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"»\x01\n\x17MessageV4_CameraDataTag\x125\n\x08cam_data\x18\x01 \x01(\x0b2#.rbk4.protocol.MessageV4_CameraData\x123\n\x04tags\x18\x02 \x03(\x0b2%.rbk4.protocol.MessageV4_SemanticsTag\x124\n\x05masks\x18\x03 \x03(\x0b2%.rbk4.protocol.MessageV4_MaskedObject"¢\x02\n\x16MessageV4_CloudDataTag\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x122\n\x05cloud\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_PointCloud\x128\n\x0cinstall_extr\x18\x03 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x08loc_extr\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x123\n\x04tags\x18\x05 \x03(\x0b2%.rbk4.protocol.MessageV4_SemanticsTag"û\x01\n\x16MessageV4_PercepFusion\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12;\n\x0bcamera_tags\x18\x02 \x03(\x0b2&.rbk4.protocol.MessageV4_CameraDataTag\x129\n\ncloud_tags\x18\x03 \x03(\x0b2%.rbk4.protocol.MessageV4_CloudDataTag\x128\n\x0bfeat_matchs\x18\x04 \x03(\x0b2#.rbk4.protocol.MessageV4_FeatMatchs"B\n\x10MessageV4_DMatch\x12\r\n\x05query\x18\x01 \x01(\r\x12\r\n\x05train\x18\x02 \x01(\r\x12\x10\n\x08distance\x18\x03 \x01(\x02"9\n\x12MessageV4_KeyPoint\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\r\n\x05angle\x18\x03 \x01(\x02"®\x01\n\x14MessageV4_FeatPoints\x124\n\x0bdata_header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12,\n\x04desc\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x122\n\x07key_pts\x18\x04 \x03(\x0b2!.rbk4.protocol.MessageV4_KeyPoint"\x9c\x02\n\x14MessageV4_FeatMatchs\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x125\n\x08lhs_feat\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_FeatPoints\x125\n\x08rhs_feat\x18\x03 \x01(\x0b2#.rbk4.protocol.MessageV4_FeatPoints\x120\n\x07matches\x18\x04 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_DMatch\x123\n\x0bdense_match\x18\x08 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image*>\n\tRecogType\x12\x0b\n\x07Persion\x10\x00\x12\x0b\n\x07Bicycle\x10\x01\x12\n\n\x06Pallet\x10P\x12\x0b\n\x07Workbin\x10Rb\x06proto3'
     ),
     dependencies=[
         messageV4__header__pb2.DESCRIPTOR,
@@ -35,29 +35,29 @@ _RECOGTYPE = _descriptor.EnumDescriptor(
     file=DESCRIPTOR,
     values=[
         _descriptor.EnumValueDescriptor(
-            name="PALLET", index=0, number=0, serialized_options=None, type=None
+            name="Persion", index=0, number=0, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TAG", index=1, number=1, serialized_options=None, type=None
+            name="Bicycle", index=1, number=1, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="CAGE", index=2, number=2, serialized_options=None, type=None
+            name="Pallet", index=2, number=80, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="WORKBIN", index=3, number=3, serialized_options=None, type=None
+            name="Workbin", index=3, number=82, serialized_options=None, type=None
         ),
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=2420,
-    serialized_end=2475,
+    serialized_start=2603,
+    serialized_end=2665,
 )
 _sym_db.RegisterEnumDescriptor(_RECOGTYPE)
 RecogType = enum_type_wrapper.EnumTypeWrapper(_RECOGTYPE)
-PALLET = 0
-TAG = 1
-CAGE = 2
-WORKBIN = 3
+Persion = 0
+Bicycle = 1
+Pallet = 80
+Workbin = 82
 _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
     name="MessageV4_MaskedObject",
     full_name="rbk4.protocol.MessageV4_MaskedObject",
@@ -66,8 +66,8 @@ _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
     containing_type=None,
     fields=[
         _descriptor.FieldDescriptor(
-            name="header",
-            full_name="rbk4.protocol.MessageV4_MaskedObject.header",
+            name="data_header",
+            full_name="rbk4.protocol.MessageV4_MaskedObject.data_header",
             index=0,
             number=1,
             type=11,
@@ -84,10 +84,28 @@ _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="classid",
-            full_name="rbk4.protocol.MessageV4_MaskedObject.classid",
+            name="ID",
+            full_name="rbk4.protocol.MessageV4_MaskedObject.ID",
             index=1,
             number=2,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="classid",
+            full_name="rbk4.protocol.MessageV4_MaskedObject.classid",
+            index=2,
+            number=3,
             type=5,
             cpp_type=1,
             label=1,
@@ -102,10 +120,28 @@ _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
+            name="class_name",
+            full_name="rbk4.protocol.MessageV4_MaskedObject.class_name",
+            index=3,
+            number=4,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
             name="confidence",
             full_name="rbk4.protocol.MessageV4_MaskedObject.confidence",
-            index=2,
-            number=3,
+            index=4,
+            number=5,
             type=2,
             cpp_type=6,
             label=1,
@@ -122,42 +158,6 @@ _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
         _descriptor.FieldDescriptor(
             name="left",
             full_name="rbk4.protocol.MessageV4_MaskedObject.left",
-            index=3,
-            number=4,
-            type=5,
-            cpp_type=1,
-            label=1,
-            has_default_value=False,
-            default_value=0,
-            message_type=None,
-            enum_type=None,
-            containing_type=None,
-            is_extension=False,
-            extension_scope=None,
-            serialized_options=None,
-            file=DESCRIPTOR,
-        ),
-        _descriptor.FieldDescriptor(
-            name="top",
-            full_name="rbk4.protocol.MessageV4_MaskedObject.top",
-            index=4,
-            number=5,
-            type=5,
-            cpp_type=1,
-            label=1,
-            has_default_value=False,
-            default_value=0,
-            message_type=None,
-            enum_type=None,
-            containing_type=None,
-            is_extension=False,
-            extension_scope=None,
-            serialized_options=None,
-            file=DESCRIPTOR,
-        ),
-        _descriptor.FieldDescriptor(
-            name="width",
-            full_name="rbk4.protocol.MessageV4_MaskedObject.width",
             index=5,
             number=6,
             type=5,
@@ -174,8 +174,8 @@ _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="height",
-            full_name="rbk4.protocol.MessageV4_MaskedObject.height",
+            name="top",
+            full_name="rbk4.protocol.MessageV4_MaskedObject.top",
             index=6,
             number=7,
             type=5,
@@ -192,10 +192,46 @@ _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="mask",
-            full_name="rbk4.protocol.MessageV4_MaskedObject.mask",
+            name="width",
+            full_name="rbk4.protocol.MessageV4_MaskedObject.width",
             index=7,
             number=8,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="height",
+            full_name="rbk4.protocol.MessageV4_MaskedObject.height",
+            index=8,
+            number=9,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="mask",
+            full_name="rbk4.protocol.MessageV4_MaskedObject.mask",
+            index=9,
+            number=10,
             type=11,
             cpp_type=10,
             label=1,
@@ -219,7 +255,7 @@ _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[],
     serialized_start=156,
-    serialized_end=370,
+    serialized_end=407,
 )
 _MESSAGEV4_INSTANCESEG = _descriptor.Descriptor(
     name="MessageV4_InstanceSeg",
@@ -229,8 +265,8 @@ _MESSAGEV4_INSTANCESEG = _descriptor.Descriptor(
     containing_type=None,
     fields=[
         _descriptor.FieldDescriptor(
-            name="header",
-            full_name="rbk4.protocol.MessageV4_InstanceSeg.header",
+            name="camera_data",
+            full_name="rbk4.protocol.MessageV4_InstanceSeg.camera_data",
             index=0,
             number=1,
             type=11,
@@ -265,8 +301,8 @@ _MESSAGEV4_INSTANCESEG = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="camera_data",
-            full_name="rbk4.protocol.MessageV4_InstanceSeg.camera_data",
+            name="resultImg",
+            full_name="rbk4.protocol.MessageV4_InstanceSeg.resultImg",
             index=2,
             number=3,
             type=11,
@@ -291,8 +327,8 @@ _MESSAGEV4_INSTANCESEG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=373,
-    serialized_end=559,
+    serialized_start=410,
+    serialized_end=598,
 )
 _MESSAGEV4_CAMERADATA = _descriptor.Descriptor(
     name="MessageV4_CameraData",
@@ -472,8 +508,8 @@ _MESSAGEV4_CAMERADATA = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=562,
-    serialized_end=1045,
+    serialized_start=601,
+    serialized_end=1084,
 )
 _MESSAGEV4_SEMANTICSTAG = _descriptor.Descriptor(
     name="MessageV4_SemanticsTag",
@@ -501,10 +537,28 @@ _MESSAGEV4_SEMANTICSTAG = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="indices",
-            full_name="rbk4.protocol.MessageV4_SemanticsTag.indices",
+            name="class_name",
+            full_name="rbk4.protocol.MessageV4_SemanticsTag.class_name",
             index=1,
             number=2,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="indices",
+            full_name="rbk4.protocol.MessageV4_SemanticsTag.indices",
+            index=2,
+            number=3,
             type=13,
             cpp_type=3,
             label=3,
@@ -521,8 +575,26 @@ _MESSAGEV4_SEMANTICSTAG = _descriptor.Descriptor(
         _descriptor.FieldDescriptor(
             name="obj_pose",
             full_name="rbk4.protocol.MessageV4_SemanticsTag.obj_pose",
-            index=2,
-            number=3,
+            index=3,
+            number=4,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="data_header",
+            full_name="rbk4.protocol.MessageV4_SemanticsTag.data_header",
+            index=4,
+            number=5,
             type=11,
             cpp_type=10,
             label=1,
@@ -545,8 +617,8 @@ _MESSAGEV4_SEMANTICSTAG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1047,
-    serialized_end=1159,
+    serialized_start=1087,
+    serialized_end=1273,
 )
 _MESSAGEV4_CAMERADATATAG = _descriptor.Descriptor(
     name="MessageV4_CameraDataTag",
@@ -556,8 +628,8 @@ _MESSAGEV4_CAMERADATATAG = _descriptor.Descriptor(
     containing_type=None,
     fields=[
         _descriptor.FieldDescriptor(
-            name="header",
-            full_name="rbk4.protocol.MessageV4_CameraDataTag.header",
+            name="cam_data",
+            full_name="rbk4.protocol.MessageV4_CameraDataTag.cam_data",
             index=0,
             number=1,
             type=11,
@@ -574,28 +646,10 @@ _MESSAGEV4_CAMERADATATAG = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="cam_data",
-            full_name="rbk4.protocol.MessageV4_CameraDataTag.cam_data",
-            index=1,
-            number=2,
-            type=11,
-            cpp_type=10,
-            label=1,
-            has_default_value=False,
-            default_value=None,
-            message_type=None,
-            enum_type=None,
-            containing_type=None,
-            is_extension=False,
-            extension_scope=None,
-            serialized_options=None,
-            file=DESCRIPTOR,
-        ),
-        _descriptor.FieldDescriptor(
             name="tags",
             full_name="rbk4.protocol.MessageV4_CameraDataTag.tags",
-            index=2,
-            number=5,
+            index=1,
+            number=2,
             type=11,
             cpp_type=10,
             label=3,
@@ -610,15 +664,15 @@ _MESSAGEV4_CAMERADATATAG = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="inst_seg",
-            full_name="rbk4.protocol.MessageV4_CameraDataTag.inst_seg",
-            index=3,
-            number=6,
+            name="masks",
+            full_name="rbk4.protocol.MessageV4_CameraDataTag.masks",
+            index=2,
+            number=3,
             type=11,
             cpp_type=10,
-            label=1,
+            label=3,
             has_default_value=False,
-            default_value=None,
+            default_value=[],
             message_type=None,
             enum_type=None,
             containing_type=None,
@@ -636,8 +690,8 @@ _MESSAGEV4_CAMERADATATAG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1162,
-    serialized_end=1400,
+    serialized_start=1276,
+    serialized_end=1463,
 )
 _MESSAGEV4_CLOUDDATATAG = _descriptor.Descriptor(
     name="MessageV4_CloudDataTag",
@@ -745,8 +799,8 @@ _MESSAGEV4_CLOUDDATATAG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1403,
-    serialized_end=1693,
+    serialized_start=1466,
+    serialized_end=1756,
 )
 _MESSAGEV4_PERCEPFUSION = _descriptor.Descriptor(
     name="MessageV4_PercepFusion",
@@ -756,10 +810,28 @@ _MESSAGEV4_PERCEPFUSION = _descriptor.Descriptor(
     containing_type=None,
     fields=[
         _descriptor.FieldDescriptor(
-            name="camera_tags",
-            full_name="rbk4.protocol.MessageV4_PercepFusion.camera_tags",
+            name="header",
+            full_name="rbk4.protocol.MessageV4_PercepFusion.header",
             index=0,
             number=1,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="camera_tags",
+            full_name="rbk4.protocol.MessageV4_PercepFusion.camera_tags",
+            index=1,
+            number=2,
             type=11,
             cpp_type=10,
             label=3,
@@ -776,8 +848,26 @@ _MESSAGEV4_PERCEPFUSION = _descriptor.Descriptor(
         _descriptor.FieldDescriptor(
             name="cloud_tags",
             full_name="rbk4.protocol.MessageV4_PercepFusion.cloud_tags",
-            index=1,
-            number=2,
+            index=2,
+            number=3,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="feat_matchs",
+            full_name="rbk4.protocol.MessageV4_PercepFusion.feat_matchs",
+            index=3,
+            number=4,
             type=11,
             cpp_type=10,
             label=3,
@@ -800,8 +890,8 @@ _MESSAGEV4_PERCEPFUSION = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1696,
-    serialized_end=1840,
+    serialized_start=1759,
+    serialized_end=2010,
 )
 _MESSAGEV4_DMATCH = _descriptor.Descriptor(
     name="MessageV4_DMatch",
@@ -873,8 +963,8 @@ _MESSAGEV4_DMATCH = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1842,
-    serialized_end=1908,
+    serialized_start=2012,
+    serialized_end=2078,
 )
 _MESSAGEV4_KEYPOINT = _descriptor.Descriptor(
     name="MessageV4_KeyPoint",
@@ -946,8 +1036,8 @@ _MESSAGEV4_KEYPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1910,
-    serialized_end=1967,
+    serialized_start=2080,
+    serialized_end=2137,
 )
 _MESSAGEV4_FEATPOINTS = _descriptor.Descriptor(
     name="MessageV4_FeatPoints",
@@ -957,8 +1047,8 @@ _MESSAGEV4_FEATPOINTS = _descriptor.Descriptor(
     containing_type=None,
     fields=[
         _descriptor.FieldDescriptor(
-            name="header",
-            full_name="rbk4.protocol.MessageV4_FeatPoints.header",
+            name="data_header",
+            full_name="rbk4.protocol.MessageV4_FeatPoints.data_header",
             index=0,
             number=1,
             type=11,
@@ -975,27 +1065,9 @@ _MESSAGEV4_FEATPOINTS = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="rgb",
-            full_name="rbk4.protocol.MessageV4_FeatPoints.rgb",
-            index=1,
-            number=2,
-            type=11,
-            cpp_type=10,
-            label=1,
-            has_default_value=False,
-            default_value=None,
-            message_type=None,
-            enum_type=None,
-            containing_type=None,
-            is_extension=False,
-            extension_scope=None,
-            serialized_options=None,
-            file=DESCRIPTOR,
-        ),
-        _descriptor.FieldDescriptor(
             name="desc",
             full_name="rbk4.protocol.MessageV4_FeatPoints.desc",
-            index=2,
+            index=1,
             number=3,
             type=11,
             cpp_type=10,
@@ -1013,7 +1085,7 @@ _MESSAGEV4_FEATPOINTS = _descriptor.Descriptor(
         _descriptor.FieldDescriptor(
             name="key_pts",
             full_name="rbk4.protocol.MessageV4_FeatPoints.key_pts",
-            index=3,
+            index=2,
             number=4,
             type=11,
             cpp_type=10,
@@ -1037,8 +1109,8 @@ _MESSAGEV4_FEATPOINTS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1970,
-    serialized_end=2184,
+    serialized_start=2140,
+    serialized_end=2314,
 )
 _MESSAGEV4_FEATMATCHS = _descriptor.Descriptor(
     name="MessageV4_FeatMatchs",
@@ -1119,6 +1191,24 @@ _MESSAGEV4_FEATMATCHS = _descriptor.Descriptor(
             serialized_options=None,
             file=DESCRIPTOR,
         ),
+        _descriptor.FieldDescriptor(
+            name="dense_match",
+            full_name="rbk4.protocol.MessageV4_FeatMatchs.dense_match",
+            index=4,
+            number=8,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
     ],
     extensions=[],
     nested_types=[],
@@ -1128,21 +1218,21 @@ _MESSAGEV4_FEATMATCHS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2187,
-    serialized_end=2418,
+    serialized_start=2317,
+    serialized_end=2601,
 )
-_MESSAGEV4_MASKEDOBJECT.fields_by_name["header"].message_type = (
+_MESSAGEV4_MASKEDOBJECT.fields_by_name["data_header"].message_type = (
     messageV4__header__pb2._MESSAGEV4_HEADER
 )
 _MESSAGEV4_MASKEDOBJECT.fields_by_name["mask"].message_type = (
     messageV4__image__pb2._MESSAGEV4_IMAGE
 )
-_MESSAGEV4_INSTANCESEG.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
-)
-_MESSAGEV4_INSTANCESEG.fields_by_name["results"].message_type = _MESSAGEV4_MASKEDOBJECT
 _MESSAGEV4_INSTANCESEG.fields_by_name["camera_data"].message_type = (
     _MESSAGEV4_CAMERADATA
+)
+_MESSAGEV4_INSTANCESEG.fields_by_name["results"].message_type = _MESSAGEV4_MASKEDOBJECT
+_MESSAGEV4_INSTANCESEG.fields_by_name["resultImg"].message_type = (
+    messageV4__image__pb2._MESSAGEV4_IMAGE
 )
 _MESSAGEV4_CAMERADATA.fields_by_name["header"].message_type = (
     messageV4__header__pb2._MESSAGEV4_HEADER
@@ -1174,14 +1264,12 @@ _MESSAGEV4_CAMERADATA.fields_by_name["loc_extr"].message_type = (
 _MESSAGEV4_SEMANTICSTAG.fields_by_name["obj_pose"].message_type = (
     messageV4__cameraintrinsic__pb2._MESSAGEV4_EXTRINSIC
 )
-_MESSAGEV4_CAMERADATATAG.fields_by_name["header"].message_type = (
+_MESSAGEV4_SEMANTICSTAG.fields_by_name["data_header"].message_type = (
     messageV4__header__pb2._MESSAGEV4_HEADER
 )
 _MESSAGEV4_CAMERADATATAG.fields_by_name["cam_data"].message_type = _MESSAGEV4_CAMERADATA
 _MESSAGEV4_CAMERADATATAG.fields_by_name["tags"].message_type = _MESSAGEV4_SEMANTICSTAG
-_MESSAGEV4_CAMERADATATAG.fields_by_name["inst_seg"].message_type = (
-    _MESSAGEV4_INSTANCESEG
-)
+_MESSAGEV4_CAMERADATATAG.fields_by_name["masks"].message_type = _MESSAGEV4_MASKEDOBJECT
 _MESSAGEV4_CLOUDDATATAG.fields_by_name["header"].message_type = (
     messageV4__header__pb2._MESSAGEV4_HEADER
 )
@@ -1195,17 +1283,20 @@ _MESSAGEV4_CLOUDDATATAG.fields_by_name["loc_extr"].message_type = (
     messageV4__cameraintrinsic__pb2._MESSAGEV4_EXTRINSIC
 )
 _MESSAGEV4_CLOUDDATATAG.fields_by_name["tags"].message_type = _MESSAGEV4_SEMANTICSTAG
+_MESSAGEV4_PERCEPFUSION.fields_by_name["header"].message_type = (
+    messageV4__header__pb2._MESSAGEV4_HEADER
+)
 _MESSAGEV4_PERCEPFUSION.fields_by_name["camera_tags"].message_type = (
     _MESSAGEV4_CAMERADATATAG
 )
 _MESSAGEV4_PERCEPFUSION.fields_by_name["cloud_tags"].message_type = (
     _MESSAGEV4_CLOUDDATATAG
 )
-_MESSAGEV4_FEATPOINTS.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+_MESSAGEV4_PERCEPFUSION.fields_by_name["feat_matchs"].message_type = (
+    _MESSAGEV4_FEATMATCHS
 )
-_MESSAGEV4_FEATPOINTS.fields_by_name["rgb"].message_type = (
-    messageV4__image__pb2._MESSAGEV4_IMAGE
+_MESSAGEV4_FEATPOINTS.fields_by_name["data_header"].message_type = (
+    messageV4__header__pb2._MESSAGEV4_HEADER
 )
 _MESSAGEV4_FEATPOINTS.fields_by_name["desc"].message_type = (
     messageV4__image__pb2._MESSAGEV4_IMAGE
@@ -1217,6 +1308,9 @@ _MESSAGEV4_FEATMATCHS.fields_by_name["header"].message_type = (
 _MESSAGEV4_FEATMATCHS.fields_by_name["lhs_feat"].message_type = _MESSAGEV4_FEATPOINTS
 _MESSAGEV4_FEATMATCHS.fields_by_name["rhs_feat"].message_type = _MESSAGEV4_FEATPOINTS
 _MESSAGEV4_FEATMATCHS.fields_by_name["matches"].message_type = _MESSAGEV4_DMATCH
+_MESSAGEV4_FEATMATCHS.fields_by_name["dense_match"].message_type = (
+    messageV4__image__pb2._MESSAGEV4_IMAGE
+)
 DESCRIPTOR.message_types_by_name["MessageV4_MaskedObject"] = _MESSAGEV4_MASKEDOBJECT
 DESCRIPTOR.message_types_by_name["MessageV4_InstanceSeg"] = _MESSAGEV4_INSTANCESEG
 DESCRIPTOR.message_types_by_name["MessageV4_CameraData"] = _MESSAGEV4_CAMERADATA
