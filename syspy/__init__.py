@@ -30,10 +30,10 @@ from .lib.abnormal import Abnormal
 from .lib.can_frame import Can
 from .lib.logger import Logger
 from .lib.robot_param import RobotParam
-from .lib.module import ScriptStatus, Module
+from .lib.module import ScriptStatus, Module, ModuleBase
 from .lib.net_protocol import NetProtocol
 from .lib.trace import Trace
-from .utils.param_server import ParamServer
+from .utils.param_server import ParamServer, ScriptParam
 
 from .battery import Battery
 
@@ -67,7 +67,9 @@ __all__ = [
     "RobotParam",
     "ScriptStatus",
     "Module",
+    "ModuleBase",
     "ParamServer",
+    "ScriptParam",
     "Battery",
     "Camera",
     "Charger",

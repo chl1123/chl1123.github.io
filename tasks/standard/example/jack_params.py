@@ -6,11 +6,9 @@ import time
 from typing import List
 
 start_time = time.time()
-from syspy import Navigation, Trace, RobotParam
-from syspy import Module, ScriptStatus
-from syspy.utils.param_server import ParamType, ScriptParam
-from syspy.lib.module import ModuleBase
 
+from syspy import Module, ModuleBase, ScriptStatus, Navigation, Trace, RobotParam
+from syspy.utils.param_server import ParamType, ScriptParam
 param_loader = ScriptParam(__file__)
 
 
@@ -34,20 +32,20 @@ class ConfigParams:
 
         with builder.GROUPS():
             # 电机配置组
-            with builder.GROUP(key="motor_config", name="Motor Configuration",
+            with builder.GROUP(key="motorConfig", name="Motor Configuration",
                                desc="Motor related configuration parameters"):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     # 顶升电机名称
-                    with builder.CHILD(key="jack_motor_name", name="Jack Motor Name",
+                    with builder.CHILD(key="jackMotorName", name="Jack Motor Name",
                                        desc="Name of the jack motor"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("Motor_001")
                         builder.REQUIRED(True)
 
                     # 顶升电机速度
-                    with builder.CHILD(key="jack_motor_speed", name="Jack Motor Speed",
+                    with builder.CHILD(key="jackMotorSpeed", name="Jack Motor Speed",
                                        desc="Speed of the jack motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.015, min_value=0.001, max_value=0.1)
@@ -55,24 +53,24 @@ class ConfigParams:
                         builder.SINGLESTEP(0.001)
 
                     # 顶升零位
-                    with builder.CHILD(key="jack_lift_zero", name="Jack Lift Zero",
+                    with builder.CHILD(key="jackLiftZero", name="Jack Lift Zero",
                                        desc="Zero position for jack lift"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.000)
                         builder.UNIT("m")
 
             # DI配置组
-            with builder.GROUP(key="di_config", name="DI Configuration", desc="Digital input configuration parameters"):
+            with builder.GROUP(key="diConfig", name="DI Configuration", desc="Digital input configuration parameters"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     # 上极限DI
-                    with builder.CHILD(key="jack_up_di", name="Jack Up DI",
+                    with builder.CHILD(key="jackUpDi", name="Jack Up DI",
                                        desc="Upper limit digital input for jack"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(6, min_value=0, max_value=31)
 
                     # 零位DI
-                    with builder.CHILD(key="jack_zero_di", name="Jack Zero DI",
+                    with builder.CHILD(key="jackZeroDi", name="Jack Zero DI",
                                        desc="Zero position digital input for jack"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(3, min_value=0, max_value=31)
@@ -86,18 +84,17 @@ class ConfigParams:
         Trace.log("Reloading config parameters")
         cls.config = param_loader.load_config()
         Trace.log(f"Loaded config: {cls.config}")
-        cls.jack_motor_name = cls.config.get("jack_motor_name")
-        cls.jack_motor_speed = cls.config.get("jack_motor_speed")
-        cls.jack_lift_zero = cls.config.get("jack_lift_zero")
+        cls.jack_motor_name = cls.config.get("jackMotorName")
+        cls.jack_motor_speed = cls.config.get("jackMotorSpeed")
+        cls.jack_lift_zero = cls.config.get("jackLiftZero")
 
-        cls.jack_up_di = cls.config.get("jack_up_di")
-        cls.jack_zero_di = cls.config.get("jack_zero_di")
+        cls.jack_up_di = cls.config.get("jackUpDi")
+        cls.jack_zero_di = cls.config.get("jackZeroDi")
         Trace.log(f"Updated config: {cls.config}")
 
 
 # 创建全局配置管理器实例
 config_params = ConfigParams()
-
 
 def script_config_callback():
     Trace.log("Reloading script config parameters")
@@ -151,7 +148,7 @@ class InputParams:
 
                     with builder.CHILDREN():
                         # 顶升高度参数
-                        with builder.CHILD(key="unload_height", name="Jacking height",
+                        with builder.CHILD(key="unloadHeight", name="Jacking height",
                                            desc="The height for lift operations"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
@@ -178,10 +175,10 @@ class InputParams:
                             # builder.REQUIRED(True)
 
                             with builder.CHILDREN():
-                                with builder.CHILD(key="loadType_1", name="Load Type 1"):
+                                with builder.CHILD(key="loadType1", name="Load Type 1"):
                                     builder.TYPE(ParamType.ARRAY)
                                     with builder.CHILDREN():
-                                        with builder.CHILD(key="loadType_1_1", name="Load Type 1_1"):
+                                        with builder.CHILD(key="loadType11", name="Load Type 11"):
                                             builder.TYPE(ParamType.STRING_COMBO_LIST)
                                             builder.DEFAULTVALUE("Option 1")
 
@@ -192,7 +189,7 @@ class InputParams:
                                                 with builder.CHILD(key="Option 2", name="Option 2"):
                                                     builder.TYPE(ParamType.STRING)
 
-                                with builder.CHILD(key="loadType_2", name="Load Type 2"):
+                                with builder.CHILD(key="loadType2", name="Load Type 2"):
                                     builder.TYPE(ParamType.ARRAY)
                                     with builder.CHILDREN():
                                         # 使用外部IMU组合框
@@ -220,7 +217,7 @@ class InputParams:
                                                                    desc="using extern IMU"):
                                                     builder.TYPE(ParamType.ARRAY)
 
-                        with builder.CHILD("spin_list", name="Spin list", desc="Spin list"):
+                        with builder.CHILD("spinList", name="Spin list", desc="Spin list"):
                             builder.TYPE(ParamType.STRING_COMBO_LIST)
                             builder.DEFAULTVALUE(0)
 
