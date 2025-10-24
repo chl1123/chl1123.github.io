@@ -41,7 +41,7 @@ for arch in "${ARCHITECTURES[@]}"; do
     case "${arch}" in
         x86)
             ARCH="amd64"
-            SRC="-2000"
+            SRC="-2000-5000"
             ;;
         arm)
             ARCH="arm64"
