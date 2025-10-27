@@ -1537,7 +1537,7 @@ class Rec(BaseAction):
         if not self.success:
             self.success, self.rec_status, self.results_dict = self.rec(self.recfile)
         else:
-            self.results_list = self.results_dict.get("reco_list", [])
+            self.results_list = self.results_dict.get("recoList", [])
             self.obstacle_polygon = self.results_dict.get("obstaclePolygon", [])
             # 处理识别结果，并按降序排序，z值最大的结果在前
             if ConfigParams.z_max:
