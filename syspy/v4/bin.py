@@ -47,9 +47,9 @@ class ContainerV4(ContainerInterface):
     @staticmethod
     def _empty_container():
         return {
-            "goods_id": "",
+            "goodsId": "",
             "desc": "",
-            "has_goods": False
+            "hasGoods": False
         }
 
     @classmethod
@@ -87,9 +87,9 @@ class ContainerV4(ContainerInterface):
             bool: 如果没有库位或者背篓，则返回false
         """
         cls.containers[container_name] = {
-            "goods_id": goods_id,
+            "goodsId": goods_id,
             "desc": desc,
-            "has_goods": True
+            "hasGoods": True
         }
         return cls.db.put(container_name, str(cls.containers[container_name]))
 
@@ -133,7 +133,7 @@ class ContainerV4(ContainerInterface):
             return cls.db.puts(str_containers)
         else:
             for key in cls.containers:
-                if cls.containers[key]["goods_id"] == goods_id:
+                if cls.containers[key]["goodsId"] == goods_id:
                     cls.containers[key] = cls._empty_container()
                     cls.db.put(key, str(cls._empty_container))
                     return True
@@ -148,7 +148,7 @@ class ContainerV4(ContainerInterface):
         """
         containers = []
         for c in cls.containers:
-            cls.containers[c]['container_name'] = c
+            cls.containers[c]["containerName"] = c
             containers.append(cls.containers[c])
         return containers
 
@@ -163,7 +163,7 @@ class ContainerV4(ContainerInterface):
             bool: 如果背篓中有货物，则返回True；否则返回False。
         """
         if container_name in cls.containers:
-            return cls.containers[container_name].get("has_goods", False)
+            return cls.containers[container_name].get("hasGoods", False)
         return False
 
     @classmethod
@@ -177,7 +177,7 @@ class ContainerV4(ContainerInterface):
             bool: 如果存在该货物ID，则返回True；否则返回False。
         """
         for c in cls.containers:
-            if goods_id == cls.containers[c]['goods_id']:
+            if goods_id == cls.containers[c]["goodsId"]:
                 return True
         return False
 
@@ -191,7 +191,7 @@ class ContainerV4(ContainerInterface):
         move_task = NavigationV4.moveTask()
         for p in move_task['params']:
             if p['key'] == 'goodsId':
-                return p['string_value']
+                return p["stringValue"]
         return ""
 
     @classmethod
@@ -205,7 +205,7 @@ class ContainerV4(ContainerInterface):
             str: 货物ID，如果找不到则返回空字符串。
         """
         if container_name in cls.containers:
-            return cls.containers[container_name].get("goods_id", "")
+            return cls.containers[container_name].get("goodsId", "")
 
     @classmethod
     def get_container_by_goodsId(cls, goods_id) -> str:
@@ -218,8 +218,8 @@ class ContainerV4(ContainerInterface):
             str: 找到的背篓名称，如果没有找到或货物未装载，则返回空字符串。
         """
         for c in cls.containers:
-            if goods_id == cls.containers[c]['goods_id'] and cls.containers[c]['has_goods']:
-                return cls.containers[c]['container_name']
+            if goods_id == cls.containers[c]["goodsId"] and cls.containers[c]["hasGoods"]:
+                return cls.containers[c]["containerName"]
         return ""
 
     @classmethod
