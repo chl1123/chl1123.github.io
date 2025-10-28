@@ -16,10 +16,19 @@ class CodeScannerInterface(ABC, Message):
 
     @classmethod
     def get_code_scanners(cls) -> List["msgCodeScannerDMT"]:
-        """获取msgPGV_DMT对象列表
+        """获取msgCodeScannerDMT对象列表
 
         Returns:
-            msgPGV_DMT对象列表
+            msgCodeScannerDMT对象列表
+
+        Examples:
+        ```python
+        from syspy import CodeScanner
+        code_scanners = CodeScanner.get_code_scanners()
+        for code_scanner in code_scanners:  # code_scanner为msgCodeScannerDMT的对象
+            print(code_scanner.codeScannerInfo.codeScannerName)
+            print(code_scanner.tagValue)
+        ```
         """
         raise RBKVersionError()
 

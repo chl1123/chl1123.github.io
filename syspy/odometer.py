@@ -66,6 +66,15 @@ class OdometerInterface(ABC, Message):
         """获取电机信息列表
 
         Returns:
-            List[msgMotorInfo]: 返回电机信息列表，列表内元素为msgOdometer对象
+            List[msgMotorInfo]: 返回电机信息列表，列表内元素为msgMotorInfo对象
+
+        Examples:
+        ```python
+        from syspy import Motor
+        motor_infos = Motor.get_motor_infos()
+        for motor_info in motor_infos:  # motor_info为msgMotorInfo的对象
+            print(motor_info.motorName)
+            print(motor_info.position)
+        ```
         """
         raise RBKVersionError()

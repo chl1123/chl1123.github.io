@@ -73,7 +73,7 @@ class OdometerV3(OdometerInterface):
         """获取电机信息列表
 
         Returns:
-            List[msgMotorInfo]: 返回电机信息列表，列表内元素为msgOdometer对象
+            List[msgMotorInfo]: 返回电机信息列表，列表内元素为msgMotorInfo对象
         """
         if self.update():
             return self.data.motorInfo

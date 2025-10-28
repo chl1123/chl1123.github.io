@@ -113,6 +113,15 @@ class Laser3DInterface:
 
         Returns:
             List[msgLaser3D]: 返回所有3D激光数据的列表
+
+        Examples:
+        ```python
+        from syspy import Laser3D
+        lasers3D = Laser3D.get_lasers3d()
+        for laser3D in lasers3D:  # laser3D为msgLaser3D的对象
+            print(laser3D.laserType)
+            print(laser3D.is3DLocalization)
+        ```
         """
         return self.child.get_lasers3d()
 

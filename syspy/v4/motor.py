@@ -26,7 +26,7 @@ class MotorV4(MotorInterface):
         """获取电机信息列表
 
         Returns:
-            List[Message_MotorInfo]: 返回电机信息列表，列表内元素为Message_Odometer对象
+            List[Message_MotorInfo]: 返回电机信息列表，列表内元素为msgMotorInfo对象
         """
         self.update()
         return self.data.motor_info

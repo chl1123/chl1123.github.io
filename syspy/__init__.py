@@ -42,7 +42,7 @@ from .charger import Charger
 from .controller import Controller
 from .dio import Di, Do
 from .distance import Distance
-from .laser import Laser
+from .laser import Laser, Laser3D
 from .led import Led
 from .loc import Loc
 from .magnetic import Magnetic
@@ -78,6 +78,7 @@ __all__ = [
     "Do",
     "Distance",
     "Laser",
+    "Laser3D",
     "Led",
     "Loc",
     "Magnetic",

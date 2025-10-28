@@ -51,6 +51,14 @@ class DiInterface(ABC, Message):
 
         Returns:
             typing.List[msgDINode]: DI消息中的节点列表
+
+        Examples:
+        ```python
+        from syspy import Di
+        dis = Di.get_dis()
+        for di in dis:  # di为msgDINode的对象
+            print(di.key)
+        ```
         """
         raise RBKVersionError()
 
@@ -98,6 +106,15 @@ class DoInterface(ABC, Message):
 
         Returns:
             typing.List[msgDONode]: DO消息中的节点列表
+
+        Examples:
+        ```python
+        from syspy import Do
+
+        dos = Do.get_dos()
+        for do in dos:  # do为msgDONode的对象
+            print(do.key)
+        ```
         """
         raise RBKVersionError()
 

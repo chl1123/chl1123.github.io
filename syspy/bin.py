@@ -12,6 +12,20 @@ class BinInterface(ABC, Message):
 
     @classmethod
     def get_bins(cls) -> List["msgBin"]:
+        """获取库位列表
+
+        Returns:
+            List["msgBin"]: 库位列表
+
+        Examples:
+        ```python
+        from syspy import Bin
+        bins = Bin.get_bins()
+        for b in bins:  # b为msgBin的对象
+            print(b.binId)
+            print(b.binStatus)
+        ```
+        """
         raise RBKVersionError()
 
     @classmethod
