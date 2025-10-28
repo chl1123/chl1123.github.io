@@ -221,10 +221,10 @@ class Module:
     def __get_task(cls):
         """获取脚本任务"""
         return {
-            "script_name": cls.script_name,
-            "script_status": cls.__run_status.value,
-            "script_task": cls.__task_args,
-            "task_id": cls.__task_id
+            "scriptName": cls.script_name,
+            "scriptStatus": cls.__run_status.value,
+            "scriptTask": cls.__task_args,
+            "taskId": cls.__task_id
         }
 
     @classmethod
