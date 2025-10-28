@@ -15,46 +15,134 @@ start_time = time.time()
 
 from syspy import (Module, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize,
                    Odometer, CodeScanner, ScriptStatus, NetProtocol, Trace, NavSpeed, Controller)
+
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
 from tasks.standard import goPath, goBezier
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, ScriptParam
+param_loader = ScriptParam(__file__)
 from syspy.lib.robot_param import RobotParam
 from syspy.utils import Coordinate
 
 log = Logger("jack")
 
-# --- Module 类（放在前面） ---
+# --- ConfigParams 类（放在前面） ---
+
 class ConfigParams:
-    """生成和定义配置参数的示例"""
-    param_server = ParamServer(__file__)
-    timeout = param_server.loadParam("timeout", type="int", default=120, maxValue=999, minValue=0, unit="s",
-                                     group="", comment="脚本运行超时时间")
-    # 电机相关
-    moduleType = RobotParam.getDevice("Model-000", "moduleType")
-    jackMotorName = RobotParam.getDevice("Model-000", f"moduleType.{moduleType}.jackMotor")
-    jackMotorSpeed = param_server.loadParam("jackMotorSpeed", type="float", default=0.015,
-                                              comment="顶升电机升降速度")
-    motorFunc = RobotParam.getDevice(f"{jackMotorName}", "func")
-    resetBySpeed = RobotParam.getDevice(f"{jackMotorName}", "resetMode")
-    jackMinHeight = RobotParam.getDevice(f"{jackMotorName}", f"func.{motorFunc}.minLength")
-    jackMaxHeight = RobotParam.getDevice(f"{jackMotorName}", f"func.{motorFunc}.maxLength")
-    jackUpDi = RobotParam.getDevice(f"{jackMotorName}", f"func.{motorFunc}.upLimitDI")
-    jackZeroDi = RobotParam.getDevice(f"{jackMotorName}", f"resetMode.{resetBySpeed}.zeroDI")
-    SpinMotorName = RobotParam.getDevice("Model-000", f"moduleType.{moduleType}.spinMotor")
+    config = {}
+    """配置管理器，用于管理动态配置参数"""
+    timeout = None
+    jack_motor_speed = None
+    jack_min_height = None    
+    jack_max_height = None
+    jack_up_di = None
+    jack_zero_di = None
+    
+    module_type = RobotParam.getDevice("Model-000", "moduleType")
+    jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
+    spin_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.spinMotor")
+    motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
+    reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
 
-    log.debug("jack create config params")
+    def __init__(self):
+        self._build_and_load_config()
 
+    @classmethod
+    def _build_and_load_config(cls):
+        """构建并加载配置参数"""
+        module_type = RobotParam.getDevice("Model-000", "moduleType")
+        jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
+        spin_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.spinMotor")
+        motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
+        reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
+
+        builder = param_loader.builder_config()
+
+        with builder.GROUPS():
+            # 电机配置组
+            with builder.GROUP(key="motorConfig", name="Motor Configuration",
+                               desc="Motor related configuration parameters"):
+                builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILDREN():
+
+                    # 顶升电机速度
+                    with builder.CHILD(key="jackMotorSpeed", name="Jack Motor Speed",
+                                       desc="Speed of the jack motor"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.015, min_value=0.001, max_value=0.1)
+                        builder.UNIT("m/s")
+                        builder.SINGLESTEP(0.001)
+
+                    with builder.CHILD(key="jackMinHeight", name="jack Min Height",
+                                       desc="The min height of jack motor"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.minLength"))
+                        builder.UNIT("m")
+                        builder.SINGLESTEP(0.001)
+
+                    with builder.CHILD(key="jackMaxHeight", name="jack Max Height",
+                                       desc="The max height of jack motor"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.maxLength"))
+                        builder.UNIT("m")
+                        builder.SINGLESTEP(0.001)
+
+            # DI配置组
+            with builder.GROUP(key="diConfig", name="DI Configuration", desc="Digital input configuration parameters"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    # 上极限DI
+                    with builder.CHILD(key="jackUpDi", name="Jack Up DI",
+                                       desc="Upper limit digital input for jack"):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI"))
+
+                    # 零位DI
+                    with builder.CHILD(key="jackZeroDi", name="Jack Zero DI",
+                                       desc="Zero position digital input for jack"):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{reset_by_speed}.zeroDI"), min_value=0, max_value=31)
+
+        builder.save(merge=True)
+        cls.reload_config()
+
+    @classmethod
+    def reload_config(cls):
+        """重新加载配置参数"""
+        Trace.log("Reloading config parameters")
+        cls.config = param_loader.load_config()
+        Trace.log(f"Loaded config: {cls.config}")
+        cls.jack_motor_speed = cls.config.get("jackMotorSpeed")
+        cls.jack_min_height = cls.config.get("jackMinHeight")
+        cls.jack_max_height = cls.config.get("jackMaxHeight")
+
+        cls.jack_up_di = cls.config.get("jackUpDi")
+        cls.jack_zero_di = cls.config.get("jackZeroDi")
+        Trace.log(f"Updated config: {cls.config}")
+
+
+# 创建全局配置管理器实例
+config_params = ConfigParams()
+
+def script_config_callback():
+    Trace.log("Reloading script config parameters")
+    config_params.reload_config()
+
+def print_info():
+    print(f"{config_params.jack_motor_speed=}")
+    print(f"{config_params.jack_zero_di=}")
+    print(f"{config_params.jack_up_di=}")
 
 def create_start_height(builder: ParamBuilder):
     with builder.CHILD(key="startHeight", name="Start Height",
                        desc="The start height for operations"):
         builder.TYPE(ParamType.FLOAT)
         builder.REQUIRED(True)
-        builder.MIN_VALUE(ConfigParams.jackMinHeight)
-        builder.MAX_VALUE(ConfigParams.jackMaxHeight)
+        builder.MIN_VALUE(config_params.jack_min_height)
+        builder.MAX_VALUE(config_params.jack_max_height)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
-        builder.DEFAULTVALUE(ConfigParams.jackMinHeight)
+        builder.DEFAULTVALUE(config_params.jack_min_height)
 
 
 def create_end_height(builder: ParamBuilder):
@@ -63,11 +151,11 @@ def create_end_height(builder: ParamBuilder):
                        desc="The end height for operations"):
         builder.TYPE(ParamType.FLOAT)
         builder.REQUIRED(True)
-        builder.MIN_VALUE(ConfigParams.jackMinHeight)
-        builder.MAX_VALUE(ConfigParams.jackMaxHeight)
+        builder.MIN_VALUE(config_params.jack_min_height)
+        builder.MAX_VALUE(config_params.jack_max_height)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
-        builder.DEFAULTVALUE(ConfigParams.jackMaxHeight)
+        builder.DEFAULTVALUE(config_params.jack_max_height)
 
 
 def create_ap_id(builder: ParamBuilder):
@@ -655,13 +743,13 @@ class Jack(ModuleBase):
         # robotParam
         self.lift_motor = None
 
-        Trace.log(f"moduleType = {ConfigParams.moduleType}")
-        Trace.log(f"jackMotorName = {ConfigParams.jackMotorName}")
-        Trace.log(f"SpinMotorName = {ConfigParams.SpinMotorName}")
-        Trace.log(f"jackMinHeight = {ConfigParams.jackMinHeight}")
-        Trace.log(f"jackMaxHeight = {ConfigParams.jackMaxHeight}")
-        Trace.log(f"jackUpDi = {ConfigParams.jackUpDi}")
-        Trace.log(f"jackZeroDi = {ConfigParams.jackZeroDi}")
+        Trace.log(f"moduleType = {config_params.module_type}")
+        Trace.log(f"jackMotorName = {config_params.jack_motor_name}")
+        Trace.log(f"spinMotorName = {config_params.spin_motor_name}")
+        Trace.log(f"jackMinHeight = {config_params.jack_min_height}")
+        Trace.log(f"jackMaxHeight = {config_params.jack_max_height}")
+        Trace.log(f"jackUpDi = {config_params.jack_up_di}")
+        Trace.log(f"jackZeroDi = {config_params.jack_zero_di}")
 
         # Module.set_status(ScriptStatus.NONE)
 
@@ -974,7 +1062,7 @@ class Jack(ModuleBase):
 
             # 第一步转到指向ap点的方向
             self.action_list.append(RobotRotate(ap_to_robot_angle, "world", False))
-            self.action_list.append(JackHeight(ConfigParams.jackMotorName, self.start_height, ConfigParams.jackMotorSpeed, self.recfile))
+            self.action_list.append(JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed, self.recfile))
             # 转到指向ap点的位置
             self.action_list.append(RecShelf(self.recfile, "FirstRec"))  # 识别货架，得到坐标放入j.rec_result
 
@@ -1021,8 +1109,8 @@ class Jack(ModuleBase):
 
             if current_action.action_name == "GoBezier" and current_action.action_status == ActionStatus.FINISHED:
                 self.action_list.append(Spin(0, "robot", 2))
-                self.action_list.append(JackHeight(ConfigParams.jackMotorName, self.end_height, ConfigParams.jackMotorSpeed))
-                self.action_list.append(JackHeight(ConfigParams.jackMotorName, self.start_height, ConfigParams.jackMotorSpeed))
+                self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
+                self.action_list.append(JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed))
                 self.action_list.append(
                     GoBezierReturn(not self.is_backwards, self.is_hold_dir, self.max_speed,
                                    self.max_accele, self.max_decele, self.decele_dist))
@@ -1032,7 +1120,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             # 下降到起始高度
-            self.action_list.append(JackHeight(ConfigParams.jackMotorName, self.start_height, ConfigParams.jackMotorSpeed, self.recfile))
+            self.action_list.append(JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed, self.recfile))
 
             # 获取AP点坐标
             if not self.ap_id:
@@ -1083,8 +1171,8 @@ class Jack(ModuleBase):
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
-                self.action_list.append(JackHeight(ConfigParams.jackMotorName, ConfigParams.jackMaxHeight,
-                                                   ConfigParams.jackMotorSpeed))
+                self.action_list.append(JackHeight(config_params.jack_motor_name, config_params.jack_max_height,
+                                                   config_params.jack_motor_speed))
 
         # 动态添加action_list，仅在有识别时有效
         if 0 <= self.action_id < len(self.action_list):
@@ -1127,8 +1215,8 @@ class Jack(ModuleBase):
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
-                self.action_list.append(JackHeight(ConfigParams.jackMotorName, ConfigParams.jackMaxHeight,
-                                                   ConfigParams.jackMotorSpeed))
+                self.action_list.append(JackHeight(config_params.jack_motor_name, config_params.jack_max_height,
+                                                   config_params.jack_motor_speed))
 
     def jack_unload(self):
         # =====完整：旋转车体调整对准——识别货架——导航——二次调整——顶起 流程=====
@@ -1136,7 +1224,7 @@ class Jack(ModuleBase):
             self.operation_init = True
             # 下降到起始高度
             self.action_list.append(
-                JackHeight(ConfigParams.jackMotorName, self.start_height, ConfigParams.jackMotorSpeed,
+                JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed,
                            self.recfile))
 
             # 获取AP点坐标
@@ -1188,8 +1276,8 @@ class Jack(ModuleBase):
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
-                self.action_list.append(JackHeight(ConfigParams.jackMotorName, ConfigParams.jackMaxHeight,
-                                                   ConfigParams.jackMotorSpeed))
+                self.action_list.append(JackHeight(config_params.jack_motor_name, config_params.jack_max_height,
+                                                   config_params.jack_motor_speed))
 
         # 动态添加action_list，仅在有识别时有效
         if 0 <= self.action_id < len(self.action_list):
@@ -1233,8 +1321,8 @@ class Jack(ModuleBase):
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle))
-                self.action_list.append(JackHeight(ConfigParams.jackMotorName, ConfigParams.jackMaxHeight,
-                                                   ConfigParams.jackMotorSpeed))
+                self.action_list.append(JackHeight(config_params.jack_motor_name, config_params.jack_max_height,
+                                                   config_params.jack_motor_speed))
 
     def go_ap_site(self):
         if not self.operation_init:
@@ -1286,8 +1374,8 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
 
-            self.action_list.append(JackHeight(ConfigParams.jackMotorName, self.end_height,
-                                               ConfigParams.jackMotorSpeed, self.recfile))
+            self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
+                                               config_params.jack_motor_speed, self.recfile))
 
     def spin(self):
         """旋转托盘"""
@@ -1334,8 +1422,8 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             Motor.stopMotor()
-            Motor.resetMotor(ConfigParams.jackMotorName)
-            Motor.resetMotor(ConfigParams.SpinMotorName)
+            Motor.resetMotor(config_params.jack_motor_name)
+            Motor.resetMotor(config_params.spin_motor_name)
 
     def _execute_actions(self):
         if self.action_id < len(self.action_list):
@@ -1426,18 +1514,18 @@ class Jack(ModuleBase):
         # for jack_motor in jack_motors:
         #     jack_state = jack_motor.jack_state
         #     jack_speed = jack_motor.jack_speed
-        self.jack_speed = Motor.get_motor_speed(ConfigParams.jackMotorName)
+        self.jack_speed = Motor.get_motor_speed(config_params.jack_motor_name)
         self.jack_isFull = Navigation.hasGoods()
         # motor_infos = Odometer.get_data()["motorInfo"]
         # for motor_info in motor_infos:
-        #     if motor_info["motorName"] == ConfigParams.jackMotorName:
+        #     if motor_info["motorName"] == config_params.jack_motor_name:
         #         # self.jack_emc = motor_info["position"]
         #         self.jack_height = motor_info["position"]
-        #     if motor_info["motorName"] == ConfigParams.SpinMotorName:
+        #     if motor_info["motorName"] == config_params.spin_motor_name:
         #         self.jack_spin = motor_info["position"]
         self.jack_emc = Controller.get_emc()
-        self.jack_height = Motor.get_motor_pos(ConfigParams.jackMotorName)
-        self.jack_spin = Motor.get_motor_pos(ConfigParams.SpinMotorName)
+        self.jack_height = Motor.get_motor_pos(config_params.jack_motor_name)
+        self.jack_spin = Motor.get_motor_pos(config_params.spin_motor_name)
         self.report_info.update({
             "jackMode": True,
             "jackEnable": True,
@@ -1489,7 +1577,7 @@ class Spin(BaseAction):
         self.angle = angle
         self.dir = direction  # 0 counterclockwise; 1 clockwise; 2 shortest
         self.coordinate_system = spin_mode
-        Motor.resetMotor(ConfigParams.SpinMotorName)
+        Motor.resetMotor(config_params.spin_motor_name)
 
     def run(self, j: Jack):
         if self.init:
@@ -1623,13 +1711,13 @@ class JackHeight(BaseAction):
         if not self.init:
             self.init = True
             self.action_status = ActionStatus.RUNNING
-            self.jack_start_height = Motor.get_motor_pos(ConfigParams.jackMotorName)
+            self.jack_start_height = Motor.get_motor_pos(config_params.jack_motor_name)
             if self.target_height > self.jack_start_height:
-                Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed, ConfigParams.jackUpDi)
+                Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed, config_params.jack_up_di)
             else:
-                Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed, ConfigParams.jackZeroDi)
+                Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed, config_params.jack_zero_di)
 
-            if self.target_height > ConfigParams.jackMinHeight:
+            if self.target_height > config_params.jack_min_height:
                 # Navigation.setGoodsShape(0.35, 0.35, 0.5)
                 if self.recfile:
                     # 路径前缀：recognitionObject.{object_key}.goodsParameter
@@ -1657,11 +1745,11 @@ class JackHeight(BaseAction):
         Trace.log(f"{self.target_height=}")
 
         if self.target_height > self.jack_start_height:
-            if Motor.isMotorReached(self.motor_name) or Di.get_di(ConfigParams.jackUpDi):
+            if Motor.isMotorReached(self.motor_name) or Di.get_di(config_params.jack_up_di):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
         else:
-            if Motor.isMotorReached(self.motor_name) or Di.get_di(ConfigParams.jackZeroDi):
+            if Motor.isMotorReached(self.motor_name) or Di.get_di(config_params.jack_zero_di):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
 
@@ -2328,11 +2416,14 @@ class RotateDirection(IntEnum):
     CLOCKWISE = -1
 
 def main():
-    Module.init()
+    # 注册脚本参数变更回调
+    ScriptParam.setConfigChangeCallBack(script_config_callback)
 
+    Module.init()
     validator = ParamValidator(InputParams.builder.to_dict())
     j = Jack()
     modbus_params = None
+    print_info()
     while True:
         # 打印数据
         j.set_info()
