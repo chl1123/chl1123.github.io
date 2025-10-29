@@ -75,21 +75,21 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == 0:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":self.speed, "speed_y":0.0, "action_name":"GoForward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":self.speed, "speedY":0.0, "actionName":"GoForward"})
         elif self.move_action == 1:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":-self.speed, "speed_y":0.0, "action_name":"GoBack"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":-self.speed, "speedY":0.0, "actionName":"GoBack"})
         elif self.move_action == 2:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":0.0, "speed_y":self.speed, "action_name":"GoLeft"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":0.0, "speedY":self.speed, "actionName":"GoLeft"})
         elif self.move_action == 3:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":0.0, "speed_y":-self.speed, "action_name":"BackLeft"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":0.0, "speedY":-self.speed, "actionName":"BackLeft"})
         elif self.move_action == 4:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist*0.1,  "speed_x":self.speed, "speed_y":0.0, "action_name":"GoForward2"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist*0.1,  "speedX":self.speed, "speedY":0.0, "actionName":"GoForward2"})
         elif self.move_action == 5:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":0.0, "speed_y":-self.speed, "action_name":"GoRight"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":0.0, "speedY":-self.speed, "actionName":"GoRight"})
         elif self.move_action == 6:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":0.0, "speed_y":self.speed, "action_name":"BackRight"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":0.0, "speedY":self.speed, "actionName":"BackRight"})
         elif self.move_action == 7:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist*0.1,  "speed_x":-self.speed, "speed_y":0.0, "action_name":"BackForward2"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist*0.1,  "speedX":-self.speed, "speedY":0.0, "actionName":"BackForward2"})
 
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

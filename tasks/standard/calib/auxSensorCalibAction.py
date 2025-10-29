@@ -68,11 +68,11 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == MoveAction.Back1:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist*0.5,  "speed_x":-self.speed_x, "action_name":""})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist*0.5,  "speedX":-self.speed_x, "actionName":""})
         elif self.move_action == MoveAction.Back2:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist*0.5,  "speed_x":-self.speed_x, "action_name":""})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist*0.5,  "speedX":-self.speed_x, "actionName":""})
         elif self.move_action == MoveAction.Straight:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":self.speed_x, "action_name":""})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":self.speed_x, "actionName":""})
         elif self.move_action == MoveAction.NullAction:
             self.status = ScriptStatus.FINISHED
 

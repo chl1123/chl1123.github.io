@@ -97,29 +97,29 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == MoveAction.Straight:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":self.speed_x, "action_name":"GoStraightForward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":self.speed_x, "actionName":"GoStraightForward"})
         elif self.move_action == MoveAction.Back:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":-self.speed_x, "action_name":"GoStraightBackward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":-self.speed_x, "actionName":"GoStraightBackward"})
         elif self.move_action == MoveAction.RightArcStraight:
-            self.status = Navigation.runOdoMove({"rot_degree":math.degrees(self.move_dist/self.RotRadius),
-                                                                      "rot_radius":self.RotRadius,
-                                                                      "rot_speed":self.speed_x,
-                                                                      "action_name":"GoLeftArcForward"})
+            self.status = Navigation.runOdoMove({"rotDegree":math.degrees(self.move_dist/self.RotRadius),
+                                                                      "rotRadius":self.RotRadius,
+                                                                      "rotSpeed":self.speed_x,
+                                                                      "actionName":"GoLeftArcForward"})
         elif self.move_action == MoveAction.RightArcBack:
-            self.status = Navigation.runOdoMove({"rot_degree":math.degrees(self.move_dist/self.RotRadius),
-                                                                      "rot_radius":self.RotRadius,
-                                                                      "rot_speed":-self.speed_x,
-                                                                      "action_name":"GoLeftArcBackward"})
+            self.status = Navigation.runOdoMove({"rotDegree":math.degrees(self.move_dist/self.RotRadius),
+                                                                      "rotRadius":self.RotRadius,
+                                                                      "rotSpeed":-self.speed_x,
+                                                                      "actionName":"GoLeftArcBackward"})
         elif self.move_action == MoveAction.LeftArcStraight:
-            self.status = Navigation.runOdoMove({"rot_degree":math.degrees(self.move_dist/self.RotRadius),
-                                                                      "rot_radius":-self.RotRadius,
-                                                                      "rot_speed":self.speed_x,
-                                                                      "action_name":"GoRightArcForward"})
+            self.status = Navigation.runOdoMove({"rotDegree":math.degrees(self.move_dist/self.RotRadius),
+                                                                      "rotRadius":-self.RotRadius,
+                                                                      "rotSpeed":self.speed_x,
+                                                                      "actionName":"GoRightArcForward"})
         elif self.move_action == MoveAction.LeftArcBack:
-            self.status = Navigation.runOdoMove({"rot_degree":math.degrees(self.move_dist/self.RotRadius),
-                                                                      "rot_radius":-self.RotRadius,
-                                                                      "rot_speed":-self.speed_x,
-                                                                      "action_name":"GoRightArcBackward"})
+            self.status = Navigation.runOdoMove({"rotDegree":math.degrees(self.move_dist/self.RotRadius),
+                                                                      "rotRadius":-self.RotRadius,
+                                                                      "rotSpeed":-self.speed_x,
+                                                                      "actionName":"GoRightArcBackward"})
 
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

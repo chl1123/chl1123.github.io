@@ -78,25 +78,25 @@ class CalibMove:
             if self.status:
                 self.status = ScriptStatus.FINISHED
         elif self.move_action == 1:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi,  "speed_w":self.speed_w, "action_name":"GoRotForward1"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi,  "speedW":self.speed_w, "actionName":"GoRotForward1"})
         elif self.move_action == 2:
             self.status = Navigation.setSteerAngle(self.steer_name,math.pi/2,"NoAction")
             if self.status:
                 self.status = ScriptStatus.FINISHED
         elif self.move_action == 3:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi,  "speed_w":-self.speed_w, "action_name":"GoRotBackward1"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi,  "speedW":-self.speed_w, "actionName":"GoRotBackward1"})
         elif self.move_action == 4:
             self.status = Navigation.setSteerAngle(self.steer_name, -math.pi/2,"NoAction")
             if self.status:
                 self.status = ScriptStatus.FINISHED
         elif self.move_action == 5:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi,  "speed_w":self.speed_w, "action_name":"GoRotForward2"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi,  "speedW":self.speed_w, "actionName":"GoRotForward2"})
         elif self.move_action == 6:
             self.status = Navigation.setSteerAngle(self.steer_name, -math.pi/2,"NoAction")
             if self.status:
                 self.status = ScriptStatus.FINISHED
         elif self.move_action == 7:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi,  "speed_w":-self.speed_w, "action_name":"GoRotBackward2"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi,  "speedW":-self.speed_w, "actionName":"GoRotBackward2"})
         
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

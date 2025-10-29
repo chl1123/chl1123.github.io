@@ -68,7 +68,7 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == 0:
-            self.status = Navigation.runOdoMove({"move_angle":self.move_angle,  "speed_w":self.speed_w, "action_name":"GoRotForward"})
+            self.status = Navigation.runOdoMove({"moveAngle":self.move_angle,  "speedW":self.speed_w, "actionName":"GoRotForward"})
         
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

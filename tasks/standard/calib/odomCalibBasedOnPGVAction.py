@@ -97,15 +97,15 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == MoveAction.InitcallGo2QRCenter:
-            self.status = Navigation.goPGVRun({"use_down_pgv":not self.upside, "action_name":"callGo2QRCenter", "PGV_ReachDist":0.01})
+            self.status = Navigation.goPGVRun({"useDownPgv":not self.upside, "actionName":"callGo2QRCenter", "pgvReachDist":0.01})
         elif self.move_action == MoveAction.ShortBackward:
-            self.status = Navigation.runOdoMove({"move_dist": self.short_move_dist,  "speed_x":-self.speed_x, "action_name":"short_move_dist"})
+            self.status = Navigation.runOdoMove({"moveDist": self.short_move_dist,  "speedX":-self.speed_x, "actionName":"short_move_dist"})
         elif self.move_action == MoveAction.Forward:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":self.speed_x, "action_name":"Forward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":self.speed_x, "actionName":"Forward"})
         elif self.move_action == MoveAction.Backward:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist - self.short_move_dist,  "speed_x":-self.speed_x, "action_name":"Backward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist - self.short_move_dist,  "speedX":-self.speed_x, "actionName":"Backward"})
         elif self.move_action == MoveAction.RotLeftInPlace:
-            self.status = Navigation.runOdoMove({"move_angle": self.move_angle,  "speed_w":self.speed_w, "action_name":"RotLeftInPlace"})
+            self.status = Navigation.runOdoMove({"moveAngle": self.move_angle,  "speedW":self.speed_w, "actionName":"RotLeftInPlace"})
         
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

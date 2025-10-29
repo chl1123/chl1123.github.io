@@ -93,9 +93,9 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == 0:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":self.speed_x, "speed_y":self.speed_y, "action_name":"GoStraightForward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":self.speed_x, "speedY":self.speed_y, "actionName":"GoStraightForward"})
         elif self.move_action == 1:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":-self.speed_x, "speed_y":-self.speed_y, "action_name":"GoStraightBackward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":-self.speed_x, "speedY":-self.speed_y, "actionName":"GoStraightBackward"})
         
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

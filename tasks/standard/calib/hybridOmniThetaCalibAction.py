@@ -97,31 +97,31 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == MoveAction.Forward:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":self.speed_x, "speed_y":self.speed_y, "action_name":"OmniMove"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":self.speed_x, "speedY":self.speed_y, "actionName":"OmniMove"})
         elif self.move_action == MoveAction.Backward:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":-self.speed_x, "speed_y":-self.speed_y, "action_name":"OmniMove"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":-self.speed_x, "speedY":-self.speed_y, "actionName":"OmniMove"})
         elif self.move_action == MoveAction.GoLeftArc:
-            self.status = Navigation.runOdoMove({"rot_degree":180.0,
-                                                                      "rot_radius":0.5*self.move_dist,
-                                                                      "rot_speed":self.speed,
-                                                                      "action_name":"ThetaMove"})
+            self.status = Navigation.runOdoMove({"rotDegree":180.0,
+                                                                      "rotRadius":0.5*self.move_dist,
+                                                                      "rotSpeed":self.speed,
+                                                                      "actionName":"ThetaMove"})
         elif self.move_action == MoveAction.Rot2nd4GoForward:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi/2,  "speed_w":self.speed_w, "action_name":"ThetaMove"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":self.speed_w, "actionName":"ThetaMove"})
         elif self.move_action == MoveAction.GoForward2Origin:
-            self.status = Navigation.runOdoMove({"move_dist":self.move_dist, "speed_x":self.speed,  "action_name":"ThetaMove"})
+            self.status = Navigation.runOdoMove({"moveDist":self.move_dist, "speedX":self.speed,  "actionName":"ThetaMove"})
         elif self.move_action == MoveAction.Rot3rd4RightArc:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi/2,  "speed_w":-self.speed_w, "action_name":"ThetaMove"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":-self.speed_w, "actionName":"ThetaMove"})
         elif self.move_action == MoveAction.GoRightArc:
-            self.status = Navigation.runOdoMove({"rot_degree":180.0,
-                                                                      "rot_radius":-0.5*self.move_dist,
-                                                                      "rot_speed":self.speed,
-                                                                      "action_name":"ThetaMove"})
+            self.status = Navigation.runOdoMove({"rotDegree":180.0,
+                                                                      "rotRadius":-0.5*self.move_dist,
+                                                                      "rotSpeed":self.speed,
+                                                                      "actionName":"ThetaMove"})
         elif self.move_action == MoveAction.Rot4th4GoBackward:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi/2,  "speed_w":self.speed_w, "action_name":"ThetaMove"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":self.speed_w, "actionName":"ThetaMove"})
         elif self.move_action == MoveAction.GoBackward2Origin:
-            self.status = Navigation.runOdoMove({"move_dist":self.move_dist, "speed_x":-self.speed,  "action_name":"ThetaMove"})
+            self.status = Navigation.runOdoMove({"moveDist":self.move_dist, "speedX":-self.speed,  "actionName":"ThetaMove"})
         elif self.move_action == MoveAction.GoRot2Origin:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi/2,  "speed_w":-self.speed_w, "action_name":"ThetaMove"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":-self.speed_w, "actionName":"ThetaMove"})
 
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

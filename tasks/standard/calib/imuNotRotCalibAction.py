@@ -84,19 +84,19 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == MoveAction.GoStraightForWard:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":self.speed_x, "action_name":"GoStraight"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":self.speed_x, "actionName":"GoStraight"})
         elif self.move_action == MoveAction.GoStraightBackWard:
-            self.status = Navigation.runOdoMove({"move_dist": self.move_dist,  "speed_x":-self.speed_x, "action_name":"GoStraight"})
+            self.status = Navigation.runOdoMove({"moveDist": self.move_dist,  "speedX":-self.speed_x, "actionName":"GoStraight"})
         elif self.move_action == MoveAction.GoArcForWard:
-            self.status = Navigation.runOdoMove({"rot_degree":math.degrees(2*math.pi),
-                                                                      "rot_radius":self.goCircleRadius,
-                                                                      "rot_speed":self.speed_x,
-                                                                      "action_name":"GoRot"})
+            self.status = Navigation.runOdoMove({"rotDegree":math.degrees(2*math.pi),
+                                                                      "rotRadius":self.goCircleRadius,
+                                                                      "rotSpeed":self.speed_x,
+                                                                      "actionName":"GoRot"})
         elif self.move_action == MoveAction.GoArcBackWard:
-            self.status = Navigation.runOdoMove({"rot_degree":math.degrees(2*math.pi),
-                                                                      "rot_radius":self.goCircleRadius,
-                                                                      "rot_speed":-self.speed_x,
-                                                                      "action_name":"GoRot"})
+            self.status = Navigation.runOdoMove({"rotDegree":math.degrees(2*math.pi),
+                                                                      "rotRadius":self.goCircleRadius,
+                                                                      "rotSpeed":-self.speed_x,
+                                                                      "actionName":"GoRot"})
     
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

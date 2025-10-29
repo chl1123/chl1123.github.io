@@ -152,43 +152,43 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == MoveAction.Straight:
-            self.status = Navigation.runOdoMove({"move_dist": self.MoveMaxDist / self.CapturePhotoNum,  "speed_x":self.MoveSpeed, "action_name":"GoStraightForward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.MoveMaxDist / self.CapturePhotoNum,  "speedX":self.MoveSpeed, "actionName":"GoStraightForward"})
         elif self.move_action == MoveAction.Back:
-            self.status = Navigation.runOdoMove({"move_dist": self.MoveMaxDist,  "speed_x":-self.MoveSpeed, "action_name":"GoStraightBackward"})
+            self.status = Navigation.runOdoMove({"moveDist": self.MoveMaxDist,  "speedX":-self.MoveSpeed, "actionName":"GoStraightBackward"})
         elif self.move_action == MoveAction.TrunRight:
-            self.status = Navigation.runOdoMove({"move_angle": self.MoveMaxAngle,  "speed_w":-self.MoveAngleSpeed, "action_name":"GoRotBackward"})
+            self.status = Navigation.runOdoMove({"moveAngle": self.MoveMaxAngle,  "speedW":-self.MoveAngleSpeed, "actionName":"GoRotBackward"})
         elif self.move_action == MoveAction.RightArcStraight:
-            self.status = Navigation.runOdoMove({"rot_degree":2 * math.degrees(self.MoveMaxAngle) / self.CapturePhotoNum ,
-                                                                      "rot_radius":(self.MoveMaxDist/2)/math.sin(self.MoveMaxAngle),
-                                                                      "rot_speed":self.MoveSpeed/2,
+            self.status = Navigation.runOdoMove({"rotDegree":2 * math.degrees(self.MoveMaxAngle) / self.CapturePhotoNum ,
+                                                                      "rotRadius":(self.MoveMaxDist/2)/math.sin(self.MoveMaxAngle),
+                                                                      "rotSpeed":self.MoveSpeed/2,
                                                                       "maxAcc":0.05,
                                                                       "maxDec":0.05,
-                                                                      "action_name":"GoLeftArcForward"})
+                                                                      "actionName":"GoLeftArcForward"})
         elif self.move_action == MoveAction.RightArcBack:
-            self.status = Navigation.runOdoMove({"rot_degree":2 * math.degrees(self.MoveMaxAngle)  ,
-                                                            "rot_radius":(self.MoveMaxDist/2)/math.sin(self.MoveMaxAngle),
-                                                            "rot_speed":-self.MoveSpeed/2,
+            self.status = Navigation.runOdoMove({"rotDegree":2 * math.degrees(self.MoveMaxAngle)  ,
+                                                            "rotRadius":(self.MoveMaxDist/2)/math.sin(self.MoveMaxAngle),
+                                                            "rotSpeed":-self.MoveSpeed/2,
                                                             "maxAcc":0.05,
                                                             "maxDec":0.05,
-                                                            "action_name":"GoLeftArcBackward"})
+                                                            "actionName":"GoLeftArcBackward"})
         elif self.move_action == MoveAction.TrunLeft:
-            self.status = Navigation.runOdoMove({"move_angle": 2 * self.MoveMaxAngle,  "speed_w":self.MoveAngleSpeed, "action_name":"GoRotForward"})
+            self.status = Navigation.runOdoMove({"moveAngle": 2 * self.MoveMaxAngle,  "speedW":self.MoveAngleSpeed, "actionName":"GoRotForward"})
         elif self.move_action == MoveAction.LeftArcStraight:
-            self.status = Navigation.runOdoMove({"rot_degree":2 * math.degrees(self.MoveMaxAngle) / self.CapturePhotoNum ,
-                                                            "rot_radius":-(self.MoveMaxDist/2)/math.sin(self.MoveMaxAngle),
-                                                            "rot_speed":self.MoveSpeed/2,
+            self.status = Navigation.runOdoMove({"rotDegree":2 * math.degrees(self.MoveMaxAngle) / self.CapturePhotoNum ,
+                                                            "rotRadius":-(self.MoveMaxDist/2)/math.sin(self.MoveMaxAngle),
+                                                            "rotSpeed":self.MoveSpeed/2,
                                                             "maxAcc":0.05,
                                                             "maxDec":0.05,
-                                                            "action_name":"GoRightArcForward"})
+                                                            "actionName":"GoRightArcForward"})
         elif self.move_action == MoveAction.LeftArcBack:
-            self.status = Navigation.runOdoMove({"rot_degree":2 * math.degrees(self.MoveMaxAngle),
-                                                            "rot_radius":-(self.MoveMaxDist/2)/math.sin(self.MoveMaxAngle),
-                                                            "rot_speed":-self.MoveSpeed/2,
+            self.status = Navigation.runOdoMove({"rotDegree":2 * math.degrees(self.MoveMaxAngle),
+                                                            "rotRadius":-(self.MoveMaxDist/2)/math.sin(self.MoveMaxAngle),
+                                                            "rotSpeed":-self.MoveSpeed/2,
                                                             "maxAcc":0.05,
                                                             "maxDec":0.05,
-                                                            "action_name":"GoRightArcBackward"})
+                                                            "actionName":"GoRightArcBackward"})
         elif self.move_action == MoveAction.TurnToOrigin:
-            self.status = Navigation.runOdoMove({"move_angle": self.MoveMaxAngle,  "speed_w":-self.MoveAngleSpeed, "action_name":"NoAction"})
+            self.status = Navigation.runOdoMove({"moveAngle": self.MoveMaxAngle,  "speedW":-self.MoveAngleSpeed, "actionName":"NoAction"})
 
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:

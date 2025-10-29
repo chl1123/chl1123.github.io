@@ -92,27 +92,27 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == MoveAction.Rot1st4LeftArc:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi/2,  "speed_w":self.speed_w, "action_name":"Rot1st4LeftArc"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":self.speed_w, "actionName":"Rot1st4LeftArc"})
         elif self.move_action == MoveAction.GoLeftArc:
-            self.status = Navigation.runOdoMove({"rot_degree":180.0,
-                                                                      "rot_radius":-0.5*self.move_dist,
-                                                                      "rot_speed":self.speed_x,
-                                                                      "action_name":"GoLeftArc"})
+            self.status = Navigation.runOdoMove({"rotDegree":180.0,
+                                                                      "rotRadius":-0.5*self.move_dist,
+                                                                      "rotSpeed":self.speed_x,
+                                                                      "actionName":"GoLeftArc"})
         elif self.move_action == MoveAction.Rot2nd4GoForward:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi/2,  "speed_w":-self.speed_w, "action_name":"Rot2nd4GoForward"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":-self.speed_w, "actionName":"Rot2nd4GoForward"})
         elif self.move_action == MoveAction.GoForward2Origin:
-            self.status = Navigation.runOdoMove({"move_dist":self.move_dist, "speed_x":self.speed_x,  "action_name":"GoForward2Origin"})
+            self.status = Navigation.runOdoMove({"moveDist":self.move_dist, "speedX":self.speed_x,  "actionName":"GoForward2Origin"})
         elif self.move_action == MoveAction.Rot3rd4RightArc:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi/2,  "speed_w":self.speed_w, "action_name":"Rot3rd4RightArc"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":self.speed_w, "actionName":"Rot3rd4RightArc"})
         elif self.move_action == MoveAction.GoRightArc:
-            self.status = Navigation.runOdoMove({"rot_degree":180.0,
-                                                                      "rot_radius":0.5*self.move_dist,
-                                                                      "rot_speed":self.speed_x,
-                                                                      "action_name":"GoRightArc"})
+            self.status = Navigation.runOdoMove({"rotDegree":180.0,
+                                                                      "rotRadius":0.5*self.move_dist,
+                                                                      "rotSpeed":self.speed_x,
+                                                                      "actionName":"GoRightArc"})
         elif self.move_action == MoveAction.Rot4th4GoBackward:
-            self.status = Navigation.runOdoMove({"move_angle": math.pi/2,  "speed_w":-self.speed_w, "action_name":"Rot4th4GoBackward"})
+            self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":-self.speed_w, "actionName":"Rot4th4GoBackward"})
         elif self.move_action == MoveAction.GoBackward2Origin:
-            self.status = Navigation.runOdoMove({"move_dist":self.move_dist, "speed_x":-self.speed_x,  "action_name":"GoForward2Origin"})
+            self.status = Navigation.runOdoMove({"moveDist":self.move_dist, "speedX":-self.speed_x,  "actionName":"GoForward2Origin"})
 
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:
