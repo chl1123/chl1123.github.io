@@ -19,13 +19,13 @@ class ConfigParam:
         self.baudrate = self.param_server.loadParam('baudrate', type="int", default=9600,comment="波特率")
         self.timeoutThreshold = self.param_server.loadParam('timeoutThreshold', type="int", default=2000,comment="超时时间阈值(ms)")
         log.info("dev_name=" + str(self.dev) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
-class testBattery(bb.batteryBase):
+class Battery(bb.batteryBase):
     """
     继承电池基类
     """
     def __init__(self):
         #初始化基类,必须做
-        super(testBattery,self).__init__()
+        super(Battery,self).__init__()
         self.params = ConfigParam()
         # aarch64穿透需要初始化串口信息，880控制器串口uart0对应/dev/ttyS8
         self.createSerial(self.params.dev, self.params.baudrate)
@@ -102,5 +102,5 @@ class testBattery(bb.batteryBase):
             mu.sleep_s(2)
 
 if __name__ == '__main__':
-    client = testBattery()
+    client = Battery()
     client.loop()

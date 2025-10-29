@@ -9,10 +9,10 @@ import syspy.lib.misc_utility as mu
 import message_battery_pb2
 from syspy import Logger
 log = Logger("battery")
-class testBattery(bb.batteryBase):
+class Battery(bb.batteryBase):
    
     def __init__(self):
-        super(testBattery,self).__init__()   
+        super(Battery,self).__init__()   
         self.data_buff = [] 
         self.msg_ok = False
 
@@ -56,6 +56,6 @@ class testBattery(bb.batteryBase):
             mu.sleep_ms(1000)
          
 if __name__ == '__main__':
-    client = testBattery()
+    client = Battery()
     client.loop()
 

@@ -9,13 +9,13 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 from syspy import Logger
 log = Logger("battery")
-class testBattery(bb.batteryBase):
+class Battery(bb.batteryBase):
     """
     继承电池基类
     """
     def __init__(self):
         #初始化基类,必须做
-        super(testBattery,self).__init__()
+        super(Battery,self).__init__()
         #创建一个列表用来缓冲接收数据
         self.data_buff = []
         #用来表示数据是否已经正确接收
@@ -126,5 +126,5 @@ class testBattery(bb.batteryBase):
             mu.sleep_s(1)
                                                 
 if __name__ == '__main__':
-    client = testBattery()
+    client = Battery()
     client.loop()

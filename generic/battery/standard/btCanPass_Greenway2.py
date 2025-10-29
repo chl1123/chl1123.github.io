@@ -28,10 +28,10 @@ error_dict = {
     (3, 1): "excessive individual cell pressure difference",
 }
 
-class testCanBattery(cb.canPassBase):
+class CanBattery(cb.canPassBase):
 
     def __init__(self):
-        super(testCanBattery, self).__init__()
+        super(CanBattery, self).__init__()
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(2000)
         self.abnormal_timeout_t = mu.Timer(5000)
@@ -206,7 +206,7 @@ class testCanBattery(cb.canPassBase):
             mu.sleep_s(2)
 
 if __name__ == '__main__':
-    client = testCanBattery()
+    client = CanBattery()
     client.loop()
 
 

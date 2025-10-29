@@ -31,10 +31,10 @@ error_dict = {
 }
 
 
-class testCanBattery(cb.canPassBase):
+class CanBattery(cb.canPassBase):
 
     def __init__(self):
-        super(testCanBattery, self).__init__()
+        super(CanBattery, self).__init__()
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(2000)
         self.id1 = self.id2 = self.id3 = self.id4 = self.msg_ok = self.msg_userdata = self.wake_up = self.clear = False
@@ -217,5 +217,5 @@ class testCanBattery(cb.canPassBase):
 
 
 if __name__ == '__main__':
-    client = testCanBattery()
+    client = CanBattery()
     client.loop()

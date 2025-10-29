@@ -8,13 +8,13 @@ import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 from syspy import Logger
 log = Logger("battery")
-class testBattery(bb.batteryBase):
+class Battery(bb.batteryBase):
     """
     继承电池基类
     """
     def __init__(self):
         # 初始化基类,必须做
-        super(testBattery, self).__init__()
+        super(Battery, self).__init__()
         self.connect_timeout_t = mu.Timer(8000)
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
@@ -171,5 +171,5 @@ class testBattery(bb.batteryBase):
 
 
 if __name__ == '__main__':
-    client = testBattery()
+    client = Battery()
     client.loop()

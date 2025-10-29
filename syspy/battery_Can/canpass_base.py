@@ -35,8 +35,8 @@ class canPassBase:
         log.info(f"{output=}")
 
         # 只有 SRC2000 控制器是 CAN 透传形式
-        if platform.machine() == 'x86_64' and "SRC2000" in output:
-            log.info("platform: x86_64")
+        if output in  ['SRC2000']:
+            log.info("Can Type: x86_64")
             import syspy.battery_Can.canpass_x86 as x86
             self.child = x86.canPassX86()
         # TODO: 这里的派生类及判断需要优化

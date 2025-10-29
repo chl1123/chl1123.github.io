@@ -14,9 +14,9 @@ if RBK_VERSION == 4:
 log = logging.getLogger("rbk.script")
 
 
-class serialPassAarch64:
+class SerialNative:
     def __init__(self):
-        log.info("serialPassAarch64 start!")
+        log.info("SerialNative start!")
         self.ser = None
         self.__callback = None
         self.__should_close = False

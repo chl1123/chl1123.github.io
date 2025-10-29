@@ -13,9 +13,9 @@ import logging
 log = logging.getLogger("rbk.script")
 
 
-class serialPassX86:
+class SerialPass:
     def __init__(self):
-        log.info("serialPassx86 start!")
+        log.info("SerialPass start!")
         self.__pass = pt.passThrough()
         self.__pass.serialConnect(DEFAULT_PASS_ADDR)
 

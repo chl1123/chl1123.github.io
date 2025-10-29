@@ -10,13 +10,13 @@ import syspy.lib.misc_utility as mu
 from syspy import Logger
 log = Logger("battery")
 
-class testBattery(bb.batteryBase):
+class Battery(bb.batteryBase):
     """
     继承电池基类
     """
     def __init__(self):
         #Initialize the base class
-        super(testBattery,self).__init__()
+        super(Battery,self).__init__()
         #create a data buffer for saveing data
         self.packeddata_buff = []
         self.realdata_buff = [] # this number depends on how many realdata message we will receive
@@ -121,6 +121,6 @@ class testBattery(bb.batteryBase):
                 self.setTimeout()
 
 if __name__ == '__main__':
-    client = testBattery()
+    client = Battery()
     client.loop()
     

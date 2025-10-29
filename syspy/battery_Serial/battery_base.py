@@ -1,11 +1,11 @@
 import platform
-
+import logging
 import syspy.v3.lib.rpc.client as rc
 import syspy.lib.rpc.server as rs
 import syspy.lib.udp_debug as ud
 from syspy import Battery, Di, Do
 from syspy import Abnormal, RBK_VERSION
-
+import subprocess
 _syslog = ud.syslogDebug("serial_battery")
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
@@ -13,16 +13,20 @@ if RBK_VERSION == 4:
     from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery  as msgBattery
 
 DEFAULT_RPC_ADDR = "ipc:///tmp/python2dsp_rpc.ipc"
-
+log = logging.getLogger("rbk.script")
 
 class batteryBase:
     def __init__(self):
-        if platform.machine() == "x86_64":
-            import syspy.battery_Serial.serialpass_x86 as x86
-            self.child = x86.serialPassX86()
-        elif platform.machine() == "aarch64":
-            import syspy.battery_Serial.serialpass_aarch64 as aarch64
-            self.child = aarch64.serialPassAarch64()
+        command = "cat /etc/srcname"
+        output = subprocess.check_output(command, shell=True)
+        output = output.decode("utf-8").strip()
+        log.info(f"{output=}")
+        if output in ['SRC2000']: #passthrough
+            import syspy.battery_Serial.serial_pass as serial_pass
+            self.child = serial_pass.SerialPass()
+        else:
+            import syspy.battery_Serial.serial_native as serial_native
+            self.child = serial_native.SerialNative()
         self.__rpc_client = rc.RpcClient()
         self.__rpc_server = rs.RpcServer("battery")
         self.__rpc_server.registerFunction(self.setChargeStateOn)

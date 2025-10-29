@@ -8,11 +8,11 @@ import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu 
 from syspy import Logger
 log = Logger("battery")
-class testCanBattery(cb.canPassBase):
+class CanBattery(cb.canPassBase):
 
     def __init__(self):
         # 初始化基类,必须做
-        super(testCanBattery, self).__init__()
+        super(CanBattery, self).__init__()
         # self.__debug_out = ud.udpDebug()
         # sys.stdout = self.__debug_out
         # 创建一个超时定时器
@@ -67,7 +67,7 @@ class testCanBattery(cb.canPassBase):
             mu.sleep_s(2)
 
 if __name__ == '__main__':
-    client = testCanBattery()
+    client = CanBattery()
     client.loop()
 
 

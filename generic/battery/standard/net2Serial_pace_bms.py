@@ -9,13 +9,13 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu 
 from syspy import Logger
 log = Logger("battery")
-class testBattery(bb.batteryBase):
+class Battery(bb.batteryBase):
     """
     Inherit the battery base class
     """
     def __init__(self):
         #Initialize the base class
-        super(testBattery,self).__init__()   
+        super(Battery,self).__init__()   
         #create a data buffer for saveing data
         self.data_buff = [] 
         # Mark whether the data has been received correctly
@@ -119,7 +119,7 @@ class testBattery(bb.batteryBase):
             mu.sleep_s(1)
 
 if __name__ == '__main__':
-    client = testBattery()
+    client = Battery()
     client.loop()
 
     

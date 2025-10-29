@@ -60,13 +60,13 @@ class ConfigParams:
 # 创建全局配置管理器实例
 config_params = ConfigParams()
 
-class testBattery(bb.batteryBase):
+class Battery(bb.batteryBase):
     """
     继承电池基类
     """
     def __init__(self):
         #初始化基类,必须做
-        super(testBattery,self).__init__()
+        super(Battery,self).__init__()
         # aarch64穿透需要初始化串口信息，880控制器串口uart0对应/dev/ttyS8
         self.createSerial(config_params.devName, config_params.baudrate)
         log.info(f'Create Serial Finished')
@@ -192,5 +192,5 @@ class testBattery(bb.batteryBase):
 if __name__ == '__main__':
     log.info(f"Scripts Start.")
     Module.init()
-    client = testBattery()
+    client = Battery()
     client.loop()
