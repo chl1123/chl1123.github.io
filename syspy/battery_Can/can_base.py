@@ -21,9 +21,9 @@ if RBK_VERSION == 4:
 log = logging.getLogger("rbk.script")
 
 
-class canPassBase:
+class CanBase:
     def __init__(self):
-        log.info("canPassBase __init__")
+        log.info("CanBase __init__")
         self.__rpc_server = rs.RpcServer("battery")
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
@@ -35,15 +35,14 @@ class canPassBase:
         log.info(f"{output=}")
 
         # 只有 SRC2000 控制器是 CAN 透传形式
-        if output in  ['SRC2000']:
-            log.info("Can Type: x86_64")
-            import syspy.battery_Can.canpass_x86 as x86
-            self.child = x86.canPassX86()
-        # TODO: 这里的派生类及判断需要优化
-        elif platform.machine() == 'aarch64'or "SRC5000" in output:
-            log.info("platform: aarch64")
-            import syspy.battery_Can.canpass_aarch64 as aarch64
-            self.child = aarch64.canPassAarch64()
+        if output in ['SRC2000']:
+            log.info("Can Type: passThrough")
+            import syspy.battery_Can.can_pass as can_pass
+            self.child = can_pass.CanPass()
+        else:
+            log.info("Can Type: native")
+            import syspy.battery_Can.can_native as can_native
+            self.child = can_native.CanNative()
 
         if RBK_VERSION == 4:
             name="pyBatteryServer"

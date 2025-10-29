@@ -1,7 +1,7 @@
 import json
 
 # 导入电池基类
-import syspy.battery_Can.canpass_base as cb
+import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
 import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
@@ -31,7 +31,7 @@ error_dict = {
 }
 
 
-class CanBattery(cb.canPassBase):
+class CanBattery(cb.CanBase):
 
     def __init__(self):
         super(CanBattery, self).__init__()

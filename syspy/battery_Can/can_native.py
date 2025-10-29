@@ -4,9 +4,9 @@ import can
 log = logging.getLogger("rbk.script")
 
 
-class canPassAarch64():
+class CanNative():
     def __init__(self):
-        log.info("canPassAarch64 start!")
+        log.info("CanNative start!")
         self.bus = None
         self.__callback = None
         self.can_ids = []

@@ -14,9 +14,9 @@ import logging
 log = logging.getLogger("rbk.script")
 
 
-class canPassX86():
+class CanPass():
     def __init__(self):
-        log.info("canPassX86 start!")
+        log.info("CanPass start!")
         self.__pass = pt.passThrough()
         self.__pass.canConnect(DEFAULT_PASS_ADDR, "ECanFrame_pass_py")
 

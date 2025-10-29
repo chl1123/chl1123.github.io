@@ -1,14 +1,14 @@
 
 
 # 导入电池基类
-import syspy.battery_Can.canpass_base as cb
+import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu 
 from syspy import Logger
 log = Logger("battery")
-class CanBattery(cb.canPassBase):
+class CanBattery(cb.CanBase):
 
     def __init__(self):
         # 初始化基类,必须做
