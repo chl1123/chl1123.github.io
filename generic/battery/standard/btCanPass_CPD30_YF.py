@@ -32,7 +32,7 @@ class testCanBattery(cb.canPassBase):
 
         if canframe.ID == 0x019E:
             self.clearTimeout()
-            tem = canframe.Data.hex()
+            tem = canframe.data.hex()
             current = round((int(tem[6:8] + tem[4:6], 16) - 32000) * 0.1, 2)
             voltage = round(int(tem[2:4] + tem[0:2], 16) * 0.1, 2)
             percentage = round(int(tem[8:10], 16) * 0.004, 2)
@@ -42,7 +42,7 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = True
         elif canframe.ID == 0x1806E5F4:
             self.clearTimeout()
-            tem = canframe.Data.hex()
+            tem = canframe.data.hex()
             if self.isNeedCharge():
                 print("start charge")
                 can_data = [tem[0:2], tem[2:4], tem[4:6], tem[6:8], '00', '00', '00', '00']
@@ -56,7 +56,7 @@ class testCanBattery(cb.canPassBase):
             self.msg_ok = True
         elif canframe.ID == 0x1800FFF4:
             self.clearTimeout()
-            tem = canframe.Data.hex()
+            tem = canframe.data.hex()
             temperature = round(int(tem[10:12], 16) - 40, 2)
             self.battery_info.temperature = temperature
             self.msg_ok = True

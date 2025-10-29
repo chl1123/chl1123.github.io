@@ -25,8 +25,8 @@ class testCanBattery(cb.canPassBase):
         # 取date部分值将hex转int（根据实际协议自行设定，此处为示例）
         if canframe.ID == 0x2F0:
             print("huafu infomation")
-            tem = canframe.Data.hex()
-            if cu.get_bit_val(canframe.Data[7],0) == 0:
+            tem = canframe.data.hex()
+            if cu.get_bit_val(canframe.data[7],0) == 0:
                 current = -round(int(tem[6:8] + tem[4:6], 16) * 0.1, 2)
             else:
                 current = round(int(tem[6:8] + tem[4:6], 16) * 0.1, 2)

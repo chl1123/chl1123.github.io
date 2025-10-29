@@ -25,11 +25,11 @@ class testCanBattery(cb.canPassBase):
         # canframe = self.recCanframe(msg)
         self.clearTimeout()
         if msg.arbitration_id == 0x1AC:
-            # tem = canframe.Data.hex()
+            # tem = canframe.data.hex()
             tem = msg.data.hex()
             percentage = int(tem[2:4], 16) / 100
             voltage = round((int(tem[4:6], 16) * 256 + int(tem[6:8], 16)) / 1000, 2)
-            # if cu.get_bit_val(canframe.Data[0], 0) == 0:
+            # if cu.get_bit_val(canframe.data[0], 0) == 0:
                 # current = -round((int(tem[8:10], 16) * 256 + int(tem[10:12], 16)) / 100, 2)
             current = round(cu.hexStr_to_int(tem[8:10] + tem[10:12], 16) * 0.01, 2)
             # else:

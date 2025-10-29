@@ -34,14 +34,14 @@ class testCanBattery(cb.canPassBase):
         # 取date部分值将hex转int（根据实际协议自行设定，此处为示例）
         if canframe.ID == 0x36:
             print("voltage")
-            tem = canframe.Data.hex()
+            tem = canframe.data.hex()
             voltage = round(int(tem[2:4] + tem[0:2], 16) * 0.1, 2)
             self.battery_info.chargeVoltage = voltage
             # 发步电池数据给rbk
             self.publish(self.battery_info)
             self.msg_ok = True
         elif canframe.ID == 0x37:
-            tem = canframe.Data.hex()
+            tem = canframe.data.hex()
             current = round(cu.hexStr_to_int(tem[0:2] + tem[2:4], 8) * 0.1, 2)
             self.battery_info.chargeCurrent = current
             # 发步电池数据给rbk

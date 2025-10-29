@@ -53,7 +53,7 @@ class ZLCanBattery(cb.canPassBase):  # 创建中立电池类，继承电池基�
             self.battery_info.cycle = self.cycle
         # --------------------------电池电量电流电压解析------------------------------------------- -------------------------
         elif canframe.ID == 0x3FC:  
-            tem = canframe.Data.hex()  
+            tem = canframe.data.hex()  
             voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)  # 解析电压 保留2位
             current = round(self.zl_hexStr_to_int(tem[4:6] + tem[6:8], 16) * 0.1, 2)  # 解析电流
             percentage = round(int(tem[12:14], 16) * 0.01, 2)  # 解析电池电量百分比
@@ -61,7 +61,7 @@ class ZLCanBattery(cb.canPassBase):  # 创建中立电池类，继承电池基�
             self.battery_info.chargeVoltage = voltage  # 传入电池电压
             self.battery_info.chargeCurrent = current  # 传入电池电流
             for i in range(8):
-                if cu.get_bit_val(canframe.Data[7], i) == 1:
+                if cu.get_bit_val(canframe.data[7], i) == 1:
                     if i == 0:
                         self.battery_info.isCharging = True
                     elif i in [1, 2, 3, 4, 5, 6, 7]:
@@ -75,14 +75,14 @@ class ZLCanBattery(cb.canPassBase):  # 创建中立电池类，继承电池基�
             self.id1 = True
         # --------------------------电池温度------------------------------------------- -------------------------
         elif canframe.ID == 0x4FC:
-            tem = canframe.Data.hex()
+            tem = canframe.data.hex()
             MAXtemperature = round(int(tem[12:14], 16), 2)  # 解析电池单体最高温度,协议未明确说明时候有偏移量
             self.battery_info.temperature = MAXtemperature
             self.msg_ok = True
             self.id2 = True
         # -------------------------------电池协议充电-----------------------------------------------------
         # elif canframe.ID == 0x0F4:
-        #     tem = canframe.Data.hex()
+        #     tem = canframe.data.hex()
         #     if self.isNeedCharge():
         #         maxChargeVoltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
         #         maxChargeCurrent = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
@@ -107,7 +107,7 @@ class ZLCanBattery(cb.canPassBase):  # 创建中立电池类，继承电池基�
             self.msg_ok = False
             self.connect_timeout_t.reset()
             if not self.clear:
-                if self.warningExists(57040):
+                if self.errorExists(57040):
                     print('clear')
                     self.clearTimeout()
                 else:

@@ -25,7 +25,7 @@ class testCanBattery(cb.canPassBase):
     def handleData(self, msg):
         self.clearTimeout()
         canframe = self.recCanframe(msg)
-        tem = canframe.Data.hex()
+        tem = canframe.data.hex()
         if canframe.ID == 0x112:
             voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             percentage = round(int(tem[8:10], 16) * 0.004, 2)
