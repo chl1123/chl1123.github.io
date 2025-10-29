@@ -1631,15 +1631,15 @@ class RobotRotate(BaseAction):
             self.action_status = ActionStatus.RUNNING
             Navigation.resetOdoMove()
             self.move_args['spin'] = self.spin  # 是否随动
-            self.move_args['speed_w'] = self.speed
+            self.move_args['speedW'] = self.speed
             if self.coordinate == Coordinate.ROBOT:
-                self.move_args['loc_mode'] = 0  # 基于里程定位
-                self.move_args['move_angle'] = self.angle
+                self.move_args['locMode'] = 0  # 基于里程定位
+                self.move_args['moveAngle'] = self.angle
                 if self.angle < 0:
-                    self.move_args['move_angle'] = -self.angle
-                    self.move_args['speed_w'] = -self.speed
+                    self.move_args['moveAngle'] = -self.angle
+                    self.move_args['speedW'] = -self.speed
             elif self.coordinate == Coordinate.WORLD:
-                self.move_args["loc_mode"] = 1  # 激光定位
+                self.move_args["locMode"] = 1  # 激光定位
 
                 # 1. 当前朝向：Loc 返回的是度 - 立即转弧度 - 归一化
                 cur_angle_rad = self.normalize(math.radians(Loc.get_pose()["yaw"]))
@@ -1665,8 +1665,8 @@ class RobotRotate(BaseAction):
                 # 4. 最终写回 move_args（注意 move_angle 一律为正幅值）
                 self.move_args.update({
                     "spin": self.spin,
-                    "speed_w": speed_w,
-                    "move_angle": move_ang
+                    "speedW": speed_w,
+                    "moveAngle": move_ang
                 })
 
         status = Navigation.runOdoMove(self.move_args)
@@ -2373,18 +2373,18 @@ class PGVSecondaryAdjust(BaseAction):  # 二次调整
 
     def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
         if self.use_which_pgv == "useUpPgv":
-            self.adjust_param['use_pgv'] = True  # 使用上视pgv, args里需要增加use_pgv参数
-            self.adjust_param['use_down_pgv'] = False  # 使用下视pgv
+            self.adjust_param['usePgv'] = True  # 使用上视pgv, args里需要增加use_pgv参数
+            self.adjust_param['useDownPgv'] = False  # 使用下视pgv
         elif self.use_which_pgv == "useDownPgv":
-            self.adjust_param['use_pgv'] = False  # 使用上视pgv, args里需要增加use_pgv参数
-            self.adjust_param['use_down_pgv'] = True
-        self.adjust_param['pgv_x_adjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
-        self.adjust_param['pgv_x_angle_adjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
-        self.adjust_param['pgv_adjust_dist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
-        self.adjust_param['pgv_adjust_cx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
-        self.adjust_param['pgv_adjust_cy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
-        self.adjust_param['PGV_ReachDist'] = self.pgv_reach_dist  # pgv二次调整距离精度
-        self.adjust_param['PGV_ReachAngle'] = self.pgv_reach_angle  # pgv二次调整角度精度
+            self.adjust_param['usePgv'] = False  # 使用上视pgv, args里需要增加use_pgv参数
+            self.adjust_param['useDownPgv'] = True
+        self.adjust_param['pgvXAdjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
+        self.adjust_param['pgvXAngleAdjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
+        self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
+        self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
+        self.adjust_param['pgvAdjustCy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
+        self.adjust_param['pgvReachDist'] = self.pgv_reach_dist  # pgv二次调整距离精度
+        self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # pgv二次调整角度精度
 
     def reset(self):
         Trace.log("reset PGV secondary adjustment")
