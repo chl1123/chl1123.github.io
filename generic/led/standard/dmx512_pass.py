@@ -35,10 +35,10 @@ class demo_dmx512(dmx.dmx512Base):
 
             '''设定初始正常运动状态蓝色rgbw'''
             RGBW = [0, 80, 164, 0]
-            dmx512_info.color_r = RGBW[0]
-            dmx512_info.color_g = RGBW[1]
-            dmx512_info.color_b = RGBW[2]
-            dmx512_info.color_w = RGBW[3]
+            dmx512_info.colorRed = RGBW[0]
+            dmx512_info.colorGreen = RGBW[1]
+            dmx512_info.colorBlue = RGBW[2]
+            dmx512_info.colorWhite = RGBW[3]
 
             '''判断是否有电池信息'''''
             if dmx512_info.battery != 0:
@@ -61,19 +61,19 @@ class demo_dmx512(dmx.dmx512Base):
                 '''急停状态下暗红色闪烁'''
                 dmx512_info.type = dmx.LightType.FlowCalculator.value
                 RGBW = [230, 30, 0, 0]
-                dmx512_info.color_r = RGBW[0]
-                dmx512_info.color_g = RGBW[1]
-                dmx512_info.color_b = RGBW[2]
-                dmx512_info.color_w = RGBW[3]
+                dmx512_info.colorRed = RGBW[0]
+                dmx512_info.colorGreen = RGBW[1]
+                dmx512_info.colorBlue = RGBW[2]
+                dmx512_info.colorWhite = RGBW[3]
 
             elif NavStatus.get_block():
                 '''被阻挡状态下粉紫色跑马'''
                 dmx512_info.type = dmx.LightType.MutableHorseRace.value
                 RGBW = [30, 0, 30, 0]
-                dmx512_info.color_r = RGBW[0]
-                dmx512_info.color_g = RGBW[1]
-                dmx512_info.color_b = RGBW[2]
-                dmx512_info.color_w = RGBW[3]
+                dmx512_info.colorRed = RGBW[0]
+                dmx512_info.colorGreen = RGBW[1]
+                dmx512_info.colorBlue = RGBW[2]
+                dmx512_info.colorWhite = RGBW[3]
 
             elif not NavStatus.getChassisStop():
                 '''正常运动下蓝色呼吸'''
@@ -82,35 +82,35 @@ class demo_dmx512(dmx.dmx512Base):
                     '''机身左旋'''
                     if self.cur_x > 0.0:
                         '''机身左旋+前进'''
-                        dmx512_info.turn_left_or_right = 1
+                        dmx512_info.turnLeftOrRight = 1
                     elif self.cur_x < 0.0:
                         '''机身左旋+后退'''
-                        dmx512_info.turn_left_or_right = 2
+                        dmx512_info.turnLeftOrRight = 2
                     else:
                         '''机身原地左旋'''
-                        dmx512_info.turn_left_or_right = 3
+                        dmx512_info.turnLeftOrRight = 3
 
                 elif self.cur_w <= math.radians(-1) * 3:
                     '''机身右旋'''
                     if self.cur_x > 0.0:
                         '''机身右旋+前进'''
-                        dmx512_info.turn_left_or_right = 2
+                        dmx512_info.turnLeftOrRight = 2
                     elif self.cur_x < 0.0:
                         '''机身右旋+后退'''
-                        dmx512_info.turn_left_or_right = 1
+                        dmx512_info.turnLeftOrRight = 1
                     else:
                         '''机身原地右旋'''
-                        dmx512_info.turn_left_or_right = 3
+                        dmx512_info.turnLeftOrRight = 3
 
                 else:
                     '''无转向状态'''
                     if self.cur_x < 0.0:
                         RGBW = [255, 250, 250, 0]
-                        dmx512_info.color_r = RGBW[0]
-                        dmx512_info.color_g = RGBW[1]
-                        dmx512_info.color_b = RGBW[2]
-                        dmx512_info.color_w = RGBW[3]
-                    dmx512_info.turn_left_or_right = 0
+                        dmx512_info.colorRed = RGBW[0]
+                        dmx512_info.colorGreen = RGBW[1]
+                        dmx512_info.colorBlue = RGBW[2]
+                        dmx512_info.colorWhite = RGBW[3]
+                    dmx512_info.turnLeftOrRight = 0
 
             elif self.battery_exist:
                 '''静止状态且battery存在'''
@@ -122,10 +122,10 @@ class demo_dmx512(dmx.dmx512Base):
                     '''电量低于20 %（可配置）为暗红色跑马灯'''
                     dmx512_info.type = dmx.LightType.MutableHorseRace.value
                     RGBW = [170, 20, 0, 0]
-                    dmx512_info.color_r = RGBW[0]
-                    dmx512_info.color_g = RGBW[1]
-                    dmx512_info.color_b = RGBW[2]
-                    dmx512_info.color_w = RGBW[3]
+                    dmx512_info.colorRed = RGBW[0]
+                    dmx512_info.colorGreen = RGBW[1]
+                    dmx512_info.colorBlue = RGBW[2]
+                    dmx512_info.colorWhite = RGBW[3]
                 else:
                     '''显示电量，从绿色至暗红色渐变'''
                     dmx512_info.type = dmx.LightType.Battery.value
