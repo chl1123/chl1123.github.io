@@ -35,7 +35,7 @@ class CanBase:
         log.info(f"{output=}")
 
         # 只有 SRC2000 控制器是 CAN 透传形式
-        if output in ['SRC2000']:
+        if "SRC2000" in output: #passthrough
             log.info("Can Type: passThrough")
             import syspy.battery_Can.can_pass as can_pass
             self.child = can_pass.CanPass()

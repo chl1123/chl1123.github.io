@@ -21,7 +21,7 @@ class batteryBase:
         output = subprocess.check_output(command, shell=True)
         output = output.decode("utf-8").strip()
         log.info(f"{output=}")
-        if output in ['SRC2000']: #passthrough
+        if "SRC2000" in output: #passthrough
             log.info("Serial Type: passThrough")
             import syspy.battery_Serial.serial_pass as serial_pass
             self.child = serial_pass.SerialPass()

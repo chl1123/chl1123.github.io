@@ -46,6 +46,7 @@ class CanBattery(cb.CanBase):
 
     def handleData(self, msg):
         try:
+            #log.info("handle data")
             self.judgeCanframe(msg)
             self.judgePublish()
         except ValueError as e:
@@ -60,6 +61,7 @@ class CanBattery(cb.CanBase):
             log.warning(f"msg not valid: %s", str(msg))
             return
         if msg.arbitration_id == 0x0DA2F40D and not self.msg_userdata:
+            # log.info("assert 1")
             tem = msg.data.hex()
             if tem[2:14] == 'ffffffffffff':
                 self.msg_userdata = True
@@ -77,6 +79,7 @@ class CanBattery(cb.CanBase):
                     self.msg_userdata = True
                     self.msg_ok = True
         elif msg.arbitration_id == 0x0EA0F40D:
+            # log.info("assert 2")
             tem = msg.data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             SOH = round(int(tem[2:4], 16) * 0.01, 2)
@@ -98,6 +101,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
             self.id1 = True
         elif msg.arbitration_id == 0x0EA1F40D:
+            # log.info("assert 3")
             tem = msg.data.hex()
             current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
@@ -115,6 +119,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
             self.id2 = True
         elif msg.arbitration_id == 0x0EA2F40D:
+            # log.info("assert 4")
             tem = msg.data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
 
@@ -147,6 +152,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
             self.id3 = True
         elif msg.arbitration_id == 0x0EA4F40D:
+            # log.info("assert 5")
             tem = msg.data.hex()
             if self.isNeedCharge():
                 maxChargeVoltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
@@ -159,6 +165,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
             self.id4 = True
         elif msg.arbitration_id == 0x1EA7F40D:
+            # log.info("assert 6")
             tem = msg.data.hex()
             for i in range(1, 4):
                 for j in range(8):
@@ -187,10 +194,11 @@ class CanBattery(cb.CanBase):
             self.msg_ok = False
             self.connect_timeout_t.reset()
             self.wake_up = False
+            log.info("Receive Success")
             if not self.clear:
                 exist = self.errorExists(57040)
                 if exist:
-                    log.debug('clearTimeout')
+                    log.info('clearTimeout')
                     self.clearTimeout()
                 else:
                     self.clear = True
@@ -199,7 +207,7 @@ class CanBattery(cb.CanBase):
                 if not self.wake_up and (self.id == "0b" or self.id == "0d"):
                     self.sendCanframe(self.port, 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
                     self.wake_up = True  # 主动唤醒
-                    log.debug('wake_up')
+                    log.info('wake_up')
                 else:
                     self.clear = False
                     log.error('timeout')
