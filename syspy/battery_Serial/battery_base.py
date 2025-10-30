@@ -22,9 +22,11 @@ class batteryBase:
         output = output.decode("utf-8").strip()
         log.info(f"{output=}")
         if output in ['SRC2000']: #passthrough
+            log.info("Serial Type: passThrough")
             import syspy.battery_Serial.serial_pass as serial_pass
             self.child = serial_pass.SerialPass()
         else:
+            log.info("Serial Type: native")
             import syspy.battery_Serial.serial_native as serial_native
             self.child = serial_native.SerialNative()
         self.__rpc_client = rc.RpcClient()

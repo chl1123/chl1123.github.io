@@ -10,15 +10,54 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 from syspy import Logger
 from syspy import ParamServer
-
+from syspy.utils.param_server import ParamType, ScriptParam
+from syspy import Trace, RobotParam, Module, ScriptStatus
 log = Logger("battery")
-class ConfigParam:
+param_loader = ScriptParam(__file__) 
+class ConfigParams:
+    config = {}
+    """配置管理器，用于管理动态配置参数"""
+    devName = None
+    baudrate = None
+    timeoutThreshold = None
     def __init__(self):
-        self.param_server = ParamServer(__file__)
-        self.dev = self.param_server.loadParam('devName', type="str", default="/dev/ttyS8", comment="串行端口对应的设备名")
-        self.baudrate = self.param_server.loadParam('baudrate', type="int", default=9600,comment="波特率")
-        self.timeoutThreshold = self.param_server.loadParam('timeoutThreshold', type="int", default=2000,comment="超时时间阈值(ms)")
-        log.info("dev_name=" + str(self.dev) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
+        self._build_and_load_config()
+
+    @classmethod
+    def _build_and_load_config(cls):
+        """构建并加载配置参数"""
+        builder = param_loader.builder_config()
+
+        with builder.GROUPS():
+            with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):
+                builder.TYPE(ParamType.STRING)
+                builder.DEFAULTVALUE("/dev/ttyS8")
+            with builder.GROUP(key="baudrate", name="Baudrate", desc="波特率"):
+                builder.TYPE(ParamType.UINT)
+                builder.DEFAULTVALUE(9600)  
+            with builder.GROUP(key="timeoutThreshold", name="timeoutThreshold", desc="超时时间阈值(ms)"):
+                builder.TYPE(ParamType.UINT)
+                builder.DEFAULTVALUE(2000)
+        builder.save(merge=True)
+        
+        cls.reload_config()
+
+    @classmethod
+    def reload_config(cls):
+        """重新加载配置参数"""
+        Trace.log("Reloading config parameters")
+        cls.config = param_loader.load_config()
+        Trace.log(f"Loaded config: {cls.config}")
+        cls.devName = cls.config.get("devName")
+        cls.baudrate = cls.config.get("baudrate")
+        cls.timeoutThreshold = cls.config.get("timeoutThreshold")
+
+        Trace.log(f"Updated config: {cls.config}")
+        #log.info("dev_name=" + str(self.devName) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
+
+
+# 创建全局配置管理器实例
+config_params = ConfigParams()  
 class Battery(bb.batteryBase):
     """
     继承电池基类
@@ -26,11 +65,10 @@ class Battery(bb.batteryBase):
     def __init__(self):
         #初始化基类,必须做
         super(Battery,self).__init__()
-        self.params = ConfigParam()
         # aarch64穿透需要初始化串口信息，880控制器串口uart0对应/dev/ttyS8
-        self.createSerial(self.params.dev, self.params.baudrate)
+        self.createSerial(config_params.devName, config_params.baudrate)
         #创建一个超时定时器
-        self.connect_timeout_t = mu.Timer(self.params.timeoutThreshold)
+        self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
         #创建一个列表用来缓冲接收数据
         self.data_buff = []
         #用来表示数据是否已经正确接收
@@ -76,8 +114,7 @@ class Battery(bb.batteryBase):
             else:
                 # 第一个字节有误则去除
                 self.data_buff.pop(0)
-
-
+  
     def judgeMsgok(self):
         # 超时检测函数
         if self.msg_ok:
@@ -102,5 +139,8 @@ class Battery(bb.batteryBase):
             mu.sleep_s(2)
 
 if __name__ == '__main__':
+    log.info(f"Scripts Start.")
+    Module.init()
     client = Battery()
     client.loop()
+    
