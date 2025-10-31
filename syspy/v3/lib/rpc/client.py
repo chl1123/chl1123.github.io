@@ -6,7 +6,7 @@ from typing import Union, Optional
 
 import zmq
 
-from . import DOUBLE_COLON
+from syspy.lib.rpc import DOUBLE_COLON
 from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse
 
 log = logging.getLogger("rbk.script")
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     # 模拟RBK RPC Client
     client = RpcClient("ipc:///tmp/cpp2broker.ipc")
 
-    print("client.update_cmd() ", client.call_service("broker", "import", "tasks/jack/jack.py"))
+    # print("client.update_cmd() ", client.call_service("broker", "import", "tasks/jack/jack.py"))
 
     # print("client.start() ", client.call_service("broker", "start", "tasks/chl/get_script_data.py"))
     # print("client.stop() ", client.call_service("broker", "stop", "tasks/chl/get_script_data.py"))
@@ -188,3 +188,5 @@ if __name__ == "__main__":
     # print("client.suspend() ", client.call_service(None, "suspend"))
     # print("client.resume() ", client.call_service(None, "resume"))
     # print("client.cancel() ", client.call_service(None, "cancel"))
+
+    print("client.update_cmd() ", client.call_service("tasks/standard/example/jack_params.py", "script_config_changed"))

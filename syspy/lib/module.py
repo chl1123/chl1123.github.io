@@ -183,8 +183,6 @@ class Module:
             Service.server().register_function(cls.set_container, "setContainer")
             Service.server().register_function(cls.clear_container_by_goods_id, "clearContainerByGoodsId")
             Service.server().register_function(cls.clear_container, "clearContainer")
-        if RBK_VERSION == 3:
-            Service.server().start()
 
     def __del__(self):
         if self.__rpc_client:
