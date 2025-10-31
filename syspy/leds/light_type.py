@@ -31,3 +31,5 @@ class Color(enum.Enum):
     Yellow = [255, 255, 0, 0]
 
     PinkPurple = [30, 0, 30, 0]
+    
+    ChargeYellow = [255, 165, 0, 0]

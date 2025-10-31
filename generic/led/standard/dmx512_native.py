@@ -291,12 +291,13 @@ class LedChassis(LedBase):
 
         :param dmx_battery: 电池电量
         """
-        # 充电中为呼吸灯，颜色根据电池电量变化
+        #### # 充电中为呼吸灯，颜色根据电池电量变化    废弃，保持与DSP一致
+        # 黄色 R255 B165
         if config_params.is_show_charging and Battery.get_is_charging():
             self.robot_status = "Charging"
             rgbw = self.battery_to_color(dmx_battery)
             self.set_effect(
-                LightType.MutableBreath, rgbw=rgbw, period=3200
+                LightType.MutableBreath, rgbw=Color.ChargeYellow, period=3200
             )
         # 电量过低为暗红色跑马灯
         elif dmx_battery * 100 < 10:
