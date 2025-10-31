@@ -1,90 +1,30 @@
 
-import os
-import threading
 #导入电池基类
 import syspy.battery_Serial.battery_base as bb
-#处理字符的工具类，处理字符的工具类，如将uint16_t的数据转换成int16_t,
-#用途:负号转换，将两个字节数据组合成一个16位的数据，其他数据处理需要自行编写。
-import syspy.lib.char_utility as cu
-#其他工具类,如定时器
+#处理字符的工具类  
+import syspy.lib.char_utility as cu 
+#其他工具类,如定时器 
 import syspy.lib.misc_utility as mu
+import syspy.lib.udp_debug as ud
 from syspy import Logger
-from syspy.utils.param_server import ParamType, ScriptParam
-from syspy import Trace, RobotParam, Module, ScriptStatus
-from syspy.lib.module import ModuleBase
-from typing import List, Dict, Any
+import threading
+import os
 import signal
 import sys
+from syspy import Trace, RobotParam, Module, ScriptStatus
 log = Logger("battery")
-param_loader = ScriptParam(__file__) 
-class ConfigParams:
-    config = {}
-    """配置管理器，用于管理动态配置参数"""
-    devName = None
-    baudrate = None
-    timeoutThreshold = None
-    def __init__(self):
-        self._build_and_load_config()
-
-    @classmethod
-    def _build_and_load_config(cls):
-        """构建并加载配置参数"""
-        builder = param_loader.builder_config()
-
-        with builder.GROUPS():
-            with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):
-                builder.TYPE(ParamType.STRING)
-                builder.DEFAULTVALUE("/dev/RS485_0")
-            with builder.GROUP(key="baudrate", name="Baudrate", desc="波特率"):
-                builder.TYPE(ParamType.UINT)
-                builder.DEFAULTVALUE(9600)  
-            with builder.GROUP(key="timeoutThreshold", name="timeoutThreshold", desc="超时时间阈值(ms)"):
-                builder.TYPE(ParamType.UINT)
-                builder.DEFAULTVALUE(2000)
-        builder.save(merge=True)
-        
-        cls.reload_config()
-
-    @classmethod
-    def reload_config(cls):
-        """重新加载配置参数"""
-        Trace.log("Reloading config parameters")
-        cls.config = param_loader.load_config()
-        Trace.log(f"Loaded config: {cls.config}")
-        cls.devName = cls.config.get("devName")
-        cls.baudrate = cls.config.get("baudrate")
-        cls.timeoutThreshold = cls.config.get("timeoutThreshold")
-
-        Trace.log(f"Updated config: {cls.config}")
-        #log.info("dev_name=" + str(self.devName) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
-
-
-# 创建全局配置管理器实例
-config_params = ConfigParams()
-
 class Battery(bb.batteryBase):
-    """
-    继承电池基类
-    """
     def __init__(self):
-        #初始化基类,必须做
         super(Battery,self).__init__()
-        # aarch64穿透需要初始化串口信息，880控制器串口uart0对应/dev/ttyS8
-        self.createSerial(config_params.devName, config_params.baudrate)
-        log.info(f'Create Serial Finished')
-        #创建一个超时定时器
-        self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
-        self.reset_timeout_t = mu.Timer(config_params.timeoutThreshold + 8000)
-        #创建一个列表用来缓冲接收数据
-        self.data_buff = []
-        #用来表示数据是否已经正确接收
+        self.connect_timeout_t = mu.Timer(6000)
+        self.data_buff = [] 
         self.msg_ok = False
+        
         self._stop_event = threading.Event()
-        self._send_event = threading.Event()
+        self._send_event = threading.Event()  # 允许发送
 
-        self._send_event.set() 
+        self._send_event.set()  # 初始允许发送
         log.info(f'Class Init Finished')
-
     def handleData(self, msg:list):
         if self._stop_event.is_set():
             return
@@ -103,7 +43,7 @@ class Battery(bb.batteryBase):
         while len(self.data_buff) >= 112:
             if self.data_buff[0] != 0x7E:
                 self.data_buff.clear()
-                log.info(f'send set 1')
+                log.info(f'send set')
                 self._send_event.set()   # 解锁发送
                 return
             try:
@@ -151,39 +91,27 @@ class Battery(bb.batteryBase):
             except Exception as e:
                     log.warning(f"Error in handleData: {e}")
             finally:
-                log.info(f'send set 2')
+                log.info(f'send set')
                 self._send_event.set()
                 
                 self.clearTimeout()
                 self.data_buff.clear()
                 self.msg_ok = True
 
-
-
     def judgeMsgok(self):
         if self.msg_ok:
             self.msg_ok = False
             self.connect_timeout_t.reset()
-            self.reset_timeout_t.reset()
         else:
             if self.connect_timeout_t.isTimeUp():
                 self.setTimeout()
                 log.warning(f"Connection timeout")
-            if self.reset_timeout_t.isTimeUp():
-                self.closeSerial()
-                self.__init__()
 
     def loop(self):
-        """
-        循环,处理发送及超时逻辑
-        """
-        while not self._stop_event.is_set():
-            if self._stop_event.is_set():
-                break
+        while True:
             request = [0x7E, 0x32, 0x30, 0x30, 0x31, 0x34, 0x36, 0x34, 0x32, 0x45, 0x30, 0x30, 0x32, 0x30, 0x31, 0x46,
                        0x44, 0x33, 0x35, 0x0D]
-            if self._send_event.wait(timeout=5):
-                self.send(request)
+            self.send(request)
             self.judgeMsgok()
             mu.sleep_s(2)
     def stop(self):
@@ -191,8 +119,6 @@ class Battery(bb.batteryBase):
         self._stop_event.set()
         os._exit(1)  # 直接杀掉进程,以顺利退出
         self._send_event.set()
-
-
 if __name__ == '__main__':
     log.info(f"Scripts Start.")
     Module.init()

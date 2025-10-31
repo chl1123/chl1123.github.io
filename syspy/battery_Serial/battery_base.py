@@ -45,6 +45,8 @@ class batteryBase:
 
     def createSerial(self, name, baudrate):
         self.child.createSerial(name, baudrate)
+    def closeSerial(self):
+        self.child.closeSerial()
 
     def send(self, msg: list):
         self.child.send(msg)

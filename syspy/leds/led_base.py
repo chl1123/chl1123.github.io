@@ -60,7 +60,7 @@ class LedBase:
         else:
             print("DMXLed init failed")
             Abnormal.setDevice(58050, "Error opening serial port", "Error opening serial port",
-                               "check port baudrate", "battery/*.py", "battery")
+                               "check port baudrate", "led/*.py", "Led")
             return False
         return True
 
@@ -70,7 +70,7 @@ class LedBase:
             cls.__58050_error_v.append(msg)
             err = ' & '.join(cls.__58050_error_v)
             Abnormal.setDevice(58050, err, "turnlight config error", "check turnlight",
-                               "battery/*.py", "battery")
+                               "led/*.py", "Led")
 
     @classmethod
     def clear58050(cls, msg):
@@ -82,7 +82,7 @@ class LedBase:
         else:
             err = ' & '.join(cls.__58050_error_v)
             Abnormal.setDevice(58050, err, "turnlight config error", "check turnlight",
-                               "battery/*.py", "battery")
+                               "led/*.py", "Led")
 
     @staticmethod
     def is_alarm():

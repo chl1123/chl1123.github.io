@@ -31,8 +31,22 @@ class SerialNative:
         if output in ['SRC800', 'SRC3000']:
             fcntl.ioctl(self.ser, 0)  # 这行决定了485模式
         self.__msg_thread = threading.Thread(target=self.__run, name="run")
-        self.__msg_thread.start()  # FIXME: when to join?
+        self.__msg_thread.start()
         log.info("createSerial  name:{},baudrate:{}".format(name, baudrate))
+        
+    def closeSerial(self):
+        log.info("closeSerial")
+        # if hasattr(self, 'ser') and self.ser and self.ser.is_open:
+        try:
+            self.stop()
+            self.ser.close()
+            log.info("serial port closed successfully.")
+        except Exception as e:
+            #log.error(f"exception: {e}")
+            pass
+
+        log.info("closeSerial done.")
+
 
     def send(self, msg: list):
         self.ser.write(msg)

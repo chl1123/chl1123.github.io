@@ -199,6 +199,9 @@ class ConfigParams:
 # 创建全局配置管理器实例
 config_params = ConfigParams()
 
+def script_config_changed():
+    Trace.log("Reloading script config parameters")
+    config_params.reload_config()
 
 class LedChassis(LedBase):
     def __init__(self):
@@ -246,7 +249,7 @@ class LedChassis(LedBase):
         elif NavStatus.get_block():
             self.robot_status = "Blocked"
             self.set_effect(
-                LightType.MutableHorseRace, rgbw=Color.PinkPurple, period=3200
+                LightType.MutableHorseRace, rgbw=Color.PinkPurple, period=1000
             )
         # 机器移动时的灯光效果
         elif not NavStatus.getChassisStop():
@@ -315,6 +318,7 @@ class LedChassis(LedBase):
 
 
 if __name__ == "__main__":
+    ScriptParam.setConfigChangeCallBack(script_config_changed)
     signal.signal(signal.SIGINT, signal_handler)
     Module.init()
     tape_light = LedChassis()
