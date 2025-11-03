@@ -19,7 +19,7 @@ from syspy.utils import Coordinate
 from syspy.utils.time import Timer
 from syspy import NavSpeed, Controller, NavStatus
 from syspy.script_data import ScriptData
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType, ScriptParam
 from syspy import Module, ParamServer, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
     Odometer, Laser, NetProtocol, Trace
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
@@ -29,6 +29,7 @@ from syspy import LevelDB
 from syspy.core.rbk_rpc import Service
 
 db = LevelDB("fork")
+param_loader = ScriptParam(__file__)
 
 
 def clamp(val, lo, hi):
@@ -63,6 +64,10 @@ def _robot_config_change_callback(diff_map: Dict[str, Any]):
     #     elif key == "recognitionObject.pallet.carrierParameter.carrierHeight":
     #         robot_param["carrierHeight"] = value
 
+def _script_config_callback():
+    Trace.log("Reloading script config parameters")
+    ConfigParams.reload_config()
+
 
 class ConfigParams:
     """生成和定义配置参数的示例"""
@@ -92,6 +97,47 @@ class ConfigParams:
     reach_up_dist: float = 0.001
     reach_down_dist: float = 0.001
 
+    # 参数配置文件的参数
+    config = {}
+
+    # —— 脚本相关
+    timeout: float = 120.0
+    # —— fork 相关
+    upMaxSpeedWithGoods: float = 0.06
+    downMaxSpeedWithGoods: float = 0.06
+    backLaserEnableHeight: float = 0.3
+    checkGoodsWhileLoad: bool = True
+    checkAllContactDis: bool = False
+    # —— DO 控 fork
+    downDelayTime: float = 10.0
+    upDelayTime: float = 10.0
+    downDiDoFork: str = ""
+    upDiDoFork: str = ""
+    leakDo: str = ""
+    pumpDo: str = ""
+    # —— 取放货
+    laserDetectionWidth: float = 0.05
+    aheadDist: float = 0.8
+    minAheadDist: float = 1.0
+    useStraightLine: bool = False
+    loadAdjustDistance: float = 0.2
+    loadAdjustMaxSpeed: float = 0.5
+    bezierReturn: bool = True
+    forkDiDist: float = 0.2
+    enableContactDiNoRec: bool = True
+    # —— 线性堆栈
+    laserWidth: float = 0.1
+    obsDist: float = 0.5
+    loadObsDist: float = 0.1
+    # —— 识别区域
+    obsAreaMinHeight: float = 0.0
+    obsAreaMaxHeight: float = 0.0
+    obsAreaLength: float = 0.0
+    obsAreaWidth: float = 0.0
+    deviceName: str = ""
+    errorRecY: float = 0.1
+    errorRecAngle: float = 15.0
+
     @staticmethod
     def _safe_get_device(device_name: str, param_path: str, default):
         """
@@ -118,6 +164,62 @@ class ConfigParams:
         """初始化所有设备参数"""
         cls.get_device_model_param()
         cls.get_device_motor_param()
+        cls._build_and_load_config()
+
+
+    @classmethod
+    def reload_config(cls):
+        """重新加载配置参数"""
+        Trace.log("Reloading config parameters")
+        cfg = param_loader.load_config()
+        cls.config = cfg
+        Trace.log(f"Loaded config: {cls.config}")
+
+
+        # --- script
+        cls.timeout = cfg.get("timeout", 120.0)
+
+        # --- fork
+        cls.upMaxSpeedWithGoods = cfg.get("upMaxSpeedWithGoods")
+        cls.downMaxSpeedWithGoods = cfg.get("downMaxSpeedWithGoods")
+        cls.backLaserEnableHeight = cfg.get("backLaserEnableHeight")
+        cls.checkGoodsWhileLoad = cfg.get("checkGoodsWhileLoad")
+        cls.checkAllContactDis = cfg.get("checkAllContactDi")
+
+        # --- forkByDO
+        cls.downDelayTime = cfg.get("downDelayTime")
+        cls.upDelayTime = cfg.get("upDelayTime")
+        cls.downDiDoFork = cfg.get("downDiDoFork")
+        cls.upDiDoFork = cfg.get("upDiDoFork")
+        cls.leakDo = cfg.get("leakDo")
+        cls.pumpDo = cfg.get("pumpDo")
+
+        # --- loadUnload
+        cls.laserDetectionWidth = cfg.get("laserDetectionWidth")
+        cls.aheadDist = cfg.get("aheadDist")
+        cls.minAheadDist = cfg.get("minAheadDist")
+        cls.useStraightLine = cfg.get("useStraightLine")
+        cls.loadAdjustDistance = cfg.get("loadAdjustDistance")
+        cls.loadAdjustMaxSpeed = cfg.get("loadAdjustMaxSpeed")
+        cls.bezierReturn = cfg.get("bezierReturn")
+        cls.forkDiDist = cfg.get("forkDiDist")
+        cls.enableContactDiNoRec = cfg.get("enableContactDiNoRec")
+
+        # --- linearUnload
+        cls.laserWidth = cfg.get("laserWidth")
+        cls.obsDist = cfg.get("obsDist")
+        cls.loadObsDist = cfg.get("loadObsDist")
+
+        # --- recognition
+        cls.obsAreaMinHeight = cfg.get("obsAreaMinHeight")
+        cls.obsAreaMaxHeight = cfg.get("obsAreaMaxHeight")
+        cls.obsAreaLength = cfg.get("obsAreaLength")
+        cls.obsAreaWidth = cfg.get("obsAreaWidth")
+        cls.deviceName = cfg.get("deviceName")
+        cls.errorRecY = cfg.get("errorRecY")
+        cls.errorRecAngle = cfg.get("errorRecAngle")
+
+        Trace.log(f"Updated config: {cls.config}")
 
     # 从模型文件中获取的参数
     @classmethod
@@ -180,110 +282,167 @@ class ConfigParams:
         cls.reach_down_dist = float(
             cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist", 0.001))
 
-    # 从脚本配置参数里定义的参数，显示为小驼峰
-    param_server = ParamServer(__file__)
 
-    second_rec_yaw = 1
-    second_rec_y = 0.01
-    load_unload_check = False
-    # 脚本相关
-    timeout = param_server.loadParam(
-        "timeout", type="float", default=120, comment="脚本超时时间", group="script")
+    @classmethod
+    def _build_and_load_config(cls):
+        builder = param_loader.builder_config()
 
-    # fork 相关配置
-    up_max_speed_with_goods = param_server.loadParam(
-        "upMaxSpeedWithGoods", type="float", default=0.06, maxValue=0.1, minValue=0,
-        comment="载货时的货叉上升最大速度", group="fork")
-    down_max_speed_with_goods = param_server.loadParam(
-        "downMaxSpeedWithGoods", type="float", default=0.06, maxValue=2, minValue=0,
-        comment="载货时的货叉上升最大速度", group="fork")
-    back_laser_enable_height = param_server.loadParam(
-        "backLaserEnableHeight", type="float", default=0.3, maxValue=2, minValue=0,
-        comment="后置激光避障生效时的货叉高度", group="fork")
-    check_goods_while_load = param_server.loadParam(
-        "checkGoodsWhileLoad", type="bool", default=True, comment="载货时检测到位 di", group="fork")
-    check_all_contact_dis = param_server.loadParam(
-        "checkAllContactDi", type="bool", default=False, comment="检测所有到位di", group="fork")
+        with builder.GROUPS():
 
-    # Do 控 fork 配置
-    down_delay_time = param_server.loadParam(
-        "downDelayTime", type="float", default=10, maxValue=0.1, minValue=20,
-        comment="下降到位判断时间", group="forkByDO")
-    up_delay_time = param_server.loadParam(
-        "upDelayTime", type="float", default=10, maxValue=0.1, minValue=20,
-        comment="上升到位判断时间", group="forkByDO")
-    down_di_dofork = param_server.loadParam(
-        "downDiDoFork", type="str", default="", comment="下到位di，输入DI name", group="forkByDO")
-    up_di_dofork = param_server.loadParam(
-        "upDiDoFork", type="str", default="", comment="上到位di, 输入DI name", group="forkByDO")
-    leak_do = param_server.loadParam(
-        "leakDo", type="str", default="", comment="泵电机Do, 输入DO name", group="forkByDO")
-    pump_do = param_server.loadParam(
-        "pumpDo", type="str", default="", comment="泄流阀Do, 输入DO name", group="forkByDO")
+            # ===== 脚本相关 =====
+            with builder.GROUP(key="script", name="Script Settings", desc="脚本相关配置"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILD(key="timeout", name="Timeout", desc="脚本超时时间"):
+                    builder.TYPE(ParamType.FLOAT)
+                    builder.DEFAULTVALUE(120)
+                    builder.UNIT("s")
 
-    # 取放货相关配置
-    laser_detection_width = param_server.loadParam(
-        "laserDetectionWidth", type="float", default=0.05, maxValue=2, minValue=0,
-        comment="进叉时的激光宽度", group="load unload")
-    ahead_dist = param_server.loadParam(
-        "aheadDist", type="float", default=0.8, maxValue=2, minValue=0,
-        comment="识别取货的前置距离", group="load unload")  # 前置距离
-    min_ahead_dist = param_server.loadParam(
-        "minAheadDist", type="float", default=1, maxValue=2, minValue=0,
-        comment="识别取货的最小直线距离", group="load unload")  # 最小直线距离，叉车起效
-    use_straight_line = param_server.loadParam(
-        "useStraightLine", type="bool", default=False,
-        comment="识别取货的识别调整是否走直线曲线", group="load unload")  # 识别调整贝塞尔曲线
-    load_adjust_distance = param_server.loadParam(
-        "loadAdjustDistance", type="float", default=0.2, maxValue=2, minValue=-2, unit="m",
-        comment="识别取货触发货叉开关后不抬升前移一小段", group="load unload")
-    load_adjust_max_speed = param_server.loadParam(
-        "load Adjust Max Speed", type="float", default=0.5, unit="m/s",
-        comment="识别取货触发货叉开关后不抬升前移一小段的最大速度",
-        group="load unload")
-    bezier_return = param_server.loadParam("bezierReturn", type="bool", default=True, comment="是否按原路返回",
-                                           group="load unload")
-    fork_di_dist = param_server.loadParam(
-        "forkDiDist", type="float", default=0.2, maxValue=0.5, minValue=0, comment="盲插取货时到位后的后退距离",
-        group="load unload")
-    enable_contact_di_no_rec = param_server.loadParam(
-        "enableContactDiNoRec", type="bool", default=True, comment="盲叉取货是否启用到位di", group="load unload")
+            # ===== fork 相关 =====
+            with builder.GROUP(key="fork", name="Fork Settings", desc="货叉相关配置"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="upMaxSpeedWithGoods", name="Up Max Speed With Goods",
+                                       desc="载货时的货叉上升最大速度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.1)
+                        builder.UNIT("m/s")
+                    with builder.CHILD(key="downMaxSpeedWithGoods", name="Down Max Speed With Goods",
+                                       desc="载货时的货叉下降最大速度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=2)
+                        builder.UNIT("m/s")
+                    with builder.CHILD(key="backLaserEnableHeight", name="Back Laser Enable Height",
+                                       desc="后置激光避障生效时的货叉高度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.3, min_value=0, max_value=2)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="checkGoodsWhileLoad", name="Check Goods While Load",
+                                       desc="载货时检测到位 di"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(True)
+                    with builder.CHILD(key="checkAllContactDi", name="Check All Contact DI", desc="检测所有到位di"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
 
-    # 线性堆栈相关
-    laser_width = param_server.loadParam(
-        "laserWidth", type="float", default=0.1, maxValue=1, minValue=0,
-        comment="线性堆栈激光宽度", group="linear unload")  # 线性堆栈激光宽度
-    obs_dist = param_server.loadParam(
-        "obsDist", type="float", default=0.5, maxValue=1, minValue=0,
-        comment="线性堆栈的避障距离", group="linear unload")  # 线性堆栈的避障距离
-    load_obs_dist = param_server.loadParam(
-        "loadObsDist", type="float", default=0.1, maxValue=11, minValue=0,
-        comment="取货进叉时的避障距离", group="linear unload")  # 取货进叉时的避障距
+            # ===== DO 控 fork =====
+            with builder.GROUP(key="forkByDO", name="Fork By DO", desc="Do 控制货叉配置"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="downDelayTime", name="Down Delay Time", desc="下降到位判断时间"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(10, min_value=0.1, max_value=20)
+                        builder.UNIT("s")
+                    with builder.CHILD(key="upDelayTime", name="Up Delay Time", desc="上升到位判断时间"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(10, min_value=0.1, max_value=20)
+                        builder.UNIT("s")
+                    with builder.CHILD(key="downDiDoFork", name="Down DI DoFork", desc="下到位di，输入DI name"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("")
+                    with builder.CHILD(key="upDiDoFork", name="Up DI DoFork", desc="上到位di，输入DI name"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("")
+                    with builder.CHILD(key="leakDo", name="Leak DO", desc="泄流阀Do, 输入DO name"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("")
+                    with builder.CHILD(key="pumpDo", name="Pump DO", desc="泵电机Do, 输入DO name"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("")
 
-    # 检测货物有无相关
-    obs_area_min_height = param_server.loadParam(
-        "obsAreaMinHeight", type="float", default=0.0,
-        comment="rec检测区域为长方体，检测区域最低高度", group="Recognition")
-    obs_area_max_height = param_server.loadParam(
-        "obsAreaMaxHeight", type="float", default=0.0,
-        comment="检测区域为长方体，检测区域最高高度", group="Recognition")
-    obs_area_length = param_server.loadParam(
-        "obsAreaLength", type="float", default=0.0,
-        comment="检测区域为长方体，检测区域长度", group="Recognition")
-    obs_area_width = param_server.loadParam(
-        "obsAreaWidth", type="float", default=0.0,
-        comment="检测区域为长方体，检测区域宽度", group="Recognition")
-    deviceName = param_server.loadParam(
-        "deviceName", type="str", default="",
-        comment="检测设备名称", group="Recognition")
+            # ===== 取放货 =====
+            with builder.GROUP(key="loadUnload", name="Load & Unload", desc="取放货相关配置"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="laserDetectionWidth", name="Laser Detection Width",
+                                       desc="进叉时的激光宽度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.05, min_value=0, max_value=2)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="aheadDist", name="Ahead Dist", desc="识别取货的前置距离"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.8, min_value=0, max_value=2)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="minAheadDist", name="Min Ahead Dist", desc="识别取货的最小直线距离"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(1, min_value=0, max_value=2)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="useStraightLine", name="Use Straight Line", desc="识别调整是否走直线曲线"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="loadAdjustDistance", name="Load Adjust Distance",
+                                       desc="触发货叉开关后不抬升前移距离"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.2, min_value=-2, max_value=2)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="loadAdjustMaxSpeed", name="Load Adjust Max Speed", desc="前移段最大速度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.5)
+                        builder.UNIT("m/s")
+                    with builder.CHILD(key="bezierReturn", name="Bezier Return", desc="是否按原路返回"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(True)
+                    with builder.CHILD(key="forkDiDist", name="Fork DI Dist", desc="盲插到位后后退距离"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.2, min_value=0, max_value=0.5)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="enableContactDiNoRec", name="Enable Contact DI (No Rec)",
+                                       desc="盲叉取货是否启用到位di"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(True)
 
-    z_max = True
-    error_rec_y = param_server.loadParam(
-        "errorRecY", type="float", default=0.1, unit="m", comment="识别结果相对AP点报错的y方向偏移，-1不启用",
-        group="Recognition")
-    error_rec_angle = param_server.loadParam(
-        "errorRecAngle", type="float", default=15, unit="m", comment="识别别结果相对AP点报错的yaw方向偏移，-1不启用",
-        group="Recognition")
+            # ===== 线性堆栈 =====
+            with builder.GROUP(key="linearUnload", name="Linear Unload", desc="线性堆栈相关配置"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="laserWidth", name="Laser Width", desc="线性堆栈激光宽度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.1, min_value=0, max_value=1)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="obsDist", name="Obs Dist", desc="线性堆栈的避障距离"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.5, min_value=0, max_value=1)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="loadObsDist", name="Load Obs Dist", desc="取货进叉时的避障距离"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.1, min_value=0, max_value=11)
+                        builder.UNIT("m")
+
+            # ===== 识别区域 =====
+            with builder.GROUP(key="recognition", name="Recognition", desc="检测货物有无相关"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="obsAreaMinHeight", name="Obs Area Min Height", desc="检测区域最低高度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="obsAreaMaxHeight", name="Obs Area Max Height", desc="检测区域最高高度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="obsAreaLength", name="Obs Area Length", desc="检测区域长度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="obsAreaWidth", name="Obs Area Width", desc="检测区域宽度"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="deviceName", name="Device Name", desc="检测设备名称"):
+                        builder.TYPE(ParamType.STRING);
+                        builder.DEFAULTVALUE("")
+                    with builder.CHILD(key="errorRecY", name="Error Rec Y",
+                                       desc="识别结果相对AP点报错的y偏移，-1不启用"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.1)
+                        builder.UNIT("m")
+                    with builder.CHILD(key="errorRecAngle", name="Error Rec Angle",
+                                       desc="识别结果相对AP点报错的yaw偏移，-1不启用"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(15)
+                        builder.UNIT("°")
+
+        builder.save(merge=True)
+        cls.reload_config()
 
 
 ConfigParams.init()
@@ -402,7 +561,7 @@ class InputParams:
                             create_end_height_param(cls.builder, min_height, max_height)
 
                     # ForkHeight 操作
-                    with cls.builder.CHILD(key="forkHeight", name="Fork Height",
+                    with cls.builder.CHILD(key="height", name="Fork Height",
                                            desc="Lift the fork"):
                         cls.builder.TYPE(ParamType.ARRAY)
                         create_fork_height_param(cls.builder, min_height, max_height)
@@ -770,16 +929,25 @@ class Fork(ModuleBase):
 
         # 处理货叉里程数据
 
-        self.mileage_total_key = "fork_mileage"
-        self.mileage_up_key = "fork_mileage_up"
-        self.mileage_down_key = "fork_mileage_down"
+        self.mileage_total_key = "forkMileage"
+        self.mileage_up_key = "forkMileageUp"
+        self.mileage_down_key = "forkMileageDown"
+        self.key_today_total_mileage = "forkMileageToday"
+        self.key_today_up_mileage = "forkMileageUpToday"
+        self.key_today_down_mileage = "forkMileageDownToday"
+        self.key_today_date = "fork_mileage_today_date"
+
         self.total_dist = float(db.get(key=self.mileage_total_key) or 0)
         self.up_dist = float(db.get(self.mileage_up_key) or 0)
         self.down_dist = float(db.get(self.mileage_down_key) or 0)
+        self.today_total = float(db.get(self.key_today_total_mileage) or "0")
+        self.today_up = float(db.get(self.key_today_up_mileage) or "0")
+        self.today_down = float(db.get(self.key_today_down_mileage) or "0")
+
         self.last_saved_total = self.total_dist  # ← 记录上次保存值
         self.last_pos = None
         self.last_save_ts = time.time()
-        self.save_interval = 60  # 每60秒保存一次
+        self.save_interval = 5  # 写数据库时间
 
     def run(self, args):
         if Abnormal.exists(53320):
@@ -945,18 +1113,18 @@ class Fork(ModuleBase):
 
             # 不需要根据识别结果通过盲走插货
             if not self.recognize:
-                self.check_di = ConfigParams.enable_contact_di_no_rec
+                self.check_di = ConfigParams.enableContactDiNoRec
 
                 # if self.do_fork:
                 #     self.action_list = [
-                #         RunMotorByDOInterlock("down", ConfigParams.pump_do, ConfigParams.leak_do,
-                #                               ConfigParams.up_di_dofork, ConfigParams.down_di_dofork,
-                #                               ConfigParams.up_delay_time, ConfigParams.down_delay_time),
+                #         RunMotorByDOInterlock("down", ConfigParams.pumpDo, ConfigParams.leakDo,
+                #                               ConfigParams.upDiDoFork, ConfigParams.downDiDoFork,
+                #                               ConfigParams.upDelayTime, ConfigParams.downDelayTime),
                 #         GoPathWithContactDi(ConfigParams.contact_ids_str, self.target_pos, None, "goPath",
-                #                             {"fork_di_dist": ConfigParams.fork_di_dist}, self.check_di),
-                #         RunMotorByDOInterlock("up", ConfigParams.pump_do, ConfigParams.leak_do,
-                #                               ConfigParams.up_di_dofork, ConfigParams.down_di_dofork,
-                #                               ConfigParams.up_delay_time, ConfigParams.down_delay_time),
+                #                             {"fork_di_dist": ConfigParams.forkDiDist}, self.check_di),
+                #         RunMotorByDOInterlock("up", ConfigParams.pumpDo, ConfigParams.leakDo,
+                #                               ConfigParams.upDiDoFork, ConfigParams.downDiDoFork,
+                #                               ConfigParams.upDelayTime, ConfigParams.downDelayTime),
                 #     ]
                 # else:
                 if not self.target_pos or self.target_pos[3] == -1:
@@ -967,7 +1135,7 @@ class Fork(ModuleBase):
                     self.action_list = [
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                         GoPathWithContactDi(ConfigParams.contact_ids_str, self.target_pos, 0.05, "goPath",
-                                            {"fork_di_dist": ConfigParams.fork_di_dist}, self.check_di),
+                                            {"fork_di_dist": ConfigParams.forkDiDist}, self.check_di),
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                     ]
 
@@ -1003,9 +1171,9 @@ class Fork(ModuleBase):
 
                 if self.do_fork:
                     self.action_list = [
-                        RunMotorByDOInterlock("down", ConfigParams.pump_do, ConfigParams.leak_do,
-                                              ConfigParams.up_di_dofork, ConfigParams.down_di_dofork,
-                                              ConfigParams.up_delay_time, ConfigParams.down_delay_time),
+                        RunMotorByDOInterlock("down", ConfigParams.pumpDo, ConfigParams.leakDo,
+                                              ConfigParams.upDiDoFork, ConfigParams.downDiDoFork,
+                                              ConfigParams.upDelayTime, ConfigParams.downDelayTime),
                     ]
                 else:
                     self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)]
@@ -1056,11 +1224,11 @@ class Fork(ModuleBase):
                     Trace.log(
                         f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}")
                     y = rec2ap_pos[1]
-                    if abs(angle) > ConfigParams.error_rec_angle != -1:
+                    if abs(angle) > ConfigParams.errorRecAngle != -1:
                         Abnormal.setTask(53303, f"rec result yaw angle too large:{angle}°", "", "", "")
                         self.script_status = ScriptStatus.FAILED
                         return
-                    if abs(y) > ConfigParams.error_rec_y != -1:
+                    if abs(y) > ConfigParams.errorRecY != -1:
                         Abnormal.setTask(53321, f"rec result y too large:{y}m", "", "", "")
                         self.script_status = ScriptStatus.FAILED
                         return
@@ -1083,10 +1251,10 @@ class Fork(ModuleBase):
                 # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                 args = {
                     "back_dist": self.back_dist,
-                    "min_ahead_dist": ConfigParams.min_ahead_dist,
-                    "adjust_dist": ConfigParams.ahead_dist,
+                    "min_ahead_dist": ConfigParams.minAheadDist,
+                    "adjust_dist": ConfigParams.aheadDist,
                 }
-                if ConfigParams.use_straight_line:
+                if ConfigParams.useStraightLine:
                     method = "twoStraightLine"
                     args["max_angle"] = 20
                 else:
@@ -1142,11 +1310,11 @@ class Fork(ModuleBase):
                 'maxSpeed': 0.2,
                 'useOdo': 0
             }
-            if ConfigParams.bezier_return and not ConfigParams.use_straight_line:
+            if ConfigParams.bezierReturn and not ConfigParams.useStraightLine:
                 self.action_list = [
                     GoBezier.GoBezierWorldReturn(False)
                 ]
-            elif ConfigParams.bezier_return and ConfigParams.use_straight_line:
+            elif ConfigParams.bezierReturn and ConfigParams.useStraightLine:
                 self.action_list = [
                     GoTwoStraightLine(0, 0, 0, 0, 0, 0, 0, True)
                 ]
@@ -1156,9 +1324,9 @@ class Fork(ModuleBase):
                 ]
             if self.do_fork:
                 self.action_list.append(
-                    RunMotorByDOInterlock("down", ConfigParams.pump_do, ConfigParams.leak_do,
-                                          ConfigParams.up_di_dofork, ConfigParams.down_di_dofork,
-                                          ConfigParams.up_delay_time, ConfigParams.down_delay_time))
+                    RunMotorByDOInterlock("down", ConfigParams.pumpDo, ConfigParams.leakDo,
+                                          ConfigParams.upDiDoFork, ConfigParams.downDiDoFork,
+                                          ConfigParams.upDelayTime, ConfigParams.downDelayTime))
             else:
                 self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height))
 
@@ -1262,7 +1430,7 @@ class Fork(ModuleBase):
         self.start_height = self.task_args.get("startHeight", 0.09)
         self.end_height = self.task_args.get("endHeight", 0.2)
         self.recognize = self.task_args.get("recognize")
-        self.forkHeight = self.task_args.get("forkHeight")
+        self.forkHeight = self.task_args.get("height")
         self.forkSpeed = self.task_args.get("forkSpeed", ConfigParams.fork_max_speed)
         self.recSide = self.task_args.get("recSide")
 
@@ -1310,11 +1478,14 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
 
     def save_mileage(self):
+        db_total = float(db.get(self.mileage_total_key) or "0")
+        if db_total ==0:
+            self.total_dist = 0.0
+            self.up_dist = 0.0
+            self.down_dist = 0.0
         if self.total_dist != self.last_saved_total:
             db.puts({
-                self.mileage_total_key: str(self.total_dist),
-                self.mileage_up_key: str(self.up_dist),
-                self.mileage_down_key: str(self.down_dist),
+                self.mileage_total_key: str(self.total_dist)
             })
             self.last_saved_total = self.total_dist
 
@@ -1323,13 +1494,13 @@ class Fork(ModuleBase):
         self.trace_chart.update({
             "forkHeight": fork_height,  # 货叉高度, 单位 m
             "forkHeightInPlace": self.fork_height_in_place,  # 货叉高度是否到位, true = 到位, false = 未到位
-            "forkAutoFlag": not Controller.get_is_external_control(),
-            "forkMileage": self.total_dist
+            "forkAutoFlag": not Controller.get_is_external_control()
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.report_info(self.trace_chart)
         Trace.chart(self.trace_chart)
 
+        # 根据变动量记录货叉的里程数据
         if self.last_pos is not None:
             delta = fork_height - self.last_pos
             if delta > ConfigParams.reach_up_dist:
@@ -1364,7 +1535,7 @@ class Fork(ModuleBase):
 
             # 堆高车处理后激光的屏蔽
             if Loc.get_loc_state() == 1:
-                if fork_height <= ConfigParams.back_laser_enable_height and not self.set_fork_region_by_height:
+                if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
                     self.set_fork_region_by_height = True
                     self.clear_fork_region_by_height = False
                     Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
@@ -1375,7 +1546,7 @@ class Fork(ModuleBase):
                                               [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
                     print(f"set clear region")
 
-                elif fork_height > ConfigParams.back_laser_enable_height and not self.clear_fork_region_by_height:
+                elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
                     self.clear_fork_region_by_height = True
                     self.set_fork_region_by_height = False
                     Navigation.deleteClearRegion(self.name_left, Coordinate.ROBOT)
@@ -1384,7 +1555,7 @@ class Fork(ModuleBase):
             # 有货还得处理栈板的屏蔽
             if Navigation.hasGoods():
                 recfile = Navigation.getGoodsName()
-                if fork_height <= ConfigParams.back_laser_enable_height and not self.set_pallet_region_by_height:
+                if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_pallet_region_by_height:
                     self.set_pallet_region_by_height = True
                     self.clear_pallet_region_by_height = False
                     if recfile is None or recfile == "":
@@ -1402,7 +1573,7 @@ class Fork(ModuleBase):
                         # 理论上栈板中心和机构中心重叠，转到机器人坐标系下
                         set_deduct_area(pallet_deduct, [ConfigParams.module_x, 0, 0], "PalletRobotRegionByHeight",
                                         Coordinate.ROBOT)
-                elif fork_height > ConfigParams.back_laser_enable_height and not self.clear_pallet_region_by_height:
+                elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_pallet_region_by_height:
                     self.clear_pallet_region_by_height = True
                     self.set_pallet_region_by_height = False
                     if recfile is None or recfile == "":
@@ -1413,7 +1584,7 @@ class Fork(ModuleBase):
                         delete_deduct_area("PalletRobotRegionByHeight", Coordinate.ROBOT)
 
         # 处理载货时di状态监控
-        if Navigation.hasGoods() and ConfigParams.check_goods_while_load and ConfigParams.check_all_contact_dis:
+        if Navigation.hasGoods() and ConfigParams.checkGoodsWhileLoad and ConfigParams.checkAllContactDis:
             # 获取到位 di 的状态
             di_status = []
             contact_ids_str = RobotParam.getDevice("Model-000", f"moduleType.straddleLiftFork.id").split(",")
@@ -1421,7 +1592,7 @@ class Fork(ModuleBase):
                 di_status.append(Di.get_di(di))
 
             # 根据是否检测所有到位di 决定错误状态
-            if ConfigParams.check_all_contact_dis:
+            if ConfigParams.checkAllContactDis:
                 missing_goods = not all(di_status)
             else:
                 missing_goods = not any(di_status)
@@ -1442,11 +1613,11 @@ class Fork(ModuleBase):
             missing_params = []
             if ConfigParams.down_di is None:
                 missing_params.append("down_di_dofork")
-            if ConfigParams.up_di_dofork is None:
+            if ConfigParams.upDiDoFork is None:
                 missing_params.append("up_di_dofork")
-            if ConfigParams.leak_do is None:
+            if ConfigParams.leakDo is None:
                 missing_params.append("leak_do")
-            if ConfigParams.pump_do is None:
+            if ConfigParams.pumpDo is None:
                 missing_params.append("pump_do")
 
             # 输出为空的参数，或者返回 True
@@ -1500,7 +1671,7 @@ class BaseAction:
 #             self.action_status = ActionStatus.RUNNING
 #             Navigation.resetGoForkPath(self.goal[0], self.goal[1], self.goal[2], self.back_dist,
 #                                        self.min_ahead_dist, self.ahead_dist)
-#             if ConfigParams.use_straight_line:
+#             if ConfigParams.useStraightLine:
 #                 Navigation.goForkUseStraightLine()  # 走折线
 #         Navigation.setObsStopDist(self.obs_dist)  # 设置避障距离
 #         self.action_status = Navigation.goForkPath()
@@ -1592,7 +1763,7 @@ class GoPathWithContactDi(BaseAction):
         super().__init__()
         self.di_filter_time = 1
         self.check_di = check_di
-        self.check_all_contact_di = ConfigParams.check_all_contact_dis
+        self.check_all_contact_di = ConfigParams.checkAllContactDis
         self.laser_id = []
         self.laser_width = None
         self.walk_dist = None
@@ -1782,12 +1953,12 @@ class LocDetectGoods(BaseAction):
                     self.action_status = ActionStatus.FAILED
                 else:
                     Recognize.recTargetObs(ConfigParams.deviceName, self.target[0], self.target[1], self.target[2],
-                                           ConfigParams.obs_area_min_height, ConfigParams.obs_area_max_height,
-                                           ConfigParams.obs_area_length, ConfigParams.obs_area_width)
+                                           ConfigParams.obsAreaMinHeight, ConfigParams.obsAreaMaxHeight,
+                                           ConfigParams.obsAreaLength, ConfigParams.obsAreaWidth)
             elif self.rec_status == 0 or self.rec_status == 1:
                 Recognize.recTargetObs(ConfigParams.deviceName, self.target[0], self.target[1], self.target[2],
-                                       ConfigParams.obs_area_min_height, ConfigParams.obs_area_max_height,
-                                       ConfigParams.obs_area_length, ConfigParams.obs_area_width)
+                                       ConfigParams.obsAreaMinHeight, ConfigParams.obsAreaMaxHeight,
+                                       ConfigParams.obsAreaLength, ConfigParams.obsAreaWidth)
                 self.action_status = ActionStatus.RUNNING
             elif self.rec_status == 2:
                 self.detect_result = Recognize.getRecResults()
@@ -1883,9 +2054,9 @@ class RunMotorByPosition(BaseAction):
                 else:
                     # 上/下行分别套上限
                     if delta > 0:
-                        max_speed = min(max_speed, ConfigParams.up_max_speed_with_goods)
+                        max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
                     else:
-                        max_speed = min(max_speed, ConfigParams.down_max_speed_with_goods)
+                        max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
 
             self.max_speed = max_speed
             # self.max_speed = -0.15
@@ -2328,6 +2499,8 @@ def main():
 
     RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
     RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
+    ScriptParam.setConfigChangeCallBack(_script_config_callback)
+
 
     while True:
         if f.event_safe_move_check:
