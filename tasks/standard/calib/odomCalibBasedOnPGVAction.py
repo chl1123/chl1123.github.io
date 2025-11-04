@@ -57,13 +57,12 @@ log = Logger("odomCalibBasedOnPGVAction")
 class MoveAction(IntEnum):
     CalibShortBackward = 0
     CalibShortForward = 1
-    CalibShortBackward2 = 2
-    InitcallGo2QRCenter = 3
-    ShortBackward = 4
-    Forward = 5
-    Backward = 6
-    RotLeftInPlace = 7
-    ActionEnd = 8
+    InitcallGo2QRCenter = 2
+    ShortBackward = 3
+    Forward = 4
+    Backward = 5
+    RotLeftInPlace = 6
+    ActionEnd = 7
 
 class CalibMove:
 
@@ -103,15 +102,13 @@ class CalibMove:
 
         # 实时运行
         if self.move_action == MoveAction.CalibShortBackward:
-            self.status = Navigation.runOdoMove({"moveDist": self.short_move_dist,  "speedX":-self.speed_x, "actionName":"short_move_dist"})
+            self.status = Navigation.runOdoMove({"moveDist": 0.05,  "speedX":-self.speed_x, "actionName":"short_move_dist"})
         elif self.move_action == MoveAction.CalibShortForward:
-            self.status = Navigation.runOdoMove({"moveDist": 2.0 * self.short_move_dist,  "speedX":self.speed_x, "actionName":"short_move_dist"})
+            self.status = Navigation.runOdoMove({"moveDist": 0.05,  "speedX":self.speed_x, "actionName":"short_move_dist"})
             pgv_data = CodeScanner.get_code_scanners()
             for pgv in pgv_data:
                 if pgv.isDMTDetected and pgv.codeScannerInfo.isUpside == False:
                     self.pgv_datas.append(pgv)
-        elif self.move_action == MoveAction.CalibShortBackward2:
-            self.status = Navigation.runOdoMove({"moveDist": self.short_move_dist,  "speedX":-self.speed_x, "actionName":"short_move_dist"})
         elif self.move_action == MoveAction.InitcallGo2QRCenter:
             if not self.has_cp_yaw:
                 self.calCpYaw()
