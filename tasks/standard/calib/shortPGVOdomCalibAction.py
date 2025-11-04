@@ -124,6 +124,7 @@ class CalibMove:
             self.status = Navigation.runOdoMove({"moveDist": self.move_dist - self.short_move_dist,  "speedX":-self.speed_x, "actionName":"Backward"})
         elif self.move_action == MoveAction.CallGo2QRCenter:
             if not self.has_cp_yaw:
+                self.has_cp_yaw = True
                 self.calCpYaw()
             if self.upside:
                 self.status = Navigation.goPGVRun({"R2AUP":True, "actionName":"callGo2QRCenter", "pgvReachDist":0.01, "pgvCpYaw":self.cp_yaw})

@@ -111,6 +111,7 @@ class CalibMove:
                     self.pgv_datas.append(pgv)
         elif self.move_action == MoveAction.InitcallGo2QRCenter:
             if not self.has_cp_yaw:
+                self.has_cp_yaw = True
                 self.calCpYaw()
             self.status = Navigation.goPGVRun({"R2ADP":True, "actionName":"callGo2QRCenter", "pgvReachDist":0.01, "pgvCpYaw":self.cp_yaw})
         elif self.move_action == MoveAction.ShortBackward:
