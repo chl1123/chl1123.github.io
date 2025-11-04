@@ -140,6 +140,8 @@ class Module:
                 cls.__init_task_args()
         if cls.script_name.startswith("tasks/"):
             cls.__register()
+        if RBK_VERSION == 3:
+            Service.server().start()
 
     # 获取脚本启动参数
     @classmethod

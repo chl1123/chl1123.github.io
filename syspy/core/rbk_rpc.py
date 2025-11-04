@@ -127,7 +127,6 @@ class Service:
         if RBK_VERSION == 3:
             cls._client = V3RpcClient(script_id, script_type)
             cls._server = V3RpcServer(script_id, script_type)
-            cls._server.start()
         elif RBK_VERSION == 4:
             from syspy.v4.lib.rbk import core
             core.Init(script_id)
