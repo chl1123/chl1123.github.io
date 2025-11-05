@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0e\x43\x61nFrame.proto\"\xad\x01\n\x08\x43\x61nFrame\x12\n\n\x02ID\x18\x01 \x01(\r\x12\x10\n\x08\x65xtended\x18\x02 \x01(\x08\x12\x0e\n\x06remote\x18\x03 \x01(\x08\x12\x0b\n\x03\x44LC\x18\x04 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x05 \x01(\x0c\x12\x0f\n\x07\x63hannel\x18\x06 \x01(\r\x12\x11\n\ttimestamp\x18\x07 \x01(\r\x12\x11\n\tdirection\x18\x08 \x01(\x08\x12!\n\x08\x63\x61nError\x18\t \x03(\x0b\x32\x0f.CanErrorRecord\"7\n\x0e\x43\x61nErrorRecord\x12\x11\n\terrortype\x18\x01 \x01(\r\x12\x12\n\nerrorcount\x18\x02 \x01(\r*\x1b\n\tDIRE_ENUM\x12\x06\n\x02RX\x10\x00\x12\x06\n\x02TX\x10\x01*\x88\x01\n\nERROR_TYPE\x12\x0f\n\x0bSTUFF_ERROR\x10\x00\x12\x0e\n\nFORM_ERROR\x10\x01\x12\x19\n\x15\x41\x43KNOWLEDGEMENT_ERROR\x10\x02\x12\x17\n\x13\x42IT_RECESSIVE_ERROR\x10\x03\x12\x16\n\x12\x42IT_DOMINANT_ERROR\x10\x04\x12\r\n\tCRC_ERROR\x10\x05\x62\x06proto3')
+  serialized_pb=_b('\n\x0e\x43\x61nFrame.proto\"\xad\x01\n\x08\x43\x61nFrame\x12\n\n\x02id\x18\x01 \x01(\r\x12\x10\n\x08\x65xtended\x18\x02 \x01(\x08\x12\x0e\n\x06remote\x18\x03 \x01(\x08\x12\x0b\n\x03\x64lc\x18\x04 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x05 \x01(\x0c\x12\x0f\n\x07\x63hannel\x18\x06 \x01(\r\x12\x11\n\ttimestamp\x18\x07 \x01(\r\x12\x11\n\tdirection\x18\x08 \x01(\x08\x12!\n\x08\x63\x61nError\x18\t \x03(\x0b\x32\x0f.CanErrorRecord\"7\n\x0e\x43\x61nErrorRecord\x12\x11\n\terrortype\x18\x01 \x01(\r\x12\x12\n\nerrorcount\x18\x02 \x01(\r*\x1b\n\tDIRE_ENUM\x12\x06\n\x02RX\x10\x00\x12\x06\n\x02TX\x10\x01*\x88\x01\n\nERROR_TYPE\x12\x0f\n\x0bSTUFF_ERROR\x10\x00\x12\x0e\n\nFORM_ERROR\x10\x01\x12\x19\n\x15\x41\x43KNOWLEDGEMENT_ERROR\x10\x02\x12\x17\n\x13\x42IT_RECESSIVE_ERROR\x10\x03\x12\x16\n\x12\x42IT_DOMINANT_ERROR\x10\x04\x12\r\n\tCRC_ERROR\x10\x05\x62\x06proto3')
 )
 
 _DIRE_ENUM = _descriptor.EnumDescriptor(
@@ -104,7 +104,7 @@ _CANFRAME = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='ID', full_name='CanFrame.ID', index=0,
+      name='id', full_name='CanFrame.id', index=0,
       number=1, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -125,7 +125,7 @@ _CANFRAME = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='DLC', full_name='CanFrame.DLC', index=3,
+      name='dlc', full_name='CanFrame.dlc', index=3,
       number=4, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,

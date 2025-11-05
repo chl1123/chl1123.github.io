@@ -26,7 +26,7 @@ class CodeScannerInterface(ABC, Message):
         from syspy import CodeScanner
         code_scanners = CodeScanner.get_code_scanners()
         for code_scanner in code_scanners:  # code_scanner为msgCodeScannerDMT的对象
-            print(code_scanner.codeScannerInfo.codeScannerName)
+            print(code_scanner.codeScannerInfo.name)
             print(code_scanner.tagValue)
         ```
         """

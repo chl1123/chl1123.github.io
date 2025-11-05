@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x18message_navigation.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\x1f\n\x0cmsgNavStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\"\x98\x03\n\x0bmsgMotorCmd\x12\x11\n\tmotorName\x18\x01 \x01(\t\x12\x11\n\tcanRouter\x18\x02 \x01(\r\x12\r\n\x05\x63\x61nId\x18\x03 \x01(\r\x12\r\n\x05value\x18\x04 \x01(\x01\x12,\n\x05ioCmd\x18\x05 \x01(\x0e\x32\x1d.rbk.protocol.msgMotorCmd.cmd\x12\x31\n\x04type\x18\x06 \x01(\x0e\x32#.rbk.protocol.msgMotorCmd.motorType\x12\x31\n\x08moveType\x18\x07 \x01(\x0e\x32\x1f.rbk.protocol.msgMotorCmd.mType\"L\n\tmotorType\x12\x08\n\x04walk\x10\x00\x12\t\n\x05steer\x10\x01\x12\x08\n\x04spin\x10\x02\x12\n\n\x06linear\x10\x03\x12\x0c\n\x08rotation\x10\x04\x12\x06\n\x02\x64o\x10\x05\"<\n\x03\x63md\x12\x0b\n\x07\x63mdNone\x10\x00\x12\x0e\n\ntoPositive\x10\x01\x12\x0e\n\ntoNegative\x10\x02\x12\x08\n\x04stop\x10\x03\"%\n\x05mType\x12\n\n\x06normal\x10\x00\x12\x07\n\x03\x61\x63\x63\x10\x01\x12\x07\n\x03\x64\x65\x63\x10\x02\"\x9b\x01\n\x0bmsgNavSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12\'\n\x06header\x18\x04 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12+\n\x08motorCmd\x18\x05 \x03(\x0b\x32\x19.rbk.protocol.msgMotorCmd\x12\x10\n\x08isToMove\x18\x06 \x01(\x08\"K\n\x0emsgManualSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12\x13\n\x0bsteerAngles\x18\x04 \x03(\x01\"1\n\nmsgNavPose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"+\n\x0emsgNavTopoPose\x12\n\n\x02id\x18\x01 \x01(\x05\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"o\n\x0bmsgNavState\x12&\n\x04pose\x18\x01 \x01(\x0b\x32\x18.rbk.protocol.msgNavPose\x12(\n\x05speed\x18\x02 \x01(\x0b\x32\x19.rbk.protocol.msgNavSpeed\x12\x0e\n\x06radius\x18\x03 \x01(\x01\"I\n\nmsgNavPath\x12)\n\x06states\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgNavState\x12\x10\n\x08\x66indPath\x18\x02 \x01(\x08\":\n\x0fmsgMultiNavPath\x12\'\n\x05paths\x18\x01 \x03(\x0b\x32\x18.rbk.protocol.msgNavPath\"\x8f\x01\n\x0cmsgNavTarget\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\x12\x0f\n\x07runMode\x18\x04 \x01(\x05\x12\x14\n\x0ctopoTargetId\x18\x05 \x01(\x05\"3\n\x04mode\x12\x0c\n\x08nullMode\x10\x00\x12\x0f\n\x0b\x66orwardMode\x10\x01\x12\x0c\n\x08\x62\x61\x63kMode\x10\x02\"\xc5\x03\n\nmsgNavInfo\x12.\n\x07navMode\x18\x01 \x01(\x0e\x32\x1d.rbk.protocol.msgNavInfo.mode\x12,\n\x06navCmd\x18\x02 \x01(\x0e\x32\x1c.rbk.protocol.msgNavInfo.cmd\x12\x12\n\nnavTargetX\x18\x03 \x01(\x01\x12\x12\n\nnavTargetY\x18\x04 \x01(\x01\x12\x16\n\x0enavTargetTheta\x18\x05 \x01(\x01\x12\x15\n\rnavTargetMode\x18\x06 \x01(\x01\x12\x11\n\tnavSpeedX\x18\x07 \x01(\x01\x12\x11\n\tnavSpeedY\x18\x08 \x01(\x01\x12\x11\n\tnavSpeedW\x18\t \x01(\x01\x12\x14\n\x0ctopoTargetId\x18\n \x01(\x05\"\\\n\x04mode\x12\x0f\n\x0bnullNavMode\x10\x00\x12\x17\n\x13taskTargetReachMode\x10\x01\x12\x14\n\x10speedControlMode\x10\x02\x12\x14\n\x10topoPosReachMode\x10\x03\"U\n\x03\x63md\x12\x0e\n\nnullNavCmd\x10\x00\x12\x0e\n\ntaskCancel\x10\x01\x12\x0f\n\x0btaskSuspend\x10\x02\x12\x0e\n\ntaskResume\x10\x03\x12\r\n\ttaskBegin\x10\x04\x62\x06proto3')
+  serialized_pb=_b('\n\x18message_navigation.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\x1f\n\x0cmsgNavStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\"\x93\x03\n\x0bmsgMotorCmd\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x11\n\tcanRouter\x18\x02 \x01(\r\x12\r\n\x05\x63\x61nId\x18\x03 \x01(\r\x12\r\n\x05value\x18\x04 \x01(\x01\x12,\n\x05ioCmd\x18\x05 \x01(\x0e\x32\x1d.rbk.protocol.msgMotorCmd.cmd\x12\x31\n\x04type\x18\x06 \x01(\x0e\x32#.rbk.protocol.msgMotorCmd.motorType\x12\x31\n\x08moveType\x18\x07 \x01(\x0e\x32\x1f.rbk.protocol.msgMotorCmd.mType\"L\n\tmotorType\x12\x08\n\x04walk\x10\x00\x12\t\n\x05steer\x10\x01\x12\x08\n\x04spin\x10\x02\x12\n\n\x06linear\x10\x03\x12\x0c\n\x08rotation\x10\x04\x12\x06\n\x02\x64o\x10\x05\"<\n\x03\x63md\x12\x0b\n\x07\x63mdNone\x10\x00\x12\x0e\n\ntoPositive\x10\x01\x12\x0e\n\ntoNegative\x10\x02\x12\x08\n\x04stop\x10\x03\"%\n\x05mType\x12\n\n\x06normal\x10\x00\x12\x07\n\x03\x61\x63\x63\x10\x01\x12\x07\n\x03\x64\x65\x63\x10\x02\"\x9b\x01\n\x0bmsgNavSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12\'\n\x06header\x18\x04 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12+\n\x08motorCmd\x18\x05 \x03(\x0b\x32\x19.rbk.protocol.msgMotorCmd\x12\x10\n\x08isToMove\x18\x06 \x01(\x08\"K\n\x0emsgManualSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12\x13\n\x0bsteerAngles\x18\x04 \x03(\x01\"1\n\nmsgNavPose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"+\n\x0emsgNavTopoPose\x12\n\n\x02id\x18\x01 \x01(\x05\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"o\n\x0bmsgNavState\x12&\n\x04pose\x18\x01 \x01(\x0b\x32\x18.rbk.protocol.msgNavPose\x12(\n\x05speed\x18\x02 \x01(\x0b\x32\x19.rbk.protocol.msgNavSpeed\x12\x0e\n\x06radius\x18\x03 \x01(\x01\"I\n\nmsgNavPath\x12)\n\x06states\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgNavState\x12\x10\n\x08\x66indPath\x18\x02 \x01(\x08\":\n\x0fmsgMultiNavPath\x12\'\n\x05paths\x18\x01 \x03(\x0b\x32\x18.rbk.protocol.msgNavPath\"\x8f\x01\n\x0cmsgNavTarget\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\x12\x0f\n\x07runMode\x18\x04 \x01(\x05\x12\x14\n\x0ctopoTargetId\x18\x05 \x01(\x05\"3\n\x04mode\x12\x0c\n\x08nullMode\x10\x00\x12\x0f\n\x0b\x66orwardMode\x10\x01\x12\x0c\n\x08\x62\x61\x63kMode\x10\x02\"\xc5\x03\n\nmsgNavInfo\x12.\n\x07navMode\x18\x01 \x01(\x0e\x32\x1d.rbk.protocol.msgNavInfo.mode\x12,\n\x06navCmd\x18\x02 \x01(\x0e\x32\x1c.rbk.protocol.msgNavInfo.cmd\x12\x12\n\nnavTargetX\x18\x03 \x01(\x01\x12\x12\n\nnavTargetY\x18\x04 \x01(\x01\x12\x16\n\x0enavTargetTheta\x18\x05 \x01(\x01\x12\x15\n\rnavTargetMode\x18\x06 \x01(\x01\x12\x11\n\tnavSpeedX\x18\x07 \x01(\x01\x12\x11\n\tnavSpeedY\x18\x08 \x01(\x01\x12\x11\n\tnavSpeedW\x18\t \x01(\x01\x12\x14\n\x0ctopoTargetId\x18\n \x01(\x05\"\\\n\x04mode\x12\x0f\n\x0bnullNavMode\x10\x00\x12\x17\n\x13taskTargetReachMode\x10\x01\x12\x14\n\x10speedControlMode\x10\x02\x12\x14\n\x10topoPosReachMode\x10\x03\"U\n\x03\x63md\x12\x0e\n\nnullNavCmd\x10\x00\x12\x0e\n\ntaskCancel\x10\x01\x12\x0f\n\x0btaskSuspend\x10\x02\x12\x0e\n\ntaskResume\x10\x03\x12\r\n\ttaskBegin\x10\x04\x62\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
@@ -59,8 +59,8 @@ _MSGMOTORCMD_MOTORTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=329,
-  serialized_end=405,
+  serialized_start=324,
+  serialized_end=400,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOTORCMD_MOTORTYPE)
 
@@ -89,8 +89,8 @@ _MSGMOTORCMD_CMD = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=407,
-  serialized_end=467,
+  serialized_start=402,
+  serialized_end=462,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOTORCMD_CMD)
 
@@ -115,8 +115,8 @@ _MSGMOTORCMD_MTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=469,
-  serialized_end=506,
+  serialized_start=464,
+  serialized_end=501,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOTORCMD_MTYPE)
 
@@ -141,8 +141,8 @@ _MSGNAVTARGET_MODE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1180,
-  serialized_end=1231,
+  serialized_start=1175,
+  serialized_end=1226,
 )
 _sym_db.RegisterEnumDescriptor(_MSGNAVTARGET_MODE)
 
@@ -171,8 +171,8 @@ _MSGNAVINFO_MODE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1508,
-  serialized_end=1600,
+  serialized_start=1503,
+  serialized_end=1595,
 )
 _sym_db.RegisterEnumDescriptor(_MSGNAVINFO_MODE)
 
@@ -205,8 +205,8 @@ _MSGNAVINFO_CMD = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1602,
-  serialized_end=1687,
+  serialized_start=1597,
+  serialized_end=1682,
 )
 _sym_db.RegisterEnumDescriptor(_MSGNAVINFO_CMD)
 
@@ -250,7 +250,7 @@ _MSGMOTORCMD = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='motorName', full_name='rbk.protocol.msgMotorCmd.motorName', index=0,
+      name='name', full_name='rbk.protocol.msgMotorCmd.name', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -314,7 +314,7 @@ _MSGMOTORCMD = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=98,
-  serialized_end=506,
+  serialized_end=501,
 )
 
 
@@ -379,8 +379,8 @@ _MSGNAVSPEED = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=509,
-  serialized_end=664,
+  serialized_start=504,
+  serialized_end=659,
 )
 
 
@@ -431,8 +431,8 @@ _MSGMANUALSPEED = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=666,
-  serialized_end=741,
+  serialized_start=661,
+  serialized_end=736,
 )
 
 
@@ -476,8 +476,8 @@ _MSGNAVPOSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=743,
-  serialized_end=792,
+  serialized_start=738,
+  serialized_end=787,
 )
 
 
@@ -514,8 +514,8 @@ _MSGNAVTOPOPOSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=794,
-  serialized_end=837,
+  serialized_start=789,
+  serialized_end=832,
 )
 
 
@@ -559,8 +559,8 @@ _MSGNAVSTATE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=839,
-  serialized_end=950,
+  serialized_start=834,
+  serialized_end=945,
 )
 
 
@@ -597,8 +597,8 @@ _MSGNAVPATH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=952,
-  serialized_end=1025,
+  serialized_start=947,
+  serialized_end=1020,
 )
 
 
@@ -628,8 +628,8 @@ _MSGMULTINAVPATH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1027,
-  serialized_end=1085,
+  serialized_start=1022,
+  serialized_end=1080,
 )
 
 
@@ -688,8 +688,8 @@ _MSGNAVTARGET = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1088,
-  serialized_end=1231,
+  serialized_start=1083,
+  serialized_end=1226,
 )
 
 
@@ -784,8 +784,8 @@ _MSGNAVINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1234,
-  serialized_end=1687,
+  serialized_start=1229,
+  serialized_end=1682,
 )
 
 _MSGMOTORCMD.fields_by_name['ioCmd'].enum_type = _MSGMOTORCMD_CMD

@@ -20,7 +20,7 @@ class msgManualSpeed(_message.Message):
     def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., rotate: Optional[float] = ..., steerAngles: Optional[Iterable[float]] = ...) -> None: ...
 
 class msgMotorCmd(_message.Message):
-    __slots__ = ["canId", "canRouter", "ioCmd", "motorName", "moveType", "type", "value"]
+    __slots__ = ["canId", "canRouter", "ioCmd", "moveType", "name", "type", "value"]
     class cmd(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     class mType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -30,8 +30,8 @@ class msgMotorCmd(_message.Message):
     CANID_FIELD_NUMBER: ClassVar[int]
     CANROUTER_FIELD_NUMBER: ClassVar[int]
     IOCMD_FIELD_NUMBER: ClassVar[int]
-    MOTORNAME_FIELD_NUMBER: ClassVar[int]
     MOVETYPE_FIELD_NUMBER: ClassVar[int]
+    NAME_FIELD_NUMBER: ClassVar[int]
     TYPE_FIELD_NUMBER: ClassVar[int]
     VALUE_FIELD_NUMBER: ClassVar[int]
     acc: msgMotorCmd.mType
@@ -42,8 +42,8 @@ class msgMotorCmd(_message.Message):
     do: msgMotorCmd.motorType
     ioCmd: msgMotorCmd.cmd
     linear: msgMotorCmd.motorType
-    motorName: str
     moveType: msgMotorCmd.mType
+    name: str
     normal: msgMotorCmd.mType
     rotation: msgMotorCmd.motorType
     spin: msgMotorCmd.motorType
@@ -54,7 +54,7 @@ class msgMotorCmd(_message.Message):
     type: msgMotorCmd.motorType
     value: float
     walk: msgMotorCmd.motorType
-    def __init__(self, motorName: Optional[str] = ..., canRouter: Optional[int] = ..., canId: Optional[int] = ..., value: Optional[float] = ..., ioCmd: Optional[Union[msgMotorCmd.cmd, str]] = ..., type: Optional[Union[msgMotorCmd.motorType, str]] = ..., moveType: Optional[Union[msgMotorCmd.mType, str]] = ...) -> None: ...
+    def __init__(self, name: Optional[str] = ..., canRouter: Optional[int] = ..., canId: Optional[int] = ..., value: Optional[float] = ..., ioCmd: Optional[Union[msgMotorCmd.cmd, str]] = ..., type: Optional[Union[msgMotorCmd.motorType, str]] = ..., moveType: Optional[Union[msgMotorCmd.mType, str]] = ...) -> None: ...
 
 class msgMultiNavPath(_message.Message):
     __slots__ = ["paths"]

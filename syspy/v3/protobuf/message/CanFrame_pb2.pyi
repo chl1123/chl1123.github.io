@@ -23,15 +23,13 @@ class CanErrorRecord(_message.Message):
     def __init__(self, errortype: Optional[int] = ..., errorcount: Optional[int] = ...) -> None: ...
 
 class CanFrame(_message.Message):
-    __slots__ = ["DLC", "ID", "canError", "channel", "data", "direction", "extended", "remote", "timestamp"]
+    __slots__ = ["canError", "channel", "data", "direction", "dlc", "extended", "id", "remote", "timestamp"]
     CANERROR_FIELD_NUMBER: ClassVar[int]
     CHANNEL_FIELD_NUMBER: ClassVar[int]
     DATA_FIELD_NUMBER: ClassVar[int]
     DIRECTION_FIELD_NUMBER: ClassVar[int]
-    DLC: int
     DLC_FIELD_NUMBER: ClassVar[int]
     EXTENDED_FIELD_NUMBER: ClassVar[int]
-    ID: int
     ID_FIELD_NUMBER: ClassVar[int]
     REMOTE_FIELD_NUMBER: ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: ClassVar[int]
@@ -39,10 +37,12 @@ class CanFrame(_message.Message):
     channel: int
     data: bytes
     direction: bool
+    dlc: int
     extended: bool
+    id: int
     remote: bool
     timestamp: int
-    def __init__(self, ID: Optional[int] = ..., extended: bool = ..., remote: bool = ..., DLC: Optional[int] = ..., data: Optional[bytes] = ..., channel: Optional[int] = ..., timestamp: Optional[int] = ..., direction: bool = ..., canError: Optional[Iterable[Union[CanErrorRecord, Mapping]]] = ...) -> None: ...
+    def __init__(self, id: Optional[int] = ..., extended: bool = ..., remote: bool = ..., dlc: Optional[int] = ..., data: Optional[bytes] = ..., channel: Optional[int] = ..., timestamp: Optional[int] = ..., direction: bool = ..., canError: Optional[Iterable[Union[CanErrorRecord, Mapping]]] = ...) -> None: ...
 
 class DIRE_ENUM(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []

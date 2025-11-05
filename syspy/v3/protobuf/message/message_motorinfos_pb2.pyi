@@ -8,7 +8,7 @@ from typing import ClassVar, Iterable, Mapping, Optional, Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class msgMotorInfo(_message.Message):
-    __slots__ = ["calib", "canID", "canRouter", "current", "emc", "encoder", "err", "errorCode", "followErr", "header", "motorName", "passive", "position", "rawPosition", "speed", "stop", "temperature", "type", "voltage"]
+    __slots__ = ["calib", "canId", "canRouter", "current", "emc", "encoder", "err", "errorCode", "followErr", "header", "name", "passive", "position", "rawPosition", "speed", "stop", "temperature", "type", "voltage"]
     class calibStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     class motorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -23,7 +23,7 @@ class msgMotorInfo(_message.Message):
     ERR_FIELD_NUMBER: ClassVar[int]
     FOLLOWERR_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
-    MOTORNAME_FIELD_NUMBER: ClassVar[int]
+    NAME_FIELD_NUMBER: ClassVar[int]
     PASSIVE_FIELD_NUMBER: ClassVar[int]
     POSITION_FIELD_NUMBER: ClassVar[int]
     RAWPOSITION_FIELD_NUMBER: ClassVar[int]
@@ -35,7 +35,7 @@ class msgMotorInfo(_message.Message):
     calib: msgMotorInfo.calibStatus
     calibed: msgMotorInfo.calibStatus
     calibing: msgMotorInfo.calibStatus
-    canID: int
+    canId: int
     canRouter: int
     current: float
     do: msgMotorInfo.motorType
@@ -46,7 +46,7 @@ class msgMotorInfo(_message.Message):
     followErr: bool
     header: _message_header_pb2.msgHeader
     linear: msgMotorInfo.motorType
-    motorName: str
+    name: str
     notClibed: msgMotorInfo.calibStatus
     passive: bool
     position: float
@@ -60,7 +60,7 @@ class msgMotorInfo(_message.Message):
     type: msgMotorInfo.motorType
     voltage: float
     walk: msgMotorInfo.motorType
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., motorName: Optional[str] = ..., canRouter: Optional[int] = ..., canID: Optional[int] = ..., position: Optional[float] = ..., speed: Optional[float] = ..., current: Optional[float] = ..., voltage: Optional[float] = ..., stop: bool = ..., errorCode: Optional[int] = ..., err: bool = ..., emc: bool = ..., temperature: Optional[float] = ..., encoder: Optional[int] = ..., type: Optional[Union[msgMotorInfo.motorType, str]] = ..., passive: bool = ..., calib: Optional[Union[msgMotorInfo.calibStatus, str]] = ..., followErr: bool = ..., rawPosition: Optional[float] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., name: Optional[str] = ..., canRouter: Optional[int] = ..., canId: Optional[int] = ..., position: Optional[float] = ..., speed: Optional[float] = ..., current: Optional[float] = ..., voltage: Optional[float] = ..., stop: bool = ..., errorCode: Optional[int] = ..., err: bool = ..., emc: bool = ..., temperature: Optional[float] = ..., encoder: Optional[int] = ..., type: Optional[Union[msgMotorInfo.motorType, str]] = ..., passive: bool = ..., calib: Optional[Union[msgMotorInfo.calibStatus, str]] = ..., followErr: bool = ..., rawPosition: Optional[float] = ...) -> None: ...
 
 class msgMotorInfos(_message.Message):
     __slots__ = ["motorInfo"]

@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x19message_codescanner.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xac\x01\n\x12msgCodeScannerInfo\x12\x17\n\x0f\x63odeScannerName\x18\x01 \x01(\t\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\x0b\n\x03yaw\x18\x05 \x01(\x01\x12\r\n\x05pitch\x18\x06 \x01(\x01\x12\x0c\n\x04roll\x18\x07 \x01(\x01\x12\x0c\n\x04\x66unc\x18\x08 \x01(\t\x12\x12\n\ncoordinate\x18\t \x01(\t\x12\x10\n\x08isUpside\x18\n \x01(\x08\"\x95\x02\n\x11msgCodeScannerDMT\x12\x10\n\x08tagDiffX\x18\x01 \x01(\x01\x12\x10\n\x08tagDiffY\x18\x02 \x01(\x01\x12\x14\n\x0ctagDiffAngle\x18\x03 \x01(\x01\x12\x10\n\x08tagValue\x18\x04 \x01(\r\x12\x13\n\x0bwarningCode\x18\x05 \x01(\r\x12\x15\n\risDMTDetected\x18\x06 \x01(\x08\x12\x11\n\terrorCode\x18\x07 \x01(\r\x12\'\n\x06header\x18\x08 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x39\n\x0f\x63odeScannerInfo\x18\t \x01(\x0b\x32 .rbk.protocol.msgCodeScannerInfo\x12\x11\n\tisBarCode\x18\n \x01(\x08\"G\n\x0emsgCodeScanner\x12\x35\n\x0c\x63odeScanners\x18\x01 \x03(\x0b\x32\x1f.rbk.protocol.msgCodeScannerDMTb\x06proto3')
+  serialized_pb=_b('\n\x19message_codescanner.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xa1\x01\n\x12msgCodeScannerInfo\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\x0b\n\x03yaw\x18\x05 \x01(\x01\x12\r\n\x05pitch\x18\x06 \x01(\x01\x12\x0c\n\x04roll\x18\x07 \x01(\x01\x12\x0c\n\x04\x66unc\x18\x08 \x01(\t\x12\x12\n\ncoordinate\x18\t \x01(\t\x12\x10\n\x08isUpside\x18\n \x01(\x08\"\x95\x02\n\x11msgCodeScannerDMT\x12\x10\n\x08tagDiffX\x18\x01 \x01(\x01\x12\x10\n\x08tagDiffY\x18\x02 \x01(\x01\x12\x14\n\x0ctagDiffAngle\x18\x03 \x01(\x01\x12\x10\n\x08tagValue\x18\x04 \x01(\r\x12\x13\n\x0bwarningCode\x18\x05 \x01(\r\x12\x15\n\risDMTDetected\x18\x06 \x01(\x08\x12\x11\n\terrorCode\x18\x07 \x01(\r\x12\'\n\x06header\x18\x08 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x39\n\x0f\x63odeScannerInfo\x18\t \x01(\x0b\x32 .rbk.protocol.msgCodeScannerInfo\x12\x11\n\tisBarCode\x18\n \x01(\x08\"G\n\x0emsgCodeScanner\x12\x35\n\x0c\x63odeScanners\x18\x01 \x03(\x0b\x32\x1f.rbk.protocol.msgCodeScannerDMTb\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
@@ -35,7 +35,7 @@ _MSGCODESCANNERINFO = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='codeScannerName', full_name='rbk.protocol.msgCodeScannerInfo.codeScannerName', index=0,
+      name='name', full_name='rbk.protocol.msgCodeScannerInfo.name', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -117,7 +117,7 @@ _MSGCODESCANNERINFO = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=66,
-  serialized_end=238,
+  serialized_end=227,
 )
 
 
@@ -210,8 +210,8 @@ _MSGCODESCANNERDMT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=241,
-  serialized_end=518,
+  serialized_start=230,
+  serialized_end=507,
 )
 
 
@@ -241,8 +241,8 @@ _MSGCODESCANNER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=520,
-  serialized_end=591,
+  serialized_start=509,
+  serialized_end=580,
 )
 
 _MSGCODESCANNERDMT.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER

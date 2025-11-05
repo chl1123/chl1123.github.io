@@ -73,7 +73,7 @@ class OdometerInterface(ABC, Message):
         from syspy import Motor
         motor_infos = Motor.get_motor_infos()
         for motor_info in motor_infos:  # motor_info为msgMotorInfo的对象
-            print(motor_info.motorName)
+            print(motor_info.name)
             print(motor_info.position)
         ```
         """
