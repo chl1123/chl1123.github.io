@@ -86,7 +86,7 @@ class passThrough:
                         msg = self.__client_sock.recv(zmq.NOBLOCK)
                         rec_canframe = CanFrame_pb2.CanFrame()
                         rec_canframe.ParseFromString(msg)
-                        latest_msg[rec_canframe.ID]=msg
+                        latest_msg[rec_canframe.id]=msg
                     except zmq.Again:
                         # 队列已空，跳出循环
                         break

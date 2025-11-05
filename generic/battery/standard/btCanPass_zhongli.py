@@ -52,7 +52,7 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
             self.cycle +=1
             self.battery_info.cycle = self.cycle
         # --------------------------电池电量电流电压解析------------------------------------------- -------------------------
-        elif canframe.ID == 0x3FC:  
+        elif canframe.id == 0x3FC:  
             tem = canframe.data.hex()  
             voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)  # 解析电压 保留2位
             current = round(self.zl_hexStr_to_int(tem[4:6] + tem[6:8], 16) * 0.1, 2)  # 解析电流
@@ -74,14 +74,14 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
             self.msg_ok = True
             self.id1 = True
         # --------------------------电池温度------------------------------------------- -------------------------
-        elif canframe.ID == 0x4FC:
+        elif canframe.id == 0x4FC:
             tem = canframe.data.hex()
             MAXtemperature = round(int(tem[12:14], 16), 2)  # 解析电池单体最高温度,协议未明确说明时候有偏移量
             self.battery_info.temperature = MAXtemperature
             self.msg_ok = True
             self.id2 = True
         # -------------------------------电池协议充电-----------------------------------------------------
-        # elif canframe.ID == 0x0F4:
+        # elif canframe.id == 0x0F4:
         #     tem = canframe.data.hex()
         #     if self.isNeedCharge():
         #         maxChargeVoltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)

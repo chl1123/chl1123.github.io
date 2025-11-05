@@ -23,7 +23,7 @@ class CanBattery(cb.CanBase):
     def handleData(self, msg):
         canframe = self.recCanframe(msg)
         self.clearTimeout()
-        if canframe.ID == 0x1AC:
+        if canframe.id == 0x1AC:
             tem = canframe.data.hex()
             percentage = int(tem[2:4], 16) / 100
             voltage = round((int(tem[4:6], 16) * 256 + int(tem[6:8], 16)) / 1000, 2)
@@ -44,7 +44,7 @@ class CanBattery(cb.CanBase):
             self.publish(self.battery_info)
             self.msg_ok = True
 
-        elif canframe.ID == 0x1806E5F4:
+        elif canframe.id == 0x1806E5F4:
             tem = canframe.data.hex()
             if self.isNeedCharge():
                 print("start charge")

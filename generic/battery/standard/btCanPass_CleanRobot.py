@@ -26,7 +26,7 @@ class CanBattery(cb.CanBase):
         self.clearTimeout()
         canframe = self.recCanframe(msg)
         tem = canframe.data.hex()
-        if canframe.ID == 0x112:
+        if canframe.id == 0x112:
             voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             percentage = round(int(tem[8:10], 16) * 0.004, 2)
             temperature = round(int(tem[10:12], 16)-40, 2)

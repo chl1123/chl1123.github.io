@@ -30,7 +30,7 @@ class CanBattery(cb.CanBase):
     def judgeCanframe(self, msg):
         canframe = self.recCanframe(msg)
 
-        if canframe.ID == 0x019E:
+        if canframe.id == 0x019E:
             self.clearTimeout()
             tem = canframe.data.hex()
             current = -round((int(tem[6:8] + tem[4:6], 16) - 32000) * 0.1, 2)
@@ -40,7 +40,7 @@ class CanBattery(cb.CanBase):
             self.battery_info.chargeCurrent = current
             self.battery_info.percentage = percentage
             self.msg_ok = True
-        elif canframe.ID == 0x1806E5F4:
+        elif canframe.id == 0x1806E5F4:
             self.clearTimeout()
             tem = canframe.data.hex()
             if self.isNeedCharge():
@@ -54,13 +54,13 @@ class CanBattery(cb.CanBase):
             self.battery_info.maxChargeCurrent = max_current
             self.battery_info.maxChargeVoltage = max_voltage
             self.msg_ok = True
-        # elif canframe.ID == 0x1800FFF4:
+        # elif canframe.id == 0x1800FFF4:
         #     self.clearTimeout()
         #     tem = canframe.data.hex()
         #     temperature = round(int(tem[10:12], 16) - 40, 2)
         #     self.battery_info.temperature = temperature
         #     self.msg_ok = True
-        elif canframe.ID == 0x039E:
+        elif canframe.id == 0x039E:
             self.clearTimeout()
             tem = canframe.data.hex()
             temperature = round(int(tem[0:2], 16) - 40, 2)

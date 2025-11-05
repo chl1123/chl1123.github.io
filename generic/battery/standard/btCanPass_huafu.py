@@ -23,7 +23,7 @@ class CanBattery(cb.CanBase):
         canframe = self.recCanframe(msg)
         battery_info = self.createBatteryMessage()
         # 取date部分值将hex转int（根据实际协议自行设定，此处为示例）
-        if canframe.ID == 0x2F0:
+        if canframe.id == 0x2F0:
             print("huafu infomation")
             tem = canframe.data.hex()
             if cu.get_bit_val(canframe.data[7],0) == 0:

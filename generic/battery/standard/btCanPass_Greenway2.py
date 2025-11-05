@@ -48,7 +48,7 @@ class CanBattery(cb.CanBase):
 
     def judgeCanframe(self, msg):
         canframe = self.recCanframe(msg)
-        if canframe.ID == 0x0DA2F40D and not self.msg_userdata:
+        if canframe.id == 0x0DA2F40D and not self.msg_userdata:
             tem = canframe.data.hex()
             if tem[2:14] == 'ffffffffffff':
                 self.msg_userdata = True
@@ -65,7 +65,7 @@ class CanBattery(cb.CanBase):
                     self.battery_info.userData = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
                     self.msg_userdata = True
                     self.msg_ok = True
-        if canframe.ID == 0x0EA0F40D:
+        if canframe.id == 0x0EA0F40D:
             tem = canframe.data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             SOH = round(int(tem[2:4], 16) * 0.01, 2)
@@ -79,7 +79,7 @@ class CanBattery(cb.CanBase):
             self.battery_info.cycle = cycle
             self.msg_ok = True
             self.id1 = True
-        elif canframe.ID == 0x0EA1F40D:
+        elif canframe.id == 0x0EA1F40D:
             tem = canframe.data.hex()
             current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
@@ -87,7 +87,7 @@ class CanBattery(cb.CanBase):
             self.battery_info.chargeCurrent = current
             self.msg_ok = True
             self.id2 = True
-        elif canframe.ID == 0x0EA2F40D:
+        elif canframe.id == 0x0EA2F40D:
             tem = canframe.data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
 
@@ -119,7 +119,7 @@ class CanBattery(cb.CanBase):
             self.battery_info.temperature = temperature
             self.msg_ok = True
             self.id3 = True
-        elif canframe.ID == 0x0EA4F40D:
+        elif canframe.id == 0x0EA4F40D:
             tem = canframe.data.hex()
             if self.isNeedCharge():
                 maxChargeVoltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
@@ -131,7 +131,7 @@ class CanBattery(cb.CanBase):
                 self.battery_info.maxChargeVoltage = 0
             self.msg_ok = True
             self.id4 = True
-        elif canframe.ID == 0x1EA7F40D:
+        elif canframe.id == 0x1EA7F40D:
             tem = canframe.data.hex()
             for i in range(1, 4):
                 for j in range(8):
