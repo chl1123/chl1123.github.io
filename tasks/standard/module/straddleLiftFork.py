@@ -63,6 +63,7 @@ def _robot_config_change_callback(diff_map: Dict[str, Any]):
     #     elif key == "recognitionObject.pallet.carrierParameter.carrierHeight":
     #         robot_param["carrierHeight"] = value
 
+
 def _script_config_callback():
     ConfigParams.reload_config()
 
@@ -100,7 +101,7 @@ class ConfigParams:
 
     # —— 脚本相关
     timeout: float = 120.0
-    scriptDebug:bool = False
+    scriptDebug: bool = False
     # —— fork 相关
     upMaxSpeedWithGoods: float = 0.06
     downMaxSpeedWithGoods: float = 0.06
@@ -166,7 +167,6 @@ class ConfigParams:
         cls.get_device_model_param()
         cls.get_device_motor_param()
         cls._build_and_load_config()
-
 
     @classmethod
     def reload_config(cls):
@@ -244,16 +244,16 @@ class ConfigParams:
         cls.fork_root_2D_lasers = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot2DLasers",
                                                        "")
         _tmp_val = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip3DCameras",
-                                                       "")
+                                        "")
         cls.fork_tip_3D_cameras = _tmp_val.split(',') if _tmp_val else []
         _tmp_val = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip2DLasers",
-                                                      "")
+                                        "")
         cls.fork_tip_2D_lasers = _tmp_val.split(',') if _tmp_val else []
         _tmp_val = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.diSensor", "")
         cls.fork_tip_di_sensors = _tmp_val.split(',') if _tmp_val else []
         _tmp_val = cls._safe_get_device("Model-000",
-                                                             f"moduleType.{cls.module_type}.forkTipDistanceSensors",
-                                                             "")
+                                        f"moduleType.{cls.module_type}.forkTipDistanceSensors",
+                                        "")
         cls.fork_tip_distance_sensors = _tmp_val.split(',') if _tmp_val else []
         _tmp_val = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.id", "")
         cls.contact_ids = _tmp_val.split(',') if _tmp_val else []
@@ -281,13 +281,11 @@ class ConfigParams:
         cls.reach_down_dist = float(
             cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist", 0.001))
 
-
     @classmethod
     def _build_and_load_config(cls):
         builder = param_loader.builder_config()
 
         with builder.GROUPS():
-
             # ===== 脚本相关 =====
             with builder.GROUP(key="script", name="Script Settings", desc="脚本相关配置"):
                 builder.TYPE(ParamType.ARRAY)
@@ -296,7 +294,7 @@ class ConfigParams:
                     builder.DEFAULTVALUE(120)
                     builder.UNIT("s")
 
-                with builder.CHILD(key="scriptDebug", name="Script Settings", desc="是否打印调试信息"):
+                with builder.CHILD(key="scriptDebug", name="Script Debug", desc="是否打印调试信息"):
                     builder.TYPE(ParamType.BOOL)
                     builder.DEFAULTVALUE(False)
 
@@ -418,7 +416,8 @@ class ConfigParams:
             with builder.GROUP(key="recognition", name="Recognition", desc="检测货物有无相关"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="zMax", name="sort the rec results by height", desc="根据识别结果的高度由大到小进行排序"):
+                    with builder.CHILD(key="zMax", name="sort the rec results by height",
+                                       desc="根据识别结果的高度由大到小进行排序"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
                     with builder.CHILD(key="obsAreaMinHeight", name="Obs Area Min Height", desc="检测区域最低高度"):
@@ -438,7 +437,7 @@ class ConfigParams:
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="deviceName", name="Device Name", desc="检测设备名称"):
-                        builder.TYPE(ParamType.STRING);
+                        builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("")
                     with builder.CHILD(key="errorRecY", name="Error Rec Y",
                                        desc="识别结果相对AP点报错的y偏移，-1不启用"):
@@ -681,7 +680,7 @@ def set_deduct_area(area_infos, base_pos, prefix: str, coordinate):
                 region_name,
                 x_coords,
                 y_coords,
-                devices,       # 支持一个或多个 device
+                devices,  # 支持一个或多个 device
                 coordinate,
             )
 
@@ -1039,7 +1038,6 @@ class Fork(ModuleBase):
         Navigation.deleteClearRegion(self.name_left, Coordinate.ROBOT)
         Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
 
-
     def modbus(self):
         # modbus解析器
         # 读取数据
@@ -1216,7 +1214,7 @@ class Fork(ModuleBase):
                 filter_results_by_z = [result for result in results if abs(result["z"] - self.start_height) <= 0.1]
                 self.pallet_width = filter_results_by_z[0]["palletWidth"]
                 self.obstacle_polygon_by_rec = current_action.obstacle_polygon
-                Trace.log(self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec)
+                Trace.log(f"{self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}")
                 # 拿到 y 最小的值
                 results_in_r = []
                 if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
@@ -1357,7 +1355,7 @@ class Fork(ModuleBase):
             self.operation_init = True
             self.do_fork = self.do_fork_check()
 
-            if not Navigation.hasGoods() and ConfigParams.load_unload_check:
+            if not Navigation.hasGoods() and ConfigParams.loadUnloadCheck:
                 Abnormal.setTask(53903, f"fork has no goods, cannot unload, script failed", "", "", "unload")
                 self.script_status = ScriptStatus.FAILED
                 return
@@ -1497,7 +1495,7 @@ class Fork(ModuleBase):
 
     def save_mileage(self):
         db_total = float(db.get(self.mileage_total_key) or "0")
-        if db_total ==0:
+        if db_total == 0:
             self.total_dist = 0.0
             self.up_dist = 0.0
             self.down_dist = 0.0
@@ -1554,7 +1552,8 @@ class Fork(ModuleBase):
             # 堆高车处理后激光的屏蔽
             if Loc.get_loc_state() == 1:
                 if ConfigParams.scriptDebug:
-                    Trace.log(f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}")
+                    Trace.log(
+                        f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}")
                 if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
                     self.set_fork_region_by_height = True
                     self.clear_fork_region_by_height = False
@@ -1619,7 +1618,7 @@ class Fork(ModuleBase):
             # 做 0.3s 的延时处理
             if missing_goods and Timer.delay(0.3):
                 Abnormal.setTask(53319, "fork missing goods",
-                                 f"check the contact dis :{ConfigParams.contact_ids_str}", "", "")
+                                 f"check the contact dis :{ConfigParams.contact_ids}", "", "")
             else:
                 if Timer.delay(0.3):
                     if Abnormal.exists(53319):
@@ -2469,7 +2468,7 @@ class GoTwoStraightLine:
     def cal_angle(self, start_pos, end_pos):
         start2end = Pos2Base(start_pos, end_pos)
         angle = math.degrees(math.atan2(start2end[1], start2end[0]))
-        Trace.log(angle)
+        Trace.log(f"angle:{angle}")
         return angle
 
     def search_min_angle_str(self, max_angle, step):
@@ -2520,7 +2519,6 @@ def main():
     RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
     RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
     ScriptParam.setConfigChangeCallBack(_script_config_callback)
-
 
     while True:
         if f.event_safe_move_check:

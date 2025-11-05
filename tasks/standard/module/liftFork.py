@@ -294,7 +294,7 @@ class ConfigParams:
                     builder.DEFAULTVALUE(120)
                     builder.UNIT("s")
 
-                with builder.CHILD(key="scriptDebug", name="Script Settings", desc="是否打印调试信息"):
+                with builder.CHILD(key="scriptDebug", name="Script Debug", desc="是否打印调试信息"):
                     builder.TYPE(ParamType.BOOL)
                     builder.DEFAULTVALUE(False)
 
@@ -437,7 +437,7 @@ class ConfigParams:
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="deviceName", name="Device Name", desc="检测设备名称"):
-                        builder.TYPE(ParamType.STRING);
+                        builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("")
                     with builder.CHILD(key="errorRecY", name="Error Rec Y",
                                        desc="识别结果相对AP点报错的y偏移，-1不启用"):
@@ -1214,7 +1214,7 @@ class Fork(ModuleBase):
                 filter_results_by_z = [result for result in results if abs(result["z"] - self.start_height) <= 0.1]
                 self.pallet_width = filter_results_by_z[0]["palletWidth"]
                 self.obstacle_polygon_by_rec = current_action.obstacle_polygon
-                Trace.log(self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec)
+                Trace.log(f"{self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}")
                 # 拿到 y 最小的值
                 results_in_r = []
                 if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
@@ -1355,7 +1355,7 @@ class Fork(ModuleBase):
             self.operation_init = True
             self.do_fork = self.do_fork_check()
 
-            if not Navigation.hasGoods() and ConfigParams.load_unload_check:
+            if not Navigation.hasGoods() and ConfigParams.loadUnloadCheck:
                 Abnormal.setTask(53903, f"fork has no goods, cannot unload, script failed", "", "", "unload")
                 self.script_status = ScriptStatus.FAILED
                 return
@@ -1618,7 +1618,7 @@ class Fork(ModuleBase):
             # 做 0.3s 的延时处理
             if missing_goods and Timer.delay(0.3):
                 Abnormal.setTask(53319, "fork missing goods",
-                                 f"check the contact dis :{ConfigParams.contact_ids_str}", "", "")
+                                 f"check the contact dis :{ConfigParams.contact_ids}", "", "")
             else:
                 if Timer.delay(0.3):
                     if Abnormal.exists(53319):
@@ -2468,7 +2468,7 @@ class GoTwoStraightLine:
     def cal_angle(self, start_pos, end_pos):
         start2end = Pos2Base(start_pos, end_pos)
         angle = math.degrees(math.atan2(start2end[1], start2end[0]))
-        Trace.log(angle)
+        Trace.log(f"angle:{angle}")
         return angle
 
     def search_min_angle_str(self, max_angle, step):
