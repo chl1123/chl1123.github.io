@@ -850,7 +850,10 @@ class ParamValidator:
 
                 # 递归验证子参数
                 if 'children' in param_def and param_def['children']:
-                    in_input = any(key.startswith(full_path) for key in input_params.keys())
+                    in_input = False
+                    for key in input_params.keys():
+                        if key.startswith(full_path) or param_def['key'].endswith(str(input_params[key])):
+                            in_input = True
                     if in_input or (not in_input and param_def.get('required', False) == True):
                         validate_all_params(param_def['children'], full_path)
 
@@ -883,7 +886,6 @@ class ParamValidator:
         if param_def.get('required', False) and value is None:
             errors.append(f"Missing required parameter: {full_path}")
             raise ValueError("Missing required parameter: " + full_path)
-            # return
 
         # 如果值仍然为空，跳过验证
         if value is None:
