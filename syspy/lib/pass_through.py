@@ -15,7 +15,7 @@ class callBack:
 
 
 class passThrough:
-    def __init__(self):
+    def __init__(self,pass_type):
         self.context = zmq.Context()
         self.__client_sock = self.context.socket(zmq.DEALER)
         
@@ -26,6 +26,15 @@ class passThrough:
         self.__should_close = False
         self.__callback = None
         self.__lock = threading.Lock()  # 创建锁对象
+        self.__pass_type = None
+        if pass_type == "can":
+            self.__pass_type = True
+            print("Use Can Pass")
+        elif pass_type == "serial":
+            self.__pass_type = False
+            print("Use Serial Pass")
+        else:
+            print("passThrough type error.It should be 'can' or 'serial'")
         print("passThrough start with real-time message settings (HWM=1)")
 
     def close(self):
@@ -68,25 +77,29 @@ class passThrough:
 
     def __receive(self):
         with self.__lock:
-            latest_msg = {}
-            
-            # 持续读取直到队列为空
-            while True:
-                try:
-                    # 非阻塞接收
-                    msg = self.__client_sock.recv(zmq.NOBLOCK)
-                    rec_canframe = CanFrame_pb2.CanFrame()
-                    rec_canframe.ParseFromString(msg)
-                    latest_msg[rec_canframe.ID]=msg
-                except zmq.Again:
-                    # 队列已空，跳出循环
-                    break
+            if self.__pass_type:
+                latest_msg = {}
+                # 持续读取直到队列为空
+                while True:
+                    try:
+                        # 非阻塞接收
+                        msg = self.__client_sock.recv(zmq.NOBLOCK)
+                        rec_canframe = CanFrame_pb2.CanFrame()
+                        rec_canframe.ParseFromString(msg)
+                        latest_msg[rec_canframe.ID]=msg
+                    except zmq.Again:
+                        # 队列已空，跳出循环
+                        break
 
-            if len(latest_msg) > 0:
-                #print(f"实时消息: 收到{len(latest_msg)}种类型")
-                for msg_data in latest_msg.values():
-                    if not self.__callback is None:
-                        self.__callback(msg_data)
+                if len(latest_msg) > 0:
+                    #print(f"实时消息: 收到{len(latest_msg)}种类型")
+                    for msg_data in latest_msg.values():
+                        if not self.__callback is None:
+                            self.__callback(msg_data)
+            else:
+                msg = self.__client_sock.recv(zmq.NOBLOCK)
+                if not self.__callback is None:
+                    self.__callback(msg)
 
 
     def send(self, data):

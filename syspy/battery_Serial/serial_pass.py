@@ -16,7 +16,7 @@ log = logging.getLogger("rbk.script")
 class SerialPass:
     def __init__(self):
         log.info("SerialPass start!")
-        self.__pass = pt.passThrough()
+        self.__pass = pt.passThrough("serial")
         self.__pass.serialConnect(DEFAULT_PASS_ADDR)
 
     def createBatteryMessage(self):

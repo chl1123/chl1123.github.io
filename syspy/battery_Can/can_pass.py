@@ -17,7 +17,7 @@ log = logging.getLogger("rbk.script")
 class CanPass():
     def __init__(self):
         log.info("CanPass start!")
-        self.__pass = pt.passThrough()
+        self.__pass = pt.passThrough("can")
         self.__pass.canConnect(DEFAULT_PASS_ADDR, "ECanFrame_pass_py")
 
     def setCallBack(self, handleData):
