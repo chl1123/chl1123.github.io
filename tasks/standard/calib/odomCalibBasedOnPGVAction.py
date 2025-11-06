@@ -138,11 +138,12 @@ class CalibMove:
     def calCpYaw(self): # yaw = -atan2(y1 - y2, x1 - x2);
         if len(self.pgv_datas) < 5:
             log.info("pgv data loss")
-        y1 = self.pgv_datas[0].tagDiffY
-        y2 = self.pgv_datas[-1].tagDiffY
-        x1 = self.pgv_datas[0].tagDiffX
-        x2 = self.pgv_datas[-1].tagDiffX
-        self.cp_yaw = -math.atan2(y1-y2, x1-x2)
+        else:
+            y1 = self.pgv_datas[0].tagDiffY
+            y2 = self.pgv_datas[-1].tagDiffY
+            x1 = self.pgv_datas[0].tagDiffX
+            x2 = self.pgv_datas[-1].tagDiffX
+            self.cp_yaw = -math.atan2(y1-y2, x1-x2)
 
     def print(self):
         # 实时打印
