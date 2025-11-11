@@ -850,12 +850,44 @@ class ParamValidator:
 
                 # 递归验证子参数
                 if 'children' in param_def and param_def['children']:
-                    in_input = False
-                    for key in input_params.keys():
-                        if key.startswith(full_path) or param_def['key'].endswith(str(input_params[key])):
-                            in_input = True
-                    if in_input or (not in_input and param_def.get('required', False) == True):
-                        validate_all_params(param_def['children'], full_path)
+                    should_validate_children = False
+
+                    # 对于COMBO_BOX类型，根据选择的值决定验证哪个子项
+                    if param_def.get('type') == ParamType.COMBO_BOX and param_def['key'] in flat_params:
+                        selected_key = flat_params.get(param_def['key'])
+                        # 查找选中的子项
+                        for child in param_def['children']:
+                            if child['key'] == selected_key:
+                                should_validate_children = True
+                                validate_all_params([child], full_path)
+                                break
+                    # 对于COMBO_BOX_BOOL类型，根据值决定验证哪个分支
+                    elif param_def.get('type') == ParamType.COMBO_BOX_BOOL and param_def['key'] in flat_params:
+                        bool_value = flat_params.get(param_def['key'])
+                        target_key = "ON" if bool_value else "OFF"
+                        # 查找对应分支并验证
+                        for child in param_def.get('children', []):
+                            if child['key'] == target_key:
+                                should_validate_children = True
+                                validate_all_params([child], full_path)
+                                # 同时验证该分支下的所有子参数
+                                self._validate_combo_bool_children(child, input_params, validated_params, errors, full_path + "." + target_key)
+                                break
+                    else:
+                        # 默认情况：检查是否在输入参数中或是否为必填项
+                        in_input = False
+                        for key in input_params.keys():
+                            if key.startswith(full_path) or param_def['key'] in str(input_params.get(key, '')):
+                                in_input = True
+                        if in_input or (not in_input and param_def.get('required', False) == True):
+                            should_validate_children = True
+                            validate_all_params(param_def['children'], full_path)
+
+                    # 如果没有特殊处理但有子参数需要验证
+                    if not should_validate_children:
+                        in_input = any(key.startswith(full_path) for key in input_params.keys())
+                        if in_input or param_def.get('required', False):
+                            validate_all_params(param_def['children'], full_path)
 
         # 从根节点开始验证所有参数
         validate_all_params(self.param_definition.get('groups', []))
@@ -863,6 +895,29 @@ class ParamValidator:
         if errors:
             raise ValueError("\n".join(errors))
         return validated_params
+
+    def _validate_combo_bool_children(self, parent_def: Dict[str, Any], input_params: Dict[str, Any],
+                                      validated_params: Dict[str, Any], errors: List[str], parent_path: str):
+        """验证COMBO_BOX_BOOL子参数"""
+        def validate_recursive(node_def: Dict[str, Any], current_path: str):
+            node_key = node_def.get('key')
+            full_path = f"{current_path}.{node_key}" if current_path else node_key
+            # 如果该节点在输入参数中，则验证它
+            direct_value = input_params.get(node_key)
+            path_value = input_params.get(full_path)
+
+            value = direct_value if direct_value is not None else path_value
+            self._validate_param(node_def, value, input_params, validated_params, errors, full_path)
+
+            # 递归验证子节点
+            if 'children' in node_def:
+                for child in node_def['children']:
+                    validate_recursive(child, full_path)
+
+        # 验证所有子节点
+        if 'children' in parent_def:
+            for child in parent_def['children']:
+                validate_recursive(child, parent_path)
 
     def _validate_param(
             self,
