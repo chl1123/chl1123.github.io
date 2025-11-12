@@ -43,7 +43,7 @@ def _robot_device_change_callback(device_change_set: List[str]):
     """设备参数变化回调"""
     if "Model" in device_change_set:
         ConfigParams.get_device_model_param()
-    if "Motor" in device_change_set:
+    if "Motor" in device_change_set or "DOMotor" in device_change_set:
         ConfigParams.get_device_motor_param()
     # InputParams.init()
 
@@ -95,6 +95,7 @@ class ConfigParams:
     contact_ids: list = []
     reach_up_dist: float = 0.001
     reach_down_dist: float = 0.001
+    DOMotor: bool = False
 
     # 参数配置文件的参数
     config = {}
@@ -269,17 +270,22 @@ class ConfigParams:
     @classmethod
     def get_device_motor_param(cls):
         """读取电机相关参数（线性电机）"""
-        cls.motor_func = cls._safe_get_device(f"{cls.fork_motor_name}", "func", "")
-        cls.min_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.minLength", 0.0))
-        cls.max_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxLength", 0.0))
-        cls.up_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI", "")
-        cls.down_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI", "")
-        cls.fork_max_speed = float(
-            cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed", 0.0))
-        cls.reach_up_dist = float(
-            cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachUpDist", 0.001))
-        cls.reach_down_dist = float(
-            cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist", 0.001))
+        if cls.fork_motor_name.startswith("DOMotor"):
+            ConfigParams.DOMotor = True
+            cls.min_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"basic.minLength", 0.0))
+            cls.max_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"basic.maxLength", 0.0))
+        else:
+            cls.motor_func = cls._safe_get_device(f"{cls.fork_motor_name}", "func", "")
+            cls.min_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.minLength", 0.0))
+            cls.max_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxLength", 0.0))
+            cls.up_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI", "")
+            cls.down_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI", "")
+            cls.fork_max_speed = float(
+                cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed", 0.0))
+            cls.reach_up_dist = float(
+                cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachUpDist", 0.001))
+            cls.reach_down_dist = float(
+                cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist", 0.001))
 
     @classmethod
     def _build_and_load_config(cls):
@@ -490,7 +496,7 @@ def create_start_height_param(builder: ParamBuilder, min_height: float, max_heig
         builder.MIN_VALUE(min_height)
         builder.MAX_VALUE(max_height)
         builder.UNIT("m")
-        builder.SINGLESTEP(0.1)
+        builder.SINGLESTEP(0.01)
         builder.DEFAULTVALUE(0.1)
 
 
@@ -882,6 +888,8 @@ class Fork(ModuleBase):
         self.set_fork_region_by_height = False
         self.name_left = "back_laser_clear_left"
         self.name_right = "back_laser_clear_right"
+        self.back_laser_clear_region_name = "back_laser_clear_region"
+
         self.outer = (ConfigParams.center_distance_between_forks + ConfigParams.fork_tip_width) / 2
         self.inner = (ConfigParams.center_distance_between_forks - ConfigParams.fork_tip_width) / 2
         self.points_left = [{"x": ConfigParams.module_x, "y": -self.outer},
@@ -892,11 +900,11 @@ class Fork(ModuleBase):
                              {"x": -ConfigParams.tail, "y": self.outer},
                              {"x": -ConfigParams.tail, "y": self.inner},
                              {"x": ConfigParams.module_x, "y": self.inner}]
-
-        self.fork_points = [{"x": ConfigParams.module_x - 0.05, "y": ConfigParams.width / 2},
+        # 叉车车头后面那块区域
+        self.fork_points = [{"x": ConfigParams.module_x + 0.05, "y": ConfigParams.width / 2},
                             {"x": -ConfigParams.tail, "y": ConfigParams.width / 2},
                             {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2},
-                            {"x": ConfigParams.module_x - 0.05, "y": -ConfigParams.width / 2}]
+                            {"x": ConfigParams.module_x + 0.05, "y": -ConfigParams.width / 2}]
         self.carrier_shape = []
         self.goods_shape = []
         self.check_di = True
@@ -1035,7 +1043,7 @@ class Fork(ModuleBase):
     def delete_clear_region(self):
         delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
         delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
-        Navigation.deleteClearRegion(self.name_left, Coordinate.ROBOT)
+        Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
         Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
 
     def modbus(self):
@@ -1057,7 +1065,8 @@ class Fork(ModuleBase):
             self.event_safe_move_check = False
 
     def get_target_pos(self):
-        target_id = self.move_task.get("target_name", "")  # int, 可能是 LM，可能是 AP
+        target_id = self.move_task.get("targetName", "")  # int, 可能是 LM，可能是 AP
+        print(f"target id:{target_id}")
         pos = []
         if target_id == "":
             # task_args 里已经是带前缀的字符串
@@ -1345,9 +1354,9 @@ class Fork(ModuleBase):
                                           ConfigParams.upDelayTime, ConfigParams.downDelayTime))
             else:
                 self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height))
+            Trace.log(f"task:{self.action_list}")
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
-            self.clear_pallet_region_by_height = False
             self.script_status = ScriptStatus.FINISHED
 
     def unload(self):
@@ -1452,12 +1461,14 @@ class Fork(ModuleBase):
 
         # 解析任务下发的参数，不含在 script_args 里的参数
         self.move_task = Navigation.moveTask()
+        print(f"move task:{self.move_task}")
         self.start_time = time.time()
 
         # 通过设置扣除区域处理后激光
         self.clear_fork_region_by_height = False
         self.name_left = "back_laser_clear_left"
         self.name_right = "back_laser_clear_right"
+        self.back_laser_clear_region_name = "back_laser_clear_region"
         self.outer = (ConfigParams.center_distance_between_forks + ConfigParams.fork_tip_width) / 2
         self.inner = (ConfigParams.center_distance_between_forks - ConfigParams.fork_tip_width) / 2
         self.points_left = [{"x": ConfigParams.module_x, "y": -self.outer},
@@ -1510,7 +1521,8 @@ class Fork(ModuleBase):
         self.trace_chart.update({
             "forkHeight": fork_height,  # 货叉高度, 单位 m
             "forkHeightInPlace": self.fork_height_in_place,  # 货叉高度是否到位, true = 到位, false = 未到位
-            "forkAutoFlag": not Controller.get_is_external_control()
+            "forkAutoFlag": not Controller.get_is_external_control(),
+            "forkMileage": self.total_dist
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.report_info(self.trace_chart)
@@ -1545,9 +1557,10 @@ class Fork(ModuleBase):
             if task_status == 2:
                 x_list = [p["x"] for p in self.fork_points]
                 y_list = [p["y"] for p in self.fork_points]
-                if ConfigParams.fork_tip_2D_lasers:
+                if ConfigParams.fork_root_2D_lasers:
                     collision_device = [ConfigParams.fork_root_2D_lasers]
                     Navigation.collisionDetection(collision_device, x_list, y_list)
+
 
             # 堆高车处理后激光的屏蔽
             if Loc.get_loc_state() == 1:
@@ -1557,18 +1570,22 @@ class Fork(ModuleBase):
                 if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
                     self.set_fork_region_by_height = True
                     self.clear_fork_region_by_height = False
-                    Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
-                                              [p["y"] for p in self.points_left],
+                    # Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
+                    #                           [p["y"] for p in self.points_left],
+                    #                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                    Navigation.setClearRegion(self.back_laser_clear_region_name, [p["x"] for p in self.fork_points],
+                                              [p["y"] for p in self.fork_points],
                                               [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                    Navigation.setClearRegion(self.name_right, [p["x"] for p in self.points_right],
-                                              [p["y"] for p in self.points_right],
-                                              [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                    Trace.log(f"set clear region:{self.back_laser_clear_region_name},{self.fork_points}")
 
                 elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
                     self.clear_fork_region_by_height = True
                     self.set_fork_region_by_height = False
-                    Navigation.deleteClearRegion(self.name_left, Coordinate.ROBOT)
-                    Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
+                    Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
+
+                    Trace.log(f"delete clear region:{self.back_laser_clear_region_name},{self.fork_points}")
+
+                    # Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
 
             # 有货还得处理栈板的屏蔽
             if Navigation.hasGoods():
@@ -1753,7 +1770,9 @@ class Rec(BaseAction):
                 self.attempts += 1
                 if self.attempts > self.max_attempts:
                     results = Recognize.getRecResults()
-                    error_type = results["errorType"]
+                    if ConfigParams.scriptDebug:
+                        Trace.log(f"raw results:{results}")
+                    error_type = results["error"]
                     error_msg = results["logMsg"]
                     Trace.log(f"error_type: {error_type}")
                     self.action_status = ActionStatus.FAILED
@@ -2048,42 +2067,58 @@ class RunMotorByPosition(BaseAction):
             self.last_sample_time = time.time()
             self.init = True
 
-            min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             # 先夹到允许区间
+            min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             self.position = clamp(self.position, min_h, max_h)
 
-            # 如果是搬运车，做一些最大最小高度的逻辑处理
-            if ConfigParams.module_type == "liftFork":
-
-                # 方向判断：>0 上升；<0 下降；=0 到位
-                delta = self.position - cur_fork_height
-                if abs(delta) <= EPS:
-                    self.action_status = ActionStatus.FINISHED
+            if ConfigParams.DOMotor:
+                if self.position < (ConfigParams.max_height+ConfigParams.min_height)/2:
+                    vel = -self.max_speed
+                elif self.position > (ConfigParams.max_height+ConfigParams.min_height)/2:
+                    vel = self.max_speed
                 else:
-                    self.position = max_h if delta > 0 else min_h
-
-            # 从输入参数和配置参数里选出最大速度
-            max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
-
-            # 考虑载货时的货叉升降速度
-            if Navigation.hasGoods():
-                delta = self.position - cur_fork_height
-                if abs(delta) <= EPS:
                     self.action_status = ActionStatus.FINISHED
-                else:
-                    # 上/下行分别套上限
-                    if delta > 0:
-                        max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
+                    return
+                Motor.setMotorSpeed(self.motor_name,vel, self.stop_di)
+            else:
+                # 如果是搬运车，做一些最大最小高度的逻辑处理
+                if ConfigParams.module_type == "liftFork":
+
+                    # 方向判断：>0 上升；<0 下降；=0 到位
+                    delta = self.position - cur_fork_height
+                    if abs(delta) <= EPS:
+                        self.action_status = ActionStatus.FINISHED
                     else:
-                        max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
+                        self.position = max_h if delta > 0 else min_h
 
-            self.max_speed = max_speed
-            # self.max_speed = -0.15
+                # 从输入参数和配置参数里选出最大速度
 
-            Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
+                # 考虑载货时的货叉升降速度
+                if ConfigParams.module_type != "liftFork":
+                    max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
+                    if Navigation.hasGoods():
+                        delta = self.position - cur_fork_height
+                        if abs(delta) <= EPS:
+                            self.action_status = ActionStatus.FINISHED
+                        else:
+                            # 上/下行分别套上限
+                            if delta > 0:
+                                max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
+                            else:
+                                max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
+
+                    self.max_speed = max_speed
+
+                    Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
+
+
         # pos = Motor.get_motor_pos(self.motor_name)
         self.is_reach = Motor.isMotorReached(self.motor_name)
         if self.is_reach:
+            if ConfigParams.DOMotor and self.position == ConfigParams.max_height:
+                Navigation.wheelBaseShift(True)
+            elif ConfigParams.DOMotor and self.position == ConfigParams.min_height:
+                Navigation.wheelBaseShift(False)
             self.action_status = ActionStatus.FINISHED
 
         # 检测货叉的运动是否卡住了
@@ -2516,6 +2551,7 @@ def main():
 
     f = Fork()
 
+    # 设备 参数 脚本参数的回调
     RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
     RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
     ScriptParam.setConfigChangeCallBack(_script_config_callback)
@@ -2540,6 +2576,7 @@ def main():
                 checked_args = True
                 f.init_args = False
                 Trace.log(f"check before, args:{input_params}")
+                args = input_params
                 try:
                     # 验证参数
                     args = validator.validate(input_params)

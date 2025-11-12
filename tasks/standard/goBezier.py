@@ -18,6 +18,8 @@ class GoBezierWorld:
     def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.0, is_backwards=False, is_hold_dir=None,
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3, path_dist_accuracy=0.01, path_angle_accuracy=0.05):
         del target_world[3:]
+        self.action_name = self.__class__.__name__
+
         self.target_world = target_world
         self.end_position_world = [0,0,0]
         self.robot_loc = None
@@ -291,6 +293,7 @@ class GoBezierWorldReturn:
     def __init__(self, is_backwards=True, is_hold_dir=None, max_speed=0.3, max_accele=1, max_decele=0.7, decele_dist=0.1):
         self.end_position_world = [0,0,0]
         self.end_position_robot = [0,0,0]
+        self.action_name = self.__class__.__name__
 
         self.go_bezier_data = None
         self.bezier_target_pos_return = None
