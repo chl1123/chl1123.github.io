@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# @Date: 2025/10/22
+# @Date: 2025/11/13
 # @Author: zhaopengfei
 # @Version: v1.0
 # @Project: SPK-MJ50-HL
-# @Update: 适配动态脚本参数回调
+# @Update: 根据api改动修改脚本
 # @RBK Version: V3.5+
 import enum
 import uuid
 
-SCRIPT_VERSION = "20251022"
+SCRIPT_VERSION = "20251113"
 import json
 import math
 import random
@@ -366,6 +366,11 @@ class ConfigParams:
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-009")
                         builder.REQUIRED(True)
+                    # 补光灯时间
+                    with builder.CHILD(key="light_delay_time", name="Light Delay Time", desc="time for light"):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(0.3, min_value=0, max_value=100)
+                        builder.REQUIRED(True)
 
         # 保存配置参数到文件
         builder.save(merge=True)
@@ -441,6 +446,7 @@ class ConfigParams:
         cls.timeout = cls.config.get("timeout")
         cls.goods_check_di = cls.config.get("goods_check_di")
         cls.overlimit_detect_di= cls.config.get("overlimit_detect_di")
+        cls.light_delay_time = cls.config.get("light_delay_time")
         log.info(f"Updated config: {cls.config}")
 
 # 创建全局配置管理器实例
@@ -1161,13 +1167,13 @@ class ContainerRobot(ModuleBase):
             motor_info = odo_data["motorInfo"]
             self.report_info["motorInfo"] = motor_info
             for m_f in motor_info:
-                if m_f["motorName"] == ConfigParams.lift_motor_name:
+                if m_f["name"] == ConfigParams.lift_motor_name:
                     self.lift_motor_calib = m_f.get("calib", None)
                     self.lift_motor_stop = m_f.get("stop", None)
-                if m_f["motorName"] == ConfigParams.stretch_motor_name:
+                if m_f["name"] == ConfigParams.stretch_motor_name:
                     self.stretch_motor_calib = m_f.get("calib", None)
                     self.stretch_motor_stop = m_f.get("stop", None)
-                if m_f["motorName"] == ConfigParams.rotate_motor_name:
+                if m_f["name"] == ConfigParams.rotate_motor_name:
                     self.rotate_motor_calib = m_f.get("calib", None)
                     self.rotate_motor_stop = m_f.get("stop", None)
         # self.motor_calib_state = (self.lift_motor_calib == 2 and self.stretch_motor_calib == 2 and self.rotate_motor_calib == 2)
@@ -1379,7 +1385,7 @@ class ContainerRobot(ModuleBase):
                 return self.rec_res['barCode']
             else:
                 if Timer.delay(0.05):
-                    Recognize.doRec(ConfigParams.barcode_file, False, 0.0, 0.0, 0.0, 0.0)
+                    Recognize.doRec(ConfigParams.barcode_file, "", "")
                 self.report_info["barCode"] = "None"
             self.report_info["recId"] = self.rec_id
 
@@ -1460,7 +1466,7 @@ class ContainerRobot(ModuleBase):
                 if Timer.delay(ConfigParams.light_delay_time):
                     self.opt_step[2] = True
         else:
-            Recognize.doRec(ConfigParams.box_code_file, False, 0.0, 0.0, 0.0, 0.0)  # 下发拍照指令
+            Recognize.doRec(ConfigParams.box_code_file, "", "")  # 下发拍照指令
             if Timer.delay(0.5):
                 Do.setDO(self.fill_light_do, False)
                 self.status = ScriptStatus.FINISHED
@@ -2117,7 +2123,7 @@ class Rec:
         self.goods_out_dist = None
         self.max_goods_dist = 0.8  # 料箱距离货叉里程中心最远距离，单位：米
         Recognize.resetRec()
-        Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
+        Recognize.doRec(self.filename, "", "")
     def run(self, agv):
         self.status = ScriptStatus.RUNNING
         rec_status = Recognize.getRecStatus()  # 获取识别状态 0: 初始化, 1: 识别中, 2: 获得结果, 3：识别出错, -1: 未知错误
@@ -2135,7 +2141,7 @@ class Rec:
                         self.status = ScriptStatus.FINISHED
                 else:
                     Recognize.resetRec()
-                    Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
+                    Recognize.doRec(self.filename, "","")
         elif rec_status == 2:  # 识别成功,获得结果
             rec_results = Recognize.getRecResults()
             if "recoList" in rec_results:
@@ -2160,7 +2166,7 @@ class Rec:
 
     def reset(self):
         Recognize.resetRec()
-        Recognize.doRec(self.filename, False, 0.0, 0.0, 0.0, 0.0)
+        Recognize.doRec(self.filename, "", "")
         self.status = ScriptStatus.RUNNING
 
 class RecAdjust:
