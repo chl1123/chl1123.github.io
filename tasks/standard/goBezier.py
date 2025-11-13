@@ -5,7 +5,7 @@ from enum import IntEnum
 import time
 
 from syspy.script_data import ScriptData
-from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus
+from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus, Trace
 from syspy.lib.module import Pos2World
 from tasks.standard import goPath
 
@@ -124,6 +124,7 @@ class GoBezierWorld:
         # 记录第一个倒退点
         self.initial_point_world = [self.xs[0], self.ys[0]]
         self.bezier_path_world = [self.xs, self.ys]
+        Trace.log(f"bezier path world:{self.bezier_path_world}")
 
         # 此处记录返回路径
         self.xs_ret = self.xs[::-1]

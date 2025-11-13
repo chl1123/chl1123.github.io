@@ -2067,6 +2067,10 @@ class RunMotorByPosition(BaseAction):
             self.last_sample_time = time.time()
             self.init = True
 
+            if abs(self.position - cur_fork_height) <= 0.01:
+                self.action_status = ActionStatus.FINISHED
+                return
+
             # 先夹到允许区间
             min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             self.position = clamp(self.position, min_h, max_h)
