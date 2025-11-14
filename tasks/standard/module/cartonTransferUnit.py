@@ -368,7 +368,7 @@ class ConfigParams:
                         builder.REQUIRED(True)
                     # 补光灯时间
                     with builder.CHILD(key="light_delay_time", name="Light Delay Time", desc="time for light"):
-                        builder.TYPE(ParamType.INT)
+                        builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3, min_value=0, max_value=100)
                         builder.REQUIRED(True)
 
@@ -474,7 +474,7 @@ def create_container_param(builder: ParamBuilder, desc: str = "车体背篓号")
 
 def create_goods_id_param(builder: ParamBuilder, desc: str = "货物编号"):
     """创建货物编号参数"""
-    with builder.CHILD(key="goodsId", name="Goods Id", desc=desc):
+    with builder.CHILD(key="goodsName", name="Goods Name", desc=desc):
         builder.TYPE(ParamType.STRING)
         builder.DEFAULTVALUE("")
 
@@ -574,7 +574,7 @@ class InputParams:
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1)
                         create_container_param(builder, "车体背篓号，指定内部取货的背篓号，缺省时将按照从下往上依次取货")
-                        create_goods_id_param(builder, "货物编号，指定要取货的货物编号，若车体背篓中无此goodsId，会报错")
+                        create_goods_id_param(builder, "货物编号，指定要取货的货物编号，若车体背篓中无此goodsName，会报错")
                 with builder.CHILD(key="recBoxBarcode", name="Rec_Box_Barcode", desc="识别料箱一维码"):
                     builder.TYPE(ParamType.ARRAY)
                     create_lift_param(builder, "识别前的货叉高度")
@@ -590,7 +590,7 @@ class InputParams:
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_container_param(builder, "车体背篓号，指定内部取货的背篓号，缺省时将按照从下往上依次取货")
-                        create_goods_id_param(builder, "货物编号，指定要取货的货物编号，若车体背篓中无此goodsId，会报错")
+                        create_goods_id_param(builder, "货物编号，指定要取货的货物编号，若车体背篓中无此goodsName，会报错")
                         create_rotate_param(builder, "内部取货后货叉停止的角度，可设置为下一个动作的目标角度，缺省时默认为0")
                         create_lift_param(builder, "内部取货后货叉停止的高度，可设置为下一个动作的目标高度，缺省时默认为0")
 
@@ -928,7 +928,7 @@ class ContainerRobot(ModuleBase):
     def init_script_args(self, args):
         self.script_args = args or Module.get_task_args()
         if args:
-            self.goods_id = self.script_args.get("goodsId", "")
+            self.goods_id = self.script_args.get("goodsName", "")
             self.self_position = self.script_args.get("container", self.self_position)
             self.self_position = str(self.self_position) if self.self_position is not None else self.self_position
             self.update_move_task_params()
@@ -1084,7 +1084,7 @@ class ContainerRobot(ModuleBase):
         self.motor_calib_info['allMotorCalib'] = self.motor_calib_state
         self.report_info['motorCalibInfo'] = self.motor_calib_info
         self.report_info['taskStatus'] = self.status
-        self.report_info['goodsId'] = self.goods_id
+        self.report_info['goodsName'] = self.goods_id
         self.report_info['containers'] = self.containers
         self.report_info['motorInfo'] = self.container_robot.state or -1
         if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
@@ -1211,9 +1211,9 @@ class ContainerRobot(ModuleBase):
         """
         move_task = Navigation.moveTask()
         for p in move_task['params']:
-            if p['key'] == 'goodsId':
+            if p['key'] == 'goodsName':
                 self.goods_id = p['stringValue']
-            if p['key'] == '#containerName' and p['stringValue'] != "":
+            if p['key'] == '#containerId' and p['stringValue'] != "":
                 self.self_position = p['stringValue']
 
     def zero(self, zero_height=0):
@@ -1475,8 +1475,8 @@ class ContainerRobot(ModuleBase):
         Trace.log(f"----- running load  {self.goods_id}------")
         load_info = dict()
         if not self.cur_c:
-            if (self.goods_id and Container.goods_id_exist(self.goods_id) and
-                    Container.get_container_by_goodsId(self.goods_id) != "999"):
+            if (self.goods_id and Container.goods_exist(self.goods_id) and
+                    Container.get_container_by_goods(self.goods_id) != "999"):
                 Abnormal.setTask(53714, f"货物{self.goods_id}已存在，请检查是否重复下发任务！", "", "", "")
                 self.status = ScriptStatus.FAILED
             if self.self_position:
@@ -1493,7 +1493,7 @@ class ContainerRobot(ModuleBase):
                 Abnormal.setTask(53716, f"车体所有背篓已满，无法继续取货！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
-            if Container.has_goods("999") and Container.get_goodsId_by_container("999") == self.goods_id:
+            if Container.has_goods("999") and Container.get_goods_by_container("999") == self.goods_id:
                 self.load_step[:9] = [True]*9
             elif Container.has_goods("999"):  # 货叉已载货,但不是目标货物
                 Abnormal.setTask(53717, f"货叉（999号）已载货，无法执行取货任务！请核对任务数据和背篓数据！", "", "", "")
@@ -1566,7 +1566,7 @@ class ContainerRobot(ModuleBase):
                 self.load_step[15] = self.lift_safe_height()
 
             load_info['curContainer'] = self.cur_c
-            load_info['goodsId'] = self.goods_id
+            load_info['goodsName'] = self.goods_id
             load_info['loadStep'] = self.load_step
             load_info['lift-height'] = self.lift_height
             load_info['load-height'] = self.load_height
@@ -1608,11 +1608,11 @@ class ContainerRobot(ModuleBase):
 
         in_take_info["inTakeStep"] = self.in_take_step[:8]
         in_take_info["curContainer"] = self.cur_c
-        in_take_info["goodsId"] = self.goods_id
+        in_take_info["goodsName"] = self.goods_id
         self.report_info["inTakeInfo"] = in_take_info
         if all(self.in_take_step[:8]):
             Container.clearContainer(self.cur_c)
-            goods_id = Container.get_goodsId_by_container(self.cur_c)
+            goods_id = Container.get_goods_by_container(self.cur_c)
             Container.setContainer("999", goods_id, "")
             return True
 
@@ -1641,11 +1641,11 @@ class ContainerRobot(ModuleBase):
                 self.in_put_step[7] = self.lift_safe_height()
         Trace.log(f"----- running in_put ------")
         in_put_info = dict()
-        in_put_info["goodsId"] = self.goods_id
+        in_put_info["goodsName"] = self.goods_id
         in_put_info["inPutStep"] = self.in_put_step[:7]
         self.report_info["inPutInfo"] = in_put_info
         if all(self.in_put_step[0:8]):
-            goods_id = Container.get_goodsId_by_container("999")
+            goods_id = Container.get_goods_by_container("999")
             Container.setContainer(self.cur_c, goods_id, "")
             Container.clearContainer("999")
             return True
@@ -1709,7 +1709,7 @@ class ContainerRobot(ModuleBase):
         # if all(self.ex_take_step[0:10]) and not self.ex_take_step[10]:
         #     self.ex_take_step[10] = self.rotate(0)
 
-        ex_take_info['goodsId'] = self.goods_id
+        ex_take_info['goodsName'] = self.goods_id
         ex_take_info['curContainer'] = self.cur_c
         ex_take_info['exTakeStep'] = self.ex_take_step[:10]
         self.report_info["exTakeInfo"] = ex_take_info
@@ -1796,7 +1796,7 @@ class ContainerRobot(ModuleBase):
             self.ex_put_step[13] = self.lift_safe_height()
 
         ex_put_info["exPutStep"] = self.ex_put_step[:13]
-        ex_put_info["goodsId"] = self.goods_id
+        ex_put_info["goodsName"] = self.goods_id
         self.report_info["exPutInfo"] = ex_put_info
         if all(self.ex_put_step[:14]):
             Container.clearContainer("999")
@@ -1808,7 +1808,7 @@ class ContainerRobot(ModuleBase):
 
         if not self.cur_c:
             if self.self_position:
-                if Container.get_goodsId_by_container(self.self_position) != self.goods_id:
+                if Container.get_goods_by_container(self.self_position) != self.goods_id:
                     Abnormal.setTask(53721, f"{self.self_position + 1}层({self.self_position}号)背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！","","","")
                     self.status = ScriptStatus.FAILED
                 if not Container.has_goods(self.self_position):
@@ -1824,14 +1824,14 @@ class ContainerRobot(ModuleBase):
             else:
                 if Container.has_goods("999"):  # 抓斗有货
                     self.cur_c = "999"
-                    if Container.get_goodsId_by_container("999") != self.goods_id:
+                    if Container.get_goods_by_container("999") != self.goods_id:
                         # r.setError(f"料斗已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！")
                         Abnormal.setTask(53724, f"货叉（999号）已载货，无法先执行背篓的放货任务，必须优先释放货叉的货物！", "", "",
                                          "")
                         self.status = ScriptStatus.FAILED
                         return
                 else:
-                    self.cur_c = Container.get_container_by_goodsId(self.goods_id)
+                    self.cur_c = Container.get_container_by_goods(self.goods_id)
 
             if not self.cur_c:
                 Abnormal.setTask(53725, f"背篓中不存在货物: {self.goods_id}，无法执行放货任务！请核对任务数据和背篓数据！",
@@ -1862,7 +1862,7 @@ class ContainerRobot(ModuleBase):
                             self.unload_step[7] = self.rotate(self.rotate_pos)
                     self.unload_step[5] = self.stretch(0)
                     if self.unload_step[5] and Di.get_di(ConfigParams.goods_check_di):
-                        goods_id = Container.get_goodsId_by_container(self.cur_c)
+                        goods_id = Container.get_goods_by_container(self.cur_c)
                         Container.setContainer("999", goods_id, "")
                         Container.clearContainer(self.cur_c)
 
@@ -1951,7 +1951,7 @@ class ContainerRobot(ModuleBase):
 
             unload_info['unloadStep'] = self.unload_step
             unload_info['curContainer'] = self.cur_c
-            unload_info['goodsId'] = self.goods_id
+            unload_info['goodsName'] = self.goods_id
             self.report_info["unloadInfo"] = unload_info
 
         if all(self.unload_step):
@@ -1979,9 +1979,9 @@ class ContainerRobot(ModuleBase):
         self.report_info["currentPos"] = module_pos
 
     def has_goods_id(self, goods_id: str):
-        Trace.log(f"goodsId: {goods_id}")
+        Trace.log(f"goodsName: {goods_id}")
         for c in self.containers:
-            if goods_id == c['goodsId']:
+            if goods_id == c['containerId']:
                 return True
         return False
 
@@ -1990,12 +1990,12 @@ class ContainerRobot(ModuleBase):
         if opt == 'load':
             for c in self.containers:
                 if not c['hasGoods']:
-                    ct = c['containerName']
+                    ct = c['containerId']
                     break
         elif opt == 'unload':
             for c in self.containers:
-                if c['hasGoods'] and self.goods_id == c['goodsId']:
-                    ct = c['containerName']
+                if c['hasGoods'] and self.goods_id == c['containerId']:
+                    ct = c['containerId']
         return ct
 
     def check_put(self):
@@ -2008,7 +2008,7 @@ class ContainerRobot(ModuleBase):
             return
 
         # 货物在背篓里
-        if self.goods_id and Container.goods_id_exist(self.goods_id):
+        if self.goods_id and Container.goods_exist(self.goods_id):
             Abnormal.setTask(53728, f"货物已存在", "", "", "")
             self.status = ScriptStatus.FINISHED
             return
@@ -2037,7 +2037,7 @@ class ContainerRobot(ModuleBase):
                 self.status = ScriptStatus.FAILED
             self.cur_c = self.self_position
         else:
-            self.cur_c = Container.get_container_by_goodsId(self.goods_id)
+            self.cur_c = Container.get_container_by_goods(self.goods_id)
 
         if Container.has_goods("999"):  # 抓斗有货
             self.cur_c = "999"
