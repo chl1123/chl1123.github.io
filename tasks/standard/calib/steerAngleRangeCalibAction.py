@@ -65,6 +65,7 @@ class CalibMove:
             self.steer_offset = Module.get_task_args("offset",0.0)
             self.chassis_mode = Module.get_task_args("chassis_mode","")
             self.cancel = False
+            self.center_angle = self.steer_offset + 0.5*(self.steer_max_angle + self.steer_min_angle)
 
         if self.steer_name == "":
             log.info("steer name emtpy!")
@@ -72,26 +73,26 @@ class CalibMove:
         self.cur_angle = Motor.get_motor_pos(self.steer_name)
 
         if self.steer_dir == SteerDir.MoveWait:
-            self.send_angle = (self.steer_offset + 0.5*(self.steer_max_angle + self.steer_min_angle))*math.pi/180
+            self.send_angle = self.center_angle*math.pi/180
             if self.reachLimit():
                 self.steer_dir = SteerDir.CounterClockWise
 
         if self.steer_dir == SteerDir.CounterClockWise:
             self.send_angle = self.cur_angle + 0.1  
             # if self.chassis_mode == "dualDiff":
-            self.send_angle = min(self.send_angle, (self.steer_offset+150.0)*math.pi/180)
+            self.send_angle = min(self.send_angle, (self.center_angle+150.0)*math.pi/180)
             if self.reachLimit():
                 self.steer_dir = SteerDir.ClockWise
 
         if self.steer_dir == SteerDir.ClockWise:
             self.send_angle = self.cur_angle - 0.1  
             # if self.chassis_mode == "dualDiff":
-            self.send_angle = max(self.send_angle, (self.steer_offset-150.0)*math.pi/180)
+            self.send_angle = max(self.send_angle, (self.center_angle-150.0)*math.pi/180)
             if self.reachLimit():
                 self.steer_dir = SteerDir.MoveCenter
 
         if self.steer_dir == SteerDir.MoveCenter:
-                self.send_angle = (self.steer_offset + 0.5*(self.steer_max_angle + self.steer_min_angle))*math.pi/180
+                self.send_angle = self.center_angle*math.pi/180
                 if abs(self.last_motor_angle-self.cur_angle) < 0.001:
                     if self.reachLimit(3.0):
                         self.status = ScriptStatus.FINISHED
@@ -122,6 +123,7 @@ class CalibMove:
         info["reachLimit"] = self.reachLimit()
         info["steer_name"] = self.steer_name
         info["d_steer"] = self.d_steer
+        info["center_angle"] = self.center_angle
         log.info(json.dumps(info))
 
     def Cancel(self):
