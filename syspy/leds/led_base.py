@@ -90,10 +90,12 @@ class LedBase:
         abnormal_num = Abnormal.getNum()
         if abnormal_num == 0:
             return False
-        exists_52200, exists_54506 = Abnormal.exists([52200, 54506])
+        exists_52200, exists_54506, exists_52201, exists_57049 = Abnormal.exists([52200, 54506, 52201, 57049])
         allowed_errors = [
             exists_52200,
-            exists_54506
+            exists_54506,
+            exists_52201,
+            exists_57049
         ]
         return abnormal_num > sum(allowed_errors)
 
