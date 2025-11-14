@@ -13,8 +13,8 @@ class CanBattery(cb.CanBase):
     def __init__(self):
         # 初始化基类,必须做
         super(CanBattery, self).__init__()
-        self.__debug_out = ud.udpDebug()
-        sys.stdout = self.__debug_out
+        #self.__debug_out = ud.udpDebug()
+        #sys.stdout = self.__debug_out
         # 用来表示数据是否已经正确接收
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(5000)
@@ -44,10 +44,10 @@ class CanBattery(cb.CanBase):
             self.clearTimeout()
             tem = canframe.data.hex()
             if self.isNeedCharge():
-                print("start charge")
+                log.info("start charge")
                 can_data = [tem[0:2], tem[2:4], tem[4:6], tem[6:8], '00', '00', '00', '00']
                 can_string = ' '.join(can_data).upper()
-                print(can_string)
+                log.info(can_string)
                 self.sendCanframe(2, 0x18FF50E5, 8, True, can_string)
             max_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             max_current = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
