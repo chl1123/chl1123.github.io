@@ -1240,7 +1240,10 @@ class Fork(ModuleBase):
                 rec_result2r = min_y_result
                 rec_world_pos = Pos2World(rec_result2r, [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])])
 
-                set_deduct_area(self.pallet_deduct_infos, rec_world_pos, "PalletWorldDeductArea", Coordinate.WORLD)
+                rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0],rec_world_pos[1],rec_world_pos[2],"defaultTCP")
+                rec_world_pos_tcp_list = [rec_world_pos_tcp["x"],rec_world_pos_tcp["y"],rec_world_pos_tcp["theta"]]
+                Trace.log(f"after tcp:{rec_world_pos_tcp_list}")
+                set_deduct_area(self.pallet_deduct_infos, rec_world_pos_tcp_list, "PalletWorldDeductArea", Coordinate.WORLD)
 
                 # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
                 if self.target_pos and self.target_pos[3] != -1:
@@ -1287,7 +1290,7 @@ class Fork(ModuleBase):
                     args["max_curve"] = 3
                 self.action_list.extend([
                     # RunMotorByPosition(ConfigParams.fork_motor_name, self.rec_result["z"]),
-                    GoPathWithContactDi(ConfigParams.contact_ids, rec_world_pos, 0.05, method, args, self.check_di),
+                    GoPathWithContactDi(ConfigParams.contact_ids, rec_world_pos_tcp_list, 0.05, method, args, self.check_di),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
                 ])
                 Trace.log(f"task after rec:{self.action_list}")
