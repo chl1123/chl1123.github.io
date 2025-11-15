@@ -1237,7 +1237,9 @@ class Fork(ModuleBase):
 
                 # 相对于机器人取 y 最小的
                 min_y_result = min(results_in_r, key=lambda result_in_r: result_in_r[1])
+
                 rec_result2r = min_y_result
+
                 rec_world_pos = Pos2World(rec_result2r, [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])])
 
                 rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0],rec_world_pos[1],rec_world_pos[2],"defaultTCP")
@@ -1807,14 +1809,15 @@ class GoPathWithContactDi(BaseAction):
         self.laser_id = []
         self.laser_width = None
         self.walk_dist = None
+        self.action_status = ScriptStatus.NONE
         self.di_status = []
         self.contact_di = contact_dis
         if self.check_di and not self.contact_di:
             Abnormal.setTask(53327, f"check di is True in recfile, but contact di is none",
                              "contact di is none", "config contact di in model", "")
+            self.action_status = ActionStatus.FAILED
         self.goal = [0, 0, 0]
         self.init = False
-        self.action_status = ScriptStatus.NONE
         self.obs_dist = obs_dist
         self.start_loc = None
         self.method = method
@@ -1822,12 +1825,14 @@ class GoPathWithContactDi(BaseAction):
         self.set_policy = False
         self.clear_policy = False
         self.policy = {}
+        Trace.log(f"go path with di target pos:{world_pos}")
 
         if method == "goPath":
             if self.check_di:
                 target_pos = Pos2World([-args["fork_di_dist"], 0, 0], world_pos)
             else:
                 target_pos = world_pos
+            Trace.log(f"go path with di target pos:{target_pos}")
             self.back_args = {
                 'x': target_pos[0],
                 'y': target_pos[1],
@@ -1877,6 +1882,9 @@ class GoPathWithContactDi(BaseAction):
         # 开始后退
         if self.back_action.action_status not in [ScriptStatus.FAILED, ScriptStatus.FINISHED]:
             self.back_action.run()
+
+        if self.back_action.action_status == ScriptStatus.FAILED:
+            self.action_status = ScriptStatus.FINISHED
 
         if NavSpeed.get_speeds()[0] >= 0.005 and not self.clear_policy:
             Navigation.clearPolicy()

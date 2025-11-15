@@ -13,10 +13,10 @@ log = logging.getLogger("rbk.script")
 
 class GoBezierWorld:
     """
-        走二阶贝塞尔
+        走贝塞尔曲线
     """
     def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.0, is_backwards=False, is_hold_dir=None,
-                 max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3, path_dist_accuracy=0.01, path_angle_accuracy=0.05):
+                 max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3, path_dist_accuracy=0.01, path_angle_accuracy=0.5,alpha = 0.2):
         del target_world[3:]
         self.action_name = self.__class__.__name__
 
@@ -72,7 +72,6 @@ class GoBezierWorld:
         success = False
         max_offset = self.adjust_dist_for_curvature_limit
         offset_step = 0.1
-        alpha = 0.5  # 固定控制点比例
         p0_xy = p1_xy = p2_xy = p3_xy = [0, 0]
 
         while self.offset_dist <= max_offset:
@@ -85,8 +84,8 @@ class GoBezierWorld:
             P3 = self.target_world
 
             # 生成贝塞尔曲线控制点与路径
-            p0_xy, p1_xy, p2_xy, p3_xy = self.compute_bezier_controls_dir(P0, P3, alpha)
-            self.xs, self.ys = self.bezier_points(p0_xy, p1_xy, p2_xy, p3_xy)
+            p0, p1, p2, p3, p4, p5 = self.compute_bezier_controls_5th(P0, P3,alpha,alpha)
+            self.xs, self.ys = self.bezier_points(p0, p1, p2, p3, p4, p5)
             self.bezier_end_x, self.bezier_end_y = self.xs[-1], self.ys[-1]
 
             # 直线起点和终点
@@ -102,29 +101,36 @@ class GoBezierWorld:
                 x = x1 + (x2 - x1) * t
                 y = y1 + (y2 - y1) * t
                 # 添加末端直线路径
-                self.xs.append(x)
-                self.ys.append(y)
+                self.xs.append(round(x,5))
+                self.ys.append(round(y,5))
 
             # 判断曲率是否超限
-            self.k_max = self.bezier_curvature(p0_xy, p1_xy, p2_xy, p3_xy)
+            self.k_max = self.bezier_curvature(p0, p1, p2, p3, p4, p5)
+            Trace.log(f"bezier curv:{self.k_max}")
             if self.k_max <= self.curvature_limit:
                 success = True
                 break
             self.offset_dist += offset_step
+        Trace.log(f"ahead dist:{self.offset_dist}")
+        Trace.log(f"bezier path:x{self.xs},y:{self.ys}")
 
         if not success:
             Abnormal.setTask(53900, f"curvature limit exceeded. max_curvature={self.k_max}",
                              "The positions of the robot and the target point cannot generate a Bezier curve",
                              "Adjust the robot's position before running this task",
                              "GoBezierWorld")
-            if self.k_max >= 30:
-                Module.set_status(ScriptStatus.FAILED)
+            Module.set_status(ScriptStatus.FAILED)
+        if self.k_max >= 30:
+            Abnormal.setTask(53901, f"wrong path. max_curvature={self.k_max}",
+                             "",
+                             "",
+                             "GoBezierWorld")
+            Module.set_status(ScriptStatus.FAILED)
         # 成功构造路径,需要将路径分为2段，第一段后退至贝塞尔起始点
         self.control_point = [p0_xy, p1_xy, p2_xy, p3_xy]
         # 记录第一个倒退点
         self.initial_point_world = [self.xs[0], self.ys[0]]
         self.bezier_path_world = [self.xs, self.ys]
-        Trace.log(f"bezier path world:{self.bezier_path_world}")
 
         # 此处记录返回路径
         self.xs_ret = self.xs[::-1]
@@ -138,7 +144,7 @@ class GoBezierWorld:
             self.init = False
             # 规划第一段倒退路线参数
             Navigation.resetPath()
-            Navigation.setPathReachAngle(self.path_angle_accuracy)  # 到位精度
+            Navigation.setPathReachAngle(math.radians(self.path_angle_accuracy))  # 到位精度
             Navigation.setPathReachDist(self.path_dist_accuracy)
             Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
             if self.is_hold_dir:
@@ -204,86 +210,109 @@ class GoBezierWorld:
         Navigation.resetPath()
         self.action_status = ScriptStatus.RUNNING
 
-    def compute_bezier_controls_dir(self, p0, p3, alpha=0.3):
-        """
-        计算三次 Bezier 的 4 个控制点（含端点），支持端点方向。
-        :param
-        p0, p3 : [x, y, theta]   theta 为弧度，表示该点切线方向
-        alpha  : 0~1，控制 P1/P2 到端点的相对距离 (d = alpha * |P3-P0|)
-        :return
-        [p0_xy, P1, P2, p3_xy]   仅保留 (x, y)
-        """
+    def compute_bezier_controls_5th(self, p0, p5, alpha1=0.2, alpha2=0.2):
         x0, y0, th0 = p0
-        x3, y3, th3 = p3
+        x5, y5, th5 = p5
 
-        # 端点间直线距离
-        dist = math.hypot(x3 - x0, y3 - y0)
-        d = alpha * dist  # 控制点到端点的绝对距离
+        dist = math.hypot(x5 - x0, y5 - y0)
 
-        # 控制点
-        p1 = [x0 + d * math.cos(th0), y0 + d * math.sin(th0)]
-        p2 = [x3 + d * math.cos(th3), y3 + d * math.sin(th3)]
+        # 1阶控制点距离
+        d1 = alpha1 * dist
+        # 2阶控制点距离
+        d2 = alpha2 * dist
 
-        return [p0, p1, p2, p3]  # 去掉角度，只留坐标
+        p1 = [x0 + d1 * math.cos(th0), y0 + d1 * math.sin(th0)]
+        p2 = [x0 + d2 * math.cos(th0), y0 + d2 * math.sin(th0)]
 
-    def bezier_points(self, p0, p1, p2, p3, steps=1000):
+        p4 = [x5 + d1 * math.cos(th5), y5 + d1 * math.sin(th5)]
+        p3 = [x5 + d2 * math.cos(th5), y5 + d2 * math.sin(th5)]
+
+        return p0, p1, p2, p3, p4, p5
+
+    def bezier_points(self, p0, p1, p2, p3, p4, p5, steps=1000):
         """
-        生成 Bezier 曲线采样点
+        生成五次 (6 控制点) Bezier 曲线采样点
         :param
-        p0~p3 : [x, y]
-        steps : 采样分段数，返回 steps+1 个点
+            p0~p5 : [x, y]
+            steps : 采样分段数，返回 steps+1 个点
         :return
-        (xs, ys) : 两个长度相等的列表
+            (xs, ys)
         """
         xs, ys = [], []
         for i in range(steps + 1):
             t = i / steps
             one_t = 1 - t
 
-            # 三次 Bezier 伯恩斯坦基函数
-            b0 = one_t ** 3
-            b1 = 3 * one_t ** 2 * t
-            b2 = 3 * one_t * t ** 2
-            b3 = t ** 3
+            # 五次 Bezier 伯恩斯坦基函数
+            b0 = one_t ** 5
+            b1 = 5 * one_t ** 4 * t
+            b2 = 10 * one_t ** 3 * t ** 2
+            b3 = 10 * one_t ** 2 * t ** 3
+            b4 = 5 * one_t * t ** 4
+            b5 = t ** 5
 
-            x = (b0 * p0[0] + b1 * p1[0] + b2 * p2[0] + b3 * p3[0])
-            y = (b0 * p0[1] + b1 * p1[1] + b2 * p2[1] + b3 * p3[1])
+            # 计算坐标
+            x = (b0 * p0[0] + b1 * p1[0] + b2 * p2[0] +
+                 b3 * p3[0] + b4 * p4[0] + b5 * p5[0])
+            y = (b0 * p0[1] + b1 * p1[1] + b2 * p2[1] +
+                 b3 * p3[1] + b4 * p4[1] + b5 * p5[1])
+
             xs.append(x)
             ys.append(y)
+
         return xs, ys
 
-    def bezier_curvature(self, p0, p1, p2, p3, steps=500):
+    def bezier_curvature(self, p0, p1, p2, p3, p4, p5, steps=500):
         """
-        基于导数计算三次贝塞尔曲线最大曲率
-        p0~p3: 控制点[x, y]
-        return最大曲率
+        基于导数计算五次贝塞尔曲线最大曲率
+        p0~p5: 控制点[x, y]
+        return 最大曲率
         """
         k_max = 0.0
+
         for i in range(steps + 1):
             t = i / steps
             one_t = 1 - t
 
-            # 一阶导数
-            dx_dt = 3 * one_t ** 2 * (p1[0] - p0[0]) + \
-                    6 * one_t * t * (p2[0] - p1[0]) + \
-                    3 * t ** 2 * (p3[0] - p2[0])
-            dy_dt = 3 * one_t ** 2 * (p1[1] - p0[1]) + \
-                    6 * one_t * t * (p2[1] - p1[1]) + \
-                    3 * t ** 2 * (p3[1] - p2[1])
+            # 一阶导数 dx/dt, dy/dt
+            dx_dt = 5 * (
+                    (p1[0] - p0[0]) * one_t ** 4 +
+                    4 * (p2[0] - p1[0]) * one_t ** 3 * t +
+                    6 * (p3[0] - p2[0]) * one_t ** 2 * t ** 2 +
+                    4 * (p4[0] - p3[0]) * one_t * t ** 3 +
+                    (p5[0] - p4[0]) * t ** 4
+            )
+            dy_dt = 5 * (
+                    (p1[1] - p0[1]) * one_t ** 4 +
+                    4 * (p2[1] - p1[1]) * one_t ** 3 * t +
+                    6 * (p3[1] - p2[1]) * one_t ** 2 * t ** 2 +
+                    4 * (p4[1] - p3[1]) * one_t * t ** 3 +
+                    (p5[1] - p4[1]) * t ** 4
+            )
 
-            # 二阶导数
-            ddx_dt = 6 * one_t * (p2[0] - 2 * p1[0] + p0[0]) + \
-                     6 * t * (p3[0] - 2 * p2[0] + p1[0])
-            ddy_dt = 6 * one_t * (p2[1] - 2 * p1[1] + p0[1]) + \
-                     6 * t * (p3[1] - 2 * p2[1] + p1[1])
+            # 二阶导数 ddx/dt, ddy/dt
+            ddx_dt = 20 * (
+                    (p2[0] - 2 * p1[0] + p0[0]) * one_t ** 3 +
+                    3 * (p3[0] - 2 * p2[0] + p1[0]) * one_t ** 2 * t +
+                    3 * (p4[0] - 2 * p3[0] + p2[0]) * one_t * t ** 2 +
+                    (p5[0] - 2 * p4[0] + p3[0]) * t ** 3
+            )
+            ddy_dt = 20 * (
+                    (p2[1] - 2 * p1[1] + p0[1]) * one_t ** 3 +
+                    3 * (p3[1] - 2 * p2[1] + p1[1]) * one_t ** 2 * t +
+                    3 * (p4[1] - 2 * p3[1] + p2[1]) * one_t * t ** 2 +
+                    (p5[1] - 2 * p4[1] + p3[1]) * t ** 3
+            )
 
             # 曲率公式
             numerator = abs(dx_dt * ddy_dt - dy_dt * ddx_dt)
             denominator = (dx_dt ** 2 + dy_dt ** 2) ** 1.5
             if denominator == 0:
                 continue
+
             k = numerator / denominator
             k_max = max(k_max, k)
+
         return k_max
 
 
@@ -341,6 +370,7 @@ class GoBezierWorldReturn:
             if self.is_hold_dir:
                 Navigation.setPathHoldDir(self.is_hold_dir) # 用于全向车
             Navigation.setPathMaxSpeed(self.max_speed)
+            Navigation.setPathMaxRot(10)
             Navigation.setPathOnWorld(self.bezier_path_world_return[0], self.bezier_path_world_return[1],
                                       self.bezier_path_world_return[2])
             self.param["maxAcc"] = float(self.max_accele)
