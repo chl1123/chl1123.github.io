@@ -3,7 +3,7 @@ import time
 from typing import Optional
 from syspy import Module, Trace
 from syspy import Battery, Controller, NavStatus, NavSpeed
-from syspy import Logger
+from syspy import Logger,RobotParam
 from syspy.utils.param_server import ParamType, ScriptParam
 from syspy.leds.led_base import LedBase
 from syspy.leds.light_type import LightType, Color
@@ -195,6 +195,37 @@ class ConfigParams:
 
         Trace.log(f"Updated config: {cls.config}")
 
+'''
+Model Params
+'''
+robot_param = {}
+def load_robot_device_params():
+    """加载机器人设备参数"""
+    global robot_param
+    robot_param.update(
+        {
+            "errorPercentage": RobotParam.getDevice("Battery-000", "basic.errorPercentage"),
+            "automaticShutdown": RobotParam.getDevice("Battery-000", "basic.automaticShutdown")
+        }
+    )
+    if robot_param['automaticShutdown'] == 'ON':
+        robot_param.update(
+            {
+                "shutdownPercentage": RobotParam.getDevice("Battery-000", "basic.automaticShutdown.ON.shutdownPercentage"),
+            }
+        )
+
+
+def _robot_device_change_callback(device_change_set: List[str]):
+    """机器人设备参数改变回调"""
+    global robot_param
+    """设备参数变化回调"""
+    for device in device_change_set:
+        if device == "Battery":
+            load_robot_device_params()
+
+
+load_robot_device_params()
 
 # 创建全局配置管理器实例
 config_params = ConfigParams()
@@ -299,8 +330,14 @@ class LedChassis(LedBase):
             self.set_effect(
                 LightType.MutableBreath, rgbw=Color.ChargeYellow, period=3200
             )
-        # 电量过低为暗红色跑马灯
-        elif dmx_battery * 100 < 10:
+        # 低于关机 红色呼吸灯
+        elif robot_param.get('automaticShutdown','OFF') == 'ON' and dmx_battery * 100 <= robot_param.get('shutdownPercentage', -1):
+            self.robot_status = "Alarm"
+            self.set_effect(
+                LightType.MutableBreath, rgbw=Color.Red, period=3200
+            )
+        # 低于错误 红色跑马灯
+        elif dmx_battery * 100 <= robot_param.get('errorPercentage',-1):
             self.robot_status = "LowBattery"
             self.set_effect(
                 LightType.MutableHorseRace, rgbw=Color.RedDark,period=2000
@@ -322,5 +359,6 @@ if __name__ == "__main__":
     ScriptParam.setConfigChangeCallBack(script_config_changed)
     signal.signal(signal.SIGINT, signal_handler)
     Module.init()
+    RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
     tape_light = LedChassis()
     tape_light.run()

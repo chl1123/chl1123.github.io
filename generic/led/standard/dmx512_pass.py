@@ -3,9 +3,41 @@ import time
 import syspy.dmx512.dmx512_base as dmx
 import syspy.lib.misc_utility as mu
 from syspy import Battery, Controller, NavStatus, NavSpeed
-from syspy import Logger
-
+from syspy import Logger,RobotParam, Abnormal,Module
+from typing import List, Dict, Any
 log = Logger("led")
+
+'''
+Model Params
+'''
+robot_param = {}
+def load_robot_device_params():
+    """加载机器人设备参数"""
+    global robot_param
+    robot_param.update(
+        {
+            "errorPercentage": RobotParam.getDevice("Battery-000", "basic.errorPercentage"),
+            "automaticShutdown": RobotParam.getDevice("Battery-000", "basic.automaticShutdown")
+        }
+    )
+    if robot_param['automaticShutdown'] == 'ON':
+        robot_param.update(
+            {
+                "shutdownPercentage": RobotParam.getDevice("Battery-000", "basic.automaticShutdown.ON.shutdownPercentage"),
+            }
+        )
+
+
+def _robot_device_change_callback(device_change_set: List[str]):
+    """机器人设备参数改变回调"""
+    global robot_param
+    """设备参数变化回调"""
+    for device in device_change_set:
+        if device == "Battery":
+            load_robot_device_params()
+
+
+load_robot_device_params()
 
 
 class demo_dmx512(dmx.dmx512Base):
@@ -21,6 +53,21 @@ class demo_dmx512(dmx.dmx512Base):
         self.cur_x = 0.0
         self.cur_y = 0.0
 
+    @staticmethod
+    def is_alarm():
+        """获取报警条件"""
+        abnormal_num = Abnormal.getNum()
+        if abnormal_num == 0:
+            return False
+        exists_52200, exists_54506, exists_52201, exists_57049 = Abnormal.exists([52200, 54506, 52201, 57049])
+        allowed_errors = [
+            exists_52200,
+            exists_54506,
+            exists_52201,
+            exists_57049
+        ]
+        return abnormal_num > sum(allowed_errors)
+    
     def run(self):
         dmx512_info = self.createDmx512Message()
         mu.sleep_s(20)
@@ -46,14 +93,10 @@ class demo_dmx512(dmx.dmx512Base):
             else:
                 self.battery_exist = False
 
-            if self.warningExists(54001):
+            if self.errorExists(57040):
                 self.battery_exist = False
 
-            if (((self.getErrorNum() > 0) and \
-                 not (self.getErrorNum() == 1 and self.errorExists(52200)) and \
-                 not (self.getErrorNum() == 1 and self.errorExists(52201)) and \
-                 not (self.getErrorNum() == 2 and self.errorExists(52200) and self.errorExists(52201))) \
-                   ):
+            if self.is_alarm():
                 '''报错状态下红色呼吸'''
                 dmx512_info.type = dmx.LightType.Errofatal.value
 
@@ -114,12 +157,14 @@ class demo_dmx512(dmx.dmx512Base):
 
             elif self.battery_exist:
                 '''静止状态且battery存在'''
-                maxPer = self.getBatteryMaxPercentage()
                 if Battery.get_is_charging():
                     '''充电中为橙黄色呼吸'''
                     dmx512_info.type = dmx.LightType.Charging.value
-                elif percentage * 100 < maxPer:
-                    '''电量低于20 %（可配置）为暗红色跑马灯'''
+                # 低于关机 红色呼吸灯
+                elif robot_param.get('automaticShutdown','OFF') == 'ON' and percentage * 100 <= robot_param.get('shutdownPercentage', -1):
+                    dmx512_info.type = dmx.LightType.Errofatal.value
+                #低于错误 暗红色跑马灯
+                elif percentage * 100 < robot_param.get('errorPercentage',-1):
                     dmx512_info.type = dmx.LightType.MutableHorseRace.value
                     RGBW = [170, 20, 0, 0]
                     dmx512_info.colorRed = RGBW[0]
@@ -141,5 +186,7 @@ class demo_dmx512(dmx.dmx512Base):
 
 
 if __name__ == '__main__':
+    Module.init()
+    RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
     client = demo_dmx512()
     client.run()
