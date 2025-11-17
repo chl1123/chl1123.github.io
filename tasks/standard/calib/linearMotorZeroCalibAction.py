@@ -12,7 +12,7 @@ log = Logger("linearMotorZeroCalibAction")
         "value": 1.0,
         "tips": "Linear motor actuation height",
         "type": "double",
-        "unit":"m/s",
+        "unit":"m",
         "maxValue":2.0,
         "minValue":0.0
     }

@@ -577,6 +577,22 @@ class NavigationV3(NavigationInterface):
         pass
 
     @classmethod
+    @call_service()
+    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_name: str) -> typing.Dict:
+        """将目标点增加TCP坐标系补偿
+
+        Args:
+            x (float): 目标点的 x 坐标（单位：米）
+            y (float): 目标点的 y 坐标（单位：米）
+            theta (float): 目标点的角度（单位：弧度）
+            tcp_name (str): TCP 名称，若不存在TCP 名称，则返回原始的目标点不进行TCP变换
+
+        Returns:
+            typing.Dict: 包含转换后的目标点位置信息，格式为 {"x": double, "y": double, "theta": double}
+        """
+        pass
+
+    @classmethod
     def appendPolicy(cls, name: str):
         """增加策略
 
