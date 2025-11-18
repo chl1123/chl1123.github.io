@@ -182,9 +182,6 @@ class CanBase:
     def close(self):
         self.child.close()
 
-    def __del__(self):
-        self.close()
-
 
 if __name__ == "__main__":
     pass

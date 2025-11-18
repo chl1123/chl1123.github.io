@@ -39,7 +39,21 @@ class passThrough:
 
     def close(self):
         print("close the socket")
-        self.socket.close()
+        self.__should_close = True
+        time.sleep(0.01)
+        try:
+            self.__client_sock.close(0)  # 立即关闭
+        except Exception as e:
+            print("socket close error:", e)
+        if self.__msg_thread and self.__msg_thread.is_alive():
+            self.__msg_thread.join(timeout=0.1)
+        
+        try:
+            self.context.term()
+        except Exception as e:
+            print("context term error:", e)
+        print("passThrough closed.")
+
 
     def setCallBack(self, callback):
         self.__callback = callback
@@ -73,7 +87,7 @@ class passThrough:
             print("passThrough exception:", e)
 
         finally:
-            pass
+            print("finished passThrough")
 
     def __receive(self):
         with self.__lock:
@@ -105,9 +119,6 @@ class passThrough:
     def send(self, data):
         with self.__lock:
             self.__client_sock.send(data)
-
-    def shoutDown(self):
-        self.__should_close = True
 
 
 if __name__ == "__main__":

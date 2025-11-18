@@ -51,10 +51,10 @@ class CanPass():
         Can.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4, can_id5)
         log.info(f"Attached CAN IDs: {[hex(id_) for id_ in can_ids]}")
 
-    def __del__(self):
+    def close(self):
         if self.__pass:
             try:
-                self.__pass.shoutDown()
+                self.__pass.close()
             except Exception as e:
                 log.error(f"Error shutting down passThrough: {e}")
 

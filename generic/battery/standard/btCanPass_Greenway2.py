@@ -27,6 +27,8 @@ error_dict = {
     (3, 0): "large difference in inter-group cycling times",
     (3, 1): "excessive individual cell pressure difference",
 }
+class RestartException(Exception):
+    pass
 
 class CanBattery(cb.CanBase):
 
@@ -175,9 +177,13 @@ class CanBattery(cb.CanBase):
                     self.wake_up = True # 主动唤醒
                     log.info("wake_up")
                 else:
+                    #self.wake_up = False
                     self.clear = False
                     log.info('timeout')
                     self.setTimeout()
+                    super().close()
+                    # self.__init__()
+                    raise RestartException("battery timeout")
         if (self.id == "0e") and (self.isNeedCharge()) : #继电器没有打开且需要打开
             self.sendCanframe(self.port, 0x0DA30DF4, 8, True, "01,00,00,00,00,00,00,00")
 
@@ -206,8 +212,15 @@ class CanBattery(cb.CanBase):
             mu.sleep_s(2)
 
 if __name__ == '__main__':
-    client = CanBattery()
-    client.loop()
+    while True:
+        try:
+            client = CanBattery()
+            client.loop()
+        except RestartException:
+            log.info("Restarting CanBattery class ...")
+        except Exception as e:
+            log.error(f"Unexpected error: {e}")
+            mu.sleep_s(2)
 
 
 
