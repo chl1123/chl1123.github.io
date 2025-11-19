@@ -247,7 +247,7 @@ class NavigationInterface(ABC, Service):
             x (float): 货叉相对于里程中心的 x 轴坐标 m
             y (float): 货叉相对于里程中心的 y 轴坐标 m
             theta (float): 是货叉相对于里程中心的偏移角度 rad
-            hold_dir (float): 是车体的横移角度 单位：°
+            hold_dir (float): 是车体的横移角度 单位: °
 
         """
         raise RBKVersionError()
@@ -428,8 +428,8 @@ class NavigationInterface(ABC, Service):
         """设置OSSD区域组切换
 
         Args:
-            laser_key (str)：激光设备的key。""表示选择全部激光。
-            ossdRegion (int)：表示需要切换到的OSSD区域组，0代表未载货或者载小货，1代表已载货或者载大货
+            laser_key (str): 激光设备的key。""表示选择全部激光。
+            ossdRegion (int): 表示需要切换到的OSSD区域组，0代表未载货或者载小货，1代表已载货或者载大货
         """
         raise RBKVersionError()
 
@@ -503,7 +503,7 @@ class NavigationInterface(ABC, Service):
         """变轴距标定时,触发MF中的模型变化响应
 
         Args:
-            flag : False:放下货叉， True:抬起货叉
+            flag (bool): False:放下货叉， True:抬起货叉
 
         Returns:
             bool: 是否完成
@@ -515,9 +515,9 @@ class NavigationInterface(ABC, Service):
         """相机标定时,触发图像采集
 
         Args:
-            fileName : 文件名称
-            filePath : 文件保存路径
-            camName : 相机名称
+            fileName (str): 文件名称
+            filePath (str): 文件保存路径
+            camName (str): 相机名称
 
         Returns:
             bool: 是否完成
@@ -623,9 +623,9 @@ class NavigationInterface(ABC, Service):
         """将目标点增加TCP坐标系补偿
 
         Args:
-            x (float): 目标点的 x 坐标（单位：米）
-            y (float): 目标点的 y 坐标（单位：米）
-            theta (float): 目标点的角度（单位：弧度）
+            x (float): 目标点的 x 坐标（单位: 米）
+            y (float): 目标点的 y 坐标（单位: 米）
+            theta (float): 目标点的角度（单位: 弧度）
             tcp_name (str): TCP 名称，若不存在TCP 名称，则返回原始的目标点不进行TCP变换
 
         Returns:

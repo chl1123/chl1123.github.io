@@ -134,7 +134,7 @@ class ContainerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def get_task_goods(cls):
+    def get_task_goods(cls) -> str:
         """从任务参数中获取货物ID。
 
         Returns:

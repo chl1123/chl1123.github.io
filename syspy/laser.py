@@ -39,7 +39,7 @@ class LaserInterface:
         """清除激光设备宽度
 
         Args:
-            device_name (str): 激光设备名称列表
+            device_list (List[str]): 激光设备名称列表
         """
         self.child.clear2DLaserWidth(device_list)
 
@@ -48,8 +48,8 @@ class LaserInterface:
 
         Args:
             device_name (str): 激光设备名称
-            min_angle (float): 最小角度（单位：°），小于此角度的点云被屏蔽
-            max_angle (float): 最大角度（单位：°），大于此角度的点云被屏蔽
+            min_angle (float): 最小角度（单位: °），小于此角度的点云被屏蔽
+            max_angle (float): 最大角度（单位: °），大于此角度的点云被屏蔽
         """
         self.child.set2DLaserAngle(device_name, min_angle, max_angle)
 
@@ -57,7 +57,7 @@ class LaserInterface:
         """清除激光设备角度
         
         Args:
-            device_name (str): 激光设备名称列表
+            device_list (List[str]): 激光设备名称列表
         """
         self.child.clear2DLaserAngle(device_list)
 
@@ -78,7 +78,7 @@ class LaserInterface:
         """获取激光抑制状态
 
         Args:
-            laser_key (str)：激光设备的key。
+            laser_key (str): 激光设备的key。
 
         Returns:
             int: 激光状态，1表示启用，0表示禁用
@@ -89,8 +89,8 @@ class LaserInterface:
         """设置激光抑制(muting)
 
         Args:
-            laser_key (str)：激光设备的key。""表示选择全部激光。
-            enable (int)：表示是否启用激光muting，true启用，false禁用
+            laser_key (str): 激光设备的key。""表示选择全部激光。
+            enable (int): 表示是否启用激光muting，true启用，false禁用
         """
         self.child.setSafeLaserMute(laser_key, enable)
 

@@ -25,8 +25,8 @@ def write_module(module_list):
         tags:
           - API
         hide:
-        #- navigation # 显示右侧导航
-        #- toc #显示左侧导航
+        #- navigation
+        #- toc
         ---
 
         ::: syspy.module_name
@@ -40,10 +40,43 @@ def write_module(module_list):
                 f'tags:\n'
                 f'  - API\n'
                 f'hide:\n'
-                f'#- navigation # 显示右侧导航\n'
-                f'#- toc #显示左侧导航\n'
+                f'#- navigation\n'
+                f'#- toc\n'
                 f'---\n\n'
                 f'::: syspy.{module}\n')
+            f.close()
+            print(f'{module}.md 文件已生成')
+
+
+def write_lib_module(module_list):
+    """
+        ---
+        title: module_name
+        tags:
+          - API
+        hide:
+        #- navigation
+        #- toc
+        ---
+
+        ::: syspy.module_name
+    """
+    # 如果文件夹不存在，则创建
+    if not os.path.exists('./api/lib'):
+        os.mkdir('./api/lib')
+    # 将上述字符串写入文件
+    for module in module_list:
+        with open(f'./api/lib/{module}.md', 'w') as f:
+            f.write(
+                f'---\n'
+                f'title: {module}\n'
+                f'tags:\n'
+                f'  - API\n'
+                f'hide:\n'
+                f'#- navigation\n'
+                f'#- toc\n'
+                f'---\n\n'
+                f'::: syspy.lib.{module}\n')
             f.close()
             print(f'{module}.md 文件已生成')
 
@@ -61,12 +94,15 @@ def write_message(message_list):
 
         ::: syspy.protobuf.message.message_name
     """
+    # 如果文件夹不存在，则创建
+    if not os.path.exists('./api/v3/message'):
+        os.makedirs('./api/v3/message', exist_ok=True)
     nav_list = []
     # 将上述字符串写入文件
     for message in message_list:
         # if message in ["XXX"]:  # 排除
         #     continue
-        with open(f'./api/message/{message}.md', 'w') as f:
+        with open(f'./api/v3/message/{message}.md', 'w') as f:
             # 去除message前面的"message_"和后面的"_pb2"
             message_title = message.replace('message_', '').replace('_pb2', '')
             f.write(
@@ -75,29 +111,45 @@ def write_message(message_list):
                 f'tags:\n'
                 f'  - Message\n'
                 f'hide:\n'
-                f'#- navigation # 显示右侧导航\n'
-                f'#- toc #显示左侧导航\n'
+                f'#- navigation\n'
+                f'#- toc\n'
                 f'---\n\n'
-                f'::: syspy.protobuf.pyi.{message}\n')
+                f'::: syspy.v3.protobuf.message.{message}\n')
             f.close()
-            nav_list.append(f'api/message/{message}.md')
+            nav_list.append(f'api/v3/message/{message}.md')
 
     for nav in nav_list:
         print(nav)
 
 
+def gen_index():
+    for root, dirs, files in os.walk("../docs"):
+        # assets、en、__目录不生成index.md
+        if "assets" in root or "en" in root or "__" in root:
+            continue
+        md_files = [f for f in files if f.endswith(".md")]
+        with open(os.path.join(root, "index.md"), "w") as index_file:
+            index_file.write("# Index\n\n")
+            for file in md_files:
+                if file != "index.md":
+                    file_name = os.path.splitext(file)[0]
+                    index_file.write(f"- [{file_name}]({file})\n")
+        print(f"gen {root} index success")
+
 if __name__ == '__main__':
-    # module_list = read_files('../syspy')
-    # print(module_list)
-    # write_module(module_list)
+    module_list = read_files('../syspy')
+    print(module_list)
+    write_module(module_list)
 
-    # module_list = read_files('../syspy/lib')
-    # print(module_list)
-    # write_module(module_list)
+    module_list = read_files('../syspy/lib')
+    print(module_list)
+    write_lib_module(module_list)
 
-    message_list = read_files('../syspy/protobuf/pyi')
+    message_list = read_files('../syspy/v3/protobuf/pyi')
     print(message_list)
     write_message(message_list)
+
+    gen_index()
 
 """Generate the code reference pages and navigation."""
 # from pathlib import Path

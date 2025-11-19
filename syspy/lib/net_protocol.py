@@ -139,7 +139,7 @@ def parse_modbus(modbus_data: List[int], data_type: str, start_index: int = 0, l
     return None
 
 
-def registers_to_string(registers: List[int]):
+def registers_to_string(registers: List[int]) -> str:
     """
     将寄存器列表转换为字符串
 

@@ -38,7 +38,7 @@ class LaserV4(Message):
         """清除激光设备宽度
         
         Args:
-            device_name (str): 激光设备名称列表
+            device_list (List[str]): 激光设备名称列表
         """
         pass
 
@@ -61,7 +61,7 @@ class LaserV4(Message):
         """清除激光设备角度
         
         Args:
-            device_name (str): 激光设备名称列表
+            device_list (List[str]): 激光设备名称列表
         """
         pass
 
