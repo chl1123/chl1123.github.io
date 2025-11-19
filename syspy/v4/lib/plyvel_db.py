@@ -1,7 +1,6 @@
 import logging
 import time
-from abc import ABC
-from typing import Dict, List
+from typing import Dict, List, Union
 from syspy.core.rbk_rpc import default_plugin, call_service
 from syspy.lib.plyvel_db import LevelDBInterface
 
@@ -32,14 +31,14 @@ class LevelDBV4(LevelDBInterface):
         """
         pass
 
-    def put(self, key: str, value: str):
+    def put(self, key: str, value: Union[str, int, float]):
         """向数据库中插入一条键值对。
 
         Args:
             key (str): 键。
             value (str): 值。
         """
-        return self.client().call_service("LevelDB", "putValue", self.name, key, value)
+        return self.client().call_service("LevelDB", "putValue", name=self.name, key=key, value=value)
 
     def puts(self, key_value_maps: Dict[str, str]):
         """批量向数据库中插入键值对。
@@ -47,15 +46,15 @@ class LevelDBV4(LevelDBInterface):
         Args:
             key_value_maps (Dict[str, str]): 包含多条键值对的字典。
         """
-        return self.client().call_service("LevelDB", "putValues", self.name, key_value_maps)
+        return self.client().call_service("LevelDB", "putValues", name=self.name, key_value_maps=key_value_maps)
 
-    def get(self, key: str):
+    def get(self, key: str, value_type: str = "str"):
         """从数据库中获取指定键的值。
 
         Args:
             key (str): 键。
         """
-        return self.client().call_service("LevelDB", "getValue", self.name, key)
+        return self.client().call_service("LevelDB", "getValue", name=self.name, key=key)
 
     def gets(self, keys: List[str]):
         """批量从数据库中获取指定键的值。
@@ -63,7 +62,7 @@ class LevelDBV4(LevelDBInterface):
         Args:
             keys (List[str]): 键的列表。
         """
-        return self.client().call_service("LevelDB", "getValues", self.name, keys)
+        return self.client().call_service("LevelDB", "getValues", name=self.name, key=keys)
 
     def delete(self, key: str):
         """从数据库中删除指定键的值。
@@ -71,7 +70,7 @@ class LevelDBV4(LevelDBInterface):
         Args:
             key (str): 键。
         """
-        self.client().call_service("LevelDB", "delValue", self.name, key)
+        self.client().call_service("LevelDB", "delValue", name=self.name, key=key)
 
 
 # 示例使用方法
