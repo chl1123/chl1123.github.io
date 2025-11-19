@@ -112,7 +112,7 @@ class Module:
     __safe_move_check_status = SafeMoveStatus.NONE
     __modbus_callback = None
     __set_container_callback = None
-    __clear_container_by_goods_id_callback = None
+    __clear_container_by_goods_callback = None
     __clear_container_callback = None
     __service = None
     script_id = ""
@@ -183,7 +183,7 @@ class Module:
         Service.server().register_function(cls.modbus, "modbus")
         if is_container:
             Service.server().register_function(cls.set_container, "setContainer")
-            Service.server().register_function(cls.clear_container_by_goods_id, "clearContainerByGoodsId")
+            Service.server().register_function(cls.clear_container_by_goods, "clearContainerByGoods")
             Service.server().register_function(cls.clear_container, "clearContainer")
 
     def __del__(self):
@@ -275,16 +275,16 @@ class Module:
         cls.__modbus_callback()
 
     @classmethod
-    def set_container(cls, container_name: str, goods_id: str, desc: str) -> bool:
-        return cls.__set_container_callback(container_name, goods_id, desc)
+    def set_container(cls, container_id: str, goods_name: str, desc: str) -> bool:
+        return cls.__set_container_callback(container_id, goods_name, desc)
 
     @classmethod
-    def clear_container_by_goods_id(cls, goods_id: str) -> bool:
-        return cls.__clear_container_by_goods_id_callback(goods_id)
+    def clear_container_by_goods(cls, goods_name: str) -> bool:
+        return cls.__clear_container_by_goods_callback(goods_name)
 
     @classmethod
-    def clear_container(cls, container_name: str) -> bool:
-        return cls.__clear_container_callback(container_name)
+    def clear_container(cls, container_id: str) -> bool:
+        return cls.__clear_container_callback(container_id)
 
     @classmethod
     def set_safe_move_check_callback(cls, callback: Callable[[], None]):
@@ -299,8 +299,8 @@ class Module:
         cls.__set_container_callback = callback
 
     @classmethod
-    def set_clear_container_by_goods_id_callback(cls, callback: Callable[[str], bool]):
-        cls.__clear_container_by_goods_id_callback = callback
+    def set_clear_container_by_goods_callback(cls, callback: Callable[[str], bool]):
+        cls.__clear_container_by_goods_callback = callback
 
     @classmethod
     def set_clear_container_callback(cls, callback: Callable[[str], bool]):
@@ -389,7 +389,7 @@ class ModuleBase(ABC):
         Module.set_modbus_callback(self.__modbus)
         Module.set_set_container_callback(self.set_container)
         Module.set_clear_container_callback(self.clear_container)
-        Module.set_clear_container_by_goods_id_callback(self.clear_container_by_goods_id)
+        Module.set_clear_container_by_goods_callback(self.clear_container_by_goods)
         self.stop_flag = False
         self.event_safe_move_check = False
         self.event_modbus = False
@@ -423,37 +423,36 @@ class ModuleBase(ABC):
     def set_safe_move_status(self, status: SafeMoveStatus):
         Module.set_safe_move_check_status(status)
 
-    def set_container(self, container_name: str, goods_id: str, desc: str) -> bool:
+    def set_container(self, container_id: str, goods_name: str, desc: str) -> bool:
         """设置车子上库位或者背篓货物
 
         Args:
-            container_name (str): 库位或者背篓名称
-            goods_id (str): 货物的id
+            container_id (str): 库位或者背篓id
+            goods_name (str): 货物名
             desc (str): 描述
 
         Returns:
             bool: 如果没有库位或者背篓，则返回false
         """
-        print("set_container", container_name, goods_id, desc)
-        return Container.setContainer(container_name, goods_id, desc)
+        return Container.setContainer(container_id, goods_name, desc)
 
-    def clear_container_by_goods_id(self, goods_id: str) -> bool:
+    def clear_container_by_goods(self, goods_name: str) -> bool:
         """清除车上特定库位或者背篓的状态
 
         Args:
-            goods_id (str): 货物名称，货物名称如果为"All"则全部清除
+            goods_name (str): 货物名称，货物名称如果为All则全部清除
         Returns:
             bool: 如果没有库位或者背篓，则返回false
         """
-        return Container.clearContainerByGoodsId(goods_id)
+        return Container.clearContainerByGoods(goods_name)
 
-    def clear_container(self, container_name: str) -> bool:
+    def clear_container(self, container_id: str) -> bool:
         """清除车上特定库位或者背篓的状态
 
         Args:
-            container_name (str): 库位或者背篓名称，container_name如果为"All"则全部清除
+            container_id (str): 库位或者背篓id，container_id如果为"All"则全部清除
 
         Returns:
             bool: 如果没有库位或者背篓，则返回false
         """
-        return Container.clearContainer(container_name)
+        return Container.clearContainer(container_id)
