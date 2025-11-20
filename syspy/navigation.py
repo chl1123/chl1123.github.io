@@ -633,6 +633,72 @@ class NavigationInterface(ABC, Service):
         """
         raise RBKVersionError()
 
+    @classmethod
+    def liveRecGoReset(cls, recfile: str, x: float, y: float, theta: float, tracker_id: str, paths: typing.Dict) -> bool:
+        """重置实时识别行走路径，用于重新初始化路径跟踪器
+        Args:
+            recfile (str): 记录文件路径
+            x (float): 起始位置的 x 坐标（单位：米）
+            y (float): 起始位置的 y 坐标（单位：米）
+            theta (float): 起始位置的角度（单位：弧度）
+            tracker_id (str): 跟踪器ID
+            paths (typing.Dict): 路径数据数组，包含PathData对象的JSON数组
+        Returns:
+            bool: 重置是否成功，成功返回true，失败返回false
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def liveRecGo(cls) -> int:
+        """启动实时识别行走任务
+        Returns:
+            int: 返回路径状态码，可能的值包括：
+            0(NONE-无状态)、1(RUNNING-运行中)、2(NEARTOGOAL-接近目标)、3(FINISHED-已完成)、4(FAILED-失败)、5(SUSPENDED-暂停)。
+            若m_live_go_path为空则返回FAILED(4)
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def getRecPath(cls, robot_pos_x: float, robot_pos_y: float, robot_pos_theta: float, rec_x: float, rec_y: float,
+                   rec_theta: float, back_dist: float, min_ahead_dist: float, ahead_dist: float, back_mode: bool,
+                   use_bezier: bool, hold_dir: float, max_speed: float, slow_down_dist: float, slow_down_speed: float,
+                   liveRec: bool) -> typing.Dict:
+        """根据机器人当前位置和识别位置生成路径，支持贝塞尔曲线和直线路径两种模式
+        Args:
+            robot_pos_x (float): 机器人当前位置的 x 坐标（单位：米）
+            robot_pos_y (float): 机器人当前位置的 y 坐标（单位：米）
+            robot_pos_theta (float): 机器人当前位置的角度（单位：弧度）
+            rec_x (float): 识别位置的 x 坐标（单位：米）
+            rec_y (float): 识别位置的 y 坐标（单位：米）
+            rec_theta (float): 识别位置的角度（单位：弧度）
+            back_dist (float): 后退距离（单位：米）
+            min_ahead_dist (float): 最小前进距离（单位：米）
+            ahead_dist (float): 前进距离（单位：米）
+            back_mode (bool): 是否使用后退模式
+            use_bezier (bool): 是否使用贝塞尔曲线路径
+            hold_dir (float): 保持方向角度（单位：弧度），若为999则不保持方向
+            max_speed (float): 最大速度（单位：米/秒）
+            slow_down_dist (float): 减速距离（单位：米）
+            slow_down_speed (float): 减速速度（单位：米/秒）
+            liveRec (bool): 是否为实时识别模式
+        Returns:
+            typing.Dict: 包含路径数据的JSON数组
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def cancelLiveRecGo(cls):
+        """取消当前正在执行的实时识别行走任务
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def getLiveResult(cls) -> typing.Dict:
+        """获取实时识别行走任务的结果
+        Returns:
+            typing.Dict: 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
+        """
+        raise RBKVersionError()
 
 class NavStatusInterface(ABC, Message):
     """导航状态类"""
