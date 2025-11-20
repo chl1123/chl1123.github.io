@@ -59,7 +59,7 @@ from syspy import Module, ScriptStatus, Abnormal, Navigation, Loc, Trace
     },
     "maxSpeed":{
       "value": 1,
-      "tips":"最大速度必填",
+      "tips":"最大线速度",
       "type":"double",
       "unit": "m/s"        
     },
@@ -83,7 +83,7 @@ from syspy import Module, ScriptStatus, Abnormal, Navigation, Loc, Trace
     },
     "maxRotAcc":{
       "value": 1,
-      "tips":"最大角速度",
+      "tips":"最大角加速度",
       "type":"double",
       "unit": "rad/s^2"
     },
@@ -93,7 +93,7 @@ from syspy import Module, ScriptStatus, Abnormal, Navigation, Loc, Trace
       "type":"double",
       "unit": "rad/s^2"   
     },
-    "hold_dir":{
+    "holdDir":{
       "value": 999,
       "tips":"全向车平移时车身的固定角度",
       "type":"double",
@@ -144,8 +144,8 @@ class GoPath:
                     Navigation.setPathMaxSpeed(float(args["maxSpeed"]))
                 if "maxRot" in args:
                     Navigation.setPathMaxRot(float(args["maxRot"]))
-                if "hold_dir" in args:
-                    Navigation.setPathHoldDir(float(args["hold_dir"]))
+                if "holdDir" in args:
+                    Navigation.setPathHoldDir(float(args["holdDir"]))
                 if "maxAcc" in args:
                     self.param["maxAcc"] = float(args["maxAcc"])
                 if "maxDec" in args:
