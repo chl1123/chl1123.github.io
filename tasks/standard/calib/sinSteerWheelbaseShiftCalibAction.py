@@ -64,13 +64,17 @@ class CalibMove:
             self.wheelBaseMotorName = Module.get_task_args("wheelBaseMotorName", "Motor-002")
             self.wheelBaseMaxHeight = Module.get_task_args("wheelBaseMaxHeight", 0.205)
             self.wheelBaseMinHeight = Module.get_task_args("wheelBaseMinHeight", 0.085)
+            self.DOMotorWheelBase = Module.get_task_args("DOMotorWheelBase", False)
             self.pos = 0.0
             self.cancel = False
 
         self.pos = Motor.get_motor_pos(self.wheelBaseMotorName)
         # 实时运行
         if self.move_action == MoveAction.ForkUnload1:
-            Motor.setMotorSpeed(self.wheelBaseMotorName, -0.02)
+            if self.DOMotorWheelBase:
+                Motor.setMotorSpeed(self.wheelBaseMotorName, -0.02)
+            else:
+                Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMinHeight, 0.1)
             if math.fabs(self.pos-self.wheelBaseMinHeight) < 0.01:
                 self.status = ScriptStatus.FINISHED
             else:
@@ -78,7 +82,10 @@ class CalibMove:
         elif self.move_action == MoveAction.Rot1st:
             self.status = Navigation.runOdoMove({"moveAngle": self.rotCount * 2 * math.pi,  "speedW":self.speed_w, "actionName":"Rot1st"})
         elif self.move_action == MoveAction.ForkLoad:
-            Motor.setMotorSpeed(self.wheelBaseMotorName, 0.02)
+            if self.DOMotorWheelBase:
+                Motor.setMotorSpeed(self.wheelBaseMotorName, 0.02)
+            else:
+                Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMaxHeight, 0.1)
             if math.fabs(self.pos-self.wheelBaseMaxHeight) < 0.01:
                 self.status = ScriptStatus.FINISHED
             else:
@@ -86,7 +93,10 @@ class CalibMove:
         elif self.move_action == MoveAction.Rot2nd:
             self.status = Navigation.runOdoMove({"moveAngle": self.rotCount * 2 * math.pi,  "speedW":self.speed_w, "actionName":"Rot2nd"})
         elif self.move_action == MoveAction.ForkUnload2:
-            Motor.setMotorSpeed(self.wheelBaseMotorName, -0.02)
+            if self.DOMotorWheelBase:
+                Motor.setMotorSpeed(self.wheelBaseMotorName, -0.02)
+            else:
+                Motor.setMotorPosition(self.wheelBaseMotorName, self.wheelBaseMinHeight, 0.1)
             if math.fabs(self.pos-self.wheelBaseMinHeight) < 0.01:
                 self.status = ScriptStatus.FINISHED
             else:
@@ -117,6 +127,7 @@ class CalibMove:
         info["wheelBaseMaxHeight"] = self.wheelBaseMaxHeight
         info["wheelBaseMinHeight"] = self.wheelBaseMinHeight
         info["pos"] = self.pos
+        info["DOMotorWheelBase"] = self.DOMotorWheelBase
         log.info(json.dumps(info))
 
     def Cancel(self):
