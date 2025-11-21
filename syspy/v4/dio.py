@@ -44,7 +44,7 @@ class DiV4(DiInterface):
             name (str): DI名
 
         Returns:
-            bool: 返回指定DI的状态，若DI不存在返回False
+            (bool): 返回指定DI的状态，若DI不存在返回False
         """
         self.update()
         if self.data:
@@ -66,7 +66,7 @@ class DiV4(DiInterface):
         """获取DI消息中的最大节点数
 
         Returns:
-            int: DI消息中的最大节点数
+            (int): DI消息中的最大节点数
         """
         if self.update():
             return self.data.max_node
@@ -96,7 +96,7 @@ class DoV4(DoInterface):
             status (bool): 是否打开这个DO
 
         Returns:
-            bool: 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
+            (bool): 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
         """
         pass
 
@@ -107,7 +107,7 @@ class DoV4(DoInterface):
             name (str): DO名
 
         Returns:
-            bool: 返回指定DO的状态，若DO不存在返回False
+            (bool): 返回指定DO的状态，若DO不存在返回False
         """
         self.update()
         if self.data:
@@ -129,7 +129,7 @@ class DoV4(DoInterface):
         """获取DO消息中的最大节点数
 
         Returns:
-            int: DO消息中的最大节点数
+            (int): DO消息中的最大节点数
         """
         if self.update():
             return self.data.max_node

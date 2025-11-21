@@ -14,7 +14,7 @@ class RobotParamInterface(ABC, Service):
             file_name (str): 文件名。缺省则从默认文件中读取。当前只有识别有多个文件，可传入"xxx.srec"。
 
         Returns:
-            Any: 参数值
+            (Any): 参数值
         """
         raise RBKVersionError()
 
@@ -28,7 +28,7 @@ class RobotParamInterface(ABC, Service):
             file_name (str): 文件名。缺省则从默认文件中读取。当前只有识别有多个文件，可传入"xxx.srec"。
 
         Returns:
-            int: 参数个数
+            (int): 参数个数
         """
         return cls.getConfig(app_name, param_path+"._(size", file_name)
 
@@ -41,7 +41,7 @@ class RobotParamInterface(ABC, Service):
             param_path (str): 参数路径
 
         Returns:
-            Any: 参数值
+            (Any): 参数值
         """
         raise RBKVersionError()
 
@@ -54,7 +54,7 @@ class RobotParamInterface(ABC, Service):
             param_path (str): 参数路径
 
         Returns:
-            int: 参数个数
+            (int): 参数个数
         """
         return cls.getDevice(device_name, param_path+"._(size")
 
@@ -63,7 +63,7 @@ class RobotParamInterface(ABC, Service):
         """获得设备模型文件的原始数据
 
         Returns:
-            dict: 具体数据以字典类型返回
+            (dict): 具体数据以字典类型返回
         """
         raise RBKVersionError()
 
@@ -76,7 +76,7 @@ class RobotParamInterface(ABC, Service):
             data: 机器人模型文件的dict格式，先从RobotParam.getDeviceFile()获取
 
         Returns:
-            str:
+            (str):
         """
         raise RBKVersionError()
 
@@ -102,7 +102,7 @@ class RobotParamInterface(ABC, Service):
         """获取碰撞检测模型
 
         Returns:
-            Dict[str, List[Dict[str, str]]]:
+            (Dict[str, List[Dict[str, str]]]):
                 返回的字典结构：
 
                 - key："navigation.collisionDetection.collisionModel" (str)
@@ -121,7 +121,7 @@ class RobotParamInterface(ABC, Service):
         """获取扣除模型
 
         Returns:
-            Dict[str, List[Dict[str, Any]]]:
+            (Dict[str, List[Dict[str, Any]]]):
                 返回的字典结构：
 
                 - key："navigation.collisionDetection.deductModel" (str)
@@ -143,7 +143,7 @@ class RobotParamInterface(ABC, Service):
         """获取DO区域
 
         Returns:
-            Dict[str, List[Dict[str, Any]]]:
+            (Dict[str, List[Dict[str, Any]]]):
                 返回的字典结构：
 
                 - key："navigation.collisionDetection.doRegion" (str)

@@ -19,7 +19,7 @@ class RFIDInterface(ABC, Message):
         """获取RFID节点列表
 
         Returns:
-            返回包含RFID节点信息的列表
+            (typing.List["msgRFIDNode"]): 返回包含RFID节点信息的列表
         """
         raise RBKVersionError()
 

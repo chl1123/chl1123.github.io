@@ -44,7 +44,7 @@ class LocV3(LocInterface):
         """获取定位置信度
 
         Returns:
-            float: 返回定位置信度数值
+            (float): 返回定位置信度数值
         """
         if self.update():
             return self.data.confidence
@@ -53,7 +53,7 @@ class LocV3(LocInterface):
         """获取定位状态
 
         Returns:
-            int: 返回定位状态值：
+            (int) 返回定位状态值：
                 - 0：未初始化
                 - 1：重定位成功
                 - 2：重定位中
@@ -66,7 +66,7 @@ class LocV3(LocInterface):
         """获取定位方法
 
         Returns:
-            int: 返回定位方法值，
+            (int) 返回定位方法值，
                 - 0为里程计模式
                 - 1为自然轮廓定位
                 - 2为反光柱定位

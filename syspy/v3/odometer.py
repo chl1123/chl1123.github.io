@@ -24,7 +24,7 @@ class OdometerV3(OdometerInterface):
         """获取周期计数
 
         Returns:
-            int: 返回周期计数值
+            (int): 返回周期计数值
         """
         if self.update():
             return self.data.cycle
@@ -33,7 +33,7 @@ class OdometerV3(OdometerInterface):
         """获取位置，x坐标、y坐标、角度
 
         Returns:
-            float: 返回x坐标值，单位为米
+            (float): 返回x坐标值，单位为米
             float: 返回y坐标值，单位为米
             float: 返回角度值，单位为角度
         """
@@ -44,7 +44,7 @@ class OdometerV3(OdometerInterface):
         """获取x、y、旋转方向速度
 
         Returns:
-            float: 返回x方向速度值，单位为米每秒
+            (float): 返回x方向速度值，单位为米每秒
             float: 返回y方向速度值，单位为米每秒
             float: 返回旋转速度值，单位为弧度每秒
         """
@@ -55,7 +55,7 @@ class OdometerV3(OdometerInterface):
         """获取是否停止状态
 
         Returns:
-            bool: True表示停止，False表示未停止
+            (bool): True表示停止，False表示未停止
         """
         if self.update():
             return self.data.isStop
@@ -64,7 +64,7 @@ class OdometerV3(OdometerInterface):
         """获取是否检测到打滑
 
         Returns:
-            bool: True表示检测到打滑，False表示未检测到
+            (bool): True表示检测到打滑，False表示未检测到
         """
         if self.update():
             return self.data.detectSkid

@@ -23,7 +23,7 @@ class BatteryV3(Message):
         """获取电池电量百分比
 
         Returns:
-            float: 返回电池电量百分比数值
+            (float): 返回电池电量百分比数值
         """
         if self.update():
             return self.data.percentage
@@ -32,7 +32,7 @@ class BatteryV3(Message):
         """获取充电电流
 
         Returns:
-            float: 返回充电电流数值
+            (float): 返回充电电流数值
         """
         if self.update():
             return self.data.chargeCurrent
@@ -41,7 +41,7 @@ class BatteryV3(Message):
         """获取充电电压
 
         Returns:
-            float: 返回充电电压数值
+            (float): 返回充电电压数值
         """
         if self.update():
             return self.data.chargeVoltage
@@ -50,7 +50,7 @@ class BatteryV3(Message):
         """获取是否正在充电状态
 
         Returns:
-            bool: True表示正在充电，False表示未充电
+            (bool): True表示正在充电，False表示未充电
         """
         if self.update():
             return self.data.isCharging
@@ -59,7 +59,7 @@ class BatteryV3(Message):
         """获取电池温度
 
         Returns:
-            float: 返回电池温度数值
+            (float): 返回电池温度数值
         """
         if self.update():
             return self.data.temperature
@@ -68,7 +68,7 @@ class BatteryV3(Message):
         """获取电池循环次数
 
         Returns:
-            int: 返回电池循环次数数值
+            (int) 返回电池循环次数数值
         """
         if self.update():
             return self.data.cycle
@@ -77,7 +77,7 @@ class BatteryV3(Message):
         """获取最大充电电流
 
         Returns:
-            float: 返回最大充电电流数值
+            (float): 返回最大充电电流数值
         """
         if self.update():
             return self.data.maxChargeCurrent
@@ -86,7 +86,7 @@ class BatteryV3(Message):
         """获取最大充电电压
 
         Returns:
-            float: 返回最大充电电压数值
+            (float): 返回最大充电电压数值
         """
         if self.update():
             return self.data.maxChargeVoltage
@@ -95,7 +95,7 @@ class BatteryV3(Message):
         """获取额外信息
 
         Returns:
-            str: 返回额外信息字符串
+            (str): 返回额外信息字符串
         """
         if self.update():
             return self.data.extra
@@ -104,7 +104,7 @@ class BatteryV3(Message):
         """获取是否手动连接状态
 
         Returns:
-            bool: True表示手动连接，False表示非手动连接
+            (bool): True表示手动连接，False表示非手动连接
         """
         if self.update():
             return self.data.isManuallyConnected
@@ -122,7 +122,7 @@ class BatteryV3(Message):
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 
         Returns:
-            int:
+            (int)
         """
         return self.client().call_service("DSPChassis", "getBatteryMaxPercentage")
     
@@ -133,7 +133,7 @@ class BatteryV3(Message):
             battery_msg (msgBattery): msgBattery对象
 
         Returns:
-            int: -1: 发布失败; 0: 发布成功
+            (int) -1: 发布失败; 0: 发布成功
         """
         return self.client().call_service("DSPChassis", "publishBattery", MessageToJson(battery_msg))
     
@@ -141,6 +141,6 @@ class BatteryV3(Message):
         """获取CAN端口
 
         Returns:
-            int: CAN端口
+            (int) CAN端口
         """
         return self.client().call_service("DSPChassis", "getBatteryCanPort")

@@ -25,6 +25,6 @@ class MapV3(MapInterface):
             initial_angle (float): 重定位中心朝向 单位 degree
 
         Returns:
-            int: 2没有进行切换，1切换中，0切换成功，-1不存在地图，-2切换失败
+            (int): 2没有进行切换，1切换中，0切换成功，-1不存在地图，-2切换失败
         """
         pass

@@ -63,7 +63,7 @@ def Pos2World(pos2base, base2world) -> list:
         base2world ([3]): 基准位姿. 0:x, 1:y, 2: theta
 
     Returns:
-        list: 世界坐标系
+        (list): 世界坐标系
     """
     pos2world = [0., 0., 0.]
     x = pos2base[0] * math.cos(base2world[2]) - pos2base[1] * math.sin(base2world[2])
@@ -80,6 +80,7 @@ def Pos2Base(pos2world, base2world):
     Args:
         pos2world ([3]): 被转换的位姿，基于世界坐标系,0:x, 1:y, 2: theta
         base2world ([3]): 基准，基于世界坐标系,0:x, 1:y, 2: theta
+
     Returns:
         [3]: pos2base
     """
@@ -259,8 +260,8 @@ class Module:
         """获取移动安全检查状态
 
         Returns:
-            int: 移动安全检查状态。
-            int: 当前检查id（通过safe_move_check入参获取）
+            (int): 移动安全检查状态。
+            (int): 当前检查id（通过safe_move_check入参获取）
         """
         return cls.__safe_move_check_status.value, cls.__safe_move_check_id
 
@@ -432,7 +433,7 @@ class ModuleBase(ABC):
             desc (str): 描述
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         return Container.setContainer(container_id, goods_name, desc)
 
@@ -442,7 +443,7 @@ class ModuleBase(ABC):
         Args:
             goods_name (str): 货物名称，货物名称如果为All则全部清除
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         return Container.clearContainerByGoods(goods_name)
 
@@ -453,6 +454,6 @@ class ModuleBase(ABC):
             container_id (str): 库位或者背篓id，container_id如果为"All"则全部清除
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         return Container.clearContainer(container_id)

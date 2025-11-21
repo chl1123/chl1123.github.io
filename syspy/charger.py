@@ -22,7 +22,7 @@ class ChargerInterface(ABC, Service):
             recFile: 充电桩识别文件名称
 
         Returns:
-            bool:
+            (bool):
                 True: 断连成功
                 False: 断连失败
         """
@@ -36,7 +36,7 @@ class ChargerInterface(ABC, Service):
             recFile: 充电桩识别文件名称
 
         Returns:
-            int: 充电桩状态
+            (int): 充电桩状态
                 默认 -100; 充电硬件错误 -2; 充电网络错误 -1; 充电等待中 0; 将要充电 1; 充电中 2
         """
         raise RBKVersionError()

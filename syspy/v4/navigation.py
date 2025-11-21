@@ -33,7 +33,7 @@ class NavigationV4(NavigationInterface):
             flag (bool): True 返回的坐标是地图坐标系， False返回的坐标是机器人坐标系
 
         Returns:
-            list: 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
+            （list): 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
         """
         pass
 
@@ -59,7 +59,7 @@ class NavigationV4(NavigationInterface):
         """机器人运行时，当前所在高级区域的属性
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -69,7 +69,7 @@ class NavigationV4(NavigationInterface):
         """机器人运行时，当前路线上的属性
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -88,7 +88,7 @@ class NavigationV4(NavigationInterface):
         """获得离机器最近的一个动态障碍物坐标。 如果没有障碍物反馈0.,0.
 
         Returns:
-            list: 两个元素，分别为x,y。单位为m
+            （list): 两个元素，分别为x,y。单位为m
         """
         pass
 
@@ -98,7 +98,7 @@ class NavigationV4(NavigationInterface):
         """
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -129,13 +129,13 @@ class NavigationV4(NavigationInterface):
     @classmethod
     @call_service()
     def goPGVRun(cls, params: dict) -> int:
-        """按地图路线行走
+        """code二次调整
 
         Args:
             params (dict):
 
         Returns:
-            int:
+            (int):
         """
         pass
 
@@ -145,7 +145,7 @@ class NavigationV4(NavigationInterface):
         """获取身上是否有货物的状态
 
         Returns:
-            bool: 是否有货物
+            (bool): 是否有货物
         """
         pass
 
@@ -161,7 +161,7 @@ class NavigationV4(NavigationInterface):
         """agv是否完成线路
 
         Returns:
-            bool: 如果完成则返回True
+            (bool): 如果完成则返回True
         """
         pass
 
@@ -171,7 +171,7 @@ class NavigationV4(NavigationInterface):
         """检测激光点是否和自身碰撞
 
         Returns:
-            bool: 激光点是否和自身碰撞
+            (bool): 激光点是否和自身碰撞
         """
         pass
 
@@ -181,7 +181,7 @@ class NavigationV4(NavigationInterface):
         """获得任务信息以字典类型返回
 
         Returns:
-            dict: 具体的任务信息
+            (dict): 具体的任务信息
         """
         pass
 
@@ -323,10 +323,10 @@ class NavigationV4(NavigationInterface):
     @classmethod
     @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
-        """设置货物形状时传入识别文件路径
+        """增量旋转托盘到一个弧度
 
         Args:
-            angle (float):
+            angle (float): 弧度
         """
         pass
 
@@ -339,7 +339,7 @@ class NavigationV4(NavigationInterface):
             object_model_path (str): 货架模型文件名称
 
         Returns:
-            bool: 如果不存在这个货架模型则报错
+            (bool): 如果不存在这个货架模型则报错
         """
         pass
 
@@ -505,7 +505,7 @@ class NavigationV4(NavigationInterface):
             angle (float): 角度位置, 单位rad
 
         Returns:
-            bool: 如果为True电机到位
+            (bool): 如果为True电机到位
         """
         pass
 
@@ -515,7 +515,7 @@ class NavigationV4(NavigationInterface):
         """
 
         Returns:
-            bool:
+            (bool):
         """
         pass
 
@@ -541,7 +541,7 @@ class NavigationV4(NavigationInterface):
         """XXX
 
         Returns:
-            bool: 数据记录成功
+            (bool): 数据记录成功
         """
         pass
 
@@ -554,7 +554,7 @@ class NavigationV4(NavigationInterface):
             flag : False:放下货叉， True:抬起货叉
 
         Returns:
-            bool: 是否完成
+            (bool): 是否完成
         """
         pass
 
@@ -569,7 +569,7 @@ class NavigationV4(NavigationInterface):
             camName : 相机名称
 
         Returns:
-            bool: 是否完成
+            (bool): 是否完成
         """
         pass
 
@@ -656,7 +656,7 @@ class NavigationV4(NavigationInterface):
             y (List[float]): 区域顶点的y坐标列表。
 
         Returns:
-            bool: 碰撞检测结果。发生碰撞返回True，未碰撞返回False
+            (bool): 碰撞检测结果。发生碰撞返回True，未碰撞返回False
 
         Raises:
             ValueError: device_keys只支持"Laser"、"Camera"和"DistanceSensor"
@@ -689,7 +689,7 @@ class NavStatusV4(NavStatusInterface):
         """底盘是否停止（仅通过walk电机判断）
 
         Returns:
-            bool: 停止为True, 否则为False
+            (bool): 停止为True, 否则为False
         """
         # todo RBK4
         return cls.client().call_service("DSPChassis", "isChassisStop", True)

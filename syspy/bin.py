@@ -15,7 +15,7 @@ class BinInterface(ABC, Message):
         """获取库位列表
 
         Returns:
-            List["msgBin"]: 库位列表
+            (List["msgBin"]): 库位列表
 
         Examples:
         ```python
@@ -72,7 +72,7 @@ class ContainerInterface(ABC, Service):
             desc (str): 货物描述
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         raise RBKVersionError()
 
@@ -84,7 +84,7 @@ class ContainerInterface(ABC, Service):
             container_id (str): 库位或者背篓id，container_id如果为"All"则全部清除
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         raise RBKVersionError()
 
@@ -96,7 +96,7 @@ class ContainerInterface(ABC, Service):
             goods_name (str): 货物名称，货物名称如果为All则全部清除
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         raise RBKVersionError()
 
@@ -105,7 +105,7 @@ class ContainerInterface(ABC, Service):
         """获取当前车子上库位或者背篓货物的状态。
 
         Returns:
-            list: 包含所有背篓状态的列表，每个元素是一个字典，包含 container_id、goods_name、desc 和 has_goods。
+            （list): 包含所有背篓状态的列表，每个元素是一个字典，包含 container_id、goods_name、desc 和 has_goods。
         """
         raise RBKVersionError()
 
@@ -117,7 +117,7 @@ class ContainerInterface(ABC, Service):
             container_id (str): 背篓id，默认为 '0'。
 
         Returns:
-            bool: 如果背篓中有货物，则返回True；否则返回False。
+            (bool): 如果背篓中有货物，则返回True；否则返回False。
         """
         raise RBKVersionError()
 
@@ -129,7 +129,7 @@ class ContainerInterface(ABC, Service):
             goods_name (str): 要检查的货物名。
 
         Returns:
-            bool: 如果存在该货物，则返回True；否则返回False。
+            (bool): 如果存在该货物，则返回True；否则返回False。
         """
         raise RBKVersionError()
 
@@ -138,7 +138,7 @@ class ContainerInterface(ABC, Service):
         """从任务参数中获取货物ID。
 
         Returns:
-            str: 货物ID，如果没有找到则返回空字符串。
+            (str): 货物ID，如果没有找到则返回空字符串。
         """
         raise RBKVersionError()
 
@@ -150,7 +150,7 @@ class ContainerInterface(ABC, Service):
             container_id (str): 背篓id，默认为 '0'。
 
         Returns:
-            str: 货物ID，如果找不到则返回空字符串。
+            (str): 货物ID，如果找不到则返回空字符串。
         """
         raise RBKVersionError()
 
@@ -162,7 +162,7 @@ class ContainerInterface(ABC, Service):
             goods_name (str): 要查找的货物名。
 
         Returns:
-            str: 找到的背篓名称，如果没有找到或货物未装载，则返回空字符串。
+            (str): 找到的背篓名称，如果没有找到或货物未装载，则返回空字符串。
         """
         raise RBKVersionError()
 
@@ -171,7 +171,7 @@ class ContainerInterface(ABC, Service):
         """以原始格式返回所有背篓的状态。
 
         Returns:
-            dict: key为背篓名称，值为包含 goods_id、desc 和 has_goods 的字典。
+            (dict): key为背篓名称，值为包含 goods_id、desc 和 has_goods 的字典。
         """
         raise RBKVersionError()
 

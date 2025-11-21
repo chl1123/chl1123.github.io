@@ -19,7 +19,7 @@ class MotorInterface(ABC, Message):
         """获取电机信息列表
 
         Returns:
-            List[msgMotorInfo]: 返回电机信息列表，列表内元素为msgMotorInfo对象
+            (List[msgMotorInfo]): 返回电机信息列表，列表内元素为msgMotorInfo对象
 
         Examples:
         ```python
@@ -40,7 +40,7 @@ class MotorInterface(ABC, Message):
             motor_name (str): 电机名称
 
         Returns:
-            Union[float, int]: 返回电机的当前位置，若电机不存在返回 -1
+            (Union[float, int]): 返回电机的当前位置，若电机不存在返回 -1
         """
         raise RBKVersionError()
 
@@ -52,7 +52,7 @@ class MotorInterface(ABC, Message):
             motor_name (str): 电机名称
 
         Returns:
-            Union[float, int]: 返回电机的当前速度，若电机不存在返回 -1
+            (Union[float, int]): 返回电机的当前速度，若电机不存在返回 -1
         """
         raise RBKVersionError()
 
@@ -66,7 +66,7 @@ class MotorInterface(ABC, Message):
             stopDI (str): 到位DI。缺省或传""表示没有。
 
         Returns:
-            bool: 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回False
         """
         raise RBKVersionError()
 
@@ -81,7 +81,7 @@ class MotorInterface(ABC, Message):
             stopDI (str): 如果这个StopDI触发则表示运动到位。缺省或传""表示没有。
 
         Returns:
-            bool: 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回False
         """
         raise RBKVersionError()
 
@@ -100,7 +100,7 @@ class MotorInterface(ABC, Message):
             stopDI (str): 停止DI。该DI触发则表示运动到位。缺省或传""表示没有。
 
         Returns:
-            bool: 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回False
         """
         raise RBKVersionError()
 
@@ -117,7 +117,7 @@ class MotorInterface(ABC, Message):
             motor_name (str): 电机名称
 
         Returns:
-            bool: 如果不存在这个电机则报错
+            (bool): 如果不存在这个电机则报错
         """
         raise RBKVersionError()
 
@@ -129,7 +129,7 @@ class MotorInterface(ABC, Message):
             motor_name (str): 电机名称
 
         Returns:
-            bool: 如果到位则返回True
+            (bool): 如果到位则返回True
         """
         raise RBKVersionError()
 
@@ -143,7 +143,7 @@ class MotorInterface(ABC, Message):
             stopDI (str): 到位DI。缺省或传""表示没有。
 
         Returns:
-            bool: 如果到位则返回True
+            (bool): 如果到位则返回True
         """
         raise RBKVersionError()
 
@@ -155,7 +155,7 @@ class MotorInterface(ABC, Message):
             motor_name (str): 电机名称
 
         Returns:
-            bool: 如果电机不存在则返回False
+            (bool): 如果电机不存在则返回False
         """
         raise RBKVersionError()
 

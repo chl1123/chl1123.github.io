@@ -33,7 +33,7 @@ class RobotParamV4(RobotParamInterface):
             file_name (str): 文件名。缺省则从默认文件中读取。当前只有识别有多个文件，可传入"xxx.srec"。
 
         Returns:
-            int: 参数个数
+            (int): 参数个数
         """
         return cls.getConfig(app_name, param_path+"._(size", file_name)
 
@@ -60,7 +60,7 @@ class RobotParamV4(RobotParamInterface):
             param_path (str): 参数路径
 
         Returns:
-            int: 参数个数
+            (int): 参数个数
         """
         return cls.getDevice(device_name, param_path+"._(size")
 
@@ -70,7 +70,7 @@ class RobotParamV4(RobotParamInterface):
         """获得设备模型文件的原始数据
 
         Returns:
-            dict: 具体数据以字典类型返回
+            (dict): 具体数据以字典类型返回
         """
         pass
 
@@ -84,7 +84,7 @@ class RobotParamV4(RobotParamInterface):
             data: 机器人模型文件的dict格式，先从RobotParam.getDeviceFile()获取
 
         Returns:
-            str:
+            (str):
         """
         pass
 

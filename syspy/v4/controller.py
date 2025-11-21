@@ -16,7 +16,7 @@ class ControllerV4(ControllerInterface):
         """获取温度值
 
         Returns:
-            float: 温度数值
+            (float): 温度数值
         """
         if self.update():
             return self.data.temp
@@ -25,7 +25,7 @@ class ControllerV4(ControllerInterface):
         """获取湿度值
 
         Returns:
-            float: 湿度数值
+            (float): 湿度数值
         """
         if self.update():
             return self.data.humi
@@ -34,7 +34,7 @@ class ControllerV4(ControllerInterface):
         """获取电压值
 
         Returns:
-            float: 电压数值
+            (float): 电压数值
         """
         if self.update():
             return self.data.voltage
@@ -43,7 +43,7 @@ class ControllerV4(ControllerInterface):
         """获取EMC状态
 
         Returns:
-            bool: EMC状态，True或False
+            (bool): EMC状态，True或False
         """
         if self.update():
             return self.data.emc
@@ -52,7 +52,7 @@ class ControllerV4(ControllerInterface):
         """获取制动状态
 
         Returns:
-            bool: 制动状态，True或False
+            (bool): 制动状态，True或False
         """
         if self.update():
             return self.data.brake
@@ -61,7 +61,7 @@ class ControllerV4(ControllerInterface):
         """获取驱动EMC状态
 
         Returns:
-            bool: 驱动EMC状态，True或False
+            (bool): 驱动EMC状态，True或False
         """
         if self.update():
             return self.data.driverEmc
@@ -70,7 +70,7 @@ class ControllerV4(ControllerInterface):
         """获取手动充电状态
 
         Returns:
-            bool: 手动充电状态，True或False
+            (bool): 手动充电状态，True或False
         """
         if self.update():
             return self.data.manualCharge
@@ -79,7 +79,7 @@ class ControllerV4(ControllerInterface):
         """获取自动充电状态
 
         Returns:
-            bool: 自动充电状态，True或False
+            (bool): 自动充电状态，True或False
         """
         if self.update():
             return self.data.autoCharge
@@ -88,7 +88,7 @@ class ControllerV4(ControllerInterface):
         """获取电动状态
 
         Returns:
-            bool: 电动状态，True或False
+            (bool): 电动状态，True或False
         """
         if self.update():
             return self.data.electric
@@ -97,7 +97,7 @@ class ControllerV4(ControllerInterface):
         """获取软EMC状态
 
         Returns:
-            bool: 软EMC状态，True或False
+            (bool): 软EMC状态，True或False
         """
         if self.update():
             return self.data.softEMC
@@ -106,7 +106,7 @@ class ControllerV4(ControllerInterface):
         """获取是否为外部控制状态
 
         Returns:
-            bool: 是否为外部控制状态，True或False
+            (bool): 是否为外部控制状态，True或False
         """
         if self.update():
             return self.data.isExternalControl
@@ -115,7 +115,7 @@ class ControllerV4(ControllerInterface):
         """获取IMU是否正在校准状态
 
         Returns:
-            bool: IMU是否正在校准状态，True或False
+            (bool): IMU是否正在校准状态，True或False
         """
         if self.update():
             return self.data.isIMUCalibrating
@@ -124,7 +124,7 @@ class ControllerV4(ControllerInterface):
         """获取通过ADC检测到的外部电压值
 
         Returns:
-            float: 通过ADC检测到的外部电压数值
+            (float): 通过ADC检测到的外部电压数值
         """
         if self.update():
             return self.data.voltagebyAdc

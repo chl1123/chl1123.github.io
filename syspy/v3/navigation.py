@@ -36,7 +36,7 @@ class NavigationV3(NavigationInterface):
             flag (bool): True 返回的坐标是地图坐标系， False返回的坐标是机器人坐标系
 
         Returns:
-            list: 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
+            （list): 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
         """
         pass
 
@@ -62,7 +62,7 @@ class NavigationV3(NavigationInterface):
         """机器人运行时，当前所在高级区域的属性
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -72,7 +72,7 @@ class NavigationV3(NavigationInterface):
         """机器人运行时，当前路线上的属性
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -91,7 +91,7 @@ class NavigationV3(NavigationInterface):
         """获得离机器最近的一个动态障碍物坐标。 如果没有障碍物反馈0.,0.
 
         Returns:
-            list: 两个元素，分别为x,y。单位为m
+            （list): 两个元素，分别为x,y。单位为m
         """
         pass
 
@@ -101,7 +101,7 @@ class NavigationV3(NavigationInterface):
         """
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -138,7 +138,7 @@ class NavigationV3(NavigationInterface):
             params (dict):
 
         Returns:
-            int:
+            (int):
         """
         pass
 
@@ -148,7 +148,7 @@ class NavigationV3(NavigationInterface):
         """获取身上是否有货物的状态
 
         Returns:
-            bool: 是否有货物
+            (bool): 是否有货物
         """
         pass
 
@@ -164,7 +164,7 @@ class NavigationV3(NavigationInterface):
         """agv是否完成线路
 
         Returns:
-            bool: 如果完成则返回True
+            (bool): 如果完成则返回True
         """
         pass
 
@@ -174,7 +174,7 @@ class NavigationV3(NavigationInterface):
         """检测激光点是否和自身碰撞
 
         Returns:
-            bool: 激光点是否和自身碰撞
+            (bool): 激光点是否和自身碰撞
         """
         pass
 
@@ -184,7 +184,7 @@ class NavigationV3(NavigationInterface):
         """获得任务信息以字典类型返回
 
         Returns:
-            dict: 具体的任务信息
+            (dict): 具体的任务信息
         """
         pass
 
@@ -326,10 +326,10 @@ class NavigationV3(NavigationInterface):
     @classmethod
     @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
-        """设置货物形状时传入识别文件路径
+        """增量旋转托盘到一个弧度
 
         Args:
-            angle (float):
+            angle (float): 弧度
         """
         pass
 
@@ -342,7 +342,7 @@ class NavigationV3(NavigationInterface):
             object_model_path (str): 货架模型文件名称
 
         Returns:
-            bool: 如果不存在这个货架模型则报错
+            (bool): 如果不存在这个货架模型则报错
         """
         pass
 
@@ -508,7 +508,7 @@ class NavigationV3(NavigationInterface):
             angle (float): 角度位置, 单位rad
 
         Returns:
-            bool: 如果为True电机到位
+            (bool): 如果为True电机到位
         """
         pass
 
@@ -518,7 +518,7 @@ class NavigationV3(NavigationInterface):
         """
 
         Returns:
-            bool:
+            (bool):
         """
         pass
 
@@ -544,7 +544,7 @@ class NavigationV3(NavigationInterface):
         """XXX
 
         Returns:
-            bool: 数据记录成功
+            (bool): 数据记录成功
         """
         pass
 
@@ -557,7 +557,7 @@ class NavigationV3(NavigationInterface):
             flag : False:放下货叉， True:抬起货叉
 
         Returns:
-            bool: 是否完成
+            (bool): 是否完成
         """
         pass
 
@@ -572,7 +572,7 @@ class NavigationV3(NavigationInterface):
             camName : 相机名称
 
         Returns:
-            bool: 是否完成
+            (bool): 是否完成
         """
         pass
 
@@ -596,6 +596,7 @@ class NavigationV3(NavigationInterface):
     @call_service()
     def liveRecGoReset(cls, recfile: str, x: float, y: float, theta: float, tracker_id: str, paths: typing.Dict) -> bool:
         """重置实时识别行走路径，用于重新初始化路径跟踪器
+
         Args:
             recfile (str): 记录文件路径
             x (float): 起始位置的 x 坐标（单位：米）
@@ -603,8 +604,9 @@ class NavigationV3(NavigationInterface):
             theta (float): 起始位置的角度（单位：弧度）
             tracker_id (str): 跟踪器ID
             paths (typing.Dict): 路径数据数组，包含PathData对象的JSON数组
+
         Returns:
-            bool: 重置是否成功，成功返回true，失败返回false
+            (bool): 重置是否成功，成功返回true，失败返回false
         """
         pass
 
@@ -612,8 +614,9 @@ class NavigationV3(NavigationInterface):
     @call_service()
     def liveRecGo(cls) -> int:
         """启动实时识别行走任务
+
         Returns:
-            int: 返回路径状态码，可能的值包括：
+            (int): 返回路径状态码，可能的值包括：
             0(NONE-无状态)、1(RUNNING-运行中)、2(NEARTOGOAL-接近目标)、3(FINISHED-已完成)、4(FAILED-失败)、5(SUSPENDED-暂停)。
             若m_live_go_path为空则返回FAILED(4)
         """
@@ -626,6 +629,7 @@ class NavigationV3(NavigationInterface):
                    use_bezier: bool, hold_dir: float, max_speed: float, slow_down_dist: float, slow_down_speed: float,
                    liveRec: bool) -> typing.Dict:
         """根据机器人当前位置和识别位置生成路径，支持贝塞尔曲线和直线路径两种模式
+
         Args:
             robot_pos_x (float): 机器人当前位置的 x 坐标（单位：米）
             robot_pos_y (float): 机器人当前位置的 y 坐标（单位：米）
@@ -643,24 +647,25 @@ class NavigationV3(NavigationInterface):
             slow_down_dist (float): 减速距离（单位：米）
             slow_down_speed (float): 减速速度（单位：米/秒）
             liveRec (bool): 是否为实时识别模式
+
         Returns:
-            typing.Dict: 包含路径数据的JSON数组
+            (typing.Dict): 包含路径数据的JSON数组
         """
         pass
 
     @classmethod
     @call_service()
     def cancelLiveRecGo(cls):
-        """取消当前正在执行的实时识别行走任务
-        """
+        """取消当前正在执行的实时识别行走任务"""
         pass
 
     @classmethod
     @call_service()
     def getLiveResult(cls) -> typing.Dict:
         """获取实时识别行走任务的结果
+
         Returns:
-            typing.Dict: 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
+            (typing.Dict): 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
         """
         pass
 
@@ -747,7 +752,7 @@ class NavigationV3(NavigationInterface):
             y (List[float]): 区域顶点的y坐标列表。
 
         Returns:
-            bool: 碰撞检测结果。发生碰撞返回True，未碰撞返回False
+            (bool): 碰撞检测结果。发生碰撞返回True，未碰撞返回False
 
         Raises:
             ValueError: device_keys只支持"Laser"、"Camera"和"DistanceSensor"
@@ -785,7 +790,7 @@ class NavStatusV3(NavStatusInterface):
         """底盘是否停止（仅通过walk电机判断）
 
         Returns:
-            bool: 停止为True, 否则为False
+            (bool): 停止为True, 否则为False
         """
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
@@ -862,7 +867,7 @@ class NavSpeedV3(NavSpeedInterface):
         """获取是否准备移动的标志位
 
         Returns:
-            bool: True表示准备移动，False表示未准备移动
+            (bool): True表示准备移动，False表示未准备移动
         """
         if self.update():
             return self.data.isToMove

@@ -14,7 +14,7 @@ class LedV3(LedInterface):
             dmx512_info (str): msgDmx512转换的str
 
         Returns:
-            int: 0: 成功
+            (int) 0: 成功
         """
         pass
 
@@ -27,7 +27,7 @@ class LedV3(LedInterface):
             dmx512_info: (str): msgDmx512转换的str
 
         Returns:
-            int: 0: 成功
+            (int) 0: 成功
         """
         pass
 

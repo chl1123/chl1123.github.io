@@ -68,7 +68,7 @@ class AbnormalInterface(ABC, Service):
             codes (Union[int, List[int]]): 单个或多个异常码
 
         Returns:
-            Union[bool, List[bool]]: 是否异常。异常为True, 否则为False。输入int, 输出bool; 输入List[int], 输出List[bool]
+            (Union[bool, List[bool]]): 是否异常。异常为True, 否则为False。输入int, 输出bool; 输入List[int], 输出List[bool]
         """
         raise RBKVersionError()
 
@@ -81,7 +81,7 @@ class AbnormalInterface(ABC, Service):
             code (Optional[int]): 指定异常码; 缺省表示是否存在设备名为deviceName所有异常
 
         Returns:
-            bool: 是否异常。异常为True, 否则为False
+            (bool): 是否异常。异常为True, 否则为False
         """
         raise RBKVersionError()
 
@@ -93,7 +93,7 @@ class AbnormalInterface(ABC, Service):
             code (int): 异常码
 
         Returns:
-            bool: 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
+            (bool): 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
         """
         raise RBKVersionError()
 
@@ -106,7 +106,7 @@ class AbnormalInterface(ABC, Service):
             code (Optional[int]): 需要清除的异常码；缺省表示清除指定deviceName的所有异常
 
         Returns:
-            bool: 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
+            (bool): 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
         """
         raise RBKVersionError()
 
@@ -119,7 +119,7 @@ class AbnormalInterface(ABC, Service):
             deviceName (Optional[str]): 需要屏蔽的异常码；缺省时表示屏蔽指定code的所有异常
 
         Returns:
-            bool: 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
+            (bool): 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
         """
         raise RBKVersionError()
 
@@ -142,7 +142,7 @@ class AbnormalInterface(ABC, Service):
             deviceName (Optional[str]): 需要查询屏蔽的设备；缺省时表示查询是否屏蔽指定code的异常
 
         Returns:
-            bool: 是否屏蔽异常。屏蔽返回True; 没有屏蔽返回False。
+            (bool): 是否屏蔽异常。屏蔽返回True; 没有屏蔽返回False。
         """
         raise RBKVersionError()
 
@@ -151,7 +151,7 @@ class AbnormalInterface(ABC, Service):
         """获取异常码数量
 
         Returns:
-            int: 异常的数量
+            (int): 异常的数量
         """
         raise RBKVersionError()
 
@@ -175,7 +175,7 @@ class AbnormalInterface(ABC, Service):
             param (str): 异常参数
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -198,7 +198,7 @@ class AbnormalInterface(ABC, Service):
             elementName (str): 异常图元名字(可缺省)
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -221,7 +221,7 @@ class AbnormalInterface(ABC, Service):
             param (str): 异常参数(可缺省)
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -243,7 +243,7 @@ class AbnormalInterface(ABC, Service):
             param (str): 异常参数（包含路径）(可缺省)
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -263,7 +263,7 @@ class AbnormalInterface(ABC, Service):
             param (str): 异常参数（包含路径）
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -282,7 +282,7 @@ class AbnormalInterface(ABC, Service):
             position (str): 异常坐标位置
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -306,7 +306,7 @@ class AbnormalInterface(ABC, Service):
             errorCode (int): device上报
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
 
         Raises:
@@ -330,7 +330,7 @@ class AbnormalInterface(ABC, Service):
             param (str): 异常参数
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -350,7 +350,7 @@ class AbnormalInterface(ABC, Service):
             deviceKey (str): 异常设备key
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -371,7 +371,7 @@ class AbnormalInterface(ABC, Service):
             licenseType (str): 证书类型
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内
@@ -389,7 +389,7 @@ class AbnormalInterface(ABC, Service):
             method (str): 异常处理方法
 
         Returns:
-            bool: 是否设置成功。成功返回True; 失败返回False。
+            (bool): 是否设置成功。成功返回True; 失败返回False。
 
         Raises:
             AbnormalCodeError: code不在允许的范围内

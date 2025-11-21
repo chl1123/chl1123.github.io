@@ -84,7 +84,7 @@ class ContainerV4(ContainerInterface):
             desc (str): 货物描述
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         cls.containers[container_id] = {
             "goodsName": goods_name,
@@ -101,7 +101,7 @@ class ContainerV4(ContainerInterface):
             container_id (str): 库位或者背篓id，container_id如果为"All"则全部清除
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         if container_id == "All":
             for key in cls.containers:
@@ -125,7 +125,7 @@ class ContainerV4(ContainerInterface):
             goods_name (str): 货物名称，货物名称如果为All则全部清除
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         if goods_name == "All":
             for key in cls.containers:
@@ -145,7 +145,7 @@ class ContainerV4(ContainerInterface):
         """获取当前车子上库位或者背篓货物的状态。
 
         Returns:
-            list: 包含所有背篓状态的列表，每个元素是一个字典，包含 container_id、goods_name、desc 和 has_goods。
+            （list): 包含所有背篓状态的列表，每个元素是一个字典，包含 container_id、goods_name、desc 和 has_goods。
         """
         containers = []
         for c in cls.containers:
@@ -161,7 +161,7 @@ class ContainerV4(ContainerInterface):
             container_id (str): 背篓id，默认为 '0'。
 
         Returns:
-            bool: 如果背篓中有货物，则返回True；否则返回False。
+            (bool): 如果背篓中有货物，则返回True；否则返回False。
         """
         if container_id in cls.containers:
             return cls.containers[container_id].get("hasGoods", False)
@@ -175,7 +175,7 @@ class ContainerV4(ContainerInterface):
             goods_name (str): 要检查的货物名。
 
         Returns:
-            bool: 如果存在该货物，则返回True；否则返回False。
+            (bool): 如果存在该货物，则返回True；否则返回False。
         """
         for c in cls.containers:
             if goods_name == cls.containers[c]["goodsName"]:
@@ -187,7 +187,7 @@ class ContainerV4(ContainerInterface):
         """从任务参数中获取货物ID。
 
         Returns:
-            str: 货物ID，如果没有找到则返回空字符串。
+            (str): 货物ID，如果没有找到则返回空字符串。
         """
         move_task = NavigationV4.moveTask()
         for p in move_task['params']:
@@ -203,7 +203,7 @@ class ContainerV4(ContainerInterface):
             container_id (str): 背篓id，默认为 '0'。
 
         Returns:
-            str: 货物ID，如果找不到则返回空字符串。
+            (str): 货物ID，如果找不到则返回空字符串。
         """
         if container_id in cls.containers:
             return cls.containers[container_id].get("goodsName", "")
@@ -216,7 +216,7 @@ class ContainerV4(ContainerInterface):
             goods_name (str): 要查找的货物名。
 
         Returns:
-            str: 找到的背篓名称，如果没有找到或货物未装载，则返回空字符串。
+            (str): 找到的背篓名称，如果没有找到或货物未装载，则返回空字符串。
         """
         for c in cls.containers:
             if goods_name == cls.containers[c]["goodsName"] and cls.containers[c]["hasGoods"]:
@@ -228,6 +228,6 @@ class ContainerV4(ContainerInterface):
         """以原始格式返回所有背篓的状态。
 
         Returns:
-            dict: key为背篓名称，值为包含 goods_name、desc 和 has_goods 的字典。
+            (dict): key为背篓名称，值为包含 goods_name、desc 和 has_goods 的字典。
         """
         return cls.containers

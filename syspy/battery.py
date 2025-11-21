@@ -22,7 +22,7 @@ class BatteryInterface:
         """获取电池电量百分比
 
         Returns:
-            float: 返回电池电量百分比数值
+            (float): 返回电池电量百分比数值
         """
         return self.child.get_percentage(topic=topic)
 
@@ -30,7 +30,7 @@ class BatteryInterface:
         """获取充电电流
 
         Returns:
-            float: 返回充电电流数值
+            (float): 返回充电电流数值
         """
         return self.child.get_charge_current(topic=topic)
 
@@ -38,7 +38,7 @@ class BatteryInterface:
         """获取充电电压
 
         Returns:
-            float: 返回充电电压数值
+            (float): 返回充电电压数值
         """
         return self.child.get_charge_voltage(topic=topic)
 
@@ -46,7 +46,7 @@ class BatteryInterface:
         """获取是否正在充电状态
 
         Returns:
-            bool: True表示正在充电，False表示未充电
+            (bool): True表示正在充电，False表示未充电
         """
         return self.child.get_is_charging(topic=topic)
 
@@ -54,7 +54,7 @@ class BatteryInterface:
         """获取电池温度
 
         Returns:
-            float: 返回电池温度数值
+            (float): 返回电池温度数值
         """
         return self.child.get_temperature(topic=topic)
 
@@ -62,7 +62,7 @@ class BatteryInterface:
         """获取电池循环次数
 
         Returns:
-            int: 返回电池循环次数数值
+            (int): 返回电池循环次数数值
         """
         return self.child.get_cycle(topic=topic)
 
@@ -70,7 +70,7 @@ class BatteryInterface:
         """获取最大充电电流
 
         Returns:
-            float: 返回最大充电电流数值
+            (float): 返回最大充电电流数值
         """
         return self.child.get_max_charge_current(topic=topic)
 
@@ -78,7 +78,7 @@ class BatteryInterface:
         """获取最大充电电压
 
         Returns:
-            float: 返回最大充电电压数值
+            (float): 返回最大充电电压数值
         """
         return self.child.get_max_charge_voltage(topic=topic)
 
@@ -86,7 +86,7 @@ class BatteryInterface:
         """获取额外信息
 
         Returns:
-            str: 返回额外信息字符串
+            (str): 返回额外信息字符串
         """
         return self.child.get_extra(topic=topic)
 
@@ -94,7 +94,7 @@ class BatteryInterface:
         """获取是否手动连接状态
 
         Returns:
-            bool: True表示手动连接，False表示非手动连接
+            (bool): True表示手动连接，False表示非手动连接
 
         Compatibility:
             该接口仅在 RBK 版本 3 中可用。
@@ -105,7 +105,7 @@ class BatteryInterface:
         """获取用户数据
 
         Returns:
-            bytes: 返回用户数据字节流
+            (bytes): 返回用户数据字节流
         """
         return self.child.get_user_data(topic=topic)
 
@@ -113,7 +113,7 @@ class BatteryInterface:
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 
         Returns:
-            int:
+            (int): 电池告警、电池错误和关掉电池的百分比的最大值
         """
         return self.child.getAlarmPercentage(topic=topic)
 
@@ -124,7 +124,7 @@ class BatteryInterface:
             battery_info ("msgBattery"): proto消息
 
         Returns:
-            int: -1: 发布失败; 0: 发布成功
+            (int): -1: 发布失败; 0: 发布成功
         """
         return self.child.publish(battery_info, topic=topic)
 
@@ -132,7 +132,7 @@ class BatteryInterface:
         """获取CAN端口
 
         Returns:
-            int: CAN端口
+            (int): CAN端口
         """
         return self.child.getCanPort(topic=topic)
 

@@ -11,7 +11,7 @@ class NetProtocolV4(NetProtocolInterface):
         """释放控制权
 
         Returns:
-            int: 0=ok
+            (int): 0=ok
         """
         pass
 
@@ -23,7 +23,7 @@ class NetProtocolV4(NetProtocolInterface):
         Args:
             nick_name (str): 控制权所有者名称
         Returns:
-            int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
+            (int): 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
         """
         pass
 
@@ -33,7 +33,7 @@ class NetProtocolV4(NetProtocolInterface):
         """获取控制权
 
         Returns:
-            int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
+            (int): 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
         """
         pass
 
@@ -47,7 +47,7 @@ class NetProtocolV4(NetProtocolInterface):
             addr (int): 写入时的寄存器起始地址
             data (list): 写入的数据
         Returns:
-            bool: 是否写入成功。写入失败时所有数据都不写入。
+            (bool): 是否写入成功。写入失败时所有数据都不写入。
         """
         pass
 
@@ -61,7 +61,7 @@ class NetProtocolV4(NetProtocolInterface):
             addr (int): 读取时的寄存器起始地址
             size (int): 读取的数据长度
         Returns:
-            list: 寄存器数据
+            （list): 寄存器数据
         """
         pass
 

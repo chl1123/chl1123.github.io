@@ -89,7 +89,7 @@ class LaserV4(Message):
             laser_key (str)：激光设备的key。
 
         Returns:
-            int: 激光状态，1表示启用，0表示禁用
+            (int): 激光状态，1表示启用，0表示禁用
         """
         pass
 

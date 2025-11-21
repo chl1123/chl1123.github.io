@@ -18,7 +18,7 @@ class BatteryV4(Message):
         """获取电池电量百分比
 
         Returns:
-            float: 返回电池电量百分比数值
+            (float): 返回电池电量百分比数值
         """
         if self.update(topic):
             return self._topic_data[topic].percetage
@@ -27,7 +27,7 @@ class BatteryV4(Message):
         """获取充电电流
 
         Returns:
-            float: 返回充电电流数值
+            (float): 返回充电电流数值
         """
         if self.update(topic):
             return self._topic_data[topic].charge_current
@@ -36,7 +36,7 @@ class BatteryV4(Message):
         """获取充电电压
 
         Returns:
-            float: 返回充电电压数值
+            (float): 返回充电电压数值
         """
         if self.update(topic):
             return self._topic_data[topic].charge_voltage
@@ -45,7 +45,7 @@ class BatteryV4(Message):
         """获取是否正在充电状态
 
         Returns:
-            bool: True表示正在充电，False表示未充电
+            (bool): True表示正在充电，False表示未充电
         """
         if self.update(topic):
             return self._topic_data[topic].is_charging
@@ -54,7 +54,7 @@ class BatteryV4(Message):
         """获取电池温度
 
         Returns:
-            float: 返回电池温度数值
+            (float): 返回电池温度数值
         """
         if self.update(topic):
             return self._topic_data[topic].temperature
@@ -63,7 +63,7 @@ class BatteryV4(Message):
         """获取电池循环次数
 
         Returns:
-            int: 返回电池循环次数数值
+            (int): 返回电池循环次数数值
         """
         if self.update(topic):
             return self._topic_data[topic].cycle
@@ -72,7 +72,7 @@ class BatteryV4(Message):
         """获取最大充电电流
 
         Returns:
-            float: 返回最大充电电流数值
+            (float): 返回最大充电电流数值
         """
         if self.update(topic):
             return self._topic_data[topic].max_charge_current
@@ -81,7 +81,7 @@ class BatteryV4(Message):
         """获取最大充电电压
 
         Returns:
-            float: 返回最大充电电压数值
+            (float): 返回最大充电电压数值
         """
         if self.update(topic):
             return self._topic_data[topic].max_charge_voltage
@@ -90,7 +90,7 @@ class BatteryV4(Message):
         """获取额外信息
 
         Returns:
-            str: 返回额外信息字符串
+            (str): 返回额外信息字符串
         """
         if self.update(topic):
             return self._topic_data[topic].extra
@@ -99,7 +99,7 @@ class BatteryV4(Message):
         """获取是否手动连接状态
 
         Returns:
-            bool: True表示手动连接，False表示非手动连接
+            (bool): True表示手动连接，False表示非手动连接
         """
         raise RBKVersionError()
 
@@ -116,7 +116,7 @@ class BatteryV4(Message):
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 
         Returns:
-            int:
+            (int):
         """
         # todo RBK4
         return self.client().call_service("DSPChassis", "getBatteryMaxPercentage", topic=topic)
@@ -137,7 +137,7 @@ class BatteryV4(Message):
         """获取CAN端口
 
         Returns:
-            int: CAN端口
+            (int): CAN端口
         """
         # todo RBK4
         return self.client().call_service("DSPChassis", "getBatteryCanPort", topic=topic)

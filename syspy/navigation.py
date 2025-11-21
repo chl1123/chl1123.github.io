@@ -35,7 +35,7 @@ class NavigationInterface(ABC, Service):
             flag (bool): True 返回的坐标是地图坐标系， False返回的坐标是机器人坐标系
 
         Returns:
-            list: 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
+            （list): 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
         """
         raise RBKVersionError()
 
@@ -58,7 +58,7 @@ class NavigationInterface(ABC, Service):
         """机器人运行时，当前所在高级区域的属性
 
         Returns:
-            dict:
+            (dict):
         """
         raise RBKVersionError()
 
@@ -67,7 +67,7 @@ class NavigationInterface(ABC, Service):
         """机器人运行时，当前路线上的属性
 
         Returns:
-            dict:
+            (dict):
         """
         raise RBKVersionError()
 
@@ -84,7 +84,7 @@ class NavigationInterface(ABC, Service):
         """获得离机器最近的一个动态障碍物坐标。 如果没有障碍物反馈0.,0.
 
         Returns:
-            list: 两个元素，分别为x,y。单位为m
+            （list): 两个元素，分别为x,y。单位为m
         """
         raise RBKVersionError()
 
@@ -93,7 +93,7 @@ class NavigationInterface(ABC, Service):
         """
 
         Returns:
-            dict:
+            (dict):
         """
         raise RBKVersionError()
 
@@ -119,13 +119,13 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def goPGVRun(cls, params: dict) -> int:
-        """按地图路线行走
+        """code二次调整
 
         Args:
             params (dict):
 
         Returns:
-            int:
+            (int)
         """
         raise RBKVersionError()
 
@@ -134,7 +134,7 @@ class NavigationInterface(ABC, Service):
         """获取身上是否有货物的状态
 
         Returns:
-            bool: 是否有货物
+            (bool): 是否有货物
         """
         raise RBKVersionError()
 
@@ -148,7 +148,7 @@ class NavigationInterface(ABC, Service):
         """agv是否完成线路
 
         Returns:
-            bool: 如果完成则返回True
+            (bool): 如果完成则返回True
         """
         raise RBKVersionError()
 
@@ -157,7 +157,7 @@ class NavigationInterface(ABC, Service):
         """检测激光点是否和自身碰撞
 
         Returns:
-            bool: 激光点是否和自身碰撞
+            (bool): 激光点是否和自身碰撞
         """
         raise RBKVersionError()
 
@@ -166,7 +166,7 @@ class NavigationInterface(ABC, Service):
         """获得任务信息以字典类型返回
 
         Returns:
-            dict: 具体的任务信息
+            (dict): 具体的任务信息
         """
         raise RBKVersionError()
 
@@ -248,7 +248,6 @@ class NavigationInterface(ABC, Service):
             y (float): 货叉相对于里程中心的 y 轴坐标 m
             theta (float): 是货叉相对于里程中心的偏移角度 rad
             hold_dir (float): 是车体的横移角度 单位: °
-
         """
         raise RBKVersionError()
 
@@ -278,6 +277,7 @@ class NavigationInterface(ABC, Service):
             recfile (str):
         """
         raise RBKVersionError()
+
     @classmethod
     def setGoodsPolyShape(
             cls, shape, recfile: str
@@ -288,6 +288,7 @@ class NavigationInterface(ABC, Service):
             {"x": -1.0, "y": 1.0},
             {"x": -1.0, "y": -1.0},
             {"x": 1.0, "y": 1.0}]
+
         Args:
             shape (List[Dict[str, float]]):
             recfile (str):
@@ -295,10 +296,10 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
     @classmethod
     def setIncreaseSpinAngle(cls, angle: float):
-        """设置货物形状时传入识别文件路径
+        """增量旋转托盘到一个弧度
 
         Args:
-            angle (float):
+            angle (float): 弧度
         """
         raise RBKVersionError()
 
@@ -310,7 +311,7 @@ class NavigationInterface(ABC, Service):
             object_model_path (str): 货架模型文件名称
 
         Returns:
-            bool: 如果不存在这个货架模型则报错
+            (bool): 如果不存在这个货架模型则报错
         """
         raise RBKVersionError()
 
@@ -462,7 +463,7 @@ class NavigationInterface(ABC, Service):
             angle (float): 角度位置, 单位rad
 
         Returns:
-            bool: 如果为True电机到位
+            (bool): 如果为True电机到位
         """
         raise RBKVersionError()
 
@@ -471,7 +472,7 @@ class NavigationInterface(ABC, Service):
         """
 
         Returns:
-            bool:
+            (bool):
         """
         raise RBKVersionError()
 
@@ -494,7 +495,7 @@ class NavigationInterface(ABC, Service):
         """XXX
 
         Returns:
-            bool: 数据记录成功
+            (bool): 数据记录成功
         """
         raise RBKVersionError()
 
@@ -506,7 +507,7 @@ class NavigationInterface(ABC, Service):
             flag (bool): False:放下货叉， True:抬起货叉
 
         Returns:
-            bool: 是否完成
+            (bool): 是否完成
         """
         raise RBKVersionError()
 
@@ -520,7 +521,7 @@ class NavigationInterface(ABC, Service):
             camName (str): 相机名称
 
         Returns:
-            bool: 是否完成
+            (bool): 是否完成
         """
         raise RBKVersionError()
 
@@ -597,7 +598,7 @@ class NavigationInterface(ABC, Service):
             coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
 
         Returns:
-            List[str]: 避障扣除区域名称列表。
+            (List[str]): 避障扣除区域名称列表。
         """
         raise RBKVersionError()
 
@@ -611,7 +612,7 @@ class NavigationInterface(ABC, Service):
             y (List[float]): 区域顶点的y坐标列表。
 
         Returns:
-            bool: 碰撞检测结果。发生碰撞返回True，未碰撞返回False
+            (bool): 碰撞检测结果。发生碰撞返回True，未碰撞返回False
 
         Raises:
             ValueError: device_keys只支持"Laser"、"Camera"和"DistanceSensor"
@@ -629,13 +630,14 @@ class NavigationInterface(ABC, Service):
             tcp_name (str): TCP 名称，若不存在TCP 名称，则返回原始的目标点不进行TCP变换
 
         Returns:
-            typing.Dict: 包含转换后的目标点位置信息，格式为 {"x": double, "y": double, "theta": double}
+            (typing.Dict): 包含转换后的目标点位置信息，格式为 {"x": double, "y": double, "theta": double}
         """
         raise RBKVersionError()
 
     @classmethod
     def liveRecGoReset(cls, recfile: str, x: float, y: float, theta: float, tracker_id: str, paths: typing.Dict) -> bool:
         """重置实时识别行走路径，用于重新初始化路径跟踪器
+
         Args:
             recfile (str): 记录文件路径
             x (float): 起始位置的 x 坐标（单位：米）
@@ -643,16 +645,18 @@ class NavigationInterface(ABC, Service):
             theta (float): 起始位置的角度（单位：弧度）
             tracker_id (str): 跟踪器ID
             paths (typing.Dict): 路径数据数组，包含PathData对象的JSON数组
+
         Returns:
-            bool: 重置是否成功，成功返回true，失败返回false
+            (bool): 重置是否成功，成功返回true，失败返回false
         """
         raise RBKVersionError()
 
     @classmethod
     def liveRecGo(cls) -> int:
         """启动实时识别行走任务
+
         Returns:
-            int: 返回路径状态码，可能的值包括：
+            (int): 返回路径状态码，可能的值包括：
             0(NONE-无状态)、1(RUNNING-运行中)、2(NEARTOGOAL-接近目标)、3(FINISHED-已完成)、4(FAILED-失败)、5(SUSPENDED-暂停)。
             若m_live_go_path为空则返回FAILED(4)
         """
@@ -664,6 +668,7 @@ class NavigationInterface(ABC, Service):
                    use_bezier: bool, hold_dir: float, max_speed: float, slow_down_dist: float, slow_down_speed: float,
                    liveRec: bool) -> typing.Dict:
         """根据机器人当前位置和识别位置生成路径，支持贝塞尔曲线和直线路径两种模式
+
         Args:
             robot_pos_x (float): 机器人当前位置的 x 坐标（单位：米）
             robot_pos_y (float): 机器人当前位置的 y 坐标（单位：米）
@@ -681,8 +686,9 @@ class NavigationInterface(ABC, Service):
             slow_down_dist (float): 减速距离（单位：米）
             slow_down_speed (float): 减速速度（单位：米/秒）
             liveRec (bool): 是否为实时识别模式
+
         Returns:
-            typing.Dict: 包含路径数据的JSON数组
+            (typing.Dict): 包含路径数据的JSON数组
         """
         raise RBKVersionError()
 
@@ -696,7 +702,7 @@ class NavigationInterface(ABC, Service):
     def getLiveResult(cls) -> typing.Dict:
         """获取实时识别行走任务的结果
         Returns:
-            typing.Dict: 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
+            (typing.Dict): 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
         """
         raise RBKVersionError()
 
@@ -708,7 +714,7 @@ class NavStatusInterface(ABC, Message):
         """底盘是否停止（仅通过walk电机判断）
 
         Returns:
-            bool: 停止为True, 否则为False
+            (bool): 停止为True, 否则为False
         """
         raise RBKVersionError()
 
@@ -725,7 +731,7 @@ class NavStatusInterface(ABC, Message):
         """获取任务状态
 
         Returns:
-            msgMoveStatus.TaskStatus: 返回脚本任务状态
+            (msgMoveStatus.TaskStatus): 返回脚本任务状态
         """
         raise RBKVersionError()
 
@@ -738,7 +744,7 @@ class NavSpeedInterface(ABC, Message):
         """获取当前速度信息
 
         Returns:
-            Tuple[float, float, float]: 包含三个速度分量的元组
+            (Tuple[float, float, float]): 包含三个速度分量的元组
                 - v_x (float): X轴方向速度，单位 m/s
                 - v_y (float): Y轴方向速度，单位 m/s
                 - v_w (float): 角速度，单位 rad/s
@@ -750,7 +756,7 @@ class NavSpeedInterface(ABC, Message):
         """获取电机指令列表
 
         Returns:
-            typing.List[msgMotorCmd]: 返回电机指令列表
+            (typing.List[msgMotorCmd]): 返回电机指令列表
         """
         raise RBKVersionError()
 
@@ -759,6 +765,6 @@ class NavSpeedInterface(ABC, Message):
         """获取是否准备移动的标志位
 
         Returns:
-            bool: True表示准备移动，False表示未准备移动
+            (bool): True表示准备移动，False表示未准备移动
         """
         raise RBKVersionError()

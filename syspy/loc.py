@@ -11,7 +11,7 @@ class LocInterface(ABC, Message):
         """获取机器人位姿（位置和姿态）
 
         Returns:
-            typing.Dict[str, float]: 包含以下键值对的字典：
+            (typing.Dict[str, float]): 包含以下键值对的字典：
                 - x (float): x坐标
                 - y (float): y坐标
                 - z (float): z坐标

@@ -51,7 +51,7 @@ class SoundV4(SoundInterface):
         """获取声音状态，0表示停止（未播放），1表示暂停，2表示正在播放
 
         Returns:
-            int: 声音状态值
+            (int): 声音状态值
         """
         if self.update():
             return self.data.status
@@ -60,7 +60,7 @@ class SoundV4(SoundInterface):
         """获取带有后缀的声音名称
 
         Returns:
-            str: 声音名称字符串
+            (str): 声音名称字符串
         """
         if self.update():
             return self.data.sound_name
@@ -69,7 +69,7 @@ class SoundV4(SoundInterface):
         """获取声音是否循环播放的状态
 
         Returns:
-            bool: True表示循环播放，False表示不循环播放
+            (bool): True表示循环播放，False表示不循环播放
         """
         if self.update():
             return self.data.loop
@@ -78,7 +78,7 @@ class SoundV4(SoundInterface):
         """获取声音播放次数
 
         Returns:
-            int: 声音播放次数
+            (int): 声音播放次数
         """
         if self.update():
             return self.data.count

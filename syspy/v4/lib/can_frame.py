@@ -58,6 +58,6 @@ class CanV4(CanInterface):
             can_id5 (int):
 
         Returns:
-            int:
+            (int):
         """
         pass

@@ -70,7 +70,7 @@ class LaserInterface:
             laser_key (str): 激光设备的key
 
         Returns:
-            List[float]: 最近激光点与激光中心的距离、最近激光点与激光中心的夹角
+            (List[float]): 最近激光点与激光中心的距离、最近激光点与激光中心的夹角
         """
         return self.child.getNearestLaserPoint(laser_key)
 
@@ -81,7 +81,7 @@ class LaserInterface:
             laser_key (str): 激光设备的key。
 
         Returns:
-            int: 激光状态，1表示启用，0表示禁用
+            (int): 激光状态，1表示启用，0表示禁用
         """
         return self.child.safeLaserMuteStatus(laser_key)
 
@@ -112,7 +112,7 @@ class Laser3DInterface:
         """获取所有3D激光数据列表
 
         Returns:
-            List[msgLaser3D]: 返回所有3D激光数据的列表
+            (List[msgLaser3D]): 返回所有3D激光数据的列表
 
         Examples:
         ```python

@@ -29,7 +29,7 @@ class RecognizeV4(RecognizeInterface):
         """获取识别结果
 
         Returns:
-            dict: 识别结果的结构体
+            (dict): 识别结果的结构体
         """
         pass
 
@@ -79,7 +79,7 @@ class RecognizeV4(RecognizeInterface):
             json (str): 包含任务参数的JSON字符串
 
         Returns:
-            str: 包含检测状态和超时距离的JSON字符串
+            (str): 包含检测状态和超时距离的JSON字符串
         """
         pass
 
@@ -105,7 +105,7 @@ class RecognizeV4(RecognizeInterface):
         """获取识别状态
 
         Returns:
-            int: 0 刚刚初始化，1识别中，2.获得结果, 3识别出错, -1 未知错误
+            (int): 0 刚刚初始化，1识别中，2.获得结果, 3识别出错, -1 未知错误
         """
         pass
 
@@ -137,6 +137,6 @@ class RecognizeV4(RecognizeInterface):
             name (str): 识别文件名称，比如 shelf.srec, pallet.srec
 
         Returns:
-            dict: 具体数据以字典类型返回
+            (dict): 具体数据以字典类型返回
         """
         pass

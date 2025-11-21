@@ -19,7 +19,7 @@ class CodeScannerInterface(ABC, Message):
         """获取msgCodeScannerDMT对象列表
 
         Returns:
-            msgCodeScannerDMT对象列表
+            (List["msgCodeScannerDMT"]): msgCodeScannerDMT对象列表
 
         Examples:
         ```python

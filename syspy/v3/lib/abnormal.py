@@ -32,7 +32,7 @@ class AbnormalV3(AbnormalInterface):
             code (Optional[int]): 指定异常码; 缺省表示是否存在设备名为deviceName所有异常
 
         Returns:
-            bool: 是否异常。异常为True, 否则为False
+            (bool): 是否异常。异常为True, 否则为False
         """
         pass
 
@@ -45,7 +45,7 @@ class AbnormalV3(AbnormalInterface):
             code (int): 异常码
 
         Returns:
-            bool: 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
+            (bool): 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
         """
         pass
 
@@ -59,7 +59,7 @@ class AbnormalV3(AbnormalInterface):
             code (Optional[int]): 需要清除的异常码；缺省表示清除指定deviceName的所有异常
 
         Returns:
-            bool: 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
+            (bool): 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
         """
         pass
 
@@ -73,7 +73,7 @@ class AbnormalV3(AbnormalInterface):
             deviceName (Optional[str]): 需要屏蔽的异常码；缺省时表示屏蔽指定code的所有异常
 
         Returns:
-            bool: 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
+            (bool): 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
         """
         pass
 
@@ -98,7 +98,7 @@ class AbnormalV3(AbnormalInterface):
             deviceName (Optional[str]): 需要查询屏蔽的设备；缺省时表示查询是否屏蔽指定code的异常
 
         Returns:
-            bool: 是否屏蔽异常。屏蔽返回True; 没有屏蔽返回False。
+            (bool): 是否屏蔽异常。屏蔽返回True; 没有屏蔽返回False。
         """
         pass
 
@@ -108,7 +108,7 @@ class AbnormalV3(AbnormalInterface):
         """获取异常码数量
 
         Returns:
-            int: 异常的数量
+            (int) 异常的数量
         """
         pass
 
