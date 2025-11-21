@@ -229,7 +229,7 @@ class Message(Service):
         )
 
     def get_data(self, args: Optional[List[str]] = None, *, topic: str = None, ) -> Union[tuple, dict]:
-        """获取指定topic的当前数据（不触发更新）"""
+        """获取指定topic的当前数据"""
         if  self.update(topic):
             if topic is None:
                 data = self.data
@@ -238,7 +238,7 @@ class Message(Service):
             if data:
                 if args is not None:
                     return tuple(getattr(data, arg) for arg in args)
-                return json_format.MessageToDict(data, preserving_proto_field_name=True)
+                return json_format.MessageToDict(data, preserving_proto_field_name=True, use_integers_for_enums=True)
         return {}
 
 
