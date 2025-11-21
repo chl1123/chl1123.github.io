@@ -23,7 +23,7 @@ from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, Bi
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
 from syspy.lib.net_protocol import parse_modbus
 from syspy.lib.robot_param import RobotParam
-import tasks.standard.goBezier as GoBezier
+import standard.goBezier as GoBezier
 from syspy import LevelDB
 from syspy.core.rbk_rpc import Service
 

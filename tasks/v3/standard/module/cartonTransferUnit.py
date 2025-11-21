@@ -22,7 +22,7 @@ from syspy.lib.net_protocol import parse_modbus, NetProtocol
 from syspy.bin import Container
 from syspy.lib.module import SafeMoveStatus, ModuleBase
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ParamValidator, ScriptParam
-from tasks.standard.goPath import GoPath
+from standard.goPath import GoPath
 
 log = Logger("ContainerRobot")
 param_loader = ScriptParam(__file__)

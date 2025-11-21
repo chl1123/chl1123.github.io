@@ -7,7 +7,7 @@ import time
 from syspy.script_data import ScriptData
 from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus, Trace
 from syspy.lib.module import Pos2World
-from tasks.standard import goPath
+from standard import goPath
 
 log = logging.getLogger("rbk.script")
 

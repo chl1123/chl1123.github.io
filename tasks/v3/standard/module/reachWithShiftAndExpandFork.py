@@ -24,7 +24,7 @@ from syspy.lib.py_rpc import Message
 from syspy.script_data import ScriptData
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer
 from syspy.utils.time import Timer
-from tasks.standard import goPath
+from standard import goPath
 
 log = Logger("Fork_robot")
 

@@ -17,7 +17,7 @@ from syspy import (Module, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Rec
                    Odometer, CodeScanner, ScriptStatus, NetProtocol, Trace, NavSpeed, Controller)
 
 from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
-from tasks.standard import goPath, goBezier
+from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, ScriptParam
 
 param_loader = ScriptParam(__file__)

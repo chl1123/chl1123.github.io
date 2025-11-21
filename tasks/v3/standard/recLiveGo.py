@@ -8,7 +8,7 @@ from syspy.script_data import ScriptData
 from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus, Recognize, Trace
 from syspy.lib.module import Pos2World
 from syspy.utils.time import Timer
-from tasks.standard import goPath
+from standard import goPath
 from syspy.core.rbk_rpc import Service
 
 class GoLiveRec:

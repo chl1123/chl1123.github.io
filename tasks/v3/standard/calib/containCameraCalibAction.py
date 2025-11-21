@@ -4,7 +4,7 @@ from enum import  IntEnum
 import json
 import time
 from syspy import Logger, ScriptStatus, Navigation, Module, Motor, Do
-from tasks.standard.module.cartonTransferUnit import ContainerRobot
+from standard.module.cartonTransferUnit import ContainerRobot
 
 log = Logger("goLineCalibAction")
 

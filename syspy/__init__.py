@@ -1,4 +1,19 @@
 from syspy.config import RBK_VERSION, RBK_FULL_VERSION
+import sys
+import os
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(current_dir, "../generic"))
+sys.path.insert(0, os.path.join(current_dir, "../tasks"))
+sys.path.insert(0, os.path.join(current_dir, "../generic/common"))
+sys.path.insert(0, os.path.join(current_dir, "../tasks/common"))
+if RBK_VERSION == 3:
+    sys.path.insert(0, os.path.join(current_dir, "../generic/v3"))
+    sys.path.insert(0, os.path.join(current_dir, "../tasks/v3"))
+elif RBK_VERSION == 4:
+    sys.path.insert(0, os.path.join(current_dir, "../generic/v4"))
+    sys.path.insert(0, os.path.join(current_dir, "../tasks/v4"))
+
 from .navigation import NavSpeedInterface, NavigationInterface, NavStatusInterface
 from .odometer import OdometerInterface
 
