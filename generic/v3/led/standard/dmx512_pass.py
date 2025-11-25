@@ -73,7 +73,7 @@ class demo_dmx512(dmx.dmx512Base):
         mu.sleepS(20)
         while 1:
             """cur_w:旋转度, cur_x:前进距离, cur_y:平移距离"""
-            self.cur_x, self.cur_y, self.cur_w = NavSpeed.get_speeds()
+            self.cur_x, self.cur_y, self.cur_w = NavSpeed.getSpeeds()
 
             '''cur_w:旋转度, cur_x:前进距离, cur_y:平移距离'''
             percentage = Battery.getPercentage()
@@ -100,7 +100,7 @@ class demo_dmx512(dmx.dmx512Base):
                 '''报错状态下红色呼吸'''
                 dmx512_info.type = dmx.LightType.Errofatal.value
 
-            elif Controller.get_emc():
+            elif Controller.getEmc():
                 '''急停状态下暗红色闪烁'''
                 dmx512_info.type = dmx.LightType.FlowCalculator.value
                 RGBW = [230, 30, 0, 0]
@@ -109,7 +109,7 @@ class demo_dmx512(dmx.dmx512Base):
                 dmx512_info.colorBlue = RGBW[2]
                 dmx512_info.colorWhite = RGBW[3]
 
-            elif NavStatus.get_block():
+            elif NavStatus.getBlock():
                 '''被阻挡状态下粉紫色跑马'''
                 dmx512_info.type = dmx.LightType.MutableHorseRace.value
                 RGBW = [30, 0, 30, 0]

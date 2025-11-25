@@ -164,7 +164,7 @@ class ConfigParams:
     def reload_config(cls):
         """重新加载配置参数"""
         Trace.log("Reloading config parameters")
-        cls.config = param_loader.load_config()
+        cls.config = param_loader.loadConfig()
         Trace.log(f"Loaded config: {cls.config}")
         cls.devName = cls.config.get("devName")
         cls.rgbwColor[0] = cls.config.get("rColor")
@@ -271,13 +271,13 @@ class LedChassis(LedBase):
                 LightType.MutableBreath, rgbw=Color.Red, period=3200
             )
         # 急停状态下暗红色流水
-        elif Controller.get_emc():
+        elif Controller.getEmc():
             self.robot_status = "EStop"
             self.set_effect(
                 LightType.Flow, rgbw=Color.RedDark, period=10
             )
         # 被阻挡状态下粉紫色跑马
-        elif NavStatus.get_block():
+        elif NavStatus.getBlock():
             self.robot_status = "Blocked"
             self.set_effect(
                 LightType.MutableHorseRace, rgbw=Color.PinkPurple, period=1000
@@ -303,8 +303,8 @@ class LedChassis(LedBase):
         """
         处理机器移动时的灯光效果。
         """
-        v_x, _, v_w = NavSpeed.get_speeds()
-        turn = NavStatus.get_turn(v_x, v_w)
+        v_x, _, v_w = NavSpeed.getSpeeds()
+        turn = NavStatus.getTurn(v_x, v_w)
         if turn == 0:
             self.robot_status = "MovingRotation"
             if config_params.is_back_breath and v_x < 0:

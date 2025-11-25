@@ -49,7 +49,7 @@ class ConfigParams:
     def reload_config(cls):
         """重新加载配置参数"""
         Trace.log("Reloading config parameters")
-        cls.config = param_loader.load_config()
+        cls.config = param_loader.loadConfig()
         Trace.log(f"Loaded config: {cls.config}")
         cls.devName = cls.config.get("devName")
         cls.baudrate = cls.config.get("baudrate")

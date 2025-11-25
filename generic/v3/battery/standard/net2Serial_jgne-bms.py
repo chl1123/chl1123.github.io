@@ -6,7 +6,6 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu 
 #other tools,like Timer
 import syspy.lib.misc_utility as mu
-import message_battery_pb2
 from syspy import Logger
 log = Logger("battery")
 class Battery(bb.batteryBase):

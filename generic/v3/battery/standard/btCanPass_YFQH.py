@@ -6,6 +6,7 @@ import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu
 from syspy import Logger
+import sys
 log = Logger("battery")
 class CanBattery(cb.CanBase):
 
