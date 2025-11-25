@@ -6,7 +6,7 @@ import time
 
 from syspy.script_data import ScriptData
 from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus, Recognize, Trace
-from syspy.lib.module import Pos2World
+from syspy.lib.module import pos2World
 from syspy.utils.time import Timer
 from standard import goPath
 from syspy.core.rbk_rpc import Service
@@ -27,7 +27,7 @@ class GoLiveRec:
         # Variable to store recognition results
         self.rec_result = None
         #Path to the recognition data file
-        self.recfile = "defaulf.srec"
+        self.recfile = "default.srec"
 
     def run(self):
         self.status = ScriptStatus.RUNNING
@@ -61,7 +61,7 @@ class GoLiveRec:
         if self.doing_path:
             self.doing_path = False
             # Get current robot position
-            pos = Loc.get_pose()
+            pos = Loc.getPose()
             Trace.log("pos: " + json.dumps(pos))
 
             # Calculate path based on current position and recognition results
