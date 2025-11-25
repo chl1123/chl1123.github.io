@@ -27,7 +27,15 @@ import standard.goBezier as GoBezier
 from syspy import LevelDB
 from syspy.core.rbk_rpc import Service
 
-db = LevelDB("fork")
+db = LevelDB("run")
+
+db.add("forkMileage", "float", False)
+db.add("forkMileageUp", "float", False)
+db.add("forkMileageDown", "float", False)
+db.add("forkMileageToday", "float", False)
+db.add("forkMileageUpToday", "float", False)
+db.add("forkMileageDownToday", "float", False)
+
 
 param_loader = ScriptParam(__file__)
 
@@ -970,12 +978,12 @@ class Fork(ModuleBase):
         self.key_today_down_mileage = "forkMileageDownToday"
         self.key_today_date = "fork_mileage_today_date"
 
-        self.total_dist = float(db.get(key=self.mileage_total_key) or 0)
-        self.up_dist = float(db.get(self.mileage_up_key) or 0)
-        self.down_dist = float(db.get(self.mileage_down_key) or 0)
-        self.today_total = float(db.get(self.key_today_total_mileage) or "0")
-        self.today_up = float(db.get(self.key_today_up_mileage) or "0")
-        self.today_down = float(db.get(self.key_today_down_mileage) or "0")
+        self.total_dist = db.get(self.mileage_total_key,"float")
+        self.up_dist = db.get(self.mileage_up_key,"float")
+        self.down_dist = db.get(self.mileage_down_key,"float")
+        self.today_total = db.get(self.key_today_total_mileage,"float")
+        self.today_up = db.get(self.key_today_up_mileage,"float")
+        self.today_down = db.get(self.key_today_down_mileage,"float")
 
         self.last_saved_total = self.total_dist  # ← 记录上次保存值
         self.last_pos = None
@@ -1384,7 +1392,7 @@ class Fork(ModuleBase):
                     # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                     args = {
                         "back_dist": 0,
-                        "min_ahead_dist": ConfigParams.minAheadDist+ConfigParams.head,
+                        "min_ahead_dist": ConfigParams.tail+ConfigParams.head,
                         "adjust_dist": ConfigParams.aheadDist,
                     }
                     if ConfigParams.useStraightLine:
@@ -1515,7 +1523,7 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
 
     def save_mileage(self):
-        db_total = float(db.get(self.mileage_total_key) or "0")
+        db_total = db.get(self.mileage_total_key,"float")
         if db_total == 0:
             self.total_dist = 0.0
             self.up_dist = 0.0
