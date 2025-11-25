@@ -36,8 +36,8 @@ db.add("forkMileageToday", "float", False)
 db.add("forkMileageUpToday", "float", False)
 db.add("forkMileageDownToday", "float", False)
 
-
 param_loader = ScriptParam(__file__)
+
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
@@ -182,7 +182,7 @@ class ConfigParams:
     def reload_config(cls):
         """重新加载配置参数"""
         Trace.log("Reloading config parameters")
-        cfg = param_loader.load_config()
+        cfg = param_loader.loadConfig()
         cls.config = cfg
 
         # --- script
@@ -274,9 +274,6 @@ class ConfigParams:
             robot_type = cls._safe_get_device("Model-000", "getRobotType", "")
             if robot_type in ("variableWheelbaseSingleStandardSteer", "variableWheelbaseSingleDifferentialSteer"):
                 cls.base_shift = True
-        elif cls.module_type == "straddleLiftFork":
-            cls.base_shift = False
-
 
     @classmethod
     def get_device_motor_param(cls):
@@ -302,7 +299,7 @@ class ConfigParams:
 
     @classmethod
     def _build_and_load_config(cls):
-        builder = param_loader.builder_config()
+        builder = param_loader.builderConfig()
 
         with builder.GROUPS():
             # ===== 脚本相关 =====
@@ -978,12 +975,12 @@ class Fork(ModuleBase):
         self.key_today_down_mileage = "forkMileageDownToday"
         self.key_today_date = "fork_mileage_today_date"
 
-        self.total_dist = db.get(self.mileage_total_key,"float")
-        self.up_dist = db.get(self.mileage_up_key,"float")
-        self.down_dist = db.get(self.mileage_down_key,"float")
-        self.today_total = db.get(self.key_today_total_mileage,"float")
-        self.today_up = db.get(self.key_today_up_mileage,"float")
-        self.today_down = db.get(self.key_today_down_mileage,"float")
+        self.total_dist = db.get(self.mileage_total_key, "float")
+        self.up_dist = db.get(self.mileage_up_key, "float")
+        self.down_dist = db.get(self.mileage_down_key, "float")
+        self.today_total = db.get(self.key_today_total_mileage, "float")
+        self.today_up = db.get(self.key_today_up_mileage, "float")
+        self.today_down = db.get(self.key_today_down_mileage, "float")
 
         self.last_saved_total = self.total_dist  # ← 记录上次保存值
         self.last_pos = None
@@ -1079,9 +1076,9 @@ class Fork(ModuleBase):
 
     def safe_move_check(self):
         status = SafeMoveStatus.FINISHED
-        self.set_safe_move_status(status)
+        self.setSafeMoveStatus(status)
         if ConfigParams.scriptDebug:
-            Trace.log(f"safe_move_check {Module.get_safe_move_check()}")
+            Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
@@ -1119,7 +1116,7 @@ class Fork(ModuleBase):
             # 解析识别文件
             if self.recfile:
                 # 处理扣除区域，仅针对后激光
-                if ConfigParams.module_type == "straddleLiftFork":
+                if ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
                     self.pallet_deduct_infos = get_deduct_area(self.recfile)
                     for pallet_deduct_info in self.pallet_deduct_infos:
                         if (not pallet_deduct_info or (pallet_deduct_info.get("deduct_device", None) is None)
@@ -1174,7 +1171,7 @@ class Fork(ModuleBase):
                     ]
 
                     # 堆高车的非识别取货的话扣掉AP点
-                    if ConfigParams.module_type == "straddleLiftFork":
+                    if ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
                         deduct2ap = [{"x": ConfigParams.head + 0.15, "y": ConfigParams.width / 2 + 0.2},
                                      {"x": -ConfigParams.tail, "y": ConfigParams.width / 2 + 0.2},
                                      {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2 - 0.2},
@@ -1245,14 +1242,14 @@ class Fork(ModuleBase):
                 rec_world_pos = pos2World(rec_result2r, [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])])
 
                 if ConfigParams.enableTcp:
-
                     rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0], rec_world_pos[1], rec_world_pos[2],
                                                                "defaultTCP")
-                    rec_world_pos_tcp_list = [rec_world_pos_tcp["x"], rec_world_pos_tcp["y"], rec_world_pos_tcp["theta"]]
+                    rec_world_pos_tcp_list = [rec_world_pos_tcp["x"], rec_world_pos_tcp["y"],
+                                              rec_world_pos_tcp["theta"]]
                     Trace.log(f"after tcp:{rec_world_pos_tcp_list}")
                     rec_world_pos = rec_world_pos_tcp_list
 
-                if ConfigParams.module_type == "straddleLiftFork":
+                if ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
                     set_deduct_area(self.pallet_deduct_infos, rec_world_pos, "PalletWorldDeductArea",
                                     Coordinate.WORLD)
 
@@ -1384,7 +1381,7 @@ class Fork(ModuleBase):
             else:
                 if ConfigParams.enableTcp:
                     ap_world_pos_tcp = Navigation.calTCPTrans(target_pos[0], target_pos[1], target_pos[2],
-                                                               "defaultTCP")
+                                                              "defaultTCP")
                     ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"], ap_world_pos_tcp["theta"]]
                     target_pos = ap_world_pos_tcp_list
                     Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}")
@@ -1392,7 +1389,7 @@ class Fork(ModuleBase):
                     # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                     args = {
                         "back_dist": 0,
-                        "min_ahead_dist": ConfigParams.tail+ConfigParams.head,
+                        "min_ahead_dist": ConfigParams.tail + ConfigParams.head,
                         "adjust_dist": ConfigParams.aheadDist,
                     }
                     if ConfigParams.useStraightLine:
@@ -1523,7 +1520,7 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
 
     def save_mileage(self):
-        db_total = db.get(self.mileage_total_key,"float")
+        db_total = db.get(self.mileage_total_key, "float")
         if db_total == 0:
             self.total_dist = 0.0
             self.up_dist = 0.0
@@ -1543,7 +1540,7 @@ class Fork(ModuleBase):
             "forkMileage": self.total_dist
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
-        Module.report_info(self.trace_chart)
+        Module.reportInfo(self.trace_chart)
         Trace.chart(self.trace_chart)
 
         # 根据变动量记录货叉的里程数据
@@ -1567,7 +1564,7 @@ class Fork(ModuleBase):
         modbus_list_fork_height = float_to_modbus_poll_regs(fork_height)
         NetProtocol.setModbusData("3x", 57, modbus_list_fork_height)
 
-        if ConfigParams.module_type == "straddleLiftFork":
+        if ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
             task_status = NavStatus.getTaskStatus()
             if ConfigParams.scriptDebug:
                 Trace.log(f"task_status{task_status}")
@@ -1639,8 +1636,8 @@ class Fork(ModuleBase):
         if Navigation.hasGoods() and ConfigParams.checkGoodsWhileLoad and ConfigParams.checkAllContactDis:
             # 获取到位 di 的状态
             di_status = []
-            contact_ids_str = RobotParam.getDevice("Model-000", f"moduleType.straddleLiftFork.id").split(",")
-            for di in contact_ids_str:
+            contact_ids=ConfigParams.contact_ids
+            for di in contact_ids:
                 di_status.append(Di.getDi(di))
 
             # 根据是否检测所有到位di 决定错误状态
@@ -1657,6 +1654,8 @@ class Fork(ModuleBase):
                 if Timer.delay(0.3):
                     if Abnormal.exists(53319):
                         Abnormal.clear(53319)
+
+
 class BaseAction:
     """定义动作的基类"""
 
@@ -1683,6 +1682,7 @@ class BaseAction:
 
     def cancel(self):
         self.action_status = ActionStatus.FAILED
+
 
 # class GoBezier(BaseAction):
 #     def __init__(self, goal, back_dist, ahead_dist, min_ahead_dist):
@@ -1839,8 +1839,8 @@ class GoPathWithContactDi(BaseAction):
             self.back_action = GoTwoStraightLine(world_pos, args["min_ahead_dist"], args["adjust_dist"],
                                                  args["back_dist"], 0.2, args['max_angle'], 1)
         else:
-            Abnormal.setTask(53929,f"wrong gopath method :{method}, script failed","script wrong",
-                             "","check the script","")
+            Abnormal.setTask(53929, f"wrong gopath method :{method}, script failed", "script wrong",
+                             "", "check the script", "")
         # self.back_status = self.back_action.action_status
 
     def run(self):
@@ -2079,7 +2079,7 @@ class RunMotorByPosition(BaseAction):
             self.init = True
 
             # 目标位置比初始位置差得不大就不要执行动作了
-            if abs(self.position - cur_fork_height) <= 0.01 and ConfigParams.module_type == "straddleLiftFork":
+            if abs(self.position - cur_fork_height) <= 0.01 and ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
                 self.action_status = ActionStatus.FINISHED
                 return
 
@@ -2309,7 +2309,7 @@ class GoPath(BaseAction):
         self.action_status = ActionStatus.RUNNING
         args = self.args
         if args is None:
-            args = Module.get_task_args()
+            args = Module.getTaskArgs()
         if Abnormal.exists(52111):
             self.action_status = ActionStatus.FAILED
 
@@ -2508,8 +2508,8 @@ class GoTwoStraightLine(BaseAction):
                     "maxSpeed": 0.1,
                     "maxRot": math.radians(10),
                     "coordinate": Coordinate.WORLD.value,
-                    "reachAngle":math.radians(0.5),
-                    "reachDist":0.005
+                    "reachAngle": math.radians(0.5),
+                    "reachDist": 0.005
                 }
             self.go1 = GoPath(go1_args)
             self.go2 = GoPath(go2_args)
@@ -2563,6 +2563,7 @@ class GoTwoStraightLine(BaseAction):
         Navigation.resetPath()
         self.action_status = ScriptStatus.FAILED
 
+
 class ActionStatus(IntEnum):
     """ 动作运行状态枚举，对标 ActionStatus """
     INIT = 0
@@ -2583,7 +2584,7 @@ def main():
     Module.init()
 
     validated_params = {}
-    validator = ParamValidator(InputParams.builder.to_dict())
+    validator = ParamValidator(InputParams.builder.toDict())
     checked_args = False
 
     f = Fork()
@@ -2601,8 +2602,8 @@ def main():
 
         f.period_run()
 
-        input_params = validated_params or Module.get_task_args()
-        status = Module.get_status()
+        input_params = validated_params or Module.getTaskArgs()
+        status = Module.getStatus()
 
         if ConfigParams.scriptDebug:
             Trace.log(f"script status:{status}")
@@ -2628,7 +2629,7 @@ def main():
                     del f.trace_chart[k]
 
                 f.save_mileage()
-                Module.set_status(f.script_status)
+                Module.setStatus(f.script_status)
                 checked_args = False
                 validated_params = {}
                 f.reset()
