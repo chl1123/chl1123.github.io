@@ -738,7 +738,7 @@ class Jack(ModuleBase):
         Trace.log(f"jackUpDi = {config_params.jack_up_di}")
         Trace.log(f"jackZeroDi = {config_params.jack_zero_di}")
 
-        # Module.set_status(ScriptStatus.NONE)
+        # Module.setStatus(ScriptStatus.NONE)
 
     def _init_args(self):
         if not self.init_args:
@@ -798,7 +798,7 @@ class Jack(ModuleBase):
 
     def run(self, args):
         # 获取输入参数
-        Module.set_status(ScriptStatus.RUNNING)
+        Module.setStatus(ScriptStatus.RUNNING)
         self.task_args = args
         print(f"self.task_args={self.task_args}")
         self._init_args()
@@ -846,7 +846,7 @@ class Jack(ModuleBase):
         elif self.opt == "PGVSecondaryAndJackUp":
             self.pgv_second_and_jack_up()
         else:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
 
         Trace.log(f"self.action_list: {self.action_list}")
         self._execute_actions()
@@ -854,7 +854,7 @@ class Jack(ModuleBase):
     def pgv_second_and_jack_up(self):
         if not self.operation_init:
             self.operation_init = True
-            self.action_list.append(GetPGVData())
+            self.action_list.append(GetPGVData(self.use_which_pgv))
             self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                                        self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle, self.pgv_adjust_way))
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
@@ -912,7 +912,7 @@ class Jack(ModuleBase):
                     self.report_info["test"] = {
                         "clearRegion": clear_region_world
                     }
-                    Module.report_info(self.report_info)
+                    Module.reportInfo(self.report_info)
 
     def laser_area_deduct(self, recfile, object_key: str = "shelf"):
         # 激光区域扣除
@@ -997,7 +997,7 @@ class Jack(ModuleBase):
         if target_idx is None:
             Abnormal.setTask(53325, f"Recognition side '{side_name}' not found in {object_key}",
                              "recognize file param wrong", "check the param", "get_back_distance_info")
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
 
         # 2) 命中后读取 enableBackDistance / backDistance
         base = f"{recognition_side_key}._{target_idx}.{side_name}"
@@ -1013,7 +1013,7 @@ class Jack(ModuleBase):
         if any(v is None or v == "none" for v in info.values()):
             Abnormal.setTask(53325, f"Invalid back_distance_info, found None: {info}, script failed",
                              "recognize file param wrong", "check the param", "get_back_distance_info")
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
 
         Trace.log(f"backDistanceInfo = {info}")
         return info
@@ -1034,10 +1034,10 @@ class Jack(ModuleBase):
         self.report_info["getLM"] = {
             "LM": result
         }
-        Module.report_info(self.report_info)
+        Module.reportInfo(self.report_info)
         Trace.log(f"getLM={result}")
-        Module.set_status(ScriptStatus.FINISHED)
-        return Module.get_status()
+        Module.setStatus(ScriptStatus.FINISHED)
+        return Module.getStatus()
 
     def jack_bezier_return(self):
         if not self.operation_init:
@@ -1182,7 +1182,7 @@ class Jack(ModuleBase):
 
                 # 加入二次调整，取货前托盘调整，抬升托盘动作
                 if self.is_secondary_adjust:
-                    self.action_list.append(GetPGVData())
+                    self.action_list.append(GetPGVData(self.use_which_pgv))
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle, self.pgv_adjust_way))
@@ -1231,7 +1231,7 @@ class Jack(ModuleBase):
                             GoPolyline(self.ap_world_pos, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
                                        self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
                     if self.is_secondary_adjust:
-                        self.action_list.append(GetPGVData())
+                        self.action_list.append(GetPGVData(self.use_which_pgv))
                         self.action_list.append(
                             PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                                self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle, self.pgv_adjust_way))
@@ -1267,7 +1267,7 @@ class Jack(ModuleBase):
                                    self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
                 # 加入二次调整，取货前托盘调整，抬升托盘动作
                 if self.is_secondary_adjust:
-                    self.action_list.append(GetPGVData())
+                    self.action_list.append(GetPGVData(self.use_which_pgv))
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle, self.pgv_adjust_way))
@@ -1338,7 +1338,7 @@ class Jack(ModuleBase):
 
                 # 加入二次调整，取货前托盘调整，抬升托盘动作
                 if self.is_secondary_adjust:
-                    self.action_list.append(GetPGVData())
+                    self.action_list.append(GetPGVData(self.use_which_pgv))
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle, self.pgv_adjust_way))
@@ -1387,7 +1387,7 @@ class Jack(ModuleBase):
                             GoPolyline(self.ap_world_pos, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
                                        self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
                     if self.is_secondary_adjust:
-                        self.action_list.append(GetPGVData())
+                        self.action_list.append(GetPGVData(self.use_which_pgv))
                         self.action_list.append(
                             PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                                self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle, self.pgv_adjust_way))
@@ -1423,7 +1423,7 @@ class Jack(ModuleBase):
                                    self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
                 # 加入二次调整，取货前托盘调整，抬升托盘动作
                 if self.is_secondary_adjust:
-                    self.action_list.append(GetPGVData())
+                    self.action_list.append(GetPGVData(self.use_which_pgv))
                     self.action_list.append(
                         PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle, self.pgv_adjust_way))
@@ -1522,7 +1522,7 @@ class Jack(ModuleBase):
         """二次调整"""
         if not self.operation_init:
             self.operation_init = True
-            self.action_list.append(GetPGVData())
+            self.action_list.append(GetPGVData(self.use_which_pgv))
             self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
                                                        self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle, self.pgv_adjust_way))
 
@@ -1544,12 +1544,12 @@ class Jack(ModuleBase):
                                  "",
                                  "execute_actions")
                 self.script_status = ActionStatus.FAILED
-                Module.set_status(ScriptStatus.FAILED)
+                Module.setStatus(ScriptStatus.FAILED)
             else:
                 current_action.run(self)
         else:
             self.script_status = ActionStatus.FINISHED
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             self.action_list = []
         Trace.log(f'{self.action_id=}, {self.action_list=}')
         Trace.log(f"self.action_list: {self.action_list}")
@@ -1557,20 +1557,20 @@ class Jack(ModuleBase):
     def print_info(self):
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
         Trace.log(f"{self.task_args=}")
-        Trace.log(f"{Module.get_task_id()=}")
-        Trace.log(f"{Module.get_status()=}")
+        Trace.log(f"{Module.getTaskId()=}")
+        Trace.log(f"{Module.getStatus()=}")
 
     def suspend(self):
-        Module.set_status(ScriptStatus.SUSPENDED)
+        Module.setStatus(ScriptStatus.SUSPENDED)
         Trace.log("suspend")
 
     def resume(self):
-        if Module.get_status() == ScriptStatus.SUSPENDED:
-            Module.set_status(ScriptStatus.RUNNING)
+        if Module.getStatus() == ScriptStatus.SUSPENDED:
+            Module.setStatus(ScriptStatus.RUNNING)
         Trace.log("resume")
 
     def cancel(self):
-        Module.set_status(ScriptStatus.FAILED)
+        Module.setStatus(ScriptStatus.FAILED)
         Trace.log("cancel")
 
     def safe_move_check(self):
@@ -1580,7 +1580,7 @@ class Jack(ModuleBase):
             self.count = 0
             status = SafeMoveStatus.FINISHED
         self.set_safe_move_status(status)
-        Trace.log(f"safe_move_check {Module.get_safe_move_check()}")
+        Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
@@ -1609,8 +1609,8 @@ class Jack(ModuleBase):
         # 解析映射表
         args = modbus_data2args.get(modbus_data[0])
         Trace.log(f"---------------------------------modbus_args={args}")
-        status = Module.get_status()
-        Module.set_status(ScriptStatus.RUNNING)
+        status = Module.getStatus()
+        Module.setStatus(ScriptStatus.RUNNING)
         # if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
         #     self.event_modbus = False
         # 做对应的动作
@@ -1647,7 +1647,7 @@ class Jack(ModuleBase):
         # self.report_info["motor_info"] = {
         #     "motor_infos": motor_infos
         # }
-        Module.report_info(self.report_info)
+        Module.reportInfo(self.report_info)
         self.info_count = self.info_count + 1
         print(f"--------------setinfo---{self.info_count}---{self.jack_spin}-----------")
 
@@ -1711,7 +1711,7 @@ class Spin(BaseAction):
             "spinMode": self.coordinate_system,
             "direction": self.dir
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
@@ -1789,7 +1789,7 @@ class RobotRotate(BaseAction):
             "coordinate": self.coordinate,
             "direction": self.direction
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
     def reset(self):
         Navigation.resetOdoMove()
@@ -1871,7 +1871,7 @@ class JackHeight(BaseAction):
             "targetHeight": self.target_height,
             "jackMotorSpeed": self.jackMotorSpeed,
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
 
 class GoMapPath(BaseAction):
@@ -1921,8 +1921,8 @@ class GoStraightDist(BaseAction):
         if finished:
             self.action_status = ActionStatus.FINISHED
 
-        Module.report_info({"GoStraightDist": {"status": self.action_status}})
-        Module.report_info({"GoStraightDist": {"goDist": self.go_dist}})
+        Module.reportInfo({"GoStraightDist": {"status": self.action_status}})
+        Module.reportInfo({"GoStraightDist": {"goDist": self.go_dist}})
 
 
 class GoPath(BaseAction):
@@ -1974,7 +1974,7 @@ class GoPath(BaseAction):
             "reachDist": self.path_dist_accuracy,
             "reachAngle": self.path_angle_accuracy
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
 
 class GoBezierCombined(BaseAction):
@@ -2060,7 +2060,7 @@ class GoBezier(BaseAction):
             "pathDistAccuracy": self.go_bezier.path_dist_accuracy,
             "pathAngleAccuracy": self.go_bezier.path_angle_accuracy,
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
 
 class GoBezierReturn(BaseAction):
@@ -2243,7 +2243,7 @@ class Rec(BaseAction):
             "recStatus": self.rec_status,
             "recTimes": self.attempts
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
     def reset(self):
         Recognize.resetRec()
@@ -2334,7 +2334,7 @@ class RecShelf(BaseAction):
             "recStatus": rec_status,
             "recTimes": self.attempts
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
 
 class RecTargetObs(BaseAction):
@@ -2353,7 +2353,7 @@ class RecTargetObs(BaseAction):
         j.report_info["RecTargetObs"] = {
             "actionStatus": self.action_status
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
 
 class GetApPosAdjustedViaPgv(BaseAction):
@@ -2403,21 +2403,24 @@ class GetApPosAdjustedViaPgv(BaseAction):
     def reset(self):
         self.action_status = ActionStatus.RUNNING
 
-
 class GetPGVData(BaseAction):
     """获取二维码资料"""
-
-    def __init__(self):
+    def __init__(self, use_which_pgv):
         super().__init__("GetPGVData")
         self.action_status = ActionStatus.INIT
         self.init = True
+        self.count = 0
+        self.max_rec_num = 15
+        if use_which_pgv == "useUpPgv":
+            self.use_upside = True  # True = 上视, False = 下视
+        else:
+            self.use_upside = False
         self.is_DMT_detected = False
+        self.tag_value = ""
         self.tag_diff_x = 0
         self.tag_diff_y = 0
         self.tag_diff_angle = 0
-        self.tag_value = 0
-        self.count = 0
-        self.max_rec_num = 15
+        self.codeScannerInfo = None
 
     def run(self, j: Jack):
         if self.init:
@@ -2425,27 +2428,45 @@ class GetPGVData(BaseAction):
             self.init = False
 
         pgv_data = CodeScanner.get_code_scanners()
-        for pgv in pgv_data:
-            self.tag_value = pgv.tagValue
-            self.tag_diff_x = pgv.tagDiffX
-            self.tag_diff_y = pgv.tagDiffY
-            self.tag_diff_angle = pgv.tagDiffAngle
-            self.is_DMT_detected = pgv.isDMTDetected
 
-        # 将信息传出至j.code_info, 方便后续调用
+        chosen_pgv = None
+
+        # 根据输入参数选择对应 PGV（不再自动判断）
+        for pgv in pgv_data:
+            if not hasattr(pgv.codeScannerInfo, "isUpside"):
+                continue
+
+            if pgv.codeScannerInfo.isUpside == self.use_upside:
+                chosen_pgv = pgv
+                break
+
+        # 如果没找到对应的PGV，直接报异常
+        if chosen_pgv:
+            self.tag_value = chosen_pgv.tagValue
+            self.tag_diff_x = chosen_pgv.tagDiffX
+            self.tag_diff_y = chosen_pgv.tagDiffY
+            self.tag_diff_angle = chosen_pgv.tagDiffAngle
+            self.is_DMT_detected = chosen_pgv.isDMTDetected
+            self.codeScannerInfo = chosen_pgv.codeScannerInfo
+
+        # 输出结构保持不变，新增 isUpside 字段
         j.code_info = {
             "tag_value": self.tag_value,
             "is_DMT_detected": self.is_DMT_detected,
             "tag_diff_x": self.tag_diff_x,
             "tag_diff_y": self.tag_diff_y,
-            "tag_diff_angle": self.tag_diff_angle
+            "tag_diff_angle": self.tag_diff_angle,
+            "isUpside": self.use_upside
         }
-        if self.is_DMT_detected and self.tag_value != "":  # 当识别二维码成功并且读到的码值不是空值
-            Trace.log(f"read code success: {self.tag_value}")
+
+        # 判断二维码识别逻辑
+        if self.is_DMT_detected and self.tag_value != "":
+            Trace.log(
+                f"read code success: {self.tag_value} (use_upside={self.use_upside})"
+            )
             self.action_status = ActionStatus.FINISHED
         else:
-            # pgv相机未扫描到二维码
-            self.count = self.count + 1
+            self.count += 1
             if self.count >= self.max_rec_num:
                 Abnormal.setTask(53782,
                                  f"Rec times over max {self.count} NO shelf_code or recognized code fail or shelf_code is Null",
@@ -2453,11 +2474,12 @@ class GetPGVData(BaseAction):
                                  "Check the position of the QRcode and the installation pos of PGV camera ",
                                  "Secondary adjustment with PGV")
 
+        # 上报
         j.report_info["GetPGVData"] = {
             "actionStatus": self.action_status,
             "codeInfo": j.code_info
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
 
 class PGVSecondaryAdjust(BaseAction):  # 二次调整
@@ -2486,9 +2508,15 @@ class PGVSecondaryAdjust(BaseAction):  # 二次调整
             "actionStatus": self.action_status,
             "codeInfo": j.code_info
         }
-        Module.report_info(j.report_info)
+        Module.reportInfo(j.report_info)
 
     def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
+        # if self.use_which_pgv == "useUpPgv":
+        #     self.adjust_param['R2AUP'] = True  # 使用上视pgv, args里需要增加use_pgv参数
+        #     self.adjust_param['R2ADP'] = False  # 使用下视pgv
+        # elif self.use_which_pgv == "useDownPgv":
+        #     self.adjust_param['R2AUP'] = False  # 使用上视pgv, args里需要增加use_pgv参数
+        #     self.adjust_param['R2ADP'] = True
         if self.use_which_pgv == "useUpPgv":
             self.adjust_param['R2AUP'] = True  # 使用上视pgv, args里需要增加use_pgv参数
             self.adjust_param['R2ADP'] = False  # 使用下视pgv
@@ -2557,11 +2585,11 @@ def main():
             modbus_params = j.modbus()
             print(f"modbus_validated_params={modbus_params}")
             j.event_modbus = False
-        status = Module.get_status()
+        status = Module.getStatus()
         print(f"-------------------------status:{status}")
         if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
             if modbus_params is None:
-                input_params = Module.get_task_args()
+                input_params = Module.getTaskArgs()
                 print("task args:", json.dumps(input_params, indent=2))
                 validated_params = {}
                 if input_params:
