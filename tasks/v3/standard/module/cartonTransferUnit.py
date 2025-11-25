@@ -18,7 +18,7 @@ from typing import List
 from syspy.utils.time import Timer
 from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Abnormal, Controller, Odometer, Recognize, \
     RobotParam, Trace
-from syspy.lib.net_protocol import parse_modbus, NetProtocol
+from syspy.lib.net_protocol import parseModbus, NetProtocol
 from syspy.bin import Container
 from syspy.lib.module import SafeMoveStatus, ModuleBase
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ParamValidator, ScriptParam
@@ -39,7 +39,7 @@ class ConfigParams:
     @classmethod
     def _build_and_load_config(cls):
         """构建并加载配置参数"""
-        builder = param_loader.builder_config()
+        builder = param_loader.builderConfig()
 
         with builder.GROUPS():
             # 背篓组
@@ -380,7 +380,7 @@ class ConfigParams:
     def reload_config(cls):
         """重新加载配置参数"""
         log.info("Reloading config parameters")
-        cls.config = param_loader.load_config()
+        cls.config = param_loader.loadConfig()
         log.info(f"Loaded config: {cls.config}")
         cls.low[0] = cls.config.get("low0")
         cls.high[0] = cls.config.get("high0")
@@ -654,8 +654,8 @@ class MotorRun:
             self.status = ScriptStatus.FINISHED
         self.state['motorName'] = self.motor_name
         self.state['motorType'] = self.motor_type
-        self.state['motorPos'] = Motor.get_motor_pos(self.motor_name)
-        self.state['motorSpeed'] = Motor.get_motor_speed(self.motor_name)
+        self.state['motorPos'] = Motor.getMotorPos(self.motor_name)
+        self.state['motorSpeed'] = Motor.getMotorSpeed(self.motor_name)
         self.state['motorStatus'] = self.status
 
     def reset(self):
@@ -926,7 +926,7 @@ class ContainerRobot(ModuleBase):
         Trace.log(f"init args: {args}")
 
     def init_script_args(self, args):
-        self.script_args = args or Module.get_task_args()
+        self.script_args = args or Module.getTaskArgs()
         if args:
             self.goods_id = self.script_args.get("goodsName", "")
             self.self_position = self.script_args.get("container", self.self_position)
@@ -956,7 +956,7 @@ class ContainerRobot(ModuleBase):
             container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
             # 如果container_num为数字且>0
             if isinstance(container_num, int) and container_num > 0:
-                Container.init_container(container_num)
+                Container.initContainer(container_num)
             self.containers = Container.getContainers()
             self.rec_id = uuid.uuid4().hex
             self.box_code_file = self.script_args.get("codeFile", ConfigParams.box_code_file)
@@ -982,10 +982,10 @@ class ContainerRobot(ModuleBase):
             # 根据货叉货物检测光电更新货叉有无货信息
             if ConfigParams.goods_check_di != "":
                 if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
-                    if Di.get_di(ConfigParams.goods_check_di) and not Container.has_goods("999"):
+                    if Di.getDi(ConfigParams.goods_check_di) and not Container.hasGoods("999"):
                         Abnormal.setTask(53700, f"货叉光电检测到货叉中有货，但数据显示无货，需要人工核查处理", "", "", "")
                         self.status = ScriptStatus.FAILED
-                    elif not Di.get_di(ConfigParams.goods_check_di):
+                    elif not Di.getDi(ConfigParams.goods_check_di):
                         Container.clearContainer("999")
             else:
                 Abnormal.setTask(53701, f"请在脚本参数中正确配置 goodsCheckDi 参数！", "", "", "")
@@ -1090,14 +1090,14 @@ class ContainerRobot(ModuleBase):
         if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
             # r.disableMotor(ConfigParams.lift_motor_name)
             NetProtocol.release()
-            Do.setDO(self.fill_light_do, False)
+            Do.setDo(self.fill_light_do, False)
             Trace.log(f"script finished: {json.dumps(self.report_info)}")
-        Module.report_info(self.report_info)
+        Module.reportInfo(self.report_info)
         return self.status
 
     @staticmethod
     def get_motor_info(motor_name: str):
-        motor_data = Odometer.get_data().get("motorInfo", [])
+        motor_data = Odometer.getData().get("motorInfo", [])
         for _motor in motor_data:
             if _motor.get('motorName') == motor_name:
                 return _motor
@@ -1107,7 +1107,7 @@ class ContainerRobot(ModuleBase):
         """
         检测急停状态, 驱动器上使能
         """
-        controller_emc = Controller.get_emc()
+        controller_emc = Controller.getEmc()
         lift_motor_info = self.get_motor_info(ConfigParams.lift_motor_name)  # 能查询到电机数据,说明驱动器已供电
         stretch_motor_info = self.get_motor_info(ConfigParams.stretch_motor_name)
         rotate_motor_info = self.get_motor_info(ConfigParams.rotate_motor_name)
@@ -1162,7 +1162,7 @@ class ContainerRobot(ModuleBase):
             self.calib_step[2] = self.rotate_motor_calib
 
     def get_motor_calib_state(self):
-        odo_data = Odometer.get_data()
+        odo_data = Odometer.getData()
         if odo_data.get("motorInfo", None):
             motor_info = odo_data["motorInfo"]
             self.report_info["motorInfo"] = motor_info
@@ -1191,17 +1191,17 @@ class ContainerRobot(ModuleBase):
             self.status = ScriptStatus.FINISHED
 
     def suspend(self):
-        if Module.get_status() == ScriptStatus.RUNNING:
+        if Module.getStatus() == ScriptStatus.RUNNING:
             self.status = ScriptStatus.SUSPENDED
 
     def resume(self):
-        if Module.get_status() == ScriptStatus.SUSPENDED:
+        if Module.getStatus() == ScriptStatus.SUSPENDED:
             self.status = ScriptStatus.RUNNING
 
     def cancel(self):
         Recognize.resetRec()
         self.close_finger()
-        Do.setDO(self.fill_light_do, False)
+        Do.setDo(self.fill_light_do, False)
         self.status = ScriptStatus.FAILED
         Trace.log("carton cancel")
 
@@ -1216,6 +1216,7 @@ class ContainerRobot(ModuleBase):
             if p['key'] == '#containerId' and p['stringValue'] != "":
                 self.self_position = p['stringValue']
 
+
     def zero(self, zero_height=0):
         """
         支持指定高度执行标零复位
@@ -1225,7 +1226,7 @@ class ContainerRobot(ModuleBase):
         Trace.log(f"----- running zero ------")
 
         if not self.zero_step[0]:
-            self.zero_step[0] = Container.has_goods("999") or self.finger(1)
+            self.zero_step[0] = Container.hasGoods("999") or self.finger(1)
         elif self.zero_step[0] and not self.zero_step[1]:
             self.zero_step[1] = self.stretch(0)
         elif self.zero_step[1] and not self.zero_step[2]:
@@ -1262,38 +1263,38 @@ class ContainerRobot(ModuleBase):
         else:
             if time.time() - self.finger_open_start > 3:  # 防止手指机构卡死时电机过流烧毁
                 Abnormal.setTask(53706, f"拨指控制超时，请检查拨指是否卡住、检查拨指到位光电是否能正常触发！", "", "", "")
-                Do.setDO(ConfigParams.left_finger_up_do, False)
-                Do.setDO(ConfigParams.right_finger_up_do, False)
-                Do.setDO(ConfigParams.left_finger_down_do, False)
-                Do.setDO(ConfigParams.right_finger_down_do, False)
+                Do.setDo(ConfigParams.left_finger_up_do, False)
+                Do.setDo(ConfigParams.right_finger_up_do, False)
+                Do.setDo(ConfigParams.left_finger_down_do, False)
+                Do.setDo(ConfigParams.right_finger_down_do, False)
                 self.status = ScriptStatus.FAILED
                 return False
         if pos == 1:
-            Do.setDO(ConfigParams.left_finger_up_do, True)
-            Do.setDO(ConfigParams.right_finger_up_do, True)
-            if Di.get_di(ConfigParams.left_finger_up_di) and not Di.get_di(ConfigParams.left_finger_down_di):
+            Do.setDo(ConfigParams.left_finger_up_do, True)
+            Do.setDo(ConfigParams.right_finger_up_do, True)
+            if Di.getDi(ConfigParams.left_finger_up_di) and not Di.getDi(ConfigParams.left_finger_down_di):
                 self.left_finger_real_pos = 1
-                Do.setDO(ConfigParams.left_finger_up_do, False)
-            if Di.get_di(ConfigParams.right_finger_up_di) and not Di.get_di(ConfigParams.right_finger_down_di):
+                Do.setDo(ConfigParams.left_finger_up_do, False)
+            if Di.getDi(ConfigParams.right_finger_up_di) and not Di.getDi(ConfigParams.right_finger_down_di):
                 self.right_finger_real_pos = 1
-                Do.setDO(ConfigParams.right_finger_up_do, False)
+                Do.setDo(ConfigParams.right_finger_up_do, False)
 
             if self.left_finger_real_pos == 1 and self.right_finger_real_pos == 1:
                 self.finger_open_start = False
                 return True
 
         elif pos == 0:
-            if Di.get_di(ConfigParams.overlimit_detect_di):
+            if Di.getDi(ConfigParams.overlimit_detect_di):
                 Abnormal.setTask(53707, f"伸出长度不够，货叉超限光电检测到障碍物！可上调取货伸出补偿参数值！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return False
-            Do.setDO(ConfigParams.left_finger_down_do, True)
-            Do.setDO(ConfigParams.right_finger_down_do, True)
-            if Di.get_di(ConfigParams.left_finger_down_di) and not Di.get_di(ConfigParams.left_finger_up_di):
-                Do.setDO(ConfigParams.left_finger_down_do, False)
+            Do.setDo(ConfigParams.left_finger_down_do, True)
+            Do.setDo(ConfigParams.right_finger_down_do, True)
+            if Di.getDi(ConfigParams.left_finger_down_di) and not Di.getDi(ConfigParams.left_finger_up_di):
+                Do.setDo(ConfigParams.left_finger_down_do, False)
                 self.left_finger_real_pos = 0
-            if Di.get_di(ConfigParams.right_finger_down_di) and not Di.get_di(ConfigParams.right_finger_up_di):
-                Do.setDO(ConfigParams.right_finger_down_do, False)
+            if Di.getDi(ConfigParams.right_finger_down_di) and not Di.getDi(ConfigParams.right_finger_up_di):
+                Do.setDo(ConfigParams.right_finger_down_do, False)
                 self.right_finger_real_pos = 0
             if self.left_finger_real_pos == 0 and self.right_finger_real_pos == 0:
                 self.finger_open_start = False
@@ -1301,19 +1302,19 @@ class ContainerRobot(ModuleBase):
         return False
 
     def close_finger(self):
-        Do.setDO(ConfigParams.left_finger_up_do, False)
-        Do.setDO(ConfigParams.right_finger_up_do, False)
-        Do.setDO(ConfigParams.left_finger_down_do, False)
-        Do.setDO(ConfigParams.right_finger_down_do, False)
+        Do.setDo(ConfigParams.left_finger_up_do, False)
+        Do.setDo(ConfigParams.right_finger_up_do, False)
+        Do.setDo(ConfigParams.left_finger_down_do, False)
+        Do.setDo(ConfigParams.right_finger_down_do, False)
 
     def update_finger_info(self):
-        if Di.get_di(ConfigParams.left_finger_down_di) and not Di.get_di(ConfigParams.left_finger_up_di):
+        if Di.getDi(ConfigParams.left_finger_down_di) and not Di.getDi(ConfigParams.left_finger_up_di):
             self.left_finger_real_pos = 0
-        elif Di.get_di(ConfigParams.left_finger_up_di) and not Di.get_di(ConfigParams.left_finger_down_di):
+        elif Di.getDi(ConfigParams.left_finger_up_di) and not Di.getDi(ConfigParams.left_finger_down_di):
             self.left_finger_real_pos = 1
-        if Di.get_di(ConfigParams.right_finger_down_di) and not Di.get_di(ConfigParams.right_finger_up_di):
+        if Di.getDi(ConfigParams.right_finger_down_di) and not Di.getDi(ConfigParams.right_finger_up_di):
             self.right_finger_real_pos = 0
-        elif Di.get_di(ConfigParams.right_finger_up_di) and not Di.get_di(ConfigParams.right_finger_down_di):
+        elif Di.getDi(ConfigParams.right_finger_up_di) and not Di.getDi(ConfigParams.right_finger_down_di):
             self.right_finger_real_pos = 1
         self.finger_info["leftFinger"] = self.left_finger_real_pos
         self.finger_info["rightFinger"] = self.right_finger_real_pos
@@ -1369,13 +1370,13 @@ class ContainerRobot(ModuleBase):
         @return:
         """
         if not self.change_step[0]:
-            Do.setDO(self.fill_light_do, True)
-            if Do.get_do(self.fill_light_do):
+            Do.setDo(self.fill_light_do, True)
+            if Do.getDo(self.fill_light_do):
                 if Timer.delay(ConfigParams.light_delay_time):
                     self.change_step[0] = True
         else:
             if self.rec_res and self.rec_res.get("status", 1) == 0:
-                Do.setDO(self.fill_light_do, False)
+                Do.setDo(self.fill_light_do, False)
                 if self.rec_res['barCode'] != self.goods_id:
                     Abnormal.setTask(53711,
                                      f"货物编码不匹配, 任务下发的货物编码: {self.goods_id}, 识别的货物编码: {self.rec_res['barCode']}",
@@ -1420,7 +1421,7 @@ class ContainerRobot(ModuleBase):
         if not self.opt_step[1]:
             self.opt_step[1] = self.rotate(self.rotate_pos)
         if all(self.opt_step[0:2]) and not self.opt_step[2]:
-            Do.setDO(self.fill_light_do, True)
+            Do.setDo(self.fill_light_do, True)
             if Timer.delay(ConfigParams.light_delay_time):
                 self.opt_step[2] = True
         if all(self.opt_step[0:3]) and not self.opt_step[3]:
@@ -1440,7 +1441,7 @@ class ContainerRobot(ModuleBase):
                 NetProtocol.tcpUploadString(json.dumps(data))  # 将数据传递给 Roboshop
                 self.report_info["recQrcodeData"] = data
                 self.rec.reset()
-                Do.setDO(self.fill_light_do, False)
+                Do.setDo(self.fill_light_do, False)
                 self.opt_step[3] = True
             else:
                 self.rec.run(self)
@@ -1460,27 +1461,27 @@ class ContainerRobot(ModuleBase):
             self.opt_step[1] = self.rotate(self.rotate_pos)
 
         if all(self.opt_step[0:2]) and not self.opt_step[2]:
-            Do.setDO(self.fill_light_do, True)
+            Do.setDo(self.fill_light_do, True)
             Recognize.resetRec()  # 重置识别模块
-            if Do.get_do(self.fill_light_do):
+            if Do.getDo(self.fill_light_do):
                 if Timer.delay(ConfigParams.light_delay_time):
                     self.opt_step[2] = True
         else:
             Recognize.doRec(ConfigParams.box_code_file, "", "")  # 下发拍照指令
             if Timer.delay(0.5):
-                Do.setDO(self.fill_light_do, False)
+                Do.setDo(self.fill_light_do, False)
                 self.status = ScriptStatus.FINISHED
 
     def load(self):
         Trace.log(f"----- running load  {self.goods_id}------")
         load_info = dict()
         if not self.cur_c:
-            if (self.goods_id and Container.goods_exist(self.goods_id) and
-                    Container.get_container_by_goods(self.goods_id) != "999"):
+            if (self.goods_id and Container.goodsExist(self.goods_id) and
+                    Container.getContainerByGoods(self.goods_id) != "999"):
                 Abnormal.setTask(53714, f"货物{self.goods_id}已存在，请检查是否重复下发任务！", "", "", "")
                 self.status = ScriptStatus.FAILED
             if self.self_position:
-                if Container.has_goods(self.self_position):
+                if Container.hasGoods(self.self_position):
                     Abnormal.setTask(53715,
                                      f"第{self.self_position + 1}层({self.self_position}号)背篓已有货物，无法继续取货！请核对任务数据和背篓数据！", "",
                                      "", "")
@@ -1493,9 +1494,9 @@ class ContainerRobot(ModuleBase):
                 Abnormal.setTask(53716, f"车体所有背篓已满，无法继续取货！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
-            if Container.has_goods("999") and Container.get_goods_by_container("999") == self.goods_id:
+            if Container.hasGoods("999") and Container.getGoodsByContainer("999") == self.goods_id:
                 self.load_step[:9] = [True]*9
-            elif Container.has_goods("999"):  # 货叉已载货,但不是目标货物
+            elif Container.hasGoods("999"):  # 货叉已载货,但不是目标货物
                 Abnormal.setTask(53717, f"货叉（999号）已载货，无法执行取货任务！请核对任务数据和背篓数据！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
@@ -1516,11 +1517,11 @@ class ContainerRobot(ModuleBase):
             elif self.load_step[3] and not self.load_step[4]:
                 if self.rec_adjust is not None:
                     if self.light_st_time is None:
-                        Do.setDO(self.fill_light_do, True)
+                        Do.setDo(self.fill_light_do, True)
                         self.light_st_time = time.time()
                     if time.time() - self.light_st_time > ConfigParams.light_delay_time:
                         if self.rec_adjust.status is ScriptStatus.FINISHED:
-                            Do.setDO(self.fill_light_do, False)
+                            Do.setDo(self.fill_light_do, False)
                             self.light_st_time = None
                             self.load_step[4] = True
                         elif self.rec_adjust.status is ScriptStatus.FAILED:
@@ -1533,7 +1534,7 @@ class ContainerRobot(ModuleBase):
             elif self.load_step[4] and not self.load_step[5]:
                 self.load_step[5] = self.lift(self.lift_height + self.load_height)
             elif self.load_step[5] and not self.load_step[6]:
-                if Di.get_di(ConfigParams.left_finger_up_di) and Di.get_di(ConfigParams.right_finger_up_di):
+                if Di.getDi(ConfigParams.left_finger_up_di) and Di.getDi(ConfigParams.right_finger_up_di):
                     self.load_step[6] = self.stretch(self.stretch_length)
                 else:
                     Abnormal.setTask(53718, f"检测到拨指未打开，取消执行伸出动作！请检查拨指及其到位光电是否正常！", "",
@@ -1543,7 +1544,7 @@ class ContainerRobot(ModuleBase):
                 self.load_step[7] = self.finger(0)
             elif self.load_step[7] and not self.load_step[8]:
                 self.load_step[8] = self.stretch(0)
-                if self.load_step[8] and Di.get_di(ConfigParams.goods_check_di):
+                if self.load_step[8] and Di.getDi(ConfigParams.goods_check_di):
                     # 手臂收回且光电检测成功时，增加货叉货物数据
                     Container.setContainer("999", self.goods_id, "")
             elif self.load_step[8] and (not self.load_step[9] or not self.load_step[10]):
@@ -1612,7 +1613,7 @@ class ContainerRobot(ModuleBase):
         self.report_info["inTakeInfo"] = in_take_info
         if all(self.in_take_step[:8]):
             Container.clearContainer(self.cur_c)
-            goods_id = Container.get_goods_by_container(self.cur_c)
+            goods_id = Container.getGoodsByContainer(self.cur_c)
             Container.setContainer("999", goods_id, "")
             return True
 
@@ -1645,7 +1646,7 @@ class ContainerRobot(ModuleBase):
         in_put_info["inPutStep"] = self.in_put_step[:7]
         self.report_info["inPutInfo"] = in_put_info
         if all(self.in_put_step[0:8]):
-            goods_id = Container.get_goods_by_container("999")
+            goods_id = Container.getGoodsByContainer("999")
             Container.setContainer(self.cur_c, goods_id, "")
             Container.clearContainer("999")
             return True
@@ -1654,7 +1655,7 @@ class ContainerRobot(ModuleBase):
         """
         外部取货： 从货架取货到货叉
         """
-        if Container.has_goods("999"):  # 抓斗有货
+        if Container.hasGoods("999"):  # 抓斗有货
             Abnormal.setTask(53719, f"检测到货叉（999号）已载货，无法执行外部取货动作！请核对任务数据和背篓数据！", "", "", "")
             self.status = ScriptStatus.FAILED
             return
@@ -1679,14 +1680,14 @@ class ContainerRobot(ModuleBase):
             if not self.change_step[1]:
                 self.change_step[1] = self.rotate(self.rotate_pos)
             if all(self.change_step[0:2]) and not self.change_step[2]:
-                Do.setDO(self.fill_light_do, True)
+                Do.setDo(self.fill_light_do, True)
                 self.rec_adjust.status = ScriptStatus.RUNNING
-                if Do.get_do(self.fill_light_do):
+                if Do.getDo(self.fill_light_do):
                     if Timer.delay(ConfigParams.light_delay_time):
                         self.change_step[2] = True
             if self.change_step[2] and not self.ex_take_step[3]:
                 if self.rec_adjust.status is ScriptStatus.FINISHED:
-                    Do.setDO(self.fill_light_do, False)
+                    Do.setDo(self.fill_light_do, False)
                     self.ex_take_step[3] = True
                 elif self.rec_adjust.status is ScriptStatus.FAILED:
                     self.status = ScriptStatus.FAILED
@@ -1722,7 +1723,7 @@ class ContainerRobot(ModuleBase):
         外部放货： 从货叉放货到货架
         """
         Trace.log(f"----- running ex_put ------")
-        if not Container.has_goods("999"):  # 抓斗没货
+        if not Container.hasGoods("999"):  # 抓斗没货
             return self.unload()
 
         ex_put_info = dict()
@@ -1734,16 +1735,16 @@ class ContainerRobot(ModuleBase):
             if all(self.ex_put_step[0:2]) and not self.ex_put_step[2]:
                 self.rec_box.status = ScriptStatus.RUNNING
                 self.rec_box.is_error = True
-                Do.setDO(self.fill_light_do, True)
-                if Do.get_do(self.fill_light_do):
+                Do.setDo(self.fill_light_do, True)
+                if Do.getDo(self.fill_light_do):
                     if Timer.delay(ConfigParams.light_delay_time):
                         self.ex_put_step[2] = True
             if all(self.ex_put_step[0:3]) and not self.ex_put_step[3]:
                 if self.rec_box.status is ScriptStatus.FINISHED:
                     self.rec_box.reset()
                     self.rec_box.is_error = None
-                    Do.setDO(self.fill_light_do, False)
-                    if self.rec_box.has_goods and not self.rec_box.goods_out_dist:
+                    Do.setDo(self.fill_light_do, False)
+                    if self.rec_box.hasGoods and not self.rec_box.goods_out_dist:
                         Abnormal.setTask(53720, "检测到货架上已经有货，取消放货动作！请人工核查货架和任务数据！", "", "",
                                          "")
                         self.status = ScriptStatus.FAILED
@@ -1751,7 +1752,7 @@ class ContainerRobot(ModuleBase):
                     else:
                         self.ex_put_step[3] = True
                 elif self.rec_box.status is ScriptStatus.FAILED:
-                    Do.setDO(self.fill_light_do, False)
+                    Do.setDo(self.fill_light_do, False)
                     self.ex_put_step[3] = True
                 else:
                     self.rec_box.run(self)
@@ -1765,14 +1766,14 @@ class ContainerRobot(ModuleBase):
         if all(self.ex_put_step[0:6]) and not self.ex_put_step[6]:
             if self.rec_adjust is not None:
                 if not self.change_step[0]:
-                    Do.setDO(self.fill_light_do, True)
+                    Do.setDo(self.fill_light_do, True)
                     self.rec_adjust.status = ScriptStatus.RUNNING
-                    if Do.get_do(self.fill_light_do):
+                    if Do.getDo(self.fill_light_do):
                         if Timer.delay(ConfigParams.light_delay_time):
                             self.change_step[0] = True
                 else:
                     if self.rec_adjust.status is ScriptStatus.FINISHED:
-                        Do.setDO(self.fill_light_do, False)
+                        Do.setDo(self.fill_light_do, False)
                         self.ex_put_step[6] = True
                     elif self.rec_adjust.status is ScriptStatus.FAILED:
                         self.status = ScriptStatus.FAILED
@@ -1808,30 +1809,30 @@ class ContainerRobot(ModuleBase):
 
         if not self.cur_c:
             if self.self_position:
-                if Container.get_goods_by_container(self.self_position) != self.goods_id:
+                if Container.getGoodsByContainer(self.self_position) != self.goods_id:
                     Abnormal.setTask(53721, f"{self.self_position + 1}层({self.self_position}号)背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！","","","")
                     self.status = ScriptStatus.FAILED
-                if not Container.has_goods(self.self_position):
+                if not Container.hasGoods(self.self_position):
                     Abnormal.setTask(53722,
                                      f"{self.self_position + 1}层({self.self_position}号)背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
-                if self.self_position != "999" and Container.has_goods("999"):
+                if self.self_position != "999" and Container.hasGoods("999"):
                     # r.setError(f"料斗已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！")
                     Abnormal.setTask(53723, f"货叉（999号）已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！", "", "", "")
                     self.status = ScriptStatus.FAILED
                 self.cur_c = self.self_position
             else:
-                if Container.has_goods("999"):  # 抓斗有货
+                if Container.hasGoods("999"):  # 抓斗有货
                     self.cur_c = "999"
-                    if Container.get_goods_by_container("999") != self.goods_id:
+                    if Container.getGoodsByContainer("999") != self.goods_id:
                         # r.setError(f"料斗已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！")
                         Abnormal.setTask(53724, f"货叉（999号）已载货，无法先执行背篓的放货任务，必须优先释放货叉的货物！", "", "",
                                          "")
                         self.status = ScriptStatus.FAILED
                         return
                 else:
-                    self.cur_c = Container.get_container_by_goods(self.goods_id)
+                    self.cur_c = Container.getContainerByGoods(self.goods_id)
 
             if not self.cur_c:
                 Abnormal.setTask(53725, f"背篓中不存在货物: {self.goods_id}，无法执行放货任务！请核对任务数据和背篓数据！",
@@ -1861,8 +1862,8 @@ class ContainerRobot(ModuleBase):
                         if not self.unload_step[7]:
                             self.unload_step[7] = self.rotate(self.rotate_pos)
                     self.unload_step[5] = self.stretch(0)
-                    if self.unload_step[5] and Di.get_di(ConfigParams.goods_check_di):
-                        goods_id = Container.get_goods_by_container(self.cur_c)
+                    if self.unload_step[5] and Di.getDi(ConfigParams.goods_check_di):
+                        goods_id = Container.getGoodsByContainer(self.cur_c)
                         Container.setContainer("999", goods_id, "")
                         Container.clearContainer(self.cur_c)
 
@@ -1880,23 +1881,23 @@ class ContainerRobot(ModuleBase):
                             if not self.rec_box_lift_step[2]:
                                 self.rec_box.status = ScriptStatus.RUNNING
                                 self.rec_box.is_error = True
-                                Do.setDO(self.fill_light_do, True)
-                                if Do.get_do(self.fill_light_do):
+                                Do.setDo(self.fill_light_do, True)
+                                if Do.getDo(self.fill_light_do):
                                     if Timer.delay(ConfigParams.light_delay_time):
                                         self.rec_box_lift_step[2] = True
                             if not self.rec_box_lift_step[3] and self.rec_box_lift_step[2]:
                                 if self.rec_box.status is ScriptStatus.FINISHED:
                                     self.rec_box.reset()
                                     self.rec_box.is_error = None
-                                    Do.setDO(self.fill_light_do, False)
-                                    if self.rec_box.has_goods and not self.rec_box.goods_out_dist:
+                                    Do.setDo(self.fill_light_do, False)
+                                    if self.rec_box.hasGoods and not self.rec_box.goods_out_dist:
                                         Abnormal.setTask(53726, "检测到货架上有货，取消放货动作！", "", "", "")
                                         self.status = ScriptStatus.FAILED
                                         return
                                     else:
                                         self.rec_box_lift_step[3] = True
                                 elif self.rec_box.status is ScriptStatus.FAILED:
-                                    Do.setDO(self.fill_light_do, False)
+                                    Do.setDo(self.fill_light_do, False)
                                     self.rec_box_lift_step[3] = True
                                 else:
                                     self.rec_box.run(self)
@@ -1914,14 +1915,14 @@ class ContainerRobot(ModuleBase):
             elif self.unload_step[7] and not self.unload_step[8]:
                 if self.rec_adjust is not None:
                     if not self.change_step[0]:
-                        Do.setDO(self.fill_light_do, True)
+                        Do.setDo(self.fill_light_do, True)
                         self.rec_adjust.status = ScriptStatus.RUNNING
-                        if Do.get_do(self.fill_light_do):
+                        if Do.getDo(self.fill_light_do):
                             if Timer.delay(ConfigParams.light_delay_time):
                                 self.change_step[0] = True
                     else:
                         if self.rec_adjust.status is ScriptStatus.FINISHED:
-                            Do.setDO(self.fill_light_do, False)
+                            Do.setDo(self.fill_light_do, False)
                             self.unload_step[8] = True
                         elif self.rec_adjust.status is ScriptStatus.FAILED:
                             self.status = ScriptStatus.FAILED
@@ -1966,9 +1967,9 @@ class ContainerRobot(ModuleBase):
 
     def update_report_info(self):
         module_pos = dict()
-        self.lift_real_pos = Motor.get_motor_pos(ConfigParams.lift_motor_name)
-        self.stretch_real_pos = Motor.get_motor_pos(ConfigParams.stretch_motor_name)
-        self.rotate_real_pos = Motor.get_motor_pos(ConfigParams.rotate_motor_name)
+        self.lift_real_pos = Motor.getMotorPos(ConfigParams.lift_motor_name)
+        self.stretch_real_pos = Motor.getMotorPos(ConfigParams.stretch_motor_name)
+        self.rotate_real_pos = Motor.getMotorPos(ConfigParams.rotate_motor_name)
         self.update_finger_info()
         module_pos['lift'] = round(self.lift_real_pos, 3)
         module_pos['stretch'] = round(self.stretch_real_pos, 3)
@@ -2002,19 +2003,19 @@ class ContainerRobot(ModuleBase):
         """
         放货到背篓前，检查背篓有空位且货叉有货
         """
-        if not Container.has_goods("999"):  # 货叉无货
+        if not Container.hasGoods("999"):  # 货叉无货
             Abnormal.setTask(53727, f"货叉（999号）没有货物，无需内部放货！", "", "", "")
             self.status = ScriptStatus.FINISHED
             return
 
         # 货物在背篓里
-        if self.goods_id and Container.goods_exist(self.goods_id):
+        if self.goods_id and Container.goodsExist(self.goods_id):
             Abnormal.setTask(53728, f"货物已存在", "", "", "")
             self.status = ScriptStatus.FINISHED
             return
 
         if self.self_position:
-            if Container.has_goods(self.self_position):
+            if Container.hasGoods(self.self_position):
                 Abnormal.setTask(53729, f"货物已在背篓中", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return
@@ -2032,14 +2033,14 @@ class ContainerRobot(ModuleBase):
         从背篓取货前检测背篓货物信息，检查货叉为空
         """
         if self.self_position:
-            if not Container.has_goods(self.self_position):
+            if not Container.hasGoods(self.self_position):
                 Abnormal.setTask(53731, f"第{self.self_position + 1}层({self.self_position}号)背篓是空的，无法执行内部取货动作！", "", "", "")
                 self.status = ScriptStatus.FAILED
             self.cur_c = self.self_position
         else:
-            self.cur_c = Container.get_container_by_goods(self.goods_id)
+            self.cur_c = Container.getContainerByGoods(self.goods_id)
 
-        if Container.has_goods("999"):  # 抓斗有货
+        if Container.hasGoods("999"):  # 抓斗有货
             self.cur_c = "999"
 
         if not self.cur_c:
@@ -2051,8 +2052,8 @@ class ContainerRobot(ModuleBase):
         status = SafeMoveStatus.RUNNING
         if self.zero(0):
             status = SafeMoveStatus.FINISHED
-        self.set_safe_move_status(status)
-        Trace.log(f"safe_move_check {Module.get_safe_move_check()}")
+        self.setSafeMoveStatus(status)
+        Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
@@ -2065,7 +2066,7 @@ class ContainerRobot(ModuleBase):
         # 1. 读取操作码
         op_data = NetProtocol.getModbusData("4x", 201, 1)
         if op_data:
-            operation_code = parse_modbus(op_data, 'uint16')
+            operation_code = parseModbus(op_data, 'uint16')
             print(f"   操作码: {operation_code}")
             # 根据操作码构建参数
             if operation_code == 1:
@@ -2073,7 +2074,7 @@ class ContainerRobot(ModuleBase):
                 # 读取高度参数
                 height_data = NetProtocol.getModbusData("4x", 202, 2)
                 if len(height_data) >= 2:
-                    height = parse_modbus(height_data, 'float')
+                    height = parseModbus(height_data, 'float')
                     print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
                     print(f"   解析后高度值: {height:.4f}m")
                     # 限制在有效范围内
@@ -2088,7 +2089,7 @@ class ContainerRobot(ModuleBase):
                 # 读取角度参数
                 angle_data = NetProtocol.getModbusData("4x", 202, 1)
                 if angle_data:
-                    angle_raw = parse_modbus(angle_data, 'int16')
+                    angle_raw = parseModbus(angle_data, 'int16')
                     args["spinAngle"] = angle_raw / 100.0  # 转换为度
                     print(f"   设置角度: {args['spinAngle']:.2f}度")
                 else:
@@ -2102,7 +2103,7 @@ class ContainerRobot(ModuleBase):
                 str_data = NetProtocol.getModbusData("4x", 202, 4)
                 if str_data:
                     # 使用parse_modbus函数解析字符串
-                    device_name = parse_modbus(str_data, 'string', 0, len(str_data))
+                    device_name = parseModbus(str_data, 'string', 0, len(str_data))
                     if device_name:
                         args["device"] = device_name
                         print(f"   设备名称: {device_name}")
@@ -2119,7 +2120,7 @@ class Rec:
         self.rec_times = 0
         self.max_rec_times = max_rec_times
         self.result = dict()
-        self.has_goods = None
+        self.hasGoods = None
         self.goods_out_dist = None
         self.max_goods_dist = 0.8  # 料箱距离货叉里程中心最远距离，单位：米
         Recognize.resetRec()
@@ -2150,7 +2151,7 @@ class Rec:
             if "resultImg" in self.result:
                 self.result.pop("resultImg")
             Recognize.resetRec()
-            self.has_goods = True
+            self.hasGoods = True
             if self.result["x"] > self.max_goods_dist:
                 self.goods_out_dist = True
             self.status = ScriptStatus.FINISHED
@@ -2358,20 +2359,20 @@ def main():
     Module.init()
     print("main")
     robot = ContainerRobot()
-    validator = ParamValidator(InputParams.builder.to_dict())
+    validator = ParamValidator(InputParams.builder.toDict())
     modbus_args = None
     container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
     # 如果container_num为数字且>0
     if isinstance(container_num, int) and container_num > 0:
-        Container.init_container(container_num)
+        Container.initContainer(container_num)
 
     while True:
         # 脚本任务状态管理
         status = robot.status
-        Module.set_status(status)
+        Module.setStatus(status)
         containers = Container.getContainers()
         robot.report_info['containers'] = containers
-        Module.report_info(robot.report_info)
+        Module.reportInfo(robot.report_info)
         robot.report_info["status"] = status
         if robot.event_safe_move_check:
             robot.safe_move_check()
@@ -2379,7 +2380,7 @@ def main():
             modbus_args = robot.modbus()
             robot.event_modbus = False
         if status == ScriptStatus.NONE:
-            args = modbus_args or Module.get_task_args()
+            args = modbus_args or Module.getTaskArgs()
             if args:
                 try:
                     # 验证参数
