@@ -40,7 +40,7 @@ class dmx512Base:
         return NavStatus.getChassisStop()
 
     def getEMCState(self) -> bool:
-        return Controller.get_emc()
+        return Controller.getEmc()
 
     def getDIStates(self, index) -> bool:
         return Di.get_di(index)
