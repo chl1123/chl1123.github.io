@@ -114,7 +114,7 @@ class GoPath:
     def run(self, args: Optional[dict] = None):
         self.status = ScriptStatus.RUNNING
         if args is None:
-            args = Module.get_task_args()
+            args = Module.getTaskArgs()
         if Abnormal.exists(52111):
             self.status = ScriptStatus.FAILED
             return self.status
@@ -158,8 +158,8 @@ class GoPath:
                 if args["coordinate"] == "robot":
                     Navigation.setPathOnRobot([0, self.goal[0]], [0, self.goal[1]], self.goal[2])
                 elif args["coordinate"] == "world":
-                    x = Loc.get_pose()["x"]
-                    y = Loc.get_pose()["y"]
+                    x = Loc.getPose()["x"]
+                    y = Loc.getPose()["y"]
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                 else:
                     coordinate = args["coordinate"]
@@ -185,9 +185,9 @@ class GoPath:
 
     def print_info(self):
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
-        Trace.log(f"{Module.get_task_args()=}")
-        Trace.log(f"{Module.get_task_id()=}")
-        Trace.log(f"{Module.get_status()=}")
+        Trace.log(f"{Module.getTaskArgs()=}")
+        Trace.log(f"{Module.getTaskId()=}")
+        Trace.log(f"{Module.getStatus()=}")
 
 
 def main():
@@ -196,12 +196,12 @@ def main():
 
     while True:
         # 脚本任务状态管理
-        status = Module.get_status()
+        status = Module.getStatus()
         if status is ScriptStatus.RUNNING:
             status = go_path.run()
-            Module.set_status(status)
+            Module.setStatus(status)
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            Module.set_status(ScriptStatus.NONE)
+            Module.setStatus(ScriptStatus.NONE)
             return
         go_path.print_info()
         time.sleep(0.1)
