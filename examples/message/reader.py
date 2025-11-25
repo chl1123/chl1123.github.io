@@ -21,15 +21,15 @@ channel_name_1 = "Battery-001"
 
 while True:
     # 默认topic为Battery-000
-    temperature = Battery.get_temperature()
-    percentage = Battery.get_percentage()
+    temperature = Battery.getTemperature()
+    percentage = Battery.getPercentage()
     logger.LogInfo(
         f"[get|{channel_name_0}|temperature|{temperature}|percentage|{percentage}]"
     )
 
     # 指定topic为Battery-001
-    temperature = Battery.get_temperature(topic=channel_name_1)
-    percentage = Battery.get_percentage(topic=channel_name_1)
+    temperature = Battery.getTemperature(topic=channel_name_1)
+    percentage = Battery.getPercentage(topic=channel_name_1)
     logger.LogInfo(
         f"[get|{channel_name_1}|temperature|{temperature}|percentage|{percentage}]"
     )

@@ -39,7 +39,7 @@ class ConfigParams:
     @classmethod
     def _build_and_load_config(cls):
         """构建并加载配置参数"""
-        builder = param_loader.builder_config()
+        builder = param_loader.builderConfig()
 
         with builder.GROUPS():
             with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):
@@ -247,7 +247,7 @@ class LedChassis(LedBase):
                 time.sleep(0.1)
 
     def set_light_type(self):
-        percentage = Battery.get_percentage()
+        percentage = Battery.getPercentage()
         if int(percentage * 100.0) == 0:
             battery_exist = False
         else:
@@ -324,7 +324,7 @@ class LedChassis(LedBase):
         """
         #### # 充电中为呼吸灯，颜色根据电池电量变化    废弃，保持与DSP一致
         # 黄色 R255 B165
-        if config_params.is_show_charging and Battery.get_is_charging():
+        if config_params.is_show_charging and Battery.getIsCharging():
             self.robot_status = "Charging"
             rgbw = self.battery_to_color(dmx_battery)
             self.set_effect(

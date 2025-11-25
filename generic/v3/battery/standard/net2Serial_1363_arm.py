@@ -29,7 +29,7 @@ class ConfigParams:
     @classmethod
     def _build_and_load_config(cls):
         """构建并加载配置参数"""
-        builder = param_loader.builder_config()
+        builder = param_loader.builderConfig()
 
         with builder.GROUPS():
             with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):

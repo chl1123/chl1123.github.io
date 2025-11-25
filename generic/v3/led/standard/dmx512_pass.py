@@ -76,7 +76,7 @@ class demo_dmx512(dmx.dmx512Base):
             self.cur_x, self.cur_y, self.cur_w = NavSpeed.get_speeds()
 
             '''cur_w:旋转度, cur_x:前进距离, cur_y:平移距离'''
-            percentage = Battery.get_percentage()
+            percentage = Battery.getPercentage()
             tem = percentage * 100.0
             dmx512_info.battery = int(tem)
 
@@ -157,7 +157,7 @@ class demo_dmx512(dmx.dmx512Base):
 
             elif self.battery_exist:
                 '''静止状态且battery存在'''
-                if Battery.get_is_charging():
+                if Battery.getIsCharging():
                     '''充电中为橙黄色呼吸'''
                     dmx512_info.type = dmx.LightType.Charging.value
                 # 低于关机 红色呼吸灯
