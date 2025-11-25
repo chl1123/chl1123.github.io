@@ -41,8 +41,8 @@ class Battery(bb.batteryBase):
                 datasize=self.data_buff[2]
                 if self.buff_type == 'elect' and len(self.data_buff) >= (5+datasize) :
                         # calculate the relate electrical information
-                        voltage = cu.merge2bytesTo1(self.data_buff[3],self.data_buff[4]) * 0.1  
-                        current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[5],self.data_buff[6])) * 0.1 #exchange to int16
+                        voltage = cu.merge2BytesTo1(self.data_buff[3],self.data_buff[4]) * 0.1  
+                        current = cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[5],self.data_buff[6])) * 0.1 #exchange to int16
             
                         # save to battery_info object
                         self.battery_info.chargeCurrent = float("%.2f" % current) 
@@ -55,7 +55,7 @@ class Battery(bb.batteryBase):
 
 
                 elif self.buff_type == 'temp'and len(self.data_buff) >= (5+datasize):
-                        temperature=cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[3],self.data_buff[4]))
+                        temperature=cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[3],self.data_buff[4]))
                         # save to battery_info object
                         self.battery_info.temperature = float("%.2f" % temperature)
                       
@@ -64,7 +64,7 @@ class Battery(bb.batteryBase):
                         self.rec_flag[1]=True
 
                 elif self.buff_type == 'percentage'and len(self.data_buff) >= (5+datasize):
-                        percentage = cu.merge2bytesTo1(self.data_buff[5],self.data_buff[6]) / cu.merge2bytesTo1(self.data_buff[3],self.data_buff[4])
+                        percentage = cu.merge2BytesTo1(self.data_buff[5],self.data_buff[6]) / cu.merge2BytesTo1(self.data_buff[3],self.data_buff[4])
                          # save to battery_info object
                         self.battery_info.percentage = float("%.2f" % percentage) 
 
@@ -105,7 +105,7 @@ class Battery(bb.batteryBase):
                 #发送查询报文
                 self.buff_type=key
                 self.send(request)
-                mu.sleep_ms(100) 
+                mu.sleepMs(100) 
                #等待是否收到整包,若超时则报超时,并进入下次循环
             while not self.msg_ok:
                 if connect_timeout_t.isTimeUp():
@@ -119,7 +119,7 @@ class Battery(bb.batteryBase):
                 connect_timeout_t.reset()
    
                 
-            mu.sleep_s(1)
+            mu.sleepS(1)
 
 
 if __name__ == '__main__':

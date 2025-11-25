@@ -61,7 +61,7 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
             self.battery_info.chargeVoltage = voltage  # 传入电池电压
             self.battery_info.chargeCurrent = current  # 传入电池电流
             for i in range(8):
-                if cu.get_bit_val(canframe.data[7], i) == 1:
+                if cu.getBitVal(canframe.data[7], i) == 1:
                     if i == 0:
                         self.battery_info.isCharging = True
                     elif i in [1, 2, 3, 4, 5, 6, 7]:
@@ -119,12 +119,12 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
                 self.setTimeout()
 
     def loop(self):  # 重置底层
-        mu.sleep_s(5)
+        mu.sleepS(5)
         # 绑定can通道和id
         self.attachCanID(self.port, 2, 0x3FC, 0x4FC)
         while True:  # 
             self.judgeMsgok()
-            mu.sleep_s(2)
+            mu.sleepS(2)
 
 
 if __name__ == '__main__':

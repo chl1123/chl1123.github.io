@@ -113,7 +113,7 @@ class Battery(bb.batteryBase):
                        0x44, 0x33, 0x35, 0x0D]
             self.send(request)
             self.judgeMsgok()
-            mu.sleep_s(2)
+            mu.sleepS(2)
     def stop(self):
         log.info("Stopping thread...")
         self._stop_event.set()

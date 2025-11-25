@@ -26,7 +26,7 @@ class CanBattery(cb.CanBase):
         if canframe.id == 0x2F0:
             print("huafu infomation")
             tem = canframe.data.hex()
-            if cu.get_bit_val(canframe.data[7],0) == 0:
+            if cu.getBitVal(canframe.data[7],0) == 0:
                 current = -round(int(tem[6:8] + tem[4:6], 16) * 0.1, 2)
             else:
                 current = round(int(tem[6:8] + tem[4:6], 16) * 0.1, 2)
@@ -43,7 +43,7 @@ class CanBattery(cb.CanBase):
         # 创建一个超时定时器
         connect_timeout_t = mu.Timer(3000)
         # 需要至少7s来等待底层初始化,否则将会覆盖操作
-        mu.sleep_s(7)
+        mu.sleepS(7)
         # 绑定多个can邮箱，1为绑定的邮箱个数，false表示非扩展帧，0x2F0表示第一个邮箱canid号，0表示未绑定第四个邮箱
         self.attachCanID(1, False, 1, 0x2F0, 0, 0, 0)
         while True:

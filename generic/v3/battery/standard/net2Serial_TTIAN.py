@@ -34,12 +34,12 @@ class Battery(bb.batteryBase):
             #校验帧头是否正确
             if self.data_buff[0] == 0x01 and self.data_buff[1] == 0x03 and self.data_buff[2] == 0x44 and self.data_buff[3] == 0xFF:  
                 #转换电池数据
-                voltage = cu.merge2bytesTo1(self.data_buff[5],self.data_buff[6]) * 0.01
-                current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[3],self.data_buff[4]))* 0.01    #是int16类型
-                temp16_1 = cu.merge2bytesTo1(self.data_buff[63],self.data_buff[64])  * 0.1
-                temp16_2 = cu.merge2bytesTo1(self.data_buff[65],self.data_buff[66])  * 0.1
-                temp16_3 = cu.merge2bytesTo1(self.data_buff[67],self.data_buff[68])  * 0.1
-                temp16_4 = cu.merge2bytesTo1(self.data_buff[69],self.data_buff[70])  * 0.1
+                voltage = cu.merge2BytesTo1(self.data_buff[5],self.data_buff[6]) * 0.01
+                current = cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[3],self.data_buff[4]))* 0.01    #是int16类型
+                temp16_1 = cu.merge2BytesTo1(self.data_buff[63],self.data_buff[64])  * 0.1
+                temp16_2 = cu.merge2BytesTo1(self.data_buff[65],self.data_buff[66])  * 0.1
+                temp16_3 = cu.merge2BytesTo1(self.data_buff[67],self.data_buff[68])  * 0.1
+                temp16_4 = cu.merge2BytesTo1(self.data_buff[69],self.data_buff[70])  * 0.1
                 temperature = temp16_1
                 if temp16_1 < temp16_2:
                     temperature = temp16_2
@@ -48,7 +48,7 @@ class Battery(bb.batteryBase):
                 if temperature < temp16_4:
                     temperature = temp16_4
 
-                percentage = cu.merge2bytesTo1(self.data_buff[7],self.data_buff[8]) * 0.01
+                percentage = cu.merge2BytesTo1(self.data_buff[7],self.data_buff[8]) * 0.01
                 #创建一个电池信息的proto对象
                 battery_info = self.createBatteryMessage() 
                 #解析后塞入相应字段
@@ -85,7 +85,7 @@ class Battery(bb.batteryBase):
                 if connect_timeout_t.isTimeUp():
                     self.setTimeout()   #
                     break
-            mu.sleep_s(1)
+            mu.sleepS(1)
 if __name__ == '__main__':
     client = Battery()
     client.loop()

@@ -30,7 +30,7 @@ class CanBattery(cb.CanBase):
             voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             percentage = round(int(tem[8:10], 16) * 0.004, 2)
             temperature = round(int(tem[10:12], 16)-40, 2)
-            current = round(cu.hexStr_to_int(tem[4:6] + tem[6:8],16) * 0.1, 2)
+            current = round(cu.hexStrToInt(tem[4:6] + tem[6:8],16) * 0.1, 2)
             if current < 0:
                 isCharging = False
             else:
@@ -54,12 +54,12 @@ class CanBattery(cb.CanBase):
 
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
-        mu.sleep_s(5)
+        mu.sleepS(5)
         self.attachCanID(2, 1, 0x112, 0, 0, 0)
         self.battery_info = self.createBatteryMessage()
         while True:
             self.judgeMsgok()
-            mu.sleep_s(2)
+            mu.sleepS(2)
 
 if __name__ == '__main__':
     client = CanBattery()

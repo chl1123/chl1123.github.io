@@ -42,9 +42,9 @@ class Battery(bb.batteryBase):
                 datasize=self.data_buff[2] #byte 3 is data size
                 if self.buff_type == 'electri' and len(self.data_buff) >= (5+datasize) :
                         # calculate the relate electrical information
-                        current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[3],\
+                        current = cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[3],\
                                       self.data_buff[4])) * 0.01 #convert to int16
-                        voltage = cu.merge2bytesTo1(self.data_buff[5],self.data_buff[6]) * 0.01  
+                        voltage = cu.merge2BytesTo1(self.data_buff[5],self.data_buff[6]) * 0.01  
                        
             
                         # save to battery_info object
@@ -55,7 +55,7 @@ class Battery(bb.batteryBase):
                         self.rec_flag[0]=True
            
                 elif self.buff_type == 'temp'and len(self.data_buff) >= (5+datasize):
-                        temperature=cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[3],self.data_buff[4]))*0.1
+                        temperature=cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[3],self.data_buff[4]))*0.1
                         # save to battery_info object
                         self.battery_info.temperature = float("%.2f" % temperature)
                       
@@ -64,7 +64,7 @@ class Battery(bb.batteryBase):
                         self.rec_flag[1]=True
 
                 elif self.buff_type == 'percents'and len(self.data_buff) >= (5+datasize):
-                        percentage = cu.merge2bytesTo1(self.data_buff[3],self.data_buff[4])*0.01
+                        percentage = cu.merge2BytesTo1(self.data_buff[3],self.data_buff[4])*0.01
                          # save to battery_info object
                         self.battery_info.percentage = float("%.2f" % percentage) 
 
@@ -102,7 +102,7 @@ class Battery(bb.batteryBase):
                 #send request package
                 self.buff_type=key
                 self.send(request)
-                mu.sleep_ms(100) 
+                mu.sleepMs(100) 
             #Wait for one data package has been received or not. 
             while not self.msg_ok:
                 # If timer is time up, it will report a timeout and enter the next cycle 
@@ -116,7 +116,7 @@ class Battery(bb.batteryBase):
                 self.msg_ok = False
                 connect_timeout_t.reset()
    
-            mu.sleep_s(1)
+            mu.sleepS(1)
 
 if __name__ == '__main__':
     client = Battery()

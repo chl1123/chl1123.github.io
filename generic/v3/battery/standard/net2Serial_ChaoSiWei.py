@@ -59,7 +59,7 @@ class Battery(bb.batteryBase):
                             elif(current0 >= 0x41 and current0 <= 0x46):
                                 b.append(current0 - 55)
                     resultss(lists1)
-                    current = (cu.u16Toint16(b[0] * 16**3 + b[1] * 16**2 + b[2] * 16**1 + b[3] * 16**0)) * 0.01
+                    current = (cu.u16ToInt16(b[0] * 16**3 + b[1] * 16**2 + b[2] * 16**1 + b[3] * 16**0)) * 0.01
                     print(current)
                     #电流------------------------------------------
                     c = []
@@ -123,7 +123,7 @@ class Battery(bb.batteryBase):
                 if connect_timeout_t.isTimeUp():
                     self.setTimeout()   #
                     break
-            mu.sleep_s(1)
+            mu.sleepS(1)
                                                 
 if __name__ == '__main__':
     client = Battery()

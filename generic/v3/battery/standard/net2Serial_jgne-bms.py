@@ -22,10 +22,10 @@ class Battery(bb.batteryBase):
             # print(len(self.data_buff))
         if len(self.data_buff) >= 27:  
             if self.data_buff[0] == 0x7f:  
-                voltage = cu.merge2bytesTo1(self.data_buff[16],self.data_buff[15]) * 0.01
-                current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[10],self.data_buff[9])) * 0.1
-                temp = cu.u16Toint16(self.data_buff[17])
-                percentage = (cu.merge2bytesTo1(self.data_buff[22],self.data_buff[21]) / cu.merge2bytesTo1(self.data_buff[24],self.data_buff[23]))
+                voltage = cu.merge2BytesTo1(self.data_buff[16],self.data_buff[15]) * 0.01
+                current = cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[10],self.data_buff[9])) * 0.1
+                temp = cu.u16ToInt16(self.data_buff[17])
+                percentage = (cu.merge2BytesTo1(self.data_buff[22],self.data_buff[21]) / cu.merge2BytesTo1(self.data_buff[24],self.data_buff[23]))
                 battery_info = self.createBatteryMessage() 
                 battery_info.percentage = ( percentage)  
                 battery_info.temperature = (temp) 
@@ -53,7 +53,7 @@ class Battery(bb.batteryBase):
                     print("time up")
                     self.setTimeout()   
                     break
-            mu.sleep_ms(1000)
+            mu.sleepMs(1000)
          
 if __name__ == '__main__':
     client = Battery()

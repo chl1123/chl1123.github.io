@@ -66,20 +66,20 @@ class Battery(bb.batteryBase):
              write parse code
             """
 
-            ID = cu.merge4bytesTo1(self.realdata_buff[3], self.realdata_buff[2],self.realdata_buff[1],self.realdata_buff[0])
+            ID = cu.merge4BytesTo1(self.realdata_buff[3], self.realdata_buff[2],self.realdata_buff[1],self.realdata_buff[0])
             if (ID == 0x351): #Summary
-                self.soc = cu.merge2bytesTo1(self.realdata_buff[5], self.realdata_buff[4])*0.001 #SOC
+                self.soc = cu.merge2BytesTo1(self.realdata_buff[5], self.realdata_buff[4])*0.001 #SOC
                 self.rec_flag[0]=True
                 #print(self.soc)
 
             elif (ID == 0x352): #PackValue
-                self.voltage = cu.merge2bytesTo1(self.realdata_buff[5], self.realdata_buff[4])*0.1 #P_Volt
-                self.current  = cu.u16Toint16(cu.merge2bytesTo1(self.realdata_buff[7], self.realdata_buff[6]))*0.1 #P_Curr
+                self.voltage = cu.merge2BytesTo1(self.realdata_buff[5], self.realdata_buff[4])*0.1 #P_Volt
+                self.current  = cu.u16ToInt16(cu.merge2BytesTo1(self.realdata_buff[7], self.realdata_buff[6]))*0.1 #P_Curr
                 self.rec_flag[1]=True
                 #print("voltage :", self.voltage, "current :", self.current)
 
             elif (ID == 0x354): #Temperature
-                self.max_temp = cu.u8Toint8(self.realdata_buff[0]) 
+                self.max_temp = cu.u8ToInt8(self.realdata_buff[0]) 
                 self.rec_flag[2]=True
                 #print("max temp :", self.max_temp)
 
@@ -115,7 +115,7 @@ class Battery(bb.batteryBase):
         self.send(request)
 
         while True:
-            mu.sleep_ms(10)
+            mu.sleepMs(10)
             if self.connect_timeout_t.isTimeUp():
                 self.connect_timeout_t.reset()
                 self.setTimeout()

@@ -42,7 +42,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
         elif canframe.id == 0x37:
             tem = canframe.data.hex()
-            current = round(cu.hexStr_to_int(tem[0:2] + tem[2:4], 8) * 0.1, 2)
+            current = round(cu.hexStrToInt(tem[0:2] + tem[2:4], 8) * 0.1, 2)
             self.battery_info.chargeCurrent = current
             # 发步电池数据给rbk
             self.publish(self.battery_info)
@@ -60,12 +60,12 @@ class CanBattery(cb.CanBase):
                 self.setTimeout()
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
-        mu.sleep_s(5)
+        mu.sleepS(5)
         # 绑定多个can邮箱，为绑定的邮箱个数，54，55，56分别为绑定的三个邮箱编号，0表示未绑定第四个邮箱
         self.attachCanID(2, 3, 0x36, 0x37, 0x38, 0)
         while True:
             self.judgeMsgok()
-            mu.sleep_s(2)
+            mu.sleepS(2)
 
 if __name__ == '__main__':
     client = CanBattery()

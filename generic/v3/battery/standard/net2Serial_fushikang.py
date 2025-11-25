@@ -27,15 +27,15 @@ class Battery(bb.batteryBase):
         while len(self.data_buff) >= 45:
             print("start")
             if self.data_buff[0] == 0xDD:
-                voltage = cu.merge2bytesTo1(self.data_buff[4], self.data_buff[5]) * 0.01  # 电池电压
-                current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[6], self.data_buff[7])) * 0.01  # 是int16类型
-                temp16_1 = (cu.merge2bytesTo1(self.data_buff[27], self.data_buff[28]) - 2731) * 0.1
-                temp16_2 = (cu.merge2bytesTo1(self.data_buff[29], self.data_buff[30]) - 2731) * 0.1
+                voltage = cu.merge2BytesTo1(self.data_buff[4], self.data_buff[5]) * 0.01  # 电池电压
+                current = cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[6], self.data_buff[7])) * 0.01  # 是int16类型
+                temp16_1 = (cu.merge2BytesTo1(self.data_buff[27], self.data_buff[28]) - 2731) * 0.1
+                temp16_2 = (cu.merge2BytesTo1(self.data_buff[29], self.data_buff[30]) - 2731) * 0.1
                 temperature = temp16_1  # 电池温度
                 if temp16_1 < temp16_2:
                     temperature = temp16_2
-                percentage = cu.u16Toint16(self.data_buff[23]) * 0.01  # 电池电量百分比
-                cycle = cu.merge2bytesTo1(self.data_buff[12], self.data_buff[13])  # 电池循环次数
+                percentage = cu.u16ToInt16(self.data_buff[23]) * 0.01  # 电池电量百分比
+                cycle = cu.merge2BytesTo1(self.data_buff[12], self.data_buff[13])  # 电池循环次数
                 dianchi_str = "富士康-20221206"
                 userData = dianchi_str.encode('utf-8')
                 # 创建一个电池信息的proto对象
@@ -78,7 +78,7 @@ class Battery(bb.batteryBase):
             #发送查询报文
             self.send(request)
             self.judgeMsgok()
-            mu.sleep_s(2)
+            mu.sleepS(2)
 
 if __name__ == '__main__':
     client = Battery()

@@ -34,14 +34,14 @@ class Battery(bb.batteryBase):
             #校验帧头是否正确
             if self.data_buff[0] == 0x01:  
                 #转换电池数据
-                voltage = cu.merge2bytesTo1(self.data_buff[39],self.data_buff[40]) * 0.01
-                current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[41],self.data_buff[42])) * 0.01    #是int16类型
-                temp16_1 = (cu.merge2bytesTo1(self.data_buff[77],self.data_buff[78]) - 2731) * 0.1
-                temp16_2 = (cu.merge2bytesTo1(self.data_buff[79],self.data_buff[80]) - 2731) * 0.1
+                voltage = cu.merge2BytesTo1(self.data_buff[39],self.data_buff[40]) * 0.01
+                current = cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[41],self.data_buff[42])) * 0.01    #是int16类型
+                temp16_1 = (cu.merge2BytesTo1(self.data_buff[77],self.data_buff[78]) - 2731) * 0.1
+                temp16_2 = (cu.merge2BytesTo1(self.data_buff[79],self.data_buff[80]) - 2731) * 0.1
                 temperature = temp16_1
                 if temp16_1 < temp16_2:
                     temperature = temp16_2
-                percentage = cu.merge2bytesTo1(self.data_buff[83],self.data_buff[84]) * 0.01
+                percentage = cu.merge2BytesTo1(self.data_buff[83],self.data_buff[84]) * 0.01
                 #创建一个电池信息的proto对象
                 battery_info = self.createBatteryMessage() 
                 #解析后塞入相应字段
@@ -78,7 +78,7 @@ class Battery(bb.batteryBase):
                 if connect_timeout_t.isTimeUp():
                     self.setTimeout()   #
                     break
-            mu.sleep_s(1)
+            mu.sleepS(1)
 
 if __name__ == '__main__':
     client = Battery()

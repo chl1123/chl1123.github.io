@@ -80,13 +80,13 @@ class CanBattery(cb.CanBase):
 
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
-        mu.sleep_s(5)
+        mu.sleepS(5)
         self.attachCanID(2, 3, 0x1806E5F4, 0x1800FFF4, 0x019E, 0)
         #self.attachCanID(1, 1, 0x019E, 0, 0, 0)
         while True:
             # 等待是否收到整包,若超时则报超时,并进入下次循环
             self.judgeMsgok()
-            mu.sleep_s(2)
+            mu.sleepS(2)
 
 if __name__ == '__main__':
     client = CanBattery()

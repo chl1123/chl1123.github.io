@@ -43,14 +43,14 @@ class BatteryHuoKeYy(bb.batteryBase):
             # 校验帧头是否正确
             if self.data_buff[0] == 0x01:
                 # 转换电池数据
-                voltage = cu.merge2bytesTo1(self.data_buff[7], self.data_buff[8]) * 0.001
-                current = cu.u16Toint16(cu.merge2bytesTo1(self.data_buff[11], self.data_buff[12])) * 0.1  # 是int16类型
-                temp16_1 = cu.merge2bytesTo1(0x00, self.data_buff[15]) - 40  # max
-                temp16_2 = cu.merge2bytesTo1(0x00, self.data_buff[16]) - 40  # min
+                voltage = cu.merge2BytesTo1(self.data_buff[7], self.data_buff[8]) * 0.001
+                current = cu.u16ToInt16(cu.merge2BytesTo1(self.data_buff[11], self.data_buff[12])) * 0.1  # 是int16类型
+                temp16_1 = cu.merge2BytesTo1(0x00, self.data_buff[15]) - 40  # max
+                temp16_2 = cu.merge2BytesTo1(0x00, self.data_buff[16]) - 40  # min
                 temperature = temp16_1
                 if temp16_1 < temp16_2:
                     temperature = temp16_2
-                percentage = cu.merge2bytesTo1(self.data_buff[23], self.data_buff[24]) * 0.04
+                percentage = cu.merge2BytesTo1(self.data_buff[23], self.data_buff[24]) * 0.04
                 # 创建一个电池信息的proto对象
                 battery_info = self.createBatteryMessage()
                 # 解析后塞入相应字段
@@ -87,7 +87,7 @@ class BatteryHuoKeYy(bb.batteryBase):
                 if connect_timeout_t.isTimeUp():
                     self.setTimeout()
                     break
-            mu.sleep_s(1)
+            mu.sleepS(1)
 
 
 if __name__ == '__main__':

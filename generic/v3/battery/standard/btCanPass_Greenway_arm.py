@@ -103,7 +103,7 @@ class CanBattery(cb.CanBase):
         elif msg.arbitration_id == 0x0EA1F40D:
             # log.info("assert 3")
             tem = msg.data.hex()
-            current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
+            current = round(cu.hexStrToInt(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
             if self.id2:
                 if abs(current - self.battery_info.chargeCurrent) > 100:
@@ -169,7 +169,7 @@ class CanBattery(cb.CanBase):
             tem = msg.data.hex()
             for i in range(1, 4):
                 for j in range(8):
-                    if cu.get_bit_val(msg.data[i], j) == 1:
+                    if cu.getBitVal(msg.data[i], j) == 1:
                         if (i == 3 and j == 0) or (i == 1 and j == 2) or (i == 1 and j == 0) or (i == 1 and j == 1):
                             pass
                             # error_msg = "Battery pack number: " + tem[0:2] + " warning msg: " + error_dict[(i, j)]
@@ -214,11 +214,11 @@ class CanBattery(cb.CanBase):
                     self.setTimeout()
 
     def loop(self):
-        mu.sleep_s(20)
+        mu.sleepS(20)
         self.createCanBus(self.port, 250000)
         self.attachCanID(0x0DA2F40D, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
-            mu.sleep_s(2)
+            mu.sleepS(2)
             if not self.msg_userdata:
                 self.sendCanframe(self.port, 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
             self.judgeMsgok()

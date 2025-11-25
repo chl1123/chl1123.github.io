@@ -83,7 +83,7 @@ class CanBattery(cb.CanBase):
             self.id1 = True
         elif canframe.id == 0x0EA1F40D:
             tem = canframe.data.hex()
-            current = round(cu.hexStr_to_int(tem[0:4] + tem[4:8], 18) * 0.001, 2)
+            current = round(cu.hexStrToInt(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
             self.battery_info.chargeVoltage = voltage
             self.battery_info.chargeCurrent = current
@@ -137,7 +137,7 @@ class CanBattery(cb.CanBase):
             tem = canframe.data.hex()
             for i in range(1, 4):
                 for j in range(8):
-                    if cu.get_bit_val(canframe.data[i], j) == 1:
+                    if cu.getBitVal(canframe.data[i], j) == 1:
                         if (i, j) == (1, 2):
                             # 过滤过充保护warning
                             continue
@@ -199,17 +199,17 @@ class CanBattery(cb.CanBase):
         #     self.clearWarning(warning_code)
 
     def loop(self):
-        mu.sleep_s(5)
+        mu.sleepS(5)
         self.attachCanID(self.port, 1, 0x0DA2F40D)
         while True:
             self.sendCanframe(self.port, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
-            mu.sleep_s(2)
+            mu.sleepS(2)
             if self.msg_userdata:
                 break
         self.attachCanID(self.port, 5, 0x0EA0F40D, 0x0EA1F40D, 0x0EA2F40D, 0x0EA4F40D, 0x1EA7F40D)
         while True:
             self.judgeMsgok()
-            mu.sleep_s(2)
+            mu.sleepS(2)
 
 if __name__ == '__main__':
     while True:
@@ -220,7 +220,7 @@ if __name__ == '__main__':
             log.info("Restarting CanBattery class ...")
         except Exception as e:
             log.error(f"Unexpected error: {e}")
-            mu.sleep_s(2)
+            mu.sleepS(2)
 
 
 

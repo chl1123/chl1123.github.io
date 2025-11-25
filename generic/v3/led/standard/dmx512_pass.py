@@ -70,7 +70,7 @@ class demo_dmx512(dmx.dmx512Base):
     
     def run(self):
         dmx512_info = self.createDmx512Message()
-        mu.sleep_s(20)
+        mu.sleepS(20)
         while 1:
             """cur_w:旋转度, cur_x:前进距离, cur_y:平移距离"""
             self.cur_x, self.cur_y, self.cur_w = NavSpeed.get_speeds()
