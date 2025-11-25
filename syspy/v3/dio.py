@@ -15,7 +15,7 @@ class DiV3(DiInterface):
         data: msgDI = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgDI
             cls._MODEL_CLASS = msgDI
@@ -42,7 +42,7 @@ class DiV3(DiInterface):
         """
         pass
 
-    def get_di(self, key: str) -> bool:
+    def getDi(self, key: str) -> bool:
         """检测单个DI状态信息
         Args:
             key (str): DI key
@@ -57,7 +57,7 @@ class DiV3(DiInterface):
                     return node.status
         return False
 
-    def get_dis(self) -> typing.List["msgDINode"]:
+    def getDis(self) -> typing.List["msgDINode"]:
         """获取DI消息中的节点列表
 
         Returns:
@@ -66,7 +66,7 @@ class DiV3(DiInterface):
         if self.update():
             return self.data.node
 
-    def get_max_di(self) -> int:
+    def getMaxDi(self) -> int:
         """获取DI消息中的最大节点数
 
         Returns:
@@ -88,14 +88,14 @@ class DoV3(DoInterface):
         data: msgDO = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgDO
             cls._MODEL_CLASS = msgDO
 
     @classmethod
-    @call_service(plugin_name="MoveFactory")
-    def setDO(cls, key: str, status: bool) -> bool:
+    @call_service(plugin_name="MoveFactory", func_name="setDO")
+    def setDo(cls, key: str, status: bool) -> bool:
         """控制DO的开关
 
         Args:
@@ -107,7 +107,7 @@ class DoV3(DoInterface):
         """
         pass
 
-    def get_do(self, key: str) -> bool:
+    def getDo(self, key: str) -> bool:
         """检测单个DO状态信息
 
         Args:
@@ -123,7 +123,7 @@ class DoV3(DoInterface):
                     return node.status
         return False
 
-    def get_dos(self) -> typing.List["msgDONode"]:
+    def getDos(self) -> typing.List["msgDONode"]:
         """获取DO消息中的节点列表
 
         Returns:
@@ -132,7 +132,7 @@ class DoV3(DoInterface):
         if self.update():
             return self.data.node
 
-    def get_max_node(self) -> int:
+    def getMaxNode(self) -> int:
         """获取DO消息中的最大节点数
 
         Returns:

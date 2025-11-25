@@ -14,12 +14,12 @@ class BatteryV3(Message):
         data: msgBattery = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgBattery
             cls._MODEL_CLASS = msgBattery
-    
-    def get_percentage(self, *, topic: str = "Battery-000") -> float:
+
+    def getPercentage(self, *, topic: str = "Battery-000") -> float:
         """获取电池电量百分比
 
         Returns:
@@ -27,8 +27,8 @@ class BatteryV3(Message):
         """
         if self.update():
             return self.data.percentage
-    
-    def get_charge_current(self, *, topic: str = "Battery-000") -> float:
+
+    def getChargeCurrent(self, *, topic: str = "Battery-000") -> float:
         """获取充电电流
 
         Returns:
@@ -36,8 +36,8 @@ class BatteryV3(Message):
         """
         if self.update():
             return self.data.chargeCurrent
-    
-    def get_charge_voltage(self, *, topic: str = "Battery-000") -> float:
+
+    def getChargeVoltage(self, *, topic: str = "Battery-000") -> float:
         """获取充电电压
 
         Returns:
@@ -46,7 +46,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.chargeVoltage
 
-    def get_is_charging(self, *, topic: str = "Battery-000") -> bool:
+    def getIsCharging(self, *, topic: str = "Battery-000") -> bool:
         """获取是否正在充电状态
 
         Returns:
@@ -55,7 +55,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.isCharging
 
-    def get_temperature(self, *, topic: str = "Battery-000") -> float:
+    def getTemperature(self, *, topic: str = "Battery-000") -> float:
         """获取电池温度
 
         Returns:
@@ -63,8 +63,8 @@ class BatteryV3(Message):
         """
         if self.update():
             return self.data.temperature
-    
-    def get_cycle(self, *, topic: str = "Battery-000") -> int:
+
+    def getCycle(self, *, topic: str = "Battery-000") -> int:
         """获取电池循环次数
 
         Returns:
@@ -72,8 +72,8 @@ class BatteryV3(Message):
         """
         if self.update():
             return self.data.cycle
-    
-    def get_max_charge_current(self, *, topic: str = "Battery-000") -> float:
+
+    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电流
 
         Returns:
@@ -82,7 +82,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.maxChargeCurrent
 
-    def get_max_charge_voltage(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电压
 
         Returns:
@@ -90,8 +90,8 @@ class BatteryV3(Message):
         """
         if self.update():
             return self.data.maxChargeVoltage
-    
-    def get_extra(self, *, topic: str = "Battery-000") -> str:
+
+    def getExtra(self, *, topic: str = "Battery-000") -> str:
         """获取额外信息
 
         Returns:
@@ -100,7 +100,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.extra
 
-    def get_is_manually_connected(self, *, topic: str = "Battery-000") -> bool:
+    def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> bool:
         """获取是否手动连接状态
 
         Returns:
@@ -108,8 +108,8 @@ class BatteryV3(Message):
         """
         if self.update():
             return self.data.isManuallyConnected
-    
-    def get_user_data(self, *, topic: str = "Battery-000") -> bytes:
+
+    def getUserData(self, *, topic: str = "Battery-000") -> bytes:
         """获取用户数据
 
         Returns:
@@ -117,7 +117,7 @@ class BatteryV3(Message):
         """
         if self.update():
             return self.data.userData
-    
+
     def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 
@@ -125,7 +125,7 @@ class BatteryV3(Message):
             (int)
         """
         return self.client().call_service("DSPChassis", "getBatteryMaxPercentage")
-    
+
     def publish(self, battery_msg: "msgBattery", *, topic: str = "Battery-000") -> int:
         """发布电池信息
 
@@ -136,7 +136,7 @@ class BatteryV3(Message):
             (int) -1: 发布失败; 0: 发布成功
         """
         return self.client().call_service("DSPChassis", "publishBattery", MessageToJson(battery_msg))
-    
+
     def getCanPort(self, *, topic: str = "Battery-000") -> str:
         """获取CAN端口
 

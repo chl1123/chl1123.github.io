@@ -4,13 +4,12 @@ from syspy.core.rbk_rpc import default_plugin, call_service
 from syspy.motor import MotorInterface
 
 
-
 @default_plugin("MoveFactory")
 class MotorV3(MotorInterface):
     """电机类"""
 
     @staticmethod
-    def get_motor_infos() -> List["msgMotorInfo"]:
+    def getMotorInfos() -> List["msgMotorInfo"]:
         """获取电机信息列表
 
         Returns:
@@ -20,7 +19,7 @@ class MotorV3(MotorInterface):
         return Odometer.data.motorInfo
 
     @staticmethod
-    def get_motor_pos(motor_name: str) -> Union[float, int]:
+    def getMotorPos(motor_name: str) -> Union[float, int]:
         """获取指定电机的当前位置
 
         Args:
@@ -38,7 +37,7 @@ class MotorV3(MotorInterface):
         return motor_pos
 
     @staticmethod
-    def get_motor_speed(motor_name: str) -> Union[float, int]:
+    def getMotorSpeed(motor_name: str) -> Union[float, int]:
         """获取指定电机的当前速度
 
         Args:

@@ -178,15 +178,15 @@ class Message(Service):
         self._topic_data: Dict[str, message.Message] = {}  # 存储每个topic的数据
         self._topic_last_update: Dict[str, float] = {}  # 存储每个topic的最后更新时间
 
-    def init_model_class(self):
+    def initModelClass(self):
         pass
 
-    def set_update_interval(self, interval: float):
+    def setUpdateInterval(self, interval: float):
         self._UPDATE_INTERVAL = interval
 
     def update(self, topic: str = None) -> bool:
         if self._MODEL_CLASS is None:
-            self.init_model_class()
+            self.initModelClass()
 
         """获取最新数据，返回是否更新成功"""
         full_topic = self._TOPIC_PREFIX + (topic or self._TOPIC) + self._TOPIC_SUFFIX
@@ -228,7 +228,7 @@ class Message(Service):
                 (time.time() - last_update) > self._UPDATE_INTERVAL
         )
 
-    def get_data(self, args: Optional[List[str]] = None, *, topic: str = None, ) -> Union[tuple, dict]:
+    def getData(self, args: Optional[List[str]] = None, *, topic: str = None, ) -> Union[tuple, dict]:
         """获取指定topic的当前数据"""
         if  self.update(topic):
             if topic is None:

@@ -13,12 +13,12 @@ class MagneticV3(MagneticInterface):
         data: msgMagnetic = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgMagnetic
             cls._MODEL_CLASS = msgMagnetic
 
-    def get_magnetics(self) -> typing.List["msgMagneticNode"]:
+    def getMagnetics(self) -> typing.List["msgMagneticNode"]:
         """获取磁节点列表
 
         Returns:

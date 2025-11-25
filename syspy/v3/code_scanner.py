@@ -18,7 +18,7 @@ class CodeScannerV3(CodeScannerInterface):
             from .protobuf import msgCodeScanner
             cls._MODEL_CLASS = msgCodeScanner
 
-    def get_code_scanners(self) -> List["msgCodeScannerDMT"]:
+    def getCodeScanners(self) -> List["msgCodeScannerDMT"]:
         """获取msgPGV_DMT对象列表
 
         Returns:

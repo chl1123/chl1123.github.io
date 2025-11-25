@@ -11,7 +11,7 @@ class BinInterface(ABC, Message):
     """库位类"""
 
     @classmethod
-    def get_bins(cls) -> List["msgBin"]:
+    def getBins(cls) -> List["msgBin"]:
         """获取库位列表
 
         Returns:
@@ -20,7 +20,7 @@ class BinInterface(ABC, Message):
         Examples:
         ```python
         from syspy import Bin
-        bins = Bin.get_bins()
+        bins = Bin.getBins()
         for b in bins:  # b为msgBin的对象
             print(b.binId)
             print(b.binStatus)
@@ -46,7 +46,7 @@ class ContainerInterface(ABC, Service):
     """
 
     @staticmethod
-    def _empty_container():
+    def _emptyContainer():
         return {
             "goodsName": "",
             "desc": "",
@@ -54,7 +54,7 @@ class ContainerInterface(ABC, Service):
         }
 
     @classmethod
-    def init_container(cls, number: int = 7):
+    def initContainer(cls, number: int = 7):
         """初始化背篓数据。
 
         Args:
@@ -110,7 +110,7 @@ class ContainerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def has_goods(cls, container_id: str = '0') -> bool:
+    def hasGoods(cls, container_id: str = '0') -> bool:
         """检查指定背篓是否包含货物。
 
         Args:
@@ -122,7 +122,7 @@ class ContainerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def goods_exist(cls, goods_name) -> bool:
+    def goodsExist(cls, goods_name) -> bool:
         """检查指定的货物是否存在。
 
         Args:
@@ -134,7 +134,7 @@ class ContainerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def get_task_goods(cls) -> str:
+    def getTaskGoods(cls) -> str:
         """从任务参数中获取货物ID。
 
         Returns:
@@ -143,7 +143,7 @@ class ContainerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def get_goods_by_container(cls, container_id: str = '0') -> str:
+    def getGoodsByContainer(cls, container_id: str = '0') -> str:
         """根据背篓名称获取对应的货物ID。
 
         Args:
@@ -155,7 +155,7 @@ class ContainerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def get_container_by_goods(cls, goods_name) -> str:
+    def getContainerByGoods(cls, goods_name) -> str:
         """根据货物名查找其所在的背篓。
 
         Args:
@@ -167,7 +167,7 @@ class ContainerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def get_json_containers(cls) -> dict:
+    def getJsonContainers(cls) -> dict:
         """以原始格式返回所有背篓的状态。
 
         Returns:
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     from syspy import RobotParam
     container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
     if isinstance(container_num, int) and container_num > 0:
-        Container.init_container(container_num)
+        Container.initContainer(container_num)
     print("init data", Container.getContainers())
     Container.setContainer("0", "0", "c0")
     Container.setContainer("1", "1", "c1")
@@ -221,13 +221,13 @@ if __name__ == '__main__':
     Container.setContainer("2", "2", "c2")
     print("setContainer 0 1 2: ", Container.getContainers())
 
-    print("has_goods() 0", Container.has_goods("0"))
-    print("has_goods() -1", Container.has_goods("-1"))
-    print("goods_id_exist() 0", Container.goods_exist("0"))
-    print("goods_id_exist() -1", Container.goods_exist("-1"))
-    print("get_task_goodsId()", Container.get_task_goods())
-    print("get_goodsId_by_container()", Container.get_goods_by_container("0"))
-    print("get_goodsId_by_container()", Container.get_goods_by_container("-1"))
-    print("get_container_by_goodsId()", Container.get_container_by_goods("1"))
-    print("get_container_by_goodsId()", Container.get_container_by_goods("-1"))
-    print("get_json_containers()", Container.get_json_containers())
+    print("has_goods() 0", Container.hasGoods("0"))
+    print("has_goods() -1", Container.hasGoods("-1"))
+    print("goods_id_exist() 0", Container.goodsExist("0"))
+    print("goods_id_exist() -1", Container.goodsExist("-1"))
+    print("get_task_goodsId()", Container.getTaskGoods())
+    print("get_goodsId_by_container()", Container.getGoodsByContainer("0"))
+    print("get_goodsId_by_container()", Container.getGoodsByContainer("-1"))
+    print("get_container_by_goodsId()", Container.getContainerByGoods("1"))
+    print("get_container_by_goodsId()", Container.getContainerByGoods("-1"))
+    print("get_json_containers()", Container.getJsonContainers())

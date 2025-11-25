@@ -22,9 +22,9 @@ class LaserInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def get_data(self, args: typing.Optional[List[str]] = None, *, topic: str = None, ) -> typing.Union[tuple, dict]:
+    def getData(self, args: typing.Optional[List[str]] = None, *, topic: str = None, ) -> typing.Union[tuple, dict]:
         """获取指定topic的当前数据"""
-        return self.child.get_data(args, topic=topic)
+        return self.child.getData(args, topic=topic)
 
     def set2DLaserWidth(self, device_name: str, width: float):
         """设置激光设备宽度
@@ -108,7 +108,7 @@ class Laser3DInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def get_lasers3d(self) -> List["msgLaser3D"]:
+    def getLasers3d(self) -> List["msgLaser3D"]:
         """获取所有3D激光数据列表
 
         Returns:
@@ -117,13 +117,13 @@ class Laser3DInterface:
         Examples:
         ```python
         from syspy import Laser3D
-        lasers3D = Laser3D.get_lasers3d()
+        lasers3D = Laser3D.getLasers3d()
         for laser3D in lasers3D:  # laser3D为msgLaser3D的对象
             print(laser3D.laserType)
             print(laser3D.is3DLocalization)
         ```
         """
-        return self.child.get_lasers3d()
+        return self.child.getLasers3d()
 
 Laser: LaserInterface = LaserInterface()
 Laser3D: Laser3DInterface = Laser3DInterface()

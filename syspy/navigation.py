@@ -294,6 +294,7 @@ class NavigationInterface(ABC, Service):
             recfile (str):
         """
         raise RBKVersionError()
+
     @classmethod
     def setIncreaseSpinAngle(cls, angle: float):
         """增量旋转托盘到一个弧度
@@ -706,6 +707,7 @@ class NavigationInterface(ABC, Service):
         """
         raise RBKVersionError()
 
+
 class NavStatusInterface(ABC, Message):
     """导航状态类"""
 
@@ -719,19 +721,37 @@ class NavStatusInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_block(cls):
+    def getBlock(cls):
         raise RBKVersionError()
 
     @classmethod
-    def get_turn(cls, v_x, v_w):
+    def getTurn(cls, v_x, v_w):
         raise RBKVersionError()
 
     @classmethod
-    def get_task_status(cls) -> "msgMoveStatus.TaskStatus":
+    def getTaskStatus(cls) -> "msgMoveStatus.taskStatus":
         """获取任务状态
 
         Returns:
-            (msgMoveStatus.TaskStatus): 返回脚本任务状态
+            (msgMoveStatus.TaskStatus): 返回任务状态
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def getRunningStatus(self) -> "msgMoveStatus.runningStatus":
+        """获取运行状态
+
+        Returns:
+            (msgMoveStatus.runningStatus): 返回运行状态
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def getCurrentStation(self) -> str:
+        """获取机器人当前所在站点
+
+        Returns:
+            (str): 机器人站点名
         """
         raise RBKVersionError()
 
@@ -740,7 +760,7 @@ class NavSpeedInterface(ABC, Message):
     """导航速度类"""
 
     @classmethod
-    def get_speeds(cls) -> Tuple[float, float, float]:
+    def getSpeeds(cls) -> Tuple[float, float, float]:
         """获取当前速度信息
 
         Returns:
@@ -752,7 +772,7 @@ class NavSpeedInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_motor_cmd(cls) -> typing.List["msgMotorCmd"]:
+    def getMotorCmd(cls) -> typing.List["msgMotorCmd"]:
         """获取电机指令列表
 
         Returns:
@@ -761,7 +781,7 @@ class NavSpeedInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_is2move(cls) -> bool:
+    def getIs2Move(cls) -> bool:
         """获取是否准备移动的标志位
 
         Returns:

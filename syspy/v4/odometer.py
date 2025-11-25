@@ -13,12 +13,12 @@ class OdometerV4(OdometerInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from syspy.v4.protobuf.message.messageV4_odometer_pb2 import MessageV4_Odometer
             cls._MODEL_CLASS = MessageV4_Odometer
 
-    def get_cycle(self) -> int:
+    def getCycle(self) -> int:
         """获取周期计数
 
         Returns:
@@ -27,7 +27,7 @@ class OdometerV4(OdometerInterface):
         if self.update():
             return self.data.cycle
 
-    def get_position(self) -> typing.Tuple[float, float, float]:
+    def getPosition(self) -> typing.Tuple[float, float, float]:
         """获取位置，x坐标、y坐标、角度
 
         Returns:
@@ -38,7 +38,7 @@ class OdometerV4(OdometerInterface):
         if self.update():
             return self.data.x, self.data.y, math.degrees(self.data.angle)
 
-    def get_speeds(self) -> Tuple[float, float, float]:
+    def getSpeeds(self) -> Tuple[float, float, float]:
         """获取x、y、旋转方向速度
 
         Returns:
@@ -49,7 +49,7 @@ class OdometerV4(OdometerInterface):
         if self.update():
             return self.data.vel_x, self.data.vel_y, self.data.vel_rotate
 
-    def get_is_stop(self) -> bool:
+    def getIsStop(self) -> bool:
         """获取是否停止状态
 
         Returns:
@@ -58,7 +58,7 @@ class OdometerV4(OdometerInterface):
         if self.update():
             return self.data.is_stop
 
-    def get_detect_skid(self) -> bool:
+    def getDetectSkid(self) -> bool:
         """获取是否检测到打滑
 
         Returns:
@@ -66,5 +66,5 @@ class OdometerV4(OdometerInterface):
         """
         raise RBKVersionError()
 
-    def get_motor_infos(self) -> List["Message_MotorInfo"]:
+    def getMotorInfos(self) -> List["Message_MotorInfo"]:
         raise RBKVersionError()

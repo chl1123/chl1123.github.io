@@ -35,7 +35,7 @@ class DiInterface(ABC, Message):
         pass
 
     @classmethod
-    def get_di(cls, name: str) -> bool:
+    def getDi(cls, name: str) -> bool:
         """检测单个DI状态信息
         Args:
             name (str): DI名
@@ -46,7 +46,7 @@ class DiInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_dis(cls) -> typing.List["msgDINode"]:
+    def getDis(cls) -> typing.List["msgDINode"]:
         """获取DI消息中的节点列表
 
         Returns:
@@ -55,7 +55,7 @@ class DiInterface(ABC, Message):
         Examples:
         ```python
         from syspy import Di
-        dis = Di.get_dis()
+        dis = Di.getDis()
         for di in dis:  # di为msgDINode的对象
             print(di.key)
         ```
@@ -63,7 +63,7 @@ class DiInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_max_di(cls) -> int:
+    def getMaxDi(cls) -> int:
         """获取DI消息中的最大节点数
 
         Returns:
@@ -76,7 +76,7 @@ class DoInterface(ABC, Message):
     """数字输出类"""
 
     @classmethod
-    def setDO(cls, name: str, status: bool) -> bool:
+    def setDo(cls, name: str, status: bool) -> bool:
         """控制DO的开关
 
         Args:
@@ -89,7 +89,7 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_do(cls, name: str) -> bool:
+    def getDo(cls, name: str) -> bool:
         """检测单个DO状态信息
 
         Args:
@@ -101,7 +101,7 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_dos(cls) -> typing.List["msgDONode"]:
+    def getDos(cls) -> typing.List["msgDONode"]:
         """获取DO消息中的节点列表
 
         Returns:
@@ -111,7 +111,7 @@ class DoInterface(ABC, Message):
         ```python
         from syspy import Do
 
-        dos = Do.get_dos()
+        dos = Do.getDos()
         for do in dos:  # do为msgDONode的对象
             print(do.key)
         ```
@@ -119,7 +119,7 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_max_node(cls) -> int:
+    def getMaxNode(cls) -> int:
         """获取DO消息中的最大节点数
 
         Returns:

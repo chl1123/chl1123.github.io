@@ -7,7 +7,7 @@ import json
 import time
 
 from syspy.core.rbk_rpc import Service
-from syspy.lib.net_protocol import parse_modbus
+from syspy.lib.net_protocol import parseModbus
 
 start_time = time.time()
 from syspy import Di, Motor, Navigation, NetProtocol, Trace
@@ -180,7 +180,7 @@ class Jack(ModuleBase):
         log.info("setMotorPosition(): ",
                  Motor.setMotorPosition(ConfigParams.jack_motor_name, height, ConfigParams.jack_motor_speed,
                                         ConfigParams.jack_up_di))
-        if Di.get_di(ConfigParams.jack_up_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
+        if Di.getDi(ConfigParams.jack_up_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             log.info("load finish")
             return True
         return False
@@ -197,7 +197,7 @@ class Jack(ModuleBase):
         result = Motor.setMotorPositionAdv(ConfigParams.jack_motor_name, ConfigParams.jack_lift_zero, maxAcc=0.001,
                                            stopDI=ConfigParams.jack_zero_di)
         log.info("setMotorPosition(): ", result)
-        if Di.get_di(ConfigParams.jack_zero_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
+        if Di.getDi(ConfigParams.jack_zero_di) or Motor.isMotorReached(ConfigParams.jack_motor_name):
             log.info("unload finish")
             return True
         return False
@@ -209,7 +209,7 @@ class Jack(ModuleBase):
         if finished:
             log.debug("spin finish")
             self.status = ScriptStatus.FINISHED
-        return Module.get_status()
+        return Module.getStatus()
 
     def goPath(self):
         if self.init_path:
@@ -240,7 +240,7 @@ class Jack(ModuleBase):
         if self.count == 20:
             self.status = ScriptStatus.FINISHED
             self.count = 0
-        return Module.get_status()
+        return Module.getStatus()
 
     def odo(self):
         if self.init_odo:
@@ -256,15 +256,15 @@ class Jack(ModuleBase):
 
     def print_info(self):
         # 打印当前任务id、任务状态、任务指令
-        Trace.log(f"task_id={Module.get_task_id()}, status={Module.get_status()}, args={self.args}")
-        Module.report_info(self.report_info)
+        Trace.log(f"task_id={Module.getTaskId()}, status={Module.getStatus()}, args={self.args}")
+        Module.reportInfo(self.report_info)
 
     def suspend(self):
         self.status = ScriptStatus.SUSPENDED
         log.info("suspend")
 
     def resume(self):
-        if Module.get_status() == ScriptStatus.SUSPENDED:
+        if Module.getStatus() == ScriptStatus.SUSPENDED:
             self.status = ScriptStatus.RUNNING
         log.info("resume")
 
@@ -280,8 +280,8 @@ class Jack(ModuleBase):
         if self.count == 100:
             self.count = 0
             status = SafeMoveStatus.FINISHED
-        self.set_safe_move_status(status)
-        Trace.log(f"safe_move_check {Module.get_safe_move_check()}")
+        self.setSafeMoveStatus(status)
+        Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
@@ -294,7 +294,7 @@ class Jack(ModuleBase):
         # 1. 读取操作码
         op_data = NetProtocol.getModbusData("4x", 201, 1)
         if op_data:
-            operation_code = parse_modbus(op_data, 'uint16')
+            operation_code = parseModbus(op_data, 'uint16')
             print(f"   操作码: {operation_code}")
             # 根据操作码构建参数
             if operation_code == 1:
@@ -302,7 +302,7 @@ class Jack(ModuleBase):
                 # 读取高度参数
                 height_data = NetProtocol.getModbusData("4x", 202, 2)
                 if len(height_data) >= 2:
-                    height = parse_modbus(height_data, 'float')
+                    height = parseModbus(height_data, 'float')
                     print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
                     print(f"   解析后高度值: {height:.4f}m")
                     # 限制在有效范围内
@@ -317,7 +317,7 @@ class Jack(ModuleBase):
                 # 读取角度参数
                 angle_data = NetProtocol.getModbusData("4x", 202, 1)
                 if angle_data:
-                    angle_raw = parse_modbus(angle_data, 'int16')
+                    angle_raw = parseModbus(angle_data, 'int16')
                     args["spinAngle"] = angle_raw / 100.0  # 转换为度
                     print(f"   设置角度: {args['spinAngle']:.2f}度")
                 else:
@@ -331,7 +331,7 @@ class Jack(ModuleBase):
                 str_data = NetProtocol.getModbusData("4x", 202, 4)
                 if str_data:
                     # 使用parse_modbus函数解析字符串
-                    device_name = parse_modbus(str_data, 'string', 0, len(str_data))
+                    device_name = parseModbus(str_data, 'string', 0, len(str_data))
                     if device_name:
                         args["device"] = device_name
                         print(f"   设备名称: {device_name}")
@@ -344,14 +344,14 @@ def main():
     Module.init()
     print("main")
     j = Jack()
-    validator = ParamValidator(InputParams.builder.to_dict())
+    validator = ParamValidator(InputParams.builder.toDict())
     modbus_args = None
 
     while True:
         # 脚本任务状态管理
         status = j.status
         print("status", status)
-        Module.set_status(status)
+        Module.setStatus(status)
         j.report_info["status"] = status
         j.print_info()
         if j.event_safe_move_check:
@@ -360,7 +360,7 @@ def main():
             modbus_args = j.modbus()
             j.event_modbus = False
         if status == ScriptStatus.NONE:
-            args = modbus_args or Module.get_task_args()
+            args = modbus_args or Module.getTaskArgs()
             if args:
                 try:
                     # 验证参数

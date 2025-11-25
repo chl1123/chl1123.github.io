@@ -20,7 +20,7 @@ class LaserV3(Message):
         data: msgAllLasers = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgAllLasers
             cls._MODEL_CLASS = msgAllLasers
@@ -40,7 +40,7 @@ class LaserV3(Message):
     @call_service(plugin_name="SensorFuser")
     def clear2DLaserWidth(cls, device_list: List[str]):
         """清除激光设备宽度
-        
+
         Args:
             device_list (List[str]): 激光设备名称列表
         """
@@ -62,7 +62,7 @@ class LaserV3(Message):
     @call_service(plugin_name="SensorFuser")
     def clear2DLaserAngle(cls, device_list: List[str]):
         """清除激光设备角度
-        
+
         Args:
             device_list (List[str]): 激光设备名称列表
         """
@@ -119,12 +119,12 @@ class Laser3DV3(Message):
         data: msgAllLasers3D = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgAllLasers3D
             cls._MODEL_CLASS = msgAllLasers3D
 
-    def get_lasers3d(self) -> List["msgLaser3D"]:
+    def getLasers3d(self) -> List["msgLaser3D"]:
         """获取所有3D激光数据列表
 
         Returns:
@@ -132,4 +132,3 @@ class Laser3DV3(Message):
         """
         if self.update():
             return self.data.lasers3D
-

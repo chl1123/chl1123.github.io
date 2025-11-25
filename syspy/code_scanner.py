@@ -15,7 +15,7 @@ class CodeScannerInterface(ABC, Message):
     """PGV类"""
 
     @classmethod
-    def get_code_scanners(cls) -> List["msgCodeScannerDMT"]:
+    def getCodeScanners(cls) -> List["msgCodeScannerDMT"]:
         """获取msgCodeScannerDMT对象列表
 
         Returns:
@@ -24,7 +24,7 @@ class CodeScannerInterface(ABC, Message):
         Examples:
         ```python
         from syspy import CodeScanner
-        code_scanners = CodeScanner.get_code_scanners()
+        code_scanners = CodeScanner.getCodeScanners()
         for code_scanner in code_scanners:  # code_scanner为msgCodeScannerDMT的对象
             print(code_scanner.codeScannerInfo.name)
             print(code_scanner.tagValue)

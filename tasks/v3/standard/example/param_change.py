@@ -76,15 +76,15 @@ class Jack(ModuleBase):
         self.report_info["run_time"] = round(time.time() - start_time, 2)
 
     def print_info(self):
-        Trace.log(f"task_id={Module.get_task_id()}, status={Module.get_status()}, args={self.args}")
-        Module.report_info(self.report_info)
+        Trace.log(f"task_id={Module.getTaskId()}, status={Module.getStatus()}, args={self.args}")
+        Module.reportInfo(self.report_info)
 
     def suspend(self):
         self.status = ScriptStatus.SUSPENDED
         Trace.log("suspend")
 
     def resume(self):
-        if Module.get_status() == ScriptStatus.SUSPENDED:
+        if Module.getStatus() == ScriptStatus.SUSPENDED:
             self.status = ScriptStatus.RUNNING
         Trace.log("resume")
 
@@ -101,11 +101,11 @@ def main():
     j = Jack()
     while True:
         status = j.status
-        Module.set_status(status)
+        Module.setStatus(status)
         j.report_info["status"] = status
         j.print_info()
         if status == ScriptStatus.NONE:
-            args = Module.get_task_args()
+            args = Module.getTaskArgs()
             j.init_args(args)
         elif status == ScriptStatus.RUNNING:
             j.run()

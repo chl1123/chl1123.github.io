@@ -7,7 +7,7 @@ class LocInterface(ABC, Message):
     """定位类"""
 
     @classmethod
-    def get_pose(cls) -> typing.Dict[str, float]:
+    def getPose(cls) -> typing.Dict[str, float]:
         """获取机器人位姿（位置和姿态）
 
         Returns:
@@ -22,7 +22,7 @@ class LocInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_confidence(cls) -> float:
+    def getConfidence(cls) -> float:
         """获取定位置信度
 
         Returns:
@@ -31,7 +31,7 @@ class LocInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_loc_state(cls) -> int:
+    def getLocState(cls) -> int:
         """获取定位状态
 
         Returns:
@@ -45,7 +45,7 @@ class LocInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_loc_method(cls) -> int:
+    def getLocMethod(cls) -> int:
         """获取定位方法
 
         Returns:

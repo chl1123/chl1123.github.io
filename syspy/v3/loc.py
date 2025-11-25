@@ -13,12 +13,12 @@ class LocV3(LocInterface):
         data: msgLocalization = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgLocalization  # 延迟导入
             cls._MODEL_CLASS = msgLocalization
 
-    def get_pose(self) -> typing.Dict[str, float]:
+    def getPose(self) -> typing.Dict[str, float]:
         """获取机器人位姿（位置和姿态）
 
         Returns:
@@ -40,7 +40,7 @@ class LocV3(LocInterface):
                 "pitch": math.degrees(self.data.pitch),
             }
 
-    def get_confidence(self) -> float:
+    def getConfidence(self) -> float:
         """获取定位置信度
 
         Returns:
@@ -49,7 +49,7 @@ class LocV3(LocInterface):
         if self.update():
             return self.data.confidence
 
-    def get_loc_state(self) -> int:
+    def getLocState(self) -> int:
         """获取定位状态
 
         Returns:
@@ -62,7 +62,7 @@ class LocV3(LocInterface):
         if self.update():
             return self.data.locState
 
-    def get_loc_method(self) -> int:
+    def getLocMethod(self) -> int:
         """获取定位方法
 
         Returns:

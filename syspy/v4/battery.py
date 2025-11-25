@@ -2,6 +2,7 @@ from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy.v4.lib.rbk import datapool
 from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery
 
+
 class BatteryV4(Message):
     """版本4电池实现"""
 
@@ -10,11 +11,11 @@ class BatteryV4(Message):
         self.is_publish = False
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             cls._MODEL_CLASS = MessageV4_Battery
 
-    def get_percentage(self, *, topic: str = "Battery-000") -> float:
+    def getPercentage(self, *, topic: str = "Battery-000") -> float:
         """获取电池电量百分比
 
         Returns:
@@ -23,7 +24,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].percetage
 
-    def get_charge_current(self, *, topic: str = "Battery-000") -> float:
+    def getChargeCurrent(self, *, topic: str = "Battery-000") -> float:
         """获取充电电流
 
         Returns:
@@ -32,7 +33,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].charge_current
 
-    def get_charge_voltage(self, *, topic: str = "Battery-000") -> float:
+    def getChargeVoltage(self, *, topic: str = "Battery-000") -> float:
         """获取充电电压
 
         Returns:
@@ -41,7 +42,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].charge_voltage
 
-    def get_is_charging(self, *, topic: str = "Battery-000") -> bool:
+    def getIsCharging(self, *, topic: str = "Battery-000") -> bool:
         """获取是否正在充电状态
 
         Returns:
@@ -50,7 +51,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].is_charging
 
-    def get_temperature(self, *, topic: str = "Battery-000") -> float:
+    def getTemperature(self, *, topic: str = "Battery-000") -> float:
         """获取电池温度
 
         Returns:
@@ -59,7 +60,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].temperature
 
-    def get_cycle(self, *, topic: str = "Battery-000") -> int:
+    def getCycle(self, *, topic: str = "Battery-000") -> int:
         """获取电池循环次数
 
         Returns:
@@ -68,7 +69,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].cycle
 
-    def get_max_charge_current(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电流
 
         Returns:
@@ -77,7 +78,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].max_charge_current
 
-    def get_max_charge_voltage(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电压
 
         Returns:
@@ -86,7 +87,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].max_charge_voltage
 
-    def get_extra(self, *, topic: str = "Battery-000") -> str:
+    def getExtra(self, *, topic: str = "Battery-000") -> str:
         """获取额外信息
 
         Returns:
@@ -95,7 +96,7 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].extra
 
-    def get_is_manually_connected(self, *, topic: str = "Battery-000") -> bool:
+    def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> bool:
         """获取是否手动连接状态
 
         Returns:
@@ -103,7 +104,7 @@ class BatteryV4(Message):
         """
         raise RBKVersionError()
 
-    def get_user_data(self, *, topic: str = "Battery-000") -> bytes:
+    def getUserData(self, *, topic: str = "Battery-000") -> bytes:
         """获取用户数据
 
         Returns:

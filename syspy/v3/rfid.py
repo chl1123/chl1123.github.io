@@ -13,12 +13,12 @@ class RFIDV3(RFIDInterface):
         data: msgRFID = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgRFID
             cls._MODEL_CLASS = msgRFID
 
-    def get_rfids(self) -> typing.List["msgRFIDNode"]:
+    def getRfids(self) -> typing.List["msgRFIDNode"]:
         """获取RFID节点列表
 
         Returns:

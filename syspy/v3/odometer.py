@@ -15,12 +15,12 @@ class OdometerV3(OdometerInterface):
         data: msgOdometer = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgOdometer
             cls._MODEL_CLASS = msgOdometer
 
-    def get_cycle(self) -> int:
+    def getCycle(self) -> int:
         """获取周期计数
 
         Returns:
@@ -29,7 +29,7 @@ class OdometerV3(OdometerInterface):
         if self.update():
             return self.data.cycle
 
-    def get_position(self) -> typing.Tuple[float, float, float]:
+    def getPosition(self) -> typing.Tuple[float, float, float]:
         """获取位置，x坐标、y坐标、角度
 
         Returns:
@@ -40,7 +40,7 @@ class OdometerV3(OdometerInterface):
         if self.update():
             return self.data.x, self.data.y, math.degrees(self.data.angle)
 
-    def get_speeds(self) -> Tuple[float, float, float]:
+    def getSpeeds(self) -> Tuple[float, float, float]:
         """获取x、y、旋转方向速度
 
         Returns:
@@ -51,7 +51,7 @@ class OdometerV3(OdometerInterface):
         if self.update():
             return self.data.velX, self.data.velY, self.data.velRotate
 
-    def get_is_stop(self) -> bool:
+    def getIsStop(self) -> bool:
         """获取是否停止状态
 
         Returns:
@@ -60,7 +60,7 @@ class OdometerV3(OdometerInterface):
         if self.update():
             return self.data.isStop
 
-    def get_detect_skid(self) -> bool:
+    def getDetectSkid(self) -> bool:
         """获取是否检测到打滑
 
         Returns:
@@ -69,7 +69,7 @@ class OdometerV3(OdometerInterface):
         if self.update():
             return self.data.detectSkid
 
-    def get_motor_infos(self) -> List["msgMotorInfo"]:
+    def getMotorInfos(self) -> List["msgMotorInfo"]:
         """获取电机信息列表
 
         Returns:

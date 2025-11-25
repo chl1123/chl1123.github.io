@@ -315,6 +315,7 @@ class NavigationV4(NavigationInterface):
             {"x": -1.0, "y": 1.0},
             {"x": -1.0, "y": -1.0},
             {"x": 1.0, "y": 1.0}]
+
         Args:
             shape (List[Dict[str, float]]):
             recfile (str):
@@ -679,7 +680,7 @@ class NavStatusV4(NavStatusInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf.message.messageV4_movetask_pb2 import MessageV4_MoveStatus
             cls._MODEL_CLASS = MessageV4_MoveStatus
@@ -694,12 +695,12 @@ class NavStatusV4(NavStatusInterface):
         # todo RBK4
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
-    def get_block(self):
+    def getBlock(self):
         if self.update():
             return self.data.blocked
 
     @classmethod
-    def get_turn(cls, v_x, v_w):
+    def getTurn(cls, v_x, v_w):
         turn = 0
         if v_w >= math.radians(1) * 3:
             '''机身左旋'''
@@ -725,7 +726,7 @@ class NavStatusV4(NavStatusInterface):
                 turn = 3
         return turn
 
-    def get_task_status(self) -> "MessageV4_MoveStatus.TaskStatus":
+    def getTaskStatus(self) -> "MessageV4_MoveStatus.TaskStatus":
         """获取任务状态
 
         Returns:
@@ -734,6 +735,7 @@ class NavStatusV4(NavStatusInterface):
         if self.update():
             return self.data.task_status
 
+
 class NavSpeedV4(NavSpeedInterface):
     """导航速度类"""
 
@@ -741,16 +743,16 @@ class NavSpeedV4(NavSpeedInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf.message.messageV4_navigation_pb2 import MessageV4_NavSpeed
             cls._MODEL_CLASS = MessageV4_NavSpeed
 
-    def get_speeds(self) -> Tuple[float, float, float]:
+    def getSpeeds(self) -> Tuple[float, float, float]:
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
-    def get_motor_cmd(self) -> typing.List["MessageV4_MotorCmd"]:
+    def getMotorCmd(self) -> typing.List["MessageV4_MotorCmd"]:
         """获取电机指令列表
 
         Returns:
@@ -759,5 +761,5 @@ class NavSpeedV4(NavSpeedInterface):
         if self.update():
             return self.data.motor_cmd
 
-    def get_is2move(self) -> bool:
+    def getIs2Move(self) -> bool:
         raise RBKVersionError()

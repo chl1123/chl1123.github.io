@@ -28,7 +28,7 @@ class ConfigParams:
     @classmethod
     def _build_and_load_config(cls):
         """构建并加载配置参数"""
-        builder = param_loader.builder_config()
+        builder = param_loader.builderConfig()
 
         with builder.GROUPS():
             # 电机配置组
@@ -82,7 +82,7 @@ class ConfigParams:
     def reload_config(cls):
         """重新加载配置参数"""
         Trace.log("Reloading config parameters")
-        cls.config = param_loader.load_config()
+        cls.config = param_loader.loadConfig()
         Trace.log(f"Loaded config: {cls.config}")
         cls.jack_motor_name = cls.config.get("jackMotorName")
         cls.jack_motor_speed = cls.config.get("jackMotorSpeed")
@@ -123,7 +123,7 @@ def create_jack_height_param(builder):
 
 
 class InputParams:
-    builder = param_loader.builder_input()
+    builder = param_loader.builderInput()
 
     with builder.GROUPS():
         create_jack_height_param(builder)
@@ -297,7 +297,7 @@ class Jack(ModuleBase):
         if finished:
             Trace.log("spin finish")
             self.status = ScriptStatus.FINISHED
-        return Module.get_status()
+        return Module.getStatus()
 
     def getCurrentPathProperty(self):
         Trace.log("getCurrentPathProperty")
@@ -307,20 +307,20 @@ class Jack(ModuleBase):
 
     def print_info(self):
         # 打印当前任务id、任务状态、任务指令
-        Trace.log(f"task_id={Module.get_task_id()}, status={Module.get_status()}, args={self.args}")
+        Trace.log(f"task_id={Module.getTaskId()}, status={Module.getStatus()}, args={self.args}")
         print(f"{config_params.jack_motor_name=}")
         print(f"{config_params.jack_motor_speed=}")
         print(f"{config_params.jack_lift_zero=}")
         print(f"{config_params.jack_zero_di=}")
         print(f"{config_params.jack_up_di=}")
-        Module.report_info(self.report_info)
+        Module.reportInfo(self.report_info)
 
     def suspend(self):
         self.status = ScriptStatus.SUSPENDED
         Trace.log("suspend")
 
     def resume(self):
-        if Module.get_status() == ScriptStatus.SUSPENDED:
+        if Module.getStatus() == ScriptStatus.SUSPENDED:
             self.status = ScriptStatus.RUNNING
         Trace.log("resume")
 
@@ -345,16 +345,16 @@ def main():
         # 脚本任务状态管理
         status = j.status
         print("status", status)
-        Module.set_status(status)
+        Module.setStatus(status)
         j.report_info["status"] = status
         j.print_info()
         if status == ScriptStatus.NONE:
-            args = Module.get_task_args()
+            args = Module.getTaskArgs()
             if args:
                 try:
                     # 验证参数
                     print("args", args)
-                    args = param_loader.load_input(args)
+                    args = param_loader.loadInput(args)
                     print("check ok, args:", json.dumps(args, indent=2))
                 except ValueError as e:
                     print("check error:", e)

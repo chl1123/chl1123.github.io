@@ -15,7 +15,7 @@ class RFIDInterface(ABC, Message):
     """RFID类"""
 
     @classmethod
-    def get_rfids(cls) -> typing.List["msgRFIDNode"]:
+    def getRfids(cls) -> typing.List["msgRFIDNode"]:
         """获取RFID节点列表
 
         Returns:

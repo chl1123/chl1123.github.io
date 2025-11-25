@@ -19,9 +19,9 @@ class CameraInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def get_data(self) -> Optional[message.Message]:
+    def getData(self) -> Optional[message.Message]:
         """获取当前数据（不触发更新）"""
-        return self.child.get_data()
+        return self.child.getData()
 
     def addDisableDepthStrName(cls, ids: List[str]):
         """禁用多个指定名字的深度相机

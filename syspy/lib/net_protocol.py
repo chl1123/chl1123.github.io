@@ -93,9 +93,8 @@ else:
     raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
 
-def parse_modbus(modbus_data: List[int], data_type: str, start_index: int = 0, length: int = 1) -> Any:
-    """
-    解析特定类型的数据
+def parseModbus(modbus_data: List[int], data_type: str, start_index: int = 0, length: int = 1) -> Any:
+    """解析特定类型的数据
 
     Args:
         modbus_data (List[int]): 从NetProtocol.getModbusData获取的数据列表
@@ -137,14 +136,13 @@ def parse_modbus(modbus_data: List[int], data_type: str, start_index: int = 0, l
             return None
         # 提取指定范围的寄存器
         registers = modbus_data[start_index: start_index + length]
-        return registers_to_string(registers)
+        return registersToString(registers)
 
     return None
 
 
-def registers_to_string(registers: List[int]) -> str:
-    """
-    将寄存器列表转换为字符串
+def registersToString(registers: List[int]) -> str:
+    """将寄存器列表转换为字符串
 
     Args:
         registers (List[int]): 寄存器值列表

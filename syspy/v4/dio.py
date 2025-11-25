@@ -11,7 +11,7 @@ class DiV4(DiInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from syspy.v4.protobuf.message.messageV4_sensor_pb2 import MessageV4_DI
             cls._MODEL_CLASS = MessageV4_DI
@@ -38,7 +38,7 @@ class DiV4(DiInterface):
         """
         pass
 
-    def get_di(self, name: str) -> bool:
+    def getDi(self, name: str) -> bool:
         """检测单个DI状态信息
         Args:
             name (str): DI名
@@ -53,7 +53,7 @@ class DiV4(DiInterface):
                     return node.status
         return False
 
-    def get_dis(self) -> typing.List["Message_DINode"]:
+    def getDis(self) -> typing.List["Message_DINode"]:
         """获取DI消息中的节点列表
 
         Returns:
@@ -62,7 +62,7 @@ class DiV4(DiInterface):
         if self.update():
             return self.data.node
 
-    def get_max_di(self) -> int:
+    def getMaxDi(self) -> int:
         """获取DI消息中的最大节点数
 
         Returns:
@@ -81,14 +81,14 @@ class DoV4(DoInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from syspy.v4.protobuf.message.messageV4_sensor_pb2 import MessageV4_DO
             cls._MODEL_CLASS = MessageV4_DO
 
     @classmethod
-    @call_service(plugin_name="MoveFactory")  # todo RBK4
-    def setDO(cls, name: str, status: bool) -> bool:
+    @call_service(plugin_name="MoveFactory", func_name="setDO")  # todo RBK4
+    def setDo(cls, name: str, status: bool) -> bool:
         """控制DO的开关
 
         Args:
@@ -100,7 +100,7 @@ class DoV4(DoInterface):
         """
         pass
 
-    def get_do(self, name: str) -> bool:
+    def getDo(self, name: str) -> bool:
         """检测单个DO状态信息
 
         Args:
@@ -116,7 +116,7 @@ class DoV4(DoInterface):
                     return node.status
         return False
 
-    def get_dos(self) -> typing.List["Message_DONode"]:
+    def getDos(self) -> typing.List["Message_DONode"]:
         """获取DO消息中的节点列表
 
         Returns:
@@ -125,7 +125,7 @@ class DoV4(DoInterface):
         if self.update():
             return self.data.node
 
-    def get_max_node(self) -> int:
+    def getMaxNode(self) -> int:
         """获取DO消息中的最大节点数
 
         Returns:

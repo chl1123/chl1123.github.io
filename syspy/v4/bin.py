@@ -14,12 +14,12 @@ class BinV4(BinInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             # todo RBK4
             cls._MODEL_CLASS = None
 
-    def get_bins(self) -> List["Message_Bin"]:
+    def getBins(self) -> List["Message_Bin"]:
         if self.update():
             return self.data.bins
 
@@ -45,7 +45,7 @@ class ContainerV4(ContainerInterface):
     containers = {}
 
     @staticmethod
-    def _empty_container():
+    def _emptyContainer():
         return {
             "goodsName": "",
             "desc": "",
@@ -53,7 +53,7 @@ class ContainerV4(ContainerInterface):
         }
 
     @classmethod
-    def init_container(cls, number: int = 7):
+    def initContainer(cls, number: int = 7):
         """初始化背篓数据。
 
         Args:
@@ -67,12 +67,12 @@ class ContainerV4(ContainerInterface):
         raw_data = cls.db.gets(model_containers)
         for container_id, value in zip(model_containers, raw_data):
             if value is None:
-                cls.containers[container_id] = cls._empty_container()
+                cls.containers[container_id] = cls._emptyContainer()
             else:
                 try:
                     cls.containers[container_id] = ast.literal_eval(value)
                 except (SyntaxError, ValueError):
-                    cls.containers[container_id] = cls._empty_container()
+                    cls.containers[container_id] = cls._emptyContainer()
 
     @classmethod
     def setContainer(cls, container_id: str, goods_name: str, desc: str) -> bool:
@@ -105,15 +105,15 @@ class ContainerV4(ContainerInterface):
         """
         if container_id == "All":
             for key in cls.containers:
-                cls.containers[key] = cls._empty_container()
+                cls.containers[key] = cls._emptyContainer()
             # 对cls.containers每一个的value都转为str
             str_containers = {key: str(cls.containers[key]) for key in cls.containers}
             cls.db.puts(str_containers)
             return True
         else:
             if container_id in cls.containers:
-                cls.containers[container_id] = cls._empty_container()
-                cls.db.put(container_id, str(cls._empty_container))
+                cls.containers[container_id] = cls._emptyContainer()
+                cls.db.put(container_id, str(cls._emptyContainer()))
                 return True
             return False
 
@@ -129,14 +129,14 @@ class ContainerV4(ContainerInterface):
         """
         if goods_name == "All":
             for key in cls.containers:
-                cls.containers[key] = cls._empty_container()
+                cls.containers[key] = cls._emptyContainer()
             str_containers = {key: str(cls.containers[key]) for key in cls.containers}
             return cls.db.puts(str_containers)
         else:
             for key in cls.containers:
                 if cls.containers[key]["goodsName"] == goods_name:
-                    cls.containers[key] = cls._empty_container()
-                    cls.db.put(key, str(cls._empty_container))
+                    cls.containers[key] = cls._emptyContainer()
+                    cls.db.put(key, str(cls._emptyContainer()))
                     return True
             return False
 
@@ -154,7 +154,7 @@ class ContainerV4(ContainerInterface):
         return containers
 
     @classmethod
-    def has_goods(cls, container_id: str = '0') -> bool:
+    def hasGoods(cls, container_id: str = '0') -> bool:
         """检查指定背篓是否包含货物。
 
         Args:
@@ -168,7 +168,7 @@ class ContainerV4(ContainerInterface):
         return False
 
     @classmethod
-    def goods_exist(cls, goods_name) -> bool:
+    def goodsExist(cls, goods_name) -> bool:
         """检查指定的货物是否存在。
 
         Args:
@@ -183,7 +183,7 @@ class ContainerV4(ContainerInterface):
         return False
 
     @classmethod
-    def get_task_goods(cls):
+    def getTaskGoods(cls):
         """从任务参数中获取货物ID。
 
         Returns:
@@ -196,7 +196,7 @@ class ContainerV4(ContainerInterface):
         return ""
 
     @classmethod
-    def get_goods_by_container(cls, container_id: str = '0') -> str:
+    def getGoodsByContainer(cls, container_id: str = '0') -> str:
         """根据背篓名称获取对应的货物ID。
 
         Args:
@@ -209,7 +209,7 @@ class ContainerV4(ContainerInterface):
             return cls.containers[container_id].get("goodsName", "")
 
     @classmethod
-    def get_container_by_goods(cls, goods_name) -> str:
+    def getContainerByGoods(cls, goods_name) -> str:
         """根据货物名查找其所在的背篓。
 
         Args:
@@ -224,7 +224,7 @@ class ContainerV4(ContainerInterface):
         return ""
 
     @classmethod
-    def get_json_containers(cls) -> dict:
+    def getJsonContainers(cls) -> dict:
         """以原始格式返回所有背篓的状态。
 
         Returns:

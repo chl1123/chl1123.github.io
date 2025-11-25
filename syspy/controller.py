@@ -6,7 +6,7 @@ class ControllerInterface(ABC, Message):
     """控制器类"""
 
     @classmethod
-    def get_temperature(cls) -> float:
+    def getTemperature(cls) -> float:
         """获取温度值
 
         Returns:
@@ -15,7 +15,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_humidity(cls) -> float:
+    def getHumidity(cls) -> float:
         """获取湿度值
 
         Returns:
@@ -24,7 +24,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_voltage(cls) -> float:
+    def getVoltage(cls) -> float:
         """获取电压值
 
         Returns:
@@ -33,7 +33,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_emc(cls) -> bool:
+    def getEmc(cls) -> bool:
         """获取EMC状态
 
         Returns:
@@ -42,7 +42,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_brake(cls) -> bool:
+    def getBrake(cls) -> bool:
         """获取制动状态
 
         Returns:
@@ -51,7 +51,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_driver_EMC(cls) -> bool:
+    def getDriverEmc(cls) -> bool:
         """获取驱动EMC状态
 
         Returns:
@@ -60,7 +60,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_manual_charge(cls) -> bool:
+    def getManualCharge(cls) -> bool:
         """获取手动充电状态
 
         Returns:
@@ -69,7 +69,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_auto_charge(cls) -> bool:
+    def getAutoCharge(cls) -> bool:
         """获取自动充电状态
 
         Returns:
@@ -78,7 +78,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_electric(cls) -> bool:
+    def getElectric(cls) -> bool:
         """获取电动状态
 
         Returns:
@@ -87,7 +87,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_soft_EMC(cls) -> bool:
+    def getSoftEmc(cls) -> bool:
         """获取软EMC状态
 
         Returns:
@@ -96,7 +96,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_is_external_control(cls) -> bool:
+    def getIsExternalControl(cls) -> bool:
         """获取是否为外部控制状态
 
         Returns:
@@ -105,7 +105,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_is_IMU_calibrating(cls) -> bool:
+    def getIsImuCalibrating(cls) -> bool:
         """获取IMU是否正在校准状态
 
         Returns:
@@ -114,7 +114,7 @@ class ControllerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_ADC_voltage(cls) -> float:
+    def getAdcVoltage(cls) -> float:
         """获取通过ADC检测到的外部电压值
 
         Returns:

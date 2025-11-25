@@ -15,7 +15,7 @@ class MotorInterface(ABC, Message):
     """电机类"""
 
     @staticmethod
-    def get_motor_infos() -> List["msgMotorInfo"]:
+    def getMotorInfos() -> List["msgMotorInfo"]:
         """获取电机信息列表
 
         Returns:
@@ -24,16 +24,16 @@ class MotorInterface(ABC, Message):
         Examples:
         ```python
         from syspy import Motor
-        motor_infos = Motor.get_motor_infos()
-        for motor_info in motor_infos:  # motor_info为msgMotorInfo的对象
-            print(motor_info.name)
-            print(motor_info.position)
+        motorInfos = Motor.getMotorInfos()
+        for motorInfo in motorInfos:  # motorInfo为msgMotorInfo的对象
+            print(motorInfo.name)
+            print(motorInfo.position)
         ```
         """
         raise RBKVersionError()
 
     @staticmethod
-    def get_motor_pos(motor_name: str) -> Union[float, int]:
+    def getMotorPos(motor_name: str) -> Union[float, int]:
         """获取指定电机的当前位置
 
         Args:
@@ -45,7 +45,7 @@ class MotorInterface(ABC, Message):
         raise RBKVersionError()
 
     @staticmethod
-    def get_motor_speed(motor_name: str) -> Union[float, int]:
+    def getMotorSpeed(motor_name: str) -> Union[float, int]:
         """获取指定电机的当前速度
 
         Args:

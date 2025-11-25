@@ -318,6 +318,7 @@ class NavigationV3(NavigationInterface):
             {"x": -1.0, "y": 1.0},
             {"x": -1.0, "y": -1.0},
             {"x": 1.0, "y": 1.0}]
+
         Args:
             shape (List[Dict[str, float]]):
             recfile (str):
@@ -778,9 +779,8 @@ class NavStatusV3(NavStatusInterface):
         from .protobuf import msgMoveStatus
         data: msgMoveStatus = None
 
-
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgMoveStatus
             cls._MODEL_CLASS = msgMoveStatus
@@ -794,12 +794,12 @@ class NavStatusV3(NavStatusInterface):
         """
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
-    def get_block(self):
+    def getBlock(self):
         if self.update():
             return self.data.blocked
 
     @classmethod
-    def get_turn(cls, v_x, v_w):
+    def getTurn(cls, v_x, v_w):
         turn = 0
         if v_w >= math.radians(1) * 3:
             '''机身左旋'''
@@ -825,7 +825,7 @@ class NavStatusV3(NavStatusInterface):
                 turn = 3
         return turn
 
-    def get_task_status(self) -> "msgMoveStatus.taskStatus":
+    def getTaskStatus(self) -> "msgMoveStatus.taskStatus":
         """获取任务状态
 
         Returns:
@@ -833,6 +833,25 @@ class NavStatusV3(NavStatusInterface):
         """
         if self.update():
             return self.data.taskStatus
+
+    def getRunningStatus(self) -> "msgMoveStatus.runningStatus":
+        """获取运行状态
+
+        Returns:
+            (msgMoveStatus.runningStatus): 返回运行状态
+        """
+        if self.update():
+            return self.data.runningStatus
+
+    def getCurrentStation(self) -> str:
+        """获取机器人当前所在站点
+
+        Returns:
+            (str): 机器人站点名
+        """
+        if self.update():
+            return self.data.closestTarget
+
 
 class NavSpeedV3(NavSpeedInterface):
     """导航速度类"""
@@ -845,16 +864,16 @@ class NavSpeedV3(NavSpeedInterface):
         data: msgNavSpeed = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgNavSpeed
             cls._MODEL_CLASS = msgNavSpeed
 
-    def get_speeds(self) -> Tuple[float, float, float]:
+    def getSpeeds(self) -> Tuple[float, float, float]:
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
-    def get_motor_cmd(self) -> typing.List["msgMotorCmd"]:
+    def getMotorCmd(self) -> typing.List["msgMotorCmd"]:
         """获取电机指令列表
 
         Returns:
@@ -863,7 +882,7 @@ class NavSpeedV3(NavSpeedInterface):
         if self.update():
             return self.data.motorCmd
 
-    def get_is2move(self) -> bool:
+    def getIs2Move(self) -> bool:
         """获取是否准备移动的标志位
 
         Returns:

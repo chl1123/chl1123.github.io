@@ -13,7 +13,7 @@ class OdometerInterface(ABC, Message):
     """里程类"""
 
     @classmethod
-    def get_cycle(cls) -> int:
+    def getCycle(cls) -> int:
         """获取周期计数
 
         Returns:
@@ -22,7 +22,7 @@ class OdometerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_position(cls) -> typing.Tuple[float, float, float]:
+    def getPosition(cls) -> typing.Tuple[float, float, float]:
         """获取位置，x坐标、y坐标、角度
 
         Returns:
@@ -33,7 +33,7 @@ class OdometerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_speeds(cls) -> Tuple[float, float, float]:
+    def getSpeeds(cls) -> Tuple[float, float, float]:
         """获取x、y、旋转方向速度
 
         Returns:
@@ -44,7 +44,7 @@ class OdometerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_is_stop(cls) -> bool:
+    def getIsStop(cls) -> bool:
         """获取是否停止状态
 
         Returns:
@@ -53,7 +53,7 @@ class OdometerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_detect_skid(cls) -> bool:
+    def getDetectSkid(cls) -> bool:
         """获取是否检测到打滑
 
         Returns:
@@ -62,7 +62,7 @@ class OdometerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_motor_infos(cls) -> List["msgMotorInfo"]:
+    def getMotorInfos(cls) -> List["msgMotorInfo"]:
         """获取电机信息列表
 
         Returns:
@@ -70,8 +70,8 @@ class OdometerInterface(ABC, Message):
 
         Examples:
         ```python
-        from syspy import Motor
-        motor_infos = Motor.get_motor_infos()
+        from syspy import Odometer
+        motor_infos = Odometer.getMotorInfos()
         for motor_info in motor_infos:  # motor_info为msgMotorInfo的对象
             print(motor_info.name)
             print(motor_info.position)

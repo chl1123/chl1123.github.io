@@ -182,35 +182,35 @@ class Jack(ModuleBase):
         self.args = args
         self.report_info = {}
         self.report_info["args"] = args
-        Module.set_status(ScriptStatus.NONE)
+        Module.setStatus(ScriptStatus.NONE)
 
     def run(self):
         self.count += 1
-        Module.set_status(ScriptStatus.RUNNING)
+        Module.setStatus(ScriptStatus.RUNNING)
         self.report_info["count"] = self.count
         self.report_info["run_time"] = round(time.time() - start_time, 2)
         self.opt = self.args.get('operation', None)
         self.height = self.args.get('height', None)
         if self.count == 1:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
         ...
 
     def print_info(self):
         # 打印当前任务id、任务状态、任务指令
-        log.info(f"{Module.get_task_id()=}, {Module.get_status()=}, {Module.get_task_args()=}")
-        Module.report_info(self.report_info)
+        log.info(f"{Module.getTaskId()=}, {Module.getStatus()=}, {Module.getTaskArgs()=}")
+        Module.reportInfo(self.report_info)
 
     def suspend(self):
-        Module.set_status(ScriptStatus.SUSPENDED)
+        Module.setStatus(ScriptStatus.SUSPENDED)
         log.info("suspend")
 
     def resume(self):
-        if Module.get_status() == ScriptStatus.SUSPENDED:
-            Module.set_status(ScriptStatus.RUNNING)
+        if Module.getStatus() == ScriptStatus.SUSPENDED:
+            Module.setStatus(ScriptStatus.RUNNING)
         log.info("resume")
 
     def cancel(self):
-        Module.set_status(ScriptStatus.FAILED)
+        Module.setStatus(ScriptStatus.FAILED)
         log.info("cancel")
 
 
@@ -238,8 +238,8 @@ def main():
     #     "operation.JackSpin.spin_type": "1"
     # }
 
-    validator = ParamValidator(InputParams.builder.to_dict())
-    input_params = Module.get_task_args()
+    validator = ParamValidator(InputParams.builder.toDict())
+    input_params = Module.getTaskArgs()
     print("task args:", json.dumps(input_params, indent=2))
     validated_params = {}
     try:
@@ -253,7 +253,7 @@ def main():
 
     while not Module.stop_flag:
         # 脚本任务状态管理
-        status = Module.get_status()
+        status = Module.getStatus()
         j.report_info["status"] = status
         j.print_info()
         if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):

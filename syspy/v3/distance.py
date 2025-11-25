@@ -8,7 +8,7 @@ class DistanceV3(DistanceInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgDistanceSensor
             cls._MODEL_CLASS = msgDistanceSensor
