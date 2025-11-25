@@ -14,7 +14,7 @@ class CalibMove:
             self.init = False
             self.cancel = False
             self.status = ScriptStatus.RUNNING
-            self.motor_name = Module.get_task_args("name","Motor-005")
+            self.motor_name = Module.getTaskArgs("name","Motor-005")
             self.pos = 1.0
             # Motor.resetMotor(self.motor_name)
             # Motor.setMotorPosition(self.motor_name, 0.0, 10.0, 0)
@@ -23,7 +23,7 @@ class CalibMove:
 
 
 
-        self.pos = Motor.get_motor_pos(self.motor_name)
+        self.pos = Motor.getMotorPos(self.motor_name)
 
         # if Motor.isMotorReached(self.motor_name):
         if Navigation.spinRun():
@@ -53,16 +53,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return

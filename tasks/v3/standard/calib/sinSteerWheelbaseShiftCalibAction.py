@@ -55,20 +55,20 @@ class CalibMove:
         # 初始化
         if self.init:
             Navigation.resetOdoMove()
-            Module.set_status(ScriptStatus.RUNNING)
+            Module.setStatus(ScriptStatus.RUNNING)
             self.init = False
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.ForkUnload1
-            self.rotCount = int(Module.get_task_args("rotCount",3))
-            self.speed_w = Module.get_task_args("W", 30) * math.pi / 180
-            self.wheelBaseMotorName = Module.get_task_args("wheelBaseMotorName", "Motor-002")
-            self.wheelBaseMaxHeight = Module.get_task_args("wheelBaseMaxHeight", 0.205)
-            self.wheelBaseMinHeight = Module.get_task_args("wheelBaseMinHeight", 0.085)
-            self.DOMotorWheelBase = Module.get_task_args("DOMotorWheelBase", False)
+            self.rotCount = int(Module.getTaskArgs("rotCount",3))
+            self.speed_w = Module.getTaskArgs("W", 30) * math.pi / 180
+            self.wheelBaseMotorName = Module.getTaskArgs("wheelBaseMotorName", "Motor-002")
+            self.wheelBaseMaxHeight = Module.getTaskArgs("wheelBaseMaxHeight", 0.205)
+            self.wheelBaseMinHeight = Module.getTaskArgs("wheelBaseMinHeight", 0.085)
+            self.DOMotorWheelBase = Module.getTaskArgs("DOMotorWheelBase", False)
             self.pos = 0.0
             self.cancel = False
 
-        self.pos = Motor.get_motor_pos(self.wheelBaseMotorName)
+        self.pos = Motor.getMotorPos(self.wheelBaseMotorName)
         # 实时运行
         if self.move_action == MoveAction.ForkUnload1:
             if self.DOMotorWheelBase:
@@ -137,16 +137,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return

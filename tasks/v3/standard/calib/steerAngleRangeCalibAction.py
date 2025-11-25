@@ -57,20 +57,20 @@ class CalibMove:
     def run(self):
         if self.init:
             self.init = False
-            Module.set_status(ScriptStatus.RUNNING)
+            Module.setStatus(ScriptStatus.RUNNING)
             self.last_motor_angle = 0.0
-            self.steer_name = Module.get_task_args("name","Motor-001")
-            self.steer_max_angle = Module.get_task_args("max_angle",90.0)
-            self.steer_min_angle = Module.get_task_args("min_angle",-90.0)
-            self.steer_offset = Module.get_task_args("offset",0.0)
-            self.chassis_mode = Module.get_task_args("chassis_mode","")
+            self.steer_name = Module.getTaskArgs("name","Motor-001")
+            self.steer_max_angle = Module.getTaskArgs("max_angle",90.0)
+            self.steer_min_angle = Module.getTaskArgs("min_angle",-90.0)
+            self.steer_offset = Module.getTaskArgs("offset",0.0)
+            self.chassis_mode = Module.getTaskArgs("chassis_mode","")
             self.cancel = False
             self.center_angle = self.steer_offset + 0.5*(self.steer_max_angle + self.steer_min_angle)
 
         if self.steer_name == "":
             log.info("steer name emtpy!")
             return ScriptStatus.FINISHED
-        self.cur_angle = Motor.get_motor_pos(self.steer_name)
+        self.cur_angle = Motor.getMotorPos(self.steer_name)
 
         if self.steer_dir == SteerDir.MoveWait:
             self.send_angle = self.center_angle*math.pi/180
@@ -133,16 +133,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return

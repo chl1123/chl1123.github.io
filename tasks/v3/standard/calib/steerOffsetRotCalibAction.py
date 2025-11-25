@@ -64,12 +64,12 @@ class CalibMove:
         # 初始化
         if self.init:
             self.init = False
-            Module.set_status(ScriptStatus.RUNNING)
+            Module.setStatus(ScriptStatus.RUNNING)
             Navigation.resetOdoMove()
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.SteerPSpeedPSteer
-            self.steer_name = Module.get_task_args("name","")
-            self.speed_w = Module.get_task_args("W", 45) * math.pi / 180
+            self.steer_name = Module.getTaskArgs("name","")
+            self.speed_w = Module.getTaskArgs("W", 45) * math.pi / 180
             self.cancel = False
 
         # 实时运行
@@ -122,16 +122,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return

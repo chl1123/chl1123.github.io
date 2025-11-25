@@ -132,22 +132,22 @@ class CalibMove:
     def run(self):
         # 初始化
         if self.init:
-            Module.set_status(ScriptStatus.RUNNING)
+            Module.setStatus(ScriptStatus.RUNNING)
             Navigation.resetOdoMove()
             self.init = False
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.Straight
             self.cur_time = 1
             self.cur_num = 0
-            self.MoveMaxDist = Module.get_task_args("L", 1.5)
-            self.MoveMaxAngle = float(Module.get_task_args("angle",30))* math.pi/180
-            self.CapturePhotoNum = int(Module.get_task_args("num",8))
-            self.time = Module.get_task_args("time",1)
-            self.MoveSpeed = Module.get_task_args("MoveSpeed",0.3)
-            self.MoveAngleSpeed = Module.get_task_args("MoveAngleSpeed",math.pi / 6)
-            self.fileName = Module.get_task_args("fileName","")
-            self.filePath = Module.get_task_args("filePath","")
-            self.camName = Module.get_task_args("deviceName","Camera-000")
+            self.MoveMaxDist = Module.getTaskArgs("L", 1.5)
+            self.MoveMaxAngle = float(Module.getTaskArgs("angle",30))* math.pi/180
+            self.CapturePhotoNum = int(Module.getTaskArgs("num",8))
+            self.time = Module.getTaskArgs("time",1)
+            self.MoveSpeed = Module.getTaskArgs("MoveSpeed",0.3)
+            self.MoveAngleSpeed = Module.getTaskArgs("MoveAngleSpeed",math.pi / 6)
+            self.fileName = Module.getTaskArgs("fileName","")
+            self.filePath = Module.getTaskArgs("filePath","")
+            self.camName = Module.getTaskArgs("deviceName","Camera-000")
             self.cancel = False
 
         # 实时运行
@@ -244,16 +244,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return

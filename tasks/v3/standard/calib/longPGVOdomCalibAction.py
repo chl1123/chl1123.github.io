@@ -94,16 +94,16 @@ class CalibMove:
         if self.init:
             self.init = False
             Navigation.resetOdoMove()
-            Module.set_status(ScriptStatus.RUNNING)
+            Module.setStatus(ScriptStatus.RUNNING)
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.InitcallGo2QRCenter
-            self.upside = Module.get_task_args("up_side", False)
-            self.short_move_dist = Module.get_task_args("distanceBack", 0.1)
-            self.short_rot_angle = Module.get_task_args("angleBack", 30.0)*math.pi/180
-            self.move_dist = Module.get_task_args("distanceForward", 1.0)
-            self.move_angle = Module.get_task_args("angleForward", 360)*math.pi/180
-            self.speed_x = Module.get_task_args("V", 0.1)
-            self.speed_w = Module.get_task_args("W", 30) * math.pi / 180
+            self.upside = Module.getTaskArgs("up_side", False)
+            self.short_move_dist = Module.getTaskArgs("distanceBack", 0.1)
+            self.short_rot_angle = Module.getTaskArgs("angleBack", 30.0)*math.pi/180
+            self.move_dist = Module.getTaskArgs("distanceForward", 1.0)
+            self.move_angle = Module.getTaskArgs("angleForward", 360)*math.pi/180
+            self.speed_x = Module.getTaskArgs("V", 0.1)
+            self.speed_w = Module.getTaskArgs("W", 30) * math.pi / 180
             Navigation.resetGoPGV()
             self.cancel = False
 
@@ -152,20 +152,20 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             calib_move.Cancel()
             return
         if calib_move.cancel:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
 
 if __name__ == '__main__':

@@ -52,16 +52,16 @@ class CalibMove:
     def run(self):
         # 初始化
         if self.init:
-            Module.set_status(ScriptStatus.RUNNING)
+            Module.setStatus(ScriptStatus.RUNNING)
             Navigation.resetOdoMove()
             self.init = False
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.Back1
-            self.move_dist = Module.get_task_args("L", 0.2)
-            self.speed_x = Module.get_task_args("V", 0.1)
+            self.move_dist = Module.getTaskArgs("L", 0.2)
+            self.speed_x = Module.getTaskArgs("V", 0.1)
             self.cancel = False
-            self.calibType = Module.get_task_args("calibType", "")
-            # self.deviceName = Module.get_task_args("deviceNameList", "")
+            self.calibType = Module.getTaskArgs("calibType", "")
+            # self.deviceName = Module.getTaskArgs("deviceNameList", "")
             # if self.deviceName != "":
             #     if self.calibType == "CameraMid360RPZExtrinsicCalib" or self.calibType == "CameraLocMid360RPZExtrinsicCalib":
             #         Camera.addDisableDepthStrName(self.deviceName)
@@ -111,16 +111,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return

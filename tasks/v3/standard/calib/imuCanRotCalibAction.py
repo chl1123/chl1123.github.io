@@ -76,15 +76,15 @@ class CalibMove:
         # 初始化
         if self.init:
             self.init = False
-            Module.set_status(ScriptStatus.RUNNING)
+            Module.setStatus(ScriptStatus.RUNNING)
             Navigation.resetOdoMove()
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.GoStraightForWard
-            self.move_dist = Module.get_task_args("L", 2.0)
-            self.speed_x = Module.get_task_args("V", 1.0)
-            self.speed_w = Module.get_task_args("W", 45) * math.pi / 180
-            self.goStraightCnt = Module.get_task_args("goStraightCnt",3)
-            self.goRotCnt = Module.get_task_args("goRotCnt",2)
+            self.move_dist = Module.getTaskArgs("L", 2.0)
+            self.speed_x = Module.getTaskArgs("V", 1.0)
+            self.speed_w = Module.getTaskArgs("W", 45) * math.pi / 180
+            self.goStraightCnt = Module.getTaskArgs("goStraightCnt",3)
+            self.goRotCnt = Module.getTaskArgs("goRotCnt",2)
             self.curGoStraightCnt = 0
             self.curGoRotCnt = 0
             self.cancel = False
@@ -136,16 +136,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return

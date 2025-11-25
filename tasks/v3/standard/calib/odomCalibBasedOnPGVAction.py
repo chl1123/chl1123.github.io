@@ -84,16 +84,16 @@ class CalibMove:
         # 初始化
         if self.init:
             self.init = False
-            Module.set_status(ScriptStatus.RUNNING)
+            Module.setStatus(ScriptStatus.RUNNING)
             Navigation.resetOdoMove()
             self.status = ScriptStatus.RUNNING
             self.move_action = MoveAction.CalibShortBackward
-            self.up_side = Module.get_task_args("up_side", False)
-            self.short_move_dist = Module.get_task_args("distanceBack", 0.2)
-            self.move_dist = Module.get_task_args("distanceForward", 1.0)
-            self.move_angle = Module.get_task_args("angleForward", 360)*math.pi/180
-            self.speed_x = Module.get_task_args("V", 0.1)
-            self.speed_w = Module.get_task_args("W", 30) * math.pi / 180
+            self.up_side = Module.getTaskArgs("up_side", False)
+            self.short_move_dist = Module.getTaskArgs("distanceBack", 0.2)
+            self.move_dist = Module.getTaskArgs("distanceForward", 1.0)
+            self.move_angle = Module.getTaskArgs("angleForward", 360)*math.pi/180
+            self.speed_x = Module.getTaskArgs("V", 0.1)
+            self.speed_w = Module.getTaskArgs("W", 30) * math.pi / 180
             Navigation.resetGoPGV()
             self.cancel = False
             self.pgv_datas = [] # 保存PGV数据用于标定
@@ -105,7 +105,7 @@ class CalibMove:
             self.status = Navigation.runOdoMove({"moveDist": 0.05,  "speedX":-self.speed_x, "actionName":"short_move_dist"})
         elif self.move_action == MoveAction.CalibShortForward:
             self.status = Navigation.runOdoMove({"moveDist": 0.05,  "speedX":self.speed_x, "actionName":"short_move_dist"})
-            pgv_data = CodeScanner.get_code_scanners()
+            pgv_data = CodeScanner.getCodeScanners()
             for pgv in pgv_data:
                 if pgv.isDMTDetected and pgv.codeScannerInfo.isUpside == False:
                     self.pgv_datas.append(pgv)
@@ -163,16 +163,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return

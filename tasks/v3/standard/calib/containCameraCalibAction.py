@@ -59,7 +59,7 @@ class CalibMove:
         self.cur_angle = 0.0
 
     # def Rotate(self, pos):
-    #     cur_pos = Motor.get_motor_pos(self.motor_name)
+    #     cur_pos = Motor.getMotorPos(self.motor_name)
     #     info = dict()
     #     info["cur_pos"] = cur_pos
     #     info["pos"] = pos
@@ -80,12 +80,12 @@ class CalibMove:
             # self.spk = ContainerRobot()
             self.step_angle = 2.0
             self.cur_angle = self.step_angle
-            self.angle = Module.get_task_args("angle", 50.0)
-            self.motor_name = Module.get_task_args("name","Motor-003")
+            self.angle = Module.getTaskArgs("angle", 50.0)
+            self.motor_name = Module.getTaskArgs("name","Motor-003")
             self.cancel = False
 
         # 实时运行
-        self.pos = Motor.get_motor_pos(self.motor_name)
+        self.pos = Motor.getMotorPos(self.motor_name)
         if self.move_action == MoveAction.Start:
             self.cur_angle = 0.0
             if Motor.setMotorPosition(self.motor_name, self.cur_angle/180*math.pi, 10.0):
@@ -126,13 +126,13 @@ class CalibMove:
             if self.move_action == MoveAction.Start or \
                 self.move_action == MoveAction.Rotate or \
                 self.move_action == MoveAction.RevRotate:
-                Do.setDO("DO-005", True)
+                Do.setDo("DO-005", True)
                 record_status =  Navigation.calibRecord()
                 if not record_status:
                     self.status = ScriptStatus.RUNNING
                     return ScriptStatus.RUNNING
                 else:
-                    Do.setDO("DO-005", False)
+                    Do.setDo("DO-005", False)
                 if self.move_action == MoveAction.Rotate or self.move_action == MoveAction.RevRotate:
                     if self.cur_angle < self.angle:
                         self.cur_angle = self.cur_angle + self.step_angle
@@ -165,16 +165,16 @@ class CalibMove:
 def main():
     calib_move = CalibMove()
     Module.init()
-    Module.set_cancel_callback(calib_move.Cancel)
+    Module.setCancelCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
         # time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
-            Module.set_status(ScriptStatus.FINISHED)
+            Module.setStatus(ScriptStatus.FINISHED)
             return
         if calib_move.status == ScriptStatus.FAILED:
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
             return
