@@ -1,13 +1,10 @@
 import math
 import logging
-import json
-from enum import IntEnum
 import time
 
 from syspy.script_data import ScriptData
-from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus, Trace
-from syspy.lib.module import Pos2World
-from standard import goPath
+from syspy import Navigation, Loc, Abnormal, Module, ScriptStatus, Trace
+from syspy.lib.module import pos2World
 
 log = logging.getLogger("rbk.script")
 
@@ -68,11 +65,11 @@ class GoBezierWorld:
         Navigation.resetPath()
 
         # 获取机器人位置（world系）
-        self.robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+        self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
         # self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
         # 计算终点
-        self.end_position_world = Pos2World([-self.back_dist, 0, 0], self.target_world)
-        self.target_world = Pos2World([self.min_ahead_dist, 0, 0], self.target_world)
+        self.end_position_world = pos2World([-self.back_dist, 0, 0], self.target_world)
+        self.target_world = pos2World([self.min_ahead_dist, 0, 0], self.target_world)
 
         success = False
         max_offset = self.adjust_dist_for_curvature_limit
@@ -87,7 +84,7 @@ class GoBezierWorld:
                 P0 = [self.offset_dist, 0, math.pi]
             else:
                 P0 = [-self.offset_dist, 0, 0]
-            P0 = Pos2World(P0, self.robot_loc)
+            P0 = pos2World(P0, self.robot_loc)
             P3 = self.target_world
 
             # 三阶贝塞尔控制点
@@ -115,7 +112,7 @@ class GoBezierWorld:
                              "The positions of the robot and the target point cannot generate a Bezier curve",
                              "Adjust the robot's position before running this task",
                              "GoBezierWorld")
-            Module.set_status(ScriptStatus.FAILED)
+            Module.setStatus(ScriptStatus.FAILED)
         # if not success or self.k_max >= 30:
         #     return
 
@@ -461,7 +458,7 @@ class GoBezierWorld:
             is_reached = Navigation.isPathReached()
             # Trace.log(f"is_reached={is_reached}")
             # 获取机器人位置（world系）
-            self.robot_final_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            self.robot_final_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             if is_reached:
 
                 # 将贝塞尔的路径数据传入scriptData
@@ -474,7 +471,7 @@ class GoBezierWorld:
             else:
                 self.action_status = ScriptStatus.RUNNING
 
-            robot_current_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            robot_current_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             # robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_cur_loc_end_loc = math.hypot(
                 self.end_position_world[0] - robot_current_loc[0],
@@ -590,7 +587,7 @@ class GoBezierWorldReturn:
             self.bezier_target_pos_return = self.go_bezier_data["initial_point_world_return"]
             self.bezier_path_world_return = self.go_bezier_data["bezier_path_world_return"]
             self.go_bezier_final_pos = self.go_bezier_data["robot_final_loc"]
-            self.robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             # self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_bias = math.sqrt((self.go_bezier_final_pos[0] - self.robot_loc[0]) ** 2 + (
                         self.go_bezier_final_pos[1] - self.robot_loc[1]) ** 2)
@@ -636,7 +633,7 @@ class GoBezierWorldReturn:
             else:
                 self.action_status = ScriptStatus.RUNNING
 
-            robot_current_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            robot_current_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             # robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_cur_loc_end_loc = math.hypot(
                 self.end_position_world[0] - robot_current_loc[0],
@@ -679,7 +676,7 @@ def main():
                 action_status = ScriptStatus.FAILED
             elif bezier_return_status == ScriptStatus.FINISHED:
                 action_status = ScriptStatus.FINISHED
-        Module.set_status(action_status)
+        Module.setStatus(action_status)
         time.sleep(0.1)
 
 
