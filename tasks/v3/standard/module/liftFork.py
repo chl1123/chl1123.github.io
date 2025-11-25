@@ -1114,7 +1114,7 @@ class Fork(ModuleBase):
     def load(self):
         if not self.operation_init:
             self.operation_init = True
-            r_loc = Loc.get_pose()
+            r_loc = Loc.getPose()
 
             # 解析识别文件
             if self.recfile:
@@ -1215,7 +1215,7 @@ class Fork(ModuleBase):
 
             self.check_di = self.rec_info.get("enableCargoContactDI")
 
-            r_loc = Loc.get_pose()
+            r_loc = Loc.getPose()
             if (isinstance(current_action, Rec)
                     and current_action.action_name == "RecPallet"
                     and current_action.action_status == ActionStatus.FINISHED):
@@ -1535,11 +1535,11 @@ class Fork(ModuleBase):
             self.last_saved_total = self.total_dist
 
     def period_run(self):
-        fork_height = Motor.get_motor_pos(ConfigParams.fork_motor_name)
+        fork_height = Motor.getMotorPos(ConfigParams.fork_motor_name)
         self.trace_chart.update({
             "forkHeight": fork_height,  # 货叉高度, 单位 m
             "forkHeightInPlace": self.fork_height_in_place,  # 货叉高度是否到位, true = 到位, false = 未到位
-            "forkAutoFlag": not Controller.get_is_external_control(),
+            "forkAutoFlag": not Controller.getIsExternalControl(),
             "forkMileage": self.total_dist
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
@@ -1568,7 +1568,7 @@ class Fork(ModuleBase):
         NetProtocol.setModbusData("3x", 57, modbus_list_fork_height)
 
         if ConfigParams.module_type == "straddleLiftFork":
-            task_status = NavStatus.get_task_status()
+            task_status = NavStatus.getTaskStatus()
             if ConfigParams.scriptDebug:
                 Trace.log(f"task_status{task_status}")
             # 有任务时用后激光做碰撞检测，有障碍物时不动。
@@ -1580,7 +1580,7 @@ class Fork(ModuleBase):
                     Navigation.collisionDetection(collision_device, x_list, y_list)
 
             # 堆高车处理后激光的屏蔽
-            if Loc.get_loc_state() == 1:
+            if Loc.getLocState() == 1:
                 if ConfigParams.scriptDebug:
                     Trace.log(
                         f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}")
@@ -1641,7 +1641,7 @@ class Fork(ModuleBase):
             di_status = []
             contact_ids_str = RobotParam.getDevice("Model-000", f"moduleType.straddleLiftFork.id").split(",")
             for di in contact_ids_str:
-                di_status.append(Di.get_di(di))
+                di_status.append(Di.getDi(di))
 
             # 根据是否检测所有到位di 决定错误状态
             if ConfigParams.checkAllContactDis:
@@ -1657,29 +1657,6 @@ class Fork(ModuleBase):
                 if Timer.delay(0.3):
                     if Abnormal.exists(53319):
                         Abnormal.clear(53319)
-
-        # 处理货叉抬高时的避障问题
-
-    def do_fork_check(self):
-        if ConfigParams.fork_motor_name is None:
-            missing_params = []
-            if ConfigParams.down_di is None:
-                missing_params.append("down_di_dofork")
-            if ConfigParams.upDiDoFork is None:
-                missing_params.append("up_di_dofork")
-            if ConfigParams.leakDo is None:
-                missing_params.append("leak_do")
-            if ConfigParams.pumpDo is None:
-                missing_params.append("pump_do")
-
-            # 输出为空的参数，或者返回 True
-            if missing_params:
-                Abnormal.setTask(53320, f"when fork lift motor is None, check the do fork config:{missing_params}", "",
-                                 "", "")
-            else:
-                return True
-
-
 class BaseAction:
     """定义动作的基类"""
 
@@ -1870,7 +1847,7 @@ class GoPathWithContactDi(BaseAction):
         self.action_status = ScriptStatus.RUNNING
         if not self.init:
             self.init = True
-            self.start_loc = Loc.get_pose()
+            self.start_loc = Loc.getPose()
             Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}")
 
             if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
@@ -1912,11 +1889,11 @@ class GoPathWithContactDi(BaseAction):
             self.action_status = ScriptStatus.FAILED
 
         # 前进的时候不要设置避障距离
-        if NavSpeed.get_speeds()[0] >= 0.005 and not self.clear_policy:
+        if NavSpeed.getSpeeds()[0] >= 0.005 and not self.clear_policy:
             Navigation.clearPolicy()
             self.clear_policy = True
             self.set_policy = False
-        elif NavSpeed.get_speeds()[0] <= -0.005 and not self.set_policy:
+        elif NavSpeed.getSpeeds()[0] <= -0.005 and not self.set_policy:
             Navigation.appendCustomPolicy("policy", self.policy)
             self.clear_policy = False
             self.set_policy = True
@@ -1930,7 +1907,7 @@ class GoPathWithContactDi(BaseAction):
         self.di_status = []
         for di in self.contact_di:
             if di != '':
-                self.di_status.append(Di.get_di(di))
+                self.di_status.append(Di.getDi(di))
 
         # 如果不需要检查所有的到位 di，一个到位任务结束
         if not self.check_all_contact_di:
@@ -1980,7 +1957,7 @@ class GoPathWithContactDi(BaseAction):
         self.action_status = ScriptStatus.RUNNING
 
     def cal_walk_dist(self):
-        cur_loc = Loc.get_pose()
+        cur_loc = Loc.getPose()
         cur_dist = math.sqrt(
             (self.start_loc["x"] - cur_loc["x"]) ** 2 + (self.start_loc["y"] - cur_loc["y"]) ** 2)
         return cur_dist
@@ -2094,7 +2071,7 @@ class RunMotorByPosition(BaseAction):
         self.start_time = time.time()
 
     def run(self):
-        cur_fork_height = Motor.get_motor_pos(self.motor_name)
+        cur_fork_height = Motor.getMotorPos(self.motor_name)
 
         if not self.init:
             self.action_status = ActionStatus.RUNNING
@@ -2265,17 +2242,17 @@ class RunMotorByDOInterlock(BaseAction):
             self.reset()
 
         if self.is_reached():
-            Do.setDO(self.pump_do, False)
-            Do.setDO(self.leak_do, False)
+            Do.setDo(self.pump_do, False)
+            Do.setDo(self.leak_do, False)
             self.action_status = ActionStatus.FINISHED
             return
 
         if self.operation == "up":
-            Do.setDO(self.pump_do, True)
-            Do.setDO(self.leak_do, False)
+            Do.setDo(self.pump_do, True)
+            Do.setDo(self.leak_do, False)
         elif self.operation == "down":
-            Do.setDO(self.pump_do, False)
-            Do.setDO(self.leak_do, True)
+            Do.setDo(self.pump_do, False)
+            Do.setDo(self.leak_do, True)
 
         #
         # self.action_state['action_name'] = self.__class__.__name__
@@ -2290,13 +2267,13 @@ class RunMotorByDOInterlock(BaseAction):
     def is_reached(self):
         is_reach = False
         if self.operation == "up":
-            up_di_status = Di.get_di(self.up_di)
+            up_di_status = Di.getDi(self.up_di)
             if up_di_status:
                 is_reach = True
             if time.time() - self.start_time > self.up_delay_time:
                 is_reach = True
         elif self.operation == "down":
-            down_di_status = Di.get_di(self.down_di)
+            down_di_status = Di.getDi(self.down_di)
             if down_di_status:
                 is_reach = True
             if time.time() - self.start_time > self.down_delay_time:
@@ -2305,8 +2282,8 @@ class RunMotorByDOInterlock(BaseAction):
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
-        Do.setDO(self.leak_do, False)
-        Do.setDO(self.pump_do, False)
+        Do.setDo(self.leak_do, False)
+        Do.setDo(self.pump_do, False)
 
 
 # 用于走直线
@@ -2377,8 +2354,8 @@ class GoPath(BaseAction):
                 if args["coordinate"] == "robot":
                     Navigation.setPathOnRobot([0, self.goal[0]], [0, self.goal[1]], self.goal[2])
                 elif args["coordinate"] == "world":
-                    x = Loc.get_pose()["x"]
-                    y = Loc.get_pose()["y"]
+                    x = Loc.getPose()["x"]
+                    y = Loc.getPose()["y"]
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                 else:
                     Abnormal.setTask(53326, f"coordinate only support robot and world. Input is {args['coordinate']}",
@@ -2434,7 +2411,7 @@ class GoTwoStraightLine(BaseAction):
         self.action_status = ActionStatus.INIT
         self.init = False
         self.return_back = return_back
-        pos = Loc.get_pose()
+        pos = Loc.getPose()
         if not self.return_back:
             self.start_pos = [pos['x'], pos['y'], math.radians(pos['yaw'])]
             if abs(self.cal_angle(self.start_pos, self.second_point)) > self.max_angle:
