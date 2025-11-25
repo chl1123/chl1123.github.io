@@ -13,12 +13,12 @@ from syspy.utils.time import Timer
 
 start_time = time.time()
 
-from syspy import (Module, Logger, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize,
-                   Odometer, CodeScanner, ScriptStatus, NetProtocol, Trace, NavSpeed, Controller)
+from syspy import (Module, Logger, Di, Motor, Navigation, Loc, Abnormal, Recognize,
+                   Odometer, CodeScanner, ScriptStatus, Trace, NavSpeed, Controller)
 
-from syspy.lib.module import Pos2Base, Pos2World, ModuleBase, SafeMoveStatus
-from standard import goPath, goBezier
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, ScriptParam
+from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
+from tasks.v3.standard import goPath, goBezier
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
 
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot_param import RobotParam
@@ -57,7 +57,7 @@ class ConfigParams:
         motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
         reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
 
-        builder = param_loader.builder_config()
+        builder = param_loader.builderConfig()
 
         with builder.GROUPS():
             # 电机配置组
@@ -112,7 +112,7 @@ class ConfigParams:
     def reload_config(cls):
         """重新加载配置参数"""
         Trace.log("Reloading config parameters")
-        cls.config = param_loader.load_config()
+        cls.config = param_loader.loadConfig()
         Trace.log(f"Loaded config: {cls.config}")
         cls.jack_motor_speed = cls.config.get("jackMotorSpeed")
         cls.jack_min_height = cls.config.get("jackMinHeight")
@@ -867,7 +867,7 @@ class Jack(ModuleBase):
             if self.create_or_delete_deducted_area == "create":
 
                 self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
-                robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+                robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
                 Trace.log(f"robot_loc = {robot_loc}")
                 area_device = {
                     "deduct_device": self.laser_area_deduct_info["deduct_device"],
@@ -885,7 +885,7 @@ class Jack(ModuleBase):
                             y_list_deduct_area.append(y)
                         else:
                             # 调用坐标变换
-                            wx, wy, wz = Pos2World([x, y, 0], robot_loc)
+                            wx, wy, wz = pos2World([x, y, 0], robot_loc)
                             x_list_deduct_area.append(wx)
                             y_list_deduct_area.append(wy)
                     area_device["area"].append({
@@ -1049,7 +1049,7 @@ class Jack(ModuleBase):
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             self.ap_robot_pos = Navigation.getLM(self.ap_id, False)
-            robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
             Trace.log(f'AP_pos: {self.ap_world_pos}')
             Trace.log(f'ap_to_robot_angle: {ap_to_robot_angle}')
@@ -1076,8 +1076,8 @@ class Jack(ModuleBase):
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
-                robot_pos = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-                result_robot = Pos2Base(result_world, robot_pos)
+                robot_pos = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+                result_robot = pos2Base(result_world, robot_pos)
 
                 # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
                 if result_robot[0] < 1:
@@ -1134,7 +1134,7 @@ class Jack(ModuleBase):
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             self.ap_robot_pos = Navigation.getLM(self.ap_id, False)
-            robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
             Trace.log(f'AP_pos: {self.ap_world_pos}')
             Trace.log(f'ap_to_robot_angle: {ap_to_robot_angle}')
@@ -1198,8 +1198,8 @@ class Jack(ModuleBase):
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
-                robot_pos = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-                result_robot = Pos2Base(result_world, robot_pos)
+                robot_pos = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+                result_robot = pos2Base(result_world, robot_pos)
 
                 # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
                 if result_robot[0] < 1:
@@ -1290,7 +1290,7 @@ class Jack(ModuleBase):
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             self.ap_robot_pos = Navigation.getLM(self.ap_id, False)
-            robot_loc = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
+            robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
             Trace.log(f'AP_pos: {self.ap_world_pos}')
             Trace.log(f'ap_to_robot_angle: {ap_to_robot_angle}')
@@ -1354,8 +1354,8 @@ class Jack(ModuleBase):
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
-                robot_pos = [Loc.get_pose()["x"], Loc.get_pose()["y"], math.radians(Loc.get_pose()["yaw"])]
-                result_robot = Pos2Base(result_world, robot_pos)
+                robot_pos = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+                result_robot = pos2Base(result_world, robot_pos)
 
                 # 如果离shelf太近，先后退一段距离再第二次识别（离太近可能存在偏差）
                 if result_robot[0] < 1:
@@ -1579,7 +1579,7 @@ class Jack(ModuleBase):
         if self.count == 100:
             self.count = 0
             status = SafeMoveStatus.FINISHED
-        self.set_safe_move_status(status)
+        self.setSafeMoveStatus(status)
         Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
@@ -1617,12 +1617,12 @@ class Jack(ModuleBase):
         return args
 
     def set_info(self):
-        self.jack_motors = NavSpeed.get_motor_cmd()
+        self.jack_motors = NavSpeed.getMotorCmd()
         # print(f"jack_motors= {self.jack_motors}")
         # for jack_motor in jack_motors:
         #     jack_state = jack_motor.jack_state
         #     jack_speed = jack_motor.jack_speed
-        self.jack_speed = Motor.get_motor_speed(config_params.jack_motor_name)
+        self.jack_speed = Motor.getMotorSpeed(config_params.jack_motor_name)
         self.jack_isFull = Navigation.hasGoods()
         # motor_infos = Odometer.get_data()["motorInfo"]
         # for motor_info in motor_infos:
@@ -1631,9 +1631,9 @@ class Jack(ModuleBase):
         #         self.jack_height = motor_info["position"]
         #     if motor_info["motorName"] == config_params.spin_motor_name:
         #         self.jack_spin = motor_info["position"]
-        self.jack_emc = Controller.get_emc()
-        self.jack_height = Motor.get_motor_pos(config_params.jack_motor_name)
-        self.jack_spin = Motor.get_motor_pos(config_params.spin_motor_name)
+        self.jack_emc = Controller.getEmc()
+        self.jack_height = Motor.getMotorPos(config_params.jack_motor_name)
+        self.jack_spin = Motor.getMotorPos(config_params.spin_motor_name)
         self.report_info.update({
             "jackMode": True,
             "jackEnable": True,
@@ -1750,7 +1750,7 @@ class RobotRotate(BaseAction):
                 self.move_args["locMode"] = 1  # 激光定位
 
                 # 1. 当前朝向：Loc 返回的是度 - 立即转弧度 - 归一化
-                cur_angle_rad = self.normalize(math.radians(Loc.get_pose()["yaw"]))
+                cur_angle_rad = self.normalize(math.radians(Loc.getPose()["yaw"]))
 
                 # 2. 目标朝向：外部传进来是“度” - 先转弧度，再归一化
                 target_rad = self.normalize(math.radians(self.angle) if abs(self.angle) > math.pi else self.angle)
@@ -1820,7 +1820,7 @@ class JackHeight(BaseAction):
         if not self.init:
             self.init = True
             self.action_status = ActionStatus.RUNNING
-            self.jack_start_height = Motor.get_motor_pos(config_params.jack_motor_name)
+            self.jack_start_height = Motor.getMotorPos(config_params.jack_motor_name)
             print(f"{config_params.jack_motor_name=}")
             if self.target_height > self.jack_start_height:
                 Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
@@ -1852,16 +1852,16 @@ class JackHeight(BaseAction):
             else:
                 Navigation.clearGoodsShape()
 
-        motor_info = Odometer.get_motor_infos()
+        motor_info = Odometer.getMotorInfos()
         Trace.log(f"{motor_info=}")
         Trace.log(f"{self.target_height=}")
 
         if self.target_height > self.jack_start_height:
-            if Motor.isMotorReached(self.motor_name) or Di.get_di(config_params.jack_up_di):
+            if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_up_di):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
         else:
-            if Motor.isMotorReached(self.motor_name) or Di.get_di(config_params.jack_zero_di):
+            if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_zero_di):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
 
@@ -2110,8 +2110,8 @@ class GoPolyline(BaseAction):
         self.max_angle = max_angle
         self.dec_dist = dec_dist
         self.step = 20
-        self.second_point = Pos2World([self.min_ahead_dist, 0, 0], self.world_target)
-        self.third_point = Pos2World([-self.back_dist, 0, 0], self.world_target)
+        self.second_point = pos2World([self.min_ahead_dist, 0, 0], self.world_target)
+        self.third_point = pos2World([-self.back_dist, 0, 0], self.world_target)
         self.go_step = [False] * 3
         self.action_status = ActionStatus.INIT
         self.init = False
@@ -2119,7 +2119,7 @@ class GoPolyline(BaseAction):
     def run(self, f):
         if not self.init:
             self.init = True
-            pos = Loc.get_data()
+            pos = Loc.getData()
             self.start_pos = [pos['x'], pos['y'], pos['angle']]
             if abs(self.cal_angle(self.start_pos, self.second_point)) > self.max_angle:
                 self.start_pos[2] = self.world_target[2]
@@ -2173,7 +2173,7 @@ class GoPolyline(BaseAction):
             self.action_status = ActionStatus.FINISHED
 
     def cal_angle(self, start_pos, end_pos):
-        start2end = Pos2Base(start_pos, end_pos)
+        start2end = pos2Base(start_pos, end_pos)
         angle = math.degrees(math.atan2(start2end[1], start2end[0]))
         print(angle)
         return angle
@@ -2183,7 +2183,7 @@ class GoPolyline(BaseAction):
         for n in range(1, step + 1):
             adjust_dist = self.ahead_dist / self.step * n
             # 临时构造一个新的起点：在原 start_pos 基础上往前平移
-            temp_start = Pos2World([adjust_dist, 0, 0], self.start_pos)
+            temp_start = pos2World([adjust_dist, 0, 0], self.start_pos)
             angle = abs(self.cal_angle(temp_start, self.second_point))
 
             if angle <= max_angle:
@@ -2395,7 +2395,7 @@ class GetApPosAdjustedViaPgv(BaseAction):
 
             else:
                 # 将车体终点位置，加入二维码的偏差补偿
-                self.target_world_pos = Pos2World(self.pgv_info, [self.target_world_pos[0], self.target_world_pos[1],
+                self.target_world_pos = pos2World(self.pgv_info, [self.target_world_pos[0], self.target_world_pos[1],
                                                                   self.target_world_pos[2]])
                 j.ap_world_pos = self.target_world_pos
                 self.action_status = ActionStatus.FINISHED
@@ -2427,7 +2427,7 @@ class GetPGVData(BaseAction):
             self.action_status = ActionStatus.RUNNING
             self.init = False
 
-        pgv_data = CodeScanner.get_code_scanners()
+        pgv_data = CodeScanner.getCodeScanners()
 
         chosen_pgv = None
 
@@ -2570,7 +2570,7 @@ def main():
     ScriptParam.setConfigChangeCallBack(script_config_callback)
 
     Module.init()
-    validator = ParamValidator(InputParams.builder.to_dict())
+    validator = ParamValidator(InputParams.builder.toDict())
     j = Jack()
     modbus_params = None
     print_info()
