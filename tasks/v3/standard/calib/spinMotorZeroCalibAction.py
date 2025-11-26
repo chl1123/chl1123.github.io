@@ -16,7 +16,7 @@ class CalibMove:
             self.status = ScriptStatus.RUNNING
             self.motor_name = Module.getTaskArgs("name","Motor-005")
             self.pos = 1.0
-            # Motor.resetMotor(self.motor_name)
+            Motor.resetMotor(self.motor_name)
             # Motor.setMotorPosition(self.motor_name, 0.0, 10.0, 0)
             Navigation.setRobotSpinAngle(0, 2)
 
@@ -27,8 +27,9 @@ class CalibMove:
 
         # if Motor.isMotorReached(self.motor_name):
         if Navigation.spinRun():
-
             self.status = ScriptStatus.FINISHED 
+            
+        Motor.resetMotor(self.motor_name)
 
         # if Motor.setMotorPosition(self.motor_name, 0.0, 10.0, 0):
         #     if math.fabs(self.pos) < 0.01:

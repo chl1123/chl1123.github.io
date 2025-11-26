@@ -32,9 +32,9 @@ class CalibMove:
             self.motor_name = Module.getTaskArgs("name","Motor-005")
             self.height = Module.getTaskArgs("sendHeight",1.0)
             self.pos = 1.0
+            Motor.resetMotor(self.motor_name)
 
         self.pos = Motor.getMotorPos(self.motor_name)
-        Motor.resetMotor(self.motor_name)
         if Motor.setMotorPosition(self.motor_name, self.height, 1.0):
             if math.fabs(self.pos-self.height) < 0.01:
                 self.status = ScriptStatus.FINISHED 
@@ -42,6 +42,7 @@ class CalibMove:
                 self.status = ScriptStatus.RUNNING
         else:
             self.status = ScriptStatus.RUNNING
+        Motor.resetMotor(self.motor_name)
 
     def print(self):
         # 实时打印

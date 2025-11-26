@@ -16,6 +16,7 @@ class CalibMove:
             self.status = ScriptStatus.RUNNING
             self.motor_name = Module.getTaskArgs("name","Motor-005")
             self.pos = 1.0
+            Motor.resetMotor(self.motor_name)
 
         self.pos = Motor.getMotorPos(self.motor_name)
         if Motor.setMotorPosition(self.motor_name, 0.0, 10.0):
@@ -25,6 +26,7 @@ class CalibMove:
                 self.status = ScriptStatus.RUNNING
         else:
             self.status = ScriptStatus.RUNNING
+        Motor.resetMotor(self.motor_name)
 
     def print(self):
         # 实时打印
