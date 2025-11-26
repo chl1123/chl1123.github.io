@@ -2595,6 +2595,7 @@ def main():
                         print("check ok, args:", json.dumps(validated_params, indent=2))
                     except ValueError as e:
                         print("check error:", e)
+                        Abnormal.setTask(53780,f"Input error:{e}","some input params are not valid","check the input params","input check")
             else:
                 validated_params = modbus_params
             j.run(validated_params)
