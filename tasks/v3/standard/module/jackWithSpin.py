@@ -8,16 +8,12 @@ import json
 import math
 import time
 from enum import IntEnum
-
 from syspy.utils.time import Timer
-
 start_time = time.time()
-
 from syspy import (Module, Logger, Di, Motor, Navigation, Loc, Abnormal, Recognize,
                    Odometer, CodeScanner, ScriptStatus, Trace, NavSpeed, Controller)
-
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
-from tasks.v3.standard import goPath, goBezier
+from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
 
 param_loader = ScriptParam(__file__)
