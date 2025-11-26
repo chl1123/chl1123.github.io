@@ -2,7 +2,6 @@
 
 - [battery](battery.md)
 - [bin](bin.md)
-- [camera](camera.md)
 - [charger](charger.md)
 - [code_scanner](code_scanner.md)
 - [config](config.md)

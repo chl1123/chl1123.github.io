@@ -3,7 +3,7 @@ import math
 from enum import Enum, IntEnum
 import json
 import time
-from syspy import Navigation, Logger,Module,ScriptStatus,Camera
+from syspy import Navigation, Logger,Module,ScriptStatus
 
 log = Logger("auxSensorCalibAction")
 

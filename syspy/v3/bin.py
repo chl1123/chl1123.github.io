@@ -23,9 +23,9 @@ class BinV3(BinInterface):
             from .protobuf import msgBins
             cls._MODEL_CLASS = msgBins
 
-    def getBins(cls) -> List["msgBin"]:
-        if cls.update():
-            return cls.data.bins
+    def getBins(self) -> List["msgBin"]:
+        if self.update():
+            return self.data.bins
 
     @classmethod
     @call_service()

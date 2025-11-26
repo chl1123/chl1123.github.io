@@ -52,7 +52,6 @@ from .utils.param_server import ParamServer, ScriptParam
 
 from .battery import Battery
 
-from .camera import Camera
 from .charger import Charger
 from .controller import Controller
 from .dio import Di, Do
@@ -72,6 +71,7 @@ from .sound import Sound
 __all__ = [
     "RBK_VERSION",
     "RBK_FULL_VERSION",
+    "LevelDB",
     "Abnormal",
     "Bin",
     "Container",
@@ -86,7 +86,6 @@ __all__ = [
     "ParamServer",
     "ScriptParam",
     "Battery",
-    "Camera",
     "Charger",
     "Controller",
     "Di",

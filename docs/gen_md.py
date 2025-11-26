@@ -128,6 +128,7 @@ def gen_index():
         if "assets" in root or "en" in root or "__" in root:
             continue
         md_files = [f for f in files if f.endswith(".md")]
+        md_files.sort()  # 按照文件名字母顺序排序
         with open(os.path.join(root, "index.md"), "w") as index_file:
             index_file.write("# Index\n\n")
             for file in md_files:
@@ -135,6 +136,7 @@ def gen_index():
                     file_name = os.path.splitext(file)[0]
                     index_file.write(f"- [{file_name}]({file})\n")
         print(f"gen {root} index success")
+
 
 if __name__ == '__main__':
     module_list = read_files('../syspy')

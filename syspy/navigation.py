@@ -456,12 +456,13 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setSteerAngle(cls, name: str, angle: float) -> bool:
+    def setSteerAngle(cls, name: str, angle: float, action_name: str = "") -> bool:
         """转动舵角
 
         Args:
             name (str): 舵机名称
             angle (float): 角度位置, 单位rad
+            action_name (str): 动作名。缺省为""
 
         Returns:
             (bool): 如果为True电机到位
