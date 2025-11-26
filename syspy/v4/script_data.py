@@ -9,7 +9,7 @@ class ScriptDataV4(ScriptDataInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             # todo RBK4
             cls._MODEL_CLASS = None

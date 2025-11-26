@@ -69,7 +69,7 @@ class SoundV3(SoundInterface):
             (str): 声音名称字符串
         """
         if self.update():
-            return self.data.sound_name
+            return self.data.soundName
 
     def getLoop(self) -> bool:
         """获取声音是否循环播放的状态

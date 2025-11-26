@@ -13,7 +13,7 @@ class CodeScannerV3(CodeScannerInterface):
         data: msgCodeScanner = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgCodeScanner
             cls._MODEL_CLASS = msgCodeScanner

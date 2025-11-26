@@ -64,7 +64,7 @@ from .map import Map
 from .motor import Motor
 from .code_scanner import CodeScanner
 from .recognize import Recognize
-from .rfid import RFID
+from .rfid import Rfid
 from .sound import Sound
 
 
@@ -103,7 +103,7 @@ __all__ = [
     "NavSpeed",
     "Odometer",
     "CodeScanner",
-    "RFID",
+    "Rfid",
     "Recognize",
     "Sound",
 ]  # 列出所有公共模块

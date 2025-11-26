@@ -9,7 +9,7 @@ class LocV4(LocInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from syspy.v4.protobuf.message.message_localization_pb2 import Message_Localization  # 延迟导入
             cls._MODEL_CLASS = Message_Localization
