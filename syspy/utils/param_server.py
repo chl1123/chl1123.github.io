@@ -881,6 +881,12 @@ class ParamValidator:
         # 从根节点开始验证所有参数
         validate_all_params(self.param_definition.get('groups', []))
 
+        # 输入参数
+        for key, value in input_params.items():
+            # 如果该参数未被处理过
+            if key not in validated_params:
+                validated_params[key] = value
+
         if errors:
             raise ValueError("\n".join(errors))
         return validated_params
