@@ -16,8 +16,8 @@ class CalibMove:
             self.status = ScriptStatus.RUNNING
             self.motor_name = Module.getTaskArgs("name","Motor-005")
             self.pos = 1.0
-            Motor.resetMotor(self.motor_name)
-
+            
+        Motor.resetMotor(self.motor_name)
         self.pos = Motor.getMotorPos(self.motor_name)
         if Motor.setMotorPosition(self.motor_name, 0.0, 10.0):
             if math.fabs(self.pos) < 0.01:
@@ -26,7 +26,6 @@ class CalibMove:
                 self.status = ScriptStatus.RUNNING
         else:
             self.status = ScriptStatus.RUNNING
-        Motor.resetMotor(self.motor_name)
 
     def print(self):
         # 实时打印
@@ -50,11 +49,14 @@ def main():
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
             Module.setStatus(ScriptStatus.FINISHED)
+            Motor.resetMotor(calib_move.motor_name)
             return
         if calib_move.status == ScriptStatus.FAILED:
             Module.setStatus(ScriptStatus.FAILED)
+            Motor.resetMotor(calib_move.motor_name)
             return
         if calib_move.cancel:
+            Motor.resetMotor(calib_move.motor_name)
             return
 
 if __name__ == '__main__':

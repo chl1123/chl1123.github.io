@@ -21,16 +21,12 @@ class CalibMove:
             Navigation.setRobotSpinAngle(0, 2)
 
 
-
-
         self.pos = Motor.getMotorPos(self.motor_name)
 
         # if Motor.isMotorReached(self.motor_name):
         if Navigation.spinRun():
             self.status = ScriptStatus.FINISHED 
             
-        Motor.resetMotor(self.motor_name)
-
         # if Motor.setMotorPosition(self.motor_name, 0.0, 10.0, 0):
         #     if math.fabs(self.pos) < 0.01:
         #         self.status = ScriptStatus.FINISHED 
@@ -61,11 +57,14 @@ def main():
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
             Module.setStatus(ScriptStatus.FINISHED)
+            Motor.resetMotor(calib_move.motor_name)
             return
         if calib_move.status == ScriptStatus.FAILED:
             Module.setStatus(ScriptStatus.FAILED)
+            Motor.resetMotor(calib_move.motor_name)
             return
         if calib_move.cancel:
+            Motor.resetMotor(calib_move.motor_name)
             return
 
 if __name__ == '__main__':
