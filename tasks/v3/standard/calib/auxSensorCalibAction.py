@@ -61,10 +61,13 @@ class CalibMove:
             self.speed_x = Module.getTaskArgs("V", 0.1)
             self.cancel = False
             self.calibType = Module.getTaskArgs("calibType", "")
-            # self.deviceName = Module.getTaskArgs("deviceNameList", "")
-            # if self.deviceName != "":
-            #     if self.calibType == "CameraMid360RPZExtrinsicCalib" or self.calibType == "CameraLocMid360RPZExtrinsicCalib":
-            #         Camera.addDisableDepthStrName(self.deviceName)
+            self.locType = Module.getTaskArgs("locType", "")
+            self.locName = Module.getTaskArgs("locName", "")
+            # 定位策略切换
+            if self.calibType == "ObsLaserCalib" and self.locType == "Laser" and self.locName != "":
+                policy = {"localization.localizationType": "2D",
+                          "localization.localizationType.2D.localizationLaser": self.locName}
+                Navigation.appendCustomPolicy("policy", policy)
 
         # 实时运行
         if self.move_action == MoveAction.Back1:
@@ -86,8 +89,6 @@ class CalibMove:
             if self.move_action != MoveAction.ActionEnd:
                 Navigation.resetOdoMove()
                 self.status = ScriptStatus.RUNNING
-            # if self.status == ScriptStatus.FINISHED and self.deviceName != "":
-            #     Camera.clearDisableDepthStrName()
 
         return self.status
 
@@ -99,14 +100,13 @@ class CalibMove:
         info["move_dist"] = self.move_dist
         info["speed_x"] = self.speed_x
         info["calibType"] = self.calibType
-        # info["deviceName"] = self.deviceName
+        info["locType"] = self.locType
+        info["locName"] = self.locName
         log.info(json.dumps(info))
 
     def Cancel(self):
         print("cancel!!!")
         self.cancel = True
-        # if self.deviceName != "":
-        #     Camera.clearDisableDepthStrName()
 
 def main():
     calib_move = CalibMove()
