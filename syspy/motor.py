@@ -26,7 +26,7 @@ class MotorInterface(ABC, Message):
         from syspy import Motor
         motorInfos = Motor.getMotorInfos()
         for motorInfo in motorInfos:  # motorInfo为msgMotorInfo的对象
-            print(motorInfo.name)
+            print(motorInfo.key)
             print(motorInfo.position)
         ```
         """
