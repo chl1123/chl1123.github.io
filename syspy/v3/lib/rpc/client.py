@@ -142,7 +142,7 @@ class RpcClient:
             response = JSONRPCResponse.parse(response_json)
             if response.has_error():
                 raise Exception(response_json)
-            # log.debug("res <= %s", response.get_print())
+            log.debug("res <= %s", response.get_print())
             return response.get_result()
         else:  # event.result 为 None
             raise TimeoutError(f"Call RBK Timeout, check whether RBK is running, {request.to_json()=}")
