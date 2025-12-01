@@ -19,10 +19,44 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x19message_calibstatus.proto\x12\x0crbk.protocol\"\x99\x01\n\x0emsgCalibStatus\x12\x38\n\x06status\x18\x07 \x01(\x0e\x32(.rbk.protocol.msgCalibStatus.calibStatus\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\t\"?\n\x0b\x63\x61libStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tcompleted\x10\x02\x12\n\n\x06\x66\x61iled\x10\x03\x62\x06proto3')
+  serialized_pb=_b('\n\x19message_calibstatus.proto\x12\x0crbk.protocol\"\x8f\x02\n\x0cmsgCalibType\x12\x11\n\tcalibType\x18\x08 \x01(\t\x12\x12\n\ndeviceType\x18\t \x01(\t\x12\x12\n\ndeviceName\x18\n \x01(\t\x12\x13\n\x0bisAutoCalib\x18\x0b \x01(\x08\x12\x0f\n\x07hasPlot\x18\x0c \x01(\x08\x12:\n\x06status\x18\r \x01(\x0e\x32*.rbk.protocol.msgCalibType.calibTypeStatus\"b\n\x0f\x63\x61libTypeStatus\x12\x0b\n\x07unKnown\x10\x00\x12\x0b\n\x07noCalib\x10\x01\x12\x0f\n\x0b\x63\x61libNoPass\x10\x02\x12\r\n\tcalibPass\x10\x03\x12\x15\n\x11\x63\x61libModelChanged\x10\x04\"\xcc\x01\n\x0emsgCalibStatus\x12\x38\n\x06status\x18\x07 \x01(\x0e\x32(.rbk.protocol.msgCalibStatus.calibStatus\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\t\x12\x31\n\rcalibTypeList\x18\t \x03(\x0b\x32\x1a.rbk.protocol.msgCalibType\"?\n\x0b\x63\x61libStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tcompleted\x10\x02\x12\n\n\x06\x66\x61iled\x10\x03\x62\x06proto3')
 )
 
 
+
+_MSGCALIBTYPE_CALIBTYPESTATUS = _descriptor.EnumDescriptor(
+  name='calibTypeStatus',
+  full_name='rbk.protocol.msgCalibType.calibTypeStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='unKnown', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='noCalib', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='calibNoPass', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='calibPass', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='calibModelChanged', index=4, number=4,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=217,
+  serialized_end=315,
+)
+_sym_db.RegisterEnumDescriptor(_MSGCALIBTYPE_CALIBTYPESTATUS)
 
 _MSGCALIBSTATUS_CALIBSTATUS = _descriptor.EnumDescriptor(
   name='calibStatus',
@@ -49,10 +83,77 @@ _MSGCALIBSTATUS_CALIBSTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=134,
-  serialized_end=197,
+  serialized_start=459,
+  serialized_end=522,
 )
 _sym_db.RegisterEnumDescriptor(_MSGCALIBSTATUS_CALIBSTATUS)
+
+
+_MSGCALIBTYPE = _descriptor.Descriptor(
+  name='msgCalibType',
+  full_name='rbk.protocol.msgCalibType',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='calibType', full_name='rbk.protocol.msgCalibType.calibType', index=0,
+      number=8, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='deviceType', full_name='rbk.protocol.msgCalibType.deviceType', index=1,
+      number=9, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='deviceName', full_name='rbk.protocol.msgCalibType.deviceName', index=2,
+      number=10, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isAutoCalib', full_name='rbk.protocol.msgCalibType.isAutoCalib', index=3,
+      number=11, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='hasPlot', full_name='rbk.protocol.msgCalibType.hasPlot', index=4,
+      number=12, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='status', full_name='rbk.protocol.msgCalibType.status', index=5,
+      number=13, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGCALIBTYPE_CALIBTYPESTATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=44,
+  serialized_end=315,
+)
 
 
 _MSGCALIBSTATUS = _descriptor.Descriptor(
@@ -76,6 +177,13 @@ _MSGCALIBSTATUS = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='calibTypeList', full_name='rbk.protocol.msgCalibStatus.calibTypeList', index=2,
+      number=9, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -89,14 +197,25 @@ _MSGCALIBSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=44,
-  serialized_end=197,
+  serialized_start=318,
+  serialized_end=522,
 )
 
+_MSGCALIBTYPE.fields_by_name['status'].enum_type = _MSGCALIBTYPE_CALIBTYPESTATUS
+_MSGCALIBTYPE_CALIBTYPESTATUS.containing_type = _MSGCALIBTYPE
 _MSGCALIBSTATUS.fields_by_name['status'].enum_type = _MSGCALIBSTATUS_CALIBSTATUS
+_MSGCALIBSTATUS.fields_by_name['calibTypeList'].message_type = _MSGCALIBTYPE
 _MSGCALIBSTATUS_CALIBSTATUS.containing_type = _MSGCALIBSTATUS
+DESCRIPTOR.message_types_by_name['msgCalibType'] = _MSGCALIBTYPE
 DESCRIPTOR.message_types_by_name['msgCalibStatus'] = _MSGCALIBSTATUS
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
+
+msgCalibType = _reflection.GeneratedProtocolMessageType('msgCalibType', (_message.Message,), dict(
+  DESCRIPTOR = _MSGCALIBTYPE,
+  __module__ = 'message_calibstatus_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgCalibType)
+  ))
+_sym_db.RegisterMessage(msgCalibType)
 
 msgCalibStatus = _reflection.GeneratedProtocolMessageType('msgCalibStatus', (_message.Message,), dict(
   DESCRIPTOR = _MSGCALIBSTATUS,

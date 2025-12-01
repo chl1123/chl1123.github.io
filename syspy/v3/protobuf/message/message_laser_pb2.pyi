@@ -108,10 +108,9 @@ class msgLaserBeam(_message.Message):
     def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., angle: Optional[float] = ..., dist: Optional[float] = ..., x: Optional[float] = ..., y: Optional[float] = ..., rssi: Optional[float] = ..., valid: bool = ..., isVirtual: bool = ..., isObstacle: bool = ...) -> None: ...
 
 class msgLaserBeam3D(_message.Message):
-    __slots__ = ["data", "firstAzimuth", "id", "intensity", "ring", "secondAzimuth", "timestamp", "x", "y", "z"]
+    __slots__ = ["data", "firstAzimuth", "intensity", "ring", "secondAzimuth", "timestamp", "x", "y", "z"]
     DATA_FIELD_NUMBER: ClassVar[int]
     FIRSTAZIMUTH_FIELD_NUMBER: ClassVar[int]
-    ID_FIELD_NUMBER: ClassVar[int]
     INTENSITY_FIELD_NUMBER: ClassVar[int]
     RING_FIELD_NUMBER: ClassVar[int]
     SECONDAZIMUTH_FIELD_NUMBER: ClassVar[int]
@@ -121,7 +120,6 @@ class msgLaserBeam3D(_message.Message):
     Z_FIELD_NUMBER: ClassVar[int]
     data: bytes
     firstAzimuth: float
-    id: int
     intensity: int
     ring: int
     secondAzimuth: float
@@ -129,7 +127,7 @@ class msgLaserBeam3D(_message.Message):
     x: float
     y: float
     z: float
-    def __init__(self, id: Optional[int] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., intensity: Optional[int] = ..., ring: Optional[int] = ..., timestamp: Optional[int] = ..., data: Optional[bytes] = ..., firstAzimuth: Optional[float] = ..., secondAzimuth: Optional[float] = ...) -> None: ...
+    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., intensity: Optional[int] = ..., ring: Optional[int] = ..., timestamp: Optional[int] = ..., data: Optional[bytes] = ..., firstAzimuth: Optional[float] = ..., secondAzimuth: Optional[float] = ...) -> None: ...
 
 class msgLaserCluster(_message.Message):
     __slots__ = ["beams", "deviceInfo", "features", "header", "installInfo"]
@@ -182,10 +180,9 @@ class msgLaserClusterFeature(_message.Message):
     def __init__(self, avgRssi: Optional[float] = ..., numPoints: Optional[float] = ..., std: Optional[float] = ..., avgMedianDev: Optional[float] = ..., prevJump: Optional[float] = ..., nextJump: Optional[float] = ..., width: Optional[float] = ..., linearity: Optional[float] = ..., circularity: Optional[float] = ..., radius: Optional[float] = ..., boundaryLength: Optional[float] = ..., angDiff: Optional[float] = ..., meanCurvature: Optional[float] = ..., boundaryRegularity: Optional[float] = ..., iav: Optional[float] = ..., stdIav: Optional[float] = ...) -> None: ...
 
 class msgLaserDeviceInfo(_message.Message):
-    __slots__ = ["deviceName", "id", "isClockWise", "maxAngle", "maxRange", "minAngle", "minRange", "pubStep", "realStep", "scanFreq", "timeIncrement"]
-    DEVICENAME_FIELD_NUMBER: ClassVar[int]
-    ID_FIELD_NUMBER: ClassVar[int]
+    __slots__ = ["isClockWise", "key", "maxAngle", "maxRange", "minAngle", "minRange", "pubStep", "realStep", "scanFreq", "timeIncrement"]
     ISCLOCKWISE_FIELD_NUMBER: ClassVar[int]
+    KEY_FIELD_NUMBER: ClassVar[int]
     MAXANGLE_FIELD_NUMBER: ClassVar[int]
     MAXRANGE_FIELD_NUMBER: ClassVar[int]
     MINANGLE_FIELD_NUMBER: ClassVar[int]
@@ -194,9 +191,8 @@ class msgLaserDeviceInfo(_message.Message):
     REALSTEP_FIELD_NUMBER: ClassVar[int]
     SCANFREQ_FIELD_NUMBER: ClassVar[int]
     TIMEINCREMENT_FIELD_NUMBER: ClassVar[int]
-    deviceName: str
-    id: int
     isClockWise: bool
+    key: str
     maxAngle: float
     maxRange: float
     minAngle: float
@@ -205,7 +201,7 @@ class msgLaserDeviceInfo(_message.Message):
     realStep: float
     scanFreq: float
     timeIncrement: float
-    def __init__(self, deviceName: Optional[str] = ..., minRange: Optional[float] = ..., maxRange: Optional[float] = ..., minAngle: Optional[float] = ..., maxAngle: Optional[float] = ..., realStep: Optional[float] = ..., pubStep: Optional[float] = ..., timeIncrement: Optional[float] = ..., scanFreq: Optional[float] = ..., id: Optional[int] = ..., isClockWise: bool = ...) -> None: ...
+    def __init__(self, key: Optional[str] = ..., minRange: Optional[float] = ..., maxRange: Optional[float] = ..., minAngle: Optional[float] = ..., maxAngle: Optional[float] = ..., realStep: Optional[float] = ..., pubStep: Optional[float] = ..., timeIncrement: Optional[float] = ..., scanFreq: Optional[float] = ..., isClockWise: bool = ...) -> None: ...
 
 class msgLaserInstallInfo(_message.Message):
     __slots__ = ["pitch", "roll", "x", "y", "yaw", "z"]
@@ -293,14 +289,14 @@ class msgSensorPointCloud(_message.Message):
     def __init__(self, globalCluster: Optional[Iterable[Union[msgSensorPointCluster, Mapping]]] = ..., localCluster: Optional[Iterable[Union[msgSensorPointCluster, Mapping]]] = ...) -> None: ...
 
 class msgSensorPointCluster(_message.Message):
-    __slots__ = ["header", "id", "point", "type"]
+    __slots__ = ["header", "key", "point", "type"]
     class clusterType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     ADCollision: msgSensorPointCluster.clusterType
     APIObstacle: msgSensorPointCluster.clusterType
     DIUltrasonic: msgSensorPointCluster.clusterType
     HEADER_FIELD_NUMBER: ClassVar[int]
-    ID_FIELD_NUMBER: ClassVar[int]
+    KEY_FIELD_NUMBER: ClassVar[int]
     POINT_FIELD_NUMBER: ClassVar[int]
     TYPE_FIELD_NUMBER: ClassVar[int]
     collision: msgSensorPointCluster.clusterType
@@ -308,8 +304,8 @@ class msgSensorPointCluster(_message.Message):
     distanceNode: msgSensorPointCluster.clusterType
     fallingDown: msgSensorPointCluster.clusterType
     header: _message_header_pb2.msgHeader
-    id: str
     infrared: msgSensorPointCluster.clusterType
+    key: str
     laser: msgSensorPointCluster.clusterType
     point: _containers.RepeatedCompositeFieldContainer[msgSensorPoint]
     reservedDepthCamera: msgSensorPointCluster.clusterType
@@ -317,4 +313,4 @@ class msgSensorPointCluster(_message.Message):
     type: msgSensorPointCluster.clusterType
     ultrasonic: msgSensorPointCluster.clusterType
     virtualPoint: msgSensorPointCluster.clusterType
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., type: Optional[Union[msgSensorPointCluster.clusterType, str]] = ..., id: Optional[str] = ..., point: Optional[Iterable[Union[msgSensorPoint, Mapping]]] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., type: Optional[Union[msgSensorPointCluster.clusterType, str]] = ..., key: Optional[str] = ..., point: Optional[Iterable[Union[msgSensorPoint, Mapping]]] = ...) -> None: ...

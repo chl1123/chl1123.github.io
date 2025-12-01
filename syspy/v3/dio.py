@@ -70,7 +70,7 @@ class DiV3(DiInterface):
         """获取DI消息中的最大节点数
 
         Returns:
-            (int) DI消息中的最大节点数
+            (int): DI消息中的最大节点数
         """
         if self.update():
             return self.data.maxNode
@@ -111,7 +111,7 @@ class DoV3(DoInterface):
         """检测单个DO状态信息
 
         Args:
-            key (str): DO名
+            key (str): DO设备的key
 
         Returns:
             (bool): 返回指定DO的状态，若DO不存在返回False

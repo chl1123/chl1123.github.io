@@ -514,13 +514,13 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def recordCapture(cls, fileName: str, filePath: str, camName: str) -> bool:
+    def recordCapture(cls, fileName: str, filePath: str, cameraKey: str) -> bool:
         """相机标定时,触发图像采集
 
         Args:
             fileName (str): 文件名称
             filePath (str): 文件保存路径
-            camName (str): 相机名称
+            cameraKey (str): 相机设备的key
 
         Returns:
             (bool): 是否完成

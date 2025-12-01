@@ -13,13 +13,15 @@ class msgRFID(_message.Message):
     def __init__(self, rfidNodes: Optional[Iterable[Union[msgRFIDNode, Mapping]]] = ...) -> None: ...
 
 class msgRFIDNode(_message.Message):
-    __slots__ = ["count", "header", "id", "strength"]
+    __slots__ = ["count", "header", "id", "key", "strength"]
     COUNT_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
     ID_FIELD_NUMBER: ClassVar[int]
+    KEY_FIELD_NUMBER: ClassVar[int]
     STRENGTH_FIELD_NUMBER: ClassVar[int]
     count: int
     header: _message_header_pb2.msgHeader
     id: int
+    key: str
     strength: int
-    def __init__(self, id: Optional[int] = ..., count: Optional[int] = ..., header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., strength: Optional[int] = ...) -> None: ...
+    def __init__(self, id: Optional[int] = ..., count: Optional[int] = ..., header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., strength: Optional[int] = ..., key: Optional[str] = ...) -> None: ...

@@ -73,12 +73,12 @@ class AbnormalInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def existsDevice(cls, deviceName: str, code: Optional[int] =  None) -> bool:
-        """是否存在指定设备名及异常码的异常
+    def existsDevice(cls, deviceKey: str, code: Optional[int] =  None) -> bool:
+        """是否存在指定设备及异常码的异常
 
         Args:
-            deviceName (str): 是否存在指定设备的异常
-            code (Optional[int]): 指定异常码; 缺省表示是否存在设备名为deviceName所有异常
+            deviceKey (str): 设备的key
+            code (Optional[int]): 异常码; 缺省表示是否存在设备key为deviceKey所有异常
 
         Returns:
             (bool): 是否异常。异常为True, 否则为False
@@ -98,12 +98,12 @@ class AbnormalInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def clearDevice(cls, deviceName: str, code: Optional[int] =  None) -> bool:
-        """清除指定设备名及异常码的异常
+    def clearDevice(cls, deviceKey: str, code: Optional[int] =  None) -> bool:
+        """清除指定设备及异常码的异常
 
         Args:
-            deviceName (str): 需要清除的设备名
-            code (Optional[int]): 需要清除的异常码；缺省表示清除指定deviceName的所有异常
+            deviceKey (str): 需要清除的设备的key
+            code (Optional[int]): 需要清除的异常码；缺省表示清除指定deviceKey的所有异常
 
         Returns:
             (bool): 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
@@ -111,12 +111,12 @@ class AbnormalInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def mask(cls, code: int, deviceName: Optional[str] = None) -> bool:
-        """屏蔽指定异常码及设备名的异常
+    def mask(cls, code: int, deviceKey: Optional[str] = None) -> bool:
+        """屏蔽指定异常码及设备的异常
 
         Args:
             code (int): 需要屏蔽的异常码
-            deviceName (Optional[str]): 需要屏蔽的异常码；缺省时表示屏蔽指定code的所有异常
+            deviceKey (Optional[str]): 需要屏蔽的设备的key；缺省表示清除code的所有异常
 
         Returns:
             (bool): 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
@@ -124,22 +124,22 @@ class AbnormalInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def unmask(cls, code: int, deviceName: Optional[str] = None):
-        """取消屏蔽指定异常码及设备名的异常
+    def unmask(cls, code: int, deviceKey: Optional[str] = None):
+        """取消屏蔽指定异常码及设备的异常
 
         Args:
             code (int): 需要取消屏蔽的异常码
-            deviceName (Optional[str]): 需要取消屏蔽的异常码；缺省时表示取消屏蔽指定code的所有异常
+            deviceKey (Optional[str]): 需要屏蔽的设备的key；缺省表示清除code的所有异常
         """
         raise RBKVersionError()
 
     @classmethod
-    def isMasked(cls, code: int, deviceName: Optional[str] = None) -> bool:
-        """断指定异常码及设备名的异常是否被屏蔽
+    def isMasked(cls, code: int, deviceKey: Optional[str] = None) -> bool:
+        """查询指定异常码及设备的异常是否被屏蔽
 
         Args:
             code (int): 需要查询屏蔽的异常码
-            deviceName (Optional[str]): 需要查询屏蔽的设备；缺省时表示查询是否屏蔽指定code的异常
+            deviceKey (Optional[str]): 需要查询屏蔽的设备key；缺省时表示查询是否屏蔽指定code的异常
 
         Returns:
             (bool): 是否屏蔽异常。屏蔽返回True; 没有屏蔽返回False。

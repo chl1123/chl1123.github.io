@@ -19,11 +19,11 @@ class MotorV3(MotorInterface):
         return Odometer.data.motorInfo
 
     @staticmethod
-    def getMotorPos(motor_name: str) -> Union[float, int]:
+    def getMotorPos(key: str) -> Union[float, int]:
         """获取指定电机的当前位置
 
         Args:
-            motor_name (str): 电机名称
+            key (str): 电机设备的key
 
         Returns:
             Union[float, int]: 返回电机的当前位置，若电机不存在返回 -1
@@ -32,16 +32,16 @@ class MotorV3(MotorInterface):
         motor_pos = -1
         if Odometer.update():
             for motor in Odometer.data.motorInfo:
-                if motor.name == motor_name:
+                if motor.key == key:
                     motor_pos = motor.position
         return motor_pos
 
     @staticmethod
-    def getMotorSpeed(motor_name: str) -> Union[float, int]:
+    def getMotorSpeed(key: str) -> Union[float, int]:
         """获取指定电机的当前速度
 
         Args:
-            motor_name (str): 电机名称
+            key (str): 电机设备的key
 
         Returns:
             Union[float, int]: 返回电机的当前速度，若电机不存在返回 -1
@@ -50,17 +50,17 @@ class MotorV3(MotorInterface):
         motor_speed = -1
         if NavSpeed.update():
             for motor in NavSpeed.data.motorCmd:
-                if motor.name == motor_name:
+                if motor.key == key:
                     motor_speed = motor.value
         return motor_speed
 
     @classmethod
     @call_service()
-    def setMotorSpeed(cls, name: str, vel: float, stopDI: str = "") -> bool:
+    def setMotorSpeed(cls, key: str, vel: float, stopDI: str = "") -> bool:
         """让电机以某个速度运行，比如滚筒电机
 
         Args:
-            name (str): 电机名称
+            key (str): 电机设备的key
             vel (float): 电机速度
             stopDI (str): 到位DI。缺省或传""表示没有。
 
@@ -71,11 +71,11 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service()
-    def setMotorPosition(cls, motor_name: str, pos: float, maxVel: float, stopDI: str = "") -> bool:
+    def setMotorPosition(cls, key: str, pos: float, maxVel: float, stopDI: str = "") -> bool:
         """控制线性电机到特定位置
 
         Args:
-            motor_name (str): 模型文件中的电机名称
+            key (str): 电机设备的key
             pos (float): 发送目标点位置也可能是角度
             maxVel (float): 运行过程中的最大速度不能超过模型文件中的最大速度
             stopDI (str): 如果这个StopDI触发则表示运动到位。缺省或传""表示没有。
@@ -86,23 +86,23 @@ class MotorV3(MotorInterface):
         pass
 
     @classmethod
-    def setMotorPositionAdv(cls, name: str, pos: float, maxSpeed: float = None, maxAcc: float = None,
+    def setMotorPositionAdv(cls, key: str, pos: float, maxSpeed: float = None, maxAcc: float = None,
                             maxDec: float = None, jerk: float = None, stopDI: str = "") -> bool:
         """控制线性电机到特定位置（可控制加速度）
 
         Args:
-            name (str): 模型文件中的电机名称
+            key (str): 电机设备的key
             pos (float): 目标点位置
             maxSpeed (float): 最大速度
             maxAcc (float): 最大加速度
             maxDec (float): 最大减速度
             jerk (float): 最大加加速度
-            stopDI (str): 停止DI。该DI触发则表示运动到位。缺省或传""表示没有。
+            stopDI (str): 停止DI的key。该DI触发则表示运动到位。缺省或传""表示没有。
 
         Returns:
             (bool): 如果不存在这个电机，则返回False
         """
-        params = {"name": name, "position": pos}
+        params = {"key": key, "position": pos}
         if maxSpeed is not None:
             params["maxSpeed"] = maxSpeed
         if maxAcc is not None:
@@ -123,11 +123,11 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service()
-    def resetMotor(cls, motor_name: str) -> bool:
+    def resetMotor(cls, key: str) -> bool:
         """将电机重置为不启用状态
 
         Args:
-            motor_name (str): 电机名称
+            key (str): 电机设备的key
 
         Returns:
             (bool): 如果不存在这个电机则报错
@@ -136,11 +136,11 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service()
-    def isMotorReached(cls, motor_name: str) -> bool:
+    def isMotorReached(cls, key: str) -> bool:
         """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
 
         Args:
-            motor_name (str): 电机名称
+            key (str): 电机设备的key
 
         Returns:
             (bool): 如果到位则返回True
@@ -149,11 +149,11 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service()
-    def isMotorPositionReached(cls, motor_name: str, pos: float, stopDI: str = "") -> bool:
+    def isMotorPositionReached(cls, key: str, pos: float, stopDI: str = "") -> bool:
         """电机是否到达特定位置
 
         Args:
-            motor_name (str): 电机名称
+            key (str): 电机设备的key
             pos (float): 位置
             stopDI (str): 到位DI。缺省或传""表示没有。
 
@@ -164,11 +164,11 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service()
-    def isMotorStop(cls, motor_name: str) -> bool:
+    def isMotorStop(cls, key: str) -> bool:
         """查询电机是否停止
 
         Args:
-            motor_name (str): 电机名称
+            key (str): 电机设备的key
 
         Returns:
             (bool): 如果电机不存在则返回False
@@ -177,40 +177,40 @@ class MotorV3(MotorInterface):
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
-    def disableMotor(cls, name: str):
+    def disableMotor(cls, key: str):
         """电机去使能
 
         Args:
-            name (str): 电机名称
+            key (str): 电机设备的key
         """
         pass
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
-    def enableMotor(cls, name: str):
+    def enableMotor(cls, key: str):
         """电机使能
 
         Args:
-            name (str): 电机名称
+            key (str): 电机设备的key
         """
         pass
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
-    def motorCalib(cls, m: str):
+    def motorCalib(cls, key: str):
         """电机标零
 
         Args:
-            m (str):
+            key (str): 电机设备的key
         """
         pass
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
-    def motorForceCalib(cls, m: str):
+    def motorForceCalib(cls, key: str):
         """
 
         Args:
-            m (str):
+            key (str): 电机设备的key
         """
         pass

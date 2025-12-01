@@ -15,30 +15,30 @@ class DiInterface(ABC, Message):
     """数字输入类"""
 
     @classmethod
-    def setDIValid(cls, name: str, status: bool):
+    def setDIValid(cls, key: str, status: bool):
         """设置DI是否生效
 
         Args:
-            name (str): DI名
+            key (str): DI key
             status (bool): True表示生效，False表示不生效
         """
         raise RBKVersionError()
 
     @classmethod
-    def setVirtualDI(cls, name: str, status: bool):
+    def setVirtualDI(cls, key: str, status: bool):
         """设置虚拟DI状态
 
         Args:
-            name (str): 虚拟DI名
+            key (str): 虚拟DI key
             status (bool):虚拟DI状态
         """
         pass
 
     @classmethod
-    def getDi(cls, name: str) -> bool:
+    def getDi(cls, key: str) -> bool:
         """检测单个DI状态信息
         Args:
-            name (str): DI名
+            key (str): DI key
 
         Returns:
             (bool): 返回指定DI的状态，若DI不存在返回False
@@ -76,11 +76,11 @@ class DoInterface(ABC, Message):
     """数字输出类"""
 
     @classmethod
-    def setDo(cls, name: str, status: bool) -> bool:
+    def setDo(cls, key: str, status: bool) -> bool:
         """控制DO的开关
 
         Args:
-            name (str): DO名
+            key (str): DO key
             status (bool): 是否打开这个DO
 
         Returns:
@@ -89,11 +89,11 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getDo(cls, name: str) -> bool:
+    def getDo(cls, key: str) -> bool:
         """检测单个DO状态信息
 
         Args:
-            name (str): DO名
+            key (str): DO设备的key
 
         Returns:
             (bool): 返回指定DO的状态，若DO不存在返回False

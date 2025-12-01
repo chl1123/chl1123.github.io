@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x1cmessage_distancesensor.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xf4\x01\n\x0fmsgDistanceNode\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\n\n\x02id\x18\x03 \x01(\x05\x12\x0c\n\x04\x64ist\x18\x04 \x01(\x02\x12\r\n\x05valid\x18\x05 \x01(\x08\x12\x0c\n\x04posX\x18\x06 \x01(\x02\x12\x0c\n\x04posY\x18\x07 \x01(\x02\x12\x10\n\x08posAngle\x18\x08 \x01(\x02\x12\x10\n\x08\x61perture\x18\t \x01(\x02\x12\x11\n\tforbidden\x18\n \x01(\x08\x12\x11\n\tcanRouter\x18\x0b \x01(\r\x12\r\n\x05rs485\x18\x0c \x01(\r\x12\x0c\n\x04RSSI\x18\r \x01(\r\"@\n\x11msgDistanceSensor\x12+\n\x04node\x18\x01 \x03(\x0b\x32\x1d.rbk.protocol.msgDistanceNodeb\x06proto3')
+  serialized_pb=_b('\n\x1cmessage_distancesensor.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xf3\x01\n\x0fmsgDistanceNode\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x0b\n\x03key\x18\x02 \x01(\t\x12\n\n\x02id\x18\x03 \x01(\x05\x12\x0c\n\x04\x64ist\x18\x04 \x01(\x02\x12\r\n\x05valid\x18\x05 \x01(\x08\x12\x0c\n\x04posX\x18\x06 \x01(\x02\x12\x0c\n\x04posY\x18\x07 \x01(\x02\x12\x10\n\x08posAngle\x18\x08 \x01(\x02\x12\x10\n\x08\x61perture\x18\t \x01(\x02\x12\x11\n\tforbidden\x18\n \x01(\x08\x12\x11\n\tcanRouter\x18\x0b \x01(\r\x12\r\n\x05rs485\x18\x0c \x01(\r\x12\x0c\n\x04RSSI\x18\r \x01(\r\"@\n\x11msgDistanceSensor\x12+\n\x04node\x18\x01 \x03(\x0b\x32\x1d.rbk.protocol.msgDistanceNodeb\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
@@ -42,7 +42,7 @@ _MSGDISTANCENODE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='name', full_name='rbk.protocol.msgDistanceNode.name', index=1,
+      name='key', full_name='rbk.protocol.msgDistanceNode.key', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -138,7 +138,7 @@ _MSGDISTANCENODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=69,
-  serialized_end=313,
+  serialized_end=312,
 )
 
 
@@ -168,8 +168,8 @@ _MSGDISTANCESENSOR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=315,
-  serialized_end=379,
+  serialized_start=314,
+  serialized_end=378,
 )
 
 _MSGDISTANCENODE.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
