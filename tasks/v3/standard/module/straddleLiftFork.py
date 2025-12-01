@@ -29,12 +29,12 @@ from syspy.core.rbk_rpc import Service
 
 db = LevelDB("run")
 
-db.add("forkMileage", "float", False)
-db.add("forkMileageUp", "float", False)
-db.add("forkMileageDown", "float", False)
-db.add("forkMileageToday", "float", False)
-db.add("forkMileageUpToday", "float", False)
-db.add("forkMileageDownToday", "float", False)
+# db.add("forkMileage", "float", False)
+# db.add("forkMileageUp", "float", False)
+# db.add("forkMileageDown", "float", False)
+# db.add("forkMileageToday", "float", False)
+# db.add("forkMileageUpToday", "float", False)
+# db.add("forkMileageDownToday", "float", False)
 
 param_loader = ScriptParam(__file__)
 
@@ -44,6 +44,11 @@ def clamp(val, lo, hi):
 
 
 EPS = 1e-6  # 浮点比较公差
+
+
+def get_r_loc():
+    r_loc = Loc.getPose()
+    return [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])]
 
 
 def _robot_device_change_callback(device_change_set: List[str]):
@@ -412,7 +417,7 @@ class ConfigParams:
                         builder.DEFAULTVALUE(True)
                     with builder.CHILD(key="enableTcp", name="Enable TCP", desc="识别取货与放货是否启用 tcp"):
                         builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(True)
+                        builder.DEFAULTVALUE(False)
 
             # ===== 线性堆栈 =====
             with builder.GROUP(key="linearUnload", name="Linear Unload", desc="线性堆栈相关配置"):
@@ -482,8 +487,8 @@ def create_fork_height_param(builder: ParamBuilder, min_height: float, max_heigh
                        desc="The height for lift operations"):
         builder.TYPE(ParamType.FLOAT)
         builder.REQUIRED(True)
-        builder.MIN_VALUE(min_height)
-        builder.MAX_VALUE(max_height)
+        # builder.MIN_VALUE(min_height)
+        # builder.MAX_VALUE(max_height)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
         builder.DEFAULTVALUE(0.1)
@@ -494,8 +499,8 @@ def create_end_height_param(builder: ParamBuilder, min_height: float, max_height
                        desc="The fork height after load"):
         builder.TYPE(ParamType.FLOAT)
         # builder.REQUIRED(True)
-        builder.MIN_VALUE(min_height)
-        builder.MAX_VALUE(max_height)
+        # builder.MIN_VALUE(min_height)
+        # builder.MAX_VALUE(max_height)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
         builder.DEFAULTVALUE(0.1)
@@ -506,8 +511,8 @@ def create_start_height_param(builder: ParamBuilder, min_height: float, max_heig
                        desc="The fork height before load"):
         builder.TYPE(ParamType.FLOAT)
         # builder.REQUIRED(True)
-        builder.MIN_VALUE(min_height)
-        builder.MAX_VALUE(max_height)
+        # builder.MIN_VALUE(min_height)
+        # builder.MAX_VALUE(max_height)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
         builder.DEFAULTVALUE(0.1)
@@ -531,7 +536,7 @@ def create_rec_param(builder: ParamBuilder):
                                desc="Load With Recognition"):
                 builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="recfile", name="Recognition File Name",
+                with builder.CHILD(key="recfile", name="Recfile",
                                    desc="Recognition file name"):
                     builder.TYPE(ParamType.STRING)
                     builder.DEFAULTVALUE("default.srec")
@@ -993,8 +998,13 @@ class Fork(ModuleBase):
             return
         if not self.init_args:
             self.script_status = ScriptStatus.RUNNING
+            self.action_status = ActionStatus.INIT
             self.init_args = True
+            self.operation_init = False
             self.task_args = args
+            self.action_id = 0
+            self.action_list = []
+            Trace.log(f"script args:{self.task_args}")
             self._init_args()
 
         self._check_timeout()
@@ -1016,7 +1026,7 @@ class Fork(ModuleBase):
         else:
             Abnormal.setTask(53300, f"wrong operation:{self.opt}, script failed", "input operation not define",
                              "check the input param", "")
-            self.script_status = ScriptStatus.FINISHED
+            self.script_status = ScriptStatus.FAILED
         self._execute_actions()
         if self.action_status == ScriptStatus.FAILED:
             self.script_status = ScriptStatus.FAILED
@@ -1040,22 +1050,9 @@ class Fork(ModuleBase):
         return
 
     def reset(self):
-        self.target_pos = [0, 0, 0, -1]
-        self.rec_params = dict()
         self.start_time = time.time()
-        self.action_id = 0
-        self.action_list = list()
-        self.operation_init = False
-        # self.script_status = ScriptStatus.NONE
-        self.action_status = ActionStatus.INIT
-        # 识别相关
-        self.rec_result = dict()
-        # 定义脚本运行相关的成员变量
-        self.hasReachDi = None
-        self.recfile = ""
-        self.move_task = dict()
-        self.cur_state = {}
-        Motor.resetMotor(ConfigParams.fork_motor_name)
+        # Motor.resetMotor(ConfigParams.fork_motor_name)
+        Navigation.stopRobot(True)
         # Navigation.clearGoodsShape()
 
     def delete_clear_region(self):
@@ -1111,12 +1108,13 @@ class Fork(ModuleBase):
     def load(self):
         if not self.operation_init:
             self.operation_init = True
-            r_loc = Loc.getPose()
+            Trace.log(f"{self.script_status}")
+            r_loc = get_r_loc()
 
             # 解析识别文件
             if self.recfile:
                 # 处理扣除区域，仅针对后激光
-                if ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
+                if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:
                     self.pallet_deduct_infos = get_deduct_area(self.recfile)
                     for pallet_deduct_info in self.pallet_deduct_infos:
                         if (not pallet_deduct_info or (pallet_deduct_info.get("deduct_device", None) is None)
@@ -1171,7 +1169,7 @@ class Fork(ModuleBase):
                     ]
 
                     # 堆高车的非识别取货的话扣掉AP点
-                    if ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
+                    if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:
                         deduct2ap = [{"x": ConfigParams.head + 0.15, "y": ConfigParams.width / 2 + 0.2},
                                      {"x": -ConfigParams.tail, "y": ConfigParams.width / 2 + 0.2},
                                      {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2 - 0.2},
@@ -1191,7 +1189,7 @@ class Fork(ModuleBase):
                 if self.target_pos[3] == -1:
                     target2robot = None
                 else:
-                    target2robot = pos2Base(self.target_pos, [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])])
+                    target2robot = pos2Base(self.target_pos, r_loc)
                 Trace.log(f"target pos :{self.target_pos}")
 
                 # 先看识别文件是否有启用 back_dist，如果启用了，用识别文件的值，没启用的话，用设备模型中的值
@@ -1212,14 +1210,14 @@ class Fork(ModuleBase):
 
             self.check_di = self.rec_info.get("enableCargoContactDI")
 
-            r_loc = Loc.getPose()
+            r_loc = get_r_loc()
             if (isinstance(current_action, Rec)
                     and current_action.action_name == "RecPallet"
                     and current_action.action_status == ActionStatus.FINISHED):
 
                 results = current_action.results_list
                 # 处理识别结果时，既需要考虑z方向的，又需要考虑x轴 和 y 轴的。默认取 z 离 startHeight 上下 10cm的结果先过滤一次
-                filter_results_by_z = [result for result in results if abs(result["z"] - self.start_height) <= 0.1]
+                filter_results_by_z = [result for result in results if abs(result["z"] - self.start_height) <= 0.15]
                 self.pallet_width = filter_results_by_z[0]["palletWidth"]
                 self.obstacle_polygon_by_rec = current_action.obstacle_polygon
                 Trace.log(f"{self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}")
@@ -1229,7 +1227,7 @@ class Fork(ModuleBase):
                     Trace.log("rec world")
                     for result in filter_results_by_z:
                         results_in_r.append(pos2Base([result["x"], result["y"], result["yaw"]],
-                                                     [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])]))
+                                                     r_loc))
                 else:
                     for result in filter_results_by_z:
                         results_in_r.append([result["x"], result["y"], result["yaw"]])
@@ -1239,7 +1237,8 @@ class Fork(ModuleBase):
 
                 rec_result2r = min_y_result
 
-                rec_world_pos = pos2World(rec_result2r, [r_loc["x"], r_loc["y"], math.radians(r_loc["yaw"])])
+                rec_world_pos = pos2World(rec_result2r, r_loc)
+                Trace.log(f"rec_world_pos: {rec_world_pos}")
 
                 if ConfigParams.enableTcp:
                     rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0], rec_world_pos[1], rec_world_pos[2],
@@ -1249,7 +1248,7 @@ class Fork(ModuleBase):
                     Trace.log(f"after tcp:{rec_world_pos_tcp_list}")
                     rec_world_pos = rec_world_pos_tcp_list
 
-                if ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
+                if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:
                     set_deduct_area(self.pallet_deduct_infos, rec_world_pos, "PalletWorldDeductArea",
                                     Coordinate.WORLD)
 
@@ -1389,7 +1388,7 @@ class Fork(ModuleBase):
                     # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                     args = {
                         "back_dist": 0,
-                        "min_ahead_dist": ConfigParams.tail + ConfigParams.head,
+                        "min_ahead_dist": ConfigParams.tail,
                         "adjust_dist": ConfigParams.aheadDist,
                     }
                     if ConfigParams.useStraightLine:
@@ -1479,7 +1478,6 @@ class Fork(ModuleBase):
         Trace.log(f"move task:{self.move_task}")
         self.start_time = time.time()
 
-        # 通过设置扣除区域处理后激光
         self.clear_fork_region_by_height = False
         self.name_left = "back_laser_clear_left"
         self.name_right = "back_laser_clear_right"
@@ -1494,6 +1492,7 @@ class Fork(ModuleBase):
                              {"x": -ConfigParams.tail, "y": self.outer},
                              {"x": -ConfigParams.tail, "y": self.inner},
                              {"x": ConfigParams.module_x, "y": self.inner}]
+        Trace.log(f"script status {self.script_status}")
         # self.opt = "rec"
         # Abnormal.setTask(53000, "test", "", "", "")
 
@@ -1526,9 +1525,7 @@ class Fork(ModuleBase):
             self.up_dist = 0.0
             self.down_dist = 0.0
         if self.total_dist != self.last_saved_total:
-            db.puts({
-                self.mileage_total_key: str(self.total_dist)
-            })
+            db.put(self.mileage_total_key, self.total_dist)
             self.last_saved_total = self.total_dist
 
     def period_run(self):
@@ -1564,7 +1561,7 @@ class Fork(ModuleBase):
         modbus_list_fork_height = float_to_modbus_poll_regs(fork_height)
         NetProtocol.setModbusData("3x", 57, modbus_list_fork_height)
 
-        if ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
+        if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:
             task_status = NavStatus.getTaskStatus()
             if ConfigParams.scriptDebug:
                 Trace.log(f"task_status{task_status}")
@@ -1636,7 +1633,7 @@ class Fork(ModuleBase):
         if Navigation.hasGoods() and ConfigParams.checkGoodsWhileLoad and ConfigParams.checkAllContactDis:
             # 获取到位 di 的状态
             di_status = []
-            contact_ids=ConfigParams.contact_ids
+            contact_ids = ConfigParams.contact_ids
             for di in contact_ids:
                 di_status.append(Di.getDi(di))
 
@@ -1730,6 +1727,7 @@ class Rec(BaseAction):
         if not self.init:
             self.init = True
             self.success = False
+            time.sleep(1)
 
         self.action_status = ActionStatus.RUNNING
         if not self.success:
@@ -1741,8 +1739,10 @@ class Rec(BaseAction):
             if ConfigParams.zMax:
                 z_max_results = sorted(self.results_list, key=lambda item: item['z'], reverse=True)
                 self.result = z_max_results[0]
+            # z值最小的结果在前
             else:
-                self.result = self.results_list[0]
+                z_min_results = sorted(self.results_list, key=lambda item: item['z'])
+                self.result = z_min_results[0]
             Trace.log(f"rec_results: {self.result}")
 
             self.action_status = ActionStatus.FINISHED
@@ -1812,6 +1812,7 @@ class GoPathWithContactDi(BaseAction):
         self.set_policy = False
         self.clear_policy = False
         self.policy = {}
+        target2robot = pos2Base(world_pos, get_r_loc())
         Trace.log(f"go path with di target pos:{world_pos}")
 
         if method == "goPath":
@@ -1830,6 +1831,8 @@ class GoPathWithContactDi(BaseAction):
                 'maxSpeed': 0.15,
                 'useOdo': 0
             }
+            if target2robot[0] > 0:
+                self.back_args["backMode"] = 0
             self.back_action = GoPath(self.back_args)
         elif method == "goBezier":
             self.back_action = GoBezier.GoBezierWorld(world_pos, args["back_dist"], args["adjust_dist"],
@@ -1849,7 +1852,9 @@ class GoPathWithContactDi(BaseAction):
             self.init = True
             self.start_loc = Loc.getPose()
             Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}")
-
+            if self.cal_walk_dist() < 0.05:
+                self.action_status = ScriptStatus.FINISHED
+                return
             if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
                 for laser in ConfigParams.fork_tip_2D_lasers:
                     Trace.log(f"set2DLaserWidth:{laser}")
@@ -2079,7 +2084,8 @@ class RunMotorByPosition(BaseAction):
             self.init = True
 
             # 目标位置比初始位置差得不大就不要执行动作了
-            if abs(self.position - cur_fork_height) <= 0.01 and ConfigParams.module_type in ["straddleLiftFork","counterBalanceFork"]:
+            if abs(self.position - cur_fork_height) <= 0.01 and ConfigParams.module_type in ["straddleLiftFork",
+                                                                                             "counterBalanceFork"]:
                 self.action_status = ActionStatus.FINISHED
                 return
 
@@ -2405,15 +2411,21 @@ class GoTwoStraightLine(BaseAction):
         self.max_angle = max_angle
         self.dec_dist = dec_dist
         self.step = 20
+
+        # 栈板前的点
         self.second_point = pos2World([self.min_ahead_dist, 0, 0], self.world_target)
+        # 终点
         self.third_point = pos2World([-self.back_dist, 0, 0], self.world_target)
         self.go_step = [False] * 3
         self.action_status = ActionStatus.INIT
         self.init = False
         self.return_back = return_back
         pos = Loc.getPose()
+        # 如果不执行原路返回
         if not self.return_back:
-            self.start_pos = [pos['x'], pos['y'], math.radians(pos['yaw'])]
+            # 记录起始点
+            self.start_pos = get_r_loc()
+            # 如果从当前点出发区栈板前的点角度不满足要求就开始迭代
             if abs(self.cal_angle(self.start_pos, self.second_point)) > self.max_angle:
                 self.start_pos[2] = self.world_target[2]
                 angle, self.temp_start = self.search_min_angle_str(self.max_angle, self.step)
@@ -2421,11 +2433,12 @@ class GoTwoStraightLine(BaseAction):
                 self.temp_start = self.start_pos
             ScriptData.set('goTwoStraightLine',
                            {'points': [self.start_pos, self.temp_start, self.second_point, self.world_target]})
+        # 如果执行原路返回
         else:
             points = ScriptData.get('goTwoStraightLine').get('points', [])
             if not points:
                 self.action_status = ActionStatus.FAILED
-                Abnormal.setTask(53324, "no route before leave loc, scirpt failed",
+                Abnormal.setTask(53324, "no route before leave loc, script failed",
                                  "rec and goStraightLine first",
                                  "rec and goStraightLine first", "")
 
@@ -2450,9 +2463,9 @@ class GoTwoStraightLine(BaseAction):
                     "theta": self.temp_start[2],
                     "backMode": 0,
                     "maxSpeed": 0.1,
-                    "maxRot": math.radians(10),
+                    "maxRot": math.radians(5),
                     "coordinate": Coordinate.WORLD.value,
-                    "reachAngle": math.radians(0.5),
+                    "reachAngle": math.radians(0.2),
                     "reachDist": 0.005
                 }
                 go2_args = {
@@ -2461,9 +2474,9 @@ class GoTwoStraightLine(BaseAction):
                     "theta": self.second_point[2],
                     "backMode": 1,
                     "maxSpeed": 0.1,
-                    "maxRot": math.radians(10),
+                    "maxRot": math.radians(5),
                     "coordinate": Coordinate.WORLD.value,
-                    "reachAngle": math.radians(0.5),
+                    "reachAngle": math.radians(0.2),
                     "reachDist": 0.005
                 }
                 go3_args = {
@@ -2472,9 +2485,9 @@ class GoTwoStraightLine(BaseAction):
                     "theta": self.third_point[2],
                     "backMode": 1,
                     "maxSpeed": 0.1,
-                    "maxRot": math.radians(10),
+                    "maxRot": math.radians(5),
                     "coordinate": Coordinate.WORLD.value,
-                    "reachAngle": math.radians(0.5),
+                    "reachAngle": math.radians(0.2),
                     "reachDist": 0.005
                 }
             else:
@@ -2484,9 +2497,9 @@ class GoTwoStraightLine(BaseAction):
                     "theta": self.temp_start[2],
                     "backMode": 0,
                     "maxSpeed": 0.1,
-                    "maxRot": math.radians(10),
+                    "maxRot": math.radians(5),
                     "coordinate": Coordinate.WORLD.value,
-                    "reachAngle": math.radians(0.5),
+                    "reachAngle": math.radians(0.2),
                     "reachDist": 0.005
                 }
                 go2_args = {
@@ -2495,9 +2508,9 @@ class GoTwoStraightLine(BaseAction):
                     "theta": self.second_point[2],
                     "backMode": 0,
                     "maxSpeed": 0.1,
-                    "maxRot": math.radians(10),
+                    "maxRot": math.radians(5),
                     "coordinate": Coordinate.WORLD.value,
-                    "reachAngle": math.radians(0.5),
+                    "reachAngle": math.radians(0.2),
                     "reachDist": 0.005
                 }
                 go3_args = {
@@ -2506,9 +2519,9 @@ class GoTwoStraightLine(BaseAction):
                     "theta": self.third_point[2],
                     "backMode": 0,
                     "maxSpeed": 0.1,
-                    "maxRot": math.radians(10),
+                    "maxRot": math.radians(5),
                     "coordinate": Coordinate.WORLD.value,
-                    "reachAngle": math.radians(0.5),
+                    "reachAngle": math.radians(0.2),
                     "reachDist": 0.005
                 }
             self.go1 = GoPath(go1_args)
@@ -2614,7 +2627,6 @@ def main():
                 checked_args = True
                 f.init_args = False
                 Trace.log(f"check before, args:{input_params}")
-                args = input_params
                 try:
                     # 验证参数
                     args = validator.validate(input_params)
@@ -2632,10 +2644,10 @@ def main():
                 Module.setStatus(f.script_status)
                 checked_args = False
                 validated_params = {}
-                f.reset()
                 delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
                 delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
                 Trace.log(f"script end")
+                f.reset()
                 continue
 
             f.run(args)
