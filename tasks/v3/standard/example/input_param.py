@@ -109,7 +109,7 @@ class InputParams:
                         with builder.CHILD(key="useExternIMU", name="Using Extern IMU",
                                            desc="using Extern IMU"):
                             builder.TYPE(ParamType.COMBO_BOX_BOOL)
-                            builder.DEFAULTVALUE(0)
+                            builder.DEFAULTVALUE("OFF")
 
                             with builder.CHILDREN():
                                 # OFF选项
@@ -132,7 +132,7 @@ class InputParams:
 
                         with builder.CHILD("spin_type", name="Spin Type", desc="Spin Type"):
                             builder.TYPE(ParamType.STRING_COMBO_LIST)
-                            builder.DEFAULTVALUE(0)
+                            builder.DEFAULTVALUE("a0")
 
                             with builder.CHILDREN():
                                 with builder.CHILD("a0", "Name a0", "name a0"):
