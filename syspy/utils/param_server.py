@@ -724,7 +724,7 @@ class ParamValidator:
                 # 特殊处理COMBO_BOX_BOOL类型
                 if param.get('type') == ParamType.COMBO_BOX_BOOL:
                     for child in param.get('children', []):
-                        # 使用整数0/1表示OFF/ON
+                        # 使用布尔值 False/True 表示 OFF/ON
                         bool_value = False if child['key'] == "OFF" else True
                         self.combo_box_bool_mapping[child['key']].append(
                             {
