@@ -7,14 +7,14 @@ from typing import ClassVar, Iterable, Mapping, Optional, Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class msgDistanceNode(_message.Message):
-    __slots__ = ["RSSI", "aperture", "canRouter", "dist", "forbidden", "header", "id", "name", "posAngle", "posX", "posY", "rs485", "valid"]
+    __slots__ = ["RSSI", "aperture", "canRouter", "dist", "forbidden", "header", "id", "key", "posAngle", "posX", "posY", "rs485", "valid"]
     APERTURE_FIELD_NUMBER: ClassVar[int]
     CANROUTER_FIELD_NUMBER: ClassVar[int]
     DIST_FIELD_NUMBER: ClassVar[int]
     FORBIDDEN_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
     ID_FIELD_NUMBER: ClassVar[int]
-    NAME_FIELD_NUMBER: ClassVar[int]
+    KEY_FIELD_NUMBER: ClassVar[int]
     POSANGLE_FIELD_NUMBER: ClassVar[int]
     POSX_FIELD_NUMBER: ClassVar[int]
     POSY_FIELD_NUMBER: ClassVar[int]
@@ -28,13 +28,13 @@ class msgDistanceNode(_message.Message):
     forbidden: bool
     header: _message_header_pb2.msgHeader
     id: int
-    name: str
+    key: str
     posAngle: float
     posX: float
     posY: float
     rs485: int
     valid: bool
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., name: Optional[str] = ..., id: Optional[int] = ..., dist: Optional[float] = ..., valid: bool = ..., posX: Optional[float] = ..., posY: Optional[float] = ..., posAngle: Optional[float] = ..., aperture: Optional[float] = ..., forbidden: bool = ..., canRouter: Optional[int] = ..., rs485: Optional[int] = ..., RSSI: Optional[int] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., key: Optional[str] = ..., id: Optional[int] = ..., dist: Optional[float] = ..., valid: bool = ..., posX: Optional[float] = ..., posY: Optional[float] = ..., posAngle: Optional[float] = ..., aperture: Optional[float] = ..., forbidden: bool = ..., canRouter: Optional[int] = ..., rs485: Optional[int] = ..., RSSI: Optional[int] = ...) -> None: ...
 
 class msgDistanceSensor(_message.Message):
     __slots__ = ["node"]

@@ -1,15 +1,15 @@
 import typing
-from syspy.rfid import RFIDInterface
+from syspy.rfid import RfidInterface
 
 
-class RFIDV3(RFIDInterface):
+class RfidV3(RfidInterface):
     """RFID类"""
 
     _TOPIC = "rbk.protocol.msgRFID"
     _PLUGIN = "RFIDSensor"
     _MODEL_CLASS = None
     if typing.TYPE_CHECKING:
-        from .protobuf import msgRFID
+        from .protobuf import msgRFID, msgRFIDNode
         data: msgRFID = None
 
     @classmethod
@@ -25,4 +25,4 @@ class RFIDV3(RFIDInterface):
             返回包含RFID节点信息的列表
         """
         if self.update():
-            return self.data.rfid_nodes
+            return self.data.rfidNodes

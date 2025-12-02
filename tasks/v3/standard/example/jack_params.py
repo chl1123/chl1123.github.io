@@ -196,7 +196,7 @@ class InputParams:
                                         with builder.CHILD(key="useExternIMU", name="Using Extern IMU",
                                                            desc="using Extern IMU"):
                                             builder.TYPE(ParamType.COMBO_BOX_BOOL)
-                                            builder.DEFAULTVALUE(0)
+                                            builder.DEFAULTVALUE("OFF")
 
                                             with builder.CHILDREN():
                                                 # OFF选项

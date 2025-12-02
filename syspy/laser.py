@@ -26,73 +26,73 @@ class LaserInterface:
         """获取指定topic的当前数据"""
         return self.child.getData(args, topic=topic)
 
-    def set2DLaserWidth(self, device_name: str, width: float):
+    def set2DLaserWidth(self, key: str, width: float):
         """设置激光设备宽度
 
         Args:
-            device_name (str): 激光设备名称
+            key (str): 激光设备的key
             width (float): 屏蔽宽度，此范围外的点云被屏蔽
         """
-        self.child.set2DLaserWidth(device_name, width)
+        self.child.set2DLaserWidth(key, width)
 
-    def clear2DLaserWidth(self, device_list: List[str]):
+    def clear2DLaserWidth(self, keys: List[str]):
         """清除激光设备宽度
 
         Args:
-            device_list (List[str]): 激光设备名称列表
+            keys (List[str]): 激光设备的key列表
         """
-        self.child.clear2DLaserWidth(device_list)
+        self.child.clear2DLaserWidth(keys)
 
-    def set2DLaserAngle(self, device_name: str, min_angle: float, max_angle: float):
+    def set2DLaserAngle(self, key: str, min_angle: float, max_angle: float):
         """设置激光设备角度
 
         Args:
-            device_name (str): 激光设备名称
+            key (str): 激光设备的key
             min_angle (float): 最小角度（单位: °），小于此角度的点云被屏蔽
             max_angle (float): 最大角度（单位: °），大于此角度的点云被屏蔽
         """
-        self.child.set2DLaserAngle(device_name, min_angle, max_angle)
+        self.child.set2DLaserAngle(key, min_angle, max_angle)
 
-    def clear2DLaserAngle(self, device_list: List[str]):
+    def clear2DLaserAngle(self, keys: List[str]):
         """清除激光设备角度
         
         Args:
-            device_list (List[str]): 激光设备名称列表
+            keys (List[str]): 激光设备的key列表
         """
-        self.child.clear2DLaserAngle(device_list)
+        self.child.clear2DLaserAngle(keys)
 
     #----------------------------------------------------#
 
-    def getNearestLaserPoint(self, laser_key: str) -> List[float]:
+    def getNearestLaserPoint(self, key: str) -> List[float]:
         """获取与指定激光距离最近的激光点与激光中心的距离和朝向
 
         Args:
-            laser_key (str): 激光设备的key
+            key (str): 激光设备的key
 
         Returns:
             (List[float]): 最近激光点与激光中心的距离、最近激光点与激光中心的夹角
         """
-        return self.child.getNearestLaserPoint(laser_key)
+        return self.child.getNearestLaserPoint(key)
 
-    def safeLaserMuteStatus(self, laser_key: str) -> int:
+    def safeLaserMuteStatus(self, key: str) -> int:
         """获取激光抑制状态
 
         Args:
-            laser_key (str): 激光设备的key。
+            key (str): 激光设备的key。
 
         Returns:
             (int): 激光状态，1表示启用，0表示禁用
         """
-        return self.child.safeLaserMuteStatus(laser_key)
+        return self.child.safeLaserMuteStatus(key)
 
-    def setSafeLaserMute(self, laser_key: str, enable: bool):
+    def setSafeLaserMute(self, key: str, enable: bool):
         """设置激光抑制(muting)
 
         Args:
-            laser_key (str): 激光设备的key。""表示选择全部激光。
+            key (str): 激光设备的key。""表示选择全部激光。
             enable (int): 表示是否启用激光muting，true启用，false禁用
         """
-        self.child.setSafeLaserMute(laser_key, enable)
+        self.child.setSafeLaserMute(key, enable)
 
 
 class Laser3DInterface:

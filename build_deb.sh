@@ -91,14 +91,29 @@ for arch in "${ARCHITECTURES[@]}"; do
     mkdir -p "${BUILD_DIR}/DEBIAN"
     mkdir -p "${BUILD_DIR}/${INSTALL_DIR}"
 
-    # 创建目标子目录并复制文件（保留目录结构）
+    # 创建目标子目录并复制文件（合并目录结构）
     for script in ${SCRIPT_FILES}; do
-        # 获取文件的目录部分
-        script_dir=$(dirname "${script}")
+        # 重新组织目录结构，移除版本相关目录
+        if [[ "${script}" == generic/* ]]; then
+            # 处理generic目录下的文件，移除v3/v4/common等中间目录
+            target_path=$(echo "${script}" | sed -E 's|generic/[^/]+/|generic/|')
+            echo "merge: ${script} -> ${target_path}"
+        elif [[ "${script}" == tasks/* ]]; then
+            # 处理tasks目录下的文件，移除v3/v4/common等中间目录
+            target_path=$(echo "${script}" | sed -E 's|tasks/[^/]+/|tasks/|')
+            echo "merge: ${script} -> ${target_path}"
+        else
+            # 其他路径保持不变
+            target_path="${script}"
+            echo "${script}"
+        fi
+        
+        # 获取处理后的目录部分
+        target_dir=$(dirname "${target_path}")
         # 在目标目录中创建相应的子目录
-        mkdir -p "${BUILD_DIR}/${INSTALL_DIR}/${script_dir}"
+        mkdir -p "${BUILD_DIR}/${INSTALL_DIR}/${target_dir}"
         # 复制文件到对应目录
-        cp "${script}" "${BUILD_DIR}/${INSTALL_DIR}/${script_dir}/"
+        cp "${script}" "${BUILD_DIR}/${INSTALL_DIR}/${target_path}"
     done
 
     # 创建preinst安装前脚本
@@ -116,9 +131,18 @@ set -e
 
 # 设置文件权限
 for script in ${SCRIPT_FILES}; do
-    if [ -f "${INSTALL_DIR}/\${script}" ]; then
-        chmod 755 "${INSTALL_DIR}/\${script}"
-        echo "已更新脚本: \${script}"
+    # 使用相同的目录重组逻辑来确定目标路径
+    if [[ "\${script}" == generic/* ]]; then
+        target_path=\$(echo "\${script}" | sed -E 's|generic/[^/]+/|generic/|')
+    elif [[ "\${script}" == tasks/* ]]; then
+        target_path=\$(echo "\${script}" | sed -E 's|tasks/[^/]+/|tasks/|')
+    else
+        target_path="\${script}"
+    fi
+    
+    if [ -f "${INSTALL_DIR}/\${target_path}" ]; then
+        chmod 755 "${INSTALL_DIR}/\${target_path}"
+        echo "已更新脚本: \${target_path}"
     fi
 done
 

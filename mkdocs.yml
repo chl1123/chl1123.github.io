@@ -121,7 +121,6 @@ nav:
       - 距离传感器: api/distance.md
       - 磁传感器: api/magnetic.md
       - 激光: api/laser.md
-      - 相机: api/camera.md
       - 灯光: api/led.md
       - 电机: api/motor.md
       - 扫码器: api/code_scanner.md

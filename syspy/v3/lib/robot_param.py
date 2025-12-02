@@ -39,11 +39,11 @@ class RobotParamV3(RobotParamInterface):
 
     @classmethod
     @call_service(plugin_name="NetProtocol", func_name="getDevice")
-    def getDevice(cls, device_name: str, param_path: str) -> Any:
+    def getDevice(cls, device_key: str, param_path: str) -> Any:
         """获取机器人设备模型参数(devices/robot.model)
 
         Args:
-            device_name (str): 设备名
+            device_key (str): 设备的key
             param_path (str): 参数路径
 
         Returns:
@@ -52,17 +52,17 @@ class RobotParamV3(RobotParamInterface):
         pass
 
     @classmethod
-    def getDeviceCloneSize(cls, device_name: str, param_path: str) -> int:
+    def getDeviceCloneSize(cls, device_key: str, param_path: str) -> int:
         """获取机器人设备模型-克隆类型参数个数(devices/robot.model)
 
         Args:
-            device_name (str): 设备名
+            device_key (str): 设备的key
             param_path (str): 参数路径
 
         Returns:
             (int) 参数个数
         """
-        return cls.getDevice(device_name, param_path+"._(size")
+        return cls.getDevice(device_key, param_path+"._(size")
 
     @classmethod
     @call_service(func_name="getRobotFile")

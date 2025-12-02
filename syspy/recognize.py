@@ -34,7 +34,7 @@ class RecognizeInterface(ABC, Service):
     @classmethod
     def recTargetObs(
         cls,
-        deviceName: str,
+        deviceKey: str,
         x: float,
         y: float,
         theta: float,
@@ -46,7 +46,7 @@ class RecognizeInterface(ABC, Service):
         """识别指定区域内是否存在障碍物
 
         Args:
-            deviceName (str): 检测设备名称
+            deviceKey (str): 检测设备的key
             x (float): 区域中心点x坐标（车体坐标系）
             y (float): 区域中心点y坐标（车体坐标系）
             theta (float): 区域角度
@@ -56,7 +56,7 @@ class RecognizeInterface(ABC, Service):
             obs_area_width (float): 检测区域宽度
         """
         dict_str = {
-            "deviceName": deviceName,
+            "deviceName": deviceKey,
             "x": x,
             "y": y,
             "theta": theta,

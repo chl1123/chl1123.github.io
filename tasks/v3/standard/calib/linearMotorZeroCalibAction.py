@@ -29,12 +29,12 @@ class CalibMove:
             self.init = False
             self.cancel = False
             self.status = ScriptStatus.RUNNING
-            self.motor_name = Module.getTaskArgs("name","Motor-005")
+            self.motor_name = Module.getTaskArgs("name","Motor-002")
             self.height = Module.getTaskArgs("sendHeight",1.0)
             self.pos = 1.0
 
-        self.pos = Motor.getMotorPos(self.motor_name)
         Motor.resetMotor(self.motor_name)
+        self.pos = Motor.getMotorPos(self.motor_name)
         if Motor.setMotorPosition(self.motor_name, self.height, 1.0):
             if math.fabs(self.pos-self.height) < 0.01:
                 self.status = ScriptStatus.FINISHED 
@@ -49,6 +49,7 @@ class CalibMove:
         info["motor_name"] = self.motor_name
         info["status"] = self.status
         info["pos"] = self.pos
+        info["height"] = self.height
         log.info(json.dumps(info))
 
     def Cancel(self):
@@ -65,11 +66,14 @@ def main():
         time.sleep(0.1)
         if calib_move.status == ScriptStatus.FINISHED:
             Module.setStatus(ScriptStatus.FINISHED)
+            Motor.resetMotor(calib_move.motor_name)
             return
         if calib_move.status == ScriptStatus.FAILED:
             Module.setStatus(ScriptStatus.FAILED)
+            Motor.resetMotor(calib_move.motor_name)
             return
         if calib_move.cancel:
+            Motor.resetMotor(calib_move.motor_name)
             return
 
 if __name__ == '__main__':

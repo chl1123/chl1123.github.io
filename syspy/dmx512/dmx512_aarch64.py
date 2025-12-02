@@ -47,7 +47,7 @@ class dmx512Aarch64:
         output = subprocess.check_output(command, shell=True)
         output = output.decode("utf-8").strip()
         log.info(f"{output=}")
-        if not output == "SRC880":
+        if output in ['SRC800', 'SRC3000']:
             fcntl.ioctl(self.ser, 0)  # 这行决定了485模式
         self.__msg_thread = threading.Thread(target=self.__serialRun, name="__serialRun", daemon=True)
         self.__msg_thread.start()

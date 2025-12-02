@@ -71,7 +71,7 @@ class AbnormalV4(AbnormalInterface):
 
         Args:
             code (int): 需要屏蔽的异常码
-            deviceName (Optional[str]): 需要屏蔽的异常码；缺省时表示屏蔽指定code的所有异常
+            deviceName (Optional[str]): 需要屏蔽的设备的；缺省表示清除code的所有异常
 
         Returns:
             (bool): 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
@@ -84,7 +84,7 @@ class AbnormalV4(AbnormalInterface):
 
         Args:
             code (int): 需要取消屏蔽的异常码
-            deviceName (Optional[str]): 需要取消屏蔽的异常码；缺省时表示取消屏蔽指定code的所有异常
+            deviceName (Optional[str]): 需要屏蔽的设备的；缺省表示清除code的所有异常
         """
         pass
 

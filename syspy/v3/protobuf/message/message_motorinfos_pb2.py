@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x18message_motorinfos.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xb6\x04\n\x0cmsgMotorInfo\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x11\n\tcanRouter\x18\x03 \x01(\r\x12\r\n\x05\x63\x61nId\x18\x04 \x01(\r\x12\x10\n\x08position\x18\x05 \x01(\x02\x12\r\n\x05speed\x18\x06 \x01(\x02\x12\x0f\n\x07\x63urrent\x18\x07 \x01(\x02\x12\x0f\n\x07voltage\x18\x08 \x01(\x02\x12\x0c\n\x04stop\x18\t \x01(\x08\x12\x11\n\terrorCode\x18\n \x01(\r\x12\x0b\n\x03\x65rr\x18\x0b \x01(\x08\x12\x0b\n\x03\x65mc\x18\x0c \x01(\x08\x12\x13\n\x0btemperature\x18\r \x01(\x02\x12\x0f\n\x07\x65ncoder\x18\x0e \x01(\x05\x12\x32\n\x04type\x18\x0f \x01(\x0e\x32$.rbk.protocol.msgMotorInfo.motorType\x12\x0f\n\x07passive\x18\x10 \x01(\x08\x12\x35\n\x05\x63\x61lib\x18\x11 \x01(\x0e\x32&.rbk.protocol.msgMotorInfo.calibStatus\x12\x11\n\tfollowErr\x18\x12 \x01(\x08\x12\x13\n\x0brawPosition\x18\x13 \x01(\x02\"L\n\tmotorType\x12\x08\n\x04walk\x10\x00\x12\t\n\x05steer\x10\x01\x12\x08\n\x04spin\x10\x02\x12\n\n\x06linear\x10\x03\x12\x0c\n\x08rotation\x10\x04\x12\x06\n\x02\x64o\x10\x05\"7\n\x0b\x63\x61libStatus\x12\r\n\tnotClibed\x10\x00\x12\x0c\n\x08\x63\x61libing\x10\x01\x12\x0b\n\x07\x63\x61libed\x10\x02\">\n\rmsgMotorInfos\x12-\n\tmotorInfo\x18\x01 \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfob\x06proto3')
+  serialized_pb=_b('\n\x18message_motorinfos.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xb5\x04\n\x0cmsgMotorInfo\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x0b\n\x03key\x18\x02 \x01(\t\x12\x11\n\tcanRouter\x18\x03 \x01(\r\x12\r\n\x05\x63\x61nId\x18\x04 \x01(\r\x12\x10\n\x08position\x18\x05 \x01(\x02\x12\r\n\x05speed\x18\x06 \x01(\x02\x12\x0f\n\x07\x63urrent\x18\x07 \x01(\x02\x12\x0f\n\x07voltage\x18\x08 \x01(\x02\x12\x0c\n\x04stop\x18\t \x01(\x08\x12\x11\n\terrorCode\x18\n \x01(\r\x12\x0b\n\x03\x65rr\x18\x0b \x01(\x08\x12\x0b\n\x03\x65mc\x18\x0c \x01(\x08\x12\x13\n\x0btemperature\x18\r \x01(\x02\x12\x0f\n\x07\x65ncoder\x18\x0e \x01(\x05\x12\x32\n\x04type\x18\x0f \x01(\x0e\x32$.rbk.protocol.msgMotorInfo.motorType\x12\x0f\n\x07passive\x18\x10 \x01(\x08\x12\x35\n\x05\x63\x61lib\x18\x11 \x01(\x0e\x32&.rbk.protocol.msgMotorInfo.calibStatus\x12\x11\n\tfollowErr\x18\x12 \x01(\x08\x12\x13\n\x0brawPosition\x18\x13 \x01(\x02\"L\n\tmotorType\x12\x08\n\x04walk\x10\x00\x12\t\n\x05steer\x10\x01\x12\x08\n\x04spin\x10\x02\x12\n\n\x06linear\x10\x03\x12\x0c\n\x08rotation\x10\x04\x12\x06\n\x02\x64o\x10\x05\"7\n\x0b\x63\x61libStatus\x12\r\n\tnotClibed\x10\x00\x12\x0c\n\x08\x63\x61libing\x10\x01\x12\x0b\n\x07\x63\x61libed\x10\x02\">\n\rmsgMotorInfos\x12-\n\tmotorInfo\x18\x01 \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfob\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
@@ -59,8 +59,8 @@ _MSGMOTORINFO_MOTORTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=498,
-  serialized_end=574,
+  serialized_start=497,
+  serialized_end=573,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOTORINFO_MOTORTYPE)
 
@@ -85,8 +85,8 @@ _MSGMOTORINFO_CALIBSTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=576,
-  serialized_end=631,
+  serialized_start=575,
+  serialized_end=630,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOTORINFO_CALIBSTATUS)
 
@@ -106,7 +106,7 @@ _MSGMOTORINFO = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='name', full_name='rbk.protocol.msgMotorInfo.name', index=1,
+      name='key', full_name='rbk.protocol.msgMotorInfo.key', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -246,7 +246,7 @@ _MSGMOTORINFO = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=65,
-  serialized_end=631,
+  serialized_end=630,
 )
 
 
@@ -276,8 +276,8 @@ _MSGMOTORINFOS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=633,
-  serialized_end=695,
+  serialized_start=632,
+  serialized_end=694,
 )
 
 _MSGMOTORINFO.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER

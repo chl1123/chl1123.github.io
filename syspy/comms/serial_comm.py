@@ -32,7 +32,7 @@ class SerialComm(Communication):
             output = subprocess.check_output(command, shell=True)
             output = output.decode("utf-8").strip()
             print("SRC name: ", output)
-            if output not in ['SRC880', 'SRC1000', "SRC1100", "SRCF10", "SRCR10"]:
+            if output in ['SRC800', 'SRC3000']:
                 fcntl.ioctl(self.serial, 0)  # 这行决定了485模式
             print(f"Serial port {self.port} opened successfully.")
             return True

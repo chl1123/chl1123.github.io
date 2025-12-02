@@ -64,13 +64,13 @@ class ZmqClient:
             try:
                 data, event = self.queue.get(timeout=1)
                 self.socket.send(data.to_json().encode('utf-8'))  # 发送数据
-                # 利用 self.poller.poll(5000) 对发送的数据进行轮询，等待最多 5000 毫秒
+                # 利用 self.poller.poll(3000) 对发送的数据进行轮询，等待最多 3000 毫秒
                 events = dict(self.poller.poll(3000))
                 # 如果 socket 在从 poll 返回的事件中，则表示收到了响应
                 if self.socket in events:
                     response = self.recv()
                     event.result = response
-                else:  # 5秒内没有收到响应（即 socket 不在从 poll 返回的事件中）
+                else:  # 3秒内没有收到响应（即 socket 不在从 poll 返回的事件中）
                     event.result = None
                     event.set()
                     self.stop_flag.set()
@@ -142,10 +142,10 @@ class RpcClient:
             response = JSONRPCResponse.parse(response_json)
             if response.has_error():
                 raise Exception(response_json)
-            # log.debug("res <= %s", response.get_print())
+            log.debug("res <= %s", response.get_print())
             return response.get_result()
         else:  # event.result 为 None
-            raise TimeoutError("poller Timeout")
+            raise TimeoutError(f"Call RBK Timeout, check whether RBK is running, {request.to_json()=}")
 
 
 if __name__ == "__main__":

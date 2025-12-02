@@ -1,8 +1,8 @@
 import typing
-from syspy.rfid import RFIDInterface
+from syspy.rfid import RfidInterface
 
 
-class RFIDV4(RFIDInterface):
+class RfidV4(RfidInterface):
     """RFID类"""
 
     _TOPIC = ""  # todo RBK4

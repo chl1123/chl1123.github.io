@@ -456,12 +456,13 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setSteerAngle(cls, name: str, angle: float) -> bool:
+    def setSteerAngle(cls, name: str, angle: float, action_name: str = "") -> bool:
         """转动舵角
 
         Args:
             name (str): 舵机名称
             angle (float): 角度位置, 单位rad
+            action_name (str): 动作名。缺省为""
 
         Returns:
             (bool): 如果为True电机到位
@@ -513,13 +514,13 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def recordCapture(cls, fileName: str, filePath: str, camName: str) -> bool:
+    def recordCapture(cls, fileName: str, filePath: str, cameraKey: str) -> bool:
         """相机标定时,触发图像采集
 
         Args:
             fileName (str): 文件名称
             filePath (str): 文件保存路径
-            camName (str): 相机名称
+            cameraKey (str): 相机设备的key
 
         Returns:
             (bool): 是否完成

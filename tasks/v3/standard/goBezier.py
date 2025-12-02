@@ -134,7 +134,10 @@ class GoBezierWorld:
         dxL = x_end - p0[0]
         dyL = y_end - p0[1]
         Ldist = math.hypot(dxL, dyL)
-        v1 = [dxL / Ldist, dyL / Ldist]
+        if Ldist != 0:
+            v1 = [dxL / Ldist, dyL / Ldist]
+        else:
+            v1 = [0, 0]
 
         # 过渡段长度（建议 0.25–0.3）
         L = 0.1

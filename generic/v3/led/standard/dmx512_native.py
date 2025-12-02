@@ -285,7 +285,10 @@ class LedChassis(LedBase):
         # 机器移动时的灯光效果
         elif not NavStatus.getChassisStop():
             self.robot_status = "Moving"
-            self.handle_movement_effect()
+            if config_params.turnNum[0] + config_params.turnNum[1] + config_params.turnNum[2] + config_params.turnNum[3] == 0:
+                self.set_effect(LightType.MutableBreath, rgbw=Color.BlueCobalt, period=3200)
+            else:
+                self.handle_movement_effect()
         # 电池相关的灯光效果
         elif battery_exist:
             self.handle_battery_effects(dmx_battery)

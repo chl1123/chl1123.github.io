@@ -8,16 +8,12 @@ import json
 import math
 import time
 from enum import IntEnum
-
 from syspy.utils.time import Timer
-
 start_time = time.time()
-
 from syspy import (Module, Logger, Di, Motor, Navigation, Loc, Abnormal, Recognize,
                    Odometer, CodeScanner, ScriptStatus, Trace, NavSpeed, Controller)
-
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
-from tasks.v3.standard import goPath, goBezier
+from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
 
 param_loader = ScriptParam(__file__)
@@ -2599,6 +2595,7 @@ def main():
                         print("check ok, args:", json.dumps(validated_params, indent=2))
                     except ValueError as e:
                         print("check error:", e)
+                        Abnormal.setTask(53780,f"Input error:{e}","some input params are not valid","check the input params","input check")
             else:
                 validated_params = modbus_params
             j.run(validated_params)
