@@ -16,9 +16,9 @@ if RBK_VERSION == 4:
 log = logging.getLogger("rbk.script")
 
 
-class dmx512Aarch64:
+class dmx512NativeLib:
     def __init__(self):
-        log.info("start arm dmx512")
+        log.info("start native dmx512")
         self.ser = None
         self.__callback = None
         self.__should_close = False

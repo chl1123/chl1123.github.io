@@ -9,9 +9,9 @@ if RBK_VERSION == 4:
 log = logging.getLogger("rbk.script")
 
 
-class dmx512X86:
+class dmx512PassLib:
     def __init__(self):
-        log.info("start x86 dmx512")
+        log.info("start passThrough dmx512")
 
     def sendDmx512(self, dmx512_info):
         type_exm = message_dmx512_pb2.msgDmx512()
