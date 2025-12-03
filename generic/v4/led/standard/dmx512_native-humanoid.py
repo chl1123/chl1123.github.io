@@ -53,22 +53,36 @@ class LedChassis(LedBase):
             battery_exist = False
         else:
             battery_exist = True
-        self.handle_light_effects(percentage, battery_exist)
+        
         if ConfigParam.dmx_test_flag:
             self.set_effect(LightType.MutableBreath, rgbw=Color.Red, period=3200)
+        else:
+            self.handle_light_effects(percentage, battery_exist)
 
     def handle_light_effects(self, dmx_battery: Optional[float], battery_exist: bool):
         # Args:
         #     light_effect (Union[LightType, LightEffect]): 预制灯效类型LightType 或 用户自定义灯效（继承LightEffect）
         #     rgbw (Optional[Union[Color, list]]): RGBW颜色值
         #     period (Optional[int]): 适用于呼吸灯、流水灯、跑马灯、闪烁灯的周期
-        #     led_idx (Optional[list]): 常量灯和闪烁灯的索引。默认应用到所有LED灯
+        #     led_idx (Optional[list]): 灯索引，适用UintLed
+        # 支持的格式：
+        #     - 3
+        #     - [1,3,5]
+        #     - slice(1,5)
+        #     - "1:5"
+        #     - "1:10:2"
         #     brightness (Optional[Union[int, float, list]]): 灯光亮度。int、float应用到全部，list应用到指定索引
         
         # Simple light effect handling
         self.robot_status = "Normal"
-        self.set_effect(LightType.ConstantLight, rgbw=ConfigParam.rgbwColor)
-        log.info("Effect set to ConstantLight with rgbw=" + str(ConfigParam.rgbwColor))
+        # self.set_effect(LightType.ConstantLight, rgbw=ConfigParam.rgbwColor)
+        # log.info("Effect set to ConstantLight with rgbw=" + str(ConfigParam.rgbwColor))
+
+        self.set_effect(LightType.Uint, rgbw=Color.Red, led_idx=slice(1,3))
+        self.set_effect(LightType.Uint, rgbw=Color.BlueCobalt, led_idx=3)
+        self.set_effect(LightType.Uint, rgbw=Color.Yellow, led_idx="4:5")
+        log.info("Effect set to Uint with various colors on different LEDs.")
+        
         
         
         
