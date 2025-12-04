@@ -65,8 +65,8 @@ class CalibMove:
             self.locName = Module.getTaskArgs("locName", "")
             # 定位策略切换
             if self.calibType == "ObsLaserCalib" and self.locType == "Laser" and self.locName != "":
-                policy = {"localization.localizationType": "2D",
-                          "localization.localizationType.2D.localizationLaser": self.locName}
+                policy = {"localization.localizationType": "laser2d",
+                          "localization.localizationType.laser2d.localizationLaser": self.locName}
                 Navigation.appendCustomPolicy("policy", policy)
 
         # 实时运行
