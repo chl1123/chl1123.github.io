@@ -1301,12 +1301,15 @@ class Fork(ModuleBase):
                 outer_points = convex_hull(self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec)
                 for point in outer_points:
                     point2ap = pos2World([point["x"], point["y"], 0],
-                                         [ConfigParams.module_x - self.pallet_width / 2, 0, 0])
+                                         [ConfigParams.module_x - self.carrier_length / 2, 0, 0])
                     goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
                 # 设置货物形状
                 Navigation.setGoodsPolyShape(goods_point2robot, self.recfile)
                 # 删掉地图上的扣除区域
                 delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
+                set_deduct_area(self.pallet_deduct_infos, [ConfigParams.module_x - self.carrier_length / 2, 0, 0],
+                                "PalletWorldDeductArea",
+                                Coordinate.ROBOT)
             # 没有识别文件
             else:
                 for point in self.no_rec_deduct_pallet_area:
@@ -1392,6 +1395,7 @@ class Fork(ModuleBase):
                     method = "goPath"
                     args = None
                 self.action_list = [
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                     GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
                                         False),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
@@ -1899,51 +1903,55 @@ class GoPathWithContactDi(BaseAction):
         if not self.check_di:
             self.action_status = self.back_action.action_status
 
-        # 获取到位 di 的状态
-        self.di_status = []
-        for di in self.contact_di:
-            if di != '':
-                self.di_status.append(Di.getDi(di))
-
-        # 如果不需要检查所有的到位 di，一个到位任务结束
-        if not self.check_all_contact_di:
-            dist2target = self.cal_dist(self.target_pos, get_r_loc())
-
-            if dist2target < 0.1 and any(self.di_status):
-                Abnormal.setTask(53322, f"not reach goal, still {dist2target}m left, "
-                                        f"but di:{self.contact_di}{self.di_status} trigger",
-                                 "", "", "")
-                self.action_status = ActionStatus.FAILED
-
-            # 任务结束超过 1 s，且没有到位 di 触发，则报错结束任务
-            if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(1):
-                Abnormal.setTask(53307, f"not trigger di but robot reach goal",
-                                 f"please check the di dist or reach di:{self.contact_di}", "", "")
-                self.action_status = ActionStatus.FAILED
-            # 一个到位任务结束
-            if any(self.di_status):
-                if self.stop_robot():
-                    self.action_status = ActionStatus.FINISHED
-
-        # 仅检查所有到位 di 的情况
         else:
-            # 所有到位 di 没有全部触发，则报错结束任务
-            if self.back_action.action_status == ActionStatus.FINISHED and not any(self.di_status) and Timer.delay(1):
-                Abnormal.setTask(53308, f"not trigger di but robot reach goal",
-                                 f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
-                                 "", "")
-                self.action_status = ActionStatus.FAILED
-            # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
-            if any(self.di_status):
-                if Timer.delay(self.di_trigger_time):
-                    if all(self.di_status):
-                        if self.stop_robot():
-                            self.action_status = ActionStatus.FINISHED
-                    else:
-                        Abnormal.setTask(53308, f"not all di triggered but robot reach goal",
-                                         f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
-                                         "", "")
-                        self.action_status = ActionStatus.FAILED
+
+            # 获取到位 di 的状态
+            self.di_status = []
+            for di in self.contact_di:
+                if di != '':
+                    self.di_status.append(Di.getDi(di))
+
+            # 如果不需要检查所有的到位 di，一个到位任务结束
+            if not self.check_all_contact_di:
+                dist2target = pos2Base(get_r_loc(), self.target_pos)
+
+                if dist2target[0] > 0.1 and any(self.di_status):
+                    Abnormal.setTask(53322, f"not reach goal, still {dist2target}m left, "
+                                            f"but di:{self.contact_di}{self.di_status} trigger",
+                                     "", "", "")
+                    self.action_status = ActionStatus.FAILED
+
+                # 任务结束超过 1 s，且没有到位 di 触发，则报错结束任务
+                if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(
+                        1):
+                    Abnormal.setTask(53307, f"not trigger di but robot reach goal",
+                                     f"please check the di dist or reach di:{self.contact_di}", "", "")
+                    self.action_status = ActionStatus.FAILED
+                # 一个到位任务结束
+                if any(self.di_status):
+                    if self.stop_robot():
+                        self.action_status = ActionStatus.FINISHED
+
+            # 仅检查所有到位 di 的情况
+            else:
+                # 所有到位 di 没有全部触发，则报错结束任务
+                if self.back_action.action_status == ActionStatus.FINISHED and not any(self.di_status) and Timer.delay(
+                        1):
+                    Abnormal.setTask(53308, f"not trigger di but robot reach goal",
+                                     f"please check the di dist or reach dis:{self.contact_di} and back dist",
+                                     "", "")
+                    self.action_status = ActionStatus.FAILED
+                # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
+                if any(self.di_status):
+                    if Timer.delay(self.di_trigger_time):
+                        if all(self.di_status):
+                            if self.stop_robot():
+                                self.action_status = ActionStatus.FINISHED
+                        else:
+                            Abnormal.setTask(53308, f"not all di triggered but robot reach goal",
+                                             f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
+                                             "", "")
+                            self.action_status = ActionStatus.FAILED
         if self.action_status in [ActionStatus.FINISHED, ActionStatus.FAILED]:
             Laser.clear2DLaserWidth(ConfigParams.fork_tip_2D_lasers)
             Navigation.clearPolicy()
