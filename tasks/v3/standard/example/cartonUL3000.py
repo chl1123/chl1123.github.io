@@ -954,11 +954,22 @@ class ContainerRobot(ModuleBase):
         self.box_code_file = None
         self.shelf_code_file = None
 
-        self.a_step = [False] * 3
+        self.final_bin_task = None  # finalBinTask 参数
+        self.final_loc = None  # finalLoc 参数
+        self.result = None
 
-        self.final_bin_task = ""  # finalBinTask 参数
-        self.final_bin_task_done = False  # 动作完成标志
-        self.reached_target = False  # 模拟到达目标点（手动设置）
+        # 边走边动相关状态
+        self.pre_action_mode = False  # 是否处于预动作模式（边走边动）
+        self.pre_action_completed = False  # 预动作是否完成
+        self.pre_action_step = [False] * 5  # 预动作步骤: [finger, rotate, lift, ...]
+        self.pre_action_args = {}  # 预动作参数（从finalBinTask解析）
+        self.full_action_args = {}  # 完整动作参数（到达终点后执行）
+        self.at_final_loc = False  # 是否到达终点
+
+        # 后动作相关状态
+        self.post_action_pending = False  # 是否有后动作待执行
+        self.post_action_type = None  # 后动作类型: 'load_to_tray', 'unload_from_tray'
+        self.post_action_step = [False] * 10  # 后动作步骤
 
         self.lift_ok = False
         self.rotate_ok = False
@@ -1067,21 +1078,18 @@ class ContainerRobot(ModuleBase):
                     self.rec_box_barcode()
                 elif self.operation == "rec_qrcode":
                     self.rec_qrcode()
-                elif self.operation == "load_last":
-                    if self.load_with_navigation_last():
-                        self.status = ScriptStatus.FINISHED
                 elif self.operation == "take_photo":
                     self.take_photo()
-                elif self.operation == "in_take":
+                elif self.operation == "inTake":
                     if self.in_take():
                         self.status = ScriptStatus.FINISHED
-                elif self.operation == "in_put":
+                elif self.operation == "inPut":
                     if self.in_put():
                         self.status = ScriptStatus.FINISHED
-                elif self.operation == "ex_take":
+                elif self.operation == "exTake":
                     if self.ex_take():
                         self.status = ScriptStatus.FINISHED
-                elif self.operation == "ex_put":
+                elif self.operation == "exPut":
                     if self.ex_put():
                         self.status = ScriptStatus.FINISHED
                 else:
@@ -1251,18 +1259,276 @@ class ContainerRobot(ModuleBase):
 
     def update_move_task_params(self):
         """
-        获取moveTask参数
+        获取moveTask参数，支持边走边动模式
         """
         move_task = Navigation.realTimeMoveTask()
-        # move_task = Navigation.moveTask()
-        # print(f"move_task={move_task}")
+
+        new_final_loc = None
+        new_final_bin_task = None
+
         for p in move_task['params']:
             if p['key'] == 'goodsName':
                 self.goods_id = p['stringValue']
             if p['key'] == '#containerId' and p['stringValue'] != "":
                 self.self_position = p['stringValue']
             if p['key'] == '#finalBinTask' and p['stringValue'] != "":
-                self.final_bin_task = p['stringValue']
+                new_final_bin_task = p['stringValue']
+            if p['key'] == '#finalLoc' and p['stringValue'] != "":
+                new_final_loc = p['stringValue']
+
+        # 只有新任务且与上次不同时才更新
+        if new_final_loc and new_final_bin_task:
+            if new_final_loc != getattr(self, 'final_loc', None) or new_final_bin_task != getattr(self,
+                                                                                                  'final_bin_task',
+                                                                                                  None):
+                self.final_loc = new_final_loc
+                self.final_bin_task = new_final_bin_task
+                result = Navigation.getBinTask(self.final_loc, self.final_bin_task)
+
+                if result:
+                    full_args = result.get('scriptArgs', {})
+                    self.full_action_args = full_args
+
+                    operation = full_args.get('operation', '')
+                    if operation in ['load', 'unload']:
+                        self.pre_action_mode = True
+                        self.pre_action_completed = False
+                        self.pre_action_step = [False] * 5
+
+                        # 清理之前的后动作状态
+                        self.post_action_pending = False
+                        self.post_action_type = None
+                        self.post_action_step = [False] * 10
+                        # 清空cur_c，让脚本重新搜索
+                        self.cur_c = None
+                        # 清理load/unload步骤状态
+                        self.load_step = [False] * 16
+                        self.unload_step = [False] * 16
+
+                        self.pre_action_args = {
+                            'lift': full_args.get('lift', 0),
+                            'rotate': full_args.get('rotate', 0),
+                            'operation': operation,
+                            'pre_finger': 1 if operation == 'load' else None
+                        }
+                        Trace.log(
+                            f"[边走边动] 进入预动作模式, operation={operation}, pre_action_args={self.pre_action_args}")
+                    else:
+                        self.result = full_args
+                        self.pre_action_mode = False
+
+        # 检查是否到达终点
+        self._check_at_final_loc()
+
+    def _check_at_final_loc(self):
+        """
+        检查是否已到达终点：当#finalBinTask消失时表示已到达
+        """
+        if not self.pre_action_mode:
+            self.at_final_loc = False
+            return
+
+        try:
+            move_task = Navigation.realTimeMoveTask()
+
+            has_final_bin_task = False
+            for p in move_task.get('params', []):
+                if p['key'] == '#finalBinTask' and p.get('stringValue', '') != "":
+                    has_final_bin_task = True
+                    break
+
+            if not has_final_bin_task and self.pre_action_mode:
+                if not self.at_final_loc:  # 首次检测到
+                    Trace.log(f"[边走边动] #finalBinTask已消失，判断已到达终点")
+                    time.sleep(0.3)  # 等待系统稳定
+                self.at_final_loc = True
+            else:
+                self.at_final_loc = False
+
+        except Exception as e:
+            Trace.log(f"[边走边动] 检查终点状态异常: {e}")
+            self.at_final_loc = False
+
+    def pre_load_action(self):
+        """
+        load预动作：打开拨指、旋转、抬升（并行）
+        """
+        Trace.log(f"----- running pre_load_action ------")
+
+        lift_height = self.pre_action_args.get('lift', 0)
+        rotate_pos = self.pre_action_args.get('rotate', 0)
+        pre_finger = self.pre_action_args.get('pre_finger', None)
+
+        if not self.pre_action_step[0]:
+            if pre_finger is not None:
+                self.pre_action_step[0] = self.finger(pre_finger)
+            else:
+                self.pre_action_step[0] = True
+
+        if not self.pre_action_step[1]:
+            self.pre_action_step[1] = self.rotate(rotate_pos)
+
+        if not self.pre_action_step[2]:
+            self.pre_action_step[2] = self.lift(lift_height)
+
+        self.report_info["preActionInfo"] = {
+            'preActionStep': self.pre_action_step,
+            'liftHeight': lift_height,
+            'rotatePos': rotate_pos,
+            'atFinalLoc': self.at_final_loc
+        }
+
+        if all(self.pre_action_step[0:3]):
+            self.pre_action_completed = True
+            Trace.log(f"[边走边动] load预动作完成")
+            return True
+        return False
+
+    def pre_unload_action(self):
+        """
+        unload预动作：背篓取货(0-5) + 抬升(6) + 旋转(7)
+        """
+        Trace.log(f"----- running pre_unload_action ------")
+
+        lift_height = self.pre_action_args.get('lift', 0)
+        rotate_pos = self.pre_action_args.get('rotate', 0)
+
+        # 初始化cur_c
+        if not self.cur_c:
+            if self.self_position:
+                self.cur_c = self.self_position
+            elif Container.hasGoods("999"):
+                self.cur_c = "999"
+            else:
+                self.cur_c = Container.getContainerByGoods(self.goods_id)
+
+            if not self.cur_c:
+                Trace.log(f"[边走边动] 未找到货物 {self.goods_id}，跳过预动作")
+                self.pre_action_completed = True
+                return True
+
+        # 货物已在货叉，跳过背篓取货
+        if self.cur_c == "999":
+            self.pre_action_step[0] = True
+        else:
+            # 背篓取货 unload_step[0-5]
+            if not self.pre_action_step[0]:
+                if not self.unload_step[0] or not self.unload_step[1] or not self.unload_step[2]:
+                    if not self.unload_step[0]:
+                        self.unload_step[0] = self.lift(ConfigParams.low[int(self.cur_c)])
+                    if not self.unload_step[1]:
+                        self.unload_step[1] = self.finger(1)
+                    if not self.unload_step[2]:
+                        self.unload_step[2] = self.rotate(0)
+                elif self.unload_step[1] and self.unload_step[2] and not self.unload_step[3]:
+                    self.unload_step[3] = self.stretch(ConfigParams.stretch_self_length)
+                elif self.unload_step[3] and not self.unload_step[4]:
+                    Do.setDo(ConfigParams.finger_up_do, False)
+                    self.unload_step[4] = self.finger(0)
+                elif self.unload_step[4] and not self.unload_step[5]:
+                    self.unload_step[5] = self.stretch(0)
+                    if self.unload_step[5] and Di.getDi(ConfigParams.goods_check_di):
+                        goods_id = Container.getGoodsByContainer(self.cur_c)
+                        Container.setContainer("999", goods_id, "")
+                        Container.clearContainer(self.cur_c)
+
+                if all(self.unload_step[0:6]):
+                    self.pre_action_step[0] = True
+                    Trace.log(f"[边走边动] 背篓取货完成")
+
+        # 抬升+旋转（并行）
+        if self.pre_action_step[0] and not self.pre_action_step[1]:
+            self.pre_action_step[1] = self.lift(lift_height)
+            if self.pre_action_step[1]:
+                self.unload_step[6] = True
+
+        if self.pre_action_step[0] and not self.pre_action_step[2]:
+            self.pre_action_step[2] = self.rotate(rotate_pos)
+            if self.pre_action_step[2]:
+                self.unload_step[7] = True
+
+        self.report_info["preActionInfo"] = {
+            'preActionStep': self.pre_action_step,
+            'unloadStep': self.unload_step[:8],
+            'curContainer': self.cur_c,
+            'atFinalLoc': self.at_final_loc
+        }
+
+        if all(self.pre_action_step[0:3]):
+            self.pre_action_completed = True
+            Trace.log(f"[边走边动] unload预动作完成")
+            return True
+        return False
+
+    def execute_pre_action(self):
+        """根据操作类型执行预动作"""
+        operation = self.pre_action_args.get('operation', '')
+        if operation == 'load':
+            return self.pre_load_action()
+        elif operation == 'unload':
+            return self.pre_unload_action()
+        return True
+
+    def run_pre_action(self):
+        """
+        边走边动：在status==NONE时执行预动作，由main循环调用
+        """
+        # 设置状态为RUNNING，告诉系统脚本正在执行
+        self.status = ScriptStatus.RUNNING
+        Module.setStatus(self.status)  # 确保每次都调用
+
+        self.update_report_info()
+        self.check_motor_emc()
+
+        if self.enable_motor and not self.motor_calib_state:
+            self.motor_calib()
+
+        if not self.motor_calib_state:
+            self.report_info['preActionMode'] = True
+            self.report_info['preActionWaiting'] = 'motor_calib'
+            Module.reportInfo(self.report_info)
+            return
+
+        self.report_info['preActionMode'] = True
+        self.report_info['preActionCompleted'] = self.pre_action_completed
+        self.report_info['atFinalLoc'] = self.at_final_loc
+
+        if not self.pre_action_completed:
+            self.execute_pre_action()
+            Trace.log(f"[边走边动] 执行预动作中... step={self.pre_action_step}")
+        elif self.at_final_loc:
+            self.switch_to_full_action()
+            Trace.log(f"[边走边动] 已到达终点，切换到完整动作模式")
+        else:
+            Trace.log(f"[边走边动] 预动作已完成，等待到达终点...")
+
+        Module.reportInfo(self.report_info)
+
+    def switch_to_full_action(self):
+        """切换到完整动作模式"""
+        if self.full_action_args:
+            operation = self.full_action_args.get('operation', '')
+
+            # 清理之前的后动作状态（防止干扰）
+            self.post_action_pending = False
+            self.post_action_type = None
+            self.post_action_step = [False] * 10
+
+            if operation == 'load':
+                self.load_step[0] = True
+                self.load_step[1] = True
+                self.load_step[2] = True
+                Trace.log(f"[边走边动] 切换到load，跳过step[0:3]")
+            elif operation == 'unload':
+                Trace.log(f"[边走边动] 切换到unload，跳过step[0:8]")
+
+            self.pre_action_mode = False
+            self.status = ScriptStatus.NONE
+            Module.setStatus(self.status)
+
+            Trace.log(f"[边走边动] 预动作模式结束，等待binTask下发")
+            return True
+        return False
 
     def zero(self, zero_height=0):
         """
@@ -1290,10 +1556,11 @@ class ContainerRobot(ModuleBase):
             # r.release()
             Do.setDo(ConfigParams.finger_up_do, False)
             # Container.clearContainer("1")
-            print("123")
-            Container.setContainer("1", self.goods_id, "")
+            # print("123")
+            # Container.setContainer("1", self.goods_id, "")
             return True
         return False
+
 
     def lift(self, height):
         log.info(f"----- running lift ------")
@@ -1415,20 +1682,6 @@ class ContainerRobot(ModuleBase):
             return True
         return False
 
-    def do_final_bin_task(self):
-        if self.final_bin_task == "load":
-            if not self.a_step[0]:
-                self.a_step[0] = self.lift(1.12)
-            elif not self.a_step[1]:
-                self.a_step[1] = True
-            elif not self.a_step[2]:
-                self.a_step[2] = self.rotate(-1.57)
-
-            if all(self.a_step):
-                Trace.log("finalBinTask load 完成")
-                return True
-        return False
-
     def rec_barcode(self):
         """
         识别一维码
@@ -1539,7 +1792,7 @@ class ContainerRobot(ModuleBase):
                 self.status = ScriptStatus.FINISHED
 
     def load(self):
-        log.info(f"----- running load  {self.goods_id}------")
+        Trace.log(f"----- running load  {self.goods_id}------")
         load_info = dict()
         if not self.cur_c:
             if (self.goods_id and Container.goodsExist(self.goods_id) and
@@ -1556,7 +1809,7 @@ class ContainerRobot(ModuleBase):
                 self.cur_c = self.self_position
             else:
                 self.cur_c = self.search_operable_container('load')
-            log.info(f"load begin: {json.dumps(self.containers)}")
+            Trace.log(f"load begin: {json.dumps(self.containers)}")
             if self.cur_c is None:  # 车体满载了
                 Abnormal.setTask(53716, f"车体所有背篓已满，无法继续取货！", "", "", "")
                 self.status = ScriptStatus.FAILED
@@ -1615,98 +1868,90 @@ class ContainerRobot(ModuleBase):
                 if self.load_step[8] and Di.getDi(ConfigParams.goods_check_di):
                     # 手臂收回且光电检测成功时，增加货叉货物数据
                     Container.setContainer("999", self.goods_id, "")
-            elif self.load_step[8] and (not self.load_step[9] or not self.load_step[10]):
-                if not self.load_step[9]:
-                    self.load_step[9] = self.rotate(0)
-                if self.cur_c == "999":
-                    self.load_step[:15] = [True] * 15
-                else:
-                    if not self.load_step[10]:
-                        self.load_step[10] = self.lift(ConfigParams.high[int(self.cur_c)])
-            elif self.load_step[9] and self.load_step[10] and not self.load_step[11]:
-                self.load_step[11] = self.stretch(ConfigParams.stretch_self_length)
-            elif self.load_step[11] and not self.load_step[12]:
-                self.load_step[12] = self.finger(1)
-            elif self.load_step[12] and not self.load_step[13]:
-                self.load_step[13] = self.stretch(0)
-            elif self.load_step[13] and not self.load_step[14]:
-                Do.setDo(ConfigParams.finger_up_do, False)
-                self.load_step[14] = self.finger(0)
-            elif self.load_step[14] and not self.load_step[15]:
-                self.load_step[15] = self.lift_safe_height()
 
-            load_info['cur_container'] = self.cur_c
-            load_info['goodsId'] = self.goods_id
-            load_info['load_step'] = self.load_step
+            # ========== 边走边动：到点动作完成，后动作待执行 ==========
+            elif self.load_step[8]:
+                if self.cur_c != "999":  # 需要放到背篓，标记后动作
+                    self.post_action_pending = True
+                    self.post_action_type = 'load_to_tray'
+                    self.post_action_cur_c = self.cur_c
+                    Trace.log(f"[边走边动] load到点动作完成，后动作(货叉->背篓)待执行, cur_c={self.cur_c}")
+                    return True  # 直接返回完成
+                else:
+                    # 目标就是货叉，不需要后动作
+                    Trace.log(f"[边走边动] load完成，目标为货叉，无需后动作")
+                    return True
+            # ========== 边走边动结束 ==========
+
+            load_info['curContainer'] = self.cur_c
+            load_info['goodsName'] = self.goods_id
+            load_info['loadStep'] = self.load_step
             load_info['lift-height'] = self.lift_height
             load_info['load-height'] = self.load_height
             load_info['lift-real-height'] = self.lift_real_pos
-            self.report_info["load_info"] = load_info
-            if all(self.load_step):
-                # 在完成取货的所有动作后，增加背篓货物数据
-                Container.clearContainer("999")
-                Container.setContainer(self.cur_c, self.goods_id, "")
-                return True
+            self.report_info["loadInfo"] = load_info
 
-    def load_with_navigation_last(self):
-        """边走边动模式的取货逻辑"""
-        Trace.log(f"----- running load_with_navigation_last {self.goods_id}------")
-        ex_take_info = dict()
-        if self.rec_adjust is None:
-            self.rec_adjust = RecAdjust(ConfigParams.box_code_file)
+    def run_post_action(self):
+        """执行后动作（边走边动）"""
+        if not self.post_action_pending:
+            return
 
-        # Step 0, 1: 占位
-        if not self.ex_take_step[0]:
-            self.ex_take_step[0] = True
-        elif not self.ex_take_step[1]:
-            self.ex_take_step[1] = True
+        self.status = ScriptStatus.RUNNING
+        Module.setStatus(self.status)
+        self.update_report_info()
+        self.check_motor_emc()
 
-        # Step 2: 开灯等待
-        elif not self.ex_take_step[2]:
-            Do.setDo(self.fill_light_do, True)
-            if Do.getDo(self.fill_light_do) and Timer.delay(ConfigParams.light_delay_time):
-                self.ex_take_step[2] = True
+        if self.enable_motor and not self.motor_calib_state:
+            self.motor_calib()
 
-        # Step 3: 识别调整（独立步骤）
-        elif not self.ex_take_step[3]:
-            if self.rec_adjust.status is ScriptStatus.FINISHED:
-                Do.setDo(self.fill_light_do, False)
-                self.ex_take_step[3] = True
-            elif self.rec_adjust.status is ScriptStatus.FAILED:
-                self.status = ScriptStatus.FAILED
-            else:
-                self.rec_adjust.run(self)
+        if not self.motor_calib_state:
+            return
 
-        if all(self.ex_take_step[0:4]) and not self.ex_take_step[4]:
-            self.ex_take_step[4] = self.lift(1.04)
-            self.ex_take_step[5] = True
-        if all(self.ex_take_step[0:6]) and not self.ex_take_step[6]:
-            self.ex_take_step[6] = self.finger(1)
-        if all(self.ex_take_step[0:7]) and not self.ex_take_step[7]:
-            self.ex_take_step[7] = self.stretch(0.78)
-        if all(self.ex_take_step[0:8]) and not self.ex_take_step[8]:
+        if self.post_action_type == 'load_to_tray':
+            if self.post_load_to_tray():
+                self.post_action_pending = False
+                self.post_action_type = None
+                self.status = ScriptStatus.NONE
+                Module.setStatus(self.status)
+                Trace.log(f"[边走边动] 后动作完成")
+
+        Module.reportInfo(self.report_info)
+
+    def post_load_to_tray(self):
+        """后动作：货叉 -> 背篓"""
+        Trace.log(f"----- running post_load_to_tray ------")
+
+        cur_c = self.post_action_cur_c
+
+        # rotate(0)
+        if not self.post_action_step[0]:
+            self.post_action_step[0] = self.rotate(0)
+        # lift到背篓高度
+        if not self.post_action_step[1]:
+            self.post_action_step[1] = self.lift(ConfigParams.high[int(cur_c)])
+        # stretch伸出
+        if self.post_action_step[0] and self.post_action_step[1] and not self.post_action_step[2]:
+            self.post_action_step[2] = self.stretch(ConfigParams.stretch_self_length)
+        # finger打开
+        elif self.post_action_step[2] and not self.post_action_step[3]:
+            self.post_action_step[3] = self.finger(1)
+        # stretch收回
+        elif self.post_action_step[3] and not self.post_action_step[4]:
+            self.post_action_step[4] = self.stretch(0)
+        # finger关闭
+        elif self.post_action_step[4] and not self.post_action_step[5]:
             Do.setDo(ConfigParams.finger_up_do, False)
-            self.ex_take_step[8] = self.finger(0)
-        if all(self.ex_take_step[0:9]) and not self.ex_take_step[9]:
-            self.ex_take_step[9] = self.stretch(0)
-        if all(self.ex_take_step[0:10]) and not self.ex_take_step[10]:
-            self.ex_take_step[10] = self.rotate(0)
-        if all(self.ex_take_step[0:11]) and not self.ex_take_step[11]:
-            self.ex_take_step[11] = self.lift(0.405)
-        if all(self.ex_take_step[0:12]) and not self.ex_take_step[12]:
-            self.ex_take_step[11] = self.stretch(0.77)
-        if all(self.ex_take_step[0:13]) and not self.ex_take_step[13]:
-            self.ex_take_step[12] = self.finger(1)
-        if all(self.ex_take_step[0:14]) and not self.ex_take_step[14]:
-            self.ex_take_step[14] = self.stretch(0)
+            self.post_action_step[5] = self.finger(0)
+        # lift安全高度
+        elif self.post_action_step[5] and not self.post_action_step[6]:
+            self.post_action_step[6] = self.lift_safe_height()
 
-        ex_take_info['goodsId'] = self.goods_id
-        ex_take_info['cur_container'] = self.cur_c
-        ex_take_info['ex_take_step'] = self.ex_take_step[:10]
-        self.report_info["ex_take_info"] = ex_take_info
-        if all(self.ex_take_step[:15]):
-            Container.setContainer("999", self.goods_id, "")
+        if all(self.post_action_step[0:7]):
+            Container.clearContainer("999")
+            Container.setContainer(cur_c, self.goods_id, "")
+            self.post_action_step = [False] * 10
             return True
+        return False
 
     def in_take(self):
         """
@@ -2515,11 +2760,6 @@ def main():
     while True:
         robot.update_move_task_params()
 
-        # ===== 新增: finalBinTask 处理 =====
-        if robot.final_bin_task and not robot.final_bin_task_done:
-            # 执行料箱边走边动预动作
-            robot.final_bin_task_done = robot.do_final_bin_task()
-
         # 脚本任务状态管理
         status = robot.status
         Module.setStatus(status)
@@ -2533,37 +2773,37 @@ def main():
             modbus_args = robot.modbus()
             robot.event_modbus = False
         if status == ScriptStatus.NONE:
-            args = modbus_args or Module.getTaskArgs()
-            if args and args != {}:
-                # 检查预动作是否完成
-                if robot.final_bin_task and not robot.final_bin_task_done:
-                    print(f"等待预动作完成: final_bin_task={robot.final_bin_task}")
-                    time.sleep(0.1)
-                    continue  # 跳过本轮，不处理新任务
-
-                try:
-                    args = validator.validate(args)
-                    print("check ok, args:", json.dumps(args, indent=2))
-                except ValueError as e:
-                    print("check error:", e)
-
-                if args and args != {}:  # 再次判断
-
-                    # 保存预动作完成状态
-                    saved_final_bin_task_done = robot.final_bin_task_done
-
-                    robot = ContainerRobot()
+            # ========== 后动作执行 ==========
+            if robot.post_action_pending:
+                robot.run_post_action()
+            # ========== 边走边动：预动作执行 ==========
+            elif robot.pre_action_mode:
+                robot.run_pre_action()
+            # ========== 常规流程 ==========
+            else:
+                args = modbus_args or Module.getTaskArgs() or robot.result
+                if args:
+                    try:
+                        args = validator.validate(args)
+                        print("check ok, args:", json.dumps(args, indent=2))
+                    except ValueError as e:
+                        print("check error:", e)
+                    # 不要重新创建robot，保留之前的step状态！
+                    # robot = ContainerRobot()  # 删掉这行
                     robot.init_script_args(args)
-
-                    # 恢复状态，防止重复执行预动作
-                    robot.final_bin_task_done = saved_final_bin_task_done
-
         elif status == ScriptStatus.RUNNING:
-            robot.run()
+            # 如果是预动作模式且还在执行，继续run_pre_action
+            if robot.pre_action_mode:
+                robot.run_pre_action()
+            else:
+                robot.run()
+            # 确保状态同步
+            Module.setStatus(robot.status)
         elif status == ScriptStatus.SUSPENDED:
             robot.suspend()
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             modbus_args = None
+            robot.result = None  # 清空 result 防止完成后重复触发
             robot.status = ScriptStatus.NONE
 
         time.sleep(0.1)
@@ -2571,5 +2811,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
 
 
