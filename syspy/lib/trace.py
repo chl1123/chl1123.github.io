@@ -15,12 +15,12 @@ class TraceInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def chart(cls, msg: dict, output_console: bool = True, output_time: bool = False):
+    def chart(cls, msg: dict, output_console: bool = False, output_time: bool = False):
         """记录图表数据
 
         Args:
             msg (dict): 数据内容。根据字典的key value绘制图表。
-            output_console (bool): 是否开启控制台输出。默认开启。
+            output_console (bool): 是否开启控制台输出。默认不开启。
             output_time (bool): 是否在控制台打印时间。默认不开启。
         """
         raise RBKVersionError()

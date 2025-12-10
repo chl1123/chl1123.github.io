@@ -20,11 +20,11 @@ class TraceV3(TraceInterface):
         cls.client().call_service("Trace", "traceLog", msg)
 
     @classmethod
-    def chart(cls, msg: dict, output_console: bool = True, output_time: bool = False):
+    def chart(cls, msg: dict, output_console: bool = False, output_time: bool = False):
         """记录图表数据
 
         Args:
-            output_console (bool): 是否开启控制台输出。默认开启。
+            output_console (bool): 是否开启控制台输出。默认不开启。
             output_time (bool): 是否在控制台打印时间。默认不开启。
         """
         if output_console:
