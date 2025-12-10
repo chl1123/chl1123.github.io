@@ -750,6 +750,7 @@ class NavigationV3(NavigationInterface):
         elif coordinate == Coordinate.WORLD:
             cls.client().call_service("MoveFactory", "deleteClearRegionInMapFrame", name)
 
+
     @classmethod
     def getClearRegion(cls, coordinate: Coordinate) -> typing.List[str]:
         """

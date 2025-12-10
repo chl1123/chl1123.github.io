@@ -174,6 +174,7 @@ class NavigationInterface(ABC, Service):
         """
         raise RBKVersionError()
 
+
     @classmethod
     def inSpin(cls) -> bool:
         """是否在随动
