@@ -190,6 +190,28 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     @call_service()
+    def realTimeMoveTask(cls) -> dict:
+        """获得任务信息以字典类型返回
+
+        Returns:
+            (dict): 具体的任务信息
+        """
+        pass
+
+    @classmethod
+    @call_service()
+    def getBinTask(cls, bin_name: str, task_key: str) -> dict:
+        """获取库位任务
+        Args:
+        bin_name (str): 库位名称
+        task_key (str): 库位任务的键
+        Returns:
+        (str): 库位任务的值
+        """
+        pass
+
+    @classmethod
+    @call_service()
     def openSpeed(cls, vx: float, vy: float, vw: float):
         """让agv按vx,vy,vw行走，此函数考虑了碰撞检测"""
         pass
