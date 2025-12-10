@@ -897,6 +897,8 @@ class Fork(ModuleBase):
         super().__init__()
 
         # 栈板扣除区域 还是以前表面为中心点
+        self.carrier_length = 0
+        self.carrier_width = 0
         self.pallet_deduct_infos = None
         self.obstacle_polygon_by_rec = []
         self.no_rec_deduct_pallet_area = [{"x": 0, "y": 0.6},
@@ -1114,21 +1116,24 @@ class Fork(ModuleBase):
             # 解析识别文件
             if self.recfile:
                 # 处理扣除区域，仅针对后激光
-                if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:
-                    self.pallet_deduct_infos = get_deduct_area(self.recfile)
-                    for pallet_deduct_info in self.pallet_deduct_infos:
-                        if (not pallet_deduct_info or (pallet_deduct_info.get("deduct_device", None) is None)
-                                or pallet_deduct_info.get("areas", None) is None):
-                            Abnormal.setTask(53328, f"no deductShape in recfile", "no deductShape in recfile",
-                                             "fill the deductShape in recfile", "")
-                            self.script_status = ScriptStatus.FAILED
+                self.pallet_deduct_infos = get_deduct_area(self.recfile)
+                # for pallet_deduct_info in self.pallet_deduct_infos:
+                #     if (not pallet_deduct_info or (pallet_deduct_info.get("deduct_device", None) is None)
+                #             or pallet_deduct_info.get("areas", None) is None):
+                #         Abnormal.setTask(53328, f"no deductShape in recfile", "no deductShape in recfile",
+                #                          "fill the deductShape in recfile", "")
+                #         self.script_status = ScriptStatus.FAILED
 
                 # 处理载具和货物形状
                 recognition_pallet_path = f"recognitionObject.pallet"
-                carrier_shape = RobotParam.getConfig("recognition", f"{recognition_pallet_path}.carrierParameter"
-                                                                    f".carrierShape", self.recfile)
-                self.carrier_shape = parse_shapes(carrier_shape)
-
+                self.carrier_width = RobotParam.getConfig("recognition", f"{recognition_pallet_path}.carrierParameter"
+                                                                         f".carrierWidth", self.recfile)
+                self.carrier_length = RobotParam.getConfig("recognition", f"{recognition_pallet_path}.carrierParameter"
+                                                                          f".carrierLength", self.recfile)
+                self.carrier_shape = [{"x": self.carrier_length / 2, "y": self.carrier_width / 2},
+                                      {"x": self.carrier_length / 2, "y": -self.carrier_width / 2},
+                                      {"x": -self.carrier_length / 2, "y": -self.carrier_width / 2},
+                                      {"x": -self.carrier_length / 2, "y": self.carrier_width / 2}]
                 goods_shape = RobotParam.getConfig("recognition",
                                                    f"{recognition_pallet_path}.goodsParameter.goodsShape",
                                                    self.recfile)
@@ -1248,9 +1253,9 @@ class Fork(ModuleBase):
                     Trace.log(f"after tcp:{rec_world_pos_tcp_list}")
                     rec_world_pos = rec_world_pos_tcp_list
 
-                if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:
-                    set_deduct_area(self.pallet_deduct_infos, rec_world_pos, "PalletWorldDeductArea",
-                                    Coordinate.WORLD)
+                # if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:
+                set_deduct_area(self.pallet_deduct_infos, rec_world_pos, "PalletWorldDeductArea",
+                                Coordinate.WORLD)
 
                 # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
                 if self.target_pos and self.target_pos[3] != -1:
@@ -1267,21 +1272,6 @@ class Fork(ModuleBase):
                         Abnormal.setTask(53321, f"rec result y too large:{y}m", "", "", "")
                         self.script_status = ScriptStatus.FAILED
                         return
-
-                # # 识别二次调整，先靠近，再次识别，再决定进叉还是
-                # if rec_result2r[1] >= ConfigParams.second_rec_y or rec_result2r[2] >= math.radians(
-                #         ConfigParams.second_rec_yaw):
-                #     arg = {
-                #         'x': r_loc["x"],
-                #         'y': r_loc["y"],
-                #         'theta': math.radians(r_loc["yaw"]),
-                #         'coordinate': 'world',
-                #         'backMode': 0,
-                #         'maxRot': 10,
-                #         'maxSpeed': 0.2,
-                #         'useOdo': 0
-                #     }
-                #     self.action_list = [GoPath(arg)]
 
                 # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                 args = {
@@ -1310,12 +1300,16 @@ class Fork(ModuleBase):
                 # 取最外面的包络，货物模型、栈板模型、识别出来的外部包络
                 outer_points = convex_hull(self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec)
                 for point in outer_points:
-                    point2ap = pos2World([point["x"], point["y"], 0], [ConfigParams.module_x, 0, 0])
+                    point2ap = pos2World([point["x"], point["y"], 0],
+                                         [ConfigParams.module_x - self.carrier_length / 2, 0, 0])
                     goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
                 # 设置货物形状
                 Navigation.setGoodsPolyShape(goods_point2robot, self.recfile)
                 # 删掉地图上的扣除区域
                 delete_deduct_area("PalletWorldDeductArea", Coordinate.WORLD)
+                set_deduct_area(self.pallet_deduct_infos, [ConfigParams.module_x - self.carrier_length / 2, 0, 0],
+                                "PalletWorldDeductArea",
+                                Coordinate.ROBOT)
             # 没有识别文件
             else:
                 for point in self.no_rec_deduct_pallet_area:
@@ -1401,6 +1395,7 @@ class Fork(ModuleBase):
                     method = "goPath"
                     args = None
                 self.action_list = [
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                     GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
                                         False),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height)
@@ -1799,6 +1794,7 @@ class GoPathWithContactDi(BaseAction):
         self.action_status = ScriptStatus.NONE
         self.di_status = []
         self.contact_di = contact_dis
+        self.target_pos = world_pos
         if self.check_di and not self.contact_di:
             Abnormal.setTask(53327, f"check di is True in recfile, but contact di is none",
                              "contact di is none", "config contact di in model", "")
@@ -1850,9 +1846,9 @@ class GoPathWithContactDi(BaseAction):
         self.action_status = ScriptStatus.RUNNING
         if not self.init:
             self.init = True
-            self.start_loc = Loc.getPose()
+            self.start_loc = get_r_loc()
             Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}")
-            if self.cal_walk_dist() < 0.05:
+            if self.cal_dist(self.target_pos, self.start_loc) < 0.05:
                 self.action_status = ScriptStatus.FINISHED
                 return
             if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
@@ -1906,48 +1902,60 @@ class GoPathWithContactDi(BaseAction):
         # 如果没有到位 di
         if not self.check_di:
             self.action_status = self.back_action.action_status
-            return
 
-        # 获取到位 di 的状态
-        self.di_status = []
-        for di in self.contact_di:
-            if di != '':
-                self.di_status.append(Di.getDi(di))
-
-        # 如果不需要检查所有的到位 di，一个到位任务结束
-        if not self.check_all_contact_di:
-            # 任务结束超过 1 s，且没有到位 di 触发，则报错结束任务
-            if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(1):
-                Abnormal.setTask(53307, f"not trigger di but robot reach goal",
-                                 f"please check the di dist or reach di:{self.contact_di}", "", "")
-                self.action_status = ActionStatus.FAILED
-            # 一个到位任务结束
-            if any(self.di_status):
-                if self.stop_robot():
-                    self.action_status = ActionStatus.FINISHED
-
-        # 仅检查所有到位 di 的情况
         else:
-            # 所有到位 di 没有全部触发，则报错结束任务
-            if self.back_action.action_status == ActionStatus.FINISHED and not any(self.di_status) and Timer.delay(1):
-                Abnormal.setTask(53308, f"not trigger di but robot reach goal",
-                                 f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
-                                 "", "")
-                self.action_status = ActionStatus.FAILED
-            # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
-            if any(self.di_status):
-                if Timer.delay(self.di_trigger_time):
-                    if all(self.di_status):
-                        if self.stop_robot():
-                            self.action_status = ActionStatus.FINISHED
-                    else:
-                        Abnormal.setTask(53308, f"not all di triggered but robot reach goal",
-                                         f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
-                                         "", "")
-                        self.action_status = ActionStatus.FAILED
+
+            # 获取到位 di 的状态
+            self.di_status = []
+            for di in self.contact_di:
+                if di != '':
+                    self.di_status.append(Di.getDi(di))
+
+            # 如果不需要检查所有的到位 di，一个到位任务结束
+            if not self.check_all_contact_di:
+                dist2target = pos2Base(get_r_loc(), self.target_pos)
+
+                if dist2target[0] > 0.1 and any(self.di_status):
+                    Abnormal.setTask(53322, f"not reach goal, still {dist2target}m left, "
+                                            f"but di:{self.contact_di}{self.di_status} trigger",
+                                     "", "", "")
+                    self.action_status = ActionStatus.FAILED
+
+                # 任务结束超过 1 s，且没有到位 di 触发，则报错结束任务
+                if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(
+                        1):
+                    Abnormal.setTask(53307, f"not trigger di but robot reach goal",
+                                     f"please check the di dist or reach di:{self.contact_di}", "", "")
+                    self.action_status = ActionStatus.FAILED
+                # 一个到位任务结束
+                if any(self.di_status):
+                    if self.stop_robot():
+                        self.action_status = ActionStatus.FINISHED
+
+            # 仅检查所有到位 di 的情况
+            else:
+                # 所有到位 di 没有全部触发，则报错结束任务
+                if self.back_action.action_status == ActionStatus.FINISHED and not any(self.di_status) and Timer.delay(
+                        1):
+                    Abnormal.setTask(53308, f"not trigger di but robot reach goal",
+                                     f"please check the di dist or reach dis:{self.contact_di} and back dist",
+                                     "", "")
+                    self.action_status = ActionStatus.FAILED
+                # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
+                if any(self.di_status):
+                    if Timer.delay(self.di_trigger_time):
+                        if all(self.di_status):
+                            if self.stop_robot():
+                                self.action_status = ActionStatus.FINISHED
+                        else:
+                            Abnormal.setTask(53308, f"not all di triggered but robot reach goal",
+                                             f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
+                                             "", "")
+                            self.action_status = ActionStatus.FAILED
         if self.action_status in [ActionStatus.FINISHED, ActionStatus.FAILED]:
             Laser.clear2DLaserWidth(ConfigParams.fork_tip_2D_lasers)
             Navigation.clearPolicy()
+
         # cur_state = dict()
         # cur_state['status'] = self.action_status
         # cur_state['method'] = self.method
@@ -1961,10 +1969,9 @@ class GoPathWithContactDi(BaseAction):
     def reset(self):
         self.action_status = ScriptStatus.RUNNING
 
-    def cal_walk_dist(self):
-        cur_loc = Loc.getPose()
+    def cal_dist(self, first_loc, second_loc):
         cur_dist = math.sqrt(
-            (self.start_loc["x"] - cur_loc["x"]) ** 2 + (self.start_loc["y"] - cur_loc["y"]) ** 2)
+            (first_loc[0] - second_loc[0]) ** 2 + (first_loc[1] - second_loc[1]) ** 2)
         return cur_dist
 
     def stop_robot(self):
@@ -2386,6 +2393,7 @@ class GoPath(BaseAction):
 
     def reset(self):
         Navigation.resetPath()
+        Trace.log(f"")
         self.action_status = ActionStatus.RUNNING
 
     def cancel(self):
@@ -2396,7 +2404,7 @@ class GoPath(BaseAction):
 class GoTwoStraightLine(BaseAction):
     def __init__(self, world_target, min_ahead_dist, ahead_dist, back_dist, speed, max_angle, dec_dist,
                  return_back=False):
-        super().__init__("GoPath")
+        super().__init__("GoTwoStraightLine")
         self.go3 = None
         self.go2 = None
         self.go1 = None

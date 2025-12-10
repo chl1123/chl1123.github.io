@@ -63,6 +63,14 @@ class LightEffect(metaclass=ABCMeta):
     @abstractmethod
     def update(self):
         raise NotImplementedError("Subclasses must implement this method.")
+    
+    def set_index(self, idx):
+        print("Subclasses unimplement this method set_index")
+        #raise NotImplementedError("Subclasses must implement this method.")
+    
+    def add_segment(self, led_idx, rgbw):
+        print("Subclasses unimplement this method add_segment")
+        #raise NotImplementedError("Subclasses must implement this method.")
 
     def data_packet(self, init_rgbw=None):
         if init_rgbw is None:
@@ -253,6 +261,45 @@ class BlinkLight(LightEffect):
         if self.__next_case == 1:
             self.data_packet()
 
+class UintLight(LightEffect):
+    def __init__(self,dmx_led):
+        super().__init__(dmx_led)
+        self.led_map = {}  # LED 索引 -> 颜色字典
+    def add_segment(self, led_idx, rgbw):
+        idx_list = self._parse_index(led_idx)
+        for i in idx_list:
+            self.led_map[i] = rgbw  # 每个 LED 单独对应颜色
+
+        
+    def _parse_index(self, idx):
+        if isinstance(idx, int):
+            return [idx]
+        elif isinstance(idx, list):
+            return idx
+        elif isinstance(idx, slice):
+            start = idx.start or 1
+            stop = idx.stop or (self.dmx_led.light_total_num + 1)
+            step = idx.step or 1
+            return list(range(start, stop, step))
+        elif isinstance(idx, str):
+            parts = idx.split(":")
+            while len(parts) < 3:
+                parts.append("")
+            start, stop, step = parts
+            start = int(start) if start.isdigit() else 1
+            stop = int(stop) if stop.isdigit() else (self.dmx_led.light_total_num + 1)
+            step = int(step) if step.isdigit() else 1
+            return list(range(start, stop, step))
+        else:
+            raise ValueError("Unsupported index type")
+
+    def update(self):
+        for i, color in self.led_map.items():
+            base = (i - 1) * 4 + 1
+            for channel, c in zip(self.dmx_led.rgbw_channel, color):
+                if base + channel < len(self.dmx_led.dmx_data):
+                    self.dmx_led.dmx_data[base + channel] = c
+                    
 
 class DmxLed(object):
     def __init__(self, param_server):
@@ -278,7 +325,8 @@ class DmxLed(object):
             LightType.MutableHorseRace: MutableHorseRace(self, self.rgbw),
             LightType.Flow: Flow(self, self.rgbw),
             LightType.Rainbow: Rainbow(self),
-            LightType.Blink: BlinkLight(self, self.rgbw)
+            LightType.Blink: BlinkLight(self, self.rgbw),
+            LightType.Uint: UintLight(self)
         }
 
     def set_rgbw(self, rgbw: Union[Color, list]):
@@ -323,8 +371,8 @@ class DmxLed(object):
             self.set_brightness(brightness)
         if period is not None:
             self.current_effect.set_period(period)
-        if led_idx is not None:
-            self.current_effect.led_idx = led_idx
+        if led_idx is not None and rgbw is not None:
+            self.current_effect.add_segment(led_idx,rgbw)
 
     def update(self):
         if self.current_effect is None:

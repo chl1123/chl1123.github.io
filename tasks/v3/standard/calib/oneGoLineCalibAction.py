@@ -76,11 +76,11 @@ class CalibMove:
             if self.locType != "" and self.locName != "":
                 policy = dict()
                 if self.locType == "Laser":
-                    policy = {"localization.localizationType": "2D",
-                              "localization.localizationType.2D.localizationLaser": self.locName}
+                    policy = {"localization.localizationType": "laser2d",
+                              "localization.localizationType.laser2d.localizationLaser": self.locName}
                 elif self.locType == "Camera":
-                    policy = {"localization.localizationType": "3D",
-                              "localization.localizationType.3D.localizationLaser": self.locName}
+                    policy = {"localization.localizationType": "laser3d",
+                              "localization.localizationType.laser3d.localizationLaser": self.locName}
                 elif self.locType == "CodeScanner":
                     policy = {"localization.localizationType": "codeScanner",
                               "localization.localizationType.codeScanner.localizationCodeScanner": self.locName}

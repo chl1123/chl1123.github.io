@@ -71,6 +71,21 @@ class CalibMove:
             self.steer_name = Module.getTaskArgs("name","")
             self.speed_w = Module.getTaskArgs("W", 45) * math.pi / 180
             self.cancel = False
+            # 定位策略切换
+            self.locType = Module.getTaskArgs("locType", "")
+            self.locName = Module.getTaskArgs("locName", "")
+            if self.locType != "" and self.locName != "":
+                policy = dict()
+                if self.locType == "Laser":
+                    policy = {"localization.localizationType": "laser2d",
+                              "localization.localizationType.laser2d.localizationLaser": self.locName}
+                elif self.locType == "Camera":
+                    policy = {"localization.localizationType": "laser3d",
+                              "localization.localizationType.laser3d.localizationLaser": self.locName}
+                elif self.locType == "CodeScanner":
+                    policy = {"localization.localizationType": "codeScanner",
+                              "localization.localizationType.codeScanner.localizationCodeScanner": self.locName}
+                Navigation.appendCustomPolicy("policy", policy)
 
         # 实时运行
         if self.move_action == 0:

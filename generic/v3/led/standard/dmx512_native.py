@@ -238,54 +238,85 @@ class LedChassis(LedBase):
     def __init__(self):
         self.robot_status = None
         self.pre_robot_status = None
+        self.last_update_time = 0.0
+    
+        self.percentage = 1.0
+        self.alarm = False
+        self.emc = False
+        self.block = False
+        self.chassis_stop = True
+        
+        self._last_turn = None
+        self._last_led_idx = None
+        self.move_rpc_counter = 0
+        
+        self.fields = [
+            ("percentage", Battery.getPercentage),
+            ("alarm", self.is_alarm),
+            ("emc", Controller.getEmc),
+            ("block", NavStatus.getBlock),
+            ("chassis_stop", NavStatus.getChassisStop)
+        ]
+        
         super().__init__(config_params)
 
     def run(self):
         if self.init():
             while True:
+                start_time = time.time()  # 记录当前时间，开始计时
                 self.set_light_type()
+                end_time = time.time()  # 记录结束时间
+                elapsed_time = (end_time - start_time) * 1000  # 转换为毫秒
+                log.info(f"Time taken for iteration: {elapsed_time:.2f} ms")  # 输出每次迭代时间
                 time.sleep(0.1)
-
+                
+    def updateRpcStatus(self):
+        # if time.time() - self.last_update_time >= 0.5:
+        #     self.last_update_time = time.time()
+        self.status_counter = getattr(self, "status_counter", 0)
+        field_name, func = self.fields[self.status_counter % len(self.fields)]
+        setattr(self, field_name, func())
+        self.status_counter += 1
+            
     def set_light_type(self):
-        percentage = Battery.getPercentage()
-        if int(percentage * 100.0) == 0:
+        self.updateRpcStatus()
+        if config_params.dmx_test_flag:
+            self.set_effect(LightType.MutableBreath, rgbw=Color.Red, period=3200)
+        else:
+            self.handle_light_effects(self.percentage)
+
+    def handle_light_effects(self, dmx_battery: Optional[float]):
+        """
+        根据当前状态处理灯光效果。
+        :param dmx_battery: 电池电量
+        """
+        if int(dmx_battery * 100.0) == 0:
             battery_exist = False
         else:
             battery_exist = True
-        self.handle_light_effects(percentage, battery_exist)
-        if config_params.dmx_test_flag:
-            self.set_effect(LightType.MutableBreath, rgbw=Color.Red, period=3200)
-
-    def handle_light_effects(self, dmx_battery: Optional[float], battery_exist: bool):
-        """
-        根据当前状态处理灯光效果。
-
-        :param dmx_battery: 电池电量
-        :param battery_exist: 是否存在电池
-        """
 
         # 报警状态下红色呼吸
-        if self.is_alarm():
+        if self.alarm:
             self.robot_status = "Alarm"
             self.set_effect(
                 LightType.MutableBreath, rgbw=Color.Red, period=3200
             )
         # 急停状态下暗红色流水
-        elif Controller.getEmc():
+        elif self.emc:
             self.robot_status = "EStop"
             self.set_effect(
                 LightType.Flow, rgbw=Color.RedDark, period=10
             )
         # 被阻挡状态下粉紫色跑马
-        elif NavStatus.getBlock():
+        elif self.block:
             self.robot_status = "Blocked"
             self.set_effect(
                 LightType.MutableHorseRace, rgbw=Color.PinkPurple, period=1000
             )
         # 机器移动时的灯光效果
-        elif not NavStatus.getChassisStop():
+        elif not self.chassis_stop:
             self.robot_status = "Moving"
-            if config_params.turnNum[0] + config_params.turnNum[1] + config_params.turnNum[2] + config_params.turnNum[3] == 0:
+            if sum(config_params.turnNum) == 0:
                 self.set_effect(LightType.MutableBreath, rgbw=Color.BlueCobalt, period=3200)
             else:
                 self.handle_movement_effect()
@@ -306,17 +337,31 @@ class LedChassis(LedBase):
         """
         处理机器移动时的灯光效果。
         """
-        v_x, _, v_w = NavSpeed.getSpeeds()
-        turn = NavStatus.getTurn(v_x, v_w)
-        if turn == 0:
+        if self.move_rpc_counter == 1:
+            self.move_rpc_counter = 2
+            self.turn = NavStatus.getTurn(self.v_x, self.v_w)
+        elif self.move_rpc_counter == 2:
+            self.move_rpc_counter = 1
+            self.v_x, self._, self.v_w = NavSpeed.getSpeeds()
+        ## 只在第一次执行
+        elif self.move_rpc_counter == 0:
+            self.move_rpc_counter = 1
+            self.v_x, self._, self.v_w = NavSpeed.getSpeeds()
+            self.turn = NavStatus.getTurn(self.v_x, self.v_w)
+            
+            
+        if self.turn == 0:
             self.robot_status = "MovingRotation"
-            if config_params.is_back_breath and v_x < 0:
+            if config_params.is_back_breath and self.v_x < 0:
                 self.set_effect(LightType.MutableBreath, rgbw=Color.White, period=3200)
             else:
                 self.set_effect(LightType.MutableBreath, period=3200)
         else:
             self.robot_status = "MovingTurn"
-            led_idx = self.turn_to_led_idx(turn)
+            if self.turn != self._last_turn:
+                self._last_turn = self.turn
+                self._last_led_idx = self.turn_to_led_idx(self.turn)
+            led_idx = self._last_led_idx
             self.set_effect(LightType.Blink, rgbw=Color.Yellow, led_idx=led_idx)
 
     def handle_battery_effects(self, dmx_battery: Optional[float]) -> None:

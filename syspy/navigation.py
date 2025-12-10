@@ -41,10 +41,42 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def runOdoMove(cls, params: dict):
-        """执行按里程运动的任务
+        """执行基于里程计的运动控制
 
         Args:
-            params (dict):
+            params (dict): 运动控制参数字典，支持以下参数（所有参数均为可选）：
+                - locMode (int): 定位模式。1=激光定位，0=里程定位（默认值：0）
+                - maxAcc (float): 车开环导航最大加速度（m/s^2）
+                - maxDec (float): 车开环导航最大减速度（m/s^2）
+                - jerkAcc (float): 车开环导航的jerk（m/s^3）
+                - maxRotAcc (float): 车开环导航的角加速度（rad/s^2）
+                - maxRotDec (float): 车开环导航的角减速度（rad/s^2）
+                - jerkRot (float): 车开环导航的旋转jerk（rad/s^3）
+                - rotDegree (float): 车开环导航走弧线，弧线对应的角度（deg）
+                - rotRadius (float): 车开环导航走弧线，对应的半径（m）
+                - rotSpeed (float): 车开环导航走弧线，导航速度（m/s）
+                - spin (bool): 是否启用随动
+                - actionName (str): 动作名
+                - moveDist (float): 车开环直线导航距离（m）
+                - speedX (float): 车开环直线导航x方向速度（m/s）
+                - speedY (float): 车开环直线导航y方向速度（m/s）
+                - moveAngle (float): 车开环原地旋转的旋转角度（rad）
+                - speedW (float): 车开环原地旋转的角速度（rad/s）
+
+        Returns:
+            (int): 运动状态, "MoveStatus"类型的int值
+
+        Examples:
+        ```python
+        from syspy import Navigation
+        params = {
+            "maxAcc": 0.5,
+            "moveDist": 2.0,
+            "speedX": 0.3,
+            "actionName": "GoRightArcForward"
+        }
+        status = Navigation.runOdoMove(params)
+        ```
         """
         raise RBKVersionError()
 
@@ -104,12 +136,16 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def goForkUseStraightLine(cls):
-        """ """
+        """设置叉车行走轨迹类型为双折线"""
         raise RBKVersionError()
 
     @classmethod
     def goMapPath(cls) -> int:
-        """按地图路线行走"""
+        """按地图路线行走
+
+        Returns:
+            (int): 任务状态。和 MoveStatus 相同
+        """
         raise RBKVersionError()
 
     @classmethod
@@ -140,7 +176,11 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def inSpin(cls) -> bool:
-        """是否在随动"""
+        """是否在随动
+
+        Returns:
+            (bool): 是否随动
+        """
         raise RBKVersionError()
 
     @classmethod
@@ -225,7 +265,7 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def resetGoPGV(cls):
-        """ """
+        """重置二次调整"""
         raise RBKVersionError()
 
     @classmethod
@@ -235,7 +275,7 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def resetOdoMove(cls):
-        """ """
+        """重置里程计运动控制模块状态"""
         raise RBKVersionError()
 
     @classmethod
@@ -252,11 +292,11 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def setGlobalSpinAngle(cls, angle: float, direction: int):
-        """
+        """旋转托盘到世界坐标系一个角度
 
         Args:
-            angle (float):
-            direction (int):
+            angle (float): 旋转弧度
+            direction (int): 旋转方向。0=就近; 1=逆时针; -1=顺时针
         """
         raise RBKVersionError()
 
@@ -292,10 +332,10 @@ class NavigationInterface(ABC, Service):
         """设置货物形状时传入识别文件路径
 
         Args:
-            head (float):
-            tail (float):
-            width (float):
-            recfile (str):
+            head (float): 货物头部长度
+            tail (float): 货物的尾部长度
+            width (float): 货物的宽度
+            recfile (str): 识别文件
         """
         raise RBKVersionError()
 
@@ -352,7 +392,6 @@ class NavigationInterface(ABC, Service):
 
         Args:
             a (bool): 如果倒走则为True
-
         """
         raise RBKVersionError()
 
@@ -372,7 +411,6 @@ class NavigationInterface(ABC, Service):
 
         Args:
             a (float): 单位rad/s
-
         """
         raise RBKVersionError()
 
@@ -382,7 +420,6 @@ class NavigationInterface(ABC, Service):
 
         Args:
             a (float): 单位m/s
-
         """
         raise RBKVersionError()
 
@@ -414,7 +451,6 @@ class NavigationInterface(ABC, Service):
 
         Args:
             a (float): 单位rad
-
         """
         raise RBKVersionError()
 
@@ -438,11 +474,11 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def setRobotSpinAngle(cls, angle: float, direction: int):
-        """
+        """旋转托盘到机器人坐标系一个角度
 
         Args:
-            angle (float):
-            direction (int):
+            angle (float): 旋转弧度
+            direction (int): 旋转方向。0=就近; 1=逆时针; -1=顺时针
         """
         raise RBKVersionError()
 
@@ -465,14 +501,14 @@ class NavigationInterface(ABC, Service):
             muteAudio: bool,
             muteEnable: bool,
     ):
-        """
+        """设置高级区域状态
 
         Args:
-            zoneType:
-            maxSpeed:
-            autoRestart:
-            muteAudio:
-            muteEnable:
+            zoneType (int): 高级区域类型: 0 表示出高级区域, 1 表示 operating hazard Zone, 2 表示 restricted Zone
+            maxSpeed (float): 高级区域最大速度限制
+            autoRestart (bool): 是否可自动恢复车体启动
+            muteAudio (bool): 是否触发 mute 音频报警
+            muteEnable (bool): 是否启用所有激光 mute
         """
         raise RBKVersionError()
 
@@ -492,10 +528,10 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def spinRun(cls) -> bool:
-        """
+        """运行spin
 
         Returns:
-            (bool):
+            (bool): 是否运行成功
         """
         raise RBKVersionError()
 
@@ -724,6 +760,7 @@ class NavigationInterface(ABC, Service):
     @classmethod
     def getLiveResult(cls) -> typing.Dict:
         """获取实时识别行走任务的结果
+
         Returns:
             (typing.Dict): 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
         """

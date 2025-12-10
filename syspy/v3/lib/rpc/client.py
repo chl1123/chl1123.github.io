@@ -70,11 +70,11 @@ class ZmqClient:
                 if self.socket in events:
                     response = self.recv()
                     event.result = response
+                    event.set()
                 else:  # 3秒内没有收到响应（即 socket 不在从 poll 返回的事件中）
                     event.result = None
                     event.set()
                     self.stop_flag.set()
-                event.set()
             except queue.Empty:
                 continue
         log.debug("ZmqClient worker exit")
@@ -135,7 +135,7 @@ class RpcClient:
         # log.debug("req => %s", request.to_json())
         # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
         if not event.wait(timeout=5):  # 设置适当的超时时间
-            raise TimeoutError("Event wait timeout")
+            raise TimeoutError(f"Call RBK wait timeout, check whether RBK is running, {request.to_json()=}")
         # event.result 不为空，表示收到响应
         if event.result:
             response_json = json.loads(event.result.decode())
@@ -145,7 +145,7 @@ class RpcClient:
             log.debug("res <= %s", response.get_print())
             return response.get_result()
         else:  # event.result 为 None
-            raise TimeoutError(f"Call RBK Timeout, check whether RBK is running, {request.to_json()=}")
+            raise TimeoutError(f"Call RBK result Timeout, check whether RBK is running, {request.to_json()=}")
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ class LightType(enum.Enum):
     Flow = 4  # 流水灯
     Rainbow = 5  # 彩虹灯
     Blink = 6  # 闪烁灯
+    Uint = 7  # 自定义灯
 
 
 class Brightness(enum.Enum):
