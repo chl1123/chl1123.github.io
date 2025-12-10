@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x15message_battery.proto\x12\x0crbk.protocol\"\x8b\x02\n\nmsgBattery\x12\x12\n\npercentage\x18\x01 \x01(\x01\x12\x15\n\rchargeCurrent\x18\x02 \x01(\x01\x12\x15\n\rchargeVoltage\x18\x03 \x01(\x01\x12\x12\n\nisCharging\x18\x04 \x01(\x08\x12\x13\n\x0btemperature\x18\x05 \x01(\x01\x12\r\n\x05\x63ycle\x18\x06 \x01(\x05\x12\x18\n\x10maxChargeCurrent\x18\x07 \x01(\x01\x12\x18\n\x10maxChargeVoltage\x18\x08 \x01(\x01\x12\r\n\x05\x65xtra\x18\t \x01(\t\x12\x1b\n\x13isManuallyConnected\x18\n \x01(\x08\x12\x11\n\terrorCode\x18\x0b \x01(\r\x12\x10\n\x08userData\x18\x1e \x01(\x0c\x62\x06proto3')
+  serialized_pb=_b('\n\x15message_battery.proto\x12\x0crbk.protocol\"\xcd\x02\n\nmsgBattery\x12\x12\n\npercentage\x18\x01 \x01(\x01\x12\x15\n\rchargeCurrent\x18\x02 \x01(\x01\x12\x15\n\rchargeVoltage\x18\x03 \x01(\x01\x12\x12\n\nisCharging\x18\x04 \x01(\x08\x12\x13\n\x0btemperature\x18\x05 \x01(\x01\x12\r\n\x05\x63ycle\x18\x06 \x01(\x05\x12\x18\n\x10maxChargeCurrent\x18\x07 \x01(\x01\x12\x18\n\x10maxChargeVoltage\x18\x08 \x01(\x01\x12\r\n\x05\x65xtra\x18\t \x01(\t\x12\x1b\n\x13isManuallyConnected\x18\n \x01(\x08\x12\x11\n\terrorCode\x18\x0b \x01(\r\x12\x0b\n\x03SOH\x18\x0c \x01(\x05\x12\x16\n\x0eneedFullCharge\x18\r \x01(\x08\x12\x1b\n\x13lastFullChargeStamp\x18\x0e \x01(\x04\x12\x10\n\x08userData\x18\x1e \x01(\x0c\x62\x06proto3')
 )
 
 
@@ -110,7 +110,28 @@ _MSGBATTERY = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='userData', full_name='rbk.protocol.msgBattery.userData', index=11,
+      name='SOH', full_name='rbk.protocol.msgBattery.SOH', index=11,
+      number=12, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='needFullCharge', full_name='rbk.protocol.msgBattery.needFullCharge', index=12,
+      number=13, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='lastFullChargeStamp', full_name='rbk.protocol.msgBattery.lastFullChargeStamp', index=13,
+      number=14, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='userData', full_name='rbk.protocol.msgBattery.userData', index=14,
       number=30, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
@@ -129,7 +150,7 @@ _MSGBATTERY = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=40,
-  serialized_end=307,
+  serialized_end=373,
 )
 
 DESCRIPTOR.message_types_by_name['msgBattery'] = _MSGBATTERY

@@ -109,6 +109,17 @@ class BatteryInterface:
         """
         return self.child.getUserData(topic=topic)
 
+    def getSoh(self, *, topic: str = "Battery-000") -> int:
+        """获取电池健康度
+
+        Returns:
+            (int): 健康度。-1 表示无效。
+
+        Compatibility:
+            该接口仅在 RBK 版本 3 中可用。
+        """
+        return self.child.getSoh(topic=topic)
+
     def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 

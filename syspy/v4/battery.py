@@ -113,6 +113,14 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].user_data
 
+    def getSoh(self, *, topic: str = "Battery-000") -> int:
+        """获取电池健康度
+
+        Returns:
+            (int): 健康度。-1 表示无效。
+        """
+        raise RBKVersionError()
+
     def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 
