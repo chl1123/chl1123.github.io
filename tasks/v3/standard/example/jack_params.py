@@ -286,7 +286,7 @@ class Jack(ModuleBase):
 
     def load(self):
         Trace.log("load start")
-        if self.count == 500:
+        if self.count == 100:
             self.status = ScriptStatus.FINISHED
             self.count = 0
 
@@ -313,6 +313,7 @@ class Jack(ModuleBase):
         print(f"{config_params.jack_lift_zero=}")
         print(f"{config_params.jack_zero_di=}")
         print(f"{config_params.jack_up_di=}")
+        print(f"{self.count=}")
         Module.reportInfo(self.report_info)
 
     def suspend(self):
@@ -366,7 +367,7 @@ def main():
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             j.status = ScriptStatus.NONE
 
-        time.sleep(5)
+        time.sleep(0.1)
 
 
 if __name__ == '__main__':

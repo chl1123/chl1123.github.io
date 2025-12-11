@@ -168,6 +168,15 @@ if __name__ == "__main__":
     # print("client.start() ", client.call_service("broker", "start", "tasks/chl/get_script_data.py"))
     # print("client.stop() ", client.call_service("broker", "stop", "tasks/chl/get_script_data.py"))
     # print("client.update_cmd() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
+    # print("client.update_cmd() ", client.call_service(
+    #     "tasks/v3/standard/example/jack_params.py",
+    #            "update_cmd",
+    #     {
+    #         "operation": "load",
+    #         "height": 0.03,
+    #         "configs": {'motorConfig.jackMotorName': 'Motor-001', 'motorConfig.jackMotorSpeed': 0.025, 'motorConfig.jackLiftZero': 0.1, 'diConfig.jackUpDi': 7, 'diConfig.jackZeroDi': 4}
+    #     }
+    # ))
     # print("client.update_cmd() ",
     #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "odo"}))
 
@@ -189,4 +198,4 @@ if __name__ == "__main__":
     # print("client.resume() ", client.call_service(None, "resume"))
     # print("client.cancel() ", client.call_service(None, "cancel"))
 
-    print("client.update_cmd() ", client.call_service("tasks/standard/example/jack_params.py", "script_config_changed"))
+    # print("client.update_cmd() ", client.call_service("tasks/standard/example/jack_params.py", "script_config_changed"))

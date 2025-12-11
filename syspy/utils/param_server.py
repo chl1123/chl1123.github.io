@@ -120,11 +120,35 @@ class ParamServer:
 # 参数加载器类 - 用于在运行时加载参数
 class ScriptParam:
     """参数加载器，用于在运行时加载配置参数和输入参数"""
+    _instance = None
+    _initialized = False
+    config_change_callback = None
+    event_task_config = False
+    def __new__(cls, script_file: str = None):
+        if cls._instance is None:
+            cls._instance = super(ScriptParam, cls).__new__(cls)
+        return cls._instance
 
-    def __init__(self, script_file: str):
-        _get_prefix_dir(script_file)
-        self.config_file = prefix_dir + CONFIG_SUFFIX
-        self.input_file = prefix_dir + INPUT_SUFFIX
+    def __init__(self, script_file: str = None):
+        # 防止重复初始化
+        if not ScriptParam._initialized:
+            if script_file is not None:
+                _get_prefix_dir(script_file)
+                self.config_file = prefix_dir + CONFIG_SUFFIX
+                self.input_file = prefix_dir + INPUT_SUFFIX
+            else:
+                self.config_file = None
+                self.input_file = None
+            self.config_full_params = {}
+            self.__config_validator = None
+            ScriptParam._initialized = True
+
+    @classmethod
+    def getInstance(cls) -> 'ScriptParam':
+        """获取单例实例"""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     def builderConfig(self):
         return ParamBuilder(self.config_file, "Script Configuration Parameters", "config")
@@ -136,13 +160,14 @@ class ScriptParam:
         """加载配置参数"""
         if not os.path.exists(self.config_file):
             raise FileNotFoundError(f"Config file not found: {self.config_file}")
-
-        with open(self.config_file, 'r', encoding='utf-8') as f:
-            config_data = json.load(f)
-        # 使用ParamValidator验证配置
-        validator = ParamValidator(config_data)
-        e = self._extract_values(config_data)
-        return validator.validate(e)
+        if not self.config_full_params:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            # 使用ParamValidator验证配置
+            self.__config_validator = ParamValidator(config_data)
+        if not ScriptParam.event_task_config:
+            self.config_full_params = self._extract_values(self.__config_validator.param_definition)
+        return self.__config_validator.validate(self.config_full_params)
 
     def loadInput(self, input_params: Dict[str, Any] = None) -> Dict[str, Any]:
         """加载输入参数"""
@@ -163,7 +188,8 @@ class ScriptParam:
         Args:
             callback (Callable[[], None]): 回调方法
         """
-        Service.server().register_function(callback, "script_config_changed", True)
+        cls.config_change_callback = callback
+        Service.server().register_function(cls.config_change_callback, "script_config_changed", True)
 
     def _extract_values(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """从参数定义中提取值"""
@@ -185,6 +211,25 @@ class ScriptParam:
             _extract_from_node(group)
 
         return values
+
+    def setTaskConfig(self, config_data: Dict[str, Any]):
+        """合并任务配置参数"""
+        print("setTaskConfig()")
+        if config_data:
+            if not self.config_full_params:
+                self.config_full_params = config_data
+            else:
+                self.config_full_params.update(config_data)
+                ScriptParam.event_task_config = True
+                if ScriptParam.config_change_callback:
+                    ScriptParam.config_change_callback()
+
+    def clearTaskConfig(self):
+        """恢复任务配置参数"""
+        print("clearTaskConfig()")
+        ScriptParam.event_task_config = False
+        if ScriptParam.config_change_callback:
+            ScriptParam.config_change_callback()
 
 
 # 参数类型常量

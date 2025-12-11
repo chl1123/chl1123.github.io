@@ -7,7 +7,7 @@ from typing import Union, Optional, Callable, Tuple
 from syspy.utils import ScriptType
 from ..core.rbk_rpc import Service
 from ..utils import SCRIPTS_DIR
-from syspy import RBK_VERSION, RobotParam, Container, Abnormal
+from syspy import RBK_VERSION, RobotParam, Container, Abnormal, ScriptParam
 from inspect import stack
 
 
@@ -170,6 +170,9 @@ class Module:
             cls.__task_args.pop("taskId", None)
             with cls.__lock:
                 cls.__run_status = ScriptStatus.RUNNING
+            # 任务中有配置参数则合并
+            if "configs" in cls.__task_args:
+                ScriptParam.getInstance().setTaskConfig(cls.__task_args["configs"])
 
     @classmethod
     def __register(cls):
@@ -368,10 +371,11 @@ class Module:
         with cls.__lock:
             cls.__run_status = status
             cls.__reportData()
-            # 任务状态为终态时清空任务和task_id
+            # 任务状态为终态时清空任务、task_id、任务中的配置参数
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 cls.__task = None
                 cls.__task_id = 0
+                ScriptParam.getInstance().clearTaskConfig()
 
     @classmethod
     def reportInfo(cls, info: Union[dict, list]):
