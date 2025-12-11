@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x16message_movetask.proto\x12\x0crbk.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x18message_motorinfos.proto\"\xf2\x01\n\x0cmsgMoveParam\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x15\n\x0bstringValue\x18\x02 \x01(\tH\x00\x12\x13\n\tboolValue\x18\x03 \x01(\x08H\x00\x12\x14\n\nint32Value\x18\x04 \x01(\x05H\x00\x12\x15\n\x0buint32Value\x18\x05 \x01(\rH\x00\x12\x14\n\nint64Value\x18\x06 \x01(\x03H\x00\x12\x15\n\x0buint64Value\x18\x07 \x01(\x04H\x00\x12\x14\n\nfloatValue\x18\x08 \x01(\x02H\x00\x12\x15\n\x0b\x64oubleValue\x18\t \x01(\x01H\x00\x12\x14\n\nbytesValue\x18\n \x01(\x0cH\x00\x42\x0c\n\noneofValue\"\xb7\x0c\n\x0bmsgMoveTask\x12\x11\n\tskillName\x18\x01 \x01(\t\x12-\n\x07targetX\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07targetY\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0btargetAngle\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\ntargetName\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachDist\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nreachAngle\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0breachMethod\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachVelX\x18\t \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelY\x18\n \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelW\x18\x0b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedX\x18\x0c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedY\x18\r \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedW\x18\x0e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08maxSpeed\x18\x0f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxAcc\x18\x10 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxRot\x18\x11 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotAcc\x18\x12 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cslowdownDist\x18\x13 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tblockDist\x18\x14 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveDist\x18\x15 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmoveAngle\x18\x16 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveTime\x18\x17 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12*\n\x06params\x18\x18 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveParam\x12,\n\x06taskId\x18\x19 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12,\n\x06maxDec\x18\x1a \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotDec\x18\x1b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsStopDist\x18\x1c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nobsDecDist\x18\x1d \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsDecSpeed\x18\x1e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cobsExpansion\x18\x1f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x35\n\x0f\x64\x65\x63ObsExpansion\x18  \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nsourceName\x18( \x01(\x0b\x32\x1c.google.protobuf.StringValue\"B\n\x0fmsgMoveTaskList\x12/\n\x0cmoveTaskList\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgMoveTask\"+\n\x13msgMovePolygonPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"P\n\x0emsgMovePolygon\x12\x30\n\x05point\x18\x01 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\x12\x0c\n\x04name\x18\x02 \x01(\t\"\x8c\x01\n\rmsgRobotShape\x12\r\n\x05shape\x18\x01 \x01(\r\x12\x0c\n\x04head\x18\x02 \x01(\x01\x12\x0c\n\x04tail\x18\x03 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06radius\x18\x05 \x01(\x01\x12\x31\n\x06points\x18\x06 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\"%\n\rmsgNearestObs\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"V\n\x0cmsgContainer\x12\x15\n\rcontainerName\x18\x01 \x01(\t\x12\x0f\n\x07goodsId\x18\x02 \x01(\t\x12\x10\n\x08hasGoods\x18\x03 \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x04 \x01(\t\"\xb7\x0f\n\rmsgMoveStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\x12\x0e\n\x06\x62lockX\x18\x02 \x01(\x01\x12\x0e\n\x06\x62lockY\x18\x03 \x01(\x01\x12\x37\n\x0b\x62lockReason\x18\x04 \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x12\n\ntargetName\x18\x05 \x01(\t\x12\x0f\n\x07targetX\x18\x06 \x01(\x01\x12\x0f\n\x07targetY\x18\x07 \x01(\x01\x12\x13\n\x0btargetAngle\x18\x08 \x01(\x01\x12\x36\n\ntaskStatus\x18\t \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\x12\x32\n\x08taskType\x18\n \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x10\n\x08\x61reaName\x18\x0b \x03(\t\x12\x18\n\x10\x66inishedPathName\x18\x0c \x03(\t\x12\x1a\n\x12unfinishedPathName\x18\r \x03(\t\x12\x0f\n\x07\x62lockId\x18\x0e \x01(\x05\x12\x0e\n\x06taskId\x18\x10 \x01(\t\x12\x31\n\x0brobotRegion\x18\x11 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x31\n\x0bgoodsRegion\x18\x12 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x34\n\x0eremovedRegions\x18\x13 \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12:\n\rrunningStatus\x18\x14 \x01(\x0e\x32#.rbk.protocol.msgMoveStatus.rStatus\x12\x15\n\rclosestTarget\x18\x15 \x01(\t\x12\x17\n\x0f\x61\x63tualReachDist\x18\x16 \x01(\x01\x12\x18\n\x10\x61\x63tualReachAngle\x18\x17 \x01(\x01\x12/\n\nrobotShape\x18\x18 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12\x0e\n\x06slowed\x18\x19 \x01(\x08\x12\r\n\x05slowX\x18\x1a \x01(\x01\x12\r\n\x05slowY\x18\x1b \x01(\x01\x12\x36\n\nslowReason\x18\x1c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x0e\n\x06slowId\x18\x1d \x01(\x05\x12.\n\x08stopPath\x18\x1f \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12.\n\x08slowPath\x18  \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12(\n\x07modules\x18! \x03(\x0b\x32\x17.rbk.protocol.msgModule\x12\x34\n\x0e\x61\x64vanceRegions\x18\" \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x0c\n\x04info\x18# \x01(\t\x12\x12\n\ntargetDist\x18$ \x01(\x01\x12=\n\x11taskStatusPackage\x18( \x01(\x0b\x32\".rbk.protocol.msgTaskStatusPackage\x12\x13\n\x0btargetLabel\x18) \x01(\t\x12\x14\n\x0c\x63losestLabel\x18* \x01(\t\x12\x35\n\x10nearestObstacles\x18+ \x03(\x0b\x32\x1b.rbk.protocol.msgNearestObs\x12.\n\ncontainers\x18, \x03(\x0b\x32\x1a.rbk.protocol.msgContainer\x12\x11\n\tdist2goal\x18- \x01(\x01\x12\x16\n\x0esafeCuttingsId\x18. \x01(\x05\x12%\n\x05mates\x18/ \x01(\x0b\x32\x16.rbk.protocol.msgMates\x12,\n\tmoveTasks\x18\x30 \x01(\x0b\x32\x19.rbk.protocol.msgMoveTask\"\xb3\x01\n\x06reason\x12\x0e\n\nultrasonic\x10\x00\x12\t\n\x05laser\x10\x01\x12\x0f\n\x0b\x66\x61llingDown\x10\x02\x12\r\n\tcollision\x10\x03\x12\x0c\n\x08infrared\x10\x04\x12\x08\n\x04lock\x10\x05\x12\x0f\n\x0b\x61piObstacle\x10\x06\x12\x10\n\x0cvirtualPoint\x10\x07\x12\x0f\n\x0b\x64\x65pthCamera\x10\x08\x12\x10\n\x0c\x64istanceNode\x10\t\x12\x10\n\x0c\x64iUltrasonic\x10\n\"x\n\x06status\x12\x0e\n\nstatusNone\x10\x00\x12\x0b\n\x07waiting\x10\x01\x12\x0b\n\x07running\x10\x02\x12\r\n\tsuspended\x10\x03\x12\r\n\tcompleted\x10\x04\x12\n\n\x06\x66\x61iled\x10\x05\x12\x0c\n\x08\x63\x61nceled\x10\x06\x12\x0c\n\x08overTime\x10\x07\"\x9e\x01\n\x04type\x12\x0c\n\x08typeNone\x10\x00\x12\x0b\n\x07goPoint\x10\x01\x12\r\n\tgoPointId\x10\x02\x12\x08\n\x04goId\x10\x03\x12\n\n\x06patrol\x10\x04\x12\x0f\n\x0bgoIntoShelf\x10\x05\x12\x12\n\x0etargetTracking\x10\x06\x12\x10\n\x0cgoByOdometer\x10\x07\x12\x14\n\x10goAlongMagstripe\x10\x08\x12\t\n\x05other\x10\x64\"O\n\x07rStatus\x12\t\n\x05rNone\x10\x00\x12\x0c\n\x08rRunning\x10\x01\x12\x0f\n\x0brNearToGoal\x10\x02\x12\r\n\trFinished\x10\x03\x12\x0b\n\x07rFailed\x10\x04\"\x87\x01\n\x11msgTaskStatusInfo\x12\x0e\n\x06taskId\x18\x01 \x01(\t\x12.\n\x04type\x18\x0b \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x32\n\x06status\x18\x0c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\"\x82\x02\n\x14msgTaskStatusPackage\x12\x37\n\x0etaskStatusList\x18\x01 \x03(\x0b\x32\x1f.rbk.protocol.msgTaskStatusInfo\x12\x15\n\rclosestTarget\x18\x02 \x01(\t\x12\x12\n\nsourceName\x18\x03 \x01(\t\x12\x12\n\ntargetName\x18\x04 \x01(\t\x12\x12\n\npercentage\x18\x05 \x01(\x01\x12\x10\n\x08\x64istance\x18\x06 \x01(\x01\x12\x13\n\x0bsourceLabel\x18\x07 \x01(\t\x12\x13\n\x0btargetLabel\x18\x08 \x01(\t\x12\x14\n\x0c\x63losestLabel\x18\t \x01(\t\x12\x0c\n\x04info\x18\x1f \x01(\t\"/\n\x0cmsgMoveSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01w\x18\x03 \x01(\x01\"2\n\x0bmsgMovePose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"\x86\x01\n\x0bmsgMovePath\x12\x11\n\tskillName\x18\x01 \x01(\t\x12\'\n\x04pose\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\x12)\n\x05speed\x18\x03 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveSpeed\x12\x10\n\x08\x66indPath\x18\x04 \x01(\x08\"\x89\x02\n\tmsgModule\x12\x12\n\nmoduleName\x18\x01 \x01(\t\x12\x34\n\x06status\x18\x02 \x01(\x0e\x32$.rbk.protocol.msgModule.moduleStatus\x12\x12\n\nactionBody\x18\x03 \x01(\t\x12\x13\n\x0b\x63\x61rgoStatus\x18\x04 \x01(\x08\x12*\n\x06motors\x18\x05 \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfo\"]\n\x0cmoduleStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tsuspended\x10\x02\x12\r\n\tcompleted\x10\x03\x12\n\n\x06\x66\x61iled\x10\x04\x12\x0c\n\x08\x63\x61nceled\x10\x05\"n\n\x0cmsgMateRobot\x12/\n\nrobotShape\x18\x01 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12-\n\nfuturePath\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\"9\n\x08msgMates\x12-\n\tmatesList\x18\x01 \x03(\x0b\x32\x1a.rbk.protocol.msgMateRobotb\x06proto3')
+  serialized_pb=_b('\n\x16message_movetask.proto\x12\x0crbk.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x18message_motorinfos.proto\"\xf2\x01\n\x0cmsgMoveParam\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x15\n\x0bstringValue\x18\x02 \x01(\tH\x00\x12\x13\n\tboolValue\x18\x03 \x01(\x08H\x00\x12\x14\n\nint32Value\x18\x04 \x01(\x05H\x00\x12\x15\n\x0buint32Value\x18\x05 \x01(\rH\x00\x12\x14\n\nint64Value\x18\x06 \x01(\x03H\x00\x12\x15\n\x0buint64Value\x18\x07 \x01(\x04H\x00\x12\x14\n\nfloatValue\x18\x08 \x01(\x02H\x00\x12\x15\n\x0b\x64oubleValue\x18\t \x01(\x01H\x00\x12\x14\n\nbytesValue\x18\n \x01(\x0cH\x00\x42\x0c\n\noneofValue\"\xb7\x0c\n\x0bmsgMoveTask\x12\x11\n\tskillName\x18\x01 \x01(\t\x12-\n\x07targetX\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07targetY\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0btargetAngle\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\ntargetName\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachDist\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nreachAngle\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0breachMethod\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachVelX\x18\t \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelY\x18\n \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelW\x18\x0b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedX\x18\x0c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedY\x18\r \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedW\x18\x0e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08maxSpeed\x18\x0f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxAcc\x18\x10 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxRot\x18\x11 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotAcc\x18\x12 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cslowdownDist\x18\x13 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tblockDist\x18\x14 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveDist\x18\x15 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmoveAngle\x18\x16 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveTime\x18\x17 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12*\n\x06params\x18\x18 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveParam\x12,\n\x06taskId\x18\x19 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12,\n\x06maxDec\x18\x1a \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotDec\x18\x1b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsStopDist\x18\x1c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nobsDecDist\x18\x1d \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsDecSpeed\x18\x1e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cobsExpansion\x18\x1f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x35\n\x0f\x64\x65\x63ObsExpansion\x18  \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nsourceName\x18( \x01(\x0b\x32\x1c.google.protobuf.StringValue\"B\n\x0fmsgMoveTaskList\x12/\n\x0cmoveTaskList\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgMoveTask\"+\n\x13msgMovePolygonPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"P\n\x0emsgMovePolygon\x12\x30\n\x05point\x18\x01 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\x12\x0c\n\x04name\x18\x02 \x01(\t\"\x8c\x01\n\rmsgRobotShape\x12\r\n\x05shape\x18\x01 \x01(\r\x12\x0c\n\x04head\x18\x02 \x01(\x01\x12\x0c\n\x04tail\x18\x03 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06radius\x18\x05 \x01(\x01\x12\x31\n\x06points\x18\x06 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\"%\n\rmsgNearestObs\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"V\n\x0cmsgContainer\x12\x15\n\rcontainerName\x18\x01 \x01(\t\x12\x0f\n\x07goodsId\x18\x02 \x01(\t\x12\x10\n\x08hasGoods\x18\x03 \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x04 \x01(\t\"\xae\x0f\n\rmsgMoveStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\x12\x0e\n\x06\x62lockX\x18\x02 \x01(\x01\x12\x0e\n\x06\x62lockY\x18\x03 \x01(\x01\x12\x37\n\x0b\x62lockReason\x18\x04 \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x12\n\ntargetName\x18\x05 \x01(\t\x12\x0f\n\x07targetX\x18\x06 \x01(\x01\x12\x0f\n\x07targetY\x18\x07 \x01(\x01\x12\x13\n\x0btargetAngle\x18\x08 \x01(\x01\x12\x36\n\ntaskStatus\x18\t \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\x12\x32\n\x08taskType\x18\n \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x10\n\x08\x61reaName\x18\x0b \x03(\t\x12\x18\n\x10\x66inishedPathName\x18\x0c \x03(\t\x12\x1a\n\x12unfinishedPathName\x18\r \x03(\t\x12\x13\n\x0b\x62lockDevice\x18\x0e \x01(\t\x12\x0e\n\x06taskId\x18\x10 \x01(\t\x12\x31\n\x0brobotRegion\x18\x11 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x31\n\x0bgoodsRegion\x18\x12 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x34\n\x0eremovedRegions\x18\x13 \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12:\n\rrunningStatus\x18\x14 \x01(\x0e\x32#.rbk.protocol.msgMoveStatus.rStatus\x12\x15\n\rclosestTarget\x18\x15 \x01(\t\x12\x17\n\x0f\x61\x63tualReachDist\x18\x16 \x01(\x01\x12\x18\n\x10\x61\x63tualReachAngle\x18\x17 \x01(\x01\x12/\n\nrobotShape\x18\x18 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12\x0e\n\x06slowed\x18\x19 \x01(\x08\x12\r\n\x05slowX\x18\x1a \x01(\x01\x12\r\n\x05slowY\x18\x1b \x01(\x01\x12\x36\n\nslowReason\x18\x1c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x12\n\nslowDevice\x18\x1d \x01(\t\x12.\n\x08stopPath\x18\x1f \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12.\n\x08slowPath\x18  \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12(\n\x07modules\x18! \x03(\x0b\x32\x17.rbk.protocol.msgModule\x12\x34\n\x0e\x61\x64vanceRegions\x18\" \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x0c\n\x04info\x18# \x01(\t\x12\x12\n\ntargetDist\x18$ \x01(\x01\x12=\n\x11taskStatusPackage\x18( \x01(\x0b\x32\".rbk.protocol.msgTaskStatusPackage\x12\x13\n\x0btargetLabel\x18) \x01(\t\x12\x14\n\x0c\x63losestLabel\x18* \x01(\t\x12\x35\n\x10nearestObstacles\x18+ \x03(\x0b\x32\x1b.rbk.protocol.msgNearestObs\x12.\n\ncontainers\x18, \x03(\x0b\x32\x1a.rbk.protocol.msgContainer\x12\x11\n\tdist2goal\x18- \x01(\x01\x12\x16\n\x0esafeCuttingsId\x18. \x01(\x05\x12%\n\x05mates\x18/ \x01(\x0b\x32\x16.rbk.protocol.msgMates\x12,\n\tmoveTasks\x18\x30 \x01(\x0b\x32\x19.rbk.protocol.msgMoveTask\"\xa2\x01\n\x06reason\x12\x0e\n\nultrasonic\x10\x00\x12\t\n\x05laser\x10\x01\x12\r\n\tcollision\x10\x02\x12\x08\n\x04lock\x10\x03\x12\x0f\n\x0b\x61piObstacle\x10\x04\x12\x10\n\x0cvirtualPoint\x10\x05\x12\x0f\n\x0b\x64\x65pthCamera\x10\x06\x12\x10\n\x0c\x64istanceNode\x10\x07\x12\x10\n\x0c\x64iUltrasonic\x10\x08\x12\x0c\n\x08\x64iSensor\x10\t\"x\n\x06status\x12\x0e\n\nstatusNone\x10\x00\x12\x0b\n\x07waiting\x10\x01\x12\x0b\n\x07running\x10\x02\x12\r\n\tsuspended\x10\x03\x12\r\n\tcompleted\x10\x04\x12\n\n\x06\x66\x61iled\x10\x05\x12\x0c\n\x08\x63\x61nceled\x10\x06\x12\x0c\n\x08overTime\x10\x07\"\x9e\x01\n\x04type\x12\x0c\n\x08typeNone\x10\x00\x12\x0b\n\x07goPoint\x10\x01\x12\r\n\tgoPointId\x10\x02\x12\x08\n\x04goId\x10\x03\x12\n\n\x06patrol\x10\x04\x12\x0f\n\x0bgoIntoShelf\x10\x05\x12\x12\n\x0etargetTracking\x10\x06\x12\x10\n\x0cgoByOdometer\x10\x07\x12\x14\n\x10goAlongMagstripe\x10\x08\x12\t\n\x05other\x10\x64\"O\n\x07rStatus\x12\t\n\x05rNone\x10\x00\x12\x0c\n\x08rRunning\x10\x01\x12\x0f\n\x0brNearToGoal\x10\x02\x12\r\n\trFinished\x10\x03\x12\x0b\n\x07rFailed\x10\x04\"\x87\x01\n\x11msgTaskStatusInfo\x12\x0e\n\x06taskId\x18\x01 \x01(\t\x12.\n\x04type\x18\x0b \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x32\n\x06status\x18\x0c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\"\x82\x02\n\x14msgTaskStatusPackage\x12\x37\n\x0etaskStatusList\x18\x01 \x03(\x0b\x32\x1f.rbk.protocol.msgTaskStatusInfo\x12\x15\n\rclosestTarget\x18\x02 \x01(\t\x12\x12\n\nsourceName\x18\x03 \x01(\t\x12\x12\n\ntargetName\x18\x04 \x01(\t\x12\x12\n\npercentage\x18\x05 \x01(\x01\x12\x10\n\x08\x64istance\x18\x06 \x01(\x01\x12\x13\n\x0bsourceLabel\x18\x07 \x01(\t\x12\x13\n\x0btargetLabel\x18\x08 \x01(\t\x12\x14\n\x0c\x63losestLabel\x18\t \x01(\t\x12\x0c\n\x04info\x18\x1f \x01(\t\"/\n\x0cmsgMoveSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01w\x18\x03 \x01(\x01\"2\n\x0bmsgMovePose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"\x86\x01\n\x0bmsgMovePath\x12\x11\n\tskillName\x18\x01 \x01(\t\x12\'\n\x04pose\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\x12)\n\x05speed\x18\x03 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveSpeed\x12\x10\n\x08\x66indPath\x18\x04 \x01(\x08\"\x89\x02\n\tmsgModule\x12\x12\n\nmoduleName\x18\x01 \x01(\t\x12\x34\n\x06status\x18\x02 \x01(\x0e\x32$.rbk.protocol.msgModule.moduleStatus\x12\x12\n\nactionBody\x18\x03 \x01(\t\x12\x13\n\x0b\x63\x61rgoStatus\x18\x04 \x01(\x08\x12*\n\x06motors\x18\x05 \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfo\"]\n\x0cmoduleStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tsuspended\x10\x02\x12\r\n\tcompleted\x10\x03\x12\n\n\x06\x66\x61iled\x10\x04\x12\x0c\n\x08\x63\x61nceled\x10\x05\"n\n\x0cmsgMateRobot\x12/\n\nrobotShape\x18\x01 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12-\n\nfuturePath\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\"9\n\x08msgMates\x12-\n\tmatesList\x18\x01 \x03(\x0b\x32\x1a.rbk.protocol.msgMateRobotb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_wrappers__pb2.DESCRIPTOR,message__motorinfos__pb2.DESCRIPTOR,])
 
@@ -42,46 +42,42 @@ _MSGMOVESTATUS_REASON = _descriptor.EnumDescriptor(
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='fallingDown', index=2, number=2,
+      name='collision', index=2, number=2,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='collision', index=3, number=3,
+      name='lock', index=3, number=3,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='infrared', index=4, number=4,
+      name='apiObstacle', index=4, number=4,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='lock', index=5, number=5,
+      name='virtualPoint', index=5, number=5,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='apiObstacle', index=6, number=6,
+      name='depthCamera', index=6, number=6,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='virtualPoint', index=7, number=7,
+      name='distanceNode', index=7, number=7,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='depthCamera', index=8, number=8,
+      name='diUltrasonic', index=8, number=8,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='distanceNode', index=9, number=9,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='diUltrasonic', index=10, number=10,
+      name='diSensor', index=9, number=9,
       serialized_options=None,
       type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=3835,
-  serialized_end=4014,
+  serialized_start=3843,
+  serialized_end=4005,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_REASON)
 
@@ -126,8 +122,8 @@ _MSGMOVESTATUS_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=4016,
-  serialized_end=4136,
+  serialized_start=4007,
+  serialized_end=4127,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_STATUS)
 
@@ -180,8 +176,8 @@ _MSGMOVESTATUS_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=4139,
-  serialized_end=4297,
+  serialized_start=4130,
+  serialized_end=4288,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_TYPE)
 
@@ -214,8 +210,8 @@ _MSGMOVESTATUS_RSTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=4299,
-  serialized_end=4378,
+  serialized_start=4290,
+  serialized_end=4369,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_RSTATUS)
 
@@ -252,8 +248,8 @@ _MSGMODULE_MODULESTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=5190,
-  serialized_end=5283,
+  serialized_start=5181,
+  serialized_end=5274,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMODULE_MODULESTATUS)
 
@@ -972,9 +968,9 @@ _MSGMOVESTATUS = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='blockId', full_name='rbk.protocol.msgMoveStatus.blockId', index=13,
-      number=14, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      name='blockDevice', full_name='rbk.protocol.msgMoveStatus.blockDevice', index=13,
+      number=14, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -1070,9 +1066,9 @@ _MSGMOVESTATUS = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='slowId', full_name='rbk.protocol.msgMoveStatus.slowId', index=27,
-      number=29, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      name='slowDevice', full_name='rbk.protocol.msgMoveStatus.slowDevice', index=27,
+      number=29, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -1198,7 +1194,7 @@ _MSGMOVESTATUS = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=2403,
-  serialized_end=4378,
+  serialized_end=4369,
 )
 
 
@@ -1242,8 +1238,8 @@ _MSGTASKSTATUSINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4381,
-  serialized_end=4516,
+  serialized_start=4372,
+  serialized_end=4507,
 )
 
 
@@ -1336,8 +1332,8 @@ _MSGTASKSTATUSPACKAGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4519,
-  serialized_end=4777,
+  serialized_start=4510,
+  serialized_end=4768,
 )
 
 
@@ -1381,8 +1377,8 @@ _MSGMOVESPEED = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4779,
-  serialized_end=4826,
+  serialized_start=4770,
+  serialized_end=4817,
 )
 
 
@@ -1426,8 +1422,8 @@ _MSGMOVEPOSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4828,
-  serialized_end=4878,
+  serialized_start=4819,
+  serialized_end=4869,
 )
 
 
@@ -1478,8 +1474,8 @@ _MSGMOVEPATH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4881,
-  serialized_end=5015,
+  serialized_start=4872,
+  serialized_end=5006,
 )
 
 
@@ -1538,8 +1534,8 @@ _MSGMODULE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5018,
-  serialized_end=5283,
+  serialized_start=5009,
+  serialized_end=5274,
 )
 
 
@@ -1576,8 +1572,8 @@ _MSGMATEROBOT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5285,
-  serialized_end=5395,
+  serialized_start=5276,
+  serialized_end=5386,
 )
 
 
@@ -1607,8 +1603,8 @@ _MSGMATES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5397,
-  serialized_end=5454,
+  serialized_start=5388,
+  serialized_end=5445,
 )
 
 _MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
