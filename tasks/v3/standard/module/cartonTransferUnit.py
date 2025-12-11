@@ -538,6 +538,7 @@ class InputParams:
 
         with builder.GROUP(key="operation", name="Operation", desc="机构动作选项"):
             builder.TYPE(ParamType.COMBO_BOX)
+
             with builder.CHILDREN():
                 with builder.CHILD(key="none", name="none", desc="空"):
                     builder.TYPE(ParamType.ARRAY)
@@ -1167,13 +1168,13 @@ class ContainerRobot(ModuleBase):
             motor_info = odo_data["motorInfo"]
             self.report_info["motorInfo"] = motor_info
             for m_f in motor_info:
-                if m_f["name"] == ConfigParams.lift_motor_name:
+                if m_f["key"] == ConfigParams.lift_motor_name:
                     self.lift_motor_calib = m_f.get("calib", None)
                     self.lift_motor_stop = m_f.get("stop", None)
-                if m_f["name"] == ConfigParams.stretch_motor_name:
+                if m_f["key"] == ConfigParams.stretch_motor_name:
                     self.stretch_motor_calib = m_f.get("calib", None)
                     self.stretch_motor_stop = m_f.get("stop", None)
-                if m_f["name"] == ConfigParams.rotate_motor_name:
+                if m_f["key"] == ConfigParams.rotate_motor_name:
                     self.rotate_motor_calib = m_f.get("calib", None)
                     self.rotate_motor_stop = m_f.get("stop", None)
         # self.motor_calib_state = (self.lift_motor_calib == 2 and self.stretch_motor_calib == 2 and self.rotate_motor_calib == 2)
