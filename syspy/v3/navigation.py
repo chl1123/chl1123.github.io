@@ -791,6 +791,44 @@ class NavigationV3(NavigationInterface):
 
         return cls.client().call_service("MoveFactory", "collisionDetection", device_keys, x, y)
 
+    @classmethod
+    @call_service()
+    def goBoustrophedonPath(cls, entranceName: str, exitName: str, startPos: typing.List[float], params: typing.Dict) -> int:
+        """执行拓扑区域路径规划
+
+        Args:
+            entranceName (str): 入口点名称
+            exitName (str): 出口点名称
+            startPos (typing.List[float]): 起始位置坐标 [x, y, angle]
+            params (typing.Dict): 路径规划参数
+
+        Returns:
+            (int): 返回MoveStatus状态码
+        """
+        pass
+
+    @classmethod
+    @call_service()
+    def resetBoustrophedonPath(cls) -> None:
+        """重置拓扑区域路径规划"""
+        pass
+
+    @classmethod
+    @call_service()
+    def cancelBoustrophedonPath(cls) -> typing.Dict:
+        """停止拓扑区域路径规划并返回当前机器人位置
+
+        Returns:
+            (typing.Dict): 包含机器人当前位置的JSON对象，格式为：
+                {
+                    "x": double,      // 机器人x坐标（单位：米）
+                    "y": double,      // 机器人y坐标（单位：米）
+                    "angle": double,  // 机器人角度（单位：弧度）
+                    "success": bool   // 是否成功获取位置
+                }
+        """
+        pass
+
 
 @default_plugin("MoveFactory")
 class NavStatusV3(NavStatusInterface):
