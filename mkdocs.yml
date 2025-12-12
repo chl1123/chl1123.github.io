@@ -76,9 +76,12 @@ plugins:
         options:
           extensions:
             - griffe_typingdoc
+            - griffe_warnings_deprecated:
+                kind: warning
+                title: Deprecated
           show_root_heading: true # 显示根标题
           show_if_no_docstring: false # 不显示没有文档字符串的成员
-          inherited_members: false # 不显示继承的成员
+          inherited_members: true # 显示继承的成员
           members_order: source # 按源码顺序排序
           separate_signature: true # 显示签名
           unwrap_annotated: true # 是否展开Annotated类型以仅显示类型而不显示注释

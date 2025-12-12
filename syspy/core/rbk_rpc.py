@@ -181,7 +181,12 @@ class Message(Service):
     def initModelClass(self):
         pass
 
-    def setUpdateInterval(self, interval: float):
+    def setUpdateInterval(self, interval: float = 0.05):
+        """设置消息更新间隔。
+
+        Args:
+            interval (float): 间隔时间，单位 s。多次调用消息时，间隔时间大于 interval 才会更新消息。
+        """
         self._UPDATE_INTERVAL = interval
 
     def update(self, topic: str = None) -> bool:
@@ -228,17 +233,30 @@ class Message(Service):
                 (time.time() - last_update) > self._UPDATE_INTERVAL
         )
 
-    def getData(self, args: Optional[List[str]] = None, *, topic: str = None, ) -> Union[tuple, dict]:
-        """获取指定topic的当前数据"""
-        if  self.update(topic):
+    def getData(self, fields: Optional[List[str]] = None, *, topic: str = None) -> dict:
+        """通用获取消息接口
+
+        Args:
+            fields (Optional[List[str]]): 需要的字段列表。缺省或 None 返回全部字段。
+            topic (str): 指定消息话题。
+
+        Returns:
+            (dict): 包含请求字段的字典数据。
+        """
+        if self.update(topic):
             if topic is None:
                 data = self.data
             else:
                 data = self._topic_data.get(topic)
             if data:
-                if args is not None:
-                    return tuple(getattr(data, arg) for arg in args)
-                return json_format.MessageToDict(data, preserving_proto_field_name=True, use_integers_for_enums=True)
+                data_dict = json_format.MessageToDict(data, preserving_proto_field_name=True, use_integers_for_enums=True)
+                if fields:
+                    result = {}
+                    for field in fields:
+                        if field in data_dict:
+                            result[field] = data_dict[field]
+                    return result
+                return data_dict
         return {}
 
 

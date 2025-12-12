@@ -22,9 +22,17 @@ class LaserInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def getData(self, args: typing.Optional[List[str]] = None, *, topic: str = None, ) -> typing.Union[tuple, dict]:
-        """获取指定topic的当前数据"""
-        return self.child.getData(args, topic=topic)
+    def getData(self, fields: typing.Optional[List[str]] = None, *, topic: str = None) -> dict:
+        """通用获取消息接口
+
+        Args:
+            fields (Optional[List[str]]): 需要的字段列表。缺省或 None 返回全部字段。
+            topic (str): 指定消息话题。
+
+        Returns:
+            (dict): 包含请求字段的字典数据。
+        """
+        return self.child.getData(fields, topic=topic)
 
     def set2DLaserWidth(self, key: str, width: float):
         """设置激光设备宽度
