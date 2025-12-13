@@ -223,11 +223,13 @@ class NavigationInterface(ABC, Service):
     @classmethod
     def getBinTask(cls, bin_name: str, task_key: str) -> dict:
         """获取库位任务
+
         Args:
-        bin_name (str): 库位名称
-        task_key (str): 库位任务的键
+            bin_name (str): 库位名称
+            task_key (str): 库位任务的键
+
         Returns:
-        (str): 库位任务的值
+            (dict): 库位任务的值
         """
         raise RBKVersionError()
 
