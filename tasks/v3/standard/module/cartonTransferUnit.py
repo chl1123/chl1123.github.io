@@ -43,7 +43,7 @@ class ConfigParams:
 
         with builder.GROUPS():
             # 背篓组
-            with builder.GROUP(key="trays_config", name="Trays Config", desc="Backpack layer height parameters, Counted from No. 0"):
+            with builder.GROUP(key="traysConfig", name="Trays Config", desc="Backpack layer height parameters, Counted from No. 0"):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
@@ -122,95 +122,95 @@ class ConfigParams:
                         builder.DEFAULTVALUE(3.835)
 
             # 识别组
-            with builder.GROUP(key="recognize_config", name="Recognize Config", desc="Recognition relevant parameters"):
+            with builder.GROUP(key="recognizeConfig", name="Recognize Config", desc="Recognition relevant parameters"):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     # 识别取箱时二次调整高度
-                    with builder.CHILD(key="rec_offz_box", name="rec Offz Box", desc="Adjust Height Twice for Pick"):
+                    with builder.CHILD(key="recOffzBox", name="rec Offz Box", desc="Adjust Height Twice for Pick"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(-0.030)
                     # 识别放箱时二次调整高度
-                    with builder.CHILD(key="rec_offz_shelf", name="Rec Offz Shelf", desc="Adjust Height Twice for Place"):
+                    with builder.CHILD(key="recOffzShelf", name="Rec Offz Shelf", desc="Adjust Height Twice for Place"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.030)
                     # 料箱码识别配置文件
-                    with builder.CHILD(key="box_code_file", name="Box Code File", desc="Box Code Recognition Config"):
+                    with builder.CHILD(key="boxCodeFile", name="Box Code File", desc="Box Code Recognition Config"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("default.srec")
                     # 货架码识别配置文件
-                    with builder.CHILD(key="shelf_code_file", name="Shelf Code File", desc="Shelf Code Recognition Config"):
+                    with builder.CHILD(key="shelfCodeFile", name="Shelf Code File", desc="Shelf Code Recognition Config"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("default1.srec")
                     # 一维码识别配置文件
-                    with builder.CHILD(key="barcode_file", name="Barcode File", desc="Barcode Recognition Config"):
+                    with builder.CHILD(key="barcodeFile", name="Barcode File", desc="Barcode Recognition Config"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("default2.srec")
                     # 针对识别结果误差在行走方向的补偿值
-                    with builder.CHILD(key="offset_x", name="Offset X", desc="Walking Direction Offset"):
+                    with builder.CHILD(key="offsetX", name="Offset X", desc="Walking Direction Offset"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.000)
                     # 补光灯延时拍照时间
-                    with builder.CHILD(key="load_rec_lift_diff", name="Load Rec Lift Diff", desc="Height difference from bin to shelf"):
+                    with builder.CHILD(key="loadRecLiftDiff", name="Load Rec Lift Diff", desc="Height difference from bin to shelf"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.050)
                     # 放货识别货架上是否有货物时，在放货高度上需要额外抬升的高度，该值可设置为货架码到料箱码的高度差
-                    with builder.CHILD(key="rec_box_extra_height", name="Rec Box Extra Height", desc="Lift height for shelf stock detection"):
+                    with builder.CHILD(key="recBoxExtraHeight", name="Rec Box Extra Height", desc="Lift height for shelf stock detection"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.000)
                     # 行走方向识别调整完成阈值
-                    with builder.CHILD(key="ok_x", name="Ok X", desc="Walking Direction Recognition Threshold"):
+                    with builder.CHILD(key="okX", name="Ok X", desc="Walking Direction Recognition Threshold"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.01)
                     # 识别调整完成弧度阈值
-                    with builder.CHILD(key="ok_yaw", name="Ok Yaw", desc="Adjustment Completion Threshold"):
+                    with builder.CHILD(key="okYaw", name="Ok Yaw", desc="Adjustment Completion Threshold"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.015)
                     # 货叉与料箱角度最大偏差, 弧度值
-                    with builder.CHILD(key="max_yaw_bias", name="Max Yaw Bias", desc="Max Fork Angle Offset (rad)"):
+                    with builder.CHILD(key="maxYawBias", name="Max Yaw Bias", desc="Max Fork Angle Offset (rad)"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.13)
 
             # 电机组
-            with builder.GROUP(key="motor_config", name="Motor Configuration", desc="Motor related configuration parameters"):
+            with builder.GROUP(key="motorConfig", name="Motor Configuration", desc="Motor related configuration parameters"):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     # 升降电机名称
-                    with builder.CHILD(key="lift_motor_name", name="Lift Motor Name", desc="Name of the lift motor"):
+                    with builder.CHILD(key="liftMotorName", name="Lift Motor Name", desc="Name of the lift motor"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("Motor-003")
                         builder.REQUIRED(True)
 
                     # 升降电机速度
-                    with builder.CHILD(key="lift_motor_speed", name="Lift Motor Speed", desc="Speed of the lift motor"):
+                    with builder.CHILD(key="liftMotorSpeed", name="Lift Motor Speed", desc="Speed of the lift motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.500)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.1)
 
                     # 升降最高位
-                    with builder.CHILD(key="max_fork_height", name="Max Lift Height", desc="Maximum position for lift"):
+                    with builder.CHILD(key="maxForkHeight", name="Max Lift Height", desc="Maximum position for lift"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(4.500)
                         builder.UNIT("m")
 
                     # 升降最低位
-                    with builder.CHILD(key="min_fork_height", name="Min Lift Height", desc="Zero position for lift"):
+                    with builder.CHILD(key="minForkHeight", name="Min Lift Height", desc="Zero position for lift"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.380)
                         builder.UNIT("m")
 
                     # 安全升降高度, 货叉导航过程中的最高高度
-                    with builder.CHILD(key="safe_lift_height", name="Safe Lift Height", desc="Safe position for lift, the highest height during forklift navigation"):
+                    with builder.CHILD(key="safeLiftHeight", name="Safe Lift Height", desc="Safe position for lift, the highest height during forklift navigation"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.000)
                         builder.UNIT("m")
@@ -218,113 +218,113 @@ class ConfigParams:
 
                 with builder.CHILDREN():
                     # 旋转电机名称
-                    with builder.CHILD(key="rotate_motor_name", name="Rotate Motor Name", desc="Name of the rotate motor"):
+                    with builder.CHILD(key="rotateMotorName", name="Rotate Motor Name", desc="Name of the rotate motor"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("Motor-004")
                         builder.REQUIRED(True)
 
                     # 旋转电机速度
-                    with builder.CHILD(key="rotate_motor_speed", name="Rotate Motor Speed", desc="Speed of the rotate motor"):
+                    with builder.CHILD(key="rotateMotorSpeed", name="Rotate Motor Speed", desc="Speed of the rotate motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.000)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.1)
 
                     # 旋转最大位
-                    with builder.CHILD(key="max_rotate_angle", name="Max Rotate Angle", desc="Maximum angle for rotate"):
+                    with builder.CHILD(key="maxRotateAngle", name="Max Rotate Angle", desc="Maximum angle for rotate"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(100)
                         builder.UNIT("m")
 
                     # 识别时是否需要自动调整货叉角度
-                    with builder.CHILD(key="auto_adjust_rotate", name="Auto Adjust Rotate", desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
+                    with builder.CHILD(key="autoAdjustRotate", name="Auto Adjust Rotate", desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
                         builder.TYPE(ParamType.BOOL)
 
 
                 with builder.CHILDREN():
                     # 伸缩电机名称
-                    with builder.CHILD(key="stretch_motor_name", name="Stretch Motor Name", desc="Name of the stretch motor"):
+                    with builder.CHILD(key="stretchMotorName", name="Stretch Motor Name", desc="Name of the stretch motor"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("Motor-000")
                         builder.REQUIRED(True)
 
                     # 伸缩电机速度
-                    with builder.CHILD(key="stretch_motor_speed", name="Stretch Motor Speed", desc="Speed of the stretch motor"):
+                    with builder.CHILD(key="stretchMotorSpeed", name="Stretch Motor Speed", desc="Speed of the stretch motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.000)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.1)
 
                     # 伸缩最大长度
-                    with builder.CHILD(key="max_stretch_length", name="Max Stretch Length", desc="Maximum length of fork"):
+                    with builder.CHILD(key="maxStretchLength", name="Max Stretch Length", desc="Maximum length of fork"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.900)
                         builder.UNIT("m")
 
                     # 伸缩安全长度, 货叉升降、旋转操作时伸缩臂安全长度
-                    with builder.CHILD(key="safe_stretch_length", name="Safe Stretch Length", desc="Safe length of telescopic arm during forklift lifting and rotating operations"):
+                    with builder.CHILD(key="safeStretchLength", name="Safe Stretch Length", desc="Safe length of telescopic arm during forklift lifting and rotating operations"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.900)
                         builder.UNIT("m")
 
                     # 取放自身背篓货物时伸出长度
-                    with builder.CHILD(key="stretch_self_length", name="Stretch Self Length", desc="The length when picking up and placing goods in one's own backpack"):
+                    with builder.CHILD(key="stretchSelfLength", name="Stretch Self Length", desc="The length when picking up and placing goods in one's own backpack"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.760)
                         builder.UNIT("m")
 
                     # 箱子长度, 用于自动计算货叉伸出长度
-                    with builder.CHILD(key="auto_stretch_box_len", name="Auto Stretch Box Len", desc="The length of box, Used for automatic calculation of fork extension length"):
+                    with builder.CHILD(key="autoStretchBoxLen", name="Auto Stretch Box Len", desc="The length of box, Used for automatic calculation of fork extension length"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.600)
                         builder.UNIT("m")
 
                     # 自动计算取货伸出长度时的补偿值
-                    with builder.CHILD(key="auto_load_stretch_dist", name="Auto Load Stretch Dist", desc="The compensation value for the extended length of the pickup fork when picking up goods"):
+                    with builder.CHILD(key="autoLoadStretchDist", name="Auto Load Stretch Dist", desc="The compensation value for the extended length of the pickup fork when picking up goods"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.010)
                         builder.UNIT("m")
 
                     # 自动计算放货伸出长度时的补偿值
-                    with builder.CHILD(key="auto_unload_stretch_dist", name="Auto Unload Stretch Dist", desc="The compensation value for the extended length of the pickup fork when putting down goods"):
+                    with builder.CHILD(key="autoUnloadStretchDist", name="Auto Unload Stretch Dist", desc="The compensation value for the extended length of the pickup fork when putting down goods"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.010)
                         builder.UNIT("m")
 
                     # 手指机构到货叉旋转中心的距离, 用于自动计算货叉伸出长度
-                    with builder.CHILD(key="auto_stretch_odo_len", name="Auto Stretch Odo Len", desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
+                    with builder.CHILD(key="autoStretchOdoLen", name="Auto Stretch Odo Len", desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.380)
                         builder.UNIT("m")
 
             # 拨指组
-            with builder.GROUP(key="finger_config", name="Finger Configuration", desc="Finger related configuration parameters"):
+            with builder.GROUP(key="fingerConfig", name="Finger Configuration", desc="Finger related configuration parameters"):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     # 左拨指打开DO
-                    with builder.CHILD(key="left_finger_up_do", name="Left Finger Up Do", desc="Open Left Fingers"):
+                    with builder.CHILD(key="leftFingerUpDo", name="Left Finger Up Do", desc="Open Left Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DO-009")
                         builder.REQUIRED(True)
                     # 左拨指关闭DO
-                    with builder.CHILD(key="left_finger_down_do", name="Left Finger Down Do", desc="Close Left Fingers"):
+                    with builder.CHILD(key="leftFingerDownDo", name="Left Finger Down Do", desc="Close Left Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DO-008")
                         builder.REQUIRED(True)
                     # 右拨指打开DO
-                    with builder.CHILD(key="right_finger_up_do", name="Right Finger Up Do", desc="Open Right Fingers"):
+                    with builder.CHILD(key="rightFingerUpDo", name="Right Finger Up Do", desc="Open Right Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DO-007")
                         builder.REQUIRED(True)
                     # 右拨指关闭DO
-                    with builder.CHILD(key="right_finger_down_do", name="Right Finger Down Do", desc="Close Right Fingers"):
+                    with builder.CHILD(key="rightFingerDownDo", name="Right Finger Down Do", desc="Close Right Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DO-006")
                         builder.REQUIRED(True)
 
                     # 左拨指打开DI
-                    with builder.CHILD(key="left_finger_up_di", name="Left Finger Up Di", desc="Open Left Fingers"):
+                    with builder.CHILD(key="leftFingerUpDi", name="Left Finger Up Di", desc="Open Left Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-003")
                         builder.REQUIRED(True)
@@ -336,19 +336,19 @@ class ConfigParams:
                         builder.REQUIRED(True)
 
                     # 右拨指打开DI
-                    with builder.CHILD(key="right_finger_up_di", name="Right Finger Up Di", desc="Open Right Fingers"):
+                    with builder.CHILD(key="rightFingerUpDi", name="Right Finger Up Di", desc="Open Right Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-004")
                         builder.REQUIRED(True)
 
                     # 右拨指关闭DI
-                    with builder.CHILD(key="right_finger_down_di", name="Right Finger Down Di", desc="Close Right Fingers"):
+                    with builder.CHILD(key="rightFingerDownDi", name="Right Finger Down Di", desc="Close Right Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-005")
                         builder.REQUIRED(True)
 
             # 其他组
-            with builder.GROUP(key="other_config", name="Other Configuration", desc="Other configuration parameters"):
+            with builder.GROUP(key="otherConfig", name="Other Configuration", desc="Other configuration parameters"):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
@@ -357,17 +357,17 @@ class ConfigParams:
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(120, min_value= 0, max_value= 300)
                     # 货叉中部货物检测光电DI
-                    with builder.CHILD(key="goods_check_di", name="Goods Check Di", desc="Fork Midpoint Detection DI"):
+                    with builder.CHILD(key="goodsCheckDi", name="Goods Check Di", desc="Fork Midpoint Detection DI"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-008")
                         builder.REQUIRED(True)
                     # 货叉安全限位DI
-                    with builder.CHILD(key="overlimit_detect_di", name="Overlimit Detect Di", desc="Fork Safe Travel Limit"):
+                    with builder.CHILD(key="overlimitDetectDi", name="Overlimit Detect Di", desc="Fork Safe Travel Limit"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-009")
                         builder.REQUIRED(True)
                     # 补光灯时间
-                    with builder.CHILD(key="light_delay_time", name="Light Delay Time", desc="time for light"):
+                    with builder.CHILD(key="lightDelayTime", name="Light Delay Time", desc="time for light"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3, min_value=0, max_value=100)
                         builder.REQUIRED(True)
