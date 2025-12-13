@@ -201,6 +201,7 @@ class ConfigParams:
         cls.downMaxSpeedWithGoods = cfg.get("downMaxSpeedWithGoods")
         cls.backLaserEnableHeight = cfg.get("backLaserEnableHeight")
         cls.checkGoodsWhileLoad = cfg.get("checkGoodsWhileLoad")
+        print(f"checkGoodsWhileLoad:{cls.checkGoodsWhileLoad}")
         cls.checkAllContactDis = cfg.get("checkAllContactDi")
 
         # --- forkByDO
@@ -1030,7 +1031,7 @@ class Fork(ModuleBase):
                              "check the input param", "")
             self.script_status = ScriptStatus.FAILED
         self._execute_actions()
-        if self.action_status == ScriptStatus.FAILED:
+        if self.action_status == ActionStatus.FAILED:
             self.script_status = ScriptStatus.FAILED
 
         # Module.report_info()
@@ -1083,12 +1084,13 @@ class Fork(ModuleBase):
 
     def get_target_pos(self):
         target_id = self.move_task.get("targetName", "")  # int, 可能是 LM，可能是 AP
-        print(f"target id:{target_id}")
+        Trace.log(f"target id:{target_id}")
         pos = []
         if target_id == "":
             # task_args 里已经是带前缀的字符串
             target_id_str = self.task_args.get("targetName", "")
             pos = Navigation.getLM(target_id_str, True)
+            Trace.log(f"pos:{pos}")
             return pos
         else:
             # 尝试 AP 和 LM 两个前缀
@@ -1281,7 +1283,7 @@ class Fork(ModuleBase):
                 }
                 if ConfigParams.useStraightLine:
                     method = "twoStraightLine"
-                    args["max_angle"] = 20
+                    args["max_angle"] = 10
                 else:
                     method = "goBezier"
                     args["max_curve"] = 3
@@ -1387,7 +1389,7 @@ class Fork(ModuleBase):
                     }
                     if ConfigParams.useStraightLine:
                         method = "twoStraightLine"
-                        args["max_angle"] = 20
+                        args["max_angle"] = 10
                     else:
                         method = "goBezier"
                         args["max_curve"] = 3
@@ -1533,7 +1535,7 @@ class Fork(ModuleBase):
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.reportInfo(self.trace_chart)
-        Trace.chart(self.trace_chart)
+        Trace.chart(self.trace_chart, False)
 
         # 根据变动量记录货叉的里程数据
         if self.last_pos is not None:
@@ -1593,39 +1595,41 @@ class Fork(ModuleBase):
 
                     # Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
 
-            # 有货还得处理栈板的屏蔽
-            if Navigation.hasGoods():
-                recfile = Navigation.getGoodsName()
-                if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_pallet_region_by_height:
-                    self.set_pallet_region_by_height = True
-                    self.clear_pallet_region_by_height = False
-                    if recfile is None or recfile == "":
-                        pass
-                    elif recfile == "no_rec_deduct_pallet_area":
-                        goods_point2robot = []
-                        for point in self.no_rec_deduct_pallet_area:
-                            point2ap = pos2World([point["x"], point["y"], 0], [ConfigParams.module_x, 0, 0])
-                            goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
-                        Navigation.setClearRegion("no_rec_deduct_pallet_area", [p["x"] for p in goods_point2robot],
-                                                  [p["y"] for p in goods_point2robot],
-                                                  [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                    else:
-                        pallet_deduct = get_deduct_area(recfile)  # 栈板坐标系
-                        # 理论上栈板中心和机构中心重叠，转到机器人坐标系下
-                        set_deduct_area(pallet_deduct, [ConfigParams.module_x, 0, 0], "PalletRobotRegionByHeight",
-                                        Coordinate.ROBOT)
-                elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_pallet_region_by_height:
-                    self.clear_pallet_region_by_height = True
-                    self.set_pallet_region_by_height = False
-                    if recfile is None or recfile == "":
-                        pass
-                    elif recfile == "no_rec_deduct_pallet_area":
-                        Navigation.deleteClearRegion("no_rec_deduct_pallet_area", Coordinate.ROBOT)
-                    else:
-                        delete_deduct_area("PalletRobotRegionByHeight", Coordinate.ROBOT)
+            # # 有货还得处理栈板的屏蔽
+            # if Navigation.hasGoods():
+            #     recfile = Navigation.getGoodsName()
+            #     if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_pallet_region_by_height:
+            #         self.set_pallet_region_by_height = True
+            #         self.clear_pallet_region_by_height = False
+            #         if recfile is None or recfile == "":
+            #             pass
+            #         elif recfile == "no_rec_deduct_pallet_area":
+            #             goods_point2robot = []
+            #             for point in self.no_rec_deduct_pallet_area:
+            #                 point2ap = pos2World([point["x"], point["y"], 0], [ConfigParams.module_x, 0, 0])
+            #                 goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
+            #             Navigation.setClearRegion("no_rec_deduct_pallet_area", [p["x"] for p in goods_point2robot],
+            #                                       [p["y"] for p in goods_point2robot],
+            #                                       [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+            #         else:
+            #             pallet_deduct = get_deduct_area(recfile)  # 栈板坐标系
+            #             # 理论上栈板中心和机构中心重叠，转到机器人坐标系下
+            #             set_deduct_area(pallet_deduct, [ConfigParams.module_x, 0, 0], "PalletRobotRegionByHeight",
+            #                             Coordinate.ROBOT)
+            #     elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_pallet_region_by_height:
+            #         self.clear_pallet_region_by_height = True
+            #         self.set_pallet_region_by_height = False
+            #         if recfile is None or recfile == "":
+            #             pass
+            #         elif recfile == "no_rec_deduct_pallet_area":
+            #             Navigation.deleteClearRegion("no_rec_deduct_pallet_area", Coordinate.ROBOT)
+            #         else:
+            #             delete_deduct_area("PalletRobotRegionByHeight", Coordinate.ROBOT)
 
         # 处理载货时di状态监控
-        if Navigation.hasGoods() and ConfigParams.checkGoodsWhileLoad and ConfigParams.checkAllContactDis:
+        if Navigation.hasGoods() and ConfigParams.checkGoodsWhileLoad:
+            # print(f"checkGoodsWhileLoad:{ConfigParams.checkGoodsWhileLoad}")
+
             # 获取到位 di 的状态
             di_status = []
             contact_ids = ConfigParams.contact_ids
@@ -1791,9 +1795,11 @@ class GoPathWithContactDi(BaseAction):
         self.laser_id = []
         self.laser_width = None
         self.walk_dist = None
-        self.action_status = ScriptStatus.NONE
+        self.action_status = ActionStatus.INIT
         self.di_status = []
         self.contact_di = contact_dis
+        self.contact_di = [d for d in contact_dis if d]
+
         self.target_pos = world_pos
         if self.check_di and not self.contact_di:
             Abnormal.setTask(53327, f"check di is True in recfile, but contact di is none",
@@ -1804,7 +1810,7 @@ class GoPathWithContactDi(BaseAction):
         self.obs_dist = obs_dist
         self.start_loc = None
         self.method = method
-        self.di_trigger_time = None
+        self.di_trigger_time = 1
         self.set_policy = False
         self.clear_policy = False
         self.policy = {}
@@ -1816,6 +1822,8 @@ class GoPathWithContactDi(BaseAction):
                 target_pos = pos2World([-args["fork_di_dist"], 0, 0], world_pos)
             else:
                 target_pos = world_pos
+            self.final_target = target_pos
+
             Trace.log(f"go path with di target pos:{target_pos}")
             self.back_args = {
                 'x': target_pos[0],
@@ -1834,92 +1842,99 @@ class GoPathWithContactDi(BaseAction):
             self.back_action = GoBezier.GoBezierWorld(world_pos, args["back_dist"], args["adjust_dist"],
                                                       args["min_ahead_dist"], True,
                                                       None, 0.1, 0.3, 0.2, 0.1, args["max_curve"])
+            self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
+
         elif method == "twoStraightLine":
             self.back_action = GoTwoStraightLine(world_pos, args["min_ahead_dist"], args["adjust_dist"],
                                                  args["back_dist"], 0.2, args['max_angle'], 1)
+            self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
         else:
             Abnormal.setTask(53929, f"wrong gopath method :{method}, script failed", "script wrong",
                              "", "check the script", "")
         # self.back_status = self.back_action.action_status
 
     def run(self):
-        self.action_status = ScriptStatus.RUNNING
-        if not self.init:
-            self.init = True
-            self.start_loc = get_r_loc()
-            Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}")
-            if self.cal_dist(self.target_pos, self.start_loc) < 0.05:
-                self.action_status = ScriptStatus.FINISHED
+        if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
+            return
+
+        self.action_status = ActionStatus.RUNNING
+        try:
+            if not self.init:
+                self.init = True
+                self.start_loc = get_r_loc()
+                Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}")
+                if self.cal_dist(self.target_pos, self.start_loc) < 0.05:
+                    self.action_status = ActionStatus.FINISHED
+                    return
+                if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
+                    for laser in ConfigParams.fork_tip_2D_lasers:
+                        Trace.log(f"set2DLaserWidth:{laser}")
+                        Laser.set2DLaserWidth(laser, 0.05)
+
+                # 把 di sensor 屏蔽掉
+                Trace.log(f"fork tip di sensors :{ConfigParams.fork_tip_di_sensors}")
+                if ConfigParams.fork_tip_di_sensors:
+                    current_collision_device_str = (RobotParam.getConfig("navigation",
+                                                                         "collisionDetection.detectionDevice"))
+                    current_collision_device = current_collision_device_str.split(",")
+                    Trace.log(f"current_collision_device:{current_collision_device}")
+
+                    for di in ConfigParams.fork_tip_di_sensors:
+                        if di in current_collision_device:
+                            current_collision_device.remove(di)
+
+                    current_collision_device_str = ",".join(current_collision_device)
+                    self.policy = {
+                        "navigation.collisionDetection.detectionDevice": current_collision_device_str,
+                    }
+
+                if self.obs_dist is not None:
+                    self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.obs_dist
+
+                Navigation.appendCustomPolicy("policy", self.policy)
+                time.sleep(0.5)
+                current_collision_device_change = (RobotParam.getConfig("navigation",
+                                                                        "collisionDetection.detectionDevice"))
+                Trace.log(f"policy :{self.policy},current_collision_device_change:{current_collision_device_change}")
+
+            # 开始后退
+            if self.back_action.action_status not in [ScriptStatus.FAILED, ScriptStatus.FINISHED, ActionStatus.FAILED,ActionStatus.FINISHED]:
+                self.back_action.run()
+
+            if self.back_action.action_status in [ScriptStatus.FAILED, ActionStatus.FAILED]:
+                self.action_status = ActionStatus.FAILED
                 return
-            if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
-                for laser in ConfigParams.fork_tip_2D_lasers:
-                    Trace.log(f"set2DLaserWidth:{laser}")
-                    Laser.set2DLaserWidth(laser, 0.05)
 
-            # 把 di sensor 屏蔽掉
-            Trace.log(f"fork tip di sensors :{ConfigParams.fork_tip_di_sensors}")
-            if ConfigParams.fork_tip_di_sensors:
-                current_collision_device_str = (RobotParam.getConfig("navigation",
-                                                                     "collisionDetection.detectionDevice"))
-                current_collision_device = current_collision_device_str.split(",")
-                Trace.log(f"current_collision_device:{current_collision_device}")
+            # 前进的时候不要设置避障距离
+            vx = NavSpeed.getSpeeds()[0]
+            if vx >= 0.01 and not self.clear_policy:
+                Navigation.clearPolicy()
+                self.clear_policy = True
+                self.set_policy = False
+            elif vx <= -0.01 and not self.set_policy:
+                Navigation.appendCustomPolicy("policy", self.policy)
+                self.clear_policy = False
+                self.set_policy = True
 
-                for di in ConfigParams.fork_tip_di_sensors:
-                    if di in current_collision_device:
-                        current_collision_device.remove(di)
-
-                current_collision_device_str = ",".join(current_collision_device)
-                self.policy = {
-                    "navigation.collisionDetection.detectionDevice": current_collision_device_str,
-                }
-
-            if self.obs_dist is not None:
-                self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.obs_dist
-
-            Navigation.appendCustomPolicy("policy", self.policy)
-            time.sleep(0.5)
-            current_collision_device_change = (RobotParam.getConfig("navigation",
-                                                                    "collisionDetection.detectionDevice"))
-            Trace.log(f"policy :{self.policy},current_collision_device_change:{current_collision_device_change}")
-
-        # 开始后退
-        if self.back_action.action_status not in [ScriptStatus.FAILED, ScriptStatus.FINISHED]:
-            self.back_action.run()
-
-        if self.back_action.action_status == ScriptStatus.FAILED:
-            self.action_status = ScriptStatus.FAILED
-
-        # 前进的时候不要设置避障距离
-        if NavSpeed.getSpeeds()[0] >= 0.005 and not self.clear_policy:
-            Navigation.clearPolicy()
-            self.clear_policy = True
-            self.set_policy = False
-        elif NavSpeed.getSpeeds()[0] <= -0.005 and not self.set_policy:
-            Navigation.appendCustomPolicy("policy", self.policy)
-            self.clear_policy = False
-            self.set_policy = True
-
-        # 如果没有到位 di
-        if not self.check_di:
-            self.action_status = self.back_action.action_status
-
-        else:
+            # 如果没有到位 di
+            if not self.check_di:
+                self.action_status = ActionStatus(self.back_action.action_status.value)
+                return
 
             # 获取到位 di 的状态
-            self.di_status = []
-            for di in self.contact_di:
-                if di != '':
-                    self.di_status.append(Di.getDi(di))
+            self.di_status = [Di.getDi(d) for d in self.contact_di]
+
+            dist2target = pos2Base(get_r_loc(), self.final_target)
 
             # 如果不需要检查所有的到位 di，一个到位任务结束
             if not self.check_all_contact_di:
-                dist2target = pos2Base(get_r_loc(), self.target_pos)
 
-                if dist2target[0] > 0.1 and any(self.di_status):
-                    Abnormal.setTask(53322, f"not reach goal, still {dist2target}m left, "
+                if dist2target[0] > 0.2 and any(self.di_status):
+                    Abnormal.setTask(53322, f"reach di not reach goal, still {dist2target[0]}m left, "
                                             f"but di:{self.contact_di}{self.di_status} trigger",
                                      "", "", "")
                     self.action_status = ActionStatus.FAILED
+                    return
 
                 # 任务结束超过 1 s，且没有到位 di 触发，则报错结束任务
                 if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(
@@ -1927,13 +1942,21 @@ class GoPathWithContactDi(BaseAction):
                     Abnormal.setTask(53307, f"not trigger di but robot reach goal",
                                      f"please check the di dist or reach di:{self.contact_di}", "", "")
                     self.action_status = ActionStatus.FAILED
+                    return
                 # 一个到位任务结束
                 if any(self.di_status):
                     if self.stop_robot():
                         self.action_status = ActionStatus.FINISHED
+                        return
 
             # 仅检查所有到位 di 的情况
             else:
+                if dist2target[0] > 0.2 and all(self.di_status):
+                    Abnormal.setTask(53322, f"reach di not reach goal, still {dist2target[0]}m left, "
+                                            f"but di:{self.contact_di}{self.di_status} trigger",
+                                     "", "", "")
+                    self.action_status = ActionStatus.FAILED
+                    return
                 # 所有到位 di 没有全部触发，则报错结束任务
                 if self.back_action.action_status == ActionStatus.FINISHED and not any(self.di_status) and Timer.delay(
                         1):
@@ -1941,6 +1964,7 @@ class GoPathWithContactDi(BaseAction):
                                      f"please check the di dist or reach dis:{self.contact_di} and back dist",
                                      "", "")
                     self.action_status = ActionStatus.FAILED
+                    return
                 # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
                 if any(self.di_status):
                     if Timer.delay(self.di_trigger_time):
@@ -1949,12 +1973,15 @@ class GoPathWithContactDi(BaseAction):
                                 self.action_status = ActionStatus.FINISHED
                         else:
                             Abnormal.setTask(53308, f"not all di triggered but robot reach goal",
-                                             f"please check the di dist or reach di:{self.contact_di[0]},di:{self.contact_di[1]}",
+                                             f"please check the di dist or reach di:{self.contact_di}",
                                              "", "")
                             self.action_status = ActionStatus.FAILED
-        if self.action_status in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-            Laser.clear2DLaserWidth(ConfigParams.fork_tip_2D_lasers)
-            Navigation.clearPolicy()
+                            return
+
+        finally:
+            if self.action_status in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                Laser.clear2DLaserWidth(ConfigParams.fork_tip_2D_lasers)
+                Navigation.clearPolicy()
 
         # cur_state = dict()
         # cur_state['status'] = self.action_status
@@ -2112,18 +2139,15 @@ class RunMotorByPosition(BaseAction):
             else:
                 # 如果是搬运车，做一些最大最小高度的逻辑处理
                 if ConfigParams.module_type == "liftFork":
-
-                    # 方向判断：>0 上升；<0 下降；=0 到位
-                    delta = self.position - cur_fork_height
-                    if abs(delta) <= EPS:
-                        self.action_status = ActionStatus.FINISHED
-                    else:
-                        self.position = max_h if delta > 0 else min_h
+                    if self.position < (ConfigParams.max_height + ConfigParams.min_height) / 2:
+                        self.position = ConfigParams.min_height
+                    elif self.position > (ConfigParams.max_height + ConfigParams.min_height) / 2:
+                        self.position = ConfigParams.max_height
 
                 # 考虑载货时的货叉升降速度
                 if ConfigParams.module_type != "liftFork":
-                    # 从输入参数和配置参数里选出最大速度
 
+                    # 从输入参数和设备配置参数里选出最大速度
                     max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
 
                     if Navigation.hasGoods():
@@ -2145,9 +2169,9 @@ class RunMotorByPosition(BaseAction):
         # pos = Motor.get_motor_pos(self.motor_name)
         self.is_reach = Motor.isMotorReached(self.motor_name)
         if self.is_reach:
-            if ConfigParams.DOMotor and self.position == ConfigParams.max_height:
+            if ConfigParams.base_shift and abs(self.position - ConfigParams.max_height) < EPS:
                 Navigation.wheelBaseShift(True)
-            elif ConfigParams.DOMotor and self.position == ConfigParams.min_height:
+            elif ConfigParams.base_shift and abs(self.position - ConfigParams.min_height) < EPS:
                 Navigation.wheelBaseShift(False)
             self.action_status = ActionStatus.FINISHED
 
@@ -2393,12 +2417,12 @@ class GoPath(BaseAction):
 
     def reset(self):
         Navigation.resetPath()
-        Trace.log(f"")
+        Trace.log(f"reset")
         self.action_status = ActionStatus.RUNNING
 
     def cancel(self):
         Navigation.resetPath()
-        self.action_status = ScriptStatus.FAILED
+        self.action_status = ActionStatus.FAILED
 
 
 class GoTwoStraightLine(BaseAction):
