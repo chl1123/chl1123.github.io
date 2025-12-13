@@ -168,16 +168,16 @@ class ConfigParams:
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.01)
-                    # 识别调整完成弧度阈值
+                    # 识别调整完成角度阈值
                     with builder.CHILD(key="okYaw", name="Ok Yaw", desc="Adjustment Completion Threshold"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.UNIT("m")
-                        builder.DEFAULTVALUE(0.015)
-                    # 货叉与料箱角度最大偏差, 弧度值
-                    with builder.CHILD(key="maxYawBias", name="Max Yaw Bias", desc="Max Fork Angle Offset (rad)"):
+                        builder.UNIT("deg")
+                        builder.DEFAULTVALUE(0.86)
+                    # 货叉与料箱角度最大偏差, 角度值
+                    with builder.CHILD(key="maxYawBias", name="Max Yaw Bias", desc="Max Fork Angle Offset (deg)"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.UNIT("m")
-                        builder.DEFAULTVALUE(0.13)
+                        builder.UNIT("deg")
+                        builder.DEFAULTVALUE(7.45)
 
             # 电机组
             with builder.GROUP(key="motorConfig", name="Motor Configuration", desc="Motor related configuration parameters"):
@@ -234,7 +234,7 @@ class ConfigParams:
                     with builder.CHILD(key="maxRotateAngle", name="Max Rotate Angle", desc="Maximum angle for rotate"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(100)
-                        builder.UNIT("m")
+                        builder.UNIT("deg")
 
                     # 识别时是否需要自动调整货叉角度
                     with builder.CHILD(key="autoAdjustRotate", name="Auto Adjust Rotate", desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
@@ -493,8 +493,8 @@ def create_rotate_param(builder: ParamBuilder, desc: str = "旋转角度"):
         builder.MIN_VALUE(-ConfigParams.max_rotate_angle)
         builder.MAX_VALUE(ConfigParams.max_rotate_angle)
         builder.TYPE(ParamType.DOUBLE)
-        builder.UNIT("rad")
-        builder.DEFAULTVALUE(0)  # -1.57
+        builder.UNIT("deg")
+        builder.DEFAULTVALUE(0)  # 角度值
 
 def create_stretch_param(builder: ParamBuilder, desc: str = "伸缩机构长度"):
     """创建伸缩机构长度参数"""
@@ -836,7 +836,7 @@ class ContainerRobot(ModuleBase):
         self.script_version = SCRIPT_VERSION
 
         self.ok_x = ConfigParams.ok_x
-        self.ok_yaw = ConfigParams.ok_yaw
+        self.ok_yaw = ConfigParams.ok_yaw / 180 * math.pi  # 角度转弧度
 
         self.args_init = False
         self.script_args = args or {}
@@ -938,7 +938,7 @@ class ContainerRobot(ModuleBase):
             self.door_height = self.script_args.get("lift-door", 0)
             self.stretch_length = self.script_args.get("stretch", 0)
             self.is_auto_stretch = bool("stretch" not in self.script_args)  # 输入参数无"stretch"，则自动计算识别长度
-            self.rotate_pos = self.script_args.get("rotate", 0)
+            self.rotate_pos = self.script_args.get("rotate", 0) / 180 * math.pi  # 角度转弧度
             self.offset_x = self.script_args.get("offsetX", ConfigParams.offset_x)
             self.pre_finger = self.script_args.get("preFinger", self.pre_finger)
             if ConfigParams.rec_box_extra_height == 0:
@@ -2281,15 +2281,15 @@ class RecAdjust:
                 else:
                     self.go_args["backMode"] = 0
 
-                if abs(agv.yaw_adjust) > ConfigParams.max_yaw_bias:
+                if abs(agv.yaw_adjust) > ConfigParams.max_yaw_bias / 180 * math.pi:  # 角度转弧度比较
                     self.status = ScriptStatus.FAILED
                     Abnormal.setTask(53734,
-                                     f"识别到角度偏差{agv.yaw_adjust}超出上限值{ConfigParams.max_yaw_bias}，请检查料箱是否摆正，二维码是否损坏！",
+                                     f"识别到角度偏差{agv.yaw_adjust / math.pi * 180:.2f}°超出上限值{ConfigParams.max_yaw_bias}°，请检查料箱是否摆正，二维码是否损坏！",
                                      "", "", "")
                 else:
                     if self.adjust_count >= (self.max_adjust_time - 3):
                         agv.ok_x = 0.01
-                        agv.ok_yaw = 0.02
+                        agv.ok_yaw = 1.15 / 180 * math.pi  # 约1.15°转弧度
                     # 精度满足, 识别调整任务完成
                     if not ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x:
                         Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
