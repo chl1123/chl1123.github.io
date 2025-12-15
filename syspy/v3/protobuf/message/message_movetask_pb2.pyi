@@ -101,12 +101,14 @@ class msgMovePolygon(_message.Message):
     def __init__(self, point: Optional[Iterable[Union[msgMovePolygonPoint, Mapping]]] = ..., name: Optional[str] = ...) -> None: ...
 
 class msgMovePolygonPoint(_message.Message):
-    __slots__ = ["x", "y"]
+    __slots__ = ["angle", "x", "y"]
+    ANGLE_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
+    angle: float
     x: float
     y: float
-    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ...) -> None: ...
+    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ...) -> None: ...
 
 class msgMovePose(_message.Message):
     __slots__ = ["angle", "x", "y"]
