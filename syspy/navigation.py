@@ -804,6 +804,18 @@ class NavigationInterface(ABC, Service):
         """
         raise RBKVersionError()
 
+    @classmethod
+    def getLMTCPName(cls, lm_name: str) -> str:
+        """根据站点名称获取TCP名称
+
+        Args:
+            lm_name (str): 站点名称
+
+        Returns:
+            (str): TCP名称，如果站点不存在或未设置TCP则返回空字符串
+        """
+        raise RBKVersionError()
+
 
 class NavStatusInterface(ABC, Message):
     """导航状态类"""
