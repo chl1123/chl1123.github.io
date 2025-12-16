@@ -107,6 +107,7 @@ class Battery(bb.batteryBase):
                 battery_capacity = cu.merge2BytesTo1(self.data_buff[54], self.data_buff[53]) * 0.1  # 总容量
                 self.battery_capacity = round(battery_capacity,2)
                 self.battery_info.percentage = round(temp_capacity / battery_capacity, 2)  # 计算百分比
+                self.battery_info.SOH = 1
 
                 # 清空缓冲区列表
                 self.data_buff = []

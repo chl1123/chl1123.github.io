@@ -49,6 +49,7 @@ class Battery(bb.batteryBase):
                 battery_info.maxChargeVoltage = 58.4  # 最大充电电压
                 battery_info.maxChargeCurrent = 30  # 最大持续充电电流
                 battery_info.userData = userData
+                battery_info.SOH = 1
                 # 发步电池数据给rbk
                 self.publish(battery_info)
                 self.clearTimeout()

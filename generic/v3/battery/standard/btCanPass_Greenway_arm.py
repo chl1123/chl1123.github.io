@@ -96,8 +96,9 @@ class CanBattery(cb.CanBase):
             else:
                 self.battery_info.isCharging = False
             self.battery_info.percentage = percentage
-            self.battery_info.extra = json.dumps({"SOH": SOH})
+            #self.battery_info.extra = json.dumps({"SOH": SOH})
             self.battery_info.cycle = cycle
+            self.battery_info.SOH = SOH
             self.msg_ok = True
             self.id1 = True
         elif msg.arbitration_id == 0x0EA1F40D:

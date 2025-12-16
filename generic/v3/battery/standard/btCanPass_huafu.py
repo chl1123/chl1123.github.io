@@ -36,6 +36,7 @@ class CanBattery(cb.CanBase):
             battery_info.chargeVoltage = voltage
             battery_info.chargeCurrent = current
             battery_info.percentage = percentage
+            battery_info.SOH = 1
         # 发步电池数据给rbk
         self.publish(battery_info)
         self.msg_ok = True
