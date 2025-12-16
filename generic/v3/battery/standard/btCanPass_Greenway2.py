@@ -78,7 +78,7 @@ class CanBattery(cb.CanBase):
                 self.battery_info.isCharging = False
             self.battery_info.percentage = percentage
             #self.battery_info.extra = json.dumps({"SOH": SOH})
-            self.battery_info.SOH = SOH
+            self.battery_info.SOH = int(SOH*100)
             self.battery_info.cycle = cycle
             self.msg_ok = True
             self.id1 = True

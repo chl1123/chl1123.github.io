@@ -42,7 +42,7 @@ class CanBattery(cb.CanBase):
             self.battery_info.chargeVoltage = voltage
             self.battery_info.chargeCurrent = current
             self.battery_info.temperature = temperature
-            self.battery_info.SOH = 1
+            self.battery_info.SOH = int(100)
             self.publish(self.battery_info)
             self.msg_ok = True
 
