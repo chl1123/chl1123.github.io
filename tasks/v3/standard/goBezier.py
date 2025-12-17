@@ -186,6 +186,10 @@ class GoBezierWorld:
         self.ys_ret = self.ys[::-1]
         self.initial_point_world_return = self.robot_loc
         self.bezier_path_world_return = [self.xs_ret, self.ys_ret, self.robot_loc[2]]
+        ScriptData.set("goBezier", {"bezier_path_world_return": self.bezier_path_world_return,
+                                    "initial_point_world_return": self.initial_point_world_return})
+        Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
+
 
     def resample_equal_arc(self,xs, ys, ds=0.01):
         new_x = [xs[0]]
@@ -439,7 +443,7 @@ class GoBezierWorld:
         # 行走到第一个倒退点后规划贝塞尔路径参数
         if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
             self.is_first_path_reached = Navigation.isPathReached()
-            log.info(f"self.is_first_path_reached={self.is_first_path_reached}")
+            # Trace.log(f"self.is_first_path_reached={self.is_first_path_reached}")
             if self.is_first_path_reached:
                 Navigation.resetPath()
                 Navigation.setPathReachAngle(self.path_angle_accuracy)
@@ -466,10 +470,10 @@ class GoBezierWorld:
 
                 # 将贝塞尔的路径数据传入scriptData
 
-                ScriptData.set("goBezier", {"bezier_path_world_return": self.bezier_path_world_return,
-                                            "initial_point_world_return": self.initial_point_world_return,
-                                            "robot_final_loc": self.robot_final_loc})
-                log.info(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
+                # ScriptData.set("goBezier", {"bezier_path_world_return": self.bezier_path_world_return,
+                #                             "initial_point_world_return": self.initial_point_world_return,
+                #                             "robot_final_loc": self.robot_final_loc})
+                # Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
                 self.action_status = ScriptStatus.FINISHED
             else:
                 self.action_status = ScriptStatus.RUNNING
@@ -490,10 +494,7 @@ class GoBezierWorld:
         return self.action_status
 
     def cancel(self):
-        ScriptData.set("goBezier", {"bezier_path_world_return": self.bezier_path_world_return,
-                                    "initial_point_world_return": self.initial_point_world_return,
-                                    "robot_final_loc": self.robot_final_loc})
-        log.info(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
+        Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
         Navigation.resetPath()
         self.action_status = ScriptStatus.FAILED
 
@@ -548,6 +549,7 @@ def quintic_transition(p0, v0, k0, p1, v1, steps=200):
 
     return xs, ys
 
+
 class GoBezierWorldReturn:
     """
         走记录过的贝塞尔曲线返回的路径
@@ -587,15 +589,21 @@ class GoBezierWorldReturn:
             self.init = False
             # self.go_bezier_data = json.loads(ScriptData.get("goBezier")) #后续在ScriptData.get格式改为dict后删除json.loads
             self.go_bezier_data = ScriptData.get("goBezier")  # 后续在ScriptData.get格式改为dict后删除json.loads
-            self.bezier_target_pos_return = self.go_bezier_data["initial_point_world_return"]
-            self.bezier_path_world_return = self.go_bezier_data["bezier_path_world_return"]
-            self.go_bezier_final_pos = self.go_bezier_data["robot_final_loc"]
-            self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
-            # self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
-            dist_bias = math.sqrt((self.go_bezier_final_pos[0] - self.robot_loc[0]) ** 2 + (
-                        self.go_bezier_final_pos[1] - self.robot_loc[1]) ** 2)
-            if dist_bias >= 0.1:
+            if self.go_bezier_data is not None:
+                self.bezier_target_pos_return = self.go_bezier_data["initial_point_world_return"]
+                bezier_path_world_return = self.go_bezier_data["bezier_path_world_return"]
+            else:
+                Abnormal.setTask(53901,"no bezier route record, script failed","scriptdata is none","","")
                 self.action_status = ScriptStatus.FAILED
+                return
+            # go_bezier_final_pos = self.go_bezier_data["robot_final_loc"]
+            # self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+            # self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
+            # Trace.log(f"robotloc:{self.robot_loc},go_bezier_final_pos:{go_bezier_final_pos}")
+            # dist_bias = math.sqrt((go_bezier_final_pos[0] - self.robot_loc[0]) ** 2 + (
+            #             go_bezier_final_pos[1] - self.robot_loc[1]) ** 2)
+            # if dist_bias >= 0.1:
+            #     self.action_status = ScriptStatus.FAILED
 
             # 规划第一段倒退路线参数
             Navigation.resetPath()
@@ -606,8 +614,8 @@ class GoBezierWorldReturn:
                 Navigation.setPathHoldDir(self.is_hold_dir)  # 用于全向车
             Navigation.setPathMaxSpeed(self.max_speed)
             Navigation.setPathMaxRot(10)
-            Navigation.setPathOnWorld(self.bezier_path_world_return[0], self.bezier_path_world_return[1],
-                                      self.bezier_path_world_return[2])
+            Navigation.setPathOnWorld(bezier_path_world_return[0], bezier_path_world_return[1],
+                                      bezier_path_world_return[2])
             self.param["maxAcc"] = float(self.max_accele)
             self.param["maxDec"] = float(self.max_decele)
             Navigation.goPathParam(self.param)
@@ -669,7 +677,7 @@ def main():
         # 脚本任务状态管理
         if bezier_status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
             bezier_status = go_bezier.run()
-            log.info(f"bezier_status={bezier_status}")
+            Trace.log(f"bezier_status={bezier_status}")
         elif bezier_status == ScriptStatus.FAILED:
             action_status = ScriptStatus.FAILED
         elif bezier_status == ScriptStatus.FINISHED:

@@ -833,7 +833,7 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     @call_service()
-    def getLMTCPName(cls, lm_name: str) -> str:
+    def getLmTcpName(cls, lm_name: str) -> str:
         """根据站点名称获取TCP名称
 
         Args:
