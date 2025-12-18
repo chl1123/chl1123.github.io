@@ -9,7 +9,7 @@ class CanV4(CanInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             # todo from ..include.protocol.xxx import CanFrame
             cls._MODEL_CLASS = None
@@ -58,6 +58,6 @@ class CanV4(CanInterface):
             can_id5 (int):
 
         Returns:
-            int:
+            (int):
         """
         pass

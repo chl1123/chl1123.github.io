@@ -41,11 +41,11 @@ class Timer:
         pass
 
 
-def sleep_ms(ms):
+def sleepMs(ms):
     time.sleep(ms / 1000.0)
 
 
-def sleep_s(s):
+def sleepS(s):
     time.sleep(s)
 
 

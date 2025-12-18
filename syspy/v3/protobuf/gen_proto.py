@@ -135,4 +135,4 @@ if __name__ == "__main__":
     # gen_pandantic()
     # gen_models()
     gen_pyi()
-    gen_mkdocs_pyi()
+    # gen_mkdocs_pyi()

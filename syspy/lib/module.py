@@ -7,8 +7,9 @@ from typing import Union, Optional, Callable, Tuple
 from syspy.utils import ScriptType
 from ..core.rbk_rpc import Service
 from ..utils import SCRIPTS_DIR
-from syspy import RBK_VERSION, RobotParam, Container, Abnormal
+from syspy import RBK_VERSION, RobotParam, Container, Abnormal, ScriptParam
 from inspect import stack
+
 
 class ScriptStatus(IntEnum):
     NONE = 0
@@ -43,7 +44,7 @@ class CollisionType(IntEnum):
     DistanceNode = 11
 
 
-def normalize_theta(theta):
+def normalizeTheta(theta):
     if theta >= -math.pi and theta < math.pi:
         return theta
     multiplier = math.floor(theta / (2 * math.pi))
@@ -55,7 +56,7 @@ def normalize_theta(theta):
     return theta
 
 
-def Pos2World(pos2base, base2world) -> list:
+def pos2World(pos2base, base2world) -> list:
     """将位姿转换为世界坐标系
 
     Args:
@@ -63,23 +64,24 @@ def Pos2World(pos2base, base2world) -> list:
         base2world ([3]): 基准位姿. 0:x, 1:y, 2: theta
 
     Returns:
-        list: 世界坐标系
+        (list): 世界坐标系
     """
     pos2world = [0., 0., 0.]
     x = pos2base[0] * math.cos(base2world[2]) - pos2base[1] * math.sin(base2world[2])
     y = pos2base[0] * math.sin(base2world[2]) + pos2base[1] * math.cos(base2world[2])
     pos2world[0] = x + base2world[0]
     pos2world[1] = y + base2world[1]
-    pos2world[2] = normalize_theta(pos2base[2] + base2world[2])
+    pos2world[2] = normalizeTheta(pos2base[2] + base2world[2])
     return pos2world
 
 
-def Pos2Base(pos2world, base2world):
+def pos2Base(pos2world, base2world):
     """将基于世界坐标系的两个位姿，转换为基于base的位姿
 
     Args:
         pos2world ([3]): 被转换的位姿，基于世界坐标系,0:x, 1:y, 2: theta
         base2world ([3]): 基准，基于世界坐标系,0:x, 1:y, 2: theta
+
     Returns:
         [3]: pos2base
     """
@@ -88,10 +90,12 @@ def Pos2Base(pos2world, base2world):
     y = pos2world[1] - base2world[1]
     pos2base[0] = x * math.cos(base2world[2]) + y * math.sin(base2world[2])
     pos2base[1] = -x * math.sin(base2world[2]) + y * math.cos(base2world[2])
-    pos2base[2] = normalize_theta(pos2world[2] - base2world[2])
+    pos2base[2] = normalizeTheta(pos2world[2] - base2world[2])
     return pos2base
 
+
 NEW_TASK_TIMEOUT = 1
+
 
 class Module:
     stop_flag = False
@@ -112,7 +116,7 @@ class Module:
     __safe_move_check_status = SafeMoveStatus.NONE
     __modbus_callback = None
     __set_container_callback = None
-    __clear_container_by_goods_id_callback = None
+    __clear_container_by_goods_callback = None
     __clear_container_callback = None
     __service = None
     script_id = ""
@@ -133,11 +137,11 @@ class Module:
 
         print("script_name: ", cls.script_name)
         print("script_id", cls.script_id)
-        args = cls.__get_args()
+        args = cls.__getArgs()
         if args != {}:
             cls.__task = args
             if cls.script_name.startswith("tasks/"):
-                cls.__init_task_args()
+                cls.__initTaskArgs()
         if cls.script_name.startswith("tasks/"):
             cls.__register()
         if RBK_VERSION == 3:
@@ -145,7 +149,7 @@ class Module:
 
     # 获取脚本启动参数
     @classmethod
-    def __get_args(cls):
+    def __getArgs(cls):
         import argparse
         parser = argparse.ArgumentParser()
         parser.add_argument("args", nargs='?', type=str, default="{}", help="脚本参数")
@@ -159,13 +163,16 @@ class Module:
         return {}
 
     @classmethod
-    def __init_task_args(cls):
+    def __initTaskArgs(cls):
         if cls.__task is not None:
-            cls.__set_task_id(cls.__task.get("taskId", None))
+            cls.__setTaskId(cls.__task.get("taskId", None))
             cls.__task_args = cls.__task.copy()
             cls.__task_args.pop("taskId", None)
             with cls.__lock:
                 cls.__run_status = ScriptStatus.RUNNING
+            # 任务中有配置参数则合并
+            if "configs" in cls.__task_args:
+                ScriptParam.getInstance().setTaskConfig(cls.__task_args["configs"])
 
     @classmethod
     def __register(cls):
@@ -173,52 +180,52 @@ class Module:
         container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
         is_container = isinstance(container_num, int) and container_num > 0
 
-        Service.server().register_function(cls.__update_cmd, "update_cmd")
+        Service.server().register_function(cls.__updateCmd, "update_cmd")
         Service.server().register_function(cls.__suspend, "suspend")
         Service.server().register_function(cls.__resume, "resume")
         Service.server().register_function(cls.__cancel, "cancel")
-        Service.server().register_function(cls.__get_task, "get_task")
-        Service.server().register_function(cls.safe_move_check, "safe_move_check")
-        Service.server().register_function(cls.get_safe_move_check, "get_safe_move_check")
+        Service.server().register_function(cls.__getTask, "get_task")
+        Service.server().register_function(cls.safeMoveCheck, "safe_move_check")
+        Service.server().register_function(cls.getSafeMoveCheck, "get_safe_move_check")
         Service.server().register_function(cls.modbus, "modbus")
         if is_container:
-            Service.server().register_function(cls.set_container, "setContainer")
-            Service.server().register_function(cls.clear_container_by_goods_id, "clearContainerByGoodsId")
-            Service.server().register_function(cls.clear_container, "clearContainer")
+            Service.server().register_function(cls.setContainer, "setContainer")
+            Service.server().register_function(cls.clearContainerByGoods, "clearContainerByGoods")
+            Service.server().register_function(cls.clearContainer, "clearContainer")
 
     def __del__(self):
         if self.__rpc_client:
             self.__rpc_client.close()
 
     @classmethod
-    def __update_cmd(cls, args, script_mode="instead"):
+    def __updateCmd(cls, args, script_mode="instead"):
         start_time = time.time()
         # 脚本任务状态为初始态或终态时，执行新任务
-        while cls.get_status() not in [ScriptStatus.NONE, ScriptStatus.FINISHED, ScriptStatus.FAILED]:
+        while cls.getStatus() not in [ScriptStatus.NONE, ScriptStatus.FINISHED, ScriptStatus.FAILED]:
             wait_time = time.time() - start_time
             if wait_time > NEW_TASK_TIMEOUT:
                 Abnormal.client().call_service("Abnormal", "setTaskAbnormal", 53221,
                                                f"Script '{cls.script_name}' task timeout",
                                                f"Previous task timeout {NEW_TASK_TIMEOUT} second not set to NONE, FINISHED or FAILED status",
-                                               "Check whether the script calls Module.set_status() to set the status of NONE, FINISHED or FAILED after responding to the cancel() method",
+                                               "Check whether the script calls Module.setStatus() to set the status of NONE, FINISHED or FAILED after responding to the cancel() method",
                                                str(args), "", "", "", "", "", "")
                 return
             time.sleep(0.05)
         cls.__task = args
-        cls.__init_task_args()
-        cls.set_status(ScriptStatus.RUNNING)
+        cls.__initTaskArgs()
+        cls.setStatus(ScriptStatus.RUNNING)
 
     @classmethod
     def __cancel(cls):
-        if cls.get_status() in [ScriptStatus.RUNNING, ScriptStatus.NEARTOGOAL, ScriptStatus.SUSPENDED]:
+        if cls.getStatus() in [ScriptStatus.RUNNING, ScriptStatus.NEARTOGOAL, ScriptStatus.SUSPENDED]:
             cls.stop_flag = True
             if cls.__cancel_callback is not None:
                 cls.__cancel_callback()
             else:
-                cls.set_status(ScriptStatus.FAILED)
+                cls.setStatus(ScriptStatus.FAILED)
 
     @classmethod
-    def __get_task(cls):
+    def __getTask(cls):
         """获取脚本任务"""
         return {
             "scriptName": cls.script_name,
@@ -229,97 +236,97 @@ class Module:
 
     @classmethod
     def __suspend(cls):
-        if cls.get_status() == ScriptStatus.RUNNING:
+        if cls.getStatus() == ScriptStatus.RUNNING:
             if cls.__suspend_callback is not None:
-                    cls.__suspend_callback()
+                cls.__suspend_callback()
             else:
-                cls.set_status(ScriptStatus.SUSPENDED)
+                cls.setStatus(ScriptStatus.SUSPENDED)
 
     @classmethod
     def __resume(cls):
-        if cls.get_status() == ScriptStatus.SUSPENDED:
+        if cls.getStatus() == ScriptStatus.SUSPENDED:
             if cls.__resume_callback is not None:
-                    cls.__resume_callback()
+                cls.__resume_callback()
             else:
-                cls.set_status(ScriptStatus.RUNNING)
+                cls.setStatus(ScriptStatus.RUNNING)
 
     @classmethod
-    def safe_move_check(cls, task_id: int):
+    def safeMoveCheck(cls, task_id: int):
         """移动安全检查
 
         Args:
             task_id (int): 检查ID
         """
-        if  task_id != cls.__safe_move_check_id:
+        if task_id != cls.__safe_move_check_id:
             cls.__safe_move_check_id = task_id
             cls.__safe_move_check_callback()
 
     @classmethod
-    def get_safe_move_check(cls) -> Tuple[int, int]:
+    def getSafeMoveCheck(cls) -> Tuple[int, int]:
         """获取移动安全检查状态
 
         Returns:
-            int: 移动安全检查状态。
-            int: 当前检查id（通过safe_move_check入参获取）
+            (int): 移动安全检查状态。
+            (int): 当前检查id（通过safe_move_check入参获取）
         """
         return cls.__safe_move_check_status.value, cls.__safe_move_check_id
 
     @classmethod
-    def set_safe_move_check_status(cls, status: SafeMoveStatus):
+    def setSafeMoveCheckStatus(cls, status: SafeMoveStatus):
         cls.__safe_move_check_status = status
 
     @classmethod
     def modbus(cls, task_id):
-        cls.__set_task_id(task_id)
-        cls.set_status(ScriptStatus.RUNNING)
+        cls.__setTaskId(task_id)
+        cls.setStatus(ScriptStatus.RUNNING)
         cls.__modbus_callback()
 
     @classmethod
-    def set_container(cls, container_name: str, goods_id: str, desc: str) -> bool:
-        return cls.__set_container_callback(container_name, goods_id, desc)
+    def setContainer(cls, container_id: str, goods_name: str, desc: str) -> bool:
+        return cls.__set_container_callback(container_id, goods_name, desc)
 
     @classmethod
-    def clear_container_by_goods_id(cls, goods_id: str) -> bool:
-        return cls.__clear_container_by_goods_id_callback(goods_id)
+    def clearContainerByGoods(cls, goods_name: str) -> bool:
+        return cls.__clear_container_by_goods_callback(goods_name)
 
     @classmethod
-    def clear_container(cls, container_name: str) -> bool:
-        return cls.__clear_container_callback(container_name)
+    def clearContainer(cls, container_id: str) -> bool:
+        return cls.__clear_container_callback(container_id)
 
     @classmethod
-    def set_safe_move_check_callback(cls, callback: Callable[[], None]):
+    def setSafeMoveCheckCallback(cls, callback: Callable[[], None]):
         cls.__safe_move_check_callback = callback
 
     @classmethod
-    def set_modbus_callback(cls, callback: Callable[[], None]):
+    def setModbusCallback(cls, callback: Callable[[], None]):
         cls.__modbus_callback = callback
 
     @classmethod
-    def set_set_container_callback(cls, callback: Callable[[str, str, str], bool]):
+    def setSetContainerCallback(cls, callback: Callable[[str, str, str], bool]):
         cls.__set_container_callback = callback
 
     @classmethod
-    def set_clear_container_by_goods_id_callback(cls, callback: Callable[[str], bool]):
-        cls.__clear_container_by_goods_id_callback = callback
+    def setClearContainerByGoodsCallback(cls, callback: Callable[[str], bool]):
+        cls.__clear_container_by_goods_callback = callback
 
     @classmethod
-    def set_clear_container_callback(cls, callback: Callable[[str], bool]):
+    def setClearContainerCallback(cls, callback: Callable[[str], bool]):
         cls.__clear_container_callback = callback
 
     @classmethod
-    def set_cancel_callback(cls, callback: Callable[[], None]):
+    def setCancelCallback(cls, callback: Callable[[], None]):
         cls.__cancel_callback = callback
 
     @classmethod
-    def set_suspend_callback(cls, callback: Callable[[], None]):
+    def setSuspendCallback(cls, callback: Callable[[], None]):
         cls.__suspend_callback = callback
 
     @classmethod
-    def set_resume_callback(cls, callback: Callable[[], None]):
+    def setResumeCallback(cls, callback: Callable[[], None]):
         cls.__resume_callback = callback
 
     @classmethod
-    def __report_data(cls, status: Optional[ScriptStatus] = None):
+    def __reportData(cls, status: Optional[ScriptStatus] = None):
         if cls.__task_id == 0 or cls.__task_id is None:
             return
         if status is None:
@@ -337,12 +344,12 @@ class Module:
             cls.__rpc_client.report(cls.script_name, data)
 
     @classmethod
-    def __set_task_id(cls, task_id):
+    def __setTaskId(cls, task_id):
         with cls.__lock:
             cls.__task_id = task_id
 
     @classmethod
-    def get_task_args(cls, name: str = "", default=None):
+    def getTaskArgs(cls, name: str = "", default=None):
         if name:
             if cls.__task is not None:
                 return cls.__task.get(name, default)
@@ -350,27 +357,28 @@ class Module:
             return cls.__task
 
     @classmethod
-    def get_task_id(cls):
+    def getTaskId(cls):
         with cls.__lock:
             return cls.__task_id
 
     @classmethod
-    def get_status(cls) -> ScriptStatus:
+    def getStatus(cls) -> ScriptStatus:
         with cls.__lock:
             return cls.__run_status
 
     @classmethod
-    def set_status(cls, status: ScriptStatus):
+    def setStatus(cls, status: ScriptStatus):
         with cls.__lock:
             cls.__run_status = status
-            cls.__report_data()
-            # 任务状态为终态时清空任务和task_id
+            cls.__reportData()
+            # 任务状态为终态时清空任务、task_id、任务中的配置参数
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 cls.__task = None
                 cls.__task_id = 0
+                ScriptParam.getInstance().clearTaskConfig()
 
     @classmethod
-    def report_info(cls, info: Union[dict, list]):
+    def reportInfo(cls, info: Union[dict, list]):
         with cls.__lock:
             if cls.__rpc_client is None:
                 # todo V3独有？
@@ -380,21 +388,23 @@ class Module:
 
 
 from abc import ABC, abstractmethod
+
+
 class ModuleBase(ABC):
     def __init__(self):
-        Module.set_suspend_callback(self.suspend)
-        Module.set_resume_callback(self.resume)
-        Module.set_cancel_callback(self.cancel)
-        Module.set_safe_move_check_callback(self.__safe_move_check)
-        Module.set_modbus_callback(self.__modbus)
-        Module.set_set_container_callback(self.set_container)
-        Module.set_clear_container_callback(self.clear_container)
-        Module.set_clear_container_by_goods_id_callback(self.clear_container_by_goods_id)
+        Module.setSuspendCallback(self.suspend)
+        Module.setResumeCallback(self.resume)
+        Module.setCancelCallback(self.cancel)
+        Module.setSafeMoveCheckCallback(self.__safeMoveCheck)
+        Module.setModbusCallback(self.__modbus)
+        Module.setSetContainerCallback(self.setContainer)
+        Module.setClearContainerCallback(self.clearContainer)
+        Module.setClearContainerByGoodsCallback(self.clearContainerByGoods)
         self.stop_flag = False
         self.event_safe_move_check = False
         self.event_modbus = False
 
-    def __safe_move_check(self):
+    def __safeMoveCheck(self):
         self.event_safe_move_check = True
 
     def __modbus(self):
@@ -402,58 +412,57 @@ class ModuleBase(ABC):
 
     @abstractmethod
     def suspend(self):
-        Module.set_status(ScriptStatus.SUSPENDED)
+        Module.setStatus(ScriptStatus.SUSPENDED)
 
     @abstractmethod
     def resume(self):
-        if Module.get_status() == ScriptStatus.SUSPENDED:
-            Module.set_status(ScriptStatus.RUNNING)
+        if Module.getStatus() == ScriptStatus.SUSPENDED:
+            Module.setStatus(ScriptStatus.RUNNING)
 
     @abstractmethod
     def cancel(self):
         Module.stop_flag = True
-        Module.set_status(ScriptStatus.FAILED)
+        Module.setStatus(ScriptStatus.FAILED)
 
-    def safe_move_check(self):
+    def safeMoveCheck(self):
         ...
 
     def modbus(self):
         ...
 
-    def set_safe_move_status(self, status: SafeMoveStatus):
-        Module.set_safe_move_check_status(status)
+    def setSafeMoveStatus(self, status: SafeMoveStatus):
+        Module.setSafeMoveCheckStatus(status)
 
-    def set_container(self, container_name: str, goods_id: str, desc: str) -> bool:
+    def setContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
         """设置车子上库位或者背篓货物
 
         Args:
-            container_name (str): 库位或者背篓名称
-            goods_id (str): 货物的id
+            container_id (str): 库位或者背篓id
+            goods_name (str): 货物名
             desc (str): 描述
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
-        print("set_container", container_name, goods_id, desc)
-        return Container.setContainer(container_name, goods_id, desc)
+        return Container.setContainer(container_id, goods_name, desc)
 
-    def clear_container_by_goods_id(self, goods_id: str) -> bool:
+    def clearContainerByGoods(self, goods_name: str) -> bool:
         """清除车上特定库位或者背篓的状态
 
         Args:
-            goods_id (str): 货物名称，货物名称如果为"All"则全部清除
+            goods_name (str): 货物名称，货物名称如果为All则全部清除
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
-        return Container.clearContainerByGoodsId(goods_id)
+        return Container.clearContainerByGoods(goods_name)
 
-    def clear_container(self, container_name: str) -> bool:
+    def clearContainer(self, container_id: str) -> bool:
         """清除车上特定库位或者背篓的状态
 
         Args:
-            container_name (str): 库位或者背篓名称，container_name如果为"All"则全部清除
+            container_id (str): 库位或者背篓id，container_id如果为"All"则全部清除
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
-        return Container.clearContainer(container_name)
+        return Container.clearContainer(container_id)

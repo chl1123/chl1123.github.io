@@ -13,7 +13,7 @@ class LedInterface(ABC, Service):
             dmx512_info (str): msgDmx512转换的str
 
         Returns:
-            int: 0: 成功
+            (int): 0: 成功
         """
         raise RBKVersionError()
 
@@ -25,7 +25,7 @@ class LedInterface(ABC, Service):
             dmx512_info: (str): msgDmx512转换的str
 
         Returns:
-            int: 0: 成功
+            (int): 0: 成功
         """
         raise RBKVersionError()
 

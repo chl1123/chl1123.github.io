@@ -7,59 +7,63 @@ class RobotParamInterface(ABC, Service):
     @classmethod
     def getConfig(cls, app_name: str, param_path: str, file_name="") -> Any:
         """获取机器人配置参数
+
         Args:
             app_name (str): App名
             param_path (str): 参数路径
             file_name (str): 文件名。缺省则从默认文件中读取。当前只有识别有多个文件，可传入"xxx.srec"。
 
         Returns:
-            Any: 参数值
+            (Any): 参数值
         """
         raise RBKVersionError()
 
     @classmethod
     def getConfigCloneSize(cls, app_name: str, param_path: str, file_name="") -> int:
         """获取机器人配置-克隆类型参数个数
+
         Args:
             app_name (str): App名
             param_path (str): 参数路径
             file_name (str): 文件名。缺省则从默认文件中读取。当前只有识别有多个文件，可传入"xxx.srec"。
 
         Returns:
-            int: 参数个数
+            (int): 参数个数
         """
         return cls.getConfig(app_name, param_path+"._(size", file_name)
 
     @classmethod
-    def getDevice(cls, device_name: str, param_path: str) -> Any:
+    def getDevice(cls, device_key: str, param_path: str) -> Any:
         """获取机器人设备模型参数(devices/robot.model)
+
         Args:
-            device_name (str): 设备名
+            device_key (str): 设备的key
             param_path (str): 参数路径
 
         Returns:
-            Any: 参数值
+            (Any): 参数值
         """
         raise RBKVersionError()
 
     @classmethod
-    def getDeviceCloneSize(cls, device_name: str, param_path: str) -> int:
+    def getDeviceCloneSize(cls, device_key: str, param_path: str) -> int:
         """获取机器人设备模型-克隆类型参数个数(devices/robot.model)
+
         Args:
-            device_name (str): 设备名
+            device_key (str): 设备的key
             param_path (str): 参数路径
 
         Returns:
-            int: 参数个数
+            (int): 参数个数
         """
-        return cls.getDevice(device_name, param_path+"._(size")
+        return cls.getDevice(device_key, param_path+"._(size")
 
     @classmethod
     def getDeviceFile(cls) -> dict:
         """获得设备模型文件的原始数据
 
         Returns:
-            dict: 具体数据以字典类型返回
+            (dict): 具体数据以字典类型返回
         """
         raise RBKVersionError()
 
@@ -72,7 +76,7 @@ class RobotParamInterface(ABC, Service):
             data: 机器人模型文件的dict格式，先从RobotParam.getDeviceFile()获取
 
         Returns:
-            str:
+            (str):
         """
         raise RBKVersionError()
 
@@ -98,7 +102,7 @@ class RobotParamInterface(ABC, Service):
         """获取碰撞检测模型
 
         Returns:
-            Dict[str, List[Dict[str, str]]]:
+            (Dict[str, List[Dict[str, str]]]):
                 返回的字典结构：
 
                 - key："navigation.collisionDetection.collisionModel" (str)
@@ -117,7 +121,7 @@ class RobotParamInterface(ABC, Service):
         """获取扣除模型
 
         Returns:
-            Dict[str, List[Dict[str, Any]]]:
+            (Dict[str, List[Dict[str, Any]]]):
                 返回的字典结构：
 
                 - key："navigation.collisionDetection.deductModel" (str)
@@ -139,7 +143,7 @@ class RobotParamInterface(ABC, Service):
         """获取DO区域
 
         Returns:
-            Dict[str, List[Dict[str, Any]]]:
+            (Dict[str, List[Dict[str, Any]]]):
                 返回的字典结构：
 
                 - key："navigation.collisionDetection.doRegion" (str)

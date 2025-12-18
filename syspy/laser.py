@@ -22,77 +22,85 @@ class LaserInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def get_data(self, args: typing.Optional[List[str]] = None, *, topic: str = None, ) -> typing.Union[tuple, dict]:
-        """获取指定topic的当前数据"""
-        return self.child.get_data(args, topic=topic)
+    def getData(self, fields: typing.Optional[List[str]] = None, *, topic: str = None) -> dict:
+        """通用获取消息接口
 
-    def set2DLaserWidth(self, device_name: str, width: float):
+        Args:
+            fields (Optional[List[str]]): 需要的字段列表。缺省或 None 返回全部字段。
+            topic (str): 指定消息话题。
+
+        Returns:
+            (dict): 包含请求字段的字典数据。
+        """
+        return self.child.getData(fields, topic=topic)
+
+    def set2DLaserWidth(self, key: str, width: float):
         """设置激光设备宽度
 
         Args:
-            device_name (str): 激光设备名称
+            key (str): 激光设备的key
             width (float): 屏蔽宽度，此范围外的点云被屏蔽
         """
-        self.child.set2DLaserWidth(device_name, width)
+        self.child.set2DLaserWidth(key, width)
 
-    def clear2DLaserWidth(self, device_list: List[str]):
+    def clear2DLaserWidth(self, keys: List[str]):
         """清除激光设备宽度
 
         Args:
-            device_name (str): 激光设备名称列表
+            keys (List[str]): 激光设备的key列表
         """
-        self.child.clear2DLaserWidth(device_list)
+        self.child.clear2DLaserWidth(keys)
 
-    def set2DLaserAngle(self, device_name: str, min_angle: float, max_angle: float):
+    def set2DLaserAngle(self, key: str, min_angle: float, max_angle: float):
         """设置激光设备角度
 
         Args:
-            device_name (str): 激光设备名称
-            min_angle (float): 最小角度（单位：°），小于此角度的点云被屏蔽
-            max_angle (float): 最大角度（单位：°），大于此角度的点云被屏蔽
+            key (str): 激光设备的key
+            min_angle (float): 最小角度（单位: °），小于此角度的点云被屏蔽
+            max_angle (float): 最大角度（单位: °），大于此角度的点云被屏蔽
         """
-        self.child.set2DLaserAngle(device_name, min_angle, max_angle)
+        self.child.set2DLaserAngle(key, min_angle, max_angle)
 
-    def clear2DLaserAngle(self, device_list: List[str]):
+    def clear2DLaserAngle(self, keys: List[str]):
         """清除激光设备角度
         
         Args:
-            device_name (str): 激光设备名称列表
+            keys (List[str]): 激光设备的key列表
         """
-        self.child.clear2DLaserAngle(device_list)
+        self.child.clear2DLaserAngle(keys)
 
     #----------------------------------------------------#
 
-    def getNearestLaserPoint(self, laser_key: str) -> List[float]:
+    def getNearestLaserPoint(self, key: str) -> List[float]:
         """获取与指定激光距离最近的激光点与激光中心的距离和朝向
 
         Args:
-            laser_key (str): 激光设备的key
+            key (str): 激光设备的key
 
         Returns:
-            List[float]: 最近激光点与激光中心的距离、最近激光点与激光中心的夹角
+            (List[float]): 最近激光点与激光中心的距离、最近激光点与激光中心的夹角
         """
-        return self.child.getNearestLaserPoint(laser_key)
+        return self.child.getNearestLaserPoint(key)
 
-    def safeLaserMuteStatus(self, laser_key: str) -> int:
+    def safeLaserMuteStatus(self, key: str) -> int:
         """获取激光抑制状态
 
         Args:
-            laser_key (str)：激光设备的key。
+            key (str): 激光设备的key。
 
         Returns:
-            int: 激光状态，1表示启用，0表示禁用
+            (int): 激光状态，1表示启用，0表示禁用
         """
-        return self.child.safeLaserMuteStatus(laser_key)
+        return self.child.safeLaserMuteStatus(key)
 
-    def setSafeLaserMute(self, laser_key: str, enable: bool):
+    def setSafeLaserMute(self, key: str, enable: bool):
         """设置激光抑制(muting)
 
         Args:
-            laser_key (str)：激光设备的key。""表示选择全部激光。
-            enable (int)：表示是否启用激光muting，true启用，false禁用
+            key (str): 激光设备的key。""表示选择全部激光。
+            enable (int): 表示是否启用激光muting，true启用，false禁用
         """
-        self.child.setSafeLaserMute(laser_key, enable)
+        self.child.setSafeLaserMute(key, enable)
 
 
 class Laser3DInterface:
@@ -108,22 +116,22 @@ class Laser3DInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def get_lasers3d(self) -> List["msgLaser3D"]:
+    def getLasers3d(self) -> List["msgLaser3D"]:
         """获取所有3D激光数据列表
 
         Returns:
-            List[msgLaser3D]: 返回所有3D激光数据的列表
+            (List[msgLaser3D]): 返回所有3D激光数据的列表
 
         Examples:
         ```python
         from syspy import Laser3D
-        lasers3D = Laser3D.get_lasers3d()
+        lasers3D = Laser3D.getLasers3d()
         for laser3D in lasers3D:  # laser3D为msgLaser3D的对象
             print(laser3D.laserType)
             print(laser3D.is3DLocalization)
         ```
         """
-        return self.child.get_lasers3d()
+        return self.child.getLasers3d()
 
 Laser: LaserInterface = LaserInterface()
 Laser3D: Laser3DInterface = Laser3DInterface()

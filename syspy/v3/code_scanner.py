@@ -13,12 +13,12 @@ class CodeScannerV3(CodeScannerInterface):
         data: msgCodeScanner = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgCodeScanner
             cls._MODEL_CLASS = msgCodeScanner
 
-    def get_code_scanners(self) -> List["msgCodeScannerDMT"]:
+    def getCodeScanners(self) -> List["msgCodeScannerDMT"]:
         """获取msgPGV_DMT对象列表
 
         Returns:

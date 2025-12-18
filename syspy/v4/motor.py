@@ -17,12 +17,12 @@ class MotorV4(MotorInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from syspy.v4.protobuf.message.messageV4_movetask_pb2 import MessageV4_Odo
             cls._MODEL_CLASS = MessageV4_Odo
 
-    def get_motor_infos(self) -> List["Message_MotorInfo"]:
+    def getMotorInfos(self) -> List["Message_MotorInfo"]:
         """获取电机信息列表
 
         Returns:
@@ -31,7 +31,7 @@ class MotorV4(MotorInterface):
         self.update()
         return self.data.motor_info
 
-    def get_motor_pos(self, motor_name: str) -> Union[float, int]:
+    def getMotorPos(self, motor_name: str) -> Union[float, int]:
         """获取指定电机的当前位置
 
         Args:
@@ -47,7 +47,7 @@ class MotorV4(MotorInterface):
                     motor_pos = motor.position
         return motor_pos
 
-    def get_motor_speed(self, motor_name: str) -> Union[float, int]:
+    def getMotorSpeed(self, motor_name: str) -> Union[float, int]:
         """获取指定电机的当前速度
 
         Args:
@@ -74,7 +74,7 @@ class MotorV4(MotorInterface):
             stopDI (str): 到位DI。缺省或传""表示没有。
 
         Returns:
-            bool: 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回False
         """
         pass
 
@@ -90,7 +90,7 @@ class MotorV4(MotorInterface):
             stopDI (str): 如果这个StopDI触发则表示运动到位。缺省或传""表示没有。
 
         Returns:
-            bool: 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回False
         """
         pass
 
@@ -109,7 +109,7 @@ class MotorV4(MotorInterface):
             stopDI (str): 停止DI。该DI触发则表示运动到位。缺省或传""表示没有。
 
         Returns:
-            bool: 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回False
         """
         params = {"name": name, "position": pos}
         if maxSpeed is not None:
@@ -140,7 +140,7 @@ class MotorV4(MotorInterface):
             motor_name (str): 电机名称
 
         Returns:
-            bool: 如果不存在这个电机则报错
+            (bool): 如果不存在这个电机则报错
         """
         pass
 
@@ -153,7 +153,7 @@ class MotorV4(MotorInterface):
             motor_name (str): 电机名称
 
         Returns:
-            bool: 如果到位则返回True
+            (bool): 如果到位则返回True
         """
         pass
 
@@ -168,7 +168,7 @@ class MotorV4(MotorInterface):
             stopDI (str): 到位DI。缺省或传""表示没有。
 
         Returns:
-            bool: 如果到位则返回True
+            (bool): 如果到位则返回True
         """
         pass
 
@@ -181,7 +181,7 @@ class MotorV4(MotorInterface):
             motor_name (str): 电机名称
 
         Returns:
-            bool: 如果电机不存在则返回False
+            (bool): 如果电机不存在则返回False
         """
         pass
 

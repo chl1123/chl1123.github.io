@@ -33,7 +33,7 @@ class NavigationV4(NavigationInterface):
             flag (bool): True 返回的坐标是地图坐标系， False返回的坐标是机器人坐标系
 
         Returns:
-            list: 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
+            （list): 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
         """
         pass
 
@@ -59,7 +59,7 @@ class NavigationV4(NavigationInterface):
         """机器人运行时，当前所在高级区域的属性
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -69,7 +69,7 @@ class NavigationV4(NavigationInterface):
         """机器人运行时，当前路线上的属性
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -88,7 +88,7 @@ class NavigationV4(NavigationInterface):
         """获得离机器最近的一个动态障碍物坐标。 如果没有障碍物反馈0.,0.
 
         Returns:
-            list: 两个元素，分别为x,y。单位为m
+            （list): 两个元素，分别为x,y。单位为m
         """
         pass
 
@@ -98,7 +98,7 @@ class NavigationV4(NavigationInterface):
         """
 
         Returns:
-            dict:
+            (dict):
         """
         pass
 
@@ -129,13 +129,13 @@ class NavigationV4(NavigationInterface):
     @classmethod
     @call_service()
     def goPGVRun(cls, params: dict) -> int:
-        """按地图路线行走
+        """code二次调整
 
         Args:
             params (dict):
 
         Returns:
-            int:
+            (int):
         """
         pass
 
@@ -145,7 +145,7 @@ class NavigationV4(NavigationInterface):
         """获取身上是否有货物的状态
 
         Returns:
-            bool: 是否有货物
+            (bool): 是否有货物
         """
         pass
 
@@ -161,7 +161,7 @@ class NavigationV4(NavigationInterface):
         """agv是否完成线路
 
         Returns:
-            bool: 如果完成则返回True
+            (bool): 如果完成则返回True
         """
         pass
 
@@ -171,7 +171,7 @@ class NavigationV4(NavigationInterface):
         """检测激光点是否和自身碰撞
 
         Returns:
-            bool: 激光点是否和自身碰撞
+            (bool): 激光点是否和自身碰撞
         """
         pass
 
@@ -181,7 +181,7 @@ class NavigationV4(NavigationInterface):
         """获得任务信息以字典类型返回
 
         Returns:
-            dict: 具体的任务信息
+            (dict): 具体的任务信息
         """
         pass
 
@@ -315,6 +315,7 @@ class NavigationV4(NavigationInterface):
             {"x": -1.0, "y": 1.0},
             {"x": -1.0, "y": -1.0},
             {"x": 1.0, "y": 1.0}]
+
         Args:
             shape (List[Dict[str, float]]):
             recfile (str):
@@ -323,10 +324,10 @@ class NavigationV4(NavigationInterface):
     @classmethod
     @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
-        """设置货物形状时传入识别文件路径
+        """增量旋转托盘到一个弧度
 
         Args:
-            angle (float):
+            angle (float): 弧度
         """
         pass
 
@@ -339,7 +340,7 @@ class NavigationV4(NavigationInterface):
             object_model_path (str): 货架模型文件名称
 
         Returns:
-            bool: 如果不存在这个货架模型则报错
+            (bool): 如果不存在这个货架模型则报错
         """
         pass
 
@@ -497,15 +498,16 @@ class NavigationV4(NavigationInterface):
 
     @classmethod
     @call_service()
-    def setSteerAngle(cls, name: str, angle: float) -> bool:
+    def setSteerAngle(cls, name: str, angle: float, action_name: str = "") -> bool:
         """转动舵角
 
         Args:
             name (str): 舵机名称
             angle (float): 角度位置, 单位rad
+            action_name (str): 动作名。缺省为""
 
         Returns:
-            bool: 如果为True电机到位
+            (bool): 如果为True电机到位
         """
         pass
 
@@ -515,7 +517,7 @@ class NavigationV4(NavigationInterface):
         """
 
         Returns:
-            bool:
+            (bool):
         """
         pass
 
@@ -541,7 +543,7 @@ class NavigationV4(NavigationInterface):
         """XXX
 
         Returns:
-            bool: 数据记录成功
+            (bool): 数据记录成功
         """
         pass
 
@@ -554,7 +556,7 @@ class NavigationV4(NavigationInterface):
             flag : False:放下货叉， True:抬起货叉
 
         Returns:
-            bool: 是否完成
+            (bool): 是否完成
         """
         pass
 
@@ -569,7 +571,7 @@ class NavigationV4(NavigationInterface):
             camName : 相机名称
 
         Returns:
-            bool: 是否完成
+            (bool): 是否完成
         """
         pass
 
@@ -656,7 +658,7 @@ class NavigationV4(NavigationInterface):
             y (List[float]): 区域顶点的y坐标列表。
 
         Returns:
-            bool: 碰撞检测结果。发生碰撞返回True，未碰撞返回False
+            (bool): 碰撞检测结果。发生碰撞返回True，未碰撞返回False
 
         Raises:
             ValueError: device_keys只支持"Laser"、"Camera"和"DistanceSensor"
@@ -679,7 +681,7 @@ class NavStatusV4(NavStatusInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf.message.messageV4_movetask_pb2 import MessageV4_MoveStatus
             cls._MODEL_CLASS = MessageV4_MoveStatus
@@ -689,17 +691,17 @@ class NavStatusV4(NavStatusInterface):
         """底盘是否停止（仅通过walk电机判断）
 
         Returns:
-            bool: 停止为True, 否则为False
+            (bool): 停止为True, 否则为False
         """
         # todo RBK4
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
-    def get_block(self):
+    def getBlock(self):
         if self.update():
             return self.data.blocked
 
     @classmethod
-    def get_turn(cls, v_x, v_w):
+    def getTurn(cls, v_x, v_w):
         turn = 0
         if v_w >= math.radians(1) * 3:
             '''机身左旋'''
@@ -725,7 +727,7 @@ class NavStatusV4(NavStatusInterface):
                 turn = 3
         return turn
 
-    def get_task_status(self) -> "MessageV4_MoveStatus.TaskStatus":
+    def getTaskStatus(self) -> "MessageV4_MoveStatus.TaskStatus":
         """获取任务状态
 
         Returns:
@@ -734,6 +736,7 @@ class NavStatusV4(NavStatusInterface):
         if self.update():
             return self.data.task_status
 
+
 class NavSpeedV4(NavSpeedInterface):
     """导航速度类"""
 
@@ -741,16 +744,16 @@ class NavSpeedV4(NavSpeedInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf.message.messageV4_navigation_pb2 import MessageV4_NavSpeed
             cls._MODEL_CLASS = MessageV4_NavSpeed
 
-    def get_speeds(self) -> Tuple[float, float, float]:
+    def getSpeeds(self) -> Tuple[float, float, float]:
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
-    def get_motor_cmd(self) -> typing.List["MessageV4_MotorCmd"]:
+    def getMotorCmd(self) -> typing.List["MessageV4_MotorCmd"]:
         """获取电机指令列表
 
         Returns:
@@ -759,5 +762,5 @@ class NavSpeedV4(NavSpeedInterface):
         if self.update():
             return self.data.motor_cmd
 
-    def get_is2move(self) -> bool:
+    def getIs2Move(self) -> bool:
         raise RBKVersionError()

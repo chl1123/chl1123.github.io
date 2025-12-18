@@ -23,7 +23,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x19message_recogresult.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x19message_calibration.proto\x1a\x16message_geometry.proto\"w\n\rmsgPointCloud\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0f\n\x07isDense\x18\x04 \x01(\x08\x12(\n\x04type\x18\x05 \x01(\x0e\x32\x1a.rbk.protocol.msgCloudType\x12\x0c\n\x04\x64\x61ta\x18\x06 \x01(\x0c\"\xd2\x02\n\x12msgRecognizeResult\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05valid\x18\x02 \x01(\x08\x12\r\n\x05\x63lass\x18\x03 \x01(\t\x12\x0c\n\x04type\x18\x04 \x01(\t\x12\t\n\x01x\x18\x05 \x01(\x01\x12\t\n\x01y\x18\x06 \x01(\x01\x12\t\n\x01z\x18\x07 \x01(\x01\x12\n\n\x02qx\x18\x08 \x01(\x01\x12\n\n\x02qy\x18\t \x01(\x01\x12\n\n\x02qz\x18\n \x01(\x01\x12\t\n\x01w\x18\x0b \x01(\x01\x12\x0b\n\x03yaw\x18\x0c \x01(\x01\x12\x11\n\tresultImg\x18\r \x01(\t\x12\x13\n\x0bpalletWidth\x18\x0e \x01(\x01\x12\x15\n\robjectMessage\x18\x0f \x01(\t\x12\x31\n\x0fobstaclePolygon\x18\x10 \x03(\x0b\x32\x18.rbk.protocol.msgPolygon\x12\n\n\x02ID\x18\x11 \x01(\t\x12\x0c\n\x04info\x18\x12 \x01(\t\"\x8c\x04\n\x16msgRecognizeResultList\x12\x32\n\x08recoList\x18\x01 \x03(\x0b\x32 .rbk.protocol.msgRecognizeResult\x12?\n\nrecoStatus\x18\x02 \x01(\x0e\x32+.rbk.protocol.msgRecognizeResultList.status\x12\x0e\n\x06taskID\x18\x03 \x01(\t\x12#\n\x03img\x18\x04 \x01(\x0b\x32\x16.rbk.protocol.msgImage\x12%\n\x05irImg\x18\x05 \x01(\x0b\x32\x16.rbk.protocol.msgImage\x12/\n\npointCloud\x18\x06 \x01(\x0b\x32\x1b.rbk.protocol.msgPointCloud\x12\x0e\n\x06logMsg\x18\x07 \x01(\t\x12=\n\x05\x65rror\x18\x08 \x01(\x0e\x32..rbk.protocol.msgRecognizeResultList.errorType\"8\n\x06status\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\n\n\x06\x66\x61iled\x10\x02\x12\x0b\n\x07success\x10\x03\"g\n\terrorType\x12\r\n\terrorNone\x10\x00\x12\x10\n\x0crecFileEmpty\x10\x01\x12\r\n\tdataEmpty\x10\x02\x12\x0e\n\nmodelEmpty\x10\x03\x12\x0f\n\x0bresultEmpty\x10\x04\x12\t\n\x05other\x10\x05*R\n\x0cmsgCloudType\x12\r\n\tPOINT_XYZ\x10\x00\x12\x0e\n\nPOINT_XYZI\x10\x01\x12\x10\n\x0cPOINT_XYZRGB\x10\x02\x12\x11\n\rPOINT_XYZRGBA\x10\x03\x62\x06proto3')
+  serialized_pb=_b('\n\x19message_recogresult.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x19message_calibration.proto\x1a\x16message_geometry.proto\"w\n\rmsgPointCloud\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0f\n\x07isDense\x18\x04 \x01(\x08\x12(\n\x04type\x18\x05 \x01(\x0e\x32\x1a.rbk.protocol.msgCloudType\x12\x0c\n\x04\x64\x61ta\x18\x06 \x01(\x0c\"\xd9\x02\n\x12msgRecognizeResult\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05valid\x18\x02 \x01(\x08\x12\r\n\x05\x63lass\x18\x03 \x01(\t\x12\x0c\n\x04type\x18\x04 \x01(\t\x12\t\n\x01x\x18\x05 \x01(\x01\x12\t\n\x01y\x18\x06 \x01(\x01\x12\t\n\x01z\x18\x07 \x01(\x01\x12\n\n\x02qx\x18\x08 \x01(\x01\x12\n\n\x02qy\x18\t \x01(\x01\x12\n\n\x02qz\x18\n \x01(\x01\x12\t\n\x01w\x18\x0b \x01(\x01\x12\x0b\n\x03yaw\x18\x0c \x01(\x01\x12\x11\n\tresultImg\x18\r \x01(\t\x12\x13\n\x0bpalletWidth\x18\x0e \x01(\x01\x12\x15\n\robjectMessage\x18\x0f \x01(\t\x12\x31\n\x0fobstaclePolygon\x18\x10 \x03(\x0b\x32\x18.rbk.protocol.msgPolygon\x12\x11\n\ttrackerId\x18\x11 \x01(\t\x12\x0c\n\x04info\x18\x12 \x01(\t\"\x8c\x04\n\x16msgRecognizeResultList\x12\x32\n\x08recoList\x18\x01 \x03(\x0b\x32 .rbk.protocol.msgRecognizeResult\x12?\n\nrecoStatus\x18\x02 \x01(\x0e\x32+.rbk.protocol.msgRecognizeResultList.status\x12\x0e\n\x06taskId\x18\x03 \x01(\t\x12#\n\x03img\x18\x04 \x01(\x0b\x32\x16.rbk.protocol.msgImage\x12%\n\x05irImg\x18\x05 \x01(\x0b\x32\x16.rbk.protocol.msgImage\x12/\n\npointCloud\x18\x06 \x01(\x0b\x32\x1b.rbk.protocol.msgPointCloud\x12\x0e\n\x06logMsg\x18\x07 \x01(\t\x12=\n\x05\x65rror\x18\x08 \x01(\x0e\x32..rbk.protocol.msgRecognizeResultList.errorType\"8\n\x06status\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\n\n\x06\x66\x61iled\x10\x02\x12\x0b\n\x07success\x10\x03\"g\n\terrorType\x12\r\n\terrorNone\x10\x00\x12\x10\n\x0crecFileEmpty\x10\x01\x12\r\n\tdataEmpty\x10\x02\x12\x0e\n\nmodelEmpty\x10\x03\x12\x0f\n\x0bresultEmpty\x10\x04\x12\t\n\x05other\x10\x05*R\n\x0cmsgCloudType\x12\r\n\tPOINT_XYZ\x10\x00\x12\x0e\n\nPOINT_XYZI\x10\x01\x12\x10\n\x0cPOINT_XYZRGB\x10\x02\x12\x11\n\rPOINT_XYZRGBA\x10\x03\x62\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,message__calibration__pb2.DESCRIPTOR,message__geometry__pb2.DESCRIPTOR,])
 
@@ -52,8 +52,8 @@ _MSGCLOUDTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1105,
-  serialized_end=1187,
+  serialized_start=1112,
+  serialized_end=1194,
 )
 _sym_db.RegisterEnumDescriptor(_MSGCLOUDTYPE)
 
@@ -89,8 +89,8 @@ _MSGRECOGNIZERESULTLIST_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=942,
-  serialized_end=998,
+  serialized_start=949,
+  serialized_end=1005,
 )
 _sym_db.RegisterEnumDescriptor(_MSGRECOGNIZERESULTLIST_STATUS)
 
@@ -127,8 +127,8 @@ _MSGRECOGNIZERESULTLIST_ERRORTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1000,
-  serialized_end=1103,
+  serialized_start=1007,
+  serialized_end=1110,
 )
 _sym_db.RegisterEnumDescriptor(_MSGRECOGNIZERESULTLIST_ERRORTYPE)
 
@@ -312,7 +312,7 @@ _MSGRECOGNIZERESULT = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='ID', full_name='rbk.protocol.msgRecognizeResult.ID', index=16,
+      name='trackerId', full_name='rbk.protocol.msgRecognizeResult.trackerId', index=16,
       number=17, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -338,7 +338,7 @@ _MSGRECOGNIZERESULT = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=238,
-  serialized_end=576,
+  serialized_end=583,
 )
 
 
@@ -364,7 +364,7 @@ _MSGRECOGNIZERESULTLIST = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='taskID', full_name='rbk.protocol.msgRecognizeResultList.taskID', index=2,
+      name='taskId', full_name='rbk.protocol.msgRecognizeResultList.taskId', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -419,8 +419,8 @@ _MSGRECOGNIZERESULTLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=579,
-  serialized_end=1103,
+  serialized_start=586,
+  serialized_end=1110,
 )
 
 _MSGPOINTCLOUD.fields_by_name['type'].enum_type = _MSGCLOUDTYPE

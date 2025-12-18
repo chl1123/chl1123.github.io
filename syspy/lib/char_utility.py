@@ -1,7 +1,7 @@
 import ctypes
 
 
-def merge2bytesTo1(byte1, byte2):
+def merge2BytesTo1(byte1, byte2):
     '''
     将两个字节数据组合成一个16位的数据
     '''
@@ -10,7 +10,7 @@ def merge2bytesTo1(byte1, byte2):
     return temp1 | temp2
 
 
-def merge4bytesTo1(byte1, byte2, byte3, byte4):
+def merge4BytesTo1(byte1, byte2, byte3, byte4):
     temp1 = byte1 << 24 & 0xFF000000
     temp2 = byte2 << 16 & 0x00FF0000
     temp3 = byte3 << 8 & 0x0000FF00
@@ -18,14 +18,14 @@ def merge4bytesTo1(byte1, byte2, byte3, byte4):
     return temp1 | temp2 | temp3 | temp4
 
 
-def get_bit_val(byte, index):
+def getBitVal(byte, index):
     if byte & (1 << index):
         return 1
     else:
         return 0
 
 
-def hexStr_to_int(hex_str, Reserved_Digits):
+def hexStrToInt(hex_str, Reserved_Digits):
     binary_str = bin(int(hex_str, 16))[2:].zfill(Reserved_Digits)
     num = int(binary_str, 2)
     num_bits = len(binary_str)
@@ -36,16 +36,16 @@ def hexStr_to_int(hex_str, Reserved_Digits):
         return -1 * (inverted + 1)
 
 
-def u16Toint16(u16t):
+def u16ToInt16(u16t):
     '''
     将uint16_t的数据转换成int16_t,用途:负号转换
     '''
     return ctypes.c_int16(u16t).value
 
 
-def u8Toint8(u8t):
+def u8ToInt8(u8t):
     return ctypes.c_int8(u8t).value
 
 
 if __name__ == "__main__":
-    print(hex(merge2bytesTo1(0x12, 0x33)))
+    print(hex(merge2BytesTo1(0x12, 0x33)))

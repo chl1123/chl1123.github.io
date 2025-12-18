@@ -120,31 +120,56 @@ class ParamServer:
 # 参数加载器类 - 用于在运行时加载参数
 class ScriptParam:
     """参数加载器，用于在运行时加载配置参数和输入参数"""
+    _instance = None
+    _initialized = False
+    config_change_callback = None
+    event_task_config = False
+    def __new__(cls, script_file: str = None):
+        if cls._instance is None:
+            cls._instance = super(ScriptParam, cls).__new__(cls)
+        return cls._instance
 
-    def __init__(self, script_file: str):
-        _get_prefix_dir(script_file)
-        self.config_file = prefix_dir + CONFIG_SUFFIX
-        self.input_file = prefix_dir + INPUT_SUFFIX
+    def __init__(self, script_file: str = None):
+        # 防止重复初始化
+        if not ScriptParam._initialized:
+            if script_file is not None:
+                _get_prefix_dir(script_file)
+                self.config_file = prefix_dir + CONFIG_SUFFIX
+                self.input_file = prefix_dir + INPUT_SUFFIX
+            else:
+                self.config_file = None
+                self.input_file = None
+            self.config_full_params = {}
+            self.__config_validator = None
+            ScriptParam._initialized = True
 
-    def builder_config(self):
+    @classmethod
+    def getInstance(cls) -> 'ScriptParam':
+        """获取单例实例"""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def builderConfig(self):
         return ParamBuilder(self.config_file, "Script Configuration Parameters", "config")
 
-    def builder_input(self):
+    def builderInput(self):
         return ParamBuilder(self.input_file, "Script Input Parameters", "input")
 
-    def load_config(self) -> Dict[str, Any]:
+    def loadConfig(self) -> Dict[str, Any]:
         """加载配置参数"""
         if not os.path.exists(self.config_file):
             raise FileNotFoundError(f"Config file not found: {self.config_file}")
+        if not self.config_full_params or not ScriptParam.event_task_config:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            # 使用ParamValidator验证配置
+            self.__config_validator = ParamValidator(config_data)
+        if not ScriptParam.event_task_config:
+            self.config_full_params = self._extract_values(self.__config_validator.param_definition)
+        return self.__config_validator.validate(self.config_full_params)
 
-        with open(self.config_file, 'r', encoding='utf-8') as f:
-            config_data = json.load(f)
-        # 使用ParamValidator验证配置
-        validator = ParamValidator(config_data)
-        e = self._extract_values(config_data)
-        return validator.validate(e)
-
-    def load_input(self, input_params: Dict[str, Any] = None) -> Dict[str, Any]:
+    def loadInput(self, input_params: Dict[str, Any] = None) -> Dict[str, Any]:
         """加载输入参数"""
         if not os.path.exists(self.input_file):
             raise FileNotFoundError(f"Input file not found: {self.input_file}")
@@ -163,7 +188,8 @@ class ScriptParam:
         Args:
             callback (Callable[[], None]): 回调方法
         """
-        Service.server().register_function(callback, "script_config_changed", True)
+        cls.config_change_callback = callback
+        Service.server().register_function(cls.config_change_callback, "script_config_changed", True)
 
     def _extract_values(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """从参数定义中提取值"""
@@ -185,6 +211,25 @@ class ScriptParam:
             _extract_from_node(group)
 
         return values
+
+    def setTaskConfig(self, config_data: Dict[str, Any]):
+        """合并任务配置参数"""
+        print("setTaskConfig()")
+        if config_data:
+            if not self.config_full_params:
+                self.config_full_params = config_data
+            else:
+                self.config_full_params.update(config_data)
+                ScriptParam.event_task_config = True
+                if ScriptParam.config_change_callback:
+                    ScriptParam.config_change_callback()
+
+    def clearTaskConfig(self):
+        """恢复任务配置参数"""
+        print("clearTaskConfig()")
+        ScriptParam.event_task_config = False
+        if ScriptParam.config_change_callback:
+            ScriptParam.config_change_callback()
 
 
 # 参数类型常量
@@ -297,7 +342,7 @@ class ParamField:
     required: bool = False
     default_value: Any = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def toDict(self) -> Dict[str, Any]:
         """将ParamField对象转换为字典"""
         result = {
             "key": self.key,
@@ -330,7 +375,7 @@ class ParamField:
 
         # 递归处理子节点
         if self.children:
-            result["children"] = [child.to_dict() for child in self.children]
+            result["children"] = [child.toDict() for child in self.children]
 
         # 清理空值
         return {k: v for k, v in result.items() if v not in (None, [], {}) and not (isinstance(v, list) and not v)}
@@ -434,17 +479,6 @@ class ParamBuilder:
         if not self._current_node:
             raise RuntimeError("ADD_FIELD must be called within a GROUP or CHILD context")
 
-        # 将Python风格的字段名转换为JSON风格的字段名
-        json_field_name = {
-            "single_step": "singleStep",
-            "is_clone": "isClone",
-            "bind_type": "bindType",
-            "is_read_only": "isReadOnly",
-            "min_value": "minValue",
-            "max_value": "maxValue",
-            "default_value": "defaultValue"
-        }.get(field_name, field_name)
-
         # 设置属性值
         setattr(self._current_node, field_name, value)
 
@@ -539,15 +573,15 @@ class ParamBuilder:
     def REQUIRED(self, value: bool) -> None:
         self.ADD_FIELD("required", value)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def toDict(self) -> Dict[str, Any]:
         """将配置转换为字典"""
-        groups = [group.to_dict() for group in self.root["groups"]]
+        groups = [group.toDict() for group in self.root["groups"]]
         result = {"desc": self.root["desc"], "groups": groups}
         return result
 
-    def to_json(self, indent: int = 2) -> str:
+    def toJson(self, indent: int = 2) -> str:
         """将配置转换为JSON字符串"""
-        groups = [group.to_dict() for group in self.root["groups"]]
+        groups = [group.toDict() for group in self.root["groups"]]
         result = {"desc": self.root["desc"], "groups": groups}
         return json.dumps(result, ensure_ascii=False, indent=indent)
 
@@ -556,7 +590,7 @@ class ParamBuilder:
         if filename is None:
             filename = prefix_dir + INPUT_SUFFIX
         with open(filename, "w", encoding="utf-8") as f:
-            f.write(self.to_json(indent))
+            f.write(self.toJson(indent))
 
     def save(self, merge: bool = False) -> None:
         """将配置保存到文件
@@ -587,7 +621,7 @@ class ParamBuilder:
         else:
             # 直接保存新数据
             with open(filename, "w", encoding="utf-8") as f:
-                f.write(self.to_json(2))
+                f.write(self.toJson(2))
 
     def _index_params(self, node: Dict[str, Any], index: Dict[str, Any], parent_path: str = "") -> None:
         """递归索引参数"""
@@ -609,7 +643,7 @@ class ParamBuilder:
         3. 如果参数在新定义中不存在，则保留原样
         4. 新增的参数添加到对应的组中
         """
-        new_data = self.to_dict()
+        new_data = self.toDict()
         # 创建现有参数的索引
         existing_params = {}
         for group in existing_data.get("groups", []):
@@ -735,7 +769,7 @@ class ParamValidator:
                 # 特殊处理COMBO_BOX_BOOL类型
                 if param.get('type') == ParamType.COMBO_BOX_BOOL:
                     for child in param.get('children', []):
-                        # 使用整数0/1表示OFF/ON
+                        # 使用布尔值 False/True 表示 OFF/ON
                         bool_value = False if child['key'] == "OFF" else True
                         self.combo_box_bool_mapping[child['key']].append(
                             {
@@ -891,6 +925,12 @@ class ParamValidator:
 
         # 从根节点开始验证所有参数
         validate_all_params(self.param_definition.get('groups', []))
+
+        # 输入参数
+        for key, value in input_params.items():
+            # 如果该参数未被处理过
+            if key not in validated_params:
+                validated_params[key] = value
 
         if errors:
             raise ValueError("\n".join(errors))

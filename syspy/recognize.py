@@ -27,14 +27,14 @@ class RecognizeInterface(ABC, Service):
         """获取识别结果
 
         Returns:
-            dict: 识别结果的结构体
+            (dict): 识别结果的结构体
         """
         raise RBKVersionError()
 
     @classmethod
     def recTargetObs(
         cls,
-        deviceName: str,
+        deviceKey: str,
         x: float,
         y: float,
         theta: float,
@@ -46,7 +46,7 @@ class RecognizeInterface(ABC, Service):
         """识别指定区域内是否存在障碍物
 
         Args:
-            deviceName (str): 检测设备名称
+            deviceKey (str): 检测设备的key
             x (float): 区域中心点x坐标（车体坐标系）
             y (float): 区域中心点y坐标（车体坐标系）
             theta (float): 区域角度
@@ -56,7 +56,7 @@ class RecognizeInterface(ABC, Service):
             obs_area_width (float): 检测区域宽度
         """
         dict_str = {
-            "deviceName": deviceName,
+            "deviceName": deviceKey,
             "x": x,
             "y": y,
             "theta": theta,
@@ -76,7 +76,7 @@ class RecognizeInterface(ABC, Service):
             json (str): 包含任务参数的JSON字符串
 
         Returns:
-            str: 包含检测状态和超时距离的JSON字符串
+            (str): 包含检测状态和超时距离的JSON字符串
         """
         raise RBKVersionError()
 
@@ -99,7 +99,7 @@ class RecognizeInterface(ABC, Service):
         """获取识别状态
 
         Returns:
-            int: 0 刚刚初始化，1识别中，2.获得结果, 3识别出错, -1 未知错误
+            (int): 0 刚刚初始化，1识别中，2.获得结果, 3识别出错, -1 未知错误
         """
         raise RBKVersionError()
 
@@ -128,7 +128,7 @@ class RecognizeInterface(ABC, Service):
             name (str): 识别文件名称，比如 shelf.srec, pallet.srec
 
         Returns:
-            dict: 具体数据以字典类型返回
+            (dict): 具体数据以字典类型返回
         """
         raise RBKVersionError()
 

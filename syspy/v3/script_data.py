@@ -13,7 +13,7 @@ class ScriptDataV3(ScriptDataInterface):
         data: msgScript = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from .protobuf import msgScript
             cls._MODEL_CLASS = msgScript

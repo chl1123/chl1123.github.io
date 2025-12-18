@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x13message_laser.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"`\n\x13msgLaserInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0c\n\x04roll\x18\x04 \x01(\x01\x12\r\n\x05pitch\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\"\xdd\x01\n\x12msgLaserDeviceInfo\x12\x12\n\ndeviceName\x18\x01 \x01(\t\x12\x10\n\x08minRange\x18\x02 \x01(\x01\x12\x10\n\x08maxRange\x18\x03 \x01(\x01\x12\x10\n\x08minAngle\x18\x04 \x01(\x01\x12\x10\n\x08maxAngle\x18\x05 \x01(\x01\x12\x10\n\x08realStep\x18\x06 \x01(\x01\x12\x0f\n\x07pubStep\x18\x07 \x01(\x01\x12\x15\n\rtimeIncrement\x18\x08 \x01(\x01\x12\x10\n\x08scanFreq\x18\t \x01(\x01\x12\n\n\x02id\x18\n \x01(\r\x12\x13\n\x0bisClockWise\x18\x0b \x01(\x08\"\xae\x01\n\x0cmsgLaserBeam\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05\x61ngle\x18\x02 \x01(\x01\x12\x0c\n\x04\x64ist\x18\x03 \x01(\x01\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\x0c\n\x04rssi\x18\x06 \x01(\x01\x12\r\n\x05valid\x18\x07 \x01(\x08\x12\x11\n\tisVirtual\x18\x08 \x01(\x08\x12\x12\n\nisObstacle\x18\t \x01(\x08\"\xac\x01\n\x0emsgLaserBeam3D\x12\n\n\x02id\x18\x01 \x01(\r\x12\t\n\x01x\x18\x02 \x01(\x02\x12\t\n\x01y\x18\x03 \x01(\x02\x12\t\n\x01z\x18\x04 \x01(\x02\x12\x11\n\tintensity\x18\x05 \x01(\r\x12\x0c\n\x04ring\x18\x06 \x01(\r\x12\x11\n\ttimestamp\x18\x07 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x08 \x01(\x0c\x12\x14\n\x0c\x66irstAzimuth\x18\t \x01(\x02\x12\x15\n\rsecondAzimuth\x18\n \x01(\x02\"\xc6\x02\n\x08msgLaser\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12)\n\x05\x62\x65\x61ms\x18\x04 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x11\n\tuseForLoc\x18\x05 \x01(\x08\x12/\n\x0b\x62\x65\x61msNotUse\x18\x06 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x18\n\x10is3DLocalization\x18\x07 \x01(\x08\x12\x1a\n\x12useForBinDetection\x18\x08 \x01(\x08\"\xa9\x03\n\nmsgLaser3D\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12-\n\x07\x62\x65\x61ms3D\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgLaserBeam3D\x12\x11\n\tuseForLoc\x18\x05 \x01(\x08\x12/\n\x0b\x62\x65\x61msNotUse\x18\x06 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x18\n\x10is3DLocalization\x18\x07 \x01(\x08\x12\x11\n\tlaserType\x18\x08 \x01(\r\x12\x0e\n\x06\x66\x61\x63tor\x18\t \x01(\x02\x12\x19\n\x11\x61zimuthCorrection\x18\n \x03(\x02\x12\x1a\n\x12verticalCorrection\x18\x0b \x03(\x02\x12\x1d\n\x15is3DobstacleDetection\x18\x0c \x01(\x08\"5\n\x0cmsgAllLasers\x12%\n\x05laser\x18\x01 \x03(\x0b\x32\x16.rbk.protocol.msgLaser\"<\n\x0emsgAllLasers3D\x12*\n\x08lasers3D\x18\x01 \x03(\x0b\x32\x18.rbk.protocol.msgLaser3D\"\xc3\x02\n\x16msgLaserClusterFeature\x12\x0f\n\x07\x61vgRssi\x18\x01 \x01(\x01\x12\x11\n\tnumPoints\x18\x02 \x01(\x01\x12\x0b\n\x03std\x18\x03 \x01(\x01\x12\x14\n\x0c\x61vgMedianDev\x18\x04 \x01(\x01\x12\x10\n\x08prevJump\x18\x05 \x01(\x01\x12\x10\n\x08nextJump\x18\x06 \x01(\x01\x12\r\n\x05width\x18\x07 \x01(\x01\x12\x11\n\tlinearity\x18\x08 \x01(\x01\x12\x13\n\x0b\x63ircularity\x18\t \x01(\x01\x12\x0e\n\x06radius\x18\n \x01(\x01\x12\x16\n\x0e\x62oundaryLength\x18\x0b \x01(\x01\x12\x0f\n\x07\x61ngDiff\x18\x0c \x01(\x01\x12\x15\n\rmeanCurvature\x18\r \x01(\x01\x12\x1a\n\x12\x62oundaryRegularity\x18\x0e \x01(\x01\x12\x0b\n\x03iav\x18\x0f \x01(\x01\x12\x0e\n\x06stdIav\x18\x10 \x01(\x01\"\x8b\x02\n\x0fmsgLaserCluster\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12)\n\x05\x62\x65\x61ms\x18\x04 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x36\n\x08\x66\x65\x61tures\x18\x05 \x01(\x0b\x32$.rbk.protocol.msgLaserClusterFeature\"m\n\x11msgLaserSegResult\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12/\n\x08\x63lusters\x18\x02 \x03(\x0b\x32\x1d.rbk.protocol.msgLaserCluster\".\n\x07msgGrid\x12\r\n\x05value\x18\x01 \x01(\x05\x12\t\n\x01x\x18\x02 \x01(\x05\x12\t\n\x01y\x18\x03 \x01(\x05\"F\n\nmsgCostMap\x12\x12\n\nresolution\x18\x01 \x01(\x05\x12$\n\x05grids\x18\x02 \x03(\x0b\x32\x15.rbk.protocol.msgGrid\"`\n\x0emsgSensorPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x12\n\nisObstacle\x18\x04 \x01(\x08\x12\x0c\n\x04rssi\x18\x05 \x01(\x01\x12\x0b\n\x03tag\x18\x06 \x01(\t\"\xa6\x03\n\x15msgSensorPointCluster\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12=\n\x04type\x18\x02 \x01(\x0e\x32/.rbk.protocol.msgSensorPointCluster.clusterType\x12\n\n\x02id\x18\x03 \x01(\t\x12+\n\x05point\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgSensorPoint\"\xeb\x01\n\x0b\x63lusterType\x12\x0e\n\nultrasonic\x10\x00\x12\t\n\x05laser\x10\x01\x12\x0f\n\x0b\x66\x61llingDown\x10\x02\x12\r\n\tcollision\x10\x03\x12\x0c\n\x08infrared\x10\x04\x12\x10\n\x0cvirtualPoint\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\x12\x11\n\rreservedPoint\x10\x07\x12\x10\n\x0c\x44IUltrasonic\x10\x08\x12\x0f\n\x0b\x64\x65pthCamera\x10\t\x12\x17\n\x13reservedDepthCamera\x10\n\x12\x10\n\x0c\x64istanceNode\x10\x0b\x12\x0f\n\x0b\x41\x44\x43ollision\x10\x0c\"\x8c\x01\n\x13msgSensorPointCloud\x12:\n\rglobalCluster\x18\x01 \x03(\x0b\x32#.rbk.protocol.msgSensorPointCluster\x12\x39\n\x0clocalCluster\x18\x02 \x03(\x0b\x32#.rbk.protocol.msgSensorPointCluster\"\x94\x02\n\rmsgLaserPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12.\n\x04type\x18\x04 \x01(\x0e\x32 .rbk.protocol.msgLaserPoint.Type\x12\n\n\x02id\x18\x05 \x01(\t\x12\x12\n\nisObstacle\x18\x06 \x01(\x08\x12\x0c\n\x04rssi\x18\x07 \x01(\x01\x12\x10\n\x08\x64\x61taNSec\x18\x08 \x01(\x04\"r\n\x04Type\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0b\x46\x61llingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x10\n\x0cVirtualPoint\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\"i\n\x12msgLaserPointCloud\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12*\n\x05point\x18\x02 \x03(\x0b\x32\x1b.rbk.protocol.msgLaserPointb\x06proto3')
+  serialized_pb=_b('\n\x13message_laser.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"`\n\x13msgLaserInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0c\n\x04roll\x18\x04 \x01(\x01\x12\r\n\x05pitch\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\"\xca\x01\n\x12msgLaserDeviceInfo\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x10\n\x08minRange\x18\x02 \x01(\x01\x12\x10\n\x08maxRange\x18\x03 \x01(\x01\x12\x10\n\x08minAngle\x18\x04 \x01(\x01\x12\x10\n\x08maxAngle\x18\x05 \x01(\x01\x12\x10\n\x08realStep\x18\x06 \x01(\x01\x12\x0f\n\x07pubStep\x18\x07 \x01(\x01\x12\x15\n\rtimeIncrement\x18\x08 \x01(\x01\x12\x10\n\x08scanFreq\x18\t \x01(\x01\x12\x13\n\x0bisClockWise\x18\x0b \x01(\x08\"\xae\x01\n\x0cmsgLaserBeam\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05\x61ngle\x18\x02 \x01(\x01\x12\x0c\n\x04\x64ist\x18\x03 \x01(\x01\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\x0c\n\x04rssi\x18\x06 \x01(\x01\x12\r\n\x05valid\x18\x07 \x01(\x08\x12\x11\n\tisVirtual\x18\x08 \x01(\x08\x12\x12\n\nisObstacle\x18\t \x01(\x08\"\xa0\x01\n\x0emsgLaserBeam3D\x12\t\n\x01x\x18\x02 \x01(\x02\x12\t\n\x01y\x18\x03 \x01(\x02\x12\t\n\x01z\x18\x04 \x01(\x02\x12\x11\n\tintensity\x18\x05 \x01(\r\x12\x0c\n\x04ring\x18\x06 \x01(\r\x12\x11\n\ttimestamp\x18\x07 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x08 \x01(\x0c\x12\x14\n\x0c\x66irstAzimuth\x18\t \x01(\x02\x12\x15\n\rsecondAzimuth\x18\n \x01(\x02\"\xc6\x02\n\x08msgLaser\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12)\n\x05\x62\x65\x61ms\x18\x04 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x11\n\tuseForLoc\x18\x05 \x01(\x08\x12/\n\x0b\x62\x65\x61msNotUse\x18\x06 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x18\n\x10is3DLocalization\x18\x07 \x01(\x08\x12\x1a\n\x12useForBinDetection\x18\x08 \x01(\x08\"\xa9\x03\n\nmsgLaser3D\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12-\n\x07\x62\x65\x61ms3D\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgLaserBeam3D\x12\x11\n\tuseForLoc\x18\x05 \x01(\x08\x12/\n\x0b\x62\x65\x61msNotUse\x18\x06 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x18\n\x10is3DLocalization\x18\x07 \x01(\x08\x12\x11\n\tlaserType\x18\x08 \x01(\r\x12\x0e\n\x06\x66\x61\x63tor\x18\t \x01(\x02\x12\x19\n\x11\x61zimuthCorrection\x18\n \x03(\x02\x12\x1a\n\x12verticalCorrection\x18\x0b \x03(\x02\x12\x1d\n\x15is3DobstacleDetection\x18\x0c \x01(\x08\"5\n\x0cmsgAllLasers\x12%\n\x05laser\x18\x01 \x03(\x0b\x32\x16.rbk.protocol.msgLaser\"<\n\x0emsgAllLasers3D\x12*\n\x08lasers3D\x18\x01 \x03(\x0b\x32\x18.rbk.protocol.msgLaser3D\"\xc3\x02\n\x16msgLaserClusterFeature\x12\x0f\n\x07\x61vgRssi\x18\x01 \x01(\x01\x12\x11\n\tnumPoints\x18\x02 \x01(\x01\x12\x0b\n\x03std\x18\x03 \x01(\x01\x12\x14\n\x0c\x61vgMedianDev\x18\x04 \x01(\x01\x12\x10\n\x08prevJump\x18\x05 \x01(\x01\x12\x10\n\x08nextJump\x18\x06 \x01(\x01\x12\r\n\x05width\x18\x07 \x01(\x01\x12\x11\n\tlinearity\x18\x08 \x01(\x01\x12\x13\n\x0b\x63ircularity\x18\t \x01(\x01\x12\x0e\n\x06radius\x18\n \x01(\x01\x12\x16\n\x0e\x62oundaryLength\x18\x0b \x01(\x01\x12\x0f\n\x07\x61ngDiff\x18\x0c \x01(\x01\x12\x15\n\rmeanCurvature\x18\r \x01(\x01\x12\x1a\n\x12\x62oundaryRegularity\x18\x0e \x01(\x01\x12\x0b\n\x03iav\x18\x0f \x01(\x01\x12\x0e\n\x06stdIav\x18\x10 \x01(\x01\"\x8b\x02\n\x0fmsgLaserCluster\x12\x34\n\ndeviceInfo\x18\x01 \x01(\x0b\x32 .rbk.protocol.msgLaserDeviceInfo\x12\x36\n\x0binstallInfo\x18\x02 \x01(\x0b\x32!.rbk.protocol.msgLaserInstallInfo\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12)\n\x05\x62\x65\x61ms\x18\x04 \x03(\x0b\x32\x1a.rbk.protocol.msgLaserBeam\x12\x36\n\x08\x66\x65\x61tures\x18\x05 \x01(\x0b\x32$.rbk.protocol.msgLaserClusterFeature\"m\n\x11msgLaserSegResult\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12/\n\x08\x63lusters\x18\x02 \x03(\x0b\x32\x1d.rbk.protocol.msgLaserCluster\".\n\x07msgGrid\x12\r\n\x05value\x18\x01 \x01(\x05\x12\t\n\x01x\x18\x02 \x01(\x05\x12\t\n\x01y\x18\x03 \x01(\x05\"F\n\nmsgCostMap\x12\x12\n\nresolution\x18\x01 \x01(\x05\x12$\n\x05grids\x18\x02 \x03(\x0b\x32\x15.rbk.protocol.msgGrid\"`\n\x0emsgSensorPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x12\n\nisObstacle\x18\x04 \x01(\x08\x12\x0c\n\x04rssi\x18\x05 \x01(\x01\x12\x0b\n\x03tag\x18\x06 \x01(\t\"\xa7\x03\n\x15msgSensorPointCluster\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12=\n\x04type\x18\x02 \x01(\x0e\x32/.rbk.protocol.msgSensorPointCluster.clusterType\x12\x0b\n\x03key\x18\x03 \x01(\t\x12+\n\x05point\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgSensorPoint\"\xeb\x01\n\x0b\x63lusterType\x12\x0e\n\nultrasonic\x10\x00\x12\t\n\x05laser\x10\x01\x12\x0f\n\x0b\x66\x61llingDown\x10\x02\x12\r\n\tcollision\x10\x03\x12\x0c\n\x08infrared\x10\x04\x12\x10\n\x0cvirtualPoint\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\x12\x11\n\rreservedPoint\x10\x07\x12\x10\n\x0c\x44IUltrasonic\x10\x08\x12\x0f\n\x0b\x64\x65pthCamera\x10\t\x12\x17\n\x13reservedDepthCamera\x10\n\x12\x10\n\x0c\x64istanceNode\x10\x0b\x12\x0f\n\x0b\x41\x44\x43ollision\x10\x0c\"\x8c\x01\n\x13msgSensorPointCloud\x12:\n\rglobalCluster\x18\x01 \x03(\x0b\x32#.rbk.protocol.msgSensorPointCluster\x12\x39\n\x0clocalCluster\x18\x02 \x03(\x0b\x32#.rbk.protocol.msgSensorPointCluster\"\x94\x02\n\rmsgLaserPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12.\n\x04type\x18\x04 \x01(\x0e\x32 .rbk.protocol.msgLaserPoint.Type\x12\n\n\x02id\x18\x05 \x01(\t\x12\x12\n\nisObstacle\x18\x06 \x01(\x08\x12\x0c\n\x04rssi\x18\x07 \x01(\x01\x12\x10\n\x08\x64\x61taNSec\x18\x08 \x01(\x04\"r\n\x04Type\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0b\x46\x61llingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x10\n\x0cVirtualPoint\x10\x05\x12\x0f\n\x0b\x41PIObstacle\x10\x06\"i\n\x12msgLaserPointCloud\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12*\n\x05point\x18\x02 \x03(\x0b\x32\x1b.rbk.protocol.msgLaserPointb\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
@@ -87,8 +87,8 @@ _MSGSENSORPOINTCLUSTER_CLUSTERTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=2720,
-  serialized_end=2955,
+  serialized_start=2690,
+  serialized_end=2925,
 )
 _sym_db.RegisterEnumDescriptor(_MSGSENSORPOINTCLUSTER_CLUSTERTYPE)
 
@@ -129,8 +129,8 @@ _MSGLASERPOINT_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=3263,
-  serialized_end=3377,
+  serialized_start=3233,
+  serialized_end=3347,
 )
 _sym_db.RegisterEnumDescriptor(_MSGLASERPOINT_TYPE)
 
@@ -209,7 +209,7 @@ _MSGLASERDEVICEINFO = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='deviceName', full_name='rbk.protocol.msgLaserDeviceInfo.deviceName', index=0,
+      name='key', full_name='rbk.protocol.msgLaserDeviceInfo.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -272,14 +272,7 @@ _MSGLASERDEVICEINFO = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='id', full_name='rbk.protocol.msgLaserDeviceInfo.id', index=9,
-      number=10, type=13, cpp_type=3, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='isClockWise', full_name='rbk.protocol.msgLaserDeviceInfo.isClockWise', index=10,
+      name='isClockWise', full_name='rbk.protocol.msgLaserDeviceInfo.isClockWise', index=9,
       number=11, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
@@ -298,7 +291,7 @@ _MSGLASERDEVICEINFO = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=158,
-  serialized_end=379,
+  serialized_end=360,
 )
 
 
@@ -384,8 +377,8 @@ _MSGLASERBEAM = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=382,
-  serialized_end=556,
+  serialized_start=363,
+  serialized_end=537,
 )
 
 
@@ -397,70 +390,63 @@ _MSGLASERBEAM3D = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='id', full_name='rbk.protocol.msgLaserBeam3D.id', index=0,
-      number=1, type=13, cpp_type=3, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='x', full_name='rbk.protocol.msgLaserBeam3D.x', index=1,
+      name='x', full_name='rbk.protocol.msgLaserBeam3D.x', index=0,
       number=2, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='y', full_name='rbk.protocol.msgLaserBeam3D.y', index=2,
+      name='y', full_name='rbk.protocol.msgLaserBeam3D.y', index=1,
       number=3, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='z', full_name='rbk.protocol.msgLaserBeam3D.z', index=3,
+      name='z', full_name='rbk.protocol.msgLaserBeam3D.z', index=2,
       number=4, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='intensity', full_name='rbk.protocol.msgLaserBeam3D.intensity', index=4,
+      name='intensity', full_name='rbk.protocol.msgLaserBeam3D.intensity', index=3,
       number=5, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='ring', full_name='rbk.protocol.msgLaserBeam3D.ring', index=5,
+      name='ring', full_name='rbk.protocol.msgLaserBeam3D.ring', index=4,
       number=6, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='timestamp', full_name='rbk.protocol.msgLaserBeam3D.timestamp', index=6,
+      name='timestamp', full_name='rbk.protocol.msgLaserBeam3D.timestamp', index=5,
       number=7, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='data', full_name='rbk.protocol.msgLaserBeam3D.data', index=7,
+      name='data', full_name='rbk.protocol.msgLaserBeam3D.data', index=6,
       number=8, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='firstAzimuth', full_name='rbk.protocol.msgLaserBeam3D.firstAzimuth', index=8,
+      name='firstAzimuth', full_name='rbk.protocol.msgLaserBeam3D.firstAzimuth', index=7,
       number=9, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='secondAzimuth', full_name='rbk.protocol.msgLaserBeam3D.secondAzimuth', index=9,
+      name='secondAzimuth', full_name='rbk.protocol.msgLaserBeam3D.secondAzimuth', index=8,
       number=10, type=2, cpp_type=6, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
@@ -478,8 +464,8 @@ _MSGLASERBEAM3D = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=559,
-  serialized_end=731,
+  serialized_start=540,
+  serialized_end=700,
 )
 
 
@@ -558,8 +544,8 @@ _MSGLASER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=734,
-  serialized_end=1060,
+  serialized_start=703,
+  serialized_end=1029,
 )
 
 
@@ -666,8 +652,8 @@ _MSGLASER3D = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1063,
-  serialized_end=1488,
+  serialized_start=1032,
+  serialized_end=1457,
 )
 
 
@@ -697,8 +683,8 @@ _MSGALLLASERS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1490,
-  serialized_end=1543,
+  serialized_start=1459,
+  serialized_end=1512,
 )
 
 
@@ -728,8 +714,8 @@ _MSGALLLASERS3D = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1545,
-  serialized_end=1605,
+  serialized_start=1514,
+  serialized_end=1574,
 )
 
 
@@ -864,8 +850,8 @@ _MSGLASERCLUSTERFEATURE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1608,
-  serialized_end=1931,
+  serialized_start=1577,
+  serialized_end=1900,
 )
 
 
@@ -923,8 +909,8 @@ _MSGLASERCLUSTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1934,
-  serialized_end=2201,
+  serialized_start=1903,
+  serialized_end=2170,
 )
 
 
@@ -961,8 +947,8 @@ _MSGLASERSEGRESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2203,
-  serialized_end=2312,
+  serialized_start=2172,
+  serialized_end=2281,
 )
 
 
@@ -1006,8 +992,8 @@ _MSGGRID = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2314,
-  serialized_end=2360,
+  serialized_start=2283,
+  serialized_end=2329,
 )
 
 
@@ -1044,8 +1030,8 @@ _MSGCOSTMAP = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2362,
-  serialized_end=2432,
+  serialized_start=2331,
+  serialized_end=2401,
 )
 
 
@@ -1110,8 +1096,8 @@ _MSGSENSORPOINT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2434,
-  serialized_end=2530,
+  serialized_start=2403,
+  serialized_end=2499,
 )
 
 
@@ -1137,7 +1123,7 @@ _MSGSENSORPOINTCLUSTER = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='id', full_name='rbk.protocol.msgSensorPointCluster.id', index=2,
+      name='key', full_name='rbk.protocol.msgSensorPointCluster.key', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -1163,8 +1149,8 @@ _MSGSENSORPOINTCLUSTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2533,
-  serialized_end=2955,
+  serialized_start=2502,
+  serialized_end=2925,
 )
 
 
@@ -1201,8 +1187,8 @@ _MSGSENSORPOINTCLOUD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2958,
-  serialized_end=3098,
+  serialized_start=2928,
+  serialized_end=3068,
 )
 
 
@@ -1282,8 +1268,8 @@ _MSGLASERPOINT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3101,
-  serialized_end=3377,
+  serialized_start=3071,
+  serialized_end=3347,
 )
 
 
@@ -1320,8 +1306,8 @@ _MSGLASERPOINTCLOUD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3379,
-  serialized_end=3484,
+  serialized_start=3349,
+  serialized_end=3454,
 )
 
 _MSGLASERBEAM.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER

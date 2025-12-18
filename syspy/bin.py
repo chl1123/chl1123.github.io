@@ -11,16 +11,16 @@ class BinInterface(ABC, Message):
     """库位类"""
 
     @classmethod
-    def get_bins(cls) -> List["msgBin"]:
+    def getBins(cls) -> List["msgBin"]:
         """获取库位列表
 
         Returns:
-            List["msgBin"]: 库位列表
+            (List["msgBin"]): 库位列表
 
         Examples:
         ```python
         from syspy import Bin
-        bins = Bin.get_bins()
+        bins = Bin.getBins()
         for b in bins:  # b为msgBin的对象
             print(b.binId)
             print(b.binStatus)
@@ -46,15 +46,15 @@ class ContainerInterface(ABC, Service):
     """
 
     @staticmethod
-    def _empty_container():
+    def _emptyContainer():
         return {
-            "goods_id": "",
+            "goodsName": "",
             "desc": "",
-            "has_goods": False
+            "hasGoods": False
         }
 
     @classmethod
-    def init_container(cls, number: int = 7):
+    def initContainer(cls, number: int = 7):
         """初始化背篓数据。
 
         Args:
@@ -63,39 +63,40 @@ class ContainerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setContainer(cls, container_name: str, goods_id: str, desc: str) -> bool:
+    def setContainer(cls, container_id: str, goods_name: str, desc: str) -> bool:
         """设置车子上库位或者背篓货物
 
         Args:
-            container_name (str): 库位或者背篓名称
-            goods_id (str): 货物的id
-            desc (str): 描述
+            container_id (str): 库位或者背篓id
+            goods_name (str): 货物名
+            desc (str): 货物描述
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         raise RBKVersionError()
 
     @classmethod
-    def clearContainer(cls, container_name: str) -> bool:
+    def clearContainer(cls, container_id: str) -> bool:
         """清除车上特定库位或者背篓的状态
 
         Args:
-            container_name (str): 库位或者背篓名称，container_name如果为"All"则全部清除
+            container_id (str): 库位或者背篓id，container_id如果为"All"则全部清除
 
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         raise RBKVersionError()
 
     @classmethod
-    def clearContainerByGoodsId(cls, goods_id: str) -> bool:
+    def clearContainerByGoods(cls, goods_name: str) -> bool:
         """清除车上特定库位或者背篓的状态
 
         Args:
-            goods_id (str): 货物名称，货物名称如果为All则全部清除
+            goods_name (str): 货物名称，货物名称如果为All则全部清除
+
         Returns:
-            bool: 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者背篓，则返回false
         """
         raise RBKVersionError()
 
@@ -104,73 +105,73 @@ class ContainerInterface(ABC, Service):
         """获取当前车子上库位或者背篓货物的状态。
 
         Returns:
-            list: 包含所有背篓状态的列表，每个元素是一个字典，包含 container_name、goods_id、desc 和 has_goods。
+            （list): 包含所有背篓状态的列表，每个元素是一个字典，包含 container_id、goods_name、desc 和 has_goods。
         """
         raise RBKVersionError()
 
     @classmethod
-    def has_goods(cls, container_name: str = '0') -> bool:
+    def hasGoods(cls, container_id: str = '0') -> bool:
         """检查指定背篓是否包含货物。
 
         Args:
-            container_name (str): 背篓名称，默认为 '0'。
+            container_id (str): 背篓id，默认为 '0'。
 
         Returns:
-            bool: 如果背篓中有货物，则返回True；否则返回False。
+            (bool): 如果背篓中有货物，则返回True；否则返回False。
         """
         raise RBKVersionError()
 
     @classmethod
-    def goods_id_exist(cls, goods_id) -> bool:
-        """检查指定的货物ID是否存在。
+    def goodsExist(cls, goods_name) -> bool:
+        """检查指定的货物是否存在。
 
         Args:
-            goods_id (str): 要检查的货物ID。
+            goods_name (str): 要检查的货物名。
 
         Returns:
-            bool: 如果存在该货物ID，则返回True；否则返回False。
+            (bool): 如果存在该货物，则返回True；否则返回False。
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_task_goodsId(cls):
+    def getTaskGoods(cls) -> str:
         """从任务参数中获取货物ID。
 
         Returns:
-            str: 货物ID，如果没有找到则返回空字符串。
+            (str): 货物ID，如果没有找到则返回空字符串。
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_goodsId_by_container(cls, container_name: str = '0') -> str:
+    def getGoodsByContainer(cls, container_id: str = '0') -> str:
         """根据背篓名称获取对应的货物ID。
 
         Args:
-            container_name (str): 背篓名称，默认为 '0'。
+            container_id (str): 背篓id，默认为 '0'。
 
         Returns:
-            str: 货物ID，如果找不到则返回空字符串。
+            (str): 货物ID，如果找不到则返回空字符串。
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_container_by_goodsId(cls, goods_id) -> str:
-        """根据货物ID查找其所在的背篓名称。
+    def getContainerByGoods(cls, goods_name) -> str:
+        """根据货物名查找其所在的背篓。
 
         Args:
-            goods_id (str): 要查找的货物ID。
+            goods_name (str): 要查找的货物名。
 
         Returns:
-            str: 找到的背篓名称，如果没有找到或货物未装载，则返回空字符串。
+            (str): 找到的背篓名称，如果没有找到或货物未装载，则返回空字符串。
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_json_containers(cls) -> dict:
+    def getJsonContainers(cls) -> dict:
         """以原始格式返回所有背篓的状态。
 
         Returns:
-            dict: key为背篓名称，值为包含 goods_id、desc 和 has_goods 的字典。
+            (dict): key为背篓名称，值为包含 goods_id、desc 和 has_goods 的字典。
         """
         raise RBKVersionError()
 
@@ -192,7 +193,7 @@ if __name__ == '__main__':
     from syspy import RobotParam
     container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
     if isinstance(container_num, int) and container_num > 0:
-        Container.init_container(container_num)
+        Container.initContainer(container_num)
     print("init data", Container.getContainers())
     Container.setContainer("0", "0", "c0")
     Container.setContainer("1", "1", "c1")
@@ -209,10 +210,10 @@ if __name__ == '__main__':
     Container.setContainer("2", "2", "c2")
     print("setContainer 0 1 2: ", Container.getContainers())
 
-    Container.clearContainerByGoodsId("1")
+    Container.clearContainerByGoods("1")
     print("clearContainerByGoodsId 1: ", Container.getContainers())
 
-    Container.clearContainerByGoodsId("All")
+    Container.clearContainerByGoods("All")
     print("clearContainerByGoodsId All: ", Container.getContainers())
 
     Container.setContainer("0", "0", "c0")
@@ -220,13 +221,13 @@ if __name__ == '__main__':
     Container.setContainer("2", "2", "c2")
     print("setContainer 0 1 2: ", Container.getContainers())
 
-    print("has_goods() 0", Container.has_goods("0"))
-    print("has_goods() -1", Container.has_goods("-1"))
-    print("goods_id_exist() 0", Container.goods_id_exist("0"))
-    print("goods_id_exist() -1", Container.goods_id_exist("-1"))
-    print("get_task_goodsId()", Container.get_task_goodsId())
-    print("get_goodsId_by_container()", Container.get_goodsId_by_container("0"))
-    print("get_goodsId_by_container()", Container.get_goodsId_by_container("-1"))
-    print("get_container_by_goodsId()", Container.get_container_by_goodsId("1"))
-    print("get_container_by_goodsId()", Container.get_container_by_goodsId("-1"))
-    print("get_json_containers()", Container.get_json_containers())
+    print("has_goods() 0", Container.hasGoods("0"))
+    print("has_goods() -1", Container.hasGoods("-1"))
+    print("goods_id_exist() 0", Container.goodsExist("0"))
+    print("goods_id_exist() -1", Container.goodsExist("-1"))
+    print("get_task_goodsId()", Container.getTaskGoods())
+    print("get_goodsId_by_container()", Container.getGoodsByContainer("0"))
+    print("get_goodsId_by_container()", Container.getGoodsByContainer("-1"))
+    print("get_container_by_goodsId()", Container.getContainerByGoods("1"))
+    print("get_container_by_goodsId()", Container.getContainerByGoods("-1"))
+    print("get_json_containers()", Container.getJsonContainers())

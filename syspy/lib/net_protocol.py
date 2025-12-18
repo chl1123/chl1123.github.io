@@ -11,7 +11,7 @@ class NetProtocolInterface(ABC, Service):
         """释放控制权
 
         Returns:
-            int: 0=ok
+            (int): 0=ok
         """
         raise RBKVersionError()
 
@@ -21,8 +21,9 @@ class NetProtocolInterface(ABC, Service):
 
         Args:
             nick_name (str): 控制权所有者名称
+
         Returns:
-            int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
+            (int): 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
         """
         raise RBKVersionError()
 
@@ -31,7 +32,7 @@ class NetProtocolInterface(ABC, Service):
         """获取控制权
 
         Returns:
-            int: 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
+            (int): 0=ok, REDIUS_CONN_ERROR，SUBCHANNEL_ERROR, INIT_STATUS_ERROR, LOADMAP_STATUS_ERROR, RELOC_STATUS_ERROR
         """
         raise RBKVersionError()
 
@@ -43,8 +44,9 @@ class NetProtocolInterface(ABC, Service):
             type (str): modbus 类型，取值为"0x"、"1x"、"3x"、"4x"
             addr (int): 写入时的寄存器起始地址
             data (list): 写入的数据
+
         Returns:
-            bool: 是否写入成功。写入失败时所有数据都不写入。
+            (bool): 是否写入成功。写入失败时所有数据都不写入。
         """
         raise RBKVersionError()
 
@@ -56,8 +58,9 @@ class NetProtocolInterface(ABC, Service):
             type (str): modbus 类型，取值为"0x"、"1x"、"3x"、"4x"
             addr (int): 读取时的寄存器起始地址
             size (int): 读取的数据长度
+
         Returns:
-            list: 寄存器数据
+            （list): 寄存器数据
         """
         raise RBKVersionError()
 
@@ -90,9 +93,8 @@ else:
     raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
 
-def parse_modbus(modbus_data: List[int], data_type: str, start_index: int = 0, length: int = 1) -> Any:
-    """
-    解析特定类型的数据
+def parseModbus(modbus_data: List[int], data_type: str, start_index: int = 0, length: int = 1) -> Any:
+    """解析特定类型的数据
 
     Args:
         modbus_data (List[int]): 从NetProtocol.getModbusData获取的数据列表
@@ -101,7 +103,7 @@ def parse_modbus(modbus_data: List[int], data_type: str, start_index: int = 0, l
         length (int): 寄存器数量
 
     Returns:
-        Any: 解析后的数据
+        (Any): 解析后的数据
     """
     if not modbus_data or start_index >= len(modbus_data):
         return None
@@ -134,20 +136,19 @@ def parse_modbus(modbus_data: List[int], data_type: str, start_index: int = 0, l
             return None
         # 提取指定范围的寄存器
         registers = modbus_data[start_index: start_index + length]
-        return registers_to_string(registers)
+        return registersToString(registers)
 
     return None
 
 
-def registers_to_string(registers: List[int]):
-    """
-    将寄存器列表转换为字符串
+def registersToString(registers: List[int]) -> str:
+    """将寄存器列表转换为字符串
 
     Args:
         registers (List[int]): 寄存器值列表
 
     Returns:
-        str: 转换后的字符串
+        (str): 转换后的字符串
     """
     result_str = ""
 

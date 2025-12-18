@@ -18,102 +18,113 @@ class BatteryInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def get_percentage(self, *, topic: str = "Battery-000") -> float:
+    def getPercentage(self, *, topic: str = "Battery-000") -> float:
         """获取电池电量百分比
 
         Returns:
-            float: 返回电池电量百分比数值
+            (float): 返回电池电量百分比数值
         """
-        return self.child.get_percentage(topic=topic)
+        return self.child.getPercentage(topic=topic)
 
-    def get_charge_current(self, *, topic: str = "Battery-000") -> float:
+    def getChargeCurrent(self, *, topic: str = "Battery-000") -> float:
         """获取充电电流
 
         Returns:
-            float: 返回充电电流数值
+            (float): 返回充电电流数值
         """
-        return self.child.get_charge_current(topic=topic)
+        return self.child.getChargeCurrent(topic=topic)
 
-    def get_charge_voltage(self, *, topic: str = "Battery-000") -> float:
+    def getChargeVoltage(self, *, topic: str = "Battery-000") -> float:
         """获取充电电压
 
         Returns:
-            float: 返回充电电压数值
+            (float): 返回充电电压数值
         """
-        return self.child.get_charge_voltage(topic=topic)
+        return self.child.getChargeVoltage(topic=topic)
 
-    def get_is_charging(self, *, topic: str = "Battery-000") -> bool:
+    def getIsCharging(self, *, topic: str = "Battery-000") -> bool:
         """获取是否正在充电状态
 
         Returns:
-            bool: True表示正在充电，False表示未充电
+            (bool): True表示正在充电，False表示未充电
         """
-        return self.child.get_is_charging(topic=topic)
+        return self.child.getIsCharging(topic=topic)
 
-    def get_temperature(self, *, topic: str = "Battery-000") -> float:
+    def getTemperature(self, *, topic: str = "Battery-000") -> float:
         """获取电池温度
 
         Returns:
-            float: 返回电池温度数值
+            (float): 返回电池温度数值
         """
-        return self.child.get_temperature(topic=topic)
+        return self.child.getTemperature(topic=topic)
 
-    def get_cycle(self, *, topic: str = "Battery-000") -> int:
+    def getCycle(self, *, topic: str = "Battery-000") -> int:
         """获取电池循环次数
 
         Returns:
-            int: 返回电池循环次数数值
+            (int): 返回电池循环次数数值
         """
-        return self.child.get_cycle(topic=topic)
+        return self.child.getCycle(topic=topic)
 
-    def get_max_charge_current(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电流
 
         Returns:
-            float: 返回最大充电电流数值
+            (float): 返回最大充电电流数值
         """
-        return self.child.get_max_charge_current(topic=topic)
+        return self.child.getMaxChargeCurrent(topic=topic)
 
-    def get_max_charge_voltage(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> float:
         """获取最大充电电压
 
         Returns:
-            float: 返回最大充电电压数值
+            (float): 返回最大充电电压数值
         """
-        return self.child.get_max_charge_voltage(topic=topic)
+        return self.child.getMaxChargeVoltage(topic=topic)
 
-    def get_extra(self, *, topic: str = "Battery-000") -> str:
+    def getExtra(self, *, topic: str = "Battery-000") -> str:
         """获取额外信息
 
         Returns:
-            str: 返回额外信息字符串
+            (str): 返回额外信息字符串
         """
-        return self.child.get_extra(topic=topic)
+        return self.child.getExtra(topic=topic)
 
-    def get_is_manually_connected(self, *, topic: str = "Battery-000") -> bool:
+    def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> bool:
         """获取是否手动连接状态
 
         Returns:
-            bool: True表示手动连接，False表示非手动连接
+            (bool): True表示手动连接，False表示非手动连接
 
         Compatibility:
             该接口仅在 RBK 版本 3 中可用。
         """
-        return self.child.get_is_manually_connected(topic=topic)
+        return self.child.getIsManuallyConnected(topic=topic)
 
-    def get_user_data(self, *, topic: str = "Battery-000") -> bytes:
+    def getUserData(self, *, topic: str = "Battery-000") -> bytes:
         """获取用户数据
 
         Returns:
-            bytes: 返回用户数据字节流
+            (bytes): 返回用户数据字节流
         """
-        return self.child.get_user_data(topic=topic)
+        return self.child.getUserData(topic=topic)
+
+    def getSoh(self, *, topic: str = "Battery-000") -> int:
+        """获取电池健康度
+
+        Returns:
+            (int): 健康度。-1 表示无效。
+
+        Compatibility:
+            该接口仅在 RBK 版本 3 中可用。
+        """
+        return self.child.getSoh(topic=topic)
 
     def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
         """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
 
         Returns:
-            int:
+            (int): 电池告警、电池错误和关掉电池的百分比的最大值
         """
         return self.child.getAlarmPercentage(topic=topic)
 
@@ -124,7 +135,7 @@ class BatteryInterface:
             battery_info ("msgBattery"): proto消息
 
         Returns:
-            int: -1: 发布失败; 0: 发布成功
+            (int): -1: 发布失败; 0: 发布成功
         """
         return self.child.publish(battery_info, topic=topic)
 
@@ -132,7 +143,7 @@ class BatteryInterface:
         """获取CAN端口
 
         Returns:
-            int: CAN端口
+            (int): CAN端口
         """
         return self.child.getCanPort(topic=topic)
 

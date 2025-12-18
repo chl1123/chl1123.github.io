@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x16message_magnetic.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\x9a\x01\n\x0fmsgMagneticNode\x12\n\n\x02id\x18\x01 \x01(\r\x12\r\n\x05value\x18\x02 \x03(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\x0b\n\x03yaw\x18\x05 \x01(\x01\x12\x0c\n\x04step\x18\x06 \x01(\x01\x12\x12\n\nresolution\x18\x07 \x01(\r\x12\'\n\x06header\x18\x08 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\"C\n\x0bmsgMagnetic\x12\x34\n\rmagneticNodes\x18\x01 \x03(\x0b\x32\x1d.rbk.protocol.msgMagneticNodeb\x06proto3')
+  serialized_pb=_b('\n\x16message_magnetic.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\xa7\x01\n\x0fmsgMagneticNode\x12\n\n\x02id\x18\x01 \x01(\r\x12\r\n\x05value\x18\x02 \x03(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\x0b\n\x03yaw\x18\x05 \x01(\x01\x12\x0c\n\x04step\x18\x06 \x01(\x01\x12\x12\n\nresolution\x18\x07 \x01(\r\x12\'\n\x06header\x18\x08 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x0b\n\x03key\x18\t \x01(\t\"C\n\x0bmsgMagnetic\x12\x34\n\rmagneticNodes\x18\x01 \x03(\x0b\x32\x1d.rbk.protocol.msgMagneticNodeb\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
@@ -90,6 +90,13 @@ _MSGMAGNETICNODE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='key', full_name='rbk.protocol.msgMagneticNode.key', index=8,
+      number=9, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -103,7 +110,7 @@ _MSGMAGNETICNODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=63,
-  serialized_end=217,
+  serialized_end=230,
 )
 
 
@@ -133,8 +140,8 @@ _MSGMAGNETIC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=219,
-  serialized_end=286,
+  serialized_start=232,
+  serialized_end=299,
 )
 
 _MSGMAGNETICNODE.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER

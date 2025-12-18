@@ -17,7 +17,7 @@ class LaserV4(Message):
         self._TOPIC = topic
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             cls._MODEL_CLASS = MessageV4_Laser
 
@@ -36,9 +36,9 @@ class LaserV4(Message):
     @call_service(plugin_name="SensorFuser")  # todo RBK4 App名
     def clear2DLaserWidth(cls, device_list: List[str]):
         """清除激光设备宽度
-        
+
         Args:
-            device_name (str): 激光设备名称列表
+            device_list (List[str]): 激光设备名称列表
         """
         pass
 
@@ -59,9 +59,9 @@ class LaserV4(Message):
     @call_service(plugin_name="SensorFuser")  # todo RBK4 App名
     def clear2DLaserAngle(cls, device_list: List[str]):
         """清除激光设备角度
-        
+
         Args:
-            device_name (str): 激光设备名称列表
+            device_list (List[str]): 激光设备名称列表
         """
         pass
 
@@ -89,7 +89,7 @@ class LaserV4(Message):
             laser_key (str)：激光设备的key。
 
         Returns:
-            int: 激光状态，1表示启用，0表示禁用
+            (int): 激光状态，1表示启用，0表示禁用
         """
         pass
 
@@ -113,11 +113,11 @@ class Laser3DV4(Message):
         self._TOPIC = topic
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             cls._MODEL_CLASS = MessageV4_Laser3D
 
-    def get_lasers3d(self) -> List["Message_Laser3D"]:
+    def getLasers3d(self) -> List["Message_Laser3D"]:
         """获取所有3D激光数据列表
 
         Returns:
@@ -125,4 +125,3 @@ class Laser3DV4(Message):
         """
         if self.update():
             return self.data.lasers3d
-

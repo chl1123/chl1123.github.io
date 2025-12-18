@@ -1,4 +1,19 @@
 from syspy.config import RBK_VERSION, RBK_FULL_VERSION
+import sys
+import os
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(current_dir, "../generic"))
+sys.path.insert(0, os.path.join(current_dir, "../tasks"))
+sys.path.insert(0, os.path.join(current_dir, "../generic/common"))
+sys.path.insert(0, os.path.join(current_dir, "../tasks/common"))
+if RBK_VERSION == 3:
+    sys.path.insert(0, os.path.join(current_dir, "../generic/v3"))
+    sys.path.insert(0, os.path.join(current_dir, "../tasks/v3"))
+elif RBK_VERSION == 4:
+    sys.path.insert(0, os.path.join(current_dir, "../generic/v4"))
+    sys.path.insert(0, os.path.join(current_dir, "../tasks/v4"))
+
 from .navigation import NavSpeedInterface, NavigationInterface, NavStatusInterface
 from .odometer import OdometerInterface
 
@@ -29,15 +44,13 @@ from .bin import Bin, Container
 from .lib.abnormal import Abnormal
 from .lib.can_frame import Can
 from .lib.logger import Logger
+from .utils.param_server import ParamServer, ScriptParam
 from .lib.robot_param import RobotParam
 from .lib.module import ScriptStatus, Module, ModuleBase
 from .lib.net_protocol import NetProtocol
 from .lib.trace import Trace
-from .utils.param_server import ParamServer, ScriptParam
 
 from .battery import Battery
-
-from .camera import Camera
 from .charger import Charger
 from .controller import Controller
 from .dio import Di, Do
@@ -50,13 +63,14 @@ from .map import Map
 from .motor import Motor
 from .code_scanner import CodeScanner
 from .recognize import Recognize
-from .rfid import RFID
+from .rfid import Rfid
 from .sound import Sound
 
 
 __all__ = [
     "RBK_VERSION",
     "RBK_FULL_VERSION",
+    "LevelDB",
     "Abnormal",
     "Bin",
     "Container",
@@ -71,7 +85,6 @@ __all__ = [
     "ParamServer",
     "ScriptParam",
     "Battery",
-    "Camera",
     "Charger",
     "Controller",
     "Di",
@@ -89,7 +102,7 @@ __all__ = [
     "NavSpeed",
     "Odometer",
     "CodeScanner",
-    "RFID",
+    "Rfid",
     "Recognize",
     "Sound",
 ]  # 列出所有公共模块

@@ -6,119 +6,119 @@ class ControllerInterface(ABC, Message):
     """控制器类"""
 
     @classmethod
-    def get_temperature(cls) -> float:
+    def getTemperature(cls) -> float:
         """获取温度值
 
         Returns:
-            float: 温度数值
+            (float): 温度数值
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_humidity(cls) -> float:
+    def getHumidity(cls) -> float:
         """获取湿度值
 
         Returns:
-            float: 湿度数值
+            (float): 湿度数值
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_voltage(cls) -> float:
+    def getVoltage(cls) -> float:
         """获取电压值
 
         Returns:
-            float: 电压数值
+            (float): 电压数值
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_emc(cls) -> bool:
+    def getEmc(cls) -> bool:
         """获取EMC状态
 
         Returns:
-            bool: EMC状态，True或False
+            (bool): EMC状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_brake(cls) -> bool:
+    def getBrake(cls) -> bool:
         """获取制动状态
 
         Returns:
-            bool: 制动状态，True或False
+            (bool): 制动状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_driver_EMC(cls) -> bool:
+    def getDriverEmc(cls) -> bool:
         """获取驱动EMC状态
 
         Returns:
-            bool: 驱动EMC状态，True或False
+            (bool): 驱动EMC状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_manual_charge(cls) -> bool:
+    def getManualCharge(cls) -> bool:
         """获取手动充电状态
 
         Returns:
-            bool: 手动充电状态，True或False
+            (bool): 手动充电状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_auto_charge(cls) -> bool:
+    def getAutoCharge(cls) -> bool:
         """获取自动充电状态
 
         Returns:
-            bool: 自动充电状态，True或False
+            (bool): 自动充电状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_electric(cls) -> bool:
+    def getElectric(cls) -> bool:
         """获取电动状态
 
         Returns:
-            bool: 电动状态，True或False
+            (bool): 电动状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_soft_EMC(cls) -> bool:
+    def getSoftEmc(cls) -> bool:
         """获取软EMC状态
 
         Returns:
-            bool: 软EMC状态，True或False
+            (bool): 软EMC状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_is_external_control(cls) -> bool:
+    def getIsExternalControl(cls) -> bool:
         """获取是否为外部控制状态
 
         Returns:
-            bool: 是否为外部控制状态，True或False
+            (bool): 是否为外部控制状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_is_IMU_calibrating(cls) -> bool:
+    def getIsImuCalibrating(cls) -> bool:
         """获取IMU是否正在校准状态
 
         Returns:
-            bool: IMU是否正在校准状态，True或False
+            (bool): IMU是否正在校准状态，True或False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_ADC_voltage(cls) -> float:
+    def getAdcVoltage(cls) -> float:
         """获取通过ADC检测到的外部电压值
 
         Returns:
-            float: 通过ADC检测到的外部电压数值
+            (float): 通过ADC检测到的外部电压数值
         """
         raise RBKVersionError()
 

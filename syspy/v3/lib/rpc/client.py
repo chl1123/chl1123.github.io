@@ -64,17 +64,17 @@ class ZmqClient:
             try:
                 data, event = self.queue.get(timeout=1)
                 self.socket.send(data.to_json().encode('utf-8'))  # 发送数据
-                # 利用 self.poller.poll(5000) 对发送的数据进行轮询，等待最多 5000 毫秒
+                # 利用 self.poller.poll(3000) 对发送的数据进行轮询，等待最多 3000 毫秒
                 events = dict(self.poller.poll(3000))
                 # 如果 socket 在从 poll 返回的事件中，则表示收到了响应
                 if self.socket in events:
                     response = self.recv()
                     event.result = response
-                else:  # 5秒内没有收到响应（即 socket 不在从 poll 返回的事件中）
+                    event.set()
+                else:  # 3秒内没有收到响应（即 socket 不在从 poll 返回的事件中）
                     event.result = None
                     event.set()
                     self.stop_flag.set()
-                event.set()
             except queue.Empty:
                 continue
         log.debug("ZmqClient worker exit")
@@ -135,17 +135,17 @@ class RpcClient:
         # log.debug("req => %s", request.to_json())
         # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
         if not event.wait(timeout=5):  # 设置适当的超时时间
-            raise TimeoutError("Event wait timeout")
+            raise TimeoutError(f"Call RBK wait timeout, check whether RBK is running, {request.to_json()=}")
         # event.result 不为空，表示收到响应
         if event.result:
             response_json = json.loads(event.result.decode())
             response = JSONRPCResponse.parse(response_json)
             if response.has_error():
                 raise Exception(response_json)
-            # log.debug("res <= %s", response.get_print())
+            log.debug("res <= %s", response.get_print())
             return response.get_result()
         else:  # event.result 为 None
-            raise TimeoutError("poller Timeout")
+            raise TimeoutError(f"Call RBK result Timeout, check whether RBK is running, {request.to_json()=}")
 
 
 if __name__ == "__main__":
@@ -168,6 +168,15 @@ if __name__ == "__main__":
     # print("client.start() ", client.call_service("broker", "start", "tasks/chl/get_script_data.py"))
     # print("client.stop() ", client.call_service("broker", "stop", "tasks/chl/get_script_data.py"))
     # print("client.update_cmd() ", client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "getLM"}))
+    # print("client.update_cmd() ", client.call_service(
+    #     "tasks/v3/standard/example/jack_params.py",
+    #            "update_cmd",
+    #     {
+    #         "operation": "load",
+    #         "height": 0.03,
+    #         "configs": {'motorConfig.jackMotorName': 'Motor-001', 'motorConfig.jackMotorSpeed': 0.025, 'motorConfig.jackLiftZero': 0.1, 'diConfig.jackUpDi': 7, 'diConfig.jackZeroDi': 4}
+    #     }
+    # ))
     # print("client.update_cmd() ",
     #       client.call_service("tasks/jack/jack.py", "update_cmd", {"operation": "odo"}))
 
@@ -189,4 +198,4 @@ if __name__ == "__main__":
     # print("client.resume() ", client.call_service(None, "resume"))
     # print("client.cancel() ", client.call_service(None, "cancel"))
 
-    print("client.update_cmd() ", client.call_service("tasks/standard/example/jack_params.py", "script_config_changed"))
+    # print("client.update_cmd() ", client.call_service("tasks/standard/example/jack_params.py", "script_config_changed"))

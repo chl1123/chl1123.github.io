@@ -101,12 +101,14 @@ class msgMovePolygon(_message.Message):
     def __init__(self, point: Optional[Iterable[Union[msgMovePolygonPoint, Mapping]]] = ..., name: Optional[str] = ...) -> None: ...
 
 class msgMovePolygonPoint(_message.Message):
-    __slots__ = ["x", "y"]
+    __slots__ = ["angle", "x", "y"]
+    ANGLE_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
+    angle: float
     x: float
     y: float
-    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ...) -> None: ...
+    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ...) -> None: ...
 
 class msgMovePose(_message.Message):
     __slots__ = ["angle", "x", "y"]
@@ -129,7 +131,7 @@ class msgMoveSpeed(_message.Message):
     def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., w: Optional[float] = ...) -> None: ...
 
 class msgMoveStatus(_message.Message):
-    __slots__ = ["actualReachAngle", "actualReachDist", "advanceRegions", "areaName", "blockId", "blockReason", "blockX", "blockY", "blocked", "closestLabel", "closestTarget", "containers", "dist2goal", "finishedPathName", "goodsRegion", "info", "mates", "modules", "moveTasks", "nearestObstacles", "removedRegions", "robotRegion", "robotShape", "runningStatus", "safeCuttingsId", "slowId", "slowPath", "slowReason", "slowX", "slowY", "slowed", "stopPath", "targetAngle", "targetDist", "targetLabel", "targetName", "targetX", "targetY", "taskId", "taskStatus", "taskStatusPackage", "taskType", "unfinishedPathName"]
+    __slots__ = ["actualReachAngle", "actualReachDist", "advanceRegions", "areaName", "blockDevice", "blockReason", "blockX", "blockY", "blocked", "closestLabel", "closestTarget", "containers", "dist2goal", "finishedPathName", "goodsRegion", "info", "mates", "modules", "moveTasks", "nearestObstacles", "removedRegions", "robotRegion", "robotShape", "runningStatus", "safeCuttingsId", "slowDevice", "slowPath", "slowReason", "slowX", "slowY", "slowed", "stopPath", "targetAngle", "targetDist", "targetLabel", "targetName", "targetX", "targetY", "taskId", "taskStatus", "taskStatusPackage", "taskType", "unfinishedPathName"]
     class rStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     class reason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -142,8 +144,8 @@ class msgMoveStatus(_message.Message):
     ACTUALREACHDIST_FIELD_NUMBER: ClassVar[int]
     ADVANCEREGIONS_FIELD_NUMBER: ClassVar[int]
     AREANAME_FIELD_NUMBER: ClassVar[int]
+    BLOCKDEVICE_FIELD_NUMBER: ClassVar[int]
     BLOCKED_FIELD_NUMBER: ClassVar[int]
-    BLOCKID_FIELD_NUMBER: ClassVar[int]
     BLOCKREASON_FIELD_NUMBER: ClassVar[int]
     BLOCKX_FIELD_NUMBER: ClassVar[int]
     BLOCKY_FIELD_NUMBER: ClassVar[int]
@@ -163,8 +165,8 @@ class msgMoveStatus(_message.Message):
     ROBOTSHAPE_FIELD_NUMBER: ClassVar[int]
     RUNNINGSTATUS_FIELD_NUMBER: ClassVar[int]
     SAFECUTTINGSID_FIELD_NUMBER: ClassVar[int]
+    SLOWDEVICE_FIELD_NUMBER: ClassVar[int]
     SLOWED_FIELD_NUMBER: ClassVar[int]
-    SLOWID_FIELD_NUMBER: ClassVar[int]
     SLOWPATH_FIELD_NUMBER: ClassVar[int]
     SLOWREASON_FIELD_NUMBER: ClassVar[int]
     SLOWX_FIELD_NUMBER: ClassVar[int]
@@ -186,7 +188,7 @@ class msgMoveStatus(_message.Message):
     advanceRegions: _containers.RepeatedCompositeFieldContainer[msgMovePolygon]
     apiObstacle: msgMoveStatus.reason
     areaName: _containers.RepeatedScalarFieldContainer[str]
-    blockId: int
+    blockDevice: str
     blockReason: msgMoveStatus.reason
     blockX: float
     blockY: float
@@ -198,11 +200,11 @@ class msgMoveStatus(_message.Message):
     completed: msgMoveStatus.status
     containers: _containers.RepeatedCompositeFieldContainer[msgContainer]
     depthCamera: msgMoveStatus.reason
+    diSensor: msgMoveStatus.reason
     diUltrasonic: msgMoveStatus.reason
     dist2goal: float
     distanceNode: msgMoveStatus.reason
     failed: msgMoveStatus.status
-    fallingDown: msgMoveStatus.reason
     finishedPathName: _containers.RepeatedScalarFieldContainer[str]
     goAlongMagstripe: msgMoveStatus.type
     goByOdometer: msgMoveStatus.type
@@ -212,7 +214,6 @@ class msgMoveStatus(_message.Message):
     goPointId: msgMoveStatus.type
     goodsRegion: msgMovePolygon
     info: str
-    infrared: msgMoveStatus.reason
     laser: msgMoveStatus.reason
     lock: msgMoveStatus.reason
     mates: msgMates
@@ -233,7 +234,7 @@ class msgMoveStatus(_message.Message):
     running: msgMoveStatus.status
     runningStatus: msgMoveStatus.rStatus
     safeCuttingsId: int
-    slowId: int
+    slowDevice: str
     slowPath: msgMovePolygon
     slowReason: msgMoveStatus.reason
     slowX: float
@@ -258,7 +259,7 @@ class msgMoveStatus(_message.Message):
     unfinishedPathName: _containers.RepeatedScalarFieldContainer[str]
     virtualPoint: msgMoveStatus.reason
     waiting: msgMoveStatus.status
-    def __init__(self, blocked: bool = ..., blockX: Optional[float] = ..., blockY: Optional[float] = ..., blockReason: Optional[Union[msgMoveStatus.reason, str]] = ..., targetName: Optional[str] = ..., targetX: Optional[float] = ..., targetY: Optional[float] = ..., targetAngle: Optional[float] = ..., taskStatus: Optional[Union[msgMoveStatus.status, str]] = ..., taskType: Optional[Union[msgMoveStatus.type, str]] = ..., areaName: Optional[Iterable[str]] = ..., finishedPathName: Optional[Iterable[str]] = ..., unfinishedPathName: Optional[Iterable[str]] = ..., blockId: Optional[int] = ..., taskId: Optional[str] = ..., robotRegion: Optional[Union[msgMovePolygon, Mapping]] = ..., goodsRegion: Optional[Union[msgMovePolygon, Mapping]] = ..., removedRegions: Optional[Iterable[Union[msgMovePolygon, Mapping]]] = ..., runningStatus: Optional[Union[msgMoveStatus.rStatus, str]] = ..., closestTarget: Optional[str] = ..., actualReachDist: Optional[float] = ..., actualReachAngle: Optional[float] = ..., robotShape: Optional[Union[msgRobotShape, Mapping]] = ..., slowed: bool = ..., slowX: Optional[float] = ..., slowY: Optional[float] = ..., slowReason: Optional[Union[msgMoveStatus.reason, str]] = ..., slowId: Optional[int] = ..., stopPath: Optional[Union[msgMovePolygon, Mapping]] = ..., slowPath: Optional[Union[msgMovePolygon, Mapping]] = ..., modules: Optional[Iterable[Union[msgModule, Mapping]]] = ..., advanceRegions: Optional[Iterable[Union[msgMovePolygon, Mapping]]] = ..., info: Optional[str] = ..., targetDist: Optional[float] = ..., taskStatusPackage: Optional[Union[msgTaskStatusPackage, Mapping]] = ..., targetLabel: Optional[str] = ..., closestLabel: Optional[str] = ..., nearestObstacles: Optional[Iterable[Union[msgNearestObs, Mapping]]] = ..., containers: Optional[Iterable[Union[msgContainer, Mapping]]] = ..., dist2goal: Optional[float] = ..., safeCuttingsId: Optional[int] = ..., mates: Optional[Union[msgMates, Mapping]] = ..., moveTasks: Optional[Union[msgMoveTask, Mapping]] = ...) -> None: ...
+    def __init__(self, blocked: bool = ..., blockX: Optional[float] = ..., blockY: Optional[float] = ..., blockReason: Optional[Union[msgMoveStatus.reason, str]] = ..., targetName: Optional[str] = ..., targetX: Optional[float] = ..., targetY: Optional[float] = ..., targetAngle: Optional[float] = ..., taskStatus: Optional[Union[msgMoveStatus.status, str]] = ..., taskType: Optional[Union[msgMoveStatus.type, str]] = ..., areaName: Optional[Iterable[str]] = ..., finishedPathName: Optional[Iterable[str]] = ..., unfinishedPathName: Optional[Iterable[str]] = ..., blockDevice: Optional[str] = ..., taskId: Optional[str] = ..., robotRegion: Optional[Union[msgMovePolygon, Mapping]] = ..., goodsRegion: Optional[Union[msgMovePolygon, Mapping]] = ..., removedRegions: Optional[Iterable[Union[msgMovePolygon, Mapping]]] = ..., runningStatus: Optional[Union[msgMoveStatus.rStatus, str]] = ..., closestTarget: Optional[str] = ..., actualReachDist: Optional[float] = ..., actualReachAngle: Optional[float] = ..., robotShape: Optional[Union[msgRobotShape, Mapping]] = ..., slowed: bool = ..., slowX: Optional[float] = ..., slowY: Optional[float] = ..., slowReason: Optional[Union[msgMoveStatus.reason, str]] = ..., slowDevice: Optional[str] = ..., stopPath: Optional[Union[msgMovePolygon, Mapping]] = ..., slowPath: Optional[Union[msgMovePolygon, Mapping]] = ..., modules: Optional[Iterable[Union[msgModule, Mapping]]] = ..., advanceRegions: Optional[Iterable[Union[msgMovePolygon, Mapping]]] = ..., info: Optional[str] = ..., targetDist: Optional[float] = ..., taskStatusPackage: Optional[Union[msgTaskStatusPackage, Mapping]] = ..., targetLabel: Optional[str] = ..., closestLabel: Optional[str] = ..., nearestObstacles: Optional[Iterable[Union[msgNearestObs, Mapping]]] = ..., containers: Optional[Iterable[Union[msgContainer, Mapping]]] = ..., dist2goal: Optional[float] = ..., safeCuttingsId: Optional[int] = ..., mates: Optional[Union[msgMates, Mapping]] = ..., moveTasks: Optional[Union[msgMoveTask, Mapping]] = ...) -> None: ...
 
 class msgMoveTask(_message.Message):
     __slots__ = ["blockDist", "decObsExpansion", "maxAcc", "maxDec", "maxRot", "maxRotAcc", "maxRotDec", "maxSpeed", "moveAngle", "moveDist", "moveTime", "obsDecDist", "obsDecSpeed", "obsExpansion", "obsStopDist", "params", "reachAngle", "reachDist", "reachMethod", "reachVelW", "reachVelX", "reachVelY", "skillName", "slowdownDist", "sourceName", "speedW", "speedX", "speedY", "targetAngle", "targetName", "targetX", "targetY", "taskId"]

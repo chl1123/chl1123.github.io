@@ -37,11 +37,11 @@ class msgCodeScannerDMT(_message.Message):
     def __init__(self, tagDiffX: Optional[float] = ..., tagDiffY: Optional[float] = ..., tagDiffAngle: Optional[float] = ..., tagValue: Optional[int] = ..., warningCode: Optional[int] = ..., isDMTDetected: bool = ..., errorCode: Optional[int] = ..., header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., codeScannerInfo: Optional[Union[msgCodeScannerInfo, Mapping]] = ..., isBarCode: bool = ...) -> None: ...
 
 class msgCodeScannerInfo(_message.Message):
-    __slots__ = ["coordinate", "func", "isUpside", "name", "pitch", "roll", "x", "y", "yaw", "z"]
+    __slots__ = ["coordinate", "func", "isUpside", "key", "pitch", "roll", "x", "y", "yaw", "z"]
     COORDINATE_FIELD_NUMBER: ClassVar[int]
     FUNC_FIELD_NUMBER: ClassVar[int]
     ISUPSIDE_FIELD_NUMBER: ClassVar[int]
-    NAME_FIELD_NUMBER: ClassVar[int]
+    KEY_FIELD_NUMBER: ClassVar[int]
     PITCH_FIELD_NUMBER: ClassVar[int]
     ROLL_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
@@ -51,11 +51,11 @@ class msgCodeScannerInfo(_message.Message):
     coordinate: str
     func: str
     isUpside: bool
-    name: str
+    key: str
     pitch: float
     roll: float
     x: float
     y: float
     yaw: float
     z: float
-    def __init__(self, name: Optional[str] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., yaw: Optional[float] = ..., pitch: Optional[float] = ..., roll: Optional[float] = ..., func: Optional[str] = ..., coordinate: Optional[str] = ..., isUpside: bool = ...) -> None: ...
+    def __init__(self, key: Optional[str] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., yaw: Optional[float] = ..., pitch: Optional[float] = ..., roll: Optional[float] = ..., func: Optional[str] = ..., coordinate: Optional[str] = ..., isUpside: bool = ...) -> None: ...

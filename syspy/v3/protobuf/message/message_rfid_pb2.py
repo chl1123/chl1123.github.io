@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x12message_rfid.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"c\n\x0bmsgRFIDNode\x12\n\n\x02id\x18\x01 \x01(\r\x12\r\n\x05\x63ount\x18\x02 \x01(\r\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x10\n\x08strength\x18\x04 \x01(\r\"7\n\x07msgRFID\x12,\n\trfidNodes\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgRFIDNodeb\x06proto3')
+  serialized_pb=_b('\n\x12message_rfid.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"p\n\x0bmsgRFIDNode\x12\n\n\x02id\x18\x01 \x01(\r\x12\r\n\x05\x63ount\x18\x02 \x01(\r\x12\'\n\x06header\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x10\n\x08strength\x18\x04 \x01(\r\x12\x0b\n\x03key\x18\x05 \x01(\t\"7\n\x07msgRFID\x12,\n\trfidNodes\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgRFIDNodeb\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
@@ -62,6 +62,13 @@ _MSGRFIDNODE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='key', full_name='rbk.protocol.msgRFIDNode.key', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -75,7 +82,7 @@ _MSGRFIDNODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=58,
-  serialized_end=157,
+  serialized_end=170,
 )
 
 
@@ -105,8 +112,8 @@ _MSGRFID = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=159,
-  serialized_end=214,
+  serialized_start=172,
+  serialized_end=227,
 )
 
 _MSGRFIDNODE.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER

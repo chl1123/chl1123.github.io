@@ -28,11 +28,9 @@ class msgPointCloud(_message.Message):
     def __init__(self, width: Optional[int] = ..., height: Optional[int] = ..., isDense: bool = ..., type: Optional[Union[msgCloudType, str]] = ..., data: Optional[bytes] = ...) -> None: ...
 
 class msgRecognizeResult(_message.Message):
-    __slots__ = ["ID", "header", "info", "objectMessage", "obstaclePolygon", "palletWidth", "qx", "qy", "qz", "resultImg", "type", "valid", "w", "x", "y", "yaw", "z"]
+    __slots__ = ["header", "info", "objectMessage", "obstaclePolygon", "palletWidth", "qx", "qy", "qz", "resultImg", "trackerId", "type", "valid", "w", "x", "y", "yaw", "z"]
     CLASS_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
-    ID: str
-    ID_FIELD_NUMBER: ClassVar[int]
     INFO_FIELD_NUMBER: ClassVar[int]
     OBJECTMESSAGE_FIELD_NUMBER: ClassVar[int]
     OBSTACLEPOLYGON_FIELD_NUMBER: ClassVar[int]
@@ -41,6 +39,7 @@ class msgRecognizeResult(_message.Message):
     QY_FIELD_NUMBER: ClassVar[int]
     QZ_FIELD_NUMBER: ClassVar[int]
     RESULTIMG_FIELD_NUMBER: ClassVar[int]
+    TRACKERID_FIELD_NUMBER: ClassVar[int]
     TYPE_FIELD_NUMBER: ClassVar[int]
     VALID_FIELD_NUMBER: ClassVar[int]
     W_FIELD_NUMBER: ClassVar[int]
@@ -57,6 +56,7 @@ class msgRecognizeResult(_message.Message):
     qy: float
     qz: float
     resultImg: str
+    trackerId: str
     type: str
     valid: bool
     w: float
@@ -64,10 +64,10 @@ class msgRecognizeResult(_message.Message):
     y: float
     yaw: float
     z: float
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., valid: bool = ..., type: Optional[str] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., qx: Optional[float] = ..., qy: Optional[float] = ..., qz: Optional[float] = ..., w: Optional[float] = ..., yaw: Optional[float] = ..., resultImg: Optional[str] = ..., palletWidth: Optional[float] = ..., objectMessage: Optional[str] = ..., obstaclePolygon: Optional[Iterable[Union[_message_geometry_pb2.msgPolygon, Mapping]]] = ..., ID: Optional[str] = ..., info: Optional[str] = ..., **kwargs) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., valid: bool = ..., type: Optional[str] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., qx: Optional[float] = ..., qy: Optional[float] = ..., qz: Optional[float] = ..., w: Optional[float] = ..., yaw: Optional[float] = ..., resultImg: Optional[str] = ..., palletWidth: Optional[float] = ..., objectMessage: Optional[str] = ..., obstaclePolygon: Optional[Iterable[Union[_message_geometry_pb2.msgPolygon, Mapping]]] = ..., trackerId: Optional[str] = ..., info: Optional[str] = ..., **kwargs) -> None: ...
 
 class msgRecognizeResultList(_message.Message):
-    __slots__ = ["error", "img", "irImg", "logMsg", "pointCloud", "recoList", "recoStatus", "taskID"]
+    __slots__ = ["error", "img", "irImg", "logMsg", "pointCloud", "recoList", "recoStatus", "taskId"]
     class errorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     class status(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -97,8 +97,8 @@ class msgRecognizeResultList(_message.Message):
     resultEmpty: msgRecognizeResultList.errorType
     running: msgRecognizeResultList.status
     success: msgRecognizeResultList.status
-    taskID: str
-    def __init__(self, recoList: Optional[Iterable[Union[msgRecognizeResult, Mapping]]] = ..., recoStatus: Optional[Union[msgRecognizeResultList.status, str]] = ..., taskID: Optional[str] = ..., img: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., irImg: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., pointCloud: Optional[Union[msgPointCloud, Mapping]] = ..., logMsg: Optional[str] = ..., error: Optional[Union[msgRecognizeResultList.errorType, str]] = ...) -> None: ...
+    taskId: str
+    def __init__(self, recoList: Optional[Iterable[Union[msgRecognizeResult, Mapping]]] = ..., recoStatus: Optional[Union[msgRecognizeResultList.status, str]] = ..., taskId: Optional[str] = ..., img: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., irImg: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., pointCloud: Optional[Union[msgPointCloud, Mapping]] = ..., logMsg: Optional[str] = ..., error: Optional[Union[msgRecognizeResultList.errorType, str]] = ...) -> None: ...
 
 class msgCloudType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []

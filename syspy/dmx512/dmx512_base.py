@@ -26,13 +26,13 @@ class LightType(Enum):
 class dmx512Base:
     def __init__(self):
         if platform.machine() == "x86_64":
-            import syspy.dmx512.dmx512_x86 as x86
+            import syspy.dmx512.dmx512_pass_lib as passThough
 
-            self.child = x86.dmx512X86()
+            self.child = passThough.dmx512PassLib()
         elif platform.machine() == "aarch64":
-            import syspy.dmx512.dmx512_aarch64 as aarch64
+            import syspy.dmx512.dmx512_native_lib as native
 
-            self.child = aarch64.dmx512Aarch64()
+            self.child = native.dmx512NativeLib()
         log.info("start dmx512")
 
     # genetic
@@ -40,7 +40,7 @@ class dmx512Base:
         return NavStatus.getChassisStop()
 
     def getEMCState(self) -> bool:
-        return Controller.get_emc()
+        return Controller.getEmc()
 
     def getDIStates(self, index) -> bool:
         return Di.get_di(index)

@@ -14,11 +14,11 @@ class MagneticInterface(ABC, Message):
     """磁传感器类"""
 
     @classmethod
-    def get_magnetics(cls) -> typing.List["msgMagneticNode"]:
+    def getMagnetics(cls) -> typing.List["msgMagneticNode"]:
         """获取磁节点列表
 
         Returns:
-            typing.List[msgMagneticNode]: 包含所有磁节点信息的列表
+            (typing.List[msgMagneticNode]): 包含所有磁节点信息的列表
         """
         raise RBKVersionError()
 

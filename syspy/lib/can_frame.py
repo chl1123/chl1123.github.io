@@ -46,7 +46,7 @@ class CanInterface(ABC, Message):
             can_id5 (int):
 
         Returns:
-            int:
+            (int):
         """
         raise RBKVersionError()
 

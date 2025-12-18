@@ -15,47 +15,47 @@ class DiInterface(ABC, Message):
     """数字输入类"""
 
     @classmethod
-    def setDIValid(cls, name: str, status: bool):
+    def setDIValid(cls, key: str, status: bool):
         """设置DI是否生效
 
         Args:
-            name (str): DI名
+            key (str): DI key
             status (bool): True表示生效，False表示不生效
         """
         raise RBKVersionError()
 
     @classmethod
-    def setVirtualDI(cls, name: str, status: bool):
+    def setVirtualDI(cls, key: str, status: bool):
         """设置虚拟DI状态
 
         Args:
-            name (str): 虚拟DI名
+            key (str): 虚拟DI key
             status (bool):虚拟DI状态
         """
         pass
 
     @classmethod
-    def get_di(cls, name: str) -> bool:
+    def getDi(cls, key: str) -> bool:
         """检测单个DI状态信息
         Args:
-            name (str): DI名
+            key (str): DI key
 
         Returns:
-            bool: 返回指定DI的状态，若DI不存在返回False
+            (bool): 返回指定DI的状态，若DI不存在返回False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_dis(cls) -> typing.List["msgDINode"]:
+    def getDis(cls) -> typing.List["msgDINode"]:
         """获取DI消息中的节点列表
 
         Returns:
-            typing.List[msgDINode]: DI消息中的节点列表
+            (typing.List[msgDINode]): DI消息中的节点列表
 
         Examples:
         ```python
         from syspy import Di
-        dis = Di.get_dis()
+        dis = Di.getDis()
         for di in dis:  # di为msgDINode的对象
             print(di.key)
         ```
@@ -63,11 +63,11 @@ class DiInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_max_di(cls) -> int:
+    def getMaxDi(cls) -> int:
         """获取DI消息中的最大节点数
 
         Returns:
-            int: DI消息中的最大节点数
+            (int): DI消息中的最大节点数
         """
         raise RBKVersionError()
 
@@ -76,32 +76,32 @@ class DoInterface(ABC, Message):
     """数字输出类"""
 
     @classmethod
-    def setDO(cls, name: str, status: bool) -> bool:
+    def setDo(cls, key: str, status: bool) -> bool:
         """控制DO的开关
 
         Args:
-            name (str): DO名
+            key (str): DO key
             status (bool): 是否打开这个DO
 
         Returns:
-            bool: 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
+            (bool): 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_do(cls, name: str) -> bool:
+    def getDo(cls, key: str) -> bool:
         """检测单个DO状态信息
 
         Args:
-            name (str): DO名
+            key (str): DO设备的key
 
         Returns:
-            bool: 返回指定DO的状态，若DO不存在返回False
+            (bool): 返回指定DO的状态，若DO不存在返回False
         """
         raise RBKVersionError()
 
     @classmethod
-    def get_dos(cls) -> typing.List["msgDONode"]:
+    def getDos(cls) -> typing.List["msgDONode"]:
         """获取DO消息中的节点列表
 
         Returns:
@@ -111,7 +111,7 @@ class DoInterface(ABC, Message):
         ```python
         from syspy import Do
 
-        dos = Do.get_dos()
+        dos = Do.getDos()
         for do in dos:  # do为msgDONode的对象
             print(do.key)
         ```
@@ -119,11 +119,11 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get_max_node(cls) -> int:
+    def getMaxNode(cls) -> int:
         """获取DO消息中的最大节点数
 
         Returns:
-            int: DO消息中的最大节点数
+            (int): DO消息中的最大节点数
         """
         raise RBKVersionError()
 

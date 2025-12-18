@@ -9,7 +9,7 @@ class LocV4(LocInterface):
     _MODEL_CLASS = None
 
     @classmethod
-    def init_model_class(cls):
+    def initModelClass(cls):
         if cls._MODEL_CLASS is None:
             from syspy.v4.protobuf.message.message_localization_pb2 import Message_Localization  # 延迟导入
             cls._MODEL_CLASS = Message_Localization
@@ -40,7 +40,7 @@ class LocV4(LocInterface):
         """获取定位置信度
 
         Returns:
-            float: 返回定位置信度数值
+            (float): 返回定位置信度数值
         """
         if self.update():
             return self.data.confidence
@@ -49,7 +49,7 @@ class LocV4(LocInterface):
         """获取定位状态
 
         Returns:
-            int: 返回定位状态值：
+            (int): 返回定位状态值：
                 - 0：未初始化
                 - 1：重定位成功
                 - 2：重定位中
@@ -62,7 +62,7 @@ class LocV4(LocInterface):
         """获取定位方法
 
         Returns:
-            int: 返回定位方法值，
+            (int): 返回定位方法值，
                 - 0为里程计模式
                 - 1为自然轮廓定位
                 - 2为反光柱定位
