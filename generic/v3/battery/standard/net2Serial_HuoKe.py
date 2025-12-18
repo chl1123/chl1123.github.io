@@ -58,6 +58,7 @@ class BatteryHuoKeYy(bb.batteryBase):
                 battery_info.temperature = temperature
                 battery_info.chargeCurrent = current
                 battery_info.chargeVoltage = voltage
+                battery_info.SOH = int(100)
                 # 发步电池数据给rbk
                 self.publish(battery_info)
                 # 清空缓冲区列表

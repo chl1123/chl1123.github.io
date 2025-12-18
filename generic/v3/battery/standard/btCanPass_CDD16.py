@@ -39,6 +39,7 @@ class CanBattery(cb.CanBase):
             self.battery_info.chargeVoltage = voltage
             self.battery_info.chargeCurrent = current
             self.battery_info.percentage = percentage
+            self.battery_info.SOH = int(100)
             self.msg_ok = True
         elif canframe.id == 0x1806E5F4:
             self.clearTimeout()

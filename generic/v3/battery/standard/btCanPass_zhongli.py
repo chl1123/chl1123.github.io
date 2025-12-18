@@ -60,6 +60,7 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
             self.battery_info.percentage = percentage  # 传入电池电量百分比
             self.battery_info.chargeVoltage = voltage  # 传入电池电压
             self.battery_info.chargeCurrent = current  # 传入电池电流
+            self.battery_info.SOH = int(100)
             for i in range(8):
                 if cu.getBitVal(canframe.data[7], i) == 1:
                     if i == 0:

@@ -3,7 +3,7 @@ import os
 import time
 from typing import Tuple
 
-RBK_INFO_FILE = "/opt/.data/rbk/private/system/info.json"
+RBK_INFO_FILE = "/opt/.data/rbk/private/version/robokit.json"
 # 获取RBK版本参数
 DEFAULT_RBK_VERSION = 3  # 获取失败后的默认版本
 MAX_RETRIES = 30  # 最大重试次数
@@ -25,9 +25,9 @@ def read_rbk_version_from_file(max_retries: int, retry_interval: float) -> Tuple
             if os.path.exists(RBK_INFO_FILE):
                 with open(RBK_INFO_FILE, 'r') as f:
                     info = json.load(f)
-                rbk_full_version = info.get("robokitVersion")
+                rbk_full_version = info.get("version")
                 if rbk_full_version is not None:
-                    rbk_version = int(rbk_full_version.split("v")[1].split(".")[0])
+                    rbk_version = int(rbk_full_version.split(".")[0])
                     if rbk_version is not None:
                         return rbk_version, rbk_full_version
         except json.JSONDecodeError:
@@ -41,7 +41,7 @@ def read_rbk_version_from_file(max_retries: int, retry_interval: float) -> Tuple
             time.sleep(retry_interval)
 
     print(f"Failed to get valid RBK version info after {max_retries} attempts")
-    return DEFAULT_RBK_VERSION, "vx"
+    return DEFAULT_RBK_VERSION, "x"
 
 
 RBK_VERSION, RBK_FULL_VERSION = read_rbk_version_from_file(MAX_RETRIES, RETRY_INTERVAL)

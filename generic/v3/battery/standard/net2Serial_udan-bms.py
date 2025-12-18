@@ -71,6 +71,7 @@ class Battery(bb.batteryBase):
                         self.data_buff = []
                         self.msg_ok = True
                         self.rec_flag[2]=True
+                self.battery_info.SOH = int(100)
             else:
                 self.data_buff = []
 

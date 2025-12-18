@@ -160,7 +160,7 @@ class ScriptParam:
         """加载配置参数"""
         if not os.path.exists(self.config_file):
             raise FileNotFoundError(f"Config file not found: {self.config_file}")
-        if not self.config_full_params:
+        if not self.config_full_params or not ScriptParam.event_task_config:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 config_data = json.load(f)
             # 使用ParamValidator验证配置

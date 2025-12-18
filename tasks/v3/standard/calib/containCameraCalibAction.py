@@ -34,6 +34,12 @@ log = Logger("goLineCalibAction")
         "unit":"deg",
         "maxValue":80.0,
         "minValue":10.0
+    },
+    "isContorller3000": {
+        "value": false,
+        "tips": "Whether is SRC3000 contorller?",
+        "type": "bool",
+        "unit": ""
     }
 }
 ####END DEFAULT ARGS####
@@ -82,6 +88,7 @@ class CalibMove:
             self.cur_angle = self.step_angle
             self.angle = Module.getTaskArgs("angle", 50.0)
             self.motor_name = Module.getTaskArgs("name","Motor-003")
+            self.isContorller3000 = Module.getTaskArgs("isContorller3000",False)
             self.cancel = False
 
         # 实时运行
@@ -126,13 +133,19 @@ class CalibMove:
             if self.move_action == MoveAction.Start or \
                 self.move_action == MoveAction.Rotate or \
                 self.move_action == MoveAction.RevRotate:
-                Do.setDo("DO-005", True)
+                if self.isContorller3000:
+                    Do.setDo("DO-005", True)
+                else:
+                    Do.setDo("DO-004", True)
                 record_status =  Navigation.calibRecord()
                 if not record_status:
                     self.status = ScriptStatus.RUNNING
                     return ScriptStatus.RUNNING
                 else:
-                    Do.setDo("DO-005", False)
+                    if self.isContorller3000:
+                        Do.setDo("DO-005", False)
+                    else:
+                        Do.setDo("DO-004", True)
                 if self.move_action == MoveAction.Rotate or self.move_action == MoveAction.RevRotate:
                     if self.cur_angle < self.angle:
                         self.cur_angle = self.cur_angle + self.step_angle

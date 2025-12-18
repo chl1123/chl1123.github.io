@@ -3,6 +3,7 @@
 
 import sys
 _b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+from google.protobuf.internal import enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
@@ -19,10 +20,206 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x10message_io.proto\x12\x0crbk.protocol\"\xfd\x01\n\tmsgDINode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0c\n\x04\x66unc\x18\x07 \x01(\t\x12\x0c\n\x04type\x18\x08 \x01(\t\x12\x0e\n\x06source\x18\t \x01(\t\x12\r\n\x05shape\x18\n \x01(\t\x12\x0f\n\x07minDist\x18\x0b \x01(\x01\x12\x0f\n\x07maxDist\x18\x0c \x01(\x01\x12\r\n\x05range\x18\r \x01(\x01\x12\x0c\n\x04posX\x18\x0e \x03(\x01\x12\x0c\n\x04posY\x18\x0f \x03(\x01\x12\x11\n\tforbidden\x18\x10 \x01(\x08\x12\x0b\n\x03key\x18\x12 \x01(\t\"?\n\x05msgDI\x12%\n\x04node\x18\x01 \x03(\x0b\x32\x17.rbk.protocol.msgDINode\x12\x0f\n\x07maxNode\x18\x02 \x01(\r\"R\n\tmsgDONode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\x0e\n\x06source\x18\x03 \x01(\t\x12\x0c\n\x04lock\x18\x04 \x01(\x08\x12\x0b\n\x03key\x18\x06 \x01(\t\"?\n\x05msgDO\x12%\n\x04node\x18\x01 \x03(\x0b\x32\x17.rbk.protocol.msgDONode\x12\x0f\n\x07maxNode\x18\x02 \x01(\rb\x06proto3')
+  serialized_pb=_b('\n\x10message_io.proto\x12\x0crbk.protocol\"*\n\tmsgIOPair\x12\r\n\x05\x66irst\x18\x01 \x01(\r\x12\x0e\n\x06second\x18\x02 \x01(\r\"\x91\x01\n\x0fmsgIOConfigNode\x12 \n\x03\x64ir\x18\x01 \x01(\x0e\x32\x13.rbk.protocol.IODir\x12$\n\x06ioType\x18\x02 \x01(\x0e\x32\x14.rbk.protocol.IOType\x12\x0f\n\x07maxNode\x18\x03 \x01(\x05\x12%\n\x04pair\x18\x04 \x03(\x0b\x32\x17.rbk.protocol.msgIOPair\":\n\x0bmsgIOConfig\x12+\n\x04node\x18\x01 \x03(\x0b\x32\x1d.rbk.protocol.msgIOConfigNode\"\x85\x02\n\tmsgDINode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12$\n\x06ioType\x18\x07 \x01(\x0e\x32\x14.rbk.protocol.IOType\x12\x0c\n\x04type\x18\x08 \x01(\t\x12\r\n\x05shape\x18\t \x01(\t\x12\x0f\n\x07minDist\x18\n \x01(\x01\x12\x0f\n\x07maxDist\x18\x0b \x01(\x01\x12\r\n\x05range\x18\x0c \x01(\x01\x12\x0c\n\x04posX\x18\r \x03(\x01\x12\x0c\n\x04posY\x18\x0e \x03(\x01\x12\x11\n\tforbidden\x18\x0f \x01(\x08\x12\x0b\n\x03key\x18\x10 \x01(\t\"?\n\x05msgDI\x12%\n\x04node\x18\x01 \x03(\x0b\x32\x17.rbk.protocol.msgDINode\x12\x0f\n\x07maxNode\x18\x02 \x01(\r\"h\n\tmsgDONode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12$\n\x06ioType\x18\x03 \x01(\x0e\x32\x14.rbk.protocol.IOType\x12\x0c\n\x04lock\x18\x04 \x01(\x08\x12\x0b\n\x03key\x18\x06 \x01(\t\"?\n\x05msgDO\x12%\n\x04node\x18\x01 \x03(\x0b\x32\x17.rbk.protocol.msgDONode\x12\x0f\n\x07maxNode\x18\x02 \x01(\r*d\n\x06IOType\x12\n\n\x06Normal\x10\x00\x12\x0b\n\x07Virtual\x10\x01\x12\n\n\x06Modbus\x10\x02\x12\x0c\n\x08\x45therCAT\x10\x03\x12\x0b\n\x07SaftyIO\x10\n\x12\x08\n\x04\x46SoE\x10\x0b\x12\x10\n\x0c\x43\x41NOpenSafty\x10\x0c*\x17\n\x05IODir\x12\x06\n\x02\x44I\x10\x00\x12\x06\n\x02\x44O\x10\x01\x62\x06proto3')
+)
+
+_IOTYPE = _descriptor.EnumDescriptor(
+  name='IOType',
+  full_name='rbk.protocol.IOType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='Normal', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='Virtual', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='Modbus', index=2, number=2,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='EtherCAT', index=3, number=3,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='SaftyIO', index=4, number=10,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='FSoE', index=5, number=11,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='CANOpenSafty', index=6, number=12,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=786,
+  serialized_end=886,
+)
+_sym_db.RegisterEnumDescriptor(_IOTYPE)
+
+IOType = enum_type_wrapper.EnumTypeWrapper(_IOTYPE)
+_IODIR = _descriptor.EnumDescriptor(
+  name='IODir',
+  full_name='rbk.protocol.IODir',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='DI', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='DO', index=1, number=1,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=888,
+  serialized_end=911,
+)
+_sym_db.RegisterEnumDescriptor(_IODIR)
+
+IODir = enum_type_wrapper.EnumTypeWrapper(_IODIR)
+Normal = 0
+Virtual = 1
+Modbus = 2
+EtherCAT = 3
+SaftyIO = 10
+FSoE = 11
+CANOpenSafty = 12
+DI = 0
+DO = 1
+
+
+
+_MSGIOPAIR = _descriptor.Descriptor(
+  name='msgIOPair',
+  full_name='rbk.protocol.msgIOPair',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='first', full_name='rbk.protocol.msgIOPair.first', index=0,
+      number=1, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='second', full_name='rbk.protocol.msgIOPair.second', index=1,
+      number=2, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=34,
+  serialized_end=76,
 )
 
 
+_MSGIOCONFIGNODE = _descriptor.Descriptor(
+  name='msgIOConfigNode',
+  full_name='rbk.protocol.msgIOConfigNode',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='dir', full_name='rbk.protocol.msgIOConfigNode.dir', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='ioType', full_name='rbk.protocol.msgIOConfigNode.ioType', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='maxNode', full_name='rbk.protocol.msgIOConfigNode.maxNode', index=2,
+      number=3, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='pair', full_name='rbk.protocol.msgIOConfigNode.pair', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=79,
+  serialized_end=224,
+)
+
+
+_MSGIOCONFIG = _descriptor.Descriptor(
+  name='msgIOConfig',
+  full_name='rbk.protocol.msgIOConfig',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='node', full_name='rbk.protocol.msgIOConfig.node', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=226,
+  serialized_end=284,
+)
 
 
 _MSGDINODE = _descriptor.Descriptor(
@@ -75,9 +272,9 @@ _MSGDINODE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='func', full_name='rbk.protocol.msgDINode.func', index=6,
-      number=7, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='ioType', full_name='rbk.protocol.msgDINode.ioType', index=6,
+      number=7, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -89,64 +286,57 @@ _MSGDINODE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='source', full_name='rbk.protocol.msgDINode.source', index=8,
+      name='shape', full_name='rbk.protocol.msgDINode.shape', index=8,
       number=9, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='shape', full_name='rbk.protocol.msgDINode.shape', index=9,
-      number=10, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='minDist', full_name='rbk.protocol.msgDINode.minDist', index=9,
+      number=10, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='minDist', full_name='rbk.protocol.msgDINode.minDist', index=10,
+      name='maxDist', full_name='rbk.protocol.msgDINode.maxDist', index=10,
       number=11, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='maxDist', full_name='rbk.protocol.msgDINode.maxDist', index=11,
+      name='range', full_name='rbk.protocol.msgDINode.range', index=11,
       number=12, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='range', full_name='rbk.protocol.msgDINode.range', index=12,
-      number=13, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
+      name='posX', full_name='rbk.protocol.msgDINode.posX', index=12,
+      number=13, type=1, cpp_type=5, label=3,
+      has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='posX', full_name='rbk.protocol.msgDINode.posX', index=13,
+      name='posY', full_name='rbk.protocol.msgDINode.posY', index=13,
       number=14, type=1, cpp_type=5, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='posY', full_name='rbk.protocol.msgDINode.posY', index=14,
-      number=15, type=1, cpp_type=5, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='forbidden', full_name='rbk.protocol.msgDINode.forbidden', index=15,
-      number=16, type=8, cpp_type=7, label=1,
+      name='forbidden', full_name='rbk.protocol.msgDINode.forbidden', index=14,
+      number=15, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='key', full_name='rbk.protocol.msgDINode.key', index=16,
-      number=18, type=9, cpp_type=9, label=1,
+      name='key', full_name='rbk.protocol.msgDINode.key', index=15,
+      number=16, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -163,8 +353,8 @@ _MSGDINODE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=35,
-  serialized_end=288,
+  serialized_start=287,
+  serialized_end=548,
 )
 
 
@@ -201,8 +391,8 @@ _MSGDI = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=290,
-  serialized_end=353,
+  serialized_start=550,
+  serialized_end=613,
 )
 
 
@@ -228,9 +418,9 @@ _MSGDONODE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='source', full_name='rbk.protocol.msgDONode.source', index=2,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='ioType', full_name='rbk.protocol.msgDONode.ioType', index=2,
+      number=3, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -260,8 +450,8 @@ _MSGDONODE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=355,
-  serialized_end=437,
+  serialized_start=615,
+  serialized_end=719,
 )
 
 
@@ -298,17 +488,49 @@ _MSGDO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=439,
-  serialized_end=502,
+  serialized_start=721,
+  serialized_end=784,
 )
 
+_MSGIOCONFIGNODE.fields_by_name['dir'].enum_type = _IODIR
+_MSGIOCONFIGNODE.fields_by_name['ioType'].enum_type = _IOTYPE
+_MSGIOCONFIGNODE.fields_by_name['pair'].message_type = _MSGIOPAIR
+_MSGIOCONFIG.fields_by_name['node'].message_type = _MSGIOCONFIGNODE
+_MSGDINODE.fields_by_name['ioType'].enum_type = _IOTYPE
 _MSGDI.fields_by_name['node'].message_type = _MSGDINODE
+_MSGDONODE.fields_by_name['ioType'].enum_type = _IOTYPE
 _MSGDO.fields_by_name['node'].message_type = _MSGDONODE
+DESCRIPTOR.message_types_by_name['msgIOPair'] = _MSGIOPAIR
+DESCRIPTOR.message_types_by_name['msgIOConfigNode'] = _MSGIOCONFIGNODE
+DESCRIPTOR.message_types_by_name['msgIOConfig'] = _MSGIOCONFIG
 DESCRIPTOR.message_types_by_name['msgDINode'] = _MSGDINODE
 DESCRIPTOR.message_types_by_name['msgDI'] = _MSGDI
 DESCRIPTOR.message_types_by_name['msgDONode'] = _MSGDONODE
 DESCRIPTOR.message_types_by_name['msgDO'] = _MSGDO
+DESCRIPTOR.enum_types_by_name['IOType'] = _IOTYPE
+DESCRIPTOR.enum_types_by_name['IODir'] = _IODIR
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
+
+msgIOPair = _reflection.GeneratedProtocolMessageType('msgIOPair', (_message.Message,), dict(
+  DESCRIPTOR = _MSGIOPAIR,
+  __module__ = 'message_io_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgIOPair)
+  ))
+_sym_db.RegisterMessage(msgIOPair)
+
+msgIOConfigNode = _reflection.GeneratedProtocolMessageType('msgIOConfigNode', (_message.Message,), dict(
+  DESCRIPTOR = _MSGIOCONFIGNODE,
+  __module__ = 'message_io_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgIOConfigNode)
+  ))
+_sym_db.RegisterMessage(msgIOConfigNode)
+
+msgIOConfig = _reflection.GeneratedProtocolMessageType('msgIOConfig', (_message.Message,), dict(
+  DESCRIPTOR = _MSGIOCONFIG,
+  __module__ = 'message_io_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgIOConfig)
+  ))
+_sym_db.RegisterMessage(msgIOConfig)
 
 msgDINode = _reflection.GeneratedProtocolMessageType('msgDINode', (_message.Message,), dict(
   DESCRIPTOR = _MSGDINODE,

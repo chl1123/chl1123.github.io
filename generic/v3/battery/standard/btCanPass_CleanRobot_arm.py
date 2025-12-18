@@ -42,6 +42,7 @@ class CanBattery(cb.CanBase):
             self.battery_info.percentage = percentage
             self.battery_info.temperature = temperature
             self.battery_info.isCharging = isCharging
+            self.battery_info.SOH = int(100)
             self.publish(self.battery_info)
             self.msg_ok = True
 

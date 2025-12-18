@@ -94,6 +94,7 @@ class Battery(bb.batteryBase):
             self.battery_info.temperature = self.max_temp #temperature
             self.battery_info.chargeCurrent = self.current
             self.battery_info.chargeVoltage = self.voltage
+            self.battery_info.SOH = int(100)
             #发步电池数据给rbk
             self.publish(self.battery_info)  
             #清空缓冲区列表

@@ -831,6 +831,19 @@ class NavigationV3(NavigationInterface):
         """
         pass
 
+    @classmethod
+    @call_service()
+    def getLmTcpName(cls, lm_name: str) -> str:
+        """根据站点名称获取TCP名称
+
+        Args:
+            lm_name (str): 站点名称
+
+        Returns:
+            (str): TCP名称，如果站点不存在或未设置TCP则返回空字符串
+        """
+        pass
+
 
 @default_plugin("MoveFactory")
 class NavStatusV3(NavStatusInterface):

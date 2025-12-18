@@ -30,6 +30,7 @@ class Battery(bb.batteryBase):
                 battery_info.temperature = (temp) 
                 battery_info.chargeCurrent = (current)
                 battery_info.chargeVoltage = (voltage)
+                battery_info.SOH = int(100)
                 self.publish(battery_info)  
                 self.data_buff = []
                 # print("true")
