@@ -1831,6 +1831,7 @@ class JackHeight(BaseAction):
 
             if self.target_height > config_params.jack_min_height:
                 # Navigation.setGoodsShape(0.35, 0.35, 0.5)
+                shape = None
                 if self.recfile:
                     # 路径前缀：recognitionObject.{object_key}.goodsParameter
                     recognition_goodsParameter_path = f"recognitionObject.{self.object_key}.goodsParameter"
@@ -1842,12 +1843,12 @@ class JackHeight(BaseAction):
                     shapes = json.loads(goods_shape)
                     print(f"shapes={shapes}")
                     shape = shapes[0]["points"]
-                else:
-                    shape = [
-                        {"x": 0.5, "y": 0.3},
-                        {"x": -0.5, "y": 0.3},
-                        {"x": -0.5, "y": -0.3},
-                        {"x": 0.5, "y": -0.3}]
+                # else:
+                #     shape = [
+                #         {"x": 0.5, "y": 0.3},
+                #         {"x": -0.5, "y": 0.3},
+                #         {"x": -0.5, "y": -0.3},
+                #         {"x": 0.5, "y": -0.3}]
                 Navigation.setGoodsPolyShape(shape, "shelf")
             else:
                 Navigation.clearGoodsShape()
