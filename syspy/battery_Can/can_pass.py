@@ -57,7 +57,9 @@ class CanPass():
                 self.__pass.close()
             except Exception as e:
                 log.error(f"Error shutting down passThrough: {e}")
-
+                
+    def resetBus(self):
+        log.warning("[CAN] Resetting CAN interface in passThrough mode is not supported current.")
 
 if __name__ == "__main__":
     pass

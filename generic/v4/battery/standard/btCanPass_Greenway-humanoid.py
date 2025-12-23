@@ -43,7 +43,7 @@ class CanBattery(cb.CanBase):
         super(CanBattery, self).__init__()
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(2000)
-        self.reinit_interface_t = mu.Timer(4000)
+        self.reset_timeout_t = mu.Timer(6000)
         self.id1 = self.id2 = self.id3 = self.id4 = self.msg_ok = self.msg_userdata = self.wake_up = self.clear = False
         self.first = True
         # self.port = self.getBatteryCanPort()
@@ -197,7 +197,7 @@ class CanBattery(cb.CanBase):
             # 清除超时错误,重置标志位
             self.msg_ok = False
             self.connect_timeout_t.reset()
-            self.reinit_interface_t.reset()
+            self.reset_timeout_t.reset()
             self.wake_up = False
             log.info("Receive Success")
             if not self.clear:
@@ -217,9 +217,10 @@ class CanBattery(cb.CanBase):
                     self.clear = False
                     log.error('timeout')
                     self.setTimeout()
-            if self.reinit_interface_t.isTimeUp():
-                self.close()
-                raise RestartException("can down")
+            if self.reset_timeout_t.isTimeUp():
+                log.warning("No complete data received for an extended period, resetting CAN bus.")
+                self.reset_timeout_t.reset()
+                self.resetBus()
 
     def loop(self):
         mu.sleepS(1)
@@ -234,11 +235,5 @@ class CanBattery(cb.CanBase):
 
 if __name__ == '__main__':
     while True:
-        try:
-            client = CanBattery()
-            client.loop()
-        except RestartException as e:
-            log.error(f"Restarting due to: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error: {e}")
-            mu.sleepS(2)
+        client = CanBattery()
+        client.loop()

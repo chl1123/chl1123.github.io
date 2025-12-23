@@ -1,6 +1,6 @@
 import logging
 import can
-
+import syspy.lib.misc_utility as mu
 log = logging.getLogger("rbk.script")
 
 
@@ -13,6 +13,7 @@ class CanNative():
         self.notifier = None
         self.channel = None
         self.bitrate = None
+        self.bus_guardT = mu.Timer(1000)
 
     def setCallBack(self, handleData):
         if callable(handleData):
@@ -30,7 +31,34 @@ class CanNative():
         self.bitrate = bitrate
         self.bus = can.interface.Bus(bustype='socketcan', channel=self.channel, bitrate=self.bitrate, receive_own_messages=False)
         self.notifier = can.Notifier(self.bus, [self.__on_message_received], timeout=5)
-
+    
+    
+    def is_bus_off(self):
+        import subprocess
+        try:
+            out = subprocess.check_output(
+                ["ip", "-details", "link", "show", self.channel],
+                text=True
+            )
+            return "BUS-OFF" in out
+        except Exception:
+            return False
+    
+    def hard_reset_can(self):
+        import subprocess, time
+        subprocess.call(["ip", "link", "set", self.channel, "down"])
+        time.sleep(0.1)
+        subprocess.call([
+            "ip", "link", "set", self.channel, "up",
+            "type", "can", "bitrate", str(self.bitrate)
+        ])
+    
+    def check_and_reset_bus(self):
+        if self.bus_guardT.isTimeUp():
+            self.bus_guardT.reset()
+            if self.is_bus_off():
+                log.warning(f"[CAN] Detected BUS-OFF state on {self.channel}, performing hard reset.")
+                self.hard_reset_can()
     # unused filter cuz bus set_filters already done
     #  def can_filter(self, msg):
     #      return msg.arbitration_id in self.can_ids
@@ -49,15 +77,12 @@ class CanNative():
         self.bus.set_filters(filters)
         log.info(f"Attached CAN IDs: {[hex(id) for id in self.can_ids]}")
 
-    def __resetBus(self):
+    def resetBus(self):
         """重启 CAN 接口并重新创建 bus"""
         try:
-            if self.notifier:
-                self.notifier.stop()
-            if self.bus:
-                self.bus.shutdown()
-        except Exception:
-            pass
+            self.close()
+        except Exception as e:
+            log.warning("Failed to reset CAN bus: {e}")
 
         log.warning("[CAN] Resetting CAN interface due to tx buffer full")
         self.createCanBus(self.channel,self.bitrate)
@@ -74,7 +99,7 @@ class CanNative():
         except can.CanError as e:
             log.error(f"Send failed: {e}")
             if "buffer" in str(e).lower():
-                self.__resetBus()
+                self.resetBus()
                 log.info(f'please check can bus connection, the tx buffer is full due to unsuccess communication')
 
         

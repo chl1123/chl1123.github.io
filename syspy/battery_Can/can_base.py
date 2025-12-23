@@ -178,7 +178,8 @@ class CanBase:
 
     def isNeedCharge(self):
         return self.need_charge
-
+    def resetBus(self):
+        self.child.resetBus()
     def close(self):
         self.child.close()
 
