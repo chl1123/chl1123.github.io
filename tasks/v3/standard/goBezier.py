@@ -4,7 +4,7 @@ import time
 
 from syspy.script_data import ScriptData
 from syspy import Navigation, Loc, Abnormal, Module, ScriptStatus, Trace
-from syspy.lib.module import pos2World
+from syspy.lib.module import pos2World, pos2Base
 
 log = logging.getLogger("rbk.script")
 
@@ -17,7 +17,7 @@ class GoBezierWorld:
     def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.0,
                  is_backwards=False, is_hold_dir=None,
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3,
-                 path_dist_accuracy=0.005, path_angle_accuracy=math.radians(0.5), alpha=0.25):
+                 path_dist_accuracy=0.005, path_angle_accuracy=0.5, alpha=0.25):
         del target_world[3:]
         self.action_name = self.__class__.__name__
 
@@ -37,7 +37,7 @@ class GoBezierWorld:
         self.decele_dist = decele_dist
         self.curvature_limit = curvature_limit
         self.path_dist_accuracy = path_dist_accuracy
-        self.path_angle_accuracy = path_angle_accuracy
+        self.path_angle_accuracy = math.radians(path_angle_accuracy)
 
         self.action_status = ScriptStatus.NONE
         self.init = True
@@ -76,7 +76,7 @@ class GoBezierWorld:
         offset_step = 0.1
         p0_xy = p1_xy = p2_xy = p3_xy = [0, 0]
 
-        xs_bez, ys_bez =[],[]
+        xs_bez, ys_bez = [], []
 
         while self.offset_dist <= max_offset:
             # 起点从(0, 0)往后移，作为新的P0
@@ -117,7 +117,7 @@ class GoBezierWorld:
         #     return
 
         self.bezier_end_x, self.bezier_end_y = xs_bez[-1], ys_bez[-1]
-        Trace.log(f"bezier end point:{self.bezier_end_x,self.bezier_end_y}")
+        Trace.log(f"bezier end point:{self.bezier_end_x, self.bezier_end_y}")
 
         # 贝塞尔末端点
         p0 = [xs_bez[-1], ys_bez[-1]]
@@ -152,7 +152,7 @@ class GoBezierWorld:
         x1, y1 = p1[0], p1[1]
         x2, y2 = self.end_position_world[0], self.end_position_world[1]
         self.x_end, self.y_end = x2, y2
-        Trace.log(f"line begin:{p1}, line end:{self.x_end,self.y_end}")
+        Trace.log(f"line begin:{p1}, line end:{self.x_end, self.y_end}")
 
         # 直线插值点数量
         num_points = 500
@@ -174,7 +174,6 @@ class GoBezierWorld:
         self.ys = ys_bez + y_tran + ys_line
         self.xs, self.ys = self.resample_equal_arc(self.xs, self.ys, ds=0.003)
 
-
         # 成功构造路径,需要将路径分为2段，第一段后退至贝塞尔起始点
         self.control_point = [p0_xy, p1_xy, p2_xy, p3_xy]
         # 记录第一个倒退点
@@ -187,11 +186,11 @@ class GoBezierWorld:
         self.initial_point_world_return = self.robot_loc
         self.bezier_path_world_return = [self.xs_ret, self.ys_ret, self.robot_loc[2]]
         ScriptData.set("goBezier", {"bezier_path_world_return": self.bezier_path_world_return,
-                                    "initial_point_world_return": self.initial_point_world_return})
+                                    "initial_point_world_return": self.initial_point_world_return,
+                                    "finalPos": self.end_position_world})
         Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
 
-
-    def resample_equal_arc(self,xs, ys, ds=0.01):
+    def resample_equal_arc(self, xs, ys, ds=0.01):
         new_x = [xs[0]]
         new_y = [ys[0]]
 
@@ -240,7 +239,7 @@ class GoBezierWorld:
         x0, y0, th0 = p0
         x3, y3, th3 = p3
 
-         # 端点间直线距离
+        # 端点间直线距离
         dist = math.hypot(x3 - x0, y3 - y0)
         d = alpha * dist  # 控制点到端点的绝对距离
 
@@ -250,21 +249,13 @@ class GoBezierWorld:
 
         return [p0, p1, p2, p3]  # 去掉角度，只留坐标
 
-        # x0, y0, th0 = p0
-        # x3, y3, th3 = p3
-        # dist = math.hypot(x3 - x0, y3 - y0)
-        # d = alpha * dist
-        # p1 = [x0 + d * math.cos(th0), y0 + d * math.sin(th0)]
-        # p2 = [x3 + d * math.cos(th3), y3 + d * math.sin(th3)]
-        #  [p0, p1, p2, p3]
-
     def bezier_points_cubic(self, p0, p1, p2, p3, steps=500):
         xs, ys = [], []
         for i in range(steps + 1):
             t = i / steps
             one = 1 - t
-            x = one**3*p0[0] + 3*one**2*t*p1[0] + 3*one*t**2*p2[0] + t**3*p3[0]
-            y = one**3*p0[1] + 3*one**2*t*p1[1] + 3*one*t**2*p2[1] + t**3*p3[1]
+            x = one ** 3 * p0[0] + 3 * one ** 2 * t * p1[0] + 3 * one * t ** 2 * p2[0] + t ** 3 * p3[0]
+            y = one ** 3 * p0[1] + 3 * one ** 2 * t * p1[1] + 3 * one * t ** 2 * p2[1] + t ** 3 * p3[1]
             xs.append(x)
             ys.append(y)
         return xs, ys
@@ -276,25 +267,25 @@ class GoBezierWorld:
             t = i / steps
             one = 1 - t
 
-            dx_dt = (3*(p1[0] - p0[0])*one**2 +
-                     6*(p2[0] - p1[0])*one*t +
-                     3*(p3[0] - p2[0])*t**2)
+            dx_dt = (3 * (p1[0] - p0[0]) * one ** 2 +
+                     6 * (p2[0] - p1[0]) * one * t +
+                     3 * (p3[0] - p2[0]) * t ** 2)
 
-            dy_dt = (3*(p1[1] - p0[1])*one**2 +
-                     6*(p2[1] - p1[1])*one*t +
-                     3*(p3[1] - p2[1])*t**2)
+            dy_dt = (3 * (p1[1] - p0[1]) * one ** 2 +
+                     6 * (p2[1] - p1[1]) * one * t +
+                     3 * (p3[1] - p2[1]) * t ** 2)
 
-            ddx_dt = (6*(p2[0] - 2*p1[0] + p0[0])*one +
-                      6*(p3[0] - 2*p2[0] + p1[0])*t)
+            ddx_dt = (6 * (p2[0] - 2 * p1[0] + p0[0]) * one +
+                      6 * (p3[0] - 2 * p2[0] + p1[0]) * t)
 
-            ddy_dt = (6*(p2[1] - 2*p1[1] + p0[1])*one +
-                      6*(p3[1] - 2*p2[1] + p1[1])*t)
+            ddy_dt = (6 * (p2[1] - 2 * p1[1] + p0[1]) * one +
+                      6 * (p3[1] - 2 * p2[1] + p1[1]) * t)
 
-            denom = (dx_dt*dx_dt + dy_dt*dy_dt)**1.5
+            denom = (dx_dt * dx_dt + dy_dt * dy_dt) ** 1.5
             if denom < 1e-9:
                 k = 0
             else:
-                k = abs(dx_dt*ddy_dt - dy_dt*ddx_dt) / denom
+                k = abs(dx_dt * ddy_dt - dy_dt * ddx_dt) / denom
 
             # self.k_list.append(k)
             kmax = max(kmax, k)
@@ -410,16 +401,15 @@ class GoBezierWorld:
         dx = 3 * (p3[0] - p2[0])
         dy = 3 * (p3[1] - p2[1])
 
-        ddx = 6 * (p3[0] - 2*p2[0] + p1[0])
-        ddy = 6 * (p3[1] - 2*p2[1] + p1[1])
+        ddx = 6 * (p3[0] - 2 * p2[0] + p1[0])
+        ddy = 6 * (p3[1] - 2 * p2[1] + p1[1])
 
-        denom = (dx*dx + dy*dy)**1.5
+        denom = (dx * dx + dy * dy) ** 1.5
         if denom < 1e-9:
             return 0.0
 
         k_end = abs(dx * ddy - dy * ddx) / denom
         return k_end
-
 
     def run(self):
         self.action_status = ScriptStatus.RUNNING
@@ -436,9 +426,9 @@ class GoBezierWorld:
             Navigation.setPathOnWorld([self.robot_loc[0], self.xs[0]],
                                       [self.robot_loc[1], self.ys[0]],
                                       self.robot_loc[2])
-            self.param["maxAcc"] = float(self.max_accele)
-            self.param["maxDec"] = float(self.max_decele)
-            Navigation.goPathParam(self.param)
+            # self.param["maxAcc"] = float(self.max_accele)
+            # self.param["maxDec"] = float(self.max_decele)
+            # Navigation.goPathParam(self.param)
 
         # 行走到第一个倒退点后规划贝塞尔路径参数
         if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
@@ -456,30 +446,18 @@ class GoBezierWorld:
                     self.end_position_world[2] += math.pi
                     self.end_position_world[2] = (self.end_position_world[2] + math.pi) % (2 * math.pi) - math.pi
                 Navigation.setPathOnWorld(self.xs, self.ys, self.end_position_world[2])
-                self.param["maxAcc"] = float(self.max_accele)
-                self.param["maxDec"] = float(self.max_decele)
-                Navigation.goPathParam(self.param)
+                # self.param["maxAcc"] = float(self.max_accele)
+                # self.param["maxDec"] = float(self.max_decele)
+                # Navigation.goPathParam(self.param)
 
         # 行走第二段贝塞尔路径
         if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走贝塞尔到终点
             is_reached = Navigation.isPathReached()
-            # Trace.log(f"is_reached={is_reached}")
             # 获取机器人位置（world系）
-            self.robot_final_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             if is_reached:
-
-                # 将贝塞尔的路径数据传入scriptData
-
-                # ScriptData.set("goBezier", {"bezier_path_world_return": self.bezier_path_world_return,
-                #                             "initial_point_world_return": self.initial_point_world_return,
-                #                             "robot_final_loc": self.robot_final_loc})
-                # Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
                 self.action_status = ScriptStatus.FINISHED
-            else:
-                self.action_status = ScriptStatus.RUNNING
 
             robot_current_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
-            # robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
             dist_cur_loc_end_loc = math.hypot(
                 self.end_position_world[0] - robot_current_loc[0],
                 self.end_position_world[1] - robot_current_loc[1]
@@ -488,19 +466,16 @@ class GoBezierWorld:
                 self.is_set_min_speed = True
                 Navigation.setPathMaxSpeed(0.1)
 
-
-            # self.robot_final_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
-
         return self.action_status
 
     def cancel(self):
-        Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
         Navigation.resetPath()
         self.action_status = ScriptStatus.FAILED
 
     def reset(self):
         Navigation.resetPath()
         self.action_status = ScriptStatus.RUNNING
+
 
 def vec_normal(v):
     return [-v[1], v[0]]
@@ -512,7 +487,7 @@ def vec_scale(v, s):
 
 # C2 连续过渡段：Quintic Hermite
 def quintic_transition(p0, v0, k0, p1, v1, steps=200):
-    print(p0, v0, k0, p1, v1,)
+    print(p0, v0, k0, p1, v1, )
 
     x0, y0 = p0
     x1, y1 = p1
@@ -561,7 +536,6 @@ class GoBezierWorldReturn:
         self.end_position_robot = [0, 0, 0]
         self.action_name = self.__class__.__name__
 
-        self.go_bezier_data = None
         self.bezier_target_pos_return = None
         self.bezier_path_world_return = None
         self.go_bezier_final_pos = None
@@ -587,23 +561,23 @@ class GoBezierWorldReturn:
         self.action_status = ScriptStatus.RUNNING
         if self.init:
             self.init = False
-            # self.go_bezier_data = json.loads(ScriptData.get("goBezier")) #后续在ScriptData.get格式改为dict后删除json.loads
-            self.go_bezier_data = ScriptData.get("goBezier")  # 后续在ScriptData.get格式改为dict后删除json.loads
-            if self.go_bezier_data is not None:
-                self.bezier_target_pos_return = self.go_bezier_data["initial_point_world_return"]
-                bezier_path_world_return = self.go_bezier_data["bezier_path_world_return"]
+            go_bezier_data = ScriptData.get("goBezier")  # 后续在ScriptData.get格式改为dict后删除json.loads
+            if go_bezier_data is not None:
+                self.bezier_target_pos_return = go_bezier_data["initial_point_world_return"]
+                bezier_path_world_return = go_bezier_data["bezier_path_world_return"]
             else:
-                Abnormal.setTask(53901,"no bezier route record, script failed","scriptdata is none","","")
+                Abnormal.setTask(53901, "no bezier route record, script failed",
+                                 "script data is none", "walk bezier first, or check the script data", "")
                 self.action_status = ScriptStatus.FAILED
                 return
-            # go_bezier_final_pos = self.go_bezier_data["robot_final_loc"]
-            # self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
-            # self.robot_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
-            # Trace.log(f"robotloc:{self.robot_loc},go_bezier_final_pos:{go_bezier_final_pos}")
-            # dist_bias = math.sqrt((go_bezier_final_pos[0] - self.robot_loc[0]) ** 2 + (
-            #             go_bezier_final_pos[1] - self.robot_loc[1]) ** 2)
-            # if dist_bias >= 0.1:
-            #     self.action_status = ScriptStatus.FAILED
+            go_bezier_final_pos = go_bezier_data.get("finalPos", [0, 0, 0])
+            self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+            r2final_pos = pos2Base(self.robot_loc, go_bezier_final_pos)
+            Trace.log(f"robot loc:{self.robot_loc},go_bezier_final_pos:{r2final_pos}")
+            if (r2final_pos[0] >= 0.5 or r2final_pos[0] <= -0.05) and abs(r2final_pos[1]) >= 0.05:
+                Abnormal.setTask(53901, "robot far from bezier path, script failed",
+                                 f"robot far from bezier path, x:{r2final_pos[0]}", "move robot to bezier path", "")
+                self.action_status = ScriptStatus.FAILED
 
             # 规划第一段倒退路线参数
             Navigation.resetPath()
@@ -620,7 +594,7 @@ class GoBezierWorldReturn:
             self.param["maxDec"] = float(self.max_decele)
             Navigation.goPathParam(self.param)
 
-        if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
+        if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:
             self.is_first_path_reached = Navigation.isPathReached()
             if self.is_first_path_reached:
                 Navigation.resetPath()
@@ -636,23 +610,13 @@ class GoBezierWorldReturn:
                 self.param["maxDec"] = float(self.max_decele)
                 Navigation.goPathParam(self.param)
 
-        if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走贝塞尔到终点
+        if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:
             is_reached = Navigation.isPathReached()
             if is_reached:
                 ScriptData.set("goBezier", {})
                 self.action_status = ScriptStatus.FINISHED
             else:
                 self.action_status = ScriptStatus.RUNNING
-
-            robot_current_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
-            # robot_current_loc = [Loc.get_position()[0], Loc.get_position()[1], math.radians(Loc.get_angle()[0])]
-            dist_cur_loc_end_loc = math.hypot(
-                self.end_position_world[0] - robot_current_loc[0],
-                self.end_position_world[1] - robot_current_loc[1]
-            )
-            if dist_cur_loc_end_loc < self.decele_dist and not self.is_set_min_speed:
-                self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(0.15)
 
         return self.action_status
 
