@@ -92,14 +92,15 @@ class ConfigParams:
                     with builder.CHILD(key="jackUpDi", name="Jack Up DI",
                                        desc="Upper limit digital input for jack"):
                         builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI"))
+                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upReachDI"))
                     # 零位DI
                     with builder.CHILD(key="jackZeroDi", name="Jack Zero DI",
                                        desc="Zero position digital input for jack"):
                         builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(
-                            RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{reset_by_speed}.zeroDI"),
-                            min_value=0, max_value=31)
+                        # builder.DEFAULTVALUE(
+                        #     RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{reset_by_speed}.zeroDI"),
+                        #     min_value=0, max_value=31)
+                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.downReachDI"))
 
         builder.save(merge=True)
         cls.reload_config()
