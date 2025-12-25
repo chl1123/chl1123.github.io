@@ -3,7 +3,7 @@ import math
 from enum import Enum, IntEnum
 import json
 import time
-from syspy import Navigation, Logger,Module,ScriptStatus
+from syspy import Navigation, Logger,Module,ScriptStatus,RobotParam
 
 log = Logger("oneGoLineCalibAction")
 
@@ -76,8 +76,13 @@ class CalibMove:
             if self.locType != "" and self.locName != "":
                 policy = dict()
                 if self.locType == "Laser":
-                    policy = {"localization.localizationType": "laser2d",
-                              "localization.localizationType.laser2d.localizationLaser": self.locName}
+                    localization_type = RobotParam.getConfig("localization", "localizationType")
+                    if localization_type == "reflector":
+                        policy = {"localization.localizationType": "reflector",
+                                "localization.localizationType.reflector.localizationLaser": self.locName}
+                    else:
+                        policy = {"localization.localizationType": "laser2d",
+                                "localization.localizationType.laser2d.localizationLaser": self.locName}
                 elif self.locType == "Camera":
                     policy = {"localization.localizationType": "laser3d",
                               "localization.localizationType.laser3d.localizationLaser": self.locName}
