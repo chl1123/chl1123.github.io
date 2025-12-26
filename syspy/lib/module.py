@@ -127,7 +127,7 @@ class Module:
         caller_frame = stack()[1]
         caller_file = caller_frame.filename
         # 获取脚本相对路径
-        cls.script_name = caller_file.split(SCRIPTS_DIR + "/")[-1]
+        cls.script_name = caller_file.split(SCRIPTS_DIR)[-1]
         if cls.script_name.startswith("tasks/"):
             cls.script_type = ScriptType.TASK
         if name == "":
@@ -335,7 +335,6 @@ class Module:
             "moveStatus": status.value,
             "taskId": cls.__task_id
         }
-        print("report data:", data)
         if cls.script_name:
             if cls.__rpc_client is None:
                 # todo V3独有？

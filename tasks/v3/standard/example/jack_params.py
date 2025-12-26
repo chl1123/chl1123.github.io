@@ -235,6 +235,28 @@ class InputParams:
     builder.save()
 
 
+# 添加 "load" 任务
+param_loader.addTask(
+    task_name="load",
+    policy={"goodsDir": 90},
+    args={
+        "operation": "load",
+        "operation.load.height": 0.02,
+    },
+    config={"load.recognize": "on"}
+)
+
+# 添加 "unload" 任务
+param_loader.addTask(
+    task_name="unload",
+    policy={"navigation.basic.unload.maxSpeed": 1.0},
+    args={
+        "operation": "unload",
+        "operation.unload.unloadHeight": 0.05,
+    },
+    config={"unload.recognize": "on"}
+)
+
 class Jack(ModuleBase):
     def __init__(self):
         super().__init__()

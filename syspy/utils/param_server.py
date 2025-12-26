@@ -1,5 +1,6 @@
 import time
 from syspy.core.rbk_rpc import Service
+from syspy.utils import SCRIPTS_DIR
 
 start_time = time.time()
 
@@ -13,24 +14,23 @@ from dataclasses import dataclass, field
 from typing_extensions import TypeAlias
 from typing import Any, Dict, List, Optional, Generator, Union, Tuple, Callable
 
-SCRIPTS_DIR = "/opt/.data/rbk/resources/scripts"
 
 PY_SUFFIX = ".py"
 CONFIG_SUFFIX = "_config.json"
 INPUT_SUFFIX = "_input.json"
+TASK_SUFFIX = "_task.json"
 prefix_dir = ""
-
+script_dir = ""
 
 def _get_prefix_dir(file):
     if not file.startswith(SCRIPTS_DIR):
         raise ValueError("script path error. It must be in the 'scripts' path")
-
+    global prefix_dir, script_dir
     script_dir = file.replace(SCRIPTS_DIR, '')
     if not script_dir.endswith(PY_SUFFIX):
         raise ValueError(f"script file error. It must be in the {PY_SUFFIX} file")
-    global prefix_dir
     script_right_dir, script_file_name = script_dir.rsplit('/', 1)
-    config_dir = SCRIPTS_DIR + "/params" + script_right_dir
+    config_dir = SCRIPTS_DIR + "params/" + script_right_dir
     if not os.path.exists(config_dir):
         os.makedirs(config_dir)
     prefix_dir = config_dir + '/' + script_file_name.replace(PY_SUFFIX, '')
@@ -136,9 +136,11 @@ class ScriptParam:
                 _get_prefix_dir(script_file)
                 self.config_file = prefix_dir + CONFIG_SUFFIX
                 self.input_file = prefix_dir + INPUT_SUFFIX
+                self.task_file = prefix_dir + TASK_SUFFIX
             else:
                 self.config_file = None
                 self.input_file = None
+                self.task_file = None
             self.config_full_params = {}
             self.__config_validator = None
             ScriptParam._initialized = True
@@ -214,8 +216,8 @@ class ScriptParam:
 
     def setTaskConfig(self, config_data: Dict[str, Any]):
         """合并任务配置参数"""
-        print("setTaskConfig()")
         if config_data:
+            print("setTaskConfig()")
             if not self.config_full_params:
                 self.config_full_params = config_data
             else:
@@ -226,10 +228,70 @@ class ScriptParam:
 
     def clearTaskConfig(self):
         """恢复任务配置参数"""
-        print("clearTaskConfig()")
-        ScriptParam.event_task_config = False
-        if ScriptParam.config_change_callback:
-            ScriptParam.config_change_callback()
+        if ScriptParam.event_task_config:
+            if ScriptParam.config_change_callback:
+                print("clearTaskConfig()")
+                ScriptParam.config_change_callback()
+            ScriptParam.event_task_config = False
+
+    def addTask(self, task_name: str = None,
+                  policy: Dict[str, Any] = None,
+                  args: Dict[str, Any] = None,
+                  config: Dict[str, Any] = None,
+                  category: str = "standard") -> Dict[str, Any]:
+        """增加并保存任务
+
+        Args:
+            task_name (str): 任务名称，如 "forkLoad", "forkUnLoad"
+            policy (Dict[str, Any], optional): 策略配置
+            args (Dict[str, Any], optional): 脚本参数
+            config (Dict[str, Any], optional): 脚本配置
+            category (str): 任务分类，如 "standard", 默认为 "standard"
+
+        Returns:
+            Dict[str, Any]: 任务示例数据结构
+        """
+        task_value = {
+            "policy": policy or {},
+            "script": {
+                "name": script_dir,
+                "args": args or {},
+                "config": config or {}
+            }
+        }
+
+        task = {
+            "name": task_name,
+            "value": task_value
+        }
+
+        # 读取现有任务文件或创建新结构
+        tasks_file_data = {}
+        if os.path.exists(self.task_file) and os.path.getsize(self.task_file):
+            with open(self.task_file, 'r', encoding='utf-8') as f:
+                tasks_file_data = json.load(f)
+
+        # 更新指定分类的任务列表
+        if category not in tasks_file_data:
+            tasks_file_data[category] = []
+
+        # 检查是否已存在相同名称的任务，存在则更新，不存在则添加
+        existing_idx = None
+        for idx, task_item in enumerate(tasks_file_data[category]):
+            if task_item.get("name") == task_name:
+                existing_idx = idx
+                break
+
+        if existing_idx is not None:
+            tasks_file_data[category][existing_idx] = task
+        else:
+            tasks_file_data[category].append(task)
+
+        # 保存到文件
+        with open(self.task_file, 'w', encoding='utf-8') as f:
+            json.dump(tasks_file_data, f, indent=4, ensure_ascii=False)
+
+        return task
 
 
 # 参数类型常量
@@ -1192,5 +1254,5 @@ def gen_param(script_path: str):
 
 if __name__ == '__main__':
     script_name = sys.argv[1]
-    full_path = SCRIPTS_DIR + "/" + script_name  # 替换为你的脚本路径
+    full_path = SCRIPTS_DIR + script_name  # 替换为你的脚本路径
     gen_param(full_path)
