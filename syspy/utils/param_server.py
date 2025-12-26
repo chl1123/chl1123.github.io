@@ -142,6 +142,7 @@ class ScriptParam:
                 self.input_file = None
                 self.task_file = None
             self.config_full_params = {}
+            self._tasks = []
             self.__config_validator = None
             ScriptParam._initialized = True
 
@@ -235,18 +236,16 @@ class ScriptParam:
             ScriptParam.event_task_config = False
 
     def addTask(self, task_name: str = None,
-                  policy: Dict[str, Any] = None,
-                  args: Dict[str, Any] = None,
-                  config: Dict[str, Any] = None,
-                  category: str = "standard") -> Dict[str, Any]:
-        """增加并保存任务
+                policy: Dict[str, Any] = None,
+                args: Dict[str, Any] = None,
+                config: Dict[str, Any] = None) -> Dict[str, Any]:
+        """添加任务
 
         Args:
             task_name (str): 任务名称，如 "forkLoad", "forkUnLoad"
             policy (Dict[str, Any], optional): 策略配置
             args (Dict[str, Any], optional): 脚本参数
             config (Dict[str, Any], optional): 脚本配置
-            category (str): 任务分类，如 "standard", 默认为 "standard"
 
         Returns:
             Dict[str, Any]: 任务示例数据结构
@@ -264,34 +263,22 @@ class ScriptParam:
             "name": task_name,
             "value": task_value
         }
+        self._tasks.append(task)
 
-        # 读取现有任务文件或创建新结构
+        return task
+
+
+    def saveTask(self) -> None:
+        """保存任务到文件"""
         tasks_file_data = {}
         if os.path.exists(self.task_file) and os.path.getsize(self.task_file):
             with open(self.task_file, 'r', encoding='utf-8') as f:
                 tasks_file_data = json.load(f)
 
-        # 更新指定分类的任务列表
-        if category not in tasks_file_data:
-            tasks_file_data[category] = []
+        tasks_file_data["standard"] = self._tasks
 
-        # 检查是否已存在相同名称的任务，存在则更新，不存在则添加
-        existing_idx = None
-        for idx, task_item in enumerate(tasks_file_data[category]):
-            if task_item.get("name") == task_name:
-                existing_idx = idx
-                break
-
-        if existing_idx is not None:
-            tasks_file_data[category][existing_idx] = task
-        else:
-            tasks_file_data[category].append(task)
-
-        # 保存到文件
         with open(self.task_file, 'w', encoding='utf-8') as f:
             json.dump(tasks_file_data, f, indent=4, ensure_ascii=False)
-
-        return task
 
 
 # 参数类型常量

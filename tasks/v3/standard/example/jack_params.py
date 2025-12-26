@@ -252,10 +252,12 @@ param_loader.addTask(
     policy={"navigation.basic.unload.maxSpeed": 1.0},
     args={
         "operation": "unload",
-        "operation.unload.unloadHeight": 0.05,
+        "operation.unload.unloadHeight": 0.04,
     },
     config={"unload.recognize": "on"}
 )
+
+param_loader.saveTask()
 
 class Jack(ModuleBase):
     def __init__(self):
