@@ -307,6 +307,7 @@ class msgSensorPointCluster(_message.Message):
     infrared: msgSensorPointCluster.clusterType
     key: str
     laser: msgSensorPointCluster.clusterType
+    mapPoint: msgSensorPointCluster.clusterType
     point: _containers.RepeatedCompositeFieldContainer[msgSensorPoint]
     reservedDepthCamera: msgSensorPointCluster.clusterType
     reservedPoint: msgSensorPointCluster.clusterType
