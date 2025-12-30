@@ -3,7 +3,7 @@ import math
 import time
 from enum import IntEnum
 from threading import Lock
-from typing import Union, Optional, Callable, Tuple
+from typing import Union, Optional, Callable, Tuple, Any
 from syspy.utils import ScriptType
 from ..core.rbk_rpc import Service
 from ..utils import SCRIPTS_DIR
@@ -98,15 +98,14 @@ NEW_TASK_TIMEOUT = 1
 
 
 class Module:
-    stop_flag = False
     script_name = None
     script_type = ScriptType.GENERAL
+    script_id = ""
     __lock = Lock()
     __run_status = ScriptStatus.NONE
     __rpc_client = None
-    __task = None
     __task_id = 0
-    __task_args = {}
+    __task_params = {}
     __cancel_callback = None
     __suspend_callback = None
     __resume_callback = None
@@ -118,8 +117,8 @@ class Module:
     __set_container_callback = None
     __clear_container_by_goods_callback = None
     __clear_container_callback = None
+    __unbind_container_callback = None
     __service = None
-    script_id = ""
 
     @classmethod
     def init(cls, name: str = ""):
@@ -135,15 +134,15 @@ class Module:
 
         Service.init(cls.script_id, cls.script_type)
 
-        print("script_name: ", cls.script_name)
-        print("script_id", cls.script_id)
+        print("script_name=", cls.script_name)
+        print("script_id=", cls.script_id)
         args = cls.__getArgs()
-        if args != {}:
-            cls.__task = args
-            if cls.script_name.startswith("tasks/"):
-                cls.__initTaskArgs()
+        print("args=", args)
         if cls.script_name.startswith("tasks/"):
+            cls.__initTaskArgs(args)
             cls.__register()
+        else:
+            cls.__task_params = args
         if RBK_VERSION == 3:
             Service.server().start()
 
@@ -163,16 +162,15 @@ class Module:
         return {}
 
     @classmethod
-    def __initTaskArgs(cls):
-        if cls.__task is not None:
-            cls.__setTaskId(cls.__task.get("taskId", None))
-            cls.__task_args = cls.__task.copy()
-            cls.__task_args.pop("taskId", None)
+    def __initTaskArgs(cls, args: dict):
+        if args:
+            cls.__setTaskId(args.get("taskId", None))
+            cls.__task_params = args
             with cls.__lock:
                 cls.__run_status = ScriptStatus.RUNNING
             # 任务中有配置参数则合并
-            if "configs" in cls.__task_args:
-                ScriptParam.getInstance().setTaskConfig(cls.__task_args["configs"])
+            if "config" in cls.__task_params:
+                ScriptParam.getInstance().setTaskConfig(cls.__task_params["config"])
 
     @classmethod
     def __register(cls):
@@ -185,13 +183,13 @@ class Module:
         Service.server().register_function(cls.__resume, "resume")
         Service.server().register_function(cls.__cancel, "cancel")
         Service.server().register_function(cls.__getTask, "get_task")
-        Service.server().register_function(cls.safeMoveCheck, "safe_move_check")
-        Service.server().register_function(cls.getSafeMoveCheck, "get_safe_move_check")
-        Service.server().register_function(cls.modbus, "modbus")
+        Service.server().register_function(cls.__safeMoveCheck, "safe_move_check")
+        Service.server().register_function(cls.__getSafeMoveCheck, "get_safe_move_check")
+        Service.server().register_function(cls.__modbus, "modbus")
         if is_container:
-            Service.server().register_function(cls.setContainer, "setContainer")
-            Service.server().register_function(cls.clearContainerByGoods, "clearContainerByGoods")
-            Service.server().register_function(cls.clearContainer, "clearContainer")
+            Service.server().register_function(cls.__setContainer, "setContainer")
+            Service.server().register_function(cls.__clearContainerByGoods, "clearContainerByGoods")
+            Service.server().register_function(cls.__clearContainer, "clearContainer")
 
     def __del__(self):
         if self.__rpc_client:
@@ -211,14 +209,12 @@ class Module:
                                                str(args), "", "", "", "", "", "")
                 return
             time.sleep(0.05)
-        cls.__task = args
-        cls.__initTaskArgs()
+        cls.__initTaskArgs(args)
         cls.setStatus(ScriptStatus.RUNNING)
 
     @classmethod
     def __cancel(cls):
         if cls.getStatus() in [ScriptStatus.RUNNING, ScriptStatus.NEARTOGOAL, ScriptStatus.SUSPENDED]:
-            cls.stop_flag = True
             if cls.__cancel_callback is not None:
                 cls.__cancel_callback()
             else:
@@ -227,10 +223,13 @@ class Module:
     @classmethod
     def __getTask(cls):
         """获取脚本任务"""
+        task_params = cls.__task_params.copy()
+        task_params.pop("taskId", None)
+
         return {
             "scriptName": cls.script_name,
             "scriptStatus": cls.__run_status.value,
-            "scriptTask": cls.__task_args,
+            "taskParams": task_params,  # 移除taskId后的参数字典
             "taskId": cls.__task_id
         }
 
@@ -251,8 +250,8 @@ class Module:
                 cls.setStatus(ScriptStatus.RUNNING)
 
     @classmethod
-    def safeMoveCheck(cls, task_id: int):
-        """移动安全检查
+    def __safeMoveCheck(cls, task_id: int):
+        """移动安全检查（MF调用）
 
         Args:
             task_id (int): 检查ID
@@ -262,8 +261,8 @@ class Module:
             cls.__safe_move_check_callback()
 
     @classmethod
-    def getSafeMoveCheck(cls) -> Tuple[int, int]:
-        """获取移动安全检查状态
+    def __getSafeMoveCheck(cls) -> Tuple[int, int]:
+        """获取移动安全检查状态（MF调用）
 
         Returns:
             (int): 移动安全检查状态。
@@ -272,25 +271,26 @@ class Module:
         return cls.__safe_move_check_status.value, cls.__safe_move_check_id
 
     @classmethod
-    def setSafeMoveCheckStatus(cls, status: SafeMoveStatus):
-        cls.__safe_move_check_status = status
+    def __modbus(cls, task_id):
+        """modbus 任务回调（NP -> MF调用）
 
-    @classmethod
-    def modbus(cls, task_id):
+        Args:
+            task_id (int): 任务ID
+        """
         cls.__setTaskId(task_id)
         cls.setStatus(ScriptStatus.RUNNING)
         cls.__modbus_callback()
 
     @classmethod
-    def setContainer(cls, container_id: str, goods_name: str, desc: str) -> bool:
+    def __setContainer(cls, container_id: str, goods_name: str, desc: str) -> bool:
         return cls.__set_container_callback(container_id, goods_name, desc)
 
     @classmethod
-    def clearContainerByGoods(cls, goods_name: str) -> bool:
+    def __clearContainerByGoods(cls, goods_name: str) -> bool:
         return cls.__clear_container_by_goods_callback(goods_name)
 
     @classmethod
-    def clearContainer(cls, container_id: str) -> bool:
+    def __clearContainer(cls, container_id: str) -> bool:
         return cls.__clear_container_callback(container_id)
 
     @classmethod
@@ -348,12 +348,44 @@ class Module:
             cls.__task_id = task_id
 
     @classmethod
-    def getTaskArgs(cls, name: str = "", default=None):
+    def getTaskArgs(cls, name: str = "", default: Any = None) -> Any:
+        """获取任务参数
+
+        Args:
+            name (str): 参数名。缺省返回所有任务参数
+            default (Any): 如果参数不存在，返回默认值
+
+        Returns:
+            (Any): 参数值
+        """
+        task_args = cls.__task_params.get("args", {})
         if name:
-            if cls.__task is not None:
-                return cls.__task.get(name, default)
+            if task_args:
+                return task_args.get(name, default)
+            else:
+                return default
         else:
-            return cls.__task
+            return task_args
+
+    @classmethod
+    def getTaskConfig(cls, name: str = "", default: Any = None) -> Any:
+        """获取任务配置
+
+        Args:
+            name (str): 配置参数名。缺省返回所有任务配置
+            default (Any): 如果配置不存在，返回默认值
+
+        Returns:
+            (Any): 配置值
+        """
+        task_config = cls.__task_params.get("config", {})
+        if name:
+            if task_config:
+                return task_config.get(name, default)
+            else:
+                return default
+        else:
+            return task_config
 
     @classmethod
     def getTaskId(cls):
@@ -372,7 +404,7 @@ class Module:
             cls.__reportData()
             # 任务状态为终态时清空任务、task_id、任务中的配置参数
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-                cls.__task = None
+                cls.__task_params = {}
                 cls.__task_id = 0
                 ScriptParam.getInstance().clearTaskConfig()
 
@@ -385,11 +417,32 @@ class Module:
                 cls.__rpc_client = RpcClient()
             cls.__rpc_client.set_info(json.dumps(info))
 
+    @classmethod
+    def setSafeMoveCheckStatus(cls, status: SafeMoveStatus):
+        """设置移动安全检查状态
+
+        Args:
+            status (SafeMoveStatus): 状态。上报 SafeMoveStatus.FINISHED 时底盘才能移动。
+        """
+        cls.__safe_move_check_status = status
+
 
 from abc import ABC, abstractmethod
 
 
 class ModuleBase(ABC):
+    """任务脚本基类
+
+    Attributes:
+        event_safe_move_check (bool): 移动安全检查事件标志。
+            开启移动安全检查时底盘移动前 event_safe_move_check 会变为 True;
+            脚本执行安全检查、调用 Module.setSafeMoveStatus 上报状态;
+            完成安全检查后脚本设置 event_safe_move_check 为 False。
+        event_modbus (bool): Modbus TCP 指令标志。
+            机器人Modbus可写寄存器00200位被写入1时，event_modbus 会变为 True;
+            脚本调用 NetProtocol.getModbusData 读取可写寄存器00201-00230位脚本参数、执行对应任务、调用Module.setStatus上报状态;
+            完成任务后脚本设置 event_modbus 为 False。
+    """
     def __init__(self):
         Module.setSuspendCallback(self.suspend)
         Module.setResumeCallback(self.resume)
@@ -399,7 +452,6 @@ class ModuleBase(ABC):
         Module.setSetContainerCallback(self.setContainer)
         Module.setClearContainerCallback(self.clearContainer)
         Module.setClearContainerByGoodsCallback(self.clearContainerByGoods)
-        self.stop_flag = False
         self.event_safe_move_check = False
         self.event_modbus = False
 
@@ -411,25 +463,26 @@ class ModuleBase(ABC):
 
     @abstractmethod
     def suspend(self):
+        """暂停任务方法（必须重写）：导航暂停时如果脚本任务状态为RUNNING会调用该方法"""
         Module.setStatus(ScriptStatus.SUSPENDED)
 
     @abstractmethod
     def resume(self):
+        """恢复任务方法（必须）：导航恢复时如果脚本任务状态为SUSPENDED会调用该方法"""
         if Module.getStatus() == ScriptStatus.SUSPENDED:
             Module.setStatus(ScriptStatus.RUNNING)
 
     @abstractmethod
     def cancel(self):
-        Module.stop_flag = True
+        """取消任务方法（必须）：导航取消时如果脚本任务状态为RUNNING或SUSPENDED会调用该方法"""
         Module.setStatus(ScriptStatus.FAILED)
 
-    def safeMoveCheck(self):
-        ...
-
-    def modbus(self):
-        ...
-
     def setSafeMoveStatus(self, status: SafeMoveStatus):
+        """设置移动安全检查状态
+
+        Args:
+            status (SafeMoveStatus): 状态。上报 SafeMoveStatus.FINISHED 时底盘才能移动。
+        """
         Module.setSafeMoveCheckStatus(status)
 
     def setContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
