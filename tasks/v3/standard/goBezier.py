@@ -428,7 +428,7 @@ class GoBezierWorld:
                                       self.robot_loc[2])
             # self.param["maxAcc"] = float(self.max_accele)
             # self.param["maxDec"] = float(self.max_decele)
-            # Navigation.goPathParam(self.param)
+            Navigation.goPathParam(dict())
 
         # 行走到第一个倒退点后规划贝塞尔路径参数
         if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
@@ -449,6 +449,7 @@ class GoBezierWorld:
                 # self.param["maxAcc"] = float(self.max_accele)
                 # self.param["maxDec"] = float(self.max_decele)
                 # Navigation.goPathParam(self.param)
+                Navigation.goPathParam(dict())
 
         # 行走第二段贝塞尔路径
         if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走贝塞尔到终点
@@ -641,7 +642,7 @@ def main():
         # 脚本任务状态管理
         if bezier_status in (ScriptStatus.NONE, ScriptStatus.RUNNING):
             bezier_status = go_bezier.run()
-            Trace.log(f"bezier_status={bezier_status}")
+            # Trace.log(f"bezier_status={bezier_status}")
         elif bezier_status == ScriptStatus.FAILED:
             action_status = ScriptStatus.FAILED
         elif bezier_status == ScriptStatus.FINISHED:

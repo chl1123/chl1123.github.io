@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 # Author: zzm
-# version: 1.0
-# Time: 2025/09/04
-# description: CBD15-MF移植
+# version: 2.0
+# Time: 2025/12/25
+# description:
 # update:
-#   08/29 屏蔽激光，支持原地载货卸货
-#   09/04 适配识别文件识别面，不同坐标系，modbus
+#   2025/08/29 屏蔽激光，支持原地载货卸货
+#   2025/09/04 适配识别文件识别面，不同坐标系，modbus
+#   2025/12/25 增加取放货的 TCP，适配 DoMotor 的变轴距
 
 
 import json
@@ -1050,6 +1051,7 @@ class Fork(ModuleBase):
             Abnormal.setTask(53300, f"wrong operation:{self.opt}, script failed", "input operation not define",
                              "check the input param", "")
             self.script_status = ScriptStatus.FAILED
+            return
         self._execute_actions()
         if self.action_status == ActionStatus.FAILED:
             self.script_status = ScriptStatus.FAILED
@@ -1337,12 +1339,6 @@ class Fork(ModuleBase):
             if self.recfile:
                 # 处理扣除区域
                 self.pallet_deduct_infos = get_deduct_area(self.recfile)
-                # for pallet_deduct_info in self.pallet_deduct_infos:
-                #     if (not pallet_deduct_info or (pallet_deduct_info.get("deduct_device", None) is None)
-                #             or pallet_deduct_info.get("areas", None) is None):
-                #         Abnormal.setTask(53328, f"no deductShape in recfile", "no deductShape in recfile",
-                #                          "fill the deductShape in recfile", "")
-                #         self.script_status = ScriptStatus.FAILED
 
                 # 处理载具和货物形状
                 recognition_pallet_path = f"recognitionObject.pallet"
@@ -1530,7 +1526,6 @@ class Fork(ModuleBase):
                     method = "goBezier"
                     args["max_curve"] = 3
                 self.action_list.extend([
-                    # RunMotorByPosition(ConfigParams.fork_motor_name, self.rec_result["z"]),
                     GoPathWithContactDi(ConfigParams.contact_ids, rec_world_pos, ConfigParams.toLoadObsStopDist, method,
                                         args,
                                         self.check_di),
@@ -2174,7 +2169,7 @@ class GoPathWithContactDi(BaseAction):
             r_loc = get_r_loc()
 
             dist2target = pos2Base(r_loc, self.final_target)
-            Trace.log(f"r_loc:{r_loc},final target :{self.final_target}")
+            # Trace.log(f"r_loc:{r_loc},final target :{self.final_target}")
 
             # 如果不需要检查所有的到位 di，一个到位任务结束
             if not self.check_all_contact_di:
@@ -2667,10 +2662,8 @@ class GoPath(BaseAction):
             # Trace.log(f"is reach:{Navigation.isPathReached()}")
             if Navigation.isPathReached():
                 self.action_status = ActionStatus.FINISHED
-                Trace.log(f"path reached")
             else:
                 self.action_status = ActionStatus.RUNNING
-                Trace.log(f"path running")
 
     def reset(self):
         Navigation.resetPath()
@@ -2912,6 +2905,7 @@ def main():
 
         input_params = validated_params or Module.getTaskArgs()
         status = Module.getStatus()
+        Trace.log(f"script status:{status}")
 
         if ConfigParams.scriptDebug:
             Trace.log(f"script status:{status}")
