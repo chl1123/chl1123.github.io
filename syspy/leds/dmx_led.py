@@ -191,7 +191,10 @@ class Flow(LightEffect):
             self.dmx_led.dmx_data[:] = [0x00] * len(self.dmx_led.dmx_data)
             self.__next_position += 4
             if self.__next_position >= len(self.dmx_led.dmx_data):
-                self.__next_position = 1
+                if self.__next_position >= 100:
+                    self.__next_position = 1
+                else:
+                    return
             self.dmx_led.dmx_data[self.__next_position] = self._rgbw[0]
             self.dmx_led.dmx_data[self.__next_position + 2] = self._rgbw[1]
             if self.__next_position + 3 < len(self.dmx_led.dmx_data):
