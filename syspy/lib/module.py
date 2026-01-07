@@ -184,7 +184,7 @@ class Module:
         Service.server().register_function(cls.__cancel, "cancel")
         Service.server().register_function(cls.__getTask, "get_task")
         Service.server().register_function(cls.__safeMoveCheck, "safe_move_check")
-        Service.server().register_function(cls.__getSafeMoveCheck, "get_safe_move_check")
+        Service.server().register_function(cls.getSafeMoveCheck, "get_safe_move_check")
         Service.server().register_function(cls.__modbus, "modbus")
         if is_container:
             Service.server().register_function(cls.__setContainer, "setContainer")
@@ -259,16 +259,6 @@ class Module:
         if task_id != cls.__safe_move_check_id:
             cls.__safe_move_check_id = task_id
             cls.__safe_move_check_callback()
-
-    @classmethod
-    def __getSafeMoveCheck(cls) -> Tuple[int, int]:
-        """获取移动安全检查状态（MF调用）
-
-        Returns:
-            (int): 移动安全检查状态。
-            (int): 当前检查id（通过safe_move_check入参获取）
-        """
-        return cls.__safe_move_check_status.value, cls.__safe_move_check_id
 
     @classmethod
     def __modbus(cls, task_id):
@@ -425,6 +415,16 @@ class Module:
             status (SafeMoveStatus): 状态。上报 SafeMoveStatus.FINISHED 时底盘才能移动。
         """
         cls.__safe_move_check_status = status
+
+    @classmethod
+    def getSafeMoveCheck(cls) -> Tuple[int, int]:
+        """获取移动安全检查状态（MF调用）
+
+        Returns:
+            (int): 移动安全检查状态。
+            (int): 当前检查id（通过safe_move_check入参获取）
+        """
+        return cls.__safe_move_check_status.value, cls.__safe_move_check_id
 
 
 from abc import ABC, abstractmethod
