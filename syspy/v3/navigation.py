@@ -845,6 +845,46 @@ class NavigationV3(NavigationInterface):
         pass
 
 
+    @classmethod
+    @call_service()
+    def runRotateMove(cls, robot_params: dict, shelf_params: dict) -> int:
+        """执行基于里程计的运动控制
+        RBK-MF 插件自动处理托盘旋转速度问题。特别是托盘在世界坐标系下的目标角度没有变化时，需要自动规划为随动（holdOnWorld）的效果。
+        Args:
+            robot_params (dict): 运动控制参数字典，支持以下参数（所有参数均为可选）：
+                - move_angle (float): 底盘在世界坐标系下的目标角度（rad）
+                - speed_w (float): 车开环原地旋转的角速度（rad/s），只支持正数
+                - dir (int): 世界坐标系下车旋转的方向, dir 0 自主决策  1逆时针  -1顺时针
+            shelf_params (dict): 托盘旋转控制参数字典，支持以下参数（所有参数均为可选）：
+                - angle (float): 机器人坐标系下托盘旋转的目标角度（rad），只支持正数
+                - dir (int): 机器人坐标系下托盘旋转的方向, dir 0 自主决策 1逆时针  -1顺时针
+
+        Returns:
+            int: 运动状态，"MoveStatus"类型的int值
+
+        Examples:
+            robot_params = {
+                "dir": 1,
+                "speed_w": 0.5,
+                "move_angle": 1.57
+            }
+            shelf_params = {
+                "angle": 1.57,
+                "dir": 1
+            }
+            status = runRotateMove(robot_params, shelf_params)
+        """
+        pass
+
+    @classmethod
+    @call_service()
+    def resetRotateMove(cls):
+        """
+        重置runRotateMove的状态
+        """
+        pass
+
+
 @default_plugin("MoveFactory")
 class NavStatusV3(NavStatusInterface):
     """导航状态类"""
