@@ -158,14 +158,16 @@ class CanBattery(cb.CanBase):
             self.id3 = True
         elif msg.arbitration_id == 0x0EA4F40D:
             tem = msg.data.hex()
-            if self.isNeedCharge():
-                max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
-                max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
-                self.battery_info.max_charge_current = max_charge_current
-                self.battery_info.max_charge_voltage = max_charge_voltage
+            #if self.isNeedCharge():
+            max_charge_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
+            max_charge_current = round(int(tem[4:6] + tem[6:8], 16) * 0.01, 2)
+            self.battery_info.max_charge_current = max_charge_current
+            self.battery_info.max_charge_voltage = max_charge_voltage
+            '''
             else:
                 self.battery_info.max_charge_current = 0
                 self.battery_info.max_charge_voltage = 0
+            '''
             self.msg_ok = True
             self.id4 = True
         elif msg.arbitration_id == 0x1EA7F40D:
