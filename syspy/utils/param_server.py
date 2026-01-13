@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Generator, Union, Tuple, Callable
 PY_SUFFIX = ".py"
 CONFIG_SUFFIX = "_config.json"
 INPUT_SUFFIX = "_input.json"
-TASK_SUFFIX = "_task.json"
+TASK_SUFFIX = "_action.json"
 prefix_dir = ""
 script_dir = ""
 
@@ -235,20 +235,36 @@ class ScriptParam:
                 ScriptParam.config_change_callback()
             ScriptParam.event_task_config = False
 
-    def addTask(self, task_name: str = None,
+    def addAction(self, task_name: str = None,
                 policy: Dict[str, Any] = None,
                 args: Dict[str, Any] = None,
                 config: Dict[str, Any] = None) -> Dict[str, Any]:
-        """添加任务
+        """添加动作
 
         Args:
-            task_name (str): 任务名称，如 "forkLoad", "forkUnLoad"
+            task_name (str): 动作名称，如 "forkLoad", "forkUnLoad"
             policy (Dict[str, Any], optional): 策略配置
             args (Dict[str, Any], optional): 脚本参数
             config (Dict[str, Any], optional): 脚本配置
 
         Returns:
-            Dict[str, Any]: 任务示例数据结构
+            Dict[str, Any]: 动作示例数据结构
+
+        Examples:
+        ```python
+        from syspy import ScriptParam
+        param_loader = ScriptParam(__file__)
+        # 添加 "load" 动作
+        param_loader.addAction(
+            task_name="load",
+            policy={"goodsDir": 90},
+            args={
+                "operation": "load",
+                "operation.load.height": 0.02,
+            },
+            config={"load.recognize": "on"}
+        )
+        ```
         """
         task_value = {
             "policy": policy or {},
@@ -268,8 +284,19 @@ class ScriptParam:
         return task
 
 
-    def saveTask(self) -> None:
-        """保存任务到文件"""
+    def saveAction(self) -> None:
+        """保存动作到文件
+
+        Examples:
+        ```python
+        from syspy import ScriptParam
+        param_loader = ScriptParam(__file__)
+        # 添加动作
+        ...
+        # 保存动作到文件
+        param_loader.saveAction()
+        ```
+        """
         tasks_file_data = {}
         if os.path.exists(self.task_file) and os.path.getsize(self.task_file):
             with open(self.task_file, 'r', encoding='utf-8') as f:

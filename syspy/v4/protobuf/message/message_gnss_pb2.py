@@ -15,7 +15,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x12message_gnss.proto\x12\x0crbk.protocol\x1a\x14message_header.proto"G\n\x17Message_GnssInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0b\n\x03yaw\x18\x04 \x01(\x01"L\n\x13Message_GnssRefInfo\x12\x11\n\tlongitude\x18\x01 \x01(\x01\x12\x10\n\x08latitude\x18\x02 \x01(\x01\x12\x10\n\x08altitude\x18\x03 \x01(\x01"\x85\x03\n\x0cMessage_GNSS\x12,\n\x06header\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_Header\x12\x0e\n\x06status\x18\x02 \x01(\x05\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x14\n\x0cubx_2d_acc_h\x18\x07 \x01(\x01\x12\x14\n\x0cubx_2d_acc_v\x18\x08 \x01(\x01\x12\x12\n\nubx_3d_acc\x18\t \x01(\x01\x12\x11\n\tlongitude\x18\n \x01(\x01\x12\x10\n\x08latitude\x18\x0b \x01(\x01\x12\x10\n\x08altitude\x18\x0c \x01(\x01\x12;\n\x0cinstall_info\x18\r \x01(\x0b2%.rbk.protocol.Message_GnssInstallInfo\x123\n\x08ref_info\x18\x0e \x01(\x0b2!.rbk.protocol.Message_GnssRefInfo\x12\r\n\x05enu_x\x18\x0f \x01(\x01\x12\r\n\x05enu_y\x18\x10 \x01(\x01\x12\x0f\n\x07heading\x18\x11 \x01(\x01";\n\x0fMessage_AllGNSS\x12(\n\x04gnss\x18\x01 \x03(\x0b2\x1a.rbk.protocol.Message_GNSSb\x06proto3'
+        '\n\x12message_gnss.proto\x12\x0crbk.protocol\x1a\x14message_header.proto"G\n\x17Message_GnssInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0b\n\x03yaw\x18\x04 \x01(\x01"L\n\x13Message_GnssRefInfo\x12\x11\n\tlongitude\x18\x01 \x01(\x01\x12\x10\n\x08latitude\x18\x02 \x01(\x01\x12\x10\n\x08altitude\x18\x03 \x01(\x01"\x80\x03\n\x0cMessage_GNSS\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x0e\n\x06status\x18\x02 \x01(\x05\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x14\n\x0cubx_2d_acc_h\x18\x07 \x01(\x01\x12\x14\n\x0cubx_2d_acc_v\x18\x08 \x01(\x01\x12\x12\n\nubx_3d_acc\x18\t \x01(\x01\x12\x11\n\tlongitude\x18\n \x01(\x01\x12\x10\n\x08latitude\x18\x0b \x01(\x01\x12\x10\n\x08altitude\x18\x0c \x01(\x01\x12;\n\x0cinstall_info\x18\r \x01(\x0b2%.rbk.protocol.Message_GnssInstallInfo\x123\n\x08ref_info\x18\x0e \x01(\x0b2!.rbk.protocol.Message_GnssRefInfo\x12\r\n\x05enu_x\x18\x0f \x01(\x01\x12\r\n\x05enu_y\x18\x10 \x01(\x01\x12\x0f\n\x07heading\x18\x11 \x01(\x01";\n\x0fMessage_AllGNSS\x12(\n\x04gnss\x18\x01 \x03(\x0b2\x1a.rbk.protocol.Message_GNSSb\x06proto3'
     ),
     dependencies=[message__header__pb2.DESCRIPTOR],
 )
@@ -488,7 +488,7 @@ _MESSAGE_GNSS = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[],
     serialized_start=210,
-    serialized_end=599,
+    serialized_end=594,
 )
 _MESSAGE_ALLGNSS = _descriptor.Descriptor(
     name="Message_AllGNSS",
@@ -524,12 +524,10 @@ _MESSAGE_ALLGNSS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=601,
-    serialized_end=660,
+    serialized_start=596,
+    serialized_end=655,
 )
-_MESSAGE_GNSS.fields_by_name["header"].message_type = (
-    message__header__pb2._MESSAGE_HEADER
-)
+_MESSAGE_GNSS.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGE_GNSS.fields_by_name["install_info"].message_type = _MESSAGE_GNSSINSTALLINFO
 _MESSAGE_GNSS.fields_by_name["ref_info"].message_type = _MESSAGE_GNSSREFINFO
 _MESSAGE_ALLGNSS.fields_by_name["gnss"].message_type = _MESSAGE_GNSS

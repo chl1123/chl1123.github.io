@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 from . import messageV4_motorcmd_pb2 as messageV4__motorcmd__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -16,12 +16,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1amessageV4_navigation.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x18messageV4_motorcmd.proto"&\n\x13MessageV4_NavStatus\x12\x0f\n\x07blocked\x18\x01 \x01(\x08"¡\x01\n\x12MessageV4_NavSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12/\n\x06header\x18\x04 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x124\n\tmotor_cmd\x18\x05 \x03(\x0b2!.rbk4.protocol.MessageV4_MotorCmd"8\n\x11MessageV4_NavPose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01"2\n\x15MessageV4_NavTopoPose\x12\n\n\x02id\x18\x01 \x01(\x05\x12\r\n\x05angle\x18\x03 \x01(\x01"\x86\x01\n\x12MessageV4_NavState\x12.\n\x04pose\x18\x01 \x01(\x0b2 .rbk4.protocol.MessageV4_NavPose\x120\n\x05speed\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_NavSpeed\x12\x0e\n\x06radius\x18\x03 \x01(\x01"Y\n\x11MessageV4_NavPath\x121\n\x06states\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_NavState\x12\x11\n\tfind_path\x18\x02 \x01(\x08"\x9c\x01\n\x13MessageV4_NavTarget\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01\x12\x10\n\x08run_mode\x18\x04 \x01(\x05\x12\x16\n\x0etopo_target_id\x18\x05 \x01(\x05"6\n\x04MODE\x12\r\n\tNULL_MODE\x10\x00\x12\x10\n\x0cFORWARD_MODE\x10\x01\x12\r\n\tBACK_MODE\x10\x02"§\x03\n\x11MessageV4_NavInfo\x12\x10\n\x08nav_mode\x18\x01 \x01(\x05\x12\x0f\n\x07nav_cmd\x18\x02 \x01(\x05\x12\x14\n\x0cnav_target_x\x18\x03 \x01(\x01\x12\x14\n\x0cnav_target_y\x18\x04 \x01(\x01\x12\x18\n\x10nav_target_theta\x18\x05 \x01(\x01\x12\x17\n\x0fnav_target_mode\x18\x06 \x01(\x01\x12\x13\n\x0bnav_speed_x\x18\x07 \x01(\x01\x12\x13\n\x0bnav_speed_y\x18\x08 \x01(\x01\x12\x13\n\x0bnav_speed_w\x18\t \x01(\x01\x12\x16\n\x0etopo_target_id\x18\n \x01(\x05"_\n\x07NavMode\x12\x0f\n\x0bNullNavMode\x10\x00\x12\x17\n\x13TaskTargetReachMode\x10\x01\x12\x14\n\x10SpeedControlMode\x10\x02\x12\x14\n\x10TopoPosReachMode\x10\x03"X\n\x06NavCmd\x12\x0e\n\nNULLNavCmd\x10\x00\x12\x0e\n\nTaskCancel\x10\x01\x12\x0f\n\x0bTaskSuspend\x10\x02\x12\x0e\n\nTaskResume\x10\x03\x12\r\n\tTaskBegin\x10\x04b\x06proto3'
+        '\n\x1amessageV4_navigation.proto\x12\rrbk4.protocol\x1a\x14message_header.proto\x1a\x18messageV4_motorcmd.proto"&\n\x13MessageV4_NavStatus\x12\x0f\n\x07blocked\x18\x01 \x01(\x08"\x99\x01\n\x12MessageV4_NavSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\x0e\n\x06rotate\x18\x03 \x01(\x01\x12\'\n\x06header\x18\x04 \x01(\x0b2\x17.rbk.protocol.msgHeader\x124\n\tmotor_cmd\x18\x05 \x03(\x0b2!.rbk4.protocol.MessageV4_MotorCmd"8\n\x11MessageV4_NavPose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01"2\n\x15MessageV4_NavTopoPose\x12\n\n\x02id\x18\x01 \x01(\x05\x12\r\n\x05angle\x18\x03 \x01(\x01"\x86\x01\n\x12MessageV4_NavState\x12.\n\x04pose\x18\x01 \x01(\x0b2 .rbk4.protocol.MessageV4_NavPose\x120\n\x05speed\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_NavSpeed\x12\x0e\n\x06radius\x18\x03 \x01(\x01"Y\n\x11MessageV4_NavPath\x121\n\x06states\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_NavState\x12\x11\n\tfind_path\x18\x02 \x01(\x08"\x9c\x01\n\x13MessageV4_NavTarget\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01\x12\x10\n\x08run_mode\x18\x04 \x01(\x05\x12\x16\n\x0etopo_target_id\x18\x05 \x01(\x05"6\n\x04MODE\x12\r\n\tNULL_MODE\x10\x00\x12\x10\n\x0cFORWARD_MODE\x10\x01\x12\r\n\tBACK_MODE\x10\x02"§\x03\n\x11MessageV4_NavInfo\x12\x10\n\x08nav_mode\x18\x01 \x01(\x05\x12\x0f\n\x07nav_cmd\x18\x02 \x01(\x05\x12\x14\n\x0cnav_target_x\x18\x03 \x01(\x01\x12\x14\n\x0cnav_target_y\x18\x04 \x01(\x01\x12\x18\n\x10nav_target_theta\x18\x05 \x01(\x01\x12\x17\n\x0fnav_target_mode\x18\x06 \x01(\x01\x12\x13\n\x0bnav_speed_x\x18\x07 \x01(\x01\x12\x13\n\x0bnav_speed_y\x18\x08 \x01(\x01\x12\x13\n\x0bnav_speed_w\x18\t \x01(\x01\x12\x16\n\x0etopo_target_id\x18\n \x01(\x05"_\n\x07NavMode\x12\x0f\n\x0bNullNavMode\x10\x00\x12\x17\n\x13TaskTargetReachMode\x10\x01\x12\x14\n\x10SpeedControlMode\x10\x02\x12\x14\n\x10TopoPosReachMode\x10\x03"X\n\x06NavCmd\x12\x0e\n\nNULLNavCmd\x10\x00\x12\x0e\n\nTaskCancel\x10\x01\x12\x0f\n\x0bTaskSuspend\x10\x02\x12\x0e\n\nTaskResume\x10\x03\x12\r\n\tTaskBegin\x10\x04b\x06proto3'
     ),
-    dependencies=[
-        messageV4__header__pb2.DESCRIPTOR,
-        messageV4__motorcmd__pb2.DESCRIPTOR,
-    ],
+    dependencies=[message__header__pb2.DESCRIPTOR, messageV4__motorcmd__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_NAVTARGET_MODE = _descriptor.EnumDescriptor(
     name="MODE",
@@ -41,8 +38,8 @@ _MESSAGEV4_NAVTARGET_MODE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=740,
-    serialized_end=794,
+    serialized_start=730,
+    serialized_end=784,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_NAVTARGET_MODE)
 _MESSAGEV4_NAVINFO_NAVMODE = _descriptor.EnumDescriptor(
@@ -78,8 +75,8 @@ _MESSAGEV4_NAVINFO_NAVMODE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1035,
-    serialized_end=1130,
+    serialized_start=1025,
+    serialized_end=1120,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_NAVINFO_NAVMODE)
 _MESSAGEV4_NAVINFO_NAVCMD = _descriptor.EnumDescriptor(
@@ -106,8 +103,8 @@ _MESSAGEV4_NAVINFO_NAVCMD = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1132,
-    serialized_end=1220,
+    serialized_start=1122,
+    serialized_end=1210,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_NAVINFO_NAVCMD)
 _MESSAGEV4_NAVSTATUS = _descriptor.Descriptor(
@@ -144,8 +141,8 @@ _MESSAGEV4_NAVSTATUS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=95,
-    serialized_end=133,
+    serialized_start=93,
+    serialized_end=131,
 )
 _MESSAGEV4_NAVSPEED = _descriptor.Descriptor(
     name="MessageV4_NavSpeed",
@@ -253,8 +250,8 @@ _MESSAGEV4_NAVSPEED = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=136,
-    serialized_end=297,
+    serialized_start=134,
+    serialized_end=287,
 )
 _MESSAGEV4_NAVPOSE = _descriptor.Descriptor(
     name="MessageV4_NavPose",
@@ -326,8 +323,8 @@ _MESSAGEV4_NAVPOSE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=299,
-    serialized_end=355,
+    serialized_start=289,
+    serialized_end=345,
 )
 _MESSAGEV4_NAVTOPOPOSE = _descriptor.Descriptor(
     name="MessageV4_NavTopoPose",
@@ -381,8 +378,8 @@ _MESSAGEV4_NAVTOPOPOSE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=357,
-    serialized_end=407,
+    serialized_start=347,
+    serialized_end=397,
 )
 _MESSAGEV4_NAVSTATE = _descriptor.Descriptor(
     name="MessageV4_NavState",
@@ -454,8 +451,8 @@ _MESSAGEV4_NAVSTATE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=410,
-    serialized_end=544,
+    serialized_start=400,
+    serialized_end=534,
 )
 _MESSAGEV4_NAVPATH = _descriptor.Descriptor(
     name="MessageV4_NavPath",
@@ -509,8 +506,8 @@ _MESSAGEV4_NAVPATH = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=546,
-    serialized_end=635,
+    serialized_start=536,
+    serialized_end=625,
 )
 _MESSAGEV4_NAVTARGET = _descriptor.Descriptor(
     name="MessageV4_NavTarget",
@@ -618,8 +615,8 @@ _MESSAGEV4_NAVTARGET = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=638,
-    serialized_end=794,
+    serialized_start=628,
+    serialized_end=784,
 )
 _MESSAGEV4_NAVINFO = _descriptor.Descriptor(
     name="MessageV4_NavInfo",
@@ -817,11 +814,11 @@ _MESSAGEV4_NAVINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=797,
-    serialized_end=1220,
+    serialized_start=787,
+    serialized_end=1210,
 )
 _MESSAGEV4_NAVSPEED.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_NAVSPEED.fields_by_name["motor_cmd"].message_type = (
     messageV4__motorcmd__pb2._MESSAGEV4_MOTORCMD

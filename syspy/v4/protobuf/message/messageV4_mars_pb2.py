@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_mars.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x14messageV4_mars.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"Q\n\nFTransform\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\x12\n\n\x02rr\x18\x04 \x01(\x02\x12\n\n\x02rp\x18\x05 \x01(\x02\x12\n\n\x02ry\x18\x06 \x01(\x02"\x9a\x04\n\x07MarsCmd\x12/\n\x07cmdType\x18\x01 \x01(\x0e2\x1e.rbk4.protocol.MarsCmd.CmdType\x12\x11\n\ttimestamp\x18\x02 \x01(\x04\x12\x10\n\x08sequence\x18\x03 \x01(\x04\x12\x0e\n\x06taskid\x18\x04 \x01(\t\x12\x11\n\theadPitch\x18\x05 \x01(\x02\x12\x0f\n\x07headYaw\x18\x06 \x01(\x02\x12\n\n\x02vx\x18\x07 \x01(\x02\x12\n\n\x02vy\x18\x08 \x01(\x02\x12\n\n\x02vw\x18\t \x01(\x02\x12+\n\x08leftHand\x18\n \x01(\x0b2\x19.rbk4.protocol.FTransform\x12,\n\trightHand\x18\x0b \x01(\x0b2\x19.rbk4.protocol.FTransform\x12\'\n\x04body\x18\x0c \x01(\x0b2\x19.rbk4.protocol.FTransform\x12\'\n\x04head\x18\r \x01(\x0b2\x19.rbk4.protocol.FTransform\x12\x15\n\rleftHandState\x18\x0e \x01(\x05\x12\x16\n\x0erightHandState\x18\x0f \x01(\x05\x12\n\n\x02vz\x18\x10 \x01(\x02"y\n\x07CmdType\x12\x08\n\x04NONE\x10\x00\x12\n\n\x06Normal\x10\x01\x12\t\n\x05EStop\x10\x02\x12\x10\n\x0cReleaseEStop\x10\x03\x12\r\n\tArmGoZero\x10\x04\x12\t\n\x05Match\x10\x05\x12\x14\n\x10AltitudeControll\x10\x06\x12\x0b\n\x07UnMatch\x10\x07"[\n\x06tcpCMD\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\x12\t\n\x01r\x18\x04 \x01(\x02\x12\t\n\x01p\x18\x05 \x01(\x02\x12\x0b\n\x03yaw\x18\x06 \x01(\x02\x12\r\n\x05valid\x18\x07 \x01(\x08"&\n\x08jointCMD\x12\x0c\n\x04move\x18\x01 \x01(\x05\x12\x0c\n\x04name\x18\x02 \x01(\t"b\n\x06armCMD\x12\x0c\n\x04name\x18\x01 \x01(\t\x12"\n\x03cmd\x18\x02 \x01(\x0b2\x15.rbk4.protocol.tcpCMD\x12&\n\x05joint\x18\x03 \x03(\x0b2\x17.rbk4.protocol.jointCMD"j\n\x07armCMDs\x12*\n\x01h\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x0f\n\x07task_id\x18\x02 \x01(\t\x12"\n\x03cmd\x18\x03 \x03(\x0b2\x15.rbk4.protocol.armCMD"É\x01\n\nMarsStatus\x12\x11\n\ttimestamp\x18\x01 \x01(\x04\x12\x10\n\x08sequence\x18\x02 \x01(\x04\x12\x0e\n\x06taskid\x18\x03 \x01(\t\x120\n\x06status\x18\x04 \x01(\x0e2 .rbk4.protocol.MarsStatus.Status\x12\x0c\n\x04info\x18\x05 \x01(\t"F\n\x06Status\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07SUSPEND\x10\x01\x12\x0b\n\x07RUNNING\x10\x02\x12\n\n\x06FAILED\x10\x03\x12\x0c\n\x08COMPLETE\x10\x04b\x06proto3'
+        '\n\x14messageV4_mars.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"Q\n\nFTransform\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\x12\n\n\x02rr\x18\x04 \x01(\x02\x12\n\n\x02rp\x18\x05 \x01(\x02\x12\n\n\x02ry\x18\x06 \x01(\x02"\x9a\x04\n\x07MarsCmd\x12/\n\x07cmdType\x18\x01 \x01(\x0e2\x1e.rbk4.protocol.MarsCmd.CmdType\x12\x11\n\ttimestamp\x18\x02 \x01(\x04\x12\x10\n\x08sequence\x18\x03 \x01(\x04\x12\x0e\n\x06taskid\x18\x04 \x01(\t\x12\x11\n\theadPitch\x18\x05 \x01(\x02\x12\x0f\n\x07headYaw\x18\x06 \x01(\x02\x12\n\n\x02vx\x18\x07 \x01(\x02\x12\n\n\x02vy\x18\x08 \x01(\x02\x12\n\n\x02vw\x18\t \x01(\x02\x12+\n\x08leftHand\x18\n \x01(\x0b2\x19.rbk4.protocol.FTransform\x12,\n\trightHand\x18\x0b \x01(\x0b2\x19.rbk4.protocol.FTransform\x12\'\n\x04body\x18\x0c \x01(\x0b2\x19.rbk4.protocol.FTransform\x12\'\n\x04head\x18\r \x01(\x0b2\x19.rbk4.protocol.FTransform\x12\x15\n\rleftHandState\x18\x0e \x01(\x05\x12\x16\n\x0erightHandState\x18\x0f \x01(\x05\x12\n\n\x02vz\x18\x10 \x01(\x02"y\n\x07CmdType\x12\x08\n\x04NONE\x10\x00\x12\n\n\x06Normal\x10\x01\x12\t\n\x05EStop\x10\x02\x12\x10\n\x0cReleaseEStop\x10\x03\x12\r\n\tArmGoZero\x10\x04\x12\t\n\x05Match\x10\x05\x12\x14\n\x10AltitudeControll\x10\x06\x12\x0b\n\x07UnMatch\x10\x07"[\n\x06tcpCMD\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\x12\t\n\x01r\x18\x04 \x01(\x02\x12\t\n\x01p\x18\x05 \x01(\x02\x12\x0b\n\x03yaw\x18\x06 \x01(\x02\x12\r\n\x05valid\x18\x07 \x01(\x08"&\n\x08jointCMD\x12\x0c\n\x04move\x18\x01 \x01(\x05\x12\x0c\n\x04name\x18\x02 \x01(\t"b\n\x06armCMD\x12\x0c\n\x04name\x18\x01 \x01(\t\x12"\n\x03cmd\x18\x02 \x01(\x0b2\x15.rbk4.protocol.tcpCMD\x12&\n\x05joint\x18\x03 \x03(\x0b2\x17.rbk4.protocol.jointCMD"b\n\x07armCMDs\x12"\n\x01h\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x0f\n\x07task_id\x18\x02 \x01(\t\x12"\n\x03cmd\x18\x03 \x03(\x0b2\x15.rbk4.protocol.armCMD"É\x01\n\nMarsStatus\x12\x11\n\ttimestamp\x18\x01 \x01(\x04\x12\x10\n\x08sequence\x18\x02 \x01(\x04\x12\x0e\n\x06taskid\x18\x03 \x01(\t\x120\n\x06status\x18\x04 \x01(\x0e2 .rbk4.protocol.MarsStatus.Status\x12\x0c\n\x04info\x18\x05 \x01(\t"F\n\x06Status\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07SUSPEND\x10\x01\x12\x0b\n\x07RUNNING\x10\x02\x12\n\n\x06FAILED\x10\x03\x12\x0c\n\x08COMPLETE\x10\x04b\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MARSCMD_CMDTYPE = _descriptor.EnumDescriptor(
     name="CmdType",
@@ -56,8 +56,8 @@ _MARSCMD_CMDTYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=564,
-    serialized_end=685,
+    serialized_start=562,
+    serialized_end=683,
 )
 _sym_db.RegisterEnumDescriptor(_MARSCMD_CMDTYPE)
 _MARSSTATUS_STATUS = _descriptor.EnumDescriptor(
@@ -84,8 +84,8 @@ _MARSSTATUS_STATUS = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1160,
-    serialized_end=1230,
+    serialized_start=1150,
+    serialized_end=1220,
 )
 _sym_db.RegisterEnumDescriptor(_MARSSTATUS_STATUS)
 _FTRANSFORM = _descriptor.Descriptor(
@@ -212,8 +212,8 @@ _FTRANSFORM = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=63,
-    serialized_end=144,
+    serialized_start=61,
+    serialized_end=142,
 )
 _MARSCMD = _descriptor.Descriptor(
     name="MarsCmd",
@@ -519,8 +519,8 @@ _MARSCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=147,
-    serialized_end=685,
+    serialized_start=145,
+    serialized_end=683,
 )
 _TCPCMD = _descriptor.Descriptor(
     name="tcpCMD",
@@ -664,8 +664,8 @@ _TCPCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=687,
-    serialized_end=778,
+    serialized_start=685,
+    serialized_end=776,
 )
 _JOINTCMD = _descriptor.Descriptor(
     name="jointCMD",
@@ -719,8 +719,8 @@ _JOINTCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=780,
-    serialized_end=818,
+    serialized_start=778,
+    serialized_end=816,
 )
 _ARMCMD = _descriptor.Descriptor(
     name="armCMD",
@@ -792,8 +792,8 @@ _ARMCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=820,
-    serialized_end=918,
+    serialized_start=818,
+    serialized_end=916,
 )
 _ARMCMDS = _descriptor.Descriptor(
     name="armCMDs",
@@ -865,8 +865,8 @@ _ARMCMDS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=920,
-    serialized_end=1026,
+    serialized_start=918,
+    serialized_end=1016,
 )
 _MARSSTATUS = _descriptor.Descriptor(
     name="MarsStatus",
@@ -974,8 +974,8 @@ _MARSSTATUS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1029,
-    serialized_end=1230,
+    serialized_start=1019,
+    serialized_end=1220,
 )
 _MARSCMD.fields_by_name["cmdType"].enum_type = _MARSCMD_CMDTYPE
 _MARSCMD.fields_by_name["leftHand"].message_type = _FTRANSFORM
@@ -985,7 +985,7 @@ _MARSCMD.fields_by_name["head"].message_type = _FTRANSFORM
 _MARSCMD_CMDTYPE.containing_type = _MARSCMD
 _ARMCMD.fields_by_name["cmd"].message_type = _TCPCMD
 _ARMCMD.fields_by_name["joint"].message_type = _JOINTCMD
-_ARMCMDS.fields_by_name["h"].message_type = messageV4__header__pb2._MESSAGEV4_HEADER
+_ARMCMDS.fields_by_name["h"].message_type = message__header__pb2._MSGHEADER
 _ARMCMDS.fields_by_name["cmd"].message_type = _ARMCMD
 _MARSSTATUS.fields_by_name["status"].enum_type = _MARSSTATUS_STATUS
 _MARSSTATUS_STATUS.containing_type = _MARSSTATUS

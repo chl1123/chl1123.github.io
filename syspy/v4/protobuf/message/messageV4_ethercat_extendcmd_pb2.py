@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_ethercat_extendcmd.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n"messageV4_ethercat_extendcmd.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"l\n\x1bMessageV4_EtherCATExtendCmd\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x0e\n\x06length\x18\x02 \x01(\r\x12\x0c\n\x04data\x18\x03 \x01(\x0c"¡\x02\n"MessageV4_EtherCATExtendBrainCoCmd\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x1e\n\x16mult_finger_ctrl_model\x18\x02 \x01(\r\x12\x1f\n\x17mult_finger_ctrl_param1\x18\x03 \x03(\x05\x12\x1f\n\x17mult_finger_ctrl_param2\x18\x04 \x03(\r\x12\x18\n\x10finger_ctrl_mode\x18\x05 \x01(\r\x12\x16\n\x0efinger_ctrl_id\x18\x06 \x01(\r\x12\x1a\n\x12finger_ctrl_param1\x18\x07 \x01(\r\x12\x1a\n\x12finger_ctrl_param2\x18\x08 \x01(\rb\x06proto3'
+        '\n"messageV4_ethercat_extendcmd.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"d\n\x1bMessageV4_EtherCATExtendCmd\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x0e\n\x06length\x18\x02 \x01(\r\x12\x0c\n\x04data\x18\x03 \x01(\x0c"\x99\x02\n"MessageV4_EtherCATExtendBrainCoCmd\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x1e\n\x16mult_finger_ctrl_model\x18\x02 \x01(\r\x12\x1f\n\x17mult_finger_ctrl_param1\x18\x03 \x03(\x05\x12\x1f\n\x17mult_finger_ctrl_param2\x18\x04 \x03(\r\x12\x18\n\x10finger_ctrl_mode\x18\x05 \x01(\r\x12\x16\n\x0efinger_ctrl_id\x18\x06 \x01(\r\x12\x1a\n\x12finger_ctrl_param1\x18\x07 \x01(\r\x12\x1a\n\x12finger_ctrl_param2\x18\x08 \x01(\rb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_ETHERCATEXTENDCMD = _descriptor.Descriptor(
     name="MessageV4_EtherCATExtendCmd",
@@ -89,8 +89,8 @@ _MESSAGEV4_ETHERCATEXTENDCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=77,
-    serialized_end=185,
+    serialized_start=75,
+    serialized_end=175,
 )
 _MESSAGEV4_ETHERCATEXTENDBRAINCOCMD = _descriptor.Descriptor(
     name="MessageV4_EtherCATExtendBrainCoCmd",
@@ -252,14 +252,14 @@ _MESSAGEV4_ETHERCATEXTENDBRAINCOCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=188,
-    serialized_end=477,
+    serialized_start=178,
+    serialized_end=459,
 )
 _MESSAGEV4_ETHERCATEXTENDCMD.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_ETHERCATEXTENDBRAINCOCMD.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 DESCRIPTOR.message_types_by_name["MessageV4_EtherCATExtendCmd"] = (
     _MESSAGEV4_ETHERCATEXTENDCMD

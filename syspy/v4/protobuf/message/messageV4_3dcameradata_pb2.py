@@ -8,7 +8,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 from . import messageV4_pointcloud_pb2 as messageV4__pointcloud__pb2
 from . import messageV4_image_pb2 as messageV4__image__pb2
 from . import messageV4_cameraintrinsic_pb2 as messageV4__cameraintrinsic__pb2
@@ -19,10 +19,10 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1cmessageV4_3dcameradata.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x1amessageV4_pointcloud.proto\x1a\x15messageV4_image.proto\x1a\x1fmessageV4_cameraintrinsic.proto"û\x01\n\x16MessageV4_MaskedObject\x124\n\x0bdata_header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\n\n\x02ID\x18\x02 \x01(\t\x12\x0f\n\x07classid\x18\x03 \x01(\x05\x12\x12\n\nclass_name\x18\x04 \x01(\t\x12\x12\n\nconfidence\x18\x05 \x01(\x02\x12\x0c\n\x04left\x18\x06 \x01(\x05\x12\x0b\n\x03top\x18\x07 \x01(\x05\x12\r\n\x05width\x18\x08 \x01(\x05\x12\x0e\n\x06height\x18\t \x01(\x05\x12,\n\x04mask\x18\n \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"¼\x01\n\x15MessageV4_InstanceSeg\x128\n\x0bcamera_data\x18\x01 \x01(\x0b2#.rbk4.protocol.MessageV4_CameraData\x126\n\x07results\x18\x02 \x03(\x0b2%.rbk4.protocol.MessageV4_MaskedObject\x121\n\tresultImg\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"ã\x03\n\x14MessageV4_CameraData\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x122\n\x05cloud\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_PointCloud\x12+\n\x03rgb\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12*\n\x02ir\x18\x04 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x122\n\x05depth\x18\x05 \x01(\x0b2#.rbk4.protocol.MessageV4_DepthImage\x129\n\x05calib\x18\x06 \x01(\x0b2*.rbk4.protocol.MessageV4_CameraCalibration\x12.\n\x06normal\x18\x07 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x128\n\x0cinstall_extr\x18\x08 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x08loc_extr\x18\t \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic"º\x01\n\x16MessageV4_SemanticsTag\x12\x0f\n\x07classid\x18\x01 \x01(\x05\x12\x12\n\nclass_name\x18\x02 \x01(\t\x12\x0f\n\x07indices\x18\x03 \x03(\r\x124\n\x08obj_pose\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x0bdata_header\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"»\x01\n\x17MessageV4_CameraDataTag\x125\n\x08cam_data\x18\x01 \x01(\x0b2#.rbk4.protocol.MessageV4_CameraData\x123\n\x04tags\x18\x02 \x03(\x0b2%.rbk4.protocol.MessageV4_SemanticsTag\x124\n\x05masks\x18\x03 \x03(\x0b2%.rbk4.protocol.MessageV4_MaskedObject"¢\x02\n\x16MessageV4_CloudDataTag\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x122\n\x05cloud\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_PointCloud\x128\n\x0cinstall_extr\x18\x03 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x08loc_extr\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x123\n\x04tags\x18\x05 \x03(\x0b2%.rbk4.protocol.MessageV4_SemanticsTag"û\x01\n\x16MessageV4_PercepFusion\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12;\n\x0bcamera_tags\x18\x02 \x03(\x0b2&.rbk4.protocol.MessageV4_CameraDataTag\x129\n\ncloud_tags\x18\x03 \x03(\x0b2%.rbk4.protocol.MessageV4_CloudDataTag\x128\n\x0bfeat_matchs\x18\x04 \x03(\x0b2#.rbk4.protocol.MessageV4_FeatMatchs"B\n\x10MessageV4_DMatch\x12\r\n\x05query\x18\x01 \x01(\r\x12\r\n\x05train\x18\x02 \x01(\r\x12\x10\n\x08distance\x18\x03 \x01(\x02"9\n\x12MessageV4_KeyPoint\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\r\n\x05angle\x18\x03 \x01(\x02"®\x01\n\x14MessageV4_FeatPoints\x124\n\x0bdata_header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12,\n\x04desc\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x122\n\x07key_pts\x18\x04 \x03(\x0b2!.rbk4.protocol.MessageV4_KeyPoint"\x9c\x02\n\x14MessageV4_FeatMatchs\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x125\n\x08lhs_feat\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_FeatPoints\x125\n\x08rhs_feat\x18\x03 \x01(\x0b2#.rbk4.protocol.MessageV4_FeatPoints\x120\n\x07matches\x18\x04 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_DMatch\x123\n\x0bdense_match\x18\x08 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image*>\n\tRecogType\x12\x0b\n\x07Persion\x10\x00\x12\x0b\n\x07Bicycle\x10\x01\x12\n\n\x06Pallet\x10P\x12\x0b\n\x07Workbin\x10Rb\x06proto3'
+        '\n\x1cmessageV4_3dcameradata.proto\x12\rrbk4.protocol\x1a\x14message_header.proto\x1a\x1amessageV4_pointcloud.proto\x1a\x15messageV4_image.proto\x1a\x1fmessageV4_cameraintrinsic.proto"ó\x01\n\x16MessageV4_MaskedObject\x12,\n\x0bdata_header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\n\n\x02ID\x18\x02 \x01(\t\x12\x0f\n\x07classid\x18\x03 \x01(\x05\x12\x12\n\nclass_name\x18\x04 \x01(\t\x12\x12\n\nconfidence\x18\x05 \x01(\x02\x12\x0c\n\x04left\x18\x06 \x01(\x05\x12\x0b\n\x03top\x18\x07 \x01(\x05\x12\r\n\x05width\x18\x08 \x01(\x05\x12\x0e\n\x06height\x18\t \x01(\x05\x12,\n\x04mask\x18\n \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"¼\x01\n\x15MessageV4_InstanceSeg\x128\n\x0bcamera_data\x18\x01 \x01(\x0b2#.rbk4.protocol.MessageV4_CameraData\x126\n\x07results\x18\x02 \x03(\x0b2%.rbk4.protocol.MessageV4_MaskedObject\x121\n\tresultImg\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"Û\x03\n\x14MessageV4_CameraData\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x122\n\x05cloud\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_PointCloud\x12+\n\x03rgb\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12*\n\x02ir\x18\x04 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x122\n\x05depth\x18\x05 \x01(\x0b2#.rbk4.protocol.MessageV4_DepthImage\x129\n\x05calib\x18\x06 \x01(\x0b2*.rbk4.protocol.MessageV4_CameraCalibration\x12.\n\x06normal\x18\x07 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x128\n\x0cinstall_extr\x18\x08 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x08loc_extr\x18\t \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic"Q\n\x17MessageV4_AllCameraData\x126\n\tcam_datas\x18\x01 \x03(\x0b2#.rbk4.protocol.MessageV4_CameraData"²\x01\n\x16MessageV4_SemanticsTag\x12\x0f\n\x07classid\x18\x01 \x01(\x05\x12\x12\n\nclass_name\x18\x02 \x01(\t\x12\x0f\n\x07indices\x18\x03 \x03(\r\x124\n\x08obj_pose\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x12,\n\x0bdata_header\x18\x05 \x01(\x0b2\x17.rbk.protocol.msgHeader"»\x01\n\x17MessageV4_CameraDataTag\x125\n\x08cam_data\x18\x01 \x01(\x0b2#.rbk4.protocol.MessageV4_CameraData\x123\n\x04tags\x18\x02 \x03(\x0b2%.rbk4.protocol.MessageV4_SemanticsTag\x124\n\x05masks\x18\x03 \x03(\x0b2%.rbk4.protocol.MessageV4_MaskedObject"\x9a\x02\n\x16MessageV4_CloudDataTag\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x122\n\x05cloud\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_PointCloud\x128\n\x0cinstall_extr\x18\x03 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x124\n\x08loc_extr\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x123\n\x04tags\x18\x05 \x03(\x0b2%.rbk4.protocol.MessageV4_SemanticsTag"ó\x01\n\x16MessageV4_PercepFusion\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12;\n\x0bcamera_tags\x18\x02 \x03(\x0b2&.rbk4.protocol.MessageV4_CameraDataTag\x129\n\ncloud_tags\x18\x03 \x03(\x0b2%.rbk4.protocol.MessageV4_CloudDataTag\x128\n\x0bfeat_matchs\x18\x04 \x03(\x0b2#.rbk4.protocol.MessageV4_FeatMatchs"B\n\x10MessageV4_DMatch\x12\r\n\x05query\x18\x01 \x01(\r\x12\r\n\x05train\x18\x02 \x01(\r\x12\x10\n\x08distance\x18\x03 \x01(\x02"9\n\x12MessageV4_KeyPoint\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\r\n\x05angle\x18\x03 \x01(\x02"¦\x01\n\x14MessageV4_FeatPoints\x12,\n\x0bdata_header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12,\n\x04desc\x18\x03 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x122\n\x07key_pts\x18\x04 \x03(\x0b2!.rbk4.protocol.MessageV4_KeyPoint"\x94\x02\n\x14MessageV4_FeatMatchs\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x125\n\x08lhs_feat\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_FeatPoints\x125\n\x08rhs_feat\x18\x03 \x01(\x0b2#.rbk4.protocol.MessageV4_FeatPoints\x120\n\x07matches\x18\x04 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_DMatch\x123\n\x0bdense_match\x18\x08 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image*>\n\tRecogType\x12\x0b\n\x07Persion\x10\x00\x12\x0b\n\x07Bicycle\x10\x01\x12\n\n\x06Pallet\x10P\x12\x0b\n\x07Workbin\x10Rb\x06proto3'
     ),
     dependencies=[
-        messageV4__header__pb2.DESCRIPTOR,
+        message__header__pb2.DESCRIPTOR,
         messageV4__pointcloud__pb2.DESCRIPTOR,
         messageV4__image__pb2.DESCRIPTOR,
         messageV4__cameraintrinsic__pb2.DESCRIPTOR,
@@ -49,8 +49,8 @@ _RECOGTYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=2603,
-    serialized_end=2665,
+    serialized_start=2628,
+    serialized_end=2690,
 )
 _sym_db.RegisterEnumDescriptor(_RECOGTYPE)
 RecogType = enum_type_wrapper.EnumTypeWrapper(_RECOGTYPE)
@@ -254,8 +254,8 @@ _MESSAGEV4_MASKEDOBJECT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=156,
-    serialized_end=407,
+    serialized_start=154,
+    serialized_end=397,
 )
 _MESSAGEV4_INSTANCESEG = _descriptor.Descriptor(
     name="MessageV4_InstanceSeg",
@@ -327,8 +327,8 @@ _MESSAGEV4_INSTANCESEG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=410,
-    serialized_end=598,
+    serialized_start=400,
+    serialized_end=588,
 )
 _MESSAGEV4_CAMERADATA = _descriptor.Descriptor(
     name="MessageV4_CameraData",
@@ -508,8 +508,45 @@ _MESSAGEV4_CAMERADATA = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=601,
-    serialized_end=1084,
+    serialized_start=591,
+    serialized_end=1066,
+)
+_MESSAGEV4_ALLCAMERADATA = _descriptor.Descriptor(
+    name="MessageV4_AllCameraData",
+    full_name="rbk4.protocol.MessageV4_AllCameraData",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="cam_datas",
+            full_name="rbk4.protocol.MessageV4_AllCameraData.cam_datas",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=1068,
+    serialized_end=1149,
 )
 _MESSAGEV4_SEMANTICSTAG = _descriptor.Descriptor(
     name="MessageV4_SemanticsTag",
@@ -617,8 +654,8 @@ _MESSAGEV4_SEMANTICSTAG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1087,
-    serialized_end=1273,
+    serialized_start=1152,
+    serialized_end=1330,
 )
 _MESSAGEV4_CAMERADATATAG = _descriptor.Descriptor(
     name="MessageV4_CameraDataTag",
@@ -690,8 +727,8 @@ _MESSAGEV4_CAMERADATATAG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1276,
-    serialized_end=1463,
+    serialized_start=1333,
+    serialized_end=1520,
 )
 _MESSAGEV4_CLOUDDATATAG = _descriptor.Descriptor(
     name="MessageV4_CloudDataTag",
@@ -799,8 +836,8 @@ _MESSAGEV4_CLOUDDATATAG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1466,
-    serialized_end=1756,
+    serialized_start=1523,
+    serialized_end=1805,
 )
 _MESSAGEV4_PERCEPFUSION = _descriptor.Descriptor(
     name="MessageV4_PercepFusion",
@@ -890,8 +927,8 @@ _MESSAGEV4_PERCEPFUSION = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1759,
-    serialized_end=2010,
+    serialized_start=1808,
+    serialized_end=2051,
 )
 _MESSAGEV4_DMATCH = _descriptor.Descriptor(
     name="MessageV4_DMatch",
@@ -963,8 +1000,8 @@ _MESSAGEV4_DMATCH = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2012,
-    serialized_end=2078,
+    serialized_start=2053,
+    serialized_end=2119,
 )
 _MESSAGEV4_KEYPOINT = _descriptor.Descriptor(
     name="MessageV4_KeyPoint",
@@ -1036,8 +1073,8 @@ _MESSAGEV4_KEYPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2080,
-    serialized_end=2137,
+    serialized_start=2121,
+    serialized_end=2178,
 )
 _MESSAGEV4_FEATPOINTS = _descriptor.Descriptor(
     name="MessageV4_FeatPoints",
@@ -1109,8 +1146,8 @@ _MESSAGEV4_FEATPOINTS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2140,
-    serialized_end=2314,
+    serialized_start=2181,
+    serialized_end=2347,
 )
 _MESSAGEV4_FEATMATCHS = _descriptor.Descriptor(
     name="MessageV4_FeatMatchs",
@@ -1218,11 +1255,11 @@ _MESSAGEV4_FEATMATCHS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2317,
-    serialized_end=2601,
+    serialized_start=2350,
+    serialized_end=2626,
 )
 _MESSAGEV4_MASKEDOBJECT.fields_by_name["data_header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_MASKEDOBJECT.fields_by_name["mask"].message_type = (
     messageV4__image__pb2._MESSAGEV4_IMAGE
@@ -1235,7 +1272,7 @@ _MESSAGEV4_INSTANCESEG.fields_by_name["resultImg"].message_type = (
     messageV4__image__pb2._MESSAGEV4_IMAGE
 )
 _MESSAGEV4_CAMERADATA.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_CAMERADATA.fields_by_name["cloud"].message_type = (
     messageV4__pointcloud__pb2._MESSAGEV4_POINTCLOUD
@@ -1261,17 +1298,20 @@ _MESSAGEV4_CAMERADATA.fields_by_name["install_extr"].message_type = (
 _MESSAGEV4_CAMERADATA.fields_by_name["loc_extr"].message_type = (
     messageV4__cameraintrinsic__pb2._MESSAGEV4_EXTRINSIC
 )
+_MESSAGEV4_ALLCAMERADATA.fields_by_name["cam_datas"].message_type = (
+    _MESSAGEV4_CAMERADATA
+)
 _MESSAGEV4_SEMANTICSTAG.fields_by_name["obj_pose"].message_type = (
     messageV4__cameraintrinsic__pb2._MESSAGEV4_EXTRINSIC
 )
 _MESSAGEV4_SEMANTICSTAG.fields_by_name["data_header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_CAMERADATATAG.fields_by_name["cam_data"].message_type = _MESSAGEV4_CAMERADATA
 _MESSAGEV4_CAMERADATATAG.fields_by_name["tags"].message_type = _MESSAGEV4_SEMANTICSTAG
 _MESSAGEV4_CAMERADATATAG.fields_by_name["masks"].message_type = _MESSAGEV4_MASKEDOBJECT
 _MESSAGEV4_CLOUDDATATAG.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_CLOUDDATATAG.fields_by_name["cloud"].message_type = (
     messageV4__pointcloud__pb2._MESSAGEV4_POINTCLOUD
@@ -1284,7 +1324,7 @@ _MESSAGEV4_CLOUDDATATAG.fields_by_name["loc_extr"].message_type = (
 )
 _MESSAGEV4_CLOUDDATATAG.fields_by_name["tags"].message_type = _MESSAGEV4_SEMANTICSTAG
 _MESSAGEV4_PERCEPFUSION.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_PERCEPFUSION.fields_by_name["camera_tags"].message_type = (
     _MESSAGEV4_CAMERADATATAG
@@ -1296,14 +1336,14 @@ _MESSAGEV4_PERCEPFUSION.fields_by_name["feat_matchs"].message_type = (
     _MESSAGEV4_FEATMATCHS
 )
 _MESSAGEV4_FEATPOINTS.fields_by_name["data_header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_FEATPOINTS.fields_by_name["desc"].message_type = (
     messageV4__image__pb2._MESSAGEV4_IMAGE
 )
 _MESSAGEV4_FEATPOINTS.fields_by_name["key_pts"].message_type = _MESSAGEV4_KEYPOINT
 _MESSAGEV4_FEATMATCHS.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_FEATMATCHS.fields_by_name["lhs_feat"].message_type = _MESSAGEV4_FEATPOINTS
 _MESSAGEV4_FEATMATCHS.fields_by_name["rhs_feat"].message_type = _MESSAGEV4_FEATPOINTS
@@ -1314,6 +1354,7 @@ _MESSAGEV4_FEATMATCHS.fields_by_name["dense_match"].message_type = (
 DESCRIPTOR.message_types_by_name["MessageV4_MaskedObject"] = _MESSAGEV4_MASKEDOBJECT
 DESCRIPTOR.message_types_by_name["MessageV4_InstanceSeg"] = _MESSAGEV4_INSTANCESEG
 DESCRIPTOR.message_types_by_name["MessageV4_CameraData"] = _MESSAGEV4_CAMERADATA
+DESCRIPTOR.message_types_by_name["MessageV4_AllCameraData"] = _MESSAGEV4_ALLCAMERADATA
 DESCRIPTOR.message_types_by_name["MessageV4_SemanticsTag"] = _MESSAGEV4_SEMANTICSTAG
 DESCRIPTOR.message_types_by_name["MessageV4_CameraDataTag"] = _MESSAGEV4_CAMERADATATAG
 DESCRIPTOR.message_types_by_name["MessageV4_CloudDataTag"] = _MESSAGEV4_CLOUDDATATAG
@@ -1342,6 +1383,12 @@ MessageV4_CameraData = _reflection.GeneratedProtocolMessageType(
     dict(DESCRIPTOR=_MESSAGEV4_CAMERADATA, __module__="messageV4_3dcameradata_pb2"),
 )
 _sym_db.RegisterMessage(MessageV4_CameraData)
+MessageV4_AllCameraData = _reflection.GeneratedProtocolMessageType(
+    "MessageV4_AllCameraData",
+    (_message.Message,),
+    dict(DESCRIPTOR=_MESSAGEV4_ALLCAMERADATA, __module__="messageV4_3dcameradata_pb2"),
+)
+_sym_db.RegisterMessage(MessageV4_AllCameraData)
 MessageV4_SemanticsTag = _reflection.GeneratedProtocolMessageType(
     "MessageV4_SemanticsTag",
     (_message.Message,),

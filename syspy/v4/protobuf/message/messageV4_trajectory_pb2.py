@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_trajectory.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1amessageV4_trajectory.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto":\n\x13MessageV4_PathPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01"B\n\x0eMessageV4_Path\x120\n\x04path\x18\x01 \x03(\x0b2".rbk4.protocol.MessageV4_PathPoint"\x7f\n\x15MessageV4_ManualSpeed\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\x0e\n\x06rotate\x18\x04 \x01(\x01\x12\x0f\n\x07task_id\x18\x05 \x01(\t"\x87\x01\n\x19MessageV4_TrajectoryPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01\x12\x11\n\ttimestamp\x18\x04 \x01(\x01\x12\r\n\x05curve\x18\x05 \x01(\x01\x12\x10\n\x08refspeed\x18\x06 \x01(\x01\x12\x11\n\tdist2goal\x18\x07 \x01(\x01"Í\x05\n\x14MessageV4_Trajectory\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12<\n\ntrajectory\x18\x02 \x03(\x0b2(.rbk4.protocol.MessageV4_TrajectoryPoint\x12<\n\x07navtype\x18\x03 \x01(\x0e2+.rbk4.protocol.MessageV4_Trajectory.NavType\x12\x19\n\x11xy_goal_tolerance\x18\x04 \x01(\x01\x12\x1a\n\x12yaw_goal_tolerance\x18\x05 \x01(\x01\x12\x12\n\njerk_v_dec\x18\x06 \x01(\x01\x12\x12\n\njerk_v_acc\x18\x07 \x01(\x01\x12\x13\n\x0bshift_speed\x18\x08 \x01(\x01\x12\x10\n\x08acc_init\x18\t \x01(\x01\x12\x0e\n\x06jerk_w\x18\n \x01(\x01\x12\x13\n\x0bjerk_v_step\x18\x0b \x01(\x01\x12\x13\n\x0blateral_acc\x18\x0c \x01(\x01\x12\x11\n\tmax_vel_x\x18\r \x01(\x01\x12\x11\n\tacc_lim_x\x18\x0e \x01(\x01\x12\x11\n\tdec_lim_x\x18\x0f \x01(\x01\x12\x15\n\rmax_vel_theta\x18\x10 \x01(\x01\x12\x15\n\racc_lim_theta\x18\x11 \x01(\x01\x12\x15\n\rdec_lim_theta\x18\x12 \x01(\x01\x12\x13\n\x0bsteer_speed\x18\x13 \x01(\x01\x12\x14\n\x0ctarget_angle\x18\x14 \x01(\x01\x12\x0f\n\x07task_id\x18\x15 \x01(\t\x12\x14\n\x0chas_hold_dir\x18\x16 \x01(\x08\x12\x10\n\x08hold_dir\x18\x17 \x01(\x01\x12\x11\n\tstop_flag\x18\x18 \x01(\x08\x12\x18\n\x10smooth_stop_flag\x18\x19 \x01(\x08"9\n\x07NavType\x12\x0b\n\x07FORWARD\x10\x00\x12\x0c\n\x08BACKWARD\x10\x01\x12\x08\n\x04LEFT\x10\x02\x12\t\n\x05RIGHT\x10\x03"²\x02\n\x13MessageV4_MotorTask\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12<\n\x04mode\x18\x02 \x01(\x0e2..rbk4.protocol.MessageV4_MotorTask.ControlMode\x12\x12\n\nmotor_name\x18\x03 \x01(\t\x12\x12\n\ntarget_pos\x18\x04 \x01(\x01\x12\x12\n\ntarget_vel\x18\x05 \x01(\x01\x12\x0f\n\x07task_id\x18\x06 \x01(\t\x12\x11\n\tmax_speed\x18\x07 \x01(\x01\x12\x0f\n\x07stop_di\x18\x08 \x01(\x05";\n\x0bControlMode\x12\x0f\n\x0bPP_POSITION\x10\x00\x12\x10\n\x0cCSP_POSITION\x10\x01\x12\t\n\x05SPEED\x10\x02"?\n\x14MessageV4_JointAngle\x12\x13\n\x0bjoint_angle\x18\x01 \x01(\x01\x12\x12\n\njoint_name\x18\x02 \x01(\t"\x83\x01\n\x15MessageV4_JointAngles\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x129\n\x0cjoint_angles\x18\x02 \x03(\x0b2#.rbk4.protocol.MessageV4_JointAngleb\x06proto3'
+        '\n\x1amessageV4_trajectory.proto\x12\rrbk4.protocol\x1a\x14message_header.proto":\n\x13MessageV4_PathPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01"B\n\x0eMessageV4_Path\x120\n\x04path\x18\x01 \x03(\x0b2".rbk4.protocol.MessageV4_PathPoint"w\n\x15MessageV4_ManualSpeed\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\x0e\n\x06rotate\x18\x04 \x01(\x01\x12\x0f\n\x07task_id\x18\x05 \x01(\t"\x87\x01\n\x19MessageV4_TrajectoryPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01\x12\x11\n\ttimestamp\x18\x04 \x01(\x01\x12\r\n\x05curve\x18\x05 \x01(\x01\x12\x10\n\x08refspeed\x18\x06 \x01(\x01\x12\x11\n\tdist2goal\x18\x07 \x01(\x01"Å\x05\n\x14MessageV4_Trajectory\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12<\n\ntrajectory\x18\x02 \x03(\x0b2(.rbk4.protocol.MessageV4_TrajectoryPoint\x12<\n\x07navtype\x18\x03 \x01(\x0e2+.rbk4.protocol.MessageV4_Trajectory.NavType\x12\x19\n\x11xy_goal_tolerance\x18\x04 \x01(\x01\x12\x1a\n\x12yaw_goal_tolerance\x18\x05 \x01(\x01\x12\x12\n\njerk_v_dec\x18\x06 \x01(\x01\x12\x12\n\njerk_v_acc\x18\x07 \x01(\x01\x12\x13\n\x0bshift_speed\x18\x08 \x01(\x01\x12\x10\n\x08acc_init\x18\t \x01(\x01\x12\x0e\n\x06jerk_w\x18\n \x01(\x01\x12\x13\n\x0bjerk_v_step\x18\x0b \x01(\x01\x12\x13\n\x0blateral_acc\x18\x0c \x01(\x01\x12\x11\n\tmax_vel_x\x18\r \x01(\x01\x12\x11\n\tacc_lim_x\x18\x0e \x01(\x01\x12\x11\n\tdec_lim_x\x18\x0f \x01(\x01\x12\x15\n\rmax_vel_theta\x18\x10 \x01(\x01\x12\x15\n\racc_lim_theta\x18\x11 \x01(\x01\x12\x15\n\rdec_lim_theta\x18\x12 \x01(\x01\x12\x13\n\x0bsteer_speed\x18\x13 \x01(\x01\x12\x14\n\x0ctarget_angle\x18\x14 \x01(\x01\x12\x0f\n\x07task_id\x18\x15 \x01(\t\x12\x14\n\x0chas_hold_dir\x18\x16 \x01(\x08\x12\x10\n\x08hold_dir\x18\x17 \x01(\x01\x12\x11\n\tstop_flag\x18\x18 \x01(\x08\x12\x18\n\x10smooth_stop_flag\x18\x19 \x01(\x08"9\n\x07NavType\x12\x0b\n\x07FORWARD\x10\x00\x12\x0c\n\x08BACKWARD\x10\x01\x12\x08\n\x04LEFT\x10\x02\x12\t\n\x05RIGHT\x10\x03"ª\x02\n\x13MessageV4_MotorTask\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12<\n\x04mode\x18\x02 \x01(\x0e2..rbk4.protocol.MessageV4_MotorTask.ControlMode\x12\x12\n\nmotor_name\x18\x03 \x01(\t\x12\x12\n\ntarget_pos\x18\x04 \x01(\x01\x12\x12\n\ntarget_vel\x18\x05 \x01(\x01\x12\x0f\n\x07task_id\x18\x06 \x01(\t\x12\x11\n\tmax_speed\x18\x07 \x01(\x01\x12\x0f\n\x07stop_di\x18\x08 \x01(\x05";\n\x0bControlMode\x12\x0f\n\x0bPP_POSITION\x10\x00\x12\x10\n\x0cCSP_POSITION\x10\x01\x12\t\n\x05SPEED\x10\x02"?\n\x14MessageV4_JointAngle\x12\x13\n\x0bjoint_angle\x18\x01 \x01(\x01\x12\x12\n\njoint_name\x18\x02 \x01(\t"{\n\x15MessageV4_JointAngles\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x129\n\x0cjoint_angles\x18\x02 \x03(\x0b2#.rbk4.protocol.MessageV4_JointAngleb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_TRAJECTORY_NAVTYPE = _descriptor.EnumDescriptor(
     name="NavType",
@@ -40,8 +40,8 @@ _MESSAGEV4_TRAJECTORY_NAVTYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1125,
-    serialized_end=1182,
+    serialized_start=1107,
+    serialized_end=1164,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_TRAJECTORY_NAVTYPE)
 _MESSAGEV4_MOTORTASK_CONTROLMODE = _descriptor.EnumDescriptor(
@@ -62,8 +62,8 @@ _MESSAGEV4_MOTORTASK_CONTROLMODE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1432,
-    serialized_end=1491,
+    serialized_start=1406,
+    serialized_end=1465,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_MOTORTASK_CONTROLMODE)
 _MESSAGEV4_PATHPOINT = _descriptor.Descriptor(
@@ -136,8 +136,8 @@ _MESSAGEV4_PATHPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=69,
-    serialized_end=127,
+    serialized_start=67,
+    serialized_end=125,
 )
 _MESSAGEV4_PATH = _descriptor.Descriptor(
     name="MessageV4_Path",
@@ -173,8 +173,8 @@ _MESSAGEV4_PATH = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=129,
-    serialized_end=195,
+    serialized_start=127,
+    serialized_end=193,
 )
 _MESSAGEV4_MANUALSPEED = _descriptor.Descriptor(
     name="MessageV4_ManualSpeed",
@@ -282,8 +282,8 @@ _MESSAGEV4_MANUALSPEED = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=197,
-    serialized_end=324,
+    serialized_start=195,
+    serialized_end=314,
 )
 _MESSAGEV4_TRAJECTORYPOINT = _descriptor.Descriptor(
     name="MessageV4_TrajectoryPoint",
@@ -427,8 +427,8 @@ _MESSAGEV4_TRAJECTORYPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=327,
-    serialized_end=462,
+    serialized_start=317,
+    serialized_end=452,
 )
 _MESSAGEV4_TRAJECTORY = _descriptor.Descriptor(
     name="MessageV4_Trajectory",
@@ -896,8 +896,8 @@ _MESSAGEV4_TRAJECTORY = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=465,
-    serialized_end=1182,
+    serialized_start=455,
+    serialized_end=1164,
 )
 _MESSAGEV4_MOTORTASK = _descriptor.Descriptor(
     name="MessageV4_MotorTask",
@@ -1059,8 +1059,8 @@ _MESSAGEV4_MOTORTASK = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1185,
-    serialized_end=1491,
+    serialized_start=1167,
+    serialized_end=1465,
 )
 _MESSAGEV4_JOINTANGLE = _descriptor.Descriptor(
     name="MessageV4_JointAngle",
@@ -1114,8 +1114,8 @@ _MESSAGEV4_JOINTANGLE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1493,
-    serialized_end=1556,
+    serialized_start=1467,
+    serialized_end=1530,
 )
 _MESSAGEV4_JOINTANGLES = _descriptor.Descriptor(
     name="MessageV4_JointAngles",
@@ -1169,15 +1169,15 @@ _MESSAGEV4_JOINTANGLES = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1559,
-    serialized_end=1690,
+    serialized_start=1532,
+    serialized_end=1655,
 )
 _MESSAGEV4_PATH.fields_by_name["path"].message_type = _MESSAGEV4_PATHPOINT
 _MESSAGEV4_MANUALSPEED.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_TRAJECTORY.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_TRAJECTORY.fields_by_name["trajectory"].message_type = (
     _MESSAGEV4_TRAJECTORYPOINT
@@ -1187,12 +1187,12 @@ _MESSAGEV4_TRAJECTORY.fields_by_name["navtype"].enum_type = (
 )
 _MESSAGEV4_TRAJECTORY_NAVTYPE.containing_type = _MESSAGEV4_TRAJECTORY
 _MESSAGEV4_MOTORTASK.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_MOTORTASK.fields_by_name["mode"].enum_type = _MESSAGEV4_MOTORTASK_CONTROLMODE
 _MESSAGEV4_MOTORTASK_CONTROLMODE.containing_type = _MESSAGEV4_MOTORTASK
 _MESSAGEV4_JOINTANGLES.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_JOINTANGLES.fields_by_name["joint_angles"].message_type = (
     _MESSAGEV4_JOINTANGLE

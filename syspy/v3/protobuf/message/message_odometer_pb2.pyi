@@ -9,11 +9,9 @@ from typing import ClassVar, Iterable, Mapping, Optional, Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class msgOdometer(_message.Message):
-    __slots__ = ["angle", "cycle", "detectSkid", "followErr", "header", "isStop", "motorInfo", "velRotate", "velX", "velY", "x", "y"]
+    __slots__ = ["angle", "cycle", "header", "isStop", "motorInfo", "velRotate", "velX", "velY", "x", "y"]
     ANGLE_FIELD_NUMBER: ClassVar[int]
     CYCLE_FIELD_NUMBER: ClassVar[int]
-    DETECTSKID_FIELD_NUMBER: ClassVar[int]
-    FOLLOWERR_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
     ISSTOP_FIELD_NUMBER: ClassVar[int]
     MOTORINFO_FIELD_NUMBER: ClassVar[int]
@@ -24,8 +22,6 @@ class msgOdometer(_message.Message):
     Y_FIELD_NUMBER: ClassVar[int]
     angle: float
     cycle: int
-    detectSkid: bool
-    followErr: bool
     header: _message_header_pb2.msgHeader
     isStop: bool
     motorInfo: _containers.RepeatedCompositeFieldContainer[_message_motorinfos_pb2.msgMotorInfo]
@@ -34,7 +30,7 @@ class msgOdometer(_message.Message):
     velY: float
     x: float
     y: float
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., cycle: Optional[int] = ..., x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ..., isStop: bool = ..., velX: Optional[float] = ..., velY: Optional[float] = ..., velRotate: Optional[float] = ..., detectSkid: bool = ..., motorInfo: Optional[Iterable[Union[_message_motorinfos_pb2.msgMotorInfo, Mapping]]] = ..., followErr: bool = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., cycle: Optional[int] = ..., x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ..., isStop: bool = ..., velX: Optional[float] = ..., velY: Optional[float] = ..., velRotate: Optional[float] = ..., motorInfo: Optional[Iterable[Union[_message_motorinfos_pb2.msgMotorInfo, Mapping]]] = ...) -> None: ...
 
 class msgSlip(_message.Message):
     __slots__ = ["name", "slip", "slipTime"]

@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_debug.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x15messageV4_debug.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"9\n\x12MessageV4_DebugPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01"J\n\x16MessageV4_DebugPosList\x120\n\x05poses\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_DebugPos"w\n\x13MessageV4_DebugLine\x120\n\x05start\x18\x01 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12.\n\x03end\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos"L\n\x17MessageV4_DebugLineList\x121\n\x05lines\x18\x01 \x03(\x0b2".rbk4.protocol.MessageV4_DebugLine"y\n\x14MessageV4_ColorPoint\x12\x0f\n\x07color_r\x18\x01 \x01(\x05\x12\x0f\n\x07color_g\x18\x02 \x01(\x05\x12\x0f\n\x07color_b\x18\x03 \x01(\x05\x12.\n\x03pos\x18\x04 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos"U\n\x18MessageV4_ColorPointList\x129\n\x0ccolor_points\x18\x01 \x03(\x0b2#.rbk4.protocol.MessageV4_ColorPoint"ª\x01\n\x13MessageV4_ColorLine\x120\n\x05start\x18\x01 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12.\n\x03end\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12\x0f\n\x07color_r\x18\x03 \x01(\x05\x12\x0f\n\x07color_g\x18\x04 \x01(\x05\x12\x0f\n\x07color_b\x18\x05 \x01(\x05"R\n\x17MessageV4_ColorLineList\x127\n\x0bcolor_lines\x18\x01 \x03(\x0b2".rbk4.protocol.MessageV4_ColorLine"\x80\x07\n\x0fMessageV4_Debug\x12\r\n\x05title\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\x05\x12\x0e\n\x06radius\x18\x03 \x01(\x01\x120\n\x04line\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_DebugLine\x129\n\tline_list\x18\x05 \x01(\x0b2&.rbk4.protocol.MessageV4_DebugLineList\x121\n\x06center\x18\x06 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12\x0e\n\x06length\x18\x07 \x01(\x01\x12\r\n\x05width\x18\x08 \x01(\x01\x12\r\n\x05color\x18\t \x01(\x05\x12\x12\n\nline_width\x18\n \x01(\x05\x12\x0c\n\x04text\x18\x0b \x01(\t\x127\n\x08pos_list\x18\x0c \x01(\x0b2%.rbk4.protocol.MessageV4_DebugPosList\x12A\n\x10color_point_list\x18\r \x01(\x0b2\'.rbk4.protocol.MessageV4_ColorPointList\x12?\n\x0fcolor_line_list\x18\x0e \x01(\x0b2&.rbk4.protocol.MessageV4_ColorLineList\x12/\n\x06header\x18\x0f \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"\xad\x01\n\x04TYPE\x12\r\n\tTYPE_NULL\x10\x00\x12\t\n\x05CROSS\x10\x01\x12\n\n\x06CIRCLE\x10\x02\x12\x08\n\x04LINE\x10\x03\x12\x08\n\x04RECT\x10\x04\x12\x07\n\x03POS\x10\x05\x12\x08\n\x04TEXT\x10\x06\x12\x0e\n\nCIRCLELIST\x10\x07\x12\x0c\n\x08LINELIST\x10\x08\x12\x0b\n\x07POSLIST\x10\t\x12\x08\n\x04PATH\x10\n\x12\x10\n\x0cCOLORPOSLIST\x10\x0b\x12\x11\n\rCOLORLINELIST\x10\x0c"±\x01\n\x05COLOR\x12\x0e\n\nCOLOR_NULL\x10\x00\x12\t\n\x05BLACK\x10\x02\x12\t\n\x05WHITE\x10\x03\x12\x0c\n\x08DARKGRAY\x10\x04\x12\x08\n\x04GRAY\x10\x05\x12\r\n\tLIGHTGRAY\x10\x06\x12\x07\n\x03RED\x10\x07\x12\t\n\x05GREEN\x10\x08\x12\x08\n\x04BLUE\x10\t\x12\x08\n\x04CYAN\x10\n\x12\x0b\n\x07MAGENTA\x10\x0b\x12\n\n\x06YELLOW\x10\x0c\x12\x0b\n\x07DARKRED\x10\r\x12\r\n\tDARKGREEN\x10\x0eb\x06proto3'
+        '\n\x15messageV4_debug.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"9\n\x12MessageV4_DebugPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01"J\n\x16MessageV4_DebugPosList\x120\n\x05poses\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_DebugPos"w\n\x13MessageV4_DebugLine\x120\n\x05start\x18\x01 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12.\n\x03end\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos"L\n\x17MessageV4_DebugLineList\x121\n\x05lines\x18\x01 \x03(\x0b2".rbk4.protocol.MessageV4_DebugLine"y\n\x14MessageV4_ColorPoint\x12\x0f\n\x07color_r\x18\x01 \x01(\x05\x12\x0f\n\x07color_g\x18\x02 \x01(\x05\x12\x0f\n\x07color_b\x18\x03 \x01(\x05\x12.\n\x03pos\x18\x04 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos"U\n\x18MessageV4_ColorPointList\x129\n\x0ccolor_points\x18\x01 \x03(\x0b2#.rbk4.protocol.MessageV4_ColorPoint"ª\x01\n\x13MessageV4_ColorLine\x120\n\x05start\x18\x01 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12.\n\x03end\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12\x0f\n\x07color_r\x18\x03 \x01(\x05\x12\x0f\n\x07color_g\x18\x04 \x01(\x05\x12\x0f\n\x07color_b\x18\x05 \x01(\x05"R\n\x17MessageV4_ColorLineList\x127\n\x0bcolor_lines\x18\x01 \x03(\x0b2".rbk4.protocol.MessageV4_ColorLine"ø\x06\n\x0fMessageV4_Debug\x12\r\n\x05title\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\x05\x12\x0e\n\x06radius\x18\x03 \x01(\x01\x120\n\x04line\x18\x04 \x01(\x0b2".rbk4.protocol.MessageV4_DebugLine\x129\n\tline_list\x18\x05 \x01(\x0b2&.rbk4.protocol.MessageV4_DebugLineList\x121\n\x06center\x18\x06 \x01(\x0b2!.rbk4.protocol.MessageV4_DebugPos\x12\x0e\n\x06length\x18\x07 \x01(\x01\x12\r\n\x05width\x18\x08 \x01(\x01\x12\r\n\x05color\x18\t \x01(\x05\x12\x12\n\nline_width\x18\n \x01(\x05\x12\x0c\n\x04text\x18\x0b \x01(\t\x127\n\x08pos_list\x18\x0c \x01(\x0b2%.rbk4.protocol.MessageV4_DebugPosList\x12A\n\x10color_point_list\x18\r \x01(\x0b2\'.rbk4.protocol.MessageV4_ColorPointList\x12?\n\x0fcolor_line_list\x18\x0e \x01(\x0b2&.rbk4.protocol.MessageV4_ColorLineList\x12\'\n\x06header\x18\x0f \x01(\x0b2\x17.rbk.protocol.msgHeader"\xad\x01\n\x04TYPE\x12\r\n\tTYPE_NULL\x10\x00\x12\t\n\x05CROSS\x10\x01\x12\n\n\x06CIRCLE\x10\x02\x12\x08\n\x04LINE\x10\x03\x12\x08\n\x04RECT\x10\x04\x12\x07\n\x03POS\x10\x05\x12\x08\n\x04TEXT\x10\x06\x12\x0e\n\nCIRCLELIST\x10\x07\x12\x0c\n\x08LINELIST\x10\x08\x12\x0b\n\x07POSLIST\x10\t\x12\x08\n\x04PATH\x10\n\x12\x10\n\x0cCOLORPOSLIST\x10\x0b\x12\x11\n\rCOLORLINELIST\x10\x0c"±\x01\n\x05COLOR\x12\x0e\n\nCOLOR_NULL\x10\x00\x12\t\n\x05BLACK\x10\x02\x12\t\n\x05WHITE\x10\x03\x12\x0c\n\x08DARKGRAY\x10\x04\x12\x08\n\x04GRAY\x10\x05\x12\r\n\tLIGHTGRAY\x10\x06\x12\x07\n\x03RED\x10\x07\x12\t\n\x05GREEN\x10\x08\x12\x08\n\x04BLUE\x10\t\x12\x08\n\x04CYAN\x10\n\x12\x0b\n\x07MAGENTA\x10\x0b\x12\n\n\x06YELLOW\x10\x0c\x12\x0b\n\x07DARKRED\x10\r\x12\r\n\tDARKGREEN\x10\x0eb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_DEBUG_TYPE = _descriptor.EnumDescriptor(
     name="TYPE",
@@ -71,8 +71,8 @@ _MESSAGEV4_DEBUG_TYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1409,
-    serialized_end=1582,
+    serialized_start=1399,
+    serialized_end=1572,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_DEBUG_TYPE)
 _MESSAGEV4_DEBUG_COLOR = _descriptor.EnumDescriptor(
@@ -126,8 +126,8 @@ _MESSAGEV4_DEBUG_COLOR = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1585,
-    serialized_end=1762,
+    serialized_start=1575,
+    serialized_end=1752,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_DEBUG_COLOR)
 _MESSAGEV4_DEBUGPOS = _descriptor.Descriptor(
@@ -200,8 +200,8 @@ _MESSAGEV4_DEBUGPOS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=64,
-    serialized_end=121,
+    serialized_start=62,
+    serialized_end=119,
 )
 _MESSAGEV4_DEBUGPOSLIST = _descriptor.Descriptor(
     name="MessageV4_DebugPosList",
@@ -237,8 +237,8 @@ _MESSAGEV4_DEBUGPOSLIST = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=123,
-    serialized_end=197,
+    serialized_start=121,
+    serialized_end=195,
 )
 _MESSAGEV4_DEBUGLINE = _descriptor.Descriptor(
     name="MessageV4_DebugLine",
@@ -292,8 +292,8 @@ _MESSAGEV4_DEBUGLINE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=199,
-    serialized_end=318,
+    serialized_start=197,
+    serialized_end=316,
 )
 _MESSAGEV4_DEBUGLINELIST = _descriptor.Descriptor(
     name="MessageV4_DebugLineList",
@@ -329,8 +329,8 @@ _MESSAGEV4_DEBUGLINELIST = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=320,
-    serialized_end=396,
+    serialized_start=318,
+    serialized_end=394,
 )
 _MESSAGEV4_COLORPOINT = _descriptor.Descriptor(
     name="MessageV4_ColorPoint",
@@ -420,8 +420,8 @@ _MESSAGEV4_COLORPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=398,
-    serialized_end=519,
+    serialized_start=396,
+    serialized_end=517,
 )
 _MESSAGEV4_COLORPOINTLIST = _descriptor.Descriptor(
     name="MessageV4_ColorPointList",
@@ -457,8 +457,8 @@ _MESSAGEV4_COLORPOINTLIST = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=521,
-    serialized_end=606,
+    serialized_start=519,
+    serialized_end=604,
 )
 _MESSAGEV4_COLORLINE = _descriptor.Descriptor(
     name="MessageV4_ColorLine",
@@ -566,8 +566,8 @@ _MESSAGEV4_COLORLINE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=609,
-    serialized_end=779,
+    serialized_start=607,
+    serialized_end=777,
 )
 _MESSAGEV4_COLORLINELIST = _descriptor.Descriptor(
     name="MessageV4_ColorLineList",
@@ -603,8 +603,8 @@ _MESSAGEV4_COLORLINELIST = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=781,
-    serialized_end=863,
+    serialized_start=779,
+    serialized_end=861,
 )
 _MESSAGEV4_DEBUG = _descriptor.Descriptor(
     name="MessageV4_Debug",
@@ -892,8 +892,8 @@ _MESSAGEV4_DEBUG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=866,
-    serialized_end=1762,
+    serialized_start=864,
+    serialized_end=1752,
 )
 _MESSAGEV4_DEBUGPOSLIST.fields_by_name["poses"].message_type = _MESSAGEV4_DEBUGPOS
 _MESSAGEV4_DEBUGLINE.fields_by_name["start"].message_type = _MESSAGEV4_DEBUGPOS
@@ -918,9 +918,7 @@ _MESSAGEV4_DEBUG.fields_by_name["color_point_list"].message_type = (
 _MESSAGEV4_DEBUG.fields_by_name["color_line_list"].message_type = (
     _MESSAGEV4_COLORLINELIST
 )
-_MESSAGEV4_DEBUG.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
-)
+_MESSAGEV4_DEBUG.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGEV4_DEBUG_TYPE.containing_type = _MESSAGEV4_DEBUG
 _MESSAGEV4_DEBUG_COLOR.containing_type = _MESSAGEV4_DEBUG
 DESCRIPTOR.message_types_by_name["MessageV4_DebugPos"] = _MESSAGEV4_DEBUGPOS

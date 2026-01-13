@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 from . import messageV4_image_pb2 as messageV4__image__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -16,9 +16,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x17messageV4_feature.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x15messageV4_image.proto"{\n\x12MessageV4_Keypoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01\x12\x0e\n\x06octave\x18\x04 \x01(\x01\x12\x0c\n\x04size\x18\x05 \x01(\x01\x12\x10\n\x08response\x18\x06 \x01(\x01\x12\x10\n\x08class_id\x18\x07 \x01(\x01"Ú\x01\n\x11MessageV4_Feature\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\n\n\x02id\x18\x02 \x01(\x03\x12\x0b\n\x03num\x18\x03 \x01(\x03\x12\x10\n\x08cam_name\x18\x04 \x01(\t\x124\n\tkeypoints\x18\x05 \x03(\x0b2!.rbk4.protocol.MessageV4_Keypoint\x123\n\x0bdescriptors\x18\x06 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"H\n\x12MessageV4_Features\x122\n\x08features\x18\x01 \x03(\x0b2 .rbk4.protocol.MessageV4_Featureb\x06proto3'
+        '\n\x17messageV4_feature.proto\x12\rrbk4.protocol\x1a\x14message_header.proto\x1a\x15messageV4_image.proto"{\n\x12MessageV4_Keypoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05angle\x18\x03 \x01(\x01\x12\x0e\n\x06octave\x18\x04 \x01(\x01\x12\x0c\n\x04size\x18\x05 \x01(\x01\x12\x10\n\x08response\x18\x06 \x01(\x01\x12\x10\n\x08class_id\x18\x07 \x01(\x01"Ò\x01\n\x11MessageV4_Feature\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\n\n\x02id\x18\x02 \x01(\x03\x12\x0b\n\x03num\x18\x03 \x01(\x03\x12\x10\n\x08cam_name\x18\x04 \x01(\t\x124\n\tkeypoints\x18\x05 \x03(\x0b2!.rbk4.protocol.MessageV4_Keypoint\x123\n\x0bdescriptors\x18\x06 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"H\n\x12MessageV4_Features\x122\n\x08features\x18\x01 \x03(\x0b2 .rbk4.protocol.MessageV4_Featureb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR, messageV4__image__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR, messageV4__image__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_KEYPOINT = _descriptor.Descriptor(
     name="MessageV4_Keypoint",
@@ -162,8 +162,8 @@ _MESSAGEV4_KEYPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=89,
-    serialized_end=212,
+    serialized_start=87,
+    serialized_end=210,
 )
 _MESSAGEV4_FEATURE = _descriptor.Descriptor(
     name="MessageV4_Feature",
@@ -289,8 +289,8 @@ _MESSAGEV4_FEATURE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=215,
-    serialized_end=433,
+    serialized_start=213,
+    serialized_end=423,
 )
 _MESSAGEV4_FEATURES = _descriptor.Descriptor(
     name="MessageV4_Features",
@@ -326,11 +326,11 @@ _MESSAGEV4_FEATURES = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=435,
-    serialized_end=507,
+    serialized_start=425,
+    serialized_end=497,
 )
 _MESSAGEV4_FEATURE.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_FEATURE.fields_by_name["keypoints"].message_type = _MESSAGEV4_KEYPOINT
 _MESSAGEV4_FEATURE.fields_by_name["descriptors"].message_type = (

@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_image.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x15messageV4_image.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"}\n\x0fMessageV4_Image\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0c\n\x04type\x18\x04 \x01(\x05\x12\x0c\n\x04data\x18\x05 \x01(\x0c"\x91\x01\n\x14MessageV4_DepthImage\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0c\n\x04type\x18\x04 \x01(\x05\x12\r\n\x05scale\x18\x05 \x01(\x01\x12\x0c\n\x04data\x18\x06 \x01(\x0cb\x06proto3'
+        "\n\x15messageV4_image.proto\x12\rrbk4.protocol\x1a\x14message_header.proto\"u\n\x0fMessageV4_Image\x12'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0c\n\x04type\x18\x04 \x01(\x05\x12\x0c\n\x04data\x18\x05 \x01(\x0c\"\x89\x01\n\x14MessageV4_DepthImage\x12'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0c\n\x04type\x18\x04 \x01(\x05\x12\r\n\x05scale\x18\x05 \x01(\x01\x12\x0c\n\x04data\x18\x06 \x01(\x0cb\x06proto3"
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_IMAGE = _descriptor.Descriptor(
     name="MessageV4_Image",
@@ -125,8 +125,8 @@ _MESSAGEV4_IMAGE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=64,
-    serialized_end=189,
+    serialized_start=62,
+    serialized_end=179,
 )
 _MESSAGEV4_DEPTHIMAGE = _descriptor.Descriptor(
     name="MessageV4_DepthImage",
@@ -252,14 +252,12 @@ _MESSAGEV4_DEPTHIMAGE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=192,
-    serialized_end=337,
+    serialized_start=182,
+    serialized_end=319,
 )
-_MESSAGEV4_IMAGE.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
-)
+_MESSAGEV4_IMAGE.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGEV4_DEPTHIMAGE.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 DESCRIPTOR.message_types_by_name["MessageV4_Image"] = _MESSAGEV4_IMAGE
 DESCRIPTOR.message_types_by_name["MessageV4_DepthImage"] = _MESSAGEV4_DEPTHIMAGE

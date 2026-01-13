@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_motorcmd.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x18messageV4_motorcmd.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"^\n\x1dMessageV4_Profile_PositionCmd\x12\x10\n\x08position\x18\x01 \x01(\x05\x12\x11\n\tmax_speed\x18\x02 \x01(\r\x12\x0b\n\x03acc\x18\x03 \x01(\r\x12\x0b\n\x03dec\x18\x04 \x01(\r"[\n\x10MessageV4_CSPCmd\x12\x10\n\x08position\x18\x01 \x01(\x05\x12\x15\n\rtorque_offset\x18\x02 \x01(\x05\x12\x11\n\tmax_speed\x18\x03 \x01(\r\x12\x0b\n\x03dec\x18\x04 \x01(\r"G\n\x10MessageV4_CSVCmd\x12\x10\n\x08velocity\x18\x01 \x01(\x05\x12\x14\n\x0cmax_velocity\x18\x02 \x01(\r\x12\x0b\n\x03dec\x18\x03 \x01(\r"P\n\x12MessageV4_SpeedCmd\x12\r\n\x05speed\x18\x01 \x01(\x05\x12\x11\n\tmax_speed\x18\x02 \x01(\r\x12\x0b\n\x03acc\x18\x03 \x01(\r\x12\x0b\n\x03dec\x18\x04 \x01(\r"L\n\x13MessageV4_TorqueCmd\x12\x0f\n\x07percent\x18\x01 \x01(\r\x12\x0f\n\x07current\x18\x02 \x01(\x05\x12\x13\n\x0bmax_current\x18\x03 \x01(\x05"M\n\x10MessageV4_CSTCmd\x12\x0e\n\x06torque\x18\x01 \x01(\x05\x12\x15\n\rtorque_offset\x18\x02 \x01(\x05\x12\x12\n\nmax_torque\x18\x03 \x01(\r"[\n\x10MessageV4_MITCmd\x12\n\n\x02kp\x18\x01 \x01(\x02\x12\n\n\x02kd\x18\x02 \x01(\x02\x12\x10\n\x08position\x18\x03 \x01(\x02\x12\r\n\x05speed\x18\x04 \x01(\x02\x12\x0e\n\x06torque\x18\x05 \x01(\x02"«\x05\n\x12MessageV4_MotorCmd\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x124\n\x04mode\x18\x02 \x01(\x0e2&.rbk4.protocol.MessageV4_MotorCmd.Mode\x126\n\tspeed_cmd\x18\x03 \x01(\x0b2!.rbk4.protocol.MessageV4_SpeedCmdH\x00\x12E\n\rpposition_cmd\x18\x04 \x01(\x0b2,.rbk4.protocol.MessageV4_Profile_PositionCmdH\x00\x122\n\x07csp_cmd\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_CSPCmdH\x00\x128\n\ntorque_cmd\x18\x06 \x01(\x0b2".rbk4.protocol.MessageV4_TorqueCmdH\x00\x122\n\x07cst_cmd\x18\x07 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_CSTCmdH\x00\x122\n\x07csv_cmd\x18\x08 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_CSVCmdH\x00\x122\n\x07mit_cmd\x18\t \x01(\x0b2\x1f.rbk4.protocol.MessageV4_MITCmdH\x00\x12\x12\n\nmotor_name\x18\n \x01(\t\x12\r\n\x05value\x18\x0b \x01(\x01"x\n\x04Mode\x12\x0f\n\x0bPP_POSITION\x10\x00\x12\x10\n\x0cCSP_POSITION\x10\x01\x12\t\n\x05SPEED\x10\x02\x12\n\n\x06TORQUE\x10\x03\x12\x0e\n\nCST_TORQUR\x10\x04\x12\x10\n\x0cCSV_VELOCITY\x10\x05\x12\x0b\n\x07DISABLE\x10\x06\x12\x07\n\x03MIT\x10\x07B\x08\n\x06objectb\x06proto3'
+        '\n\x18messageV4_motorcmd.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"^\n\x1dMessageV4_Profile_PositionCmd\x12\x10\n\x08position\x18\x01 \x01(\x05\x12\x11\n\tmax_speed\x18\x02 \x01(\r\x12\x0b\n\x03acc\x18\x03 \x01(\r\x12\x0b\n\x03dec\x18\x04 \x01(\r"[\n\x10MessageV4_CSPCmd\x12\x10\n\x08position\x18\x01 \x01(\x05\x12\x15\n\rtorque_offset\x18\x02 \x01(\x05\x12\x11\n\tmax_speed\x18\x03 \x01(\r\x12\x0b\n\x03dec\x18\x04 \x01(\r"G\n\x10MessageV4_CSVCmd\x12\x10\n\x08velocity\x18\x01 \x01(\x05\x12\x14\n\x0cmax_velocity\x18\x02 \x01(\r\x12\x0b\n\x03dec\x18\x03 \x01(\r"P\n\x12MessageV4_SpeedCmd\x12\r\n\x05speed\x18\x01 \x01(\x05\x12\x11\n\tmax_speed\x18\x02 \x01(\r\x12\x0b\n\x03acc\x18\x03 \x01(\r\x12\x0b\n\x03dec\x18\x04 \x01(\r"L\n\x13MessageV4_TorqueCmd\x12\x0f\n\x07percent\x18\x01 \x01(\r\x12\x0f\n\x07current\x18\x02 \x01(\x05\x12\x13\n\x0bmax_current\x18\x03 \x01(\x05"M\n\x10MessageV4_CSTCmd\x12\x0e\n\x06torque\x18\x01 \x01(\x05\x12\x15\n\rtorque_offset\x18\x02 \x01(\x05\x12\x12\n\nmax_torque\x18\x03 \x01(\r"[\n\x10MessageV4_MITCmd\x12\n\n\x02kp\x18\x01 \x01(\x02\x12\n\n\x02kd\x18\x02 \x01(\x02\x12\x10\n\x08position\x18\x03 \x01(\x02\x12\r\n\x05speed\x18\x04 \x01(\x02\x12\x0e\n\x06torque\x18\x05 \x01(\x02"£\x05\n\x12MessageV4_MotorCmd\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x124\n\x04mode\x18\x02 \x01(\x0e2&.rbk4.protocol.MessageV4_MotorCmd.Mode\x126\n\tspeed_cmd\x18\x03 \x01(\x0b2!.rbk4.protocol.MessageV4_SpeedCmdH\x00\x12E\n\rpposition_cmd\x18\x04 \x01(\x0b2,.rbk4.protocol.MessageV4_Profile_PositionCmdH\x00\x122\n\x07csp_cmd\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_CSPCmdH\x00\x128\n\ntorque_cmd\x18\x06 \x01(\x0b2".rbk4.protocol.MessageV4_TorqueCmdH\x00\x122\n\x07cst_cmd\x18\x07 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_CSTCmdH\x00\x122\n\x07csv_cmd\x18\x08 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_CSVCmdH\x00\x122\n\x07mit_cmd\x18\t \x01(\x0b2\x1f.rbk4.protocol.MessageV4_MITCmdH\x00\x12\x12\n\nmotor_name\x18\n \x01(\t\x12\r\n\x05value\x18\x0b \x01(\x01"x\n\x04Mode\x12\x0f\n\x0bPP_POSITION\x10\x00\x12\x10\n\x0cCSP_POSITION\x10\x01\x12\t\n\x05SPEED\x10\x02\x12\n\n\x06TORQUE\x10\x03\x12\x0e\n\nCST_TORQUR\x10\x04\x12\x10\n\x0cCSV_VELOCITY\x10\x05\x12\x0b\n\x07DISABLE\x10\x06\x12\x07\n\x03MIT\x10\x07B\x08\n\x06objectb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_MOTORCMD_MODE = _descriptor.EnumDescriptor(
     name="Mode",
@@ -52,8 +52,8 @@ _MESSAGEV4_MOTORCMD_MODE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1215,
-    serialized_end=1335,
+    serialized_start=1205,
+    serialized_end=1325,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_MOTORCMD_MODE)
 _MESSAGEV4_PROFILE_POSITIONCMD = _descriptor.Descriptor(
@@ -144,8 +144,8 @@ _MESSAGEV4_PROFILE_POSITIONCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=67,
-    serialized_end=161,
+    serialized_start=65,
+    serialized_end=159,
 )
 _MESSAGEV4_CSPCMD = _descriptor.Descriptor(
     name="MessageV4_CSPCmd",
@@ -235,8 +235,8 @@ _MESSAGEV4_CSPCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=163,
-    serialized_end=254,
+    serialized_start=161,
+    serialized_end=252,
 )
 _MESSAGEV4_CSVCMD = _descriptor.Descriptor(
     name="MessageV4_CSVCmd",
@@ -308,8 +308,8 @@ _MESSAGEV4_CSVCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=256,
-    serialized_end=327,
+    serialized_start=254,
+    serialized_end=325,
 )
 _MESSAGEV4_SPEEDCMD = _descriptor.Descriptor(
     name="MessageV4_SpeedCmd",
@@ -399,8 +399,8 @@ _MESSAGEV4_SPEEDCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=329,
-    serialized_end=409,
+    serialized_start=327,
+    serialized_end=407,
 )
 _MESSAGEV4_TORQUECMD = _descriptor.Descriptor(
     name="MessageV4_TorqueCmd",
@@ -472,8 +472,8 @@ _MESSAGEV4_TORQUECMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=411,
-    serialized_end=487,
+    serialized_start=409,
+    serialized_end=485,
 )
 _MESSAGEV4_CSTCMD = _descriptor.Descriptor(
     name="MessageV4_CSTCmd",
@@ -545,8 +545,8 @@ _MESSAGEV4_CSTCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=489,
-    serialized_end=566,
+    serialized_start=487,
+    serialized_end=564,
 )
 _MESSAGEV4_MITCMD = _descriptor.Descriptor(
     name="MessageV4_MITCmd",
@@ -654,8 +654,8 @@ _MESSAGEV4_MITCMD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=568,
-    serialized_end=659,
+    serialized_start=566,
+    serialized_end=657,
 )
 _MESSAGEV4_MOTORCMD = _descriptor.Descriptor(
     name="MessageV4_MotorCmd",
@@ -879,11 +879,11 @@ _MESSAGEV4_MOTORCMD = _descriptor.Descriptor(
             fields=[],
         )
     ],
-    serialized_start=662,
-    serialized_end=1345,
+    serialized_start=660,
+    serialized_end=1335,
 )
 _MESSAGEV4_MOTORCMD.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_MOTORCMD.fields_by_name["mode"].enum_type = _MESSAGEV4_MOTORCMD_MODE
 _MESSAGEV4_MOTORCMD.fields_by_name["speed_cmd"].message_type = _MESSAGEV4_SPEEDCMD

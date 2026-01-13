@@ -8,7 +8,7 @@ from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
 from google.protobuf import wrappers_pb2 as google_dot_protobuf_dot_wrappers__pb2
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 from . import messageV4_vda5050_pb2 as messageV4__vda5050__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -17,11 +17,11 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x18messageV4_movetask.proto\x12\rrbk4.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x16messageV4_header.proto\x1a\x17messageV4_vda5050.proto"\x83\x02\n\x13MessageV4_MoveParam\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x16\n\x0cstring_value\x18\x02 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x03 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x04 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x05 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x06 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\x07 \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\x08 \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\t \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\n \x01(\x0cH\x00B\r\n\x0boneof_value"ï\x0c\n\x12MessageV4_MoveTask\x12\x12\n\nskill_name\x18\x01 \x01(\t\x12.\n\x08target_x\x18\x02 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12.\n\x08target_y\x18\x03 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x122\n\x0ctarget_angle\x18\x04 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0btarget_name\x18\x05 \x01(\x0b2\x1c.google.protobuf.StringValue\x120\n\nreach_dist\x18\x06 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0breach_angle\x18\x07 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x122\n\x0creach_method\x18\x08 \x01(\x0b2\x1c.google.protobuf.StringValue\x121\n\x0breach_vel_x\x18\t \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0breach_vel_y\x18\n \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0breach_vel_w\x18\x0b \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_x\x18\x0c \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_y\x18\r \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_w\x18\x0e \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12/\n\tmax_speed\x18\x0f \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07max_acc\x18\x10 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07max_rot\x18\x11 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bmax_rot_acc\x18\x12 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x123\n\rslowdown_dist\x18\x13 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x120\n\nblock_dist\x18\x14 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12/\n\tmove_dist\x18\x15 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x120\n\nmove_angle\x18\x16 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12/\n\tmove_time\x18\x17 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x122\n\x06params\x18\x18 \x03(\x0b2".rbk4.protocol.MessageV4_MoveParam\x12-\n\x07task_id\x18\x19 \x01(\x0b2\x1c.google.protobuf.StringValue\x12-\n\x07max_dec\x18\x1a \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bmax_rot_dec\x18\x1b \x01(\x0b2\x1c.google.protobuf.DoubleValue\x123\n\robs_stop_dist\x18\x1c \x01(\x0b2\x1c.google.protobuf.DoubleValue\x122\n\x0cobs_dec_dist\x18\x1d \x01(\x0b2\x1c.google.protobuf.DoubleValue\x123\n\robs_dec_speed\x18\x1e \x01(\x0b2\x1c.google.protobuf.DoubleValue\x123\n\robs_expansion\x18\x1f \x01(\x0b2\x1c.google.protobuf.DoubleValue\x127\n\x11dec_obs_expansion\x18  \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bsource_name\x18( \x01(\x0b2\x1c.google.protobuf.StringValue"S\n\x16MessageV4_MoveTaskList\x129\n\x0emove_task_list\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_MoveTask"2\n\x1aMessageV4_MovePolygonPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01"_\n\x15MessageV4_MovePolygon\x128\n\x05point\x18\x01 \x03(\x0b2).rbk4.protocol.MessageV4_MovePolygonPoint\x12\x0c\n\x04name\x18\x02 \x01(\t"`\n\x14MessageV4_RobotShape\x12\r\n\x05shape\x18\x01 \x01(\r\x12\x0c\n\x04head\x18\x02 \x01(\x01\x12\x0c\n\x04tail\x18\x03 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06radius\x18\x05 \x01(\x01",\n\x14MessageV4_NearestObs\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01"`\n\x13MessageV4_Container\x12\x16\n\x0econtainer_name\x18\x01 \x01(\t\x12\x10\n\x08goods_id\x18\x02 \x01(\t\x12\x11\n\thas_goods\x18\x03 \x01(\x08\x12\x0c\n\x04desc\x18\x04 \x01(\t"ù\x01\n\x15MessageV4_SafeCutting\x12F\n\x0ccutting_type\x18\x01 \x01(\x0e20.rbk4.protocol.MessageV4_SafeCutting.CuttingType\x128\n\x05point\x18\x02 \x03(\x0b2).rbk4.protocol.MessageV4_MovePolygonPoint\x12\x0e\n\x06radius\x18\x03 \x01(\x01\x12\x13\n\x0bstart_angle\x18\x04 \x01(\x01\x12\x11\n\tend_angle\x18\x05 \x01(\x01"&\n\x0bCuttingType\x12\x0b\n\x07Polygon\x10\x00\x12\n\n\x06Sector\x10\x01"U\n\x16MessageV4_SafeCuttings\x12;\n\rsafe_cuttings\x18\x01 \x03(\x0b2$.rbk4.protocol.MessageV4_SafeCutting"\x8c\x11\n\x14MessageV4_MoveStatus\x12\x0f\n\x07blocked\x18\x01 \x01(\x08\x12\x0f\n\x07block_x\x18\x02 \x01(\x01\x12\x0f\n\x07block_y\x18\x03 \x01(\x01\x12@\n\x0cblock_reason\x18\x04 \x01(\x0e2*.rbk4.protocol.MessageV4_MoveStatus.Reason\x12\x13\n\x0btarget_name\x18\x05 \x01(\t\x12\x10\n\x08target_x\x18\x06 \x01(\x01\x12\x10\n\x08target_y\x18\x07 \x01(\x01\x12\x14\n\x0ctarget_angle\x18\x08 \x01(\x01\x12C\n\x0btask_status\x18\t \x01(\x0e2..rbk4.protocol.MessageV4_MoveStatus.TaskStatus\x12?\n\ttask_type\x18\n \x01(\x0e2,.rbk4.protocol.MessageV4_MoveStatus.TaskType\x12\x11\n\tarea_name\x18\x0b \x03(\t\x12\x1a\n\x12finished_path_name\x18\x0c \x03(\t\x12\x1c\n\x14unfinished_path_name\x18\r \x03(\t\x12\x10\n\x08block_id\x18\x0e \x01(\x05\x12\x0f\n\x07task_id\x18\x10 \x01(\t\x12:\n\x0crobot_region\x18\x11 \x01(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x12:\n\x0cgoods_region\x18\x12 \x01(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x12=\n\x0fremoved_regions\x18\x13 \x03(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x12I\n\x0erunning_status\x18\x14 \x01(\x0e21.rbk4.protocol.MessageV4_MoveStatus.RunningStatus\x12\x16\n\x0eclosest_target\x18\x15 \x01(\t\x12\x19\n\x11actual_reach_dist\x18\x16 \x01(\x01\x12\x1a\n\x12actual_reach_angle\x18\x17 \x01(\x01\x128\n\x0brobot_shape\x18\x18 \x01(\x0b2#.rbk4.protocol.MessageV4_RobotShape\x12\x0e\n\x06slowed\x18\x19 \x01(\x08\x12\x0e\n\x06slow_x\x18\x1a \x01(\x01\x12\x0e\n\x06slow_y\x18\x1b \x01(\x01\x12?\n\x0bslow_reason\x18\x1c \x01(\x0e2*.rbk4.protocol.MessageV4_MoveStatus.Reason\x12\x0f\n\x07slow_id\x18\x1d \x01(\x05\x127\n\tstop_path\x18\x1f \x01(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x127\n\tslow_path\x18  \x01(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x120\n\x07modules\x18! \x03(\x0b2\x1f.rbk4.protocol.MessageV4_Module\x12=\n\x0fadvance_regions\x18" \x03(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x12\x0c\n\x04info\x18# \x01(\t\x12\x13\n\x0btarget_dist\x18$ \x01(\x01\x12G\n\x13task_status_package\x18( \x01(\x0b2*.rbk4.protocol.MessageV4_TaskStatusPackage\x12\x14\n\x0ctarget_label\x18) \x01(\t\x12\x15\n\rclosest_label\x18* \x01(\t\x12>\n\x11nearest_obstacles\x18+ \x03(\x0b2#.rbk4.protocol.MessageV4_NearestObs\x126\n\ncontainers\x18, \x03(\x0b2".rbk4.protocol.MessageV4_Container\x12\x11\n\tdist2goal\x18- \x01(\x01\x12<\n\rsafe_cuttings\x18. \x01(\x0b2%.rbk4.protocol.MessageV4_SafeCuttings\x128\n\x0cactionstates\x18/ \x03(\x0b2".rbk4.protocol.vda5050_actionState"³\x01\n\x06Reason\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0bFallingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x08\n\x04Lock\x10\x05\x12\x0f\n\x0bAPIObstacle\x10\x06\x12\x10\n\x0cVirtualPoint\x10\x07\x12\x0f\n\x0bDepthCamera\x10\x08\x12\x10\n\x0cDistanceNode\x10\t\x12\x10\n\x0cDiUltrasonic\x10\n"|\n\nTaskStatus\x12\x0e\n\nStatusNone\x10\x00\x12\x0b\n\x07Waiting\x10\x01\x12\x0b\n\x07Running\x10\x02\x12\r\n\tSuspended\x10\x03\x12\r\n\tCompleted\x10\x04\x12\n\n\x06Failed\x10\x05\x12\x0c\n\x08Canceled\x10\x06\x12\x0c\n\x08OverTime\x10\x07"¢\x01\n\x08TaskType\x12\x0c\n\x08TypeNone\x10\x00\x12\x0b\n\x07GoPoint\x10\x01\x12\r\n\tGoPointId\x10\x02\x12\x08\n\x04GoId\x10\x03\x12\n\n\x06Patrol\x10\x04\x12\x0f\n\x0bGoIntoShelf\x10\x05\x12\x12\n\x0eTargetTracking\x10\x06\x12\x10\n\x0cGoByOdometer\x10\x07\x12\x14\n\x10GoAlongMagstripe\x10\x08\x12\t\n\x05Other\x10d"U\n\rRunningStatus\x12\t\n\x05RNone\x10\x00\x12\x0c\n\x08RRunning\x10\x01\x12\x0f\n\x0bRNearToGoal\x10\x02\x12\r\n\tRFinished\x10\x03\x12\x0b\n\x07RFailed\x10\x04"§\x01\n\x18MessageV4_TaskStatusInfo\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12:\n\x04type\x18\x0b \x01(\x0e2,.rbk4.protocol.MessageV4_MoveStatus.TaskType\x12>\n\x06status\x18\x0c \x01(\x0e2..rbk4.protocol.MessageV4_MoveStatus.TaskStatus"\x99\x02\n\x1bMessageV4_TaskStatusPackage\x12A\n\x10task_status_list\x18\x01 \x03(\x0b2\'.rbk4.protocol.MessageV4_TaskStatusInfo\x12\x16\n\x0eclosest_target\x18\x02 \x01(\t\x12\x13\n\x0bsource_name\x18\x03 \x01(\t\x12\x13\n\x0btarget_name\x18\x04 \x01(\t\x12\x12\n\npercentage\x18\x05 \x01(\x01\x12\x10\n\x08distance\x18\x06 \x01(\x01\x12\x14\n\x0csource_label\x18\x07 \x01(\t\x12\x14\n\x0ctarget_label\x18\x08 \x01(\t\x12\x15\n\rclosest_label\x18\t \x01(\t\x12\x0c\n\x04info\x18\x1f \x01(\t"ï\x03\n\x0fMessageV4_MInfo\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x12\n\nmotor_name\x18\x02 \x01(\t\x12\x12\n\ncan_router\x18\x03 \x01(\r\x12\x0e\n\x06can_id\x18\x04 \x01(\r\x12\x10\n\x08position\x18\x05 \x01(\x02\x12\r\n\x05speed\x18\x06 \x01(\x02\x12\x0f\n\x07current\x18\x07 \x01(\x02\x12\x0f\n\x07voltage\x18\x08 \x01(\x02\x12\x0c\n\x04stop\x18\t \x01(\x08\x12\x12\n\nerror_code\x18\n \x01(\r\x12\x0b\n\x03err\x18\x0b \x01(\x08\x12\x0b\n\x03emc\x18\x0c \x01(\x08\x12\x13\n\x0btemperature\x18\r \x01(\x02\x12\x0f\n\x07encoder\x18\x0e \x01(\x05\x126\n\x04type\x18\x0f \x01(\x0e2(.rbk4.protocol.MessageV4_MInfo.MotorType\x12\x0f\n\x07passive\x18\x10 \x01(\x08\x12\r\n\x05calib\x18\x11 \x01(\x08\x12\x12\n\nfollow_err\x18\x12 \x01(\x08\x12\x14\n\x0craw_position\x18\x13 \x01(\x02"L\n\tMotorType\x12\x08\n\x04WALK\x10\x00\x12\t\n\x05STEER\x10\x01\x12\x08\n\x04SPIN\x10\x02\x12\n\n\x06LINEAR\x10\x03\x12\x0c\n\x08ROTATION\x10\x04\x12\x06\n\x02DO\x10\x05"¦\x02\n\x10MessageV4_Module\x12\x13\n\x0bmodule_name\x18\x01 \x01(\t\x12C\n\rmodule_status\x18\x02 \x01(\x0e2,.rbk4.protocol.MessageV4_Module.ModuleStatus\x12\x13\n\x0baction_body\x18\x03 \x01(\t\x12\x14\n\x0ccargo_status\x18\x04 \x01(\x08\x12.\n\x06motors\x18\x05 \x03(\x0b2\x1e.rbk4.protocol.MessageV4_MInfo"]\n\x0cModuleStatus\x12\x08\n\x04None\x10\x00\x12\x0b\n\x07Running\x10\x01\x12\r\n\tSuspended\x10\x02\x12\r\n\tCompleted\x10\x03\x12\n\n\x06Failed\x10\x04\x12\x0c\n\x08Canceled\x10\x05"ë\x01\n\rMessageV4_Odo\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\r\n\x05cycle\x18\x02 \x01(\r\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\r\n\x05angle\x18\x05 \x01(\x02\x12\x0f\n\x07is_stop\x18\x06 \x01(\x08\x12\r\n\x05vel_x\x18\x07 \x01(\x02\x12\r\n\x05vel_y\x18\x08 \x01(\x02\x12\x12\n\nvel_rotate\x18\t \x01(\x02\x122\n\nmotor_info\x18\n \x03(\x0b2\x1e.rbk4.protocol.MessageV4_MInfo"×\x01\n\x1bMessageV4_MFRecognizeResult\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\r\n\x05valid\x18\x02 \x01(\x08\x12\r\n\x05class\x18\x03 \x01(\t\x12\x0c\n\x04type\x18\x04 \x01(\t\x12\t\n\x01x\x18\x05 \x01(\x01\x12\t\n\x01y\x18\x06 \x01(\x01\x12\t\n\x01z\x18\x07 \x01(\x01\x12\n\n\x02qx\x18\x08 \x01(\x01\x12\n\n\x02qy\x18\t \x01(\x01\x12\n\n\x02qz\x18\n \x01(\x01\x12\t\n\x01w\x18\x0b \x01(\x01\x12\x0b\n\x03yaw\x18\x0c \x01(\x01"ó\x01\n\x1dMessageV4_RecognizeResultList\x12=\n\treco_list\x18\x01 \x03(\x0b2*.rbk4.protocol.MessageV4_MFRecognizeResult\x12H\n\x0breco_status\x18\x02 \x01(\x0e23.rbk4.protocol.MessageV4_RecognizeResultList.Status\x12\x0f\n\x07task_id\x18\x03 \x01(\t"8\n\x06Status\x12\x08\n\x04None\x10\x00\x12\x0b\n\x07Running\x10\x01\x12\n\n\x06Failed\x10\x02\x12\x0b\n\x07Success\x10\x03b\x06proto3'
+        '\n\x18messageV4_movetask.proto\x12\rrbk4.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x14message_header.proto\x1a\x17messageV4_vda5050.proto"\x83\x02\n\x13MessageV4_MoveParam\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x16\n\x0cstring_value\x18\x02 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x03 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x04 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x05 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x06 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\x07 \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\x08 \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\t \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\n \x01(\x0cH\x00B\r\n\x0boneof_value"ï\x0c\n\x12MessageV4_MoveTask\x12\x12\n\nskill_name\x18\x01 \x01(\t\x12.\n\x08target_x\x18\x02 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12.\n\x08target_y\x18\x03 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x122\n\x0ctarget_angle\x18\x04 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0btarget_name\x18\x05 \x01(\x0b2\x1c.google.protobuf.StringValue\x120\n\nreach_dist\x18\x06 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0breach_angle\x18\x07 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x122\n\x0creach_method\x18\x08 \x01(\x0b2\x1c.google.protobuf.StringValue\x121\n\x0breach_vel_x\x18\t \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0breach_vel_y\x18\n \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0breach_vel_w\x18\x0b \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_x\x18\x0c \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_y\x18\r \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07speed_w\x18\x0e \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12/\n\tmax_speed\x18\x0f \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07max_acc\x18\x10 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07max_rot\x18\x11 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bmax_rot_acc\x18\x12 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x123\n\rslowdown_dist\x18\x13 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x120\n\nblock_dist\x18\x14 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12/\n\tmove_dist\x18\x15 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x120\n\nmove_angle\x18\x16 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12/\n\tmove_time\x18\x17 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x122\n\x06params\x18\x18 \x03(\x0b2".rbk4.protocol.MessageV4_MoveParam\x12-\n\x07task_id\x18\x19 \x01(\x0b2\x1c.google.protobuf.StringValue\x12-\n\x07max_dec\x18\x1a \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bmax_rot_dec\x18\x1b \x01(\x0b2\x1c.google.protobuf.DoubleValue\x123\n\robs_stop_dist\x18\x1c \x01(\x0b2\x1c.google.protobuf.DoubleValue\x122\n\x0cobs_dec_dist\x18\x1d \x01(\x0b2\x1c.google.protobuf.DoubleValue\x123\n\robs_dec_speed\x18\x1e \x01(\x0b2\x1c.google.protobuf.DoubleValue\x123\n\robs_expansion\x18\x1f \x01(\x0b2\x1c.google.protobuf.DoubleValue\x127\n\x11dec_obs_expansion\x18  \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bsource_name\x18( \x01(\x0b2\x1c.google.protobuf.StringValue"S\n\x16MessageV4_MoveTaskList\x129\n\x0emove_task_list\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_MoveTask"2\n\x1aMessageV4_MovePolygonPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01"_\n\x15MessageV4_MovePolygon\x128\n\x05point\x18\x01 \x03(\x0b2).rbk4.protocol.MessageV4_MovePolygonPoint\x12\x0c\n\x04name\x18\x02 \x01(\t"`\n\x14MessageV4_RobotShape\x12\r\n\x05shape\x18\x01 \x01(\r\x12\x0c\n\x04head\x18\x02 \x01(\x01\x12\x0c\n\x04tail\x18\x03 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06radius\x18\x05 \x01(\x01",\n\x14MessageV4_NearestObs\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01"`\n\x13MessageV4_Container\x12\x16\n\x0econtainer_name\x18\x01 \x01(\t\x12\x10\n\x08goods_id\x18\x02 \x01(\t\x12\x11\n\thas_goods\x18\x03 \x01(\x08\x12\x0c\n\x04desc\x18\x04 \x01(\t"ù\x01\n\x15MessageV4_SafeCutting\x12F\n\x0ccutting_type\x18\x01 \x01(\x0e20.rbk4.protocol.MessageV4_SafeCutting.CuttingType\x128\n\x05point\x18\x02 \x03(\x0b2).rbk4.protocol.MessageV4_MovePolygonPoint\x12\x0e\n\x06radius\x18\x03 \x01(\x01\x12\x13\n\x0bstart_angle\x18\x04 \x01(\x01\x12\x11\n\tend_angle\x18\x05 \x01(\x01"&\n\x0bCuttingType\x12\x0b\n\x07Polygon\x10\x00\x12\n\n\x06Sector\x10\x01"U\n\x16MessageV4_SafeCuttings\x12;\n\rsafe_cuttings\x18\x01 \x03(\x0b2$.rbk4.protocol.MessageV4_SafeCutting"\x8c\x11\n\x14MessageV4_MoveStatus\x12\x0f\n\x07blocked\x18\x01 \x01(\x08\x12\x0f\n\x07block_x\x18\x02 \x01(\x01\x12\x0f\n\x07block_y\x18\x03 \x01(\x01\x12@\n\x0cblock_reason\x18\x04 \x01(\x0e2*.rbk4.protocol.MessageV4_MoveStatus.Reason\x12\x13\n\x0btarget_name\x18\x05 \x01(\t\x12\x10\n\x08target_x\x18\x06 \x01(\x01\x12\x10\n\x08target_y\x18\x07 \x01(\x01\x12\x14\n\x0ctarget_angle\x18\x08 \x01(\x01\x12C\n\x0btask_status\x18\t \x01(\x0e2..rbk4.protocol.MessageV4_MoveStatus.TaskStatus\x12?\n\ttask_type\x18\n \x01(\x0e2,.rbk4.protocol.MessageV4_MoveStatus.TaskType\x12\x11\n\tarea_name\x18\x0b \x03(\t\x12\x1a\n\x12finished_path_name\x18\x0c \x03(\t\x12\x1c\n\x14unfinished_path_name\x18\r \x03(\t\x12\x10\n\x08block_id\x18\x0e \x01(\x05\x12\x0f\n\x07task_id\x18\x10 \x01(\t\x12:\n\x0crobot_region\x18\x11 \x01(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x12:\n\x0cgoods_region\x18\x12 \x01(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x12=\n\x0fremoved_regions\x18\x13 \x03(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x12I\n\x0erunning_status\x18\x14 \x01(\x0e21.rbk4.protocol.MessageV4_MoveStatus.RunningStatus\x12\x16\n\x0eclosest_target\x18\x15 \x01(\t\x12\x19\n\x11actual_reach_dist\x18\x16 \x01(\x01\x12\x1a\n\x12actual_reach_angle\x18\x17 \x01(\x01\x128\n\x0brobot_shape\x18\x18 \x01(\x0b2#.rbk4.protocol.MessageV4_RobotShape\x12\x0e\n\x06slowed\x18\x19 \x01(\x08\x12\x0e\n\x06slow_x\x18\x1a \x01(\x01\x12\x0e\n\x06slow_y\x18\x1b \x01(\x01\x12?\n\x0bslow_reason\x18\x1c \x01(\x0e2*.rbk4.protocol.MessageV4_MoveStatus.Reason\x12\x0f\n\x07slow_id\x18\x1d \x01(\x05\x127\n\tstop_path\x18\x1f \x01(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x127\n\tslow_path\x18  \x01(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x120\n\x07modules\x18! \x03(\x0b2\x1f.rbk4.protocol.MessageV4_Module\x12=\n\x0fadvance_regions\x18" \x03(\x0b2$.rbk4.protocol.MessageV4_MovePolygon\x12\x0c\n\x04info\x18# \x01(\t\x12\x13\n\x0btarget_dist\x18$ \x01(\x01\x12G\n\x13task_status_package\x18( \x01(\x0b2*.rbk4.protocol.MessageV4_TaskStatusPackage\x12\x14\n\x0ctarget_label\x18) \x01(\t\x12\x15\n\rclosest_label\x18* \x01(\t\x12>\n\x11nearest_obstacles\x18+ \x03(\x0b2#.rbk4.protocol.MessageV4_NearestObs\x126\n\ncontainers\x18, \x03(\x0b2".rbk4.protocol.MessageV4_Container\x12\x11\n\tdist2goal\x18- \x01(\x01\x12<\n\rsafe_cuttings\x18. \x01(\x0b2%.rbk4.protocol.MessageV4_SafeCuttings\x128\n\x0cactionstates\x18/ \x03(\x0b2".rbk4.protocol.vda5050_actionState"³\x01\n\x06Reason\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0bFallingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x08\n\x04Lock\x10\x05\x12\x0f\n\x0bAPIObstacle\x10\x06\x12\x10\n\x0cVirtualPoint\x10\x07\x12\x0f\n\x0bDepthCamera\x10\x08\x12\x10\n\x0cDistanceNode\x10\t\x12\x10\n\x0cDiUltrasonic\x10\n"|\n\nTaskStatus\x12\x0e\n\nStatusNone\x10\x00\x12\x0b\n\x07Waiting\x10\x01\x12\x0b\n\x07Running\x10\x02\x12\r\n\tSuspended\x10\x03\x12\r\n\tCompleted\x10\x04\x12\n\n\x06Failed\x10\x05\x12\x0c\n\x08Canceled\x10\x06\x12\x0c\n\x08OverTime\x10\x07"¢\x01\n\x08TaskType\x12\x0c\n\x08TypeNone\x10\x00\x12\x0b\n\x07GoPoint\x10\x01\x12\r\n\tGoPointId\x10\x02\x12\x08\n\x04GoId\x10\x03\x12\n\n\x06Patrol\x10\x04\x12\x0f\n\x0bGoIntoShelf\x10\x05\x12\x12\n\x0eTargetTracking\x10\x06\x12\x10\n\x0cGoByOdometer\x10\x07\x12\x14\n\x10GoAlongMagstripe\x10\x08\x12\t\n\x05Other\x10d"U\n\rRunningStatus\x12\t\n\x05RNone\x10\x00\x12\x0c\n\x08RRunning\x10\x01\x12\x0f\n\x0bRNearToGoal\x10\x02\x12\r\n\tRFinished\x10\x03\x12\x0b\n\x07RFailed\x10\x04"§\x01\n\x18MessageV4_TaskStatusInfo\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12:\n\x04type\x18\x0b \x01(\x0e2,.rbk4.protocol.MessageV4_MoveStatus.TaskType\x12>\n\x06status\x18\x0c \x01(\x0e2..rbk4.protocol.MessageV4_MoveStatus.TaskStatus"\x99\x02\n\x1bMessageV4_TaskStatusPackage\x12A\n\x10task_status_list\x18\x01 \x03(\x0b2\'.rbk4.protocol.MessageV4_TaskStatusInfo\x12\x16\n\x0eclosest_target\x18\x02 \x01(\t\x12\x13\n\x0bsource_name\x18\x03 \x01(\t\x12\x13\n\x0btarget_name\x18\x04 \x01(\t\x12\x12\n\npercentage\x18\x05 \x01(\x01\x12\x10\n\x08distance\x18\x06 \x01(\x01\x12\x14\n\x0csource_label\x18\x07 \x01(\t\x12\x14\n\x0ctarget_label\x18\x08 \x01(\t\x12\x15\n\rclosest_label\x18\t \x01(\t\x12\x0c\n\x04info\x18\x1f \x01(\t"ç\x03\n\x0fMessageV4_MInfo\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x12\n\nmotor_name\x18\x02 \x01(\t\x12\x12\n\ncan_router\x18\x03 \x01(\r\x12\x0e\n\x06can_id\x18\x04 \x01(\r\x12\x10\n\x08position\x18\x05 \x01(\x02\x12\r\n\x05speed\x18\x06 \x01(\x02\x12\x0f\n\x07current\x18\x07 \x01(\x02\x12\x0f\n\x07voltage\x18\x08 \x01(\x02\x12\x0c\n\x04stop\x18\t \x01(\x08\x12\x12\n\nerror_code\x18\n \x01(\r\x12\x0b\n\x03err\x18\x0b \x01(\x08\x12\x0b\n\x03emc\x18\x0c \x01(\x08\x12\x13\n\x0btemperature\x18\r \x01(\x02\x12\x0f\n\x07encoder\x18\x0e \x01(\x05\x126\n\x04type\x18\x0f \x01(\x0e2(.rbk4.protocol.MessageV4_MInfo.MotorType\x12\x0f\n\x07passive\x18\x10 \x01(\x08\x12\r\n\x05calib\x18\x11 \x01(\x08\x12\x12\n\nfollow_err\x18\x12 \x01(\x08\x12\x14\n\x0craw_position\x18\x13 \x01(\x02"L\n\tMotorType\x12\x08\n\x04WALK\x10\x00\x12\t\n\x05STEER\x10\x01\x12\x08\n\x04SPIN\x10\x02\x12\n\n\x06LINEAR\x10\x03\x12\x0c\n\x08ROTATION\x10\x04\x12\x06\n\x02DO\x10\x05"¦\x02\n\x10MessageV4_Module\x12\x13\n\x0bmodule_name\x18\x01 \x01(\t\x12C\n\rmodule_status\x18\x02 \x01(\x0e2,.rbk4.protocol.MessageV4_Module.ModuleStatus\x12\x13\n\x0baction_body\x18\x03 \x01(\t\x12\x14\n\x0ccargo_status\x18\x04 \x01(\x08\x12.\n\x06motors\x18\x05 \x03(\x0b2\x1e.rbk4.protocol.MessageV4_MInfo"]\n\x0cModuleStatus\x12\x08\n\x04None\x10\x00\x12\x0b\n\x07Running\x10\x01\x12\r\n\tSuspended\x10\x02\x12\r\n\tCompleted\x10\x03\x12\n\n\x06Failed\x10\x04\x12\x0c\n\x08Canceled\x10\x05"ã\x01\n\rMessageV4_Odo\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\r\n\x05cycle\x18\x02 \x01(\r\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\r\n\x05angle\x18\x05 \x01(\x02\x12\x0f\n\x07is_stop\x18\x06 \x01(\x08\x12\r\n\x05vel_x\x18\x07 \x01(\x02\x12\r\n\x05vel_y\x18\x08 \x01(\x02\x12\x12\n\nvel_rotate\x18\t \x01(\x02\x122\n\nmotor_info\x18\n \x03(\x0b2\x1e.rbk4.protocol.MessageV4_MInfo"Ï\x01\n\x1bMessageV4_MFRecognizeResult\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\r\n\x05valid\x18\x02 \x01(\x08\x12\r\n\x05class\x18\x03 \x01(\t\x12\x0c\n\x04type\x18\x04 \x01(\t\x12\t\n\x01x\x18\x05 \x01(\x01\x12\t\n\x01y\x18\x06 \x01(\x01\x12\t\n\x01z\x18\x07 \x01(\x01\x12\n\n\x02qx\x18\x08 \x01(\x01\x12\n\n\x02qy\x18\t \x01(\x01\x12\n\n\x02qz\x18\n \x01(\x01\x12\t\n\x01w\x18\x0b \x01(\x01\x12\x0b\n\x03yaw\x18\x0c \x01(\x01"ó\x01\n\x1dMessageV4_RecognizeResultList\x12=\n\treco_list\x18\x01 \x03(\x0b2*.rbk4.protocol.MessageV4_MFRecognizeResult\x12H\n\x0breco_status\x18\x02 \x01(\x0e23.rbk4.protocol.MessageV4_RecognizeResultList.Status\x12\x0f\n\x07task_id\x18\x03 \x01(\t"8\n\x06Status\x12\x08\n\x04None\x10\x00\x12\x0b\n\x07Running\x10\x01\x12\n\n\x06Failed\x10\x02\x12\x0b\n\x07Success\x10\x03b\x06proto3'
     ),
     dependencies=[
         google_dot_protobuf_dot_wrappers__pb2.DESCRIPTOR,
-        messageV4__header__pb2.DESCRIPTOR,
+        message__header__pb2.DESCRIPTOR,
         messageV4__vda5050__pb2.DESCRIPTOR,
     ],
 )
@@ -40,8 +40,8 @@ _MESSAGEV4_SAFECUTTING_CUTTINGTYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=2724,
-    serialized_end=2762,
+    serialized_start=2722,
+    serialized_end=2760,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_SAFECUTTING_CUTTINGTYPE)
 _MESSAGEV4_MOVESTATUS_REASON = _descriptor.EnumDescriptor(
@@ -86,8 +86,8 @@ _MESSAGEV4_MOVESTATUS_REASON = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=4483,
-    serialized_end=4662,
+    serialized_start=4481,
+    serialized_end=4660,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_MOVESTATUS_REASON)
 _MESSAGEV4_MOVESTATUS_TASKSTATUS = _descriptor.EnumDescriptor(
@@ -123,8 +123,8 @@ _MESSAGEV4_MOVESTATUS_TASKSTATUS = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=4664,
-    serialized_end=4788,
+    serialized_start=4662,
+    serialized_end=4786,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_MOVESTATUS_TASKSTATUS)
 _MESSAGEV4_MOVESTATUS_TASKTYPE = _descriptor.EnumDescriptor(
@@ -170,8 +170,8 @@ _MESSAGEV4_MOVESTATUS_TASKTYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=4791,
-    serialized_end=4953,
+    serialized_start=4789,
+    serialized_end=4951,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_MOVESTATUS_TASKTYPE)
 _MESSAGEV4_MOVESTATUS_RUNNINGSTATUS = _descriptor.EnumDescriptor(
@@ -198,8 +198,8 @@ _MESSAGEV4_MOVESTATUS_RUNNINGSTATUS = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=4955,
-    serialized_end=5040,
+    serialized_start=4953,
+    serialized_end=5038,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_MOVESTATUS_RUNNINGSTATUS)
 _MESSAGEV4_MINFO_MOTORTYPE = _descriptor.EnumDescriptor(
@@ -229,8 +229,8 @@ _MESSAGEV4_MINFO_MOTORTYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=5916,
-    serialized_end=5992,
+    serialized_start=5906,
+    serialized_end=5982,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_MINFO_MOTORTYPE)
 _MESSAGEV4_MODULE_MODULESTATUS = _descriptor.EnumDescriptor(
@@ -260,8 +260,8 @@ _MESSAGEV4_MODULE_MODULESTATUS = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=6196,
-    serialized_end=6289,
+    serialized_start=6186,
+    serialized_end=6279,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_MODULE_MODULESTATUS)
 _MESSAGEV4_RECOGNIZERESULTLIST_STATUS = _descriptor.EnumDescriptor(
@@ -285,8 +285,8 @@ _MESSAGEV4_RECOGNIZERESULTLIST_STATUS = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=6935,
-    serialized_end=6991,
+    serialized_start=6909,
+    serialized_end=6965,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_RECOGNIZERESULTLIST_STATUS)
 _MESSAGEV4_MOVEPARAM = _descriptor.Descriptor(
@@ -493,8 +493,8 @@ _MESSAGEV4_MOVEPARAM = _descriptor.Descriptor(
             fields=[],
         )
     ],
-    serialized_start=125,
-    serialized_end=384,
+    serialized_start=123,
+    serialized_end=382,
 )
 _MESSAGEV4_MOVETASK = _descriptor.Descriptor(
     name="MessageV4_MoveTask",
@@ -1106,8 +1106,8 @@ _MESSAGEV4_MOVETASK = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=387,
-    serialized_end=2034,
+    serialized_start=385,
+    serialized_end=2032,
 )
 _MESSAGEV4_MOVETASKLIST = _descriptor.Descriptor(
     name="MessageV4_MoveTaskList",
@@ -1143,8 +1143,8 @@ _MESSAGEV4_MOVETASKLIST = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2036,
-    serialized_end=2119,
+    serialized_start=2034,
+    serialized_end=2117,
 )
 _MESSAGEV4_MOVEPOLYGONPOINT = _descriptor.Descriptor(
     name="MessageV4_MovePolygonPoint",
@@ -1198,8 +1198,8 @@ _MESSAGEV4_MOVEPOLYGONPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2121,
-    serialized_end=2171,
+    serialized_start=2119,
+    serialized_end=2169,
 )
 _MESSAGEV4_MOVEPOLYGON = _descriptor.Descriptor(
     name="MessageV4_MovePolygon",
@@ -1253,8 +1253,8 @@ _MESSAGEV4_MOVEPOLYGON = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2173,
-    serialized_end=2268,
+    serialized_start=2171,
+    serialized_end=2266,
 )
 _MESSAGEV4_ROBOTSHAPE = _descriptor.Descriptor(
     name="MessageV4_RobotShape",
@@ -1362,8 +1362,8 @@ _MESSAGEV4_ROBOTSHAPE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2270,
-    serialized_end=2366,
+    serialized_start=2268,
+    serialized_end=2364,
 )
 _MESSAGEV4_NEARESTOBS = _descriptor.Descriptor(
     name="MessageV4_NearestObs",
@@ -1417,8 +1417,8 @@ _MESSAGEV4_NEARESTOBS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2368,
-    serialized_end=2412,
+    serialized_start=2366,
+    serialized_end=2410,
 )
 _MESSAGEV4_CONTAINER = _descriptor.Descriptor(
     name="MessageV4_Container",
@@ -1508,8 +1508,8 @@ _MESSAGEV4_CONTAINER = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2414,
-    serialized_end=2510,
+    serialized_start=2412,
+    serialized_end=2508,
 )
 _MESSAGEV4_SAFECUTTING = _descriptor.Descriptor(
     name="MessageV4_SafeCutting",
@@ -1617,8 +1617,8 @@ _MESSAGEV4_SAFECUTTING = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2513,
-    serialized_end=2762,
+    serialized_start=2511,
+    serialized_end=2760,
 )
 _MESSAGEV4_SAFECUTTINGS = _descriptor.Descriptor(
     name="MessageV4_SafeCuttings",
@@ -1654,8 +1654,8 @@ _MESSAGEV4_SAFECUTTINGS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2764,
-    serialized_end=2849,
+    serialized_start=2762,
+    serialized_end=2847,
 )
 _MESSAGEV4_MOVESTATUS = _descriptor.Descriptor(
     name="MessageV4_MoveStatus",
@@ -2434,8 +2434,8 @@ _MESSAGEV4_MOVESTATUS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2852,
-    serialized_end=5040,
+    serialized_start=2850,
+    serialized_end=5038,
 )
 _MESSAGEV4_TASKSTATUSINFO = _descriptor.Descriptor(
     name="MessageV4_TaskStatusInfo",
@@ -2507,8 +2507,8 @@ _MESSAGEV4_TASKSTATUSINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=5043,
-    serialized_end=5210,
+    serialized_start=5041,
+    serialized_end=5208,
 )
 _MESSAGEV4_TASKSTATUSPACKAGE = _descriptor.Descriptor(
     name="MessageV4_TaskStatusPackage",
@@ -2706,8 +2706,8 @@ _MESSAGEV4_TASKSTATUSPACKAGE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=5213,
-    serialized_end=5494,
+    serialized_start=5211,
+    serialized_end=5492,
 )
 _MESSAGEV4_MINFO = _descriptor.Descriptor(
     name="MessageV4_MInfo",
@@ -3067,8 +3067,8 @@ _MESSAGEV4_MINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=5497,
-    serialized_end=5992,
+    serialized_start=5495,
+    serialized_end=5982,
 )
 _MESSAGEV4_MODULE = _descriptor.Descriptor(
     name="MessageV4_Module",
@@ -3176,8 +3176,8 @@ _MESSAGEV4_MODULE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=5995,
-    serialized_end=6289,
+    serialized_start=5985,
+    serialized_end=6279,
 )
 _MESSAGEV4_ODO = _descriptor.Descriptor(
     name="MessageV4_Odo",
@@ -3375,8 +3375,8 @@ _MESSAGEV4_ODO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=6292,
-    serialized_end=6527,
+    serialized_start=6282,
+    serialized_end=6509,
 )
 _MESSAGEV4_MFRECOGNIZERESULT = _descriptor.Descriptor(
     name="MessageV4_MFRecognizeResult",
@@ -3610,8 +3610,8 @@ _MESSAGEV4_MFRECOGNIZERESULT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=6530,
-    serialized_end=6745,
+    serialized_start=6512,
+    serialized_end=6719,
 )
 _MESSAGEV4_RECOGNIZERESULTLIST = _descriptor.Descriptor(
     name="MessageV4_RecognizeResultList",
@@ -3683,8 +3683,8 @@ _MESSAGEV4_RECOGNIZERESULTLIST = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=6748,
-    serialized_end=6991,
+    serialized_start=6722,
+    serialized_end=6965,
 )
 _MESSAGEV4_MOVEPARAM.oneofs_by_name["oneof_value"].fields.append(
     _MESSAGEV4_MOVEPARAM.fields_by_name["string_value"]
@@ -3907,9 +3907,7 @@ _MESSAGEV4_TASKSTATUSINFO.fields_by_name["status"].enum_type = (
 _MESSAGEV4_TASKSTATUSPACKAGE.fields_by_name["task_status_list"].message_type = (
     _MESSAGEV4_TASKSTATUSINFO
 )
-_MESSAGEV4_MINFO.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
-)
+_MESSAGEV4_MINFO.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGEV4_MINFO.fields_by_name["type"].enum_type = _MESSAGEV4_MINFO_MOTORTYPE
 _MESSAGEV4_MINFO_MOTORTYPE.containing_type = _MESSAGEV4_MINFO
 _MESSAGEV4_MODULE.fields_by_name["module_status"].enum_type = (
@@ -3917,12 +3915,10 @@ _MESSAGEV4_MODULE.fields_by_name["module_status"].enum_type = (
 )
 _MESSAGEV4_MODULE.fields_by_name["motors"].message_type = _MESSAGEV4_MINFO
 _MESSAGEV4_MODULE_MODULESTATUS.containing_type = _MESSAGEV4_MODULE
-_MESSAGEV4_ODO.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
-)
+_MESSAGEV4_ODO.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGEV4_ODO.fields_by_name["motor_info"].message_type = _MESSAGEV4_MINFO
 _MESSAGEV4_MFRECOGNIZERESULT.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_RECOGNIZERESULTLIST.fields_by_name["reco_list"].message_type = (
     _MESSAGEV4_MFRECOGNIZERESULT

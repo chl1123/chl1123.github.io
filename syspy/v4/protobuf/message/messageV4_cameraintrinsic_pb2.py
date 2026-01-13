@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 from . import messageV4_stampedtransform_pb2 as messageV4__stampedtransform__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -16,10 +16,10 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1fmessageV4_cameraintrinsic.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a messageV4_stampedtransform.proto"E\n\x13MessageV4_Intrinsic\x12\n\n\x02fx\x18\x01 \x01(\x01\x12\n\n\x02fy\x18\x02 \x01(\x01\x12\n\n\x02cx\x18\x03 \x01(\x01\x12\n\n\x02cy\x18\x04 \x01(\x01"\x85\x01\n\x13MessageV4_Extrinsic\x129\n\x0btranslation\x18\x01 \x01(\x0b2$.rbk4.protocol.MessageV4_Translation\x123\n\x08rotation\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_Rotation"¦\x01\n\x14MessageV4_Distortion\x12\n\n\x02k1\x18\x01 \x01(\x01\x12\n\n\x02k2\x18\x02 \x01(\x01\x12\n\n\x02p1\x18\x03 \x01(\x01\x12\n\n\x02p2\x18\x04 \x01(\x01\x12\n\n\x02k3\x18\x05 \x01(\x01\x12\n\n\x02k4\x18\x06 \x01(\x01\x12\n\n\x02k5\x18\x07 \x01(\x01\x12\n\n\x02k6\x18\x08 \x01(\x01\x12\n\n\x02s1\x18\t \x01(\x01\x12\n\n\x02s2\x18\n \x01(\x01\x12\n\n\x02s3\x18\x0b \x01(\x01\x12\n\n\x02s4\x18\x0c \x01(\x01"è\x02\n\x1bMessageV4_CameraCalibration\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x127\n\ndistortion\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_Distortion\x125\n\tintrinsic\x18\x03 \x01(\x0b2".rbk4.protocol.MessageV4_Intrinsic\x12:\n\rdistortion_ir\x18\x04 \x01(\x0b2#.rbk4.protocol.MessageV4_Distortion\x128\n\x0cintrinsic_ir\x18\x05 \x01(\x0b2".rbk4.protocol.MessageV4_Intrinsic\x122\n\x06rgb2ir\x18\x06 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsicb\x06proto3'
+        '\n\x1fmessageV4_cameraintrinsic.proto\x12\rrbk4.protocol\x1a\x14message_header.proto\x1a messageV4_stampedtransform.proto"E\n\x13MessageV4_Intrinsic\x12\n\n\x02fx\x18\x01 \x01(\x01\x12\n\n\x02fy\x18\x02 \x01(\x01\x12\n\n\x02cx\x18\x03 \x01(\x01\x12\n\n\x02cy\x18\x04 \x01(\x01"\x85\x01\n\x13MessageV4_Extrinsic\x129\n\x0btranslation\x18\x01 \x01(\x0b2$.rbk4.protocol.MessageV4_Translation\x123\n\x08rotation\x18\x02 \x01(\x0b2!.rbk4.protocol.MessageV4_Rotation"¦\x01\n\x14MessageV4_Distortion\x12\n\n\x02k1\x18\x01 \x01(\x01\x12\n\n\x02k2\x18\x02 \x01(\x01\x12\n\n\x02p1\x18\x03 \x01(\x01\x12\n\n\x02p2\x18\x04 \x01(\x01\x12\n\n\x02k3\x18\x05 \x01(\x01\x12\n\n\x02k4\x18\x06 \x01(\x01\x12\n\n\x02k5\x18\x07 \x01(\x01\x12\n\n\x02k6\x18\x08 \x01(\x01\x12\n\n\x02s1\x18\t \x01(\x01\x12\n\n\x02s2\x18\n \x01(\x01\x12\n\n\x02s3\x18\x0b \x01(\x01\x12\n\n\x02s4\x18\x0c \x01(\x01"à\x02\n\x1bMessageV4_CameraCalibration\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x127\n\ndistortion\x18\x02 \x01(\x0b2#.rbk4.protocol.MessageV4_Distortion\x125\n\tintrinsic\x18\x03 \x01(\x0b2".rbk4.protocol.MessageV4_Intrinsic\x12:\n\rdistortion_ir\x18\x04 \x01(\x0b2#.rbk4.protocol.MessageV4_Distortion\x128\n\x0cintrinsic_ir\x18\x05 \x01(\x0b2".rbk4.protocol.MessageV4_Intrinsic\x122\n\x06rgb2ir\x18\x06 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsicb\x06proto3'
     ),
     dependencies=[
-        messageV4__header__pb2.DESCRIPTOR,
+        message__header__pb2.DESCRIPTOR,
         messageV4__stampedtransform__pb2.DESCRIPTOR,
     ],
 )
@@ -111,8 +111,8 @@ _MESSAGEV4_INTRINSIC = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=108,
-    serialized_end=177,
+    serialized_start=106,
+    serialized_end=175,
 )
 _MESSAGEV4_EXTRINSIC = _descriptor.Descriptor(
     name="MessageV4_Extrinsic",
@@ -166,8 +166,8 @@ _MESSAGEV4_EXTRINSIC = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=180,
-    serialized_end=313,
+    serialized_start=178,
+    serialized_end=311,
 )
 _MESSAGEV4_DISTORTION = _descriptor.Descriptor(
     name="MessageV4_Distortion",
@@ -401,8 +401,8 @@ _MESSAGEV4_DISTORTION = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=316,
-    serialized_end=482,
+    serialized_start=314,
+    serialized_end=480,
 )
 _MESSAGEV4_CAMERACALIBRATION = _descriptor.Descriptor(
     name="MessageV4_CameraCalibration",
@@ -528,8 +528,8 @@ _MESSAGEV4_CAMERACALIBRATION = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=485,
-    serialized_end=845,
+    serialized_start=483,
+    serialized_end=835,
 )
 _MESSAGEV4_EXTRINSIC.fields_by_name["translation"].message_type = (
     messageV4__stampedtransform__pb2._MESSAGEV4_TRANSLATION
@@ -538,7 +538,7 @@ _MESSAGEV4_EXTRINSIC.fields_by_name["rotation"].message_type = (
     messageV4__stampedtransform__pb2._MESSAGEV4_ROTATION
 )
 _MESSAGEV4_CAMERACALIBRATION.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_CAMERACALIBRATION.fields_by_name["distortion"].message_type = (
     _MESSAGEV4_DISTORTION

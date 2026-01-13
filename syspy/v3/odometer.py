@@ -60,15 +60,6 @@ class OdometerV3(OdometerInterface):
         if self.update():
             return self.data.isStop
 
-    def getDetectSkid(self) -> bool:
-        """获取是否检测到打滑
-
-        Returns:
-            (bool): True表示检测到打滑，False表示未检测到
-        """
-        if self.update():
-            return self.data.detectSkid
-
     def getMotorInfos(self) -> List["msgMotorInfo"]:
         """获取电机信息列表
 

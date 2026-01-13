@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_arminfo.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x17messageV4_arminfo.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"Ù\x05\n\x11MessageV4_ArmInfo\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x0f\n\x07enabled\x18\x02 \x01(\x08\x12\x13\n\x0bsafety_mode\x18\x03 \x01(\r\x12\x10\n\x08arm_mode\x18\x12 \x01(\r\x12\n\n\x02DI\x18\x04 \x03(\x08\x12\n\n\x02DO\x18\x05 \x03(\x08\x12\x19\n\x11robot_status_bits\x18\x06 \x03(\x08\x12\x1a\n\x12safety_status_bits\x18\x07 \x03(\x08\x120\n\x04base\x18\x08 \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x124\n\x08shoulder\x18\t \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x121\n\x05elbow\x18\n \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x122\n\x06wrist1\x18\x0b \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x122\n\x06wrist2\x18\x0c \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x122\n\x06wrist3\x18\r \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x123\n\x06endpos\x18\x0e \x01(\x0b2#.rbk4.protocol.MessageV4_ArmEndPose\x12\x0e\n\x06taskId\x18\x0f \x01(\x05\x12\x13\n\x0btask_status\x18\x10 \x01(\x05\x123\n\x04scan\x18\x11 \x01(\x0b2%.rbk4.protocol.MessageV4_ScannerInArm\x121\n\x04load\x18\x13 \x01(\x0b2#.rbk4.protocol.MessageV4_ArmEndLoad\x12\x13\n\x0bjson_string\x18\x14 \x01(\t"m\n\x13MessageV4_JointInfo\x12\r\n\x05angle\x18\x01 \x01(\x01\x12\x10\n\x08velocity\x18\x02 \x01(\x01\x12\x0f\n\x07current\x18\x03 \x01(\x01\x12\x0f\n\x07voltage\x18\x04 \x01(\x01\x12\x13\n\x0btemperature\x18\x05 \x01(\x01"f\n\x14MessageV4_ArmEndPose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\t\n\x01w\x18\x04 \x01(\x01\x12\n\n\x02rx\x18\x05 \x01(\x01\x12\n\n\x02ry\x18\x06 \x01(\x01\x12\n\n\x02rz\x18\x07 \x01(\x01"I\n\x16MessageV4_ScannerInArm\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04data\x18\x02 \x01(\t\x12\x13\n\x0bscan_status\x18\x03 \x01(\r"s\n\x14MessageV4_ArmEndLoad\x12\x13\n\x0bdevice_name\x18\x01 \x01(\t\x12\n\n\x02fx\x18\x02 \x01(\x01\x12\n\n\x02fy\x18\x03 \x01(\x01\x12\n\n\x02fz\x18\x04 \x01(\x01\x12\n\n\x02mx\x18\x05 \x01(\x01\x12\n\n\x02my\x18\x06 \x01(\x01\x12\n\n\x02mz\x18\x07 \x01(\x01b\x06proto3'
+        '\n\x17messageV4_arminfo.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"Ñ\x05\n\x11MessageV4_ArmInfo\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x0f\n\x07enabled\x18\x02 \x01(\x08\x12\x13\n\x0bsafety_mode\x18\x03 \x01(\r\x12\x10\n\x08arm_mode\x18\x12 \x01(\r\x12\n\n\x02DI\x18\x04 \x03(\x08\x12\n\n\x02DO\x18\x05 \x03(\x08\x12\x19\n\x11robot_status_bits\x18\x06 \x03(\x08\x12\x1a\n\x12safety_status_bits\x18\x07 \x03(\x08\x120\n\x04base\x18\x08 \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x124\n\x08shoulder\x18\t \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x121\n\x05elbow\x18\n \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x122\n\x06wrist1\x18\x0b \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x122\n\x06wrist2\x18\x0c \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x122\n\x06wrist3\x18\r \x01(\x0b2".rbk4.protocol.MessageV4_JointInfo\x123\n\x06endpos\x18\x0e \x01(\x0b2#.rbk4.protocol.MessageV4_ArmEndPose\x12\x0e\n\x06taskId\x18\x0f \x01(\x05\x12\x13\n\x0btask_status\x18\x10 \x01(\x05\x123\n\x04scan\x18\x11 \x01(\x0b2%.rbk4.protocol.MessageV4_ScannerInArm\x121\n\x04load\x18\x13 \x01(\x0b2#.rbk4.protocol.MessageV4_ArmEndLoad\x12\x13\n\x0bjson_string\x18\x14 \x01(\t"m\n\x13MessageV4_JointInfo\x12\r\n\x05angle\x18\x01 \x01(\x01\x12\x10\n\x08velocity\x18\x02 \x01(\x01\x12\x0f\n\x07current\x18\x03 \x01(\x01\x12\x0f\n\x07voltage\x18\x04 \x01(\x01\x12\x13\n\x0btemperature\x18\x05 \x01(\x01"f\n\x14MessageV4_ArmEndPose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\t\n\x01w\x18\x04 \x01(\x01\x12\n\n\x02rx\x18\x05 \x01(\x01\x12\n\n\x02ry\x18\x06 \x01(\x01\x12\n\n\x02rz\x18\x07 \x01(\x01"I\n\x16MessageV4_ScannerInArm\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04data\x18\x02 \x01(\t\x12\x13\n\x0bscan_status\x18\x03 \x01(\r"s\n\x14MessageV4_ArmEndLoad\x12\x13\n\x0bdevice_name\x18\x01 \x01(\t\x12\n\n\x02fx\x18\x02 \x01(\x01\x12\n\n\x02fy\x18\x03 \x01(\x01\x12\n\n\x02fz\x18\x04 \x01(\x01\x12\n\n\x02mx\x18\x05 \x01(\x01\x12\n\n\x02my\x18\x06 \x01(\x01\x12\n\n\x02mz\x18\x07 \x01(\x01b\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_ARMINFO = _descriptor.Descriptor(
     name="MessageV4_ArmInfo",
@@ -395,8 +395,8 @@ _MESSAGEV4_ARMINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=67,
-    serialized_end=796,
+    serialized_start=65,
+    serialized_end=786,
 )
 _MESSAGEV4_JOINTINFO = _descriptor.Descriptor(
     name="MessageV4_JointInfo",
@@ -504,8 +504,8 @@ _MESSAGEV4_JOINTINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=798,
-    serialized_end=907,
+    serialized_start=788,
+    serialized_end=897,
 )
 _MESSAGEV4_ARMENDPOSE = _descriptor.Descriptor(
     name="MessageV4_ArmEndPose",
@@ -649,8 +649,8 @@ _MESSAGEV4_ARMENDPOSE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=909,
-    serialized_end=1011,
+    serialized_start=899,
+    serialized_end=1001,
 )
 _MESSAGEV4_SCANNERINARM = _descriptor.Descriptor(
     name="MessageV4_ScannerInArm",
@@ -722,8 +722,8 @@ _MESSAGEV4_SCANNERINARM = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1013,
-    serialized_end=1086,
+    serialized_start=1003,
+    serialized_end=1076,
 )
 _MESSAGEV4_ARMENDLOAD = _descriptor.Descriptor(
     name="MessageV4_ArmEndLoad",
@@ -867,11 +867,11 @@ _MESSAGEV4_ARMENDLOAD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1088,
-    serialized_end=1203,
+    serialized_start=1078,
+    serialized_end=1193,
 )
 _MESSAGEV4_ARMINFO.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_ARMINFO.fields_by_name["base"].message_type = _MESSAGEV4_JOINTINFO
 _MESSAGEV4_ARMINFO.fields_by_name["shoulder"].message_type = _MESSAGEV4_JOINTINFO

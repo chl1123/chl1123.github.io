@@ -8,7 +8,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_pointcloud.proto",
@@ -16,9 +16,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1amessageV4_pointcloud.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"¸\x01\n\x14MessageV4_PointCloud\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x10\n\x08is_dense\x18\x04 \x01(\x08\x120\n\x04type\x18\x05 \x01(\x0e2".rbk4.protocol.MessageV4_CloudType\x12\x0c\n\x04data\x18\x06 \x01(\x0c"[\n\x15MessageV4_SensorPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x13\n\x0bis_obstacle\x18\x04 \x01(\x08\x12\x0c\n\x04rssi\x18\x05 \x01(\x01"·\x03\n\x1cMessageV4_SensorPointCluster\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12>\n\x04type\x18\x02 \x01(\x0e20.rbk4.protocol.MessageV4_SensorPointCluster.Type\x12\n\n\x02id\x18\x03 \x01(\t\x123\n\x05point\x18\x04 \x03(\x0b2$.rbk4.protocol.MessageV4_SensorPoint"ä\x01\n\x04Type\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0bFallingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x10\n\x0cVirtualPoint\x10\x05\x12\x0f\n\x0bAPIObstacle\x10\x06\x12\x11\n\rReservedPoint\x10\x07\x12\x10\n\x0cDiUltrasonic\x10\x08\x12\x0f\n\x0bDepthCamera\x10\t\x12\x17\n\x13ReservedDepthCamera\x10\n\x12\x10\n\x0cDistanceNode\x10\x0b\x12\x0f\n\x0bADCollision\x10\x0c"¥\x01\n\x1aMessageV4_SensorPointCloud\x12C\n\x0eglobal_cluster\x18\x01 \x03(\x0b2+.rbk4.protocol.MessageV4_SensorPointCluster\x12B\n\rlocal_cluster\x18\x02 \x03(\x0b2+.rbk4.protocol.MessageV4_SensorPointCluster*n\n\x13MessageV4_CloudType\x12\r\n\tPOINT_XYZ\x10\x00\x12\x0e\n\nPOINT_XYZI\x10\x01\x12\x10\n\x0cPOINT_XYZRGB\x10\x02\x12\x11\n\rPOINT_XYZRGBA\x10\x03\x12\x13\n\x0fPOINT_XYZNORMAL\x10\x04b\x06proto3'
+        '\n\x1amessageV4_pointcloud.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"°\x01\n\x14MessageV4_PointCloud\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x10\n\x08is_dense\x18\x04 \x01(\x08\x120\n\x04type\x18\x05 \x01(\x0e2".rbk4.protocol.MessageV4_CloudType\x12\x0c\n\x04data\x18\x06 \x01(\x0c"[\n\x15MessageV4_SensorPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x13\n\x0bis_obstacle\x18\x04 \x01(\x08\x12\x0c\n\x04rssi\x18\x05 \x01(\x01"¯\x03\n\x1cMessageV4_SensorPointCluster\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12>\n\x04type\x18\x02 \x01(\x0e20.rbk4.protocol.MessageV4_SensorPointCluster.Type\x12\n\n\x02id\x18\x03 \x01(\t\x123\n\x05point\x18\x04 \x03(\x0b2$.rbk4.protocol.MessageV4_SensorPoint"ä\x01\n\x04Type\x12\x0e\n\nUltrasonic\x10\x00\x12\t\n\x05Laser\x10\x01\x12\x0f\n\x0bFallingdown\x10\x02\x12\r\n\tCollision\x10\x03\x12\x0c\n\x08Infrared\x10\x04\x12\x10\n\x0cVirtualPoint\x10\x05\x12\x0f\n\x0bAPIObstacle\x10\x06\x12\x11\n\rReservedPoint\x10\x07\x12\x10\n\x0cDiUltrasonic\x10\x08\x12\x0f\n\x0bDepthCamera\x10\t\x12\x17\n\x13ReservedDepthCamera\x10\n\x12\x10\n\x0cDistanceNode\x10\x0b\x12\x0f\n\x0bADCollision\x10\x0c"¥\x01\n\x1aMessageV4_SensorPointCloud\x12C\n\x0eglobal_cluster\x18\x01 \x03(\x0b2+.rbk4.protocol.MessageV4_SensorPointCluster\x12B\n\rlocal_cluster\x18\x02 \x03(\x0b2+.rbk4.protocol.MessageV4_SensorPointCluster*n\n\x13MessageV4_CloudType\x12\r\n\tPOINT_XYZ\x10\x00\x12\x0e\n\nPOINT_XYZI\x10\x01\x12\x10\n\x0cPOINT_XYZRGB\x10\x02\x12\x11\n\rPOINT_XYZRGBA\x10\x03\x12\x13\n\x0fPOINT_XYZNORMAL\x10\x04b\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_CLOUDTYPE = _descriptor.EnumDescriptor(
     name="MessageV4_CloudType",
@@ -48,8 +48,8 @@ _MESSAGEV4_CLOUDTYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=959,
-    serialized_end=1069,
+    serialized_start=941,
+    serialized_end=1051,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_CLOUDTYPE)
 MessageV4_CloudType = enum_type_wrapper.EnumTypeWrapper(_MESSAGEV4_CLOUDTYPE)
@@ -110,8 +110,8 @@ _MESSAGEV4_SENSORPOINTCLUSTER_TYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=561,
-    serialized_end=789,
+    serialized_start=543,
+    serialized_end=771,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_SENSORPOINTCLUSTER_TYPE)
 _MESSAGEV4_POINTCLOUD = _descriptor.Descriptor(
@@ -238,8 +238,8 @@ _MESSAGEV4_POINTCLOUD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=70,
-    serialized_end=254,
+    serialized_start=68,
+    serialized_end=244,
 )
 _MESSAGEV4_SENSORPOINT = _descriptor.Descriptor(
     name="MessageV4_SensorPoint",
@@ -347,8 +347,8 @@ _MESSAGEV4_SENSORPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=256,
-    serialized_end=347,
+    serialized_start=246,
+    serialized_end=337,
 )
 _MESSAGEV4_SENSORPOINTCLUSTER = _descriptor.Descriptor(
     name="MessageV4_SensorPointCluster",
@@ -438,8 +438,8 @@ _MESSAGEV4_SENSORPOINTCLUSTER = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=350,
-    serialized_end=789,
+    serialized_start=340,
+    serialized_end=771,
 )
 _MESSAGEV4_SENSORPOINTCLOUD = _descriptor.Descriptor(
     name="MessageV4_SensorPointCloud",
@@ -493,15 +493,15 @@ _MESSAGEV4_SENSORPOINTCLOUD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=792,
-    serialized_end=957,
+    serialized_start=774,
+    serialized_end=939,
 )
 _MESSAGEV4_POINTCLOUD.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_POINTCLOUD.fields_by_name["type"].enum_type = _MESSAGEV4_CLOUDTYPE
 _MESSAGEV4_SENSORPOINTCLUSTER.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_SENSORPOINTCLUSTER.fields_by_name["type"].enum_type = (
     _MESSAGEV4_SENSORPOINTCLUSTER_TYPE

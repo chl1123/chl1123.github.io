@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_sensor.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x16messageV4_sensor.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"\x90\x02\n\x13MessageV4_UltraNode\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04dist\x18\x02 \x01(\x01\x12\r\n\x05valid\x18\x03 \x01(\x08\x12\r\n\x05pos_x\x18\x04 \x01(\x01\x12\r\n\x05pos_y\x18\x05 \x01(\x01\x12\x11\n\tpos_angle\x18\x06 \x01(\x01\x12\x10\n\x08max_dist\x18\x07 \x01(\x01\x12\x10\n\x08min_dist\x18\x08 \x01(\x01\x12\x10\n\x08aperture\x18\t \x01(\x01\x12\x11\n\tforbidden\x18\n \x01(\x08\x12/\n\x06header\x18\x0b \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x16\n\x0eoffset_time_ms\x18\x0c \x01(\x05\x12\r\n\x05pos_z\x18\r \x01(\x01"n\n\x14MessageV4_Ultrasonic\x12\r\n\x05cycle\x18\x01 \x01(\r\x121\n\x05nodes\x18\x02 \x03(\x0b2".rbk4.protocol.MessageV4_UltraNode\x12\x14\n\x0cbase_time_ns\x18\x03 \x01(\x04"¶\x02\n\x10MessageV4_DINode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0c\n\x04func\x18\x07 \x01(\t\x12\x0c\n\x04type\x18\x08 \x01(\t\x12\x0e\n\x06source\x18\t \x01(\t\x12\r\n\x05shape\x18\n \x01(\t\x12\x0f\n\x07mindist\x18\x0b \x01(\x01\x12\x0f\n\x07maxdist\x18\x0c \x01(\x01\x12\r\n\x05range\x18\r \x01(\x01\x12\x0c\n\x04posx\x18\x0e \x03(\x01\x12\x0c\n\x04posy\x18\x0f \x03(\x01\x12\x11\n\tforbidden\x18\x10 \x01(\x08\x12\x11\n\temulation\x18\x11 \x01(\x08\x12\x0f\n\x07inverse\x18\x12 \x01(\x08\x12\x0c\n\x04name\x18\x13 \x01(\t\x12\x0b\n\x03key\x18\x14 \x01(\t"\x80\x01\n\x0cMessageV4_DI\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12-\n\x04node\x18\x02 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_DINode\x12\x10\n\x08max_node\x18\x03 \x01(\r"Ú\x01\n\x10MessageV4_DONode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\x0e\n\x06source\x18\x03 \x01(\t\x12\x0c\n\x04func\x18\x04 \x01(\t\x122\n\x04type\x18\x05 \x01(\x0e2$.rbk4.protocol.MessageV4_DONode.Type\x12\x0c\n\x04name\x18\x06 \x01(\t\x12\x0b\n\x03key\x18\x07 \x01(\t"=\n\x04Type\x12\x06\n\x02DO\x10\x00\x12\x0c\n\x08SOFT_EMC\x10\x01\x12\x07\n\x03LED\x10\x02\x12\t\n\x05RELAY\x10\x03\x12\x0b\n\x07CAN_RES\x10\x04"\x80\x01\n\x0cMessageV4_DO\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12-\n\x04node\x18\x02 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_DONode\x12\x10\n\x08max_node\x18\x03 \x01(\r"\x84\x01\n\x11MessageV4_Segment\x12\x0f\n\x07start_x\x18\x01 \x01(\x01\x12\x0f\n\x07start_y\x18\x02 \x01(\x01\x12\r\n\x05end_x\x18\x03 \x01(\x01\x12\r\n\x05end_y\x18\x04 \x01(\x01\x12/\n\x06header\x18\x05 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"\x84\x01\n\x10MessageV4_Object\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x0c\n\x04name\x18\x02 \x01(\t\x121\n\x07objects\x18\x03 \x03(\x0b2 .rbk4.protocol.MessageV4_Segment"M\n\x14MessageV4_UserObject\x125\n\x0cuser_objects\x18\x01 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_Object"\x87\x02\n\x16MessageV4_DistanceNode\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\n\n\x02id\x18\x03 \x01(\x05\x12\x0c\n\x04dist\x18\x04 \x01(\x02\x12\r\n\x05valid\x18\x05 \x01(\x08\x12\r\n\x05pos_x\x18\x06 \x01(\x02\x12\r\n\x05pos_y\x18\x07 \x01(\x02\x12\x11\n\tpos_angle\x18\x08 \x01(\x02\x12\x10\n\x08aperture\x18\t \x01(\x02\x12\x11\n\tforbidden\x18\n \x01(\x08\x12\x12\n\ncan_router\x18\x0b \x01(\r\x12\r\n\x05rs485\x18\x0c \x01(\r\x12\x0c\n\x04RSSI\x18\r \x01(\r"O\n\x18MessageV4_DistanceSensor\x123\n\x04node\x18\x01 \x03(\x0b2%.rbk4.protocol.MessageV4_DistanceNode"ç\x02\n\x19MessageV4_ADCollisionNode\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\n\n\x02id\x18\x03 \x01(\x05\x12\x0b\n\x03adc\x18\x04 \x01(\x02\x12\x10\n\x08pressure\x18\x05 \x01(\x02\x12\r\n\x05valid\x18\x06 \x01(\x08\x12\x11\n\tcollision\x18\x07 \x01(\x08\x12\t\n\x01x\x18\x08 \x01(\x02\x12\t\n\x01y\x18\t \x01(\x02\x12\t\n\x01z\x18\n \x01(\x02\x12\x0b\n\x03yaw\x18\x0b \x01(\x02\x12\x11\n\tforbidden\x18\x0c \x01(\x08\x12\x12\n\ncan_router\x18\r \x01(\r\x12\r\n\x05rs485\x18\x0e \x01(\r\x12\r\n\x05shape\x18\x0f \x01(\t\x12\x0f\n\x07mindist\x18\x10 \x01(\x01\x12\x0f\n\x07maxdist\x18\x11 \x01(\x01\x12\r\n\x05range\x18\x12 \x01(\x01\x12\x0c\n\x04posx\x18\x13 \x03(\x01\x12\x0c\n\x04posy\x18\x14 \x03(\x01"U\n\x1bMessageV4_ADCollisionSensor\x126\n\x04node\x18\x01 \x03(\x0b2(.rbk4.protocol.MessageV4_ADCollisionNodeb\x06proto3'
+        '\n\x16messageV4_sensor.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"\x88\x02\n\x13MessageV4_UltraNode\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x0c\n\x04dist\x18\x02 \x01(\x01\x12\r\n\x05valid\x18\x03 \x01(\x08\x12\r\n\x05pos_x\x18\x04 \x01(\x01\x12\r\n\x05pos_y\x18\x05 \x01(\x01\x12\x11\n\tpos_angle\x18\x06 \x01(\x01\x12\x10\n\x08max_dist\x18\x07 \x01(\x01\x12\x10\n\x08min_dist\x18\x08 \x01(\x01\x12\x10\n\x08aperture\x18\t \x01(\x01\x12\x11\n\tforbidden\x18\n \x01(\x08\x12\'\n\x06header\x18\x0b \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x16\n\x0eoffset_time_ms\x18\x0c \x01(\x05\x12\r\n\x05pos_z\x18\r \x01(\x01"n\n\x14MessageV4_Ultrasonic\x12\r\n\x05cycle\x18\x01 \x01(\r\x121\n\x05nodes\x18\x02 \x03(\x0b2".rbk4.protocol.MessageV4_UltraNode\x12\x14\n\x0cbase_time_ns\x18\x03 \x01(\x04"¶\x02\n\x10MessageV4_DINode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0c\n\x04func\x18\x07 \x01(\t\x12\x0c\n\x04type\x18\x08 \x01(\t\x12\x0e\n\x06source\x18\t \x01(\t\x12\r\n\x05shape\x18\n \x01(\t\x12\x0f\n\x07mindist\x18\x0b \x01(\x01\x12\x0f\n\x07maxdist\x18\x0c \x01(\x01\x12\r\n\x05range\x18\r \x01(\x01\x12\x0c\n\x04posx\x18\x0e \x03(\x01\x12\x0c\n\x04posy\x18\x0f \x03(\x01\x12\x11\n\tforbidden\x18\x10 \x01(\x08\x12\x11\n\temulation\x18\x11 \x01(\x08\x12\x0f\n\x07inverse\x18\x12 \x01(\x08\x12\x0c\n\x04name\x18\x13 \x01(\t\x12\x0b\n\x03key\x18\x14 \x01(\t"x\n\x0cMessageV4_DI\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12-\n\x04node\x18\x02 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_DINode\x12\x10\n\x08max_node\x18\x03 \x01(\r"Ú\x01\n\x10MessageV4_DONode\x12\n\n\x02id\x18\x01 \x01(\r\x12\x0e\n\x06status\x18\x02 \x01(\x08\x12\x0e\n\x06source\x18\x03 \x01(\t\x12\x0c\n\x04func\x18\x04 \x01(\t\x122\n\x04type\x18\x05 \x01(\x0e2$.rbk4.protocol.MessageV4_DONode.Type\x12\x0c\n\x04name\x18\x06 \x01(\t\x12\x0b\n\x03key\x18\x07 \x01(\t"=\n\x04Type\x12\x06\n\x02DO\x10\x00\x12\x0c\n\x08SOFT_EMC\x10\x01\x12\x07\n\x03LED\x10\x02\x12\t\n\x05RELAY\x10\x03\x12\x0b\n\x07CAN_RES\x10\x04"x\n\x0cMessageV4_DO\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12-\n\x04node\x18\x02 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_DONode\x12\x10\n\x08max_node\x18\x03 \x01(\r"|\n\x11MessageV4_Segment\x12\x0f\n\x07start_x\x18\x01 \x01(\x01\x12\x0f\n\x07start_y\x18\x02 \x01(\x01\x12\r\n\x05end_x\x18\x03 \x01(\x01\x12\r\n\x05end_y\x18\x04 \x01(\x01\x12\'\n\x06header\x18\x05 \x01(\x0b2\x17.rbk.protocol.msgHeader"|\n\x10MessageV4_Object\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x0c\n\x04name\x18\x02 \x01(\t\x121\n\x07objects\x18\x03 \x03(\x0b2 .rbk4.protocol.MessageV4_Segment"M\n\x14MessageV4_UserObject\x125\n\x0cuser_objects\x18\x01 \x03(\x0b2\x1f.rbk4.protocol.MessageV4_Object"ÿ\x01\n\x16MessageV4_DistanceNode\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\n\n\x02id\x18\x03 \x01(\x05\x12\x0c\n\x04dist\x18\x04 \x01(\x02\x12\r\n\x05valid\x18\x05 \x01(\x08\x12\r\n\x05pos_x\x18\x06 \x01(\x02\x12\r\n\x05pos_y\x18\x07 \x01(\x02\x12\x11\n\tpos_angle\x18\x08 \x01(\x02\x12\x10\n\x08aperture\x18\t \x01(\x02\x12\x11\n\tforbidden\x18\n \x01(\x08\x12\x12\n\ncan_router\x18\x0b \x01(\r\x12\r\n\x05rs485\x18\x0c \x01(\r\x12\x0c\n\x04RSSI\x18\r \x01(\r"O\n\x18MessageV4_DistanceSensor\x123\n\x04node\x18\x01 \x03(\x0b2%.rbk4.protocol.MessageV4_DistanceNode"ß\x02\n\x19MessageV4_ADCollisionNode\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\n\n\x02id\x18\x03 \x01(\x05\x12\x0b\n\x03adc\x18\x04 \x01(\x02\x12\x10\n\x08pressure\x18\x05 \x01(\x02\x12\r\n\x05valid\x18\x06 \x01(\x08\x12\x11\n\tcollision\x18\x07 \x01(\x08\x12\t\n\x01x\x18\x08 \x01(\x02\x12\t\n\x01y\x18\t \x01(\x02\x12\t\n\x01z\x18\n \x01(\x02\x12\x0b\n\x03yaw\x18\x0b \x01(\x02\x12\x11\n\tforbidden\x18\x0c \x01(\x08\x12\x12\n\ncan_router\x18\r \x01(\r\x12\r\n\x05rs485\x18\x0e \x01(\r\x12\r\n\x05shape\x18\x0f \x01(\t\x12\x0f\n\x07mindist\x18\x10 \x01(\x01\x12\x0f\n\x07maxdist\x18\x11 \x01(\x01\x12\r\n\x05range\x18\x12 \x01(\x01\x12\x0c\n\x04posx\x18\x13 \x03(\x01\x12\x0c\n\x04posy\x18\x14 \x03(\x01"U\n\x1bMessageV4_ADCollisionSensor\x126\n\x04node\x18\x01 \x03(\x0b2(.rbk4.protocol.MessageV4_ADCollisionNodeb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_DONODE_TYPE = _descriptor.EnumDescriptor(
     name="Type",
@@ -43,8 +43,8 @@ _MESSAGEV4_DONODE_TYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=1054,
-    serialized_end=1115,
+    serialized_start=1035,
+    serialized_end=1096,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_DONODE_TYPE)
 _MESSAGEV4_ULTRANODE = _descriptor.Descriptor(
@@ -297,8 +297,8 @@ _MESSAGEV4_ULTRANODE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=66,
-    serialized_end=338,
+    serialized_start=64,
+    serialized_end=328,
 )
 _MESSAGEV4_ULTRASONIC = _descriptor.Descriptor(
     name="MessageV4_Ultrasonic",
@@ -370,8 +370,8 @@ _MESSAGEV4_ULTRASONIC = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=340,
-    serialized_end=450,
+    serialized_start=330,
+    serialized_end=440,
 )
 _MESSAGEV4_DINODE = _descriptor.Descriptor(
     name="MessageV4_DINode",
@@ -749,8 +749,8 @@ _MESSAGEV4_DINODE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=453,
-    serialized_end=763,
+    serialized_start=443,
+    serialized_end=753,
 )
 _MESSAGEV4_DI = _descriptor.Descriptor(
     name="MessageV4_DI",
@@ -822,8 +822,8 @@ _MESSAGEV4_DI = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=766,
-    serialized_end=894,
+    serialized_start=755,
+    serialized_end=875,
 )
 _MESSAGEV4_DONODE = _descriptor.Descriptor(
     name="MessageV4_DONode",
@@ -967,8 +967,8 @@ _MESSAGEV4_DONODE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=897,
-    serialized_end=1115,
+    serialized_start=878,
+    serialized_end=1096,
 )
 _MESSAGEV4_DO = _descriptor.Descriptor(
     name="MessageV4_DO",
@@ -1040,8 +1040,8 @@ _MESSAGEV4_DO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1118,
-    serialized_end=1246,
+    serialized_start=1098,
+    serialized_end=1218,
 )
 _MESSAGEV4_SEGMENT = _descriptor.Descriptor(
     name="MessageV4_Segment",
@@ -1149,8 +1149,8 @@ _MESSAGEV4_SEGMENT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1249,
-    serialized_end=1381,
+    serialized_start=1220,
+    serialized_end=1344,
 )
 _MESSAGEV4_OBJECT = _descriptor.Descriptor(
     name="MessageV4_Object",
@@ -1222,8 +1222,8 @@ _MESSAGEV4_OBJECT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1384,
-    serialized_end=1516,
+    serialized_start=1346,
+    serialized_end=1470,
 )
 _MESSAGEV4_USEROBJECT = _descriptor.Descriptor(
     name="MessageV4_UserObject",
@@ -1259,8 +1259,8 @@ _MESSAGEV4_USEROBJECT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1518,
-    serialized_end=1595,
+    serialized_start=1472,
+    serialized_end=1549,
 )
 _MESSAGEV4_DISTANCENODE = _descriptor.Descriptor(
     name="MessageV4_DistanceNode",
@@ -1512,8 +1512,8 @@ _MESSAGEV4_DISTANCENODE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1598,
-    serialized_end=1861,
+    serialized_start=1552,
+    serialized_end=1807,
 )
 _MESSAGEV4_DISTANCESENSOR = _descriptor.Descriptor(
     name="MessageV4_DistanceSensor",
@@ -1549,8 +1549,8 @@ _MESSAGEV4_DISTANCESENSOR = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1863,
-    serialized_end=1942,
+    serialized_start=1809,
+    serialized_end=1888,
 )
 _MESSAGEV4_ADCOLLISIONNODE = _descriptor.Descriptor(
     name="MessageV4_ADCollisionNode",
@@ -1928,8 +1928,8 @@ _MESSAGEV4_ADCOLLISIONNODE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1945,
-    serialized_end=2304,
+    serialized_start=1891,
+    serialized_end=2242,
 )
 _MESSAGEV4_ADCOLLISIONSENSOR = _descriptor.Descriptor(
     name="MessageV4_ADCollisionSensor",
@@ -1965,37 +1965,33 @@ _MESSAGEV4_ADCOLLISIONSENSOR = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2306,
-    serialized_end=2391,
+    serialized_start=2244,
+    serialized_end=2329,
 )
 _MESSAGEV4_ULTRANODE.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_ULTRASONIC.fields_by_name["nodes"].message_type = _MESSAGEV4_ULTRANODE
-_MESSAGEV4_DI.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
-)
+_MESSAGEV4_DI.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGEV4_DI.fields_by_name["node"].message_type = _MESSAGEV4_DINODE
 _MESSAGEV4_DONODE.fields_by_name["type"].enum_type = _MESSAGEV4_DONODE_TYPE
 _MESSAGEV4_DONODE_TYPE.containing_type = _MESSAGEV4_DONODE
-_MESSAGEV4_DO.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
-)
+_MESSAGEV4_DO.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGEV4_DO.fields_by_name["node"].message_type = _MESSAGEV4_DONODE
 _MESSAGEV4_SEGMENT.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_OBJECT.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_OBJECT.fields_by_name["objects"].message_type = _MESSAGEV4_SEGMENT
 _MESSAGEV4_USEROBJECT.fields_by_name["user_objects"].message_type = _MESSAGEV4_OBJECT
 _MESSAGEV4_DISTANCENODE.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_DISTANCESENSOR.fields_by_name["node"].message_type = _MESSAGEV4_DISTANCENODE
 _MESSAGEV4_ADCOLLISIONNODE.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_ADCOLLISIONSENSOR.fields_by_name["node"].message_type = (
     _MESSAGEV4_ADCOLLISIONNODE

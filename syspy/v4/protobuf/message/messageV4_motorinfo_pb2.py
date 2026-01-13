@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_motorinfo.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x19messageV4_motorinfo.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"¤\x02\n\x13MessageV4_MotorInfo\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x17\n\x0factual_velocity\x18\x02 \x01(\x05\x12\x17\n\x0factual_position\x18\x03 \x01(\x05\x12\x16\n\x0edriver_current\x18\x04 \x01(\x05\x12\x15\n\ractual_torque\x18\x05 \x01(\x05\x12\x15\n\rmotor_current\x18\x06 \x01(\x05\x12\x0f\n\x07voltage\x18\x07 \x01(\r\x12\x12\n\nerror_code\x18\x08 \x01(\r\x12\x0b\n\x03err\x18\t \x01(\x08\x12\x0e\n\x06enable\x18\n \x01(\x08\x12\x13\n\x0btemperature\x18\x0b \x01(\x02\x12\r\n\x05calib\x18\x0c \x01(\x08b\x06proto3'
+        "\n\x19messageV4_motorinfo.proto\x12\rrbk4.protocol\x1a\x14message_header.proto\"\x9c\x02\n\x13MessageV4_MotorInfo\x12'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x17\n\x0factual_velocity\x18\x02 \x01(\x05\x12\x17\n\x0factual_position\x18\x03 \x01(\x05\x12\x16\n\x0edriver_current\x18\x04 \x01(\x05\x12\x15\n\ractual_torque\x18\x05 \x01(\x05\x12\x15\n\rmotor_current\x18\x06 \x01(\x05\x12\x0f\n\x07voltage\x18\x07 \x01(\r\x12\x12\n\nerror_code\x18\x08 \x01(\r\x12\x0b\n\x03err\x18\t \x01(\x08\x12\x0e\n\x06enable\x18\n \x01(\x08\x12\x13\n\x0btemperature\x18\x0b \x01(\x02\x12\r\n\x05calib\x18\x0c \x01(\x08b\x06proto3"
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_MOTORINFO = _descriptor.Descriptor(
     name="MessageV4_MotorInfo",
@@ -251,11 +251,11 @@ _MESSAGEV4_MOTORINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=69,
-    serialized_end=361,
+    serialized_start=67,
+    serialized_end=351,
 )
 _MESSAGEV4_MOTORINFO.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 DESCRIPTOR.message_types_by_name["MessageV4_MotorInfo"] = _MESSAGEV4_MOTORINFO
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)

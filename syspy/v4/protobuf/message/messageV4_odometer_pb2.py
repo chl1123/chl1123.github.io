@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_odometer.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x18messageV4_odometer.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"?\n\x0eMessageV4_Slip\x12\x0c\n\x04slip\x18\x01 \x01(\x02\x12\x11\n\tslip_time\x18\x02 \x01(\x02\x12\x0c\n\x04name\x18\x03 \x01(\t"\xa0\x02\n\x14MessageV4_SlipSensor\x126\n\x04type\x18\x01 \x01(\x0e2(.rbk4.protocol.MessageV4_SlipSensor.Type\x12)\n\x02vx\x18\x02 \x01(\x0b2\x1d.rbk4.protocol.MessageV4_Slip\x12)\n\x02vy\x18\x03 \x01(\x0b2\x1d.rbk4.protocol.MessageV4_Slip\x12)\n\x02vw\x18\x04 \x01(\x0b2\x1d.rbk4.protocol.MessageV4_Slip\x12,\n\x05motor\x18\x05 \x03(\x0b2\x1d.rbk4.protocol.MessageV4_Slip"!\n\x04Type\x12\x07\n\x03IMU\x10\x00\x12\x07\n\x03LOC\x10\x01\x12\x07\n\x03OPT\x10\x02"R\n\x15MessageV4_SlipSensors\x129\n\x0cslip_sensors\x18\x01 \x03(\x0b2#.rbk4.protocol.MessageV4_SlipSensor"¦\x01\n\x12MessageV4_MotorOdo\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x12\n\nmotor_name\x18\x02 \x01(\t\x12\x10\n\x08position\x18\x03 \x01(\x02\x12\r\n\x05speed\x18\x04 \x01(\x02\x12\x0c\n\x04stop\x18\x05 \x01(\x08\x12\x0b\n\x03emc\x18\x06 \x01(\x08\x12\x0f\n\x07encoder\x18\x07 \x01(\x05"¼\x01\n\x12MessageV4_Odometer\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\r\n\x05cycle\x18\x02 \x01(\r\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\r\n\x05angle\x18\x05 \x01(\x02\x12\x0f\n\x07is_stop\x18\x06 \x01(\x08\x12\r\n\x05vel_x\x18\x07 \x01(\x02\x12\r\n\x05vel_y\x18\x08 \x01(\x02\x12\x12\n\nvel_rotate\x18\t \x01(\x02b\x06proto3'
+        '\n\x18messageV4_odometer.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"?\n\x0eMessageV4_Slip\x12\x0c\n\x04slip\x18\x01 \x01(\x02\x12\x11\n\tslip_time\x18\x02 \x01(\x02\x12\x0c\n\x04name\x18\x03 \x01(\t"\xa0\x02\n\x14MessageV4_SlipSensor\x126\n\x04type\x18\x01 \x01(\x0e2(.rbk4.protocol.MessageV4_SlipSensor.Type\x12)\n\x02vx\x18\x02 \x01(\x0b2\x1d.rbk4.protocol.MessageV4_Slip\x12)\n\x02vy\x18\x03 \x01(\x0b2\x1d.rbk4.protocol.MessageV4_Slip\x12)\n\x02vw\x18\x04 \x01(\x0b2\x1d.rbk4.protocol.MessageV4_Slip\x12,\n\x05motor\x18\x05 \x03(\x0b2\x1d.rbk4.protocol.MessageV4_Slip"!\n\x04Type\x12\x07\n\x03IMU\x10\x00\x12\x07\n\x03LOC\x10\x01\x12\x07\n\x03OPT\x10\x02"R\n\x15MessageV4_SlipSensors\x129\n\x0cslip_sensors\x18\x01 \x03(\x0b2#.rbk4.protocol.MessageV4_SlipSensor"\x9e\x01\n\x12MessageV4_MotorOdo\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x12\n\nmotor_name\x18\x02 \x01(\t\x12\x10\n\x08position\x18\x03 \x01(\x02\x12\r\n\x05speed\x18\x04 \x01(\x02\x12\x0c\n\x04stop\x18\x05 \x01(\x08\x12\x0b\n\x03emc\x18\x06 \x01(\x08\x12\x0f\n\x07encoder\x18\x07 \x01(\x05"´\x01\n\x12MessageV4_Odometer\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\r\n\x05cycle\x18\x02 \x01(\r\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\r\n\x05angle\x18\x05 \x01(\x02\x12\x0f\n\x07is_stop\x18\x06 \x01(\x08\x12\r\n\x05vel_x\x18\x07 \x01(\x02\x12\r\n\x05vel_y\x18\x08 \x01(\x02\x12\x12\n\nvel_rotate\x18\t \x01(\x02b\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_SLIPSENSOR_TYPE = _descriptor.EnumDescriptor(
     name="Type",
@@ -37,8 +37,8 @@ _MESSAGEV4_SLIPSENSOR_TYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=388,
-    serialized_end=421,
+    serialized_start=386,
+    serialized_end=419,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGEV4_SLIPSENSOR_TYPE)
 _MESSAGEV4_SLIP = _descriptor.Descriptor(
@@ -111,8 +111,8 @@ _MESSAGEV4_SLIP = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=67,
-    serialized_end=130,
+    serialized_start=65,
+    serialized_end=128,
 )
 _MESSAGEV4_SLIPSENSOR = _descriptor.Descriptor(
     name="MessageV4_SlipSensor",
@@ -220,8 +220,8 @@ _MESSAGEV4_SLIPSENSOR = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=133,
-    serialized_end=421,
+    serialized_start=131,
+    serialized_end=419,
 )
 _MESSAGEV4_SLIPSENSORS = _descriptor.Descriptor(
     name="MessageV4_SlipSensors",
@@ -257,8 +257,8 @@ _MESSAGEV4_SLIPSENSORS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=423,
-    serialized_end=505,
+    serialized_start=421,
+    serialized_end=503,
 )
 _MESSAGEV4_MOTORODO = _descriptor.Descriptor(
     name="MessageV4_MotorOdo",
@@ -402,8 +402,8 @@ _MESSAGEV4_MOTORODO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=508,
-    serialized_end=674,
+    serialized_start=506,
+    serialized_end=664,
 )
 _MESSAGEV4_ODOMETER = _descriptor.Descriptor(
     name="MessageV4_Odometer",
@@ -583,8 +583,8 @@ _MESSAGEV4_ODOMETER = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=677,
-    serialized_end=865,
+    serialized_start=667,
+    serialized_end=847,
 )
 _MESSAGEV4_SLIPSENSOR.fields_by_name["type"].enum_type = _MESSAGEV4_SLIPSENSOR_TYPE
 _MESSAGEV4_SLIPSENSOR.fields_by_name["vx"].message_type = _MESSAGEV4_SLIP
@@ -596,10 +596,10 @@ _MESSAGEV4_SLIPSENSORS.fields_by_name["slip_sensors"].message_type = (
     _MESSAGEV4_SLIPSENSOR
 )
 _MESSAGEV4_MOTORODO.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_ODOMETER.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 DESCRIPTOR.message_types_by_name["MessageV4_Slip"] = _MESSAGEV4_SLIP
 DESCRIPTOR.message_types_by_name["MessageV4_SlipSensor"] = _MESSAGEV4_SLIPSENSOR

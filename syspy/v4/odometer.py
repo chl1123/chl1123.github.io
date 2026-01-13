@@ -58,13 +58,5 @@ class OdometerV4(OdometerInterface):
         if self.update():
             return self.data.is_stop
 
-    def getDetectSkid(self) -> bool:
-        """获取是否检测到打滑
-
-        Returns:
-            (bool): True表示检测到打滑，False表示未检测到
-        """
-        raise RBKVersionError()
-
     def getMotorInfos(self) -> List["Message_MotorInfo"]:
         raise RBKVersionError()

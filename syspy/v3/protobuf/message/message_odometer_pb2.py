@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x16message_odometer.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x18message_motorinfos.proto\"7\n\x07msgSlip\x12\x0c\n\x04slip\x18\x01 \x01(\x02\x12\x10\n\x08slipTime\x18\x02 \x01(\x02\x12\x0c\n\x04name\x18\x03 \x01(\t\"\xf9\x01\n\rmsgSlipSensor\x12\x32\n\x04type\x18\x01 \x01(\x0e\x32$.rbk.protocol.msgSlipSensor.slipType\x12!\n\x02vx\x18\x02 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12!\n\x02vy\x18\x03 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12!\n\x02vw\x18\x04 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12$\n\x05motor\x18\x05 \x03(\x0b\x32\x15.rbk.protocol.msgSlip\"%\n\x08slipType\x12\x07\n\x03imu\x10\x00\x12\x07\n\x03loc\x10\x01\x12\x07\n\x03opt\x10\x02\"B\n\x0emsgSlipSensors\x12\x30\n\x0bslipSensors\x18\x01 \x03(\x0b\x32\x1b.rbk.protocol.msgSlipSensor\"\xff\x01\n\x0bmsgOdometer\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05\x63ycle\x18\x02 \x01(\r\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x02\x12\x0e\n\x06isStop\x18\x06 \x01(\x08\x12\x0c\n\x04velX\x18\x07 \x01(\x02\x12\x0c\n\x04velY\x18\x08 \x01(\x02\x12\x11\n\tvelRotate\x18\t \x01(\x02\x12\x12\n\ndetectSkid\x18\n \x01(\x08\x12-\n\tmotorInfo\x18\x0b \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfo\x12\x11\n\tfollowErr\x18\x0c \x01(\x08\x62\x06proto3')
+  serialized_pb=_b('\n\x16message_odometer.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x18message_motorinfos.proto\"7\n\x07msgSlip\x12\x0c\n\x04slip\x18\x01 \x01(\x02\x12\x10\n\x08slipTime\x18\x02 \x01(\x02\x12\x0c\n\x04name\x18\x03 \x01(\t\"\xf9\x01\n\rmsgSlipSensor\x12\x32\n\x04type\x18\x01 \x01(\x0e\x32$.rbk.protocol.msgSlipSensor.slipType\x12!\n\x02vx\x18\x02 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12!\n\x02vy\x18\x03 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12!\n\x02vw\x18\x04 \x01(\x0b\x32\x15.rbk.protocol.msgSlip\x12$\n\x05motor\x18\x05 \x03(\x0b\x32\x15.rbk.protocol.msgSlip\"%\n\x08slipType\x12\x07\n\x03imu\x10\x00\x12\x07\n\x03loc\x10\x01\x12\x07\n\x03opt\x10\x02\"B\n\x0emsgSlipSensors\x12\x30\n\x0bslipSensors\x18\x01 \x03(\x0b\x32\x1b.rbk.protocol.msgSlipSensor\"\xd8\x01\n\x0bmsgOdometer\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05\x63ycle\x18\x02 \x01(\r\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x02\x12\x0e\n\x06isStop\x18\x06 \x01(\x08\x12\x0c\n\x04velX\x18\x07 \x01(\x02\x12\x0c\n\x04velY\x18\x08 \x01(\x02\x12\x11\n\tvelRotate\x18\t \x01(\x02\x12-\n\tmotorInfo\x18\n \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfob\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,message__motorinfos__pb2.DESCRIPTOR,])
 
@@ -261,23 +261,9 @@ _MSGODOMETER = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='detectSkid', full_name='rbk.protocol.msgOdometer.detectSkid', index=9,
-      number=10, type=8, cpp_type=7, label=1,
-      has_default_value=False, default_value=False,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='motorInfo', full_name='rbk.protocol.msgOdometer.motorInfo', index=10,
-      number=11, type=11, cpp_type=10, label=3,
+      name='motorInfo', full_name='rbk.protocol.msgOdometer.motorInfo', index=9,
+      number=10, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='followErr', full_name='rbk.protocol.msgOdometer.followErr', index=11,
-      number=12, type=8, cpp_type=7, label=1,
-      has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -294,7 +280,7 @@ _MSGODOMETER = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=466,
-  serialized_end=721,
+  serialized_end=682,
 )
 
 _MSGSLIPSENSOR.fields_by_name['type'].enum_type = _MSGSLIPSENSOR_SLIPTYPE

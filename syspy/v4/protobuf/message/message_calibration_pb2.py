@@ -16,7 +16,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x19message_calibration.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x19message_calibstatus.proto"x\n\rMessage_Image\x12,\n\x06header\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_Header\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0c\n\x04type\x18\x04 \x01(\x05\x12\x0c\n\x04data\x18\x05 \x01(\x0c"5\n\x11Message_TagCorner\x12\x0f\n\x07pixel_x\x18\x01 \x01(\x01\x12\x0f\n\x07pixel_y\x18\x02 \x01(\x01":\n\x0eMessage_TagRPY\x12\x0c\n\x04roll\x18\x01 \x01(\x01\x12\r\n\x05pitch\x18\x02 \x01(\x01\x12\x0b\n\x03yaw\x18\x03 \x01(\x01"1\n\x0eMessage_TagXYZ\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01"³\x02\n\x12Message_ChessBoard\x12)\n\x03rpy\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_TagRPY\x12)\n\x03xyz\x18\x02 \x01(\x0b2\x1c.rbk.protocol.Message_TagXYZ\x12*\n\x05image\x18\x03 \x01(\x0b2\x1b.rbk.protocol.Message_Image\x12:\n\x11image_corner_list\x18\x04 \x03(\x0b2\x1f.rbk.protocol.Message_TagCorner\x128\n\x12object_points_list\x18\x05 \x03(\x0b2\x1c.rbk.protocol.Message_TagXYZ\x12\x11\n\timg_width\x18\x06 \x01(\r\x12\x12\n\nimg_height\x18\x07 \x01(\r"\xa0\x02\n\x15Message_CalibProperty\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x16\n\x0cstring_value\x18\x03 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x04 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x05 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x06 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x07 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\x08 \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\t \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\n \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\x0b \x01(\x0cH\x00\x12\x0b\n\x03tag\x18\x0c \x01(\tB\r\n\x0boneof_value"j\n\x17Message_CalibProperties\x12\x13\n\x0baction_name\x18\x01 \x01(\t\x12:\n\rproperty_list\x18\x02 \x03(\x0b2#.rbk.protocol.Message_CalibProperty"â\x01\n\x13Message_Calibration\x12\x12\n\ndeviceType\x18\x01 \x01(\t\x12\x12\n\ndeviceName\x18\x02 \x01(\t\x12\x11\n\tcalibType\x18\x03 \x01(\t\x121\n\x06status\x18\x04 \x01(\x0b2!.rbk.protocol.Message_CalibStatus\x12\x0c\n\x04data\x18\x05 \x01(\x0c\x12\x0f\n\x07task_id\x18\x06 \x01(\t\x12>\n\x0fproperties_list\x18\x07 \x03(\x0b2%.rbk.protocol.Message_CalibPropertiesb\x06proto3'
+        '\n\x19message_calibration.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x19message_calibstatus.proto"s\n\rMessage_Image\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0c\n\x04type\x18\x04 \x01(\x05\x12\x0c\n\x04data\x18\x05 \x01(\x0c"5\n\x11Message_TagCorner\x12\x0f\n\x07pixel_x\x18\x01 \x01(\x01\x12\x0f\n\x07pixel_y\x18\x02 \x01(\x01":\n\x0eMessage_TagRPY\x12\x0c\n\x04roll\x18\x01 \x01(\x01\x12\r\n\x05pitch\x18\x02 \x01(\x01\x12\x0b\n\x03yaw\x18\x03 \x01(\x01"1\n\x0eMessage_TagXYZ\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01"³\x02\n\x12Message_ChessBoard\x12)\n\x03rpy\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_TagRPY\x12)\n\x03xyz\x18\x02 \x01(\x0b2\x1c.rbk.protocol.Message_TagXYZ\x12*\n\x05image\x18\x03 \x01(\x0b2\x1b.rbk.protocol.Message_Image\x12:\n\x11image_corner_list\x18\x04 \x03(\x0b2\x1f.rbk.protocol.Message_TagCorner\x128\n\x12object_points_list\x18\x05 \x03(\x0b2\x1c.rbk.protocol.Message_TagXYZ\x12\x11\n\timg_width\x18\x06 \x01(\r\x12\x12\n\nimg_height\x18\x07 \x01(\r"\xa0\x02\n\x15Message_CalibProperty\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x16\n\x0cstring_value\x18\x03 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x04 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x05 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x06 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x07 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\x08 \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\t \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\n \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\x0b \x01(\x0cH\x00\x12\x0b\n\x03tag\x18\x0c \x01(\tB\r\n\x0boneof_value"j\n\x17Message_CalibProperties\x12\x13\n\x0baction_name\x18\x01 \x01(\t\x12:\n\rproperty_list\x18\x02 \x03(\x0b2#.rbk.protocol.Message_CalibProperty"â\x01\n\x13Message_Calibration\x12\x12\n\ndeviceType\x18\x01 \x01(\t\x12\x12\n\ndeviceName\x18\x02 \x01(\t\x12\x11\n\tcalibType\x18\x03 \x01(\t\x121\n\x06status\x18\x04 \x01(\x0b2!.rbk.protocol.Message_CalibStatus\x12\x0c\n\x04data\x18\x05 \x01(\x0c\x12\x0f\n\x07task_id\x18\x06 \x01(\t\x12>\n\x0fproperties_list\x18\x07 \x03(\x0b2%.rbk.protocol.Message_CalibPropertiesb\x06proto3'
     ),
     dependencies=[
         message__header__pb2.DESCRIPTOR,
@@ -130,7 +130,7 @@ _MESSAGE_IMAGE = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[],
     serialized_start=92,
-    serialized_end=212,
+    serialized_end=207,
 )
 _MESSAGE_TAGCORNER = _descriptor.Descriptor(
     name="Message_TagCorner",
@@ -184,8 +184,8 @@ _MESSAGE_TAGCORNER = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=214,
-    serialized_end=267,
+    serialized_start=209,
+    serialized_end=262,
 )
 _MESSAGE_TAGRPY = _descriptor.Descriptor(
     name="Message_TagRPY",
@@ -257,8 +257,8 @@ _MESSAGE_TAGRPY = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=269,
-    serialized_end=327,
+    serialized_start=264,
+    serialized_end=322,
 )
 _MESSAGE_TAGXYZ = _descriptor.Descriptor(
     name="Message_TagXYZ",
@@ -330,8 +330,8 @@ _MESSAGE_TAGXYZ = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=329,
-    serialized_end=378,
+    serialized_start=324,
+    serialized_end=373,
 )
 _MESSAGE_CHESSBOARD = _descriptor.Descriptor(
     name="Message_ChessBoard",
@@ -475,8 +475,8 @@ _MESSAGE_CHESSBOARD = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=381,
-    serialized_end=688,
+    serialized_start=376,
+    serialized_end=683,
 )
 _MESSAGE_CALIBPROPERTY = _descriptor.Descriptor(
     name="Message_CalibProperty",
@@ -718,8 +718,8 @@ _MESSAGE_CALIBPROPERTY = _descriptor.Descriptor(
             fields=[],
         )
     ],
-    serialized_start=691,
-    serialized_end=979,
+    serialized_start=686,
+    serialized_end=974,
 )
 _MESSAGE_CALIBPROPERTIES = _descriptor.Descriptor(
     name="Message_CalibProperties",
@@ -773,8 +773,8 @@ _MESSAGE_CALIBPROPERTIES = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=981,
-    serialized_end=1087,
+    serialized_start=976,
+    serialized_end=1082,
 )
 _MESSAGE_CALIBRATION = _descriptor.Descriptor(
     name="Message_Calibration",
@@ -918,12 +918,10 @@ _MESSAGE_CALIBRATION = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1090,
-    serialized_end=1316,
+    serialized_start=1085,
+    serialized_end=1311,
 )
-_MESSAGE_IMAGE.fields_by_name["header"].message_type = (
-    message__header__pb2._MESSAGE_HEADER
-)
+_MESSAGE_IMAGE.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGE_CHESSBOARD.fields_by_name["rpy"].message_type = _MESSAGE_TAGRPY
 _MESSAGE_CHESSBOARD.fields_by_name["xyz"].message_type = _MESSAGE_TAGXYZ
 _MESSAGE_CHESSBOARD.fields_by_name["image"].message_type = _MESSAGE_IMAGE

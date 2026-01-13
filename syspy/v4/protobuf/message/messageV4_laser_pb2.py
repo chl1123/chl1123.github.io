@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_laser.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x15messageV4_laser.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"w\n\x1aMessageV4_LaserInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0c\n\x04roll\x18\x04 \x01(\x01\x12\r\n\x05pitch\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0e\n\x06upside\x18\x07 \x01(\x08"\x9a\x01\n\x19MessageV4_LaserDeviceInfo\x12\x13\n\x0bdevice_name\x18\x01 \x01(\t\x12\x14\n\x0cdevice_brand\x18\x02 \x01(\t\x12\x13\n\x0bhas_2d_data\x18\x03 \x01(\x08\x12\x13\n\x0bhas_3d_data\x18\x04 \x01(\x08\x12\x14\n\x0chas_imu_data\x18\x05 \x01(\x08\x12\x12\n\nlaser_type\x18\x06 \x01(\r"É\x01\n\x17MessageV4_Laser2DParams\x12\x11\n\tmin_range\x18\x01 \x01(\x02\x12\x11\n\tmax_range\x18\x02 \x01(\x02\x12\x11\n\tmin_angle\x18\x03 \x01(\x02\x12\x11\n\tmax_angle\x18\x04 \x01(\x02\x12\x11\n\treal_step\x18\x05 \x01(\x02\x12\x10\n\x08pub_step\x18\x06 \x01(\x02\x12\x16\n\x0etime_increment\x18\x07 \x01(\x02\x12\x11\n\tscan_freq\x18\x08 \x01(\x02\x12\x12\n\nclock_wise\x18\t \x01(\x08"?\n\x17MessageV4_Laser3DParams\x12\x11\n\tmin_range\x18\x01 \x01(\x02\x12\x11\n\tmax_range\x18\x02 \x01(\x02"`\n\x0eMessageV4_Beam\x12\r\n\x05angle\x18\x01 \x01(\x02\x12\x0c\n\x04dist\x18\x02 \x01(\x02\x12\t\n\x01x\x18\x03 \x01(\x02\x12\t\n\x01y\x18\x04 \x01(\x02\x12\x0c\n\x04rssi\x18\x05 \x01(\x02\x12\r\n\x05valid\x18\x06 \x01(\x08"¨\x02\n\x0fMessageV4_Laser\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12=\n\x0bdevice_info\x18\x02 \x01(\x0b2(.rbk4.protocol.MessageV4_LaserDeviceInfo\x12?\n\x0cinstall_info\x18\x03 \x01(\x0b2).rbk4.protocol.MessageV4_LaserInstallInfo\x126\n\x06params\x18\x04 \x01(\x0b2&.rbk4.protocol.MessageV4_Laser2DParams\x12,\n\x05beams\x18\x05 \x03(\x0b2\x1d.rbk4.protocol.MessageV4_Beam"w\n\x10MessageV4_Beam3D\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\x12\x11\n\tintensity\x18\x04 \x01(\x02\x12\x0c\n\x04ring\x18\x05 \x01(\r\x12\x13\n\x0boffset_time\x18\x06 \x01(\r\x12\x0c\n\x04data\x18\x07 \x01(\r"j\n\x14MessageV4_Beam3DLite\x12\x10\n\x08raw_data\x18\x01 \x01(\x0c\x12\x11\n\ttimestamp\x18\x02 \x01(\r\x12\x15\n\rfirst_azimuth\x18\x03 \x01(\x02\x12\x16\n\x0esecond_azimuth\x18\x04 \x01(\x02"\x96\x01\n\x17MessageV4_Beam3DCompact\x12\x0e\n\x06factor\x18\x01 \x01(\x02\x122\n\x05beams\x18\x02 \x03(\x0b2#.rbk4.protocol.MessageV4_Beam3DLite\x12\x1a\n\x12azimuth_correction\x18\x03 \x03(\x02\x12\x1b\n\x13vertical_correction\x18\x04 \x03(\x02"6\n\x18MessageV4_PointCloudData\x12\x0c\n\x04type\x18\x01 \x01(\r\x12\x0c\n\x04data\x18\x02 \x01(\x0c"ø\x02\n\x11MessageV4_Laser3D\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12=\n\x0bdevice_info\x18\x03 \x01(\x0b2(.rbk4.protocol.MessageV4_LaserDeviceInfo\x12?\n\x0cinstall_info\x18\x04 \x01(\x0b2).rbk4.protocol.MessageV4_LaserInstallInfo\x126\n\x06params\x18\x05 \x01(\x0b2&.rbk4.protocol.MessageV4_Laser3DParams\x128\n\x07pc_data\x18\x06 \x01(\x0b2\'.rbk4.protocol.MessageV4_PointCloudData\x12@\n\x10beams_3d_compact\x18\x07 \x01(\x0b2&.rbk4.protocol.MessageV4_Beam3DCompactb\x06proto3'
+        '\n\x15messageV4_laser.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"w\n\x1aMessageV4_LaserInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0c\n\x04roll\x18\x04 \x01(\x01\x12\r\n\x05pitch\x18\x05 \x01(\x01\x12\x0b\n\x03yaw\x18\x06 \x01(\x01\x12\x0e\n\x06upside\x18\x07 \x01(\x08"\x9a\x01\n\x19MessageV4_LaserDeviceInfo\x12\x13\n\x0bdevice_name\x18\x01 \x01(\t\x12\x14\n\x0cdevice_brand\x18\x02 \x01(\t\x12\x13\n\x0bhas_2d_data\x18\x03 \x01(\x08\x12\x13\n\x0bhas_3d_data\x18\x04 \x01(\x08\x12\x14\n\x0chas_imu_data\x18\x05 \x01(\x08\x12\x12\n\nlaser_type\x18\x06 \x01(\r"É\x01\n\x17MessageV4_Laser2DParams\x12\x11\n\tmin_range\x18\x01 \x01(\x02\x12\x11\n\tmax_range\x18\x02 \x01(\x02\x12\x11\n\tmin_angle\x18\x03 \x01(\x02\x12\x11\n\tmax_angle\x18\x04 \x01(\x02\x12\x11\n\treal_step\x18\x05 \x01(\x02\x12\x10\n\x08pub_step\x18\x06 \x01(\x02\x12\x16\n\x0etime_increment\x18\x07 \x01(\x02\x12\x11\n\tscan_freq\x18\x08 \x01(\x02\x12\x12\n\nclock_wise\x18\t \x01(\x08"?\n\x17MessageV4_Laser3DParams\x12\x11\n\tmin_range\x18\x01 \x01(\x02\x12\x11\n\tmax_range\x18\x02 \x01(\x02"`\n\x0eMessageV4_Beam\x12\r\n\x05angle\x18\x01 \x01(\x02\x12\x0c\n\x04dist\x18\x02 \x01(\x02\x12\t\n\x01x\x18\x03 \x01(\x02\x12\t\n\x01y\x18\x04 \x01(\x02\x12\x0c\n\x04rssi\x18\x05 \x01(\x02\x12\r\n\x05valid\x18\x06 \x01(\x08"\xa0\x02\n\x0fMessageV4_Laser\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12=\n\x0bdevice_info\x18\x02 \x01(\x0b2(.rbk4.protocol.MessageV4_LaserDeviceInfo\x12?\n\x0cinstall_info\x18\x03 \x01(\x0b2).rbk4.protocol.MessageV4_LaserInstallInfo\x126\n\x06params\x18\x04 \x01(\x0b2&.rbk4.protocol.MessageV4_Laser2DParams\x12,\n\x05beams\x18\x05 \x03(\x0b2\x1d.rbk4.protocol.MessageV4_Beam"w\n\x10MessageV4_Beam3D\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02\x12\x11\n\tintensity\x18\x04 \x01(\x02\x12\x0c\n\x04ring\x18\x05 \x01(\r\x12\x13\n\x0boffset_time\x18\x06 \x01(\r\x12\x0c\n\x04data\x18\x07 \x01(\r"j\n\x14MessageV4_Beam3DLite\x12\x10\n\x08raw_data\x18\x01 \x01(\x0c\x12\x11\n\ttimestamp\x18\x02 \x01(\r\x12\x15\n\rfirst_azimuth\x18\x03 \x01(\x02\x12\x16\n\x0esecond_azimuth\x18\x04 \x01(\x02"\x96\x01\n\x17MessageV4_Beam3DCompact\x12\x0e\n\x06factor\x18\x01 \x01(\x02\x122\n\x05beams\x18\x02 \x03(\x0b2#.rbk4.protocol.MessageV4_Beam3DLite\x12\x1a\n\x12azimuth_correction\x18\x03 \x03(\x02\x12\x1b\n\x13vertical_correction\x18\x04 \x03(\x02"6\n\x18MessageV4_PointCloudData\x12\x0c\n\x04type\x18\x01 \x01(\r\x12\x0c\n\x04data\x18\x02 \x01(\x0c"ð\x02\n\x11MessageV4_Laser3D\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12=\n\x0bdevice_info\x18\x03 \x01(\x0b2(.rbk4.protocol.MessageV4_LaserDeviceInfo\x12?\n\x0cinstall_info\x18\x04 \x01(\x0b2).rbk4.protocol.MessageV4_LaserInstallInfo\x126\n\x06params\x18\x05 \x01(\x0b2&.rbk4.protocol.MessageV4_Laser3DParams\x128\n\x07pc_data\x18\x06 \x01(\x0b2\'.rbk4.protocol.MessageV4_PointCloudData\x12@\n\x10beams_3d_compact\x18\x07 \x01(\x0b2&.rbk4.protocol.MessageV4_Beam3DCompactb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_LASERINSTALLINFO = _descriptor.Descriptor(
     name="MessageV4_LaserInstallInfo",
@@ -161,8 +161,8 @@ _MESSAGEV4_LASERINSTALLINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=64,
-    serialized_end=183,
+    serialized_start=62,
+    serialized_end=181,
 )
 _MESSAGEV4_LASERDEVICEINFO = _descriptor.Descriptor(
     name="MessageV4_LaserDeviceInfo",
@@ -288,8 +288,8 @@ _MESSAGEV4_LASERDEVICEINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=186,
-    serialized_end=340,
+    serialized_start=184,
+    serialized_end=338,
 )
 _MESSAGEV4_LASER2DPARAMS = _descriptor.Descriptor(
     name="MessageV4_Laser2DParams",
@@ -469,8 +469,8 @@ _MESSAGEV4_LASER2DPARAMS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=343,
-    serialized_end=544,
+    serialized_start=341,
+    serialized_end=542,
 )
 _MESSAGEV4_LASER3DPARAMS = _descriptor.Descriptor(
     name="MessageV4_Laser3DParams",
@@ -524,8 +524,8 @@ _MESSAGEV4_LASER3DPARAMS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=546,
-    serialized_end=609,
+    serialized_start=544,
+    serialized_end=607,
 )
 _MESSAGEV4_BEAM = _descriptor.Descriptor(
     name="MessageV4_Beam",
@@ -651,8 +651,8 @@ _MESSAGEV4_BEAM = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=611,
-    serialized_end=707,
+    serialized_start=609,
+    serialized_end=705,
 )
 _MESSAGEV4_LASER = _descriptor.Descriptor(
     name="MessageV4_Laser",
@@ -760,8 +760,8 @@ _MESSAGEV4_LASER = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=710,
-    serialized_end=1006,
+    serialized_start=708,
+    serialized_end=996,
 )
 _MESSAGEV4_BEAM3D = _descriptor.Descriptor(
     name="MessageV4_Beam3D",
@@ -905,8 +905,8 @@ _MESSAGEV4_BEAM3D = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1008,
-    serialized_end=1127,
+    serialized_start=998,
+    serialized_end=1117,
 )
 _MESSAGEV4_BEAM3DLITE = _descriptor.Descriptor(
     name="MessageV4_Beam3DLite",
@@ -996,8 +996,8 @@ _MESSAGEV4_BEAM3DLITE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1129,
-    serialized_end=1235,
+    serialized_start=1119,
+    serialized_end=1225,
 )
 _MESSAGEV4_BEAM3DCOMPACT = _descriptor.Descriptor(
     name="MessageV4_Beam3DCompact",
@@ -1087,8 +1087,8 @@ _MESSAGEV4_BEAM3DCOMPACT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1238,
-    serialized_end=1388,
+    serialized_start=1228,
+    serialized_end=1378,
 )
 _MESSAGEV4_POINTCLOUDDATA = _descriptor.Descriptor(
     name="MessageV4_PointCloudData",
@@ -1142,8 +1142,8 @@ _MESSAGEV4_POINTCLOUDDATA = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1390,
-    serialized_end=1444,
+    serialized_start=1380,
+    serialized_end=1434,
 )
 _MESSAGEV4_LASER3D = _descriptor.Descriptor(
     name="MessageV4_Laser3D",
@@ -1269,12 +1269,10 @@ _MESSAGEV4_LASER3D = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1447,
-    serialized_end=1823,
+    serialized_start=1437,
+    serialized_end=1805,
 )
-_MESSAGEV4_LASER.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
-)
+_MESSAGEV4_LASER.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGEV4_LASER.fields_by_name["device_info"].message_type = _MESSAGEV4_LASERDEVICEINFO
 _MESSAGEV4_LASER.fields_by_name["install_info"].message_type = (
     _MESSAGEV4_LASERINSTALLINFO
@@ -1283,7 +1281,7 @@ _MESSAGEV4_LASER.fields_by_name["params"].message_type = _MESSAGEV4_LASER2DPARAM
 _MESSAGEV4_LASER.fields_by_name["beams"].message_type = _MESSAGEV4_BEAM
 _MESSAGEV4_BEAM3DCOMPACT.fields_by_name["beams"].message_type = _MESSAGEV4_BEAM3DLITE
 _MESSAGEV4_LASER3D.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_LASER3D.fields_by_name["device_info"].message_type = (
     _MESSAGEV4_LASERDEVICEINFO

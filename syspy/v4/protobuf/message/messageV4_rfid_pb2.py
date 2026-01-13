@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_rfid.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x14messageV4_rfid.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"r\n\x12MessageV4_RFIDNode\x12\n\n\x02id\x18\x01 \x01(\r\x12\r\n\x05count\x18\x02 \x01(\r\x12/\n\x06header\x18\x03 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x10\n\x08strength\x18\x04 \x01(\r"G\n\x0eMessageV4_RFID\x125\n\nrfid_nodes\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_RFIDNodeb\x06proto3'
+        '\n\x14messageV4_rfid.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"j\n\x12MessageV4_RFIDNode\x12\n\n\x02id\x18\x01 \x01(\r\x12\r\n\x05count\x18\x02 \x01(\r\x12\'\n\x06header\x18\x03 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x10\n\x08strength\x18\x04 \x01(\r"G\n\x0eMessageV4_RFID\x125\n\nrfid_nodes\x18\x01 \x03(\x0b2!.rbk4.protocol.MessageV4_RFIDNodeb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_RFIDNODE = _descriptor.Descriptor(
     name="MessageV4_RFIDNode",
@@ -107,8 +107,8 @@ _MESSAGEV4_RFIDNODE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=63,
-    serialized_end=177,
+    serialized_start=61,
+    serialized_end=167,
 )
 _MESSAGEV4_RFID = _descriptor.Descriptor(
     name="MessageV4_RFID",
@@ -144,11 +144,11 @@ _MESSAGEV4_RFID = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=179,
-    serialized_end=250,
+    serialized_start=169,
+    serialized_end=240,
 )
 _MESSAGEV4_RFIDNODE.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_RFID.fields_by_name["rfid_nodes"].message_type = _MESSAGEV4_RFIDNODE
 DESCRIPTOR.message_types_by_name["MessageV4_RFIDNode"] = _MESSAGEV4_RFIDNODE
