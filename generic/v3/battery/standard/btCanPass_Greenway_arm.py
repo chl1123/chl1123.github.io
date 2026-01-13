@@ -89,7 +89,7 @@ class CanBattery(cb.CanBase):
                 if abs(cycle - self.battery_info.cycle) > 1:
                     log.warning(f"cycle jumps form {self.battery_info.cycle} to {cycle}, drop msg:{str(msg)}")
                     return
-                elif 0 == cycle or 0 == percentage:
+                elif 0 > cycle or 0 == percentage:
                     log.warning(f"cycle and SoC cannot be zero,per:{percentage},cycle:{cycle},msg:{str(msg)}")
                     return
             if int(tem[12:14], 16) == 1:

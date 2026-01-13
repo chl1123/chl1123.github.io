@@ -185,8 +185,8 @@ class CanBattery(cb.CanBase):
                     super().close()
                     # self.__init__()
                     raise RestartException("battery timeout")
-        if (self.id == "0e") and (self.isNeedCharge()) : #继电器没有打开且需要打开
-            self.sendCanframe(self.port, 0x0DA30DF4, 8, True, "01,00,00,00,00,00,00,00")
+        if self.isNeedCharge(): #继电器没有打开且需要打开
+            self.sendCanframe(self.port, 0x0DA30DF4, 8, True, "01 00 00 00 00 00 00 00")
 
         self.handle_abnormal_state()
 
