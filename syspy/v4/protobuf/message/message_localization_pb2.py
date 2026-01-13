@@ -15,7 +15,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto"Ì\x01\n\x14Message_Localization\x12,\n\x06header\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05angle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x11\n\tloc_state\x18\t \x01(\r\x12\x12\n\nloc_method\x18\n \x01(\r"$\n\x13Message_LocFinished\x12\r\n\x05value\x18\x01 \x01(\x08"§\x01\n\x0eMessage_3DPose\x12,\n\x06header\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\x0b\n\x03q_w\x18\x05 \x01(\x01\x12\x0b\n\x03q_x\x18\x06 \x01(\x01\x12\x0b\n\x03q_y\x18\x07 \x01(\x01\x12\x0b\n\x03q_z\x18\x08 \x01(\x01\x12\x12\n\nextra_data\x18\t \x01(\t"?\n\x11Message_IRCAMPose\x12*\n\x04pose\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_3DPose"\x85\x04\n\x12Message_2D_CamInfo\x12,\n\x06header\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_Header\x12\x13\n\x0bcamera_name\x18\x02 \x01(\t\x12\x12\n\nm_infrared\x18\x03 \x01(\x01\x12\x16\n\x0em_seertag_size\x18\x04 \x01(\x01\x12\x1b\n\x13m_seertag_family_id\x18\x05 \x01(\x01\x12\x12\n\nmodel_type\x18\x06 \x01(\t\x12\x18\n\x10distortion_modle\x18\x07 \x01(\t\x12\x1a\n\x12is_intrinsics_caib\x18\x08 \x01(\x08\x12\x1a\n\x12is_extrinsics_caib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\r\n\x05m_fx_\x18\x10 \x01(\x01\x12\r\n\x05m_fy_\x18\x11 \x01(\x01\x12\r\n\x05m_cx_\x18\x12 \x01(\x01\x12\r\n\x05m_cy_\x18\x13 \x01(\x01\x12\r\n\x05m_k1_\x18\x14 \x01(\x01\x12\r\n\x05m_k2_\x18\x15 \x01(\x01\x12\r\n\x05m_k3_\x18\x16 \x01(\x01\x12\r\n\x05m_k4_\x18\x17 \x01(\x01\x12\r\n\x05m_k5_\x18\x18 \x01(\x01\x12\r\n\x05m_k6_\x18\x19 \x01(\x01\x12\r\n\x05m_p1_\x18\x1a \x01(\x01\x12\r\n\x05m_p2_\x18\x1b \x01(\x01b\x06proto3'
+        '\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto"Ç\x01\n\x14Message_Localization\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05angle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x11\n\tloc_state\x18\t \x01(\r\x12\x12\n\nloc_method\x18\n \x01(\r"$\n\x13Message_LocFinished\x12\r\n\x05value\x18\x01 \x01(\x08"¢\x01\n\x0eMessage_3DPose\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\x0b\n\x03q_w\x18\x05 \x01(\x01\x12\x0b\n\x03q_x\x18\x06 \x01(\x01\x12\x0b\n\x03q_y\x18\x07 \x01(\x01\x12\x0b\n\x03q_z\x18\x08 \x01(\x01\x12\x12\n\nextra_data\x18\t \x01(\t"?\n\x11Message_IRCAMPose\x12*\n\x04pose\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_3DPose"\x80\x04\n\x12Message_2D_CamInfo\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x13\n\x0bcamera_name\x18\x02 \x01(\t\x12\x12\n\nm_infrared\x18\x03 \x01(\x01\x12\x16\n\x0em_seertag_size\x18\x04 \x01(\x01\x12\x1b\n\x13m_seertag_family_id\x18\x05 \x01(\x01\x12\x12\n\nmodel_type\x18\x06 \x01(\t\x12\x18\n\x10distortion_modle\x18\x07 \x01(\t\x12\x1a\n\x12is_intrinsics_caib\x18\x08 \x01(\x08\x12\x1a\n\x12is_extrinsics_caib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\r\n\x05m_fx_\x18\x10 \x01(\x01\x12\r\n\x05m_fy_\x18\x11 \x01(\x01\x12\r\n\x05m_cx_\x18\x12 \x01(\x01\x12\r\n\x05m_cy_\x18\x13 \x01(\x01\x12\r\n\x05m_k1_\x18\x14 \x01(\x01\x12\r\n\x05m_k2_\x18\x15 \x01(\x01\x12\r\n\x05m_k3_\x18\x16 \x01(\x01\x12\r\n\x05m_k4_\x18\x17 \x01(\x01\x12\r\n\x05m_k5_\x18\x18 \x01(\x01\x12\r\n\x05m_k6_\x18\x19 \x01(\x01\x12\r\n\x05m_p1_\x18\x1a \x01(\x01\x12\r\n\x05m_p2_\x18\x1b \x01(\x01b\x06proto3'
     ),
     dependencies=[message__header__pb2.DESCRIPTOR],
 )
@@ -216,7 +216,7 @@ _MESSAGE_LOCALIZATION = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[],
     serialized_start=67,
-    serialized_end=271,
+    serialized_end=266,
 )
 _MESSAGE_LOCFINISHED = _descriptor.Descriptor(
     name="Message_LocFinished",
@@ -252,8 +252,8 @@ _MESSAGE_LOCFINISHED = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=273,
-    serialized_end=309,
+    serialized_start=268,
+    serialized_end=304,
 )
 _MESSAGE_3DPOSE = _descriptor.Descriptor(
     name="Message_3DPose",
@@ -433,8 +433,8 @@ _MESSAGE_3DPOSE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=312,
-    serialized_end=479,
+    serialized_start=307,
+    serialized_end=469,
 )
 _MESSAGE_IRCAMPOSE = _descriptor.Descriptor(
     name="Message_IRCAMPose",
@@ -470,8 +470,8 @@ _MESSAGE_IRCAMPOSE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=481,
-    serialized_end=544,
+    serialized_start=471,
+    serialized_end=534,
 )
 _MESSAGE_2D_CAMINFO = _descriptor.Descriptor(
     name="Message_2D_CamInfo",
@@ -975,18 +975,16 @@ _MESSAGE_2D_CAMINFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=547,
-    serialized_end=1064,
+    serialized_start=537,
+    serialized_end=1049,
 )
 _MESSAGE_LOCALIZATION.fields_by_name["header"].message_type = (
-    message__header__pb2._MESSAGE_HEADER
+    message__header__pb2._MSGHEADER
 )
-_MESSAGE_3DPOSE.fields_by_name["header"].message_type = (
-    message__header__pb2._MESSAGE_HEADER
-)
+_MESSAGE_3DPOSE.fields_by_name["header"].message_type = message__header__pb2._MSGHEADER
 _MESSAGE_IRCAMPOSE.fields_by_name["pose"].message_type = _MESSAGE_3DPOSE
 _MESSAGE_2D_CAMINFO.fields_by_name["header"].message_type = (
-    message__header__pb2._MESSAGE_HEADER
+    message__header__pb2._MSGHEADER
 )
 DESCRIPTOR.message_types_by_name["Message_Localization"] = _MESSAGE_LOCALIZATION
 DESCRIPTOR.message_types_by_name["Message_LocFinished"] = _MESSAGE_LOCFINISHED

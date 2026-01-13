@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x11message_map.proto\x12\x0crbk.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x14message_header.proto\x1a\x11message_imu.proto\x1a\x12message_gnss.proto\x1a\x1amessage_localization.proto"Â\x01\n\x12Message_MapLogData\x12\x13\n\x0brobot_odo_x\x18\x01 \x01(\x01\x12\x13\n\x0brobot_odo_y\x18\x02 \x01(\x01\x12\x13\n\x0brobot_odo_w\x18\x03 \x01(\x01\x12\x17\n\x0flaser_beam_dist\x18\x04 \x03(\x01\x12\x18\n\x10laser_beam_angle\x18\x05 \x03(\x01\x12\x0c\n\x04rssi\x18\x06 \x03(\x01\x12,\n\x06header\x18\x07 \x01(\x0b2\x1c.rbk.protocol.Message_Header"\x80\x01\n\x0eMessage_MapOdo\x12\x11\n\ttimestamp\x18\x01 \x01(\x01\x12\r\n\x05odo_x\x18\x02 \x01(\x02\x12\r\n\x05odo_y\x18\x03 \x01(\x02\x12\r\n\x05odo_w\x18\x04 \x01(\x02\x12\x0e\n\x06odo_vx\x18\x05 \x01(\x02\x12\x0e\n\x06odo_vy\x18\x06 \x01(\x02\x12\x0e\n\x06odo_vw\x18\x07 \x01(\x02"º\x01\n\x14Message_MapLogData3D\x12\x11\n\ttimestamp\x18\x01 \x01(\x01\x12\t\n\x01x\x18\x02 \x03(\x02\x12\t\n\x01y\x18\x03 \x03(\x02\x12\t\n\x01z\x18\x04 \x03(\x02\x12\x11\n\tintensity\x18\x05 \x03(\r\x12\x12\n\ntimeoffset\x18\x06 \x03(\r\x12\x0c\n\x04ring\x18\x07 \x03(\r\x12\x0c\n\x04data\x18\x08 \x03(\x0c\x12\x14\n\x0cfirstAzimuth\x18\t \x03(\x02\x12\x15\n\rsecondAzimuth\x18\n \x03(\x02"É\x05\n\x0eMessage_MapLog\x12\x13\n\x0blaser_pos_x\x18\x01 \x01(\x01\x12\x13\n\x0blaser_pos_y\x18\x02 \x01(\x01\x12\x13\n\x0blaser_pos_z\x18\x03 \x01(\x01\x12\x12\n\nlaser_step\x18\x04 \x01(\x01\x12\x17\n\x0flaser_range_max\x18\x05 \x01(\x01\x122\n\x08log_data\x18\x06 \x03(\x0b2 .rbk.protocol.Message_MapLogData\x12\x12\n\nlaser_name\x18\x07 \x01(\t\x12\x1c\n\x14laser_install_height\x18\x08 \x01(\x01\x12.\n\x08odometer\x18\t \x03(\x0b2\x1c.rbk.protocol.Message_MapOdo\x126\n\nlog_data3d\x18\n \x03(\x0b2".rbk.protocol.Message_MapLogData3D\x12\x19\n\x11laser_install_yaw\x18\x0b \x01(\x01\x12\x1b\n\x13laser_install_pitch\x18\x0c \x01(\x01\x12\x1a\n\x12laser_install_roll\x18\r \x01(\x01\x12+\n\x08imu_data\x18\x0e \x03(\x0b2\x19.rbk.protocol.Message_IMU\x12-\n\tgnss_data\x18\x0f \x03(\x0b2\x1a.rbk.protocol.Message_GNSS\x12\x11\n\tlasertype\x18\x10 \x01(\r\x12\x0e\n\x06factor\x18\x11 \x01(\x02\x12\x19\n\x11azimuthcorrection\x18\x12 \x03(\x02\x12\x1a\n\x12verticalcorrection\x18\x13 \x03(\x02\x124\n\rall_gnss_data\x18\x14 \x03(\x0b2\x1d.rbk.protocol.Message_AllGNSS\x12=\n\x11localization_data\x18\x15 \x03(\x0b2".rbk.protocol.Message_Localization"\xad\x02\n\x13Message_MapProperty\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\x0c\x12\x16\n\x0cstring_value\x18\x04 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x05 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x06 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x07 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x08 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\t \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\n \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\x0b \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\x0c \x01(\x0cH\x00\x12\x0b\n\x03tag\x18\r \x01(\tB\r\n\x0boneof_value"1\n\x0eMessage_MapPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01"*\n\x12Message_MapRSSIPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01"b\n\x14Message_ReflectorPos\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05width\x18\x02 \x01(\x01\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\x17\n\x0fcreation_method\x18\x05 \x01(\r"I\n\x12Message_LiveRefPos\x123\n\x07ref_pos\x18\x01 \x03(\x0b2".rbk.protocol.Message_ReflectorPos"÷\x01\n\x0eMessage_tagPos\x12\x11\n\ttag_value\x18\x01 \x01(\r\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05angle\x18\x04 \x01(\x01\x12\x17\n\x0fis_DMT_detected\x18\x05 \x01(\x08\x12\t\n\x01z\x18\x06 \x01(\x01\x12\n\n\x02qx\x18\x07 \x01(\x01\x12\n\n\x02qy\x18\x08 \x01(\x01\x12\n\n\x02qz\x18\t \x01(\x01\x12\n\n\x02qw\x18\n \x01(\x01\x12\x10\n\x08variance\x18\x0b \x01(\x01\x12\x12\n\nclass_name\x18\x0c \x01(\t\x123\n\x08property\x18\r \x03(\x0b2!.rbk.protocol.Message_MapProperty"q\n\x0fMessage_MapLine\x12/\n\tstart_pos\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12-\n\x07end_pos\x18\x02 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos"º\x01\n\x11Message_MapHeader\x12\x10\n\x08map_type\x18\x01 \x01(\t\x12\x10\n\x08map_name\x18\x02 \x01(\t\x12-\n\x07min_pos\x18\x03 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12-\n\x07max_pos\x18\x04 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12\x12\n\nresolution\x18\x05 \x01(\x01\x12\x0f\n\x07version\x18\x08 \x01(\t"g\n\x14Message_MapAttribute\x12\x13\n\x0bdescription\x18\x01 \x01(\t\x12\x11\n\tcolor_pen\x18\x02 \x01(\r\x12\x13\n\x0bcolor_brush\x18\x03 \x01(\r\x12\x12\n\ncolor_font\x18\x04 \x01(\r"\x88\x02\n\x15Message_AdvancedPoint\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12)\n\x03pos\x18\x03 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12\x0b\n\x03dir\x18\x04 \x01(\x01\x123\n\x08property\x18\x05 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x12\n\nignore_dir\x18\x06 \x01(\x08\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x125\n\tattribute\x18\n \x01(\x0b2".rbk.protocol.Message_MapAttribute"è\x01\n\x14Message_AdvancedLine\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12+\n\x04line\x18\x03 \x01(\x0b2\x1d.rbk.protocol.Message_MapLine\x123\n\x08property\x18\x04 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x125\n\tattribute\x18\n \x01(\x0b2".rbk.protocol.Message_MapAttribute"©\x04\n\x15Message_AdvancedCurve\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x126\n\tstart_pos\x18\x03 \x01(\x0b2#.rbk.protocol.Message_AdvancedPoint\x124\n\x07end_pos\x18\x04 \x01(\x0b2#.rbk.protocol.Message_AdvancedPoint\x122\n\x0ccontrol_pos1\x18\x05 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x122\n\x0ccontrol_pos2\x18\x06 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x123\n\x08property\x18\x07 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x122\n\x0ccontrol_pos3\x18\t \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x122\n\x0ccontrol_pos4\x18\n \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12-\n\x07devices\x18\x0c \x03(\x0b2\x1c.rbk.protocol.Message_Device\x125\n\tattribute\x18\x0f \x01(\x0b2".rbk.protocol.Message_MapAttribute"¨\x02\n\x14Message_AdvancedArea\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12/\n\tpos_group\x18\x03 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x12\x0b\n\x03dir\x18\x04 \x01(\x01\x123\n\x08property\x18\x05 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x12-\n\x07devices\x18\n \x03(\x0b2\x1c.rbk.protocol.Message_Device\x125\n\tattribute\x18\x0f \x01(\x0b2".rbk.protocol.Message_MapAttribute"R\n\x17Message_VirtualLineList\x127\n\x10virtual_map_line\x18\x01 \x03(\x0b2\x1d.rbk.protocol.Message_MapLine"Y\n\x13Message_LaserDevice\x12\n\n\x02id\x18\x01 \x01(\r\x126\n\x10laser_margin_pos\x18\x02 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos"\x91\x01\n\x0eMessage_Device\x12\x12\n\nmodel_name\x18\x01 \x01(\t\x128\n\rlaser_devices\x18\x05 \x03(\x0b2!.rbk.protocol.Message_LaserDevice\x12\x17\n\x0fultrasonic_dist\x18\x06 \x03(\x01\x12\x18\n\x10fallingdown_dist\x18\x07 \x03(\x01"(\n\x1aMessage_PatrolRouteStation\x12\n\n\x02id\x18\x01 \x01(\t"\x95\x03\n\x13Message_PatrolRoute\x12\x0c\n\x04name\x18\x01 \x01(\t\x12>\n\x0cstation_list\x18\x02 \x03(\x0b2(.rbk.protocol.Message_PatrolRouteStation\x12/\n\tmax_speed\x18\x04 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07max_acc\x18\x05 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07max_rot\x18\x06 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bmax_rot_acc\x18\x07 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x12-\n\x07max_dec\x18\t \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bmax_rot_dec\x18\n \x01(\x0b2\x1c.google.protobuf.DoubleValue"Þ\x02\n\x11Message_Primitive\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x126\n\tstart_pos\x18\x03 \x01(\x0b2#.rbk.protocol.Message_AdvancedPoint\x124\n\x07end_pos\x18\x04 \x01(\x0b2#.rbk.protocol.Message_AdvancedPoint\x126\n\x10control_pos_list\x18\x05 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x123\n\x08property\x18\x06 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x07 \x01(\x0c\x125\n\tattribute\x18\x08 \x01(\x0b2".rbk.protocol.Message_MapAttribute"Ñ\x01\n\x16Message_ExternalDevice\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12\x12\n\nis_enabled\x18\x03 \x01(\x08\x123\n\x08property\x18\x04 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x05 \x01(\x0c\x125\n\tattribute\x18\x06 \x01(\x0b2".rbk.protocol.Message_MapAttribute"\x8d\x02\n\x13Message_BinLocation\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12\x12\n\ngroup_name\x18\x03 \x01(\t\x12\x12\n\npoint_name\x18\x04 \x01(\t\x12)\n\x03pos\x18\x05 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x123\n\x08property\x18\x06 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x07 \x01(\x0c\x125\n\tattribute\x18\x08 \x01(\x0b2".rbk.protocol.Message_MapAttribute"T\n\x14Message_BinLocations\x12<\n\x11bin_location_list\x18\x01 \x03(\x0b2!.rbk.protocol.Message_BinLocation"à\x07\n\x0bMessage_Map\x12\x15\n\rmap_directory\x18\x01 \x01(\t\x12/\n\x06header\x18\x02 \x01(\x0b2\x1f.rbk.protocol.Message_MapHeader\x125\n\x0fnormal_pos_list\x18\x03 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x127\n\x10normal_line_list\x18\x04 \x03(\x0b2\x1d.rbk.protocol.Message_MapLine\x127\n\x11normal_pos3d_list\x18\x05 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x12@\n\x13advanced_point_list\x18\x06 \x03(\x0b2#.rbk.protocol.Message_AdvancedPoint\x12>\n\x12advanced_line_list\x18\x07 \x03(\x0b2".rbk.protocol.Message_AdvancedLine\x12@\n\x13advanced_curve_list\x18\x08 \x03(\x0b2#.rbk.protocol.Message_AdvancedCurve\x12>\n\x12advanced_area_list\x18\t \x03(\x0b2".rbk.protocol.Message_AdvancedArea\x12<\n\x11patrol_route_list\x18\n \x03(\x0b2!.rbk.protocol.Message_PatrolRoute\x127\n\rrssi_pos_list\x18\x0b \x03(\x0b2 .rbk.protocol.Message_MapRSSIPos\x12>\n\x12reflector_pos_list\x18\x0c \x03(\x0b2".rbk.protocol.Message_ReflectorPos\x122\n\x0ctag_pos_list\x18\r \x03(\x0b2\x1c.rbk.protocol.Message_tagPos\x127\n\x0eprimitive_list\x18\x0e \x03(\x0b2\x1f.rbk.protocol.Message_Primitive\x12B\n\x14external_device_list\x18\x0f \x03(\x0b2$.rbk.protocol.Message_ExternalDevice\x12>\n\x12bin_locations_list\x18\x10 \x03(\x0b2".rbk.protocol.Message_BinLocations\x124\n\tuser_data\x18d \x03(\x0b2!.rbk.protocol.Message_MapProperty"Ä\x01\n\rMessage_Map3D\x12\x15\n\rmap_directory\x18\x01 \x01(\t\x12/\n\x06header\x18\x02 \x01(\x0b2\x1f.rbk.protocol.Message_MapHeader\x127\n\x11normal_pos3d_list\x18\x03 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x122\n\x0efeature_map_3d\x18\x04 \x01(\x0b2\x1a.rbk.protocol.FeatureMap3D"(\n\x05Vec3f\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02"(\n\x05Vec3i\x12\t\n\x01x\x18\x01 \x01(\x05\x12\t\n\x01y\x18\x02 \x01(\x05\x12\t\n\x01z\x18\x03 \x01(\x05"â\x01\n\x10FeatureMapParams\x12\x15\n\rranging_sigma\x18\x01 \x01(\x02\x12\x13\n\x0bangle_sigma\x18\x02 \x01(\x02\x12\x16\n\x0emax_voxel_size\x18\x03 \x01(\x02\x12\x11\n\tmax_layer\x18\x04 \x01(\r\x12\x19\n\x11cov_fixed_pts_num\x18\x05 \x01(\r\x12\x1b\n\x13plane_fixed_pts_num\x18\x06 \x01(\r\x12\x1d\n\x15plane_min_eigen_value\x18\x07 \x01(\x02\x12 \n\x18each_layer_least_pts_num\x18\x08 \x03(\x05"\x89\x01\n\x0fFeatureMapPlane\x12#\n\x06center\x18\x01 \x01(\x0b2\x13.rbk.protocol.Vec3f\x12#\n\x06normal\x18\x02 \x01(\x0b2\x13.rbk.protocol.Vec3f\x12\t\n\x01d\x18\x03 \x01(\x02\x12\x0e\n\x06radius\x18\x04 \x01(\x02\x12\x11\n\tplane_cov\x18\x05 \x03(\x02"F\n\x08OctoTree\x12\x10\n\x08plane_id\x18\x01 \x01(\r\x12\x15\n\rchild_id_list\x18\x02 \x03(\x05\x12\x11\n\tplane_id2\x18\x03 \x01(\r"6\n\tOctoTrees\x12)\n\tocto_tree\x18\x01 \x03(\x0b2\x16.rbk.protocol.OctoTree"Ã\x01\n\x0cFeatureMap3D\x12.\n\x06params\x18\x01 \x01(\x0b2\x1e.rbk.protocol.FeatureMapParams\x12-\n\x06planes\x18\x02 \x03(\x0b2\x1d.rbk.protocol.FeatureMapPlane\x12+\n\nocto_trees\x18\x03 \x03(\x0b2\x17.rbk.protocol.OctoTrees\x12\'\n\nvoxel_locs\x18\x04 \x03(\x0b2\x13.rbk.protocol.Vec3ib\x06proto3'
+        '\n\x11message_map.proto\x12\x0crbk.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x14message_header.proto\x1a\x11message_imu.proto\x1a\x12message_gnss.proto\x1a\x1amessage_localization.proto"½\x01\n\x12Message_MapLogData\x12\x13\n\x0brobot_odo_x\x18\x01 \x01(\x01\x12\x13\n\x0brobot_odo_y\x18\x02 \x01(\x01\x12\x13\n\x0brobot_odo_w\x18\x03 \x01(\x01\x12\x17\n\x0flaser_beam_dist\x18\x04 \x03(\x01\x12\x18\n\x10laser_beam_angle\x18\x05 \x03(\x01\x12\x0c\n\x04rssi\x18\x06 \x03(\x01\x12\'\n\x06header\x18\x07 \x01(\x0b2\x17.rbk.protocol.msgHeader"\x80\x01\n\x0eMessage_MapOdo\x12\x11\n\ttimestamp\x18\x01 \x01(\x01\x12\r\n\x05odo_x\x18\x02 \x01(\x02\x12\r\n\x05odo_y\x18\x03 \x01(\x02\x12\r\n\x05odo_w\x18\x04 \x01(\x02\x12\x0e\n\x06odo_vx\x18\x05 \x01(\x02\x12\x0e\n\x06odo_vy\x18\x06 \x01(\x02\x12\x0e\n\x06odo_vw\x18\x07 \x01(\x02"º\x01\n\x14Message_MapLogData3D\x12\x11\n\ttimestamp\x18\x01 \x01(\x01\x12\t\n\x01x\x18\x02 \x03(\x02\x12\t\n\x01y\x18\x03 \x03(\x02\x12\t\n\x01z\x18\x04 \x03(\x02\x12\x11\n\tintensity\x18\x05 \x03(\r\x12\x12\n\ntimeoffset\x18\x06 \x03(\r\x12\x0c\n\x04ring\x18\x07 \x03(\r\x12\x0c\n\x04data\x18\x08 \x03(\x0c\x12\x14\n\x0cfirstAzimuth\x18\t \x03(\x02\x12\x15\n\rsecondAzimuth\x18\n \x03(\x02"É\x05\n\x0eMessage_MapLog\x12\x13\n\x0blaser_pos_x\x18\x01 \x01(\x01\x12\x13\n\x0blaser_pos_y\x18\x02 \x01(\x01\x12\x13\n\x0blaser_pos_z\x18\x03 \x01(\x01\x12\x12\n\nlaser_step\x18\x04 \x01(\x01\x12\x17\n\x0flaser_range_max\x18\x05 \x01(\x01\x122\n\x08log_data\x18\x06 \x03(\x0b2 .rbk.protocol.Message_MapLogData\x12\x12\n\nlaser_name\x18\x07 \x01(\t\x12\x1c\n\x14laser_install_height\x18\x08 \x01(\x01\x12.\n\x08odometer\x18\t \x03(\x0b2\x1c.rbk.protocol.Message_MapOdo\x126\n\nlog_data3d\x18\n \x03(\x0b2".rbk.protocol.Message_MapLogData3D\x12\x19\n\x11laser_install_yaw\x18\x0b \x01(\x01\x12\x1b\n\x13laser_install_pitch\x18\x0c \x01(\x01\x12\x1a\n\x12laser_install_roll\x18\r \x01(\x01\x12+\n\x08imu_data\x18\x0e \x03(\x0b2\x19.rbk.protocol.Message_IMU\x12-\n\tgnss_data\x18\x0f \x03(\x0b2\x1a.rbk.protocol.Message_GNSS\x12\x11\n\tlasertype\x18\x10 \x01(\r\x12\x0e\n\x06factor\x18\x11 \x01(\x02\x12\x19\n\x11azimuthcorrection\x18\x12 \x03(\x02\x12\x1a\n\x12verticalcorrection\x18\x13 \x03(\x02\x124\n\rall_gnss_data\x18\x14 \x03(\x0b2\x1d.rbk.protocol.Message_AllGNSS\x12=\n\x11localization_data\x18\x15 \x03(\x0b2".rbk.protocol.Message_Localization"\xad\x02\n\x13Message_MapProperty\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\r\n\x05value\x18\x03 \x01(\x0c\x12\x16\n\x0cstring_value\x18\x04 \x01(\tH\x00\x12\x14\n\nbool_value\x18\x05 \x01(\x08H\x00\x12\x15\n\x0bint32_value\x18\x06 \x01(\x05H\x00\x12\x16\n\x0cuint32_value\x18\x07 \x01(\rH\x00\x12\x15\n\x0bint64_value\x18\x08 \x01(\x03H\x00\x12\x16\n\x0cuint64_value\x18\t \x01(\x04H\x00\x12\x15\n\x0bfloat_value\x18\n \x01(\x02H\x00\x12\x16\n\x0cdouble_value\x18\x0b \x01(\x01H\x00\x12\x15\n\x0bbytes_value\x18\x0c \x01(\x0cH\x00\x12\x0b\n\x03tag\x18\r \x01(\tB\r\n\x0boneof_value"1\n\x0eMessage_MapPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01"*\n\x12Message_MapRSSIPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01"b\n\x14Message_ReflectorPos\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05width\x18\x02 \x01(\x01\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\x17\n\x0fcreation_method\x18\x05 \x01(\r"I\n\x12Message_LiveRefPos\x123\n\x07ref_pos\x18\x01 \x03(\x0b2".rbk.protocol.Message_ReflectorPos"÷\x01\n\x0eMessage_tagPos\x12\x11\n\ttag_value\x18\x01 \x01(\r\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05angle\x18\x04 \x01(\x01\x12\x17\n\x0fis_DMT_detected\x18\x05 \x01(\x08\x12\t\n\x01z\x18\x06 \x01(\x01\x12\n\n\x02qx\x18\x07 \x01(\x01\x12\n\n\x02qy\x18\x08 \x01(\x01\x12\n\n\x02qz\x18\t \x01(\x01\x12\n\n\x02qw\x18\n \x01(\x01\x12\x10\n\x08variance\x18\x0b \x01(\x01\x12\x12\n\nclass_name\x18\x0c \x01(\t\x123\n\x08property\x18\r \x03(\x0b2!.rbk.protocol.Message_MapProperty"q\n\x0fMessage_MapLine\x12/\n\tstart_pos\x18\x01 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12-\n\x07end_pos\x18\x02 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos"º\x01\n\x11Message_MapHeader\x12\x10\n\x08map_type\x18\x01 \x01(\t\x12\x10\n\x08map_name\x18\x02 \x01(\t\x12-\n\x07min_pos\x18\x03 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12-\n\x07max_pos\x18\x04 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12\x12\n\nresolution\x18\x05 \x01(\x01\x12\x0f\n\x07version\x18\x08 \x01(\t"g\n\x14Message_MapAttribute\x12\x13\n\x0bdescription\x18\x01 \x01(\t\x12\x11\n\tcolor_pen\x18\x02 \x01(\r\x12\x13\n\x0bcolor_brush\x18\x03 \x01(\r\x12\x12\n\ncolor_font\x18\x04 \x01(\r"\x88\x02\n\x15Message_AdvancedPoint\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12)\n\x03pos\x18\x03 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12\x0b\n\x03dir\x18\x04 \x01(\x01\x123\n\x08property\x18\x05 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x12\n\nignore_dir\x18\x06 \x01(\x08\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x125\n\tattribute\x18\n \x01(\x0b2".rbk.protocol.Message_MapAttribute"è\x01\n\x14Message_AdvancedLine\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12+\n\x04line\x18\x03 \x01(\x0b2\x1d.rbk.protocol.Message_MapLine\x123\n\x08property\x18\x04 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x125\n\tattribute\x18\n \x01(\x0b2".rbk.protocol.Message_MapAttribute"©\x04\n\x15Message_AdvancedCurve\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x126\n\tstart_pos\x18\x03 \x01(\x0b2#.rbk.protocol.Message_AdvancedPoint\x124\n\x07end_pos\x18\x04 \x01(\x0b2#.rbk.protocol.Message_AdvancedPoint\x122\n\x0ccontrol_pos1\x18\x05 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x122\n\x0ccontrol_pos2\x18\x06 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x123\n\x08property\x18\x07 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x122\n\x0ccontrol_pos3\x18\t \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x122\n\x0ccontrol_pos4\x18\n \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x12-\n\x07devices\x18\x0c \x03(\x0b2\x1c.rbk.protocol.Message_Device\x125\n\tattribute\x18\x0f \x01(\x0b2".rbk.protocol.Message_MapAttribute"¨\x02\n\x14Message_AdvancedArea\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12/\n\tpos_group\x18\x03 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x12\x0b\n\x03dir\x18\x04 \x01(\x01\x123\n\x08property\x18\x05 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x12-\n\x07devices\x18\n \x03(\x0b2\x1c.rbk.protocol.Message_Device\x125\n\tattribute\x18\x0f \x01(\x0b2".rbk.protocol.Message_MapAttribute"R\n\x17Message_VirtualLineList\x127\n\x10virtual_map_line\x18\x01 \x03(\x0b2\x1d.rbk.protocol.Message_MapLine"Y\n\x13Message_LaserDevice\x12\n\n\x02id\x18\x01 \x01(\r\x126\n\x10laser_margin_pos\x18\x02 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos"\x91\x01\n\x0eMessage_Device\x12\x12\n\nmodel_name\x18\x01 \x01(\t\x128\n\rlaser_devices\x18\x05 \x03(\x0b2!.rbk.protocol.Message_LaserDevice\x12\x17\n\x0fultrasonic_dist\x18\x06 \x03(\x01\x12\x18\n\x10fallingdown_dist\x18\x07 \x03(\x01"(\n\x1aMessage_PatrolRouteStation\x12\n\n\x02id\x18\x01 \x01(\t"\x95\x03\n\x13Message_PatrolRoute\x12\x0c\n\x04name\x18\x01 \x01(\t\x12>\n\x0cstation_list\x18\x02 \x03(\x0b2(.rbk.protocol.Message_PatrolRouteStation\x12/\n\tmax_speed\x18\x04 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07max_acc\x18\x05 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12-\n\x07max_rot\x18\x06 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bmax_rot_acc\x18\x07 \x01(\x0b2\x1c.google.protobuf.DoubleValue\x12\x0c\n\x04desc\x18\x08 \x01(\x0c\x12-\n\x07max_dec\x18\t \x01(\x0b2\x1c.google.protobuf.DoubleValue\x121\n\x0bmax_rot_dec\x18\n \x01(\x0b2\x1c.google.protobuf.DoubleValue"Þ\x02\n\x11Message_Primitive\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x126\n\tstart_pos\x18\x03 \x01(\x0b2#.rbk.protocol.Message_AdvancedPoint\x124\n\x07end_pos\x18\x04 \x01(\x0b2#.rbk.protocol.Message_AdvancedPoint\x126\n\x10control_pos_list\x18\x05 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x123\n\x08property\x18\x06 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x07 \x01(\x0c\x125\n\tattribute\x18\x08 \x01(\x0b2".rbk.protocol.Message_MapAttribute"Ñ\x01\n\x16Message_ExternalDevice\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12\x12\n\nis_enabled\x18\x03 \x01(\x08\x123\n\x08property\x18\x04 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x05 \x01(\x0c\x125\n\tattribute\x18\x06 \x01(\x0b2".rbk.protocol.Message_MapAttribute"\x8d\x02\n\x13Message_BinLocation\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\x15\n\rinstance_name\x18\x02 \x01(\t\x12\x12\n\ngroup_name\x18\x03 \x01(\t\x12\x12\n\npoint_name\x18\x04 \x01(\t\x12)\n\x03pos\x18\x05 \x01(\x0b2\x1c.rbk.protocol.Message_MapPos\x123\n\x08property\x18\x06 \x03(\x0b2!.rbk.protocol.Message_MapProperty\x12\x0c\n\x04desc\x18\x07 \x01(\x0c\x125\n\tattribute\x18\x08 \x01(\x0b2".rbk.protocol.Message_MapAttribute"T\n\x14Message_BinLocations\x12<\n\x11bin_location_list\x18\x01 \x03(\x0b2!.rbk.protocol.Message_BinLocation"à\x07\n\x0bMessage_Map\x12\x15\n\rmap_directory\x18\x01 \x01(\t\x12/\n\x06header\x18\x02 \x01(\x0b2\x1f.rbk.protocol.Message_MapHeader\x125\n\x0fnormal_pos_list\x18\x03 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x127\n\x10normal_line_list\x18\x04 \x03(\x0b2\x1d.rbk.protocol.Message_MapLine\x127\n\x11normal_pos3d_list\x18\x05 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x12@\n\x13advanced_point_list\x18\x06 \x03(\x0b2#.rbk.protocol.Message_AdvancedPoint\x12>\n\x12advanced_line_list\x18\x07 \x03(\x0b2".rbk.protocol.Message_AdvancedLine\x12@\n\x13advanced_curve_list\x18\x08 \x03(\x0b2#.rbk.protocol.Message_AdvancedCurve\x12>\n\x12advanced_area_list\x18\t \x03(\x0b2".rbk.protocol.Message_AdvancedArea\x12<\n\x11patrol_route_list\x18\n \x03(\x0b2!.rbk.protocol.Message_PatrolRoute\x127\n\rrssi_pos_list\x18\x0b \x03(\x0b2 .rbk.protocol.Message_MapRSSIPos\x12>\n\x12reflector_pos_list\x18\x0c \x03(\x0b2".rbk.protocol.Message_ReflectorPos\x122\n\x0ctag_pos_list\x18\r \x03(\x0b2\x1c.rbk.protocol.Message_tagPos\x127\n\x0eprimitive_list\x18\x0e \x03(\x0b2\x1f.rbk.protocol.Message_Primitive\x12B\n\x14external_device_list\x18\x0f \x03(\x0b2$.rbk.protocol.Message_ExternalDevice\x12>\n\x12bin_locations_list\x18\x10 \x03(\x0b2".rbk.protocol.Message_BinLocations\x124\n\tuser_data\x18d \x03(\x0b2!.rbk.protocol.Message_MapProperty"Ä\x01\n\rMessage_Map3D\x12\x15\n\rmap_directory\x18\x01 \x01(\t\x12/\n\x06header\x18\x02 \x01(\x0b2\x1f.rbk.protocol.Message_MapHeader\x127\n\x11normal_pos3d_list\x18\x03 \x03(\x0b2\x1c.rbk.protocol.Message_MapPos\x122\n\x0efeature_map_3d\x18\x04 \x01(\x0b2\x1a.rbk.protocol.FeatureMap3D"(\n\x05Vec3f\x12\t\n\x01x\x18\x01 \x01(\x02\x12\t\n\x01y\x18\x02 \x01(\x02\x12\t\n\x01z\x18\x03 \x01(\x02"(\n\x05Vec3i\x12\t\n\x01x\x18\x01 \x01(\x05\x12\t\n\x01y\x18\x02 \x01(\x05\x12\t\n\x01z\x18\x03 \x01(\x05"â\x01\n\x10FeatureMapParams\x12\x15\n\rranging_sigma\x18\x01 \x01(\x02\x12\x13\n\x0bangle_sigma\x18\x02 \x01(\x02\x12\x16\n\x0emax_voxel_size\x18\x03 \x01(\x02\x12\x11\n\tmax_layer\x18\x04 \x01(\r\x12\x19\n\x11cov_fixed_pts_num\x18\x05 \x01(\r\x12\x1b\n\x13plane_fixed_pts_num\x18\x06 \x01(\r\x12\x1d\n\x15plane_min_eigen_value\x18\x07 \x01(\x02\x12 \n\x18each_layer_least_pts_num\x18\x08 \x03(\x05"\x89\x01\n\x0fFeatureMapPlane\x12#\n\x06center\x18\x01 \x01(\x0b2\x13.rbk.protocol.Vec3f\x12#\n\x06normal\x18\x02 \x01(\x0b2\x13.rbk.protocol.Vec3f\x12\t\n\x01d\x18\x03 \x01(\x02\x12\x0e\n\x06radius\x18\x04 \x01(\x02\x12\x11\n\tplane_cov\x18\x05 \x03(\x02"F\n\x08OctoTree\x12\x10\n\x08plane_id\x18\x01 \x01(\r\x12\x15\n\rchild_id_list\x18\x02 \x03(\x05\x12\x11\n\tplane_id2\x18\x03 \x01(\r"6\n\tOctoTrees\x12)\n\tocto_tree\x18\x01 \x03(\x0b2\x16.rbk.protocol.OctoTree"Ã\x01\n\x0cFeatureMap3D\x12.\n\x06params\x18\x01 \x01(\x0b2\x1e.rbk.protocol.FeatureMapParams\x12-\n\x06planes\x18\x02 \x03(\x0b2\x1d.rbk.protocol.FeatureMapPlane\x12+\n\nocto_trees\x18\x03 \x03(\x0b2\x17.rbk.protocol.OctoTrees\x12\'\n\nvoxel_locs\x18\x04 \x03(\x0b2\x13.rbk.protocol.Vec3ib\x06proto3'
     ),
     dependencies=[
         google_dot_protobuf_dot_wrappers__pb2.DESCRIPTOR,
@@ -172,7 +172,7 @@ _MESSAGE_MAPLOGDATA = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[],
     serialized_start=157,
-    serialized_end=351,
+    serialized_end=346,
 )
 _MESSAGE_MAPODO = _descriptor.Descriptor(
     name="Message_MapOdo",
@@ -316,8 +316,8 @@ _MESSAGE_MAPODO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=354,
-    serialized_end=482,
+    serialized_start=349,
+    serialized_end=477,
 )
 _MESSAGE_MAPLOGDATA3D = _descriptor.Descriptor(
     name="Message_MapLogData3D",
@@ -515,8 +515,8 @@ _MESSAGE_MAPLOGDATA3D = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=485,
-    serialized_end=671,
+    serialized_start=480,
+    serialized_end=666,
 )
 _MESSAGE_MAPLOG = _descriptor.Descriptor(
     name="Message_MapLog",
@@ -912,8 +912,8 @@ _MESSAGE_MAPLOG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=674,
-    serialized_end=1387,
+    serialized_start=669,
+    serialized_end=1382,
 )
 _MESSAGE_MAPPROPERTY = _descriptor.Descriptor(
     name="Message_MapProperty",
@@ -1173,8 +1173,8 @@ _MESSAGE_MAPPROPERTY = _descriptor.Descriptor(
             fields=[],
         )
     ],
-    serialized_start=1390,
-    serialized_end=1691,
+    serialized_start=1385,
+    serialized_end=1686,
 )
 _MESSAGE_MAPPOS = _descriptor.Descriptor(
     name="Message_MapPos",
@@ -1246,8 +1246,8 @@ _MESSAGE_MAPPOS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1693,
-    serialized_end=1742,
+    serialized_start=1688,
+    serialized_end=1737,
 )
 _MESSAGE_MAPRSSIPOS = _descriptor.Descriptor(
     name="Message_MapRSSIPos",
@@ -1301,8 +1301,8 @@ _MESSAGE_MAPRSSIPOS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1744,
-    serialized_end=1786,
+    serialized_start=1739,
+    serialized_end=1781,
 )
 _MESSAGE_REFLECTORPOS = _descriptor.Descriptor(
     name="Message_ReflectorPos",
@@ -1410,8 +1410,8 @@ _MESSAGE_REFLECTORPOS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1788,
-    serialized_end=1886,
+    serialized_start=1783,
+    serialized_end=1881,
 )
 _MESSAGE_LIVEREFPOS = _descriptor.Descriptor(
     name="Message_LiveRefPos",
@@ -1447,8 +1447,8 @@ _MESSAGE_LIVEREFPOS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1888,
-    serialized_end=1961,
+    serialized_start=1883,
+    serialized_end=1956,
 )
 _MESSAGE_TAGPOS = _descriptor.Descriptor(
     name="Message_tagPos",
@@ -1700,8 +1700,8 @@ _MESSAGE_TAGPOS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=1964,
-    serialized_end=2211,
+    serialized_start=1959,
+    serialized_end=2206,
 )
 _MESSAGE_MAPLINE = _descriptor.Descriptor(
     name="Message_MapLine",
@@ -1755,8 +1755,8 @@ _MESSAGE_MAPLINE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2213,
-    serialized_end=2326,
+    serialized_start=2208,
+    serialized_end=2321,
 )
 _MESSAGE_MAPHEADER = _descriptor.Descriptor(
     name="Message_MapHeader",
@@ -1882,8 +1882,8 @@ _MESSAGE_MAPHEADER = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2329,
-    serialized_end=2515,
+    serialized_start=2324,
+    serialized_end=2510,
 )
 _MESSAGE_MAPATTRIBUTE = _descriptor.Descriptor(
     name="Message_MapAttribute",
@@ -1973,8 +1973,8 @@ _MESSAGE_MAPATTRIBUTE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2517,
-    serialized_end=2620,
+    serialized_start=2512,
+    serialized_end=2615,
 )
 _MESSAGE_ADVANCEDPOINT = _descriptor.Descriptor(
     name="Message_AdvancedPoint",
@@ -2136,8 +2136,8 @@ _MESSAGE_ADVANCEDPOINT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2623,
-    serialized_end=2887,
+    serialized_start=2618,
+    serialized_end=2882,
 )
 _MESSAGE_ADVANCEDLINE = _descriptor.Descriptor(
     name="Message_AdvancedLine",
@@ -2263,8 +2263,8 @@ _MESSAGE_ADVANCEDLINE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=2890,
-    serialized_end=3122,
+    serialized_start=2885,
+    serialized_end=3117,
 )
 _MESSAGE_ADVANCEDCURVE = _descriptor.Descriptor(
     name="Message_AdvancedCurve",
@@ -2498,8 +2498,8 @@ _MESSAGE_ADVANCEDCURVE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=3125,
-    serialized_end=3678,
+    serialized_start=3120,
+    serialized_end=3673,
 )
 _MESSAGE_ADVANCEDAREA = _descriptor.Descriptor(
     name="Message_AdvancedArea",
@@ -2661,8 +2661,8 @@ _MESSAGE_ADVANCEDAREA = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=3681,
-    serialized_end=3977,
+    serialized_start=3676,
+    serialized_end=3972,
 )
 _MESSAGE_VIRTUALLINELIST = _descriptor.Descriptor(
     name="Message_VirtualLineList",
@@ -2698,8 +2698,8 @@ _MESSAGE_VIRTUALLINELIST = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=3979,
-    serialized_end=4061,
+    serialized_start=3974,
+    serialized_end=4056,
 )
 _MESSAGE_LASERDEVICE = _descriptor.Descriptor(
     name="Message_LaserDevice",
@@ -2753,8 +2753,8 @@ _MESSAGE_LASERDEVICE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=4063,
-    serialized_end=4152,
+    serialized_start=4058,
+    serialized_end=4147,
 )
 _MESSAGE_DEVICE = _descriptor.Descriptor(
     name="Message_Device",
@@ -2844,8 +2844,8 @@ _MESSAGE_DEVICE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=4155,
-    serialized_end=4300,
+    serialized_start=4150,
+    serialized_end=4295,
 )
 _MESSAGE_PATROLROUTESTATION = _descriptor.Descriptor(
     name="Message_PatrolRouteStation",
@@ -2881,8 +2881,8 @@ _MESSAGE_PATROLROUTESTATION = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=4302,
-    serialized_end=4342,
+    serialized_start=4297,
+    serialized_end=4337,
 )
 _MESSAGE_PATROLROUTE = _descriptor.Descriptor(
     name="Message_PatrolRoute",
@@ -3062,8 +3062,8 @@ _MESSAGE_PATROLROUTE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=4345,
-    serialized_end=4750,
+    serialized_start=4340,
+    serialized_end=4745,
 )
 _MESSAGE_PRIMITIVE = _descriptor.Descriptor(
     name="Message_Primitive",
@@ -3225,8 +3225,8 @@ _MESSAGE_PRIMITIVE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=4753,
-    serialized_end=5103,
+    serialized_start=4748,
+    serialized_end=5098,
 )
 _MESSAGE_EXTERNALDEVICE = _descriptor.Descriptor(
     name="Message_ExternalDevice",
@@ -3352,8 +3352,8 @@ _MESSAGE_EXTERNALDEVICE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=5106,
-    serialized_end=5315,
+    serialized_start=5101,
+    serialized_end=5310,
 )
 _MESSAGE_BINLOCATION = _descriptor.Descriptor(
     name="Message_BinLocation",
@@ -3515,8 +3515,8 @@ _MESSAGE_BINLOCATION = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=5318,
-    serialized_end=5587,
+    serialized_start=5313,
+    serialized_end=5582,
 )
 _MESSAGE_BINLOCATIONS = _descriptor.Descriptor(
     name="Message_BinLocations",
@@ -3552,8 +3552,8 @@ _MESSAGE_BINLOCATIONS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=5589,
-    serialized_end=5673,
+    serialized_start=5584,
+    serialized_end=5668,
 )
 _MESSAGE_MAP = _descriptor.Descriptor(
     name="Message_Map",
@@ -3877,8 +3877,8 @@ _MESSAGE_MAP = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=5676,
-    serialized_end=6668,
+    serialized_start=5671,
+    serialized_end=6663,
 )
 _MESSAGE_MAP3D = _descriptor.Descriptor(
     name="Message_Map3D",
@@ -3968,8 +3968,8 @@ _MESSAGE_MAP3D = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=6671,
-    serialized_end=6867,
+    serialized_start=6666,
+    serialized_end=6862,
 )
 _VEC3F = _descriptor.Descriptor(
     name="Vec3f",
@@ -4041,8 +4041,8 @@ _VEC3F = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=6869,
-    serialized_end=6909,
+    serialized_start=6864,
+    serialized_end=6904,
 )
 _VEC3I = _descriptor.Descriptor(
     name="Vec3i",
@@ -4114,8 +4114,8 @@ _VEC3I = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=6911,
-    serialized_end=6951,
+    serialized_start=6906,
+    serialized_end=6946,
 )
 _FEATUREMAPPARAMS = _descriptor.Descriptor(
     name="FeatureMapParams",
@@ -4277,8 +4277,8 @@ _FEATUREMAPPARAMS = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=6954,
-    serialized_end=7180,
+    serialized_start=6949,
+    serialized_end=7175,
 )
 _FEATUREMAPPLANE = _descriptor.Descriptor(
     name="FeatureMapPlane",
@@ -4386,8 +4386,8 @@ _FEATUREMAPPLANE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=7183,
-    serialized_end=7320,
+    serialized_start=7178,
+    serialized_end=7315,
 )
 _OCTOTREE = _descriptor.Descriptor(
     name="OctoTree",
@@ -4459,8 +4459,8 @@ _OCTOTREE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=7322,
-    serialized_end=7392,
+    serialized_start=7317,
+    serialized_end=7387,
 )
 _OCTOTREES = _descriptor.Descriptor(
     name="OctoTrees",
@@ -4496,8 +4496,8 @@ _OCTOTREES = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=7394,
-    serialized_end=7448,
+    serialized_start=7389,
+    serialized_end=7443,
 )
 _FEATUREMAP3D = _descriptor.Descriptor(
     name="FeatureMap3D",
@@ -4587,11 +4587,11 @@ _FEATUREMAP3D = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=7451,
-    serialized_end=7646,
+    serialized_start=7446,
+    serialized_end=7641,
 )
 _MESSAGE_MAPLOGDATA.fields_by_name["header"].message_type = (
-    message__header__pb2._MESSAGE_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGE_MAPLOG.fields_by_name["log_data"].message_type = _MESSAGE_MAPLOGDATA
 _MESSAGE_MAPLOG.fields_by_name["odometer"].message_type = _MESSAGE_MAPODO

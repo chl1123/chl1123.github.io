@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 from . import messageV4_image_pb2 as messageV4__image__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -16,9 +16,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x13messageV4_pgv.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x15messageV4_image.proto"É\x01\n\x12MessageV4_PGV_Info\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0b\n\x03yaw\x18\x04 \x01(\x01\x12\x0c\n\x04func\x18\x05 \x01(\t\x12\x12\n\ncoordinate\x18\x06 \x01(\t\x12\r\n\x05xunit\x18\x07 \x01(\x01\x12\r\n\x05yunit\x18\x08 \x01(\x01\x12\x12\n\nangle_unit\x18\t \x01(\x01\x12\x11\n\tis_upside\x18\n \x01(\x08\x12\x0e\n\x06xrange\x18\x0b \x01(\x01\x12\x0e\n\x06yrange\x18\x0c \x01(\x01"¼\x02\n\x11MessageV4_PGV_DMT\x12\x12\n\ntag_diff_x\x18\x01 \x01(\x01\x12\x12\n\ntag_diff_y\x18\x02 \x01(\x01\x12\x16\n\x0etag_diff_angle\x18\x03 \x01(\x01\x12\x11\n\ttag_value\x18\x04 \x01(\r\x12\x14\n\x0cwarning_code\x18\x05 \x01(\r\x12\x16\n\x0edevice_address\x18\x06 \x01(\r\x12\x17\n\x0fis_DMT_detected\x18\x07 \x01(\x08\x12\x12\n\nerror_code\x18\x08 \x01(\r\x12/\n\x06header\x18\t \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x123\n\x08pgv_info\x18\n \x01(\x0b2!.rbk4.protocol.MessageV4_PGV_Info\x12\x13\n\x0bis_bar_code\x18\x0b \x01(\x08"±\x01\n\x16MessageV4_Tag_position\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05angle\x18\x04 \x01(\x01\x12\x11\n\ttag_value\x18\x05 \x01(\r\x12\x17\n\x0fis_DMT_detected\x18\x06 \x01(\x08\x12\x15\n\ris_in_QR_area\x18\x07 \x01(\x08"?\n\rMessageV4_PGV\x12.\n\x04pgvs\x18\x01 \x03(\x0b2 .rbk4.protocol.MessageV4_PGV_DMT"Ý\x01\n\x13MessageV4_PGV_DEBUG\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x11\n\ttimestamp\x18\x02 \x01(\x04\x12\x0f\n\x07tag_msg\x18\x03 \x01(\t\x12\x16\n\x0edecode_success\x18\x04 \x01(\x08\x12+\n\x03img\x18\x05 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12\t\n\x01x\x18\x06 \x01(\x01\x12\t\n\x01y\x18\x07 \x01(\x01\x12\t\n\x01z\x18\x08 \x01(\x01\x12\x0b\n\x03yaw\x18\t \x01(\x01b\x06proto3'
+        '\n\x13messageV4_pgv.proto\x12\rrbk4.protocol\x1a\x14message_header.proto\x1a\x15messageV4_image.proto"É\x01\n\x12MessageV4_PGV_Info\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0b\n\x03yaw\x18\x04 \x01(\x01\x12\x0c\n\x04func\x18\x05 \x01(\t\x12\x12\n\ncoordinate\x18\x06 \x01(\t\x12\r\n\x05xunit\x18\x07 \x01(\x01\x12\r\n\x05yunit\x18\x08 \x01(\x01\x12\x12\n\nangle_unit\x18\t \x01(\x01\x12\x11\n\tis_upside\x18\n \x01(\x08\x12\x0e\n\x06xrange\x18\x0b \x01(\x01\x12\x0e\n\x06yrange\x18\x0c \x01(\x01"´\x02\n\x11MessageV4_PGV_DMT\x12\x12\n\ntag_diff_x\x18\x01 \x01(\x01\x12\x12\n\ntag_diff_y\x18\x02 \x01(\x01\x12\x16\n\x0etag_diff_angle\x18\x03 \x01(\x01\x12\x11\n\ttag_value\x18\x04 \x01(\r\x12\x14\n\x0cwarning_code\x18\x05 \x01(\r\x12\x16\n\x0edevice_address\x18\x06 \x01(\r\x12\x17\n\x0fis_DMT_detected\x18\x07 \x01(\x08\x12\x12\n\nerror_code\x18\x08 \x01(\r\x12\'\n\x06header\x18\t \x01(\x0b2\x17.rbk.protocol.msgHeader\x123\n\x08pgv_info\x18\n \x01(\x0b2!.rbk4.protocol.MessageV4_PGV_Info\x12\x13\n\x0bis_bar_code\x18\x0b \x01(\x08"©\x01\n\x16MessageV4_Tag_position\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05angle\x18\x04 \x01(\x01\x12\x11\n\ttag_value\x18\x05 \x01(\r\x12\x17\n\x0fis_DMT_detected\x18\x06 \x01(\x08\x12\x15\n\ris_in_QR_area\x18\x07 \x01(\x08"?\n\rMessageV4_PGV\x12.\n\x04pgvs\x18\x01 \x03(\x0b2 .rbk4.protocol.MessageV4_PGV_DMT"Õ\x01\n\x13MessageV4_PGV_DEBUG\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x11\n\ttimestamp\x18\x02 \x01(\x04\x12\x0f\n\x07tag_msg\x18\x03 \x01(\t\x12\x16\n\x0edecode_success\x18\x04 \x01(\x08\x12+\n\x03img\x18\x05 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12\t\n\x01x\x18\x06 \x01(\x01\x12\t\n\x01y\x18\x07 \x01(\x01\x12\t\n\x01z\x18\x08 \x01(\x01\x12\x0b\n\x03yaw\x18\t \x01(\x01b\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR, messageV4__image__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR, messageV4__image__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_PGV_INFO = _descriptor.Descriptor(
     name="MessageV4_PGV_Info",
@@ -252,8 +252,8 @@ _MESSAGEV4_PGV_INFO = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=86,
-    serialized_end=287,
+    serialized_start=84,
+    serialized_end=285,
 )
 _MESSAGEV4_PGV_DMT = _descriptor.Descriptor(
     name="MessageV4_PGV_DMT",
@@ -469,8 +469,8 @@ _MESSAGEV4_PGV_DMT = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=290,
-    serialized_end=606,
+    serialized_start=288,
+    serialized_end=596,
 )
 _MESSAGEV4_TAG_POSITION = _descriptor.Descriptor(
     name="MessageV4_Tag_position",
@@ -614,8 +614,8 @@ _MESSAGEV4_TAG_POSITION = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=609,
-    serialized_end=786,
+    serialized_start=599,
+    serialized_end=768,
 )
 _MESSAGEV4_PGV = _descriptor.Descriptor(
     name="MessageV4_PGV",
@@ -651,8 +651,8 @@ _MESSAGEV4_PGV = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=788,
-    serialized_end=851,
+    serialized_start=770,
+    serialized_end=833,
 )
 _MESSAGEV4_PGV_DEBUG = _descriptor.Descriptor(
     name="MessageV4_PGV_DEBUG",
@@ -832,19 +832,19 @@ _MESSAGEV4_PGV_DEBUG = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=854,
-    serialized_end=1075,
+    serialized_start=836,
+    serialized_end=1049,
 )
 _MESSAGEV4_PGV_DMT.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_PGV_DMT.fields_by_name["pgv_info"].message_type = _MESSAGEV4_PGV_INFO
 _MESSAGEV4_TAG_POSITION.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_PGV.fields_by_name["pgvs"].message_type = _MESSAGEV4_PGV_DMT
 _MESSAGEV4_PGV_DEBUG.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_PGV_DEBUG.fields_by_name["img"].message_type = (
     messageV4__image__pb2._MESSAGEV4_IMAGE

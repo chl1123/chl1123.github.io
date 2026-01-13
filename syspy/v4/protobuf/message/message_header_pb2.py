@@ -13,19 +13,19 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x14message_header.proto\x12\x0crbk.protocol"T\n\x0eMessage_Header\x12\x10\n\x08pub_nsec\x18\x01 \x01(\x04\x12\x11\n\tdata_nsec\x18\x02 \x01(\x04\x12\x0b\n\x03seq\x18\x03 \x01(\x04\x12\x10\n\x08frame_id\x18\x04 \x01(\tb\x06proto3'
+        '\n\x14message_header.proto\x12\x0crbk.protocol"L\n\tmsgHeader\x12\x0f\n\x07pubNsec\x18\x01 \x01(\x04\x12\x10\n\x08dataNsec\x18\x02 \x01(\x04\x12\x0b\n\x03seq\x18\x03 \x01(\x04\x12\x0f\n\x07frameID\x18\x04 \x01(\tb\x06proto3'
     ),
 )
-_MESSAGE_HEADER = _descriptor.Descriptor(
-    name="Message_Header",
-    full_name="rbk.protocol.Message_Header",
+_MSGHEADER = _descriptor.Descriptor(
+    name="msgHeader",
+    full_name="rbk.protocol.msgHeader",
     filename=None,
     file=DESCRIPTOR,
     containing_type=None,
     fields=[
         _descriptor.FieldDescriptor(
-            name="pub_nsec",
-            full_name="rbk.protocol.Message_Header.pub_nsec",
+            name="pubNsec",
+            full_name="rbk.protocol.msgHeader.pubNsec",
             index=0,
             number=1,
             type=4,
@@ -42,8 +42,8 @@ _MESSAGE_HEADER = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="data_nsec",
-            full_name="rbk.protocol.Message_Header.data_nsec",
+            name="dataNsec",
+            full_name="rbk.protocol.msgHeader.dataNsec",
             index=1,
             number=2,
             type=4,
@@ -61,7 +61,7 @@ _MESSAGE_HEADER = _descriptor.Descriptor(
         ),
         _descriptor.FieldDescriptor(
             name="seq",
-            full_name="rbk.protocol.Message_Header.seq",
+            full_name="rbk.protocol.msgHeader.seq",
             index=2,
             number=3,
             type=4,
@@ -78,8 +78,8 @@ _MESSAGE_HEADER = _descriptor.Descriptor(
             file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
-            name="frame_id",
-            full_name="rbk.protocol.Message_Header.frame_id",
+            name="frameID",
+            full_name="rbk.protocol.msgHeader.frameID",
             index=3,
             number=4,
             type=9,
@@ -105,13 +105,13 @@ _MESSAGE_HEADER = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[],
     serialized_start=38,
-    serialized_end=122,
+    serialized_end=114,
 )
-DESCRIPTOR.message_types_by_name["Message_Header"] = _MESSAGE_HEADER
+DESCRIPTOR.message_types_by_name["msgHeader"] = _MSGHEADER
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
-Message_Header = _reflection.GeneratedProtocolMessageType(
-    "Message_Header",
+msgHeader = _reflection.GeneratedProtocolMessageType(
+    "msgHeader",
     (_message.Message,),
-    dict(DESCRIPTOR=_MESSAGE_HEADER, __module__="message_header_pb2"),
+    dict(DESCRIPTOR=_MSGHEADER, __module__="message_header_pb2"),
 )
-_sym_db.RegisterMessage(Message_Header)
+_sym_db.RegisterMessage(msgHeader)

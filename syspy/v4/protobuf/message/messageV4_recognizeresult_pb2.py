@@ -8,7 +8,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 from . import messageV4_image_pb2 as messageV4__image__pb2
 from . import messageV4_stampedtransform_pb2 as messageV4__stampedtransform__pb2
 from . import messageV4_cameraintrinsic_pb2 as messageV4__cameraintrinsic__pb2
@@ -19,10 +19,10 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x1fmessageV4_recognizeresult.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto\x1a\x15messageV4_image.proto\x1a messageV4_stampedtransform.proto\x1a\x1fmessageV4_cameraintrinsic.proto"²\x02\n\x16MessageV4_PercepResAPI\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\n\n\x02ID\x18\x02 \x01(\t\x129\n\x0btranslation\x18\x03 \x01(\x0b2$.rbk4.protocol.MessageV4_Translation\x123\n\x08rotation\x18\x04 \x01(\x0b2!.rbk4.protocol.MessageV4_Rotation\x121\n\tresultImg\x18\x05 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12\x0c\n\x04info\x18\x06 \x01(\t\x12\x16\n\x0ereco_file_name\x18\x07 \x01(\t\x12/\n\x06header\x18\x08 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"R\n\x19MessageV4_AllPercepResAPI\x125\n\x06result\x18\x01 \x03(\x0b2%.rbk4.protocol.MessageV4_PercepResAPI"\x81\x01\n\x12MessageV4_GraspRes\x12&\n\x04type\x18\x01 \x01(\x0e2\x18.rbk4.protocol.GraspType\x125\n\tgrasp_pos\x18\x02 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x12\x0c\n\x04info\x18\x03 \x01(\t"Î\x01\n\x15MessageV4_GraspResAPI\x12/\n\x06header\x18\x01 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header\x12\x12\n\nclass_name\x18\x02 \x01(\t\x12\n\n\x02ID\x18\x03 \x01(\t\x121\n\x06grasps\x18\x04 \x03(\x0b2!.rbk4.protocol.MessageV4_GraspRes\x121\n\tresultImg\x18\x06 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"P\n\x18MessageV4_AllGraspResAPI\x124\n\x06result\x18\x01 \x03(\x0b2$.rbk4.protocol.MessageV4_GraspResAPI*3\n\tGraspType\x12\t\n\x05Grasp\x10\x00\x12\x08\n\x04Push\x10\x01\x12\x08\n\x04Pull\x10\x02\x12\x07\n\x03Hug\x10\x03b\x06proto3'
+        '\n\x1fmessageV4_recognizeresult.proto\x12\rrbk4.protocol\x1a\x14message_header.proto\x1a\x15messageV4_image.proto\x1a messageV4_stampedtransform.proto\x1a\x1fmessageV4_cameraintrinsic.proto"ª\x02\n\x16MessageV4_PercepResAPI\x12\x12\n\nclass_name\x18\x01 \x01(\t\x12\n\n\x02ID\x18\x02 \x01(\t\x129\n\x0btranslation\x18\x03 \x01(\x0b2$.rbk4.protocol.MessageV4_Translation\x123\n\x08rotation\x18\x04 \x01(\x0b2!.rbk4.protocol.MessageV4_Rotation\x121\n\tresultImg\x18\x05 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image\x12\x0c\n\x04info\x18\x06 \x01(\t\x12\x16\n\x0ereco_file_name\x18\x07 \x01(\t\x12\'\n\x06header\x18\x08 \x01(\x0b2\x17.rbk.protocol.msgHeader"R\n\x19MessageV4_AllPercepResAPI\x125\n\x06result\x18\x01 \x03(\x0b2%.rbk4.protocol.MessageV4_PercepResAPI"\x81\x01\n\x12MessageV4_GraspRes\x12&\n\x04type\x18\x01 \x01(\x0e2\x18.rbk4.protocol.GraspType\x125\n\tgrasp_pos\x18\x02 \x01(\x0b2".rbk4.protocol.MessageV4_Extrinsic\x12\x0c\n\x04info\x18\x03 \x01(\t"Æ\x01\n\x15MessageV4_GraspResAPI\x12\'\n\x06header\x18\x01 \x01(\x0b2\x17.rbk.protocol.msgHeader\x12\x12\n\nclass_name\x18\x02 \x01(\t\x12\n\n\x02ID\x18\x03 \x01(\t\x121\n\x06grasps\x18\x04 \x03(\x0b2!.rbk4.protocol.MessageV4_GraspRes\x121\n\tresultImg\x18\x06 \x01(\x0b2\x1e.rbk4.protocol.MessageV4_Image"P\n\x18MessageV4_AllGraspResAPI\x124\n\x06result\x18\x01 \x03(\x0b2$.rbk4.protocol.MessageV4_GraspResAPI*3\n\tGraspType\x12\t\n\x05Grasp\x10\x00\x12\x08\n\x04Push\x10\x01\x12\x08\n\x04Pull\x10\x02\x12\x07\n\x03Hug\x10\x03b\x06proto3'
     ),
     dependencies=[
-        messageV4__header__pb2.DESCRIPTOR,
+        message__header__pb2.DESCRIPTOR,
         messageV4__image__pb2.DESCRIPTOR,
         messageV4__stampedtransform__pb2.DESCRIPTOR,
         messageV4__cameraintrinsic__pb2.DESCRIPTOR,
@@ -49,8 +49,8 @@ _GRASPTYPE = _descriptor.EnumDescriptor(
     ],
     containing_type=None,
     serialized_options=None,
-    serialized_start=980,
-    serialized_end=1031,
+    serialized_start=962,
+    serialized_end=1013,
 )
 _sym_db.RegisterEnumDescriptor(_GRASPTYPE)
 GraspType = enum_type_wrapper.EnumTypeWrapper(_GRASPTYPE)
@@ -218,8 +218,8 @@ _MESSAGEV4_PERCEPRESAPI = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=165,
-    serialized_end=471,
+    serialized_start=163,
+    serialized_end=461,
 )
 _MESSAGEV4_ALLPERCEPRESAPI = _descriptor.Descriptor(
     name="MessageV4_AllPercepResAPI",
@@ -255,8 +255,8 @@ _MESSAGEV4_ALLPERCEPRESAPI = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=473,
-    serialized_end=555,
+    serialized_start=463,
+    serialized_end=545,
 )
 _MESSAGEV4_GRASPRES = _descriptor.Descriptor(
     name="MessageV4_GraspRes",
@@ -328,8 +328,8 @@ _MESSAGEV4_GRASPRES = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=558,
-    serialized_end=687,
+    serialized_start=548,
+    serialized_end=677,
 )
 _MESSAGEV4_GRASPRESAPI = _descriptor.Descriptor(
     name="MessageV4_GraspResAPI",
@@ -437,8 +437,8 @@ _MESSAGEV4_GRASPRESAPI = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=690,
-    serialized_end=896,
+    serialized_start=680,
+    serialized_end=878,
 )
 _MESSAGEV4_ALLGRASPRESAPI = _descriptor.Descriptor(
     name="MessageV4_AllGraspResAPI",
@@ -474,8 +474,8 @@ _MESSAGEV4_ALLGRASPRESAPI = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=898,
-    serialized_end=978,
+    serialized_start=880,
+    serialized_end=960,
 )
 _MESSAGEV4_PERCEPRESAPI.fields_by_name["translation"].message_type = (
     messageV4__stampedtransform__pb2._MESSAGEV4_TRANSLATION
@@ -487,7 +487,7 @@ _MESSAGEV4_PERCEPRESAPI.fields_by_name["resultImg"].message_type = (
     messageV4__image__pb2._MESSAGEV4_IMAGE
 )
 _MESSAGEV4_PERCEPRESAPI.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_ALLPERCEPRESAPI.fields_by_name["result"].message_type = (
     _MESSAGEV4_PERCEPRESAPI
@@ -497,7 +497,7 @@ _MESSAGEV4_GRASPRES.fields_by_name["grasp_pos"].message_type = (
     messageV4__cameraintrinsic__pb2._MESSAGEV4_EXTRINSIC
 )
 _MESSAGEV4_GRASPRESAPI.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_GRASPRESAPI.fields_by_name["grasps"].message_type = _MESSAGEV4_GRASPRES
 _MESSAGEV4_GRASPRESAPI.fields_by_name["resultImg"].message_type = (

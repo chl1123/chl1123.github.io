@@ -7,7 +7,7 @@ from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
-from . import messageV4_header_pb2 as messageV4__header__pb2
+from . import message_header_pb2 as message__header__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="messageV4_magnetic.proto",
@@ -15,9 +15,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax="proto3",
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x18messageV4_magnetic.proto\x12\rrbk4.protocol\x1a\x16messageV4_header.proto"©\x01\n\x16MessageV4_MagneticNode\x12\n\n\x02id\x18\x01 \x01(\r\x12\r\n\x05value\x18\x02 \x03(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\x0b\n\x03yaw\x18\x05 \x01(\x01\x12\x0c\n\x04step\x18\x06 \x01(\x01\x12\x12\n\nresolution\x18\x07 \x01(\r\x12/\n\x06header\x18\x08 \x01(\x0b2\x1f.rbk4.protocol.MessageV4_Header"S\n\x12MessageV4_Magnetic\x12=\n\x0emagnetic_nodes\x18\x01 \x03(\x0b2%.rbk4.protocol.MessageV4_MagneticNodeb\x06proto3'
+        '\n\x18messageV4_magnetic.proto\x12\rrbk4.protocol\x1a\x14message_header.proto"¡\x01\n\x16MessageV4_MagneticNode\x12\n\n\x02id\x18\x01 \x01(\r\x12\r\n\x05value\x18\x02 \x03(\x08\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\x0b\n\x03yaw\x18\x05 \x01(\x01\x12\x0c\n\x04step\x18\x06 \x01(\x01\x12\x12\n\nresolution\x18\x07 \x01(\r\x12\'\n\x06header\x18\x08 \x01(\x0b2\x17.rbk.protocol.msgHeader"S\n\x12MessageV4_Magnetic\x12=\n\x0emagnetic_nodes\x18\x01 \x03(\x0b2%.rbk4.protocol.MessageV4_MagneticNodeb\x06proto3'
     ),
-    dependencies=[messageV4__header__pb2.DESCRIPTOR],
+    dependencies=[message__header__pb2.DESCRIPTOR],
 )
 _MESSAGEV4_MAGNETICNODE = _descriptor.Descriptor(
     name="MessageV4_MagneticNode",
@@ -179,8 +179,8 @@ _MESSAGEV4_MAGNETICNODE = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=68,
-    serialized_end=237,
+    serialized_start=66,
+    serialized_end=227,
 )
 _MESSAGEV4_MAGNETIC = _descriptor.Descriptor(
     name="MessageV4_Magnetic",
@@ -216,11 +216,11 @@ _MESSAGEV4_MAGNETIC = _descriptor.Descriptor(
     syntax="proto3",
     extension_ranges=[],
     oneofs=[],
-    serialized_start=239,
-    serialized_end=322,
+    serialized_start=229,
+    serialized_end=312,
 )
 _MESSAGEV4_MAGNETICNODE.fields_by_name["header"].message_type = (
-    messageV4__header__pb2._MESSAGEV4_HEADER
+    message__header__pb2._MSGHEADER
 )
 _MESSAGEV4_MAGNETIC.fields_by_name["magnetic_nodes"].message_type = (
     _MESSAGEV4_MAGNETICNODE
