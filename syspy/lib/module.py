@@ -121,16 +121,32 @@ class Module:
     __service = None
 
     @classmethod
-    def init(cls, name: str = ""):
-        cls.script_id = name
+    def init(cls, name: str = "", *,  script_type: Optional[ScriptType] = None):
+        """脚本初始化
+
+        Args:
+            name (str): 脚本标识。缺省为脚本名。
+            script_type (Optional[ScriptType]): 脚本类型。任务脚本或通用脚本。缺省为通用脚本。
+
+        Examples:
+        ```python
+        from syspy import Module
+        from syspy.utils import ScriptType
+        # 指定类型为任务脚本
+        Module.init(script_type=ScriptType.TASK)
+        ```
+        """
         caller_frame = stack()[1]
         caller_file = caller_frame.filename
         # 获取脚本相对路径
         cls.script_name = caller_file.split(SCRIPTS_DIR)[-1]
-        if cls.script_name.startswith("tasks/"):
+
+        cls.script_id = name or cls.script_name
+
+        if script_type:
+            cls.script_type = script_type
+        elif cls.script_name.startswith("tasks/"):
             cls.script_type = ScriptType.TASK
-        if name == "":
-            cls.script_id = cls.script_name
 
         Service.init(cls.script_id, cls.script_type)
 
@@ -138,7 +154,7 @@ class Module:
         print("script_id=", cls.script_id)
         args = cls.__getArgs()
         print("args=", args)
-        if cls.script_name.startswith("tasks/"):
+        if cls.script_type == ScriptType.TASK:
             cls.__initTaskArgs(args)
             cls.__register()
         else:

@@ -17,7 +17,7 @@ from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, Sc
 
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot_param import RobotParam
-from syspy.utils import Coordinate
+from syspy.utils import Coordinate, ScriptType
 
 log = Logger("actions")
 
@@ -513,7 +513,7 @@ def main():
     # 注册脚本参数变更回调
     ScriptParam.setConfigChangeCallBack(script_config_callback)
 
-    Module.init()
+    Module.init(script_type=ScriptType.TASK)
     validator = ParamValidator(InputParams.builder.toDict())
     a = Actions()
     print_info()
