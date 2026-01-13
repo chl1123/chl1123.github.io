@@ -236,7 +236,7 @@ class InputParams:
 
 
 # 添加 "load" 任务
-param_loader.addTask(
+param_loader.addAction(
     task_name="load",
     policy={"goodsDir": 90},
     args={
@@ -247,7 +247,7 @@ param_loader.addTask(
 )
 
 # 添加 "unload" 任务
-param_loader.addTask(
+param_loader.addAction(
     task_name="unload",
     policy={"navigation.basic.unload.maxSpeed": 1.0},
     args={
@@ -257,7 +257,7 @@ param_loader.addTask(
     config={"unload.recognize": "on"}
 )
 
-param_loader.saveTask()
+param_loader.saveAction()
 
 class Jack(ModuleBase):
     def __init__(self):
