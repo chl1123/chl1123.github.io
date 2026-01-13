@@ -53,15 +53,6 @@ class OdometerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getDetectSkid(cls) -> bool:
-        """获取是否检测到打滑
-
-        Returns:
-            (bool): True表示检测到打滑，False表示未检测到
-        """
-        raise RBKVersionError()
-
-    @classmethod
     def getMotorInfos(cls) -> List["msgMotorInfo"]:
         """获取电机信息列表
 

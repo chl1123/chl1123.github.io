@@ -20,22 +20,32 @@ class msgAllLasers3D(_message.Message):
     def __init__(self, lasers3D: Optional[Iterable[Union[msgLaser3D, Mapping]]] = ...) -> None: ...
 
 class msgCostMap(_message.Message):
-    __slots__ = ["grids", "resolution"]
+    __slots__ = ["grids", "originX", "originY", "resolution", "sizeX", "sizeY"]
     GRIDS_FIELD_NUMBER: ClassVar[int]
+    ORIGINX_FIELD_NUMBER: ClassVar[int]
+    ORIGINY_FIELD_NUMBER: ClassVar[int]
     RESOLUTION_FIELD_NUMBER: ClassVar[int]
+    SIZEX_FIELD_NUMBER: ClassVar[int]
+    SIZEY_FIELD_NUMBER: ClassVar[int]
     grids: _containers.RepeatedCompositeFieldContainer[msgGrid]
+    originX: float
+    originY: float
     resolution: int
-    def __init__(self, resolution: Optional[int] = ..., grids: Optional[Iterable[Union[msgGrid, Mapping]]] = ...) -> None: ...
+    sizeX: int
+    sizeY: int
+    def __init__(self, resolution: Optional[int] = ..., grids: Optional[Iterable[Union[msgGrid, Mapping]]] = ..., sizeX: Optional[int] = ..., sizeY: Optional[int] = ..., originX: Optional[float] = ..., originY: Optional[float] = ...) -> None: ...
 
 class msgGrid(_message.Message):
-    __slots__ = ["value", "x", "y"]
+    __slots__ = ["index", "value", "x", "y"]
+    INDEX_FIELD_NUMBER: ClassVar[int]
     VALUE_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
+    index: int
     value: int
     x: int
     y: int
-    def __init__(self, value: Optional[int] = ..., x: Optional[int] = ..., y: Optional[int] = ...) -> None: ...
+    def __init__(self, value: Optional[int] = ..., x: Optional[int] = ..., y: Optional[int] = ..., index: Optional[int] = ...) -> None: ...
 
 class msgLaser(_message.Message):
     __slots__ = ["beams", "beamsNotUse", "deviceInfo", "header", "installInfo", "is3DLocalization", "useForBinDetection", "useForLoc"]
@@ -289,16 +299,18 @@ class msgSensorPointCloud(_message.Message):
     def __init__(self, globalCluster: Optional[Iterable[Union[msgSensorPointCluster, Mapping]]] = ..., localCluster: Optional[Iterable[Union[msgSensorPointCluster, Mapping]]] = ...) -> None: ...
 
 class msgSensorPointCluster(_message.Message):
-    __slots__ = ["header", "key", "point", "type"]
+    __slots__ = ["className", "header", "key", "point", "type"]
     class clusterType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     ADCollision: msgSensorPointCluster.clusterType
     APIObstacle: msgSensorPointCluster.clusterType
+    CLASSNAME_FIELD_NUMBER: ClassVar[int]
     DIUltrasonic: msgSensorPointCluster.clusterType
     HEADER_FIELD_NUMBER: ClassVar[int]
     KEY_FIELD_NUMBER: ClassVar[int]
     POINT_FIELD_NUMBER: ClassVar[int]
     TYPE_FIELD_NUMBER: ClassVar[int]
+    className: str
     collision: msgSensorPointCluster.clusterType
     depthCamera: msgSensorPointCluster.clusterType
     distanceNode: msgSensorPointCluster.clusterType
@@ -314,4 +326,4 @@ class msgSensorPointCluster(_message.Message):
     type: msgSensorPointCluster.clusterType
     ultrasonic: msgSensorPointCluster.clusterType
     virtualPoint: msgSensorPointCluster.clusterType
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., type: Optional[Union[msgSensorPointCluster.clusterType, str]] = ..., key: Optional[str] = ..., point: Optional[Iterable[Union[msgSensorPoint, Mapping]]] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., type: Optional[Union[msgSensorPointCluster.clusterType, str]] = ..., key: Optional[str] = ..., point: Optional[Iterable[Union[msgSensorPoint, Mapping]]] = ..., className: Optional[str] = ...) -> None: ...
