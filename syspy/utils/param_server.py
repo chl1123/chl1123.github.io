@@ -819,10 +819,6 @@ class ParamValidator:
 
     def __init__(self, param_definition: Dict[str, Any]):
         self.param_definition = param_definition
-        self.combo_box_bool_mapping = {
-            "OFF": [],
-            "ON": [],
-        }  # 存储COMBO_BOX_BOOL类型映射
         self.leaf_param_keys = set()  # 存储所有叶子节点的键
         # 构建参数查找字典
         self.param_index = self._build_param_index()
@@ -841,18 +837,6 @@ class ParamValidator:
                     param_index[full_path] = param
                     if param['type'] != ParamType.ARRAY:
                         self.leaf_param_keys.add(param['key'])
-
-                # 特殊处理COMBO_BOX_BOOL类型
-                if param.get('type') == ParamType.COMBO_BOX_BOOL:
-                    for child in param.get('children', []):
-                        # 使用布尔值 False/True 表示 OFF/ON
-                        bool_value = False if child['key'] == "OFF" else True
-                        self.combo_box_bool_mapping[child['key']].append(
-                            {
-                                "parent": param['key'],
-                                "value": bool_value
-                            }
-                        )
 
                 # 递归处理子节点
                 if 'children' in param and param['children']:
@@ -873,15 +857,6 @@ class ParamValidator:
         for key, value in input_params.items():
             parts = key.split('.')
             leaf_key = parts[-1]
-
-            # 检查是否是COMBO_BOX_BOOL选项
-            if leaf_key in self.combo_box_bool_mapping:
-                for mapping in self.combo_box_bool_mapping[leaf_key]:
-                    combo_box_boo_key = parts[-2]
-                    if mapping["parent"] == combo_box_boo_key:
-                        flat_params[mapping["parent"]] = mapping["value"]
-                        break
-                continue
 
             # 添加对中间节点的处理
             # 对于路径参数，需要同时保留完整路径和各个节点
@@ -916,23 +891,12 @@ class ParamValidator:
 
         param_type = param_def.get('type')
 
-        # 处理 COMBO_BOX 类型参数
-        if param_type == ParamType.COMBO_BOX and isinstance(value, int):
-            children = param_def.get('children', [])
-            if 0 <= value < len(children):
-                return children[value]['key']
-            else:
-                # 索引无效，保持原值
-                return value
-
-        # 处理 STRING_COMBO_LIST 类型参数
-        elif param_type == ParamType.STRING_COMBO_LIST and isinstance(value, int):
-            children = param_def.get('children', [])
-            if 0 <= value < len(children):
-                return children[value]['key']
-            else:
-                # 索引无效，保持原值
-                return value
+        # 处理 COMBO_BOX_BOOL 类型参数
+        if param_type == ParamType.COMBO_BOX_BOOL:
+            if value == "ON":
+                return True
+            elif value == "OFF":
+                return False
 
         # 其他类型保持原值
         return value
@@ -1075,7 +1039,7 @@ class ParamValidator:
                     value, param_type, param_def, full_path
                 )
 
-            elif param_type == ParamType.BOOL:
+            elif param_type in (ParamType.BOOL, ParamType.COMBO_BOX_BOOL):
                 validated_value = self._validate_bool(value, full_path)
 
             elif param_type == ParamType.STRING:
@@ -1083,20 +1047,6 @@ class ParamValidator:
 
             elif param_type == ParamType.IP:
                 validated_value = self._validate_ip(value, full_path)
-
-            elif param_type == ParamType.COMBO_BOX_BOOL:
-                validated_value = self._validate_combo_bool(value, full_path)
-
-            elif param_type == ParamType.COMBO_BOX:
-                # 对于COMBO_BOX类型，如果是数字索引则转换为对应的key
-                if isinstance(value, int):
-                    children = param_def.get('children', [])
-                    if 0 <= value < len(children):
-                        validated_value = children[value]['key']
-                    else:
-                        validated_value = value  # 保持原值
-                else:
-                    validated_value = value
 
             else:
                 # 其他类型不做转换
@@ -1230,24 +1180,6 @@ class ParamValidator:
                     raise ValueError
             except:
                 raise ValueError(f"Parameter {full_path} is not a valid IP address: {value}")
-
-        return value
-
-    def _validate_combo_bool(self, value: Any, full_path: str) -> int:
-        """验证组合框布尔类型参数"""
-        try:
-            # 转换为整数
-            int_value = int(value)
-        except (TypeError, ValueError):
-            raise ValueError(
-                f"Parameter {full_path} must be an integer for comboBoxBool, got {type(value).__name__}"
-            )
-
-        # 组合框布尔类型通常使用0/1表示
-        if int_value not in (0, 1):
-            raise ValueError(
-                f"Parameter {full_path} must be 0 or 1 for comboBoxBool, got {int_value}"
-            )
 
         return value
 
