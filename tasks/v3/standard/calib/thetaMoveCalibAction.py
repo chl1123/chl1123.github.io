@@ -19,7 +19,7 @@ log = Logger("thetaMoveCalibAction")
         "minValue":1.0
     },
     "V": {
-        "value": 0.3,
+        "value": 0.2,
         "tips": "Motion Speed",
         "type": "double",
         "unit":"m/s",
