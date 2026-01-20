@@ -395,6 +395,13 @@ class ConfigParams:
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
                             # 需要移到 bintask
+                            with builder.CHILD(key="zMax", name="sort the rec results by height",
+                                               desc="根据识别结果的高度由大到小进行排序"):
+                                builder.TYPE(ParamType.BOOL)
+                                if cls.module_type == "liftFork":
+                                    builder.DEFAULTVALUE(False)
+                                else:
+                                    builder.DEFAULTVALUE(True)
                             with builder.CHILD(key="errorRecY", name="Error Rec Y",
                                                desc="识别结果相对AP点报错的y偏移，-1不启用"):
                                 builder.TYPE(ParamType.FLOAT)
@@ -916,6 +923,7 @@ class Fork(ModuleBase):
         super().__init__()
 
         # 栈板扣除区域 还是以前表面为中心点
+        self.recognize = False
         self.fork_height = 0.
         self.carrier_length = 0
         self.carrier_width = 0
@@ -1465,20 +1473,22 @@ class Fork(ModuleBase):
                     and current_action.action_status == ActionStatus.FINISHED):
 
                 results = current_action.results_list
-                # 处理识别结果时，既需要考虑z方向的，又需要考虑x轴 和 y 轴的。默认取 z 离 startHeight 上下 10cm的结果先过滤一次
-                filter_results_by_z = [result for result in results if abs(result["z"] - self.start_height) <= 0.15]
-                self.pallet_width = filter_results_by_z[0]["palletWidth"]
+                # 处理识别结果时，既需要考虑z方向的，又需要考虑x轴 和 y 轴的。默认取 z 离 startHeight 上下 10cm的结果先过滤一次，搬运车不处理
+                if ConfigParams.module_type != "liftFork":
+                    filter_results_by_z = [result for result in results if abs(result["z"] - self.start_height) <= 0.1]
+                    results = filter_results_by_z
+                self.pallet_width = results[0]["palletWidth"]
                 self.obstacle_polygon_by_rec = current_action.obstacle_polygon
                 Trace.log(f"{self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}")
                 # 拿到 y 最小的值
                 results_in_r = []
                 if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
                     Trace.log("rec world")
-                    for result in filter_results_by_z:
+                    for result in results:
                         results_in_r.append(pos2Base([result["x"], result["y"], result["yaw"]],
                                                      r_loc))
                 else:
-                    for result in filter_results_by_z:
+                    for result in results:
                         results_in_r.append([result["x"], result["y"], result["yaw"]])
 
                 # 相对于机器人取 y 最小的
@@ -1710,14 +1720,23 @@ class Fork(ModuleBase):
         self.opt = self.task_args.get("operation", "")
         self.start_height = self.task_args.get("startHeight", 0.09)
         self.end_height = self.task_args.get("endHeight", 0.2)
-        self.recognize = self.task_args.get("recognize")
         self.forkHeight = self.task_args.get("height")
         self.forkSpeed = self.task_args.get("forkSpeed", ConfigParams.fork_max_speed)
         self.recSide = self.task_args.get("recSide")
+        input_recognize = self.task_args.get("recognize", False)
 
         # 解析任务下发的参数，不含在 script_args 里的参数
         self.move_task = Navigation.moveTask()
+
+        movetask_recognize = next(
+            (p.get('boolValue') for p in self.move_task.get('params', [])
+             if p.get('key') == 'recognize'),
+            False
+        )
         Trace.log(f"move task:{self.move_task}")
+
+        self.recognize = any([input_recognize,movetask_recognize])
+
         self.start_time = time.time()
 
         self.clear_fork_region_by_height = False
@@ -1734,7 +1753,7 @@ class Fork(ModuleBase):
                              {"x": -ConfigParams.tail, "y": self.outer},
                              {"x": -ConfigParams.tail, "y": self.inner},
                              {"x": ConfigParams.module_x, "y": self.inner}]
-        Trace.log(f"script status {self.script_status}")
+        Trace.log(f"init args")
         # self.opt = "rec"
         # Abnormal.setTask(53000, "test", "", "", "")
 
