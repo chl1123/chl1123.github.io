@@ -821,7 +821,7 @@ def get_rec_side_info(recfile, rec_side):
             "enableBackDistance": enableBackDistance
         }
 
-        if enableBackDistance:
+        if enableBackDistance == 'on':
             backDistance = RobotParam.getConfig("recognition",
                                                 f"{recognitionSide_key}._{i}.{side_value}.backDistance",
                                                 recfile)
@@ -1239,7 +1239,7 @@ class Fork(ModuleBase):
                 Trace.log(f"target pos :{self.target_pos}")
 
                 # 先看识别文件是否有启用 back_dist，如果启用了，用识别文件的值，没启用的话，用设备模型中的值
-                if not self.rec_info.get("enableBackDistance", False):
+                if self.rec_info.get("enableBackDistance", 'off') != 'on':
                     self.back_dist = ConfigParams.module_x
                 else:
                     self.back_dist = self.rec_info.get("backDistance")
@@ -1450,7 +1450,7 @@ class Fork(ModuleBase):
                 Trace.log(f"target pos :{self.target_pos}")
 
                 # 先看识别文件是否有启用 back_dist，如果启用了，用识别文件的值，没启用的话，用设备模型中的值
-                if not self.rec_info.get("enableBackDistance", False):
+                if self.rec_info.get("enableBackDistance", 'off') != 'on':
                     self.back_dist = ConfigParams.module_x
                 else:
                     self.back_dist = self.rec_info.get("backDistance")
