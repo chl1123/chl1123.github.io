@@ -804,6 +804,49 @@ class NavigationInterface(ABC, Service):
         """
         raise RBKVersionError()
 
+
+    @classmethod
+    def goCrossArea(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
+        """横穿区域
+
+        Args:
+            entranceName (str): 入口点名称
+            exitName (str): 出口点名称
+            params (typing.Dict): 路径参数
+
+        Returns:
+            (int): 返回MoveStatus状态码
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def goRemainingPath(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
+        """走剩余路径
+
+        Args:
+            entranceName (str): 入口点名称
+            exitName (str): 出口点名称
+            params (typing.Dict): 路径参数
+
+        Returns:
+            (int): 返回MoveStatus状态码；
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def goExitPoint(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
+        """从断点去出口点
+
+        Args:
+            entranceName (str): 入口点名称
+            exitName (str): 出口点名称
+            params (typing.Dict): 路径参数
+
+        Returns:
+            (int): 返回MoveStatus状态码
+        """
+        raise RBKVersionError()
+
     @classmethod
     def getLmTcpName(cls, lm_name: str) -> str:
         """根据站点名称获取TCP名称
