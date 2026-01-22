@@ -53,7 +53,6 @@ class ConfigParams:
         """构建并加载配置参数"""
         module_type = RobotParam.getDevice("Model-000", "moduleType")
         jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
-        spin_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.spinMotor")
         motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
         reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
 
@@ -348,7 +347,6 @@ def create_start_height(builder: ParamBuilder):
     with builder.CHILD(key="startHeight", name="Start Height",
                        desc="The start height for operations"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
         builder.MIN_VALUE(config_params.jack_min_height)
         builder.MAX_VALUE(config_params.jack_max_height)
         builder.UNIT("m")
@@ -361,28 +359,27 @@ def create_end_height(builder: ParamBuilder):
     with builder.CHILD(key="endHeight", name="End Height",
                        desc="The end height for operations"):
         builder.TYPE(ParamType.FLOAT)
-        builder.REQUIRED(True)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
-        builder.DEFAULTVALUE(0.00)
+        builder.DEFAULTVALUE(0.06)
 
 
 def create_ap_id(builder: ParamBuilder):
     with builder.CHILD(key="targetName", name="Target ID",
                        desc="the ap id for operation"):
         builder.TYPE(ParamType.STRING)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE("AP1")
 
 
 def create_recfile(builder: ParamBuilder):
     with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
         builder.TYPE(ParamType.STRING)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE("default.srec")
     with builder.CHILD(key="insertShelfDir", name="Insert Shelf Direction", desc="direction to go under the shelf"):
         builder.TYPE(ParamType.STRING)
-        builder.REQUIRED(True)
+        builder.REQUIRED(False)
         builder.DEFAULTVALUE("A")
 
 
@@ -860,11 +857,11 @@ class Jack(ModuleBase):
         self.opt = self.task_args.get("operation", None)
         self.ap_id = self.task_args.get("targetName", None)
         # 顶升高度相关
-        self.start_height = self.task_args.get("startHeight", None)
-        self.end_height = self.task_args.get("endHeight", None)
+        self.start_height = self.task_args.get("startHeight", 0)
+        self.end_height = self.task_args.get("endHeight", 0.06)
         # 识别相关
         self.is_recognize = self.task_args.get("isRecognize", None)
-        self.recfile = self.task_args.get("recFile", None)
+        self.recfile = self.task_args.get("recFile", "default.srec")
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
@@ -879,7 +876,7 @@ class Jack(ModuleBase):
         # path相关
         self.back_dist = self.task_args.get("backDist", None)
         self.adjust_dist_for_curvature_limit = self.task_args.get("adjustDistForCurvatureLimit", 2.0)
-        self.min_ahead_dist = self.task_args.get("minAheadDist", 0)
+        self.min_ahead_dist = self.task_args.get("minAheadDist", 0.5)
         self.is_backwards = self.task_args.get("isBackwards", True)
         self.is_hold_dir = self.task_args.get("isHoldDir", False)
         self.max_speed = self.task_args.get("maxSpeed", 0.5)
@@ -918,8 +915,6 @@ class Jack(ModuleBase):
             self.jack_load()
         elif self.opt == "jackUnload":  # 识别/非识别放货
             self.jack_unload()
-        elif self.opt == "jackBezierReturn":
-            self.jack_bezier_return()
         elif self.opt == "getLM":
             self.get_lm()
         elif self.opt == "laserAreaDeduction":
@@ -990,7 +985,6 @@ class Jack(ModuleBase):
                     "deduct_device": self.laser_area_deduct_info["deduct_device"],
                     "area": []
                 }
-                clear_region = None
                 for idx, area in enumerate(self.laser_area_deduct_info["area"], start=1):
                     x_list_deduct_area = []
                     y_list_deduct_area = []
@@ -1039,7 +1033,7 @@ class Jack(ModuleBase):
 
             # 1) 获取obstacle_deduction
             deduct_device = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductDevice",
-                                                 recfile).spilt(",")
+                                                 recfile).split(",")
             deduct_shape = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductShape",
                                                 recfile)
 
@@ -1157,6 +1151,13 @@ class Jack(ModuleBase):
         return self.status
 
 
+    def get_ap(self):
+        """
+        获取moveTask参数
+        """
+        move_task = Navigation.moveTask()
+        return move_task.get("targetName", None)
+
     def jack_load(self):
         # =====完整：旋转车体调整对准——识别货架——导航——二次调整——顶起 流程=====
         if not self.operation_init:
@@ -1166,10 +1167,18 @@ class Jack(ModuleBase):
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed))
 
-            # 获取AP点坐标
+            self.ap_id = self.ap_id or self.get_ap()
             if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
-                self.ap_id = "AP" + str(self.ap_id)
+                Abnormal.setTask(53779, f"lost ap id",
+                                 "",
+                                 "",
+                                 "")
+                return
+            print(f"{self.ap_id=}")
+            # # 获取AP点坐标
+            # if not self.ap_id:
+            #     self.ap_id = Navigation.moveTask().get("target_id", None)
+            #     self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
 
             Trace.log(f'AP_pos: {self.ap_world_pos}')
@@ -1409,7 +1418,7 @@ class Jack(ModuleBase):
         # Trace.log(f"self.action_list: {self.action_list}")
 
     def suspend(self):
-        self.status = ScriptStatus.SUSPENDING
+        self.status = ScriptStatus.SUSPENDED
         Trace.log("suspend")
 
     def resume(self):
@@ -1998,7 +2007,7 @@ class RecShelf(BaseAction):
         self.action_status = ActionStatus.INIT
         self.recfile = shelf_file
         self.attempts = 0
-        self.max_attempts = 3
+        self.max_attempts = 10
         self.do_rec = False
         Recognize.resetRec()
         # todo
@@ -2202,6 +2211,122 @@ class GetPGVData(BaseAction):
         }
         Module.reportInfo(j.report_info)
 
+class GoPolyline(BaseAction):
+    def __init__(self, world_target, min_ahead_dist=0, ahead_dist=0, back_dist=0, max_speed=0.5, max_angle=0.5,
+                 dec_dist=1):
+        """
+        target_world, back_dist = 0.0, adjust_dist_for_curvature_limit = 2, min_ahead_dist = 0, is_backwards = False,
+        max_speed = 0.5, max_accele = 0.3, max_decele = 0.2, decele_dist = 1, curvature_limit = 1.3
+        """
+        super().__init__()
+        self.go3 = goPath.GoPath()
+        self.go2 = goPath.GoPath()
+        self.go1 = goPath.GoPath()
+        self.go3_args = None
+        self.go2_args = None
+        self.go1_args = None
+        self.temp_start = []
+        self.first_point = None
+        self.start_pos = []
+        self.world_target = world_target
+        self.min_ahead_dist = min_ahead_dist
+        self.ahead_dist = ahead_dist
+        self.back_dist = back_dist
+        self.max_speed = max_speed
+        self.max_angle = max_angle
+        self.dec_dist = dec_dist
+        self.step = 20
+        self.second_point = pos2World([self.min_ahead_dist, 0, 0], self.world_target)
+        self.third_point = pos2World([-self.back_dist, 0, 0], self.world_target)
+        self.go_step = [False] * 3
+        self.action_status = ActionStatus.INIT
+        self.init = False
+        kwargs = locals()
+        del kwargs['self']
+        del kwargs['__class__']
+        self.opt_info = f"{__class__.__name__}{kwargs}"
+
+    def run(self, f):
+        if not self.init:
+            self.init = True
+            pos = Loc.getData()
+            self.start_pos = [pos['x'], pos['y'], pos['angle']]
+            if abs(self.cal_angle(self.start_pos, self.second_point)) > self.max_angle:
+                self.start_pos[2] = self.world_target[2]
+                angle, self.temp_start = self.search_min_angle_str(self.max_angle, self.step)
+            else:
+                self.temp_start = self.start_pos
+            self.go1_args = {
+                "x": self.temp_start[0],
+                "y": self.temp_start[1],
+                "theta": self.temp_start[2],
+                "backMode": 1,
+                "maxSpeed": 0.2,
+                "maxRot": math.radians(10),
+                "coordinate": Coordinate.WORLD
+            }
+            self.go2_args = {
+                "x": self.second_point[0],
+                "y": self.second_point[1],
+                "theta": self.second_point[2],
+                "backMode": 0,
+                "maxSpeed": 0.1,
+                "maxRot": math.radians(10),
+                "coordinate": Coordinate.WORLD
+            }
+            self.go3_args = {
+                "x": self.third_point[0],
+                "y": self.third_point[1],
+                "theta": self.third_point[2],
+                "backMode": 0,
+                "maxSpeed": 0.1,
+                "maxRot": math.radians(10),
+                "coordinate": Coordinate.WORLD
+            }
+
+        if not self.go_step[0]:
+            if self.go1.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go1.run(self.go1_args)
+            if self.go1.status == ActionStatus.FINISHED:
+                self.go_step[0] = True
+        elif self.go_step[0] and not self.go_step[1]:
+            if self.go2.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go2.run(self.go2_args)
+            if self.go2.status == ActionStatus.FINISHED:
+                self.go_step[1] = True
+        elif self.go_step[1] and not self.go_step[2]:
+            if self.go3.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+                self.go3.run(self.go3_args)
+            if self.go3.status == ActionStatus.FINISHED:
+                self.go_step[2] = True
+        if all(self.go_step):
+            self.action_status = ActionStatus.FINISHED
+
+    def cal_angle(self, start_pos, end_pos):
+        start2end = pos2Base(start_pos, end_pos)
+        angle = math.degrees(math.atan2(start2end[1], start2end[0]))
+        print(angle)
+        return angle
+
+    def search_min_angle_str(self, max_angle, step):
+        temp_start = []
+        for n in range(1, step + 1):
+            adjust_dist = self.ahead_dist / self.step * n
+            # 临时构造一个新的起点：在原 start_pos 基础上往前平移
+            temp_start = pos2World([adjust_dist, 0, 0], self.start_pos)
+            angle = abs(self.cal_angle(temp_start, self.second_point))
+
+            if angle <= max_angle:
+                # self.first_point = temp_start
+                print(f"满足角度要求，当前角度：{angle:.2f}°，使用第 {n} 次调整")
+                return angle, temp_start  # 成功，返回当前角度
+
+        angle = abs(self.cal_angle(temp_start, self.second_point))
+        print(f"未满足角度要求，当前角度：{angle:.2f}°")
+        return angle, temp_start
+
+    def reset(self):
+        self.action_status = ActionStatus.RUNNING
 
 class PGVSecondaryAdjust(BaseAction):  # 二次调整
     def __init__(self, use_which_pgv, pgv_x_adjust, pgv_x_angle_adjust, pgv_adjust_dist, pgv_reach_dist,
@@ -2293,7 +2418,6 @@ def main():
     Module.init()
     validator = ParamValidator(InputParams.builder.toDict())
     j = Jack()
-    modbus_params = None
     while True:
         status = j.status
         Module.setStatus(status)
@@ -2322,7 +2446,6 @@ def main():
         elif status == ScriptStatus.RUNNING:
             j.run()
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            j.init_args = False
             j.action_id = 0
             j.action_list = []
             j.operation_init = False

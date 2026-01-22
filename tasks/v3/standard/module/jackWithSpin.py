@@ -923,6 +923,10 @@ class Jack(ModuleBase):
             deduct_shape = RobotParam.getConfig("recognition", f"{recognition_obstacle_deduction_path}.deductShape",
                                                 recfile)
 
+
+            recognition.recognitionObject.shelf.obstacleDeduction._0.deductDevice
+            recognition.recognitionObject.shelf.obstacleDeduction._0.deductShape
+
             # 转换为 Python 对象
             shapes = json.loads(deduct_shape)
 
@@ -1108,8 +1112,8 @@ class Jack(ModuleBase):
 
             if current_action.action_name == "GoBezier" and current_action.action_status == ActionStatus.FINISHED:
                 self.action_list.append(Spin(0, "robot", 2))
-                # self.action_list.append(
-                #     JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
+                self.action_list.append(
+                    JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
                 # self.action_list.append(
                 #     JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed))
                 # self.action_list.append(
