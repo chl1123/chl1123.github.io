@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
-# @Date : 2025/11/04
-# @Author : zengweibin
+# @Date : 2026/1/27
+# @Author : zhaopengfei
 # @Coding : none
-# @Update : 3.5顶升车示例模板
+# @Update : P300配送车脚本
 
 import json
 import math
 import time
 import struct
-import serial # type: ignore
+import serial  # type: ignore
 from enum import IntEnum
 from typing import List, Optional
 from syspy.utils.time import Timer
 
 start_time = time.time()
+from datetime import datetime
 from syspy import (Module, Logger, Di, Motor, Navigation, Loc, Abnormal, Recognize,
-                   Odometer, CodeScanner, ScriptStatus, Trace, NavSpeed, Controller)
+                   Odometer, CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
@@ -25,6 +26,83 @@ from syspy.lib.robot_param import RobotParam
 from syspy.utils import Coordinate
 
 log = Logger("jack")
+
+
+# ============================================================================
+# 顶升次数统计管理类
+# ============================================================================
+class JackCountManager:
+    """
+    顶升次数统计管理器
+    - jackTotalCount: 顶升累计次数
+    - jackTodayCount: 顶升今日累计次数
+    - jackLastDate: 上次更新日期（用于今日次数自动重置）
+    """
+
+    KEY_TOTAL_COUNT = "jackTotalCount"
+    KEY_TODAY_COUNT = "jackTodayCount"
+    KEY_LAST_DATE = "jackLastDate"
+
+    _instance = None
+    _db = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
+        self._initialized = True
+        self._init_db()
+
+    def _init_db(self):
+        try:
+            self._db = LevelDB("run")
+            total_count = self._db.get(self.KEY_TOTAL_COUNT, "int")
+            if total_count is None:
+                self._db.add(self.KEY_TOTAL_COUNT, 0, False)
+                self._db.add(self.KEY_TODAY_COUNT, 0, False)
+                self._db.add(self.KEY_LAST_DATE, "", False)
+                Trace.log("JackCountManager: 数据库初始化完成")
+        except Exception as e:
+            Trace.log(f"JackCountManager: 数据库初始化失败: {e}")
+            self._db = None
+
+    def _get_today_str(self) -> str:
+        return datetime.now().strftime("%Y-%m-%d")
+
+    def _check_and_reset_daily(self):
+        if self._db is None:
+            return
+        try:
+            today = self._get_today_str()
+            last_date = self._db.get(self.KEY_LAST_DATE, "str") or ""
+            if last_date != today:
+                self._db.put(self.KEY_TODAY_COUNT, 0)
+                self._db.put(self.KEY_LAST_DATE, today)
+        except Exception as e:
+            Trace.log(f"JackCountManager: 检查日期失败: {e}")
+
+    def increment_count(self):
+        if self._db is None:
+            return
+        try:
+            self._check_and_reset_daily()
+            total_count = self._db.get(self.KEY_TOTAL_COUNT, "int") or 0
+            today_count = self._db.get(self.KEY_TODAY_COUNT, "int") or 0
+            self._db.put(self.KEY_TOTAL_COUNT, total_count + 1)
+            self._db.put(self.KEY_TODAY_COUNT, today_count + 1)
+            self._db.put(self.KEY_LAST_DATE, self._get_today_str())
+            Trace.log(f"JackCountManager: 顶升次数已更新 - 累计={total_count + 1}, 今日={today_count + 1}")
+        except Exception as e:
+            Trace.log(f"JackCountManager: 更新顶升次数失败: {e}")
+
+
+# 创建全局实例
+jack_count_manager = JackCountManager()
 
 
 # --- ConfigParams 类（放在前面） ---
@@ -692,8 +770,7 @@ class InputParams:
                 with builder.CHILD(key="jackUnload", name="Jack Unload", desc="recognize and unload the shelf"):
                     builder.TYPE(ParamType.ARRAY)
 
-
-                # 抬高托盘操作
+                # 抬高托盘操作（指定高度，仅用于判断升降方向）
                 with builder.CHILD(key="jackHeight", name="Jack Height", desc="lift the robot tray"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
@@ -707,6 +784,16 @@ class InputParams:
                             builder.TYPE(ParamType.STRING)
                             builder.REQUIRED(False)
                             builder.DEFAULTVALUE("A")
+
+                # 顶升到顶（推荐，不需要指定高度）
+                with builder.CHILD(key="jackUp", name="Jack Up", desc="lift to top, no height needed"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_recfile(builder)
+
+                # 下降到底（推荐，不需要指定高度）
+                with builder.CHILD(key="jackDown", name="Jack Down", desc="lower to bottom, no height needed"):
+                    builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILD(key="goBezier", name="goBezier", desc="go bezier line to target position"):
                     builder.TYPE(ParamType.ARRAY)
@@ -787,6 +874,7 @@ class InputParams:
                 #     builder.TYPE(ParamType.ARRAY)
 
     builder.save_to_file()
+
 
 class Jack(ModuleBase):
     def __init__(self):
@@ -927,6 +1015,10 @@ class Jack(ModuleBase):
             self.go_polyline()
         elif self.opt == "jackHeight":  # 控制托盘抬升高度
             self.jack_target_height()
+        elif self.opt == "jackUp":  # 顶升到顶（推荐）
+            self.jack_up()
+        elif self.opt == "jackDown":  # 下降到底（推荐）
+            self.jack_down()
         elif self.opt == "spinTray":  # 托盘旋转指定角度
             self.spin()
         elif self.opt == "rotateHoldSpin":  # 随动转
@@ -1150,7 +1242,6 @@ class Jack(ModuleBase):
         self.status = ScriptStatus.FINISHED
         return self.status
 
-
     def get_ap(self):
         """
         获取moveTask参数
@@ -1294,7 +1385,6 @@ class Jack(ModuleBase):
                 JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed,
                            self.recfile))
 
-
     def go_ap_site(self):
         if not self.operation_init:
             self.operation_init = True
@@ -1347,6 +1437,18 @@ class Jack(ModuleBase):
 
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
                                                config_params.jack_motor_speed, self.recfile))
+
+    def jack_up(self):
+        """顶升到顶（推荐，不需要指定高度）"""
+        if not self.operation_init:
+            self.operation_init = True
+            self.action_list.append(JackUpDown("up", self.recfile))
+
+    def jack_down(self):
+        """下降到底（推荐，不需要指定高度）"""
+        if not self.operation_init:
+            self.operation_init = True
+            self.action_list.append(JackUpDown("down"))
 
     def spin(self):
         """旋转托盘"""
@@ -1520,6 +1622,7 @@ class ClearPolicy(BaseAction):
             Trace.log("ClearPolicy: 已清除导航策略，恢复绕行设置")
             self.action_status = ActionStatus.FINISHED
 
+
 class Spin(BaseAction):
     """托盘旋转到机器人/世界坐标系下固定角度，额外旋转固定角度"""
 
@@ -1567,7 +1670,6 @@ class RobotRotate(BaseAction):
 
     def __init__(self, angle, coordinate, spin=True, direction=None):
         super().__init__("RobotRotate")
-
 
         kwargs = locals()
         del kwargs['self']
@@ -1655,13 +1757,12 @@ class RobotRotate(BaseAction):
 
 class JackHeight(BaseAction):
     """
-    顶升动作，通过RS485 Modbus RTU协议控制电机
-    替换原Motor API实现
+    顶升动作，通过RS485 Modbus RTU协议控制
+    根据目标高度判断升降方向
     """
 
     def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf"):
         super().__init__("JackHeight")
-
 
         kwargs = locals()
         del kwargs['self']
@@ -1675,10 +1776,10 @@ class JackHeight(BaseAction):
         self.recfile = recfile
         self.object_key = object_key
         self.init = False
-        self.cmd_sent = False  # 标记指令是否已发送
+        self.cmd_sent = False
         self.is_going_up = True
+        self._count_recorded = False  # 防止重复计数
 
-        # 获取RS485控制器
         self.rs485_ctrl = get_rs485_jack_controller()
 
     def run(self, j: Jack):
@@ -1686,18 +1787,13 @@ class JackHeight(BaseAction):
             self.init = True
             self.action_status = ActionStatus.RUNNING
 
-            # 先读取当前状态
             state = self.rs485_ctrl.read_state()
             Trace.log(f"JackHeight init: target={self.target_height}, current_state={state}")
 
             # 根据目标高度判断升降方向
-            # 使用实际的高度阈值来判断
             max_h = config_params.jack_max_height or 0.3
             min_h = config_params.jack_min_height or 0.0
             threshold = (max_h + min_h) / 2
-
-            # 目标高度大于阈值 -> 需要上升到顶
-            # 目标高度小于等于阈值 -> 需要下降到底
             self.is_going_up = self.target_height > threshold
 
             Trace.log(f"JackHeight: target={self.target_height}, threshold={threshold}, is_going_up={self.is_going_up}")
@@ -1712,7 +1808,7 @@ class JackHeight(BaseAction):
                 Trace.log("JackHeight: Sending CMD_JACK_DOWN")
                 self.rs485_ctrl.jack_down()
 
-        # 读取RS485状态检查是否完成
+        # 读取RS485状态
         state = self.rs485_ctrl.read_state()
         Trace.log(f"RS485 state={state}, is_going_up={self.is_going_up}")
 
@@ -1720,23 +1816,30 @@ class JackHeight(BaseAction):
         if self.is_going_up:
             if state == RS485JackController.STATE_TOP_REACHED:
                 self.action_status = ActionStatus.FINISHED
+                # 顶升完成，记录次数
+                if not self._count_recorded:
+                    self._count_recorded = True
+                    jack_count_manager.increment_count()
+                    Trace.log("JackHeight: 顶升次数已记录")
+                # 设置货物形状
                 if self.recfile:
-                    recognition_goodsParameter_path = f"recognitionObject.{self.object_key}.goodsParameter"
-                    goods_shape = RobotParam.getConfig("recognition",
-                                                       f"{recognition_goodsParameter_path}.goodsShape",
-                                                       self.recfile)
-                    shapes = json.loads(goods_shape)
-                    print(f"shapes={shapes}")
-                    shape = shapes[0]["points"]
-                    Navigation.setGoodsPolyShape(shape, "shelf")
+                    try:
+                        recognition_goodsParameter_path = f"recognitionObject.{self.object_key}.goodsParameter"
+                        goods_shape = RobotParam.getConfig("recognition",
+                                                           f"{recognition_goodsParameter_path}.goodsShape",
+                                                           self.recfile)
+                        shapes = json.loads(goods_shape)
+                        shape = shapes[0]["points"]
+                        Navigation.setGoodsPolyShape(shape, "shelf")
+                    except Exception as e:
+                        Trace.log(f"JackHeight: 加载货物形状失败: {e}")
+                        shape = [{"x": 0.5, "y": 0.3}, {"x": -0.5, "y": 0.3},
+                                 {"x": -0.5, "y": -0.3}, {"x": 0.5, "y": -0.3}]
+                        Navigation.setGoodsPolyShape(shape, "shelf")
                 else:
-                    # todo 参数配置
-                    shape = [
-                        {"x": 0.5, "y": 0.3},
-                        {"x": -0.5, "y": 0.3},
-                        {"x": -0.5, "y": -0.3},
-                        {"x": 0.5, "y": -0.3}]
-                Navigation.setGoodsPolyShape(shape, "shelf")
+                    shape = [{"x": 0.5, "y": 0.3}, {"x": -0.5, "y": 0.3},
+                             {"x": -0.5, "y": -0.3}, {"x": 0.5, "y": -0.3}]
+                    Navigation.setGoodsPolyShape(shape, "shelf")
                 Trace.log("JackHeight finished - reached top")
         else:
             if state == RS485JackController.STATE_BOTTOM_REACHED:
@@ -1754,6 +1857,97 @@ class JackHeight(BaseAction):
             "jackMotorSpeed": self.jackMotorSpeed,
             "rs485State": state,
             "isGoingUp": self.is_going_up,
+        }
+        Module.reportInfo(j.report_info)
+
+
+class JackUpDown(BaseAction):
+    """
+    顶升/下降动作（推荐使用，不需要指定高度）
+    - direction="up": 顶升到顶
+    - direction="down": 下降到底
+    """
+
+    def __init__(self, direction: str, recfile=None, object_key="shelf"):
+        super().__init__("JackUpDown")
+
+        kwargs = locals()
+        del kwargs['self']
+        del kwargs['__class__']
+        self.opt_info = f"{__class__.__name__}{kwargs}"
+
+        self.direction = direction
+        self.recfile = recfile
+        self.object_key = object_key
+        self.init = False
+        self.cmd_sent = False
+        self._count_recorded = False
+
+        self.rs485_ctrl = get_rs485_jack_controller()
+
+    def run(self, j: Jack):
+        if not self.init:
+            self.init = True
+            self.action_status = ActionStatus.RUNNING
+            Trace.log(f"JackUpDown init: direction={self.direction}")
+
+        # 只发送一次指令
+        if not self.cmd_sent:
+            self.cmd_sent = True
+            if self.direction == "up":
+                Trace.log("JackUpDown: Sending CMD_JACK_UP")
+                self.rs485_ctrl.jack_up()
+            else:
+                Trace.log("JackUpDown: Sending CMD_JACK_DOWN")
+                self.rs485_ctrl.jack_down()
+
+        # 读取RS485状态
+        state = self.rs485_ctrl.read_state()
+        Trace.log(f"RS485 state={state}, direction={self.direction}")
+
+        # 检查是否完成
+        if self.direction == "up":
+            if state == RS485JackController.STATE_TOP_REACHED:
+                self.action_status = ActionStatus.FINISHED
+                # 顶升完成，记录次数
+                if not self._count_recorded:
+                    self._count_recorded = True
+                    jack_count_manager.increment_count()
+                    Trace.log("JackUpDown: 顶升次数已记录")
+                # 设置货物形状
+                if self.recfile:
+                    try:
+                        recognition_goodsParameter_path = f"recognitionObject.{self.object_key}.goodsParameter"
+                        goods_shape = RobotParam.getConfig("recognition",
+                                                           f"{recognition_goodsParameter_path}.goodsShape",
+                                                           self.recfile)
+                        shapes = json.loads(goods_shape)
+                        shape = shapes[0]["points"]
+                        Navigation.setGoodsPolyShape(shape, "shelf")
+                    except Exception as e:
+                        Trace.log(f"JackUpDown: 加载货物形状失败: {e}")
+                        shape = [{"x": 0.5, "y": 0.3}, {"x": -0.5, "y": 0.3},
+                                 {"x": -0.5, "y": -0.3}, {"x": 0.5, "y": -0.3}]
+                        Navigation.setGoodsPolyShape(shape, "shelf")
+                else:
+                    shape = [{"x": 0.5, "y": 0.3}, {"x": -0.5, "y": 0.3},
+                             {"x": -0.5, "y": -0.3}, {"x": 0.5, "y": -0.3}]
+                    Navigation.setGoodsPolyShape(shape, "shelf")
+                Trace.log("JackUpDown finished - reached top")
+        else:
+            if state == RS485JackController.STATE_BOTTOM_REACHED:
+                self.action_status = ActionStatus.FINISHED
+                Navigation.clearGoodsShape()
+                Trace.log("JackUpDown finished - reached bottom")
+
+        # 检查错误状态
+        if state == RS485JackController.STATE_ERROR:
+            self.rs485_ctrl.check_and_report_error()
+
+        j.report_info["JackUpDown"] = {
+            "actionStatus": self.action_status,
+            "direction": self.direction,
+            "rs485State": state,
         }
         Module.reportInfo(j.report_info)
 
@@ -1815,7 +2009,6 @@ class GoPath(BaseAction):
     def __init__(self, go_pos, coordinate='robot', back_mode=False, is_hold_dir=None, max_speed=0.5, max_rot=0.3,
                  path_dist_accuracy=0.01, path_angle_accuracy=0.05):
         super().__init__("GoPath")
-
 
         kwargs = locals()
         del kwargs['self']
@@ -1917,7 +2110,6 @@ class GoBezier(BaseAction):
                  path_dist_accuracy=0.01, path_angle_accuracy=0.05):
         super().__init__()
 
-
         kwargs = locals()
         del kwargs['self']
         del kwargs['__class__']
@@ -1968,12 +2160,10 @@ class GoBezierReturn(BaseAction):
                  decele_dist=0.1):
         super().__init__()
 
-
         kwargs = locals()
         del kwargs['self']
         del kwargs['__class__']
         self.opt_info = f"{__class__.__name__}{kwargs}"
-
 
         self.init = True
         self.action_status = ActionStatus.INIT
@@ -1997,12 +2187,10 @@ class RecShelf(BaseAction):
     def __init__(self, shelf_file, action_name="RecShelf"):
         super().__init__(action_name)
 
-
         kwargs = locals()
         del kwargs['self']
         del kwargs['__class__']
         self.opt_info = f"{__class__.__name__}{kwargs}"
-
 
         self.action_status = ActionStatus.INIT
         self.recfile = shelf_file
@@ -2011,7 +2199,9 @@ class RecShelf(BaseAction):
         self.do_rec = False
         Recognize.resetRec()
         # todo
-        self.recognitionRegion = {"points":[{"x":-2.56,"y":-1.035},{"x":-0.63,"y":-1.035},{"x":-0.63,"y":1.035},{"x":-2.56,"y":1.035}],"shape":"rectangle"}
+        self.recognitionRegion = {
+            "points": [{"x": -2.56, "y": -1.035}, {"x": -0.63, "y": -1.035}, {"x": -0.63, "y": 1.035},
+                       {"x": -2.56, "y": 1.035}], "shape": "rectangle"}
         # recognitionRegion = {"points": [{"x": -0.78, "y": -0.645}, {"x": 2.59, "y": -0.645}, {"x": 2.59, "y": 0.645},
         #              {"x": -0.78, "y": 0.645}], "shape": "rectangle"}
         # recognitionRegion = json.dumps(recognitionRegion)
@@ -2211,6 +2401,7 @@ class GetPGVData(BaseAction):
         }
         Module.reportInfo(j.report_info)
 
+
 class GoPolyline(BaseAction):
     def __init__(self, world_target, min_ahead_dist=0, ahead_dist=0, back_dist=0, max_speed=0.5, max_angle=0.5,
                  dec_dist=1):
@@ -2327,6 +2518,7 @@ class GoPolyline(BaseAction):
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
+
 
 class PGVSecondaryAdjust(BaseAction):  # 二次调整
     def __init__(self, use_which_pgv, pgv_x_adjust, pgv_x_angle_adjust, pgv_adjust_dist, pgv_reach_dist,
