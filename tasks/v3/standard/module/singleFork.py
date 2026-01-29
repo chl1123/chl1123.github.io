@@ -105,7 +105,8 @@ class ConfigParams:
     up_di: str = ""
     down_di: str = ""
     fork_max_speed: float = 0.0
-    base_shift = False
+    base_shift: bool = False
+    base_shift_length: float = 0.0
     fork_root_3D_camera: str = ""
     fork_root_2D_lasers: str = ""
     fork_tip_3D_cameras: list = []
@@ -144,7 +145,7 @@ class ConfigParams:
     useStraightLine: bool = False
     loadAdjustMaxSpeed: float = 0.5
     bezierReturn: bool = True
-    forkDiDist: float = 0.2
+    forkDiDist: float = 0.
     goodsWidth: float = 1.0
     goodsLength: float = 1.2
     enableContactDiNoRec: bool = True
@@ -292,6 +293,9 @@ class ConfigParams:
             Trace.log(f"robot_type:{robot_type}")
             if robot_type in ("variableWheelbaseSingleStandardSteer", "variableWheelbaseSingleDifferentialSteer"):
                 cls.base_shift = True
+                ConfigParams.base_shift_length = cls._safe_get_device("Model-000",
+                                                                      f"chassisType.{robot_type}.wheelBaseShiftLength",
+                                                                      0.0)
 
     # 从设备模型文件中获取的参数
     @classmethod
@@ -428,14 +432,18 @@ class ConfigParams:
                                        desc="根据站点位置取货"):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
-                            with builder.CHILD(key="forkDiDist", name="Fork DI Dist", desc="盲插到位后后退距离"):
-                                builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(0.2, min_value=0, max_value=0.5)
-                                builder.UNIT("m")
                             with builder.CHILD(key="enableContactDiNoRec", name="Enable Contact DI (No Rec)",
                                                desc="盲叉取货是否启用到位di"):
                                 builder.TYPE(ParamType.BOOL)
                                 builder.DEFAULTVALUE(True)
+                            with builder.CHILD(key="forkDiDist", name="Fork DI Dist", desc="盲插到位后后退距离"):
+                                builder.TYPE(ParamType.FLOAT)
+                                # if ConfigParams.base_shift:
+                                #     builder.DEFAULTVALUE(ConfigParams.base_shift_length, min_value=-2, max_value=2)
+                                # else:
+                                #     builder.DEFAULTVALUE(0, min_value=-2, max_value=2)
+                                builder.DEFAULTVALUE(0, min_value=-2, max_value=2)
+                                builder.UNIT("m")
                             with builder.CHILD(key="goodsWidth", name="Goods Width", desc="盲插取货时的货物宽度"):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(1.0)
@@ -822,9 +830,10 @@ def get_rec_side_info(recfile, rec_side):
         }
 
         if enableBackDistance == 'on':
+            print("on")
             backDistance = RobotParam.getConfig("recognition",
-                                                f"{recognitionSide_key}._{i}.{side_value}.backDistance",
-                                                recfile)
+                                                f"{recognitionSide_key}._{i}.{side_value}.enableBackDistance."
+                                                f"{enableBackDistance}.backDistance", recfile)
             side_info["backDistance"] = backDistance
         rec_sides.append(side_info)
     if rec_side:
@@ -1239,11 +1248,10 @@ class Fork(ModuleBase):
                 Trace.log(f"target pos :{self.target_pos}")
 
                 # 先看识别文件是否有启用 back_dist，如果启用了，用识别文件的值，没启用的话，用设备模型中的值
-                if self.rec_info.get("enableBackDistance", 'off') != 'on':
-                    self.back_dist = ConfigParams.module_x
-                else:
+                if self.rec_info.get("enableBackDistance", 'off') == 'on':
                     self.back_dist = self.rec_info.get("backDistance")
-
+                else:
+                    self.back_dist = ConfigParams.module_x
                 self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)]
 
                 self.action_list.append(Rec(self.recfile, target2robot, "RecPallet", self.carrier_length / 2))
@@ -1414,7 +1422,6 @@ class Fork(ModuleBase):
                         else:
                             method = "goBezier"
                             args["max_curve"] = 3
-
                     else:
                         method = "goPath"
                         args = None
@@ -1558,7 +1565,8 @@ class Fork(ModuleBase):
                 # 设置扣除区域
                 if self.pallet_deduct_infos:
                     set_deduct_area(self.pallet_deduct_infos,
-                                    [ConfigParams.module_x - self.carrier_length / 2, 0, 0],"PalletRobotDeductArea",Coordinate.ROBOT)
+                                    [ConfigParams.module_x - self.carrier_length / 2, 0, 0], "PalletRobotDeductArea",
+                                    Coordinate.ROBOT)
             # 没有识别文件
             else:
                 goods_shape = [{"x": ConfigParams.goodsLength / 2, "y": ConfigParams.goodsWidth / 2},
@@ -1638,7 +1646,7 @@ class Fork(ModuleBase):
                     # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                     args = {
                         "back_dist": 0,
-                        "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x + ConfigParams.forkDiDist,
+                        "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x - ConfigParams.base_shift_length,
                         "adjust_dist": ConfigParams.aheadDist,
                     }
                     if ConfigParams.useStraightLine:
@@ -1650,6 +1658,8 @@ class Fork(ModuleBase):
                 else:
                     method = "goPath"
                     args = None
+                if ConfigParams.base_shift:
+                    target_pos = pos2World([-ConfigParams.base_shift_length, 0, 0], target_pos)
                 self.action_list = [
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                     GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
@@ -1682,14 +1692,6 @@ class Fork(ModuleBase):
             self.trace_chart.update(
                 _flat_attrs(self.current_action, idx1=self.action_id)
             )
-            # Trace.chart(self._flat_attrs(current_action, idx1=self.action_id))
-            # Trace.chart({
-            #     "script.action_id": self.action_id,
-            #     "script.all_action_status": self.action_status,
-            #     "script.cur_action": current_action.action_name,
-            #     "script.cur_action_status": current_action.action_status,
-            #     "script.script_status": self.script_status
-            # })
         else:
             self.action_status = ActionStatus.FINISHED
         self.trace_chart.update({
@@ -1735,7 +1737,7 @@ class Fork(ModuleBase):
         )
         Trace.log(f"move task:{self.move_task}")
 
-        self.recognize = any([input_recognize,movetask_recognize])
+        self.recognize = any([input_recognize, movetask_recognize])
 
         self.start_time = time.time()
 
@@ -1824,7 +1826,8 @@ class Fork(ModuleBase):
         NetProtocol.setModbusData("3x", 57, modbus_list_fork_height)
 
         # 如果在低位且是载货状态，需要做卸货处理
-        if ConfigParams.module_type == "liftFork" and (self.fork_height - ConfigParams.min_height) <= EPS and Navigation.hasGoods():
+        if ConfigParams.module_type == "liftFork" and (
+                self.fork_height - ConfigParams.min_height) <= EPS and Navigation.hasGoods():
             Navigation.clearGoodsShape()
 
         if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:

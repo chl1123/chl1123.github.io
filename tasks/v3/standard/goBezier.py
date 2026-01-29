@@ -100,12 +100,12 @@ class GoBezierWorld:
 
             # self.xs, self.ys = xs_bez, ys_bez
             # self.k_max = self.bezier_curvature(p0, p1, p2, p3, p4, p5)
-            Trace.log(f"bezier curv:{self.k_max}")
+            Trace.log(f"bezier curv:{self.k_max}", True, True)
             if self.k_max <= self.curvature_limit:
                 success = True
                 break
             self.offset_dist += offset_step
-        Trace.log(f"ahead dist:{self.offset_dist}")
+        Trace.log(f"ahead dist:{self.offset_dist}",True,True)
         # Trace.log(f"bezier path:x{xs_bez},y:{ys_bez}")
         if not success or self.k_max >= 30:
             Abnormal.setTask(53900, f"curvature limit exceeded. max_curvature={self.k_max}",
@@ -117,7 +117,7 @@ class GoBezierWorld:
         #     return
 
         self.bezier_end_x, self.bezier_end_y = xs_bez[-1], ys_bez[-1]
-        Trace.log(f"bezier end point:{self.bezier_end_x, self.bezier_end_y}")
+        Trace.log(f"bezier end point:{self.bezier_end_x, self.bezier_end_y}",True,True)
 
         # 贝塞尔末端点
         p0 = [xs_bez[-1], ys_bez[-1]]
@@ -152,7 +152,7 @@ class GoBezierWorld:
         x1, y1 = p1[0], p1[1]
         x2, y2 = self.end_position_world[0], self.end_position_world[1]
         self.x_end, self.y_end = x2, y2
-        Trace.log(f"line begin:{p1}, line end:{self.x_end, self.y_end}")
+        Trace.log(f"line begin:{p1}, line end:{self.x_end, self.y_end}",True,True)
 
         # 直线插值点数量
         num_points = 500
@@ -188,7 +188,8 @@ class GoBezierWorld:
         ScriptData.set("goBezier", {"bezier_path_world_return": self.bezier_path_world_return,
                                     "initial_point_world_return": self.initial_point_world_return,
                                     "finalPos": self.end_position_world})
-        Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}")
+        Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}",True,True)
+        Trace.log(f"bezier_path_world_return11{self.bezier_path_world_return}", False)
 
     def resample_equal_arc(self, xs, ys, ds=0.01):
         new_x = [xs[0]]
@@ -566,19 +567,20 @@ class GoBezierWorldReturn:
             if go_bezier_data is not None:
                 self.bezier_target_pos_return = go_bezier_data["initial_point_world_return"]
                 bezier_path_world_return = go_bezier_data["bezier_path_world_return"]
+                Trace.log(f"Bezier Path World Return: {bezier_path_world_return}", False)
             else:
                 Abnormal.setTask(53901, "no bezier route record, script failed",
                                  "script data is none", "walk bezier first, or check the script data", "")
                 self.action_status = ScriptStatus.FAILED
                 return
-            go_bezier_final_pos = go_bezier_data.get("finalPos", [0, 0, 0])
+            # go_bezier_final_pos = go_bezier_data.get("finalPos", [0, 0, 0])
             self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
-            r2final_pos = pos2Base(self.robot_loc, go_bezier_final_pos)
-            Trace.log(f"robot loc:{self.robot_loc},go_bezier_final_pos:{r2final_pos}")
-            if (r2final_pos[0] >= 0.5 or r2final_pos[0] <= -0.05) and abs(r2final_pos[1]) >= 0.05:
-                Abnormal.setTask(53901, "robot far from bezier path, script failed",
-                                 f"robot far from bezier path, x:{r2final_pos[0]}", "move robot to bezier path", "")
-                self.action_status = ScriptStatus.FAILED
+            # r2final_pos = pos2Base(self.robot_loc, go_bezier_final_pos)
+            # Trace.log(f"robot loc:{self.robot_loc},go_bezier_final_pos:{r2final_pos}")
+            # if (r2final_pos[0] >= 0.5 or r2final_pos[0] <= -0.05) and abs(r2final_pos[1]) >= 0.05:
+            #     Abnormal.setTask(53901, "robot far from bezier path, script failed",
+            #                      f"robot far from bezier path, x:{r2final_pos[0]}", "move robot to bezier path", "")
+            #     self.action_status = ScriptStatus.FAILED
 
             # 规划第一段倒退路线参数
             Navigation.resetPath()
