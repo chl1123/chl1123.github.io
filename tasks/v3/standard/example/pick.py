@@ -2440,80 +2440,6 @@ class GoBezierReturn(BaseAction):
         time.sleep(0.1)
 
 
-# class RecShelf(BaseAction):
-#     """识别货架"""
-#
-#     def __init__(self, shelf_file, action_name="RecShelf"):
-#         super().__init__(action_name)
-#
-#         kwargs = locals()
-#         del kwargs['self']
-#         del kwargs['__class__']
-#         self.opt_info = f"{__class__.__name__}{kwargs}"
-#
-#         self.action_status = ActionStatus.INIT
-#         self.recfile = shelf_file
-#         self.attempts = 0
-#         self.max_attempts = 10
-#         self.do_rec = False
-#         Recognize.resetRec()
-#         # todo
-#         self.recognitionRegion = {
-#             "points": [{"x": -2.56, "y": -1.035}, {"x": -0.63, "y": -1.035}, {"x": -0.63, "y": 1.035},
-#                        {"x": -2.56, "y": 1.035}], "shape": "rectangle"}
-#
-#         # recognitionRegion = {"points": [{"x": -0.78, "y": -0.645}, {"x": 2.59, "y": -0.645}, {"x": 2.59, "y": 0.645},
-#         #              {"x": -0.78, "y": 0.645}], "shape": "rectangle"}
-#         # recognitionRegion = json.dumps(recognitionRegion)
-#         # Recognize.doRec(self.recfile, recognitionRegion, "A")
-#         self.report_info = {}
-#
-#     def run(self, j: Jack):
-#         self.action_status = ActionStatus.RUNNING
-#         Trace.log("recognizing the shelf")
-#         rec_status = Recognize.getRecStatus()
-#         Trace.log(f"{rec_status=}")
-#         # rec_result = Recognize.getRecFile(self.recfile)  # 读到识别文件原始数据
-#         # Trace.log(f"{rec_result=}")
-#         if rec_status == 2:
-#             rec_result = Recognize.getRecResults()
-#             Trace.log(f"{rec_result=}")
-#             Recognize.resetRec()
-#             Trace.log(f"rec_result={rec_result}")
-#             rec_x = rec_result['recoList'][0]['x']
-#             rec_y = rec_result['recoList'][0]['y']
-#             rec_yaw = rec_result['recoList'][0]['yaw']
-#             rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
-#             rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
-#             Trace.log(f"{rec_x_y_yaw=}")
-#             j.rec_result = rec_x_y_yaw
-#             self.action_status = ActionStatus.FINISHED
-#         elif rec_status in (3, -1):
-#             if Timer.delay(0.05):
-#                 self.attempts += 1
-#
-#                 if self.attempts > self.max_attempts:
-#                     self.action_status = ActionStatus.FAILED
-#                     Abnormal.setTask(53781,
-#                                      "Recognition failed, the maximum number of retries exceeded",
-#                                      "The recognition distance may be too close or too far, or the sensor used for recognition may be faulty",
-#                                      "Check whether the recognition distance is too close or too far and whether the sensor used for recognition is normal.",
-#                                      "Recognize the shelf")
-#                 else:
-#                     Recognize.resetRec()
-#                     self.do_rec = False
-#         elif rec_status == 0:
-#             self.do_rec = True
-#             Recognize.doRec(self.recfile, json.dumps(self.recognitionRegion), "A")
-#         j.report_info["RecShelf"] = {
-#             "actionStatus": self.action_status,
-#             "recResult": j.rec_result,
-#             "recFile": self.recfile,
-#             "recStatus": rec_status,
-#             "recTimes": self.attempts
-#         }
-#         Module.reportInfo(j.report_info)
-
 class RecShelf(BaseAction):
     """识别货架"""
 
@@ -2531,16 +2457,12 @@ class RecShelf(BaseAction):
         self.max_attempts = 10
         self.do_rec = False
         Recognize.resetRec()
-        # todo
+
         self.recognitionRegion = {
-            "points": [{"x": 0.5, "y": -1.74}, {"x": 2.86, "y": -1.74}, {"x": 2.86, "y": 1.59},
-                       {"x": 0.5, "y": 1.59}], "shape": "rectangle"}
-        # [{"points": [{"x": 0.02, "y": -1.86}, {"x": 3.3, "y": -1.86}, {"x": 3.3, "y": 1.71}, {"x": 0.02, "y": 1.71}],
-        #   "shape": "rectangle"}]
-        # recognitionRegion = {"points": [{"x": -0.78, "y": -0.645}, {"x": 2.59, "y": -0.645}, {"x": 2.59, "y": 0.645},
-        #              {"x": -0.78, "y": 0.645}], "shape": "rectangle"}
-        # recognitionRegion = json.dumps(recognitionRegion)
-        # Recognize.doRec(self.recfile, recognitionRegion, "A")
+            "points": [{"x": -2.56, "y": -1.035}, {"x": -0.63, "y": -1.035}, {"x": -0.63, "y": 1.035},
+                       {"x": -2.56, "y": 1.035}], "shape": "rectangle"}
+
+
         self.report_info = {}
 
     def run(self, j: Jack):
@@ -2548,8 +2470,6 @@ class RecShelf(BaseAction):
         Trace.log("recognizing the shelf")
         rec_status = Recognize.getRecStatus()
         Trace.log(f"{rec_status=}")
-        # rec_result = Recognize.getRecFile(self.recfile)  # 读到识别文件原始数据
-        # Trace.log(f"{rec_result=}")
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
             Trace.log(f"{rec_result=}")
