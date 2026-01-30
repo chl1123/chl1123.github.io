@@ -5,21 +5,21 @@ class ChargerInterface(ABC, Service):
     """充电桩类"""
 
     @classmethod
-    def connectCharger(cls, recFile: str, flag: bool):
+    def connectCharger(cls, name: str, flag: bool):
         """与充电桩建立通信连接
 
         Args:
-            recFile: 充电桩识别文件名称
+            name: 充电桩名称
             flag: 是否此次连接用于查询
         """
         pass
 
     @classmethod
-    def disconnectCharger(cls, recFile: str) -> bool:
+    def disconnectCharger(cls, name: str) -> bool:
         """与充电桩断开通信连接
 
         Args:
-            recFile: 充电桩识别文件名称
+            name: 充电桩名称
 
         Returns:
             (bool):
@@ -29,11 +29,11 @@ class ChargerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def getChargeStatus(cls, recFile: str) -> int:
+    def getChargeStatus(cls, name: str) -> int:
         """获取机器人充电状态
 
         Args:
-            recFile: 充电桩识别文件名称
+            name: 充电桩名称
 
         Returns:
             (int): 充电桩状态
@@ -42,11 +42,11 @@ class ChargerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setChargerOn(cls, recFile: str):
+    def setChargerOn(cls, name: str):
         """开始充电
 
         Args:
-            recFile: 充电桩识别文件名称
+            name: 充电桩名称
 
         Notice:
             调用前需判断充电状态是 0 或 -1
@@ -54,11 +54,11 @@ class ChargerInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setChargerOff(cls, recFile: str):
+    def setChargerOff(cls, name: str):
         """取消充电
 
         Args:
-            recFile: 充电桩识别文件名称
+            name: 充电桩名称
 
         Notice:
             调用前需判断充电状态是 0 或 -1
