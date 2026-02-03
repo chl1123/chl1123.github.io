@@ -474,15 +474,15 @@ class Rotate(BaseAction):
                     return self.action_status
 
             if self.shelf_angle is not None:
-                self.sparams["angle"] = self.shelf_angle
+                self.sparams["angle"] = self.shelf_angl
                 self.sparams["dir"] = self.shelf_direction
-                if self.shelf_direction == RotateDirection.NEARBY:
-                    self.action_status = ActionStatus.FAILED
-                    Abnormal.setTask(53780, "不支持不指定方向旋转托盘",
-                                     "Auto direction not supported for shelf rotation",
-                                     "Set explicit rotation direction",
-                                     "Parameter validation")
-                    return self.action_status
+                # if self.shelf_direction == RotateDirection.NEARBY:
+                #     self.action_status = ActionStatus.FAILED
+                #     Abnormal.setTask(53780, "不支持不指定方向旋转托盘",
+                #                      "Auto direction not supported for shelf rotation",
+                #                      "Set explicit rotation direction",
+                #                      "Parameter validation")
+                #     return self.action_status
 
             if self.shelf_angle is None and self.robot_rotate_angle is None:
                 self.action_status = ActionStatus.FAILED
