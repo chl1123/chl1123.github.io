@@ -11,35 +11,35 @@ log = Logger("led")
 Model Params
 '''
 robot_param = {}
-def load_robot_device_params():
-    """加载机器人设备参数"""
+def load_robot_config_params():
+    """加载机器人配置参数"""
     global robot_param
     robot_param.update(
         {
-            "errorPercentage": RobotParam.getDevice("Battery-000", "basic.errorPercentage"),
-            "automaticShutdown": RobotParam.getDevice("Battery-000", "basic.automaticShutdown")
+            "errorPercentage": RobotParam.getConfig("power", "lowBatteryManage.errorPercentage"),
+            "automaticShutdown": RobotParam.getConfig("power", "lowBatteryManage.automaticShutdown"),
         }
     )
+    
     if robot_param['automaticShutdown'] == 'ON':
         robot_param.update(
             {
-                "shutdownPercentage": RobotParam.getDevice("Battery-000", "basic.automaticShutdown.ON.shutdownPercentage"),
+                "shutdownPercentage": RobotParam.getDevice("power", "lowBatteryManage.automaticShutdown.on.shutdownPercentage"),
             }
         )
-
-
-def _robot_device_change_callback(device_change_set: List[str]):
-    """机器人设备参数改变回调"""
+    
+def _robot_config_change_callback(diff_map: Dict[str, Any]):
+    """机器人配置参数变化回调"""
     global robot_param
-    """设备参数变化回调"""
-    for device in device_change_set:
-        if device == "Battery":
-            load_robot_device_params()
+    for key, value in diff_map.items():
+        if key == "lowBatteryManage.errorPercentage":
+            robot_param["errorPercentage"] = value
+        elif key == "lowBatteryManage.automaticShutdown":
+            robot_param["automaticShutdown"] = value
+        elif key == "lowBatteryManage.automaticShutdown.on.shutdownPercentage":
+            robot_param["shutdownPercentage"] = value
 
-
-load_robot_device_params()
-
-
+load_robot_config_params()
 class demo_dmx512(dmx.dmx512Base):
 
     def __init__(self):
@@ -187,6 +187,6 @@ class demo_dmx512(dmx.dmx512Base):
 
 if __name__ == '__main__':
     Module.init()
-    RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
+    RobotParam.setDeviceChangeCallBack(load_robot_config_params)
     client = demo_dmx512()
     client.run()
