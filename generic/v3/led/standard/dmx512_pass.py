@@ -27,6 +27,7 @@ def load_robot_config_params():
                 "shutdownPercentage": RobotParam.getDevice("power", "lowBatteryManage.automaticShutdown.on.shutdownPercentage"),
             }
         )
+    log.info(f"Loaded robot config params: {robot_param}")
     
 def _robot_config_change_callback(diff_map: Dict[str, Any]):
     """机器人配置参数变化回调"""
@@ -38,6 +39,7 @@ def _robot_config_change_callback(diff_map: Dict[str, Any]):
             robot_param["automaticShutdown"] = value
         elif key == "lowBatteryManage.automaticShutdown.on.shutdownPercentage":
             robot_param["shutdownPercentage"] = value
+    log.info(f"Updated robot config params: {robot_param}")
 
 load_robot_config_params()
 class demo_dmx512(dmx.dmx512Base):
@@ -187,6 +189,6 @@ class demo_dmx512(dmx.dmx512Base):
 
 if __name__ == '__main__':
     Module.init()
-    RobotParam.setDeviceChangeCallBack(load_robot_config_params)
+    RobotParam.setConfigChangeCallBack(load_robot_config_params)
     client = demo_dmx512()
     client.run()

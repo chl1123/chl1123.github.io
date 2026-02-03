@@ -215,6 +215,7 @@ def load_robot_config_params():
                 "shutdownPercentage": RobotParam.getDevice("power", "lowBatteryManage.automaticShutdown.on.shutdownPercentage"),
             }
         )
+    log.info(f"Loaded robot config params: {robot_param}")
     
 def _robot_config_change_callback(diff_map: Dict[str, Any]):
     """机器人配置参数变化回调"""
@@ -226,6 +227,7 @@ def _robot_config_change_callback(diff_map: Dict[str, Any]):
             robot_param["automaticShutdown"] = value
         elif key == "lowBatteryManage.automaticShutdown.on.shutdownPercentage":
             robot_param["shutdownPercentage"] = value
+    log.info(f"Updated robot config params: {robot_param}")
 
 load_robot_config_params()
 
@@ -409,6 +411,6 @@ if __name__ == "__main__":
     ScriptParam.setConfigChangeCallBack(script_config_changed)
     signal.signal(signal.SIGINT, signal_handler)
     Module.init()
-    RobotParam.setDeviceChangeCallBack(load_robot_config_params)
+    RobotParam.setConfigChangeCallBack(load_robot_config_params)
     tape_light = LedChassis()
     tape_light.run()
