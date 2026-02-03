@@ -474,7 +474,7 @@ class Rotate(BaseAction):
                     return self.action_status
 
             if self.shelf_angle is not None:
-                self.sparams["angle"] = self.shelf_angl
+                self.sparams["angle"] = self.shelf_angle
                 self.sparams["dir"] = self.shelf_direction
                 # if self.shelf_direction == RotateDirection.NEARBY:
                 #     self.action_status = ActionStatus.FAILED
