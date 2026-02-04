@@ -426,7 +426,7 @@ class ConfigParams:
                             with builder.CHILD(key="minAheadDist", name="Min Ahead Dist",
                                                desc="识别取货的最小直线距离"):
                                 builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(ConfigParams.tail + 0.1, min_value=0, max_value=2)
+                                builder.DEFAULTVALUE(ConfigParams.tail + 0.1, min_value=-2, max_value=2)
                                 builder.UNIT("m")
                     with builder.CHILD(key="noRecLoad", name="Load By Landmark",
                                        desc="根据站点位置取货"):
@@ -1480,30 +1480,32 @@ class Fork(ModuleBase):
                     and current_action.action_status == ActionStatus.FINISHED):
 
                 results = current_action.results_list
-                # 处理识别结果时，既需要考虑z方向的，又需要考虑x轴 和 y 轴的。默认取 z 离 startHeight 上下 10cm的结果先过滤一次，搬运车不处理
-                if ConfigParams.module_type != "liftFork":
-                    filter_results_by_z = [result for result in results if abs(result["z"] - self.start_height) <= 0.1]
-                    results = filter_results_by_z
                 self.pallet_width = results[0]["palletWidth"]
+                rec_result = results[0]
                 self.obstacle_polygon_by_rec = current_action.obstacle_polygon
+
                 Trace.log(f"{self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}")
-                # 拿到 y 最小的值
-                results_in_r = []
-                if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
-                    Trace.log("rec world")
-                    for result in results:
-                        results_in_r.append(pos2Base([result["x"], result["y"], result["yaw"]],
-                                                     r_loc))
-                else:
-                    for result in results:
-                        results_in_r.append([result["x"], result["y"], result["yaw"]])
+                # # 拿到 y 最小的值
+                # results_in_r = []
+                # if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
+                #     Trace.log("rec world")
+                #     for result in results:
+                #         results_in_r.append(pos2Base([result["x"], result["y"], result["yaw"]],
+                #                                      r_loc))
+                # else:
+                #     for result in results:
+                #         results_in_r.append([result["x"], result["y"], result["yaw"]])
 
                 # 相对于机器人取 y 最小的
-                min_y_result = min(results_in_r, key=lambda result_in_r: abs(result_in_r[1]))
+                # min_y_result = min(results_in_r, key=lambda result_in_r: abs(result_in_r[1]))
 
-                rec_result2r = min_y_result
-
-                rec_world_pos = pos2World(rec_result2r, r_loc)
+                # 适配世界坐标和机器人坐标系
+                if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
+                    Trace.log("rec world")
+                    rec_result2r = pos2Base([rec_result["x"], rec_result["y"], rec_result["yaw"]], r_loc)
+                    rec_world_pos = [rec_result["x"], rec_result["y"], rec_result["yaw"]]
+                else:
+                    rec_world_pos = pos2World([rec_result["x"], rec_result["y"], rec_result["yaw"]], r_loc)
                 Trace.log(f"rec_world_pos: {rec_world_pos}")
 
                 if ConfigParams.enableTcp:
@@ -1986,7 +1988,7 @@ class Rec(BaseAction):
             else:
                 self.results_list = sorted(results_list, key=lambda item: item['z'])
                 self.result = self.results_list[0]
-            Trace.log(f"rec_results: {self.result}")
+            Trace.log(f"rec_result_list: {self.results_list}")
 
             self.action_status = ActionStatus.FINISHED
 
@@ -1998,7 +2000,7 @@ class Rec(BaseAction):
         rec_status = Recognize.getRecStatus()
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
-            Trace.log(f"rec_result:{rec_result}")
+            Trace.log(f"raw results:{rec_result}")
             return True, rec_status, rec_result
         elif rec_status in (-1, 3):
             if Timer.delay(0.05):
@@ -2343,7 +2345,7 @@ class LocDetectGoods(BaseAction):
 class RunMotorByPosition(BaseAction):
     """功能说明：控制线性电机运动，发送电机运行终点高度，触发stop_di时终止运动"""
 
-    def __init__(self, motor_name, position, max_speed=0.1, stop_di=""):
+    def __init__(self, motor_name, position, max_speed=ConfigParams.fork_max_speed, stop_di=""):
         """
         Args:
             motor_name(string): 电机名
@@ -2381,8 +2383,8 @@ class RunMotorByPosition(BaseAction):
             self.init = True
 
             # 目标位置比初始位置差得不大就不要执行动作了
-            if abs(self.position - cur_fork_height) <= 0.01 and ConfigParams.module_type in ["straddleLiftFork",
-                                                                                             "counterBalanceFork"]:
+            if (abs(self.position - cur_fork_height) <= max(ConfigParams.reach_up_dist,ConfigParams.reach_down_dist)
+                    and ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]):
                 self.action_status = ActionStatus.FINISHED
                 return
 
@@ -2482,6 +2484,12 @@ class RunMotorByPosition(BaseAction):
         self.positions.clear()
         self.init = False
 
+    def cancel(self):
+        Motor.resetMotor(self.motor_name)
+        self.fork_timestamps.clear()
+        self.positions.clear()
+        self.init = False
+        self.action_status = ActionStatus.FAILED
 
 class RunMotorBySpeed(BaseAction):
     def __init__(self, motor_name, max_speed, stop_di=""):
