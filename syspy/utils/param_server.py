@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Generator, Union, Tuple, Callable
 PY_SUFFIX = ".py"
 CONFIG_SUFFIX = "_config.json"
 INPUT_SUFFIX = "_input.json"
-TASK_SUFFIX = "_action.json"
+ACTION_SUFFIX = "_action.json"
 prefix_dir = ""
 script_dir = ""
 
@@ -136,13 +136,13 @@ class ScriptParam:
                 _get_prefix_dir(script_file)
                 self.config_file = prefix_dir + CONFIG_SUFFIX
                 self.input_file = prefix_dir + INPUT_SUFFIX
-                self.task_file = prefix_dir + TASK_SUFFIX
+                self.action_file = prefix_dir + ACTION_SUFFIX
             else:
                 self.config_file = None
                 self.input_file = None
-                self.task_file = None
+                self.action_file = None
             self.config_full_params = {}
-            self._tasks = []
+            self._actions = []
             self.__config_validator = None
             ScriptParam._initialized = True
 
@@ -235,17 +235,17 @@ class ScriptParam:
                 ScriptParam.config_change_callback()
             ScriptParam.event_task_config = False
 
-    def addAction(self, task_name: str = None,
+    def addAction(self, action_name: str,
                 policy: Dict[str, Any] = None,
                 args: Dict[str, Any] = None,
                 config: Dict[str, Any] = None) -> Dict[str, Any]:
         """添加动作
 
         Args:
-            task_name (str): 动作名称，如 "forkLoad", "forkUnLoad"
-            policy (Dict[str, Any], optional): 策略配置
-            args (Dict[str, Any], optional): 脚本参数
-            config (Dict[str, Any], optional): 脚本配置
+            action_name (str): 动作名称，如 "forkLoad", "forkUnLoad"
+            policy (Dict[str, Any]): 策略配置
+            args (Dict[str, Any]): 脚本任务参数
+            config (Dict[str, Any]): 脚本配置参数
 
         Returns:
             Dict[str, Any]: 动作示例数据结构
@@ -256,7 +256,7 @@ class ScriptParam:
         param_loader = ScriptParam(__file__)
         # 添加 "load" 动作
         param_loader.addAction(
-            task_name="load",
+            action_name="load",
             policy={"goodsDir": 90},
             args={
                 "operation": "load",
@@ -266,7 +266,7 @@ class ScriptParam:
         )
         ```
         """
-        task_value = {
+        action_value = {
             "policy": policy or {},
             "script": {
                 "name": script_dir,
@@ -275,13 +275,13 @@ class ScriptParam:
             }
         }
 
-        task = {
-            "name": task_name,
-            "value": task_value
+        action = {
+            "name": action_name,
+            "value": action_value
         }
-        self._tasks.append(task)
+        self._actions.append(action)
 
-        return task
+        return action
 
 
     def saveAction(self) -> None:
@@ -295,16 +295,18 @@ class ScriptParam:
         ...
         # 保存动作到文件
         param_loader.saveAction()
+        Notice:
+            调用前需要先调用 addAction() 方法添加动作
         ```
         """
         tasks_file_data = {}
-        if os.path.exists(self.task_file) and os.path.getsize(self.task_file):
-            with open(self.task_file, 'r', encoding='utf-8') as f:
+        if os.path.exists(self.action_file) and os.path.getsize(self.action_file):
+            with open(self.action_file, 'r', encoding='utf-8') as f:
                 tasks_file_data = json.load(f)
 
-        tasks_file_data["standard"] = self._tasks
+        tasks_file_data["standard"] = self._actions
 
-        with open(self.task_file, 'w', encoding='utf-8') as f:
+        with open(self.action_file, 'w', encoding='utf-8') as f:
             json.dump(tasks_file_data, f, indent=4, ensure_ascii=False)
 
 

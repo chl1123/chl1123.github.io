@@ -237,7 +237,7 @@ class InputParams:
 
 # 添加 "load" 任务
 param_loader.addAction(
-    task_name="load",
+    action_name="load",
     policy={"goodsDir": 90},
     args={
         "operation": "load",
@@ -248,7 +248,7 @@ param_loader.addAction(
 
 # 添加 "unload" 任务
 param_loader.addAction(
-    task_name="unload",
+    action_name="unload",
     policy={"navigation.basic.unload.maxSpeed": 1.0},
     args={
         "operation": "unload",
