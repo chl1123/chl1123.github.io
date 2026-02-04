@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# @Date: 2025/11/13
+# @Date: 2026/2/4
 # @Author: zhaopengfei
-# @Version: v1.0
+# @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: 根据api改动修改脚本
+# @Update: fix：safeMovecheck后重置状态
 # @RBK Version: V3.5+
 import enum
 import uuid
 
-SCRIPT_VERSION = "20251113"
+SCRIPT_VERSION = "20260204"
 import json
 import math
 import random
@@ -1236,6 +1236,7 @@ class ContainerRobot(ModuleBase):
             self.zero_step[3] = self.lift(zero_height)
         Trace.log(f"zero_step:{self.zero_step}")
         if all(self.zero_step):
+            self.zero_step = [False] * 4
             # r.release()
             return True
         return False
