@@ -5,13 +5,14 @@ from syspy.core.rbk_rpc import Service, RBKVersionError
 
 class RobotParamInterface(ABC, Service):
     @classmethod
-    def getConfig(cls, app_name: str, param_path: str, file_name="") -> Any:
+    def getConfig(cls, app_name: str, param_path: str, file_name="", default: Any=None) -> Any:
         """获取机器人配置参数
 
         Args:
             app_name (str): App名
             param_path (str): 参数路径
             file_name (str): 文件名。缺省则从默认文件中读取。当前只有识别有多个文件，可传入"xxx.srec"。
+            default (Any): 默认值。当参数不存在时返回此值。缺省为None。
 
         Returns:
             (Any): 参数值
@@ -33,12 +34,13 @@ class RobotParamInterface(ABC, Service):
         return cls.getConfig(app_name, param_path+"._(size", file_name)
 
     @classmethod
-    def getDevice(cls, device_key: str, param_path: str) -> Any:
+    def getDevice(cls, device_key: str, param_path: str, default: Any=None) -> Any:
         """获取机器人设备模型参数(devices/robot.model)
 
         Args:
             device_key (str): 设备的key
             param_path (str): 参数路径
+            default (Any): 默认值。当参数不存在时返回此值。缺省为None。
 
         Returns:
             (Any): 参数值
@@ -183,7 +185,7 @@ if __name__ == '__main__':
     goodsHeight = RobotParam.getConfig("recognition", "recognitionObject.shelf.goodsParameter.goodsHeight", "default(1).srec")
     print(f"default(1).srec {goodsHeight=}")
 
-    stopConfidenceThd = RobotParam.getConfig("localization", "localizationType.2D.stopConfidenceThd")
+    stopConfidenceThd = RobotParam.getConfig("localization", "localizationType.2D.stopConfidenceThd", default=0)
     print(f"{stopConfidenceThd=}")
 
     # config clone
