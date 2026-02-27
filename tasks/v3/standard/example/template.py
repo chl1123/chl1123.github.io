@@ -252,7 +252,7 @@ class ModuleXXX(ModuleBase):
 
     def cancel(self):
         """取消任务方法（必须）：导航取消时如果脚本任务状态为RUNNING或SUSPENDED会调用该方法"""
-        self.status = ScriptStatus.NONE
+        self.status = ScriptStatus.FAILED
         Trace.log("cancel")
 
     def safeMoveCheck(self):
