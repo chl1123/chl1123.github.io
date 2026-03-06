@@ -18,6 +18,12 @@ class GoBezierWorld:
                  is_backwards=False, is_hold_dir=None,
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3,
                  path_dist_accuracy=0.005, path_angle_accuracy=0.5, alpha=0.25):
+        self.y_end = None
+        self.x_end = None
+        self.p1 = None
+        self.py = None
+        self.px = None
+        self.p0 = None
         del target_world[3:]
         self.action_name = self.__class__.__name__
 
@@ -61,8 +67,11 @@ class GoBezierWorld:
         self.bezier_end_y = None
         self.offset_dist = 0.0
         self.k_max = 0  # 定义曲率
+        self.alpha = alpha
 
         Navigation.resetPath()
+
+    def get_path(self):
 
         # 获取机器人位置（world系）
         self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
@@ -88,7 +97,7 @@ class GoBezierWorld:
             P3 = self.target_world
 
             # 三阶贝塞尔控制点
-            p0_xy, p1_xy, p2_xy, p3_xy = self.compute_bezier_controls_dir(P0, P3, alpha)
+            p0_xy, p1_xy, p2_xy, p3_xy = self.compute_bezier_controls_dir(P0, P3, self.alpha)
 
             self.px = [p0_xy[0], p1_xy[0], p2_xy[0], p3_xy[0]]
             self.py = [p0_xy[1], p1_xy[1], p2_xy[1], p3_xy[1]]
@@ -415,6 +424,8 @@ class GoBezierWorld:
     def run(self):
         self.action_status = ScriptStatus.RUNNING
         if self.init:
+            self.get_path()
+
             self.init = False
             # 规划第一段倒退路线参数
             Navigation.resetPath()
