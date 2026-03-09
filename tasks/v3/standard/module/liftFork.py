@@ -1408,7 +1408,8 @@ class Fork(ModuleBase):
             self.operation_init = True
             r_loc = get_r_loc()
             self.start_loc = r_loc
-
+            if (self.recognize and self.check_di) or (not self.recognize and ConfigParams.enableContactDiNoRec):
+                ConfigParams.checkGoodsWhileLoad = False
             # 解析识别文件
             if self.recfile:
                 # 处理扣除区域
@@ -1525,16 +1526,15 @@ class Fork(ModuleBase):
 
                 self.action_list.append(Rec(self.recfile, target2robot, "RecPallet"))
 
-                if self.rec_height >=0:
+                if self.rec_height >= 0:
                     self.action_list.append(
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.rec_height)
                     )
 
             Trace.log(f"task:{self.action_list}", True, True)
 
-        # 如果有识别，识别结束后动态加调整的类
         if self.action_id < len(self.action_list):
-
+            # 如果有识别，识别结束后动态加调整的类
             if (isinstance(self.action_list[self.action_id], Rec)
                     and self.action_list[self.action_id].action_name == "RecPallet"
                     and self.action_list[self.action_id].action_status == ActionStatus.FINISHED
@@ -1579,7 +1579,7 @@ class Fork(ModuleBase):
                                                                "defaultTCP")
                     rec_world_pos_tcp_list = [rec_world_pos_tcp["x"], rec_world_pos_tcp["y"],
                                               rec_world_pos_tcp["theta"]]
-                    Trace.log(f"after tcp:{rec_world_pos_tcp_list}",True,True)
+                    Trace.log(f"after tcp:{rec_world_pos_tcp_list}", True, True)
                     rec_world_pos = rec_world_pos_tcp_list
 
                 # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
@@ -1587,7 +1587,8 @@ class Fork(ModuleBase):
                     rec2ap_pos = pos2Base(rec_world_pos, self.target_pos)
                     angle = math.degrees(rec2ap_pos[2])
                     Trace.log(
-                        f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}",True,True)
+                        f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}",
+                        True, True)
                     y = rec2ap_pos[1]
                     if abs(angle) > ConfigParams.errorRecAngle != -1:
                         Abnormal.setTask(53303, f"rec result yaw angle too large:{angle}°", "", "", "")
@@ -1617,7 +1618,7 @@ class Fork(ModuleBase):
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, ConfigParams.fork_max_speed,
                                        "upFork")
                 ])
-                Trace.log(f"task after rec:{self.action_list}",True,True)
+                Trace.log(f"task after rec:{self.action_list}", True, True)
 
                 if self.leave_loc_height >= 0:
                     args = {
@@ -1649,7 +1650,7 @@ class Fork(ModuleBase):
 
                     Trace.log(f"task after leave loc:{self.action_list}", True, True)
 
-            # 离库位前，且取完货后抬升货叉就加载货物模型
+            # 取完货后离库位前，抬升货叉就加载货物模型
             if (isinstance(self.action_list[self.action_id], RunMotorByPosition)
                     and self.action_list[self.action_id].action_name == "upFork"
                     and self.action_list[self.action_id].action_status == ActionStatus.FINISHED):
@@ -1667,7 +1668,8 @@ class Fork(ModuleBase):
                     # 设置扣除区域
                     if self.pallet_deduct_infos:
                         set_deduct_area(self.pallet_deduct_infos,
-                                        [ConfigParams.module_x - self.carrier_length / 2, 0, 0], "PalletRobotDeductArea",
+                                        [ConfigParams.module_x - self.carrier_length / 2, 0, 0],
+                                        "PalletRobotDeductArea",
                                         Coordinate.ROBOT)
                 # 没有识别文件
                 else:
@@ -1789,7 +1791,9 @@ class Fork(ModuleBase):
                         'backMode': 0,
                         'maxRot': 10,
                         'maxSpeed': 0.2,
-                        'useOdo': 0
+                        'useOdo': 0,
+                        "reachAngle":math.radians(0.5),
+                        "reachDist":0.005
                     }
                     if not ConfigParams.useStraightLine and ConfigParams.bezierReturn:
                         self.action_list.extend([
@@ -2020,7 +2024,7 @@ class Fork(ModuleBase):
                     # Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
 
         # 处理载货时di状态监控
-        if ConfigParams.checkGoodsWhileLoad and ((self.recognize and self.check_di) or (not self.recognize and ConfigParams.enableContactDiNoRec)):
+        if ConfigParams.checkGoodsWhileLoad:
             # print(f"checkGoodsWhileLoad:{ConfigParams.checkGoodsWhileLoad}")
 
             # 获取到位 di 的状态
