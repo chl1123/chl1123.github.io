@@ -1554,7 +1554,7 @@ class ContainerRobot(ModuleBase):
             if self.self_position:
                 if Container.hasGoods(self.self_position):
                     Abnormal.setTask(53715,
-                                     f"第{self.self_position + 1}层({self.self_position}号)背篓已有货物，无法继续取货！请核对任务数据和背篓数据！",
+                                     f"第{int(self.self_position) + 1}层({self.self_position}号)背篓已有货物，无法继续取货！请核对任务数据和背篓数据！",
                                      "",
                                      "", "")
                     self.status = ScriptStatus.FAILED
@@ -1884,12 +1884,12 @@ class ContainerRobot(ModuleBase):
             if self.self_position:
                 if Container.getGoodsByContainer(self.self_position) != self.goods_id:
                     Abnormal.setTask(53721,
-                                     f"{self.self_position + 1}层({self.self_position}号)背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！",
+                                     f"{int(self.self_position) + 1}层({self.self_position}号)背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！",
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
                 if not Container.hasGoods(self.self_position):
                     Abnormal.setTask(53722,
-                                     f"{self.self_position + 1}层({self.self_position}号)背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
+                                     f"{int(self.self_position) + 1}层({self.self_position}号)背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！",
                                      "", "", "")
                     self.status = ScriptStatus.FAILED
                 if self.self_position != "999" and Container.hasGoods("999"):
@@ -2112,7 +2112,7 @@ class ContainerRobot(ModuleBase):
         if self.self_position:
             if not Container.hasGoods(self.self_position):
                 Abnormal.setTask(53731,
-                                 f"第{self.self_position + 1}层({self.self_position}号)背篓是空的，无法执行内部取货动作！",
+                                 f"第{int(self.self_position) + 1}层({self.self_position}号)背篓是空的，无法执行内部取货动作！",
                                  "", "", "")
                 self.status = ScriptStatus.FAILED
             self.cur_c = self.self_position
