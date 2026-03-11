@@ -224,3 +224,47 @@ class MotorV4(MotorInterface):
             m (str):
         """
         pass
+        
+    @classmethod
+    @call_service(plugin_name="DSPChassis") # todo RBK4
+    def clearMotorEncoder(cls, key: str):
+        """
+
+        Args:
+            key (str): 电机设备的key
+        """
+        pass
+    
+    @classmethod
+    @call_service(plugin_name="DSPChassis") # todo RBK4
+    def clearMotorFault(cls, key: str):
+        """
+
+        Args:
+            key (str): 电机设备的key
+        """
+        pass
+    
+    @classmethod
+    @call_service(plugin_name="DSPChassis") # todo RBK4
+    def setMotorSpeed(cls, canId:int, type: str, speed: float):
+        """
+
+        Args:
+            canId    (int): CAN ID
+            type (str): 电机类型 walk,steer
+            speed (float): 速度
+        """
+        pass
+    
+    @classmethod
+    @call_service(plugin_name="DSPChassis") # todo RBK4
+    def setMotorPosition(cls, canId:int, type: str, position: float):
+        """
+
+        Args:
+            canId    (int): CAN ID
+            type (str): 电机类型 walk,steer
+            position (float): 位置
+        """
+        pass

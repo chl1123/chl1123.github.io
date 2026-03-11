@@ -214,3 +214,47 @@ class MotorV3(MotorInterface):
             key (str): 电机设备的key
         """
         pass
+    
+    @classmethod
+    @call_service(plugin_name="DSPChassis")
+    def clearMotorEncoder(cls, key: str):
+        """
+
+        Args:
+            key (str): 电机设备的key
+        """
+        pass
+    
+    @classmethod
+    @call_service(plugin_name="DSPChassis")
+    def clearMotorFault(cls, key: str):
+        """
+
+        Args:
+            key (str): 电机设备的key
+        """
+        pass
+    
+    @classmethod
+    @call_service(plugin_name="DSPChassis")
+    def setMotorSpeed(cls, canId:int, type: str, speed: float):
+        """
+
+        Args:
+            canId    (int): CAN ID
+            type (str): 电机类型 walk,steer
+            speed (float): 速度
+        """
+        pass
+    
+    @classmethod
+    @call_service(plugin_name="DSPChassis")
+    def setMotorPosition(cls, canId:int, type: str, position: float):
+        """
+
+        Args:
+            canId    (int): CAN ID
+            type (str): 电机类型 walk,steer
+            position (float): 位置
+        """
+        pass

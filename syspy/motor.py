@@ -194,6 +194,46 @@ class MotorInterface(ABC, Message):
             key (str): 电机设备的key
         """
         raise RBKVersionError()
+    
+    @classmethod
+    def clearMotorEncoder(cls, key: str):
+        """
+
+        Args:
+            key (str): 电机设备的key
+        """
+        raise RBKVersionError()
+    
+    @classmethod
+    def clearMotorFault(cls, key: str):
+        """
+
+        Args:
+            key (str): 电机设备的key
+        """
+        raise RBKVersionError()
+    
+    @classmethod
+    def setMotorSpeed(cls, canId:int, type: str, speed: float):
+        """
+
+        Args:
+            canId (int): CAN ID
+            type (str): 电机类型 walk,steer
+            speed (float): 速度
+        """
+        raise RBKVersionError()
+    
+    @classmethod
+    def setMotorPosition(cls, canId:int, type: str, position: float):
+        """
+
+        Args:
+            canId (int): CAN ID
+            type (str): 电机类型 walk,steer
+            position (float): 位置
+        """
+        raise RBKVersionError()
 
 
 from syspy import RBK_VERSION
