@@ -33,7 +33,6 @@ class ConfigParams:
                     with builder.CHILD(key="param11", name="Param11 name",
                                        desc="param11 desc"):
                         builder.TYPE(ParamType.STRING)
-                        builder.REQUIRED(True)
 
                     # 参数12
                     with builder.CHILD(key="param12", name="Param12 name",

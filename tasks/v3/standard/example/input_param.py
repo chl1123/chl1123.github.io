@@ -233,9 +233,9 @@ def main():
     #     "use_pgv": True,
     #     "operation.JackSpin": 2,
     #     "operation.JackSpin.spin_angle": 4,
-    #     "operation.JackSpin.useExternIMU.OFF": 0,
+    #     "operation.JackSpin.useExternIMU": "OFF",
     #     "operation.JackSpin.useExternIMU.OFF.IMU": "0",
-    #     "operation.JackSpin.spin_type": "1"
+    #     "operation.JackSpin.spin_type": "a0"
     # }
 
     validator = ParamValidator(InputParams.builder.toDict())
@@ -251,7 +251,7 @@ def main():
 
     j = Jack(validated_params)
 
-    while not Module.stop_flag:
+    while True:
         # 脚本任务状态管理
         status = Module.getStatus()
         j.report_info["status"] = status

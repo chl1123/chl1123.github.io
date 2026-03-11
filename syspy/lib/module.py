@@ -7,7 +7,7 @@ from typing import Union, Optional, Callable, Tuple, Any
 from syspy.utils import ScriptType
 from ..core.rbk_rpc import Service
 from ..utils import SCRIPTS_DIR
-from syspy import RBK_VERSION, RobotParam, Container, Abnormal, ScriptParam
+from syspy import RBK_VERSION, Container, Abnormal, ScriptParam
 from inspect import stack
 
 
@@ -114,9 +114,7 @@ class Module:
     __safe_move_check_id = 0
     __safe_move_check_status = SafeMoveStatus.NONE
     __modbus_callback = None
-    __set_container_callback = None
-    __clear_container_by_goods_callback = None
-    __clear_container_callback = None
+    __bind_container_callback = None
     __unbind_container_callback = None
     __service = None
 
@@ -190,10 +188,6 @@ class Module:
 
     @classmethod
     def __register(cls):
-        # 如果是料箱车，初始化container
-        container_num = RobotParam.getDevice("Model-000", "moduleType.cartonTransferUnit.id")
-        is_container = isinstance(container_num, int) and container_num > 0
-
         Service.server().register_function(cls.__updateCmd, "update_cmd")
         Service.server().register_function(cls.__suspend, "suspend")
         Service.server().register_function(cls.__resume, "resume")
@@ -202,10 +196,8 @@ class Module:
         Service.server().register_function(cls.__safeMoveCheck, "safe_move_check")
         Service.server().register_function(cls.getSafeMoveCheck, "get_safe_move_check")
         Service.server().register_function(cls.__modbus, "modbus")
-        if is_container:
-            Service.server().register_function(cls.__setContainer, "setContainer")
-            Service.server().register_function(cls.__clearContainerByGoods, "clearContainerByGoods")
-            Service.server().register_function(cls.__clearContainer, "clearContainer")
+        Service.server().register_function(cls.__bindContainer, "bindContainer")
+        Service.server().register_function(cls.__unbindContainer, "unbindContainer")
 
     def __del__(self):
         if self.__rpc_client:
@@ -288,16 +280,12 @@ class Module:
         cls.__modbus_callback()
 
     @classmethod
-    def __setContainer(cls, container_id: str, goods_name: str, desc: str) -> bool:
-        return cls.__set_container_callback(container_id, goods_name, desc)
+    def __bindContainer(cls, container_id: str, goods_name: str, desc: str) -> bool:
+        return cls.__bind_container_callback(container_id, goods_name, desc)
 
     @classmethod
-    def __clearContainerByGoods(cls, goods_name: str) -> bool:
-        return cls.__clear_container_by_goods_callback(goods_name)
-
-    @classmethod
-    def __clearContainer(cls, container_id: str) -> bool:
-        return cls.__clear_container_callback(container_id)
+    def __unbindContainer(cls, container_id: str = "", goods_name: str = "") -> bool:
+        return cls.__unbind_container_callback(container_id, goods_name)
 
     @classmethod
     def setSafeMoveCheckCallback(cls, callback: Callable[[], None]):
@@ -308,16 +296,12 @@ class Module:
         cls.__modbus_callback = callback
 
     @classmethod
-    def setSetContainerCallback(cls, callback: Callable[[str, str, str], bool]):
-        cls.__set_container_callback = callback
+    def bindContainerCallback(cls, callback: Callable[[str, str, str], bool]):
+        cls.__bind_container_callback = callback
 
     @classmethod
-    def setClearContainerByGoodsCallback(cls, callback: Callable[[str], bool]):
-        cls.__clear_container_by_goods_callback = callback
-
-    @classmethod
-    def setClearContainerCallback(cls, callback: Callable[[str], bool]):
-        cls.__clear_container_callback = callback
+    def unbindContainerCallback(cls, callback: Callable[[str, str], bool]):
+        cls.__unbind_container_callback = callback
 
     @classmethod
     def setCancelCallback(cls, callback: Callable[[], None]):
@@ -465,9 +449,8 @@ class ModuleBase(ABC):
         Module.setCancelCallback(self.cancel)
         Module.setSafeMoveCheckCallback(self.__safeMoveCheck)
         Module.setModbusCallback(self.__modbus)
-        Module.setSetContainerCallback(self.setContainer)
-        Module.setClearContainerCallback(self.clearContainer)
-        Module.setClearContainerByGoodsCallback(self.clearContainerByGoods)
+        Module.bindContainerCallback(self.bindContainer)
+        Module.unbindContainerCallback(self.unbindContainer)
         self.event_safe_move_check = False
         self.event_modbus = False
 
@@ -501,36 +484,27 @@ class ModuleBase(ABC):
         """
         Module.setSafeMoveCheckStatus(status)
 
-    def setContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
-        """设置车子上库位或者背篓货物
+    def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
+        """绑定货物到容器
 
         Args:
-            container_id (str): 库位或者背篓id
+            container_id (str): 库位或者容器id
             goods_name (str): 货物名
-            desc (str): 描述
+            desc (str): 货物描述
 
         Returns:
-            (bool): 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者容器，则返回false
         """
-        return Container.setContainer(container_id, goods_name, desc)
+        return Container.bindContainer(container_id, goods_name, desc)
 
-    def clearContainerByGoods(self, goods_name: str) -> bool:
-        """清除车上特定库位或者背篓的状态
+    def unbindContainer(self, container_id: str = "", goods_name: str = "") -> bool:
+        """解绑容器和货物（通过容器ID或货物名解绑），所有容器都没有货物时清除货物形状
 
         Args:
-            goods_name (str): 货物名称，货物名称如果为All则全部清除
-        Returns:
-            (bool): 如果没有库位或者背篓，则返回false
-        """
-        return Container.clearContainerByGoods(goods_name)
-
-    def clearContainer(self, container_id: str) -> bool:
-        """清除车上特定库位或者背篓的状态
-
-        Args:
-            container_id (str): 库位或者背篓id，container_id如果为"All"则全部清除
+            container_id (str): 库位或者容器名称
+            goods_name (str): 货物名称
 
         Returns:
-            (bool): 如果没有库位或者背篓，则返回false
+            (bool): 如果没有库位或者容器，则返回false
         """
-        return Container.clearContainer(container_id)
+        return Container.unbindContainer(container_id, goods_name)
