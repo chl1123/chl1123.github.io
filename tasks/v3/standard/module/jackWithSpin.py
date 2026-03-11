@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/2/9
+# @Date : 2026/3/11
 # @Author : zengweibin & zhaopengfei
 # @Coding : none
-# @Update : 脚本配置&参数规范化提交第一版
+# @Update : feat：脚本适配最新载货接口
 
 import json
 import math
@@ -13,7 +13,7 @@ from syspy.utils.time import Timer
 from datetime import datetime
 
 from syspy import (Module, Logger, Motor, Navigation, Loc, Abnormal, Recognize,
-                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di,)
+                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
@@ -172,13 +172,19 @@ class ConfigParams:
     polyline_path_angle_accuracy = 0.05
 
     # PGV二次调整配置参数
+    # pgv_use_which = "useDownPgv"
+    # pgv_adjust_way = "pgvAdjust90"
+    # pgv_x_adjust = True
+    # pgv_x_angle_adjust = True
+    # pgv_adjust_dist = 0.2
+    # pgv_reach_dist = 0.02
+    # pgv_reach_angle = 0.02
     pgv_use_which = "useDownPgv"
     pgv_adjust_way = "pgvAdjust90"
-    pgv_x_adjust = True
-    pgv_x_angle_adjust = True
+    pgv_spin = True
     pgv_adjust_dist = 0.2
     pgv_reach_dist = 0.02
-    pgv_reach_angle = 0.02
+    pgv_reach_angle = 1.0
 
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
@@ -420,12 +426,17 @@ class ConfigParams:
                                 builder.TYPE(ParamType.STRING)
                             with builder.CHILD("pgvAdjust0", "0 Degrees", "Adjust at 0 degrees"):
                                 builder.TYPE(ParamType.STRING)
-                    with builder.CHILD(key="pgvXAdjust", name="X Direction Adjust",
-                                       desc="Enable secondary adjustment in X direction"):
-                        builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="pgvXAngleAdjust", name="X Angle Adjust",
-                                       desc="Adjust deviation along car direction and angle at target"):
+                    # with builder.CHILD(key="pgvXAdjust", name="X Direction Adjust",
+                    #                    desc="Enable secondary adjustment in X direction"):
+                    #     builder.TYPE(ParamType.BOOL)
+                    #     builder.DEFAULTVALUE(True)
+                    # with builder.CHILD(key="pgvXAngleAdjust", name="X Angle Adjust",
+                    #                    desc="Adjust deviation along car direction and angle at target"):
+                    #     builder.TYPE(ParamType.BOOL)
+                    #     builder.DEFAULTVALUE(True)
+
+                    with builder.CHILD(key="pgvSpin", name="Spin Hold During Adjust",
+                                       desc="Hold fork direction during PGV secondary adjustment (for spin vehicles)"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
                     with builder.CHILD(key="pgvAdjustDist", name="Adjust Distance",
@@ -438,11 +449,16 @@ class ConfigParams:
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.02)
                         builder.UNIT("m")
+                    # with builder.CHILD(key="pgvReachAngle", name="Reach Angle Accuracy",
+                    #                    desc="PGV secondary adjustment angle accuracy"):
+                    #     builder.TYPE(ParamType.FLOAT)
+                    #     builder.DEFAULTVALUE(0.02)
+                    #     builder.UNIT("rad")
                     with builder.CHILD(key="pgvReachAngle", name="Reach Angle Accuracy",
                                        desc="PGV secondary adjustment angle accuracy"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.02)
-                        builder.UNIT("rad")
+                        builder.DEFAULTVALUE(1.0)
+                        builder.UNIT("deg")
 
         builder.save(merge=True)
         cls.reload_config()
@@ -493,13 +509,20 @@ class ConfigParams:
         cls.polyline_path_angle_accuracy = cls.config.get("polylinePathAngleAccuracy", 0.05)
 
         # PGV配置
+        # cls.pgv_use_which = cls.config.get("pgvUseWhich", "useDownPgv")
+        # cls.pgv_adjust_way = cls.config.get("pgvAdjustWay", "pgvAdjust90")
+        # cls.pgv_x_adjust = cls.config.get("pgvXAdjust", True)
+        # cls.pgv_x_angle_adjust = cls.config.get("pgvXAngleAdjust", True)
+        # cls.pgv_adjust_dist = cls.config.get("pgvAdjustDist", 0.2)
+        # cls.pgv_reach_dist = cls.config.get("pgvReachDist", 0.02)
+        # cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 1.0)
+
         cls.pgv_use_which = cls.config.get("pgvUseWhich", "useDownPgv")
         cls.pgv_adjust_way = cls.config.get("pgvAdjustWay", "pgvAdjust90")
-        cls.pgv_x_adjust = cls.config.get("pgvXAdjust", True)
-        cls.pgv_x_angle_adjust = cls.config.get("pgvXAngleAdjust", True)
+        cls.pgv_spin = cls.config.get("pgvSpin", True)
         cls.pgv_adjust_dist = cls.config.get("pgvAdjustDist", 0.2)
         cls.pgv_reach_dist = cls.config.get("pgvReachDist", 0.02)
-        cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 0.02)
+        cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 1.0)
 
         debug_trace(f"Updated config: debug_mode={cls.debug_mode}")
 
@@ -671,7 +694,52 @@ class InputParams:
                     with builder.CHILD(key="goBezier", name="[Debug] goBezier",
                                        desc="go bezier line to target (debug only)"):
                         builder.TYPE(ParamType.ARRAY)
-
+                    with builder.CHILD(key="PGVSecondaryAdjust", name="PGV Secondary Adjust",
+                                       desc="Perform PGV secondary adjustment"):
+                        builder.TYPE(ParamType.ARRAY)
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="pgvUseWhich", name="Use Which PGV",
+                                               desc="Use up or down PGV"):
+                                builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                builder.DEFAULTVALUE(config_params.pgv_use_which)
+                                with builder.CHILDREN():
+                                    with builder.CHILD("useDownPgv", "Use Down PGV", "Use down-facing PGV"):
+                                        builder.TYPE(ParamType.STRING)
+                                    with builder.CHILD("useUpPgv", "Use Up PGV", "Use up-facing PGV"):
+                                        builder.TYPE(ParamType.STRING)
+                            with builder.CHILD(key="pgvAdjustWay", name="Adjust Way",
+                                               desc="PGV adjustment method (90/180/0 degrees)"):
+                                builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                builder.DEFAULTVALUE(config_params.pgv_adjust_way)
+                                with builder.CHILDREN():
+                                    with builder.CHILD("pgvAdjust90", "90 Degrees", "Adjust at 90 degrees"):
+                                        builder.TYPE(ParamType.STRING)
+                                    with builder.CHILD("pgvAdjust180", "180 Degrees", "Adjust at 180 degrees"):
+                                        builder.TYPE(ParamType.STRING)
+                                    with builder.CHILD("pgvAdjust0", "0 Degrees", "Adjust at 0 degrees"):
+                                        builder.TYPE(ParamType.STRING)
+                            with builder.CHILD(key="pgvSpin", name="Spin Hold During Adjust",
+                                               desc="Hold fork direction during PGV adjustment"):
+                                builder.TYPE(ParamType.BOOL)
+                                builder.DEFAULTVALUE(config_params.pgv_spin)
+                            with builder.CHILD(key="pgvAdjustDist", name="Adjust Distance",
+                                               desc="Maximum adjustment radius from QR code center"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(config_params.pgv_adjust_dist)
+                                builder.UNIT("m")
+                                builder.SINGLESTEP(0.01)
+                            with builder.CHILD(key="pgvReachDist", name="Reach Distance Accuracy",
+                                               desc="PGV secondary adjustment distance accuracy"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(config_params.pgv_reach_dist)
+                                builder.UNIT("m")
+                                builder.SINGLESTEP(0.001)
+                            with builder.CHILD(key="pgvReachAngle", name="Reach Angle Accuracy",
+                                               desc="PGV secondary adjustment angle accuracy"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(config_params.pgv_reach_angle)
+                                builder.UNIT("deg")
+                                builder.SINGLESTEP(0.1)
                     # [DEBUG] 托盘旋转
                     with builder.CHILD(key="spinTray", name="[Debug] spinTray", desc="Spin the tray (debug only)"):
                         builder.TYPE(ParamType.ARRAY)
@@ -877,6 +945,8 @@ class Jack(ModuleBase):
 
         self.cur_action_list = []
 
+        # 初始化容器（单容器，id=0）
+        Container.initContainer(0)
 
         # ========== 边走边动相关状态 ==========
         self.pre_action_mode = False  # 是否处于预动作模式（边走边动）
@@ -888,6 +958,31 @@ class Jack(ModuleBase):
         self.final_bin_task = None  # finalBinTask 参数
         self.final_loc = None  # finalLoc 参数
         self.result = None  # 边走边动结果参数
+
+    def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
+        """
+        重写 bindContainer：绑定容器并设置货物多边形形状。
+        """
+        # 1. 绑定容器
+        Container.bindContainer(container_id, goods_name, desc)
+
+        # 2. 从识别配置中读取货物多边形形状
+        recognition_goodsParameter_path = f"recognitionObject.shelf.goodsParameter"
+        goods_shape = RobotParam.getConfig(
+            "recognition",
+            f"{recognition_goodsParameter_path}.goodsShape",
+            self.recfile or "default.srec"
+        )
+        if not goods_shape:
+            Trace.log(f"[bindContainer] 未找到货物形状配置，recfile={self.recfile}")
+            return False
+
+        shapes = json.loads(goods_shape)
+        shape = shapes[0]["points"]
+        Navigation.setGoodsPolyShape(shape, goods_name)
+        Trace.log(f"[bindContainer] 绑定成功: container={container_id}, goods={goods_name}, "
+                  f"shape points={len(shape)}, recfile={self.recfile}")
+        return True
 
     def _init_args(self, args):
         self.task_args = args
@@ -953,14 +1048,25 @@ class Jack(ModuleBase):
         # ============================================
         # PGV二次调整参数：从脚本配置读取（现场实施后基本不变）
         # ============================================
+        # self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", None)
+        # self.use_which_pgv = config_params.pgv_use_which
+        # self.pgv_adjust_way = config_params.pgv_adjust_way
+        # self.pgv_x_adjust = config_params.pgv_x_adjust
+        # self.pgv_x_angle_adjust = config_params.pgv_x_angle_adjust
+        # self.pgv_adjust_dist = config_params.pgv_adjust_dist
+        # self.pgv_reach_dist = config_params.pgv_reach_dist
+        # self.pgv_reach_angle = config_params.pgv_reach_angle
+
+        # ============================================
+        # PGV二次调整参数：从脚本配置读取（现场实施后基本不变）
+        # ============================================
         self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", None)
-        self.use_which_pgv = config_params.pgv_use_which
-        self.pgv_adjust_way = config_params.pgv_adjust_way
-        self.pgv_x_adjust = config_params.pgv_x_adjust
-        self.pgv_x_angle_adjust = config_params.pgv_x_angle_adjust
-        self.pgv_adjust_dist = config_params.pgv_adjust_dist
-        self.pgv_reach_dist = config_params.pgv_reach_dist
-        self.pgv_reach_angle = config_params.pgv_reach_angle
+        self.use_which_pgv = self.task_args.get("pgvUseWhich", config_params.pgv_use_which)
+        self.pgv_adjust_way = self.task_args.get("pgvAdjustWay", config_params.pgv_adjust_way)
+        self.pgv_spin = self.task_args.get("pgvSpin", config_params.pgv_spin)
+        self.pgv_adjust_dist = self.task_args.get("pgvAdjustDist", config_params.pgv_adjust_dist)
+        self.pgv_reach_dist = self.task_args.get("pgvReachDist", config_params.pgv_reach_dist)
+        self.pgv_reach_angle = self.task_args.get("pgvReachAngle", config_params.pgv_reach_angle)
 
         # laser area deduction
         self.create_or_delete_deducted_area = self.task_args.get("createOrDeleteDeductedArea", None)
@@ -1032,9 +1138,12 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             self.action_list.append(GetPGVData(self.use_which_pgv))
-            self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
-                                                       self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
-                                                       self.pgv_adjust_way))
+            # self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+            #                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
+            #                                            self.pgv_adjust_way))
+            self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_adjust_dist,
+                                                       self.pgv_reach_dist, self.pgv_reach_angle,
+                                                       self.pgv_adjust_way, self.pgv_spin))
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
                                                config_params.jack_motor_speed, self.recfile))
 
@@ -1356,10 +1465,13 @@ class Jack(ModuleBase):
                 # 二次调整
                 if self.is_secondary_adjust:
                     self.action_list.append(GetPGVData(self.use_which_pgv))
-                    self.action_list.append(
-                        PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
-                                           self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
-                                           self.pgv_adjust_way))
+                    # self.action_list.append(
+                    #     PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+                    #                        self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
+                    #                        self.pgv_adjust_way))
+                    self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_adjust_dist,
+                                                               self.pgv_reach_dist, self.pgv_reach_angle,
+                                                               self.pgv_adjust_way, self.pgv_spin))
 
                 # 顶升
                 self.action_list.append(
@@ -1481,9 +1593,12 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             self.action_list.append(GetPGVData(self.use_which_pgv))
-            self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
-                                                       self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
-                                                       self.pgv_adjust_way))
+            # self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
+            #                                            self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
+            #                                            self.pgv_adjust_way))
+            self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_adjust_dist,
+                                                       self.pgv_reach_dist, self.pgv_reach_angle,
+                                                       self.pgv_adjust_way, self.pgv_spin))
     # def pgv_code_strip_adjust(self):
     #     """码带调整（codeNumber模式）"""
     #     if not self.operation_init:
@@ -1567,7 +1682,8 @@ class Jack(ModuleBase):
             "jackEmc": self.jack_emc,
             "jackIsFull": self.jack_isFull,
             "jackHeight": self.jack_height,
-            "jackSpin": self.jack_spin
+            "jackSpin": self.jack_spin,
+            "containers": Container.getContainers()
         })
 
         Module.reportInfo(self.report_info)
@@ -2110,19 +2226,13 @@ class JackHeight(BaseAction):
                                        config_params.jack_zero_di)
 
             if self.target_height > config_params.jack_min_height:
-                shape = None
-                if self.recfile:
-                    recognition_goodsParameter_path = f"recognitionObject.{self.object_key}.goodsParameter"
-                    goods_shape = RobotParam.getConfig("recognition",
-                                                       f"{recognition_goodsParameter_path}.goodsShape",
-                                                       self.recfile)
-                    # shapes = json.loads(goods_shape)
-                    shapes = [{"points":[{"x":0.5,"y":1.05},{"x":-0.55,"y":1.05},{"x":-0.55,"y":-1.05},{"x":0.5,"y":-1.05}],"shape":"rectangle"}]
-                    debug_trace(f"[JACK] goodsShape loaded: {len(shapes[0]['points'])} points")
-                    shape = shapes[0]["points"]
-                Navigation.setGoodsPolyShape(shape, "shelf")
+                # 顶升：通过统一接口绑定容器并设置货物形状
+                ok = j.bindContainer("0", "shelf", self.recfile or "default.srec")
+                if not ok:
+                    Trace.log(f"[JACK] bindContainer 失败，recfile={self.recfile}")
             else:
-                Navigation.clearGoodsShape()
+                # 下降：通过统一接口解绑容器（基类会在所有容器空时自动清除货物形状）
+                j.unbindContainer("0")
 
         # 获取当前电机位置（精简版，不输出完整 motor_info）
         current_pos = Motor.getMotorPos(self.motor_name)
@@ -2746,59 +2856,167 @@ class GoPolyline(BaseAction):
         self.action_status = ActionStatus.RUNNING
 
 
-class PGVSecondaryAdjust(BaseAction):  # 二次调整
-    def __init__(self, use_which_pgv, pgv_x_adjust, pgv_x_angle_adjust, pgv_adjust_dist, pgv_reach_dist,
-                 pgv_reach_angle, pgv_adjust_way):
+# # class PGVSecondaryAdjust(BaseAction):  # 二次调整
+# #     def __init__(self, use_which_pgv, pgv_x_adjust, pgv_x_angle_adjust, pgv_adjust_dist, pgv_reach_dist,
+# #                  pgv_reach_angle, pgv_adjust_way):
+# #         super().__init__("PGVSecondaryAdjust")
+# #         self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}, pgv_adjust_way={pgv_adjust_way}}}"
+# #         self.action_status = ActionStatus.INIT
+# #         self.init = True
+# #         self.adjust_param = dict()
+# #         self.use_which_pgv = use_which_pgv
+# #         self.pgv_x_adjust = pgv_x_adjust
+# #         self.pgv_x_angle_adjust = pgv_x_angle_adjust
+# #         self.pgv_adjust_dist = pgv_adjust_dist
+# #         self.pgv_reach_dist = pgv_reach_dist
+# #         self.pgv_reach_angle = pgv_reach_angle
+# #         self.pgv_adjust_way = pgv_adjust_way
+# class PGVSecondaryAdjust(BaseAction):  # 二次调整
+#     def __init__(self, use_which_pgv, pgv_adjust_dist, pgv_reach_dist,
+#                  pgv_reach_angle, pgv_adjust_way, pgv_spin=True):
+#         super().__init__("PGVSecondaryAdjust")
+#         self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}, pgv_adjust_way={pgv_adjust_way}}}"
+#         self.action_status = ActionStatus.INIT
+#         self.init = True
+#         self.adjust_param = dict()
+#         self.use_which_pgv = use_which_pgv
+#         self.pgv_adjust_dist = pgv_adjust_dist
+#         self.pgv_reach_dist = pgv_reach_dist
+#         self.pgv_reach_angle = pgv_reach_angle
+#         self.pgv_adjust_way = pgv_adjust_way
+#         self.pgv_spin = pgv_spin
+#
+#     def run(self, j: Jack):
+#         if self.init:
+#             self.init = False
+#             self.reset()
+#         self.set_adjust_param(j.code_info["tag_diff_x"], j.code_info["tag_diff_y"])
+#         self.action_status = Navigation.goPGVRun(self.adjust_param)
+#
+#         j.report_info["PGVSecondaryAdjust"] = {
+#             "actionStatus": self.action_status,
+#             "codeInfo": j.code_info
+#         }
+#         Module.reportInfo(j.report_info)
+#
+#     # def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
+#     #     if self.use_which_pgv == "useUpPgv":
+#     #         self.adjust_param['R2AUP'] = True  # 使用上视pgv, args里需要增加use_pgv参数
+#     #         self.adjust_param['R2ADP'] = False  # 使用下视pgv
+#     #     elif self.use_which_pgv == "useDownPgv":
+#     #         self.adjust_param['R2AUP'] = False  # 使用上视pgv, args里需要增加use_pgv参数
+#     #         self.adjust_param['R2ADP'] = True
+#     #     if self.pgv_adjust_way == "pgvAdjust90":
+#     #         self.adjust_param['pgvAdjust90'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
+#     #         self.adjust_param['pgvXAngleAdjust'] = True  # 有角度
+#     #     elif self.pgv_adjust_way == "pgvAdjust180":
+#     #         self.adjust_param['pgvAdjust180'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
+#     #         self.adjust_param['pgvXAngleAdjust'] = True  # 有角度
+#     #     elif self.pgv_adjust_way == "pgvAdjust0":
+#     #         self.adjust_param['pgvXAdjust'] = True  # 忽略角度
+#     #     # self.adjust_param['pgvXAdjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
+#     #     # self.adjust_param['pgvXAngleAdjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
+#     #     self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
+#     #     self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
+#     #     self.adjust_param['pgvAdjustCy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
+#     #     self.adjust_param['pgvReachDist'] = self.pgv_reach_dist  # pgv二次调整距离精度
+#     #     self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # pgv二次调整角度精度
+#
+#     def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
+#         # 设备选择（不变）
+#         if self.use_which_pgv == "useUpPgv":
+#             self.adjust_param['R2AUP'] = True
+#             self.adjust_param['R2ADP'] = False
+#         elif self.use_which_pgv == "useDownPgv":
+#             self.adjust_param['R2AUP'] = False
+#             self.adjust_param['R2ADP'] = True
+#
+#         # 角度调整方式（按文档修正）
+#         if self.pgv_adjust_way == "pgvAdjust90":
+#             self.adjust_param['pgvAdjust90'] = True
+#             self.adjust_param['pgvXAngleAdjust'] = True
+#         elif self.pgv_adjust_way == "pgvAdjust180":
+#             self.adjust_param['pgvAdjust180'] = True
+#             self.adjust_param['pgvXAngleAdjust'] = True
+#         elif self.pgv_adjust_way == "pgvAdjust0":
+#             # 文档 singleCode ignoreAngle → pgvAdjustXY（XY来回调整，忽略角度）
+#             # 文档 codeNumber ignoreAngle → pgvXAdjust（仅X方向）
+#             # 当前脚本走的是 singleCode 路径，统一用 pgvAdjustXY
+#             self.adjust_param['pgvAdjustXY'] = True  #
+#
+#         # 随动时锁定货叉方向（不变）
+#         self.adjust_param['spin'] = self.pgv_spin
+#
+#         # 调整范围（不变）
+#         self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist
+#         self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx
+#         self.adjust_param['pgvReachDist'] = self.pgv_reach_dist
+#         self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # 单位 deg
+#
+#     def reset(self):
+#         debug_trace("reset PGV secondary adjustment")
+#         self.action_status = ActionStatus.RUNNING
+#         Navigation.resetGoPGV()
+class PGVSecondaryAdjust(BaseAction):
+    def __init__(self, use_which_pgv, pgv_adjust_dist, pgv_reach_dist,
+                 pgv_reach_angle, pgv_adjust_way, pgv_spin=True):
         super().__init__("PGVSecondaryAdjust")
         self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}, pgv_adjust_way={pgv_adjust_way}}}"
         self.action_status = ActionStatus.INIT
         self.init = True
         self.adjust_param = dict()
         self.use_which_pgv = use_which_pgv
-        self.pgv_x_adjust = pgv_x_adjust
-        self.pgv_x_angle_adjust = pgv_x_angle_adjust
         self.pgv_adjust_dist = pgv_adjust_dist
         self.pgv_reach_dist = pgv_reach_dist
         self.pgv_reach_angle = pgv_reach_angle
         self.pgv_adjust_way = pgv_adjust_way
+        self.pgv_spin = pgv_spin
 
     def run(self, j: Jack):
         if self.init:
             self.init = False
             self.reset()
-        self.set_adjust_param(j.code_info["tag_diff_x"], j.code_info["tag_diff_y"])
+        self.set_adjust_param(j.code_info["tag_diff_x"])  #  只传x
         self.action_status = Navigation.goPGVRun(self.adjust_param)
 
         j.report_info["PGVSecondaryAdjust"] = {
             "actionStatus": self.action_status,
+            "adjustParam": self.adjust_param,   #  增加参数输出，便于调试
             "codeInfo": j.code_info
         }
         Module.reportInfo(j.report_info)
 
-    def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
+    def set_adjust_param(self, pgv_adjust_cx):  #  移除 pgv_adjust_cy
+        # 设备选择
         if self.use_which_pgv == "useUpPgv":
-            self.adjust_param['R2AUP'] = True  # 使用上视pgv, args里需要增加use_pgv参数
-            self.adjust_param['R2ADP'] = False  # 使用下视pgv
+            self.adjust_param['R2AUP'] = True
+            self.adjust_param['R2ADP'] = False
         elif self.use_which_pgv == "useDownPgv":
-            self.adjust_param['R2AUP'] = False  # 使用上视pgv, args里需要增加use_pgv参数
+            self.adjust_param['R2AUP'] = False
             self.adjust_param['R2ADP'] = True
+
+        # 角度调整方式（按文档修正）
         if self.pgv_adjust_way == "pgvAdjust90":
-            self.adjust_param['pgvAdjust90'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
+            self.adjust_param['pgvAdjust90'] = True
         elif self.pgv_adjust_way == "pgvAdjust180":
-            self.adjust_param['pgvAdjust180'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
-        self.adjust_param['pgvXAdjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
-        self.adjust_param['pgvXAngleAdjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
-        self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
-        self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
-        self.adjust_param['pgvAdjustCy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
-        self.adjust_param['pgvReachDist'] = self.pgv_reach_dist  # pgv二次调整距离精度
-        self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # pgv二次调整角度精度
+            self.adjust_param['pgvAdjust180'] = True
+        elif self.pgv_adjust_way == "pgvAdjust0":
+            self.adjust_param['pgvAdjustXY'] = True  #  修正，原为 pgvXAdjust
+
+        # 随动锁叉
+        self.adjust_param['spin'] = self.pgv_spin
+
+        # 调整范围与精度
+        self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist
+        self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx
+        self.adjust_param['pgvAdjustCy'] = 0.0
+        self.adjust_param['pgvReachDist'] = self.pgv_reach_dist
+        self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # 单位 deg
 
     def reset(self):
         debug_trace("reset PGV secondary adjustment")
         self.action_status = ActionStatus.RUNNING
         Navigation.resetGoPGV()
-
 
 class PGVCodeStripAdjust(BaseAction):
     """
@@ -2807,7 +3025,7 @@ class PGVCodeStripAdjust(BaseAction):
     """
 
     def __init__(self, angle_adjust_type: str = "parallelToCode",
-                 pgv_reach_dist: float = 0.02, pgv_reach_angle: float = 0.02,
+                 pgv_reach_dist: float = 0.02, pgv_reach_angle: float = 1.0,
                  use_target_position: bool = False,
                  r2ad_x: float = 0.0, r2ad_y: float = 0.0, r2ad_theta: float = 0.0):
         super().__init__("PGVCodeStripAdjust")
