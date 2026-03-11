@@ -2227,12 +2227,12 @@ class JackHeight(BaseAction):
 
             if self.target_height > config_params.jack_min_height:
                 # 顶升：通过统一接口绑定容器并设置货物形状
-                ok = j.bindContainer("0", "shelf", self.recfile or "default.srec")
+                ok = j.bindContainer("999", "shelf", self.recfile or "default.srec")
                 if not ok:
                     Trace.log(f"[JACK] bindContainer 失败，recfile={self.recfile}")
             else:
                 # 下降：通过统一接口解绑容器（基类会在所有容器空时自动清除货物形状）
-                j.unbindContainer("0")
+                j.unbindContainer("999")
 
         # 获取当前电机位置（精简版，不输出完整 motor_info）
         current_pos = Motor.getMotorPos(self.motor_name)
