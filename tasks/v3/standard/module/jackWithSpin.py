@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/3/11
+# @Date : 2026/3/13
 # @Author : zengweibin & zhaopengfei
 # @Coding : none
-# @Update : feat：脚本适配最新载货接口
+# @Update : 脚本优化，修复判断传入°过小误判为rad的bug
 
 import json
 import math
@@ -534,11 +534,22 @@ config_params = ConfigParams()
 # 调试任务列表（需要开启 debugMode 才能执行）
 # ============================================================================
 DEBUG_ONLY_TASKS = [
+    "jackHeight",  # 指定高度顶升
     "goBezier",  # 贝塞尔导航
+    "PGVSecondaryAdjust",  # PGV二次调整
     "spinTray",  # 托盘旋转
     "rotateHoldSpin",  # 随动旋转
+    "getLM",  # 获取地标位置
+    "laserAreaDeduction",  # 激光区域扣除
+    "createOrDeleteDeductedArea",  # 创建/删除扣除区域
+    "jackBezierReturn",  # 贝塞尔取货并返回
+    "goPolyline",  # 折线导航
+    "goDist",  # 直行指定距离
+    "goPath",  # 直行到目标位置
+    "recShelf",  # 识别货架
+    "getRecfile",  # 获取识别文件
+    "recTargetObs",  # 识别目标障碍
 ]
-
 
 def check_debug_task(operation: str) -> bool:
     """
@@ -675,26 +686,26 @@ class InputParams:
                 with builder.CHILD(key="jackUnload", name="Jack Unload", desc="recognize and unload the shelf"):
                     builder.TYPE(ParamType.ARRAY)
 
-                # 指定高度顶升
-                with builder.CHILD(key="jackHeight", name="Jack Height",
-                                   desc="lift to specified height (debug only)"):
-                    builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILDREN():
-                        create_end_height(builder)
-                        with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(False)
-                            builder.DEFAULTVALUE("default.srec")
-
                 # ============================================
                 # 调试/低频任务（需要开启debugMode才显示）
                 # ===========================================
                 if config_params.debug_mode:
+                    # [DEBUG] 指定高度顶升
+                    with builder.CHILD(key="jackHeight", name="[Debug] Jack Height",
+                                       desc="lift to specified height (debug only)"):
+                        builder.TYPE(ParamType.ARRAY)
+                        with builder.CHILDREN():
+                            create_end_height(builder)
+                            with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
+                                builder.TYPE(ParamType.STRING)
+                                builder.REQUIRED(False)
+                                builder.DEFAULTVALUE("default.srec")
+
                     # [DEBUG] 贝塞尔导航
                     with builder.CHILD(key="goBezier", name="[Debug] goBezier",
                                        desc="go bezier line to target (debug only)"):
                         builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILD(key="PGVSecondaryAdjust", name="PGV Secondary Adjust",
+                    with builder.CHILD(key="PGVSecondaryAdjust", name="[Debug] PGV Secondary Adjust",
                                        desc="Perform PGV secondary adjustment"):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
@@ -748,14 +759,12 @@ class InputParams:
                                 builder.MIN_VALUE(-360)
                                 builder.MAX_VALUE(360)
                                 builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(False)
                                 builder.UNIT("degree")
                                 builder.DEFAULTVALUE(0)
                             with builder.CHILD(key="spinMode", name="spin_mode",
                                                desc="Spin mode(robot coordinate/world coordinate/increase)"):
                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
                                 builder.DEFAULTVALUE("robot")
-                                builder.DEFAULTVALUE(False)
                                 with builder.CHILDREN():
                                     with builder.CHILD("robot", "robot", "robot"):
                                         builder.TYPE(ParamType.STRING)
@@ -766,7 +775,6 @@ class InputParams:
                             with builder.CHILD(key="spinDir", name="spin_dir",
                                                desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
-                                builder.DEFAULTVALUE(False)
                                 builder.DEFAULTVALUE(0)
                                 with builder.CHILDREN():
                                     with builder.CHILD(0, "shortest", "shortest"):
@@ -776,11 +784,11 @@ class InputParams:
                                     with builder.CHILD(1, "counterclockwise", "counterclockwise"):
                                         builder.TYPE(ParamType.STRING)
 
-                    with builder.CHILD(key="getLM", name="getLM",
+                    with builder.CHILD(key="getLM", name="[Debug] getLM",
                                        desc="get the position of landmark"):
                         builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="laserAreaDeduction", name="laserAreaDeduction",
+                    with builder.CHILD(key="laserAreaDeduction", name="[Debug] laserAreaDeduction",
                                        desc="laser area deduction"):
                         builder.TYPE(ParamType.ARRAY)
 
@@ -794,7 +802,7 @@ class InputParams:
                                 with builder.CHILD("world", "world", "world"):
                                     builder.TYPE(ParamType.STRING)
 
-                    with builder.CHILD(key="createOrDeleteDeductedArea", name="create_or_delete_deducted_area",
+                    with builder.CHILD(key="createOrDeleteDeductedArea", name="[Debug] create Or Delete Deducted Area",
                                        desc="create_or_delete_deducted_area"):
                         builder.TYPE(ParamType.COMBO_BOX)
                         # builder.DEFAULTVALUE("create")
@@ -811,7 +819,7 @@ class InputParams:
                             with builder.CHILD(key="delete", name="delete", desc="delete"):
                                 builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="jackBezierReturn", name="jackBezierReturn",
+                    with builder.CHILD(key="jackBezierReturn", name="[Debug] jackBezierReturn",
                                        desc="recognize and go bezier to get the shelf and return"):
                         builder.TYPE(ParamType.ARRAY)
 
@@ -820,11 +828,11 @@ class InputParams:
                             create_end_height(builder)
                             create_recfile(builder)
 
-                    with builder.CHILD(key="goPolyline", name="goPolyline", desc="go polyline line to target position"):
+                    with builder.CHILD(key="goPolyline", name="[Debug] goPolyline",
+                                       desc="go polyline line to target position"):
                         builder.TYPE(ParamType.ARRAY)
 
-
-                    with builder.CHILD(key="goDist", name="goDist", desc="go straight distance"):
+                    with builder.CHILD(key="goDist", name="[Debug] goDist", desc="go straight distance"):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILD(key="goPathX", name="goPath_x",
                                            desc="The dist of the target point to which robot will go in a straight line"):
@@ -833,7 +841,7 @@ class InputParams:
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(0)
 
-                    with builder.CHILD(key="goPath", name="goPath", desc="go straight to target position"):
+                    with builder.CHILD(key="goPath", name="[Debug] goPath", desc="go straight to target position"):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILD(key="goPathX", name="goPath_x",
                                            desc="The coordinate x of the target point to which robot will go in a straight line"):
@@ -863,8 +871,7 @@ class InputParams:
                                 with builder.CHILD("world", "world", "world"):
                                     builder.TYPE(ParamType.STRING)
 
-
-                    with builder.CHILD(key="recShelf", name="recShelf", desc="recognize the shelf"):
+                    with builder.CHILD(key="recShelf", name="[Debug] recShelf", desc="recognize the shelf"):
                         builder.TYPE(ParamType.ARRAY)
 
                         with builder.CHILD(key="recFile", name="recfile",
@@ -873,7 +880,7 @@ class InputParams:
                             builder.REQUIRED(True)
                             builder.DEFAULTVALUE("default.srec")
 
-                    with builder.CHILD(key="getRecfile", name="getRecfile", desc="get Recfile"):
+                    with builder.CHILD(key="getRecfile", name="[Debug] getRecfile", desc="get Recfile"):
                         builder.TYPE(ParamType.ARRAY)
 
                         with builder.CHILD(key="recFile", name="recfile",
@@ -882,7 +889,7 @@ class InputParams:
                             builder.REQUIRED(True)
                             builder.DEFAULTVALUE("default.srec")
 
-                    with builder.CHILD(key="recTargetObs", name="recTargetObs", desc="recTargetObs"):
+                    with builder.CHILD(key="recTargetObs", name="[Debug] recTargetObs", desc="recTargetObs"):
                         builder.TYPE(ParamType.ARRAY)
 
     builder.save_to_file()
@@ -994,7 +1001,7 @@ class Jack(ModuleBase):
         self.end_height = self.task_args.get("endHeight", 0.06)
         # 识别相关
         self.is_recognize = self.task_args.get("recognize", None)
-        self.recfile = self.task_args.get("recFile", "shelf.srec")
+        self.recfile = self.task_args.get("recFile", "default.srec")
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
@@ -1145,7 +1152,9 @@ class Jack(ModuleBase):
                                                        self.pgv_reach_dist, self.pgv_reach_angle,
                                                        self.pgv_adjust_way, self.pgv_spin))
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
-                                               config_params.jack_motor_speed, self.recfile))
+                                               config_params.jack_motor_speed))
+            # 顶升完成后绑定容器，设置货物模型
+            self.action_list.append(BindContainer("999", "shelf", self.recfile))
 
 
     def laser_area_deduction(self):
@@ -1426,7 +1435,7 @@ class Jack(ModuleBase):
             robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
             # 转到与AP点方向一致
-            self.action_list.append(RobotRotate(math.degrees(ap_to_robot_angle), Coordinate.WORLD, False))
+            self.action_list.append(RobotRotate(ap_to_robot_angle , Coordinate.WORLD, False))
 
             # 启用识别
             if self.is_recognize:
@@ -1473,11 +1482,14 @@ class Jack(ModuleBase):
                                                                self.pgv_reach_dist, self.pgv_reach_angle,
                                                                self.pgv_adjust_way, self.pgv_spin))
 
+                # 旋转托盘
+                self.action_list.append(Spin(0, "robot", 2))
+
                 # 顶升
                 self.action_list.append(
-                    JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed,
-                               self.recfile))
-
+                    JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
+                # 顶升完成后绑定容器，设置货物模型
+                self.action_list.append(BindContainer("999", "shelf", self.recfile))
 
     def jack_unload(self):
         """
@@ -1491,15 +1503,19 @@ class Jack(ModuleBase):
             # 检查是否是边走边动模式下已经完成了顶升下降
             current_height = Motor.getMotorPos(config_params.jack_motor_name)
             if self.pre_action_completed and current_height <= 0.005:
-                # 边走边动模式下顶升已经下降完成，跳过下降步骤
+                # 边走边动模式下顶升已经下降完成，跳过下降步骤，但仍需清除货物模型
                 debug_trace(f"jackUnload: 边走边动模式，顶升已下降 (height={current_height:.4f}m)，跳过下降步骤")
+                self.action_list.append(UnbindContainer("999"))
             else:
                 # 正常模式或边走边动未完成，执行下降托盘
                 self.action_list.append(
-                    JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed, self.recfile))
+                    JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed))
+                # 下降完成后解绑容器，清除货物模型
+                self.action_list.append(UnbindContainer("999"))
 
             # === 放货完成后删除激光扣除区域 ===
             self.action_list.append(DeleteLaserDeductArea())
+
 
     def go_ap_site(self):
         if not self.operation_init:
@@ -1552,7 +1568,7 @@ class Jack(ModuleBase):
             self.operation_init = True
             debug_trace("jack_height: Starting sequence")
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
-                                               config_params.jack_motor_speed, self.recfile))
+                                               config_params.jack_motor_speed))
 
     def spin(self):
         """旋转托盘"""
@@ -2091,7 +2107,7 @@ class Spin(BaseAction):
 class RobotRotate(BaseAction):
     """只转车不转托盘"""
 
-    def __init__(self, angle, coordinate, spin=True, direction=None):
+    def __init__(self, angle, coordinate, spin=True, direction=None, unit="rad"):
         super().__init__("RobotRotate")
 
         kwargs = locals()
@@ -2109,6 +2125,10 @@ class RobotRotate(BaseAction):
         self.speed = 0.7
         self.move_args = dict()
         self.robot_ang = []
+        if unit == "deg":
+            self.angle = math.radians(angle)  # 统一转成弧度存储
+        else:
+            self.angle = angle  # 已经是弧度，直接存
 
     def run(self, j: Jack):
         if self.init:
@@ -2124,13 +2144,18 @@ class RobotRotate(BaseAction):
                     self.move_args['moveAngle'] = -self.angle
                     self.move_args['speedW'] = -self.speed
             elif self.coordinate == Coordinate.WORLD:
-                self.move_args["locMode"] = 1  # 激光定位
-
-                # 1. 当前朝向：Loc 返回的是度 - 立即转弧度 - 归一化
                 cur_angle_rad = self.normalize(math.radians(Loc.getPose()["yaw"]))
 
-                # 2. 目标朝向：外部传进来是“度” - 先转弧度，再归一化
-                target_rad = self.normalize(math.radians(self.angle) if abs(self.angle) > math.pi else self.angle)
+                # self.angle 此时一定是弧度，不再需要猜测
+                target_rad = self.normalize(self.angle)
+
+                self.move_args["locMode"] = 1  # 激光定位
+
+                # # 1. 当前朝向：Loc 返回的是度 - 立即转弧度 - 归一化
+                # cur_angle_rad = self.normalize(math.radians(Loc.getPose()["yaw"]))
+
+                # # 2. 目标朝向：外部传进来是“度” - 先转弧度，再归一化
+                # target_rad = self.normalize(math.radians(self.angle) if abs(self.angle) > math.pi else self.angle)
 
                 # 3. 差值也要再归一化一次，确保 (-π, π]
                 rotate_dist = self.normalize(target_rad - cur_angle_rad)  # 就近方向的符号差
@@ -2154,17 +2179,10 @@ class RobotRotate(BaseAction):
                     "moveAngle": move_ang
                 })
 
-            self._last_status = None
-            debug_trace(f"[ROTATE] Starting rotation angle={math.degrees(self.move_args.get('moveAngle', 0)):.1f}deg")
-
         status = Navigation.runOdoMove(self.move_args)
-
-        # 只在状态变化时输出
-        if status != getattr(self, '_last_status', None):
-            self._last_status = status
-            if status == ActionStatus.FINISHED:
-                debug_trace(f"[ROTATE] Rotation done")
-                self.action_status = ActionStatus.FINISHED
+        debug_trace(f"{status=}")
+        if status == ActionStatus.FINISHED:
+            self.action_status = ActionStatus.FINISHED
 
         j.report_info["RobotRotate"] = {
             "actionStatus": self.action_status,
@@ -2184,11 +2202,10 @@ class RobotRotate(BaseAction):
         """把任意弧度角归一化到 (-π, π] 区间"""
         return (rad + math.pi) % (2 * math.pi) - math.pi
 
-
 class JackHeight(BaseAction):
     """顶升动作，通过设置电机位置实现顶升"""
 
-    def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf"):
+    def __init__(self, motor_name, target_height, jack_motor_speed):
         super().__init__("JackHeight")
 
         kwargs = locals()
@@ -2199,8 +2216,6 @@ class JackHeight(BaseAction):
         self.motor_name = motor_name
         self.target_height = target_height
         self.jackMotorSpeed = jack_motor_speed
-        self.recfile = recfile
-        self.object_key = object_key
         self.init = False
         self.jack_start_height = None
         self._count_recorded = False  # 防止重复计数
@@ -2218,21 +2233,12 @@ class JackHeight(BaseAction):
             debug_trace(
                 f"[JACK] {direction} {self.jack_start_height:.3f}m → {self.target_height:.3f}m (speed={self.jackMotorSpeed})")
 
-            if self.target_height > self.jack_start_height:
+            if self.target_height > config_params.jack_min_height:
                 Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                        config_params.jack_up_di)
             else:
                 Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                        config_params.jack_zero_di)
-
-            if self.target_height > config_params.jack_min_height:
-                # 顶升：通过统一接口绑定容器并设置货物形状
-                ok = j.bindContainer("999", "shelf", self.recfile or "default.srec")
-                if not ok:
-                    Trace.log(f"[JACK] bindContainer 失败，recfile={self.recfile}")
-            else:
-                # 下降：通过统一接口解绑容器（基类会在所有容器空时自动清除货物形状）
-                j.unbindContainer("999")
 
         # 获取当前电机位置（精简版，不输出完整 motor_info）
         current_pos = Motor.getMotorPos(self.motor_name)
@@ -2271,6 +2277,37 @@ class JackHeight(BaseAction):
             "jackMotorSpeed": self.jackMotorSpeed,
         }
         Module.reportInfo(j.report_info)
+
+
+class BindContainer(BaseAction):
+    """顶升完成后绑定容器并设置货物模型"""
+
+    def __init__(self, container_id: str, goods_name: str, recfile: str):
+        super().__init__("BindContainer")
+        self.opt_info = f"BindContainer{{container_id={container_id}, goods_name={goods_name}, recfile={recfile}}}"
+        self.container_id = container_id
+        self.goods_name = goods_name
+        self.recfile = recfile
+
+    def run(self, j: Jack):
+        ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec")
+        if not ok:
+            Trace.log(f"[BindContainer] 绑定失败，recfile={self.recfile}")
+        self.action_status = ActionStatus.FINISHED
+
+
+class UnbindContainer(BaseAction):
+    """下降完成后解绑容器并清除货物模型"""
+
+    def __init__(self, container_id: str):
+        super().__init__("UnbindContainer")
+        self.opt_info = f"UnbindContainer{{container_id={container_id}}}"
+        self.container_id = container_id
+
+    def run(self, j: Jack):
+        j.unbindContainer(self.container_id)
+        Trace.log(f"[UnbindContainer] 解绑成功: container={self.container_id}")
+        self.action_status = ActionStatus.FINISHED
 
 
 class GoMapPath(BaseAction):
