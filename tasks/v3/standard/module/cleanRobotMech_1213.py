@@ -58,6 +58,7 @@ import json
 import time
 from enum import IntEnum
 from typing import Optional
+
 from syspy.utils.param_server import ParamType, ScriptParam
 
 param_loader = ScriptParam(__file__)
@@ -68,7 +69,7 @@ import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
 
 start_time = time.time()
-from syspy import Module, Logger, Battery, Do, Navigation, Abnormal, ScriptStatus, Odometer, Controller, Trace, Can, NavStatusInterface, NavSpeedInterface, Loc
+from syspy import Module, Logger, Battery, Do, Navigation, Abnormal, ScriptStatus, Odometer, Controller, Trace, Can, NavStatus, NavSpeed, Loc
 
 log = Logger("clean_robot")
 
@@ -123,8 +124,8 @@ class ConfigParams:
                         builder.SINGLESTEP(0.001)
 
                     with builder.CHILD(key="add_water_do", name="add_water_do", desc="加水DO"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(4)
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-004")
                         builder.SINGLESTEP(1)
 
                     with builder.CHILD(key="brush_power", name="brush_power", desc="刷盘电机默认功率"):
@@ -210,11 +211,12 @@ class ConfigParams:
         cls.stop_x_speed = cls.config.get("stop_x_speed")
         cls.push_rod_length = cls.config.get("push_rod_length")
 
+config_params = ConfigParams()
 
 def script_config_callback():
     """配置参数更改回调"""
-    Trace.log("Config changed, reloading...")
-    ConfigParams.reload_config()
+    Trace.log("Reloading script config parameters")
+    config_params.reload_config()
 
 
 class CleanRobot:
@@ -222,7 +224,6 @@ class CleanRobot:
 
     def __init__(self):
         # 加载配置
-        self.cfg = ConfigParams()
 
         # Modbus TCP 连接
         self.ip = "127.0.0.1"
@@ -273,11 +274,11 @@ class CleanRobot:
         self.waste_filter = MeanValue(1000)  # 污水液位滤波
 
         # 从args获取的参数
-        self.auto_adjust_power = self.cfg.auto_adjust_power
-        self.jet_power = self.cfg.jet_power
-        self.brush_power = self.cfg.brush_power
-        self.suck_power = self.cfg.suck_power
-        self.push_rod_length = self.cfg.push_rod_length
+        self.auto_adjust_power = config_params.auto_adjust_power
+        self.jet_power = config_params.jet_power
+        self.brush_power = config_params.brush_power
+        self.suck_power = config_params.suck_power
+        self.push_rod_length = config_params.push_rod_length
 
         log.info(f"CleanRobot initialized")
 
@@ -305,15 +306,15 @@ class CleanRobot:
             self.save_to_rbk()  # 同步液位数据到RBK
             self.update_by_task_status()  # 根据任务状态处理业务逻辑
 
-            data = Navigation.moveTask()
-            if data is not None:
-                log.info(json.dumps(data))
+            # data = Navigation.moveTask()
+            # if data is not None:
+            #     log.info(json.dumps(data))
 
         # 0.5秒更新一次
         if time.time() - self.period_run_start > 0.5:
             self.period_run_start = time.time()
             Module.reportInfo(self.report_info)  # 数据上报
-            log.info(json.dumps(self.report_info))  # 日志打印
+            # log.info(json.dumps(self.report_info))  # 日志打印
 
         return True
 
@@ -326,11 +327,11 @@ class CleanRobot:
             self.init = True
             self.update_all_info()  # 同步清洁机器人各机构的工作状态
             self.operation = args.get("operation", None)
-            self.auto_adjust_power = args.get("auto_adjust", self.cfg.auto_adjust_power)
-            self.jet_power = int(args.get("jet_power", self.cfg.jet_power))
-            self.brush_power = int(args.get("brush_power", self.cfg.brush_power))
-            self.suck_power = int(args.get("suck_power", self.cfg.suck_power))
-            self.push_rod_length = int(args.get("push_rod_length", self.cfg.push_rod_length))
+            self.auto_adjust_power = args.get("auto_adjust", config_params.auto_adjust_power)
+            self.jet_power = int(args.get("jet_power", config_params.jet_power))
+            self.brush_power = int(args.get("brush_power", config_params.brush_power))
+            self.suck_power = int(args.get("suck_power", config_params.suck_power))
+            self.push_rod_length = int(args.get("push_rod_length", config_params.push_rod_length))
 
         if self.operation == "WashStart":
             self.wash_start()
@@ -348,6 +349,7 @@ class CleanRobot:
             Abnormal.setTask(53910, f"args error: {self.operation}", "参数错误", "检查operation参数", "run")
             self.action_status = ScriptStatus.FAILED
 
+        self.update_all_info()  # 同步清洁机器人各机构的工作状态
         self.report_info['args'] = args
         self.report_info['operation'] = self.operation
         log.info(f"clean robot info: {json.dumps(self.report_info)}")
@@ -355,11 +357,12 @@ class CleanRobot:
 
     def update_by_task_status(self):
         """根据任务状态更新清洁机构状态"""
-        task_status = NavStatusInterface.getTaskStatus()
+        task_status = NavStatus.getTaskStatus()
 
         if task_status == 2:  # Running
             if self.operation == "WashStart" and self.action_status == ScriptStatus.FINISHED:
-                self.update_power_by_speed()
+                # self.update_power_by_speed()
+                self.wash_open()
         elif task_status == 3:  # Suspended
             self.wash_suspend()
         elif task_status == 5:  # Failed
@@ -373,11 +376,11 @@ class CleanRobot:
 
         # 水位检测,清水空了或者污水满了,结束清洁任务
         loc_state = Loc.getLocState()
-        if self.filter_waste_water_level() > self.cfg.max_waste_water_level:
+        if self.filter_waste_water_level() > config_params.max_waste_water_level:
             Abnormal.setTask(53980, "Waste water is full!", "污水满", "去排水", "update_by_task_status")
             if self.operation != "AddWater" and loc_state == 1:  # 终止任务,过滤加水任务,且已完成重定位
                 self.wash_end()
-        elif self.filter_clean_water_level() < self.cfg.min_clean_water_level and self.filter_clean_water_level() != -1:
+        elif self.filter_clean_water_level() < config_params.min_clean_water_level and self.filter_clean_water_level() != -1:
             Abnormal.setTask(53980, "Clean water is empty!", "清水空", "去加水", "update_by_task_status")
             if self.operation != "AddWater" and loc_state == 1:
                 self.wash_end()
@@ -387,21 +390,21 @@ class CleanRobot:
 
     def update_power_by_speed(self):
         """根据车速自动调节电机功率"""
-        agv_speed = NavSpeedInterface.getSpeeds()
+        agv_speed = NavSpeed.getSpeeds()
 
         if bool(self.auto_adjust_power):
-            if agv_speed[0] > self.cfg.high_mode_x_speed:
+            if agv_speed[0] > config_params.high_mode_x_speed:
                 self.work_mode = WorkMode.HIGH
                 self.suck_power, self.jet_power, self.brush_power = (70, 50, 67)
-            elif self.cfg.std_mode_x_speed < agv_speed[0] < self.cfg.high_mode_x_speed:
+            elif config_params.std_mode_x_speed < agv_speed[0] < config_params.high_mode_x_speed:
                 self.work_mode = WorkMode.STD
                 self.suck_power, self.jet_power, self.brush_power = (50, 20, 67)
-            elif self.cfg.stop_x_speed < agv_speed[0] < self.cfg.std_mode_x_speed or agv_speed[0] < agv_speed[
+            elif config_params.stop_x_speed < agv_speed[0] < config_params.std_mode_x_speed or agv_speed[0] < agv_speed[
                 2]:
                 self.work_mode = WorkMode.LOW
                 self.suck_power, self.jet_power, self.brush_power = (40, 10, 50)
 
-        if agv_speed[0] < self.cfg.stop_x_speed:
+        if agv_speed[0] < config_params.stop_x_speed:
             self.wash_suspend()
         else:
             self.wash_open()
@@ -431,7 +434,7 @@ class CleanRobot:
         clean_robot["wasteWaterLevel"] = self.filter_waste_water_level()
 
         agv_speed = dict()
-        cur_speed = NavSpeedInterface.getSpeeds()
+        cur_speed = NavSpeed.getSpeeds()
         agv_speed[0] = round(cur_speed[0], 6)
         agv_speed['y'] = round(cur_speed[1], 6)
         agv_speed['rotate'] = round(cur_speed[2], 6)
@@ -443,20 +446,33 @@ class CleanRobot:
         auto_adjust["jet_power"] = self.jet_power
         auto_adjust["brush_power"] = self.brush_power
 
-        self.report_info["auto_adjust"] = auto_adjust
-        self.report_info["cleanRobot"] = clean_robot
-        self.report_info["connected"] = self.is_connected
-        self.report_info["push_rod_length"] = self.push_rod_length
-        self.report_info["script_status"] = self.action_status
-        self.report_info["agv_speed"] = agv_speed
-        self.report_info["operation"] = self.operation
-        self.report_info["period_run_counter"] = self.period_run_counter
-        self.report_info["task_status"] = NavStatusInterface.getTaskStatus()
-        self.report_info["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
+        # self.report_info["auto_adjust"] = auto_adjust
+        # self.report_info["cleanRobot"] = clean_robot
+        # self.report_info["connected"] = self.is_connected
+        # self.report_info["push_rod_length"] = self.push_rod_length
+        # self.report_info["script_status"] = self.action_status
+        # self.report_info["agv_speed"] = agv_speed
+        # self.report_info["operation"] = self.operation
+        # self.report_info["period_run_counter"] = self.period_run_counter
+        # self.report_info["task_status"] = NavStatus.getTaskStatus()
+        # self.report_info["time"] = time.strftime('%Y-%m-%d %H:%M:%S')
+        self.report_info["update_report_info"] = {
+            "auto_adjust":auto_adjust,
+            "cleanRobot":clean_robot,
+            "connected":self.is_connected,
+            "push_rod_length": self.push_rod_length,
+            "script_status":self.action_status,
+            "agv_speed": agv_speed,
+            "operation": self.operation,
+            "period_run_counter": self.period_run_counter,
+            "task_status": NavStatus.getTaskStatus(),
+            "time": time.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        Module.reportInfo(self.report_info)
 
     def wash_open(self):
         """打开清洁机构"""
-        self.is_fit_push_rod()
+        self.is_fit_push_rod() # 检查推杆下降距离是否合法
 
         if self.brush_lift_status != WorkingStatus.RUNNING:
             self.clean_robot_hw.ctrl_brush_lift(WorkState.OPEN)
@@ -500,7 +516,7 @@ class CleanRobot:
     def wash_end(self):
         """结束清洗"""
         self.operation = "WashEnd"
-        Do.setDo(self.cfg.add_water_do, False)
+        Do.setDo(config_params.add_water_do, False)
 
         if self.waste_valve_status == WorkingStatus.RUNNING:
             self.clean_robot_hw.ctrl_waste_valve(WorkState.CLOSE)
@@ -513,7 +529,7 @@ class CleanRobot:
                 self.wash_water()
 
         # 延迟 close_jet_delay_time * 0.7 秒关闭水泵、水阀、刷盘电机和刷盘高度
-        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > self.cfg.close_jet_delay_time * 0.7:
+        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > config_params.close_jet_delay_time * 0.7:
             if self.brush_status == WorkingStatus.RUNNING:
                 self.clean_robot_hw.ctrl_brush(0)
             if self.jet_status == WorkingStatus.RUNNING:
@@ -524,7 +540,7 @@ class CleanRobot:
                 self.clean_robot_hw.ctrl_brush_lift(WorkState.CLOSE)
 
         # 延迟 close_jet_delay_time 秒之后关闭吸风电机和水扒
-        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > self.cfg.close_jet_delay_time:
+        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > config_params.close_jet_delay_time:
             if self.mop_lift_status != WorkingStatus.INIT:
                 self.clean_robot_hw.ctrl_mop_lift(WorkState.CLOSE)
             if self.suck_status == WorkingStatus.RUNNING:
@@ -552,7 +568,7 @@ class CleanRobot:
         # 延时 close_jet_delay_time 秒关闭吸风电机
         if not self.close_jet_pump_start:
             self.close_jet_pump_start = time.time()
-        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > self.cfg.close_jet_delay_time:
+        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > config_params.close_jet_delay_time:
             if self.suck_status == WorkingStatus.RUNNING:
                 self.clean_robot_hw.ctrl_suck(0)
 
@@ -586,32 +602,32 @@ class CleanRobot:
         is_charging = Battery.getIsCharging()
 
         if not is_charging:
-            Do.setDo(self.cfg.add_water_do, False)
+            Do.setDo(config_params.add_water_do, False)
             self.clean_robot_hw.ctrl_waste_valve(WorkState.CLOSE)
             Abnormal.setTask(53900, "Not in charging state!", "未在充电状态", "移动到充电桩", "add_water")
             self.action_status = ScriptStatus.FAILED
         else:
             if not self.add_water_opt_start:
-                Do.setDo(self.cfg.add_water_do, True)
+                Do.setDo(config_params.add_water_do, True)
                 self.clean_robot_hw.ctrl_waste_valve(WorkState.OPEN)
 
         # 加水排污已处于工作状态
-        if Do.getDo(self.cfg.add_water_do) and self.waste_valve_status == WorkingStatus.RUNNING:
+        if Do.getDo(config_params.add_water_do) and self.waste_valve_status == WorkingStatus.RUNNING:
             self.add_water_opt_start = True
 
         # 停止加水
-        if self.clean_water_level >= self.cfg.max_clean_water_level:
-            Do.setDo(self.cfg.add_water_do, False)
+        if self.clean_water_level >= config_params.max_clean_water_level:
+            Do.setDo(config_params.add_water_do, False)
 
         # 停止排污
-        if self.waste_water_level <= self.cfg.min_waste_water_level:
+        if self.waste_water_level <= config_params.min_waste_water_level:
             self.clean_robot_hw.ctrl_waste_valve(WorkState.CLOSE)
 
         # 加水排污任务延时 add_water_delay_time 秒结束
-        if self.waste_water_level <= self.cfg.min_waste_water_level and self.clean_water_level >= self.cfg.max_clean_water_level:
+        if self.waste_water_level <= config_params.min_waste_water_level and self.clean_water_level >= config_params.max_clean_water_level:
             if not self.add_water_time_start:
                 self.add_water_time_start = time.time()
-            if time.time() - self.add_water_time_start > self.cfg.add_water_delay_time:
+            if time.time() - self.add_water_time_start > config_params.add_water_delay_time:
                 self.add_water_time_start = None
                 self.add_water_opt_start = False
                 self.action_status = ScriptStatus.FINISHED
@@ -650,6 +666,7 @@ class CleanRobot:
         """
         info = {}
         recv_data = self.clean_robot_hw.query_all_info()
+        print(f"recv_data:{recv_data}")
 
         if self.clean_robot_hw.query_all_cmd_status == WorkingStatus.FINISHED:
             self.clean_robot_hw.query_all_cmd_status = WorkingStatus.INIT
@@ -681,8 +698,8 @@ class CleanRobot:
     def cancel(self):
         """取消操作"""
         Trace.log("script cancel")
-        Do.setDo(self.cfg.add_water_do, False)
-        self.cfg.close_jet_delay_time = 5
+        Do.setDo(config_params.add_water_do, False)
+        config_params.close_jet_delay_time = 5
         self.wash_end()
         self.action_status = ScriptStatus.FAILED
 
@@ -782,6 +799,7 @@ class CleanRobotHardware:
         """查询所有机构状态"""
         self.query_all_cmd_status = WorkingStatus.RUNNING
         recv_data = self.send_cmd(Cmd.QUERY_ALL_INFO)
+        # print(f"recv_data:{recv_data[:8]}")
         if recv_data[:8] == "43034000":  # 报文地址匹配
             self.query_all_cmd_status = WorkingStatus.FINISHED
             self.agv.report_info['query_all_info'] = recv_data
@@ -792,9 +810,11 @@ class CleanRobotHardware:
         """发送CAN指令"""
         Can.sendCanFrame(self.chanel, self.can_id, self.dlc, self.extend, cmd)
         data = Can.getData()
-        b64_str = data.get('Data', '')
-        can_id = data.get('ID', 0)
+        # print(f"data:{data}")
+        b64_str = data.get('data', '')
+        can_id = data.get('id', 0)
         hex_str = base64.b64decode(b64_str).hex().upper()
+        # print(f"hex_str:{hex_str}")
         if can_id + 128 == self.can_id:
             return hex_str
         return self.default_data
@@ -887,6 +907,11 @@ if __name__ == '__main__':
     Module.init()
     c = CleanRobot()
     c.action_status = ScriptStatus.NONE
-    while c.action_status != ScriptStatus.FINISHED:
-        c.run({"operation": "WashStart"})
-        time.sleep(0.1)
+    while True:
+        c.period_run()
+        if c.action_status != ScriptStatus.FINISHED:
+            c.run({"operation": "WashEnd"})
+            print(f"-------11-------{c.action_status}---------------")
+            time.sleep(0.2)
+        print(f"--------22------{c.action_status}---------------")
+    # c.period_run()
