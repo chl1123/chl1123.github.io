@@ -3,7 +3,7 @@ import time
 
 start_time = time.time()
 from syspy import Logger, Module, ScriptStatus
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ParamServer, BindType, BindItem
 from syspy.lib.module import ModuleBase
 
 log = Logger("example_input_param")
@@ -142,7 +142,7 @@ class InputParams:
                                 with builder.CHILD("c2", "Name c0", "name c0"):
                                     builder.TYPE(ParamType.STRING)
 
-                with builder.CHILD("TestBinType", "Test BinType", "Test BinType"):
+                with builder.CHILD("TestBindType", "Test BinType", "Test BinType"):
                     builder.TYPE(ParamType.ARRAY)
 
                     with builder.CHILD(key="battery", name="Battery",
@@ -155,20 +155,35 @@ class InputParams:
                                        desc="Battery Led. single menu multiple types"):
                         builder.TYPE(ParamType.BIND_TYPE)
                         # 单选多类型
-                        builder.BINDTYPE([BindType.Script.STANDARD_BATTERY, BindType.Script.STANDARD_LED])
+                        builder.BINDTYPE(
+                            BindItem(BindType.script("generic/battery"))
+                            + BindItem(BindType.script("generic/led"))
+                        )
 
                     with builder.CHILD(key="led_mutil", name="led_mutil",
                                        desc="led_mutil. multiple menu type"):
                         builder.TYPE(ParamType.BIND_TYPE)
                         # 多选单类型
-                        builder.BINDTYPE(BindType.Script.STANDARD_LED, True)
+                        builder.BINDTYPE(BindType.script("generic/led"), multiple=True)
 
                     with builder.CHILD(key="generic_camera_mutil", name="generic_camera_mutil",
                                        desc="generic_camera_mutil. multiple selection multiple types"):
                         builder.TYPE(ParamType.BIND_TYPE)
                         # 多选多类型
-                        builder.BINDTYPE([BindType.Script.STANDARD_LED, BindType.App.RECOGNITION], True)
+                        builder.BINDTYPE(
+                            BindItem(BindType.script("generic/led"), multiple=True)
+                            + BindItem(BindType.App.RECOGNITION, multiple=True)
+                        )
                         builder.CLONEABLE(True)
+
+                    with builder.CHILD(key="camera", name="Camera",
+                                       desc="Camera"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.Device.CAMERA)
+
+                    with builder.CHILD("region", "Region", "Region"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindItem(BindType.Shape.RECTANGLE, no_rotate=True) + BindItem(BindType.BackgroundItem.CARRIER))
     builder.save_to_file()
 
 
