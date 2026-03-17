@@ -167,6 +167,7 @@ class ScriptParam:
                 config_data = json.load(f)
             # 使用ParamValidator验证配置
             self.__config_validator = ParamValidator(config_data)
+        # 恢复任务时使用
         if not ScriptParam.event_task_config:
             self.config_full_params = self._extract_values(self.__config_validator.param_definition)
         return self.__config_validator.validate(self.config_full_params)
@@ -229,10 +230,10 @@ class ScriptParam:
     def clearTaskConfig(self):
         """恢复任务配置参数"""
         if ScriptParam.event_task_config:
+            ScriptParam.event_task_config = False
             if ScriptParam.config_change_callback:
                 print("clearTaskConfig()")
                 ScriptParam.config_change_callback()
-            ScriptParam.event_task_config = False
 
     def addAction(self, action_name: str,
                 policy: Dict[str, Any] = None,
