@@ -53,7 +53,7 @@ class ConfigParams:
         cls.timeoutThreshold = cls.config.get("timeoutThreshold")
 
         Trace.log(f"Updated config: {cls.config}")
-        #log.info("dev_name=" + str(self.devName) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
+        #Trace.log("dev_name=" + str(self.devName) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
 
 
 # 创建全局配置管理器实例
@@ -140,7 +140,7 @@ class Battery(bb.batteryBase):
             mu.sleepS(2)
 
 if __name__ == '__main__':
-    log.info(f"Scripts Start.")
+    Trace.log(f"Scripts Start.")
     Module.init()
     client = Battery()
     client.loop()

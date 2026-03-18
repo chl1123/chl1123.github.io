@@ -1,6 +1,6 @@
 import syspy.lib.pass_through as pt
 from syspy import RBK_VERSION
-
+from syspy import Trace
 DEFAULT_PASS_ADDR = "ipc:///tmp/python2dsp_udp.ipc"
 
 if RBK_VERSION == 3:
@@ -15,7 +15,7 @@ log = logging.getLogger("rbk.script")
 
 class SerialPass:
     def __init__(self):
-        log.info("SerialPass start!")
+        Trace.log("SerialPass start!")
         self.__pass = pt.passThrough("serial")
         self.__pass.serialConnect(DEFAULT_PASS_ADDR)
 
@@ -26,11 +26,11 @@ class SerialPass:
         if isinstance(msg, list):
             self.__pass.send(bytes(msg))
         else:
-            log.error("Write msg format error. please send a list")
+            Trace.log("Write msg format error. please send a list")
 
     def setCallBack(self, handleData):
         if not handleData:
-            log.error("Set callback error.It should be implemented the func 'handleData'")
+            Trace.log("Set callback error.It should be implemented the func 'handleData'")
         else:
             self.__pass.setCallBack(handleData)
 
@@ -39,7 +39,7 @@ class SerialPass:
             if self.__pass:
                 self.__pass.shoutDown()  # Assuming typo in original code is fixed here
         except Exception as e:
-            log.error(f"Failed to shutdown properly: {e}")
+            Trace.log(f"Failed to shutdown properly: {e}")
 
     def __del__(self):
         self.shutdown()

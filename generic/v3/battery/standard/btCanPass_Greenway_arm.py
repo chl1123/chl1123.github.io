@@ -6,7 +6,7 @@ import syspy.battery_Can.can_base as cb
 import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 from syspy import Logger
-
+from syspy import Trace
 log = Logger("battery")
 
 error_dict = {
@@ -47,22 +47,22 @@ class CanBattery(cb.CanBase):
 
     def handleData(self, msg):
         try:
-            #log.info("handle data")
+            #Trace.log("handle data")
             self.judgeCanframe(msg)
             self.judgePublish()
         except ValueError as e:
-            log.error(f"ValueError occurred in handleData: %s", e)
+            Trace.log(f"ValueError occurred in handleData: %s", e)
         except TypeError as e:
-            log.error(f"TypeError occurred in handleData: %s", e)
+            Trace.log(f"TypeError occurred in handleData: %s", e)
         except Exception as e:
-            log.error(f"Unexpected exception in handleData: %s", e)
+            Trace.log(f"Unexpected exception in handleData: %s", e)
 
     def judgeCanframe(self, msg):
         if len(msg.data) != 8:
             log.warning(f"msg not valid: %s", str(msg))
             return
         if msg.arbitration_id == 0x0DA2F40D and not self.msg_userdata:
-            # log.info("assert 1")
+            # Trace.log("assert 1")
             tem = msg.data.hex()
             if tem[2:14] == 'ffffffffffff':
                 self.msg_userdata = True
@@ -80,7 +80,7 @@ class CanBattery(cb.CanBase):
                     self.msg_userdata = True
                     self.msg_ok = True
         elif msg.arbitration_id == 0x0EA0F40D:
-            # log.info("assert 2")
+            # Trace.log("assert 2")
             tem = msg.data.hex()
             percentage = round(int(tem[0:2], 16) * 0.01, 2)
             SOH = round(int(tem[2:4], 16) * 0.01, 2)
@@ -103,7 +103,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
             self.id1 = True
         elif msg.arbitration_id == 0x0EA1F40D:
-            # log.info("assert 3")
+            # Trace.log("assert 3")
             tem = msg.data.hex()
             current = round(cu.hexStrToInt(tem[0:4] + tem[4:8], 18) * 0.001, 2)
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
@@ -121,7 +121,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
             self.id2 = True
         elif msg.arbitration_id == 0x0EA2F40D:
-            # log.info("assert 4")
+            # Trace.log("assert 4")
             tem = msg.data.hex()
             temperature = round(int(tem[4:6], 16) - 40, 2)
 
@@ -154,7 +154,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
             self.id3 = True
         elif msg.arbitration_id == 0x0EA4F40D:
-            # log.info("assert 5")
+            # Trace.log("assert 5")
             tem = msg.data.hex()
             if self.isNeedCharge():
                 maxChargeVoltage = round(int(tem[0:2] + tem[2:4], 16) * 0.01, 2)
@@ -167,7 +167,7 @@ class CanBattery(cb.CanBase):
             self.msg_ok = True
             self.id4 = True
         elif msg.arbitration_id == 0x1EA7F40D:
-            # log.info("assert 6")
+            # Trace.log("assert 6")
             tem = msg.data.hex()
             for i in range(1, 4):
                 for j in range(8):
@@ -186,9 +186,9 @@ class CanBattery(cb.CanBase):
         if self.id1 and self.id2 and self.id3 and self.id4:
             result = self.publish(self.battery_info)
             if result == -1:
-                log.error("battery message publish fail")
+                Trace.log("battery message publish fail")
         else:
-            log.info(f"wait 4 ids all recv: id1{self.id1} id2{self.id2} id3{self.id3} id4{self.id4}")
+            Trace.log(f"wait 4 ids all recv: id1{self.id1} id2{self.id2} id3{self.id3} id4{self.id4}")
 
     def judgeMsgok(self):
         if self.msg_ok:
@@ -197,29 +197,31 @@ class CanBattery(cb.CanBase):
             self.connect_timeout_t.reset()
             self.reset_timeout_t.reset()
             self.wake_up = False
-            log.info("Receive Success")
+            Trace.log("Receive Success")
             if not self.clear:
                 exist = self.errorExists(57040)
                 if exist:
-                    log.info('clearTimeout')
+                    Trace.log('clearTimeout')
                     self.clearTimeout()
                 else:
                     self.clear = True
         else:
             if self.connect_timeout_t.isTimeUp():
-                if not self.wake_up and (self.id == "0b" or self.id == "0d"):
+                if not self.wake_up and (self.id == "0b" or self.id == "0d" or self.id == "0e"):
                     self.sendCanframe(self.port, 0x0DA20DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
                     self.wake_up = True  # 主动唤醒
-                    log.info('wake_up')
+                    Trace.log('wake_up')
                 else:
                     self.clear = False
-                    log.error('timeout')
+                    Trace.log('timeout')
                     self.setTimeout()
                     
             if self.reset_timeout_t.isTimeUp():
                 log.warning("No complete data received for an extended period, resetting CAN bus.")
                 self.reset_timeout_t.reset()
                 self.resetBus()
+        if self.isNeedCharge(): #继电器没有打开且需要打开
+            self.sendCanframe(self.port, 0x0DA30DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
 
     def loop(self):
         mu.sleepS(20)

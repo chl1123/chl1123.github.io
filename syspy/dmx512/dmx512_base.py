@@ -3,7 +3,7 @@ import platform
 from enum import Enum
 from syspy import Abnormal, Battery, Do, Di, Controller, NavStatus, Led
 from syspy import RBK_VERSION
-
+from syspy import Trace
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message import message_dmx512_pb2
 if RBK_VERSION == 4:
@@ -33,7 +33,7 @@ class dmx512Base:
             import syspy.dmx512.dmx512_native_lib as native
 
             self.child = native.dmx512NativeLib()
-        log.info("start dmx512")
+        Trace.log("start dmx512")
 
     # genetic
     def getChassisStop(self) -> bool:
@@ -75,7 +75,7 @@ class dmx512Base:
 
     def getLedExternalControlInfo(self):
         json_string = Led.getLedExternalControlInfo()
-        log.info("getinfo: ", json_string)
+        Trace.log("getinfo: ", json_string)
         return json_string
 
     # Serial

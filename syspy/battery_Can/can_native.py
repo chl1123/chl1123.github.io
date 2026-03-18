@@ -1,12 +1,13 @@
 import logging
 import can
 import syspy.lib.misc_utility as mu
+from syspy import Trace
 log = logging.getLogger("rbk.script")
 
 
 class CanNative():
     def __init__(self):
-        log.info("CanNative start!")
+        Trace.log("CanNative start!")
         self.bus = None
         self.__callback = None
         self.can_ids = []
@@ -19,7 +20,7 @@ class CanNative():
         if callable(handleData):
             self.__callback = handleData
         else:
-            log.error("Set callback error.")
+            Trace.log("Set callback error.")
 
     def __on_message_received(self, msg):
         log.debug(f"message received: {msg}")
@@ -75,7 +76,7 @@ class CanNative():
                 can_mask = 0x1FFFFFFF
             filters.append({"can_id": id_, "can_mask": can_mask})
         self.bus.set_filters(filters)
-        log.info(f"Attached CAN IDs: {[hex(id) for id in self.can_ids]}")
+        Trace.log(f"Attached CAN IDs: {[hex(id) for id in self.can_ids]}")
 
     def resetBus(self):
         """重启 CAN 接口并重新创建 bus"""
@@ -87,7 +88,7 @@ class CanNative():
         log.warning("[CAN] Resetting CAN interface due to tx buffer full")
         self.createCanBus(self.channel,self.bitrate)
         self.attachCanID(*self.can_ids)
-        log.info(f'[CAN] Config Ok')
+        Trace.log(f'[CAN] Config Ok')
         
     def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
         if not self.bus:
@@ -95,12 +96,12 @@ class CanNative():
             return
         try:
             self.bus.send(can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc))
-            log.info(f'message send: {channel=}, {hex(can_id)=}, {dlc=}, {extend=}, {can_string=}')
+            Trace.log(f'message send: {channel=}, {hex(can_id)=}, {dlc=}, {extend=}, {can_string=}')
         except can.CanError as e:
-            log.error(f"Send failed: {e}")
+            Trace.log(f"Send failed: {e}")
             if "buffer" in str(e).lower():
                 self.resetBus()
-                log.info(f'please check can bus connection, the tx buffer is full due to unsuccess communication')
+                Trace.log(f'please check can bus connection, the tx buffer is full due to unsuccess communication')
 
         
 

@@ -7,6 +7,7 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 from syspy import Logger
+from syspy import Trace
 import threading
 import os
 import signal
@@ -24,7 +25,7 @@ class Battery(bb.batteryBase):
         self._send_event = threading.Event()  # 允许发送
 
         self._send_event.set()  # 初始允许发送
-        log.info(f'Class Init Finished')
+        Trace.log(f'Class Init Finished')
     def handleData(self, msg:list):
         if self._stop_event.is_set():
             return
@@ -32,9 +33,9 @@ class Battery(bb.batteryBase):
         # if len(self.data_buff)==0 or len(self.data_buff)>112:
         #     if len(self.data_buff)>112:
         #         self.data_buff = []
-        #         log.info(f'sema_a release')
+        #         Trace.log(f'sema_a release')
         #         self.sema_a.release()
-        #     log.info(f'sema_b acquire')
+        #     Trace.log(f'sema_b acquire')
         #     self.sema_b.acquire()
             
             
@@ -43,7 +44,7 @@ class Battery(bb.batteryBase):
         while len(self.data_buff) >= 112:
             if self.data_buff[0] != 0x7E:
                 self.data_buff.clear()
-                log.info(f'send set')
+                Trace.log(f'send set')
                 self._send_event.set()   # 解锁发送
                 return
             try:
@@ -88,11 +89,11 @@ class Battery(bb.batteryBase):
                 battery_info.SOH = int(100)
                 #发步电池数据给rbk
                 self.publish(battery_info)
-                log.info("Receive Success")
+                Trace.log("Receive Success")
             except Exception as e:
                     log.warning(f"Error in handleData: {e}")
             finally:
-                log.info(f'send set')
+                Trace.log(f'send set')
                 self._send_event.set()
                 
                 self.clearTimeout()
@@ -116,17 +117,17 @@ class Battery(bb.batteryBase):
             self.judgeMsgok()
             mu.sleepS(2)
     def stop(self):
-        log.info("Stopping thread...")
+        Trace.log("Stopping thread...")
         self._stop_event.set()
         os._exit(1)  # 直接杀掉进程,以顺利退出
         self._send_event.set()
 if __name__ == '__main__':
-    log.info(f"Scripts Start.")
+    Trace.log(f"Scripts Start.")
     Module.init()
     client = Battery()
     
     def handle_exit(signum, frame):
-        log.info("Exit detected, stopping client...")
+        Trace.log("Exit detected, stopping client...")
         client.stop()
         sys.exit(0)  #当主线程阻塞时退出方式无效
     

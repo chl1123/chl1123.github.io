@@ -4,7 +4,7 @@ import subprocess
 import threading
 
 import serial
-
+from syspy import Trace
 from syspy import RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
@@ -16,7 +16,7 @@ log = logging.getLogger("rbk.script")
 
 class SerialNative:
     def __init__(self):
-        log.info("SerialNative start!")
+        Trace.log("SerialNative start!")
         self.ser = None
         self.__callback = None
         self.__should_close = False
@@ -27,25 +27,25 @@ class SerialNative:
         command = "cat /etc/srcname"
         output = subprocess.check_output(command, shell=True)
         output = output.decode("utf-8").strip()
-        log.info(f"{output=}")
+        Trace.log(f"{output=}")
         if output in ['SRC800', 'SRC3000']:
             fcntl.ioctl(self.ser, 0)  # 这行决定了485模式
         self.__msg_thread = threading.Thread(target=self.__run, name="run")
         self.__msg_thread.start()
-        log.info("createSerial  name:{},baudrate:{}".format(name, baudrate))
+        Trace.log("createSerial  name:{},baudrate:{}".format(name, baudrate))
         
     def closeSerial(self):
-        log.info("closeSerial")
+        Trace.log("closeSerial")
         # if hasattr(self, 'ser') and self.ser and self.ser.is_open:
         try:
             self.stop()
             self.ser.close()
-            log.info("serial port closed successfully.")
+            Trace.log("serial port closed successfully.")
         except Exception as e:
-            #log.error(f"exception: {e}")
+            #Trace.log(f"exception: {e}")
             pass
 
-        log.info("closeSerial done.")
+        Trace.log("closeSerial done.")
 
 
     def send(self, msg: list):
@@ -58,7 +58,7 @@ class SerialNative:
 
     def setCallBack(self, handleData):
         if not handleData:
-            log.error("Set callback error.It should be implemented the func 'handleData'")
+            Trace.log("Set callback error.It should be implemented the func 'handleData'")
         else:
             self.__callback = handleData
 
@@ -70,7 +70,7 @@ class SerialNative:
             while not self.__should_close:
                 self.recv()
         except Exception as e:
-            log.error("exception:", e)
+            Trace.log("exception:", e)
         finally:
             self.ser.close()
             pass

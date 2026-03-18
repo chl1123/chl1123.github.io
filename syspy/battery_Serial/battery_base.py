@@ -5,6 +5,7 @@ import syspy.lib.rpc.server as rs
 import syspy.lib.udp_debug as ud
 from syspy import Battery, Di, Do
 from syspy import Abnormal, RBK_VERSION
+from syspy import Trace
 import subprocess
 _syslog = ud.syslogDebug("serial_battery")
 if RBK_VERSION == 3:
@@ -20,13 +21,13 @@ class batteryBase:
         command = "cat /etc/srcname"
         output = subprocess.check_output(command, shell=True)
         output = output.decode("utf-8").strip()
-        log.info(f"{output=}")
+        Trace.log(f"{output=}")
         if "SRC2000" in output: #passthrough
-            log.info("Serial Type: passThrough")
+            Trace.log("Serial Type: passThrough")
             import syspy.battery_Serial.serial_pass as serial_pass
             self.child = serial_pass.SerialPass()
         else:
-            log.info("Serial Type: native")
+            Trace.log("Serial Type: native")
             import syspy.battery_Serial.serial_native as serial_native
             self.child = serial_native.SerialNative()
         self.__rpc_client = rc.RpcClient()

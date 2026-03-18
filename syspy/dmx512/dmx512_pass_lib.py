@@ -1,5 +1,6 @@
 import logging
 from google.protobuf.json_format import MessageToJson
+from syspy import Trace
 from syspy import Led, RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message import message_dmx512_pb2
@@ -11,7 +12,7 @@ log = logging.getLogger("rbk.script")
 
 class dmx512PassLib:
     def __init__(self):
-        log.info("start passThrough dmx512")
+        Trace.log("start passThrough dmx512")
 
     def sendDmx512(self, dmx512_info):
         type_exm = message_dmx512_pb2.msgDmx512()

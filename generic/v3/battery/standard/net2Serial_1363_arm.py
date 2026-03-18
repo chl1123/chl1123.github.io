@@ -56,7 +56,7 @@ class ConfigParams:
         cls.timeoutThreshold = cls.config.get("timeoutThreshold")
 
         Trace.log(f"Updated config: {cls.config}")
-        #log.info("dev_name=" + str(self.devName) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
+        #Trace.log("dev_name=" + str(self.devName) + " baudrate=" + str(self.baudrate) + " timeoutThreshold=" + str(self.timeoutThreshold))
 
 
 # 创建全局配置管理器实例
@@ -71,7 +71,7 @@ class Battery(bb.batteryBase):
         super(Battery,self).__init__()
         # aarch64穿透需要初始化串口信息，880控制器串口uart0对应/dev/ttyS8
         self.createSerial(config_params.devName, config_params.baudrate)
-        log.info(f'Create Serial Finished')
+        Trace.log(f'Create Serial Finished')
         #创建一个超时定时器
         self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
         self.reset_timeout_t = mu.Timer(config_params.timeoutThreshold + 8000)
@@ -83,7 +83,7 @@ class Battery(bb.batteryBase):
         self._send_event = threading.Event()
 
         self._send_event.set() 
-        log.info(f'Class Init Finished')
+        Trace.log(f'Class Init Finished')
 
     def handleData(self, msg:list):
         if self._stop_event.is_set():
@@ -92,9 +92,9 @@ class Battery(bb.batteryBase):
         # if len(self.data_buff)==0 or len(self.data_buff)>112:
         #     if len(self.data_buff)>112:
         #         self.data_buff = []
-        #         log.info(f'sema_a release')
+        #         Trace.log(f'sema_a release')
         #         self.sema_a.release()
-        #     log.info(f'sema_b acquire')
+        #     Trace.log(f'sema_b acquire')
         #     self.sema_b.acquire()
             
             
@@ -103,7 +103,7 @@ class Battery(bb.batteryBase):
         while len(self.data_buff) >= 112:
             if self.data_buff[0] != 0x7E:
                 self.data_buff.clear()
-                log.info(f'send set 1')
+                Trace.log(f'send set 1')
                 self._send_event.set()   # 解锁发送
                 return
             try:
@@ -148,11 +148,11 @@ class Battery(bb.batteryBase):
                 battery_info.SOH = int(100)
                 #发步电池数据给rbk
                 self.publish(battery_info)
-                log.info("Receive Success")
+                Trace.log("Receive Success")
             except Exception as e:
                     log.warning(f"Error in handleData: {e}")
             finally:
-                log.info(f'send set 2')
+                Trace.log(f'send set 2')
                 self._send_event.set()
                 
                 self.clearTimeout()
@@ -188,19 +188,19 @@ class Battery(bb.batteryBase):
             self.judgeMsgok()
             mu.sleepS(2)
     def stop(self):
-        log.info("Stopping thread...")
+        Trace.log("Stopping thread...")
         self._stop_event.set()
         os._exit(1)  # 直接杀掉进程,以顺利退出
         self._send_event.set()
 
 
 if __name__ == '__main__':
-    log.info(f"Scripts Start.")
+    Trace.log(f"Scripts Start.")
     Module.init()
     client = Battery()
     
     def handle_exit(signum, frame):
-        log.info("Exit detected, stopping client...")
+        Trace.log("Exit detected, stopping client...")
         client.stop()
         sys.exit(0)  #当主线程阻塞时退出方式无效
     
