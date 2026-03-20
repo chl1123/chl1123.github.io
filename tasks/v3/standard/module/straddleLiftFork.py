@@ -867,17 +867,25 @@ def get_rec_side_info(recfile, rec_side):
     recognitionSide_key = "recognitionObject.pallet.recognitionSide"
     recognitionSide_size = RobotParam.getConfigCloneSize("recognition", recognitionSide_key, recfile)
     rec_sides = []
+
     for i in range(recognitionSide_size):
         side_value = RobotParam.getConfig("recognition", f"{recognitionSide_key}._{i}", recfile)
-        coordinateSystem = RobotParam.getConfig("recognition",
-                                                f"{recognitionSide_key}._{i}.{side_value}.coordinateSystem",
-                                                recfile)
-        enableCargoContactDI = RobotParam.getConfig("recognition",
-                                                    f"{recognitionSide_key}._{i}.{side_value}.enableCargoContactDI",
-                                                    recfile)
-        enableBackDistance = RobotParam.getConfig("recognition",
-                                                  f"{recognitionSide_key}._{i}.{side_value}.enableBackDistance",
-                                                  recfile)
+        coordinateSystem = RobotParam.getConfig(
+            "recognition",
+            f"{recognitionSide_key}._{i}.{side_value}.coordinateSystem",
+            recfile
+        )
+        enableCargoContactDI = RobotParam.getConfig(
+            "recognition",
+            f"{recognitionSide_key}._{i}.{side_value}.enableCargoContactDI",
+            recfile
+        )
+        enableBackDistance = RobotParam.getConfig(
+            "recognition",
+            f"{recognitionSide_key}._{i}.{side_value}.enableBackDistance",
+            recfile
+        )
+
         side_info = {
             "side_value": side_value,
             "coordinateSystem": coordinateSystem,
@@ -885,17 +893,42 @@ def get_rec_side_info(recfile, rec_side):
             "enableBackDistance": enableBackDistance
         }
 
-        if enableBackDistance == 'on':
-            backDistance = RobotParam.getConfig("recognition",
-                                                f"{recognitionSide_key}._{i}.{side_value}.enableBackDistance."
-                                                f"{enableBackDistance}.backDistance", recfile)
+        if enableBackDistance == "on":
+            backDistance = RobotParam.getConfig(
+                "recognition",
+                f"{recognitionSide_key}._{i}.{side_value}.enableBackDistance.{enableBackDistance}.backDistance",
+                recfile
+            )
             side_info["backDistance"] = backDistance
+
         rec_sides.append(side_info)
+
     if rec_side:
         rec_info = next((s for s in rec_sides if s["side_value"] == rec_side), None)
+        if rec_info is None:
+            Abnormal.setTask(
+                53333,
+                f"Recognition side {rec_side} is not match in {recfile}, script failed",
+                f"Recognition side {rec_side} is not match in {recfile}, script failed",
+                "check input json or srec",
+                ""
+            )
+            Trace.log(f"input rec_side:{rec_side}, rec_info: None, rec_sides:{rec_sides}")
+            return None
     else:
+        if len(rec_sides) == 0:
+            Abnormal.setTask(
+                53333,
+                f"RecSide is not config in {recfile}, script failed",
+                f"no rec side in {recfile}",
+                "check srec",
+                ""
+            )
+            Trace.log(f"no rec side in {recfile}",True ,True)
+            return None
         rec_info = rec_sides[0]
-    Trace.log(f"rec_side:{rec_side},rec_info: {rec_info},rec_sides:{rec_sides}")
+
+    Trace.log(f"input rec_side:{rec_side}, rec_info:{rec_info}, rec_sides:{rec_sides}")
     return rec_info
 
 
@@ -1237,6 +1270,10 @@ class Fork(ModuleBase):
 
                 # 处理识别面
                 self.rec_info = get_rec_side_info(self.recfile, self.recSide)
+                if self.rec_info is None:
+                    self.script_status = ScriptStatus.FAILED
+                    return
+
                 if any(v is None or v == "none" for v in self.rec_info.values()):
                     Abnormal.setTask(53325, f"Invalid side info, found None: {self.rec_info},script failed",
                                      "recognize file param wrong", "check the param", "")
