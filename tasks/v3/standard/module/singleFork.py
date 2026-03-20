@@ -1294,7 +1294,7 @@ class Fork(ModuleBase):
                     self.action_list.append(
                         GoPathWithContactDi(ConfigParams.contact_ids, target_pos, ConfigParams.toLoadObsStopDist,
                                             method, args, self.check_di))
-                    self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height))
+                    self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,ConfigParams.fork_max_speed,"upFork"))
 
                     if self.leave_loc_height >= 0:
                         args = {
@@ -1579,8 +1579,8 @@ class Fork(ModuleBase):
                 else:
                     method = "goPath"
                     args = None
-                if ConfigParams.base_shift:
-                    target_pos = pos2World([-ConfigParams.base_shift_length, 0, 0], target_pos)
+                # if ConfigParams.base_shift:
+                #     target_pos = pos2World([-ConfigParams.base_shift_length, 0, 0], target_pos)
                 self.action_list = [
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                     GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
