@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/3/23
+# @Date : 2026/3/24
 # @Author : zengweibin & zhaopengfei
 # @Coding : none
-# @Update : feat：适配最新的二维码二次调整
+# @Update : fix：修复宽窄边显示问题
 
 import json
 import math
@@ -185,6 +185,9 @@ class ConfigParams:
     pgv_reach_dist = 0.02  # 到点距离精度（m）
     pgv_reach_angle = 1.0  # 到点角度精度（deg）
 
+    # 报错保护配置参数
+    load_again_error = True  # 是否启用重复取货保护 (Error52179)
+
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
     spin_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.spinMotor")
@@ -217,6 +220,18 @@ class ConfigParams:
                                        desc="Enable debug mode to show debug tasks and low-frequency parameters"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+
+            # ============================================
+            # 报错保护配置组
+            # ============================================
+            with builder.GROUP(key="errorProtectionConfig", name="Error Protection Configuration",
+                               desc="Error protection and timeout parameters"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="loadAgainError", name="Load Again Error Protection",
+                                       desc="Enable protection to prevent loading when goods already on robot (Error52179)"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(True)
 
             # ============================================
             # 电机配置组
@@ -1168,6 +1183,16 @@ class InputParams:
 class Jack(ModuleBase):
     def __init__(self):
         super().__init__()
+
+        # ============================================
+        # Error52800: 检查顶升电机配置
+        # ============================================
+        if not config_params.jack_motor_name:
+            Abnormal.setTask(52800,
+                             "Jack byController Mode. Cannot Find Linear Motor",
+                             "模型文件顶升设备配置有误，找不到顶升电机",
+                             "检查 jack 机构的配置文件中的电机配置是否配置或配置是否有误",
+                             "Jack.__init__")
         # 脚本任务管理
         # set_info数据打印
         self._last_logged_action_id = None
@@ -1257,8 +1282,20 @@ class Jack(ModuleBase):
 
         shapes = json.loads(goods_shape)
         shape = shapes[0]["points"]
+
+        # 3. 将货物模型旋转90度显示（顺时针90°: (x, y) -> (y, -x)）
+        rotated_shape = []
+        for pt in shape:
+            if isinstance(pt, dict):
+                rotated_shape.append({"x": -pt["y"], "y": pt["x"]})
+            elif isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                rotated_shape.append([pt[1], -pt[0]])
+            else:
+                rotated_shape.append(pt)
+        shape = rotated_shape
+
         Navigation.setGoodsPolyShape(shape, goods_name)
-        Trace.log(f"[bindContainer] 绑定成功: container={container_id}, goods={goods_name}, "
+        Trace.log(f"[bindContainer] 绑定成功(已旋转90°): container={container_id}, goods={goods_name}, "
                   f"shape points={len(shape)}, recfile={self.recfile}")
         return True
 
@@ -1420,6 +1457,12 @@ class Jack(ModuleBase):
             self.press_button()
 
         else:
+            # Error52801: 不支持的任务指令
+            Abnormal.setTask(52801,
+                             f"Doesn't support key: {self.opt}",
+                             "下发的任务指令格式脚本不支持",
+                             "检查下发的任务指令是否符合正确，是否符合要求？",
+                             "Jack.run")
             self.status = ScriptStatus.FAILED
 
         # Trace.log(f"self.action_list: {self.action_list}")
@@ -1722,6 +1765,20 @@ class Jack(ModuleBase):
             self.operation_init = True
             debug_trace("jackLoad: Starting sequence")
 
+            # ============================================
+            # Error52179: 重复取货保护 - 检查车上是否已有货物
+            # ============================================
+            if config_params.load_again_error and Navigation.hasGoods():
+                Abnormal.setTask(52179,
+                                 f"Jack Cannot Load Again.file:{__file__}",
+                                 "顶升车身上有货物的情况下，再去执行取货",
+                                 "如果需要重复取货，可在参数配置中将 LoadAgainError 关闭；"
+                                 "或先执行 JackUnload 卸载货物后再取货；"
+                                 "如果已卸载货物仍报此错误，检查脚本是否调用了 clearGoodsShape()",
+                                 "jack_load")
+                self.status = ScriptStatus.FAILED
+                return
+
             # === 初始化时解析并设置扣除区域配置 ===
             if self.recfile:
                 self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
@@ -1747,12 +1804,12 @@ class Jack(ModuleBase):
             robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
 
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
-            # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
-            if self.is_backwards:
-                target_angle_deg = math.degrees(ap_to_robot_angle) + math.pi
-            else:
-                target_angle_deg = math.degrees(ap_to_robot_angle)
-            self.action_list.append(RobotRotate(target_angle_deg, Coordinate.WORLD, False))
+            # # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
+            # if self.is_backwards:
+            #     target_angle = ap_to_robot_angle + math.pi
+            # else:
+            #     target_angle = ap_to_robot_angle
+            self.action_list.append(RobotRotate(ap_to_robot_angle, Coordinate.WORLD, False))
 
             # 启用识别
             if self.is_recognize:
@@ -1842,7 +1899,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
+                self.ap_id = Navigation.moveTask().get("targetName", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'go_ap_site AP_pos: {self.ap_world_pos}')
@@ -1857,7 +1914,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
+                self.ap_id = Navigation.moveTask().get("targetName", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'go_bezier AP_pos: {self.ap_world_pos}')
@@ -1871,7 +1928,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
+                self.ap_id = Navigation.moveTask().get("targetName", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
             debug_trace(f'go_polyline AP_pos: {self.ap_world_pos}')
@@ -1954,7 +2011,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
+                self.ap_id = Navigation.moveTask().get("targetName", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
             debug_trace(f'go_polyline AP_pos: {self.ap_world_pos}')
