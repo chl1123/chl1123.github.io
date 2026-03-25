@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/3/24
+# @Date : 2026/3/25
 # @Author : zengweibin & zhaopengfei
 # @Coding : none
-# @Update : fix：修复宽窄边显示问题
+# @Update : add: 1.重复取货保护功能 2.模型文件电机配置校验功能 3.不支持的任务报错功能 fix：1. 倒走取货时旋转单位角度混用 2. 修复调用 moveTask小驼峰问题 feat：1.货架识别支持动态传入 2.识别区域传入不同方向ROI
 
 import json
 import math
@@ -1679,7 +1679,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             # 如果钻入深度为None,即未传入back_dist,此时用识别文件中的钻入深度
-            self.shelf_back_distance = self.get_back_distance_info(self.recfile, "shelf", "A")
+            self.shelf_back_distance = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
             debug_print(f"self.shelf_back_distance={self.shelf_back_distance}")
             self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
             debug_print(f"self.laser_area_deduct_info={self.laser_area_deduct_info}")
@@ -1783,7 +1783,6 @@ class Jack(ModuleBase):
             if self.recfile:
                 self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
                 debug_trace(f"jack_load: Parsed laser deduct info: {self.laser_area_deduct_info}")
-                self.action_list.append(SetLaserDeductArea(self.laser_area_deduct_info))
 
             # 下降到起始高度
             if self.start_height:
@@ -1804,16 +1803,17 @@ class Jack(ModuleBase):
             robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
 
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
-            # # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
-            # if self.is_backwards:
-            #     target_angle = ap_to_robot_angle + math.pi
-            # else:
-            #     target_angle = ap_to_robot_angle
-            self.action_list.append(RobotRotate(ap_to_robot_angle, Coordinate.WORLD, False))
+            # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
+            if self.is_backwards:
+                target_angle = ap_to_robot_angle + math.pi
+            else:
+                target_angle = ap_to_robot_angle
+            self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
 
             # 启用识别
             if self.is_recognize:
-                self.action_list.append(RecShelf(self.recfile, "FirstRec"))
+                self.action_list.append(
+                    RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
 
         # 动态添加 action_list（识别完成后）
         if 0 <= self.action_id < len(self.action_list):
@@ -1828,7 +1828,7 @@ class Jack(ModuleBase):
                         GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
                                self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
                 elif self.how_go_site == "bezier":
-                    recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", "A")
+                    recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
                     if not self.back_dist:
                         if recfile_back_dist.get("enableBackDistance") == "on":
                             self.back_dist = recfile_back_dist.get("backDistance", 0.24)
@@ -1862,11 +1862,13 @@ class Jack(ModuleBase):
                     ))
 
                 # 旋转托盘
-                self.action_list.append(Spin(0, "robot", 2))
+                self.action_list.append(Spin(0, "robot", 2, deduct_info=self.laser_area_deduct_info))
 
                 # 顶升
                 self.action_list.append(
-                    JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
+                    JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed,
+                               self.recfile, deduct_info=self.laser_area_deduct_info))
+
                 # 顶升完成后绑定容器，设置货物模型
                 self.action_list.append(BindContainer("999", "shelf", self.recfile))
 
@@ -1973,7 +1975,7 @@ class Jack(ModuleBase):
 
             # 识别货架
             if self.recfile:
-                self.action_list.append(RecShelf(self.recfile, "BezierReturnRec"))
+                self.action_list.append(RecShelf(self.recfile, "BezierReturnRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
 
         # 识别完成后动态追加后续动作
         if 0 <= self.action_id < len(self.action_list):
@@ -2063,7 +2065,7 @@ class Jack(ModuleBase):
         """识别货架"""
         if not self.operation_init:
             self.operation_init = True
-            self.action_list.append(RecShelf(self.recfile))  # 导航到终点
+            self.action_list.append(RecShelf(self.recfile, side=self.insert_shelf_dir, is_backwards=self.is_backwards))
 
     def pgv_adjust(self):
         """二次调整"""
@@ -2530,7 +2532,7 @@ class DeleteLaserDeductArea(BaseAction):
 class Spin(BaseAction):
     """托盘旋转到机器人/世界坐标系下固定角度，额外旋转固定角度"""
 
-    def __init__(self, angle, spin_mode="world", direction=None):
+    def __init__(self, angle, spin_mode="world", direction=None, deduct_info=None):
         super().__init__("Spin")
         kwargs = locals()
         del kwargs['self']
@@ -2540,14 +2542,18 @@ class Spin(BaseAction):
         self.action_status = ActionStatus.INIT
         self.init = True
         self.angle = angle
-        self.dir = direction  # 0 counterclockwise; 1 clockwise; 2 shortest
+        self.dir = direction
         self.coordinate_system = spin_mode
+        self.deduct_info = deduct_info          # 新增：扣除区域数据
+        self._initial_spin_angle = None         # 新增：spin开始时的初始角度
         Motor.resetMotor(config_params.spin_motor_name)
 
     def run(self, j: Jack):
         if self.init:
             self.init = False
             self.action_status = ActionStatus.RUNNING
+            # 记录spin开始时的电机角度，作为旋转基准
+            self._initial_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
             if self.coordinate_system == "robot":
                 Trace.log("setRobotSpinAngle")
                 Navigation.setRobotSpinAngle(self.angle, self.dir)
@@ -2557,8 +2563,17 @@ class Spin(BaseAction):
             elif self.coordinate_system == "increase":
                 Trace.log("setIncreaseSpinAngle")
                 Navigation.setIncreaseSpinAngle(self.angle)
+
+        # === 实时更新扣除区域（每个周期都根据当前spin角度更新） ===
+        if self.deduct_info:
+            self._update_deduct_area_by_spin()
+
         if Navigation.spinRun():
             self.action_status = ActionStatus.FINISHED
+            # spin完成后最后更新一次确保最终位置准确
+            if self.deduct_info:
+                self._update_deduct_area_by_spin()
+
         Trace.log(f"弧度{self.angle=}")
         Trace.log(f"坐标系{self.coordinate_system=}")
 
@@ -2569,6 +2584,41 @@ class Spin(BaseAction):
             "direction": self.dir
         }
         Module.reportInfo(j.report_info)
+
+    def _update_deduct_area_by_spin(self):
+        """根据当前spin电机角度，旋转扣除区域坐标并重新设置"""
+        try:
+            current_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
+            # 计算相对于初始位置的旋转增量
+            delta_angle = current_spin_angle - (self._initial_spin_angle or 0)
+
+            cos_a = math.cos(delta_angle)
+            sin_a = math.sin(delta_angle)
+
+            devices = self.deduct_info.get("deductDevice", [])
+            areas = self.deduct_info.get("area", [])
+
+            for idx, area in enumerate(areas, start=1):
+                x_list = area.get("xList", area.get("x_list", []))
+                y_list = area.get("yList", area.get("y_list", []))
+                if len(x_list) < 3 or len(x_list) != len(y_list):
+                    continue
+
+                # 对每个点做二维旋转: x'=x*cos-y*sin, y'=x*sin+y*cos
+                rotated_x = [x * cos_a - y * sin_a for x, y in zip(x_list, y_list)]
+                rotated_y = [x * sin_a + y * cos_a for x, y in zip(x_list, y_list)]
+
+                region_name = f"ShelfDeductArea{idx}"
+                # 先删除旧区域再设置新区域
+                try:
+                    Navigation.deleteClearRegion(region_name, Coordinate.ROBOT)
+                except Exception:
+                    pass
+                Navigation.setClearRegion(region_name, rotated_x, rotated_y, devices, Coordinate.ROBOT)
+
+            debug_trace(f"[LASER] Spin deduct area updated, delta_angle={math.degrees(delta_angle):.1f}°")
+        except Exception as e:
+            Trace.log(f"[LASER] _update_deduct_area_by_spin error: {e}")
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
@@ -2676,7 +2726,7 @@ class RobotRotate(BaseAction):
 class JackHeight(BaseAction):
     """顶升动作，通过设置电机位置实现顶升"""
 
-    def __init__(self, motor_name, target_height, jack_motor_speed):
+    def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf", deduct_info=None):
         super().__init__("JackHeight")
 
         kwargs = locals()
@@ -2687,11 +2737,13 @@ class JackHeight(BaseAction):
         self.motor_name = motor_name
         self.target_height = target_height
         self.jackMotorSpeed = jack_motor_speed
+        self.recfile = recfile
+        self.object_key = object_key
+        self.deduct_info = deduct_info  # 激光扣除区数据，顶升完成后设置，下降完成后删除
         self.init = False
         self.jack_start_height = None
         self._count_recorded = False  # 防止重复计数
         self._last_progress = -1  # 用于进度日志去重
-        self.deduct_info = None
         Motor.resetMotor(self.motor_name)
 
     def run(self, j: Jack):
@@ -2705,7 +2757,7 @@ class JackHeight(BaseAction):
             debug_trace(
                 f"[JACK] {direction} {self.jack_start_height:.3f}m → {self.target_height:.3f}m (speed={self.jackMotorSpeed})")
 
-            if self.target_height > config_params.jack_min_height:
+            if self.target_height > self.jack_start_height:
                 Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                        config_params.jack_up_di)
             else:
@@ -2786,7 +2838,6 @@ class JackHeight(BaseAction):
             debug_trace(f"[LASER] Deleted {deleted_count} deduct regions")
         except Exception as e:
             Trace.log(f"[LASER] _delete_deduct_area error: {e}")
-
 
 class BindContainer(BaseAction):
     """顶升完成后绑定容器并设置货物模型"""
@@ -3062,7 +3113,7 @@ class GoBezierReturn(BaseAction):
 class RecShelf(BaseAction):
     """识别货架"""
 
-    def __init__(self, shelf_file, action_name="RecShelf", recognition_region=None):
+    def __init__(self, shelf_file, action_name="RecShelf", recognition_region=None, side="A", is_backwards=False):
         super().__init__(action_name)
 
         kwargs = locals()
@@ -3075,13 +3126,21 @@ class RecShelf(BaseAction):
         self.attempts = 0
         self.max_attempts = 10
         self.do_rec = False
+        self.side = side
+        self.is_backwards = is_backwards
         Recognize.resetRec()
-        # 识别区域：优先使用传入参数，否则使用默认值
-        default_region = {
+        # 识别区域：优先使用传入参数，否则根据车头/车尾选择默认值
+        default_region_front = {
             "points": [{"x": 0.5, "y": -1.74}, {"x": 2.86, "y": -1.74},
                        {"x": 2.86, "y": 1.59}, {"x": 0.5, "y": 1.59}],
             "shape": "rectangle"
         }
+        default_region_rear = {
+            "points": [{"x": 0.12, "y": 1.33}, {"x": -2.09, "y": 1.33},
+                       {"x": -2.09, "y": -1.76}, {"x": 0.12, "y": -1.76}],
+            "shape": "rectangle"
+        }
+        default_region = default_region_rear if self.is_backwards else default_region_front
         self.recognitionRegion = recognition_region if recognition_region is not None else default_region
         self.report_info = {}
 
@@ -3121,7 +3180,7 @@ class RecShelf(BaseAction):
                     self.do_rec = False
         elif rec_status == 0:
             self.do_rec = True
-            Recognize.doRec(self.recfile, json.dumps(self.recognitionRegion), "A")
+            Recognize.doRec(self.recfile, json.dumps(self.recognitionRegion), self.side)
         j.report_info["RecShelf"] = {
             "actionStatus": self.action_status,
             "recResult": j.rec_result,
