@@ -465,6 +465,12 @@ class InputParams:
                 with builder.CHILD(key="WashEnd", name="WashEnd", desc="WashEnd"):
                     builder.TYPE(ParamType.ARRAY)
 
+                with builder.CHILD(key="DustStart", name="DustStart", desc="DustStart"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="DustEnd", name="DustEnd", desc="DustEnd"):
+                    builder.TYPE(ParamType.ARRAY)
+
                 with builder.CHILD(key="Charge", name="Charge", desc="Charge"):
                     builder.TYPE(ParamType.ARRAY)
 
@@ -727,6 +733,7 @@ class CleanRobotMech:
         if time.time() - self.task_update_start > 0.2:
             self.task_update_start = time.time()
             self.save_to_rbk()
+            #TODO:检查后可以删除这部分内容，
             self.update_by_task_status()
 
         return True
@@ -924,12 +931,14 @@ class CleanRobotMech:
 
     def dust_start(self):
         """开始吸尘"""
-        if self.mop_lift_status != MechWorkingStatus.RUNNING:
-            self.hardware.ctrl_mop_lift(MechWorkState.OPEN)
-        if self.suck_status != MechWorkingStatus.RUNNING:
-            self.hardware.ctrl_suck(self.suck_power)
-        else:
-            self.action_status = ScriptStatus.FINISHED
+        # if self.mop_lift_status != MechWorkingStatus.RUNNING:
+        #     self.hardware.ctrl_mop_lift(MechWorkState.OPEN)
+        # if self.suck_status != MechWorkingStatus.RUNNING:
+        #     self.hardware.ctrl_suck(self.suck_power)
+        # else:
+        #     self.action_status = ScriptStatus.FINISHED
+        self.is_fit_push_rod()
+
 
     def dust_end(self):
         """结束吸尘"""
@@ -1253,7 +1262,7 @@ class CleanRobotManage:
                                       cancel_result.get("theta", 0)]
                     Trace.log(f"[cleanRobotManage] Got position from cancelBoustrophedonPath: {robot_position}")
 
-        # 4. 保存断点（包含机器人位置，用于断点续扫）
+        # 4. 保存断点（包含机器人位置，用于断点续扫）TODO：导航记录断点，脚本可删除
         self.clean_checkpoint.save_checkpoint(
             task_data=self.current_task,
             step_index=0,  # 原 CleanTaskData.current_step_index 从未被更新，始终为 0
@@ -1466,17 +1475,6 @@ class CleanRobotManage:
         Trace.log(
             f"[cleanRobotManage] EMC: Saved pre-EMC state: vehicle={self.vehicle_state.name}, task={self.current_task_type.name}")
 
-        # 2. 取消当前运单（发送HTTP请求到M4调度系统）
-        if self.current_order_id:
-            Trace.log(f"[cleanRobotManage] EMC: Cancelling current order {self.current_order_id}")
-            self._cancel_current_order()
-
-        # 3. 如果在清洁中，发送 CancelCleanPath 操作并保存位置
-        if self.vehicle_state == VehicleState.CLEANING:
-            Trace.log("[cleanRobotManage] EMC: Cancelling boustrophedon path (CancelCleanPath operation)")
-            self.emc_suspended_position = self._cancel_boustrophedon_path()
-            Trace.log(f"[cleanRobotManage] EMC: Clean path cancelled, saved position={self.emc_suspended_position}")
-
         # 4. 关闭清洁机构
         Trace.log("[cleanRobotManage] EMC: Closing cleaning mechanism (WashEnd)")
         self.call_mech("WashEnd")
@@ -1568,6 +1566,10 @@ class CleanRobotManage:
             self._handle_wash_start(args)
         elif op == "WashEnd":
             self._handle_wash_end()
+        elif op == "DustStart":
+            self._handle_dust_start()
+        elif op == "DustStart":
+            self._handle_dust_end()
         elif op == "Charge":
             self._handle_charge()
         elif op == "AddWater":
@@ -1715,7 +1717,8 @@ class CleanRobotManage:
             }
         """
         # step_locations = args.get("step_locations", ["AP20001", "AP20002", "AP20112", "AP20111"])
-        step_locations = args.get("step_locations", ["AP20021", "AP20022", "AP20007", "AP20008", "AP20027", "AP20028",
+        #TODO：可以在配置项里上传，最后一个点是停靠点，每2个站点表示一个清洁区（一个入口，一个出口）
+        step_locations = args.get("step_locations", ["AP20116", "AP20115", "AP20114", "AP20113", "AP20027", "AP20028",
                                                      "AP20031", "AP20032", "AP20033", "AP20034", "AP20040", "AP20041",
                                                      "AP20045", "AP20046", "AP20054", "AP20055", "AP20063", "AP20064",
                                                      "AP20071", "AP20072", "AP20077", "AP20078", "AP20083", "AP20084",
@@ -1899,6 +1902,12 @@ class CleanRobotManage:
     def _handle_wash_end(self):
         self.mech_status = self.call_mech("WashEnd")
 
+    def _handle_dust_start(self):
+        self.mech_status = self.call_mech("DustStart")
+
+    def _handle_dust_end(self):
+        self.mech_status = self.call_mech("DustEnd")
+
     def _handle_charge(self):
         if self.vehicle_state == VehicleState.CLEANING:
             self._cancel_boustrophedon_path()
@@ -1924,6 +1933,7 @@ class CleanRobotManage:
         print(f"-----{self.saved_exit_id=}")
         print(f"-----{self.have_cancelled=}")
 
+        #TODO:绘制电子图方便理解
         if not self.saved_exit_id:
             self.run_clean_path()
 
@@ -1940,9 +1950,9 @@ class CleanRobotManage:
             else:
                 print(f"---------run_no_path")
                 Module.setStatus(ScriptStatus.FAILED)
-
     def _handle_cancel_clean_path(self):
         """处理取消清洁路径"""
+        # TODO:写一下指向逻辑
         self.cancel_count = self.cancel_count + 1
         if self.cancel_count > 5:
             self.cancel_once = False
@@ -2466,7 +2476,7 @@ class CleanRobotManage:
 
     def run_remaining_path(self):
         """
-                执行横穿清洁区域路径
+                执行清洁区域剩余路径
 
                 调用 Navigation.goCrossArea(entrance, exit, params)
         """
@@ -2554,6 +2564,7 @@ class CleanRobotManage:
                 if not self._interrupt_clean_for_priority_task("charge"):
                     return
 
+            #发送前往充电点运单
             payload = self.build_charge_order_json()
             order_id = self.post_to_scheduler(payload)
             self.current_order_id = order_id
@@ -2881,6 +2892,7 @@ def main():
         #       需要中断当前清洁任务，去充电桩加水
         #
         # 处理流程与污水满检测相同
+        #TODO:可以和上面污水水位检测合并
         elif mgr.clean_water_level < config_params.min_clean_water_level and mgr.clean_water_level != -1:
             # 只有在执行清洁任务且尚未发送换水运单时才处理
             # 注意：clean_water_level == -1 表示传感器未初始化，不处理
@@ -2948,6 +2960,7 @@ def main():
         #   - 构造恢复任务（剩余站点列表）
         #   - 发送恢复运单到 M4 调度系统
         #   - 清除断点信息
+        #TODO:这部分可能是无用的，可以删除
         mgr._check_and_resume_clean_task()
 
         # ============================================================
@@ -2956,6 +2969,7 @@ def main():
         # 说明：检查任务完成情况，自动切换状态
         #   - TASK_RUNNING -> IDLE: 当任务完成时
         #   - ERROR: 需要人工干预，不自动转换
+        # TODO:erp相关需要检查后删除
         mgr._erp_state_update()
 
         # ============================================================
@@ -2975,6 +2989,7 @@ def main():
         # 说明：从任务队列中取出到期的任务并发送到 M4 调度系统
         #   - 只有在 can_dispatch_to_m4() 返回 True 时才派发
         #   - 即 ERP 状态为 IDLE
+        # TODO:此部分内容检查后可以删除
         if mgr.can_dispatch_to_m4():
             mgr.dispatch_clean_task_if_needed()
 
