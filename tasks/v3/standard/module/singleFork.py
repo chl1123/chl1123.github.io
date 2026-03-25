@@ -1223,13 +1223,12 @@ class Fork(ModuleBase):
             Trace.log(f"pos:{pos}, tcp name:{tcp_name}")
         elif station_id != "":
             # 尝试 AP 和 LM 两个前缀
-            for prefix in ["AP", "LM"]:
-                id_str = f"{prefix}{station_id}"
-                pos = Navigation.getLM(id_str, True)
-                tcp_name = Navigation.getLmTcpName(id_str)
-                if pos[3] != -1:  # 找到有效结果
-                    Trace.log(f"id_str:{id_str}, id:{station_id}, pos:{pos} tcp name:{tcp_name}")
-                    return pos, tcp_name  # 优先返回成功的结果
+
+            pos = Navigation.getLM(station_id, True)
+            tcp_name = Navigation.getLmTcpName(station_id)
+            if pos[3] != -1:  # 找到有效结果
+                Trace.log(f"id_str:{station_id}, id:{station_id}, pos:{pos} tcp name:{tcp_name}")
+                return pos, tcp_name  # 优先返回成功的结果
 
             # 如果走到这里，说明 AP 和 LM 都失败了
             Trace.log(f"Both AP{station_id} and LM{station_id} not found, return last pos:{pos}")
