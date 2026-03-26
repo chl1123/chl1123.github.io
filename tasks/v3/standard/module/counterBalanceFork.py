@@ -372,9 +372,6 @@ class ConfigParams:
                                        desc="载货时检测到位 di"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="checkAllContactDi", name="Check All Contact DI", desc="检测所有到位di"):
-                        builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(False)
 
             # ===== 取放货 =====
             with builder.GROUP(key="loadUnload", name="Load & Unload", desc="取放货相关配置"):
@@ -924,7 +921,7 @@ def get_rec_side_info(recfile, rec_side):
                 "check srec",
                 ""
             )
-            Trace.log(f"no rec side in {recfile}",True ,True)
+            Trace.log(f"no rec side in {recfile}", True, True)
             return None
         rec_info = rec_sides[0]
 
@@ -1330,7 +1327,9 @@ class Fork(ModuleBase):
                     self.action_list.append(
                         GoPathWithContactDi(ConfigParams.contact_ids, target_pos, ConfigParams.toLoadObsStopDist,
                                             method, args, self.check_di))
-                    self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,ConfigParams.fork_max_speed,"upFork"))
+                    self.action_list.append(
+                        RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, ConfigParams.fork_max_speed,
+                                           "upFork"))
 
                     if self.leave_loc_height >= 0:
                         args = {
@@ -1342,8 +1341,8 @@ class Fork(ModuleBase):
                             'maxRot': 10,
                             'maxSpeed': 0.2,
                             'useOdo': 0,
-                            'reachAngle':math.radians(0.5),
-                            'reachDist':0.005
+                            'reachAngle': math.radians(0.5),
+                            'reachDist': 0.005
                         }
 
                         self.action_list.extend([
@@ -1367,7 +1366,7 @@ class Fork(ModuleBase):
 
                 self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)]
 
-                self.action_list.append(Rec(self.recfile, target2robot, "RecPallet"))
+                self.action_list.append(Rec(self.recfile, target2robot, "RecPallet", self.pallet_width / 2))
 
                 if self.rec_height >= 0:
                     self.action_list.append(
@@ -1973,24 +1972,24 @@ class Fork(ModuleBase):
                 self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height))
             else:
 
-                # self.action_list.extend([MoveChassisByX(robot2pos),
-                #                          Rec("cage.srec", self.target_pos, "RecCage", self.pallet_width / 2)])
+                self.action_list.extend([MoveChassisByX(robot2pos),
+                                         Rec("cage.srec", self.target_pos, "RecCage", self.pallet_width / 2)])
 
-                target = pos2World(robot2pos, get_r_loc())
-
-                args = {
-                    "back_dist": 0,
-                    "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x - ConfigParams.base_shift_length,
-                    "adjust_dist": 3,
-                    "max_curve": 6
-                }
-
-                self.action_list.extend([
-                    # GoPathWithContactDi(ConfigParams.contact_ids, self.start_loc, None, "goPath", None,
-                    #                     False),
-                    GoPathWithContactDi(ConfigParams.contact_ids, target, None, "goBezier", args,
-                                        False),
-                    Rec("cage.srec", self.target_pos, "RecCage", self.pallet_width / 2)])
+                # target = pos2World(robot2pos, get_r_loc())
+                #
+                # args = {
+                #     "back_dist": 0,
+                #     "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x - ConfigParams.base_shift_length,
+                #     "adjust_dist": 3,
+                #     "max_curve": 6
+                # }
+                #
+                # self.action_list.extend([
+                #     # GoPathWithContactDi(ConfigParams.contact_ids, self.start_loc, None, "goPath", None,
+                #     #                     False),
+                #     GoPathWithContactDi(ConfigParams.contact_ids, target, None, "goBezier", args,
+                #                         False),
+                #     Rec("cage.srec", self.target_pos, "RecCage", self.pallet_width / 2)])
                 self.cage_count += 1
             Trace.log(f"task list: {self.action_list},cage_count:{self.cage_count}", True, True)
 
@@ -2008,20 +2007,20 @@ class Fork(ModuleBase):
         """
 
         # 筛选 top 和 bottom
-        tops = [obj for obj in results_list if obj.get("class") == "Head"]
-        bottoms = [obj for obj in results_list if obj.get("class") == "Bottom"]
+        bottom_cages = [obj for obj in results_list if obj.get("class") == "Head"]  # 下面的料笼
+        top_cages = [obj for obj in results_list if obj.get("class") == "Bottom"]  # 上面的料笼
 
         # 数量检查
-        if len(tops) < 2:
+        if len(bottom_cages) < 2:
             Abnormal.setTask(53500, "")
             return [999, 999, 999]
-        if len(bottoms) < 2:
+        if len(top_cages) < 2:
             Abnormal.setTask(53500, "")
             return [999, 999, 999]
 
         # 按 x 从大到小排序，取离车体最近的两个值
-        tops_sorted = sorted(tops, key=lambda o: o["x"], reverse=True)
-        bottoms_sorted = sorted(bottoms, key=lambda o: o["x"], reverse=True)
+        tops_sorted = sorted(top_cages, key=lambda o: o["x"], reverse=True)
+        bottoms_sorted = sorted(bottom_cages, key=lambda o: o["x"], reverse=True)
 
         # 取 x 从大到小排序，即取离车体最近的两个值
         top_two = tops_sorted[:2]
@@ -2064,11 +2063,13 @@ class Fork(ModuleBase):
             "yaw": calc_yaw_from_two_points(bottom_two[0], bottom_two[1])
 
         }
-        bottom_mid_offset = pos2World([-offset, 0, 0], [bottom_mid['x'], bottom_mid['y'], bottom_mid['yaw']])
 
-        # bottom2top_pos = pos2Base([bottom_mid['x'], bottom_mid['y'], bottom_mid['yaw']],
-        #                           top_mid_offset)
-        bottom2top_pos = pos2Base([top_mid['x'], top_mid['y'], top_mid['yaw']], bottom_mid_offset)
+        # 上料笼比下料笼要宽一些，需要做一下offset的转换，把上料笼中心位置和下料笼对齐
+        top_mid_offset = pos2World([-0.08 / 2, 0, 0], [top_mid['x'], top_mid['y'], top_mid['yaw']])
+        bottom_mid_offset = pos2World([-0.04 / 2, 0, 0], [bottom_mid['x'], bottom_mid['y'], bottom_mid['yaw']])
+
+        bottom2top_pos = pos2Base(top_mid_offset, bottom_mid_offset)
+        # bottom2top_pos = pos2Base([top_mid['x'], top_mid['y'], top_mid['yaw']], bottom_mid_offset)
 
         Trace.log(
             f"top_mid:{top_mid},bottom_mid:{bottom_mid}, bottom_mid_offset:{bottom_mid_offset},bottom2top_pos: {bottom2top_pos}")
@@ -2897,6 +2898,7 @@ class MoveChassisByX(BaseAction):
         self.y = -robot2pos[1]
         self.yaw = -robot2pos[2]
         self.shiftMotor = ConfigParams.shiftMotor
+        target_world = pos2World([self.x, self.y, self.yaw], get_r_loc())
 
         # 有横移货叉调三步，先调yaw，再调x和货叉横移y
         if self.shiftMotor != "":
@@ -2934,14 +2936,15 @@ class MoveChassisByX(BaseAction):
                 "x": self.x,
                 "y": self.y,
                 "theta": self.yaw,
-                "holdDir": math.degrees(self.yaw),
+                "holdDir": math.degrees(target_world[2]),
                 "backMode": 0,
-                "maxSpeed": 0.1,
-                "maxRot": math.radians(5),
+                "maxSpeed": 0.05,
+                "maxRot": math.radians(3),
                 "coordinate": Coordinate.ROBOT.value,
-                "reachAngle": math.radians(1),
-                "reachDist": 0.01
+                "reachAngle": math.radians(0.5),
+                "reachDist": 0.005
             }
+            Trace.log(f"chassis args:{chassis_args}")
             if self.x < 0:
                 chassis_args["backMode"] = 1
             self.chassis_move = GoPath(chassis_args)
@@ -2949,12 +2952,18 @@ class MoveChassisByX(BaseAction):
     def run(self):
         if not self.init:
             self.init = True
+        if self.chassis_move.action_status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
+            self.chassis_move.run()
+        elif self.chassis_move.action_status == ActionStatus.FINISHED:
+            self.action_status = ActionStatus.FINISHED
 
     def reset(self):
-        pass
+        self.action_status = ActionStatus.RUNNING
+        self.init = False
 
     def cancel(self):
-        pass
+        self.init = False
+        self.action_status = ActionStatus.FAILED
 
 
 class GoTwoStraightLine(BaseAction):
