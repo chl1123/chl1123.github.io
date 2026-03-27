@@ -132,6 +132,8 @@ class ConfigParams:
     backLaserEnableHeight: float = 0.3
     checkGoodsWhileLoad: bool = True
     checkAllContactDis: bool = False
+    loadTime: float = 20.0
+    unloadTime: float = 20.0
     # —— DO 控 fork
     downDelayTime: float = 10.0
     upDelayTime: float = 10.0
@@ -154,6 +156,9 @@ class ConfigParams:
     enableTcp: bool = True
     toLoadObsStopDist: float = 0.05
     zMax: bool = True
+    recCenterX: float = 0.0
+    recCenterY: float = 0.0
+    recRadius: float = 0.7
 
     # —— 线性堆栈
     laserWidth: float = 0.1
@@ -215,6 +220,8 @@ class ConfigParams:
         cls.backLaserEnableHeight = cfg.get("backLaserEnableHeight")
         cls.checkGoodsWhileLoad = cfg.get("checkGoodsWhileLoad")
         cls.checkAllContactDis = cfg.get("checkAllContactDi")
+        cls.loadTime = cfg.get("loadTime", 20.0)
+        cls.unloadTime = cfg.get("unloadTime", 20.0)
 
         # --- forkByDO
         cls.downDelayTime = cfg.get("downDelayTime")
@@ -240,6 +247,9 @@ class ConfigParams:
         cls.goodsWidth = cfg.get("goodsWidth")
         cls.goodsLength = cfg.get("goodsLength")
         cls.zMax = cfg.get("zMax")
+        cls.recCenterX = cfg.get("recCenterX", 0.0)
+        cls.recCenterY = cfg.get("recCenterY", 0.0)
+        cls.recRadius = cfg.get("recRadius", 0.7)
 
         # --- linearUnload
         cls.laserWidth = cfg.get("laserWidth")
@@ -372,6 +382,16 @@ class ConfigParams:
                                        desc="载货时检测到位 di"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
+                    with builder.CHILD(key="loadTime", name="Load Time",
+                                       desc="货叉上升超时时间"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(20.0, min_value=1, max_value=300)
+                        builder.UNIT("s")
+                    with builder.CHILD(key="unloadTime", name="Unload Time",
+                                       desc="货叉下降超时时间"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(20.0, min_value=1, max_value=300)
+                        builder.UNIT("s")
 
             # ===== 取放货 =====
             with builder.GROUP(key="loadUnload", name="Load & Unload", desc="取放货相关配置"):
@@ -431,6 +451,21 @@ class ConfigParams:
                                                desc="识别取货的最小直线距离"):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(ConfigParams.tail + 0.1, min_value=-2, max_value=2)
+                                builder.UNIT("m")
+                            with builder.CHILD(key="recCenterX", name="Rec Center X",
+                                               desc="识别区域中心X坐标"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(0.0, min_value=-5, max_value=5)
+                                builder.UNIT("m")
+                            with builder.CHILD(key="recCenterY", name="Rec Center Y",
+                                               desc="识别区域中心Y坐标"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(0.0, min_value=-5, max_value=5)
+                                builder.UNIT("m")
+                            with builder.CHILD(key="recRadius", name="Rec Radius",
+                                               desc="识别半径"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(0.7, min_value=0.1, max_value=5)
                                 builder.UNIT("m")
                     with builder.CHILD(key="noRecLoad", name="Load By Landmark",
                                        desc="根据站点位置取货"):
@@ -1366,7 +1401,8 @@ class Fork(ModuleBase):
 
                 self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)]
 
-                self.action_list.append(Rec(self.recfile, target2robot, "RecPallet", self.pallet_width / 2))
+                self.action_list.append(Rec(self.recfile, target2robot, "RecPallet", self.pallet_width / 2,
+                                            ConfigParams.recCenterX, ConfigParams.recCenterY, ConfigParams.recRadius))
 
                 if self.rec_height >= 0:
                     self.action_list.append(
@@ -1777,7 +1813,8 @@ class Fork(ModuleBase):
     def rec(self):
         if not self.operation_init:
             self.operation_init = True
-            self.action_list = [Rec(self.recfile, self.target_pos)]
+            self.action_list = [Rec(self.recfile, self.target_pos, rec_center_x=ConfigParams.recCenterX,
+                                    rec_center_y=ConfigParams.recCenterY, rec_radius=ConfigParams.recRadius)]
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
 
@@ -2132,7 +2169,8 @@ class BaseAction:
 
 # 用于识别栈板并获取识别的栈板坐标
 class Rec(BaseAction):
-    def __init__(self, pallet_file, target_pos=None, action_name="RecPallet", radius=0.7):
+    def __init__(self, pallet_file, target_pos=None, action_name="RecPallet", radius=0.7,
+                 rec_center_x=0.0, rec_center_y=0.0, rec_radius=0.7):
         super().__init__(action_name)
         self.rec_status = None
         self.result = dict()
@@ -2146,6 +2184,10 @@ class Rec(BaseAction):
         self.results_list = []
         self.obstacle_polygon = []
         self.radius = radius
+        # 识别区域参数
+        self.rec_center_x = rec_center_x
+        self.rec_center_y = rec_center_y
+        self.rec_radius = rec_radius
         Trace.log(f"target to robot:{self.target_pos}")
 
     def run(self):
@@ -2201,15 +2243,23 @@ class Rec(BaseAction):
                     Recognize.resetRec()
         else:
             if self.target_pos is None or (len(self.target_pos) > 3 and self.target_pos[3]) == -1:
-                Recognize.doRec(recfile, "")
+                # 使用传入的识别区域参数
+                region = {
+                    "point": {"x": self.rec_center_x, "y": self.rec_center_y},
+                    "radius": self.rec_radius,
+                    "shape": "circle"
+                }
+                Recognize.doRec(recfile, json.dumps(region))
             else:
-
+                # 使用AP点计算圆心，但识别半径用传入的rec_radius
                 circle = pos2World([ConfigParams.module_x, 0, 0], self.target_pos)
                 Trace.log(f"circle:{circle}")
 
-                region = {"point": {"x": circle[0], "y": circle[1]}, "radius": self.radius, "shape": "circle"}
-                # Recognize.doRec(recfile, "")
-
+                region = {
+                    "point": {"x": circle[0], "y": circle[1]},
+                    "radius": self.rec_radius,
+                    "shape": "circle"
+                }
                 Recognize.doRec(recfile, json.dumps(region))
             Timer.delay(0.05)
         return False, rec_status, list
@@ -2556,6 +2606,8 @@ class RunMotorByPosition(BaseAction):
         self.last_sample_time = None
         self.start_time = time.time()
         self.action_status = ActionStatus.INIT
+        self.timeout = None
+        self.cur_fork_height_at_init = None
 
     def run(self):
         cur_fork_height = Motor.getMotorPos(self.motor_name)
@@ -2563,7 +2615,9 @@ class RunMotorByPosition(BaseAction):
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.last_sample_time = time.time()
+            self.start_time = time.time()
             self.init = True
+            self.cur_fork_height_at_init = cur_fork_height
 
             # 目标位置比初始位置差得不大就不要执行动作了
             if (abs(self.position - cur_fork_height) <= max(ConfigParams.reach_up_dist, ConfigParams.reach_down_dist,
@@ -2576,6 +2630,16 @@ class RunMotorByPosition(BaseAction):
             min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             self.position = clamp(self.position, min_h, max_h)
             Trace.log(f"position:{self.position}")
+
+            # 仅对fork_motor_name进行超时检查
+            if self.motor_name == ConfigParams.fork_motor_name:
+                delta = self.position - cur_fork_height
+                if delta > EPS:  # 上升
+                    self.timeout = ConfigParams.loadTime
+                elif delta < -EPS:  # 下降
+                    self.timeout = ConfigParams.unloadTime
+                else:  # 位置相同
+                    self.timeout = None
 
             if ConfigParams.DOMotor:
                 if self.position < (ConfigParams.max_height + ConfigParams.min_height) / 2:
@@ -2615,6 +2679,14 @@ class RunMotorByPosition(BaseAction):
                     self.max_speed = max_speed
 
                 Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
+
+        # 检查超时（仅对fork_motor_name）
+        if self.timeout is not None and (time.time() - self.start_time) > self.timeout:
+            Abnormal.setTask(53313,
+                             f"Fork motor timeout: {self.motor_name} exceeded {self.timeout}s",
+                             "", "", "")
+            self.action_status = ActionStatus.FAILED
+            return
 
         # pos = Motor.get_motor_pos(self.motor_name)
         self.is_reach = Motor.isMotorReached(self.motor_name)
