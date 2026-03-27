@@ -490,6 +490,41 @@ class ConfigParams:
                             with builder.CHILD(key="goodsLength", name="Goods Length", desc="盲插取货时的货物长度"):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(1.2)
+                    with builder.CHILD(key="useForPalletFallProtection", name="Use For Pallet Fall Protection", desc="取放货时是否启用货物脱离检测"):
+                        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+                        builder.DEFAULTVALUE("OFF")
+                        with builder.CHILDREN():
+                            # OFF选项
+                            with builder.CHILD(key="OFF", name="Disable Pallet Fall Protection",
+                                               desc="Disable Pallet Fall Protection"):
+                                builder.TYPE(ParamType.ARRAY)
+
+                            # ON选项
+                            with builder.CHILD(key="ON", name="Enable Pallet Fall Protection",
+                                               desc="using extern IMU"):
+                                builder.TYPE(ParamType.ARRAY)
+
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="setRoiX", name="Set Roi X",
+                                                       desc=""):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.REQUIRED(True)
+                                        builder.DEFAULTVALUE(2.0)
+                                with builder.CHILD(key="setRoiMaxY", name="Set Roi Max Y",
+                                                   desc=""):
+                                    builder.TYPE(ParamType.FLOAT)
+                                    builder.REQUIRED(True)
+                                    builder.DEFAULTVALUE("test")
+                                with builder.CHILD(key="setRoiMinY", name="Set Roi Min Y",
+                                                   desc=""):
+                                    builder.TYPE(ParamType.FLOAT)
+                                    builder.REQUIRED(True)
+                                    builder.DEFAULTVALUE("test")
+                                with builder.CHILD(key="setRoiZ", name="Set Roi Z",
+                                                   desc=""):
+                                    builder.TYPE(ParamType.FLOAT)
+                                    builder.REQUIRED(True)
+                                    builder.DEFAULTVALUE("test")
 
             # ===== 线性堆栈 =====
             with builder.GROUP(key="linearUnload", name="Linear Unload", desc="线性堆栈相关配置"):
@@ -760,6 +795,66 @@ class InputParams:
 
 
 InputParams.init()
+
+param_loader.addAction(
+    action_name="Fork Load",
+    policy={},
+    args={
+        "operation": "load",
+        "operation.load.startHeight": 0.1,
+        "operation.load.endHeight": 0.1,
+        "operation.load.recognize": 0,
+        "operation.load.leaveLocHeight": -1,
+    },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Fork UnLoad",
+    policy={},
+    args={
+        "operation": "unload",
+        "operation.unload.startHeight": 0.1,
+        "operation.unload.endHeight": 0.1,
+        "operation.unload.leaveLocHeight": -1,
+    },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Fork Height",
+    policy={},
+    args={
+        "operation": "forkHeight",
+        "operation.forkHeight.height": 0.1,
+        "operation.forkHeight.forkSpeed": ConfigParams.fork_max_speed,
+    },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Leave Loc",
+    policy={},
+    args={
+        "operation": "leaveLoc",
+        "operation.leaveLoc.endHeight": 0.1,
+    },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Cage Stack",
+    policy={},
+    args={
+        "operation": "cageStack",
+        "operation.cageStack.startHeight": 0.1,
+        "operation.cageStack.endHeight": 0.1,
+        "operation.cageStack.recognize": 0,
+    },
+    config={}
+)
+
+param_loader.saveAction()
 
 
 def float32_to_regs(value: float):
@@ -1091,7 +1186,10 @@ class Fork(ModuleBase):
                             {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2},
                             {"x": ConfigParams.module_x + 0.05, "y": -ConfigParams.width / 2}]
         self.carrier_shape = []
-        self.goods_shape = []
+        self.goods_shape = [{"x": ConfigParams.goodsLength / 2, "y": ConfigParams.goodsWidth / 2},
+                            {"x": ConfigParams.goodsLength / 2, "y": -ConfigParams.goodsWidth / 2},
+                            {"x": -ConfigParams.goodsLength / 2, "y": -ConfigParams.goodsWidth / 2},
+                            {"x": -ConfigParams.goodsLength / 2, "y": ConfigParams.goodsWidth / 2}]
         self.check_di = False
         self.back_dist = 0
         self.task_args = {}
@@ -1155,6 +1253,7 @@ class Fork(ModuleBase):
         self.last_pos = None
         self.last_save_ts = time.time()
         self.save_interval = 5  # 写数据库时间
+        Container.initContainer(0)
 
     def run(self, args):
         if Abnormal.exists(53320):
@@ -1220,6 +1319,25 @@ class Fork(ModuleBase):
         self.start_time = time.time()
         # Motor.resetMotor(ConfigParams.fork_motor_name)
         # Navigation.clearGoodsShape()
+
+    def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
+        # 1. 绑定容器
+        Container.bindContainer(container_id, goods_name, desc)
+        # 2. 设置货物形状
+        goods_shape = [{"x": ConfigParams.goodsLength / 2, "y": ConfigParams.goodsWidth / 2},
+                       {"x": ConfigParams.goodsLength / 2, "y": -ConfigParams.goodsWidth / 2},
+                       {"x": -ConfigParams.goodsLength / 2, "y": -ConfigParams.goodsWidth / 2},
+                       {"x": -ConfigParams.goodsLength / 2, "y": ConfigParams.goodsWidth / 2}]
+        if not goods_shape:
+            return False
+        goods_point2robot = []
+
+        for point in goods_shape:
+            point2ap = pos2World([point["x"], point["y"], 0],
+                                 [ConfigParams.module_x - ConfigParams.goodsLength / 2, 0, 0])
+            goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
+        Navigation.setGoodsPolyShape(goods_point2robot, goods_name)
+        return True
 
     def delete_clear_region(self):
         delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
@@ -1402,7 +1520,7 @@ class Fork(ModuleBase):
 
                 self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)]
 
-                self.action_list.append(Rec(self.recfile, target2robot, "RecPallet", self.pallet_width / 2))
+                self.action_list.append(Rec(self.recfile, target2robot, "RecPallet"))
 
                 if self.rec_height >= 0:
                     self.action_list.append(
@@ -1835,10 +1953,6 @@ class Fork(ModuleBase):
             self.last_saved_total = self.total_dist
 
     def period_run(self):
-        # 任务结束后立即复位 min_safe_height
-        if self.script_status in (ScriptStatus.FINISHED, ScriptStatus.FAILED):
-            self.min_safe_height = 0.0
-
         fork_height = Motor.getMotorPos(ConfigParams.fork_motor_name)
         self.fork_height = fork_height
 
@@ -2012,9 +2126,7 @@ class Fork(ModuleBase):
         if (self.action_id < len(self.action_list)
                 and isinstance(self.current_action, Rec)
                 and self.current_action.action_name == "RecCage"
-                and not getattr(self.current_action, "_post_handled", False)
                 and self.current_action.action_status == ActionStatus.FINISHED):
-            self.current_action._post_handled = True
             # 计算出上料笼腿相对于下料笼顶的位置
             robot2pos = self.get_bottom2top_pos(self.current_action.results_list, (0.075 - 0.04) / 2)
             Trace.log(f"robot2pos: {robot2pos},yaw: {math.degrees(robot2pos[2])}", True, True)
@@ -2086,8 +2198,8 @@ class Fork(ModuleBase):
                 rx, ry, ryaw = pos2Base([o["x"], o["y"], o.get("yaw", 0)], r_loc)
                 return dict(o, x=rx, y=ry, yaw=ryaw)
 
-            tops = [_to_robot(o) for o in tops]
-            bottoms = [_to_robot(o) for o in bottoms]
+            top_cages = [_to_robot(o) for o in top_cages]
+            bottom_cages = [_to_robot(o) for o in bottom_cages]
 
         # 按 x 从大到小排序，取离车体最近的两个值
         tops_sorted = sorted(top_cages, key=lambda o: o["x"], reverse=True)
