@@ -1,7 +1,7 @@
 import syspy.lib.pass_through as pt
 from syspy import Can, RBK_VERSION
 from syspy.v3.protobuf.message import CanFrame_pb2
-
+from syspy import Trace
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
 if RBK_VERSION == 4:
@@ -16,13 +16,13 @@ log = logging.getLogger("rbk.script")
 
 class CanPass():
     def __init__(self):
-        log.info("CanPass start!")
+        Trace.log("CanPass start!")
         self.__pass = pt.passThrough("can")
         self.__pass.canConnect(DEFAULT_PASS_ADDR, "ECanFrame_pass_py")
 
     def setCallBack(self, handleData):
         if not handleData:
-            log.error("Set callback error.It should be implemented the func 'handleData'")
+            Trace.log("Set callback error.It should be implemented the func 'handleData'")
         else:
             self.__pass.setCallBack(handleData)
 
@@ -38,7 +38,7 @@ class CanPass():
         return rec_canframe
 
     def sendCanframe(self, channel, can_id, dlc, extend, can_string):
-        log.info(
+        Trace.log(
             f'message send: {channel=}, {hex(can_id)=}, {dlc=}, {extend=}, {can_string=}')
         Can.sendPassThroughCanFrame(channel, can_id, dlc, extend, can_string)
 
@@ -47,16 +47,16 @@ class CanPass():
         for i in range(min(len(canid), 5)):
             can_ids.append(canid[i])
         can_id1, can_id2, can_id3, can_id4, can_id5 = can_ids + [0] * (5 - len(can_ids))
-        log.info(f'{channel=}, {id_nums=}, {hex(can_id1)=}, {hex(can_id2)=}, {hex(can_id3)=}')
+        Trace.log(f'{channel=}, {id_nums=}, {hex(can_id1)=}, {hex(can_id2)=}, {hex(can_id3)=}')
         Can.canPassThroughRxId(channel, id_nums, can_id1, can_id2, can_id3, can_id4, can_id5)
-        log.info(f"Attached CAN IDs: {[hex(id_) for id_ in can_ids]}")
+        Trace.log(f"Attached CAN IDs: {[hex(id_) for id_ in can_ids]}")
 
     def close(self):
         if self.__pass:
             try:
                 self.__pass.close()
             except Exception as e:
-                log.error(f"Error shutting down passThrough: {e}")
+                Trace.log(f"Error shutting down passThrough: {e}")
                 
     def resetBus(self):
         log.warning("[CAN] Resetting CAN interface in passThrough mode is not supported current.")

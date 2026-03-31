@@ -6,6 +6,7 @@ import syspy.lib.misc_utility as mu
 import syspy.lib.char_utility as cu
 import json
 from syspy import Logger
+from syspy import Trace
 log = Logger("battery")
 error_dict = {
     (1, 0): "first-level overvoltage",
@@ -157,7 +158,7 @@ class CanBattery(cb.CanBase):
         if self.id1 and self.id2 and self.id3 and self.id4:
             self.publish(self.battery_info)
         else:
-            log.info(f"wait 4 ids all recv: id1{self.id1} id2{self.id2} id3{self.id3} id4{self.id4}")
+            Trace.log(f"wait 4 ids all recv: id1{self.id1} id2{self.id2} id3{self.id3} id4{self.id4}")
 
     def judgeMsgok(self):
         if self.msg_ok:
@@ -167,7 +168,7 @@ class CanBattery(cb.CanBase):
             self.wake_up = False
             if not self.clear:
                 if self.errorExists(57040):
-                    log.info('clear')
+                    Trace.log('clear')
                     self.clearTimeout()
                 else:
                     self.clear = True
@@ -176,11 +177,11 @@ class CanBattery(cb.CanBase):
                 if not self.wake_up and (self.id == "0b" or self.id == "0d" or self.id == "0e"):
                     self.sendCanframe(self.port, 0x0DA20DF4, 8, True, '01 00 00 00 00 00 00 00')
                     self.wake_up = True # 主动唤醒
-                    log.info("wake_up")
+                    Trace.log("wake_up")
                 else:
                     #self.wake_up = False
                     self.clear = False
-                    log.info('timeout')
+                    Trace.log('timeout')
                     self.setTimeout()
                     super().close()
                     # self.__init__()
@@ -194,9 +195,9 @@ class CanBattery(cb.CanBase):
         if self.is_abnormal:
             self.is_abnormal = False
             self.abnormal_timeout_t.reset()
-            log.info('is_abnormal')
+            Trace.log('is_abnormal')
         # elif self.abnormal_timeout_t.isTimeUp() and self.warningExists(warning_code):
-        #      log.info('clearWarning')
+        #      Trace.log('clearWarning')
         #     self.clearWarning(warning_code)
 
     def loop(self):
@@ -218,9 +219,9 @@ if __name__ == '__main__':
             client = CanBattery()
             client.loop()
         except RestartException:
-            log.info("Restarting CanBattery class ...")
+            Trace.log("Restarting CanBattery class ...")
         except Exception as e:
-            log.error(f"Unexpected error: {e}")
+            Trace.log(f"Unexpected error: {e}")
             mu.sleepS(2)
 
 

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/2/9
-# @Author : zengweibin & zhaopengfei
+# @Date : 2026/3/31
+# @Author : zhaopengfei
 # @Coding : none
-# @Update : 脚本配置&参数规范化提交第一版
+# @Update : add: 1. 可选自动标零功能(默认关闭) 2. 脚本配置参数优化  fix: 根据插入方向旋转货物模型，容器角度错误
 
 import json
 import math
@@ -13,10 +13,10 @@ from syspy.utils.time import Timer
 from datetime import datetime
 
 from syspy import (Module, Logger, Motor, Navigation, Loc, Abnormal, Recognize,
-                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di,)
+                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam, BindType, BindItem
 
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot_param import RobotParam
@@ -52,21 +52,7 @@ def debug_trace(*args, **kwargs):
         else:
             Trace.log(timestamp, **kwargs)
 
-# ============================================================================
-# 顶升次数统计管理类
-# ============================================================================
-class JackCountManager:
-    """
-    顶升次数统计管理器
-    - jackTotalCount: 顶升累计次数
-    - jackTodayCount: 顶升今日累计次数
-    - jackLastDate: 上次更新日期（用于今日次数自动重置）
-    """
-
-    KEY_TOTAL_COUNT = "jackTotalCount"
-    KEY_TODAY_COUNT = "jackTodayCount"
-    KEY_LAST_DATE = "jackLastDate"
-
+class _SingletonDBManager:
     _instance = None
     _db = None
 
@@ -83,10 +69,20 @@ class JackCountManager:
         self._init_db()
 
     def _init_db(self):
+        raise NotImplementedError
+
+# ============================================================================
+# 顶升次数统计管理类
+# ============================================================================
+class JackCountManager(_SingletonDBManager):
+    KEY_TOTAL_COUNT = "jackTotalCount"
+    KEY_TODAY_COUNT = "jackTodayCount"
+    KEY_LAST_DATE = "jackLastDate"
+
+    def _init_db(self):
         try:
             self._db = LevelDB("run")
-            total_count = self._db.get(self.KEY_TOTAL_COUNT, "int")
-            if total_count is None:
+            if self._db.get(self.KEY_TOTAL_COUNT, "int") is None:
                 self._db.add(self.KEY_TOTAL_COUNT, 0, False)
                 self._db.add(self.KEY_TODAY_COUNT, 0, False)
                 self._db.add(self.KEY_LAST_DATE, "", False)
@@ -124,12 +120,53 @@ class JackCountManager:
         except Exception as e:
             Trace.log(f"JackCountManager: Update jack count failed: {e}")
 
+
 # 创建全局实例
 jack_count_manager = JackCountManager()
 
+# ============================================================================
+# 顶升电机标零状态管理类
+# ============================================================================
+class JackCalibManager(_SingletonDBManager):
+    KEY_CALIB_DONE = "jackCalibDone"
+
+    def _init_db(self):
+        try:
+            self._db = LevelDB("run")
+            if self._db.get(self.KEY_CALIB_DONE, "int") is None:
+                self._db.add(self.KEY_CALIB_DONE, 0, False)
+                Trace.log("JackCalibManager: DB 初始化完成，jackCalibDone=0")
+        except Exception as e:
+            Trace.log(f"JackCalibManager: DB 初始化失败: {e}")
+            self._db = None
+
+    def is_calib_done(self) -> bool:
+        """返回 DB 中记录的标零完成状态（int: 0=未完成, 1=已完成）"""
+        if self._db is None:
+            return False
+        try:
+            return self._db.get(self.KEY_CALIB_DONE, "int") == 1
+        except Exception as e:
+            Trace.log(f"JackCalibManager: 读取 calib 状态失败: {e}")
+            return False
+
+    def set_calib_done(self, done: bool):
+        """更新 DB 中的标零完成状态（bool → int: True=1, False=0）"""
+        if self._db is None:
+            return
+        try:
+            val = int(done)
+            self._db.put(self.KEY_CALIB_DONE, val)
+            Trace.log(f"JackCalibManager: jackCalibDone 已更新为 {val}")
+        except Exception as e:
+            Trace.log(f"JackCalibManager: 写入 calib 状态失败: {e}")
+
+
+# 创建全局实例
+jack_calib_manager = JackCalibManager()
+
 
 # --- ConfigParams 类（放在前面） ---
-
 class ConfigParams:
     """配置管理器，用于管理动态配置参数"""
     config = {}
@@ -142,6 +179,7 @@ class ConfigParams:
 
     # Debug开关
     debug_mode = False
+    auto_calib_enable = False  # 开机自动标零开关（默认关闭）
 
     # 导航配置参数（bezier）
     bezier_back_dist = 0.0
@@ -171,14 +209,20 @@ class ConfigParams:
     polyline_path_dist_accuracy = 0.01
     polyline_path_angle_accuracy = 0.05
 
-    # PGV二次调整配置参数
-    pgv_use_which = "useDownPgv"
-    pgv_adjust_way = "pgvAdjust90"
-    pgv_x_adjust = True
-    pgv_x_angle_adjust = True
-    pgv_adjust_dist = 0.2
-    pgv_reach_dist = 0.02
-    pgv_reach_angle = 0.02
+    # PGV二次调整配置参数（policy 结构）
+    pgv_code_adjust_type = "singleCode"  # "singleCode" | "codeNumber"
+    pgv_scan_device = ""  # 绑定的扫码设备名称
+    pgv_angle_adjust_type = "parallelToCode"  # 角度调整模式
+    pgv_position_adjust_type = "frontAndBack"  # 位置调整模式（singleCode 专用）
+    pgv_code_number = ""  # 指定二维码编号（singleCode 可选）
+    pgv_line_angle_threshold = 10.0  # multiLine 模式最大旋转角范围（deg）
+    pgv_adjust_region = ""  # multiLine 模式调整区域 JSON 字符串
+    pgv_spin = True  # 随动状态下货叉朝向不动
+    pgv_reach_dist = 0.02  # 到点距离精度（m）
+    pgv_reach_angle = 1.0  # 到点角度精度（deg）
+
+    # 报错保护配置参数
+    load_again_error = True  # 是否启用重复取货保护 (Error52179)
 
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
@@ -201,248 +245,308 @@ class ConfigParams:
 
         with builder.GROUPS():
             # ============================================
-            # 通用配置组
+            # 通用配置组（Debug + 标零 + 报错保护）
             # ============================================
             with builder.GROUP(key="generalConfig", name="General Configuration",
-                               desc="General configuration parameters"):
+                               desc="General, calibration and error protection parameters"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    # Debug开关
                     with builder.CHILD(key="debugMode", name="Debug Mode",
                                        desc="Enable debug mode to show debug tasks and low-frequency parameters"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="autoCalibEnable", name="Auto Calib On Startup",
+                                       desc="Enable automatic motor calibration (zero) on script startup"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="loadAgainError", name="Load Again Error Protection",
+                                       desc="Enable protection to prevent loading when goods already on robot (Error52179)"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(True)
 
             # ============================================
-            # 电机配置组
+            # 电机与IO配置组（电机速度 + DI + DO + 延迟）
             # ============================================
-            with builder.GROUP(key="motorConfig", name="Motor Configuration",
-                               desc="Motor related configuration parameters"):
+            with builder.GROUP(key="motorIoConfig", name="Motor & IO Configuration",
+                               desc="Motor speed, DI/DO and delay parameters"):
                 builder.TYPE(ParamType.ARRAY)
-
                 with builder.CHILDREN():
-                    # 顶升电机速度
                     with builder.CHILD(key="jackMotorSpeed", name="Jack Motor Speed",
                                        desc="Speed of the jack motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.015, min_value=0.001, max_value=0.1)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.001)
-
-                    with builder.CHILD(key="jackMinHeight", name="jack Min Height",
+                    with builder.CHILD(key="jackMinHeight", name="Jack Min Height",
                                        desc="The min height of jack motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.minLength"))
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
-
-                    with builder.CHILD(key="jackMaxHeight", name="jack Max Height",
+                    with builder.CHILD(key="jackMaxHeight", name="Jack Max Height",
                                        desc="The max height of jack motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.maxLength"))
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
-
-            # ============================================
-            # DI配置组
-            # ============================================
-            with builder.GROUP(key="diConfig", name="DI Configuration", desc="Digital input configuration parameters"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    # 上极限DI
                     with builder.CHILD(key="jackUpDi", name="Jack Up DI",
                                        desc="Upper limit digital input for jack"):
                         builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI"))
-                    # 零位DI
+                        builder.DEFAULTVALUE("DI-003")
                     with builder.CHILD(key="jackZeroDi", name="Jack Zero DI",
                                        desc="Zero position digital input for jack"):
                         builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(
-                            RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{reset_by_speed}.zeroDI"),
-                            min_value=0, max_value=31)
+                        builder.DEFAULTVALUE("DI-004")
+                    with builder.CHILD(key="jackUpDo", name="Jack Up DO",
+                                       desc="Digital output for jack up"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-002")
+                    with builder.CHILD(key="jackDownDo", name="Jack Down DO",
+                                       desc="Digital output for jack down"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-001")
+                    with builder.CHILD(key="jackUpDelay", name="Jack Up Delay",
+                                       desc="Delay after jack up DI triggered before stopping DO (seconds)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.2)
+                        builder.UNIT("s")
+                        builder.SINGLESTEP(0.05)
 
             # ============================================
-            # 贝塞尔导航配置组（现场实施后基本不变）
+            # 导航配置组（Bezier + Polyline）
             # ============================================
-            with builder.GROUP(key="bezierConfig", name="Bezier Navigation Config",
-                               desc="Bezier curve navigation parameters (site-specific, rarely changed)"):
+            with builder.GROUP(key="navigationConfig", name="Navigation Config",
+                               desc="Bezier and Polyline navigation parameters (site-specific, rarely changed)"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="bezierBackDist", name="Back Distance",
+                    # --- Bezier ---
+                    with builder.CHILD(key="bezierBackDist", name="[Bezier] Back Distance",
                                        desc="Back distance before starting bezier"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierAdjustDist", name="Adjust Distance for Curvature",
+                    with builder.CHILD(key="bezierAdjustDist", name="[Bezier] Adjust Distance",
                                        desc="Adjust distance for decreasing curvature limit"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierMinAheadDist", name="Min Ahead Distance",
+                    with builder.CHILD(key="bezierMinAheadDist", name="[Bezier] Min Ahead Distance",
                                        desc="Minimum ahead distance"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierIsBackwards", name="Is Backwards",
+                    with builder.CHILD(key="bezierIsBackwards", name="[Bezier] Is Backwards",
                                        desc="Enable backward mode"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="bezierIsHoldDir", name="Hold Direction",
+                    with builder.CHILD(key="bezierIsHoldDir", name="[Bezier] Hold Direction",
                                        desc="Whether to hold direction during navigation"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="bezierMaxSpeed", name="Max Speed",
+                    with builder.CHILD(key="bezierMaxSpeed", name="[Bezier] Max Speed",
                                        desc="Maximum speed for bezier navigation"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5)
                         builder.UNIT("m/s")
-                    with builder.CHILD(key="bezierMaxAccele", name="Max Acceleration",
+                    with builder.CHILD(key="bezierMaxAccele", name="[Bezier] Max Acceleration",
                                        desc="Maximum acceleration"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3)
                         builder.UNIT("m/s²")
-                    with builder.CHILD(key="bezierMaxDecele", name="Max Deceleration",
+                    with builder.CHILD(key="bezierMaxDecele", name="[Bezier] Max Deceleration",
                                        desc="Maximum deceleration"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.2)
                         builder.UNIT("m/s²")
-                    with builder.CHILD(key="bezierDeceleDist", name="Deceleration Distance",
+                    with builder.CHILD(key="bezierDeceleDist", name="[Bezier] Deceleration Distance",
                                        desc="Distance to start deceleration before target"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierCurvatureLimit", name="Curvature Limit",
+                    with builder.CHILD(key="bezierCurvatureLimit", name="[Bezier] Curvature Limit",
                                        desc="Curvature limit for bezier path"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.3)
-                    with builder.CHILD(key="bezierPathDistAccuracy", name="Path Distance Accuracy",
+                    with builder.CHILD(key="bezierPathDistAccuracy", name="[Bezier] Path Dist Accuracy",
                                        desc="Position accuracy for path following"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.01)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierPathAngleAccuracy", name="Path Angle Accuracy",
+                    with builder.CHILD(key="bezierPathAngleAccuracy", name="[Bezier] Path Angle Accuracy",
                                        desc="Angle accuracy for path following"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
                         builder.UNIT("rad")
-
-            # ============================================
-            # 折线导航配置组（现场实施后基本不变）
-            # ============================================
-            with builder.GROUP(key="polylineConfig", name="Polyline Navigation Config",
-                               desc="Polyline navigation parameters (site-specific, rarely changed)"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    with builder.CHILD(key="polylineBackDist", name="Back Distance",
+                    # --- Polyline ---
+                    with builder.CHILD(key="polylineBackDist", name="[Polyline] Back Distance",
                                        desc="Back distance before starting polyline"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineAheadDist", name="Ahead Distance",
+                    with builder.CHILD(key="polylineAheadDist", name="[Polyline] Ahead Distance",
                                        desc="Ahead distance for line angle adjustment"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineMinAheadDist", name="Min Ahead Distance",
+                    with builder.CHILD(key="polylineMinAheadDist", name="[Polyline] Min Ahead Distance",
                                        desc="Minimum ahead distance"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineIsBackwards", name="Is Backwards",
+                    with builder.CHILD(key="polylineIsBackwards", name="[Polyline] Is Backwards",
                                        desc="Enable backward mode"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="polylineIsHoldDir", name="Hold Direction",
+                    with builder.CHILD(key="polylineIsHoldDir", name="[Polyline] Hold Direction",
                                        desc="Whether to hold direction during navigation"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="polylineMaxSpeed", name="Max Speed",
+                    with builder.CHILD(key="polylineMaxSpeed", name="[Polyline] Max Speed",
                                        desc="Maximum speed for polyline navigation"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5)
                         builder.UNIT("m/s")
-                    with builder.CHILD(key="polylineMaxAccele", name="Max Acceleration",
+                    with builder.CHILD(key="polylineMaxAccele", name="[Polyline] Max Acceleration",
                                        desc="Maximum acceleration"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3)
                         builder.UNIT("m/s²")
-                    with builder.CHILD(key="polylineMaxDecele", name="Max Deceleration",
+                    with builder.CHILD(key="polylineMaxDecele", name="[Polyline] Max Deceleration",
                                        desc="Maximum deceleration"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.2)
                         builder.UNIT("m/s²")
-                    with builder.CHILD(key="polylineDeceleDist", name="Deceleration Distance",
+                    with builder.CHILD(key="polylineDeceleDist", name="[Polyline] Deceleration Distance",
                                        desc="Distance to start deceleration before target"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineMaxAngle", name="Max Angle",
+                    with builder.CHILD(key="polylineMaxAngle", name="[Polyline] Max Angle",
                                        desc="Maximum angle between two lines"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.3)
                         builder.UNIT("rad")
-                    with builder.CHILD(key="polylinePathDistAccuracy", name="Path Distance Accuracy",
+                    with builder.CHILD(key="polylinePathDistAccuracy", name="[Polyline] Path Dist Accuracy",
                                        desc="Position accuracy for path following"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.01)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylinePathAngleAccuracy", name="Path Angle Accuracy",
+                    with builder.CHILD(key="polylinePathAngleAccuracy", name="[Polyline] Path Angle Accuracy",
                                        desc="Angle accuracy for path following"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
                         builder.UNIT("rad")
 
             # ============================================
-            # PGV二次调整配置组（现场实施后基本不变）
+            # PGV二次调整配置组（不变）
             # ============================================
             with builder.GROUP(key="pgvConfig", name="PGV Secondary Adjust Config",
                                desc="PGV secondary adjustment parameters (site-specific, rarely changed)"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="pgvUseWhich", name="Use Which PGV",
-                                       desc="Use up or down PGV"):
-                        builder.TYPE(ParamType.STRING_COMBO_LIST)
-                        builder.DEFAULTVALUE("useDownPgv")
+                    with builder.CHILD(key="codeAdjustType", name="Code Adjust Type",
+                                       desc="PGV adjustment working mode"):
+                        builder.TYPE(ParamType.COMBO_BOX)
+                        builder.DEFAULTVALUE("singleCode")
                         with builder.CHILDREN():
-                            with builder.CHILD("useDownPgv", "Use Down PGV", "Use down-facing PGV"):
-                                builder.TYPE(ParamType.STRING)
-                            with builder.CHILD("useUpPgv", "Use Up PGV", "Use up-facing PGV"):
-                                builder.TYPE(ParamType.STRING)
-                    with builder.CHILD(key="pgvAdjustWay", name="Adjust Way",
-                                       desc="PGV adjustment method (90/180/0 degrees)"):
-                        builder.TYPE(ParamType.STRING_COMBO_LIST)
-                        builder.DEFAULTVALUE("pgvAdjust90")
-                        with builder.CHILDREN():
-                            with builder.CHILD("pgvAdjust90", "90 Degrees", "Adjust at 90 degrees"):
-                                builder.TYPE(ParamType.STRING)
-                            with builder.CHILD("pgvAdjust180", "180 Degrees", "Adjust at 180 degrees"):
-                                builder.TYPE(ParamType.STRING)
-                            with builder.CHILD("pgvAdjust0", "0 Degrees", "Adjust at 0 degrees"):
-                                builder.TYPE(ParamType.STRING)
-                    with builder.CHILD(key="pgvXAdjust", name="X Direction Adjust",
-                                       desc="Enable secondary adjustment in X direction"):
+                            with builder.CHILD(key="singleCode", name="Single Code",
+                                               desc="Adjust to a single QR code"):
+                                builder.TYPE(ParamType.ARRAY)
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="scanDevice", name="Scan Device",
+                                                       desc="Select the PGV code scanner device"):
+                                        builder.TYPE(ParamType.BIND_TYPE)
+                                        builder.BINDTYPE(BindType.Device.CODE_SCANNER)
+                                    with builder.CHILD(key="codeNumber", name="Code Number",
+                                                       desc="Target QR code number (pure digits, optional)"):
+                                        builder.TYPE(ParamType.STRING)
+                                        builder.REQUIRED(False)
+                                        builder.DEFAULTVALUE("")
+                                    with builder.CHILD(key="positionAdjustType", name="Position Adjust Type",
+                                                       desc="Position adjustment strategy"):
+                                        builder.TYPE(ParamType.COMBO_BOX)
+                                        builder.DEFAULTVALUE("frontAndBack")
+                                        with builder.CHILDREN():
+                                            with builder.CHILD(key="frontAndBack", name="Front And Back",
+                                                               desc="Forward/backward adjustment along X axis"):
+                                                builder.TYPE(ParamType.ARRAY)
+                                            with builder.CHILD(key="multiLine", name="Multi Line",
+                                                               desc="Back-and-forth sweep adjustment in a region"):
+                                                builder.TYPE(ParamType.ARRAY)
+                                                with builder.CHILDREN():
+                                                    with builder.CHILD(key="adjustRegion",
+                                                                       name="Adjust Region",
+                                                                       desc="Rectangular adjustment region"):
+                                                        builder.TYPE(ParamType.BIND_TYPE)
+                                                        builder.BINDTYPE(
+                                                            BindItem(BindType.Shape.RECTANGLE, no_rotate=True))
+                                                    with builder.CHILD(key="lineAngleThreshold",
+                                                                       name="Line Angle Threshold",
+                                                                       desc="Max rotation angle during sweep (deg)"):
+                                                        builder.TYPE(ParamType.FLOAT)
+                                                        builder.DEFAULTVALUE(10.0)
+                                                        builder.UNIT("deg")
+                                                        builder.SINGLESTEP(1.0)
+                                    with builder.CHILD(key="angleAdjustType", name="Angle Adjust Type",
+                                                       desc="Robot orientation relative to QR code"):
+                                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                        builder.DEFAULTVALUE("parallelToCode")
+                                        with builder.CHILDREN():
+                                            with builder.CHILD("parallelToCode", "Parallel To Code",
+                                                               "Robot parallel to code → pgvAdjust180"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("verticalToCode", "Vertical To Code",
+                                                               "Robot perpendicular to code → pgvAdjust90"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("verticalOrParallelToCode",
+                                                               "Vertical Or Parallel To Code",
+                                                               "90° or 0° whichever is smaller → pgvAdjust90"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("ignoreAngle", "Ignore Angle",
+                                                               "XY adjust, ignore angle → pgvAdjustXY"):
+                                                builder.TYPE(ParamType.STRING)
+                            with builder.CHILD(key="codeNumber", name="Code Number Strip",
+                                               desc="Adjust along a QR code strip → auto sets pgvCodeStrip=True"):
+                                builder.TYPE(ParamType.ARRAY)
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="scanDevice", name="Scan Device",
+                                                       desc="Select the PGV code scanner device"):
+                                        builder.TYPE(ParamType.BIND_TYPE)
+                                        builder.BINDTYPE(BindType.Device.CODE_SCANNER)
+                                    with builder.CHILD(key="angleAdjustType", name="Angle Adjust Type",
+                                                       desc="Robot orientation relative to code strip"):
+                                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                        builder.DEFAULTVALUE("parallelToCode")
+                                        with builder.CHILDREN():
+                                            with builder.CHILD("parallelToCode", "Parallel To Code",
+                                                               "pgvXAngleAdjust + pgvAdjust180"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("verticalToCode", "Vertical To Code",
+                                                               "pgvXAngleAdjust + pgvAdjust90"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("verticalOrParallelToCode",
+                                                               "Vertical Or Parallel To Code",
+                                                               "pgvXAngleAdjust + pgvAdjust90"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("ignoreAngle", "Ignore Angle",
+                                                               "pgvXAdjust only"):
+                                                builder.TYPE(ParamType.STRING)
+                    with builder.CHILD(key="pgvSpin", name="Spin Hold During Adjust",
+                                       desc="Hold fork direction during PGV secondary adjustment (spin vehicles)"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="pgvXAngleAdjust", name="X Angle Adjust",
-                                       desc="Adjust deviation along car direction and angle at target"):
-                        builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="pgvAdjustDist", name="Adjust Distance",
-                                       desc="Maximum adjustment radius with QR code center"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.2)
-                        builder.UNIT("m")
                     with builder.CHILD(key="pgvReachDist", name="Reach Distance Accuracy",
                                        desc="PGV secondary adjustment distance accuracy"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.02)
                         builder.UNIT("m")
+                        builder.SINGLESTEP(0.001)
                     with builder.CHILD(key="pgvReachAngle", name="Reach Angle Accuracy",
                                        desc="PGV secondary adjustment angle accuracy"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.02)
-                        builder.UNIT("rad")
+                        builder.DEFAULTVALUE(1.0)
+                        builder.UNIT("deg")
+                        builder.SINGLESTEP(0.1)
 
         builder.save(merge=True)
         cls.reload_config()
@@ -454,7 +558,7 @@ class ConfigParams:
 
         # 通用配置 - 先加载 debug_mode
         cls.debug_mode = cls.config.get("debugMode", False)
-
+        cls.auto_calib_enable = cls.config.get("autoCalibEnable", False)
         # 电机配置
         cls.jack_motor_speed = cls.config.get("jackMotorSpeed")
         cls.jack_min_height = cls.config.get("jackMinHeight")
@@ -492,14 +596,21 @@ class ConfigParams:
         cls.polyline_path_dist_accuracy = cls.config.get("polylinePathDistAccuracy", 0.01)
         cls.polyline_path_angle_accuracy = cls.config.get("polylinePathAngleAccuracy", 0.05)
 
-        # PGV配置
-        cls.pgv_use_which = cls.config.get("pgvUseWhich", "useDownPgv")
-        cls.pgv_adjust_way = cls.config.get("pgvAdjustWay", "pgvAdjust90")
-        cls.pgv_x_adjust = cls.config.get("pgvXAdjust", True)
-        cls.pgv_x_angle_adjust = cls.config.get("pgvXAngleAdjust", True)
-        cls.pgv_adjust_dist = cls.config.get("pgvAdjustDist", 0.2)
+        # PGV配置（policy 结构）
+        cls.pgv_code_adjust_type = cls.config.get("codeAdjustType", "singleCode")
+
+        # 读取 singleCode 子参数
+        cls.pgv_scan_device = cls.config.get("scanDevice", "")
+        cls.pgv_code_number = cls.config.get("codeNumber", "")
+        cls.pgv_angle_adjust_type = cls.config.get("angleAdjustType", "parallelToCode")
+        cls.pgv_position_adjust_type = cls.config.get("positionAdjustType", "frontAndBack")
+        cls.pgv_line_angle_threshold = cls.config.get("lineAngleThreshold", 10.0)
+        cls.pgv_adjust_region = cls.config.get("adjustRegion", "")
+
+        # 通用精度参数
+        cls.pgv_spin = cls.config.get("pgvSpin", True)
         cls.pgv_reach_dist = cls.config.get("pgvReachDist", 0.02)
-        cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 0.02)
+        cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 1.0)
 
         debug_trace(f"Updated config: debug_mode={cls.debug_mode}")
 
@@ -511,9 +622,23 @@ config_params = ConfigParams()
 # 调试任务列表（需要开启 debugMode 才能执行）
 # ============================================================================
 DEBUG_ONLY_TASKS = [
+    "calib",  # 强制标零（外部指令触发）
+    "jackHeight",  # 指定高度顶升
     "goBezier",  # 贝塞尔导航
+    "PGVSecondaryAdjust",  # PGV二次调整
     "spinTray",  # 托盘旋转
+    "pressIoButton", # I/O控制顶升
     "rotateHoldSpin",  # 随动旋转
+    "getLM",  # 获取地标位置
+    "laserAreaDeduction",  # 激光区域扣除
+    "createOrDeleteDeductedArea",  # 创建/删除扣除区域
+    "jackBezierReturn",  # 贝塞尔取货并返回
+    "goPolyline",  # 折线导航
+    "goDist",  # 直行指定距离
+    "goPath",  # 直行到目标位置
+    "recShelf",  # 识别货架
+    "getRecfile",  # 获取识别文件
+    "recTargetObs",  # 识别目标障碍
 ]
 
 
@@ -558,6 +683,7 @@ def create_end_height(builder: ParamBuilder):
         builder.SINGLESTEP(0.01)
         builder.DEFAULTVALUE(0.06)
 
+
 def create_recfile(builder: ParamBuilder):
     with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
         builder.TYPE(ParamType.STRING)
@@ -567,6 +693,7 @@ def create_recfile(builder: ParamBuilder):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(False)
         builder.DEFAULTVALUE("A")
+
 
 def create_jack_load(builder: ParamBuilder):
     create_start_height(builder)
@@ -615,6 +742,102 @@ def create_jack_load(builder: ParamBuilder):
             with builder.CHILD(key="ON", name="ON",
                                desc="Load With secondary_adjust"):
                 builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    # codeAdjustType 顶层模式（与 pgvConfig 保持一致，此处可按任务覆盖）
+                    with builder.CHILD(key="codeAdjustType", name="Code Adjust Type",
+                                       desc="Override PGV adjustment mode for this task"):
+                        builder.TYPE(ParamType.COMBO_BOX)
+                        builder.DEFAULTVALUE("singleCode")
+                        with builder.CHILDREN():
+                            # singleCode 模式
+                            with builder.CHILD(key="singleCode", name="Single Code",
+                                               desc="Adjust to a single QR code"):
+                                builder.TYPE(ParamType.ARRAY)
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="scanDevice", name="Scan Device",
+                                                       desc="Select the PGV code scanner device"):
+                                        builder.TYPE(ParamType.BIND_TYPE)
+                                        builder.BINDTYPE(BindType.Device.CODE_SCANNER)
+
+                                    with builder.CHILD(key="codeNumber", name="Code Number",
+                                                       desc="Target QR code number (optional, pure digits)"):
+                                        builder.TYPE(ParamType.STRING)
+                                        builder.REQUIRED(False)
+                                        builder.DEFAULTVALUE("")
+
+                                    with builder.CHILD(key="positionAdjustType", name="Position Adjust Type",
+                                                       desc="Position adjustment strategy"):
+                                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                        builder.DEFAULTVALUE("frontAndBack")
+                                        with builder.CHILDREN():
+                                            with builder.CHILD(key="frontAndBack", name="Front And Back",
+                                                               desc="Forward/backward adjustment along X axis"):
+                                                builder.TYPE(ParamType.ARRAY)
+                                            with builder.CHILD(key="multiLine", name="Multi Line",
+                                                               desc="Back-and-forth sweep adjustment in a region"):
+                                                builder.TYPE(ParamType.ARRAY)
+                                                with builder.CHILDREN():
+                                                    with builder.CHILD(key="adjustRegion",
+                                                                       name="Adjust Region",
+                                                                       desc="Rectangular adjustment region"):
+                                                        builder.TYPE(ParamType.BIND_TYPE)
+                                                        builder.BINDTYPE(
+                                                            BindItem(BindType.Shape.RECTANGLE, no_rotate=True))
+                                                    with builder.CHILD(key="lineAngleThreshold",
+                                                                       name="Line Angle Threshold",
+                                                                       desc="Max rotation angle during sweep (deg)"):
+                                                        builder.TYPE(ParamType.FLOAT)
+                                                        builder.DEFAULTVALUE(10.0)
+                                                        builder.UNIT("deg")
+                                                        builder.SINGLESTEP(1.0)
+
+                                    with builder.CHILD(key="angleAdjustType", name="Angle Adjust Type",
+                                                       desc="Robot orientation relative to QR code"):
+                                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                        builder.DEFAULTVALUE("parallelToCode")
+                                        with builder.CHILDREN():
+                                            with builder.CHILD("parallelToCode", "Parallel To Code",
+                                                               "pgvAdjust180"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("verticalToCode", "Vertical To Code",
+                                                               "pgvAdjust90"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("verticalOrParallelToCode",
+                                                               "Vertical Or Parallel",
+                                                               "pgvAdjust90"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("ignoreAngle", "Ignore Angle",
+                                                               "pgvAdjustXY"):
+                                                builder.TYPE(ParamType.STRING)
+
+                            # codeNumber 码带模式
+                            with builder.CHILD(key="codeNumber", name="Code Number Strip",
+                                               desc="Code strip adjustment → pgvCodeStrip=True"):
+                                builder.TYPE(ParamType.ARRAY)
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="scanDevice", name="Scan Device",
+                                                       desc="Select the PGV code scanner device"):
+                                        builder.TYPE(ParamType.BIND_TYPE)
+                                        builder.BINDTYPE(BindType.Device.CODE_SCANNER)
+
+                                    with builder.CHILD(key="angleAdjustType", name="Angle Adjust Type",
+                                                       desc="Robot orientation relative to code strip"):
+                                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                        builder.DEFAULTVALUE("parallelToCode")
+                                        with builder.CHILDREN():
+                                            with builder.CHILD("parallelToCode", "Parallel To Code",
+                                                               "pgvXAngleAdjust + pgvAdjust180"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("verticalToCode", "Vertical To Code",
+                                                               "pgvXAngleAdjust + pgvAdjust90"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("verticalOrParallelToCode",
+                                                               "Vertical Or Parallel",
+                                                               "pgvXAngleAdjust + pgvAdjust90"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("ignoreAngle", "Ignore Angle",
+                                                               "pgvXAdjust only"):
+                                                builder.TYPE(ParamType.STRING)
 
 
 class InputParams:
@@ -652,26 +875,149 @@ class InputParams:
                 with builder.CHILD(key="jackUnload", name="Jack Unload", desc="recognize and unload the shelf"):
                     builder.TYPE(ParamType.ARRAY)
 
-                # 指定高度顶升
-                with builder.CHILD(key="jackHeight", name="Jack Height",
-                                   desc="lift to specified height (debug only)"):
-                    builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILDREN():
-                        create_end_height(builder)
-                        with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(False)
-                            builder.DEFAULTVALUE("default.srec")
-
                 # ============================================
                 # 调试/低频任务（需要开启debugMode才显示）
                 # ===========================================
                 if config_params.debug_mode:
+                    # [DEBUG] 强制标零（外部指令触发，需开启 debugMode）
+                    with builder.CHILD(key="calib", name="[Debug] Calib",
+                                       desc="Force recalibrate jack motor zero position (debug only)"):
+                        builder.TYPE(ParamType.ARRAY)
+                    # [DEBUG] 指定高度顶升
+                    with builder.CHILD(key="jackHeight", name="[Debug] Jack Height",
+                                       desc="lift to specified height (debug only)"):
+                        builder.TYPE(ParamType.ARRAY)
+                        with builder.CHILDREN():
+                            create_end_height(builder)
+                            with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
+                                builder.TYPE(ParamType.STRING)
+                                builder.REQUIRED(False)
+                                builder.DEFAULTVALUE("default.srec")
+
                     # [DEBUG] 贝塞尔导航
                     with builder.CHILD(key="goBezier", name="[Debug] goBezier",
                                        desc="go bezier line to target (debug only)"):
                         builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILD(key="PGVSecondaryAdjust", name="[Debug] PGV Secondary Adjust",
+                                       desc="Perform PGV secondary adjustment"):
+                        builder.TYPE(ParamType.ARRAY)
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="codeAdjustType", name="Code Adjust Type",
+                                               desc="PGV adjustment working mode"):
+                                builder.TYPE(ParamType.COMBO_BOX)
+                                builder.DEFAULTVALUE("singleCode")
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="singleCode", name="Single Code",
+                                                       desc="Adjust to a single QR code"):
+                                        builder.TYPE(ParamType.ARRAY)
+                                        with builder.CHILDREN():
+                                            with builder.CHILD(key="scanDevice", name="Scan Device",
+                                                               desc="Select the PGV code scanner device"):
+                                                builder.TYPE(ParamType.BIND_TYPE)
+                                                builder.BINDTYPE(BindType.Device.CODE_SCANNER)
 
+                                            with builder.CHILD(key="codeNumber", name="Code Number",
+                                                               desc="Target QR code number (optional)"):
+                                                builder.TYPE(ParamType.STRING)
+                                                builder.REQUIRED(False)
+                                                builder.DEFAULTVALUE("")
+
+                                            with builder.CHILD(key="positionAdjustType",
+                                                               name="Position Adjust Type",
+                                                               desc="Position adjustment strategy"):
+                                                builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                                builder.DEFAULTVALUE(config_params.pgv_position_adjust_type)
+                                                with builder.CHILDREN():
+                                                    with builder.CHILD(key="frontAndBack",
+                                                                       name="Front And Back",
+                                                                       desc="Forward/backward adjustment along X axis"):
+                                                        builder.TYPE(ParamType.ARRAY)
+                                                    with builder.CHILD(key="multiLine",
+                                                                       name="Multi Line",
+                                                                       desc="Back-and-forth sweep adjustment in a region"):
+                                                        builder.TYPE(ParamType.ARRAY)
+                                                        with builder.CHILDREN():
+                                                            with builder.CHILD(key="adjustRegion",
+                                                                               name="Adjust Region",
+                                                                               desc="Rectangular adjustment region"):
+                                                                builder.TYPE(ParamType.BIND_TYPE)
+                                                                builder.BINDTYPE(
+                                                                    BindItem(BindType.Shape.RECTANGLE,
+                                                                             no_rotate=True))
+                                                            with builder.CHILD(key="lineAngleThreshold",
+                                                                               name="Line Angle Threshold",
+                                                                               desc="Max rotation during sweep (deg)"):
+                                                                builder.TYPE(ParamType.FLOAT)
+                                                                builder.DEFAULTVALUE(
+                                                                    config_params.pgv_line_angle_threshold)
+                                                                builder.UNIT("deg")
+                                                                builder.SINGLESTEP(1.0)
+
+                                            with builder.CHILD(key="angleAdjustType",
+                                                               name="Angle Adjust Type",
+                                                               desc="Robot orientation vs QR code"):
+                                                builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                                builder.DEFAULTVALUE(config_params.pgv_angle_adjust_type)
+                                                with builder.CHILDREN():
+                                                    with builder.CHILD("parallelToCode", "Parallel To Code",
+                                                                       "pgvAdjust180"):
+                                                        builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("verticalToCode", "Vertical To Code",
+                                                                       "pgvAdjust90"):
+                                                        builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("verticalOrParallelToCode",
+                                                                       "Vertical Or Parallel",
+                                                                       "pgvAdjust90"):
+                                                        builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("ignoreAngle", "Ignore Angle",
+                                                                       "pgvAdjustXY"):
+                                                        builder.TYPE(ParamType.STRING)
+
+                                    with builder.CHILD(key="codeNumber", name="Code Number Strip",
+                                                       desc="Code strip mode → pgvCodeStrip=True"):
+                                        builder.TYPE(ParamType.ARRAY)
+                                        with builder.CHILDREN():
+                                            with builder.CHILD(key="scanDevice", name="Scan Device",
+                                                               desc="Select the PGV code scanner device"):
+                                                builder.TYPE(ParamType.BIND_TYPE)
+                                                builder.BINDTYPE(BindType.Device.CODE_SCANNER)
+
+                                            with builder.CHILD(key="angleAdjustType",
+                                                               name="Angle Adjust Type",
+                                                               desc="Robot orientation vs code strip"):
+                                                builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                                builder.DEFAULTVALUE(config_params.pgv_angle_adjust_type)
+                                                with builder.CHILDREN():
+                                                    with builder.CHILD("parallelToCode", "Parallel",
+                                                                       "pgvXAngleAdjust + pgvAdjust180"):
+                                                        builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("verticalToCode", "Vertical",
+                                                                       "pgvXAngleAdjust + pgvAdjust90"):
+                                                        builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("verticalOrParallelToCode",
+                                                                       "Vertical Or Parallel",
+                                                                       "pgvXAngleAdjust + pgvAdjust90"):
+                                                        builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("ignoreAngle", "Ignore Angle",
+                                                                       "pgvXAdjust only"):
+                                                        builder.TYPE(ParamType.STRING)
+
+                            with builder.CHILD(key="pgvSpin", name="Spin Hold During Adjust",
+                                               desc="Hold fork direction during PGV adjustment"):
+                                builder.TYPE(ParamType.BOOL)
+                                builder.DEFAULTVALUE(config_params.pgv_spin)
+                            with builder.CHILD(key="pgvReachDist", name="Reach Distance Accuracy",
+                                               desc="PGV secondary adjustment distance accuracy"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(config_params.pgv_reach_dist)
+                                builder.UNIT("m")
+                                builder.SINGLESTEP(0.001)
+                            with builder.CHILD(key="pgvReachAngle", name="Reach Angle Accuracy",
+                                               desc="PGV secondary adjustment angle accuracy"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(config_params.pgv_reach_angle)
+                                builder.UNIT("deg")
+                                builder.SINGLESTEP(0.1)
                     # [DEBUG] 托盘旋转
                     with builder.CHILD(key="spinTray", name="[Debug] spinTray", desc="Spin the tray (debug only)"):
                         builder.TYPE(ParamType.ARRAY)
@@ -680,14 +1026,12 @@ class InputParams:
                                 builder.MIN_VALUE(-360)
                                 builder.MAX_VALUE(360)
                                 builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(False)
                                 builder.UNIT("degree")
                                 builder.DEFAULTVALUE(0)
                             with builder.CHILD(key="spinMode", name="spin_mode",
                                                desc="Spin mode(robot coordinate/world coordinate/increase)"):
                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
                                 builder.DEFAULTVALUE("robot")
-                                builder.DEFAULTVALUE(False)
                                 with builder.CHILDREN():
                                     with builder.CHILD("robot", "robot", "robot"):
                                         builder.TYPE(ParamType.STRING)
@@ -698,7 +1042,6 @@ class InputParams:
                             with builder.CHILD(key="spinDir", name="spin_dir",
                                                desc="Spin direction(clockwise-1/counterclockwise1/shortest0)"):
                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
-                                builder.DEFAULTVALUE(False)
                                 builder.DEFAULTVALUE(0)
                                 with builder.CHILDREN():
                                     with builder.CHILD(0, "shortest", "shortest"):
@@ -708,11 +1051,40 @@ class InputParams:
                                     with builder.CHILD(1, "counterclockwise", "counterclockwise"):
                                         builder.TYPE(ParamType.STRING)
 
-                    with builder.CHILD(key="getLM", name="getLM",
+                    with builder.CHILD(key="rotateHoldSpin", name="[Debug] rotateHoldSpin",
+                                       desc="Rotate robot body with tray spin follow (debug only)"):
+                        builder.TYPE(ParamType.ARRAY)
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="spinAngle", name="spin_angle",
+                                               desc="the angle that the robot rotates"):
+                                builder.MIN_VALUE(-360)
+                                builder.MAX_VALUE(360)
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.UNIT("degree")
+                                builder.DEFAULTVALUE(0)
+                            with builder.CHILD(key="coordinate", name="coordinate",
+                                               desc="Coordinate system for rotation"):
+                                builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                builder.DEFAULTVALUE("robot")
+                                with builder.CHILDREN():
+                                    with builder.CHILD("robot", "robot", "robot"):
+                                        builder.TYPE(ParamType.STRING)
+                                    with builder.CHILD("world", "world", "world"):
+                                        builder.TYPE(ParamType.STRING)
+                            with builder.CHILD(key="isSpinFollow", name="is_spin_follow",
+                                               desc="Whether tray follows robot rotation"):
+                                builder.TYPE(ParamType.BOOL)
+                                builder.DEFAULTVALUE(False)
+
+                    with builder.CHILD(key="getLM", name="[Debug] getLM",
                                        desc="get the position of landmark"):
                         builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="laserAreaDeduction", name="laserAreaDeduction",
+                    with builder.CHILD(key="pressIoButton", name="[Debug] pressIoButton",
+                                       desc="use the io button to control"):
+                        builder.TYPE(ParamType.ARRAY)
+
+                    with builder.CHILD(key="laserAreaDeduction", name="[Debug] laserAreaDeduction",
                                        desc="laser area deduction"):
                         builder.TYPE(ParamType.ARRAY)
 
@@ -726,7 +1098,7 @@ class InputParams:
                                 with builder.CHILD("world", "world", "world"):
                                     builder.TYPE(ParamType.STRING)
 
-                    with builder.CHILD(key="createOrDeleteDeductedArea", name="create_or_delete_deducted_area",
+                    with builder.CHILD(key="createOrDeleteDeductedArea", name="[Debug] create Or Delete Deducted Area",
                                        desc="create_or_delete_deducted_area"):
                         builder.TYPE(ParamType.COMBO_BOX)
                         # builder.DEFAULTVALUE("create")
@@ -743,7 +1115,7 @@ class InputParams:
                             with builder.CHILD(key="delete", name="delete", desc="delete"):
                                 builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="jackBezierReturn", name="jackBezierReturn",
+                    with builder.CHILD(key="jackBezierReturn", name="[Debug] jackBezierReturn",
                                        desc="recognize and go bezier to get the shelf and return"):
                         builder.TYPE(ParamType.ARRAY)
 
@@ -752,11 +1124,11 @@ class InputParams:
                             create_end_height(builder)
                             create_recfile(builder)
 
-                    with builder.CHILD(key="goPolyline", name="goPolyline", desc="go polyline line to target position"):
+                    with builder.CHILD(key="goPolyline", name="[Debug] goPolyline",
+                                       desc="go polyline line to target position"):
                         builder.TYPE(ParamType.ARRAY)
 
-
-                    with builder.CHILD(key="goDist", name="goDist", desc="go straight distance"):
+                    with builder.CHILD(key="goDist", name="[Debug] goDist", desc="go straight distance"):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILD(key="goPathX", name="goPath_x",
                                            desc="The dist of the target point to which robot will go in a straight line"):
@@ -765,7 +1137,7 @@ class InputParams:
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(0)
 
-                    with builder.CHILD(key="goPath", name="goPath", desc="go straight to target position"):
+                    with builder.CHILD(key="goPath", name="[Debug] goPath", desc="go straight to target position"):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILD(key="goPathX", name="goPath_x",
                                            desc="The coordinate x of the target point to which robot will go in a straight line"):
@@ -795,8 +1167,7 @@ class InputParams:
                                 with builder.CHILD("world", "world", "world"):
                                     builder.TYPE(ParamType.STRING)
 
-
-                    with builder.CHILD(key="recShelf", name="recShelf", desc="recognize the shelf"):
+                    with builder.CHILD(key="recShelf", name="[Debug] recShelf", desc="recognize the shelf"):
                         builder.TYPE(ParamType.ARRAY)
 
                         with builder.CHILD(key="recFile", name="recfile",
@@ -805,7 +1176,7 @@ class InputParams:
                             builder.REQUIRED(True)
                             builder.DEFAULTVALUE("default.srec")
 
-                    with builder.CHILD(key="getRecfile", name="getRecfile", desc="get Recfile"):
+                    with builder.CHILD(key="getRecfile", name="[Debug] getRecfile", desc="get Recfile"):
                         builder.TYPE(ParamType.ARRAY)
 
                         with builder.CHILD(key="recFile", name="recfile",
@@ -814,7 +1185,7 @@ class InputParams:
                             builder.REQUIRED(True)
                             builder.DEFAULTVALUE("default.srec")
 
-                    with builder.CHILD(key="recTargetObs", name="recTargetObs", desc="recTargetObs"):
+                    with builder.CHILD(key="recTargetObs", name="[Debug] recTargetObs", desc="recTargetObs"):
                         builder.TYPE(ParamType.ARRAY)
 
     builder.save_to_file()
@@ -823,6 +1194,16 @@ class InputParams:
 class Jack(ModuleBase):
     def __init__(self):
         super().__init__()
+
+        # ============================================
+        # Error52800: 检查顶升电机配置
+        # ============================================
+        if not config_params.jack_motor_name:
+            Abnormal.setTask(52800,
+                             "Jack byController Mode. Cannot Find Linear Motor",
+                             "模型文件顶升设备配置有误，找不到顶升电机",
+                             "检查 jack 机构的配置文件中的电机配置是否配置或配置是否有误",
+                             "Jack.__init__")
         # 脚本任务管理
         # set_info数据打印
         self._last_logged_action_id = None
@@ -871,12 +1252,15 @@ class Jack(ModuleBase):
 
         # robotParam
         self.lift_motor = None
-        debug_trace(f"Jack init: motor={config_params.jack_motor_name}, height=[{config_params.jack_min_height}~{config_params.jack_max_height}]m, DI=[up:{config_params.jack_up_di}, zero:{config_params.jack_zero_di}]")
+        debug_trace(
+            f"Jack init: motor={config_params.jack_motor_name}, height=[{config_params.jack_min_height}~{config_params.jack_max_height}]m, DI=[up:{config_params.jack_up_di}, zero:{config_params.jack_zero_di}]")
 
         self.status = ScriptStatus.NONE
 
         self.cur_action_list = []
 
+        # 初始化容器（单容器，id=0）
+        Container.initContainer(0)
 
         # ========== 边走边动相关状态 ==========
         self.pre_action_mode = False  # 是否处于预动作模式（边走边动）
@@ -888,6 +1272,114 @@ class Jack(ModuleBase):
         self.final_bin_task = None  # finalBinTask 参数
         self.final_loc = None  # finalLoc 参数
         self.result = None  # 边走边动结果参数
+        self.jack_calib_step = [False, False, False, False]  # [0]=motorCalib指令已下发  [1]=标零已确认完成 [2]=旋转motorCalib已下发  [3]=旋转标零已完成
+
+    def _get_motor_calib_state(self, motor_name):
+        """从 Odometer 读取指定电机的 calib 字段（2=标零完成）"""
+        try:
+            for m in Odometer.getData().get("motorInfo", []):
+                if m.get("key") == motor_name:
+                    return m.get("calib", None)
+        except Exception as e:
+            Trace.log(f"[CALIB] 读取电机 {motor_name} calib 状态失败: {e}")
+        return None
+
+    def _run_calib_steps(self, label: str) -> bool:
+        """
+        顶升/旋转电机标零状态机（内部复用）。
+        返回 True 表示全部标零完成，False 表示仍在进行中。
+        """
+        # ---- 第1步：顶升电机标零 ----
+        if not self.jack_calib_step[0]:
+            if not Motor.isMotorStop(config_params.jack_motor_name):
+                debug_trace(f"[CALIB] {label}：等待顶升电机停止...")
+                return False
+            Motor.motorCalib(config_params.jack_motor_name)
+            self.jack_calib_step[0] = True
+            Trace.log(f"[CALIB] {label}：顶升电机已静止，motorCalib 指令已下发")
+            return False
+
+        if not self.jack_calib_step[1]:
+            if self._get_motor_calib_state(config_params.jack_motor_name) == 2:
+                self.jack_calib_step[1] = True
+                Trace.log(f"[CALIB] {label}：顶升电机标零完成")
+            return False
+
+        # ---- 第2步：旋转电机标零 ----
+        if not self.jack_calib_step[2]:
+            if not Motor.isMotorStop(config_params.spin_motor_name):
+                debug_trace(f"[CALIB] {label}：等待旋转电机停止...")
+                return False
+            Motor.motorCalib(config_params.spin_motor_name)
+            self.jack_calib_step[2] = True
+            Trace.log(f"[CALIB] {label}：旋转电机已静止，motorCalib 指令已下发")
+            return False
+
+        if not self.jack_calib_step[3]:
+            if self._get_motor_calib_state(config_params.spin_motor_name) == 2:
+                self.jack_calib_step[3] = True
+                jack_calib_manager.set_calib_done(True)
+                Trace.log(f"[CALIB] {label}：旋转电机标零完成，全部标零已完成")
+                return True
+        return False
+
+    def run_startup_calib(self):
+        """脚本启动自动标零（由 main 循环在 DB=False 时周期调用）"""
+        self._run_calib_steps("自动标零")
+
+    def do_force_calib(self):
+        """外部 'calib' 指令触发的强制标零"""
+        if not self.operation_init:
+            self.operation_init = True
+            jack_calib_manager.set_calib_done(False)
+            self.jack_calib_step = [False, False, False, False]
+            Trace.log("[CALIB] 强制标零：jackCalibDone 已置 False")
+        if self._run_calib_steps("强制标零"):
+            self.status = ScriptStatus.FINISHED
+
+    def bindContainer(self, container_id: str, goods_name: str, desc: str, insert_dir: str = "D") -> bool:
+        """
+        重写 bindContainer：绑定容器并设置货物多边形形状。
+        """
+        # 1. 绑定容器
+        Container.bindContainer(container_id, goods_name, desc)
+
+        # 2. 从识别配置中读取货物多边形形状
+        recognition_goodsParameter_path = f"recognitionObject.shelf.goodsParameter"
+        goods_shape = RobotParam.getConfig(
+            "recognition",
+            f"{recognition_goodsParameter_path}.goodsShape",
+            self.recfile or "default.srec"
+        )
+        if not goods_shape:
+            Trace.log(f"[bindContainer] 未找到货物形状配置，recfile={self.recfile}")
+            return False
+
+        shapes = json.loads(goods_shape)
+        shape = shapes[0]["points"]
+
+        # 3. 根据插入方向旋转货物模型
+        # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
+        def _rotate_pt(pt, dir_):
+            if dir_ == "A":  # 0°: (x, y) -> (x, y)
+                if isinstance(pt, dict):  return {"x": pt["y"], "y":-pt["x"] }
+                return [pt[0], pt[1]]
+            elif dir_ == "B":  # 顺时针90°: (x, y) -> (y, -x)
+                if isinstance(pt, dict):  return {"x":pt["x"] , "y": pt["y"]}
+                return [pt[1], -pt[0]]
+            elif dir_ == "C":  # 180°: (x, y) -> (-x, -y)
+                if isinstance(pt, dict):  return {"x": -pt["y"], "y": pt["x"] }
+                return [-pt[0], -pt[1]]
+            else:  # D: 逆时针90°: (x, y) -> (-y, x)
+                if isinstance(pt, dict):  return {"x":-pt["x"] , "y":-pt["y"]}
+                return [-pt[1], pt[0]]
+
+        shape = [_rotate_pt(pt, insert_dir) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
+
+        Navigation.setGoodsPolyShape(shape, goods_name)
+        Trace.log(f"[bindContainer] 绑定成功(方向={insert_dir}): container={container_id}, goods={goods_name}, "
+                  f"shape points={len(shape)}, recfile={self.recfile}")
+        return True
 
     def _init_args(self, args):
         self.task_args = args
@@ -899,13 +1391,17 @@ class Jack(ModuleBase):
         self.end_height = self.task_args.get("endHeight", 0.06)
         # 识别相关
         self.is_recognize = self.task_args.get("recognize", None)
-        self.recfile = self.task_args.get("recFile", "shelf.srec")
+        self.recfile = self.task_args.get("recFile", "default.srec")
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
         rad = math.radians(self.spin_angle)  # 把spin_angle转为rad
-        self.spin_angle = (rad + math.pi) % (2 * math.pi) - math.pi  # 归一化到 (-pi, pi]
-        self.spin_dir = self.task_args.get("spinDir", 0)
+        self.spin_mode = self.task_args.get("spinMode", "increase")  # 提前读 spin_mode，用于判断
+        if self.spin_mode == "increase":
+            self.spin_angle = rad  # increase 是相对增量，不归一化，保留原始弧度值
+        else:
+            self.spin_angle = (rad + math.pi) % (2 * math.pi) - math.pi  # world/robot 模式才归一化
+        self.spin_dir = int(self.task_args.get("spinDir", 0))
         self.coordinate = self.task_args.get("coordinate", "world")
         self.spin_mode = self.task_args.get("spinMode", "increase")
         self.is_spin_follow = self.task_args.get("isSpinFollow", False)
@@ -953,14 +1449,46 @@ class Jack(ModuleBase):
         # ============================================
         # PGV二次调整参数：从脚本配置读取（现场实施后基本不变）
         # ============================================
+        # self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", None)
+        # self.use_which_pgv = config_params.pgv_use_which
+        # self.pgv_adjust_way = config_params.pgv_adjust_way
+        # self.pgv_x_adjust = config_params.pgv_x_adjust
+        # self.pgv_x_angle_adjust = config_params.pgv_x_angle_adjust
+        # self.pgv_adjust_dist = config_params.pgv_adjust_dist
+        # self.pgv_reach_dist = config_params.pgv_reach_dist
+        # self.pgv_reach_angle = config_params.pgv_reach_angle
+
+        # ============================================
+        # PGV二次调整参数：从任务参数或脚本配置读取
+        # ============================================
         self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", None)
-        self.use_which_pgv = config_params.pgv_use_which
-        self.pgv_adjust_way = config_params.pgv_adjust_way
-        self.pgv_x_adjust = config_params.pgv_x_adjust
-        self.pgv_x_angle_adjust = config_params.pgv_x_angle_adjust
-        self.pgv_adjust_dist = config_params.pgv_adjust_dist
-        self.pgv_reach_dist = config_params.pgv_reach_dist
-        self.pgv_reach_angle = config_params.pgv_reach_angle
+
+        # 顶层 codeAdjustType（任务参数可覆盖配置参数）
+        self.pgv_code_adjust_type = self.task_args.get(
+            "codeAdjustType", config_params.pgv_code_adjust_type)
+
+        # scanDevice、angleAdjustType、positionAdjustType 从任务参数或配置读取
+        self.pgv_scan_device = self.task_args.get(
+            "scanDevice", config_params.pgv_scan_device)
+        self.pgv_angle_adjust_type = self.task_args.get(
+            "angleAdjustType", config_params.pgv_angle_adjust_type)
+        self.pgv_position_adjust_type = self.task_args.get(
+            "positionAdjustType", config_params.pgv_position_adjust_type)
+
+        # singleCode 可选参数
+        self.pgv_code_number = self.task_args.get(
+            "codeNumber", config_params.pgv_code_number)
+
+        # multiLine 子参数
+        self.pgv_line_angle_threshold = self.task_args.get(
+            "lineAngleThreshold", config_params.pgv_line_angle_threshold)
+        self.pgv_adjust_region = self.task_args.get(
+            "adjustRegion", config_params.pgv_adjust_region)
+
+        # 通用精度参数
+        self.pgv_spin = self.task_args.get("pgvSpin", config_params.pgv_spin)
+        self.pgv_reach_dist = self.task_args.get("pgvReachDist", config_params.pgv_reach_dist)
+        self.pgv_reach_angle = self.task_args.get("pgvReachAngle", config_params.pgv_reach_angle)
 
         # laser area deduction
         self.create_or_delete_deducted_area = self.task_args.get("createOrDeleteDeductedArea", None)
@@ -1009,7 +1537,20 @@ class Jack(ModuleBase):
             self.stop_motor()
         elif self.opt == "PGVSecondaryAndJackUp":
             self.pgv_second_and_jack_up()
+        elif self.opt == "jackBezierReturn":
+            self.jack_bezier_return()
+        elif self.opt == "pressIoButton":
+            self.press_button()
+        elif self.opt == "calib":  # 外部指令强制标零（需 debugMode）
+            self.do_force_calib()
+
         else:
+            # Error52801: 不支持的任务指令
+            Abnormal.setTask(52801,
+                             f"Doesn't support key: {self.opt}",
+                             "下发的任务指令格式脚本不支持",
+                             "检查下发的任务指令是否符合正确，是否符合要求？",
+                             "Jack.run")
             self.status = ScriptStatus.FAILED
 
         # Trace.log(f"self.action_list: {self.action_list}")
@@ -1028,16 +1569,37 @@ class Jack(ModuleBase):
 
         self._execute_actions()
 
+    def press_button(self):
+        if not self.operation_init:
+            self.operation_init = True
+            jack_height = Motor.getMotorPos(config_params.jack_motor_name)
+            print(f"jack_height:{jack_height}")
+            print(f"0.5 * (config_params.jack_min_height + config_params.jack_max_height):{0.5 * (config_params.jack_min_height + config_params.jack_max_height)}")
+            if jack_height > 0.5 * (config_params.jack_min_height + config_params.jack_max_height):
+                self.action_list.append(JackHeight(config_params.jack_motor_name, config_params.jack_min_height, config_params.jack_motor_speed))
+            else:
+                self.action_list.append(JackHeight(config_params.jack_motor_name, config_params.jack_max_height, config_params.jack_motor_speed))
+
     def pgv_second_and_jack_up(self):
         if not self.operation_init:
             self.operation_init = True
-            self.action_list.append(GetPGVData(self.use_which_pgv))
-            self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
-                                                       self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
-                                                       self.pgv_adjust_way))
+            self.action_list.append(GetPGVData(self.pgv_scan_device))
+            self.action_list.append(PGVSecondaryAdjust(
+                code_adjust_type=self.pgv_code_adjust_type,
+                scan_device=self.pgv_scan_device,
+                angle_adjust_type=self.pgv_angle_adjust_type,
+                position_adjust_type=self.pgv_position_adjust_type,
+                code_number=self.pgv_code_number,
+                line_angle_threshold=self.pgv_line_angle_threshold,
+                adjust_region=self.pgv_adjust_region,
+                pgv_spin=self.pgv_spin,
+                pgv_reach_dist=self.pgv_reach_dist,
+                pgv_reach_angle=self.pgv_reach_angle
+            ))
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
-                                               config_params.jack_motor_speed, self.recfile))
-
+                                               config_params.jack_motor_speed))
+            # 顶升完成后绑定容器，设置货物模型
+            self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
 
     def laser_area_deduction(self):
         if not self.operation_init:
@@ -1201,12 +1763,11 @@ class Jack(ModuleBase):
     }
     """
 
-
     def get_rec_file(self):
         if not self.operation_init:
             self.operation_init = True
             # 如果钻入深度为None,即未传入back_dist,此时用识别文件中的钻入深度
-            self.shelf_back_distance = self.get_back_distance_info(self.recfile, "shelf", "A")
+            self.shelf_back_distance = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
             debug_print(f"self.shelf_back_distance={self.shelf_back_distance}")
             self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
             debug_print(f"self.laser_area_deduct_info={self.laser_area_deduct_info}")
@@ -1292,11 +1853,24 @@ class Jack(ModuleBase):
             self.operation_init = True
             debug_trace("jackLoad: Starting sequence")
 
+            # ============================================
+            # Error52179: 重复取货保护 - 检查车上是否已有货物
+            # ============================================
+            if config_params.load_again_error and Navigation.hasGoods():
+                Abnormal.setTask(52179,
+                                 f"Jack Cannot Load Again.file:{__file__}",
+                                 "顶升车身上有货物的情况下，再去执行取货",
+                                 "如果需要重复取货，可在参数配置中将 LoadAgainError 关闭；"
+                                 "或先执行 JackUnload 卸载货物后再取货；"
+                                 "如果已卸载货物仍报此错误，检查脚本是否调用了 clearGoodsShape()",
+                                 "jack_load")
+                self.status = ScriptStatus.FAILED
+                return
+
             # === 初始化时解析并设置扣除区域配置 ===
             if self.recfile:
                 self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
                 debug_trace(f"jack_load: Parsed laser deduct info: {self.laser_area_deduct_info}")
-                self.action_list.append(SetLaserDeductArea(self.laser_area_deduct_info))
 
             # 下降到起始高度
             if self.start_height:
@@ -1315,13 +1889,19 @@ class Jack(ModuleBase):
 
             self.report_info["jack_load"] = {"apWorldPos": self.ap_world_pos}
             robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
-            # 转到与AP点方向一致
-            self.action_list.append(RobotRotate(math.degrees(ap_to_robot_angle), Coordinate.WORLD, False))
+            # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
+            if self.is_backwards:
+                target_angle = ap_to_robot_angle + math.pi
+            else:
+                target_angle = ap_to_robot_angle
+            self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
 
             # 启用识别
             if self.is_recognize:
-                self.action_list.append(RecShelf(self.recfile, "FirstRec"))
+                self.action_list.append(
+                    RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
 
         # 动态添加 action_list（识别完成后）
         if 0 <= self.action_id < len(self.action_list):
@@ -1336,7 +1916,7 @@ class Jack(ModuleBase):
                         GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
                                self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
                 elif self.how_go_site == "bezier":
-                    recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", "A")
+                    recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
                     if not self.back_dist:
                         if recfile_back_dist.get("enableBackDistance") == "on":
                             self.back_dist = recfile_back_dist.get("backDistance", 0.24)
@@ -1355,17 +1935,30 @@ class Jack(ModuleBase):
 
                 # 二次调整
                 if self.is_secondary_adjust:
-                    self.action_list.append(GetPGVData(self.use_which_pgv))
-                    self.action_list.append(
-                        PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
-                                           self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
-                                           self.pgv_adjust_way))
+                    self.action_list.append(GetPGVData(self.pgv_scan_device))
+                    self.action_list.append(PGVSecondaryAdjust(
+                        code_adjust_type=self.pgv_code_adjust_type,
+                        scan_device=self.pgv_scan_device,
+                        angle_adjust_type=self.pgv_angle_adjust_type,
+                        position_adjust_type=self.pgv_position_adjust_type,
+                        code_number=self.pgv_code_number,
+                        line_angle_threshold=self.pgv_line_angle_threshold,
+                        adjust_region=self.pgv_adjust_region,
+                        pgv_spin=self.pgv_spin,
+                        pgv_reach_dist=self.pgv_reach_dist,
+                        pgv_reach_angle=self.pgv_reach_angle,
+                    ))
+
+                # 旋转托盘
+                self.action_list.append(Spin(0, "robot", 2, deduct_info=self.laser_area_deduct_info))
 
                 # 顶升
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed,
-                               self.recfile))
+                               self.recfile, deduct_info=self.laser_area_deduct_info))
 
+                # 顶升完成后绑定容器，设置货物模型
+                self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
 
     def jack_unload(self):
         """
@@ -1379,12 +1972,15 @@ class Jack(ModuleBase):
             # 检查是否是边走边动模式下已经完成了顶升下降
             current_height = Motor.getMotorPos(config_params.jack_motor_name)
             if self.pre_action_completed and current_height <= 0.005:
-                # 边走边动模式下顶升已经下降完成，跳过下降步骤
+                # 边走边动模式下顶升已经下降完成，跳过下降步骤，但仍需清除货物模型
                 debug_trace(f"jackUnload: 边走边动模式，顶升已下降 (height={current_height:.4f}m)，跳过下降步骤")
+                self.action_list.append(UnbindContainer("999"))
             else:
                 # 正常模式或边走边动未完成，执行下降托盘
                 self.action_list.append(
-                    JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed, self.recfile))
+                    JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed))
+                # 下降完成后解绑容器，清除货物模型
+                self.action_list.append(UnbindContainer("999"))
 
             # === 放货完成后删除激光扣除区域 ===
             self.action_list.append(DeleteLaserDeductArea())
@@ -1393,7 +1989,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
+                self.ap_id = Navigation.moveTask().get("targetName", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'go_ap_site AP_pos: {self.ap_world_pos}')
@@ -1408,7 +2004,7 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
+                self.ap_id = Navigation.moveTask().get("targetName", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'go_bezier AP_pos: {self.ap_world_pos}')
@@ -1422,7 +2018,90 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("target_name", None)
+                self.ap_id = Navigation.moveTask().get("targetName", None)
+                self.ap_id = "AP" + str(self.ap_id)
+            self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
+            debug_trace(f'go_polyline AP_pos: {self.ap_world_pos}')
+            self.action_list.append(GoPolyline(self.ap_world_pos))
+
+    def jack_bezier_return(self):
+        """
+        调试用：bezier导航到AP点 → 识别货架 → 顶升 → bezier退回原始位置
+        参数：startHeight, endHeight, recFile, insertShelfDir
+        """
+        if not self.operation_init:
+            self.operation_init = True
+            debug_trace("jackBezierReturn: Starting sequence")
+
+            # 记录起始位置（用于返回）
+            robot_loc = Loc.getPose()
+            self.return_pos = [robot_loc["x"], robot_loc["y"], math.radians(robot_loc["yaw"])]
+            debug_trace(f"jackBezierReturn: return_pos={self.return_pos}")
+
+            # 下降到起始高度
+            if self.start_height:
+                self.action_list.append(
+                    JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed))
+
+            # 获取AP点
+            self.ap_id = self.ap_id or self.get_ap()
+            if not self.ap_id:
+                Abnormal.setTask(53779, "jackBezierReturn: lost ap id", "", "", "")
+                return
+
+            self.ap_world_pos = Navigation.getLM(self.ap_id, True)
+            debug_trace(f"jackBezierReturn: ap_id={self.ap_id}, AP_pos={self.ap_world_pos}")
+
+            # 对准AP方向
+            robot_loc2 = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+            ap_to_robot_angle = math.atan2(
+                self.ap_world_pos[1] - robot_loc2[1],
+                self.ap_world_pos[0] - robot_loc2[0]
+            )
+            target_angle_deg = math.degrees(ap_to_robot_angle)
+            self.action_list.append(RobotRotate(target_angle_deg, Coordinate.WORLD, False))
+
+            # 识别货架
+            if self.recfile:
+                self.action_list.append(RecShelf(self.recfile, "BezierReturnRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
+
+        # 识别完成后动态追加后续动作
+        if 0 <= self.action_id < len(self.action_list):
+            current_action = self.action_list[self.action_id]
+
+            if current_action.action_name == "BezierReturnRec" and current_action.action_status == ActionStatus.FINISHED:
+                result_world = self.rec_result
+
+                # bezier 进入货架
+                recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
+                back_dist = self.back_dist
+                if not back_dist:
+                    if recfile_back_dist.get("enableBackDistance") == "on":
+                        back_dist = recfile_back_dist.get("backDistance", 0.24)
+                    else:
+                        back_dist = 0.24
+                self.action_list.append(
+                    GoBezier(result_world, back_dist, self.adjust_dist_for_curvature_limit,
+                             self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                             self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
+                             self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
+
+                # 顶升
+                self.action_list.append(
+                    JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
+                self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
+
+                # bezier 退回起始位置
+                self.action_list.append(
+                    GoBezier(self.return_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
+                             self.min_ahead_dist, True, self.is_hold_dir,
+                             self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
+                             self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
+
+        if not self.operation_init:
+            self.operation_init = True
+            if not self.ap_id:
+                self.ap_id = Navigation.moveTask().get("targetName", None)
                 self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
             debug_trace(f'go_polyline AP_pos: {self.ap_world_pos}')
@@ -1440,7 +2119,7 @@ class Jack(ModuleBase):
             self.operation_init = True
             debug_trace("jack_height: Starting sequence")
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
-                                               config_params.jack_motor_speed, self.recfile))
+                                               config_params.jack_motor_speed))
 
     def spin(self):
         """旋转托盘"""
@@ -1474,16 +2153,26 @@ class Jack(ModuleBase):
         """识别货架"""
         if not self.operation_init:
             self.operation_init = True
-            self.action_list.append(RecShelf(self.recfile))  # 导航到终点
+            self.action_list.append(RecShelf(self.recfile, side=self.insert_shelf_dir, is_backwards=self.is_backwards))
 
     def pgv_adjust(self):
         """二次调整"""
         if not self.operation_init:
             self.operation_init = True
-            self.action_list.append(GetPGVData(self.use_which_pgv))
-            self.action_list.append(PGVSecondaryAdjust(self.use_which_pgv, self.pgv_x_adjust, self.pgv_x_angle_adjust,
-                                                       self.pgv_adjust_dist, self.pgv_reach_dist, self.pgv_reach_angle,
-                                                       self.pgv_adjust_way))
+            self.action_list.append(GetPGVData(self.pgv_scan_device))
+            self.action_list.append(PGVSecondaryAdjust(
+                code_adjust_type=self.pgv_code_adjust_type,
+                scan_device=self.pgv_scan_device,
+                angle_adjust_type=self.pgv_angle_adjust_type,
+                position_adjust_type=self.pgv_position_adjust_type,
+                code_number=self.pgv_code_number,
+                line_angle_threshold=self.pgv_line_angle_threshold,
+                adjust_region=self.pgv_adjust_region,
+                pgv_spin=self.pgv_spin,
+                pgv_reach_dist=self.pgv_reach_dist,
+                pgv_reach_angle=self.pgv_reach_angle
+            ))
+
     # def pgv_code_strip_adjust(self):
     #     """码带调整（codeNumber模式）"""
     #     if not self.operation_init:
@@ -1567,7 +2256,8 @@ class Jack(ModuleBase):
             "jackEmc": self.jack_emc,
             "jackIsFull": self.jack_isFull,
             "jackHeight": self.jack_height,
-            "jackSpin": self.jack_spin
+            "jackSpin": self.jack_spin,
+            "containers": Container.getContainers()
         })
 
         Module.reportInfo(self.report_info)
@@ -1817,6 +2507,7 @@ class Jack(ModuleBase):
             return True
         return False
 
+
 # --- 以下为各个基础动作类（内容保持不变） ---
 class BaseAction:
     """定义动作的基类"""
@@ -1925,10 +2616,11 @@ class DeleteLaserDeductArea(BaseAction):
         j.report_info["DeleteLaserDeductArea"] = {"actionStatus": self.action_status, "prefix": self.prefix}
         Module.reportInfo(j.report_info)
 
+
 class Spin(BaseAction):
     """托盘旋转到机器人/世界坐标系下固定角度，额外旋转固定角度"""
 
-    def __init__(self, angle, spin_mode="world", direction=None):
+    def __init__(self, angle, spin_mode="world", direction=None, deduct_info=None):
         super().__init__("Spin")
         kwargs = locals()
         del kwargs['self']
@@ -1938,25 +2630,45 @@ class Spin(BaseAction):
         self.action_status = ActionStatus.INIT
         self.init = True
         self.angle = angle
-        self.dir = direction  # 0 counterclockwise; 1 clockwise; 2 shortest
+        self.dir = direction
         self.coordinate_system = spin_mode
+        self.deduct_info = deduct_info          # 新增：扣除区域数据
+        self._initial_spin_angle = None         # 新增：spin开始时的初始角度
         Motor.resetMotor(config_params.spin_motor_name)
 
     def run(self, j: Jack):
         if self.init:
             self.init = False
             self.action_status = ActionStatus.RUNNING
+            # 记录spin开始时的电机角度，作为旋转基准
+            self._initial_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
             if self.coordinate_system == "robot":
                 Trace.log("setRobotSpinAngle")
                 Navigation.setRobotSpinAngle(self.angle, self.dir)
             elif self.coordinate_system == "world":
                 Trace.log("setGlobalSpinAngle")
                 Navigation.setGlobalSpinAngle(self.angle, self.dir)
-            elif self.coordinate_system == "increase":
-                Trace.log("setIncreaseSpinAngle")
-                Navigation.setIncreaseSpinAngle(self.angle)
+        elif self.coordinate_system == "increase":
+            Trace.log("setIncreaseSpinAngle")
+            angle = abs(self.angle)
+            if self.dir == RotateDirection.CLOCKWISE:  # -1，顺时针 → 负角度
+                angle = -angle
+            elif self.dir == RotateDirection.COUNTERCLOCKWISE:  # 1，逆时针 → 正角度
+                pass  # 保持正值
+            else:  # 0，就近，保留原始符号
+                angle = self.angle
+            Navigation.setIncreaseSpinAngle(angle)
+
+        # === 实时更新扣除区域（每个周期都根据当前spin角度更新） ===
+        if self.deduct_info:
+            self._update_deduct_area_by_spin()
+
         if Navigation.spinRun():
             self.action_status = ActionStatus.FINISHED
+            # spin完成后最后更新一次确保最终位置准确
+            if self.deduct_info:
+                self._update_deduct_area_by_spin()
+
         Trace.log(f"弧度{self.angle=}")
         Trace.log(f"坐标系{self.coordinate_system=}")
 
@@ -1968,6 +2680,41 @@ class Spin(BaseAction):
         }
         Module.reportInfo(j.report_info)
 
+    def _update_deduct_area_by_spin(self):
+        """根据当前spin电机角度，旋转扣除区域坐标并重新设置"""
+        try:
+            current_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
+            # 计算相对于初始位置的旋转增量
+            delta_angle = current_spin_angle - (self._initial_spin_angle or 0)
+
+            cos_a = math.cos(delta_angle)
+            sin_a = math.sin(delta_angle)
+
+            devices = self.deduct_info.get("deductDevice", [])
+            areas = self.deduct_info.get("area", [])
+
+            for idx, area in enumerate(areas, start=1):
+                x_list = area.get("xList", area.get("x_list", []))
+                y_list = area.get("yList", area.get("y_list", []))
+                if len(x_list) < 3 or len(x_list) != len(y_list):
+                    continue
+
+                # 对每个点做二维旋转: x'=x*cos-y*sin, y'=x*sin+y*cos
+                rotated_x = [x * cos_a - y * sin_a for x, y in zip(x_list, y_list)]
+                rotated_y = [x * sin_a + y * cos_a for x, y in zip(x_list, y_list)]
+
+                region_name = f"ShelfDeductArea{idx}"
+                # 先删除旧区域再设置新区域
+                try:
+                    Navigation.deleteClearRegion(region_name, Coordinate.ROBOT)
+                except Exception:
+                    pass
+                Navigation.setClearRegion(region_name, rotated_x, rotated_y, devices, Coordinate.ROBOT)
+
+            debug_trace(f"[LASER] Spin deduct area updated, delta_angle={math.degrees(delta_angle):.1f}°")
+        except Exception as e:
+            Trace.log(f"[LASER] _update_deduct_area_by_spin error: {e}")
+
     def reset(self):
         self.action_status = ActionStatus.RUNNING
 
@@ -1975,7 +2722,7 @@ class Spin(BaseAction):
 class RobotRotate(BaseAction):
     """只转车不转托盘"""
 
-    def __init__(self, angle, coordinate, spin=True, direction=None):
+    def __init__(self, angle, coordinate, spin=True, direction=None, unit="rad"):
         super().__init__("RobotRotate")
 
         kwargs = locals()
@@ -1993,6 +2740,10 @@ class RobotRotate(BaseAction):
         self.speed = 0.7
         self.move_args = dict()
         self.robot_ang = []
+        if unit == "deg":
+            self.angle = math.radians(angle)  # 统一转成弧度存储
+        else:
+            self.angle = angle  # 已经是弧度，直接存
 
     def run(self, j: Jack):
         if self.init:
@@ -2008,13 +2759,18 @@ class RobotRotate(BaseAction):
                     self.move_args['moveAngle'] = -self.angle
                     self.move_args['speedW'] = -self.speed
             elif self.coordinate == Coordinate.WORLD:
-                self.move_args["locMode"] = 1  # 激光定位
-
-                # 1. 当前朝向：Loc 返回的是度 - 立即转弧度 - 归一化
                 cur_angle_rad = self.normalize(math.radians(Loc.getPose()["yaw"]))
 
-                # 2. 目标朝向：外部传进来是“度” - 先转弧度，再归一化
-                target_rad = self.normalize(math.radians(self.angle) if abs(self.angle) > math.pi else self.angle)
+                # self.angle 此时一定是弧度，不再需要猜测
+                target_rad = self.normalize(self.angle)
+
+                self.move_args["locMode"] = 1  # 激光定位
+
+                # # 1. 当前朝向：Loc 返回的是度 - 立即转弧度 - 归一化
+                # cur_angle_rad = self.normalize(math.radians(Loc.getPose()["yaw"]))
+
+                # # 2. 目标朝向：外部传进来是“度” - 先转弧度，再归一化
+                # target_rad = self.normalize(math.radians(self.angle) if abs(self.angle) > math.pi else self.angle)
 
                 # 3. 差值也要再归一化一次，确保 (-π, π]
                 rotate_dist = self.normalize(target_rad - cur_angle_rad)  # 就近方向的符号差
@@ -2038,17 +2794,10 @@ class RobotRotate(BaseAction):
                     "moveAngle": move_ang
                 })
 
-            self._last_status = None
-            debug_trace(f"[ROTATE] Starting rotation angle={math.degrees(self.move_args.get('moveAngle', 0)):.1f}deg")
-
         status = Navigation.runOdoMove(self.move_args)
-
-        # 只在状态变化时输出
-        if status != getattr(self, '_last_status', None):
-            self._last_status = status
-            if status == ActionStatus.FINISHED:
-                debug_trace(f"[ROTATE] Rotation done")
-                self.action_status = ActionStatus.FINISHED
+        debug_trace(f"{status=}")
+        if status == ActionStatus.FINISHED:
+            self.action_status = ActionStatus.FINISHED
 
         j.report_info["RobotRotate"] = {
             "actionStatus": self.action_status,
@@ -2072,7 +2821,7 @@ class RobotRotate(BaseAction):
 class JackHeight(BaseAction):
     """顶升动作，通过设置电机位置实现顶升"""
 
-    def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf"):
+    def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf", deduct_info=None):
         super().__init__("JackHeight")
 
         kwargs = locals()
@@ -2085,10 +2834,12 @@ class JackHeight(BaseAction):
         self.jackMotorSpeed = jack_motor_speed
         self.recfile = recfile
         self.object_key = object_key
+        self.deduct_info = deduct_info  # 激光扣除区数据，顶升完成后设置，下降完成后删除
         self.init = False
         self.jack_start_height = None
         self._count_recorded = False  # 防止重复计数
         self._last_progress = -1  # 用于进度日志去重
+        self._up_di_triggered_time = None # 上到位 DI/isReached 触发时间戳（用于200ms延迟）
         Motor.resetMotor(self.motor_name)
 
     def run(self, j: Jack):
@@ -2109,21 +2860,6 @@ class JackHeight(BaseAction):
                 Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                        config_params.jack_zero_di)
 
-            if self.target_height > config_params.jack_min_height:
-                shape = None
-                if self.recfile:
-                    recognition_goodsParameter_path = f"recognitionObject.{self.object_key}.goodsParameter"
-                    goods_shape = RobotParam.getConfig("recognition",
-                                                       f"{recognition_goodsParameter_path}.goodsShape",
-                                                       self.recfile)
-                    # shapes = json.loads(goods_shape)
-                    shapes = [{"points":[{"x":0.5,"y":1.05},{"x":-0.55,"y":1.05},{"x":-0.55,"y":-1.05},{"x":0.5,"y":-1.05}],"shape":"rectangle"}]
-                    debug_trace(f"[JACK] goodsShape loaded: {len(shapes[0]['points'])} points")
-                    shape = shapes[0]["points"]
-                Navigation.setGoodsPolyShape(shape, "shelf")
-            else:
-                Navigation.clearGoodsShape()
-
         # 获取当前电机位置（精简版，不输出完整 motor_info）
         current_pos = Motor.getMotorPos(self.motor_name)
 
@@ -2138,21 +2874,30 @@ class JackHeight(BaseAction):
                 debug_trace(f"[JACK] progress: {progress_10}% (pos={current_pos:.4f}m)")
 
         if self.target_height > self.jack_start_height:
-            # 顶升动作
+            # 顶升动作：触发上到位 DI 后延迟 200ms 再结束
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_up_di):
-                self.action_status = ActionStatus.FINISHED
-                Motor.resetMotor(self.motor_name)
-                debug_trace(f"[JACK]  Jack up done pos={current_pos:.4f}m")
-                # 顶升完成，记录顶升次数（仅在顶升时计数，下降不计数）
-                if not self._count_recorded:
-                    self._count_recorded = True
-                    jack_count_manager.increment_count()
+                if self._up_di_triggered_time is None:
+                    self._up_di_triggered_time = time.time()
+                    debug_trace(f"[JACK] 上到位触发，等待 200ms 延迟... pos={current_pos:.4f}m")
+                elif time.time() - self._up_di_triggered_time >= 0.2:
+                    self.action_status = ActionStatus.FINISHED
+                    Motor.resetMotor(self.motor_name)
+                    debug_trace(f"[JACK] 顶升完成（200ms 延迟后）pos={current_pos:.4f}m")
+                    # 顶升完成，记录顶升次数（仅在顶升时计数，下降不计数）
+                    if not self._count_recorded:
+                        self._count_recorded = True
+                        jack_count_manager.increment_count()
+                    # 顶升完成后设置激光扣除区（车已到达货架正下方，坐标准确）
+                    if self.deduct_info:
+                        self._set_deduct_area()
         else:
             # 下降动作
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_zero_di):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
                 debug_trace(f"[JACK] Jack down done pos={current_pos:.4f}m")
+                # 下降完成后删除激光扣除区
+                self._delete_deduct_area()
 
         j.report_info["JackHeight"] = {
             "actionStatus": self.action_status,
@@ -2161,6 +2906,69 @@ class JackHeight(BaseAction):
             "jackMotorSpeed": self.jackMotorSpeed,
         }
         Module.reportInfo(j.report_info)
+
+    def _set_deduct_area(self):
+        """顶升完成后设置激光扣除区域（机器人坐标系，车已在货架正下方）"""
+        try:
+            devices = self.deduct_info.get("deductDevice", [])
+            areas = self.deduct_info.get("area", [])
+            debug_trace(f"[LASER] Setting deduct area: {len(areas)} areas, devices={devices}")
+            for idx, area in enumerate(areas, start=1):
+                x_list = area.get("xList", area.get("x_list", []))
+                y_list = area.get("yList", area.get("y_list", []))
+                if len(x_list) < 3 or len(x_list) != len(y_list):
+                    debug_trace(f"[LASER] Skip invalid area idx={idx}")
+                    continue
+                region_name = f"ShelfDeductArea{idx}"
+                Navigation.setClearRegion(region_name, x_list, y_list, devices, Coordinate.ROBOT)
+                debug_trace(f"[LASER] Created {region_name}")
+        except Exception as e:
+            Trace.log(f"[LASER] _set_deduct_area error: {e}")
+
+    def _delete_deduct_area(self):
+        """下降完成后删除激光扣除区域"""
+        try:
+            clear_regions = Navigation.getClearRegion(Coordinate.ROBOT)
+            deleted_count = 0
+            if clear_regions:
+                for region in clear_regions:
+                    if region.startswith("ShelfDeductArea"):
+                        Navigation.deleteClearRegion(region, Coordinate.ROBOT)
+                        deleted_count += 1
+            debug_trace(f"[LASER] Deleted {deleted_count} deduct regions")
+        except Exception as e:
+            Trace.log(f"[LASER] _delete_deduct_area error: {e}")
+
+class BindContainer(BaseAction):
+    """顶升完成后绑定容器并设置货物模型"""
+
+    def __init__(self, container_id: str, goods_name: str, recfile: str, insert_dir: str = "D"):
+        super().__init__("BindContainer")
+        self.opt_info = f"BindContainer{{container_id={container_id}, goods_name={goods_name}, recfile={recfile}}}"
+        self.container_id = container_id
+        self.goods_name = goods_name
+        self.recfile = recfile
+        self.insert_dir = insert_dir
+
+    def run(self, j: Jack):
+        ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec", self.insert_dir)
+        if not ok:
+            Trace.log(f"[BindContainer] 绑定失败，recfile={self.recfile}")
+        self.action_status = ActionStatus.FINISHED
+
+
+class UnbindContainer(BaseAction):
+    """下降完成后解绑容器并清除货物模型"""
+
+    def __init__(self, container_id: str):
+        super().__init__("UnbindContainer")
+        self.opt_info = f"UnbindContainer{{container_id={container_id}}}"
+        self.container_id = container_id
+
+    def run(self, j: Jack):
+        j.unbindContainer(self.container_id)
+        Trace.log(f"[UnbindContainer] 解绑成功: container={self.container_id}")
+        self.action_status = ActionStatus.FINISHED
 
 
 class GoMapPath(BaseAction):
@@ -2406,7 +3214,7 @@ class GoBezierReturn(BaseAction):
 class RecShelf(BaseAction):
     """识别货架"""
 
-    def __init__(self, shelf_file, action_name="RecShelf", recognition_region=None):
+    def __init__(self, shelf_file, action_name="RecShelf", recognition_region=None, side="A", is_backwards=False):
         super().__init__(action_name)
 
         kwargs = locals()
@@ -2419,13 +3227,21 @@ class RecShelf(BaseAction):
         self.attempts = 0
         self.max_attempts = 10
         self.do_rec = False
+        self.side = side
+        self.is_backwards = is_backwards
         Recognize.resetRec()
-        # 识别区域：优先使用传入参数，否则使用默认值
-        default_region = {
+        # 识别区域：优先使用传入参数，否则根据车头/车尾选择默认值
+        default_region_front = {
             "points": [{"x": 0.5, "y": -1.74}, {"x": 2.86, "y": -1.74},
                        {"x": 2.86, "y": 1.59}, {"x": 0.5, "y": 1.59}],
             "shape": "rectangle"
         }
+        default_region_rear = {
+            "points": [{"x": 0.12, "y": 1.33}, {"x": -2.09, "y": 1.33},
+                       {"x": -2.09, "y": -1.76}, {"x": 0.12, "y": -1.76}],
+            "shape": "rectangle"
+        }
+        default_region = default_region_rear if self.is_backwards else default_region_front
         self.recognitionRegion = recognition_region if recognition_region is not None else default_region
         self.report_info = {}
 
@@ -2465,7 +3281,7 @@ class RecShelf(BaseAction):
                     self.do_rec = False
         elif rec_status == 0:
             self.do_rec = True
-            Recognize.doRec(self.recfile, json.dumps(self.recognitionRegion), "A")
+            Recognize.doRec(self.recfile, json.dumps(self.recognitionRegion), self.side)
         j.report_info["RecShelf"] = {
             "actionStatus": self.action_status,
             "recResult": j.rec_result,
@@ -2548,17 +3364,14 @@ class GetApPosAdjustedViaPgv(BaseAction):
 class GetPGVData(BaseAction):
     """获取二维码资料"""
 
-    def __init__(self, use_which_pgv):
+    def __init__(self, scan_device: str):
         super().__init__("GetPGVData")
-        self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}}}"
+        self.opt_info = f"{self.__class__.__name__}{{scan_device={scan_device}}}"
         self.action_status = ActionStatus.INIT
         self.init = True
         self.count = 0
         self.max_rec_num = 15
-        if use_which_pgv == "useUpPgv":
-            self.use_upside = True  # True = 上视, False = 下视
-        else:
-            self.use_upside = False
+        self.scan_device = scan_device  # 设备名称字符串（来自 BIND_TYPE）
         self.is_DMT_detected = False
         self.tag_value = ""
         self.tag_diff_x = 0
@@ -2575,17 +3388,34 @@ class GetPGVData(BaseAction):
 
         chosen_pgv = None
 
-        # 根据输入参数选择对应 PGV（不再自动判断）
+        # 按设备 key 精确匹配；若设备名为空则回退到原有 isUpside 逻辑
         for pgv in pgv_data:
-            if not hasattr(pgv.codeScannerInfo, "isUpside"):
-                continue
+            if self.scan_device:
+                device_key = getattr(pgv.codeScannerInfo, "key", None) or getattr(pgv, "key", None)
+                if device_key == self.scan_device:
+                    chosen_pgv = pgv
+                    break
+            else:
+                # 兼容旧逻辑：scan_device 未设置时默认选下视 PGV
+                if hasattr(pgv.codeScannerInfo, "isUpside") and not pgv.codeScannerInfo.isUpside:
+                    chosen_pgv = pgv
+                    break
 
-            if pgv.codeScannerInfo.isUpside == self.use_upside:
-                chosen_pgv = pgv
-                break
-
-        # 如果没找到对应的PGV，直接报异常
-        if chosen_pgv:
+        # 如果没找到对应的PGV，打印可用设备详细信息辅助排查（仅首次）
+        if chosen_pgv is None:
+            if self.count == 0:
+                for i, pgv in enumerate(pgv_data):
+                    pgv_attrs = {k: v for k, v in vars(pgv).items() if not k.startswith('_')} if hasattr(pgv,
+                                                                                                         '__dict__') else str(
+                        pgv)
+                    info_attrs = {}
+                    if hasattr(pgv, 'codeScannerInfo') and pgv.codeScannerInfo is not None:
+                        info_attrs = {k: v for k, v in vars(pgv.codeScannerInfo).items() if
+                                      not k.startswith('_')} if hasattr(pgv.codeScannerInfo, '__dict__') else str(
+                            pgv.codeScannerInfo)
+                    Trace.log(f"GetPGVData: pgv[{i}] attrs={pgv_attrs}, codeScannerInfo attrs={info_attrs}")
+                Trace.log(f"GetPGVData: scan_device='{self.scan_device}' not found in above devices!")
+        else:
             self.tag_value = chosen_pgv.tagValue
             self.tag_diff_x = chosen_pgv.tagDiffX
             self.tag_diff_y = chosen_pgv.tagDiffY
@@ -2593,20 +3423,24 @@ class GetPGVData(BaseAction):
             self.is_DMT_detected = chosen_pgv.isDMTDetected
             self.codeScannerInfo = chosen_pgv.codeScannerInfo
 
-        # 输出结构保持不变，新增 isUpside 字段
+        # 输出结构
+        is_upside = False
+        if self.codeScannerInfo is not None:
+            is_upside = getattr(self.codeScannerInfo, "isUpside", False)
         j.code_info = {
             "tag_value": self.tag_value,
             "is_DMT_detected": self.is_DMT_detected,
             "tag_diff_x": self.tag_diff_x,
             "tag_diff_y": self.tag_diff_y,
             "tag_diff_angle": self.tag_diff_angle,
-            "isUpside": self.use_upside
+            "scanDevice": self.scan_device,
+            "isUpside": is_upside
         }
 
         # 判断二维码识别逻辑
         if self.is_DMT_detected and self.tag_value != "":
             debug_trace(
-                f"read code success: {self.tag_value} (use_upside={self.use_upside})"
+                f"read code success: {self.tag_value} (scan_device={self.scan_device})"
             )
             self.action_status = ActionStatus.FINISHED
         else:
@@ -2746,53 +3580,316 @@ class GoPolyline(BaseAction):
         self.action_status = ActionStatus.RUNNING
 
 
-class PGVSecondaryAdjust(BaseAction):  # 二次调整
-    def __init__(self, use_which_pgv, pgv_x_adjust, pgv_x_angle_adjust, pgv_adjust_dist, pgv_reach_dist,
-                 pgv_reach_angle, pgv_adjust_way):
+# # class PGVSecondaryAdjust(BaseAction):  # 二次调整
+# #     def __init__(self, use_which_pgv, pgv_x_adjust, pgv_x_angle_adjust, pgv_adjust_dist, pgv_reach_dist,
+# #                  pgv_reach_angle, pgv_adjust_way):
+# #         super().__init__("PGVSecondaryAdjust")
+# #         self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}, pgv_adjust_way={pgv_adjust_way}}}"
+# #         self.action_status = ActionStatus.INIT
+# #         self.init = True
+# #         self.adjust_param = dict()
+# #         self.use_which_pgv = use_which_pgv
+# #         self.pgv_x_adjust = pgv_x_adjust
+# #         self.pgv_x_angle_adjust = pgv_x_angle_adjust
+# #         self.pgv_adjust_dist = pgv_adjust_dist
+# #         self.pgv_reach_dist = pgv_reach_dist
+# #         self.pgv_reach_angle = pgv_reach_angle
+# #         self.pgv_adjust_way = pgv_adjust_way
+# class PGVSecondaryAdjust(BaseAction):  # 二次调整
+#     def __init__(self, use_which_pgv, pgv_adjust_dist, pgv_reach_dist,
+#                  pgv_reach_angle, pgv_adjust_way, pgv_spin=True):
+#         super().__init__("PGVSecondaryAdjust")
+#         self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}, pgv_adjust_way={pgv_adjust_way}}}"
+#         self.action_status = ActionStatus.INIT
+#         self.init = True
+#         self.adjust_param = dict()
+#         self.use_which_pgv = use_which_pgv
+#         self.pgv_adjust_dist = pgv_adjust_dist
+#         self.pgv_reach_dist = pgv_reach_dist
+#         self.pgv_reach_angle = pgv_reach_angle
+#         self.pgv_adjust_way = pgv_adjust_way
+#         self.pgv_spin = pgv_spin
+#
+#     def run(self, j: Jack):
+#         if self.init:
+#             self.init = False
+#             self.reset()
+#         self.set_adjust_param(j.code_info["tag_diff_x"], j.code_info["tag_diff_y"])
+#         self.action_status = Navigation.goPGVRun(self.adjust_param)
+#
+#         j.report_info["PGVSecondaryAdjust"] = {
+#             "actionStatus": self.action_status,
+#             "codeInfo": j.code_info
+#         }
+#         Module.reportInfo(j.report_info)
+#
+#     # def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
+#     #     if self.use_which_pgv == "useUpPgv":
+#     #         self.adjust_param['R2AUP'] = True  # 使用上视pgv, args里需要增加use_pgv参数
+#     #         self.adjust_param['R2ADP'] = False  # 使用下视pgv
+#     #     elif self.use_which_pgv == "useDownPgv":
+#     #         self.adjust_param['R2AUP'] = False  # 使用上视pgv, args里需要增加use_pgv参数
+#     #         self.adjust_param['R2ADP'] = True
+#     #     if self.pgv_adjust_way == "pgvAdjust90":
+#     #         self.adjust_param['pgvAdjust90'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
+#     #         self.adjust_param['pgvXAngleAdjust'] = True  # 有角度
+#     #     elif self.pgv_adjust_way == "pgvAdjust180":
+#     #         self.adjust_param['pgvAdjust180'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
+#     #         self.adjust_param['pgvXAngleAdjust'] = True  # 有角度
+#     #     elif self.pgv_adjust_way == "pgvAdjust0":
+#     #         self.adjust_param['pgvXAdjust'] = True  # 忽略角度
+#     #     # self.adjust_param['pgvXAdjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
+#     #     # self.adjust_param['pgvXAngleAdjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
+#     #     self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
+#     #     self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
+#     #     self.adjust_param['pgvAdjustCy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
+#     #     self.adjust_param['pgvReachDist'] = self.pgv_reach_dist  # pgv二次调整距离精度
+#     #     self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # pgv二次调整角度精度
+#
+#     def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
+#         # 设备选择（不变）
+#         if self.use_which_pgv == "useUpPgv":
+#             self.adjust_param['R2AUP'] = True
+#             self.adjust_param['R2ADP'] = False
+#         elif self.use_which_pgv == "useDownPgv":
+#             self.adjust_param['R2AUP'] = False
+#             self.adjust_param['R2ADP'] = True
+#
+#         # 角度调整方式（按文档修正）
+#         if self.pgv_adjust_way == "pgvAdjust90":
+#             self.adjust_param['pgvAdjust90'] = True
+#             self.adjust_param['pgvXAngleAdjust'] = True
+#         elif self.pgv_adjust_way == "pgvAdjust180":
+#             self.adjust_param['pgvAdjust180'] = True
+#             self.adjust_param['pgvXAngleAdjust'] = True
+#         elif self.pgv_adjust_way == "pgvAdjust0":
+#             # 文档 singleCode ignoreAngle → pgvAdjustXY（XY来回调整，忽略角度）
+#             # 文档 codeNumber ignoreAngle → pgvXAdjust（仅X方向）
+#             # 当前脚本走的是 singleCode 路径，统一用 pgvAdjustXY
+#             self.adjust_param['pgvAdjustXY'] = True  #
+#
+#         # 随动时锁定货叉方向（不变）
+#         self.adjust_param['spin'] = self.pgv_spin
+#
+#         # 调整范围（不变）
+#         self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist
+#         self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx
+#         self.adjust_param['pgvReachDist'] = self.pgv_reach_dist
+#         self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # 单位 deg
+#
+#     def reset(self):
+#         debug_trace("reset PGV secondary adjustment")
+#         self.action_status = ActionStatus.RUNNING
+#         Navigation.resetGoPGV()
+class PGVSecondaryAdjust(BaseAction):
+    """
+    PGV二次调整（singleCode / codeNumber 模式）。
+
+    根据文档 §3.5 policy 参数结构，将上层配置翻译成 goPGVRun 底层参数。
+
+    singleCode 模式参数映射（文档附录）：
+      angleAdjustType:
+        "parallelToCode"          → pgvAdjust180 = True
+        "verticalToCode"          → pgvAdjust90  = True
+        "verticalOrParallelToCode"→ pgvAdjust90  = True
+        "ignoreAngle"             → pgvAdjustXY  = True
+      positionAdjustType:
+        "frontAndBack" + ignoreAngle  → pgvXAdjust      = True
+        "frontAndBack" + other        → pgvXAngleAdjust  = True
+        "multiLine"                   → pgvAdjustCx/pgvAdjustDist/pgvAdjustCy
+                                        （从 adjustRegion 计算）
+                                        + lineAngleThreshold 传入 policy
+
+    codeNumber 模式参数映射（文档附录）：
+      自动设置 pgvCodeStrip = True
+      angleAdjustType:
+        "parallelToCode"           → pgvXAngleAdjust + pgvAdjust180
+        "verticalToCode"           → pgvXAngleAdjust + pgvAdjust90
+        "verticalOrParallelToCode" → pgvXAngleAdjust + pgvAdjust90
+        "ignoreAngle"              → pgvXAdjust
+    """
+
+    def __init__(self,
+                 code_adjust_type: str = "singleCode",
+                 scan_device: str = "",
+                 angle_adjust_type: str = "parallelToCode",
+                 position_adjust_type: str = "frontAndBack",
+                 code_number: str = "",
+                 line_angle_threshold: float = 0.1,
+                 adjust_region: str = "",
+                 pgv_spin: bool = True,
+                 pgv_reach_dist: float = 0.02,
+                 pgv_reach_angle: float = 1.0):
         super().__init__("PGVSecondaryAdjust")
-        self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}, pgv_adjust_way={pgv_adjust_way}}}"
+        self.opt_info = (f"{self.__class__.__name__}{{"
+                         f"code_adjust_type={code_adjust_type}, "
+                         f"scan_device={scan_device}, "
+                         f"angle_adjust_type={angle_adjust_type}, "
+                         f"position_adjust_type={position_adjust_type}}}")
         self.action_status = ActionStatus.INIT
         self.init = True
         self.adjust_param = dict()
-        self.use_which_pgv = use_which_pgv
-        self.pgv_x_adjust = pgv_x_adjust
-        self.pgv_x_angle_adjust = pgv_x_angle_adjust
-        self.pgv_adjust_dist = pgv_adjust_dist
+
+        self.code_adjust_type = code_adjust_type
+        self.scan_device = scan_device
+        self.angle_adjust_type = angle_adjust_type
+        self.position_adjust_type = position_adjust_type
+        self.code_number = code_number
+        self.line_angle_threshold = line_angle_threshold
+        self.adjust_region = adjust_region
+        self.pgv_spin = pgv_spin
         self.pgv_reach_dist = pgv_reach_dist
         self.pgv_reach_angle = pgv_reach_angle
-        self.pgv_adjust_way = pgv_adjust_way
 
     def run(self, j: Jack):
         if self.init:
             self.init = False
             self.reset()
-        self.set_adjust_param(j.code_info["tag_diff_x"], j.code_info["tag_diff_y"])
+            self._build_static_params(j)
+
+        # multiLine 模式：每帧刷新圆心偏移（来自当前读码偏差）
+        if (self.code_adjust_type == "singleCode"
+                and self.position_adjust_type == "multiLine"):
+            self._refresh_multiline_cx(j.code_info.get("tag_diff_x", 0.0))
+
         self.action_status = Navigation.goPGVRun(self.adjust_param)
 
         j.report_info["PGVSecondaryAdjust"] = {
             "actionStatus": self.action_status,
+            "adjustParam": self.adjust_param,
             "codeInfo": j.code_info
         }
         Module.reportInfo(j.report_info)
 
-    def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
-        if self.use_which_pgv == "useUpPgv":
-            self.adjust_param['R2AUP'] = True  # 使用上视pgv, args里需要增加use_pgv参数
-            self.adjust_param['R2ADP'] = False  # 使用下视pgv
-        elif self.use_which_pgv == "useDownPgv":
-            self.adjust_param['R2AUP'] = False  # 使用上视pgv, args里需要增加use_pgv参数
-            self.adjust_param['R2ADP'] = True
-        if self.pgv_adjust_way == "pgvAdjust90":
-            self.adjust_param['pgvAdjust90'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
-        elif self.pgv_adjust_way == "pgvAdjust180":
-            self.adjust_param['pgvAdjust180'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
-        self.adjust_param['pgvXAdjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
-        self.adjust_param['pgvXAngleAdjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
-        self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
-        self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
-        self.adjust_param['pgvAdjustCy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
-        self.adjust_param['pgvReachDist'] = self.pgv_reach_dist  # pgv二次调整距离精度
-        self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # pgv二次调整角度精度
+    # ------------------------------------------------------------------
+    # 内部：一次性构建静态参数（init 阶段调用）
+    # ------------------------------------------------------------------
+    def _build_static_params(self, j: Jack):
+        """将上层 policy 翻译成 goPGVRun 底层 JSON 参数（不含每帧刷新量）。"""
+        p = self.adjust_param
+
+        # ---- 随动锁叉 ----
+        p['spin'] = self.pgv_spin
+
+        # ---- 精度 ----
+        p['pgvReachDist'] = self.pgv_reach_dist
+        p['pgvReachAngle'] = self.pgv_reach_angle  # 单位 deg
+
+        # ---- 扫码设备 → R2ADP / R2AUP ----
+        # 根据 GetPGVData 阶段获取的 codeScannerInfo.isUpside 判断上视/下视
+        # 文档：R2AUP = 上视PGV，R2ADP = 下视PGV
+        is_upside = j.code_info.get("isUpside", False)
+        if is_upside:
+            p['R2AUP'] = True
+            p['R2ADP'] = False
+        else:
+            p['R2AUP'] = False
+            p['R2ADP'] = True
+        Trace.log(f"PGVSecondaryAdjust: scan_device='{self.scan_device}', "
+                  f"isUpside={is_upside} -> R2AUP={p['R2AUP']}, R2ADP={p['R2ADP']}")
+
+        if self.code_adjust_type == "singleCode":
+            self._build_singlecode_params()
+        elif self.code_adjust_type == "codeNumber":
+            self._build_codestrip_params()
+        else:
+            Trace.log(f"PGVSecondaryAdjust: unknown codeAdjustType='{self.code_adjust_type}', "
+                      f"falling back to singleCode")
+            self._build_singlecode_params()
+
+        Trace.log(f"PGVSecondaryAdjust: built params: {json.dumps(self.adjust_param, indent=2)}")
+
+    def _build_singlecode_params(self):
+        """singleCode 模式参数构建（文档 §2 singleCode）。"""
+        p = self.adjust_param
+
+        # codeNumber（可选）：纯数字字符串才生效 → pgvDownCode
+        if self.code_number and self.code_number.isdigit():
+            p['pgvDownCode'] = int(self.code_number)
+
+        # ---- angleAdjustType ----
+        angle = self.angle_adjust_type
+        if angle == "parallelToCode":
+            p['pgvAdjust180'] = True
+        elif angle in ("verticalToCode", "verticalOrParallelToCode"):
+            p['pgvAdjust90'] = True
+        elif angle == "ignoreAngle":
+            p['pgvAdjustXY'] = True
+
+        # ---- positionAdjustType ----
+        pos = self.position_adjust_type
+        if pos == "frontAndBack":
+            # ignoreAngle → pgvXAdjust；其他 → pgvXAngleAdjust
+            if angle == "ignoreAngle":
+                p['pgvXAdjust'] = True
+            else:
+                p['pgvXAngleAdjust'] = True
+
+        elif pos == "multiLine":
+            # adjustRegion 解析：取第一个元素 points 数组，计算 X 最大/最小值
+            cx, dist = self._parse_adjust_region(self.adjust_region)
+            p['pgvAdjustCx'] = cx
+            p['pgvAdjustDist'] = dist
+            p['pgvAdjustCy'] = 0.0
+            # lineAngleThreshold: 控制来回运动时的最大旋转角度范围
+            # UI 单位为 deg，底层接口需要 rad
+            p['lineAngleThreshold'] = math.radians(self.line_angle_threshold)
+
+    def _build_codestrip_params(self):
+        """codeNumber（码带）模式参数构建（文档 §3 codeNumber）。"""
+        p = self.adjust_param
+
+        # 码带模式核心标识
+        p['pgvCodeStrip'] = True
+
+        angle = self.angle_adjust_type
+        if angle == "parallelToCode":
+            p['pgvXAngleAdjust'] = True
+            p['pgvAdjust180'] = True
+        elif angle in ("verticalToCode", "verticalOrParallelToCode"):
+            p['pgvXAngleAdjust'] = True
+            p['pgvAdjust90'] = True
+        elif angle == "ignoreAngle":
+            p['pgvXAdjust'] = True
+
+    # ------------------------------------------------------------------
+    # 内部：multiLine 每帧刷新圆心 X
+    # ------------------------------------------------------------------
+    def _refresh_multiline_cx(self, tag_diff_x: float):
+        """multiLine 模式下每帧用当前读码 X 偏差更新 pgvAdjustCx。"""
+        self.adjust_param['pgvAdjustCx'] = tag_diff_x
+
+    # ------------------------------------------------------------------
+    # 内部：解析 adjustRegion JSON 字符串 → (cx, dist)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _parse_adjust_region(region_str: str):
+        """
+        解析 adjustRegion JSON 字符串，返回 (pgvAdjustCx, pgvAdjustDist)。
+
+        文档逻辑：
+          max_x = max(points[*].x)
+          min_x = min(points[*].x)
+          pgvAdjustCx   = (max_x + min_x) / 2
+          pgvAdjustDist = |max_x - min_x| / 2
+        """
+        if not region_str:
+            Trace.log("PGVSecondaryAdjust: adjustRegion is empty, using (cx=0, dist=0.2)")
+            return 0.0, 0.2
+
+        try:
+            region_data = json.loads(region_str)
+            points = region_data[0].get("points", [])
+            x_values = [pt["x"] for pt in points]
+            max_x = max(x_values)
+            min_x = min(x_values)
+            cx = (max_x + min_x) / 2.0
+            dist = abs(max_x - min_x) / 2.0
+            Trace.log(f"PGVSecondaryAdjust: adjustRegion parsed → cx={cx:.4f}, dist={dist:.4f}")
+            return cx, dist
+        except Exception as e:
+            Trace.log(f"PGVSecondaryAdjust: adjustRegion parse error: {e}, using (cx=0, dist=0.2)")
+            return 0.0, 0.2
 
     def reset(self):
         debug_trace("reset PGV secondary adjustment")
@@ -2807,7 +3904,7 @@ class PGVCodeStripAdjust(BaseAction):
     """
 
     def __init__(self, angle_adjust_type: str = "parallelToCode",
-                 pgv_reach_dist: float = 0.02, pgv_reach_angle: float = 0.02,
+                 pgv_reach_dist: float = 0.02, pgv_reach_angle: float = 1.0,
                  use_target_position: bool = False,
                  r2ad_x: float = 0.0, r2ad_y: float = 0.0, r2ad_theta: float = 0.0):
         super().__init__("PGVCodeStripAdjust")
@@ -2904,6 +4001,7 @@ class PGVCodeStripAdjust(BaseAction):
         self.action_status = ActionStatus.RUNNING
         Navigation.resetGoPGV()
 
+
 class ActionStatus(IntEnum):
     """ 动作运行状态枚举，对标 ActionStatus """
     INIT = 0
@@ -2962,9 +4060,19 @@ class RotateDirection(IntEnum):
 #     },
 #     config={}
 # )
-#
-# # 保存动作模板到文件
-# param_loader.saveAction()
+
+# 添加 "PGVSecondaryAdjust" 动作模板
+param_loader.addAction(
+    action_name="PGVSecondaryAdjust",
+    policy=None,
+    args={
+        "operation": "PGVSecondaryAdjust",
+    },
+    config={}
+)
+
+# 保存动作模板到文件
+param_loader.saveAction()
 
 
 def main():
@@ -2974,6 +4082,9 @@ def main():
     Module.init()
     validator = ParamValidator(InputParams.builder.toDict())
     j = Jack()
+    # 每次脚本启动都重置标零状态，确保开机标零一次
+    if config_params.auto_calib_enable:
+        jack_calib_manager.set_calib_done(False)
 
     while True:
         # ========== 边走边动：更新moveTask参数 ==========
@@ -2987,6 +4098,10 @@ def main():
         # 脚本任务状态管理
         if j.event_safe_move_check:
             j.safe_move_check()
+
+        # 启动自动标零（DB=False 时每周期轮询，完成后自动停止）
+        if config_params.auto_calib_enable and not jack_calib_manager.is_calib_done():
+            j.run_startup_calib()
 
         if status == ScriptStatus.NONE:
             # ========== 边走边动：预动作执行（保持NONE状态） ==========

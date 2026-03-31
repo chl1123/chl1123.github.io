@@ -1035,7 +1035,7 @@ class ContainerRobot(ModuleBase):
             #             Abnormal.setTask(53700, f"货叉光电检测到货叉中有货，但数据显示无货，需要人工核查处理", "", "", "")
             #             self.status = ScriptStatus.FAILED
             #         elif not Di.getDi(ConfigParams.goods_check_di):
-            #             Container.clearContainer("999")
+            #             Container.unbindContainer("999")
             # else:
             #     Abnormal.setTask(53701, f"请在脚本参数中正确配置 goods_check_di 参数！", "", "", "")
             #     log.error(f"请在脚本参数中正确配置 goods_check_di 参数！")
@@ -1428,8 +1428,8 @@ class ContainerRobot(ModuleBase):
                     self.unload_step[5] = self.stretch(0)
                     if self.unload_step[5] and Di.getDi(ConfigParams.goods_check_di):
                         goods_id = Container.getGoodsByContainer(self.cur_c)
-                        Container.setContainer("999", goods_id, "")
-                        Container.clearContainer(self.cur_c)
+                        Container.bindContainer("999", goods_id, "")
+                        Container.unbindContainer(self.cur_c)
 
                 if all(self.unload_step[0:6]):
                     self.pre_action_step[0] = True
@@ -1554,9 +1554,9 @@ class ContainerRobot(ModuleBase):
         if all(self.zero_step):
             # r.release()
             Do.setDo(ConfigParams.finger_up_do, False)
-            # Container.clearContainer("1")
+            # Container.unbindContainer("1")
             # print("123")
-            # Container.setContainer("1", self.goods_id, "")
+            # Container.bindContainer("1", self.goods_id, "")
             return True
         return False
 
@@ -1866,7 +1866,7 @@ class ContainerRobot(ModuleBase):
                 self.load_step[8] = self.stretch(0)
                 if self.load_step[8] and Di.getDi(ConfigParams.goods_check_di):
                     # 手臂收回且光电检测成功时，增加货叉货物数据
-                    Container.setContainer("999", self.goods_id, "")
+                    Container.bindContainer("999", self.goods_id, "")
 
             # ========== 边走边动：到点动作完成，后动作待执行 ==========
             elif self.load_step[8]:
@@ -1946,8 +1946,8 @@ class ContainerRobot(ModuleBase):
             self.post_action_step[6] = self.lift_safe_height()
 
         if all(self.post_action_step[0:7]):
-            Container.clearContainer("999")
-            Container.setContainer(cur_c, self.goods_id, "")
+            Container.unbindContainer("999")
+            Container.bindContainer(cur_c, self.goods_id, "")
             self.post_action_step = [False] * 10
             return True
         return False
@@ -1986,9 +1986,9 @@ class ContainerRobot(ModuleBase):
         in_take_info["goodsId"] = self.goods_id
         self.report_info["in_take_info"] = in_take_info
         if all(self.in_take_step[:8]):
-            Container.clearContainer(self.cur_c)
+            Container.unbindContainer(self.cur_c)
             goods_id = Container.getGoodsByContainer(self.cur_c)
-            Container.setContainer("999", goods_id, "")
+            Container.bindContainer("999", goods_id, "")
             return True
 
     def in_put(self):
@@ -2022,8 +2022,8 @@ class ContainerRobot(ModuleBase):
         self.report_info["in_put_info"] = in_put_info
         if all(self.in_put_step[0:8]):
             goods_id = Container.getGoodsByContainer("999")
-            Container.setContainer(self.cur_c, goods_id, "")
-            Container.clearContainer("999")
+            Container.bindContainer(self.cur_c, goods_id, "")
+            Container.unbindContainer("999")
             return True
 
     def ex_take(self):
@@ -2092,7 +2092,7 @@ class ContainerRobot(ModuleBase):
         ex_take_info['ex_take_step'] = self.ex_take_step[:10]
         self.report_info["ex_take_info"] = ex_take_info
         if all(self.ex_take_step[:10]):
-            Container.setContainer("999", self.goods_id, "")
+            Container.bindContainer("999", self.goods_id, "")
             return True
 
     def ex_put(self):
@@ -2178,7 +2178,7 @@ class ContainerRobot(ModuleBase):
         ex_put_info["goodsId"] = self.goods_id
         self.report_info["ex_put_info"] = ex_put_info
         if all(self.ex_put_step[:14]):
-            Container.clearContainer("999")
+            Container.unbindContainer("999")
             return True
 
     def unload(self):
@@ -2247,8 +2247,8 @@ class ContainerRobot(ModuleBase):
                     self.unload_step[5] = self.stretch(0)
                     if self.unload_step[5] and Di.getDi(ConfigParams.goods_check_di):
                         goods_id = Container.getGoodsByContainer(self.cur_c)
-                        Container.setContainer("999", goods_id, "")
-                        Container.clearContainer(self.cur_c)
+                        Container.bindContainer("999", goods_id, "")
+                        Container.unbindContainer(self.cur_c)
 
             if all(self.unload_step[:6]) and (not self.unload_step[6] or not self.unload_step[7]):
                 if self.rec_box_lift:
@@ -2343,7 +2343,7 @@ class ContainerRobot(ModuleBase):
 
         if all(self.unload_step):
             # 在所有的动作完成后，将自身背篓的获取清除
-            Container.clearContainer("999")
+            Container.unbindContainer("999")
             return True
 
     def lift_safe_height(self):

@@ -22,7 +22,7 @@
 # 接口说明：
 # - goBoustrophedonPath(area, entrance, exit, startPos, params): 执行弓字形清扫
 # - cancelBoustrophedonPath(): 取消清扫，返回当前位置
-# - resetGongPath(): 重置清扫状态
+# - resetBoustrophedonPath(): 重置清扫状态
 #
 """
 ####BEGIN DEFAULT ARGS####
@@ -42,14 +42,12 @@ from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, Sc
 
 from syspy.lib.robot_param import RobotParam
 
-from cleanRobotMech_1213 import CleanRobot
-
 # 本脚本自己的 param loader
 param_loader = ScriptParam(__file__)
 
 # 调度/任务相关常量（如需可改成 Param 配置）
-SCENE_ID = "69362A244E80897DC945DEAA"
-ROBOT_NAME = "SVJ-01"
+SCENE_ID = "690843857C47EE4EE84D5AB7"
+ROBOT_NAME = "Clean1"
 LOW_BATTERY_SOC = 20.0
 HIGH_BATTERY_SOC = 90.0
 HMI_PERIOD = 1.0  # /s 车载屏轮询周期
@@ -91,7 +89,7 @@ class VehicleState(IntEnum):
     NAVIGATING = 4  # 无清洁导航中（在清洁区和清洁区之间的过程）
 
 
-class BoustrophedonPathState(IntEnum):
+class GongPathState(IntEnum):
     """GongPath状态机 - 走工艺路径的状态"""
     INIT = 0  # 初始化
     RUNNING = 1  # 路径运行中
@@ -535,12 +533,11 @@ class CleanRobotManage:
         self.erp_state = ERPState.IDLE
         self.mech_state = MechState.IDLE
         self.vehicle_state = VehicleState.IDLE
-        self.gong_path_state = BoustrophedonPathState.INIT
+        self.gong_path_state = GongPathState.INIT
 
         self.current_task_type = TaskType.NONE
 
         # ========== 机构脚本实例 ==========
-        self.clean_robot = CleanRobot()  # 创建清洁机构控制实例
 
         # ========== 任务缓存 ==========
         self.hmi_immediate: List[Dict[str, Any]] = []
@@ -642,7 +639,7 @@ class CleanRobotManage:
 
     def _gong_path_state_update(self, status_value: int):
         try:
-            new_state = BoustrophedonPathState(status_value)
+            new_state = GongPathState(status_value)
             self.gong_path_state = new_state
         except ValueError:
             Trace.log(f"[GONG_PATH] Unknown status value: {status_value}")
@@ -703,7 +700,7 @@ class CleanRobotManage:
         self.current_task = None
         self.current_task_type = TaskType.NONE
         self.vehicle_state = VehicleState.IDLE
-        self.gong_path_state = BoustrophedonPathState.INIT
+        self.gong_path_state = GongPathState.INIT
 
         Trace.log(f"[cleanRobotManage] Clean task interrupted, checkpoint saved with position={robot_position}")
         return True
@@ -715,7 +712,7 @@ class CleanRobotManage:
     def _reset_gong_path(self):
         """重置弓字形导航状态"""
         Navigation.resetBoustrophedonPath()
-        self.gong_path_state = BoustrophedonPathState.INIT
+        self.gong_path_state = GongPathState.INIT
 
     def _cancel_current_order(self):
         """
@@ -1005,7 +1002,7 @@ class CleanRobotManage:
         order_type = args.get("order_type", "clean")
 
         if order_type == "clean":
-            step_locations = args.get("step_locations", ["LM3","LM30"])
+            step_locations = args.get("step_locations", ["LM20003","LM20005"])
             if not step_locations:
                 Trace.log("[cleanRobotManage] SendOrders: step_locations is empty")
                 return
@@ -1124,9 +1121,9 @@ class CleanRobotManage:
 
     def _handle_cancel_clean_path(self):
         """处理取消清洁路径"""
-        if self.vehicle_state == VehicleState.CLEANING:
-            pos = self._cancel_gong_path()
-            Trace.log(f"[cleanRobotManage] Clean path cancelled, position={pos}")
+        # if self.vehicle_state == VehicleState.CLEANING:
+        pos = self._cancel_gong_path()
+        Trace.log(f"[cleanRobotManage] Clean path cancelled, position={pos}")
 
     def _handle_reset_clean_path(self):
         """处理重置清洁路径"""
@@ -1167,60 +1164,9 @@ class CleanRobotManage:
             "brush_power": brush_power,
             "suck_power": suck_power,
             "jet_power": jet_power,
-            "auto_adjust": auto_adjust_power,
+            "auto_adjust_power": auto_adjust_power,
         }
         Trace.log(f"[cleanRobotManage] call_mech -> {args}")
-
-        # 重置机构脚本状态，准备新操作
-        self.clean_robot.init = False
-        self.clean_robot.action_status = ScriptStatus.NONE
-
-        # 调用机构脚本执行操作
-        status = self.clean_robot.run(args)
-
-        # 更新机构状态机
-        if operation == "WashStart":
-            self.mech_state = MechState.CLEAN_STARTING
-        elif operation == "WashEnd":
-            self.mech_state = MechState.CLEAN_STOPPING
-        elif operation in ("Charge", "AddWater"):
-            self.mech_state = MechState.CHARGE_WATER
-
-        return status
-
-    def update_mech_state(self):
-        """
-        根据机构脚本的实际状态更新机构状态机
-
-        通过检查 clean_robot 的 action_status 和 clean_robot_working/clean_robot_closed 状态
-        来更新 mech_state
-        """
-        if self.clean_robot.action_status == ScriptStatus.FINISHED:
-            # 操作完成
-            if self.clean_robot.operation == "WashStart":
-                if self.clean_robot.clean_robot_working:
-                    self.mech_state = MechState.CLEANING
-                else:
-                    self.mech_state = MechState.CLEAN_STARTING
-            elif self.clean_robot.operation == "WashEnd":
-                if self.clean_robot.clean_robot_closed:
-                    self.mech_state = MechState.IDLE
-                else:
-                    self.mech_state = MechState.CLEAN_STOPPING
-            elif self.clean_robot.operation == "AddWater":
-                self.mech_state = MechState.IDLE
-
-        elif self.clean_robot.action_status == ScriptStatus.RUNNING:
-            # 操作进行中
-            if self.clean_robot.operation == "WashStart":
-                if self.clean_robot.clean_robot_working:
-                    self.mech_state = MechState.CLEANING
-                else:
-                    self.mech_state = MechState.CLEAN_STARTING
-            elif self.clean_robot.operation == "WashEnd":
-                self.mech_state = MechState.CLEAN_STOPPING
-            elif self.clean_robot.operation == "AddWater":
-                self.mech_state = MechState.CHARGE_WATER
 
     # ============================================================
     #  任务派发
@@ -1381,12 +1327,12 @@ class CleanRobotManage:
         - startPos 为空时从头开始，有值时从指定位置断点续扫
         """
         self.current_area = "CA1"
-        self.current_entrance = "AP3"
-        self.current_exit = "AP4"
+        self.current_entrance = "AP1"
+        self.current_exit = "AP2"
 
         if self.run_clean_path_init:
             self.run_clean_path_init = False
-            Navigation.resetBoustrophedonPath()
+            # Navigation.resetBoustrophedonPath()
 
         if not self.current_area or not self.current_entrance or not self.current_exit:
             Trace.log("[cleanRobotManage] run_clean_path: missing path context")
@@ -1428,26 +1374,27 @@ class CleanRobotManage:
             start_pos,
             {}
         )
-        self.gong_path_state = BoustrophedonPathState(status_value)
+        self.gong_path_state = GongPathState(status_value)
 
         # 清除startPos，避免重复使用
         if self.current_start_pos:
             self.current_start_pos = None
 
         # 处理状态
-        if self.gong_path_state in (BoustrophedonPathState.INIT, BoustrophedonPathState.RUNNING):
+        if self.gong_path_state in (GongPathState.INIT, GongPathState.RUNNING):
             return
 
-        if self.gong_path_state == BoustrophedonPathState.FINISHED:
+        if self.gong_path_state == GongPathState.FINISHED:
             Trace.log(f"[cleanRobotManage] goBoustrophedonPath finished for area {self.current_area}")
             self.area_status[self.current_area] = CleanAreaStatus.COMPLETED
             # self.call_mech("WashEnd")
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             Module.setStatus(ScriptStatus.FINISHED)
+            Navigation.resetBoustrophedonPath()
             return
 
-        if self.gong_path_state == BoustrophedonPathState.FAILED:
+        if self.gong_path_state == GongPathState.FAILED:
             Trace.log(f"[cleanRobotManage] goBoustrophedonPath failed for area {self.current_area}")
             # self.call_mech("WashEnd")
             self.vehicle_state = VehicleState.IDLE
@@ -1456,7 +1403,7 @@ class CleanRobotManage:
             Module.setStatus(ScriptStatus.FAILED)
             return
 
-        if self.gong_path_state == BoustrophedonPathState.SUSPENDED:
+        if self.gong_path_state == GongPathState.SUSPENDED:
             Trace.log("[cleanRobotManage] goBoustrophedonPath suspended")
             return
 
@@ -1515,10 +1462,6 @@ class CleanRobotManage:
     def update_report_info(self):
         soc = Battery.getPercentage()
 
-        # 从机构脚本同步水位数据
-        self.clean_water_level = self.clean_robot.filter_clean_water_level()
-        self.waste_water_level = self.clean_robot.filter_waste_water_level()
-
         self.report_info = {
             # 状态机
             "erp_state": self.erp_state.name,
@@ -1569,14 +1512,6 @@ class CleanRobotManage:
 
             # 时间
             "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-
-            # 机构脚本信息
-            "mech_operation": self.clean_robot.operation,
-            "mech_action_status": self.clean_robot.action_status.name if self.clean_robot.action_status else "NONE",
-            "mech_clean_robot_working": self.clean_robot.clean_robot_working,
-            "mech_clean_robot_closed": self.clean_robot.clean_robot_closed,
-            "mech_clean_water_level": self.clean_robot.filter_clean_water_level(),
-            "mech_waste_water_level": self.clean_robot.filter_waste_water_level(),
         }
 
 
@@ -1636,10 +1571,6 @@ def main():
     while True:
         status = Module.getStatus()
         print(f"---------------status{status}")
-
-        # 周期性运行机构控制脚本，更新机构状态
-        mgr.clean_robot.period_run()
-
         if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
             input_params = Module.getTaskArgs()
             print("task args:", json.dumps(input_params, indent=2))
@@ -1660,9 +1591,6 @@ def main():
             mgr.init_args = False
             mgr.action_id = 0
             mgr.action_list = []
-
-        # 更新机构状态机
-        mgr.update_mech_state()
 
         # j.print_info()
         time.sleep(0.1)

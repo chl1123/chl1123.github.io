@@ -40,14 +40,12 @@ class passThrough:
     def close(self):
         print("close the socket")
         self.__should_close = True
-        time.sleep(0.01)
+        if self.__msg_thread and self.__msg_thread.is_alive():
+            self.__msg_thread.join(timeout=1.0)
         try:
-            self.__client_sock.close(0)  # 立即关闭
+            self.__client_sock.close(0)
         except Exception as e:
             print("socket close error:", e)
-        if self.__msg_thread and self.__msg_thread.is_alive():
-            self.__msg_thread.join(timeout=0.1)
-        
         try:
             self.context.term()
         except Exception as e:

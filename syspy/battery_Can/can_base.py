@@ -11,7 +11,7 @@ from google.protobuf.json_format import MessageToJson
 import syspy.lib.rpc.server as rs
 from syspy import Abnormal, RBK_VERSION
 from syspy import Battery, Di, Do
-
+from syspy import Trace
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
 if RBK_VERSION == 4:
@@ -23,7 +23,7 @@ log = logging.getLogger("rbk.script")
 
 class CanBase:
     def __init__(self):
-        log.info("CanBase __init__")
+        Trace.log("CanBase __init__")
         self.__rpc_server = rs.RpcServer("battery")
         self.__rpc_server.registerFunction(self.setChargeStateOn)
         self.__rpc_server.registerFunction(self.setChargeStateOff)
@@ -32,15 +32,15 @@ class CanBase:
         command = "cat /etc/srcname"
         output = subprocess.check_output(command, shell=True)
         output = output.decode("utf-8").strip()
-        log.info(f"{output=}")
+        Trace.log(f"{output=}")
 
         # 只有 SRC2000 控制器是 CAN 透传形式
         if "SRC2000" in output: #passthrough
-            log.info("Can Type: passThrough")
+            Trace.log("Can Type: passThrough")
             import syspy.battery_Can.can_pass as can_pass
             self.child = can_pass.CanPass()
         else:
-            log.info("Can Type: native")
+            Trace.log("Can Type: native")
             import syspy.battery_Can.can_native as can_native
             self.child = can_native.CanNative()
 
@@ -117,16 +117,16 @@ class CanBase:
             ports = (1, 2, 3)
         else:
             ports = ('can0', 'can1', 'can2')
-        log.info(f"{srcname=}, {ports=}")
+        Trace.log(f"{srcname=}, {ports=}")
 
         port = Battery.getCanPort()
         port = int(port.replace("port","")) # "port1" ---> 1 "port2"---> 2
-        log.info(f"{port=}")
+        Trace.log(f"{port=}")
         if port in (1, 2, 3):
             selected_port = ports[port - 1]  # 根据端口号获取对应的端口
-            log.info(f"{selected_port=}")
+            Trace.log(f"{selected_port=}")
         else:
-            log.error(f"Invalid port number: {port}")
+            Trace.log(f"Invalid port number: {port}")
             raise ValueError(f"Invalid port number: {port}")
 
         script_name = os.path.basename(sys.argv[0])

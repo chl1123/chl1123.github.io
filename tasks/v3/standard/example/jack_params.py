@@ -7,7 +7,7 @@ from typing import List
 
 start_time = time.time()
 
-from syspy import Module, ModuleBase, ScriptStatus, Navigation, Trace, RobotParam
+from syspy import Module, ModuleBase, ScriptStatus, Navigation, Trace, RobotParam, Container
 from syspy.utils.param_server import ParamType, ScriptParam
 param_loader = ScriptParam(__file__)
 
@@ -31,6 +31,12 @@ class ConfigParams:
         builder = param_loader.builderConfig()
 
         with builder.GROUPS():
+            # 独立参数
+            with builder.CHILD(key="p1", name="P1",
+                               desc="P1"):
+                builder.TYPE(ParamType.STRING)
+                builder.DEFAULTVALUE("p1")
+
             # 电机配置组
             with builder.GROUP(key="motorConfig", name="Motor Configuration",
                                desc="Motor related configuration parameters"):
@@ -199,21 +205,28 @@ class InputParams:
                                             builder.DEFAULTVALUE("OFF")
 
                                             with builder.CHILDREN():
-                                                # OFF选项
-                                                with builder.CHILD(key="OFF", name="Using SRC IMU",
+                                                # ON选项
+                                                with builder.CHILD(key="ON", name="Using SRC IMU",
                                                                    desc="using SRC IMU"):
                                                     builder.TYPE(ParamType.ARRAY)
 
                                                     with builder.CHILDREN():
                                                         # IMU字符串测试
-                                                        with builder.CHILD(key="IMU", name="IMU string test",
+                                                        with builder.CHILD(key="IMU1", name="IMU string test",
                                                                            desc="IMU test"):
                                                             builder.TYPE(ParamType.STRING)
                                                             builder.REQUIRED(True)
-                                                            builder.DEFAULTVALUE("test")
+                                                            builder.DEFAULTVALUE("test1")
 
-                                                # ON选项
-                                                with builder.CHILD(key="ON", name="Using Extern IMU",
+                                                        # IMU字符串测试
+                                                        with builder.CHILD(key="IMU2", name="IMU string test",
+                                                                           desc="IMU test"):
+                                                            builder.TYPE(ParamType.STRING)
+                                                            builder.REQUIRED(True)
+                                                            builder.DEFAULTVALUE("test2")
+
+                                                # OFF选项
+                                                with builder.CHILD(key="OFF", name="Using Extern IMU",
                                                                    desc="using extern IMU"):
                                                     builder.TYPE(ParamType.ARRAY)
 
@@ -274,6 +287,7 @@ class Jack(ModuleBase):
         self.report_info = {}
         self.args = {}
         self.status = ScriptStatus.NONE
+        Container.initContainer(0)
 
     def reset(self):
         self.spin_angle = 0
@@ -338,6 +352,7 @@ class Jack(ModuleBase):
         print(f"{config_params.jack_zero_di=}")
         print(f"{config_params.jack_up_di=}")
         print(f"{self.count=}")
+        self.report_info["containers"] = Container.getContainers()
         Module.reportInfo(self.report_info)
 
     def suspend(self):
@@ -352,6 +367,31 @@ class Jack(ModuleBase):
     def cancel(self):
         self.status = ScriptStatus.FAILED
         Trace.log("cancel")
+
+    def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
+        """绑定货物到容器
+
+        Args:
+            container_id (str): 库位或者容器id
+            goods_name (str): 货物名
+            desc (str): 货物描述
+
+        Returns:
+            (bool): 如果没有库位或者背篓，则返回false
+        """
+        # 1. 绑定容器
+        Container.bindContainer(container_id, goods_name, desc)
+        # 2. 设置货物形状
+        recognition_goodsParameter_path = f"recognitionObject.shelf.goodsParameter"
+        goods_shape = RobotParam.getConfig("recognition",
+                                           f"{recognition_goodsParameter_path}.goodsShape", "default.srec")
+        if not goods_shape:
+            return False
+        shapes = json.loads(goods_shape)
+        shape = shapes[0]["points"]
+        Navigation.setGoodsPolyShape(shape, goods_name)
+
+        return True
 
 
 def main():
@@ -380,10 +420,10 @@ def main():
                     # 验证参数
                     print("args", args)
                     args = param_loader.loadInput(args)
+                    j.init_args(args)
                     print("check ok, args:", json.dumps(args, indent=2))
                 except ValueError as e:
                     print("check error:", e)
-            j.init_args(args)
         elif status == ScriptStatus.RUNNING:
             j.run()
         elif status == ScriptStatus.SUSPENDED:

@@ -33,7 +33,6 @@ class ConfigParams:
                     with builder.CHILD(key="param11", name="Param11 name",
                                        desc="param11 desc"):
                         builder.TYPE(ParamType.STRING)
-                        builder.REQUIRED(True)
 
                     # 参数12
                     with builder.CHILD(key="param12", name="Param12 name",
@@ -252,7 +251,7 @@ class ModuleXXX(ModuleBase):
 
     def cancel(self):
         """取消任务方法（必须）：导航取消时如果脚本任务状态为RUNNING或SUSPENDED会调用该方法"""
-        self.status = ScriptStatus.NONE
+        self.status = ScriptStatus.FAILED
         Trace.log("cancel")
 
     def safeMoveCheck(self):

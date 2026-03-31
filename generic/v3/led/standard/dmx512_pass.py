@@ -5,6 +5,7 @@ import syspy.lib.misc_utility as mu
 from syspy import Battery, Controller, NavStatus, NavSpeed
 from syspy import Logger,RobotParam, Abnormal,Module
 from typing import List, Dict, Any
+from syspy import Trace
 log = Logger("led")
 
 '''
@@ -27,7 +28,7 @@ def load_robot_config_params():
                 "shutdownPercentage": RobotParam.getDevice("power", "lowBatteryManage.automaticShutdown.on.shutdownPercentage"),
             }
         )
-    log.info(f"Loaded robot config params: {robot_param}")
+    Trace.log(f"Loaded robot config params: {robot_param}")
     
 def _robot_config_change_callback(diff_map: Dict[str, Any]):
     """机器人配置参数变化回调"""
@@ -39,7 +40,7 @@ def _robot_config_change_callback(diff_map: Dict[str, Any]):
             robot_param["automaticShutdown"] = value
         elif key == "lowBatteryManage.automaticShutdown.on.shutdownPercentage":
             robot_param["shutdownPercentage"] = value
-    log.info(f"Updated robot config params: {robot_param}")
+    Trace.log(f"Updated robot config params: {robot_param}")
 
 load_robot_config_params()
 class demo_dmx512(dmx.dmx512Base):
@@ -182,7 +183,7 @@ class demo_dmx512(dmx.dmx512Base):
             else:
                 '''电池类型未配置且机器人静止为彩虹灯'''
                 dmx512_info.type = dmx.LightType.Rainbow.value
-            log.info(f"{dmx512_info=}")
+            Trace.log(f"{dmx512_info=}")
             self.sendDmx512(dmx512_info)
             time.sleep(0.3)
 

@@ -11,7 +11,6 @@ import sys
 from enum import Enum
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing_extensions import TypeAlias
 from typing import Any, Dict, List, Optional, Generator, Union, Tuple, Callable
 
 
@@ -168,6 +167,7 @@ class ScriptParam:
                 config_data = json.load(f)
             # 使用ParamValidator验证配置
             self.__config_validator = ParamValidator(config_data)
+        # 恢复任务时使用
         if not ScriptParam.event_task_config:
             self.config_full_params = self._extract_values(self.__config_validator.param_definition)
         return self.__config_validator.validate(self.config_full_params)
@@ -230,10 +230,10 @@ class ScriptParam:
     def clearTaskConfig(self):
         """恢复任务配置参数"""
         if ScriptParam.event_task_config:
+            ScriptParam.event_task_config = False
             if ScriptParam.config_change_callback:
                 print("clearTaskConfig()")
                 ScriptParam.config_change_callback()
-            ScriptParam.event_task_config = False
 
     def addAction(self, action_name: str,
                 policy: Dict[str, Any] = None,
@@ -334,8 +334,40 @@ class ParamType:
     SHAPE = "shape"
 
 
+class _BindTypeStr:
+    """工厂方法返回的绑定类型，用于路径类绑定（device-item, app-item, app-item-self, script）"""
+    __slots__ = ('value',)
+
+    def __init__(self, value: str):
+        self.value = value
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class _BindStrEnum(str, Enum):
+    """确保 str() 返回枚举值，兼容 Python 3.11+"""
+    def __str__(self) -> str:
+        return self.value
+
+
 class BindType:
-    class Device(Enum):
+    """绑定类型常量
+
+    Examples:
+        # 使用枚举常量（单项绑定）
+        BINDTYPE(BindType.Device.CAMERA)
+        BINDTYPE(BindType.Device.CAMERA, multiple=True)
+
+        # 使用工厂方法（路径类绑定）
+        BINDTYPE(BindType.device_item("Model.moduleType.jackWithSpin.moduleScript"))
+        BINDTYPE(BindType.app_item("control.trigger"))
+
+        # 使用 BindItem 构建复杂绑定
+        BINDTYPE(BindItem(BindType.Device.CAMERA) + BindItem(BindType.Device.LASER, multiple=True))
+    """
+
+    class Device(_BindStrEnum):
         SCREEN = "device:Screen"
         CHARGING_PORT = "device:ChargingPort"
         MODEL = "device:Model"
@@ -359,42 +391,211 @@ class BindType:
         BATTERY = "device:Battery"
         CAN = "device:Can"
 
-    class App(Enum):
-        CONTROL = "app:Control"
-        FUNCTIONAL_SAFETY = "app:FunctionalSafety"
-        LOCALIZATION = "app:Localization"
-        NAVIGATION = "app:Navigation"
-        RECOGNITION = "app:Recognition"
+    class App(_BindStrEnum):
+        CONTROL = "app:control"
+        FUNCTIONAL_SAFETY = "app:functionalSafety"
+        LOCALIZATION = "app:localization"
+        NAVIGATION = "app:navigation"
+        RECOGNITION = "app:recognition"
 
-    class Shape(Enum):
+    class Shape(_BindStrEnum):
         RECTANGLE = "shape:rectangle"
         POLYGON = "shape:polygon"
+        CIRCLE = "shape:circle"
+        POLYLINE = "shape:polyline"
 
-    class Map(Enum):
+    class Map(_BindStrEnum):
         MARK = "map:mark"
         PATH = "map:path"
         LOCATION = "map:location"
         AREA = "map:area"
 
-    class Script(Enum):
+    class Script(_BindStrEnum):
         GENERIC = "script:generic"
-        STANDARD_BATTERY = "script:generic/standard/battery"
-        STANDARD_LED = "script:generic/standard/led"
 
-    class Audio(Enum):
+    class Audio(_BindStrEnum):
         FILE = "audio:file"
 
+    class BackgroundItem(_BindStrEnum):
+        CHASSIS = "background-item:chassis"
+        CARRIER = "background-item:carrier"
+        CHARGER = "background-item:charger"
 
-# 定义联合类型
-BindTypeValue: TypeAlias = Union[
-    BindType.Device,
-    BindType.App,
-    BindType.Shape,
-    BindType.Map,
-    BindType.Script,
-    BindType.Audio,
-    str  # 允许直接使用字符串
-]
+    class LocalFile(_BindStrEnum):
+        CONTENT = "local-file:content"
+
+    class RbkMap(_BindStrEnum):
+        FILE_NAME = "rbk-map:fileName"
+
+    class UrdfItem(_BindStrEnum):
+        JOINT = "urdf-item:joint"
+
+    @staticmethod
+    def device_item(path: str) -> _BindTypeStr:
+        """绑定设备模型中某个参数的值
+
+        Args:
+            path: 参数路径，如 "Model.moduleType.jackWithSpin.moduleScript"
+        """
+        if not path:
+            raise ValueError("device-item path cannot be empty")
+        return _BindTypeStr(f"device-item:{path}")
+
+    @staticmethod
+    def app_item(path: str) -> _BindTypeStr:
+        """绑定参数配置中当前文件中参数的值
+
+        Args:
+            path: 参数路径，如 "control.trigger"
+        """
+        if not path:
+            raise ValueError("app-item path cannot be empty")
+        return _BindTypeStr(f"app-item:{path}")
+
+    @staticmethod
+    def app_item_self(path: str) -> _BindTypeStr:
+        """绑定参数配置中当前文件中自身参数的值
+
+        Args:
+            path: 参数路径，如 "moduleType.jackWithSpin.moduleScript"
+        """
+        if not path:
+            raise ValueError("app-item-self path cannot be empty")
+        return _BindTypeStr(f"app-item-self:{path}")
+
+    @staticmethod
+    def script(path: str) -> _BindTypeStr:
+        """绑定脚本目录下的相对路径
+
+        Args:
+            path: 相对路径，如 "generic", "generic/battery"
+        """
+        if not path:
+            raise ValueError("script path cannot be empty")
+        return _BindTypeStr(f"script:{path}")
+
+
+# 各分类允许的属性
+_BIND_ATTR_RULES: Dict[str, set] = {
+    "device": {"multiple", "no-empty"},
+    "device-item": {"no-empty"},
+    "app": {"multiple", "no-empty"},
+    "app-item": {"no-empty"},
+    "app-item-self": {"no-empty"},
+    "audio": {"multiple"},
+    "shape": {"multiple", "no-rotate", "no-empty"},
+    "map": {"multiple"},
+    "script": {"multiple", "no-empty"},
+    "background-item": {"no-empty"},
+    "local-file": set(),
+    "rbk-map": set(),
+    "urdf-item": {"no-empty"},
+}
+
+# 所有有效的绑定枚举类型
+_VALID_BIND_ENUMS = (
+    BindType.Device, BindType.App, BindType.Shape, BindType.Map,
+    BindType.Script, BindType.Audio, BindType.BackgroundItem,
+    BindType.LocalFile, BindType.RbkMap, BindType.UrdfItem
+)
+
+# BINDTYPE 可接受的类型（枚举 + 工厂方法返回值）
+_VALID_BIND_TYPES = _VALID_BIND_ENUMS + (_BindTypeStr,)
+
+
+class BindItem:
+    """绑定项构建器，用于程序化构建复杂的 bind_type 字符串
+
+    Args:
+        type_value: BindType 枚举常量或工厂方法返回值
+        multiple: 多选
+        no_rotate: 禁止旋转（仅 shape 类型支持）
+        no_empty: 禁止为空，保存时报错
+
+    Examples:
+        # 单个设备
+        BindItem(BindType.Device.CAMERA)  # -> "device:Camera"
+
+        # 多个激光
+        BindItem(BindType.Device.LASER, multiple=True)  # -> "device:Laser multiple"
+
+        # 组合: 一个相机 + 多个激光
+        BindItem(BindType.Device.CAMERA) + BindItem(BindType.Device.LASER, multiple=True)
+        # -> "device:Camera;device:Laser multiple"
+
+        # 带属性的形状
+        BindItem(BindType.Shape.POLYGON, multiple=True, no_empty=True)
+        # -> "shape:polygon multiple no-empty"
+
+        # 形状 + 背景
+        BindItem(BindType.Shape.POLYGON) + BindItem(BindType.BackgroundItem.CHASSIS)
+        # -> "shape:polygon;background-item:chassis"
+    """
+
+    def __init__(self, type_value, *,
+                 multiple: bool = False,
+                 no_rotate: bool = False,
+                 no_empty: bool = False):
+        if not isinstance(type_value, _VALID_BIND_TYPES):
+            raise TypeError(
+                f"Invalid bind type: {type_value!r}. "
+                "Use BindType enum constants (e.g. BindType.Device.CAMERA) "
+                "or BindType factory methods (e.g. BindType.device_item('...'))."
+            )
+
+        if isinstance(type_value, _BindTypeStr):
+            self.type_value = type_value.value
+        else:
+            self.type_value = type_value.value  # enum .value
+
+        self._category = self.type_value.split(":")[0]
+
+        # 校验属性是否允许
+        allowed = _BIND_ATTR_RULES.get(self._category, set())
+        if multiple and "multiple" not in allowed:
+            raise ValueError(f"'{self._category}' category does not support 'multiple'")
+        if no_rotate and "no-rotate" not in allowed:
+            raise ValueError(f"'{self._category}' category does not support 'no_rotate'")
+        if no_empty and "no-empty" not in allowed:
+            raise ValueError(f"'{self._category}' category does not support 'no_empty'")
+
+        self.multiple = multiple
+        self.no_rotate = no_rotate
+        self.no_empty = no_empty
+
+    def __str__(self) -> str:
+        parts = [self.type_value]
+        if self.multiple:
+            parts.append("multiple")
+        if self.no_rotate:
+            parts.append("no-rotate")
+        if self.no_empty:
+            parts.append("no-empty")
+        return " ".join(parts)
+
+    def __add__(self, other):
+        if isinstance(other, BindItem):
+            return _BindExpr([self, other])
+        if isinstance(other, _BindExpr):
+            return _BindExpr([self] + other._items)
+        return NotImplemented
+
+
+class _BindExpr:
+    """BindItem 组合表达式（由 BindItem + BindItem 产生）"""
+
+    def __init__(self, items: List[BindItem]):
+        self._items = items
+
+    def __add__(self, other):
+        if isinstance(other, BindItem):
+            return _BindExpr(self._items + [other])
+        if isinstance(other, _BindExpr):
+            return _BindExpr(self._items + other._items)
+        return NotImplemented
+
+    def __str__(self) -> str:
+        return ";".join(str(item) for item in self._items)
 
 
 @dataclass
@@ -602,39 +803,86 @@ class ParamBuilder:
     def TAG(self, *tags: str) -> None:
         self.ADD_FIELD("tag", list(tags))
 
-    def BINDTYPE(
-            self,
-            value: Union[BindTypeValue, List[BindTypeValue]],
-            multiple_choice: bool = False
-    ) -> None:
+    def BINDTYPE(self, value, *,
+                 multiple: bool = False,
+                 no_rotate: bool = False,
+                 no_empty: bool = False) -> None:
         """绑定类型到字段
 
         Args:
-            value (Union[BindTypeValue, List[BindTypeValue]]): 要绑定的值，可以是单个类型或多个类型
-            multiple_choice (bool): 是否为多选
+            value: 绑定类型，支持：
+                - BindType 枚举常量 (如 BindType.Device.CAMERA)
+                - BindType 工厂方法返回值 (如 BindType.device_item("..."))
+                - BindItem 对象
+                - BindItem 组合表达式 (如 BindItem(...) + BindItem(...))
+            multiple: 是否多选（仅在 value 为枚举或工厂方法时有效）
+            no_rotate: 是否禁止旋转（仅在 value 为枚举或工厂方法时有效）
+            no_empty: 是否禁止为空（仅在 value 为枚举或工厂方法时有效）
+
+        Examples:
+            # 设备绑定
+            builder.BINDTYPE(BindType.Device.CAMERA)                            # 绑定一个相机
+            builder.BINDTYPE(BindType.Device.CAMERA, multiple=True)             # 绑定多个相机
+            builder.BINDTYPE(BindType.device_item("Model.moduleType.jackWithSpin.moduleScript"))
+
+            # 组合绑定（使用 BindItem）
+            builder.BINDTYPE(                                                   # 一个相机 + 多个激光
+                BindItem(BindType.Device.CAMERA)
+                + BindItem(BindType.Device.LASER, multiple=True)
+            )
+
+            # 参数配置绑定
+            builder.BINDTYPE(BindType.App.RECOGNITION)                          # 一个识别文件
+            builder.BINDTYPE(BindType.App.RECOGNITION, multiple=True)           # 多个识别文件
+            builder.BINDTYPE(BindType.app_item("control.trigger"))
+            builder.BINDTYPE(BindType.app_item_self("moduleType.jackWithSpin.moduleScript"))
+
+            # 音频绑定
+            builder.BINDTYPE(BindType.Audio.FILE)                               # 一个音频
+            builder.BINDTYPE(BindType.Audio.FILE, multiple=True)                # 多个音频
+
+            # 形状绑定
+            builder.BINDTYPE(BindType.Shape.RECTANGLE)                          # 单个矩形
+            builder.BINDTYPE(BindType.Shape.POLYGON, no_rotate=True)            # 禁止旋转
+            builder.BINDTYPE(BindType.Shape.POLYGON, multiple=True, no_empty=True)  # 多个，禁止为空
+            builder.BINDTYPE(                                                   # 多边形 + 底盘背景
+                BindItem(BindType.Shape.POLYGON)
+                + BindItem(BindType.BackgroundItem.CHASSIS)
+            )
+
+            # 图元绑定
+            builder.BINDTYPE(BindType.Map.MARK)                                 # 站点
+            builder.BINDTYPE(BindType.Map.MARK, multiple=True)                  # 多个站点
+            builder.BINDTYPE(BindItem(BindType.Map.MARK) + BindItem(BindType.Map.PATH))  # 多种图元
+
+            # 脚本绑定
+            builder.BINDTYPE(BindType.Script.GENERIC)                           # 设备文件夹脚本
+            builder.BINDTYPE(BindType.script("generic/battery"))                # 电池文件夹脚本
+
+            # 其他
+            builder.BINDTYPE(BindType.LocalFile.CONTENT)                        # 本地文件
+            builder.BINDTYPE(BindType.RbkMap.FILE_NAME)                         # rbk 地图文件
+            builder.BINDTYPE(BindType.UrdfItem.JOINT)                           # URDF 关节
         """
+        has_attrs = multiple or no_rotate or no_empty
 
-        # 转换枚举值为字符串
-        def to_str(v: Any) -> str:
-            if isinstance(v, Enum):
-                return v.value
-            return v  # 已经是字符串
-
-        if not multiple_choice:
-            # 单选模式
-            if isinstance(value, (list, tuple)):
-                value_str = ",".join(to_str(v) for v in value)
-            else:
-                value_str = to_str(value)
-            self.ADD_FIELD("bind_type", value_str)
+        if isinstance(value, (_BindExpr, BindItem)):
+            if has_attrs:
+                raise ValueError(
+                    "multiple/no_rotate/no_empty cannot be used with BindItem or combined expressions. "
+                    "Set attributes on individual BindItem objects instead."
+                )
+            self.ADD_FIELD("bind_type", str(value))
+        elif isinstance(value, _VALID_BIND_TYPES):
+            item = BindItem(value, multiple=multiple, no_rotate=no_rotate, no_empty=no_empty)
+            self.ADD_FIELD("bind_type", str(item))
         else:
-            # 多选模式
-            if not isinstance(value, (list, tuple)):
-                value = [value]
-            # 转换为字符串列表
-            str_values = [to_str(v) for v in value]
-            processed_value = f"multiple:{','.join(str_values)}"
-            self.ADD_FIELD("bind_type", processed_value)
+            raise TypeError(
+                f"Invalid bind type: {value!r}. "
+                "Use BindType enum constants (e.g. BindType.Device.CAMERA), "
+                "BindType factory methods (e.g. BindType.device_item('...')), "
+                "or BindItem objects."
+            )
 
     def READONLY(self, value: bool) -> None:
         self.ADD_FIELD("is_read_only", value)

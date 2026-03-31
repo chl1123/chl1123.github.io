@@ -8,6 +8,7 @@ from syspy.utils.param_server import ParamType, ScriptParam
 from syspy.leds.led_base import LedBase
 from syspy.leds.light_type import LightType, Color
 from typing import List, Dict, Any
+from syspy import Trace
 log = Logger("led_arm")
 
 param_loader = ScriptParam(__file__)
@@ -215,7 +216,7 @@ def load_robot_config_params():
                 "shutdownPercentage": RobotParam.getDevice("power", "lowBatteryManage.automaticShutdown.on.shutdownPercentage"),
             }
         )
-    log.info(f"Loaded robot config params: {robot_param}")
+    Trace.log(f"Loaded robot config params: {robot_param}")
     
 def _robot_config_change_callback(diff_map: Dict[str, Any]):
     """机器人配置参数变化回调"""
@@ -227,7 +228,7 @@ def _robot_config_change_callback(diff_map: Dict[str, Any]):
             robot_param["automaticShutdown"] = value
         elif key == "lowBatteryManage.automaticShutdown.on.shutdownPercentage":
             robot_param["shutdownPercentage"] = value
-    log.info(f"Updated robot config params: {robot_param}")
+    Trace.log(f"Updated robot config params: {robot_param}")
 
 load_robot_config_params()
 
@@ -271,7 +272,7 @@ class LedChassis(LedBase):
                 self.set_light_type()
                 end_time = time.time()  # 记录结束时间
                 elapsed_time = (end_time - start_time) * 1000  # 转换为毫秒
-                log.info(f"Time taken for iteration: {elapsed_time:.2f} ms")  # 输出每次迭代时间
+                Trace.log(f"Time taken for iteration: {elapsed_time:.2f} ms")  # 输出每次迭代时间
                 time.sleep(0.1)
                 
     def updateRpcStatus(self):
@@ -334,7 +335,7 @@ class LedChassis(LedBase):
 
         # 仅在状态变化时打印
         if self.robot_status != self.pre_robot_status:
-            log.info("robot_status=" + self.robot_status)
+            Trace.log("robot_status=" + self.robot_status)
             self.pre_robot_status = self.robot_status
 
     def handle_movement_effect(self) -> None:

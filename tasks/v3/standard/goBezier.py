@@ -18,6 +18,12 @@ class GoBezierWorld:
                  is_backwards=False, is_hold_dir=None,
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3,
                  path_dist_accuracy=0.005, path_angle_accuracy=0.5, alpha=0.25):
+        self.y_end = None
+        self.x_end = None
+        self.p1 = None
+        self.py = None
+        self.px = None
+        self.p0 = None
         del target_world[3:]
         self.action_name = self.__class__.__name__
 
@@ -61,8 +67,11 @@ class GoBezierWorld:
         self.bezier_end_y = None
         self.offset_dist = 0.0
         self.k_max = 0  # 定义曲率
+        self.alpha = alpha
 
         Navigation.resetPath()
+
+    def get_path(self):
 
         # 获取机器人位置（world系）
         self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
@@ -88,7 +97,7 @@ class GoBezierWorld:
             P3 = self.target_world
 
             # 三阶贝塞尔控制点
-            p0_xy, p1_xy, p2_xy, p3_xy = self.compute_bezier_controls_dir(P0, P3, alpha)
+            p0_xy, p1_xy, p2_xy, p3_xy = self.compute_bezier_controls_dir(P0, P3, self.alpha)
 
             self.px = [p0_xy[0], p1_xy[0], p2_xy[0], p3_xy[0]]
             self.py = [p0_xy[1], p1_xy[1], p2_xy[1], p3_xy[1]]
@@ -105,7 +114,7 @@ class GoBezierWorld:
                 success = True
                 break
             self.offset_dist += offset_step
-        Trace.log(f"ahead dist:{self.offset_dist}",True,True)
+        Trace.log(f"ahead dist:{self.offset_dist}", True, True)
         # Trace.log(f"bezier path:x{xs_bez},y:{ys_bez}")
         if not success or self.k_max >= 30:
             Abnormal.setTask(53900, f"curvature limit exceeded. max_curvature={self.k_max}",
@@ -117,7 +126,7 @@ class GoBezierWorld:
         #     return
 
         self.bezier_end_x, self.bezier_end_y = xs_bez[-1], ys_bez[-1]
-        Trace.log(f"bezier end point:{self.bezier_end_x, self.bezier_end_y}",True,True)
+        Trace.log(f"bezier end point:{self.bezier_end_x, self.bezier_end_y}", True, True)
 
         # 贝塞尔末端点
         p0 = [xs_bez[-1], ys_bez[-1]]
@@ -152,7 +161,7 @@ class GoBezierWorld:
         x1, y1 = p1[0], p1[1]
         x2, y2 = self.end_position_world[0], self.end_position_world[1]
         self.x_end, self.y_end = x2, y2
-        Trace.log(f"line begin:{p1}, line end:{self.x_end, self.y_end}",True,True)
+        Trace.log(f"line begin:{p1}, line end:{self.x_end, self.y_end}", True, True)
 
         # 直线插值点数量
         num_points = 500
@@ -188,7 +197,7 @@ class GoBezierWorld:
         ScriptData.set("goBezier", {"bezier_path_world_return": self.bezier_path_world_return,
                                     "initial_point_world_return": self.initial_point_world_return,
                                     "finalPos": self.end_position_world})
-        Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}",True,True)
+        Trace.log(f"bezier_path_world_return[0][-1]={self.bezier_path_world_return[0][-1]}", True, True)
         Trace.log(f"bezier_path_world_return11{self.bezier_path_world_return}", False)
 
     def resample_equal_arc(self, xs, ys, ds=0.01):
@@ -415,6 +424,8 @@ class GoBezierWorld:
     def run(self):
         self.action_status = ScriptStatus.RUNNING
         if self.init:
+            self.get_path()
+
             self.init = False
             # 规划第一段倒退路线参数
             Navigation.resetPath()
@@ -565,8 +576,13 @@ class GoBezierWorldReturn:
             self.init = False
             go_bezier_data = ScriptData.get("goBezier")  # 后续在ScriptData.get格式改为dict后删除json.loads
             if go_bezier_data is not None:
-                self.bezier_target_pos_return = go_bezier_data["initial_point_world_return"]
-                bezier_path_world_return = go_bezier_data["bezier_path_world_return"]
+                self.bezier_target_pos_return = go_bezier_data.get("initial_point_world_return", None)
+                bezier_path_world_return = go_bezier_data.get("bezier_path_world_return", None)
+                if self.bezier_target_pos_return is None or bezier_path_world_return is None:
+                    self.action_status = ScriptStatus.FAILED
+                    Abnormal.setTask(53901, "no bezier route record, script failed",
+                                     "script data is none", "walk bezier first, or check the script data", "")
+                    return
                 Trace.log(f"Bezier Path World Return: {bezier_path_world_return}", False)
             else:
                 Abnormal.setTask(53901, "no bezier route record, script failed",

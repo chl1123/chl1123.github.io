@@ -6,7 +6,7 @@ import threading
 import can
 import serial
 from google.protobuf.json_format import MessageToJson
-
+from syspy import Trace
 from syspy import Led, RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message import message_dmx512_pb2
@@ -18,7 +18,7 @@ log = logging.getLogger("rbk.script")
 
 class dmx512NativeLib:
     def __init__(self):
-        log.info("start native dmx512")
+        Trace.log("start native dmx512")
         self.ser = None
         self.__callback = None
         self.__should_close = False
@@ -29,7 +29,7 @@ class dmx512NativeLib:
 
     def setCallBack(self, handleData):
         if not handleData:
-            log.error("Set callback error.It should be implemented the func 'handleData'")
+            Trace.log("Set callback error.It should be implemented the func 'handleData'")
         else:
             self.__callback = handleData
 
@@ -46,12 +46,12 @@ class dmx512NativeLib:
         command = "cat /etc/srcname"
         output = subprocess.check_output(command, shell=True)
         output = output.decode("utf-8").strip()
-        log.info(f"{output=}")
+        Trace.log(f"{output=}")
         if output in ['SRC800', 'SRC3000']:
             fcntl.ioctl(self.ser, 0)  # 这行决定了485模式
         self.__msg_thread = threading.Thread(target=self.__serialRun, name="__serialRun", daemon=True)
         self.__msg_thread.start()
-        log.info(f"createSerial  {name=}, {baudrate=}")
+        Trace.log(f"createSerial  {name=}, {baudrate=}")
 
     def send(self, msg: list):
         self.ser.write(msg)
@@ -91,13 +91,13 @@ class dmx512NativeLib:
                 can_mask = 0x1FFFFFFF
             filters.append({"can_id": id_, "can_mask": can_mask})
         self.bus.set_filters(filters)
-        log.info(f"Attached CAN IDs: {[hex(id_) for id_ in self.can_ids]}")
+        Trace.log(f"Attached CAN IDs: {[hex(id_) for id_ in self.can_ids]}")
 
     def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
         try:
             msg = can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc)
             self.bus.send(msg)
-            log.info(f"message send: can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}")
+            Trace.log(f"message send: can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}")
         except Exception as e:
             print(f"Error sending CAN frame: {e}")
 

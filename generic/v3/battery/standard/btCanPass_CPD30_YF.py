@@ -7,6 +7,7 @@ import syspy.battery_Can.can_base as cb
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 from syspy import Logger
+from syspy import Trace
 log = Logger("battery")
 class CanBattery(cb.CanBase):
 
@@ -45,10 +46,10 @@ class CanBattery(cb.CanBase):
             self.clearTimeout()
             tem = canframe.data.hex()
             if self.isNeedCharge():
-                log.info("start charge")
+                Trace.log("start charge")
                 can_data = [tem[0:2], tem[2:4], tem[4:6], tem[6:8], '00', '00', '00', '00']
                 can_string = ' '.join(can_data).upper()
-                log.info(can_string)
+                Trace.log(can_string)
                 self.sendCanframe(2, 0x18FF50E5, 8, True, can_string)
             max_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             max_current = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
