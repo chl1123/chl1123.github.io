@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/3/25
-# @Author : zengweibin & zhaopengfei
+# @Date : 2026/3/31
+# @Author : zhaopengfei
 # @Coding : none
-# @Update : add: 1.重复取货保护功能 2.模型文件电机配置校验功能 3.不支持的任务报错功能 fix：1. 倒走取货时旋转单位角度混用 2. 修复调用 moveTask小驼峰问题 feat：1.货架识别支持动态传入 2.识别区域传入不同方向ROI
+# @Update : add: 1. 可选自动标零功能(默认关闭) 2. 脚本配置参数优化  fix: 根据插入方向旋转货物模型，容器角度错误
 
 import json
 import math
@@ -13,7 +13,7 @@ from syspy.utils.time import Timer
 from datetime import datetime
 
 from syspy import (Module, Logger, Motor, Navigation, Loc, Abnormal, Recognize,
-                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container)
+                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam, BindType, BindItem
@@ -52,22 +52,7 @@ def debug_trace(*args, **kwargs):
         else:
             Trace.log(timestamp, **kwargs)
 
-
-# ============================================================================
-# 顶升次数统计管理类
-# ============================================================================
-class JackCountManager:
-    """
-    顶升次数统计管理器
-    - jackTotalCount: 顶升累计次数
-    - jackTodayCount: 顶升今日累计次数
-    - jackLastDate: 上次更新日期（用于今日次数自动重置）
-    """
-
-    KEY_TOTAL_COUNT = "jackTotalCount"
-    KEY_TODAY_COUNT = "jackTodayCount"
-    KEY_LAST_DATE = "jackLastDate"
-
+class _SingletonDBManager:
     _instance = None
     _db = None
 
@@ -84,10 +69,20 @@ class JackCountManager:
         self._init_db()
 
     def _init_db(self):
+        raise NotImplementedError
+
+# ============================================================================
+# 顶升次数统计管理类
+# ============================================================================
+class JackCountManager(_SingletonDBManager):
+    KEY_TOTAL_COUNT = "jackTotalCount"
+    KEY_TODAY_COUNT = "jackTodayCount"
+    KEY_LAST_DATE = "jackLastDate"
+
+    def _init_db(self):
         try:
             self._db = LevelDB("run")
-            total_count = self._db.get(self.KEY_TOTAL_COUNT, "int")
-            if total_count is None:
+            if self._db.get(self.KEY_TOTAL_COUNT, "int") is None:
                 self._db.add(self.KEY_TOTAL_COUNT, 0, False)
                 self._db.add(self.KEY_TODAY_COUNT, 0, False)
                 self._db.add(self.KEY_LAST_DATE, "", False)
@@ -129,9 +124,49 @@ class JackCountManager:
 # 创建全局实例
 jack_count_manager = JackCountManager()
 
+# ============================================================================
+# 顶升电机标零状态管理类
+# ============================================================================
+class JackCalibManager(_SingletonDBManager):
+    KEY_CALIB_DONE = "jackCalibDone"
+
+    def _init_db(self):
+        try:
+            self._db = LevelDB("run")
+            if self._db.get(self.KEY_CALIB_DONE, "int") is None:
+                self._db.add(self.KEY_CALIB_DONE, 0, False)
+                Trace.log("JackCalibManager: DB 初始化完成，jackCalibDone=0")
+        except Exception as e:
+            Trace.log(f"JackCalibManager: DB 初始化失败: {e}")
+            self._db = None
+
+    def is_calib_done(self) -> bool:
+        """返回 DB 中记录的标零完成状态（int: 0=未完成, 1=已完成）"""
+        if self._db is None:
+            return False
+        try:
+            return self._db.get(self.KEY_CALIB_DONE, "int") == 1
+        except Exception as e:
+            Trace.log(f"JackCalibManager: 读取 calib 状态失败: {e}")
+            return False
+
+    def set_calib_done(self, done: bool):
+        """更新 DB 中的标零完成状态（bool → int: True=1, False=0）"""
+        if self._db is None:
+            return
+        try:
+            val = int(done)
+            self._db.put(self.KEY_CALIB_DONE, val)
+            Trace.log(f"JackCalibManager: jackCalibDone 已更新为 {val}")
+        except Exception as e:
+            Trace.log(f"JackCalibManager: 写入 calib 状态失败: {e}")
+
+
+# 创建全局实例
+jack_calib_manager = JackCalibManager()
+
 
 # --- ConfigParams 类（放在前面） ---
-
 class ConfigParams:
     """配置管理器，用于管理动态配置参数"""
     config = {}
@@ -144,6 +179,7 @@ class ConfigParams:
 
     # Debug开关
     debug_mode = False
+    auto_calib_enable = False  # 开机自动标零开关（默认关闭）
 
     # 导航配置参数（bezier）
     bezier_back_dist = 0.0
@@ -209,242 +245,223 @@ class ConfigParams:
 
         with builder.GROUPS():
             # ============================================
-            # 通用配置组
+            # 通用配置组（Debug + 标零 + 报错保护）
             # ============================================
             with builder.GROUP(key="generalConfig", name="General Configuration",
-                               desc="General configuration parameters"):
+                               desc="General, calibration and error protection parameters"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    # Debug开关
                     with builder.CHILD(key="debugMode", name="Debug Mode",
                                        desc="Enable debug mode to show debug tasks and low-frequency parameters"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-
-            # ============================================
-            # 报错保护配置组
-            # ============================================
-            with builder.GROUP(key="errorProtectionConfig", name="Error Protection Configuration",
-                               desc="Error protection and timeout parameters"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
+                    with builder.CHILD(key="autoCalibEnable", name="Auto Calib On Startup",
+                                       desc="Enable automatic motor calibration (zero) on script startup"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="loadAgainError", name="Load Again Error Protection",
                                        desc="Enable protection to prevent loading when goods already on robot (Error52179)"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
 
             # ============================================
-            # 电机配置组
+            # 电机与IO配置组（电机速度 + DI + DO + 延迟）
             # ============================================
-            with builder.GROUP(key="motorConfig", name="Motor Configuration",
-                               desc="Motor related configuration parameters"):
+            with builder.GROUP(key="motorIoConfig", name="Motor & IO Configuration",
+                               desc="Motor speed, DI/DO and delay parameters"):
                 builder.TYPE(ParamType.ARRAY)
-
                 with builder.CHILDREN():
-                    # 顶升电机速度
                     with builder.CHILD(key="jackMotorSpeed", name="Jack Motor Speed",
                                        desc="Speed of the jack motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.015, min_value=0.001, max_value=0.1)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.001)
-
-                    with builder.CHILD(key="jackMinHeight", name="jack Min Height",
+                    with builder.CHILD(key="jackMinHeight", name="Jack Min Height",
                                        desc="The min height of jack motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.minLength"))
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
-
-                    with builder.CHILD(key="jackMaxHeight", name="jack Max Height",
+                    with builder.CHILD(key="jackMaxHeight", name="Jack Max Height",
                                        desc="The max height of jack motor"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.maxLength"))
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
-
-            # ============================================
-            # DI配置组
-            # ============================================
-            with builder.GROUP(key="diConfig", name="DI Configuration", desc="Digital input configuration parameters"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    # 上极限DI
                     with builder.CHILD(key="jackUpDi", name="Jack Up DI",
                                        desc="Upper limit digital input for jack"):
                         builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI"))
-                    # 零位DI
+                        builder.DEFAULTVALUE("DI-003")
                     with builder.CHILD(key="jackZeroDi", name="Jack Zero DI",
                                        desc="Zero position digital input for jack"):
                         builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(
-                            RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{reset_by_speed}.zeroDI"),
-                            min_value=0, max_value=31)
+                        builder.DEFAULTVALUE("DI-004")
+                    with builder.CHILD(key="jackUpDo", name="Jack Up DO",
+                                       desc="Digital output for jack up"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-002")
+                    with builder.CHILD(key="jackDownDo", name="Jack Down DO",
+                                       desc="Digital output for jack down"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("DO-001")
+                    with builder.CHILD(key="jackUpDelay", name="Jack Up Delay",
+                                       desc="Delay after jack up DI triggered before stopping DO (seconds)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.2)
+                        builder.UNIT("s")
+                        builder.SINGLESTEP(0.05)
 
             # ============================================
-            # 贝塞尔导航配置组（现场实施后基本不变）
+            # 导航配置组（Bezier + Polyline）
             # ============================================
-            with builder.GROUP(key="bezierConfig", name="Bezier Navigation Config",
-                               desc="Bezier curve navigation parameters (site-specific, rarely changed)"):
+            with builder.GROUP(key="navigationConfig", name="Navigation Config",
+                               desc="Bezier and Polyline navigation parameters (site-specific, rarely changed)"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="bezierBackDist", name="Back Distance",
+                    # --- Bezier ---
+                    with builder.CHILD(key="bezierBackDist", name="[Bezier] Back Distance",
                                        desc="Back distance before starting bezier"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierAdjustDist", name="Adjust Distance for Curvature",
+                    with builder.CHILD(key="bezierAdjustDist", name="[Bezier] Adjust Distance",
                                        desc="Adjust distance for decreasing curvature limit"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierMinAheadDist", name="Min Ahead Distance",
+                    with builder.CHILD(key="bezierMinAheadDist", name="[Bezier] Min Ahead Distance",
                                        desc="Minimum ahead distance"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierIsBackwards", name="Is Backwards",
+                    with builder.CHILD(key="bezierIsBackwards", name="[Bezier] Is Backwards",
                                        desc="Enable backward mode"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="bezierIsHoldDir", name="Hold Direction",
+                    with builder.CHILD(key="bezierIsHoldDir", name="[Bezier] Hold Direction",
                                        desc="Whether to hold direction during navigation"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="bezierMaxSpeed", name="Max Speed",
+                    with builder.CHILD(key="bezierMaxSpeed", name="[Bezier] Max Speed",
                                        desc="Maximum speed for bezier navigation"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5)
                         builder.UNIT("m/s")
-                    with builder.CHILD(key="bezierMaxAccele", name="Max Acceleration",
+                    with builder.CHILD(key="bezierMaxAccele", name="[Bezier] Max Acceleration",
                                        desc="Maximum acceleration"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3)
                         builder.UNIT("m/s²")
-                    with builder.CHILD(key="bezierMaxDecele", name="Max Deceleration",
+                    with builder.CHILD(key="bezierMaxDecele", name="[Bezier] Max Deceleration",
                                        desc="Maximum deceleration"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.2)
                         builder.UNIT("m/s²")
-                    with builder.CHILD(key="bezierDeceleDist", name="Deceleration Distance",
+                    with builder.CHILD(key="bezierDeceleDist", name="[Bezier] Deceleration Distance",
                                        desc="Distance to start deceleration before target"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierCurvatureLimit", name="Curvature Limit",
+                    with builder.CHILD(key="bezierCurvatureLimit", name="[Bezier] Curvature Limit",
                                        desc="Curvature limit for bezier path"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.3)
-                    with builder.CHILD(key="bezierPathDistAccuracy", name="Path Distance Accuracy",
+                    with builder.CHILD(key="bezierPathDistAccuracy", name="[Bezier] Path Dist Accuracy",
                                        desc="Position accuracy for path following"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.01)
                         builder.UNIT("m")
-                    with builder.CHILD(key="bezierPathAngleAccuracy", name="Path Angle Accuracy",
+                    with builder.CHILD(key="bezierPathAngleAccuracy", name="[Bezier] Path Angle Accuracy",
                                        desc="Angle accuracy for path following"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
                         builder.UNIT("rad")
-
-            # ============================================
-            # 折线导航配置组（现场实施后基本不变）
-            # ============================================
-            with builder.GROUP(key="polylineConfig", name="Polyline Navigation Config",
-                               desc="Polyline navigation parameters (site-specific, rarely changed)"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    with builder.CHILD(key="polylineBackDist", name="Back Distance",
+                    # --- Polyline ---
+                    with builder.CHILD(key="polylineBackDist", name="[Polyline] Back Distance",
                                        desc="Back distance before starting polyline"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineAheadDist", name="Ahead Distance",
+                    with builder.CHILD(key="polylineAheadDist", name="[Polyline] Ahead Distance",
                                        desc="Ahead distance for line angle adjustment"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineMinAheadDist", name="Min Ahead Distance",
+                    with builder.CHILD(key="polylineMinAheadDist", name="[Polyline] Min Ahead Distance",
                                        desc="Minimum ahead distance"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineIsBackwards", name="Is Backwards",
+                    with builder.CHILD(key="polylineIsBackwards", name="[Polyline] Is Backwards",
                                        desc="Enable backward mode"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="polylineIsHoldDir", name="Hold Direction",
+                    with builder.CHILD(key="polylineIsHoldDir", name="[Polyline] Hold Direction",
                                        desc="Whether to hold direction during navigation"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="polylineMaxSpeed", name="Max Speed",
+                    with builder.CHILD(key="polylineMaxSpeed", name="[Polyline] Max Speed",
                                        desc="Maximum speed for polyline navigation"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5)
                         builder.UNIT("m/s")
-                    with builder.CHILD(key="polylineMaxAccele", name="Max Acceleration",
+                    with builder.CHILD(key="polylineMaxAccele", name="[Polyline] Max Acceleration",
                                        desc="Maximum acceleration"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3)
                         builder.UNIT("m/s²")
-                    with builder.CHILD(key="polylineMaxDecele", name="Max Deceleration",
+                    with builder.CHILD(key="polylineMaxDecele", name="[Polyline] Max Deceleration",
                                        desc="Maximum deceleration"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.2)
                         builder.UNIT("m/s²")
-                    with builder.CHILD(key="polylineDeceleDist", name="Deceleration Distance",
+                    with builder.CHILD(key="polylineDeceleDist", name="[Polyline] Deceleration Distance",
                                        desc="Distance to start deceleration before target"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineMaxAngle", name="Max Angle",
+                    with builder.CHILD(key="polylineMaxAngle", name="[Polyline] Max Angle",
                                        desc="Maximum angle between two lines"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.3)
                         builder.UNIT("rad")
-                    with builder.CHILD(key="polylinePathDistAccuracy", name="Path Distance Accuracy",
+                    with builder.CHILD(key="polylinePathDistAccuracy", name="[Polyline] Path Dist Accuracy",
                                        desc="Position accuracy for path following"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.01)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylinePathAngleAccuracy", name="Path Angle Accuracy",
+                    with builder.CHILD(key="polylinePathAngleAccuracy", name="[Polyline] Path Angle Accuracy",
                                        desc="Angle accuracy for path following"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
                         builder.UNIT("rad")
 
             # ============================================
-            # PGV二次调整配置组（现场实施后基本不变）
+            # PGV二次调整配置组（不变）
             # ============================================
             with builder.GROUP(key="pgvConfig", name="PGV Secondary Adjust Config",
                                desc="PGV secondary adjustment parameters (site-specific, rarely changed)"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    # ---- codeAdjustType 顶层模式选择 ----
                     with builder.CHILD(key="codeAdjustType", name="Code Adjust Type",
                                        desc="PGV adjustment working mode"):
                         builder.TYPE(ParamType.COMBO_BOX)
                         builder.DEFAULTVALUE("singleCode")
                         with builder.CHILDREN():
-                            # ========== singleCode 模式 ==========
                             with builder.CHILD(key="singleCode", name="Single Code",
                                                desc="Adjust to a single QR code"):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
-                                    # scanDevice — 绑定扫码设备
                                     with builder.CHILD(key="scanDevice", name="Scan Device",
                                                        desc="Select the PGV code scanner device"):
                                         builder.TYPE(ParamType.BIND_TYPE)
                                         builder.BINDTYPE(BindType.Device.CODE_SCANNER)
-
-                                    # codeNumber（可选）— 指定目标二维码编号
                                     with builder.CHILD(key="codeNumber", name="Code Number",
                                                        desc="Target QR code number (pure digits, optional)"):
                                         builder.TYPE(ParamType.STRING)
                                         builder.REQUIRED(False)
                                         builder.DEFAULTVALUE("")
-
-                                    # positionAdjustType — STRING_COMBO_LIST：内联切换，multiLine 选项用 ARRAY 承载子参数
                                     with builder.CHILD(key="positionAdjustType", name="Position Adjust Type",
                                                        desc="Position adjustment strategy"):
                                         builder.TYPE(ParamType.COMBO_BOX)
@@ -470,8 +487,6 @@ class ConfigParams:
                                                         builder.DEFAULTVALUE(10.0)
                                                         builder.UNIT("deg")
                                                         builder.SINGLESTEP(1.0)
-
-                                    # angleAdjustType — 角度调整方式（与 positionAdjustType 同级）
                                     with builder.CHILD(key="angleAdjustType", name="Angle Adjust Type",
                                                        desc="Robot orientation relative to QR code"):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
@@ -490,19 +505,14 @@ class ConfigParams:
                                             with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                "XY adjust, ignore angle → pgvAdjustXY"):
                                                 builder.TYPE(ParamType.STRING)
-
-                            # ========== codeNumber（码带）模式 ==========
                             with builder.CHILD(key="codeNumber", name="Code Number Strip",
                                                desc="Adjust along a QR code strip → auto sets pgvCodeStrip=True"):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
-                                    # scanDevice — 绑定扫码设备
                                     with builder.CHILD(key="scanDevice", name="Scan Device",
                                                        desc="Select the PGV code scanner device"):
                                         builder.TYPE(ParamType.BIND_TYPE)
                                         builder.BINDTYPE(BindType.Device.CODE_SCANNER)
-
-                                    # angleAdjustType — 码带模式角度调整
                                     with builder.CHILD(key="angleAdjustType", name="Angle Adjust Type",
                                                        desc="Robot orientation relative to code strip"):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
@@ -521,20 +531,16 @@ class ConfigParams:
                                             with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                "pgvXAdjust only"):
                                                 builder.TYPE(ParamType.STRING)
-
-                    # ---- 通用精度参数 ----
                     with builder.CHILD(key="pgvSpin", name="Spin Hold During Adjust",
                                        desc="Hold fork direction during PGV secondary adjustment (spin vehicles)"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-
                     with builder.CHILD(key="pgvReachDist", name="Reach Distance Accuracy",
                                        desc="PGV secondary adjustment distance accuracy"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.02)
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
-
                     with builder.CHILD(key="pgvReachAngle", name="Reach Angle Accuracy",
                                        desc="PGV secondary adjustment angle accuracy"):
                         builder.TYPE(ParamType.FLOAT)
@@ -552,7 +558,7 @@ class ConfigParams:
 
         # 通用配置 - 先加载 debug_mode
         cls.debug_mode = cls.config.get("debugMode", False)
-
+        cls.auto_calib_enable = cls.config.get("autoCalibEnable", False)
         # 电机配置
         cls.jack_motor_speed = cls.config.get("jackMotorSpeed")
         cls.jack_min_height = cls.config.get("jackMinHeight")
@@ -616,6 +622,7 @@ config_params = ConfigParams()
 # 调试任务列表（需要开启 debugMode 才能执行）
 # ============================================================================
 DEBUG_ONLY_TASKS = [
+    "calib",  # 强制标零（外部指令触发）
     "jackHeight",  # 指定高度顶升
     "goBezier",  # 贝塞尔导航
     "PGVSecondaryAdjust",  # PGV二次调整
@@ -872,6 +879,10 @@ class InputParams:
                 # 调试/低频任务（需要开启debugMode才显示）
                 # ===========================================
                 if config_params.debug_mode:
+                    # [DEBUG] 强制标零（外部指令触发，需开启 debugMode）
+                    with builder.CHILD(key="calib", name="[Debug] Calib",
+                                       desc="Force recalibrate jack motor zero position (debug only)"):
+                        builder.TYPE(ParamType.ARRAY)
                     # [DEBUG] 指定高度顶升
                     with builder.CHILD(key="jackHeight", name="[Debug] Jack Height",
                                        desc="lift to specified height (debug only)"):
@@ -1261,8 +1272,72 @@ class Jack(ModuleBase):
         self.final_bin_task = None  # finalBinTask 参数
         self.final_loc = None  # finalLoc 参数
         self.result = None  # 边走边动结果参数
+        self.jack_calib_step = [False, False, False, False]  # [0]=motorCalib指令已下发  [1]=标零已确认完成 [2]=旋转motorCalib已下发  [3]=旋转标零已完成
 
-    def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
+    def _get_motor_calib_state(self, motor_name):
+        """从 Odometer 读取指定电机的 calib 字段（2=标零完成）"""
+        try:
+            for m in Odometer.getData().get("motorInfo", []):
+                if m.get("key") == motor_name:
+                    return m.get("calib", None)
+        except Exception as e:
+            Trace.log(f"[CALIB] 读取电机 {motor_name} calib 状态失败: {e}")
+        return None
+
+    def _run_calib_steps(self, label: str) -> bool:
+        """
+        顶升/旋转电机标零状态机（内部复用）。
+        返回 True 表示全部标零完成，False 表示仍在进行中。
+        """
+        # ---- 第1步：顶升电机标零 ----
+        if not self.jack_calib_step[0]:
+            if not Motor.isMotorStop(config_params.jack_motor_name):
+                debug_trace(f"[CALIB] {label}：等待顶升电机停止...")
+                return False
+            Motor.motorCalib(config_params.jack_motor_name)
+            self.jack_calib_step[0] = True
+            Trace.log(f"[CALIB] {label}：顶升电机已静止，motorCalib 指令已下发")
+            return False
+
+        if not self.jack_calib_step[1]:
+            if self._get_motor_calib_state(config_params.jack_motor_name) == 2:
+                self.jack_calib_step[1] = True
+                Trace.log(f"[CALIB] {label}：顶升电机标零完成")
+            return False
+
+        # ---- 第2步：旋转电机标零 ----
+        if not self.jack_calib_step[2]:
+            if not Motor.isMotorStop(config_params.spin_motor_name):
+                debug_trace(f"[CALIB] {label}：等待旋转电机停止...")
+                return False
+            Motor.motorCalib(config_params.spin_motor_name)
+            self.jack_calib_step[2] = True
+            Trace.log(f"[CALIB] {label}：旋转电机已静止，motorCalib 指令已下发")
+            return False
+
+        if not self.jack_calib_step[3]:
+            if self._get_motor_calib_state(config_params.spin_motor_name) == 2:
+                self.jack_calib_step[3] = True
+                jack_calib_manager.set_calib_done(True)
+                Trace.log(f"[CALIB] {label}：旋转电机标零完成，全部标零已完成")
+                return True
+        return False
+
+    def run_startup_calib(self):
+        """脚本启动自动标零（由 main 循环在 DB=False 时周期调用）"""
+        self._run_calib_steps("自动标零")
+
+    def do_force_calib(self):
+        """外部 'calib' 指令触发的强制标零"""
+        if not self.operation_init:
+            self.operation_init = True
+            jack_calib_manager.set_calib_done(False)
+            self.jack_calib_step = [False, False, False, False]
+            Trace.log("[CALIB] 强制标零：jackCalibDone 已置 False")
+        if self._run_calib_steps("强制标零"):
+            self.status = ScriptStatus.FINISHED
+
+    def bindContainer(self, container_id: str, goods_name: str, desc: str, insert_dir: str = "D") -> bool:
         """
         重写 bindContainer：绑定容器并设置货物多边形形状。
         """
@@ -1283,19 +1358,26 @@ class Jack(ModuleBase):
         shapes = json.loads(goods_shape)
         shape = shapes[0]["points"]
 
-        # 3. 将货物模型旋转90度显示（顺时针90°: (x, y) -> (y, -x)）
-        rotated_shape = []
-        for pt in shape:
-            if isinstance(pt, dict):
-                rotated_shape.append({"x": -pt["y"], "y": pt["x"]})
-            elif isinstance(pt, (list, tuple)) and len(pt) >= 2:
-                rotated_shape.append([pt[1], -pt[0]])
-            else:
-                rotated_shape.append(pt)
-        shape = rotated_shape
+        # 3. 根据插入方向旋转货物模型
+        # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
+        def _rotate_pt(pt, dir_):
+            if dir_ == "A":  # 0°: (x, y) -> (x, y)
+                if isinstance(pt, dict):  return {"x": pt["y"], "y":-pt["x"] }
+                return [pt[0], pt[1]]
+            elif dir_ == "B":  # 顺时针90°: (x, y) -> (y, -x)
+                if isinstance(pt, dict):  return {"x":pt["x"] , "y": pt["y"]}
+                return [pt[1], -pt[0]]
+            elif dir_ == "C":  # 180°: (x, y) -> (-x, -y)
+                if isinstance(pt, dict):  return {"x": -pt["y"], "y": pt["x"] }
+                return [-pt[0], -pt[1]]
+            else:  # D: 逆时针90°: (x, y) -> (-y, x)
+                if isinstance(pt, dict):  return {"x":-pt["x"] , "y":-pt["y"]}
+                return [-pt[1], pt[0]]
+
+        shape = [_rotate_pt(pt, insert_dir) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
 
         Navigation.setGoodsPolyShape(shape, goods_name)
-        Trace.log(f"[bindContainer] 绑定成功(已旋转90°): container={container_id}, goods={goods_name}, "
+        Trace.log(f"[bindContainer] 绑定成功(方向={insert_dir}): container={container_id}, goods={goods_name}, "
                   f"shape points={len(shape)}, recfile={self.recfile}")
         return True
 
@@ -1314,7 +1396,11 @@ class Jack(ModuleBase):
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
         rad = math.radians(self.spin_angle)  # 把spin_angle转为rad
-        self.spin_angle = (rad + math.pi) % (2 * math.pi) - math.pi  # 归一化到 (-pi, pi]
+        self.spin_mode = self.task_args.get("spinMode", "increase")  # 提前读 spin_mode，用于判断
+        if self.spin_mode == "increase":
+            self.spin_angle = rad  # increase 是相对增量，不归一化，保留原始弧度值
+        else:
+            self.spin_angle = (rad + math.pi) % (2 * math.pi) - math.pi  # world/robot 模式才归一化
         self.spin_dir = int(self.task_args.get("spinDir", 0))
         self.coordinate = self.task_args.get("coordinate", "world")
         self.spin_mode = self.task_args.get("spinMode", "increase")
@@ -1455,6 +1541,8 @@ class Jack(ModuleBase):
             self.jack_bezier_return()
         elif self.opt == "pressIoButton":
             self.press_button()
+        elif self.opt == "calib":  # 外部指令强制标零（需 debugMode）
+            self.do_force_calib()
 
         else:
             # Error52801: 不支持的任务指令
@@ -1511,7 +1599,7 @@ class Jack(ModuleBase):
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
                                                config_params.jack_motor_speed))
             # 顶升完成后绑定容器，设置货物模型
-            self.action_list.append(BindContainer("999", "shelf", self.recfile))
+            self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
 
     def laser_area_deduction(self):
         if not self.operation_init:
@@ -1870,7 +1958,7 @@ class Jack(ModuleBase):
                                self.recfile, deduct_info=self.laser_area_deduct_info))
 
                 # 顶升完成后绑定容器，设置货物模型
-                self.action_list.append(BindContainer("999", "shelf", self.recfile))
+                self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
 
     def jack_unload(self):
         """
@@ -2001,7 +2089,7 @@ class Jack(ModuleBase):
                 # 顶升
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
-                self.action_list.append(BindContainer("999", "shelf", self.recfile))
+                self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
 
                 # bezier 退回起始位置
                 self.action_list.append(
@@ -2560,9 +2648,16 @@ class Spin(BaseAction):
             elif self.coordinate_system == "world":
                 Trace.log("setGlobalSpinAngle")
                 Navigation.setGlobalSpinAngle(self.angle, self.dir)
-            elif self.coordinate_system == "increase":
-                Trace.log("setIncreaseSpinAngle")
-                Navigation.setIncreaseSpinAngle(self.angle)
+        elif self.coordinate_system == "increase":
+            Trace.log("setIncreaseSpinAngle")
+            angle = abs(self.angle)
+            if self.dir == RotateDirection.CLOCKWISE:  # -1，顺时针 → 负角度
+                angle = -angle
+            elif self.dir == RotateDirection.COUNTERCLOCKWISE:  # 1，逆时针 → 正角度
+                pass  # 保持正值
+            else:  # 0，就近，保留原始符号
+                angle = self.angle
+            Navigation.setIncreaseSpinAngle(angle)
 
         # === 实时更新扣除区域（每个周期都根据当前spin角度更新） ===
         if self.deduct_info:
@@ -2744,6 +2839,7 @@ class JackHeight(BaseAction):
         self.jack_start_height = None
         self._count_recorded = False  # 防止重复计数
         self._last_progress = -1  # 用于进度日志去重
+        self._up_di_triggered_time = None # 上到位 DI/isReached 触发时间戳（用于200ms延迟）
         Motor.resetMotor(self.motor_name)
 
     def run(self, j: Jack):
@@ -2778,18 +2874,22 @@ class JackHeight(BaseAction):
                 debug_trace(f"[JACK] progress: {progress_10}% (pos={current_pos:.4f}m)")
 
         if self.target_height > self.jack_start_height:
-            # 顶升动作
+            # 顶升动作：触发上到位 DI 后延迟 200ms 再结束
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_up_di):
-                self.action_status = ActionStatus.FINISHED
-                Motor.resetMotor(self.motor_name)
-                debug_trace(f"[JACK]  Jack up done pos={current_pos:.4f}m")
-                # 顶升完成，记录顶升次数（仅在顶升时计数，下降不计数）
-                if not self._count_recorded:
-                    self._count_recorded = True
-                    jack_count_manager.increment_count()
-                # 顶升完成后设置激光扣除区（车已到达货架正下方，坐标准确）
-                if self.deduct_info:
-                    self._set_deduct_area()
+                if self._up_di_triggered_time is None:
+                    self._up_di_triggered_time = time.time()
+                    debug_trace(f"[JACK] 上到位触发，等待 200ms 延迟... pos={current_pos:.4f}m")
+                elif time.time() - self._up_di_triggered_time >= 0.2:
+                    self.action_status = ActionStatus.FINISHED
+                    Motor.resetMotor(self.motor_name)
+                    debug_trace(f"[JACK] 顶升完成（200ms 延迟后）pos={current_pos:.4f}m")
+                    # 顶升完成，记录顶升次数（仅在顶升时计数，下降不计数）
+                    if not self._count_recorded:
+                        self._count_recorded = True
+                        jack_count_manager.increment_count()
+                    # 顶升完成后设置激光扣除区（车已到达货架正下方，坐标准确）
+                    if self.deduct_info:
+                        self._set_deduct_area()
         else:
             # 下降动作
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_zero_di):
@@ -2842,15 +2942,16 @@ class JackHeight(BaseAction):
 class BindContainer(BaseAction):
     """顶升完成后绑定容器并设置货物模型"""
 
-    def __init__(self, container_id: str, goods_name: str, recfile: str):
+    def __init__(self, container_id: str, goods_name: str, recfile: str, insert_dir: str = "D"):
         super().__init__("BindContainer")
         self.opt_info = f"BindContainer{{container_id={container_id}, goods_name={goods_name}, recfile={recfile}}}"
         self.container_id = container_id
         self.goods_name = goods_name
         self.recfile = recfile
+        self.insert_dir = insert_dir
 
     def run(self, j: Jack):
-        ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec")
+        ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec", self.insert_dir)
         if not ok:
             Trace.log(f"[BindContainer] 绑定失败，recfile={self.recfile}")
         self.action_status = ActionStatus.FINISHED
@@ -3981,6 +4082,9 @@ def main():
     Module.init()
     validator = ParamValidator(InputParams.builder.toDict())
     j = Jack()
+    # 每次脚本启动都重置标零状态，确保开机标零一次
+    if config_params.auto_calib_enable:
+        jack_calib_manager.set_calib_done(False)
 
     while True:
         # ========== 边走边动：更新moveTask参数 ==========
@@ -3994,6 +4098,10 @@ def main():
         # 脚本任务状态管理
         if j.event_safe_move_check:
             j.safe_move_check()
+
+        # 启动自动标零（DB=False 时每周期轮询，完成后自动停止）
+        if config_params.auto_calib_enable and not jack_calib_manager.is_calib_done():
+            j.run_startup_calib()
 
         if status == ScriptStatus.NONE:
             # ========== 边走边动：预动作执行（保持NONE状态） ==========
