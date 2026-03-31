@@ -14,7 +14,12 @@ from syspy import (Module, Logger, Di, Motor, Navigation, Loc, Abnormal,
                    Odometer, ScriptStatus, Trace, Controller)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
-
+from standard import goPath, goBezier
+if hasattr(ScriptParam, '_instance'):
+    ScriptParam._instance = None 
+    ScriptParam._initialized = False
+    ScriptParam.config_change_callback = None
+    ScriptParam.event_task_config = False
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot_param import RobotParam
 from syspy.utils import Coordinate, ScriptType
@@ -85,63 +90,183 @@ def print_info():
     print(f"{config_params.lift_motor_name=}")
     print(f"{config_params.spin_motor_name=}")
 
+    
 
+# # 生成圆弧上的点
+# def generate_arc_points(center_x, center_y,x,y, radius, rotSpeed, angle, steps=20):
+#     steps=100
+#     points = []
+#     start_angle=math.atan2(y-center_y,x-center_x)
+#     total_rad=math.radians(angle)
+#     angle_step = total_rad / steps
+#     if  rotSpeed > 0:
+#         direction = 1
+#     else:
+#         direction = -1
+#     if radius > 0:
+#         pass
+#     else:
+#         radius = -radius
+#     for i in range(steps + 1):
+#         current_angle = start_angle + i * angle_step
+#         x = center_x + (radius * math.cos(current_angle))
+#         y = center_y + (radius * math.sin(current_angle))
+#         points.append((round(x, 6), round(y, 6)))
+#         print(f"{i=}, {current_angle=}, {x=}, {y=}, {direction=}")
+#         print("\n")
+#     print(f"{points=}")
+#     return points
+
+# # 计算中心坐标
+# def generate_arc_from_robot(radius, angle, rotSpeed, steps=20):
+
+#     robot_pose = Loc.getPose()
+#     robot_x = robot_pose["x"]
+#     robot_y = robot_pose["y"]
+#     robot_yaw = math.radians(robot_pose["yaw"]) 
+#     if radius > 0:
+#         status = 1
+#     else:
+#         status = -1
+#         radius = -radius
+#     center_x = robot_x + radius * math.sin(robot_yaw)
+#     center_y = robot_y + radius * math.cos(robot_yaw)*status
+
+#     print(f"{center_x=}, {center_y=}, {radius=}, {rotSpeed=}, {angle=}")
+#     return generate_arc_points(center_x, center_y,robot_x,robot_y, radius, rotSpeed, angle, steps)
+
+# def execute_arc_motion(radius, angle, rotSpeed=0.3, mode=True, steps=20):
+    # arc_points = generate_arc_from_robot(radius, angle, rotSpeed, 5)
+    # xs = [point[0] for point in arc_points]
+    # ys = [point[1] for point in arc_points]
+    # Navigation.resetPath()
+    # Navigation.setPathMaxSpeed(rotSpeed)
+    # Navigation.setPathReachDist(0.01)
+    # Navigation.setPathReachAngle(0.05)
+    # final_point = arc_points[-1]
+    # prev_point = arc_points[-2]
+    # final_angle = math.atan2(final_point[1] - prev_point[1], final_point[0] - prev_point[0])
+    # print(f"{xs=}, {ys=}, {final_angle=}")
+    # Navigation.setPathOnWorld(xs, ys, final_angle)
+    # print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+    # Navigation.goPathParam(dict())
+    # print('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+
+    # # while not Navigation.isPathReached():
+    # #     time.sleep(0.1)
+    # return ScriptStatus.FINISHED
 class InputParams:
     builder = ParamBuilder(__file__, desc="Input Params Config")
 
     with builder.GROUPS():
+        with builder.GROUP(key="operation", name="运动行为",desc="选择机器人的运动行为"):
+            builder.TYPE(ParamType.COMBO_BOX)
+            builder.REQUIRED(True)
+            with builder.CHILDREN():
+                with builder.CHILD(key="rotate", name="旋转", desc="选择机器人旋转"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        # 底盘旋转角度
+                        with builder.CHILD(key="robotRotateAngle", name="Robot Rotate Angle",
+                                        desc="底盘旋转的目标角度，任务结束时机器人在世界坐标系下的角度，单位°，范围 [-180~180]"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.MIN_VALUE(-180)
+                            builder.MAX_VALUE(180)
+                            builder.REQUIRED(False)
+                            builder.UNIT("°")
+                            builder.SINGLESTEP(1)
+                            builder.DEFAULTVALUE(0.0)
 
-        # 底盘旋转角度
-        with builder.CHILD(key="robotRotateAngle", name="Robot Rotate Angle",
-                           desc="底盘旋转的目标角度，任务结束时机器人在世界坐标系下的角度，单位°，范围 [-180~180]"):
-            builder.TYPE(ParamType.FLOAT)
-            builder.MIN_VALUE(-180)
-            builder.MAX_VALUE(180)
-            builder.REQUIRED(False)
-            builder.UNIT("°")
-            builder.SINGLESTEP(1)
-            builder.DEFAULTVALUE(0.0)
+                        # 底盘旋转方向
+                        with builder.CHILD(key="robotRotateDirection", name="Robot Rotate Direction",
+                                        desc="底盘旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE(1)
 
-        # 底盘旋转方向
-        with builder.CHILD(key="robotRotateDirection", name="Robot Rotate Direction",
-                           desc="底盘旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
-            builder.TYPE(ParamType.INT)
-            builder.REQUIRED(False)
-            builder.DEFAULTVALUE(1)
+                        # 升降高度
+                        with builder.CHILD(key="liftHeight", name="Lift Height",
+                                        desc="升降高度，模型文件中的第一个线性电机"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(False)
+                            builder.UNIT("m")
+                            builder.SINGLESTEP(0.01)
+                            builder.DEFAULTVALUE(0.0)
 
-        # 升降高度
-        with builder.CHILD(key="liftHeight", name="Lift Height",
-                           desc="升降高度，模型文件中的第一个线性电机"):
-            builder.TYPE(ParamType.FLOAT)
-            builder.REQUIRED(False)
-            builder.UNIT("m")
-            builder.SINGLESTEP(0.01)
-            builder.DEFAULTVALUE(0.0)
+                        # 托盘旋转角度
+                        with builder.CHILD(key="shelfRotateAngle", name="Shelf Rotate Angle",
+                                        desc="托盘旋转目标角度，任务结束时托盘在机器人坐标系下的角度，单位°，范围 [-180~180]"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.MIN_VALUE(-180)
+                            builder.MAX_VALUE(180)
+                            builder.REQUIRED(False)
+                            builder.UNIT("°")
+                            builder.SINGLESTEP(1)
+                            builder.DEFAULTVALUE(0.0)
 
-        # 托盘旋转角度
-        with builder.CHILD(key="shelfRotateAngle", name="Shelf Rotate Angle",
-                           desc="托盘旋转目标角度，任务结束时托盘在机器人坐标系下的角度，单位°，范围 [-180~180]"):
-            builder.TYPE(ParamType.FLOAT)
-            builder.MIN_VALUE(-180)
-            builder.MAX_VALUE(180)
-            builder.REQUIRED(False)
-            builder.UNIT("°")
-            builder.SINGLESTEP(1)
-            builder.DEFAULTVALUE(0.0)
+                        # 托盘旋转方向
+                        with builder.CHILD(key="shelfRotateDirection", name="Shelf Rotate Direction",
+                                        desc="托盘旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE(1)
 
-        # 托盘旋转方向
-        with builder.CHILD(key="shelfRotateDirection", name="Shelf Rotate Direction",
-                           desc="托盘旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
-            builder.TYPE(ParamType.INT)
-            builder.REQUIRED(False)
-            builder.DEFAULTVALUE(1)
+                        # 货物模型文件
+                        with builder.CHILD(key="recFile", name="Rec File",
+                                        desc="货物模型文件"):
+                            builder.TYPE(ParamType.STRING)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE("default.srec")
+            with builder.CHILDREN():
+                with builder.CHILD(key="line", name="直线运动", desc="选择机器人直线运动"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="dist", name="直线运动距离",
+                                        desc="直线运动的目标距离"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(True)
+                            builder.UNIT("m")
+                        with builder.CHILD(key="vx", name="X 方向运动的速度",
+                                        desc="机器人坐标系下 X 方向运动的速度, 正为向前, 负为向后, 单位: m/s"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(False)
+                            builder.UNIT("m/s")
+                        with builder.CHILD(key="vy", name="Y 方向运动的速度",
+                                        desc="机器人坐标系下 Y 方向运动的速度, 正为向右, 负为向左, 单位: m/s"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(False)
+                            builder.UNIT("m/s")
+                        with builder.CHILD(key="mode", name="模式选择",
+                                        desc="0 = 里程模式(根据里程进行运动), 1 = 定位模式, 若缺省则默认为里程模式"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
+            with builder.CHILDREN():
+                with builder.CHILD(key="arc", name="圆弧运动", desc="选择机器人圆弧运动"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="rotRadius", name="圆弧运动半径",
+                                        desc="圆弧运动的半径"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(True)
+                            builder.UNIT("m")
+                        with builder.CHILD(key="rotDegree", name="圆弧运动角度",
+                                        desc="圆弧运动的角度"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(True)
+                            builder.UNIT("°")
+                        with builder.CHILD(key="rotSpeed", name="圆弧运动速度",
+                                        desc="圆弧运动的速度"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(True)
+                            builder.UNIT("rad/s")
+                        with builder.CHILD(key="mode", name="模式选择",
+                                        desc="0 = 里程模式(根据里程进行运动), 1 = 定位模式, 若缺省则默认为里程模式"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
 
-        # 货物模型文件
-        with builder.CHILD(key="recFile", name="Rec File",
-                           desc="货物模型文件"):
-            builder.TYPE(ParamType.STRING)
-            builder.REQUIRED(False)
-            builder.DEFAULTVALUE("default.srec")
+
+
+
 
     builder.save()
 
@@ -238,40 +363,77 @@ class Actions:
                 self.script_status = ScriptStatus.FAILED
                 return
 
-            # 获取底盘旋转参数
-            self.robot_rotate_angle = self.task_args.get("robotRotateAngle", None)
-            self.robot_rotate_direction = self.task_args.get("robotRotateDirection", RotateDirection.NEARBY)
+            operation = self.task_args.get("operation", None)
+            if operation=='line':
+                # 获取直线运动参数
+                self.dist = self.task_args.get("dist", None)
+                self.vx = self.task_args.get("vx", 0.0)
+                self.vy = self.task_args.get("vy", 0.0)
+                self.mode = self.task_args.get("mode", None)
+                if self.mode is None:
+                    self.mode = 0  
+                v=(self.vx**2+self.vy**2)**0.5
+                t=self.dist/v
+                pos_x=self.vx*t
+                pos_y=self.vy*t
+                theta=math.atan2(self.vy,self.vx)
+                self.action_list.append(GoPath((pos_x,pos_y,theta),self.mode,max_speed=v))
+                
+                
+            elif operation=='rotate':
+                # 获取底盘旋转参数
 
-            # 获取托盘旋转参数
-            self.shelf_rotate_angle = self.task_args.get("shelfRotateAngle", None)
-            self.shelf_rotate_direction = self.task_args.get("shelfRotateDirection", RotateDirection.NEARBY)
+                self.robot_rotate_angle = self.task_args.get("robotRotateAngle", None)
+                self.robot_rotate_direction = self.task_args.get("robotRotateDirection", RotateDirection.NEARBY)
 
-            # 获取顶升参数
-            self.lift_height = self.task_args.get("liftHeight", None)
-            self.lift_speed = self.task_args.get("lift_speed", self.lift_speed)
-            self.rec_file = self.task_args.get("recFile", None)
+                # 获取托盘旋转参数
+                self.shelf_rotate_angle = self.task_args.get("shelfRotateAngle", None)
+                self.shelf_rotate_direction = self.task_args.get("shelfRotateDirection", RotateDirection.NEARBY)
 
-            # 检查是否有任何动作参数
-            if (self.robot_rotate_angle is None
-                    and self.shelf_rotate_angle is None
-                    and self.lift_height is None):
-                Abnormal.setTask(53780, "请设置底盘、货架旋转角度或者顶升高度",
-                                 "No action parameters provided",
-                                 "Set rotation angle or lift height",
+                # 获取顶升参数
+                self.lift_height = self.task_args.get("liftHeight", None)
+                self.lift_speed = self.task_args.get("lift_speed", self.lift_speed)
+                self.rec_file = self.task_args.get("recFile", None)
+
+                # 检查是否有任何动作参数
+                if (self.robot_rotate_angle is None
+                        and self.shelf_rotate_angle is None
+                        and self.lift_height is None):
+                    Abnormal.setTask(53780, "请设置底盘、货架旋转角度或者顶升高度",
+                                    "No action parameters provided",
+                                    "Set rotation angle or lift height",
+                                    "Parameter validation")
+                    self.script_status = ScriptStatus.FAILED
+                    return
+
+                # 需要先执行旋转动作，再执行顶升动作
+                if self.robot_rotate_angle is not None or self.shelf_rotate_angle is not None:
+                    self.action_list.append(
+                        Rotate(self.robot_rotate_angle, self.robot_rotate_direction,
+                            self.speed_w_robot, self.shelf_rotate_angle, self.shelf_rotate_direction))
+
+                if self.lift_height is not None:
+                    self.action_list.append(
+                        Jack(config_params.lift_motor_name, self.lift_height,
+                            self.lift_speed, self.lift_stop_di, self.rec_file))
+            elif operation=='arc':
+                # 获取圆弧运动参数
+                self.rot_radius = self.task_args.get("rotRadius", None)
+                self.rot_degree = self.task_args.get("rotDegree", None)
+                self.rot_speed = self.task_args.get("rotSpeed", None)
+                self.mode = self.task_args.get("mode", None)
+                if self.mode is None:
+                    self.mode = 0  
+                self.action_list.append(GoArc(self.rot_radius, self.rot_degree, self.rot_speed, self.mode))
+            else:
+                Abnormal.setTask(53780, f"operation {operation} not support!",
+                                 "",
+                                 "",
                                  "Parameter validation")
                 self.script_status = ScriptStatus.FAILED
                 return
 
-            # 需要先执行旋转动作，再执行顶升动作
-            if self.robot_rotate_angle is not None or self.shelf_rotate_angle is not None:
-                self.action_list.append(
-                    Rotate(self.robot_rotate_angle, self.robot_rotate_direction,
-                           self.speed_w_robot, self.shelf_rotate_angle, self.shelf_rotate_direction))
 
-            if self.lift_height is not None:
-                self.action_list.append(
-                    Jack(config_params.lift_motor_name, self.lift_height,
-                         self.lift_speed, self.lift_stop_di, self.rec_file))
 
     def run(self, args):
         """运行任务"""
@@ -394,7 +556,7 @@ class Jack(BaseAction):
             self.init = True
 
         if self.motor_name:
-            Motor.setMotorPosition(self.motor_name, self.height, self.speed, self.stop_di)
+            Motor.setMotorPosition(self.motor_name, self.height, self.speed, str(self.stop_di))
             if Motor.isMotorReached(self.motor_name) or (self.stop_di >= 0 and Di.getDi(self.stop_di)):
                 if self.height > 0:
                     if self.rec_file:
@@ -413,6 +575,7 @@ class Jack(BaseAction):
         self.action_state["action_args"] = self.action_args
         self.action_state['action_status'] = self.action_status
         self.action_state["action_runtime"] = time.time() - self.start_time
+        
 
     def reset(self):
         pass
@@ -507,8 +670,106 @@ class Rotate(BaseAction):
 
         return self.action_status
 
+class GoPath(BaseAction):
+    """直线走到指定点"""
 
-# --- 主函数 ---
+    def __init__(self, go_pos,mode=True,coordinate='robot', back_mode=False, is_hold_dir=None, max_speed=0.5, max_rot=0.3,
+                 path_dist_accuracy=0.01, path_angle_accuracy=0.05):
+        super().__init__("GoPath")
+
+        self.init = True
+        self.action_status = ActionStatus.INIT
+        self.go_pos = go_pos
+        self.coordinate = coordinate
+        self.back_mode = back_mode
+        self.is_hold_dir = is_hold_dir
+        self.max_speed = max_speed
+        self.max_rot = max_rot
+        self.path_dist_accuracy = path_dist_accuracy
+        self.path_angle_accuracy = path_angle_accuracy
+        self.useOdo = True if mode == 0 else False
+        self.go_path = goPath.GoPath()
+
+    def run(self, j: Jack):
+        if self.init:
+            self.init = False
+            self.action_status = ActionStatus.RUNNING
+
+        args = {
+            "x": self.go_pos[0],
+            "y": self.go_pos[1],
+            "theta": self.go_pos[2],
+            "backMode": self.back_mode,
+            "hold_dir": self.is_hold_dir,
+            "coordinate": self.coordinate,
+            "maxSpeed": self.max_speed,
+            "maxRot": self.max_rot,
+            "reachDist": self.path_dist_accuracy,
+            "reachAngle": self.path_angle_accuracy,
+            "useOdo": self.useOdo
+        }
+        print(f"参数：{args}")
+        self.action_status = self.go_path.run(args)
+
+        j.report_info["GoPath"] = {
+            "actionStatus": self.action_status,
+            "goPos": self.go_pos,
+            "backMode": self.back_mode,
+            "holdDir": self.is_hold_dir,
+            "coordinate": self.coordinate,
+            "maxSpeed": self.max_speed,
+            "maxRot": self.max_rot,
+            "reachDist": self.path_dist_accuracy,
+            "reachAngle": self.path_angle_accuracy
+        }
+        Module.reportInfo(j.report_info)
+
+class GoArc(BaseAction):
+    """圆弧走到指定点"""
+    
+    def __init__(self, rot_radius, rot_degree, rot_speed, mode=0):
+        super().__init__("GoArc")
+        self.rot_radius = rot_radius
+        self.rot_degree = rot_degree
+        self.rot_speed = rot_speed
+        self.mode = mode
+        self.action_status = ActionStatus.INIT
+
+        self.init = True
+
+    
+    def run(self, j: Jack):
+        if self.init:
+            print(234)
+            Navigation.resetOdoMove()
+            print(123)
+            self.init = False
+            self.action_status = ActionStatus.RUNNING
+        self.arg={
+            "locMode": self.mode,
+            "rotDegree": float(self.rot_degree),
+            "rotRadius": float(self.rot_radius),
+            "rotSpeed": self.rot_speed,
+            "maxRotAcc":0.05,
+            "maxRotDec":0.05,
+
+            "actionName": "ass"
+        }
+
+
+        print(f"参数：{self.arg},status:{self.action_status}")
+        # self.arg={'rotDegree': 180.0, 'rotRadius': -1.0, 'rotSpeed': 0.3, 'actionName': 'GoLeftArc'}
+        self.action_status=Navigation.runOdoMove(self.arg)
+
+        j.report_info["GoArc"] = {
+            "actionStatus": self.action_status,
+            "rotRadius": self.rot_radius,
+            "rotDegree": self.rot_degree,
+            "rotSpeed": self.rot_speed,
+            "mode": self.mode
+        }
+        Module.reportInfo(j.report_info)
+
 def main():
     # 注册脚本参数变更回调
     ScriptParam.setConfigChangeCallBack(script_config_callback)
@@ -522,10 +783,25 @@ def main():
         # 脚本任务状态管理
         status = Module.getStatus()
         print(f"-------------------------status:{status}")
-
         if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
             input_params = Module.getTaskArgs()
             print("task args:", json.dumps(input_params, indent=2))
+            # input_params = {
+            #     "type": "Arc",
+            #     "rotRadius": -1,
+            #     "rotDegree": 360,
+            #     "rotSpeed": -0.01,
+            #     "mode": 1
+            # }
+            # input_params={
+            #     "type" : "Line",
+            #     "vx": 0.1,
+            #     "vy": 0.1,
+            #     "dist": 3,
+            #     "mode": 1
+
+            # }
+
             validated_params = {}
             if input_params:
                 try:
@@ -541,6 +817,7 @@ def main():
             a.run(validated_params)
 
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+            Navigation.resetOdoMove()
             a.init_args = False
             a.action_id = 0
             a.action_list = []
