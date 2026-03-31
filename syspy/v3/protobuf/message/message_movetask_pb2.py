@@ -14,6 +14,7 @@ _sym_db = _symbol_database.Default()
 
 from google.protobuf import wrappers_pb2 as google_dot_protobuf_dot_wrappers__pb2
 from . import message_motorinfos_pb2 as message__motorinfos__pb2
+from . import message_error_pb2 as message__error__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -21,11 +22,89 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x16message_movetask.proto\x12\x0crbk.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x18message_motorinfos.proto\"\xf2\x01\n\x0cmsgMoveParam\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x15\n\x0bstringValue\x18\x02 \x01(\tH\x00\x12\x13\n\tboolValue\x18\x03 \x01(\x08H\x00\x12\x14\n\nint32Value\x18\x04 \x01(\x05H\x00\x12\x15\n\x0buint32Value\x18\x05 \x01(\rH\x00\x12\x14\n\nint64Value\x18\x06 \x01(\x03H\x00\x12\x15\n\x0buint64Value\x18\x07 \x01(\x04H\x00\x12\x14\n\nfloatValue\x18\x08 \x01(\x02H\x00\x12\x15\n\x0b\x64oubleValue\x18\t \x01(\x01H\x00\x12\x14\n\nbytesValue\x18\n \x01(\x0cH\x00\x42\x0c\n\noneofValue\"\xb7\x0c\n\x0bmsgMoveTask\x12\x11\n\tskillName\x18\x01 \x01(\t\x12-\n\x07targetX\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07targetY\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0btargetAngle\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\ntargetName\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachDist\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nreachAngle\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0breachMethod\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachVelX\x18\t \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelY\x18\n \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelW\x18\x0b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedX\x18\x0c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedY\x18\r \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedW\x18\x0e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08maxSpeed\x18\x0f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxAcc\x18\x10 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxRot\x18\x11 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotAcc\x18\x12 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cslowdownDist\x18\x13 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tblockDist\x18\x14 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveDist\x18\x15 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmoveAngle\x18\x16 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveTime\x18\x17 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12*\n\x06params\x18\x18 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveParam\x12,\n\x06taskId\x18\x19 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12,\n\x06maxDec\x18\x1a \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotDec\x18\x1b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsStopDist\x18\x1c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nobsDecDist\x18\x1d \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsDecSpeed\x18\x1e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cobsExpansion\x18\x1f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x35\n\x0f\x64\x65\x63ObsExpansion\x18  \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nsourceName\x18( \x01(\x0b\x32\x1c.google.protobuf.StringValue\"B\n\x0fmsgMoveTaskList\x12/\n\x0cmoveTaskList\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgMoveTask\":\n\x13msgMovePolygonPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"P\n\x0emsgMovePolygon\x12\x30\n\x05point\x18\x01 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\x12\x0c\n\x04name\x18\x02 \x01(\t\"\x8c\x01\n\rmsgRobotShape\x12\r\n\x05shape\x18\x01 \x01(\r\x12\x0c\n\x04head\x18\x02 \x01(\x01\x12\x0c\n\x04tail\x18\x03 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06radius\x18\x05 \x01(\x01\x12\x31\n\x06points\x18\x06 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\"%\n\rmsgNearestObs\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"V\n\x0cmsgContainer\x12\x15\n\rcontainerName\x18\x01 \x01(\t\x12\x0f\n\x07goodsId\x18\x02 \x01(\t\x12\x10\n\x08hasGoods\x18\x03 \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x04 \x01(\t\"\xae\x0f\n\rmsgMoveStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\x12\x0e\n\x06\x62lockX\x18\x02 \x01(\x01\x12\x0e\n\x06\x62lockY\x18\x03 \x01(\x01\x12\x37\n\x0b\x62lockReason\x18\x04 \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x12\n\ntargetName\x18\x05 \x01(\t\x12\x0f\n\x07targetX\x18\x06 \x01(\x01\x12\x0f\n\x07targetY\x18\x07 \x01(\x01\x12\x13\n\x0btargetAngle\x18\x08 \x01(\x01\x12\x36\n\ntaskStatus\x18\t \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\x12\x32\n\x08taskType\x18\n \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x10\n\x08\x61reaName\x18\x0b \x03(\t\x12\x18\n\x10\x66inishedPathName\x18\x0c \x03(\t\x12\x1a\n\x12unfinishedPathName\x18\r \x03(\t\x12\x13\n\x0b\x62lockDevice\x18\x0e \x01(\t\x12\x0e\n\x06taskId\x18\x10 \x01(\t\x12\x31\n\x0brobotRegion\x18\x11 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x31\n\x0bgoodsRegion\x18\x12 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x34\n\x0eremovedRegions\x18\x13 \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12:\n\rrunningStatus\x18\x14 \x01(\x0e\x32#.rbk.protocol.msgMoveStatus.rStatus\x12\x15\n\rclosestTarget\x18\x15 \x01(\t\x12\x17\n\x0f\x61\x63tualReachDist\x18\x16 \x01(\x01\x12\x18\n\x10\x61\x63tualReachAngle\x18\x17 \x01(\x01\x12/\n\nrobotShape\x18\x18 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12\x0e\n\x06slowed\x18\x19 \x01(\x08\x12\r\n\x05slowX\x18\x1a \x01(\x01\x12\r\n\x05slowY\x18\x1b \x01(\x01\x12\x36\n\nslowReason\x18\x1c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x12\n\nslowDevice\x18\x1d \x01(\t\x12.\n\x08stopPath\x18\x1f \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12.\n\x08slowPath\x18  \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12(\n\x07modules\x18! \x03(\x0b\x32\x17.rbk.protocol.msgModule\x12\x34\n\x0e\x61\x64vanceRegions\x18\" \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x0c\n\x04info\x18# \x01(\t\x12\x12\n\ntargetDist\x18$ \x01(\x01\x12=\n\x11taskStatusPackage\x18( \x01(\x0b\x32\".rbk.protocol.msgTaskStatusPackage\x12\x13\n\x0btargetLabel\x18) \x01(\t\x12\x14\n\x0c\x63losestLabel\x18* \x01(\t\x12\x35\n\x10nearestObstacles\x18+ \x03(\x0b\x32\x1b.rbk.protocol.msgNearestObs\x12.\n\ncontainers\x18, \x03(\x0b\x32\x1a.rbk.protocol.msgContainer\x12\x11\n\tdist2goal\x18- \x01(\x01\x12\x16\n\x0esafeCuttingsId\x18. \x01(\x05\x12%\n\x05mates\x18/ \x01(\x0b\x32\x16.rbk.protocol.msgMates\x12,\n\tmoveTasks\x18\x30 \x01(\x0b\x32\x19.rbk.protocol.msgMoveTask\"\xa2\x01\n\x06reason\x12\x0e\n\nultrasonic\x10\x00\x12\t\n\x05laser\x10\x01\x12\r\n\tcollision\x10\x02\x12\x08\n\x04lock\x10\x03\x12\x0f\n\x0b\x61piObstacle\x10\x04\x12\x10\n\x0cvirtualPoint\x10\x05\x12\x0f\n\x0b\x64\x65pthCamera\x10\x06\x12\x10\n\x0c\x64istanceNode\x10\x07\x12\x10\n\x0c\x64iUltrasonic\x10\x08\x12\x0c\n\x08\x64iSensor\x10\t\"x\n\x06status\x12\x0e\n\nstatusNone\x10\x00\x12\x0b\n\x07waiting\x10\x01\x12\x0b\n\x07running\x10\x02\x12\r\n\tsuspended\x10\x03\x12\r\n\tcompleted\x10\x04\x12\n\n\x06\x66\x61iled\x10\x05\x12\x0c\n\x08\x63\x61nceled\x10\x06\x12\x0c\n\x08overTime\x10\x07\"\x9e\x01\n\x04type\x12\x0c\n\x08typeNone\x10\x00\x12\x0b\n\x07goPoint\x10\x01\x12\r\n\tgoPointId\x10\x02\x12\x08\n\x04goId\x10\x03\x12\n\n\x06patrol\x10\x04\x12\x0f\n\x0bgoIntoShelf\x10\x05\x12\x12\n\x0etargetTracking\x10\x06\x12\x10\n\x0cgoByOdometer\x10\x07\x12\x14\n\x10goAlongMagstripe\x10\x08\x12\t\n\x05other\x10\x64\"O\n\x07rStatus\x12\t\n\x05rNone\x10\x00\x12\x0c\n\x08rRunning\x10\x01\x12\x0f\n\x0brNearToGoal\x10\x02\x12\r\n\trFinished\x10\x03\x12\x0b\n\x07rFailed\x10\x04\"\x87\x01\n\x11msgTaskStatusInfo\x12\x0e\n\x06taskId\x18\x01 \x01(\t\x12.\n\x04type\x18\x0b \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x32\n\x06status\x18\x0c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\"\x82\x02\n\x14msgTaskStatusPackage\x12\x37\n\x0etaskStatusList\x18\x01 \x03(\x0b\x32\x1f.rbk.protocol.msgTaskStatusInfo\x12\x15\n\rclosestTarget\x18\x02 \x01(\t\x12\x12\n\nsourceName\x18\x03 \x01(\t\x12\x12\n\ntargetName\x18\x04 \x01(\t\x12\x12\n\npercentage\x18\x05 \x01(\x01\x12\x10\n\x08\x64istance\x18\x06 \x01(\x01\x12\x13\n\x0bsourceLabel\x18\x07 \x01(\t\x12\x13\n\x0btargetLabel\x18\x08 \x01(\t\x12\x14\n\x0c\x63losestLabel\x18\t \x01(\t\x12\x0c\n\x04info\x18\x1f \x01(\t\"/\n\x0cmsgMoveSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01w\x18\x03 \x01(\x01\"2\n\x0bmsgMovePose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"\x86\x01\n\x0bmsgMovePath\x12\x11\n\tskillName\x18\x01 \x01(\t\x12\'\n\x04pose\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\x12)\n\x05speed\x18\x03 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveSpeed\x12\x10\n\x08\x66indPath\x18\x04 \x01(\x08\"\x89\x02\n\tmsgModule\x12\x12\n\nmoduleName\x18\x01 \x01(\t\x12\x34\n\x06status\x18\x02 \x01(\x0e\x32$.rbk.protocol.msgModule.moduleStatus\x12\x12\n\nactionBody\x18\x03 \x01(\t\x12\x13\n\x0b\x63\x61rgoStatus\x18\x04 \x01(\x08\x12*\n\x06motors\x18\x05 \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfo\"]\n\x0cmoduleStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tsuspended\x10\x02\x12\r\n\tcompleted\x10\x03\x12\n\n\x06\x66\x61iled\x10\x04\x12\x0c\n\x08\x63\x61nceled\x10\x05\"n\n\x0cmsgMateRobot\x12/\n\nrobotShape\x18\x01 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12-\n\nfuturePath\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\"9\n\x08msgMates\x12-\n\tmatesList\x18\x01 \x03(\x0b\x32\x1a.rbk.protocol.msgMateRobotb\x06proto3')
+  serialized_pb=_b('\n\x16message_movetask.proto\x12\x0crbk.protocol\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x18message_motorinfos.proto\x1a\x13message_error.proto\"\"\n\nmsgPoint2d\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"\xa3\x01\n\x0cmsgPolygon2d\x12(\n\x06points\x18\x01 \x03(\x0b\x32\x18.rbk.protocol.msgPoint2d\x12\x36\n\x04type\x18\x02 \x01(\x0e\x32(.rbk.protocol.msgPolygon2d.polygon2dType\"1\n\rpolygon2dType\x12\x0b\n\x07\x63oncave\x10\x00\x12\t\n\x05other\x10\x01\x12\x08\n\x04rect\x10\x02\"\xf2\x01\n\x0cmsgMoveParam\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x15\n\x0bstringValue\x18\x02 \x01(\tH\x00\x12\x13\n\tboolValue\x18\x03 \x01(\x08H\x00\x12\x14\n\nint32Value\x18\x04 \x01(\x05H\x00\x12\x15\n\x0buint32Value\x18\x05 \x01(\rH\x00\x12\x14\n\nint64Value\x18\x06 \x01(\x03H\x00\x12\x15\n\x0buint64Value\x18\x07 \x01(\x04H\x00\x12\x14\n\nfloatValue\x18\x08 \x01(\x02H\x00\x12\x15\n\x0b\x64oubleValue\x18\t \x01(\x01H\x00\x12\x14\n\nbytesValue\x18\n \x01(\x0cH\x00\x42\x0c\n\noneofValue\"\xb7\x0c\n\x0bmsgMoveTask\x12\x11\n\tskillName\x18\x01 \x01(\t\x12-\n\x07targetX\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12-\n\x07targetY\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0btargetAngle\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\ntargetName\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachDist\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nreachAngle\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0breachMethod\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\treachVelX\x18\t \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelY\x18\n \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\treachVelW\x18\x0b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedX\x18\x0c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedY\x18\r \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06speedW\x18\x0e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08maxSpeed\x18\x0f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxAcc\x18\x10 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12,\n\x06maxRot\x18\x11 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotAcc\x18\x12 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cslowdownDist\x18\x13 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tblockDist\x18\x14 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveDist\x18\x15 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmoveAngle\x18\x16 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12.\n\x08moveTime\x18\x17 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12*\n\x06params\x18\x18 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveParam\x12,\n\x06taskId\x18\x19 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12,\n\x06maxDec\x18\x1a \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12/\n\tmaxRotDec\x18\x1b \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsStopDist\x18\x1c \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nobsDecDist\x18\x1d \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x31\n\x0bobsDecSpeed\x18\x1e \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x32\n\x0cobsExpansion\x18\x1f \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x35\n\x0f\x64\x65\x63ObsExpansion\x18  \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12\x30\n\nsourceName\x18( \x01(\x0b\x32\x1c.google.protobuf.StringValue\"B\n\x0fmsgMoveTaskList\x12/\n\x0cmoveTaskList\x18\x01 \x03(\x0b\x32\x19.rbk.protocol.msgMoveTask\":\n\x13msgMovePolygonPoint\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"P\n\x0emsgMovePolygon\x12\x30\n\x05point\x18\x01 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\x12\x0c\n\x04name\x18\x02 \x01(\t\"\x8c\x01\n\rmsgRobotShape\x12\r\n\x05shape\x18\x01 \x01(\r\x12\x0c\n\x04head\x18\x02 \x01(\x01\x12\x0c\n\x04tail\x18\x03 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06radius\x18\x05 \x01(\x01\x12\x31\n\x06points\x18\x06 \x03(\x0b\x32!.rbk.protocol.msgMovePolygonPoint\"V\n\x0cmsgContainer\x12\x15\n\rcontainerName\x18\x01 \x01(\t\x12\x0f\n\x07goodsId\x18\x02 \x01(\t\x12\x10\n\x08hasGoods\x18\x03 \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x04 \x01(\t\"\x9a\x02\n\x0cmsgDualRobot\x12\x36\n\x04type\x18\x01 \x01(\x0e\x32(.rbk.protocol.msgDualRobot.dualRobotType\x12\x17\n\x0f\x63onnectToLeader\x18\x02 \x01(\x08\x12\x19\n\x11\x63onnectToFollower\x18\x03 \x01(\x08\x12\x13\n\x0b\x64tuStatusOk\x18\x04 \x01(\x08\x12\x14\n\x0cmissFollower\x18\x05 \x01(\x08\x12\x18\n\x10\x66ollowerHasError\x18\x06 \x01(\x08\x12\x10\n\x08leaderId\x18\x07 \x01(\t\x12\x12\n\nfollowerId\x18\x08 \x01(\t\"3\n\rdualRobotType\x12\x08\n\x04none\x10\x00\x12\n\n\x06leader\x10\x01\x12\x0c\n\x08\x66ollower\x10\x02\"\xd6\x01\n\x0fmsgRequestSpace\x12=\n\x06status\x18\x01 \x01(\x0e\x32-.rbk.protocol.msgRequestSpace.resourcesStatus\x12\x0e\n\x06reason\x18\x02 \x01(\t\x12\x30\n\x0cspatialZones\x18\x03 \x03(\x0b\x32\x1a.rbk.protocol.msgPolygon2d\x12\x0e\n\x06unitId\x18\x04 \x01(\t\"2\n\x0fresourcesStatus\x12\x08\n\x04none\x10\x00\x12\t\n\x05\x61pply\x10\x01\x12\n\n\x06\x61\x63\x63\x65pt\x10\x02\"\xf3\x10\n\rmsgMoveStatus\x12\x0f\n\x07\x62locked\x18\x01 \x01(\x08\x12\x0e\n\x06\x62lockX\x18\x02 \x01(\x01\x12\x0e\n\x06\x62lockY\x18\x03 \x01(\x01\x12\x37\n\x0b\x62lockReason\x18\x04 \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x12\n\ntargetName\x18\x05 \x01(\t\x12\x0f\n\x07targetX\x18\x06 \x01(\x01\x12\x0f\n\x07targetY\x18\x07 \x01(\x01\x12\x13\n\x0btargetAngle\x18\x08 \x01(\x01\x12\x36\n\ntaskStatus\x18\t \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\x12\x32\n\x08taskType\x18\n \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x10\n\x08\x61reaName\x18\x0b \x03(\t\x12\x18\n\x10\x66inishedPathName\x18\x0c \x03(\t\x12\x1a\n\x12unfinishedPathName\x18\r \x03(\t\x12\x13\n\x0b\x62lockDevice\x18\x0e \x01(\t\x12\x0e\n\x06taskId\x18\x10 \x01(\t\x12\x31\n\x0brobotRegion\x18\x11 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x31\n\x0bgoodsRegion\x18\x12 \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x34\n\x0eremovedRegions\x18\x13 \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12:\n\rrunningStatus\x18\x14 \x01(\x0e\x32#.rbk.protocol.msgMoveStatus.rStatus\x12\x15\n\rclosestTarget\x18\x15 \x01(\t\x12\x17\n\x0f\x61\x63tualReachDist\x18\x16 \x01(\x01\x12\x18\n\x10\x61\x63tualReachAngle\x18\x17 \x01(\x01\x12/\n\nrobotShape\x18\x18 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12\x0e\n\x06slowed\x18\x19 \x01(\x08\x12\r\n\x05slowX\x18\x1a \x01(\x01\x12\r\n\x05slowY\x18\x1b \x01(\x01\x12\x36\n\nslowReason\x18\x1c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.reason\x12\x12\n\nslowDevice\x18\x1d \x01(\t\x12.\n\x08stopPath\x18\x1f \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12.\n\x08slowPath\x18  \x01(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12(\n\x07modules\x18! \x03(\x0b\x32\x17.rbk.protocol.msgModule\x12\x34\n\x0e\x61\x64vanceRegions\x18\" \x03(\x0b\x32\x1c.rbk.protocol.msgMovePolygon\x12\x0c\n\x04info\x18# \x01(\t\x12\x12\n\ntargetDist\x18$ \x01(\x01\x12=\n\x11taskStatusPackage\x18( \x01(\x0b\x32\".rbk.protocol.msgTaskStatusPackage\x12\x13\n\x0btargetLabel\x18) \x01(\t\x12\x14\n\x0c\x63losestLabel\x18* \x01(\t\x12\x32\n\x10nearestObstacles\x18+ \x03(\x0b\x32\x18.rbk.protocol.msgPoint2d\x12.\n\ncontainers\x18, \x03(\x0b\x32\x1a.rbk.protocol.msgContainer\x12\x11\n\tdist2goal\x18- \x01(\x01\x12\x16\n\x0esafeCuttingsId\x18. \x01(\x05\x12%\n\x05mates\x18/ \x01(\x0b\x32\x16.rbk.protocol.msgMates\x12,\n\tmoveTasks\x18\x30 \x01(\x0b\x32\x19.rbk.protocol.msgMoveTask\x12\x37\n\x06\x65rrors\x18\x31 \x03(\x0b\x32\'.rbk.protocol.msgMoveStatus.ErrorsEntry\x12-\n\tdualRobot\x18\x32 \x01(\x0b\x32\x1a.rbk.protocol.msgDualRobot\x12\x33\n\x0crequestSpace\x18\x33 \x01(\x0b\x32\x1d.rbk.protocol.msgRequestSpace\x1a\x45\n\x0b\x45rrorsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12%\n\x05value\x18\x02 \x01(\x0b\x32\x16.rbk.protocol.msgError:\x02\x38\x01\"\xa2\x01\n\x06reason\x12\x0e\n\nultrasonic\x10\x00\x12\t\n\x05laser\x10\x01\x12\r\n\tcollision\x10\x02\x12\x08\n\x04lock\x10\x03\x12\x0f\n\x0b\x61piObstacle\x10\x04\x12\x10\n\x0cvirtualPoint\x10\x05\x12\x0f\n\x0b\x64\x65pthCamera\x10\x06\x12\x10\n\x0c\x64istanceNode\x10\x07\x12\x10\n\x0c\x64iUltrasonic\x10\x08\x12\x0c\n\x08\x64iSensor\x10\t\"\\\n\x06status\x12\x0e\n\nstatusNone\x10\x00\x12\x0b\n\x07waiting\x10\x01\x12\x0b\n\x07running\x10\x02\x12\r\n\tsuspended\x10\x03\x12\r\n\tcompleted\x10\x04\x12\n\n\x06\x66\x61iled\x10\x05\"\x9e\x01\n\x04type\x12\x0c\n\x08typeNone\x10\x00\x12\x0b\n\x07goPoint\x10\x01\x12\r\n\tgoPointId\x10\x02\x12\x08\n\x04goId\x10\x03\x12\n\n\x06patrol\x10\x04\x12\x0f\n\x0bgoIntoShelf\x10\x05\x12\x12\n\x0etargetTracking\x10\x06\x12\x10\n\x0cgoByOdometer\x10\x07\x12\x14\n\x10goAlongMagstripe\x10\x08\x12\t\n\x05other\x10\x64\"O\n\x07rStatus\x12\t\n\x05rNone\x10\x00\x12\x0c\n\x08rRunning\x10\x01\x12\x0f\n\x0brNearToGoal\x10\x02\x12\r\n\trFinished\x10\x03\x12\x0b\n\x07rFailed\x10\x04\"\x87\x01\n\x11msgTaskStatusInfo\x12\x0e\n\x06taskId\x18\x01 \x01(\t\x12.\n\x04type\x18\x0b \x01(\x0e\x32 .rbk.protocol.msgMoveStatus.type\x12\x32\n\x06status\x18\x0c \x01(\x0e\x32\".rbk.protocol.msgMoveStatus.status\"\x82\x02\n\x14msgTaskStatusPackage\x12\x37\n\x0etaskStatusList\x18\x01 \x03(\x0b\x32\x1f.rbk.protocol.msgTaskStatusInfo\x12\x15\n\rclosestTarget\x18\x02 \x01(\t\x12\x12\n\nsourceName\x18\x03 \x01(\t\x12\x12\n\ntargetName\x18\x04 \x01(\t\x12\x12\n\npercentage\x18\x05 \x01(\x01\x12\x10\n\x08\x64istance\x18\x06 \x01(\x01\x12\x13\n\x0bsourceLabel\x18\x07 \x01(\t\x12\x13\n\x0btargetLabel\x18\x08 \x01(\t\x12\x14\n\x0c\x63losestLabel\x18\t \x01(\t\x12\x0c\n\x04info\x18\x1f \x01(\t\"/\n\x0cmsgMoveSpeed\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01w\x18\x03 \x01(\x01\"2\n\x0bmsgMovePose\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\r\n\x05\x61ngle\x18\x03 \x01(\x01\"\x86\x01\n\x0bmsgMovePath\x12\x11\n\tskillName\x18\x01 \x01(\t\x12\'\n\x04pose\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\x12)\n\x05speed\x18\x03 \x03(\x0b\x32\x1a.rbk.protocol.msgMoveSpeed\x12\x10\n\x08\x66indPath\x18\x04 \x01(\x08\"\x89\x02\n\tmsgModule\x12\x12\n\nmoduleName\x18\x01 \x01(\t\x12\x34\n\x06status\x18\x02 \x01(\x0e\x32$.rbk.protocol.msgModule.moduleStatus\x12\x12\n\nactionBody\x18\x03 \x01(\t\x12\x13\n\x0b\x63\x61rgoStatus\x18\x04 \x01(\x08\x12*\n\x06motors\x18\x05 \x03(\x0b\x32\x1a.rbk.protocol.msgMotorInfo\"]\n\x0cmoduleStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tsuspended\x10\x02\x12\r\n\tcompleted\x10\x03\x12\n\n\x06\x66\x61iled\x10\x04\x12\x0c\n\x08\x63\x61nceled\x10\x05\"n\n\x0cmsgMateRobot\x12/\n\nrobotShape\x18\x01 \x01(\x0b\x32\x1b.rbk.protocol.msgRobotShape\x12-\n\nfuturePath\x18\x02 \x03(\x0b\x32\x19.rbk.protocol.msgMovePose\"9\n\x08msgMates\x12-\n\tmatesList\x18\x01 \x03(\x0b\x32\x1a.rbk.protocol.msgMateRobotb\x06proto3')
   ,
-  dependencies=[google_dot_protobuf_dot_wrappers__pb2.DESCRIPTOR,message__motorinfos__pb2.DESCRIPTOR,])
+  dependencies=[google_dot_protobuf_dot_wrappers__pb2.DESCRIPTOR,message__motorinfos__pb2.DESCRIPTOR,message__error__pb2.DESCRIPTOR,])
 
 
+
+_MSGPOLYGON2D_POLYGON2DTYPE = _descriptor.EnumDescriptor(
+  name='polygon2dType',
+  full_name='rbk.protocol.msgPolygon2d.polygon2dType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='concave', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='other', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='rect', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=270,
+  serialized_end=319,
+)
+_sym_db.RegisterEnumDescriptor(_MSGPOLYGON2D_POLYGON2DTYPE)
+
+_MSGDUALROBOT_DUALROBOTTYPE = _descriptor.EnumDescriptor(
+  name='dualRobotType',
+  full_name='rbk.protocol.msgDualRobot.dualRobotType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='none', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='leader', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='follower', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=2833,
+  serialized_end=2884,
+)
+_sym_db.RegisterEnumDescriptor(_MSGDUALROBOT_DUALROBOTTYPE)
+
+_MSGREQUESTSPACE_RESOURCESSTATUS = _descriptor.EnumDescriptor(
+  name='resourcesStatus',
+  full_name='rbk.protocol.msgRequestSpace.resourcesStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='none', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='apply', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='accept', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=3051,
+  serialized_end=3101,
+)
+_sym_db.RegisterEnumDescriptor(_MSGREQUESTSPACE_RESOURCESSTATUS)
 
 _MSGMOVESTATUS_REASON = _descriptor.EnumDescriptor(
   name='reason',
@@ -76,8 +155,8 @@ _MSGMOVESTATUS_REASON = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=3858,
-  serialized_end=4020,
+  serialized_start=4769,
+  serialized_end=4931,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_REASON)
 
@@ -111,19 +190,11 @@ _MSGMOVESTATUS_STATUS = _descriptor.EnumDescriptor(
       name='failed', index=5, number=5,
       serialized_options=None,
       type=None),
-    _descriptor.EnumValueDescriptor(
-      name='canceled', index=6, number=6,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='overTime', index=7, number=7,
-      serialized_options=None,
-      type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=4022,
-  serialized_end=4142,
+  serialized_start=4933,
+  serialized_end=5025,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_STATUS)
 
@@ -176,8 +247,8 @@ _MSGMOVESTATUS_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=4145,
-  serialized_end=4303,
+  serialized_start=5028,
+  serialized_end=5186,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_TYPE)
 
@@ -210,8 +281,8 @@ _MSGMOVESTATUS_RSTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=4305,
-  serialized_end=4384,
+  serialized_start=5188,
+  serialized_end=5267,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMOVESTATUS_RSTATUS)
 
@@ -248,10 +319,87 @@ _MSGMODULE_MODULESTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=5196,
-  serialized_end=5289,
+  serialized_start=6079,
+  serialized_end=6172,
 )
 _sym_db.RegisterEnumDescriptor(_MSGMODULE_MODULESTATUS)
+
+
+_MSGPOINT2D = _descriptor.Descriptor(
+  name='msgPoint2d',
+  full_name='rbk.protocol.msgPoint2d',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgPoint2d.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgPoint2d.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=119,
+  serialized_end=153,
+)
+
+
+_MSGPOLYGON2D = _descriptor.Descriptor(
+  name='msgPolygon2d',
+  full_name='rbk.protocol.msgPolygon2d',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='points', full_name='rbk.protocol.msgPolygon2d.points', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='type', full_name='rbk.protocol.msgPolygon2d.type', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGPOLYGON2D_POLYGON2DTYPE,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=156,
+  serialized_end=319,
+)
 
 
 _MSGMOVEPARAM = _descriptor.Descriptor(
@@ -346,8 +494,8 @@ _MSGMOVEPARAM = _descriptor.Descriptor(
       name='oneofValue', full_name='rbk.protocol.msgMoveParam.oneofValue',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=99,
-  serialized_end=341,
+  serialized_start=322,
+  serialized_end=564,
 )
 
 
@@ -601,8 +749,8 @@ _MSGMOVETASK = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=344,
-  serialized_end=1935,
+  serialized_start=567,
+  serialized_end=2158,
 )
 
 
@@ -632,8 +780,8 @@ _MSGMOVETASKLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1937,
-  serialized_end=2003,
+  serialized_start=2160,
+  serialized_end=2226,
 )
 
 
@@ -677,8 +825,8 @@ _MSGMOVEPOLYGONPOINT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2005,
-  serialized_end=2063,
+  serialized_start=2228,
+  serialized_end=2286,
 )
 
 
@@ -715,8 +863,8 @@ _MSGMOVEPOLYGON = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2065,
-  serialized_end=2145,
+  serialized_start=2288,
+  serialized_end=2368,
 )
 
 
@@ -781,46 +929,8 @@ _MSGROBOTSHAPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2148,
-  serialized_end=2288,
-)
-
-
-_MSGNEARESTOBS = _descriptor.Descriptor(
-  name='msgNearestObs',
-  full_name='rbk.protocol.msgNearestObs',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='x', full_name='rbk.protocol.msgNearestObs.x', index=0,
-      number=1, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='y', full_name='rbk.protocol.msgNearestObs.y', index=1,
-      number=2, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=2290,
-  serialized_end=2327,
+  serialized_start=2371,
+  serialized_end=2511,
 )
 
 
@@ -871,10 +981,181 @@ _MSGCONTAINER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2329,
-  serialized_end=2415,
+  serialized_start=2513,
+  serialized_end=2599,
 )
 
+
+_MSGDUALROBOT = _descriptor.Descriptor(
+  name='msgDualRobot',
+  full_name='rbk.protocol.msgDualRobot',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='type', full_name='rbk.protocol.msgDualRobot.type', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='connectToLeader', full_name='rbk.protocol.msgDualRobot.connectToLeader', index=1,
+      number=2, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='connectToFollower', full_name='rbk.protocol.msgDualRobot.connectToFollower', index=2,
+      number=3, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dtuStatusOk', full_name='rbk.protocol.msgDualRobot.dtuStatusOk', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='missFollower', full_name='rbk.protocol.msgDualRobot.missFollower', index=4,
+      number=5, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='followerHasError', full_name='rbk.protocol.msgDualRobot.followerHasError', index=5,
+      number=6, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='leaderId', full_name='rbk.protocol.msgDualRobot.leaderId', index=6,
+      number=7, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='followerId', full_name='rbk.protocol.msgDualRobot.followerId', index=7,
+      number=8, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGDUALROBOT_DUALROBOTTYPE,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2602,
+  serialized_end=2884,
+)
+
+
+_MSGREQUESTSPACE = _descriptor.Descriptor(
+  name='msgRequestSpace',
+  full_name='rbk.protocol.msgRequestSpace',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='status', full_name='rbk.protocol.msgRequestSpace.status', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='reason', full_name='rbk.protocol.msgRequestSpace.reason', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='spatialZones', full_name='rbk.protocol.msgRequestSpace.spatialZones', index=2,
+      number=3, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='unitId', full_name='rbk.protocol.msgRequestSpace.unitId', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _MSGREQUESTSPACE_RESOURCESSTATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2887,
+  serialized_end=3101,
+)
+
+
+_MSGMOVESTATUS_ERRORSENTRY = _descriptor.Descriptor(
+  name='ErrorsEntry',
+  full_name='rbk.protocol.msgMoveStatus.ErrorsEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='rbk.protocol.msgMoveStatus.ErrorsEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='rbk.protocol.msgMoveStatus.ErrorsEntry.value', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=_b('8\001'),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=4697,
+  serialized_end=4766,
+)
 
 _MSGMOVESTATUS = _descriptor.Descriptor(
   name='msgMoveStatus',
@@ -1184,10 +1465,31 @@ _MSGMOVESTATUS = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='errors', full_name='rbk.protocol.msgMoveStatus.errors', index=43,
+      number=49, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dualRobot', full_name='rbk.protocol.msgMoveStatus.dualRobot', index=44,
+      number=50, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='requestSpace', full_name='rbk.protocol.msgMoveStatus.requestSpace', index=45,
+      number=51, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
-  nested_types=[],
+  nested_types=[_MSGMOVESTATUS_ERRORSENTRY, ],
   enum_types=[
     _MSGMOVESTATUS_REASON,
     _MSGMOVESTATUS_STATUS,
@@ -1200,8 +1502,8 @@ _MSGMOVESTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2418,
-  serialized_end=4384,
+  serialized_start=3104,
+  serialized_end=5267,
 )
 
 
@@ -1245,8 +1547,8 @@ _MSGTASKSTATUSINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4387,
-  serialized_end=4522,
+  serialized_start=5270,
+  serialized_end=5405,
 )
 
 
@@ -1339,8 +1641,8 @@ _MSGTASKSTATUSPACKAGE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4525,
-  serialized_end=4783,
+  serialized_start=5408,
+  serialized_end=5666,
 )
 
 
@@ -1384,8 +1686,8 @@ _MSGMOVESPEED = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4785,
-  serialized_end=4832,
+  serialized_start=5668,
+  serialized_end=5715,
 )
 
 
@@ -1429,8 +1731,8 @@ _MSGMOVEPOSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4834,
-  serialized_end=4884,
+  serialized_start=5717,
+  serialized_end=5767,
 )
 
 
@@ -1481,8 +1783,8 @@ _MSGMOVEPATH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4887,
-  serialized_end=5021,
+  serialized_start=5770,
+  serialized_end=5904,
 )
 
 
@@ -1541,8 +1843,8 @@ _MSGMODULE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5024,
-  serialized_end=5289,
+  serialized_start=5907,
+  serialized_end=6172,
 )
 
 
@@ -1579,8 +1881,8 @@ _MSGMATEROBOT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5291,
-  serialized_end=5401,
+  serialized_start=6174,
+  serialized_end=6284,
 )
 
 
@@ -1610,10 +1912,13 @@ _MSGMATES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5403,
-  serialized_end=5460,
+  serialized_start=6286,
+  serialized_end=6343,
 )
 
+_MSGPOLYGON2D.fields_by_name['points'].message_type = _MSGPOINT2D
+_MSGPOLYGON2D.fields_by_name['type'].enum_type = _MSGPOLYGON2D_POLYGON2DTYPE
+_MSGPOLYGON2D_POLYGON2DTYPE.containing_type = _MSGPOLYGON2D
 _MSGMOVEPARAM.oneofs_by_name['oneofValue'].fields.append(
   _MSGMOVEPARAM.fields_by_name['stringValue'])
 _MSGMOVEPARAM.fields_by_name['stringValue'].containing_oneof = _MSGMOVEPARAM.oneofs_by_name['oneofValue']
@@ -1676,6 +1981,13 @@ _MSGMOVETASK.fields_by_name['sourceName'].message_type = google_dot_protobuf_dot
 _MSGMOVETASKLIST.fields_by_name['moveTaskList'].message_type = _MSGMOVETASK
 _MSGMOVEPOLYGON.fields_by_name['point'].message_type = _MSGMOVEPOLYGONPOINT
 _MSGROBOTSHAPE.fields_by_name['points'].message_type = _MSGMOVEPOLYGONPOINT
+_MSGDUALROBOT.fields_by_name['type'].enum_type = _MSGDUALROBOT_DUALROBOTTYPE
+_MSGDUALROBOT_DUALROBOTTYPE.containing_type = _MSGDUALROBOT
+_MSGREQUESTSPACE.fields_by_name['status'].enum_type = _MSGREQUESTSPACE_RESOURCESSTATUS
+_MSGREQUESTSPACE.fields_by_name['spatialZones'].message_type = _MSGPOLYGON2D
+_MSGREQUESTSPACE_RESOURCESSTATUS.containing_type = _MSGREQUESTSPACE
+_MSGMOVESTATUS_ERRORSENTRY.fields_by_name['value'].message_type = message__error__pb2._MSGERROR
+_MSGMOVESTATUS_ERRORSENTRY.containing_type = _MSGMOVESTATUS
 _MSGMOVESTATUS.fields_by_name['blockReason'].enum_type = _MSGMOVESTATUS_REASON
 _MSGMOVESTATUS.fields_by_name['taskStatus'].enum_type = _MSGMOVESTATUS_STATUS
 _MSGMOVESTATUS.fields_by_name['taskType'].enum_type = _MSGMOVESTATUS_TYPE
@@ -1690,10 +2002,13 @@ _MSGMOVESTATUS.fields_by_name['slowPath'].message_type = _MSGMOVEPOLYGON
 _MSGMOVESTATUS.fields_by_name['modules'].message_type = _MSGMODULE
 _MSGMOVESTATUS.fields_by_name['advanceRegions'].message_type = _MSGMOVEPOLYGON
 _MSGMOVESTATUS.fields_by_name['taskStatusPackage'].message_type = _MSGTASKSTATUSPACKAGE
-_MSGMOVESTATUS.fields_by_name['nearestObstacles'].message_type = _MSGNEARESTOBS
+_MSGMOVESTATUS.fields_by_name['nearestObstacles'].message_type = _MSGPOINT2D
 _MSGMOVESTATUS.fields_by_name['containers'].message_type = _MSGCONTAINER
 _MSGMOVESTATUS.fields_by_name['mates'].message_type = _MSGMATES
 _MSGMOVESTATUS.fields_by_name['moveTasks'].message_type = _MSGMOVETASK
+_MSGMOVESTATUS.fields_by_name['errors'].message_type = _MSGMOVESTATUS_ERRORSENTRY
+_MSGMOVESTATUS.fields_by_name['dualRobot'].message_type = _MSGDUALROBOT
+_MSGMOVESTATUS.fields_by_name['requestSpace'].message_type = _MSGREQUESTSPACE
 _MSGMOVESTATUS_REASON.containing_type = _MSGMOVESTATUS
 _MSGMOVESTATUS_STATUS.containing_type = _MSGMOVESTATUS
 _MSGMOVESTATUS_TYPE.containing_type = _MSGMOVESTATUS
@@ -1709,14 +2024,17 @@ _MSGMODULE_MODULESTATUS.containing_type = _MSGMODULE
 _MSGMATEROBOT.fields_by_name['robotShape'].message_type = _MSGROBOTSHAPE
 _MSGMATEROBOT.fields_by_name['futurePath'].message_type = _MSGMOVEPOSE
 _MSGMATES.fields_by_name['matesList'].message_type = _MSGMATEROBOT
+DESCRIPTOR.message_types_by_name['msgPoint2d'] = _MSGPOINT2D
+DESCRIPTOR.message_types_by_name['msgPolygon2d'] = _MSGPOLYGON2D
 DESCRIPTOR.message_types_by_name['msgMoveParam'] = _MSGMOVEPARAM
 DESCRIPTOR.message_types_by_name['msgMoveTask'] = _MSGMOVETASK
 DESCRIPTOR.message_types_by_name['msgMoveTaskList'] = _MSGMOVETASKLIST
 DESCRIPTOR.message_types_by_name['msgMovePolygonPoint'] = _MSGMOVEPOLYGONPOINT
 DESCRIPTOR.message_types_by_name['msgMovePolygon'] = _MSGMOVEPOLYGON
 DESCRIPTOR.message_types_by_name['msgRobotShape'] = _MSGROBOTSHAPE
-DESCRIPTOR.message_types_by_name['msgNearestObs'] = _MSGNEARESTOBS
 DESCRIPTOR.message_types_by_name['msgContainer'] = _MSGCONTAINER
+DESCRIPTOR.message_types_by_name['msgDualRobot'] = _MSGDUALROBOT
+DESCRIPTOR.message_types_by_name['msgRequestSpace'] = _MSGREQUESTSPACE
 DESCRIPTOR.message_types_by_name['msgMoveStatus'] = _MSGMOVESTATUS
 DESCRIPTOR.message_types_by_name['msgTaskStatusInfo'] = _MSGTASKSTATUSINFO
 DESCRIPTOR.message_types_by_name['msgTaskStatusPackage'] = _MSGTASKSTATUSPACKAGE
@@ -1727,6 +2045,20 @@ DESCRIPTOR.message_types_by_name['msgModule'] = _MSGMODULE
 DESCRIPTOR.message_types_by_name['msgMateRobot'] = _MSGMATEROBOT
 DESCRIPTOR.message_types_by_name['msgMates'] = _MSGMATES
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
+
+msgPoint2d = _reflection.GeneratedProtocolMessageType('msgPoint2d', (_message.Message,), dict(
+  DESCRIPTOR = _MSGPOINT2D,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgPoint2d)
+  ))
+_sym_db.RegisterMessage(msgPoint2d)
+
+msgPolygon2d = _reflection.GeneratedProtocolMessageType('msgPolygon2d', (_message.Message,), dict(
+  DESCRIPTOR = _MSGPOLYGON2D,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgPolygon2d)
+  ))
+_sym_db.RegisterMessage(msgPolygon2d)
 
 msgMoveParam = _reflection.GeneratedProtocolMessageType('msgMoveParam', (_message.Message,), dict(
   DESCRIPTOR = _MSGMOVEPARAM,
@@ -1770,13 +2102,6 @@ msgRobotShape = _reflection.GeneratedProtocolMessageType('msgRobotShape', (_mess
   ))
 _sym_db.RegisterMessage(msgRobotShape)
 
-msgNearestObs = _reflection.GeneratedProtocolMessageType('msgNearestObs', (_message.Message,), dict(
-  DESCRIPTOR = _MSGNEARESTOBS,
-  __module__ = 'message_movetask_pb2'
-  # @@protoc_insertion_point(class_scope:rbk.protocol.msgNearestObs)
-  ))
-_sym_db.RegisterMessage(msgNearestObs)
-
 msgContainer = _reflection.GeneratedProtocolMessageType('msgContainer', (_message.Message,), dict(
   DESCRIPTOR = _MSGCONTAINER,
   __module__ = 'message_movetask_pb2'
@@ -1784,12 +2109,34 @@ msgContainer = _reflection.GeneratedProtocolMessageType('msgContainer', (_messag
   ))
 _sym_db.RegisterMessage(msgContainer)
 
+msgDualRobot = _reflection.GeneratedProtocolMessageType('msgDualRobot', (_message.Message,), dict(
+  DESCRIPTOR = _MSGDUALROBOT,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgDualRobot)
+  ))
+_sym_db.RegisterMessage(msgDualRobot)
+
+msgRequestSpace = _reflection.GeneratedProtocolMessageType('msgRequestSpace', (_message.Message,), dict(
+  DESCRIPTOR = _MSGREQUESTSPACE,
+  __module__ = 'message_movetask_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgRequestSpace)
+  ))
+_sym_db.RegisterMessage(msgRequestSpace)
+
 msgMoveStatus = _reflection.GeneratedProtocolMessageType('msgMoveStatus', (_message.Message,), dict(
+
+  ErrorsEntry = _reflection.GeneratedProtocolMessageType('ErrorsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _MSGMOVESTATUS_ERRORSENTRY,
+    __module__ = 'message_movetask_pb2'
+    # @@protoc_insertion_point(class_scope:rbk.protocol.msgMoveStatus.ErrorsEntry)
+    ))
+  ,
   DESCRIPTOR = _MSGMOVESTATUS,
   __module__ = 'message_movetask_pb2'
   # @@protoc_insertion_point(class_scope:rbk.protocol.msgMoveStatus)
   ))
 _sym_db.RegisterMessage(msgMoveStatus)
+_sym_db.RegisterMessage(msgMoveStatus.ErrorsEntry)
 
 msgTaskStatusInfo = _reflection.GeneratedProtocolMessageType('msgTaskStatusInfo', (_message.Message,), dict(
   DESCRIPTOR = _MSGTASKSTATUSINFO,
@@ -1848,4 +2195,5 @@ msgMates = _reflection.GeneratedProtocolMessageType('msgMates', (_message.Messag
 _sym_db.RegisterMessage(msgMates)
 
 
+_MSGMOVESTATUS_ERRORSENTRY._options = None
 # @@protoc_insertion_point(module_scope)
