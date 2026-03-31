@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/2/10
+# @Date: 2026/3/31
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: 脚本参数规范化第一版
+# @Update: fix: 调试任务导致开机calib失败
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -473,7 +473,6 @@ config_params = ConfigParams()
 # ============================================================================
 DEBUG_ONLY_TASKS = [
     "none",  # 空操作
-    "calib",  # 强制标零
     "recQrcode",  # 识别二维码
     "recBoxBarcode",  # 识别料箱一维码
     "takePhoto",  # 拍照
@@ -1212,12 +1211,15 @@ class ContainerRobot(ModuleBase):
                     self.set_stretch_motor_calib = True
 
             elif self.calib_step[0] and not self.calib_step[1]:
+                Trace.log(f"calib_step[3]----------")
                 if not self.set_lift_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
                     Motor.motorCalib(ConfigParams.lift_motor_name)
                     self.set_lift_motor_calib = True
 
             elif self.calib_step[1] and not self.calib_step[2]:
+                Trace.log(f"calib_step[1]----------")
                 if not self.set_rotate_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
+                    Trace.log(f"calib_step[2]----------")
                     Motor.motorCalib(ConfigParams.rotate_motor_name)
                     self.set_rotate_motor_calib = True
 
@@ -1228,9 +1230,12 @@ class ContainerRobot(ModuleBase):
                 self.set_stretch_motor_calib = False
                 Abnormal.clear(54305)
 
-            self.calib_step[0] = self.stretch_motor_calib
-            self.calib_step[1] = self.lift_motor_calib
-            self.calib_step[2] = self.rotate_motor_calib
+            if self.stretch_motor_calib == 2:
+                self.calib_step[0] = True
+            if self.lift_motor_calib == 2:
+                self.calib_step[1] = True
+            if self.rotate_motor_calib == 2:
+                self.calib_step[2] = True
 
     def get_motor_calib_state(self):
         odo_data = Odometer.getData()
@@ -1247,8 +1252,8 @@ class ContainerRobot(ModuleBase):
                 if m_f["key"] == ConfigParams.rotate_motor_name:
                     self.rotate_motor_calib = m_f.get("calib", None)
                     self.rotate_motor_stop = m_f.get("stop", None)
-        # self.motor_calib_state = (self.lift_motor_calib == 2 and self.stretch_motor_calib == 2 and self.rotate_motor_calib == 2)
-        self.motor_calib_state = True
+        self.motor_calib_state = (
+                self.lift_motor_calib == 2 and self.stretch_motor_calib == 2 and self.rotate_motor_calib == 2)
 
     def force_calib(self):
         if Timer.delay(3):
@@ -2450,6 +2455,7 @@ def main():
         # 脚本任务状态管理
         status = robot.status
         Module.setStatus(status)
+
         containers = Container.getContainers()
         robot.report_info['containers'] = containers
         Module.reportInfo(robot.report_info)
@@ -2468,13 +2474,13 @@ def main():
                     debug_print("check ok, args:", json.dumps(args, indent=2))
                 except ValueError as e:
                     print("check error:", e)
-                # 调试任务拦截
-                operation = args.get("operation", "")
-                if not check_debug_task(operation):
-                    Abnormal.setTask(53740,
-                                     f"任务 '{operation}' 为调试任务，请先在脚本配置中开启 debugMode！",
-                                     "", "", "")
-                    continue
+                # # 调试任务拦截
+                # operation = args.get("operation", "")
+                # if not check_debug_task(operation):
+                #     Abnormal.setTask(53740,
+                #                      f"任务 '{operation}' 为调试任务，请先在脚本配置中开启 debugMode！",
+                #                      "", "", "")
+                #     continue
                 robot = ContainerRobot()
                 robot.init_script_args(args)
         elif status == ScriptStatus.RUNNING:
