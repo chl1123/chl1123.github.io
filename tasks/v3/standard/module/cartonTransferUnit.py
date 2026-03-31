@@ -3,7 +3,7 @@
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: fix: 调试任务导致开机calib失败
+# @Update: fix: 调试任务导致开机calib失败, left_finger参数1处多余下划线残留
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -360,7 +360,7 @@ class ConfigParams:
                         builder.REQUIRED(True)
 
                     # 左拨指关闭DI
-                    with builder.CHILD(key="left_finger_down_di", name="Left Finger Down Di",
+                    with builder.CHILD(key="leftFingerDownDi", name="Left Finger Down Di",
                                        desc="Close Left Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-000")
@@ -1333,21 +1333,24 @@ class ContainerRobot(ModuleBase):
         return False
 
     def finger(self, pos):
-        Trace.log(f"----- running finger ------")
         if not self.finger_open_start:
             self.finger_open_start = time.time()
-        else:
-            if time.time() - self.finger_open_start > 3:  # 防止手指机构卡死时电机过流烧毁
-                Abnormal.setTask(53706, f"拨指控制超时，请检查拨指是否卡住、检查拨指到位光电是否能正常触发！", "", "", "")
-                Do.setDo(ConfigParams.left_finger_up_do, False)
-                Do.setDo(ConfigParams.right_finger_up_do, False)
-                Do.setDo(ConfigParams.left_finger_down_do, False)
-                Do.setDo(ConfigParams.right_finger_down_do, False)
-                self.status = ScriptStatus.FAILED
-                return False
+        elif time.time() - self.finger_open_start > 3:
+            Abnormal.setTask(53706, f"拨指控制超时，请检查拨指是否卡住、检查拨指到位光电是否能正常触发！", "", "", "")
+            Do.setDo(ConfigParams.left_finger_up_do, False)
+            Do.setDo(ConfigParams.right_finger_up_do, False)
+            Do.setDo(ConfigParams.left_finger_down_do, False)
+            Do.setDo(ConfigParams.right_finger_down_do, False)
+            self.status = ScriptStatus.FAILED
+            return False
+
         if pos == 1:
+            # 先解除反向 DO，再发正向 DO
+            Do.setDo(ConfigParams.left_finger_down_do, False)
+            Do.setDo(ConfigParams.right_finger_down_do, False)
             Do.setDo(ConfigParams.left_finger_up_do, True)
             Do.setDo(ConfigParams.right_finger_up_do, True)
+
             if Di.getDi(ConfigParams.left_finger_up_di) and not Di.getDi(ConfigParams.left_finger_down_di):
                 self.left_finger_real_pos = 1
                 Do.setDo(ConfigParams.left_finger_up_do, False)
@@ -1356,6 +1359,7 @@ class ContainerRobot(ModuleBase):
                 Do.setDo(ConfigParams.right_finger_up_do, False)
 
             if self.left_finger_real_pos == 1 and self.right_finger_real_pos == 1:
+                Trace.log(f"手指打开成功")
                 self.finger_open_start = False
                 return True
 
@@ -1364,17 +1368,25 @@ class ContainerRobot(ModuleBase):
                 Abnormal.setTask(53707, f"伸出长度不够，货叉超限光电检测到障碍物！可上调取货伸出补偿参数值！", "", "", "")
                 self.status = ScriptStatus.FAILED
                 return False
+
+            # 先解除反向 DO，再发正向 DO
+            Do.setDo(ConfigParams.left_finger_up_do, False)
+            Do.setDo(ConfigParams.right_finger_up_do, False)
             Do.setDo(ConfigParams.left_finger_down_do, True)
             Do.setDo(ConfigParams.right_finger_down_do, True)
+
             if Di.getDi(ConfigParams.left_finger_down_di) and not Di.getDi(ConfigParams.left_finger_up_di):
-                Do.setDo(ConfigParams.left_finger_down_do, False)
                 self.left_finger_real_pos = 0
+                Do.setDo(ConfigParams.left_finger_down_do, False)
             if Di.getDi(ConfigParams.right_finger_down_di) and not Di.getDi(ConfigParams.right_finger_up_di):
-                Do.setDo(ConfigParams.right_finger_down_do, False)
                 self.right_finger_real_pos = 0
+                Do.setDo(ConfigParams.right_finger_down_do, False)
+
             if self.left_finger_real_pos == 0 and self.right_finger_real_pos == 0:
+                Trace.log(f"手指关闭成功")
                 self.finger_open_start = False
                 return True
+
         return False
 
     def close_finger(self):
