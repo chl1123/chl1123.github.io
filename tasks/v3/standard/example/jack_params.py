@@ -202,11 +202,11 @@ class InputParams:
                                         with builder.CHILD(key="useExternIMU", name="Using Extern IMU",
                                                            desc="using Extern IMU"):
                                             builder.TYPE(ParamType.COMBO_BOX_BOOL)
-                                            builder.DEFAULTVALUE("OFF")
+                                            builder.DEFAULTVALUE("off")
 
                                             with builder.CHILDREN():
                                                 # ON选项
-                                                with builder.CHILD(key="ON", name="Using SRC IMU",
+                                                with builder.CHILD(key="on", name="Using SRC IMU",
                                                                    desc="using SRC IMU"):
                                                     builder.TYPE(ParamType.ARRAY)
 
@@ -226,7 +226,7 @@ class InputParams:
                                                             builder.DEFAULTVALUE("test2")
 
                                                 # OFF选项
-                                                with builder.CHILD(key="OFF", name="Using Extern IMU",
+                                                with builder.CHILD(key="off", name="Using Extern IMU",
                                                                    desc="using extern IMU"):
                                                     builder.TYPE(ParamType.ARRAY)
 

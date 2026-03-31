@@ -846,14 +846,14 @@ def create_jack_load(builder: ParamBuilder):
     with builder.CHILD(key="recognize", name="recognize",
                        desc="Enable recognition"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        builder.DEFAULTVALUE(0)
+        builder.DEFAULTVALUE("off")
         with builder.CHILDREN():
             # OFF 选项，不需要填识别文件
-            with builder.CHILD(key="OFF", name="OFF",
+            with builder.CHILD(key="off", name="OFF",
                                desc="Load Without Recognition"):
                 builder.TYPE(ParamType.ARRAY)
             # ON 也就是勾选需要识别后才会需要填写识别文件
-            with builder.CHILD(key="ON", name="ON",
+            with builder.CHILD(key="on", name="ON",
                                desc="Load With Recognition"):
                 builder.TYPE(ParamType.ARRAY)
 
@@ -877,14 +877,14 @@ def create_jack_load(builder: ParamBuilder):
     with builder.CHILD(key="isSecondaryAdjust", name="isSecondaryAdjust",
                        desc="Enable secondary adjust"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        builder.DEFAULTVALUE(0)
+        builder.DEFAULTVALUE("off")
         with builder.CHILDREN():
             # OFF 选项，不需要填二次调整内容
-            with builder.CHILD(key="OFF", name="OFF",
+            with builder.CHILD(key="off", name="OFF",
                                desc="Load Without secondary_adjust"):
                 builder.TYPE(ParamType.ARRAY)
             # ON 也就是勾选需要二次调整后才会出现二次调整相关内容
-            with builder.CHILD(key="ON", name="ON",
+            with builder.CHILD(key="on", name="ON",
                                desc="Load With secondary_adjust"):
                 builder.TYPE(ParamType.ARRAY)
                 create_secondary_adjust_pgv(builder)

@@ -411,15 +411,15 @@ class ConfigParams:
                         with builder.CHILD(key="forkDiEnableAtUnload", name="Fork Di Enable At Unload",
                                            desc="取货时屏蔽叉尖 disensor，防止阻挡"):
                             builder.TYPE(ParamType.COMBO_BOX_BOOL)
-                            builder.DEFAULTVALUE("ON")
+                            builder.DEFAULTVALUE("on")
                             with builder.CHILDREN():
                                 # OFF选项
-                                with builder.CHILD(key="OFF", name="Fork Di Disable At Unload",
+                                with builder.CHILD(key="off", name="Fork Di Disable At Unload",
                                                    desc="fork Di Disable At Unload"):
                                     builder.TYPE(ParamType.ARRAY)
 
                                 # ON选项
-                                with builder.CHILD(key="ON", name="Fork Di Enable At Unload",
+                                with builder.CHILD(key="on", name="Fork Di Enable At Unload",
                                                    desc="forkDiEnableAtUnload"):
                                     builder.TYPE(ParamType.ARRAY)
                                     with builder.CHILD(key="diTriggerMeasureUnload", name="Di Trigger Measure Unload",
@@ -492,15 +492,15 @@ class ConfigParams:
                                 builder.DEFAULTVALUE(1.2)
                     with builder.CHILD(key="useForPalletFallProtection", name="Use For Pallet Fall Protection", desc="取放货时是否启用货物脱离检测"):
                         builder.TYPE(ParamType.COMBO_BOX_BOOL)
-                        builder.DEFAULTVALUE("OFF")
+                        builder.DEFAULTVALUE("off")
                         with builder.CHILDREN():
                             # OFF选项
-                            with builder.CHILD(key="OFF", name="Disable Pallet Fall Protection",
+                            with builder.CHILD(key="off", name="Disable Pallet Fall Protection",
                                                desc="Disable Pallet Fall Protection"):
                                 builder.TYPE(ParamType.ARRAY)
 
                             # ON选项
-                            with builder.CHILD(key="ON", name="Enable Pallet Fall Protection",
+                            with builder.CHILD(key="on", name="Enable Pallet Fall Protection",
                                                desc="using extern IMU"):
                                 builder.TYPE(ParamType.ARRAY)
 
@@ -620,16 +620,16 @@ def create_rec_param(builder: ParamBuilder):
     with builder.CHILD(key="recognize", name="Recognition",
                        desc="Enable pallet recognition"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        builder.DEFAULTVALUE(0)
+        builder.DEFAULTVALUE("off")
 
         with builder.CHILDREN():
             # OFF 选项，不需要填识别文件
-            with builder.CHILD(key="OFF", name="Recognize",
+            with builder.CHILD(key="off", name="Recognize",
                                desc="Load Without Recognition"):
                 builder.TYPE(ParamType.ARRAY)
 
             # ON 也就是勾选需要识别后才会需要填写识别文件
-            with builder.CHILD(key="ON", name="Recognize",
+            with builder.CHILD(key="on", name="Recognize",
                                desc="Load With Recognition"):
                 builder.TYPE(ParamType.ARRAY)
 

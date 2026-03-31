@@ -549,16 +549,16 @@ def create_rec_param(builder: ParamBuilder):
     with builder.CHILD(key="recognize", name="Recognition",
                        desc="Enable pallet recognition"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        builder.DEFAULTVALUE(0)
+        builder.DEFAULTVALUE("off")
 
         with builder.CHILDREN():
             # OFF 选项，不需要填识别文件
-            with builder.CHILD(key="OFF", name="Recognize",
+            with builder.CHILD(key="off", name="Recognize",
                                desc="Load Without Recognition"):
                 builder.TYPE(ParamType.ARRAY)
 
             # ON 也就是勾选需要识别后才会需要填写识别文件
-            with builder.CHILD(key="ON", name="Recognize",
+            with builder.CHILD(key="on", name="Recognize",
                                desc="Load With Recognition"):
                 builder.TYPE(ParamType.ARRAY)
 
