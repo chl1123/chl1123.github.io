@@ -23,7 +23,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x19message_recogresult.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x19message_calibration.proto\x1a\x16message_geometry.proto\"w\n\rmsgPointCloud\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0f\n\x07isDense\x18\x04 \x01(\x08\x12(\n\x04type\x18\x05 \x01(\x0e\x32\x1a.rbk.protocol.msgCloudType\x12\x0c\n\x04\x64\x61ta\x18\x06 \x01(\x0c\"\xd9\x02\n\x12msgRecognizeResult\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05valid\x18\x02 \x01(\x08\x12\r\n\x05\x63lass\x18\x03 \x01(\t\x12\x0c\n\x04type\x18\x04 \x01(\t\x12\t\n\x01x\x18\x05 \x01(\x01\x12\t\n\x01y\x18\x06 \x01(\x01\x12\t\n\x01z\x18\x07 \x01(\x01\x12\n\n\x02qx\x18\x08 \x01(\x01\x12\n\n\x02qy\x18\t \x01(\x01\x12\n\n\x02qz\x18\n \x01(\x01\x12\t\n\x01w\x18\x0b \x01(\x01\x12\x0b\n\x03yaw\x18\x0c \x01(\x01\x12\x11\n\tresultImg\x18\r \x01(\t\x12\x13\n\x0bpalletWidth\x18\x0e \x01(\x01\x12\x15\n\robjectMessage\x18\x0f \x01(\t\x12\x31\n\x0fobstaclePolygon\x18\x10 \x03(\x0b\x32\x18.rbk.protocol.msgPolygon\x12\x11\n\ttrackerId\x18\x11 \x01(\t\x12\x0c\n\x04info\x18\x12 \x01(\t\"\x8c\x04\n\x16msgRecognizeResultList\x12\x32\n\x08recoList\x18\x01 \x03(\x0b\x32 .rbk.protocol.msgRecognizeResult\x12?\n\nrecoStatus\x18\x02 \x01(\x0e\x32+.rbk.protocol.msgRecognizeResultList.status\x12\x0e\n\x06taskId\x18\x03 \x01(\t\x12#\n\x03img\x18\x04 \x01(\x0b\x32\x16.rbk.protocol.msgImage\x12%\n\x05irImg\x18\x05 \x01(\x0b\x32\x16.rbk.protocol.msgImage\x12/\n\npointCloud\x18\x06 \x01(\x0b\x32\x1b.rbk.protocol.msgPointCloud\x12\x0e\n\x06logMsg\x18\x07 \x01(\t\x12=\n\x05\x65rror\x18\x08 \x01(\x0e\x32..rbk.protocol.msgRecognizeResultList.errorType\"8\n\x06status\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\n\n\x06\x66\x61iled\x10\x02\x12\x0b\n\x07success\x10\x03\"g\n\terrorType\x12\r\n\terrorNone\x10\x00\x12\x10\n\x0crecFileEmpty\x10\x01\x12\r\n\tdataEmpty\x10\x02\x12\x0e\n\nmodelEmpty\x10\x03\x12\x0f\n\x0bresultEmpty\x10\x04\x12\t\n\x05other\x10\x05*R\n\x0cmsgCloudType\x12\r\n\tPOINT_XYZ\x10\x00\x12\x0e\n\nPOINT_XYZI\x10\x01\x12\x10\n\x0cPOINT_XYZRGB\x10\x02\x12\x11\n\rPOINT_XYZRGBA\x10\x03\x62\x06proto3')
+  serialized_pb=_b('\n\x19message_recogresult.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x19message_calibration.proto\x1a\x16message_geometry.proto\"w\n\rmsgPointCloud\x12\r\n\x05width\x18\x02 \x01(\r\x12\x0e\n\x06height\x18\x03 \x01(\r\x12\x0f\n\x07isDense\x18\x04 \x01(\x08\x12(\n\x04type\x18\x05 \x01(\x0e\x32\x1a.rbk.protocol.msgCloudType\x12\x0c\n\x04\x64\x61ta\x18\x06 \x01(\x0c\"x\n\x19msgRecognizeSpatialResult\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\n\n\x02qx\x18\x04 \x01(\x01\x12\n\n\x02qy\x18\x05 \x01(\x01\x12\n\n\x02qz\x18\x06 \x01(\x01\x12\t\n\x01w\x18\x07 \x01(\x01\x12\x0b\n\x03yaw\x18\x08 \x01(\x01\"\xf8\x02\n\x12msgRecognizeResult\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\r\n\x05valid\x18\x02 \x01(\x08\x12\r\n\x05\x63lass\x18\x03 \x01(\t\x12\x0c\n\x04type\x18\x04 \x01(\t\x12\x11\n\tresultImg\x18\x05 \x01(\t\x12\x13\n\x0bpalletWidth\x18\x06 \x01(\x01\x12\x15\n\robjectMessage\x18\x07 \x01(\t\x12\x31\n\x0fobstaclePolygon\x18\x08 \x03(\x0b\x32\x18.rbk.protocol.msgPolygon\x12\x11\n\ttrackerId\x18\t \x01(\t\x12\x0c\n\x04info\x18\n \x01(\t\x12<\n\x0brobotResult\x18\x0b \x01(\x0b\x32\'.rbk.protocol.msgRecognizeSpatialResult\x12<\n\x0bworldResult\x18\x0c \x01(\x0b\x32\'.rbk.protocol.msgRecognizeSpatialResult\"\x8c\x04\n\x16msgRecognizeResultList\x12\x32\n\x08recoList\x18\x01 \x03(\x0b\x32 .rbk.protocol.msgRecognizeResult\x12?\n\nrecoStatus\x18\x02 \x01(\x0e\x32+.rbk.protocol.msgRecognizeResultList.status\x12\x0e\n\x06taskId\x18\x03 \x01(\t\x12#\n\x03img\x18\x04 \x01(\x0b\x32\x16.rbk.protocol.msgImage\x12%\n\x05irImg\x18\x05 \x01(\x0b\x32\x16.rbk.protocol.msgImage\x12/\n\npointCloud\x18\x06 \x01(\x0b\x32\x1b.rbk.protocol.msgPointCloud\x12\x0e\n\x06logMsg\x18\x07 \x01(\t\x12=\n\x05\x65rror\x18\x08 \x01(\x0e\x32..rbk.protocol.msgRecognizeResultList.errorType\"8\n\x06status\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\n\n\x06\x66\x61iled\x10\x02\x12\x0b\n\x07success\x10\x03\"g\n\terrorType\x12\r\n\terrorNone\x10\x00\x12\x10\n\x0crecFileEmpty\x10\x01\x12\r\n\tdataEmpty\x10\x02\x12\x0e\n\nmodelEmpty\x10\x03\x12\x0f\n\x0bresultEmpty\x10\x04\x12\t\n\x05other\x10\x05*R\n\x0cmsgCloudType\x12\r\n\tPOINT_XYZ\x10\x00\x12\x0e\n\nPOINT_XYZI\x10\x01\x12\x10\n\x0cPOINT_XYZRGB\x10\x02\x12\x11\n\rPOINT_XYZRGBA\x10\x03\x62\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,message__calibration__pb2.DESCRIPTOR,message__geometry__pb2.DESCRIPTOR,])
 
@@ -52,8 +52,8 @@ _MSGCLOUDTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1112,
-  serialized_end=1194,
+  serialized_start=1265,
+  serialized_end=1347,
 )
 _sym_db.RegisterEnumDescriptor(_MSGCLOUDTYPE)
 
@@ -89,8 +89,8 @@ _MSGRECOGNIZERESULTLIST_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=949,
-  serialized_end=1005,
+  serialized_start=1102,
+  serialized_end=1158,
 )
 _sym_db.RegisterEnumDescriptor(_MSGRECOGNIZERESULTLIST_STATUS)
 
@@ -127,8 +127,8 @@ _MSGRECOGNIZERESULTLIST_ERRORTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1007,
-  serialized_end=1110,
+  serialized_start=1160,
+  serialized_end=1263,
 )
 _sym_db.RegisterEnumDescriptor(_MSGRECOGNIZERESULTLIST_ERRORTYPE)
 
@@ -192,6 +192,86 @@ _MSGPOINTCLOUD = _descriptor.Descriptor(
 )
 
 
+_MSGRECOGNIZESPATIALRESULT = _descriptor.Descriptor(
+  name='msgRecognizeSpatialResult',
+  full_name='rbk.protocol.msgRecognizeSpatialResult',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgRecognizeSpatialResult.x', index=0,
+      number=1, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgRecognizeSpatialResult.y', index=1,
+      number=2, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='rbk.protocol.msgRecognizeSpatialResult.z', index=2,
+      number=3, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='qx', full_name='rbk.protocol.msgRecognizeSpatialResult.qx', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='qy', full_name='rbk.protocol.msgRecognizeSpatialResult.qy', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='qz', full_name='rbk.protocol.msgRecognizeSpatialResult.qz', index=5,
+      number=6, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='w', full_name='rbk.protocol.msgRecognizeSpatialResult.w', index=6,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='yaw', full_name='rbk.protocol.msgRecognizeSpatialResult.yaw', index=7,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=237,
+  serialized_end=357,
+)
+
+
 _MSGRECOGNIZERESULT = _descriptor.Descriptor(
   name='msgRecognizeResult',
   full_name='rbk.protocol.msgRecognizeResult',
@@ -228,100 +308,58 @@ _MSGRECOGNIZERESULT = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='x', full_name='rbk.protocol.msgRecognizeResult.x', index=4,
-      number=5, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
+      name='resultImg', full_name='rbk.protocol.msgRecognizeResult.resultImg', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='y', full_name='rbk.protocol.msgRecognizeResult.y', index=5,
+      name='palletWidth', full_name='rbk.protocol.msgRecognizeResult.palletWidth', index=5,
       number=6, type=1, cpp_type=5, label=1,
       has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='z', full_name='rbk.protocol.msgRecognizeResult.z', index=6,
-      number=7, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='qx', full_name='rbk.protocol.msgRecognizeResult.qx', index=7,
-      number=8, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='qy', full_name='rbk.protocol.msgRecognizeResult.qy', index=8,
-      number=9, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='qz', full_name='rbk.protocol.msgRecognizeResult.qz', index=9,
-      number=10, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='w', full_name='rbk.protocol.msgRecognizeResult.w', index=10,
-      number=11, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='yaw', full_name='rbk.protocol.msgRecognizeResult.yaw', index=11,
-      number=12, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='resultImg', full_name='rbk.protocol.msgRecognizeResult.resultImg', index=12,
-      number=13, type=9, cpp_type=9, label=1,
+      name='objectMessage', full_name='rbk.protocol.msgRecognizeResult.objectMessage', index=6,
+      number=7, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='palletWidth', full_name='rbk.protocol.msgRecognizeResult.palletWidth', index=13,
-      number=14, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='objectMessage', full_name='rbk.protocol.msgRecognizeResult.objectMessage', index=14,
-      number=15, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='obstaclePolygon', full_name='rbk.protocol.msgRecognizeResult.obstaclePolygon', index=15,
-      number=16, type=11, cpp_type=10, label=3,
+      name='obstaclePolygon', full_name='rbk.protocol.msgRecognizeResult.obstaclePolygon', index=7,
+      number=8, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='trackerId', full_name='rbk.protocol.msgRecognizeResult.trackerId', index=16,
-      number=17, type=9, cpp_type=9, label=1,
+      name='trackerId', full_name='rbk.protocol.msgRecognizeResult.trackerId', index=8,
+      number=9, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='info', full_name='rbk.protocol.msgRecognizeResult.info', index=17,
-      number=18, type=9, cpp_type=9, label=1,
+      name='info', full_name='rbk.protocol.msgRecognizeResult.info', index=9,
+      number=10, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='robotResult', full_name='rbk.protocol.msgRecognizeResult.robotResult', index=10,
+      number=11, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='worldResult', full_name='rbk.protocol.msgRecognizeResult.worldResult', index=11,
+      number=12, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -337,8 +375,8 @@ _MSGRECOGNIZERESULT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=238,
-  serialized_end=583,
+  serialized_start=360,
+  serialized_end=736,
 )
 
 
@@ -419,13 +457,15 @@ _MSGRECOGNIZERESULTLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=586,
-  serialized_end=1110,
+  serialized_start=739,
+  serialized_end=1263,
 )
 
 _MSGPOINTCLOUD.fields_by_name['type'].enum_type = _MSGCLOUDTYPE
 _MSGRECOGNIZERESULT.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
 _MSGRECOGNIZERESULT.fields_by_name['obstaclePolygon'].message_type = message__geometry__pb2._MSGPOLYGON
+_MSGRECOGNIZERESULT.fields_by_name['robotResult'].message_type = _MSGRECOGNIZESPATIALRESULT
+_MSGRECOGNIZERESULT.fields_by_name['worldResult'].message_type = _MSGRECOGNIZESPATIALRESULT
 _MSGRECOGNIZERESULTLIST.fields_by_name['recoList'].message_type = _MSGRECOGNIZERESULT
 _MSGRECOGNIZERESULTLIST.fields_by_name['recoStatus'].enum_type = _MSGRECOGNIZERESULTLIST_STATUS
 _MSGRECOGNIZERESULTLIST.fields_by_name['img'].message_type = message__calibration__pb2._MSGIMAGE
@@ -435,6 +475,7 @@ _MSGRECOGNIZERESULTLIST.fields_by_name['error'].enum_type = _MSGRECOGNIZERESULTL
 _MSGRECOGNIZERESULTLIST_STATUS.containing_type = _MSGRECOGNIZERESULTLIST
 _MSGRECOGNIZERESULTLIST_ERRORTYPE.containing_type = _MSGRECOGNIZERESULTLIST
 DESCRIPTOR.message_types_by_name['msgPointCloud'] = _MSGPOINTCLOUD
+DESCRIPTOR.message_types_by_name['msgRecognizeSpatialResult'] = _MSGRECOGNIZESPATIALRESULT
 DESCRIPTOR.message_types_by_name['msgRecognizeResult'] = _MSGRECOGNIZERESULT
 DESCRIPTOR.message_types_by_name['msgRecognizeResultList'] = _MSGRECOGNIZERESULTLIST
 DESCRIPTOR.enum_types_by_name['msgCloudType'] = _MSGCLOUDTYPE
@@ -446,6 +487,13 @@ msgPointCloud = _reflection.GeneratedProtocolMessageType('msgPointCloud', (_mess
   # @@protoc_insertion_point(class_scope:rbk.protocol.msgPointCloud)
   ))
 _sym_db.RegisterMessage(msgPointCloud)
+
+msgRecognizeSpatialResult = _reflection.GeneratedProtocolMessageType('msgRecognizeSpatialResult', (_message.Message,), dict(
+  DESCRIPTOR = _MSGRECOGNIZESPATIALRESULT,
+  __module__ = 'message_recogresult_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgRecognizeSpatialResult)
+  ))
+_sym_db.RegisterMessage(msgRecognizeSpatialResult)
 
 msgRecognizeResult = _reflection.GeneratedProtocolMessageType('msgRecognizeResult', (_message.Message,), dict(
   DESCRIPTOR = _MSGRECOGNIZERESULT,

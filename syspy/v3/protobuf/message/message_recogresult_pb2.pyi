@@ -28,43 +28,31 @@ class msgPointCloud(_message.Message):
     def __init__(self, width: Optional[int] = ..., height: Optional[int] = ..., isDense: bool = ..., type: Optional[Union[msgCloudType, str]] = ..., data: Optional[bytes] = ...) -> None: ...
 
 class msgRecognizeResult(_message.Message):
-    __slots__ = ["header", "info", "objectMessage", "obstaclePolygon", "palletWidth", "qx", "qy", "qz", "resultImg", "trackerId", "type", "valid", "w", "x", "y", "yaw", "z"]
+    __slots__ = ["header", "info", "objectMessage", "obstaclePolygon", "palletWidth", "resultImg", "robotResult", "trackerId", "type", "valid", "worldResult"]
     CLASS_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
     INFO_FIELD_NUMBER: ClassVar[int]
     OBJECTMESSAGE_FIELD_NUMBER: ClassVar[int]
     OBSTACLEPOLYGON_FIELD_NUMBER: ClassVar[int]
     PALLETWIDTH_FIELD_NUMBER: ClassVar[int]
-    QX_FIELD_NUMBER: ClassVar[int]
-    QY_FIELD_NUMBER: ClassVar[int]
-    QZ_FIELD_NUMBER: ClassVar[int]
     RESULTIMG_FIELD_NUMBER: ClassVar[int]
+    ROBOTRESULT_FIELD_NUMBER: ClassVar[int]
     TRACKERID_FIELD_NUMBER: ClassVar[int]
     TYPE_FIELD_NUMBER: ClassVar[int]
     VALID_FIELD_NUMBER: ClassVar[int]
-    W_FIELD_NUMBER: ClassVar[int]
-    X_FIELD_NUMBER: ClassVar[int]
-    YAW_FIELD_NUMBER: ClassVar[int]
-    Y_FIELD_NUMBER: ClassVar[int]
-    Z_FIELD_NUMBER: ClassVar[int]
+    WORLDRESULT_FIELD_NUMBER: ClassVar[int]
     header: _message_header_pb2.msgHeader
     info: str
     objectMessage: str
     obstaclePolygon: _containers.RepeatedCompositeFieldContainer[_message_geometry_pb2.msgPolygon]
     palletWidth: float
-    qx: float
-    qy: float
-    qz: float
     resultImg: str
+    robotResult: msgRecognizeSpatialResult
     trackerId: str
     type: str
     valid: bool
-    w: float
-    x: float
-    y: float
-    yaw: float
-    z: float
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., valid: bool = ..., type: Optional[str] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., qx: Optional[float] = ..., qy: Optional[float] = ..., qz: Optional[float] = ..., w: Optional[float] = ..., yaw: Optional[float] = ..., resultImg: Optional[str] = ..., palletWidth: Optional[float] = ..., objectMessage: Optional[str] = ..., obstaclePolygon: Optional[Iterable[Union[_message_geometry_pb2.msgPolygon, Mapping]]] = ..., trackerId: Optional[str] = ..., info: Optional[str] = ..., **kwargs) -> None: ...
+    worldResult: msgRecognizeSpatialResult
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., valid: bool = ..., type: Optional[str] = ..., resultImg: Optional[str] = ..., palletWidth: Optional[float] = ..., objectMessage: Optional[str] = ..., obstaclePolygon: Optional[Iterable[Union[_message_geometry_pb2.msgPolygon, Mapping]]] = ..., trackerId: Optional[str] = ..., info: Optional[str] = ..., robotResult: Optional[Union[msgRecognizeSpatialResult, Mapping]] = ..., worldResult: Optional[Union[msgRecognizeSpatialResult, Mapping]] = ..., **kwargs) -> None: ...
 
 class msgRecognizeResultList(_message.Message):
     __slots__ = ["error", "img", "irImg", "logMsg", "pointCloud", "recoList", "recoStatus", "taskId"]
@@ -99,6 +87,26 @@ class msgRecognizeResultList(_message.Message):
     success: msgRecognizeResultList.status
     taskId: str
     def __init__(self, recoList: Optional[Iterable[Union[msgRecognizeResult, Mapping]]] = ..., recoStatus: Optional[Union[msgRecognizeResultList.status, str]] = ..., taskId: Optional[str] = ..., img: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., irImg: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., pointCloud: Optional[Union[msgPointCloud, Mapping]] = ..., logMsg: Optional[str] = ..., error: Optional[Union[msgRecognizeResultList.errorType, str]] = ...) -> None: ...
+
+class msgRecognizeSpatialResult(_message.Message):
+    __slots__ = ["qx", "qy", "qz", "w", "x", "y", "yaw", "z"]
+    QX_FIELD_NUMBER: ClassVar[int]
+    QY_FIELD_NUMBER: ClassVar[int]
+    QZ_FIELD_NUMBER: ClassVar[int]
+    W_FIELD_NUMBER: ClassVar[int]
+    X_FIELD_NUMBER: ClassVar[int]
+    YAW_FIELD_NUMBER: ClassVar[int]
+    Y_FIELD_NUMBER: ClassVar[int]
+    Z_FIELD_NUMBER: ClassVar[int]
+    qx: float
+    qy: float
+    qz: float
+    w: float
+    x: float
+    y: float
+    yaw: float
+    z: float
+    def __init__(self, x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., qx: Optional[float] = ..., qy: Optional[float] = ..., qz: Optional[float] = ..., w: Optional[float] = ..., yaw: Optional[float] = ...) -> None: ...
 
 class msgCloudType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []

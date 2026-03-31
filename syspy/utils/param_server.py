@@ -660,6 +660,10 @@ class ParamField:
         return {k: v for k, v in result.items() if v not in (None, [], {}) and not (isinstance(v, list) and not v)}
 
 # 输入参数和配置参数枚举
+_COMBO_TYPES_REQUIRE_DEFAULT = {ParamType.STRING_COMBO_LIST, ParamType.COMBO_BOX_BOOL}
+_VALID_COMBO_BOOL_KEYS = {"on", "off"}
+
+
 class ParamBuilder:
     """参数配置构建器，支持嵌套结构"""
 
@@ -734,6 +738,13 @@ class ParamBuilder:
     @contextmanager
     def CHILD(self, key: str, name: str, desc: str = "", **kwargs) -> Generator[None, None, None]:
         """创建并进入一个子节点"""
+        # COMBO_BOX_BOOL 子级 key 只能是 "on" 或 "off"
+        if self._current_node and self._current_node.type == ParamType.COMBO_BOX_BOOL:
+            if key not in _VALID_COMBO_BOOL_KEYS:
+                raise ValueError(
+                    f"Child key '{key}' of comboBoxBool parameter '{self._current_node.key}' "
+                    f"must be one of {_VALID_COMBO_BOOL_KEYS}"
+                )
         # 创建新子节点
         child = ParamField(key=key, name=name, desc=desc, **kwargs)
         self._current_children.append(child)
@@ -748,6 +759,10 @@ class ParamBuilder:
 
         try:
             yield
+            if child.type in _COMBO_TYPES_REQUIRE_DEFAULT and child.default_value is None:
+                raise ValueError(
+                    f"Parameter '{key}' of type '{child.type}' must have a default value (set via DEFAULTVALUE())"
+                )
         finally:
             # 恢复上下文
             if self._context_stack:
@@ -782,6 +797,12 @@ class ParamBuilder:
 
     def DEFAULTVALUE(self, value: Any, min_value: Optional[Union[int, float]] = None,
                      max_value: Optional[Union[int, float]] = None) -> None:
+        if self._current_node and self._current_node.type == ParamType.COMBO_BOX_BOOL:
+            if value not in _VALID_COMBO_BOOL_KEYS:
+                raise ValueError(
+                    f"comboBoxBool parameter '{self._current_node.key}' "
+                    f"defaultValue must be one of {_VALID_COMBO_BOOL_KEYS}, got '{value}'"
+                )
         self.ADD_FIELD("default_value", value)
         # 校验min_value和max_value
         if min_value is not None and max_value is not None and min_value > max_value:
@@ -1143,9 +1164,9 @@ class ParamValidator:
 
         # 处理 COMBO_BOX_BOOL 类型参数
         if param_type == ParamType.COMBO_BOX_BOOL:
-            if value == "ON":
+            if isinstance(value, str) and value.lower() == "on":
                 return True
-            elif value == "OFF":
+            elif isinstance(value, str) and value.lower() == "off":
                 return False
 
         # 其他类型保持原值
@@ -1188,14 +1209,14 @@ class ParamValidator:
                     # 对于COMBO_BOX_BOOL类型，根据值决定验证哪个分支
                     elif param_def.get('type') == ParamType.COMBO_BOX_BOOL and param_def['key'] in flat_params:
                         bool_value = flat_params.get(param_def['key'])
-                        target_key = "ON" if bool_value else "OFF"
-                        # 查找对应分支并验证
+                        target_key_lower = "on" if bool_value else "off"
+                        # 查找对应分支并验证（大小写不敏感匹配）
                         for child in param_def.get('children', []):
-                            if child['key'] == target_key:
+                            if child['key'].lower() == target_key_lower:
                                 should_validate_children = True
                                 validate_all_params([child], full_path)
                                 # 同时验证该分支下的所有子参数
-                                self._validate_combo_bool_children(child, input_params, validated_params, errors, full_path + "." + target_key)
+                                self._validate_combo_bool_children(child, input_params, validated_params, errors, full_path + "." + child['key'])
                                 break
                     else:
                         # 默认情况：检查是否在输入参数中或是否为必填项
