@@ -13,6 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 from . import message_header_pb2 as message__header__pb2
+from . import message_error_pb2 as message__error__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -20,9 +21,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"\x97\x01\n\x17msgLocalTagLocalization\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05\x61ngle\x18\x04 \x01(\x01\x12\x12\n\nconfidence\x18\x05 \x01(\x01\x12\x1a\n\x12\x64istanceNotFindTag\x18\x06 \x01(\x01\"\xf9\x01\n\x0fmsgLocalization\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x10\n\x08locState\x18\t \x01(\r\x12\x11\n\tlocMethod\x18\n \x01(\r\x12\x37\n\x08localTag\x18\x0b \x01(\x0b\x32%.rbk.protocol.msgLocalTagLocalization\"\x1f\n\x0emsgLocFinished\x12\r\n\x05value\x18\x01 \x01(\x08\"\x98\x01\n\tmsg3DPose\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\n\n\x02qW\x18\x05 \x01(\x01\x12\n\n\x02qX\x18\x06 \x01(\x01\x12\n\n\x02qY\x18\x07 \x01(\x01\x12\n\n\x02qZ\x18\x08 \x01(\x01\x12\x11\n\textraData\x18\t \x01(\t\"\xd5\x03\n\x0cmsg2DCamInfo\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x12\n\ncameraName\x18\x02 \x01(\t\x12\x11\n\tmInfrared\x18\x03 \x01(\x01\x12\x14\n\x0cmSeertagSize\x18\x04 \x01(\x01\x12\x18\n\x10mSeertagFamilyID\x18\x05 \x01(\x01\x12\x11\n\tmodelType\x18\x06 \x01(\t\x12\x17\n\x0f\x64istortionModel\x18\x07 \x01(\t\x12\x18\n\x10isIntrinsicsCaib\x18\x08 \x01(\x08\x12\x18\n\x10isExtrinsicsCaib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\x0b\n\x03mFx\x18\x10 \x01(\x01\x12\x0b\n\x03mFy\x18\x11 \x01(\x01\x12\x0b\n\x03mCx\x18\x12 \x01(\x01\x12\x0b\n\x03mCy\x18\x13 \x01(\x01\x12\x0b\n\x03mK1\x18\x14 \x01(\x01\x12\x0b\n\x03mK2\x18\x15 \x01(\x01\x12\x0b\n\x03mK3\x18\x16 \x01(\x01\x12\x0b\n\x03mK4\x18\x17 \x01(\x01\x12\x0b\n\x03mK5\x18\x18 \x01(\x01\x12\x0b\n\x03mK6\x18\x19 \x01(\x01\x12\x0b\n\x03mP1\x18\x1a \x01(\x01\x12\x0b\n\x03mP2\x18\x1b \x01(\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x1amessage_localization.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\x1a\x13message_error.proto\"\xaa\x01\n\x17msgLocalTagLocalization\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05\x61ngle\x18\x04 \x01(\x01\x12\x12\n\nconfidence\x18\x05 \x01(\x01\x12\x1a\n\x12\x64istanceNotFindTag\x18\x06 \x01(\x01\x12\x11\n\tgroupName\x18\x07 \x01(\t\"\xfb\x02\n\x0fmsgLocalization\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\r\n\x05\x61ngle\x18\x05 \x01(\x01\x12\x0c\n\x04roll\x18\x06 \x01(\x01\x12\r\n\x05pitch\x18\x07 \x01(\x01\x12\x12\n\nconfidence\x18\x08 \x01(\x01\x12\x10\n\x08locState\x18\t \x01(\r\x12\x11\n\tlocMethod\x18\n \x01(\r\x12\x37\n\x08localTag\x18\x0b \x01(\x0b\x32%.rbk.protocol.msgLocalTagLocalization\x12\x39\n\x06\x65rrors\x18\x0c \x03(\x0b\x32).rbk.protocol.msgLocalization.ErrorsEntry\x1a\x45\n\x0b\x45rrorsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12%\n\x05value\x18\x02 \x01(\x0b\x32\x16.rbk.protocol.msgError:\x02\x38\x01\"\x1f\n\x0emsgLocFinished\x12\r\n\x05value\x18\x01 \x01(\x08\"\x98\x01\n\tmsg3DPose\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\x12\n\n\x02qW\x18\x05 \x01(\x01\x12\n\n\x02qX\x18\x06 \x01(\x01\x12\n\n\x02qY\x18\x07 \x01(\x01\x12\n\n\x02qZ\x18\x08 \x01(\x01\x12\x11\n\textraData\x18\t \x01(\t\"\xd5\x03\n\x0cmsg2DCamInfo\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x12\n\ncameraName\x18\x02 \x01(\t\x12\x11\n\tmInfrared\x18\x03 \x01(\x01\x12\x14\n\x0cmSeertagSize\x18\x04 \x01(\x01\x12\x18\n\x10mSeertagFamilyID\x18\x05 \x01(\x01\x12\x11\n\tmodelType\x18\x06 \x01(\t\x12\x17\n\x0f\x64istortionModel\x18\x07 \x01(\t\x12\x18\n\x10isIntrinsicsCaib\x18\x08 \x01(\x08\x12\x18\n\x10isExtrinsicsCaib\x18\t \x01(\x08\x12\t\n\x01x\x18\n \x01(\x01\x12\t\n\x01y\x18\x0b \x01(\x01\x12\t\n\x01z\x18\x0c \x01(\x01\x12\x0c\n\x04roll\x18\r \x01(\x01\x12\r\n\x05pitch\x18\x0e \x01(\x01\x12\x0b\n\x03yaw\x18\x0f \x01(\x01\x12\x0b\n\x03mFx\x18\x10 \x01(\x01\x12\x0b\n\x03mFy\x18\x11 \x01(\x01\x12\x0b\n\x03mCx\x18\x12 \x01(\x01\x12\x0b\n\x03mCy\x18\x13 \x01(\x01\x12\x0b\n\x03mK1\x18\x14 \x01(\x01\x12\x0b\n\x03mK2\x18\x15 \x01(\x01\x12\x0b\n\x03mK3\x18\x16 \x01(\x01\x12\x0b\n\x03mK4\x18\x17 \x01(\x01\x12\x0b\n\x03mK5\x18\x18 \x01(\x01\x12\x0b\n\x03mK6\x18\x19 \x01(\x01\x12\x0b\n\x03mP1\x18\x1a \x01(\x01\x12\x0b\n\x03mP2\x18\x1b \x01(\x01\x62\x06proto3')
   ,
-  dependencies=[message__header__pb2.DESCRIPTOR,])
+  dependencies=[message__header__pb2.DESCRIPTOR,message__error__pb2.DESCRIPTOR,])
 
 
 
@@ -76,6 +77,13 @@ _MSGLOCALTAGLOCALIZATION = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='groupName', full_name='rbk.protocol.msgLocalTagLocalization.groupName', index=6,
+      number=7, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -88,10 +96,47 @@ _MSGLOCALTAGLOCALIZATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=67,
-  serialized_end=218,
+  serialized_start=88,
+  serialized_end=258,
 )
 
+
+_MSGLOCALIZATION_ERRORSENTRY = _descriptor.Descriptor(
+  name='ErrorsEntry',
+  full_name='rbk.protocol.msgLocalization.ErrorsEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='rbk.protocol.msgLocalization.ErrorsEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='rbk.protocol.msgLocalization.ErrorsEntry.value', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=_b('8\001'),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=571,
+  serialized_end=640,
+)
 
 _MSGLOCALIZATION = _descriptor.Descriptor(
   name='msgLocalization',
@@ -177,10 +222,17 @@ _MSGLOCALIZATION = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='errors', full_name='rbk.protocol.msgLocalization.errors', index=11,
+      number=12, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
-  nested_types=[],
+  nested_types=[_MSGLOCALIZATION_ERRORSENTRY, ],
   enum_types=[
   ],
   serialized_options=None,
@@ -189,8 +241,8 @@ _MSGLOCALIZATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=221,
-  serialized_end=470,
+  serialized_start=261,
+  serialized_end=640,
 )
 
 
@@ -220,8 +272,8 @@ _MSGLOCFINISHED = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=472,
-  serialized_end=503,
+  serialized_start=642,
+  serialized_end=673,
 )
 
 
@@ -307,8 +359,8 @@ _MSG3DPOSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=506,
-  serialized_end=658,
+  serialized_start=676,
+  serialized_end=828,
 )
 
 
@@ -520,13 +572,16 @@ _MSG2DCAMINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=661,
-  serialized_end=1130,
+  serialized_start=831,
+  serialized_end=1300,
 )
 
 _MSGLOCALTAGLOCALIZATION.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGLOCALIZATION_ERRORSENTRY.fields_by_name['value'].message_type = message__error__pb2._MSGERROR
+_MSGLOCALIZATION_ERRORSENTRY.containing_type = _MSGLOCALIZATION
 _MSGLOCALIZATION.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
 _MSGLOCALIZATION.fields_by_name['localTag'].message_type = _MSGLOCALTAGLOCALIZATION
+_MSGLOCALIZATION.fields_by_name['errors'].message_type = _MSGLOCALIZATION_ERRORSENTRY
 _MSG3DPOSE.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
 _MSG2DCAMINFO.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
 DESCRIPTOR.message_types_by_name['msgLocalTagLocalization'] = _MSGLOCALTAGLOCALIZATION
@@ -544,11 +599,19 @@ msgLocalTagLocalization = _reflection.GeneratedProtocolMessageType('msgLocalTagL
 _sym_db.RegisterMessage(msgLocalTagLocalization)
 
 msgLocalization = _reflection.GeneratedProtocolMessageType('msgLocalization', (_message.Message,), dict(
+
+  ErrorsEntry = _reflection.GeneratedProtocolMessageType('ErrorsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _MSGLOCALIZATION_ERRORSENTRY,
+    __module__ = 'message_localization_pb2'
+    # @@protoc_insertion_point(class_scope:rbk.protocol.msgLocalization.ErrorsEntry)
+    ))
+  ,
   DESCRIPTOR = _MSGLOCALIZATION,
   __module__ = 'message_localization_pb2'
   # @@protoc_insertion_point(class_scope:rbk.protocol.msgLocalization)
   ))
 _sym_db.RegisterMessage(msgLocalization)
+_sym_db.RegisterMessage(msgLocalization.ErrorsEntry)
 
 msgLocFinished = _reflection.GeneratedProtocolMessageType('msgLocFinished', (_message.Message,), dict(
   DESCRIPTOR = _MSGLOCFINISHED,
@@ -572,4 +635,5 @@ msg2DCamInfo = _reflection.GeneratedProtocolMessageType('msg2DCamInfo', (_messag
 _sym_db.RegisterMessage(msg2DCamInfo)
 
 
+_MSGLOCALIZATION_ERRORSENTRY._options = None
 # @@protoc_insertion_point(module_scope)

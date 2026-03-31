@@ -1,4 +1,6 @@
 import message_header_pb2 as _message_header_pb2
+import message_error_pb2 as _message_error_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar, Mapping, Optional, Union
@@ -92,25 +94,35 @@ class msgLocFinished(_message.Message):
     def __init__(self, value: bool = ...) -> None: ...
 
 class msgLocalTagLocalization(_message.Message):
-    __slots__ = ["angle", "confidence", "distanceNotFindTag", "header", "x", "y"]
+    __slots__ = ["angle", "confidence", "distanceNotFindTag", "groupName", "header", "x", "y"]
     ANGLE_FIELD_NUMBER: ClassVar[int]
     CONFIDENCE_FIELD_NUMBER: ClassVar[int]
     DISTANCENOTFINDTAG_FIELD_NUMBER: ClassVar[int]
+    GROUPNAME_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
     angle: float
     confidence: float
     distanceNotFindTag: float
+    groupName: str
     header: _message_header_pb2.msgHeader
     x: float
     y: float
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ..., confidence: Optional[float] = ..., distanceNotFindTag: Optional[float] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ..., confidence: Optional[float] = ..., distanceNotFindTag: Optional[float] = ..., groupName: Optional[str] = ...) -> None: ...
 
 class msgLocalization(_message.Message):
-    __slots__ = ["angle", "confidence", "header", "locMethod", "locState", "localTag", "pitch", "roll", "x", "y", "z"]
+    __slots__ = ["angle", "confidence", "errors", "header", "locMethod", "locState", "localTag", "pitch", "roll", "x", "y", "z"]
+    class ErrorsEntry(_message.Message):
+        __slots__ = ["key", "value"]
+        KEY_FIELD_NUMBER: ClassVar[int]
+        VALUE_FIELD_NUMBER: ClassVar[int]
+        key: str
+        value: _message_error_pb2.msgError
+        def __init__(self, key: Optional[str] = ..., value: Optional[Union[_message_error_pb2.msgError, Mapping]] = ...) -> None: ...
     ANGLE_FIELD_NUMBER: ClassVar[int]
     CONFIDENCE_FIELD_NUMBER: ClassVar[int]
+    ERRORS_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
     LOCALTAG_FIELD_NUMBER: ClassVar[int]
     LOCMETHOD_FIELD_NUMBER: ClassVar[int]
@@ -122,6 +134,7 @@ class msgLocalization(_message.Message):
     Z_FIELD_NUMBER: ClassVar[int]
     angle: float
     confidence: float
+    errors: _containers.MessageMap[str, _message_error_pb2.msgError]
     header: _message_header_pb2.msgHeader
     locMethod: int
     locState: int
@@ -131,4 +144,4 @@ class msgLocalization(_message.Message):
     x: float
     y: float
     z: float
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., angle: Optional[float] = ..., roll: Optional[float] = ..., pitch: Optional[float] = ..., confidence: Optional[float] = ..., locState: Optional[int] = ..., locMethod: Optional[int] = ..., localTag: Optional[Union[msgLocalTagLocalization, Mapping]] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., angle: Optional[float] = ..., roll: Optional[float] = ..., pitch: Optional[float] = ..., confidence: Optional[float] = ..., locState: Optional[int] = ..., locMethod: Optional[int] = ..., localTag: Optional[Union[msgLocalTagLocalization, Mapping]] = ..., errors: Optional[Mapping[str, _message_error_pb2.msgError]] = ...) -> None: ...
