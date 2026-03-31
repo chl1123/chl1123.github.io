@@ -16,7 +16,7 @@ import struct
 from enum import IntEnum
 from typing import Optional, List, Dict, Any
 from syspy import Module, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
-    Odometer, Laser, NetProtocol, Trace, NavSpeed, Controller, NavStatus
+    Odometer, Laser, NetProtocol, Trace, NavSpeed, Controller, NavStatus, ModuleBase, Container
 from syspy.utils import Coordinate
 from syspy.utils.time import Timer
 from syspy.script_data import ScriptData
@@ -90,6 +90,9 @@ def _script_config_callback():
 
 class ConfigParams:
     """生成和定义配置参数的示例"""
+    recCenterX: float = -1.0
+    recCenterY: float = 0.0
+    recRadius: float = 0.7
     chassis_type = ""
     module_type: str = ""
     shape: str = ""
@@ -132,6 +135,12 @@ class ConfigParams:
     backLaserEnableHeight: float = 0.3
     checkGoodsWhileLoad: bool = True
     checkAllContactDis: bool = False
+    upDo: str = ""
+    upDoStatus: bool = True
+    downDo: str = ""
+    downDoStatus: bool = True
+    loadTime: float = 20.0
+    unloadTime: float = 20.0
     # —— DO 控 fork
     downDelayTime: float = 10.0
     upDelayTime: float = 10.0
@@ -144,16 +153,24 @@ class ConfigParams:
     loadUnloadCheck: bool = False
     aheadDist: float = 0.8
     minAheadDist: float = 1.0
-    useStraightLine: bool = False
+    forkDiEnableAtLoad: bool = False
+    forkDiEnableAtUnload: bool = False
+    diTriggerMeasureUnload: str = ""
+    pathAdjustMode: str = ""
+    maxCurve: float = 3.0
+    maxAngle: float = 10.0
+
     loadAdjustMaxSpeed: float = 0.5
-    bezierReturn: bool = True
-    forkDiDist: float = 0.
-    goodsWidth: float = 1.0
-    goodsLength: float = 1.2
+    returnOnSamePath: bool = True
+    forkDiDist: float = 0.1
     enableContactDiNoRec: bool = True
     enableTcp: bool = True
-    toLoadObsStopDist: float = 0.05
-    zMax: bool = True
+    loadObsStopDist: float = 0.05
+    useForPalletFallProtection: bool = False
+    setRoiX: float = 2
+    setRoiMaxY: float = 1
+    setRoiMinY: float = 1
+    setRoiZ: float = 2
 
     # —— 线性堆栈
     laserWidth: float = 0.1
@@ -167,27 +184,7 @@ class ConfigParams:
     deviceName: str = ""
     errorRecY: float = 0.1
     errorRecAngle: float = 15.0
-
-    @staticmethod
-    def _safe_get_device(device_name: str, param_path: str, default):
-        """
-        安全读取设备参数：如果 getDevice 返回 None，则返回与 default 类型一致的空值。
-        """
-        value = RobotParam.getDevice(device_name, param_path)
-
-        # 类型安全转换
-        if value is None:
-            if isinstance(default, float):
-                return 0.0
-            elif isinstance(default, str):
-                return ""
-            elif isinstance(default, list):
-                return []
-            elif isinstance(default, bool):
-                return False
-            else:
-                return default  # 兜底
-        return value
+    zMax: bool = True
 
     @classmethod
     def init(cls):
@@ -215,6 +212,8 @@ class ConfigParams:
         cls.backLaserEnableHeight = cfg.get("backLaserEnableHeight")
         cls.checkGoodsWhileLoad = cfg.get("checkGoodsWhileLoad")
         cls.checkAllContactDis = cfg.get("checkAllContactDi")
+        cls.loadTime = cfg.get("loadTime", 20.0)
+        cls.unloadTime = cfg.get("unloadTime", 20.0)
 
         # --- forkByDO
         cls.downDelayTime = cfg.get("downDelayTime")
@@ -228,18 +227,22 @@ class ConfigParams:
         cls.laserDetectionWidth = cfg.get("laserDetectionWidth")
         cls.aheadDist = cfg.get("aheadDist")
         cls.minAheadDist = cfg.get("minAheadDist")
-        cls.useStraightLine = cfg.get("useStraightLine")
         cls.loadAdjustMaxSpeed = cfg.get("loadAdjustMaxSpeed")
-        cls.bezierReturn = cfg.get("bezierReturn")
+        cls.returnOnSamePath = cfg.get("returnOnSamePath")
         cls.forkDiDist = cfg.get("forkDiDist")
         cls.enableContactDiNoRec = cfg.get("enableContactDiNoRec")
         cls.enableTcp = cfg.get("enableTcp")
-        cls.toLoadObsStopDist = cfg.get("toLoadObsStopDist")
+        cls.loadObsStopDist = cfg.get("loadObsStopDist")
         cls.errorRecY = cfg.get("errorRecY")
         cls.errorRecAngle = cfg.get("errorRecAngle")
-        cls.goodsWidth = cfg.get("goodsWidth")
-        cls.goodsLength = cfg.get("goodsLength")
         cls.zMax = cfg.get("zMax")
+        cls.recCenterX = cfg.get("recCenterX", 0.0)
+        cls.recCenterY = cfg.get("recCenterY", 0.0)
+        cls.recRadius = cfg.get("recRadius", 0.7)
+        cls.pathAdjustMode = cfg.get("pathAdjustMode", "bezier")
+        cls.maxCurve = cfg.get("maxCurve", 3.0)
+        cls.maxAngle = cfg.get("maxAngle", 3.0)
+        print(cls.pathAdjustMode, cls.maxCurve, cls.maxAngle)
 
         # --- linearUnload
         cls.laserWidth = cfg.get("laserWidth")
@@ -259,37 +262,31 @@ class ConfigParams:
     # 从设备模型文件中获取的参数
     @classmethod
     def get_device_model_param(cls):
-        cls.chassis_type = cls._safe_get_device("Model-000", "chassisType", "")
-        cls.module_type = cls._safe_get_device("Model-000", "moduleType", "")
-        cls.fork_motor_name = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.liftMotor", "")
-        cls.shiftMotor = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.shiftMotor", "")
-        cls.shape = cls._safe_get_device("Model-000", "shape", "")
-        cls.head = float(cls._safe_get_device("Model-000", f"shape.{cls.shape}.head", 0.0))
-        cls.tail = float(cls._safe_get_device("Model-000", f"shape.{cls.shape}.tail", 0.0))
-        cls.width = float(cls._safe_get_device("Model-000", f"shape.{cls.shape}.width", 0.0))
-        cls.module_x = float(cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.installPosition.x", 0.0))
-        cls.fork_tip_width = float(cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkWidth", 0.0))
+        cls.chassis_type = RobotParam.getDevice("Model-000", "chassisType")
+        cls.module_type = RobotParam.getDevice("Model-000", "moduleType") or ""
+        cls.fork_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.liftMotor") or ""
+        cls.shiftMotor = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.shiftMotor")
+        cls.shape = RobotParam.getDevice("Model-000", "shape") or ""
+        cls.head = float(RobotParam.getDevice("Model-000", f"shape.{cls.shape}.head") or 0)
+        cls.tail = float(RobotParam.getDevice("Model-000", f"shape.{cls.shape}.tail") or 0)
+        cls.width = float(RobotParam.getDevice("Model-000", f"shape.{cls.shape}.width") or 0)
+        cls.module_x = float(RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.installPosition.x") or 0)
+        cls.fork_tip_width = float(RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.forkWidth") or 0)
         cls.center_distance_between_forks = float(
-            cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.centerDistanceBetweenForks", 0.0)
+            RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.centerDistanceBetweenForks") or 0
         )
 
-        cls.fork_root_3D_camera = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot3DCamera",
-                                                       "")
-        cls.fork_root_2D_lasers = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkRoot2DLasers",
-                                                       "")
-        _tmp_val = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip3DCameras",
-                                        "")
+        cls.fork_root_3D_camera = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.forkRoot3DCamera")
+        cls.fork_root_2D_lasers = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.forkRoot2DLasers")
+        _tmp_val = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.forkTip3DCameras")
         cls.fork_tip_3D_cameras = _tmp_val.split(',') if _tmp_val else []
-        _tmp_val = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.forkTip2DLasers",
-                                        "")
+        _tmp_val = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.forkTip2DLasers")
         cls.fork_tip_2D_lasers = _tmp_val.split(',') if _tmp_val else []
-        _tmp_val = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.diSensor", "")
+        _tmp_val = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.diSensor")
         cls.fork_tip_di_sensors = _tmp_val.split(',') if _tmp_val else []
-        _tmp_val = cls._safe_get_device("Model-000",
-                                        f"moduleType.{cls.module_type}.forkTipDistanceSensors",
-                                        "")
+        _tmp_val = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.forkTipDistanceSensors")
         cls.fork_tip_distance_sensors = _tmp_val.split(',') if _tmp_val else []
-        _tmp_val = cls._safe_get_device("Model-000", f"moduleType.{cls.module_type}.id", "")
+        _tmp_val = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.id")
         cls.contact_ids = _tmp_val.split(',') if _tmp_val else []
 
         # 如果是搬运车，需要判断一下是否是变轴距的车
@@ -297,9 +294,9 @@ class ConfigParams:
             Trace.log(f"chassis_type:{cls.chassis_type}")
             if cls.chassis_type in ("variableWheelbaseSingleStandardSteer", "variableWheelbaseSingleDifferentialSteer"):
                 cls.base_shift = True
-                ConfigParams.base_shift_length = cls._safe_get_device("Model-000",
-                                                                      f"chassisType.{cls.chassis_type}.wheelBaseShiftLength",
-                                                                      0.0)
+                ConfigParams.base_shift_length = float(
+                    RobotParam.getDevice("Model-000", f"chassisType.{cls.chassis_type}.wheelBaseShiftLength") or 0
+                )
 
     # 从设备模型文件中获取的参数
     @classmethod
@@ -307,22 +304,22 @@ class ConfigParams:
         """读取电机相关参数（线性电机）"""
         if cls.fork_motor_name.startswith("DOMotor"):
             ConfigParams.DOMotor = True
-            cls.min_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"basic.minLength", 0.0))
-            cls.max_height = float(cls._safe_get_device(f"{cls.fork_motor_name}", f"basic.maxLength", 0.0))
+            cls.min_height = float(RobotParam.getDevice(f"{cls.fork_motor_name}", f"basic.minLength") or 0)
+            cls.max_height = float(RobotParam.getDevice(f"{cls.fork_motor_name}", f"basic.maxLength") or 0)
         else:
-            cls.motor_func = cls._safe_get_device(f"{cls.fork_motor_name}", "func", "")
+            cls.motor_func = RobotParam.getDevice(f"{cls.fork_motor_name}", "func") or ""
             cls.min_height = float(
-                cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.minLength", 0.0))
+                RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.minLength") or 0)
             cls.max_height = float(
-                cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxLength", 0.0))
-            cls.up_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI", "")
-            cls.down_di = cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI", "")
+                RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxLength") or 0)
+            cls.up_di = RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI")
+            cls.down_di = RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI")
             cls.fork_max_speed = float(
-                cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed", 0.0))
+                RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed") or 0)
             cls.reach_up_dist = float(
-                cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachUpDist", 0.001))
+                RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachUpDist") or 0)
             cls.reach_down_dist = float(
-                cls._safe_get_device(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist", 0.001))
+                RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist") or 0)
 
     def get_app_rec_param(cls):
         pass
@@ -338,7 +335,7 @@ class ConfigParams:
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILD(key="timeout", name="Timeout", desc="脚本超时时间"):
                     builder.TYPE(ParamType.FLOAT)
-                    builder.DEFAULTVALUE(120)
+                    builder.DEFAULTVALUE(200)
                     builder.UNIT("s")
 
                 with builder.CHILD(key="scriptDebug", name="Script Debug", desc="是否打印调试信息"):
@@ -372,24 +369,72 @@ class ConfigParams:
                                        desc="载货时检测到位 di"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
+                    with builder.CHILD(key="loadTime", name="Load Time",
+                                       desc="货叉上升超时时间"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(20.0, min_value=1, max_value=300)
+                        builder.UNIT("s")
+                    with builder.CHILD(key="unloadTime", name="Unload Time",
+                                       desc="货叉下降超时时间"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(20.0, min_value=1, max_value=300)
+                        builder.UNIT("s")
+                    with builder.CHILD(key="upDo", name="UP DO", desc="升货叉时的 do"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.Device.DO)
+                    with builder.CHILD(key="upDoStatus", name="Up Do Status", desc="升货叉时的 do 状态"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="downDo", name="Down DO", desc="降货叉时的 do"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.Device.DO)
+                    with builder.CHILD(key="downDoStatus", name="Down Do Status", desc="降货叉时的 do 状态"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
 
             # ===== 取放货 =====
             with builder.GROUP(key="loadUnload", name="Load & Unload", desc="取放货相关配置"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="useStraightLine", name="Use Straight Line", desc="调整是否走直线曲线"):
-                        builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="bezierReturn", name="Bezier Return", desc="取放货后是否按原路返回"):
+                    with builder.CHILD(key="pathAdjustMode", name="Path Adjust Mode", desc="调整是否走直线曲线"):
+                        builder.TYPE(ParamType.COMBO_BOX)
+                        builder.DEFAULTVALUE("bezier")
+
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="bezier", name="Bezier", desc="贝塞尔曲线"):
+                                builder.TYPE(ParamType.ARRAY)
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="maxCurve", name="Max Curve",
+                                                       desc="贝塞尔曲线的最大曲率"):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.DEFAULTVALUE(3)
+                                        builder.UNIT("m")
+
+                            with builder.CHILD(key="straightLine", name="Straight Line", desc="直线调整"):
+                                builder.TYPE(ParamType.ARRAY)
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="maxAngle", name="Max Angle",
+                                                       desc="两段线调整的最大夹角"):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.DEFAULTVALUE(10)
+                                        builder.UNIT("deg")
+
+                    with builder.CHILD(key="returnOnSamePath", name="Return On Same Path",
+                                       desc="识别调整后退出是否按原路返回"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
+
+                    with builder.CHILD(key="forkDiDist", name="Fork DI Dist", desc="盲插到位后后退距离"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.1, min_value=-2, max_value=2)
+                        builder.UNIT("m")
                     if ConfigParams.fork_tip_2D_lasers:
                         with builder.CHILD(key="laserDetectionWidth", name="Load Laser Detection Width",
                                            desc="进叉时的激光宽度"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.DEFAULTVALUE(0.05, min_value=0, max_value=2)
                             builder.UNIT("m")
-                    with builder.CHILD(key="toLoadObsStopDist", name="Load Obstacle Stop Distance",
+                    with builder.CHILD(key="loadObsStopDist", name="Load Obstacle Stop Distance",
                                        desc="取货时后退的避障距离"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05, min_value=0, max_value=2)
@@ -398,18 +443,49 @@ class ConfigParams:
                                        desc="需要先启用 di 检测，检测所有到位di"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+
+                    if ConfigParams.fork_tip_di_sensors:
+                        with builder.CHILD(key="forkDiEnableAtLoad", name="Fork Di Enable At Load",
+                                           desc="取货时是否启用叉尖 di sensor，false 为屏蔽防止阻挡"):
+                            builder.TYPE(ParamType.BOOL)
+                            builder.DEFAULTVALUE(False)
+
+                        with builder.CHILD(key="forkDiEnableAtUnload", name="Fork Di Enable At Unload",
+                                           desc="放货时是否启用叉尖 di sensor"):
+                            builder.TYPE(ParamType.COMBO_BOX_BOOL)
+                            builder.DEFAULTVALUE("on")
+                            with builder.CHILDREN():
+                                # ON选项
+                                with builder.CHILD(key="on", name="Fork Di Enable At Unload",
+                                                   desc="forkDiEnableAtUnload"):
+                                    builder.TYPE(ParamType.ARRAY)
+                                    with builder.CHILD(key="diTriggerMeasureUnload", name="Di Trigger Measure Unload",
+                                                       desc="放货时di触发时的机器人的方式"):
+                                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                                        builder.DEFAULTVALUE("collision")
+                                        with builder.CHILDREN():
+                                            with builder.CHILD("collision", "Collision", "报阻挡"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("autoClearError", "Auto Clear Error",
+                                                               "触发时报错有货，不触发时继续任务"):
+                                                builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("failTask", "Fail Task", "触发结束任务"):
+                                                builder.TYPE(ParamType.STRING)
+
+                                # OFF选项
+                                with builder.CHILD(key="off", name="Fork Di Disable At Unload",
+                                                   desc="fork Di Disable At Unload"):
+                                    builder.TYPE(ParamType.ARRAY)
+
                     with builder.CHILD(key="recLoad", name="Recognition Load",
-                                       desc="进叉时的激光宽度"):
+                                       desc="识别取货"):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
                             # 需要移到 bintask
                             with builder.CHILD(key="zMax", name="sort the rec results by height",
                                                desc="根据识别结果的高度由大到小进行排序"):
                                 builder.TYPE(ParamType.BOOL)
-                                if cls.module_type == "liftFork":
-                                    builder.DEFAULTVALUE(False)
-                                else:
-                                    builder.DEFAULTVALUE(True)
+                                builder.DEFAULTVALUE(False)
                             with builder.CHILD(key="errorRecY", name="Error Rec Y",
                                                desc="识别结果相对AP点报错的y偏移，-1不启用"):
                                 builder.TYPE(ParamType.FLOAT)
@@ -432,6 +508,21 @@ class ConfigParams:
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(ConfigParams.tail + 0.1, min_value=-2, max_value=2)
                                 builder.UNIT("m")
+                            with builder.CHILD(key="recCenterX", name="Rec Center X",
+                                               desc="不指定AP点时，机器人坐标系下识别区域中心X坐标"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(-(ConfigParams.tail + 0.3), min_value=-5, max_value=5)
+                                builder.UNIT("m")
+                            with builder.CHILD(key="recCenterY", name="Rec Center Y",
+                                               desc="不指定AP点时，机器人坐标系下识别区域中心Y坐标"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(0.0, min_value=-5, max_value=5)
+                                builder.UNIT("m")
+                            with builder.CHILD(key="recRadius", name="Rec Radius",
+                                               desc="识别半径"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(0.7, min_value=0.1, max_value=5)
+                                builder.UNIT("m")
                     with builder.CHILD(key="noRecLoad", name="Load By Landmark",
                                        desc="根据站点位置取货"):
                         builder.TYPE(ParamType.ARRAY)
@@ -440,20 +531,42 @@ class ConfigParams:
                                                desc="盲叉取货是否启用到位di"):
                                 builder.TYPE(ParamType.BOOL)
                                 builder.DEFAULTVALUE(True)
-                            with builder.CHILD(key="forkDiDist", name="Fork DI Dist", desc="盲插到位后后退距离"):
-                                builder.TYPE(ParamType.FLOAT)
-                                # if ConfigParams.base_shift:
-                                #     builder.DEFAULTVALUE(ConfigParams.base_shift_length, min_value=-2, max_value=2)
-                                # else:
-                                #     builder.DEFAULTVALUE(0, min_value=-2, max_value=2)
-                                builder.DEFAULTVALUE(0, min_value=-2, max_value=2)
-                                builder.UNIT("m")
-                            with builder.CHILD(key="goodsWidth", name="Goods Width", desc="盲插取货时的货物宽度"):
-                                builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(1.0)
-                            with builder.CHILD(key="goodsLength", name="Goods Length", desc="盲插取货时的货物长度"):
-                                builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(1.2)
+                    with builder.CHILD(key="useForPalletFallProtection", name="Use For Pallet Fall Protection",
+                                       desc="取放货时是否启用货物脱离检测"):
+                        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+                        builder.DEFAULTVALUE("off")
+                        with builder.CHILDREN():
+                            # OFF选项
+                            with builder.CHILD(key="OFF", name="Disable Pallet Fall Protection",
+                                               desc="Disable Pallet Fall Protection"):
+                                builder.TYPE(ParamType.ARRAY)
+
+                            # ON选项
+                            with builder.CHILD(key="on", name="Enable Pallet Fall Protection",
+                                               desc="using extern IMU"):
+                                builder.TYPE(ParamType.ARRAY)
+
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="setRoiX", name="Set Roi X",
+                                                       desc=""):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.REQUIRED(True)
+                                        builder.DEFAULTVALUE(2.0)
+                                with builder.CHILD(key="setRoiMaxY", name="Set Roi Max Y",
+                                                   desc=""):
+                                    builder.TYPE(ParamType.FLOAT)
+                                    builder.REQUIRED(True)
+                                    builder.DEFAULTVALUE(2.0)
+                                with builder.CHILD(key="setRoiMinY", name="Set Roi Min Y",
+                                                   desc=""):
+                                    builder.TYPE(ParamType.FLOAT)
+                                    builder.REQUIRED(True)
+                                    builder.DEFAULTVALUE(2.0)
+                                with builder.CHILD(key="setRoiZ", name="Set Roi Z",
+                                                   desc=""):
+                                    builder.TYPE(ParamType.FLOAT)
+                                    builder.REQUIRED(True)
+                                    builder.DEFAULTVALUE(2.0)
 
             # ===== 线性堆栈 =====
             with builder.GROUP(key="linearUnload", name="Linear Unload", desc="线性堆栈相关配置"):
@@ -549,11 +662,11 @@ def create_rec_param(builder: ParamBuilder):
     with builder.CHILD(key="recognize", name="Recognition",
                        desc="Enable pallet recognition"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        builder.DEFAULTVALUE("off")
+        builder.DEFAULTVALUE("OFF")
 
         with builder.CHILDREN():
             # OFF 选项，不需要填识别文件
-            with builder.CHILD(key="off", name="Recognize",
+            with builder.CHILD(key="OFF", name="Recognize",
                                desc="Load Without Recognition"):
                 builder.TYPE(ParamType.ARRAY)
 
@@ -724,6 +837,66 @@ class InputParams:
 
 
 InputParams.init()
+
+param_loader.addAction(
+    action_name="Fork Load",
+    policy={},
+    args={
+        "operation": "load",
+        "operation.load.startHeight": 0.1,
+        "operation.load.endHeight": 0.1,
+        "operation.load.recognize": 0,
+        "operation.load.leaveLocHeight": -1,
+    },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Fork UnLoad",
+    policy={},
+    args={
+        "operation": "unload",
+        "operation.unload.startHeight": 0.1,
+        "operation.unload.endHeight": 0.1,
+        "operation.unload.leaveLocHeight": -1,
+    },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Fork Height",
+    policy={},
+    args={
+        "operation": "forkHeight",
+        "operation.forkHeight.height": 0.1,
+        "operation.forkHeight.forkSpeed": ConfigParams.fork_max_speed,
+    },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Leave Loc",
+    policy={},
+    args={
+        "operation": "leaveLoc",
+        "operation.leaveLoc.endHeight": 0.1,
+    },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Cage Stack",
+    policy={},
+    args={
+        "operation": "cageStack",
+        "operation.cageStack.startHeight": 0.1,
+        "operation.cageStack.endHeight": 0.1,
+        "operation.cageStack.recognize": 0,
+    },
+    config={}
+)
+
+param_loader.saveAction()
 
 
 def float32_to_regs(value: float):
@@ -1055,7 +1228,7 @@ class Fork(ModuleBase):
                             {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2},
                             {"x": ConfigParams.module_x + 0.05, "y": -ConfigParams.width / 2}]
         self.carrier_shape = []
-        self.goods_shape = []
+
         self.check_di = False
         self.back_dist = 0
         self.task_args = {}
@@ -1076,6 +1249,7 @@ class Fork(ModuleBase):
         self.rec_result = dict()
         # 定义脚本运行相关的成员变量
         self.opt = ""
+        self.min_safe_height = 0.0  # 最小安全高度，fork 高于此高度时跳过后激光碰撞检测；0 表示禁用
         self.hasReachDi = None
         self.fork_cur_height = None
         self.motor_infos = dict()
@@ -1118,6 +1292,7 @@ class Fork(ModuleBase):
         self.last_pos = None
         self.last_save_ts = time.time()
         self.save_interval = 5  # 写数据库时间
+        Container.initContainer(0)
 
     def run(self, args):
         if Abnormal.exists(53320):
@@ -1132,6 +1307,7 @@ class Fork(ModuleBase):
             self.task_args = args
             self.action_id = 0
             self.action_list = []
+            self.min_safe_height = 0.0  # 每次新任务复位，_init_args 会重新解析
             Trace.log(f"script args:{self.task_args}")
             self._init_args()
 
@@ -1183,6 +1359,25 @@ class Fork(ModuleBase):
         # Motor.resetMotor(ConfigParams.fork_motor_name)
         # Navigation.clearGoodsShape()
 
+    def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
+        # 1. 绑定容器
+        Container.bindContainer(container_id, goods_name, desc)
+        # 2. 设置货物形状
+        goods_shape = [{"x": 1.2 / 2, "y": 1.0 / 2},
+                       {"x": 1.2 / 2, "y": -1.0 / 2},
+                       {"x": -1.2 / 2, "y": -1.0 / 2},
+                       {"x": -1.2 / 2, "y": 1.0 / 2}]
+        if not goods_shape:
+            return False
+        goods_point2robot = []
+
+        for point in goods_shape:
+            point2ap = pos2World([point["x"], point["y"], 0],
+                                 [ConfigParams.module_x - 1.2 / 2, 0, 0])
+            goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
+        Navigation.setGoodsPolyShape(goods_point2robot, goods_name)
+        return True
+
     def delete_clear_region(self):
         delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
         delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
@@ -1228,7 +1423,7 @@ class Fork(ModuleBase):
                 return pos, tcp_name  # 优先返回成功的结果
 
             # 如果走到这里，说明 AP 和 LM 都失败了
-            Trace.log(f"Both AP{station_id} and LM{station_id} not found, return last pos:{pos}")
+            Trace.log(f"{station_id} not found, return {pos}")
         return pos, tcp_name
 
     def test(self):
@@ -1299,7 +1494,7 @@ class Fork(ModuleBase):
                     self.action_list = [
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)
                     ]
-                    target_pos = pos2World([-ConfigParams.forkDiDist, 0, 0], self.target_pos)
+                    target_pos = self.target_pos
                     if tcp_name:
                         ap_world_pos_tcp = Navigation.calTCPTrans(target_pos[0], target_pos[1], target_pos[2],
                                                                   tcp_name)
@@ -1311,25 +1506,23 @@ class Fork(ModuleBase):
                         # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                         args = {
                             "back_dist": 0,
-                            "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x + ConfigParams.forkDiDist,
+                            "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x,
                             "adjust_dist": ConfigParams.aheadDist,
                         }
-                        if ConfigParams.useStraightLine:
+                        method = ConfigParams.pathAdjustMode
+                        if method == "straightLine":
                             method = "twoStraightLine"
-                            args["max_angle"] = 10
-                        else:
-                            method = "goBezier"
-                            args["max_curve"] = 3
+                            args["max_angle"] = ConfigParams.maxAngle
+                        elif method == "bezier":
+                            args["max_curve"] = ConfigParams.maxCurve
                     else:
                         method = "goPath"
-                        args = None
+                        args = {}
 
                     self.action_list.append(
-                        GoPathWithContactDi(ConfigParams.contact_ids, target_pos, ConfigParams.toLoadObsStopDist,
-                                            method, args, self.check_di))
-                    self.action_list.append(
-                        RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, ConfigParams.fork_max_speed,
-                                           "upFork"))
+                        GoPathWithContactDi(ConfigParams.contact_ids, target_pos, ConfigParams.loadObsStopDist,
+                                            method, args, self.check_di, "load"))
+                    self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height))
 
                     if self.leave_loc_height >= 0:
                         args = {
@@ -1352,11 +1545,13 @@ class Fork(ModuleBase):
 
             # 如果需要识别后再取货
             else:
+                # 计算圆心
                 if self.target_pos[3] == -1:
-                    target2robot = None
+                    rec_center2robot = [ConfigParams.recCenterX, ConfigParams.recCenterY]
                 else:
                     target2robot = pos2Base(self.target_pos, r_loc)
-                Trace.log(f"target pos :{self.target_pos}", True, True)
+                    rec_center2robot = pos2World([ConfigParams.module_x, 0, 0], target2robot)
+                Trace.log(f"rec center to robot :{rec_center2robot}", True, True)
 
                 # 先看识别文件是否有启用 back_dist，如果启用了，用识别文件的值，没启用的话，用设备模型中的值
                 if self.rec_info.get("enableBackDistance", 'off') != 'on':
@@ -1366,7 +1561,8 @@ class Fork(ModuleBase):
 
                 self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)]
 
-                self.action_list.append(Rec(self.recfile, target2robot, "RecPallet", self.pallet_width / 2))
+                self.action_list.append(
+                    Rec(self.recfile, rec_center2robot[0], rec_center2robot[1], ConfigParams.recRadius))
 
                 if self.rec_height >= 0:
                     self.action_list.append(
@@ -1383,13 +1579,11 @@ class Fork(ModuleBase):
                     and self.recognize):
                 self.check_di = self.rec_info.get("enableCargoContactDI")
 
-                r_loc = get_r_loc()
-
                 Trace.log(f"add task list {self.action_list[self.action_id]},id {self.action_id}", True, True)
 
                 results = self.action_list[self.action_id].results_list
                 self.pallet_width = results[0]["palletWidth"]
-                rec_result = results[0]
+                rec_result_dict = results[0]
                 self.obstacle_polygon_by_rec = self.action_list[self.action_id].obstacle_polygon
 
                 Trace.log(f"carrier {self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}", True, True)
@@ -1407,14 +1601,12 @@ class Fork(ModuleBase):
                 # 相对于机器人取 y 最小的
                 # min_y_result = min(results_in_r, key=lambda result_in_r: abs(result_in_r[1]))
 
-                # 适配世界坐标和机器人坐标系
-                if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
-                    Trace.log("rec world", True, True)
-                    rec_result2r = pos2Base([rec_result["x"], rec_result["y"], rec_result["yaw"]], r_loc)
-                    rec_world_pos = [rec_result["x"], rec_result["y"], rec_result["yaw"]]
-                else:
-                    rec_world_pos = pos2World([rec_result["x"], rec_result["y"], rec_result["yaw"]], r_loc)
-                Trace.log(f"rec_world_pos: {rec_world_pos}", True, True)
+                worldResult = rec_result_dict.get(f"worldResult", dict())
+                rec_world_pos = [worldResult["x"], worldResult["y"], worldResult["yaw"]]
+
+                robotResult = rec_result_dict.get(f"robotResult", dict())
+                rec_robot_pos = [robotResult["x"], robotResult["y"], robotResult["yaw"]]
+                Trace.log(f"rec_world_pos: {rec_world_pos},robotResult:{rec_robot_pos}", True, True)
 
                 if ConfigParams.enableTcp:
                     rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0], rec_world_pos[1], rec_world_pos[2],
@@ -1433,11 +1625,12 @@ class Fork(ModuleBase):
                         True, True)
                     y = rec2ap_pos[1]
                     if abs(angle) > ConfigParams.errorRecAngle != -1:
-                        Abnormal.setTask(53303, f"rec result yaw angle too large:{angle}°", "", "", "")
+                        Abnormal.setTask(53303, f"rec result yaw angle too large:{angle}° from action point", "", "",
+                                         "")
                         self.script_status = ScriptStatus.FAILED
                         return
                     if abs(y) > ConfigParams.errorRecY != -1:
-                        Abnormal.setTask(53321, f"rec result y too large:{y}m", "", "", "")
+                        Abnormal.setTask(53321, f"rec result y too large :{y}m from action point ", "", "", "")
                         self.script_status = ScriptStatus.FAILED
                         return
 
@@ -1447,16 +1640,16 @@ class Fork(ModuleBase):
                     "min_ahead_dist": ConfigParams.minAheadDist,
                     "adjust_dist": ConfigParams.aheadDist,
                 }
-                if ConfigParams.useStraightLine:
-                    method = "twoStraightLine"
-                    args["max_angle"] = 10
-                else:
-                    method = "goBezier"
-                    args["max_curve"] = 3
+                method = ConfigParams.pathAdjustMode
+                Trace.log(f"method:{method}")
+                if method == "straightLine":
+                    args["max_angle"] = ConfigParams.maxAngle
+                elif method == "bezier":
+                    args["max_curve"] = ConfigParams.maxCurve
                 self.action_list.extend([
-                    GoPathWithContactDi(ConfigParams.contact_ids, rec_world_pos, ConfigParams.toLoadObsStopDist, method,
+                    GoPathWithContactDi(ConfigParams.contact_ids, rec_world_pos, ConfigParams.loadObsStopDist, method,
                                         args,
-                                        self.check_di),
+                                        self.check_di, "load"),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, ConfigParams.fork_max_speed,
                                        "upFork")
                 ])
@@ -1473,11 +1666,11 @@ class Fork(ModuleBase):
                         'maxSpeed': 0.2,
                         'useOdo': 0
                     }
-                    if not ConfigParams.useStraightLine and ConfigParams.bezierReturn:
+                    if ConfigParams.pathAdjustMode == "bezier" and ConfigParams.returnOnSamePath:
                         self.action_list.append(
                             GoBezier.GoBezierWorldReturn(False)
                         )
-                    elif ConfigParams.useStraightLine and ConfigParams.bezierReturn:
+                    elif ConfigParams.pathAdjustMode == "straightLine" and ConfigParams.returnOnSamePath:
                         self.action_list.append(
                             GoTwoStraightLine(0, 0, 0, 0, 0, 0, 0, True)
                         )
@@ -1498,33 +1691,20 @@ class Fork(ModuleBase):
                     and self.action_list[self.action_id].action_status == ActionStatus.FINISHED):
                 goods_point2robot = []
 
-                if self.recfile:
-                    # 取最外面的包络，货物模型、栈板模型、识别出来的外部包络
-                    # outer_points = convex_hull(self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec)
-                    for point in self.carrier_shape:
-                        point2ap = pos2World([point["x"], point["y"], 0],
-                                             [ConfigParams.module_x - self.carrier_length / 2, 0, 0])
-                        goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
-                    # 设置货物形状
-                    goods_name = self.recfile
-                    # 设置扣除区域
-                    if self.pallet_deduct_infos:
-                        set_deduct_area(self.pallet_deduct_infos,
-                                        [ConfigParams.module_x - self.carrier_length / 2, 0, 0],
-                                        "PalletRobotDeductArea",
-                                        Coordinate.ROBOT)
-                # 没有识别文件
-                else:
-                    goods_shape = [{"x": ConfigParams.goodsLength / 2, "y": ConfigParams.goodsWidth / 2},
-                                   {"x": ConfigParams.goodsLength / 2, "y": -ConfigParams.goodsWidth / 2},
-                                   {"x": -ConfigParams.goodsLength / 2, "y": -ConfigParams.goodsWidth / 2},
-                                   {"x": -ConfigParams.goodsLength / 2, "y": ConfigParams.goodsWidth / 2}]
-                    for point in goods_shape:
-                        point2ap = pos2World([point["x"], point["y"], 0],
-                                             [ConfigParams.module_x - ConfigParams.goodsLength / 2, 0, 0])
-                        goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
-                    # 设置货物形状
-                    goods_name = "no_rec_deduct_pallet_area"
+                # 取最外面的包络，货物模型、栈板模型、识别出来的外部包络
+                # outer_points = convex_hull(self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec)
+                for point in self.carrier_shape:
+                    point2ap = pos2World([point["x"], point["y"], 0],
+                                         [ConfigParams.module_x - self.carrier_length / 2, 0, 0])
+                    goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
+                # 设置货物形状
+                goods_name = self.recfile
+                # 设置扣除区域
+                if self.pallet_deduct_infos:
+                    set_deduct_area(self.pallet_deduct_infos,
+                                    [ConfigParams.module_x - self.carrier_length / 2, 0, 0],
+                                    "PalletRobotDeductArea",
+                                    Coordinate.ROBOT)
 
                 Navigation.setGoodsPolyShape(goods_point2robot, goods_name)
 
@@ -1551,11 +1731,11 @@ class Fork(ModuleBase):
                 'maxSpeed': 0.2,
                 'useOdo': 0
             }
-            if ConfigParams.bezierReturn and not ConfigParams.useStraightLine:
+            if ConfigParams.returnOnSamePath and ConfigParams.pathAdjustMode == "bezier":
                 self.action_list = [
                     GoBezier.GoBezierWorldReturn(False)
                 ]
-            elif ConfigParams.bezierReturn and ConfigParams.useStraightLine:
+            elif ConfigParams.returnOnSamePath and ConfigParams.pathAdjustMode == "straightLine":
                 self.action_list = [
                     GoTwoStraightLine(0, 0, 0, 0, 0, 0, 0, True)
                 ]
@@ -1605,21 +1785,20 @@ class Fork(ModuleBase):
                         "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x - ConfigParams.base_shift_length,
                         "adjust_dist": ConfigParams.aheadDist,
                     }
-                    if ConfigParams.useStraightLine:
-                        method = "twoStraightLine"
-                        args["max_angle"] = 10
-                    else:
-                        method = "goBezier"
-                        args["max_curve"] = 3
+                    method = ConfigParams.pathAdjustMode
+                    if method == "straightLine":
+                        args["max_angle"] = ConfigParams.maxAngle
+                    elif method == "bezier":
+                        args["max_curve"] = ConfigParams.maxCurve
                 else:
                     method = "goPath"
-                    args = None
-                # if ConfigParams.base_shift:
-                #     target_pos = pos2World([-ConfigParams.base_shift_length, 0, 0], target_pos)
+                    args = {}
+                if ConfigParams.base_shift:
+                    target_pos = pos2World([-ConfigParams.base_shift_length, 0, 0], target_pos)
                 self.action_list = [
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                     GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
-                                        False),
+                                        False, "unload"),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,
                                        ConfigParams.downMaxSpeedWithGoods, "downFork")
                 ]
@@ -1638,11 +1817,11 @@ class Fork(ModuleBase):
                         "reachAngle": math.radians(0.5),
                         "reachDist": 0.005
                     }
-                    if not ConfigParams.useStraightLine and ConfigParams.bezierReturn:
+                    if ConfigParams.pathAdjustMode == "bezier" and ConfigParams.returnOnSamePath:
                         self.action_list.extend([
                             GoBezier.GoBezierWorldReturn(False)
                         ])
-                    elif ConfigParams.useStraightLine and ConfigParams.bezierReturn:
+                    elif ConfigParams.pathAdjustMode == "straightLine" and ConfigParams.returnOnSamePath:
                         self.action_list.extend([
                             GoTwoStraightLine(0, 0, 0, 0, 0, 0, 0, True)
                         ])
@@ -1709,6 +1888,7 @@ class Fork(ModuleBase):
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
             self.fork_height_in_place = True
+        # print("action_status:" + json.dumps(cur_status))
 
     def _init_args(self):
 
@@ -1732,6 +1912,12 @@ class Fork(ModuleBase):
              if p.get('key') == 'recognize'),
             False
         )
+        self.min_safe_height = next(
+            (float(p.get('floatValue', p.get('value', 0.0))) for p in self.move_task.get('params', [])
+             if p.get('key') == 'minSafeHeight'),
+            0.0
+        )
+        Trace.log(f"min_safe_height:{self.min_safe_height}")
         Trace.log(f"move task:{self.move_task}")
 
         self.recognize = any([input_recognize, movetask_recognize])
@@ -1777,7 +1963,8 @@ class Fork(ModuleBase):
     def rec(self):
         if not self.operation_init:
             self.operation_init = True
-            self.action_list = [Rec(self.recfile, self.target_pos)]
+            self.action_list = [Rec(self.recfile, rec_center_x=ConfigParams.recCenterX,
+                                    rec_center_y=ConfigParams.recCenterY, rec_radius=ConfigParams.recRadius)]
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
 
@@ -1794,11 +1981,13 @@ class Fork(ModuleBase):
     def period_run(self):
         fork_height = Motor.getMotorPos(ConfigParams.fork_motor_name)
         self.fork_height = fork_height
+
         self.trace_chart.update({
             "forkHeight": fork_height,  # 货叉高度, 单位 m
             "forkHeightInPlace": self.fork_height_in_place,  # 货叉高度是否到位, true = 到位, false = 未到位
             "forkAutoFlag": not Controller.getIsExternalControl(),
-            "forkMileage": self.total_dist
+            "forkMileage": self.total_dist,
+            "containers": Container.getContainers()
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.reportInfo(self.trace_chart)
@@ -1833,12 +2022,22 @@ class Fork(ModuleBase):
         if ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]:
             task_status = NavStatus.getTaskStatus()
             # 有任务时用后激光做碰撞检测，有障碍物时不动。
+            # 当 minSafeHeight > 0 且货叉正在升降且高度超过最小安全高度时，跳过后激光碰撞检测，防货叉遮挡误报
             if task_status == 2:
                 x_list = [p["x"] for p in self.fork_points]
                 y_list = [p["y"] for p in self.fork_points]
                 if ConfigParams.fork_root_2D_lasers:
                     collision_device = [ConfigParams.fork_root_2D_lasers]
-                    Navigation.collisionDetection(collision_device, x_list, y_list)
+                    fork_is_moving = (
+                            isinstance(self.current_action, RunMotorByPosition)
+                            and self.current_action.motor_name == ConfigParams.fork_motor_name
+                            and self.current_action.action_status == ActionStatus.RUNNING
+                    )
+                    if 0 < self.min_safe_height <= fork_height and fork_is_moving:
+                        Trace.log(
+                            f"fork moving, height:{fork_height} >= min_safe_height:{self.min_safe_height}, skip back laser collision detection")
+                    else:
+                        Navigation.collisionDetection(collision_device, x_list, y_list)
 
             # 堆高车处理后激光的屏蔽
             if Loc.getLocState() == 1:
@@ -1934,7 +2133,7 @@ class Fork(ModuleBase):
                         "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x - ConfigParams.base_shift_length,
                         "adjust_dist": ConfigParams.aheadDist,
                     }
-                    if ConfigParams.useStraightLine:
+                    if ConfigParams.pathAdjustMode == "straightLine":
                         method = "twoStraightLine"
                         args["max_angle"] = 10
                     else:
@@ -1942,23 +2141,21 @@ class Fork(ModuleBase):
                         args["max_curve"] = 3
                 else:
                     method = "goPath"
-                    args = None
+                    args = {}
 
                 self.action_list.append(
                     GoPathWithContactDi(ConfigParams.contact_ids, self.target_pos, None, method, args,
                                         False))
             Trace.log(f"task list: {self.action_list}", True, True)
-            self.action_list.append(Rec("cage.srec", self.target_pos, "RecCage", self.pallet_width / 2))
+            self.action_list.append(Rec(self.recfile, -ConfigParams.tail, 0, ConfigParams.recRadius))
 
         # 识别结束后动态加调整的类
         if (self.action_id < len(self.action_list)
                 and isinstance(self.current_action, Rec)
                 and self.current_action.action_name == "RecCage"
-                and not getattr(self.current_action, "_post_handled", False)
                 and self.current_action.action_status == ActionStatus.FINISHED):
-            self.current_action._post_handled = True
             # 计算出上料笼腿相对于下料笼顶的位置
-            robot2pos = self.get_bottom2top_pos(self.current_action.results_list, (0.075 - 0.04) / 2)
+            robot2pos = self.get_robot2target_pos(self.current_action.results_list)
             Trace.log(f"robot2pos: {robot2pos},yaw: {math.degrees(robot2pos[2])}", True, True)
 
             if abs(math.degrees(robot2pos[2])) > 8 or abs(robot2pos[0]) > 0.2:
@@ -1972,24 +2169,9 @@ class Fork(ModuleBase):
                 self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height))
             else:
 
-                self.action_list.extend([MoveChassisByX(robot2pos),
-                                         Rec("cage.srec", self.target_pos, "RecCage", self.pallet_width / 2)])
+                self.action_list.extend([MoveChassisByY(robot2pos),
+                                         Rec(self.recfile, -ConfigParams.tail, 0, ConfigParams.recRadius)])
 
-                # target = pos2World(robot2pos, get_r_loc())
-                #
-                # args = {
-                #     "back_dist": 0,
-                #     "min_ahead_dist": ConfigParams.tail + ConfigParams.module_x - ConfigParams.base_shift_length,
-                #     "adjust_dist": 3,
-                #     "max_curve": 6
-                # }
-                #
-                # self.action_list.extend([
-                #     # GoPathWithContactDi(ConfigParams.contact_ids, self.start_loc, None, "goPath", None,
-                #     #                     False),
-                #     GoPathWithContactDi(ConfigParams.contact_ids, target, None, "goBezier", args,
-                #                         False),
-                #     Rec("cage.srec", self.target_pos, "RecCage", self.pallet_width / 2)])
                 self.cage_count += 1
             Trace.log(f"task list: {self.action_list},cage_count:{self.cage_count}", True, True)
 
@@ -1998,7 +2180,7 @@ class Fork(ModuleBase):
 
             self.script_status = ScriptStatus.FINISHED
 
-    def get_bottom2top_pos(self, results_list, offset):
+    def get_robot2target_pos(self, results_list):
         """
         1. 找到正确的腿和顶，因为后面的料笼可能也会有看到。（过滤条件）
         2. 腿或者顶小于2，需要报错
@@ -2017,6 +2199,19 @@ class Fork(ModuleBase):
         if len(top_cages) < 2:
             Abnormal.setTask(53500, "")
             return [999, 999, 999]
+
+        # 如果识别结果在世界坐标系，需要改到机器人坐标系后做处理
+        recognitionSide_key = "recognitionObject.CageHeadBottom.coordinateSystem"
+        coordinate_system = RobotParam.getConfigCloneSize("recognition", recognitionSide_key, "cage.srec")
+        if coordinate_system == Coordinate.WORLD.value:
+            r_loc = get_r_loc()
+
+            def _to_robot(o):
+                rx, ry, ryaw = pos2Base([o["x"], o["y"], o.get("yaw", 0)], r_loc)
+                return dict(o, x=rx, y=ry, yaw=ryaw)
+
+            top_cages = [_to_robot(o) for o in top_cages]
+            bottom_cages = [_to_robot(o) for o in bottom_cages]
 
         # 按 x 从大到小排序，取离车体最近的两个值
         tops_sorted = sorted(top_cages, key=lambda o: o["x"], reverse=True)
@@ -2068,12 +2263,12 @@ class Fork(ModuleBase):
         top_mid_offset = pos2World([-0.08 / 2, 0, 0], [top_mid['x'], top_mid['y'], top_mid['yaw']])
         bottom_mid_offset = pos2World([-0.04 / 2, 0, 0], [bottom_mid['x'], bottom_mid['y'], bottom_mid['yaw']])
 
-        bottom2top_pos = pos2Base(top_mid_offset, bottom_mid_offset)
+        robot2target_pos = pos2Base(top_mid_offset, bottom_mid_offset)
         # bottom2top_pos = pos2Base([top_mid['x'], top_mid['y'], top_mid['yaw']], bottom_mid_offset)
 
         Trace.log(
-            f"top_mid:{top_mid},bottom_mid:{bottom_mid}, bottom_mid_offset:{bottom_mid_offset},bottom2top_pos: {bottom2top_pos}")
-        return bottom2top_pos
+            f"top_mid:{top_mid},bottom_mid:{bottom_mid}, bottom_mid_offset:{bottom_mid_offset},bottom2top_pos: {robot2target_pos}")
+        return robot2target_pos
 
 
 class BaseAction:
@@ -2121,7 +2316,7 @@ class BaseAction:
 #             self.action_status = ActionStatus.RUNNING
 #             Navigation.resetGoForkPath(self.goal[0], self.goal[1], self.goal[2], self.back_dist,
 #                                        self.min_ahead_dist, self.ahead_dist)
-#             if ConfigParams.useStraightLine:
+#             if ConfigParams.pathAdjustMode == "straightLine":
 #                 Navigation.goForkUseStraightLine()  # 走折线
 #         self.action_status = Navigation.goForkPath()
 #
@@ -2132,12 +2327,11 @@ class BaseAction:
 
 # 用于识别栈板并获取识别的栈板坐标
 class Rec(BaseAction):
-    def __init__(self, pallet_file, target_pos=None, action_name="RecPallet", radius=0.7):
+    def __init__(self, pallet_file, rec_center_x=-1.0, rec_center_y=0.0, rec_radius=0.7, action_name="RecPallet"):
         super().__init__(action_name)
         self.rec_status = None
         self.result = dict()
         self.action_status = ActionStatus.INIT
-        self.target_pos = target_pos
         self.recfile = pallet_file
         self.attempts = 0
         self.max_attempts = 20
@@ -2145,8 +2339,16 @@ class Rec(BaseAction):
         self.results_dict = {}
         self.results_list = []
         self.obstacle_polygon = []
-        self.radius = radius
-        Trace.log(f"target to robot:{self.target_pos}")
+        # 识别区域参数
+        self.rec_center_x = rec_center_x
+        self.rec_center_y = rec_center_y
+        self.rec_radius = rec_radius
+        self.region = {
+            "point": {"x": self.rec_center_x, "y": self.rec_center_y},
+            "radius": self.rec_radius,
+            "shape": "circle"
+        }
+        Trace.log(f"region: {self.region}")
 
     def run(self):
         if not self.init:
@@ -2187,7 +2389,7 @@ class Rec(BaseAction):
                 self.attempts += 1
                 if self.attempts > self.max_attempts:
                     results = Recognize.getRecResults()
-                    Trace.log(f"raw results:{results}")
+                    # Trace.log(f"raw results:{results}")
                     error_type = results["error"]
                     error_msg = results["logMsg"]
                     Trace.log(f"error_type: {error_type}")
@@ -2200,27 +2402,20 @@ class Rec(BaseAction):
                 else:
                     Recognize.resetRec()
         else:
-            if self.target_pos is None or (len(self.target_pos) > 3 and self.target_pos[3]) == -1:
-                Recognize.doRec(recfile, "")
-            else:
-
-                circle = pos2World([ConfigParams.module_x, 0, 0], self.target_pos)
-                Trace.log(f"circle:{circle}")
-
-                region = {"point": {"x": circle[0], "y": circle[1]}, "radius": self.radius, "shape": "circle"}
-                # Recognize.doRec(recfile, "")
-
-                Recognize.doRec(recfile, json.dumps(region))
+            Recognize.doRec(recfile, json.dumps(self.region))
             Timer.delay(0.05)
         return False, rec_status, list
 
 
 class GoPathWithContactDi(BaseAction):
-    def __init__(self, contact_dis, world_pos, obs_dist, method, args, check_di=True):
+    def __init__(self, contact_dis, world_pos, obs_dist, method, args, check_di=True, operation_type=""):
         super().__init__()
+        if args is None:
+            args = {}
         self.di_filter_time = 1
         self.check_di = check_di
         self.check_all_contact_di = ConfigParams.checkAllContactDis
+        self.operation_type = operation_type  # "load" or "unload"
         self.laser_id = []
         self.laser_width = None
         self.walk_dist = None
@@ -2228,6 +2423,17 @@ class GoPathWithContactDi(BaseAction):
         self.di_status = []
         self.contact_di = contact_dis
         self.contact_di = [d for d in contact_dis if d]
+
+        # 获取叉尖 di sensor 绑定的实际 DI 通道 id
+        self.fork_tip_di_ids = []
+        if ConfigParams.fork_tip_di_sensors:
+            for sensor_name in ConfigParams.fork_tip_di_sensors:
+                di_id = RobotParam.getDevice(sensor_name, "basic.id")
+                if di_id:
+                    self.fork_tip_di_ids.append(di_id)
+        self.di_triggered_stopped = False  # unload autoClearError 模式：是否因 di 触发而停止等待中
+        self.di_trigger_start_time = None  # di 触发开始时间（防抖）
+        self.di_clear_start_time = None  # di 清除开始时间（防抖）
 
         self.target_pos = world_pos
         if self.check_di and not self.contact_di:
@@ -2244,15 +2450,20 @@ class GoPathWithContactDi(BaseAction):
         self.clear_policy = False
         self.policy = {}
         target2robot = pos2Base(world_pos, get_r_loc())
-        Trace.log(f"go path with di target pos:{world_pos}")
+        Trace.log(f"go path with di target pos:{world_pos},args:{args}")
+
+        if self.check_di:
+            back_dist = args.get("back_dist", 0.0) + ConfigParams.forkDiDist
+        else:
+            back_dist = args.get("back_dist", 0.0)
 
         if method == "goPath":
+            # 如果要触发到位di，那就再往后一个 fork di dist 的距离
             if self.check_di:
                 target_pos = pos2World([-ConfigParams.forkDiDist, 0, 0], world_pos)
             else:
                 target_pos = world_pos
             self.final_target = target_pos
-
             Trace.log(f"go path with di target pos:{target_pos}")
             self.back_args = {
                 'x': target_pos[0],
@@ -2269,21 +2480,22 @@ class GoPathWithContactDi(BaseAction):
             if target2robot[0] > 0:
                 self.back_args["backMode"] = 0
             self.back_action = GoPath(self.back_args)
-        elif method == "goBezier":
-            self.back_action = GoBezier.GoBezierWorld(world_pos, args["back_dist"], args["adjust_dist"],
+        elif method == "bezier":
+            self.back_action = GoBezier.GoBezierWorld(world_pos, back_dist, args["adjust_dist"],
                                                       args["min_ahead_dist"], True,
                                                       None, 0.1, 0.3, 0.2, 0.5, args["max_curve"])
             self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
             Trace.log(f"goBezier target pos:{self.final_target}")
 
-        elif method == "twoStraightLine":
+        elif method == "straightLine":
             self.back_action = GoTwoStraightLine(world_pos, args["min_ahead_dist"], args["adjust_dist"],
-                                                 args["back_dist"], 0.2, args['max_angle'], 1)
+                                                 back_dist, 0.2, args['max_angle'], 1)
             self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
             Trace.log(f"twoStraightLine target pos:{self.final_target}")
         else:
             Abnormal.setTask(53929, f"wrong gopath method :{method}, script failed", "script wrong",
                              "", "check the script", "")
+            self.action_status = ActionStatus.FAILED
         # self.back_status = self.back_action.action_status
 
     def run(self):
@@ -2304,22 +2516,29 @@ class GoPathWithContactDi(BaseAction):
                         Trace.log(f"set2DLaserWidth:{laser}")
                         Laser.set2DLaserWidth(laser, 0.05)
 
-                # 把 di sensor 屏蔽掉
-                Trace.log(f"fork tip di sensors :{ConfigParams.fork_tip_di_sensors}")
+                # 根据操作类型决定是否屏蔽叉尖 di sensor（从碰撞检测设备列表中移除）
+                Trace.log(
+                    f"fork tip di sensors:{ConfigParams.fork_tip_di_sensors}, fork_tip_di_ids:{self.fork_tip_di_ids}, operation_type:{self.operation_type}")
+                should_shield_di = False
                 if ConfigParams.fork_tip_di_sensors:
+                    if self.operation_type == "load":
+                        should_shield_di = not ConfigParams.forkDiEnableAtLoad
+                    elif self.operation_type == "unload":
+                        should_shield_di = not ConfigParams.forkDiEnableAtUnload
+                    else:
+                        should_shield_di = True
+
+                if should_shield_di:
                     current_collision_device_str = (RobotParam.getConfig("navigation",
                                                                          "collisionDetection.detectionDevice"))
                     current_collision_device = current_collision_device_str.split(",")
                     Trace.log(f"current_collision_device:{current_collision_device}")
-
-                    for di in ConfigParams.fork_tip_di_sensors:
-                        if di in current_collision_device:
-                            current_collision_device.remove(di)
-
+                    for di_sensor in ConfigParams.fork_tip_di_sensors:
+                        if di_sensor in current_collision_device:
+                            current_collision_device.remove(di_sensor)
                     current_collision_device_str = ",".join(current_collision_device)
-                    self.policy = {
-                        "navigation.collisionDetection.detectionDevice": current_collision_device_str,
-                    }
+                    self.policy["navigation.collisionDetection.detectionDevice"] = current_collision_device_str
+                    Trace.log(f"shielded fork tip di, new collision device:{current_collision_device_str}")
 
                 if self.obs_dist is not None:
                     self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.obs_dist
@@ -2331,6 +2550,7 @@ class GoPathWithContactDi(BaseAction):
 
                 Navigation.appendCustomPolicy("policy", self.policy)
                 time.sleep(0.5)
+
                 self.set_policy = True
                 current_collision_device_change = (RobotParam.getConfig("navigation",
                                                                         "collisionDetection.detectionDevice"))
@@ -2348,22 +2568,79 @@ class GoPathWithContactDi(BaseAction):
 
             # 前进的时候不要设置避障距离
             vx = NavSpeed.getSpeeds()[0]
-            if vx >= 0.01 and not self.clear_policy:
+            if vx > 0.005 and not self.clear_policy:
                 Navigation.clearPolicy()
                 self.clear_policy = True
                 self.set_policy = False
-                Trace.log(f"vx:{vx},clear policy")
-            # if vx >= 0.01:
+                Trace.log(f"vx:{vx},clear policy", True, True)
             elif vx <= 0 and not self.set_policy:
-                # Trace.log(f"vx:{vx}")
-                # if vx <= -0:
-                Trace.log(f"vx:{vx},set policy")
-                # Navigation.setObsStopDist(self.obs_dist)
+                Trace.log(f"vx:{vx},set policy", True, True)
                 Navigation.appendCustomPolicy("policy", self.policy)
                 time.sleep(0.5)
                 Navigation.goPathParam(dict())
                 self.clear_policy = False
                 self.set_policy = True
+
+            # unload 叉尖 di sensor 触发检测（collision 模式由 rbk 底层处理，脚本无需操作）
+            if (self.operation_type == "unload" and ConfigParams.forkDiEnableAtUnload
+                    and self.fork_tip_di_ids and ConfigParams.diTriggerMeasureUnload != "collision"):
+
+                # 读取叉尖 di 状态
+                fork_tip_di_status = [Di.getDi(di_id) for di_id in self.fork_tip_di_ids]
+                di_triggered = any(fork_tip_di_status)
+
+                if ConfigParams.diTriggerMeasureUnload == "autoClearError":
+                    # autoClearError 模式：触发时停车报错，恢复时清除异常并继续
+                    if di_triggered:
+                        # di 触发，开始计时（防抖 0.3s）
+                        if self.di_trigger_start_time is None:
+                            self.di_trigger_start_time = time.time()
+                        elif time.time() - self.di_trigger_start_time > 0.3:
+                            # 持续触发超过 0.3s，停车并报错
+                            if not self.di_triggered_stopped:
+                                Navigation.stopRobotNow()
+                                Abnormal.setTask(53340, f"unload fork tip di triggered, goods detected",
+                                                 "fork tip di sensor triggered during unload",
+                                                 "remove goods from fork tip", "unload")
+                                self.di_triggered_stopped = True
+                                Trace.log(f"autoClearError: fork tip di triggered, stopped robot")
+                            # 重置清除计时
+                            self.di_clear_start_time = None
+                    else:
+                        # di 未触发
+                        self.di_trigger_start_time = None
+                        if self.di_triggered_stopped:
+                            # 之前因 di 触发而停止，现在 di 恢复，开始计时（防抖 0.3s）
+                            if self.di_clear_start_time is None:
+                                self.di_clear_start_time = time.time()
+                            elif time.time() - self.di_clear_start_time > 0.3:
+                                # 持续恢复超过 0.3s，清除异常并恢复运行
+                                if Abnormal.exists(53340):
+                                    Abnormal.clear(53340)
+                                Navigation.goPathParam(dict())  # 恢复路径规划
+                                self.di_triggered_stopped = False
+                                self.di_clear_start_time = None
+                                Trace.log(f"autoClearError: fork tip di cleared, resumed robot")
+                        else:
+                            # 正常运行中，清除计时
+                            self.di_clear_start_time = None
+
+                elif ConfigParams.diTriggerMeasureUnload == "failTask":
+                    # failTask 模式：触发时停车并失败任务
+                    if di_triggered:
+                        if self.di_trigger_start_time is None:
+                            self.di_trigger_start_time = time.time()
+                        elif time.time() - self.di_trigger_start_time > 0.3:
+                            # 持续触发超过 0.3s，停车并失败任务
+                            Navigation.stopRobotNow()
+                            Abnormal.setTask(53341, f"unload fork tip di triggered, fail task",
+                                             "fork tip di sensor triggered during unload",
+                                             "remove goods from fork tip", "unload")
+                            self.action_status = ActionStatus.FAILED
+                            Trace.log(f"failTask: fork tip di triggered, failed task")
+                            return
+                    else:
+                        self.di_trigger_start_time = None
 
             # 如果没有到位 di
             if not self.check_di:
@@ -2404,7 +2681,7 @@ class GoPathWithContactDi(BaseAction):
             # 仅检查所有到位 di 的情况
             else:
                 if dist2target[0] > 0.2 and all(self.di_status):
-                    Abnormal.setTask(53322, f"reach di not reach goal, still {dist2target[0]}m left, "
+                    Abnormal.setTask(53322, f"reach di not reach goal, still {dist2target[0]:.2f}m left, "
                                             f"but di:{self.contact_di}{self.di_status} trigger",
                                      "", "", "")
                     self.action_status = ActionStatus.FAILED
@@ -2526,7 +2803,7 @@ class LocDetectGoods(BaseAction):
 
 
 class RunMotorByPosition(BaseAction):
-    """功能说明：控制线性电机运动，发送电机运行终点高度，触发stop_di时终止运动"""
+    """功能说明：控制线性电机运动,发送电机运行终点高度，触发stop_di时终止运动"""
 
     def __init__(self, motor_name, position, max_speed=ConfigParams.fork_max_speed, action_name="RunMotor", stop_di=""):
         """
@@ -2556,6 +2833,16 @@ class RunMotorByPosition(BaseAction):
         self.last_sample_time = None
         self.start_time = time.time()
         self.action_status = ActionStatus.INIT
+        self.timeout = None
+        self.cur_fork_height_at_init = None
+
+    def _close_fork_dos(self):
+        """关闭货叉 DO（仅对 fork_motor_name 生效）"""
+        if self.motor_name == ConfigParams.fork_motor_name:
+            if ConfigParams.upDo:
+                Do.setDo(ConfigParams.upDo, not ConfigParams.upDoStatus)
+            if ConfigParams.downDo:
+                Do.setDo(ConfigParams.downDo, not ConfigParams.downDoStatus)
 
     def run(self):
         cur_fork_height = Motor.getMotorPos(self.motor_name)
@@ -2563,7 +2850,9 @@ class RunMotorByPosition(BaseAction):
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.last_sample_time = time.time()
+            self.start_time = time.time()
             self.init = True
+            self.cur_fork_height_at_init = cur_fork_height
 
             # 目标位置比初始位置差得不大就不要执行动作了
             if (abs(self.position - cur_fork_height) <= max(ConfigParams.reach_up_dist, ConfigParams.reach_down_dist,
@@ -2576,6 +2865,16 @@ class RunMotorByPosition(BaseAction):
             min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             self.position = clamp(self.position, min_h, max_h)
             Trace.log(f"position:{self.position}")
+
+            # 仅对fork_motor_name进行超时检查
+            if self.motor_name == ConfigParams.fork_motor_name:
+                delta = self.position - cur_fork_height
+                if delta > EPS:  # 上升
+                    self.timeout = ConfigParams.loadTime
+                elif delta < -EPS:  # 下降
+                    self.timeout = ConfigParams.unloadTime
+                else:  # 位置相同
+                    self.timeout = None
 
             if ConfigParams.DOMotor:
                 if self.position < (ConfigParams.max_height + ConfigParams.min_height) / 2:
@@ -2616,9 +2915,32 @@ class RunMotorByPosition(BaseAction):
 
                 Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
 
+            # 货叉运动时打开对应 DO（仅对 fork_motor_name 生效）
+            if self.motor_name == ConfigParams.fork_motor_name:
+                delta = self.position - cur_fork_height  # DOMotor 分支不走上面的 delta，此处统一计算
+                if delta > 0 and ConfigParams.upDo:
+                    # 上升运动，打开 upDo
+                    Do.setDo(ConfigParams.upDo, ConfigParams.upDoStatus)
+                    Trace.log(f"fork moving up, set upDo:{ConfigParams.upDo} to {ConfigParams.upDoStatus}")
+                elif delta < 0 and ConfigParams.downDo:
+                    # 下降运动，打开 downDo
+                    Do.setDo(ConfigParams.downDo, ConfigParams.downDoStatus)
+                    Trace.log(f"fork moving down, set downDo:{ConfigParams.downDo} to {ConfigParams.downDoStatus}")
+
+        # 检查超时（仅对fork_motor_name）
+        if self.timeout is not None and (time.time() - self.start_time) > self.timeout:
+            Abnormal.setTask(53313,
+                             f"Fork motor timeout: {self.motor_name} exceeded {self.timeout}s",
+                             "", "", "")
+            self.action_status = ActionStatus.FAILED
+            return
+
         # pos = Motor.get_motor_pos(self.motor_name)
         self.is_reach = Motor.isMotorReached(self.motor_name)
         if self.is_reach:
+            # 货叉运动结束，关闭对应 DO
+            self._close_fork_dos()
+
             Trace.log(f"agv has base shift:{ConfigParams.base_shift}")
             if ConfigParams.base_shift and abs(self.position - ConfigParams.max_height) < EPS:
                 Navigation.wheelBaseShift(True)
@@ -2673,6 +2995,7 @@ class RunMotorByPosition(BaseAction):
         self.fork_timestamps.clear()
         self.positions.clear()
         self.init = False
+        self._close_fork_dos()
         self.action_status = ActionStatus.FAILED
 
 
@@ -2890,7 +3213,7 @@ class GoPath(BaseAction):
         self.action_status = ActionStatus.FAILED
 
 
-class MoveChassisByX(BaseAction):
+class MoveChassisByY(BaseAction):
     def __init__(self, robot2pos):
         super().__init__("MoveChassisByX")
 
@@ -2967,7 +3290,7 @@ class MoveChassisByX(BaseAction):
 
 
 class GoTwoStraightLine(BaseAction):
-    def __init__(self, world_target, min_ahead_dist, ahead_dist, back_dist, speed, max_angle, dec_dist,
+    def __init__(self, world_target, min_ahead_dist, ahead_dist, back_dist, speed, max_angle=20.0, dec_dist=1.0,
                  return_back=False):
         super().__init__("GoTwoStraightLine")
         self.go3 = None
@@ -3225,6 +3548,7 @@ def main():
                 for k in keys_to_delete:
                     del f.trace_chart[k]
 
+                f.min_safe_height = 0.0
                 f.save_mileage()
                 Module.setStatus(f.script_status)
                 checked_args = False
