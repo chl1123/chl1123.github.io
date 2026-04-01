@@ -455,7 +455,7 @@ class ConfigParams:
                             builder.TYPE(ParamType.COMBO_BOX_BOOL)
                             builder.DEFAULTVALUE("on")
                             with builder.CHILDREN():
-                                # ON选项
+                                # on选项
                                 with builder.CHILD(key="on", name="Fork Di Enable At Unload",
                                                    desc="forkDiEnableAtUnload"):
                                     builder.TYPE(ParamType.ARRAY)
@@ -472,7 +472,7 @@ class ConfigParams:
                                             with builder.CHILD("failTask", "Fail Task", "触发结束任务"):
                                                 builder.TYPE(ParamType.STRING)
 
-                                # OFF选项
+                                # off选项
                                 with builder.CHILD(key="off", name="Fork Di Disable At Unload",
                                                    desc="fork Di Disable At Unload"):
                                     builder.TYPE(ParamType.ARRAY)
@@ -536,12 +536,12 @@ class ConfigParams:
                         builder.TYPE(ParamType.COMBO_BOX_BOOL)
                         builder.DEFAULTVALUE("off")
                         with builder.CHILDREN():
-                            # OFF选项
-                            with builder.CHILD(key="OFF", name="Disable Pallet Fall Protection",
+                            # off选项
+                            with builder.CHILD(key="off", name="Disable Pallet Fall Protection",
                                                desc="Disable Pallet Fall Protection"):
                                 builder.TYPE(ParamType.ARRAY)
 
-                            # ON选项
+                            # on选项
                             with builder.CHILD(key="on", name="Enable Pallet Fall Protection",
                                                desc="using extern IMU"):
                                 builder.TYPE(ParamType.ARRAY)
@@ -662,15 +662,15 @@ def create_rec_param(builder: ParamBuilder):
     with builder.CHILD(key="recognize", name="Recognition",
                        desc="Enable pallet recognition"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        builder.DEFAULTVALUE("OFF")
+        builder.DEFAULTVALUE("off")
 
         with builder.CHILDREN():
-            # OFF 选项，不需要填识别文件
-            with builder.CHILD(key="OFF", name="Recognize",
+            # off 选项，不需要填识别文件
+            with builder.CHILD(key="off", name="Recognize",
                                desc="Load Without Recognition"):
                 builder.TYPE(ParamType.ARRAY)
 
-            # ON 也就是勾选需要识别后才会需要填写识别文件
+            # on 也就是勾选需要识别后才会需要填写识别文件
             with builder.CHILD(key="on", name="Recognize",
                                desc="Load With Recognition"):
                 builder.TYPE(ParamType.ARRAY)
@@ -1104,7 +1104,7 @@ def get_rec_side_info(recfile, rec_side):
 
 def parse_shapes(json_str):
     """
-       输入: JSON 字符串（来自 RobotParam.getConfig）
+       输入: JSon 字符串（来自 RobotParam.getConfig）
        输出: [
                 [{"x":..,"y":..}, {"x":..,"y":..}, ...],
                 [{"x":..,"y":..}, {"x":..,"y":..}, ...]
@@ -1114,7 +1114,7 @@ def parse_shapes(json_str):
         return []
     try:
         data = json.loads(json_str) if isinstance(json_str, str) else json_str
-    except json.JSONDecodeError:
+    except json.JSonDecodeError:
         return []
 
     points = []
@@ -1243,7 +1243,7 @@ class Fork(ModuleBase):
         self.action_id = 0
         self.action_list = list()
         self.operation_init = False
-        self.script_status = ScriptStatus.NONE
+        self.script_status = ScriptStatus.NonE
         self.action_status = ActionStatus.INIT
         # 识别相关
         self.rec_result = dict()
