@@ -4,6 +4,11 @@ import shutil
 
 # 要生成pythonic的proto列表
 protos = [
+    "message_imu",
+    "message_map",
+    "message_gnss",
+    "message_devicestatus",
+    "message_state"
     "message_header",
     "message_bin",
     "message_geometry",
