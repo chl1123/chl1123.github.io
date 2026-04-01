@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/3/31
+# @Date: 2026/4/1
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: fix: 调试任务导致开机calib失败, left_finger参数1处多余下划线残留
+# @Update: feat: feat: 1.适配新识别proto  2.修改开放脚本内置模板
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -2240,19 +2240,36 @@ class Rec:
                 else:
                     Recognize.resetRec()
                     Recognize.doRec(self.filename, "", "")
-        elif rec_status == 2:  # 识别成功,获得结果
+        # elif rec_status == 2:  # 识别成功,获得结果
+        #     rec_results = Recognize.getRecResults()
+        #     if "recoList" in rec_results:
+        #         if len(rec_results["recoList"]) == 1:
+        #             self.result = rec_results["recoList"][0]
+        #     if "resultImg" in self.result:
+        #         self.result.pop("resultImg")
+        #     Recognize.resetRec()
+        #     self.hasGoods = True
+        #     if self.result["x"] > self.max_goods_dist:
+        #         self.goods_out_dist = True
+        #     self.status = ScriptStatus.FINISHED
+        # ===== 新识别 =====
+        elif rec_status == 2:
             rec_results = Recognize.getRecResults()
             if "recoList" in rec_results:
                 if len(rec_results["recoList"]) == 1:
-                    self.result = rec_results["recoList"][0]
-            if "resultImg" in self.result:
-                self.result.pop("resultImg")
+                    reco = rec_results["recoList"][0]
+                    if not reco.get('valid', False):
+                        Trace.log("Rec: recognition result is invalid (valid=False), retrying")
+                        Recognize.resetRec()
+                        Recognize.doRec(self.filename, "", "")
+                        return
+                    self.result = reco.get('robotResult', {})
             Recognize.resetRec()
             self.hasGoods = True
-            if self.result["x"] > self.max_goods_dist:
+            if self.result.get("x", 0) > self.max_goods_dist:
                 self.goods_out_dist = True
             self.status = ScriptStatus.FINISHED
-            Trace.log(f"rec success: {self.status.name} {self.result}")
+        Trace.log(f"rec success: {self.status.name} {self.result}")
 
         cur_state = dict()
         cur_state['recResult'] = self.result
@@ -2449,6 +2466,70 @@ class RecAdjust:
         self.status = ScriptStatus.RUNNING
         self.rec_fail_time = 0
         self.goPath.reset()
+
+
+# ============================================================================
+# 脚本内置动作模板定义
+# ============================================================================
+# 添加 "zero" 动作模板（机构回零）
+param_loader.addAction(
+    action_name="zero",
+    policy=None,
+    args={
+        "operation": "zero",
+    },
+    config={}
+)
+
+# 添加 "calib" 动作模板（电机标零）
+param_loader.addAction(
+    action_name="calib",
+    policy=None,
+    args={
+        "operation": "calib",
+    },
+    config={}
+)
+
+# 添加 "load" 动作模板（识别取货）
+param_loader.addAction(
+    action_name="load",
+    policy=None,
+    args={
+        "operation": "load",
+        "operation.load.visionType": "box",  # 识别类型: 'box'或'shelf'，可缺省
+        "operation.load.lift": 0.0,  # 取货前识别时的货叉高度 (m)
+        "operation.load.rotate": 0,  # 取货前的货叉角度 (deg)
+        "operation.load.recAdjust": 1,  # 开启识别时调整机器人位置
+        "operation.load.stretch": 0.0,  # 货叉伸出长度，缺省时根据识别结果自动计算
+        "operation.load.container": 0,  # 车体背篓号，缺省时从下往上依次放货
+        "operation.load.goodsName": "",  # 货物编号，缺省时为空字符串
+    },
+    config={}
+)
+
+# 添加 "unload" 动作模板（识别放货）
+param_loader.addAction(
+    action_name="unload",
+    policy=None,
+    args={
+        "operation": "unload",
+        "operation.unload.visionType": "shelf",  # 识别类型: 'shelf'
+        "operation.unload.lift": 0.0,  # 放货前识别时的货叉高度 (m)
+        "operation.unload.recAdjust": 1,  # 开启识别时调整机器人位置
+        "operation.unload.rotate": 0,  # 放货前的货叉角度 (deg)
+        "operation.unload.stretch": 0.0,  # 货叉伸出长度，缺省时根据识别结果自动计算
+        "operation.unload.recBoxLift": -1,  # 识别料箱码的高度，-1 表示不识别
+        "operation.unload.preFinger": 1,  # 提前打开手指
+        "operation.unload.container": 0,  # 车体背篓号，缺省时从下往上依次取货
+        "operation.unload.goodsName": "",  # 货物编号，缺省时为空字符串
+    },
+    config={}
+)
+
+# 保存动作模板到文件
+param_loader.saveAction()
+
 
 
 def main():

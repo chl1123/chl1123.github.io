@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/3/31
+# @Date : 2026/4/1
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : add: 1. 可选自动标零功能(默认关闭) 2. 脚本配置参数优化  fix: 根据插入方向旋转货物模型，容器角度错误
+# @Update : feat: 1.适配新识别proto  2.修改开放脚本内置模板
 
 import json
 import math
@@ -297,20 +297,6 @@ class ConfigParams:
                                        desc="Zero position digital input for jack"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-004")
-                    with builder.CHILD(key="jackUpDo", name="Jack Up DO",
-                                       desc="Digital output for jack up"):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DO-002")
-                    with builder.CHILD(key="jackDownDo", name="Jack Down DO",
-                                       desc="Digital output for jack down"):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DO-001")
-                    with builder.CHILD(key="jackUpDelay", name="Jack Up Delay",
-                                       desc="Delay after jack up DI triggered before stopping DO (seconds)"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.2)
-                        builder.UNIT("s")
-                        builder.SINGLESTEP(0.05)
 
             # ============================================
             # 导航配置组（Bezier + Polyline）
@@ -3252,19 +3238,45 @@ class RecShelf(BaseAction):
         Trace.log(f"{rec_status=}")
         # rec_result = Recognize.getRecFile(self.recfile)  # 读到识别文件原始数据
         # Trace.log(f"{rec_result=}")
+
+        # if rec_status == 2:
+        #     rec_result = Recognize.getRecResults()
+        #     Trace.log(f"{rec_result=}")
+        #     Recognize.resetRec()
+        #     Trace.log(f"rec_result={rec_result}")
+        #     rec_x = rec_result['recoList'][0]['x']
+        #     rec_y = rec_result['recoList'][0]['y']
+        #     rec_yaw = rec_result['recoList'][0]['yaw']
+        #     rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
+        #     rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
+        #     Trace.log(f"{rec_x_y_yaw=}")
+        #     j.rec_result = rec_x_y_yaw
+        #     self.action_status = ActionStatus.FINISHED
+        # ===== 新识别 =====
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
             Trace.log(f"{rec_result=}")
             Recognize.resetRec()
             Trace.log(f"rec_result={rec_result}")
-            rec_x = rec_result['recoList'][0]['x']
-            rec_y = rec_result['recoList'][0]['y']
-            rec_yaw = rec_result['recoList'][0]['yaw']
-            rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
-            rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
-            Trace.log(f"{rec_x_y_yaw=}")
-            j.rec_result = rec_x_y_yaw
-            self.action_status = ActionStatus.FINISHED
+            reco_list = rec_result.get('recoList', [])
+            if not reco_list:
+                Trace.log("RecShelf: recoList is empty, retrying")
+                self.do_rec = False
+            else:
+                reco = reco_list[0]
+                if not reco.get('valid', False):
+                    Trace.log("RecShelf: recognition result is invalid (valid=False), retrying")
+                    self.do_rec = False
+                else:
+                    world_result = reco.get('worldResult', {})
+                    rec_x = world_result['x']
+                    rec_y = world_result['y']
+                    rec_yaw = world_result['yaw']
+                    rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
+                    rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
+                    Trace.log(f"{rec_x_y_yaw=}")
+                    j.rec_result = rec_x_y_yaw
+                    self.action_status = ActionStatus.FINISHED
         elif rec_status in (3, -1):
             if Timer.delay(0.05):
                 self.attempts += 1
@@ -4018,48 +4030,46 @@ class RotateDirection(IntEnum):
     CLOCKWISE = -1
 
 
-# # ============================================================================
-# # 脚本内置动作模板定义
-# # ============================================================================
-# # 添加 "jackLoad" 动作模板
-# param_loader.addAction(
-#     action_name="jackLoad",
-#     policy = None,
-#     args={
-#         "operation": "jackLoad",
-#         "operation.jackLoad.targetName": "AP1",
-#         "operation.jackLoad.startHeight": 0.0,
-#         "operation.jackLoad.endHeight": 0.06,
-#         "operation.jackLoad.recFile": "default.srec",
-#         "operation.jackLoad.insertShelfDir": "A",
-#         "operation.jackLoad.recognize": "OFF",
-#         "operation.jackLoad.howGoSite": "bezier",
-#         "operation.jackLoad.isSecondaryAdjust": "OFF",
-#     },
-#     config={}
-# )
-#
-# # 添加 "jackUnload" 动作模板
-# param_loader.addAction(
-#     action_name="jackUnload",
-#     policy = None,
-#     args={
-#         "operation": "jackUnload",
-#     },
-#     config={}
-# )
-#
-# # 添加 "jackHeight" 动作模板
-# param_loader.addAction(
-#     action_name="jackHeight",
-#     policy={},
-#     args={
-#         "operation": "jackHeight",
-#         "operation.jackHeight.endHeight": 0.06,
-#         "operation.jackHeight.recFile": "default.srec",
-#     },
-#     config={}
-# )
+# ============================================================================
+# 脚本内置动作模板定义
+# ============================================================================
+
+# 添加 "jackLoad" 动作模板
+param_loader.addAction(
+    action_name="jackLoad",
+    policy = None,
+    args={
+        "operation": "jackLoad",
+        "operation.jackLoad.endHeight": 0.06,
+        "operation.jackLoad.recFile": "default.srec",
+        "operation.jackLoad.insertShelfDir": "A",
+        "operation.jackLoad.recognize": "OFF",
+        "operation.jackLoad.howGoSite": "bezier",
+        "operation.jackLoad.isSecondaryAdjust": "OFF",
+    },
+    config={}
+)
+
+# 添加 "jackUnload" 动作模板
+param_loader.addAction(
+    action_name="jackUnload",
+    policy = None,
+    args={
+        "operation": "jackUnload",
+    },
+    config={}
+)
+
+# 添加 "jackHeight" 动作模板
+param_loader.addAction(
+    action_name="jackHeight",
+    policy={},
+    args={
+        "operation": "jackHeight",
+        "operation.jackHeight.endHeight": 0.06,
+    },
+    config={}
+)
 
 # 添加 "PGVSecondaryAdjust" 动作模板
 param_loader.addAction(
