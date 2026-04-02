@@ -123,34 +123,30 @@ class ScriptParam:
     _initialized = False
     config_change_callback = None
     event_task_config = False
-    def __new__(cls, script_file: str = None):
-        if cls._instance is None:
-            cls._instance = super(ScriptParam, cls).__new__(cls)
-        return cls._instance
+    file_instance = {}
+
 
     def __init__(self, script_file: str = None):
-        # 防止重复初始化
-        if not ScriptParam._initialized:
-            if script_file is not None:
-                _get_prefix_dir(script_file)
-                self.config_file = prefix_dir + CONFIG_SUFFIX
-                self.input_file = prefix_dir + INPUT_SUFFIX
-                self.action_file = prefix_dir + ACTION_SUFFIX
-            else:
-                self.config_file = None
-                self.input_file = None
-                self.action_file = None
-            self.config_full_params = {}
-            self._actions = []
-            self.__config_validator = None
-            ScriptParam._initialized = True
+
+        if script_file is not None:
+            _get_prefix_dir(script_file)
+            self.config_file = prefix_dir + CONFIG_SUFFIX
+            self.input_file = prefix_dir + INPUT_SUFFIX
+            self.action_file = prefix_dir + ACTION_SUFFIX
+        else:
+            self.config_file = None
+            self.input_file = None
+            self.action_file = None
+        self.config_full_params = {}
+        self._actions = []
+        self.__config_validator = None
+        script_file=script_file.replace("/params","")
+        ScriptParam.file_instance[script_file] = self
+
 
     @classmethod
-    def getInstance(cls) -> 'ScriptParam':
-        """获取单例实例"""
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
+    def getInstance(cls,script_file: str = None) -> 'ScriptParam':
+        return ScriptParam.file_instance.get(script_file,None)
 
     def builderConfig(self):
         return ParamBuilder(self.config_file, "Script Configuration Parameters", "config")

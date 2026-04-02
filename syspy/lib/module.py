@@ -184,8 +184,7 @@ class Module:
                 cls.__run_status = ScriptStatus.RUNNING
             # 任务中有配置参数则合并
             if "config" in cls.__task_params:
-                ScriptParam.getInstance().setTaskConfig(cls.__task_params["config"])
-
+                ScriptParam.getInstance(cls.script_file).setTaskConfig(cls.__task_params.get("args",{}).get("script",{})["config"])
     @classmethod
     def __register(cls):
         Service.server().register_function(cls.__updateCmd, "update_cmd")
