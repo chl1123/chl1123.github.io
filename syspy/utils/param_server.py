@@ -1218,7 +1218,7 @@ class ParamValidator:
                         # 默认情况：检查是否在输入参数中或是否为必填项
                         in_input = False
                         for key in input_params.keys():
-                            if key.startswith(full_path) or param_def['key'] in str(input_params.get(key, '')):
+                            if key.lower().startswith(full_path.lower()) or param_def['key'] in str(input_params.get(key, '')):
                                 in_input = True
                         if in_input or (not in_input and param_def.get('required', False) == True):
                             should_validate_children = True
@@ -1226,7 +1226,7 @@ class ParamValidator:
 
                     # 如果没有特殊处理但有子参数需要验证
                     if not should_validate_children:
-                        in_input = any(key.startswith(full_path) for key in input_params.keys())
+                        in_input = any(key.lower().startswith(full_path.lower()) for key in input_params.keys())
                         if in_input or param_def.get('required', False):
                             validate_all_params(param_def['children'], full_path)
 
@@ -1245,13 +1245,22 @@ class ParamValidator:
 
     def _validate_combo_bool_children(self, parent_def: Dict[str, Any], input_params: Dict[str, Any],
                                       validated_params: Dict[str, Any], errors: List[str], parent_path: str):
-        """验证COMBO_BOX_BOOL子参数"""
+        def _get_ignore_case(params: Dict[str, Any], key: str):
+            val = params.get(key)
+            if val is not None:
+                return val
+            key_lower = key.lower()
+            for k, v in params.items():
+                if k.lower() == key_lower:
+                    return v
+            return None
+
         def validate_recursive(node_def: Dict[str, Any], current_path: str):
             node_key = node_def.get('key')
             full_path = f"{current_path}.{node_key}" if current_path else node_key
             # 如果该节点在输入参数中，则验证它
             direct_value = input_params.get(node_key)
-            path_value = input_params.get(full_path)
+            path_value = _get_ignore_case(input_params, full_path)
 
             value = direct_value if direct_value is not None else path_value
             self._validate_param(node_def, value, input_params, validated_params, errors, full_path)
