@@ -29,15 +29,18 @@ class _OutputBase(object):
     def _try_direct(self, values):
         if not self._prefer_direct or self._direct_method is None:
             return False
-        ok, _ = self._rpc.call(self._direct_method, *values)
-        if ok:
+        try:
+            self._rpc.call(self._direct_method, *values)
             return True
-        self._prefer_direct = False
-        if not self._warned:
-            log.warning("BehavFactory.%s failed, fallback to setAction '%s'",
-                        self._direct_method, self._channel)
-            self._warned = True
-        return False
+        except Exception as exc:
+            self._prefer_direct = False
+            if not self._warned:
+                log.warning(
+                    "BehavFactory.%s failed, fallback to setAction '%s': %s",
+                    self._direct_method, self._channel, exc,
+                )
+                self._warned = True
+            return False
 
     def _send(self, payload, direct_values=None):
         payload_text = json.dumps(payload, sort_keys=True)
@@ -89,10 +92,11 @@ class AudioOutput(_OutputBase):
 
     def tryStop(self):
         """请求停止音频。"""
-        ok, _ = self._rpc.call("tryAudioStop")
-        if ok:
+        try:
+            self._rpc.call("tryAudioStop")
             self._last_payload = "{}"
-        else:
+        except Exception as exc:
+            log.warning("tryAudioStop failed: %s", exc)
             self._clear()
 
 

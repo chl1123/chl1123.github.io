@@ -71,6 +71,8 @@ class EcalStateSubscriber(object):
 
     def _setup(self, unit_name):
         try:
+            print("[ecal_sub] _setup: use_nanobind={}, ecal_core.ok()={}".format(
+                self._use_nanobind, self.ecal_core.ok()))
             if not self.ecal_core.ok():
                 if self._use_nanobind:
                     cfg = self.ecal_core.Configuration()
@@ -79,33 +81,64 @@ class EcalStateSubscriber(object):
                 else:
                     self.ecal_core.initialize(unit_name)
                 self._initialized_here = True
+                print("[ecal_sub] eCAL initialized (unit_name={})".format(unit_name))
 
             if self._use_nanobind:
-                sub_cfg = self.ecal_core.SubscriberConfiguration()
-                sub_cfg.layer.shm.enable = True
-                sub_cfg.layer.udp.enable = False
-                sub_cfg.layer.tcp.enable = False
-                self._subscriber = self.ecal_core.Subscriber(
-                    STATE_TOPIC,
-                    self.ecal_core.DataTypeInformation(),
-                    sub_cfg,
-                )
+                try:
+                    from ecal.msg.string.core import Subscriber as StringSubscriber
+                    sub_cfg = self.ecal_core.SubscriberConfiguration()
+                    sub_cfg.layer.shm.enable = True
+                    sub_cfg.layer.udp.enable = True
+                    sub_cfg.layer.tcp.enable = False
+                    self._subscriber = StringSubscriber(STATE_TOPIC, sub_cfg)
+                    print("[ecal_sub] nanobind StringSubscriber created on '{}'".format(STATE_TOPIC))
+                except Exception as e:
+                    print("[ecal_sub] StringSubscriber failed: {}, falling back to raw Subscriber".format(e))
+                    sub_cfg = self.ecal_core.SubscriberConfiguration()
+                    sub_cfg.layer.shm.enable = True
+                    sub_cfg.layer.udp.enable = True
+                    sub_cfg.layer.tcp.enable = False
+                    self._subscriber = self.ecal_core.Subscriber(
+                        STATE_TOPIC,
+                        self.ecal_core.DataTypeInformation(),
+                        sub_cfg,
+                    )
+                    self._use_nanobind = "raw"
+                    print("[ecal_sub] raw nanobind Subscriber created on '{}'".format(STATE_TOPIC))
             else:
                 self._subscriber = self.ecal_core.subscriber(STATE_TOPIC)
+                print("[ecal_sub] core subscriber created on '{}'".format(STATE_TOPIC))
 
             self._subscriber.set_receive_callback(self._on_receive)
-            log.info("eCAL subscriber ready on topic '%s'", STATE_TOPIC)
+            print("[ecal_sub] callback registered, subscriber.available={}".format(self.available))
+            sys.stdout.flush()
         except Exception as exc:
-            log.warning("eCAL state subscriber setup failed: %s", exc)
+            print("[ecal_sub] setup FAILED: {}".format(exc))
+            import traceback; traceback.print_exc()
             self.close()
 
     def _on_receive(self, *args):
-        # nanobind: (TopicId, DataTypeInformation, ReceiveCallbackData) — payload in args[2].buffer
-        # old core: (topic_name, msg, time) — payload is msg directly
-        if self._use_nanobind:
-            payload = args[2].buffer if len(args) >= 3 else None
-        else:
-            payload = args[1] if len(args) >= 2 else None
+        # nanobind StringSubscriber: (topic_id, callback_data) — callback_data.message is str
+        # nanobind raw Subscriber: (TopicId, DataTypeInformation, ReceiveCallbackData) — buffer
+        # old core: (topic_name, msg, time) — payload is msg (bytes)
+        try:
+            if self._use_nanobind == "raw":
+                payload = args[2].buffer if len(args) >= 3 else None
+            elif self._use_nanobind:
+                payload = args[1].message.encode("utf-8") if len(args) >= 2 else None
+            else:
+                payload = args[1] if len(args) >= 2 else None
+        except Exception as e:
+            print("[ecal_sub] _on_receive ERROR: {}, args_len={}, arg_types={}".format(
+                e, len(args), [type(a).__name__ for a in args]))
+            payload = None
+
+        if payload and not hasattr(self, '_debug_first_recv'):
+            self._debug_first_recv = True
+            print("[ecal_sub] FIRST MESSAGE RECEIVED! payload_len={}, preview={}".format(
+                len(payload), payload[:200] if payload else None))
+            sys.stdout.flush()
+
         with self._lock:
             self._last_payload = payload
 
