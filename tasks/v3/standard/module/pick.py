@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/3/18
+# @Date : 2026/4/2
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : add：自动货架尺寸识别
+# @Update : feat: 配送车脚本适配部分顶升车脚本改动
 
 import json
 import math
@@ -1542,6 +1542,9 @@ class Jack(ModuleBase):
                     JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed,
                                self.recfile, deduct_info=deduct_info_lift))
 
+                # 顶升完成后绑定容器，设置货物模型
+                self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
+
                 # 取货完成后清除策略
                 self.action_list.append(ClearPolicy())
 
@@ -1562,11 +1565,13 @@ class Jack(ModuleBase):
             if self.pre_action_completed and current_height <= 0.005:
                 # 边走边动模式下顶升已经下降完成，跳过下降步骤
                 debug_trace(f"jackUnload: 边走边动模式，顶升已下降 (height={current_height:.4f}m)，跳过下降步骤")
+                self.action_list.append(UnbindContainer("999"))
             else:
                 # 正常模式或边走边动未完成，执行下降托盘
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed, self.recfile))
-
+                # 下降完成后解绑容器，清除货物模型
+                self.action_list.append(UnbindContainer("999"))
             # === 放货完成后删除激光扣除区域 ===
             self.action_list.append(DeleteLaserDeductArea())
 
@@ -1687,8 +1692,6 @@ class Jack(ModuleBase):
         else:
             self.status = ScriptStatus.FINISHED
             self.action_list = []
-        # Trace.log(f'{self.action_id=}, {self.action_list=}')
-        # Trace.log(f"self.action_list: {self.action_list}")
 
     def suspend(self):
         self.status = ScriptStatus.SUSPENDED
@@ -2220,6 +2223,7 @@ class JackHeight(BaseAction):
         self.jack_start_height = None
         self._count_recorded = False  # 防止重复计数
         self._last_progress = -1  # 用于进度日志去重
+        self._up_di_triggered_time = None # 上到位 DI/isReached 触发时间戳（用于延迟）
         Motor.resetMotor(self.motor_name)
 
     def run(self, j: Jack):
@@ -2240,22 +2244,6 @@ class JackHeight(BaseAction):
                 Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                        config_params.jack_zero_di)
 
-            if self.target_height > config_params.jack_min_height:
-                shape = None
-                if self.recfile:
-                    recognition_goodsParameter_path = f"recognitionObject.{self.object_key}.goodsParameter"
-                    goods_shape = RobotParam.getConfig("recognition",
-                                                       f"{recognition_goodsParameter_path}.goodsShape",
-                                                       self.recfile)
-                    # shapes = json.loads(goods_shape)
-                    shapes = [{"points": [{"x": 0.5, "y": 1.05}, {"x": -0.55, "y": 1.05}, {"x": -0.55, "y": -1.05},
-                                          {"x": 0.5, "y": -1.05}], "shape": "rectangle"}]
-                    debug_trace(f"[JACK] goodsShape loaded: {len(shapes[0]['points'])} points")
-                    shape = shapes[0]["points"]
-                Navigation.setGoodsPolyShape(shape, "shelf")
-            else:
-                Navigation.clearGoodsShape()
-
         # 获取当前电机位置（精简版，不输出完整 motor_info）
         current_pos = Motor.getMotorPos(self.motor_name)
 
@@ -2270,18 +2258,22 @@ class JackHeight(BaseAction):
                 debug_trace(f"[JACK] progress: {progress_10}% (pos={current_pos:.4f}m)")
 
         if self.target_height > self.jack_start_height:
-            # 顶升动作
+            # 顶升动作：触发上到位 DI 后结束
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_up_di):
-                self.action_status = ActionStatus.FINISHED
-                Motor.resetMotor(self.motor_name)
-                debug_trace(f"[JACK]  Jack up done pos={current_pos:.4f}m")
-                # 顶升完成，记录顶升次数（仅在顶升时计数，下降不计数）
-                if not self._count_recorded:
-                    self._count_recorded = True
-                    jack_count_manager.increment_count()
-                # 顶升完成后设置激光扣除区（车已到达货架正下方，坐标准确）
-                if self.deduct_info:
-                    self._set_deduct_area()
+                if self._up_di_triggered_time is None:
+                    self._up_di_triggered_time = time.time()
+                    debug_trace(f"[JACK] 上到位触发 pos={current_pos:.4f}m")
+                elif time.time() - self._up_di_triggered_time >= 0.2:
+                    self.action_status = ActionStatus.FINISHED
+                    Motor.resetMotor(self.motor_name)
+                    debug_trace(f"[JACK] 顶升完成 pos={current_pos:.4f}m")
+                    # 顶升完成，记录顶升次数（仅在顶升时计数，下降不计数）
+                    if not self._count_recorded:
+                        self._count_recorded = True
+                        jack_count_manager.increment_count()
+                    # 顶升完成后设置激光扣除区（车已到达货架正下方，坐标准确）
+                    if self.deduct_info:
+                        self._set_deduct_area()
         else:
             # 下降动作
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_zero_di):
@@ -2331,6 +2323,36 @@ class JackHeight(BaseAction):
         except Exception as e:
             Trace.log(f"[LASER] _delete_deduct_area error: {e}")
 
+class BindContainer(BaseAction):
+    """顶升完成后绑定容器并设置货物模型"""
+
+    def __init__(self, container_id: str, goods_name: str, recfile: str, insert_dir: str = "D"):
+        super().__init__("BindContainer")
+        self.opt_info = f"BindContainer{{container_id={container_id}, goods_name={goods_name}, recfile={recfile}}}"
+        self.container_id = container_id
+        self.goods_name = goods_name
+        self.recfile = recfile
+        self.insert_dir = insert_dir
+
+    def run(self, j: Jack):
+        ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec", self.insert_dir)
+        if not ok:
+            Trace.log(f"[BindContainer] 绑定失败，recfile={self.recfile}")
+        self.action_status = ActionStatus.FINISHED
+
+
+class UnbindContainer(BaseAction):
+    """下降完成后解绑容器并清除货物模型"""
+
+    def __init__(self, container_id: str):
+        super().__init__("UnbindContainer")
+        self.opt_info = f"UnbindContainer{{container_id={container_id}}}"
+        self.container_id = container_id
+
+    def run(self, j: Jack):
+        j.unbindContainer(self.container_id)
+        Trace.log(f"[UnbindContainer] 解绑成功: container={self.container_id}")
+        self.action_status = ActionStatus.FINISHED
 
 class JackUpDown(BaseAction):
     """
