@@ -23,10 +23,10 @@ def run():
 
         if state.taskStatus == 5:
             led.trySet("green", "breath")
-            print("-> requestLed(green, breath)")
+            print("-> tryLed(green, breath)")
         else:
             led.trySet("blue", "steady")
-            print("-> requestLed(blue, steady)")
+            print("-> tryLed(blue, steady)")
 
         state.sleep(1)
         count += 1

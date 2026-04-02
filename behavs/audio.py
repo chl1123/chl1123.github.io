@@ -22,10 +22,10 @@ def run():
 
         if arrived and not last_arrived:
             audio.tryPlay("arrive.wav")
-            print("-> requestAudio(arrive.wav)")
+            print("-> tryAudio(arrive.wav)")
         elif not arrived and last_arrived:
             audio.tryStop()
-            print("-> requestAudioStop()")
+            print("-> tryAudioStop()")
         else:
             print("-> (no change)")
 

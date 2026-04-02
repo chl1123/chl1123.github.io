@@ -20,7 +20,7 @@ def run():
         print(f"[{count}] taskStatus={ts}", end=" ")
 
         trigger.trySet("slow_light", ts == 5)
-        print(f"-> requestTrigger(slow_light, {ts == 5})")
+        print(f"-> tryTrigger(slow_light, {ts == 5})")
 
         state.sleep(0.2)
         count += 1

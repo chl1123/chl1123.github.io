@@ -58,7 +58,7 @@ class _OutputBase(object):
 
 class LedOutput(_OutputBase):
     def __init__(self, rpc):
-        super().__init__(rpc, "led", "requestLed", ("color", "pattern"))
+        super().__init__(rpc, "led", "tryLed", ("color", "pattern"))
 
     def trySet(self, color, pattern):
         """请求设置 LED。C++ 仲裁可能拒绝（如急停态）。"""
@@ -70,7 +70,7 @@ class LedOutput(_OutputBase):
 
 class TricolorOutput(_OutputBase):
     def __init__(self, rpc):
-        super().__init__(rpc, "tricolor", "requestTricolor", ("red", "yellow", "green"))
+        super().__init__(rpc, "tricolor", "tryTricolor", ("red", "yellow", "green"))
 
     def trySet(self, red, yellow, green):
         """请求设置三色灯。C++ 仲裁可能拒绝。"""
@@ -83,7 +83,7 @@ class TricolorOutput(_OutputBase):
 
 class AudioOutput(_OutputBase):
     def __init__(self, rpc):
-        super().__init__(rpc, "audio", "requestAudio", ("sound_id", "loop"))
+        super().__init__(rpc, "audio", "tryAudio", ("sound_id", "loop"))
 
     def tryPlay(self, sound_id, loop=False):
         """请求播放音频。C++ 仲裁可能拒绝。"""
@@ -93,16 +93,16 @@ class AudioOutput(_OutputBase):
     def tryStop(self):
         """请求停止音频。"""
         try:
-            self._rpc.call("requestAudioStop")
+            self._rpc.call("tryAudioStop")
             self._last_payload = "{}"
         except Exception as exc:
-            log.warning("requestAudioStop failed: %s", exc)
+            log.warning("tryAudioStop failed: %s", exc)
             self._clear()
 
 
 class TriggerOutput(_OutputBase):
     def __init__(self, rpc):
-        super().__init__(rpc, "trigger", "requestTrigger", ("key", "value"))
+        super().__init__(rpc, "trigger", "tryTrigger", ("key", "value"))
 
     def trySet(self, key, value):
         """请求设置 trigger。C++ 仲裁可能拒绝。"""

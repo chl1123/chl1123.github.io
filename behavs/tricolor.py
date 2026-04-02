@@ -21,13 +21,13 @@ def run():
 
         if pct > 50:
             tricolor.trySet(False, False, True)
-            print("-> requestTricolor(R=0,Y=0,G=1)")
+            print("-> tryTricolor(R=0,Y=0,G=1)")
         elif pct > 20:
             tricolor.trySet(False, True, False)
-            print("-> requestTricolor(R=0,Y=1,G=0)")
+            print("-> tryTricolor(R=0,Y=1,G=0)")
         else:
             tricolor.trySet(True, False, False)
-            print("-> requestTricolor(R=1,Y=0,G=0)")
+            print("-> tryTricolor(R=1,Y=0,G=0)")
 
         state.sleep(1.0)
         count += 1
