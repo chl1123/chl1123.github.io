@@ -136,6 +136,7 @@ class Module:
         """
         caller_frame = stack()[1]
         caller_file = caller_frame.filename
+        cls.script_file = caller_file
         # 获取脚本相对路径
         cls.script_name = caller_file.split(SCRIPTS_DIR)[-1]
 
@@ -184,7 +185,7 @@ class Module:
                 cls.__run_status = ScriptStatus.RUNNING
             # 任务中有配置参数则合并
             if "config" in cls.__task_params:
-                ScriptParam.getInstance(cls.script_file).setTaskConfig(cls.__task_params.get("args",{}).get("script",{})["config"])
+                ScriptParam.getInstance(cls.script_file).setTaskConfig(cls.__task_params["config"])
     @classmethod
     def __register(cls):
         Service.server().register_function(cls.__updateCmd, "update_cmd")
@@ -395,7 +396,7 @@ class Module:
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 cls.__task_params = {}
                 cls.__task_id = 0
-                ScriptParam.getInstance().clearTaskConfig()
+                ScriptParam.getInstance(cls.script_file).clearTaskConfig()
 
     @classmethod
     def reportInfo(cls, info: Union[dict, list]):
