@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/1
+# @Date : 2026/4/2
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : feat: 1.适配新识别proto  2.修改开放脚本内置模板
+# @Update : add: 增量式托盘旋转同步3.4功能一致  feat: 适配最新Container.initContainer接口改动
 
 import json
 import math
@@ -1585,7 +1585,7 @@ class Jack(ModuleBase):
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
                                                config_params.jack_motor_speed))
             # 顶升完成后绑定容器，设置货物模型
-            self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
+            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
 
     def laser_area_deduction(self):
         if not self.operation_init:
@@ -1944,7 +1944,7 @@ class Jack(ModuleBase):
                                self.recfile, deduct_info=self.laser_area_deduct_info))
 
                 # 顶升完成后绑定容器，设置货物模型
-                self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
+                self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
 
     def jack_unload(self):
         """
@@ -1960,13 +1960,13 @@ class Jack(ModuleBase):
             if self.pre_action_completed and current_height <= 0.005:
                 # 边走边动模式下顶升已经下降完成，跳过下降步骤，但仍需清除货物模型
                 debug_trace(f"jackUnload: 边走边动模式，顶升已下降 (height={current_height:.4f}m)，跳过下降步骤")
-                self.action_list.append(UnbindContainer("999"))
+                self.action_list.append(UnbindContainer("0"))
             else:
                 # 正常模式或边走边动未完成，执行下降托盘
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed))
                 # 下降完成后解绑容器，清除货物模型
-                self.action_list.append(UnbindContainer("999"))
+                self.action_list.append(UnbindContainer("0"))
 
             # === 放货完成后删除激光扣除区域 ===
             self.action_list.append(DeleteLaserDeductArea())
@@ -2075,7 +2075,7 @@ class Jack(ModuleBase):
                 # 顶升
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
-                self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
+                self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
 
                 # bezier 退回起始位置
                 self.action_list.append(
@@ -2636,14 +2636,7 @@ class Spin(BaseAction):
                 Navigation.setGlobalSpinAngle(self.angle, self.dir)
         elif self.coordinate_system == "increase":
             Trace.log("setIncreaseSpinAngle")
-            angle = abs(self.angle)
-            if self.dir == RotateDirection.CLOCKWISE:  # -1，顺时针 → 负角度
-                angle = -angle
-            elif self.dir == RotateDirection.COUNTERCLOCKWISE:  # 1，逆时针 → 正角度
-                pass  # 保持正值
-            else:  # 0，就近，保留原始符号
-                angle = self.angle
-            Navigation.setIncreaseSpinAngle(angle)
+            Navigation.setIncreaseSpinAngle(self.angle)
 
         # === 实时更新扣除区域（每个周期都根据当前spin角度更新） ===
         if self.deduct_info:
@@ -2825,7 +2818,7 @@ class JackHeight(BaseAction):
         self.jack_start_height = None
         self._count_recorded = False  # 防止重复计数
         self._last_progress = -1  # 用于进度日志去重
-        self._up_di_triggered_time = None # 上到位 DI/isReached 触发时间戳（用于200ms延迟）
+        self._up_di_triggered_time = None # 上到位 DI/isReached 触发时间戳（用于延迟）
         Motor.resetMotor(self.motor_name)
 
     def run(self, j: Jack):
@@ -2860,15 +2853,15 @@ class JackHeight(BaseAction):
                 debug_trace(f"[JACK] progress: {progress_10}% (pos={current_pos:.4f}m)")
 
         if self.target_height > self.jack_start_height:
-            # 顶升动作：触发上到位 DI 后延迟 200ms 再结束
+            # 顶升动作：触发上到位 DI 后结束
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_up_di):
                 if self._up_di_triggered_time is None:
                     self._up_di_triggered_time = time.time()
-                    debug_trace(f"[JACK] 上到位触发，等待 200ms 延迟... pos={current_pos:.4f}m")
+                    debug_trace(f"[JACK] 上到位触发 pos={current_pos:.4f}m")
                 elif time.time() - self._up_di_triggered_time >= 0.2:
                     self.action_status = ActionStatus.FINISHED
                     Motor.resetMotor(self.motor_name)
-                    debug_trace(f"[JACK] 顶升完成（200ms 延迟后）pos={current_pos:.4f}m")
+                    debug_trace(f"[JACK] 顶升完成 pos={current_pos:.4f}m")
                     # 顶升完成，记录顶升次数（仅在顶升时计数，下降不计数）
                     if not self._count_recorded:
                         self._count_recorded = True
@@ -3236,47 +3229,45 @@ class RecShelf(BaseAction):
         Trace.log("recognizing the shelf")
         rec_status = Recognize.getRecStatus()
         Trace.log(f"{rec_status=}")
-        # rec_result = Recognize.getRecFile(self.recfile)  # 读到识别文件原始数据
-        # Trace.log(f"{rec_result=}")
-
-        # if rec_status == 2:
-        #     rec_result = Recognize.getRecResults()
-        #     Trace.log(f"{rec_result=}")
-        #     Recognize.resetRec()
-        #     Trace.log(f"rec_result={rec_result}")
-        #     rec_x = rec_result['recoList'][0]['x']
-        #     rec_y = rec_result['recoList'][0]['y']
-        #     rec_yaw = rec_result['recoList'][0]['yaw']
-        #     rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
-        #     rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
-        #     Trace.log(f"{rec_x_y_yaw=}")
-        #     j.rec_result = rec_x_y_yaw
-        #     self.action_status = ActionStatus.FINISHED
-        # ===== 新识别 =====
+        # ===== 3.5.2.x识别 =====
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
             Trace.log(f"{rec_result=}")
             Recognize.resetRec()
             Trace.log(f"rec_result={rec_result}")
-            reco_list = rec_result.get('recoList', [])
-            if not reco_list:
-                Trace.log("RecShelf: recoList is empty, retrying")
-                self.do_rec = False
-            else:
-                reco = reco_list[0]
-                if not reco.get('valid', False):
-                    Trace.log("RecShelf: recognition result is invalid (valid=False), retrying")
-                    self.do_rec = False
-                else:
-                    world_result = reco.get('worldResult', {})
-                    rec_x = world_result['x']
-                    rec_y = world_result['y']
-                    rec_yaw = world_result['yaw']
-                    rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
-                    rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
-                    Trace.log(f"{rec_x_y_yaw=}")
-                    j.rec_result = rec_x_y_yaw
-                    self.action_status = ActionStatus.FINISHED
+            rec_x = rec_result['recoList'][0]['x']
+            rec_y = rec_result['recoList'][0]['y']
+            rec_yaw = rec_result['recoList'][0]['yaw']
+            rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
+            rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
+            Trace.log(f"{rec_x_y_yaw=}")
+            j.rec_result = rec_x_y_yaw
+            self.action_status = ActionStatus.FINISHED
+        # ===== 3.5.4.x识别 =====
+        # if rec_status == 2:
+        #     rec_result = Recognize.getRecResults()
+        #     Trace.log(f"{rec_result=}")
+        #     Recognize.resetRec()
+        #     Trace.log(f"rec_result={rec_result}")
+        #     reco_list = rec_result.get('recoList', [])
+        #     if not reco_list:
+        #         Trace.log("RecShelf: recoList is empty, retrying")
+        #         self.do_rec = False
+        #     else:
+        #         reco = reco_list[0]
+        #         if not reco.get('valid', False):
+        #             Trace.log("RecShelf: recognition result is invalid (valid=False), retrying")
+        #             self.do_rec = False
+        #         else:
+        #             world_result = reco.get('worldResult', {})
+        #             rec_x = world_result['x']
+        #             rec_y = world_result['y']
+        #             rec_yaw = world_result['yaw']
+        #             rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
+        #             rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
+        #             Trace.log(f"{rec_x_y_yaw=}")
+        #             j.rec_result = rec_x_y_yaw
+        #             self.action_status = ActionStatus.FINISHED
         elif rec_status in (3, -1):
             if Timer.delay(0.05):
                 self.attempts += 1
