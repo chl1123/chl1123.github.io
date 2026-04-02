@@ -31,18 +31,24 @@ class BehavRpc(object):
             log.warning(f"eCAL client init failed: {e}")
 
     def call(self, method, *args):
-        """调用 BehavFactory 的指定 service。"""
+        """调用 BehavFactory 的指定 service，返回 (success, result)。"""
         if not self._use_ecal:
-            return None
+            return False, None
         try:
             request = json.dumps(args).encode("utf-8")
             responses = self._client.call_with_response(method, request, 1000)
             if responses:
-                return json.loads(responses[0].response) if responses[0].response else None
-            return None
+                r = responses[0]
+                ok = str(r.call_state) == "CallState.EXECUTED"
+                result = json.loads(r.response) if r.response else None
+                if not ok:
+                    log.warning(f"RPC {method} call_state={r.call_state} error={r.error_msg}")
+                return ok, result
+            log.warning(f"RPC {method}: no response")
+            return False, None
         except Exception as e:
             log.warning(f"RPC call failed: {method}({args}): {e}")
-            return None
+            return False, None
 
     def set_action(self, channel, payload_dict):
         """通用 setAction 通道派发。"""
