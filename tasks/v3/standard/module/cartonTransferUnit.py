@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/4/1
+# @Date: 2026/4/2
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: feat: feat: 1.适配新识别proto  2.修改开放脚本内置模板
+# @Update: feat: 适配最新Container.initContainer接口改动
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -1026,7 +1026,7 @@ class ContainerRobot(ModuleBase):
             container_num = ConfigParams.get_container_count()
             # 如果container_num为数字且>0
             if isinstance(container_num, int) and container_num > 0:
-                Container.initContainer(container_num)
+                Container.initContainer(container_num, "999")
             self.containers = Container.getContainers()
             self.rec_id = uuid.uuid4().hex
             self.box_code_file = self.script_args.get("codeFile", ConfigParams.box_code_file)
@@ -2240,35 +2240,36 @@ class Rec:
                 else:
                     Recognize.resetRec()
                     Recognize.doRec(self.filename, "", "")
-        # elif rec_status == 2:  # 识别成功,获得结果
-        #     rec_results = Recognize.getRecResults()
-        #     if "recoList" in rec_results:
-        #         if len(rec_results["recoList"]) == 1:
-        #             self.result = rec_results["recoList"][0]
-        #     if "resultImg" in self.result:
-        #         self.result.pop("resultImg")
-        #     Recognize.resetRec()
-        #     self.hasGoods = True
-        #     if self.result["x"] > self.max_goods_dist:
-        #         self.goods_out_dist = True
-        #     self.status = ScriptStatus.FINISHED
-        # ===== 新识别 =====
-        elif rec_status == 2:
+        # ===== 3.5.2.x识别 =====
+        elif rec_status == 2:  # 识别成功,获得结果
             rec_results = Recognize.getRecResults()
             if "recoList" in rec_results:
                 if len(rec_results["recoList"]) == 1:
-                    reco = rec_results["recoList"][0]
-                    if not reco.get('valid', False):
-                        Trace.log("Rec: recognition result is invalid (valid=False), retrying")
-                        Recognize.resetRec()
-                        Recognize.doRec(self.filename, "", "")
-                        return
-                    self.result = reco.get('robotResult', {})
+                    self.result = rec_results["recoList"][0]
+            if "resultImg" in self.result:
+                self.result.pop("resultImg")
             Recognize.resetRec()
             self.hasGoods = True
-            if self.result.get("x", 0) > self.max_goods_dist:
+            if self.result["x"] > self.max_goods_dist:
                 self.goods_out_dist = True
             self.status = ScriptStatus.FINISHED
+        # ===== 3.5.4.x识别 =====
+        # elif rec_status == 2:
+        #     rec_results = Recognize.getRecResults()
+        #     if "recoList" in rec_results:
+        #         if len(rec_results["recoList"]) == 1:
+        #             reco = rec_results["recoList"][0]
+        #             if not reco.get('valid', False):
+        #                 Trace.log("Rec: recognition result is invalid (valid=False), retrying")
+        #                 Recognize.resetRec()
+        #                 Recognize.doRec(self.filename, "", "")
+        #                 return
+        #             self.result = reco.get('robotResult', {})
+        #     Recognize.resetRec()
+        #     self.hasGoods = True
+        #     if self.result.get("x", 0) > self.max_goods_dist:
+        #         self.goods_out_dist = True
+        #     self.status = ScriptStatus.FINISHED
         Trace.log(f"rec success: {self.status.name} {self.result}")
 
         cur_state = dict()
@@ -2542,7 +2543,7 @@ def main():
     container_num = ConfigParams.get_container_count()
     # 如果container_num为数字且>0
     if isinstance(container_num, int) and container_num > 0:
-        Container.initContainer(container_num)
+        Container.initContainer(container_num, "999")
 
     while True:
         # 脚本任务状态管理
