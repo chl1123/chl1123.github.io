@@ -1243,7 +1243,7 @@ class Fork(ModuleBase):
         self.action_id = 0
         self.action_list = list()
         self.operation_init = False
-        self.script_status = ScriptStatus.NonE
+        self.script_status = ScriptStatus.NONE
         self.action_status = ActionStatus.INIT
         # 识别相关
         self.rec_result = dict()
