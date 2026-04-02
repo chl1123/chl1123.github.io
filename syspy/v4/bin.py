@@ -1,5 +1,5 @@
 import ast
-from typing import List
+from typing import List, Union
 from syspy.bin import BinInterface, ContainerInterface
 from syspy.v4.lib.plyvel_db import LevelDBV4
 from syspy.v4.navigation import NavigationV4
@@ -49,12 +49,16 @@ class ContainerV4(ContainerInterface):
         }
 
     @classmethod
-    def initContainer(cls, number: int = 0):
+    def initContainer(cls, max_id: int = 0, self_id: Union[List[str], str]=None):
         cls.db = LevelDBV4("containers")
         model_containers = []
-        for i in range(number):
+        for i in range(max_id + 1):
             model_containers.append(str(i))
-        model_containers.append("999")
+        if self_id:
+            if isinstance(self_id, str):
+                model_containers.append(self_id)
+            else:
+                model_containers.extend(self_id)
         raw_data = cls.db.gets(model_containers)
         for container_id, value in zip(model_containers, raw_data):
             if value is None:
