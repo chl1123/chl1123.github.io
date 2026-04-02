@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Union
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 
 
@@ -54,11 +54,12 @@ class ContainerInterface(ABC, Service):
         }
 
     @classmethod
-    def initContainer(cls, number: int = 0):
-        """初始化容器数据。
+    def initContainer(cls, max_id: int = 0, self_id: Union[List[str], str]=None):
+        """初始化容器 id。
 
         Args:
-            number (str): 容器数量。
+            max_id (int): 最大容器 ID。
+            self_id (Union[List[str], str]): 自身容器 ID。例如 "999" 或 ["999"]
         """
         raise RBKVersionError()
 
