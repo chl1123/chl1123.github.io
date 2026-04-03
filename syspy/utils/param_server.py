@@ -12,6 +12,7 @@ from enum import Enum
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Generator, Union, Tuple, Callable
+from inspect import stack
 
 
 PY_SUFFIX = ".py"
@@ -121,15 +122,16 @@ class ScriptParam:
     """参数加载器，用于在运行时加载配置参数和输入参数"""
     _instance = None
     _initialized = False
-    config_change_callback = None
     event_task_config = False
     file_instance = {}
+    file_callback = {}  
 
 
-    def __init__(self, script_file: str = None):
+
+    def __init__(self, script_file: str, callback: Callable[[], None] = None):
 
         if script_file is not None:
-            _get_prefix_dir(script_file)
+            script_file=_get_prefix_dir(script_file)
             self.config_file = prefix_dir + CONFIG_SUFFIX
             self.input_file = prefix_dir + INPUT_SUFFIX
             self.action_file = prefix_dir + ACTION_SUFFIX
@@ -142,10 +144,14 @@ class ScriptParam:
         self.__config_validator = None
         script_file=script_file.replace("/params","")
         ScriptParam.file_instance[script_file] = self
+        if callback is not None:
+            ScriptParam.file_callback[script_file] = callback
+        self.script_file = script_file
 
 
     @classmethod
     def getInstance(cls,script_file: str = None) -> 'ScriptParam':
+        script_file=script_file.replace(".py","")
         return ScriptParam.file_instance.get(script_file,None)
 
     def builderConfig(self):
@@ -187,8 +193,10 @@ class ScriptParam:
         Args:
             callback (Callable[[], None]): 回调方法
         """
-        cls.config_change_callback = callback
-        Service.server().register_function(cls.config_change_callback, "script_config_changed", True)
+        caller_frame = stack()[1]
+        caller_file = caller_frame.filename.replace(".py","")
+        ScriptParam.file_callback[caller_file] = callback
+        Service.server().register_function(callback, "script_config_changed", True)
 
     def _extract_values(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """从参数定义中提取值"""
@@ -220,16 +228,18 @@ class ScriptParam:
             else:
                 self.config_full_params.update(config_data)
                 ScriptParam.event_task_config = True
-                if ScriptParam.config_change_callback:
-                    ScriptParam.config_change_callback()
+                call_path = ScriptParam.file_callback.get(self.script_file)
+                if call_path:
+                    call_path()
 
     def clearTaskConfig(self):
         """恢复任务配置参数"""
         if ScriptParam.event_task_config:
             ScriptParam.event_task_config = False
-            if ScriptParam.config_change_callback:
+            call_path = ScriptParam.file_callback.get(self.script_file)
+            if call_path:
                 print("clearTaskConfig()")
-                ScriptParam.config_change_callback()
+                call_path()
 
     def addAction(self, action_name: str,
                 policy: Dict[str, Any] = None,

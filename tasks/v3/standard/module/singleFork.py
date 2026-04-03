@@ -3496,6 +3496,10 @@ class RotateDirection(IntEnum):
 
 
 def main():
+    # 设备 参数 脚本参数的回调
+    RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
+    RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
+    ScriptParam.setConfigChangeCallBack(_script_config_callback)
     Module.init()
 
     validated_params = {}
@@ -3504,10 +3508,7 @@ def main():
 
     f = Fork()
 
-    # 设备 参数 脚本参数的回调
-    RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
-    RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
-    ScriptParam.setConfigChangeCallBack(_script_config_callback)
+
 
     while True:
         if f.event_safe_move_check:
