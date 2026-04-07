@@ -16,7 +16,7 @@ class GoBezierWorld:
 
     def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.0,
                  is_backwards=False, is_hold_dir=None,
-                 max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3,
+                 max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.4, curvature_limit=1.3,
                  path_dist_accuracy=0.005, path_angle_accuracy=0.5, alpha=0.25):
         self.y_end = None
         self.x_end = None
@@ -477,7 +477,8 @@ class GoBezierWorld:
             )
             if dist_cur_loc_end_loc < self.decele_dist and not self.is_set_min_speed:
                 self.is_set_min_speed = True
-                Navigation.setPathMaxSpeed(0.1)
+                Navigation.setPathMaxSpeed(0.05)
+                Navigation.goPathParam(dict())
 
         return self.action_status
 

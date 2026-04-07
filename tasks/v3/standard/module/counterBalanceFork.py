@@ -1435,7 +1435,7 @@ class Fork(ModuleBase):
             self.operation_init = True
             r_loc = get_r_loc()
             source_pos = self.get_station_pos("sourceName")[0]
-            print(f"source_pos:{source_pos}")
+            Trace.log(f"source_pos:{source_pos},recfile:{self.recfile}")
             self.start_loc = r_loc if source_pos[3] == -1 else source_pos
             if (self.recognize and self.check_di) or (not self.recognize and ConfigParams.enableContactDiNoRec):
                 ConfigParams.checkGoodsWhileLoad = False
@@ -2402,7 +2402,9 @@ class Rec(BaseAction):
                 else:
                     Recognize.resetRec()
         else:
+            Trace.log(f"recfile:{recfile}")
             Recognize.doRec(recfile, json.dumps(self.region))
+
             Timer.delay(0.05)
         return False, rec_status, list
 
@@ -2464,6 +2466,7 @@ class GoPathWithContactDi(BaseAction):
             else:
                 target_pos = world_pos
             self.final_target = target_pos
+
             Trace.log(f"go path with di target pos:{target_pos}")
             self.back_args = {
                 'x': target_pos[0],
@@ -2816,7 +2819,11 @@ class RunMotorByPosition(BaseAction):
         使用示例：
         """
         super().__init__(action_name)
-
+        if not motor_name:
+            self.action_status = ActionStatus.FAILED
+            Abnormal.setTask(53334,"not motor find in Device.Model, script failed",
+                             "Model.Model-000.moduleType","check the device","runMotorByPosition")
+            return
         self.motor_name = motor_name
         self.position = position
         self.max_speed = max_speed
