@@ -3202,6 +3202,50 @@ class RotateDirection(IntEnum):
     CLOCKWISE = -1
 
 
+# ============================================================================
+# 脚本内置动作模板定义
+# ============================================================================
+
+# 添加 "jackLoad" 动作模板
+param_loader.addAction(
+    action_name="jackLoad",
+    policy = None,
+    args={
+        "operation": "jackLoad",
+        "operation.jackLoad.endHeight": 0.06,
+        "operation.jackLoad.recFile": "default.srec",
+        "operation.jackLoad.insertShelfDir": "A",
+        "operation.jackLoad.recognize": "OFF",
+        "operation.jackLoad.howGoSite": "bezier",
+        "operation.jackLoad.isSecondaryAdjust": "OFF",
+    },
+    config={}
+)
+
+# 添加 "jackUnload" 动作模板
+param_loader.addAction(
+    action_name="jackUnload",
+    policy = None,
+    args={
+        "operation": "jackUnload",
+    },
+    config={}
+)
+
+# 添加 "jackHeight" 动作模板
+param_loader.addAction(
+    action_name="jackHeight",
+    policy={},
+    args={
+        "operation": "jackHeight",
+        "operation.jackHeight.endHeight": 0.06,
+    },
+    config={}
+)
+
+# 保存动作模板到文件
+param_loader.saveAction()
+
 def main():
     # 注册脚本参数变更回调
     ScriptParam.setConfigChangeCallBack(script_config_callback)
