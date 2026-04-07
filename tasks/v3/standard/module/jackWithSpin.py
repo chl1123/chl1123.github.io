@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/2
+# @Date : 2026/4/7
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : add: 增量式托盘旋转同步3.4功能一致  feat: 适配最新Container.initContainer接口改动
+# @Update : fix: 1. 修复increase模式下spin电机异常的bug。2. goPolyline 修改回沿地图线路到AP点 add: 添加一些报错提示
 
 
 import json
@@ -15,7 +15,7 @@ from datetime import datetime
 
 from syspy import (Module, Logger, Motor, Navigation, Loc, Abnormal, Recognize,
                    CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer)
-from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
+from syspy.lib.module import pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam, BindType, BindItem
 
@@ -716,6 +716,37 @@ def create_jack_load(builder: ParamBuilder):
             with builder.CHILD(key="polyline", name="polyline", desc="polyline"):
                 builder.TYPE(ParamType.ARRAY)
 
+    with builder.CHILD(key="spinTray", name="Spin Tray",
+                       desc="取货流程中调整托盘角度（机器人坐标系）"):
+        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+        builder.DEFAULTVALUE("off")
+        with builder.CHILDREN():
+            with builder.CHILD(key="off", name="OFF",
+                               desc="不旋转托盘"):
+                builder.TYPE(ParamType.ARRAY)
+            with builder.CHILD(key="on", name="ON",
+                               desc="旋转托盘到指定角度"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="spinPhase", name="Spin Phase",
+                                       desc="旋转阶段：beforeStart=启动前（前置点出发前）；beforeJack=顶升前（进入料架后）"):
+                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                        builder.DEFAULTVALUE("beforeJack")
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="beforeStart", name="启动前 (Before Start)",
+                                               desc="在前置点对准 AP 方向之前旋转托盘"):
+                                builder.TYPE(ParamType.STRING)
+                            with builder.CHILD(key="beforeJack", name="顶升前 (Before Jack)",
+                                               desc="进入料架、二次调整完成后、顶升前旋转托盘"):
+                                builder.TYPE(ParamType.STRING)
+                    with builder.CHILD(key="spinAngle", name="Spin Angle (deg)",
+                                       desc="目标托盘角度，机器人坐标系，单位：度。0°=与车体对齐；90°=宽边进对齐场景"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("deg")
+                        builder.SINGLESTEP(1.0)
+
+
     with builder.CHILD(key="isSecondaryAdjust", name="isSecondaryAdjust",
                        desc="Enable secondary adjust"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
@@ -1396,6 +1427,19 @@ class Jack(ModuleBase):
         self.how_go_site = self.task_args.get("howGoSite", "bezier")
 
         # ============================================
+        # jackLoad 托盘旋转参数
+        # ============================================
+        # spinTray=on/off -> jack_spin_enable
+        _spin_tray_val = self.task_args.get("spinTray", None)
+        self.jack_spin_enable = (_spin_tray_val == "on" or _spin_tray_val is True)
+        # spinPhase: "beforeStart" | "beforeJack"
+        self.jack_spin_phase = self.task_args.get("spinPhase", "beforeJack")
+        # spinAngle: deg (机器人坐标系) -> 归一化到 (-pi, pi] 弧度
+        _spin_angle_deg = float(self.task_args.get("spinAngle", 0.0))
+        _rad = math.radians(_spin_angle_deg)
+        self.jack_spin_angle_rad = (_rad + math.pi) % (2 * math.pi) - math.pi
+
+        # ============================================
         # 导航参数：从脚本配置读取（现场实施后基本不变）
         # ============================================
         # Bezier导航参数
@@ -1432,18 +1476,6 @@ class Jack(ModuleBase):
         self.goPath_x = self.task_args.get("goPathX", None)
         self.goPath_y = self.task_args.get("goPathY", None)
         self.goPath_theta = self.task_args.get("goPathTheta", None)
-
-        # ============================================
-        # PGV二次调整参数：从脚本配置读取（现场实施后基本不变）
-        # ============================================
-        # self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", None)
-        # self.use_which_pgv = config_params.pgv_use_which
-        # self.pgv_adjust_way = config_params.pgv_adjust_way
-        # self.pgv_x_adjust = config_params.pgv_x_adjust
-        # self.pgv_x_angle_adjust = config_params.pgv_x_angle_adjust
-        # self.pgv_adjust_dist = config_params.pgv_adjust_dist
-        # self.pgv_reach_dist = config_params.pgv_reach_dist
-        # self.pgv_reach_angle = config_params.pgv_reach_angle
 
         # ============================================
         # PGV二次调整参数：从任务参数或脚本配置读取
@@ -1877,7 +1909,13 @@ class Jack(ModuleBase):
             self.report_info["jack_load"] = {"apWorldPos": self.ap_world_pos}
             robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
 
+            # --- 启动前托盘旋转（beforeStart）---
+            # "空载行走对齐"：在前置点出发前，调整托盘到指定角度，以便减少进入料架时的碰撞体积或满足特定姿态要求。
+            if self.jack_spin_enable and self.jack_spin_phase == "beforeStart":
+                Trace.log(f"jack_load: beforeStart spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
+                self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None))
             ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
+
             # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
             if self.is_backwards:
                 target_angle = ap_to_robot_angle + math.pi
@@ -1936,8 +1974,12 @@ class Jack(ModuleBase):
                         pgv_reach_angle=self.pgv_reach_angle,
                     ))
 
-                # 旋转托盘
-                self.action_list.append(Spin(0, "robot", 2, deduct_info=self.laser_area_deduct_info))
+                # --- 顶升前托盘旋转（beforeJack） "料架旋转只按劣弧转"---
+                # "取货过程"：进入料架、完成二次调整后、顶升前，若宽边进入且能旋转，需先旋转托盘约 90° 使长短边与料架对齐；若窄边进入托盘已对齐，可旋转到 0° 确认或跳过（spinTray=off）。旋转方向不指定，由底层按劣弧（小圈）自主选择，
+                if self.jack_spin_enable and self.jack_spin_phase == "beforeJack":
+                    Trace.log(f"jack_load: beforeJack spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
+                    self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None,
+                                                 deduct_info=self.laser_area_deduct_info))
 
                 # 顶升
                 self.action_list.append(
@@ -2007,9 +2049,9 @@ class Jack(ModuleBase):
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("targetName", None)
                 self.ap_id = "AP" + str(self.ap_id)
-            self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
+            self.ap_world_pos = Navigation.getLM(self.ap_id, True)
             debug_trace(f'go_polyline AP_pos: {self.ap_world_pos}')
-            self.action_list.append(GoPolyline(self.ap_world_pos))
+            self.action_list.append(GoMapPath())
 
     def jack_bezier_return(self):
         """
@@ -2605,8 +2647,6 @@ class DeleteLaserDeductArea(BaseAction):
 
 
 class Spin(BaseAction):
-    """托盘旋转到机器人/世界坐标系下固定角度，额外旋转固定角度"""
-
     def __init__(self, angle, spin_mode="world", direction=None, deduct_info=None):
         super().__init__("Spin")
         kwargs = locals()
@@ -2619,15 +2659,16 @@ class Spin(BaseAction):
         self.angle = angle
         self.dir = direction
         self.coordinate_system = spin_mode
-        self.deduct_info = deduct_info          # 新增：扣除区域数据
-        self._initial_spin_angle = None         # 新增：spin开始时的初始角度
-        Motor.resetMotor(config_params.spin_motor_name)
+        self.deduct_info = deduct_info
+        self._initial_spin_angle = None
 
     def run(self, j: Jack):
         if self.init:
             self.init = False
             self.action_status = ActionStatus.RUNNING
-            # 记录spin开始时的电机角度，作为旋转基准
+            # ✅ 在发指令前同周期内 reset，确保 Navigation 内部状态干净
+            Motor.resetMotor(config_params.spin_motor_name)
+            # 记录 spin 开始时的电机角度，作为旋转基准
             self._initial_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
             if self.coordinate_system == "robot":
                 Trace.log("setRobotSpinAngle")
@@ -2635,9 +2676,9 @@ class Spin(BaseAction):
             elif self.coordinate_system == "world":
                 Trace.log("setGlobalSpinAngle")
                 Navigation.setGlobalSpinAngle(self.angle, self.dir)
-        elif self.coordinate_system == "increase":
-            Trace.log("setIncreaseSpinAngle")
-            Navigation.setIncreaseSpinAngle(self.angle)
+            elif self.coordinate_system == "increase":
+                Trace.log("setIncreaseSpinAngle")
+                Navigation.setIncreaseSpinAngle(self.angle)
 
         # === 实时更新扣除区域（每个周期都根据当前spin角度更新） ===
         if self.deduct_info:
@@ -2820,6 +2861,7 @@ class JackHeight(BaseAction):
         self._count_recorded = False  # 防止重复计数
         self._last_progress = -1  # 用于进度日志去重
         self._up_di_triggered_time = None # 上到位 DI/isReached 触发时间戳（用于延迟）
+        self._motor_moved = False  # 电机是否已开始运动
         Motor.resetMotor(self.motor_name)
 
     def run(self, j: Jack):
@@ -2827,21 +2869,51 @@ class JackHeight(BaseAction):
             self.init = True
             self.action_status = ActionStatus.RUNNING
             self.jack_start_height = Motor.getMotorPos(config_params.jack_motor_name)
+            self._motor_moved = False
+            self._init_time = time.time()
 
             # 只在初始化时输出一次关键信息
             direction = "↑Jack up" if self.target_height > self.jack_start_height else "↓Jack down"
             debug_trace(
                 f"[JACK] {direction} {self.jack_start_height:.3f}m → {self.target_height:.3f}m (speed={self.jackMotorSpeed})")
 
+            # 目标高度等于当前高度，无需动作
+            if abs(self.target_height - self.jack_start_height) < 0.001:
+                Trace.log(f"[JACK] 目标高度与当前高度相同({self.jack_start_height:.3f}m)，跳过")
+                self.action_status = ActionStatus.FINISHED
+                return
+
             if self.target_height > self.jack_start_height:
+                # 初始化前检查：上到位 DI 不应该已经触发
+                if Di.getDi(config_params.jack_up_di):
+                    Trace.log(f"[JACK] 警告: 上到位DI({config_params.jack_up_di})在顶升前已触发，请检查DI配置")
+                    Abnormal.setTask(53780, f"Jack up DI({config_params.jack_up_di}) already triggered before lifting",
+                                     "DI misconfigured or mechanically stuck",
+                                     "Check jack_up_di configuration and sensor wiring",
+                                     "JackHeight")
+                    self.action_status = ActionStatus.FAILED
+                    return
                 Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                        config_params.jack_up_di)
             else:
+                # 初始化前检查：下到位 DI 不应该已经触发
+                if Di.getDi(config_params.jack_zero_di):
+                    Trace.log(f"[JACK] 警告: 下到位DI({config_params.jack_zero_di})在下降前已触发，请检查DI配置")
+                    Abnormal.setTask(53781, f"Jack down DI({config_params.jack_zero_di}) already triggered before lowering",
+                                     "DI misconfigured or mechanically stuck",
+                                     "Check jack_zero_di configuration and sensor wiring",
+                                     "JackHeight")
+                    self.action_status = ActionStatus.FAILED
+                    return
                 Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                        config_params.jack_zero_di)
 
-        # 获取当前电机位置（精简版，不输出完整 motor_info）
+        # 获取当前电机位置
         current_pos = Motor.getMotorPos(self.motor_name)
+
+        # 检测电机是否已开始运动
+        if not self._motor_moved and abs(current_pos - self.jack_start_height) > 0.001:
+            self._motor_moved = True
 
         # 计算并输出进度（每10%输出一次，避免刷屏）
         if self.jack_start_height != self.target_height:
@@ -2856,6 +2928,8 @@ class JackHeight(BaseAction):
         if self.target_height > self.jack_start_height:
             # 顶升动作：触发上到位 DI 后结束
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_up_di):
+                if not self._motor_moved:
+                    Trace.log(f"[JACK] 警告: 电机未运动就触发到位信号，pos={current_pos:.4f}m，请检查DI配置")
                 if self._up_di_triggered_time is None:
                     self._up_di_triggered_time = time.time()
                     debug_trace(f"[JACK] 上到位触发 pos={current_pos:.4f}m")
@@ -2863,20 +2937,19 @@ class JackHeight(BaseAction):
                     self.action_status = ActionStatus.FINISHED
                     Motor.resetMotor(self.motor_name)
                     debug_trace(f"[JACK] 顶升完成 pos={current_pos:.4f}m")
-                    # 顶升完成，记录顶升次数（仅在顶升时计数，下降不计数）
                     if not self._count_recorded:
                         self._count_recorded = True
                         jack_count_manager.increment_count()
-                    # 顶升完成后设置激光扣除区（车已到达货架正下方，坐标准确）
                     if self.deduct_info:
                         self._set_deduct_area()
         else:
             # 下降动作
             if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_zero_di):
+                if not self._motor_moved:
+                    Trace.log(f"[JACK] 警告: 电机未运动就触发到位信号，pos={current_pos:.4f}m，请检查DI配置")
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
                 debug_trace(f"[JACK] Jack down done pos={current_pos:.4f}m")
-                # 下降完成后删除激光扣除区
                 self._delete_deduct_area()
 
         j.report_info["JackHeight"] = {
@@ -3465,35 +3538,18 @@ class GetPGVData(BaseAction):
 
 
 class GoPolyline(BaseAction):
+    """折线导航 """
+
     def __init__(self, world_target, min_ahead_dist=0, ahead_dist=0, back_dist=0, max_speed=0.5, max_angle=0.5,
                  dec_dist=1):
-        """
-        target_world, back_dist = 0.0, adjust_dist_for_curvature_limit = 2, min_ahead_dist = 0, is_backwards = False,
-        max_speed = 0.5, max_accele = 0.3, max_decele = 0.2, decele_dist = 1, curvature_limit = 1.3
-        """
         super().__init__()
-        self.go3 = goPath.GoPath()
-        self.go2 = goPath.GoPath()
-        self.go1 = goPath.GoPath()
-        self.go3_args = None
-        self.go2_args = None
-        self.go1_args = None
-        self.temp_start = []
-        self.first_point = None
-        self.start_pos = []
-        self.world_target = world_target
-        self.min_ahead_dist = min_ahead_dist
-        self.ahead_dist = ahead_dist
-        self.back_dist = back_dist
-        self.max_speed = max_speed
-        self.max_angle = max_angle
-        self.dec_dist = dec_dist
-        self.step = 20
-        self.second_point = pos2World([self.min_ahead_dist, 0, 0], self.world_target)
-        self.third_point = pos2World([-self.back_dist, 0, 0], self.world_target)
-        self.go_step = [False] * 3
         self.action_status = ActionStatus.INIT
+        self.goal = world_target
+        self.back_dist = back_dist
+        self.ahead_dist = ahead_dist
+        self.min_ahead_dist = min_ahead_dist
         self.init = False
+        self._log_counter = 0
         kwargs = locals()
         del kwargs['self']
         del kwargs['__class__']
@@ -3502,189 +3558,33 @@ class GoPolyline(BaseAction):
     def run(self, f):
         if not self.init:
             self.init = True
+            self.action_status = ActionStatus.RUNNING
             pos = Loc.getData()
-            self.start_pos = [pos['x'], pos['y'], pos['angle']]
-            if self.max_angle is None:
-                self.max_angle = 0.5  # 或其他合适的默认值
-            if abs(self.cal_angle(self.start_pos, self.second_point)) > self.max_angle:
-                self.start_pos[2] = self.world_target[2]
-                angle, self.temp_start = self.search_min_angle_str(self.max_angle, self.step)
-            else:
-                self.temp_start = self.start_pos
-            self.go1_args = {
-                "x": self.temp_start[0],
-                "y": self.temp_start[1],
-                "theta": self.temp_start[2],
-                "backMode": 1,
-                "maxSpeed": 0.2,
-                "maxRot": math.radians(10),
-                "coordinate": Coordinate.WORLD
-            }
-            self.go2_args = {
-                "x": self.second_point[0],
-                "y": self.second_point[1],
-                "theta": self.second_point[2],
-                "backMode": 0,
-                "maxSpeed": 0.1,
-                "maxRot": math.radians(10),
-                "coordinate": Coordinate.WORLD
-            }
-            self.go3_args = {
-                "x": self.third_point[0],
-                "y": self.third_point[1],
-                "theta": self.third_point[2],
-                "backMode": 0,
-                "maxSpeed": 0.1,
-                "maxRot": math.radians(10),
-                "coordinate": Coordinate.WORLD
-            }
-
-        if not self.go_step[0]:
-            if self.go1.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go1.run(self.go1_args)
-            if self.go1.status == ActionStatus.FINISHED:
-                self.go_step[0] = True
-        elif self.go_step[0] and not self.go_step[1]:
-            if self.go2.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go2.run(self.go2_args)
-            if self.go2.status == ActionStatus.FINISHED:
-                self.go_step[1] = True
-        elif self.go_step[1] and not self.go_step[2]:
-            if self.go3.status not in [ActionStatus.FINISHED, ActionStatus.FAILED]:
-                self.go3.run(self.go3_args)
-            if self.go3.status == ActionStatus.FINISHED:
-                self.go_step[2] = True
-        if all(self.go_step):
-            self.action_status = ActionStatus.FINISHED
-
-    def cal_angle(self, start_pos, end_pos):
-        start2end = pos2Base(start_pos, end_pos)
-        angle = math.degrees(math.atan2(start2end[1], start2end[0]))
-        debug_print(angle)
-        return angle
-
-    def search_min_angle_str(self, max_angle, step):
-        temp_start = []
-        for n in range(1, step + 1):
-            adjust_dist = self.ahead_dist / self.step * n
-            # 临时构造一个新的起点：在原 start_pos 基础上往前平移
-            temp_start = pos2World([adjust_dist, 0, 0], self.start_pos)
-            angle = abs(self.cal_angle(temp_start, self.second_point))
-
-            if angle <= max_angle:
-                # self.first_point = temp_start
-                debug_print(f"满足角度要求，当前角度：{angle:.2f}°，使用第 {n} 次调整")
-                return angle, temp_start  # 成功，返回当前角度
-
-        angle = abs(self.cal_angle(temp_start, self.second_point))
-        debug_print(f"未满足角度要求，当前角度：{angle:.2f}°")
-        return angle, temp_start
+            Trace.log(f"[GoPolyline] start pos: x={pos['x']:.4f}, y={pos['y']:.4f}, angle={pos['angle']:.4f}")
+            Trace.log(f"[GoPolyline] goal: x={self.goal[0]:.4f}, y={self.goal[1]:.4f}, yaw={self.goal[2]:.4f}")
+            Trace.log(f"[GoPolyline] back_dist={self.back_dist}, min_ahead_dist={self.min_ahead_dist}, ahead_dist={self.ahead_dist}")
+            Navigation.resetGoForkPath(self.goal[0], self.goal[1], self.goal[2],
+                                       self.back_dist, self.min_ahead_dist, self.ahead_dist)
+            Navigation.goForkUseStraightLine()  # 走折线
+            Trace.log("[GoPolyline] resetGoForkPath + goForkUseStraightLine done")
+        self.action_status = Navigation.goForkPath()
+        self._log_counter += 1
+        # 每10个周期打印一次实时位置和状态
+        if self._log_counter % 10 == 0:
+            pos = Loc.getData()
+            speed = NavSpeed.getSpeeds()
+            Trace.log(f"[GoPolyline] running: x={pos['x']:.4f}, y={pos['y']:.4f}, angle={pos['angle']:.4f}, "
+                      f"status={self.action_status}, speed={speed}")
+        if self.action_status == ActionStatus.FINISHED:
+            pos = Loc.getData()
+            Trace.log(f"[GoPolyline] finished at: x={pos['x']:.4f}, y={pos['y']:.4f}, angle={pos['angle']:.4f}")
+        elif self.action_status == ActionStatus.FAILED:
+            Trace.log("[GoPolyline] FAILED")
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
+        self.init = False
 
-
-# # class PGVSecondaryAdjust(BaseAction):  # 二次调整
-# #     def __init__(self, use_which_pgv, pgv_x_adjust, pgv_x_angle_adjust, pgv_adjust_dist, pgv_reach_dist,
-# #                  pgv_reach_angle, pgv_adjust_way):
-# #         super().__init__("PGVSecondaryAdjust")
-# #         self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}, pgv_adjust_way={pgv_adjust_way}}}"
-# #         self.action_status = ActionStatus.INIT
-# #         self.init = True
-# #         self.adjust_param = dict()
-# #         self.use_which_pgv = use_which_pgv
-# #         self.pgv_x_adjust = pgv_x_adjust
-# #         self.pgv_x_angle_adjust = pgv_x_angle_adjust
-# #         self.pgv_adjust_dist = pgv_adjust_dist
-# #         self.pgv_reach_dist = pgv_reach_dist
-# #         self.pgv_reach_angle = pgv_reach_angle
-# #         self.pgv_adjust_way = pgv_adjust_way
-# class PGVSecondaryAdjust(BaseAction):  # 二次调整
-#     def __init__(self, use_which_pgv, pgv_adjust_dist, pgv_reach_dist,
-#                  pgv_reach_angle, pgv_adjust_way, pgv_spin=True):
-#         super().__init__("PGVSecondaryAdjust")
-#         self.opt_info = f"{self.__class__.__name__}{{use_which_pgv={use_which_pgv}, pgv_adjust_way={pgv_adjust_way}}}"
-#         self.action_status = ActionStatus.INIT
-#         self.init = True
-#         self.adjust_param = dict()
-#         self.use_which_pgv = use_which_pgv
-#         self.pgv_adjust_dist = pgv_adjust_dist
-#         self.pgv_reach_dist = pgv_reach_dist
-#         self.pgv_reach_angle = pgv_reach_angle
-#         self.pgv_adjust_way = pgv_adjust_way
-#         self.pgv_spin = pgv_spin
-#
-#     def run(self, j: Jack):
-#         if self.init:
-#             self.init = False
-#             self.reset()
-#         self.set_adjust_param(j.code_info["tag_diff_x"], j.code_info["tag_diff_y"])
-#         self.action_status = Navigation.goPGVRun(self.adjust_param)
-#
-#         j.report_info["PGVSecondaryAdjust"] = {
-#             "actionStatus": self.action_status,
-#             "codeInfo": j.code_info
-#         }
-#         Module.reportInfo(j.report_info)
-#
-#     # def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
-#     #     if self.use_which_pgv == "useUpPgv":
-#     #         self.adjust_param['R2AUP'] = True  # 使用上视pgv, args里需要增加use_pgv参数
-#     #         self.adjust_param['R2ADP'] = False  # 使用下视pgv
-#     #     elif self.use_which_pgv == "useDownPgv":
-#     #         self.adjust_param['R2AUP'] = False  # 使用上视pgv, args里需要增加use_pgv参数
-#     #         self.adjust_param['R2ADP'] = True
-#     #     if self.pgv_adjust_way == "pgvAdjust90":
-#     #         self.adjust_param['pgvAdjust90'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
-#     #         self.adjust_param['pgvXAngleAdjust'] = True  # 有角度
-#     #     elif self.pgv_adjust_way == "pgvAdjust180":
-#     #         self.adjust_param['pgvAdjust180'] = True  # 当agv和外部设备对齐时， 理想里程中心在二维码坐标下的位姿 x
-#     #         self.adjust_param['pgvXAngleAdjust'] = True  # 有角度
-#     #     elif self.pgv_adjust_way == "pgvAdjust0":
-#     #         self.adjust_param['pgvXAdjust'] = True  # 忽略角度
-#     #     # self.adjust_param['pgvXAdjust'] = self.pgv_x_adjust  # 按照x纵方向进行二次调整
-#     #     # self.adjust_param['pgvXAngleAdjust'] = self.pgv_x_angle_adjust  # 沿着车子方向的偏差进行调整，并且到点后调整角度偏差
-#     #     self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist  # 最大的调整半径,尽量小以二维码中心为圆心
-#     #     self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx  # 调整范围的圆心为二维码坐标系下的坐标x
-#     #     self.adjust_param['pgvAdjustCy'] = pgv_adjust_cy  # 调整范围的圆心为二维码坐标系下的坐标y
-#     #     self.adjust_param['pgvReachDist'] = self.pgv_reach_dist  # pgv二次调整距离精度
-#     #     self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # pgv二次调整角度精度
-#
-#     def set_adjust_param(self, pgv_adjust_cx, pgv_adjust_cy):
-#         # 设备选择（不变）
-#         if self.use_which_pgv == "useUpPgv":
-#             self.adjust_param['R2AUP'] = True
-#             self.adjust_param['R2ADP'] = False
-#         elif self.use_which_pgv == "useDownPgv":
-#             self.adjust_param['R2AUP'] = False
-#             self.adjust_param['R2ADP'] = True
-#
-#         # 角度调整方式（按文档修正）
-#         if self.pgv_adjust_way == "pgvAdjust90":
-#             self.adjust_param['pgvAdjust90'] = True
-#             self.adjust_param['pgvXAngleAdjust'] = True
-#         elif self.pgv_adjust_way == "pgvAdjust180":
-#             self.adjust_param['pgvAdjust180'] = True
-#             self.adjust_param['pgvXAngleAdjust'] = True
-#         elif self.pgv_adjust_way == "pgvAdjust0":
-#             # 文档 singleCode ignoreAngle → pgvAdjustXY（XY来回调整，忽略角度）
-#             # 文档 codeNumber ignoreAngle → pgvXAdjust（仅X方向）
-#             # 当前脚本走的是 singleCode 路径，统一用 pgvAdjustXY
-#             self.adjust_param['pgvAdjustXY'] = True  #
-#
-#         # 随动时锁定货叉方向（不变）
-#         self.adjust_param['spin'] = self.pgv_spin
-#
-#         # 调整范围（不变）
-#         self.adjust_param['pgvAdjustDist'] = self.pgv_adjust_dist
-#         self.adjust_param['pgvAdjustCx'] = pgv_adjust_cx
-#         self.adjust_param['pgvReachDist'] = self.pgv_reach_dist
-#         self.adjust_param['pgvReachAngle'] = self.pgv_reach_angle  # 单位 deg
-#
-#     def reset(self):
-#         debug_trace("reset PGV secondary adjustment")
-#         self.action_status = ActionStatus.RUNNING
-#         Navigation.resetGoPGV()
 class PGVSecondaryAdjust(BaseAction):
     """
     PGV二次调整（singleCode / codeNumber 模式）。
@@ -4154,3 +4054,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
