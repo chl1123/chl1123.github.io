@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/7
+# @Date : 2026/4/8
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : fix: 1. 修复increase模式下spin电机异常的bug。2. goPolyline 修改回沿地图线路到AP点 add: 添加一些报错提示
+# @Update : fix: 报错异常码修改 add: 增加spin读取为空的保护
 
 
 import json
@@ -175,8 +175,6 @@ class ConfigParams:
     jack_motor_speed = None
     jack_min_height = None
     jack_max_height = None
-    jack_up_di = None
-    jack_zero_di = None
 
     # Debug开关
     debug_mode = False
@@ -230,6 +228,8 @@ class ConfigParams:
     spin_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.spinMotor")
     motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
     reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
+    jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI")
+    jack_zero_di = RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{reset_by_speed}.zeroDI")
 
     def __init__(self):
         self._build_and_load_config()
@@ -290,14 +290,6 @@ class ConfigParams:
                         builder.DEFAULTVALUE(RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.maxLength"))
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
-                    with builder.CHILD(key="jackUpDi", name="Jack Up DI",
-                                       desc="Upper limit digital input for jack"):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DI-003")
-                    with builder.CHILD(key="jackZeroDi", name="Jack Zero DI",
-                                       desc="Zero position digital input for jack"):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DI-004")
 
             # ============================================
             # 导航配置组（Bezier + Polyline）
@@ -551,9 +543,9 @@ class ConfigParams:
         cls.jack_min_height = cls.config.get("jackMinHeight")
         cls.jack_max_height = cls.config.get("jackMaxHeight")
 
-        # DI配置
-        cls.jack_up_di = cls.config.get("jackUpDi")
-        cls.jack_zero_di = cls.config.get("jackZeroDi")
+        # DI配置（从设备绑定读取）
+        cls.jack_up_di = RobotParam.getDevice(f"{cls.jack_motor_name}", f"func.{cls.motor_func}.upLimitDI")
+        cls.jack_zero_di = RobotParam.getDevice(f"{cls.jack_motor_name}", f"resetMode.{cls.reset_by_speed}.zeroDI")
 
         # Bezier导航配置
         cls.bezier_back_dist = cls.config.get("bezierBackDist", 0.0)
@@ -1214,13 +1206,22 @@ class Jack(ModuleBase):
         super().__init__()
 
         # ============================================
-        # Error52800: 检查顶升电机配置
+        # Error53301: 检查顶升电机配置
         # ============================================
         if not config_params.jack_motor_name:
-            Abnormal.setTask(52800,
+            Abnormal.setTask(53301,
                              "Jack byController Mode. Cannot Find Linear Motor",
                              "模型文件顶升设备配置有误，找不到顶升电机",
                              "检查 jack 机构的配置文件中的电机配置是否配置或配置是否有误",
+                             "Jack.__init__")
+        # ============================================
+        # Error53302: 检查旋转电机配置
+        # ============================================
+        if not config_params.spin_motor_name:
+            Abnormal.setTask(53302,
+                             "Jack byController Mode. Cannot Find Spin Motor",
+                             "模型文件旋转设备配置有误，找不到旋转电机",
+                             "检查 jack 机构的配置文件中的旋转电机配置是否配置或配置是否有误",
                              "Jack.__init__")
         # 脚本任务管理
         # set_info数据打印
@@ -1324,6 +1325,11 @@ class Jack(ModuleBase):
             return False
 
         # ---- 第2步：旋转电机标零 ----
+        if not config_params.spin_motor_name:
+            Trace.log(f"[CALIB] {label}：未配置旋转电机，跳过旋转电机标零")
+            jack_calib_manager.set_calib_done(True)
+            return True
+
         if not self.jack_calib_step[2]:
             if not Motor.isMotorStop(config_params.spin_motor_name):
                 debug_trace(f"[CALIB] {label}：等待旋转电机停止...")
@@ -1564,8 +1570,8 @@ class Jack(ModuleBase):
             self.do_force_calib()
 
         else:
-            # Error52801: 不支持的任务指令
-            Abnormal.setTask(52801,
+            # Error53301: 不支持的任务指令
+            Abnormal.setTask(53301,
                              f"Doesn't support key: {self.opt}",
                              "下发的任务指令格式脚本不支持",
                              "检查下发的任务指令是否符合正确，是否符合要求？",
@@ -2087,8 +2093,13 @@ class Jack(ModuleBase):
                 self.ap_world_pos[1] - robot_loc2[1],
                 self.ap_world_pos[0] - robot_loc2[0]
             )
-            target_angle_deg = math.degrees(ap_to_robot_angle)
-            self.action_list.append(RobotRotate(target_angle_deg, Coordinate.WORLD, False))
+
+            # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
+            if self.is_backwards:
+                target_angle = ap_to_robot_angle + math.pi
+            else:
+                target_angle = ap_to_robot_angle
+            self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
 
             # 识别货架
             if self.recfile:
@@ -2103,14 +2114,13 @@ class Jack(ModuleBase):
 
                 # bezier 进入货架
                 recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
-                back_dist = self.back_dist
-                if not back_dist:
+                if not self.back_dist:
                     if recfile_back_dist.get("enableBackDistance") == "on":
-                        back_dist = recfile_back_dist.get("backDistance", 0.24)
+                        self.back_dist = recfile_back_dist.get("backDistance", 0.24)
                     else:
-                        back_dist = 0.24
+                        self.back_dist = 0.24
                 self.action_list.append(
-                    GoBezier(result_world, back_dist, self.adjust_dist_for_curvature_limit,
+                    GoBezier(result_world, self.back_dist, self.adjust_dist_for_curvature_limit,
                              self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
                              self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
                              self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
@@ -2126,15 +2136,6 @@ class Jack(ModuleBase):
                              self.min_ahead_dist, True, self.is_hold_dir,
                              self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
                              self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
-
-        if not self.operation_init:
-            self.operation_init = True
-            if not self.ap_id:
-                self.ap_id = Navigation.moveTask().get("targetName", None)
-                self.ap_id = "AP" + str(self.ap_id)
-            self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
-            debug_trace(f'go_polyline AP_pos: {self.ap_world_pos}')
-            self.action_list.append(GoPolyline(self.ap_world_pos))
 
     def go_map_path(self):
         if not self.operation_init:
@@ -2666,6 +2667,13 @@ class Spin(BaseAction):
         if self.init:
             self.init = False
             self.action_status = ActionStatus.RUNNING
+            if not config_params.spin_motor_name:
+                Abnormal.setTask(53302, "Spin motor not configured",
+                                 "旋转电机未配置，无法执行 Spin 动作",
+                                 "检查模型文件中的旋转电机配置",
+                                 "Spin.run")
+                self.action_status = ActionStatus.FAILED
+                return
             # ✅ 在发指令前同周期内 reset，确保 Navigation 内部状态干净
             Motor.resetMotor(config_params.spin_motor_name)
             # 记录 spin 开始时的电机角度，作为旋转基准
@@ -4016,6 +4024,9 @@ def main():
                 input_params = j.result or Module.getTaskArgs()
                 if input_params:
                     try:
+                        if "script" in input_params and "args" in input_params["script"]:
+                            input_params = input_params["script"]["args"]
+
                         # 精简的任务参数输出
                         operation = input_params.get("operation", "unknown")
                         debug_trace(f"[TASK] {operation} Mission Start")
