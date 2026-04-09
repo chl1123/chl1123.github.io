@@ -3,14 +3,12 @@
 # @Project: BehavFactory Debug (clean version)
 
 import json
-import os
 import time
 from typing import Any, Dict
 
 from syspy import Module, ModuleBase, ScriptStatus, ScriptParam, Trace, Abnormal
 from syspy.lib.module import SafeMoveStatus
 from syspy.behavs import led, tricolor, audio, trigger, state
-from syspy.behavs import _core as behav_core
 from syspy.utils.param_server import ParamType
 
 
@@ -311,6 +309,7 @@ class BehavFactoryDebugTask(ModuleBase):
         log(f"task start, args={self.args}")
 
     def _run_once(self) -> Dict[str, Any]:
+        """执行一次行为动作，返回结果字典。"""
         action = str(self.args.get("action", "")).strip()
         if not action:
             raise ValueError("action is empty")

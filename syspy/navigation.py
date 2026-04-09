@@ -897,6 +897,37 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
 
+    @classmethod
+    def setTaskError(cls, key: str, desc: str) -> None:
+        """设置脚本任务异常。用户发送新任务时该异常会自动清除
+
+        Args:
+            key (str): 异常唯一标识。例如 "Xxx"
+            desc (str): 异常描述信息
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def setDeviceError(cls, key: str, desc: str, param: str = "") -> None:
+        """设置设备 Model 异常。需要调用 Navigation.clearDeviceError 清除异常
+
+        Args:
+            key (str): 异常唯一标识。例如 "Xxx"
+            desc (str): 异常描述信息
+            param (str): 设备参数路径，默认空字符串
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def clearDeviceError(cls, key: str) -> None:
+        """清除设备 Model 异常
+
+        Args:
+            key (str): 异常唯一标识。例如 "Xxx"
+        """
+        raise RBKVersionError()
+
+
 class NavStatusInterface(ABC, Message):
     """导航状态类"""
 

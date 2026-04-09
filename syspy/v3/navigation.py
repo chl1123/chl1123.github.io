@@ -332,7 +332,7 @@ class NavigationV3(NavigationInterface):
         """
         pass
     @classmethod
-    @call_service() 
+    @call_service()
     def setGoodsPolyShape(
             cls, shape, recfile: str
     ):
@@ -1013,6 +1013,18 @@ class NavStatusV3(NavStatusInterface):
         """
         if self.update():
             return self.data.closestTarget
+
+    @classmethod
+    def setTaskError(cls, key: str, desc: str) -> None:
+        cls.client().call_service("MoveFactory", "setTaskError", "ms@Module" + key, desc)
+
+    @classmethod
+    def setDeviceError(cls, key: str, desc: str, param: str = "") -> None:
+        cls.client().call_service("MoveFactory", "setDeviceError", "ms@Module" + key, desc, "", "Model", "Model-000", param)
+
+    @classmethod
+    def clearDeviceError(cls, key: str) -> None:
+        cls.client().call_service("MoveFactory", "clearDeviceError", "ms@Module" + key)
 
 
 class NavSpeedV3(NavSpeedInterface):
