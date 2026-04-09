@@ -185,7 +185,12 @@ class Module:
                 cls.__run_status = ScriptStatus.RUNNING
             # 任务中有配置参数则合并
             if "config" in cls.__task_params:
-                ScriptParam.getInstance(cls.script_file).setTaskConfig(cls.__task_params["config"])
+                instance=ScriptParam.getInstance(cls.script_file)
+                if instance:
+                    instance.setTaskConfig(cls.__task_params["config"])
+                else:
+                    print(f"ScriptParam.getInstance({cls.script_file}) is None")
+                    return
     @classmethod
     def __register(cls):
         Service.server().register_function(cls.__updateCmd, "update_cmd")
@@ -396,7 +401,12 @@ class Module:
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 cls.__task_params = {}
                 cls.__task_id = 0
-                ScriptParam.getInstance(cls.script_file).clearTaskConfig()
+                instance=ScriptParam.getInstance(cls.script_file)
+                if instance:
+                    instance.clearTaskConfig()
+                else:
+                    print(f"ScriptParam.getInstance({cls.script_file}) is None")
+                    return
 
     @classmethod
     def reportInfo(cls, info: Union[dict, list]):
