@@ -91,6 +91,7 @@ def print_info():
     print(f"{config_params.spin_motor_name=}")
 
     
+    
 
 # # 生成圆弧上的点
 # def generate_arc_points(center_x, center_y,x,y, radius, rotSpeed, angle, steps=20):
@@ -217,6 +218,10 @@ class InputParams:
                             builder.TYPE(ParamType.STRING)
                             builder.REQUIRED(False)
                             builder.DEFAULTVALUE("default.srec")
+                        with builder.CHILD(key="mode", name="模式选择",
+                                        desc="0 = 里程模式(根据里程进行运动), 1 = 定位模式, 若缺省则默认为里程模式"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
             with builder.CHILDREN():
                 with builder.CHILD(key="line", name="直线运动", desc="选择机器人直线运动"):
                     builder.TYPE(ParamType.ARRAY)
@@ -363,7 +368,20 @@ class Actions:
                 self.script_status = ScriptStatus.FAILED
                 return
 
-            operation = self.task_args.get("operation", None)
+            operation = self.task_args.get("operation", "")
+            if operation == 123:
+                Trace.log(f"operation is None")
+                keys=self.task_args.keys()
+                if "robotRotateAngle" in keys or "robotRotateDirection" in keys or "shelfRotateAngle" in keys:
+                    operation="rotate"
+                    Trace.log(f"operation is rotate")
+                elif "dist" in keys:
+                    operation="line"
+                    Trace.log(f"operation is line")
+                elif "rotRadius" in keys or "rotDegree" in keys or "rotSpeed" in keys:
+                    operation="arc"
+                    Trace.log(f"operation is arc")
+                    
             if operation=='line':
                 # 获取直线运动参数
                 self.dist = self.task_args.get("dist", None)
@@ -381,6 +399,8 @@ class Actions:
                 
                 
             elif operation=='rotate':
+                self.mode = self.task_args.get("mode", 0)
+                Trace.log(f"mode is {self.mode}")
                 # 获取底盘旋转参数
 
                 self.robot_rotate_angle = self.task_args.get("robotRotateAngle", None)
@@ -410,7 +430,7 @@ class Actions:
                 if self.robot_rotate_angle is not None or self.shelf_rotate_angle is not None:
                     self.action_list.append(
                         Rotate(self.robot_rotate_angle, self.robot_rotate_direction,
-                            self.speed_w_robot, self.shelf_rotate_angle, self.shelf_rotate_direction))
+                            self.speed_w_robot, self.shelf_rotate_angle, self.shelf_rotate_direction, self.mode))
 
                 if self.lift_height is not None:
                     self.action_list.append(
@@ -426,12 +446,12 @@ class Actions:
                     self.mode = 0  
                 self.action_list.append(GoArc(self.rot_radius, self.rot_degree, self.rot_speed, self.mode))
             else:
-                Abnormal.setTask(53780, f"operation {operation} not support!",
-                                 "",
-                                 "",
-                                 "Parameter validation")
-                self.script_status = ScriptStatus.FAILED
+                Trace.log(f"operation {operation} not support!")
                 return
+                
+
+
+                
 
 
 
@@ -585,15 +605,17 @@ class Rotate(BaseAction):
     """旋转动作，支持底盘和托盘同时旋转或单独旋转"""
 
     def __init__(self, robot_rotate_angle=None, robot_direction=RotateDirection.NEARBY,
-                 speed_w_robot=None, shelf_angle=None, shelf_direction=RotateDirection.NEARBY):
+                 speed_w_robot=None, shelf_angle=None, shelf_direction=RotateDirection.NEARBY, mode=0):
         super().__init__("Rotate")
         self.action_args = {
+            "mode": mode,
             "robotRotateAngle": robot_rotate_angle,
             "robot_direction": robot_direction,
             "speed_w_robot": speed_w_robot,
             "shelf_angle": shelf_angle,
             "shelf_direction": shelf_direction
         }
+        self.mode = mode
         self.action_status = ActionStatus.INIT
         self.init = True
         self.robot_direction = robot_direction
@@ -628,6 +650,7 @@ class Rotate(BaseAction):
                 self.rparams["moveAngle"] = self.robot_rotate_angle
                 self.rparams["dir"] = self.robot_direction
                 self.rparams["speedW"] = self.speed_w_robot
+                self.rparams["locMode"] = self.mode
                 if self.robot_direction == RotateDirection.NEARBY:
                     self.action_status = ActionStatus.FAILED
                     Abnormal.setTask(53780, "不支持不指定方向旋转底盘",
@@ -803,6 +826,7 @@ def main():
             # }
 
             validated_params = {}
+            input_params["operation"]=input_params.get("operation", 123)
             if input_params:
                 try:
                     # 验证参数
