@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/2
+# @Date : 2026/4/13
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : feat: 配送车脚本适配部分顶升车脚本改动
+# @Update : feat: 配送车脚本内置动作模板适配
 
 import json
 import math
@@ -13,7 +13,7 @@ from syspy.utils.time import Timer
 start_time = time.time()
 from datetime import datetime
 from syspy import (Module, Logger, Motor, Navigation, Loc, Abnormal, Recognize, Di,
-                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB)
+                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Container)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
@@ -1574,6 +1574,50 @@ class Jack(ModuleBase):
                 self.action_list.append(UnbindContainer("999"))
             # === 放货完成后删除激光扣除区域 ===
             self.action_list.append(DeleteLaserDeductArea())
+
+    def bindContainer(self, container_id: str, goods_name: str, desc: str, insert_dir: str = "D") -> bool:
+        """
+        重写 bindContainer：绑定容器并设置货物多边形形状。
+        """
+        # 1. 绑定容器
+        Container.bindContainer(container_id, goods_name, desc)
+
+        # 2. 从识别配置中读取货物多边形形状
+        recognition_goodsParameter_path = f"recognitionObject.shelf.goodsParameter"
+        goods_shape = RobotParam.getConfig(
+            "recognition",
+            f"{recognition_goodsParameter_path}.goodsShape",
+            self.recfile or "default.srec"
+        )
+        if not goods_shape:
+            Trace.log(f"[bindContainer] 未找到货物形状配置，recfile={self.recfile}")
+            return False
+
+        shapes = json.loads(goods_shape)
+        shape = shapes[0]["points"]
+
+        # 3. 根据插入方向旋转货物模型
+        # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
+        def _rotate_pt(pt, dir_):
+            if dir_ == "A":  # 0°: (x, y) -> (x, y)
+                if isinstance(pt, dict):  return {"x": pt["y"], "y":-pt["x"] }
+                return [pt[0], pt[1]]
+            elif dir_ == "B":  # 顺时针90°: (x, y) -> (y, -x)
+                if isinstance(pt, dict):  return {"x":pt["x"] , "y": pt["y"]}
+                return [pt[1], -pt[0]]
+            elif dir_ == "C":  # 180°: (x, y) -> (-x, -y)
+                if isinstance(pt, dict):  return {"x": -pt["y"], "y": pt["x"] }
+                return [-pt[0], -pt[1]]
+            else:  # D: 逆时针90°: (x, y) -> (-y, x)
+                if isinstance(pt, dict):  return {"x":-pt["x"] , "y":-pt["y"]}
+                return [-pt[1], pt[0]]
+
+        shape = [_rotate_pt(pt, insert_dir) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
+
+        Navigation.setGoodsPolyShape(shape, goods_name)
+        Trace.log(f"[bindContainer] 绑定成功(方向={insert_dir}): container={container_id}, goods={goods_name}, "
+                  f"shape points={len(shape)}, recfile={self.recfile}")
+        return True
 
     def go_ap_site(self):
         if not self.operation_init:
@@ -3232,13 +3276,24 @@ param_loader.addAction(
     config={}
 )
 
-# 添加 "jackHeight" 动作模板
+# 添加 "jackUp" 动作模板
 param_loader.addAction(
-    action_name="jackHeight",
+    action_name="jackUp",
     policy={},
     args={
         "operation": "jackHeight",
         "operation.jackHeight.endHeight": 0.06,
+    },
+    config={}
+)
+
+# 添加 "jackDown" 动作模板
+param_loader.addAction(
+    action_name="jackDown",
+    policy={},
+    args={
+        "operation": "jackHeight",
+        "operation.jackHeight.endHeight": 0,
     },
     config={}
 )
