@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/8
+# @Date : 2026/4/10
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : fix: 报错异常码修改 add: 增加spin读取为空的保护
+# @Update : feat: 1. zeroDI 为none时做保护，跳过di检查 2. ap_id下发为空时不报错，原地执行任务 3. 优化重构jackLoad逻辑，便于组合
 
 
 import json
@@ -1870,6 +1870,61 @@ class Jack(ModuleBase):
         move_task = Navigation.moveTask()
         return move_task.get("targetName", None)
 
+    def _append_load_actions(self, target_pos):
+        """将导航、二次调整、旋转、顶升、绑定容器等动作添加到 action_list"""
+        # 导航方式（无AP点原地执行时 target_pos 为 None，跳过导航）
+        if target_pos is not None:
+            if self.how_go_site == "straight":
+                self.action_list.append(
+                    GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
+                           self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
+            elif self.how_go_site == "bezier":
+                recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
+                if not self.back_dist:
+                    if recfile_back_dist.get("enableBackDistance") == "on":
+                        self.back_dist = recfile_back_dist.get("backDistance", 0.24)
+                    else:
+                        self.back_dist = 0.24
+                self.action_list.append(
+                    GoBezier(target_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
+                             self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                             self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
+                             self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
+            elif self.how_go_site == "polyline":
+                self.action_list.append(
+                    GoPolyline(self.ap_world_pos, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
+                               self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
+
+        # 二次调整
+        if self.is_secondary_adjust:
+            self.action_list.append(GetPGVData(self.pgv_scan_device))
+            self.action_list.append(PGVSecondaryAdjust(
+                code_adjust_type=self.pgv_code_adjust_type,
+                scan_device=self.pgv_scan_device,
+                angle_adjust_type=self.pgv_angle_adjust_type,
+                position_adjust_type=self.pgv_position_adjust_type,
+                code_number=self.pgv_code_number,
+                line_angle_threshold=self.pgv_line_angle_threshold,
+                adjust_region=self.pgv_adjust_region,
+                pgv_spin=self.pgv_spin,
+                pgv_reach_dist=self.pgv_reach_dist,
+                pgv_reach_angle=self.pgv_reach_angle,
+            ))
+
+        # --- 顶升前托盘旋转（beforeJack） "料架旋转只按劣弧转"---
+        if self.jack_spin_enable and self.jack_spin_phase == "beforeJack":
+            Trace.log(f"jack_load: beforeJack spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
+            self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None,
+                                         deduct_info=self.laser_area_deduct_info))
+
+        # 顶升
+        self.action_list.append(
+            JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed,
+                       self.recfile, deduct_info=self.laser_area_deduct_info))
+
+        # 顶升完成后绑定容器，设置货物模型
+        self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
+
     def jack_load(self):
         """
         完整取货流程：旋转车体对准 → 识别货架 → 导航 → 二次调整 → 顶升 → 设置激光扣除区域
@@ -1905,34 +1960,36 @@ class Jack(ModuleBase):
             # 获取AP点
             self.ap_id = self.ap_id or self.get_ap()
             if not self.ap_id:
-                Abnormal.setTask(53779, "lost ap id", "", "", "")
-                return
-
-            debug_trace(f"jack_load: ap_id={self.ap_id}")
-            self.ap_world_pos = Navigation.getLM(self.ap_id, True)
-            debug_trace(f"jack_load: AP_pos={self.ap_world_pos}")
-
-            self.report_info["jack_load"] = {"apWorldPos": self.ap_world_pos}
-            robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
-
-            # --- 启动前托盘旋转（beforeStart）---
-            # "空载行走对齐"：在前置点出发前，调整托盘到指定角度，以便减少进入料架时的碰撞体积或满足特定姿态要求。
-            if self.jack_spin_enable and self.jack_spin_phase == "beforeStart":
-                Trace.log(f"jack_load: beforeStart spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
-                self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None))
-            ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
-
-            # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
-            if self.is_backwards:
-                target_angle = ap_to_robot_angle + math.pi
+                # 原地动作：无AP点，跳过导航，直接执行取货
+                debug_trace("jack_load: no ap_id, 原地执行")
             else:
-                target_angle = ap_to_robot_angle
-            self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
+                debug_trace(f"jack_load: ap_id={self.ap_id}")
+                self.ap_world_pos = Navigation.getLM(self.ap_id, True)
+                debug_trace(f"jack_load: AP_pos={self.ap_world_pos}")
+
+                self.report_info["jack_load"] = {"apWorldPos": self.ap_world_pos}
+                robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+
+                # --- 启动前托盘旋转（beforeStart）---
+                if self.jack_spin_enable and self.jack_spin_phase == "beforeStart":
+                    Trace.log(f"jack_load: beforeStart spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
+                    self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None))
+                ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
+
+                # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
+                if self.is_backwards:
+                    target_angle = ap_to_robot_angle + math.pi
+                else:
+                    target_angle = ap_to_robot_angle
+                self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
 
             # 启用识别
             if self.is_recognize:
                 self.action_list.append(
                     RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
+            else:
+                # 不识别时，直接在初始化阶段添加导航、二次调整、顶升等动作
+                self._append_load_actions(self.ap_world_pos)
 
         # 动态添加 action_list（识别完成后）
         if 0 <= self.action_id < len(self.action_list):
@@ -1940,60 +1997,7 @@ class Jack(ModuleBase):
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
-
-                # 导航方式
-                if self.how_go_site == "straight":
-                    self.action_list.append(
-                        GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
-                               self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
-                elif self.how_go_site == "bezier":
-                    recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
-                    if not self.back_dist:
-                        if recfile_back_dist.get("enableBackDistance") == "on":
-                            self.back_dist = recfile_back_dist.get("backDistance", 0.24)
-                        else:
-                            self.back_dist = 0.24
-                    self.action_list.append(
-                        GoBezier(result_world, self.back_dist, self.adjust_dist_for_curvature_limit,
-                                 self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
-                                 self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
-                                 self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
-
-                elif self.how_go_site == "polyline":
-                    self.action_list.append(
-                        GoPolyline(self.ap_world_pos, self.min_ahead_dist, self.adjust_dist_for_curvature_limit,
-                                   self.back_dist, self.max_speed, self.max_rot, self.decele_dist))
-
-                # 二次调整
-                if self.is_secondary_adjust:
-                    self.action_list.append(GetPGVData(self.pgv_scan_device))
-                    self.action_list.append(PGVSecondaryAdjust(
-                        code_adjust_type=self.pgv_code_adjust_type,
-                        scan_device=self.pgv_scan_device,
-                        angle_adjust_type=self.pgv_angle_adjust_type,
-                        position_adjust_type=self.pgv_position_adjust_type,
-                        code_number=self.pgv_code_number,
-                        line_angle_threshold=self.pgv_line_angle_threshold,
-                        adjust_region=self.pgv_adjust_region,
-                        pgv_spin=self.pgv_spin,
-                        pgv_reach_dist=self.pgv_reach_dist,
-                        pgv_reach_angle=self.pgv_reach_angle,
-                    ))
-
-                # --- 顶升前托盘旋转（beforeJack） "料架旋转只按劣弧转"---
-                # "取货过程"：进入料架、完成二次调整后、顶升前，若宽边进入且能旋转，需先旋转托盘约 90° 使长短边与料架对齐；若窄边进入托盘已对齐，可旋转到 0° 确认或跳过（spinTray=off）。旋转方向不指定，由底层按劣弧（小圈）自主选择，
-                if self.jack_spin_enable and self.jack_spin_phase == "beforeJack":
-                    Trace.log(f"jack_load: beforeJack spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
-                    self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None,
-                                                 deduct_info=self.laser_area_deduct_info))
-
-                # 顶升
-                self.action_list.append(
-                    JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed,
-                               self.recfile, deduct_info=self.laser_area_deduct_info))
-
-                # 顶升完成后绑定容器，设置货物模型
-                self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
+                self._append_load_actions(result_world)
 
     def jack_unload(self):
         """
@@ -2081,25 +2085,25 @@ class Jack(ModuleBase):
             # 获取AP点
             self.ap_id = self.ap_id or self.get_ap()
             if not self.ap_id:
-                Abnormal.setTask(53779, "jackBezierReturn: lost ap id", "", "", "")
-                return
-
-            self.ap_world_pos = Navigation.getLM(self.ap_id, True)
-            debug_trace(f"jackBezierReturn: ap_id={self.ap_id}, AP_pos={self.ap_world_pos}")
-
-            # 对准AP方向
-            robot_loc2 = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
-            ap_to_robot_angle = math.atan2(
-                self.ap_world_pos[1] - robot_loc2[1],
-                self.ap_world_pos[0] - robot_loc2[0]
-            )
-
-            # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
-            if self.is_backwards:
-                target_angle = ap_to_robot_angle + math.pi
+                # 原地动作：无AP点，跳过导航
+                debug_trace("jackBezierReturn: no ap_id, 原地执行")
             else:
-                target_angle = ap_to_robot_angle
-            self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
+                self.ap_world_pos = Navigation.getLM(self.ap_id, True)
+                debug_trace(f"jackBezierReturn: ap_id={self.ap_id}, AP_pos={self.ap_world_pos}")
+
+                # 对准AP方向
+                robot_loc2 = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+                ap_to_robot_angle = math.atan2(
+                    self.ap_world_pos[1] - robot_loc2[1],
+                    self.ap_world_pos[0] - robot_loc2[0]
+                )
+
+                # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
+                if self.is_backwards:
+                    target_angle = ap_to_robot_angle + math.pi
+                else:
+                    target_angle = ap_to_robot_angle
+                self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
 
             # 识别货架
             if self.recfile:
@@ -2133,7 +2137,7 @@ class Jack(ModuleBase):
                 # bezier 退回起始位置
                 self.action_list.append(
                     GoBezier(self.return_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
-                             self.min_ahead_dist, True, self.is_hold_dir,
+                             self.min_ahead_dist,not self.is_backwards, self.is_hold_dir,
                              self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
                              self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
 
@@ -2465,11 +2469,14 @@ class Jack(ModuleBase):
             if not self.pre_action_step[0]:
                 # 使用较慢的速度下降，边走边动
                 slow_speed = config_params.jack_motor_speed * 0.5  # 使用一半速度，更平稳
-                Motor.setMotorPosition(config_params.jack_motor_name, target_height, slow_speed,
-                                       config_params.jack_zero_di)
+                if config_params.jack_zero_di:
+                    Motor.setMotorPosition(config_params.jack_motor_name, target_height, slow_speed,
+                                           config_params.jack_zero_di)
+                else:
+                    Motor.setMotorPosition(config_params.jack_motor_name, target_height, slow_speed)
 
                 # 检查是否到达
-                if Motor.isMotorReached(config_params.jack_motor_name) or Di.getDi(config_params.jack_zero_di):
+                if Motor.isMotorReached(config_params.jack_motor_name) or (config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di)):
                     self.pre_action_step[0] = True
                     Motor.resetMotor(config_params.jack_motor_name)
                     debug_trace(f"[边走边动] 顶升下降完成: {current_height:.4f}m -> {target_height}m")
@@ -2893,7 +2900,7 @@ class JackHeight(BaseAction):
 
             if self.target_height > self.jack_start_height:
                 # 初始化前检查：上到位 DI 不应该已经触发
-                if Di.getDi(config_params.jack_up_di):
+                if config_params.jack_up_di and Di.getDi(config_params.jack_up_di):
                     Trace.log(f"[JACK] 警告: 上到位DI({config_params.jack_up_di})在顶升前已触发，请检查DI配置")
                     Abnormal.setTask(53780, f"Jack up DI({config_params.jack_up_di}) already triggered before lifting",
                                      "DI misconfigured or mechanically stuck",
@@ -2901,11 +2908,14 @@ class JackHeight(BaseAction):
                                      "JackHeight")
                     self.action_status = ActionStatus.FAILED
                     return
-                Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
-                                       config_params.jack_up_di)
+                if config_params.jack_up_di:
+                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
+                                           config_params.jack_up_di)
+                else:
+                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
             else:
                 # 初始化前检查：下到位 DI 不应该已经触发
-                if Di.getDi(config_params.jack_zero_di):
+                if config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di):
                     Trace.log(f"[JACK] 警告: 下到位DI({config_params.jack_zero_di})在下降前已触发，请检查DI配置")
                     Abnormal.setTask(53781, f"Jack down DI({config_params.jack_zero_di}) already triggered before lowering",
                                      "DI misconfigured or mechanically stuck",
@@ -2913,8 +2923,11 @@ class JackHeight(BaseAction):
                                      "JackHeight")
                     self.action_status = ActionStatus.FAILED
                     return
-                Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
-                                       config_params.jack_zero_di)
+                if config_params.jack_zero_di:
+                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
+                                           config_params.jack_zero_di)
+                else:
+                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
 
         # 获取当前电机位置
         current_pos = Motor.getMotorPos(self.motor_name)
@@ -2935,7 +2948,7 @@ class JackHeight(BaseAction):
 
         if self.target_height > self.jack_start_height:
             # 顶升动作：触发上到位 DI 后结束
-            if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_up_di):
+            if Motor.isMotorReached(self.motor_name) or (config_params.jack_up_di and Di.getDi(config_params.jack_up_di)):
                 if not self._motor_moved:
                     Trace.log(f"[JACK] 警告: 电机未运动就触发到位信号，pos={current_pos:.4f}m，请检查DI配置")
                 if self._up_di_triggered_time is None:
@@ -2952,7 +2965,7 @@ class JackHeight(BaseAction):
                         self._set_deduct_area()
         else:
             # 下降动作
-            if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_zero_di):
+            if Motor.isMotorReached(self.motor_name) or (config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di)):
                 if not self._motor_moved:
                     Trace.log(f"[JACK] 警告: 电机未运动就触发到位信号，pos={current_pos:.4f}m，请检查DI配置")
                 self.action_status = ActionStatus.FINISHED
