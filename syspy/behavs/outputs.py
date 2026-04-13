@@ -57,20 +57,43 @@ class _OutputBase(object):
 
 
 class LedOutput(_OutputBase):
-    def __init__(self, rpc):
-        super().__init__(rpc, "led", "tryLed", ("color", "pattern"))
+    """
+    tryLed(light_type, rgbw, period=1000)
+    
+    light_type: "MutableBreath" | "Flow" | "MutableHorseRace" |"Steady" | "Rainbow" | "Errofatal" | "Off"
+    rgbw      : "Red" | "RedDark" | "PinkPurple" | "Green" | "GreenDark" |
+                "Blue" | "BlueDark" | "Yellow" | "White" | "Off"
+    period    : ms，默认 1000
+    
+    fallback setAction payload:
+        {"light_type": "...", "rgbw": "...", "period": 1000}
+    """
 
-    def trySet(self, color, pattern):
-        """请求设置 LED。C++ 仲裁可能拒绝（如急停态）。"""
-        self._send({"color": color, "pattern": pattern}, direct_values=(color, pattern))
+    DEFAULT_PERIOD = 1000
+
+    def __init__(self, rpc):
+        super().__init__(
+            rpc,
+            "led",                # setAction channel
+            "tryLed",                           # direct method
+            ("light_type", "rgbw", "period"),   # arg names（仅文档用）
+        )
+
+    def trySet(self, light_type, rgbw, period=None):
+        if period is None:
+            period = self.DEFAULT_PERIOD
+        payload = {"light_type": light_type, "rgbw": rgbw, "period": period}
+        self._send(payload, direct_values=(light_type, rgbw, period))
 
     def tryOff(self):
-        self._clear(direct_values=("off", "steady"))
+        """关灯：light_type=Off, rgbw=Off, period=0"""
+        self._send({"light_type": "Off", "rgbw": "Off", "period": 0},
+                   direct_values=("Off", "Off", 0))
 
 
 class TricolorOutput(_OutputBase):
     def __init__(self, rpc):
-        super().__init__(rpc, "tricolor", "tryTricolor", ("red", "yellow", "green"))
+        super().__init__(rpc, "tricolor", "requestTricolor", ("red", "yellow", "green"))
 
     def trySet(self, red, yellow, green):
         """请求设置三色灯。C++ 仲裁可能拒绝。"""
@@ -83,7 +106,7 @@ class TricolorOutput(_OutputBase):
 
 class AudioOutput(_OutputBase):
     def __init__(self, rpc):
-        super().__init__(rpc, "audio", "tryAudio", ("sound_id", "loop"))
+        super().__init__(rpc, "audio", "requestAudio", ("sound_id", "loop"))
 
     def tryPlay(self, sound_id, loop=False):
         """请求播放音频。C++ 仲裁可能拒绝。"""
@@ -93,16 +116,16 @@ class AudioOutput(_OutputBase):
     def tryStop(self):
         """请求停止音频。"""
         try:
-            self._rpc.call("tryAudioStop")
+            self._rpc.call("requestAudioStop")
             self._last_payload = "{}"
         except Exception as exc:
-            log.warning("tryAudioStop failed: %s", exc)
+            log.warning("requestAudioStop failed: %s", exc)
             self._clear()
 
 
 class TriggerOutput(_OutputBase):
     def __init__(self, rpc):
-        super().__init__(rpc, "trigger", "tryTrigger", ("key", "value"))
+        super().__init__(rpc, "trigger", "requestTrigger", ("key", "value"))
 
     def trySet(self, key, value):
         """请求设置 trigger。C++ 仲裁可能拒绝。"""
