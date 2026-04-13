@@ -46,7 +46,6 @@ class CkyDgScale:
         stopbits: int = 1,
         timeout: float = 1.0,
         slave_id: int = 1,
-        auto_open: bool = True,
     ):
         self.slave_id = int(slave_id)
         self.modbus = ModbusRtuProto(
@@ -57,16 +56,12 @@ class CkyDgScale:
             stopbits=stopbits,
             timeout=timeout,
             verbose=False,
-            auto_open=auto_open,
+            auto_open=False,
         )
+        # 简化调用方：实例化后默认直接可用
+        self.modbus.open()
 
     def __del__(self):
-        self.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
     def open(self):
@@ -85,20 +80,21 @@ class CkyDgScale:
         self.slave_id = int(slave_id)
 
     def _slave(self, slave_id: Optional[int] = None) -> int:
+        """获取实际使用的从站 ID"""
         return self.slave_id if slave_id is None else int(slave_id)
 
-    # ------------------------ 调试通用接口 ------------------------
-    def read_registers(self, address: int, count: int = 1, slave_id: Optional[int] = None) -> Tuple[int, ...]:
+    # ------------------------ 调试通用接口（私有） ------------------------
+    def _read_registers(self, address: int, count: int = 1, slave_id: Optional[int] = None) -> Tuple[int, ...]:
         """读取保持寄存器"""
         return self.modbus.read_holding_registers(int(address), int(count), self._slave(slave_id))
 
-    def write_register(self, address: int, value: int, slave_id: Optional[int] = None) -> Tuple[int, int]:
+    def _write_register(self, address: int, value: int, slave_id: Optional[int] = None) -> Tuple[int, int]:
         """写单个保持寄存器"""
         return self.modbus.write_single_register(int(address), int(value), self._slave(slave_id))
 
-    def read_all(self, slave_id: Optional[int] = None) -> Tuple[int, ...]:
+    def _read_all(self, slave_id: Optional[int] = None) -> Tuple[int, ...]:
         """读取 0x00~0x17 共 24 个保持寄存器"""
-        return self.read_registers(0x00, 0x18, slave_id)
+        return self._read_registers(0x00, 0x18, slave_id)
 
     # ------------------------ 称重业务接口 ------------------------
     def read_weight_once(self, slave_id: Optional[int] = None) -> Dict:
@@ -108,7 +104,7 @@ class CkyDgScale:
         - 0x01：小数点位
         - 0x02：单位编码
         """
-        regs = self.read_registers(self.REG_DISPLAY_VALUE, 3, slave_id)
+        regs = self._read_registers(self.REG_DISPLAY_VALUE, 3, slave_id)
         raw = ModbusRtuProto.u16_to_i16(regs[0])
         decimal_point = int(regs[1])
         unit_code = int(regs[2])
@@ -148,12 +144,12 @@ class CkyDgScale:
 
     def tare(self, slave_id: Optional[int] = None) -> Tuple[int, int]:
         """去皮：写 0x11 = 1"""
-        return self.write_register(self.REG_TARE, 1, slave_id)
+        return self._write_register(self.REG_TARE, 1, slave_id)
 
     def clear_tare(self, slave_id: Optional[int] = None) -> Tuple[int, int]:
         """清除去皮：写 0x11 = 2"""
-        return self.write_register(self.REG_TARE, 2, slave_id)
+        return self._write_register(self.REG_TARE, 2, slave_id)
 
     def zero(self, slave_id: Optional[int] = None) -> Tuple[int, int]:
         """清零：写 0x16 = 0x0011"""
-        return self.write_register(self.REG_ZERO, 0x0011, slave_id)
+        return self._write_register(self.REG_ZERO, 0x0011, slave_id)

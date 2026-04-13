@@ -271,12 +271,12 @@ class ModuleXXX(ModuleBase):
 
 
 def main():
-    Module.init()
-
     # 注册脚本参数变更回调
     ScriptParam.setConfigChangeCallBack(script_config_callback)
     # 注册设备参数变更回调
     RobotParam.setDeviceChangeCallBack(robot_device_callback)
+
+    Module.init()
 
     # 实例化脚本任务主类
     m = ModuleXXX()
