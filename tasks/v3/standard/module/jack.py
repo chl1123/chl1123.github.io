@@ -2,7 +2,7 @@
 # @Date : 2026/4/13
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : feat: 适配最新jackWithSpin.py改动
+# @Update : feat: 1.适配moveTask接口改动 2.二次调整适配TCP
 
 
 import json
@@ -1867,7 +1867,6 @@ class Jack(ModuleBase):
             self.operation_init = True
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("targetName", None)
-                self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'go_ap_site AP_pos: {self.ap_world_pos}')
             if self.how_go_site == "straight":
@@ -1882,7 +1881,6 @@ class Jack(ModuleBase):
             self.operation_init = True
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("targetName", None)
-                self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'go_bezier AP_pos: {self.ap_world_pos}')
             self.action_list.append(
@@ -1896,7 +1894,6 @@ class Jack(ModuleBase):
             self.operation_init = True
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("targetName", None)
-                self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)
             debug_trace(f'go_polyline AP_pos: {self.ap_world_pos}')
             self.action_list.append(GoMapPath())
@@ -3155,7 +3152,6 @@ class GetApPosAdjustedViaPgv(BaseAction):
             # 获取AP点坐标
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("target_name", None)
-                self.ap_id = "AP" + str(self.ap_id)
             self.target_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
 
             # 获取qrcode的偏移数值，并补偿到终点坐标中
@@ -3366,7 +3362,8 @@ class PGVSecondaryAdjust(BaseAction):
                  adjust_region: str = "",
                  pgv_spin: bool = True,
                  pgv_reach_dist: float = 0.02,
-                 pgv_reach_angle: float = 1.0):
+                 pgv_reach_angle: float = 1.0,
+                 useTCP: bool = False):
         super().__init__("PGVSecondaryAdjust")
         self.opt_info = (f"{self.__class__.__name__}{{"
                          f"code_adjust_type={code_adjust_type}, "
@@ -3387,6 +3384,7 @@ class PGVSecondaryAdjust(BaseAction):
         self.pgv_spin = pgv_spin
         self.pgv_reach_dist = pgv_reach_dist
         self.pgv_reach_angle = pgv_reach_angle
+        self.useTCP = useTCP
 
     def run(self, j: Jack):
         if self.init:
@@ -3417,6 +3415,9 @@ class PGVSecondaryAdjust(BaseAction):
 
         # ---- 随动锁叉 ----
         p['spin'] = self.pgv_spin
+
+        # ---- 是否使用TCP ----
+        p['useTCP'] = self.useTCP
 
         # ---- 精度 ----
         p['pgvReachDist'] = self.pgv_reach_dist
