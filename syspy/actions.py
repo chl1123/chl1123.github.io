@@ -841,11 +841,17 @@ def main():
             a.run(validated_params)
 
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            Navigation.resetOdoMove()
-            a.init_args = False
-            a.action_id = 0
-            a.action_list = []
-            break
+            time.sleep(1)
+            tem_status = Module.getStatus()
+            if tem_status == ScriptStatus.RUNNING:
+                continue
+            else:
+                
+                Navigation.resetOdoMove()
+                a.init_args = False
+                a.action_id = 0
+                a.action_list = []
+                break
 
         time.sleep(0.1)
 
