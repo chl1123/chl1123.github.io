@@ -126,10 +126,21 @@ class CalibMove:
         print("cancel!!!")
         self.cancel = True
 
+    def Suspend(self):
+        Module.setStatus(ScriptStatus.SUSPENDED)
+        print("suspend!!!")
+
+    def Resume(self):
+        Module.setStatus(ScriptStatus.RUNNING)
+        Navigation.resetOdoMove()
+        print("resume!!!")
+
 def main():
     calib_move = CalibMove()
     Module.init()
     Module.setCancelCallback(calib_move.Cancel)
+    Module.setSuspendCallback(calib_move.Suspend)
+    Module.setResumeCallback(calib_move.Resume)
     while True:
         calib_move.run()
         calib_move.print()
