@@ -898,12 +898,11 @@ class NavigationInterface(ABC, Service):
 
 
     @classmethod
-    def setTaskError(cls, key: str, desc: str) -> None:
-        """设置脚本任务异常。用户发送新任务时该异常会自动清除
+    def clearTaskError(cls, key: str) -> None:
+        """清除脚本任务异常
 
         Args:
-            key (str): 异常唯一标识。例如 "Xxx"
-            desc (str): 异常描述信息
+            key (str): 异常唯一标识
         """
         raise RBKVersionError()
 
@@ -924,6 +923,18 @@ class NavigationInterface(ABC, Service):
 
         Args:
             key (str): 异常唯一标识。例如 "Xxx"
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def errorExits(cls, key: str) -> bool:
+        """判断任务异常和设备异常是否存在，只要有一个存在就返回true
+
+        Args:
+            key (str): 异常唯一标识
+
+        Returns:
+            (bool): 任务异常或设备异常存在返回true，否则返回false
         """
         raise RBKVersionError()
 

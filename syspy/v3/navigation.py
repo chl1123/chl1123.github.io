@@ -1019,12 +1019,20 @@ class NavStatusV3(NavStatusInterface):
         cls.client().call_service("MoveFactory", "setTaskError", "ms@Module" + key, desc)
 
     @classmethod
+    def clearTaskError(cls, key: str, desc: str) -> None:
+        cls.client().call_service("MoveFactory", "clearTaskError", "ms@Module" + key, desc)
+
+    @classmethod
     def setDeviceError(cls, key: str, desc: str, param: str = "") -> None:
         cls.client().call_service("MoveFactory", "setDeviceError", "ms@Module" + key, desc, "", "Model", "Model-000", param)
 
     @classmethod
     def clearDeviceError(cls, key: str) -> None:
         cls.client().call_service("MoveFactory", "clearDeviceError", "ms@Module" + key)
+
+    @classmethod
+    def errorExits(cls, key: str) -> bool:
+        cls.client().call_service("MoveFactory", "errorExits", "ms@Module" + key)
 
 
 class NavSpeedV3(NavSpeedInterface):

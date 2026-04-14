@@ -3,7 +3,7 @@ import math
 import time
 from typing import Optional
 
-from syspy import Module, ScriptStatus, Abnormal, Navigation, Loc, Trace
+from syspy import Module, ScriptStatus, Navigation, Loc, Trace
 
 
 """
@@ -115,9 +115,6 @@ class GoPath:
         self.status = ScriptStatus.RUNNING
         if args is None:
             args = Module.getTaskArgs()
-        if Abnormal.exists(52111):
-            self.status = ScriptStatus.FAILED
-            return self.status
         if not self.init:
             self.init = True
             Navigation.resetPath()

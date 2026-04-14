@@ -15,7 +15,7 @@ import time
 import struct
 from enum import IntEnum
 from typing import Optional, List, Dict, Any
-from syspy import Module, Di, Do, Motor, Navigation, Loc, Abnormal, Recognize, ScriptStatus, \
+from syspy import Module, Di, Do, Motor, Navigation, Loc, Recognize, ScriptStatus, \
     Odometer, Laser, NetProtocol, Trace, NavSpeed, Controller, NavStatus, ModuleBase, Container
 from syspy.utils import Coordinate
 from syspy.utils.time import Timer
@@ -992,8 +992,7 @@ def get_deduct_area(recfile):
     result = []
 
     if size is None:
-        Abnormal.setTask(53328, f"no deductShape in recfile", "no deductShape in recfile",
-                         "fill the deductShape in recfile", "")
+        Navigation.setTaskError("NoDeductShape", f"no deductShape in recfile")
         return []
 
     for i in range(size):
@@ -1076,24 +1075,12 @@ def get_rec_side_info(recfile, rec_side):
     if rec_side:
         rec_info = next((s for s in rec_sides if s["side_value"] == rec_side), None)
         if rec_info is None:
-            Abnormal.setTask(
-                53333,
-                f"Recognition side {rec_side} is not match in {recfile}, script failed",
-                f"Recognition side {rec_side} is not match in {recfile}, script failed",
-                "check input json or srec",
-                ""
-            )
+            Navigation.setTaskError("RecSideError", f"Recognition side {rec_side} is not match in {recfile}, script failed")
             Trace.log(f"input rec_side:{rec_side}, rec_info: None, rec_sides:{rec_sides}")
             return None
     else:
         if len(rec_sides) == 0:
-            Abnormal.setTask(
-                53333,
-                f"RecSide is not config in {recfile}, script failed",
-                f"no rec side in {recfile}",
-                "check srec",
-                ""
-            )
+            Navigation.setTaskError("RecSideError", f"RecSide is not config in {recfile}, script failed")
             Trace.log(f"no rec side in {recfile}", True, True)
             return None
         rec_info = rec_sides[0]
@@ -1295,9 +1282,7 @@ class Fork(ModuleBase):
         Container.initContainer(0)
 
     def run(self, args):
-        if Abnormal.exists(53320):
-            self.script_status = ScriptStatus.FAILED
-            return
+
         if not self.init_args:
             self.script_status = ScriptStatus.RUNNING
             self.action_status = ActionStatus.INIT
@@ -1330,8 +1315,7 @@ class Fork(ModuleBase):
         elif self.opt == "cageStack":
             self.cage_stack()
         else:
-            Abnormal.setTask(53300, f"wrong operation:{self.opt}, script failed", "input operation not define",
-                             "check the input param", "")
+            Navigation.setTaskError("WrongOperation", f"wrong operation:{self.opt}, script failed")
             self.script_status = ScriptStatus.FAILED
             return
         self._execute_actions()
@@ -1466,8 +1450,7 @@ class Fork(ModuleBase):
                     return
 
                 if any(v is None or v == "none" for v in self.rec_info.values()):
-                    Abnormal.setTask(53325, f"Invalid side info, found None: {self.rec_info},script failed",
-                                     "recognize file param wrong", "check the param", "")
+                    Navigation.setTaskError("InvalidRecInfo", f"Invalid side info, found None: {self.rec_info},script failed")
                     self.script_status = ScriptStatus.FAILED
 
             # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
@@ -1475,9 +1458,7 @@ class Fork(ModuleBase):
 
             # 如果有货,脚本无法取货并报错
             if Navigation.hasGoods() and ConfigParams.loadUnloadCheck:
-                Abnormal.setTask(53302, f"fork has goods, cannot load, script failed",
-                                 "fork has goods",
-                                 "unload goods before loading", "load")
+                Navigation.setTaskError("ForkHasGoods", f"fork has goods, cannot load, script failed")
                 self.script_status = ScriptStatus.FAILED
                 return
 
@@ -1625,12 +1606,11 @@ class Fork(ModuleBase):
                         True, True)
                     y = rec2ap_pos[1]
                     if abs(angle) > ConfigParams.errorRecAngle != -1:
-                        Abnormal.setTask(53303, f"rec result yaw angle too large:{angle}° from action point", "", "",
-                                         "")
+                        Navigation.setTaskError("RecYError", f"rec result yaw angle too large:{angle}° from action point")
                         self.script_status = ScriptStatus.FAILED
                         return
                     if abs(y) > ConfigParams.errorRecY != -1:
-                        Abnormal.setTask(53321, f"rec result y too large :{y}m from action point ", "", "", "")
+                        Navigation.setTaskError("RecYError", f"rec result y too large :{y}m from action point")
                         self.script_status = ScriptStatus.FAILED
                         return
 
@@ -1717,8 +1697,7 @@ class Fork(ModuleBase):
 
             target_pos = self.get_station_pos("targetName")[0]
             if target_pos[3] == -1:
-                Abnormal.setTask(53323, f"cannot find point, script failed", "wrong LM point", "check the input param",
-                                 "")
+                Navigation.setTaskError("NoTargetId", f"cannot find point, script failed")
                 self.script_status = ScriptStatus.FAILED
                 return
             args = {
@@ -1758,7 +1737,7 @@ class Fork(ModuleBase):
             self.start_loc = r_loc if source_pos[3] == -1 else source_pos
 
             if not Navigation.hasGoods() and ConfigParams.loadUnloadCheck:
-                Abnormal.setTask(53331, f"fork has no goods, cannot unload, script failed", "", "", "unload")
+                Navigation.setTaskError("ForkNoGoods", f"fork has no goods, cannot unload, script failed")
                 self.script_status = ScriptStatus.FAILED
                 return
             target_pos, tcp_name = self.get_station_pos("targetName")
@@ -1857,7 +1836,7 @@ class Fork(ModuleBase):
                 self.action_id += 1
 
             elif self.current_action.action_status == ActionStatus.FAILED:
-                Abnormal.setTask(53305, f"execute action {self.current_action} failed!", "", "", f"{self.opt}")
+                Navigation.setTaskError("ExecuteActionError", f"execute action {self.current_action} failed!")
                 self.action_status = ActionStatus.FAILED
                 return
             elif self.current_action.action_status == ActionStatus.INIT:
@@ -1946,8 +1925,7 @@ class Fork(ModuleBase):
         self.script_runtime = time.time() - self.start_time
         if self.script_runtime > ConfigParams.timeout:
             Trace.log(f"script timeout:{ConfigParams.timeout}")
-            Abnormal.setTask(53332, f"script timeout:{ConfigParams.timeout}, script failed",
-                             f"script timeout:{ConfigParams.timeout}", f"", f"{self.opt}")
+            Navigation.setTaskError("ScriptTimeout", f"script timeout:{ConfigParams.timeout}, script failed")
             self.script_status = ScriptStatus.FAILED
             self.action_list[self.action_id].cancel()
 
@@ -2083,12 +2061,11 @@ class Fork(ModuleBase):
 
                 # 做 0.3s 的延时处理
                 if missing_goods and Timer.delay(0.3):
-                    Abnormal.setTask(53319, "fork missing goods",
-                                     f"check the contact dis :{ConfigParams.contact_ids}", "", "")
+                    Navigation.setTaskError("forkMissingGood", "fork missing goods,No Contact Di Trigger")
                 else:
                     if Timer.delay(0.3):
-                        if Abnormal.exists(53319):
-                            Abnormal.clear(53319)
+                        if Navigation.errorExits(53319):
+                            Navigation.clearTaskError("forkMissingGood")
 
     def cage_stack(self):
         if not self.operation_init:
@@ -2159,7 +2136,7 @@ class Fork(ModuleBase):
             Trace.log(f"robot2pos: {robot2pos},yaw: {math.degrees(robot2pos[2])}", True, True)
 
             if abs(math.degrees(robot2pos[2])) > 8 or abs(robot2pos[0]) > 0.2:
-                Abnormal.setTask(53530, "cage too far from", "", "", "", )
+                Navigation.setTaskError("CageTooFar", "cage too far from")
                 self.script_status = ScriptStatus.FAILED
                 return
             Trace.log(f"cage_count:{self.cage_count}", True, True)
@@ -2194,10 +2171,10 @@ class Fork(ModuleBase):
 
         # 数量检查
         if len(bottom_cages) < 2:
-            Abnormal.setTask(53500, "")
+            Navigation.setTaskError("UnknownError", "")
             return [999, 999, 999]
         if len(top_cages) < 2:
-            Abnormal.setTask(53500, "")
+            Navigation.setTaskError("UnknownError", "")
             return [999, 999, 999]
 
         # 如果识别结果在世界坐标系，需要改到机器人坐标系后做处理
@@ -2399,11 +2376,7 @@ class Rec(BaseAction):
                     error_msg = results["logMsg"]
                     Trace.log(f"error_type: {error_type}")
                     self.action_status = ActionStatus.FAILED
-                    Abnormal.setTask(53306,
-                                     "Recognition failed, the maximum number of retries exceeded",
-                                     f"{error_msg}",
-                                     "",
-                                     "")
+                    Navigation.setTaskError("RecFailed", f"Recognition failed, the maximum number of retries exceeded")
                 else:
                     Recognize.resetRec()
         else:
@@ -2444,8 +2417,7 @@ class GoPathWithContactDi(BaseAction):
 
         self.target_pos = world_pos
         if self.check_di and not self.contact_di:
-            Abnormal.setTask(53327, f"check di is True in recfile, but contact di is none",
-                             "contact di is none", "config contact di in model", "")
+            Navigation.setTaskError("ContactDiNone", f"check di is True in recfile, but contact di is none")
             self.action_status = ActionStatus.FAILED
         self.goal = [0, 0, 0]
         self.init = False
@@ -2501,8 +2473,7 @@ class GoPathWithContactDi(BaseAction):
             self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
             Trace.log(f"twoStraightLine target pos:{self.final_target}")
         else:
-            Abnormal.setTask(53929, f"wrong gopath method :{method}, script failed", "script wrong",
-                             "", "check the script", "")
+            Navigation.setTaskError("WrongGoPathMethod", f"wrong gopath method :{method}, script failed")
             self.action_status = ActionStatus.FAILED
         # self.back_status = self.back_action.action_status
 
@@ -2607,9 +2578,7 @@ class GoPathWithContactDi(BaseAction):
                             # 持续触发超过 0.3s，停车并报错
                             if not self.di_triggered_stopped:
                                 Navigation.stopRobotNow()
-                                Abnormal.setTask(53340, f"unload fork tip di triggered, goods detected",
-                                                 "fork tip di sensor triggered during unload",
-                                                 "remove goods from fork tip", "unload")
+                                Navigation.setTaskError("ForkTipDiTrigger", f"unload fork tip di triggered, goods detected")
                                 self.di_triggered_stopped = True
                                 Trace.log(f"autoClearError: fork tip di triggered, stopped robot")
                             # 重置清除计时
@@ -2623,8 +2592,8 @@ class GoPathWithContactDi(BaseAction):
                                 self.di_clear_start_time = time.time()
                             elif time.time() - self.di_clear_start_time > 0.3:
                                 # 持续恢复超过 0.3s，清除异常并恢复运行
-                                if Abnormal.exists(53340):
-                                    Abnormal.clear(53340)
+                                if Navigation.errorExits("ForkTipDiTrigger"):
+                                    Navigation.clearTaskError("ForkTipDiTrigger")
                                 Navigation.goPathParam(dict())  # 恢复路径规划
                                 self.di_triggered_stopped = False
                                 self.di_clear_start_time = None
@@ -2641,9 +2610,7 @@ class GoPathWithContactDi(BaseAction):
                         elif time.time() - self.di_trigger_start_time > 0.3:
                             # 持续触发超过 0.3s，停车并失败任务
                             Navigation.stopRobotNow()
-                            Abnormal.setTask(53341, f"unload fork tip di triggered, fail task",
-                                             "fork tip di sensor triggered during unload",
-                                             "remove goods from fork tip", "unload")
+                            Navigation.setTaskError("UnloadTipDiFail", f"unload fork tip di triggered, fail task")
                             self.action_status = ActionStatus.FAILED
                             Trace.log(f"failTask: fork tip di triggered, failed task")
                             return
@@ -2667,17 +2634,14 @@ class GoPathWithContactDi(BaseAction):
             if not self.check_all_contact_di:
 
                 if dist2target[0] > 0.2 and any(self.di_status):
-                    Abnormal.setTask(53322, f"reach di not reach goal, still {dist2target[0]}m left, "
-                                            f"but di:{self.contact_di}{self.di_status} trigger",
-                                     "", "", "")
+                    Navigation.setTaskError("NotReachGoal", f"reach di not reach goal, still {dist2target[0]}m left, ")
                     self.action_status = ActionStatus.FAILED
                     return
 
                 # 任务结束超过 1 s，且没有到位 di 触发，则报错结束任务
                 if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(
                         1):
-                    Abnormal.setTask(53307, f"not trigger di but robot reach goal",
-                                     f"please check the di dist or reach di:{self.contact_di}", "", "")
+                    Navigation.setTaskError("NoContactDiTriger", f"not trigger di but robot reach goal")
                     self.action_status = ActionStatus.FAILED
                     return
                 # 一个到位任务结束
@@ -2689,17 +2653,13 @@ class GoPathWithContactDi(BaseAction):
             # 仅检查所有到位 di 的情况
             else:
                 if dist2target[0] > 0.2 and all(self.di_status):
-                    Abnormal.setTask(53322, f"reach di not reach goal, still {dist2target[0]:.2f}m left, "
-                                            f"but di:{self.contact_di}{self.di_status} trigger",
-                                     "", "", "")
+                    Navigation.setTaskError("NotReachGoal", f"reach di not reach goal, still {dist2target[0]:.2f}m left, ")
                     self.action_status = ActionStatus.FAILED
                     return
                 # 所有到位 di 没有全部触发，则报错结束任务
                 if self.back_action.action_status == ActionStatus.FINISHED and not any(self.di_status) and Timer.delay(
                         1):
-                    Abnormal.setTask(53308, f"not trigger di but robot reach goal",
-                                     f"please check the di dist or reach dis:{self.contact_di} and back dist",
-                                     "", "")
+                    Navigation.setTaskError("NoContactDiTriger", f"not trigger di but robot reach goal")
                     self.action_status = ActionStatus.FAILED
                     return
                 # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
@@ -2709,9 +2669,7 @@ class GoPathWithContactDi(BaseAction):
                             if self.stop_robot():
                                 self.action_status = ActionStatus.FINISHED
                         else:
-                            Abnormal.setTask(53308, f"not all di triggered but robot reach goal",
-                                             f"please check the di dist or reach di:{self.contact_di}",
-                                             "", "")
+                            Navigation.setTaskError("NoAllContactDiTriger", f"not all di triggered but robot reach goal")
                             self.action_status = ActionStatus.FAILED
                             return
 
@@ -2766,7 +2724,7 @@ class LocDetectGoods(BaseAction):
         if self.init:
             self.init = False
             Recognize.resetRec()
-            Abnormal.clear(57300)
+            pass
             self.target = Navigation.getLM(self.loc_name, True)
             # self.target = [-5.67, 9.56, 3.14, 1]
         self.rec_status = Recognize.getRecStatus()
@@ -2774,7 +2732,7 @@ class LocDetectGoods(BaseAction):
             if self.rec_status == 3:
                 self.rec_failed_time = self.rec_failed_time + 1
                 if self.rec_failed_time > self.max_rec_time:
-                    Abnormal.setTask(53309, f"{self.loc_name} is not filled", "", "", "LocDetectGoods")
+                    Navigation.setTaskError("TargetNotFilled", f"{self.loc_name} is not filled")
                     # f.is_goods_detected = False
                     self.action_status = ActionStatus.FAILED
                 else:
@@ -2790,11 +2748,11 @@ class LocDetectGoods(BaseAction):
                 self.detect_result = Recognize.getRecResults()
                 # r.setError(f"result:{self.detectResult}")
                 if self.detect_result:
-                    Abnormal.setTask(53310, f"{self.loc_name} is filled", "", "", "LocDetectGoods")
+                    Navigation.setTaskError("TargetFilled", f"{self.loc_name} is filled")
                     # f.is_goods_detected = True
                     self.action_status = ActionStatus.FINISHED
         else:
-            Abnormal.setTask(53311, f"{self.loc_name} does not exist", "", "", "LocDetectGoods")
+            Navigation.setTaskError("TargetPointFilled", f"{self.loc_name} does not exist")
             self.action_status = ActionStatus.FAILED
 
         self.action_state["locName"] = self.loc_name
@@ -2826,8 +2784,7 @@ class RunMotorByPosition(BaseAction):
         super().__init__(action_name)
         if not motor_name:
             self.action_status = ActionStatus.FAILED
-            Abnormal.setTask(53334,"not motor find in Device.Model, script failed",
-                             "Model.Model-000.moduleType","check the device","runMotorByPosition")
+            Navigation.setTaskError("NoMotorInModel","not motor find in Device.Model, script failed")
             return
         self.motor_name = motor_name
         self.position = position
@@ -2941,9 +2898,7 @@ class RunMotorByPosition(BaseAction):
 
         # 检查超时（仅对fork_motor_name）
         if self.timeout is not None and (time.time() - self.start_time) > self.timeout:
-            Abnormal.setTask(53313,
-                             f"Fork motor timeout: {self.motor_name} exceeded {self.timeout}s",
-                             "", "", "")
+            Navigation.setTaskError("ForkMoveTimeout", f"Fork motor timeout: {self.motor_name} exceeded {self.timeout}s")
             self.action_status = ActionStatus.FAILED
             return
 
@@ -2978,9 +2933,7 @@ class RunMotorByPosition(BaseAction):
                 min_pos = min(self.positions)
                 max_pos = max(self.positions)
                 if abs(max_pos - min_pos) <= 0.005:
-                    Abnormal.setTask(53312,
-                                     f"fork height not change between:{min_pos}m-{max_pos}m in {self.check_duration}s",
-                                     "", "", "")
+                    Navigation.setTaskError("ForkNoMove", f"fork height not change between:{min_pos}m-{max_pos}m in {self.check_duration}s")
                     self.action_status = ActionStatus.FAILED
                     return
 
@@ -3147,8 +3100,6 @@ class GoPath(BaseAction):
         args = self.args
         if args is None:
             args = Module.getTaskArgs()
-        if Abnormal.exists(52111):
-            self.action_status = ActionStatus.FAILED
 
         if not self.init:
             self.init = True
@@ -3195,16 +3146,11 @@ class GoPath(BaseAction):
                     y = Loc.getPose()["y"]
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                 else:
-                    Abnormal.setTask(53326, f"coordinate only support robot and world. Input is {args['coordinate']}",
-                                     "wrong coordinate", "", "")
+                    Navigation.setTaskError("WrongCoordinate", f"coordinate only support robot and world. Input is {args['coordinate']}")
                     self.action_status = ScriptStatus.FAILED
 
             else:
-                Abnormal.setTask(53318,
-                                 f"args wrong",
-                                 f"no x or y or coordinate",
-                                 "input 'x' , 'y' and 'coordinate'",
-                                 "GoPath")
+                Navigation.setTaskError("GoPathArgsWrong", f"args wrong")
                 self.action_status = ActionStatus.FAILED
             Navigation.goPathParam(self.param)
 
@@ -3349,9 +3295,7 @@ class GoTwoStraightLine(BaseAction):
             Trace.log(f"points:{points}")
             if not points:
                 self.action_status = ActionStatus.FAILED
-                Abnormal.setTask(53324, "no route before leave loc, script failed",
-                                 "rec and goStraightLine first",
-                                 "rec and goStraightLine first", "")
+                Navigation.setTaskError("NoRoute", "no route before leave loc, script failed")
 
             self.temp_start = points[2]  # 退出库位的第一个点，栈板 min_ahead_dist 前置点
             self.second_point = points[1]  # 退出库位第二个点，ahead_dist 点
@@ -3359,8 +3303,7 @@ class GoTwoStraightLine(BaseAction):
             check_point = points[3]
             dist = cal_dist(check_point, pos)
             if dist >= 0.5:
-                Abnormal.setTask(53325, "cannot leave loc when robot is not at last load point",
-                                 f"too far:{dist}m", "", "")
+                Navigation.setTaskError("NotAtLastLoadPoint", "cannot leave loc when robot is not at last load point")
                 self.action_status = ActionStatus.FAILED
             ScriptData.set('goTwoStraightLine', {})
 
@@ -3542,8 +3485,7 @@ def main():
                 f.init_args = False
                 Trace.log(f"check before, args:{input_params}")
                 if args is None:
-                    Abnormal.setTask(53329, f"args is none,script failed", f"script get args:{args}",
-                                     f"check the input param", "")
+                    Navigation.setTaskError("ArgsIsNone", f"args is none,script failed")
                     f.script_status = ScriptStatus.FAILED
                 else:
                     try:

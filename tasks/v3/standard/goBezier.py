@@ -3,7 +3,7 @@ import logging
 import time
 
 from syspy.script_data import ScriptData
-from syspy import Navigation, Loc, Abnormal, Module, ScriptStatus, Trace
+from syspy import Navigation, Loc, Module, ScriptStatus, Trace
 from syspy.lib.module import pos2World, pos2Base
 
 log = logging.getLogger("rbk.script")
@@ -117,10 +117,8 @@ class GoBezierWorld:
         Trace.log(f"ahead dist:{self.offset_dist}", True, True)
         # Trace.log(f"bezier path:x{xs_bez},y:{ys_bez}")
         if not success or self.k_max >= 30:
-            Abnormal.setTask(53900, f"curvature limit exceeded. max_curvature={self.k_max}",
-                             "The positions of the robot and the target point cannot generate a Bezier curve",
-                             "Adjust the robot's position before running this task",
-                             "GoBezierWorld")
+            Navigation.setTaskError("curvatureLimitExceeded",f"curvature limit exceeded. max_curvature={self.k_max},"
+                                                             f"Adjust the robot's position before running this task")
             Module.setStatus(ScriptStatus.FAILED)
         # if not success or self.k_max >= 30:
         #     return
@@ -581,13 +579,11 @@ class GoBezierWorldReturn:
                 bezier_path_world_return = go_bezier_data.get("bezier_path_world_return", None)
                 if self.bezier_target_pos_return is None or bezier_path_world_return is None:
                     self.action_status = ScriptStatus.FAILED
-                    Abnormal.setTask(53901, "no bezier route record, script failed",
-                                     "script data is none", "walk bezier first, or check the script data", "")
+                    Navigation.setTaskError(f"NoBezierRouteRecord",f"no bezier route record, script failed")
                     return
                 Trace.log(f"Bezier Path World Return: {bezier_path_world_return}", False)
             else:
-                Abnormal.setTask(53901, "no bezier route record, script failed",
-                                 "script data is none", "walk bezier first, or check the script data", "")
+                Navigation.setTaskError(f"NoBezierRouteRecord", f"no bezier route record, script failed")
                 self.action_status = ScriptStatus.FAILED
                 return
             # go_bezier_final_pos = go_bezier_data.get("finalPos", [0, 0, 0])
