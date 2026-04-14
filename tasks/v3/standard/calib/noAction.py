@@ -17,6 +17,8 @@ def main():
     calib_move = CalibMove()
     Module.init()
     Module.setCancelCallback(calib_move.Cancel)
+    Module.setSuspendCallback(calib_move.Cancel)
+    Module.setResumeCallback(calib_move.Cancel)
     while True:
         time.sleep(0.1)
         print("run noAction.py")

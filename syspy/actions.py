@@ -499,7 +499,7 @@ class Actions:
         else:
             self.script_status = ActionStatus.FINISHED
             Module.setStatus(ScriptStatus.FINISHED)
-            self.action_list = []
+            # self.action_list = []
         Trace.log(f'{self.action_id=}, {self.action_list=}')
         Trace.log(f"self.action_list: {self.action_list}")
 
@@ -763,9 +763,7 @@ class GoArc(BaseAction):
     
     def run(self, j: Jack):
         if self.init:
-            print(234)
             Navigation.resetOdoMove()
-            print(123)
             self.init = False
             self.action_status = ActionStatus.RUNNING
         self.arg={
@@ -841,20 +839,24 @@ def main():
             a.run(validated_params)
 
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            time.sleep(1)
-            tem_status = Module.getStatus()
-            if tem_status == ScriptStatus.RUNNING:
+            start_time = time.time()
+            new_task=False
+            while time.time() - start_time < 1:
+                input_params = Module.getTaskArgs()
+                if input_params:
+                    new_task=True
+                    break
+                else:
+                    time.sleep(0.1)
+            if new_task:            
                 continue
-            else:
-                
-                Navigation.resetOdoMove()
-                a.init_args = False
-                a.action_id = 0
-                a.action_list = []
-                break
+            Navigation.resetOdoMove()
+            a.init_args = False
+            a.action_id = 0
+            a.action_list = []
+            break
 
         time.sleep(0.1)
-
 
 if __name__ == '__main__':
     main()

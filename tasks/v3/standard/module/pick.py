@@ -1624,7 +1624,6 @@ class Jack(ModuleBase):
             self.operation_init = True
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("target_name", None)
-                self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'AP_pos: {self.ap_world_pos}')
             if self.how_go_site == "straight":
@@ -1639,7 +1638,6 @@ class Jack(ModuleBase):
             self.operation_init = True
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("target_name", None)
-                self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'AP_pos: {self.ap_world_pos}')
             self.action_list.append(
@@ -1653,7 +1651,6 @@ class Jack(ModuleBase):
             self.operation_init = True
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("target_name", None)
-                self.ap_id = "AP" + str(self.ap_id)
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在机器人坐标系下的位置
             debug_trace(f'AP_pos: {self.ap_world_pos}')
             self.action_list.append(GoPolyline(self.ap_world_pos))
@@ -2909,7 +2906,6 @@ class GetApPosAdjustedViaPgv(BaseAction):
             # 获取AP点坐标
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("target_name", None)
-                self.ap_id = "AP" + str(self.ap_id)
             self.target_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
 
             # 获取qrcode的偏移数值，并补偿到终点坐标中

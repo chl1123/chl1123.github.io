@@ -1040,11 +1040,11 @@ def get_rec_side_info(recfile, rec_side):
 
     for i in range(recognitionSide_size):
         side_value = RobotParam.getConfig("recognition", f"{recognitionSide_key}._{i}", recfile)
-        coordinateSystem = RobotParam.getConfig(
-            "recognition",
-            f"{recognitionSide_key}._{i}.{side_value}.coordinateSystem",
-            recfile
-        )
+        # coordinateSystem = RobotParam.getConfig(
+        #     "recognition",
+        #     f"{recognitionSide_key}._{i}.{side_value}.coordinateSystem",
+        #     recfile
+        # )
         enableCargoContactDI = RobotParam.getConfig(
             "recognition",
             f"{recognitionSide_key}._{i}.{side_value}.enableCargoContactDI",
@@ -1058,7 +1058,7 @@ def get_rec_side_info(recfile, rec_side):
 
         side_info = {
             "side_value": side_value,
-            "coordinateSystem": coordinateSystem,
+            # "coordinateSystem": coordinateSystem,  # 3.5.4 proto变更取消字段
             "enableCargoContactDI": enableCargoContactDI,
             "enableBackDistance": enableBackDistance
         }
@@ -2364,12 +2364,17 @@ class Rec(BaseAction):
             self.obstacle_polygon = self.results_dict.get("obstaclePolygon", [])
             # 处理识别结果，并按降序排序，z值最大的结果在前
             if ConfigParams.zMax:
-                self.results_list = sorted(results_list, key=lambda item: item['z'], reverse=True)
-                self.result = self.results_list[0]
+
+                results_list.sort(key=lambda x: x["robotResult"]["z"],reverse=True)
+                results_list.sort(key=lambda x: x["worldResult"]["z"],reverse=True)
             # z值最小的结果在前
             else:
-                self.results_list = sorted(results_list, key=lambda item: item['z'])
-                self.result = self.results_list[0]
+                results_list.sort(key=lambda x: x["robotResult"]["z"])
+                results_list.sort(key=lambda x: x["worldResult"]["z"])
+
+            self.results_list = results_list
+            self.result = self.results_list[0]
+
             Trace.log(f"rec_result_list: {self.results_list}")
 
             self.action_status = ActionStatus.FINISHED
@@ -3514,7 +3519,6 @@ def main():
     checked_args = False
 
     f = Fork()
-
 
     while True:
         if f.event_safe_move_check:

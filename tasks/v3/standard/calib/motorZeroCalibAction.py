@@ -43,6 +43,8 @@ def main():
     calib_move = CalibMove()
     Module.init()
     Module.setCancelCallback(calib_move.Cancel)
+    Module.setSuspendCallback(calib_move.Cancel)
+    Module.setResumeCallback(calib_move.Cancel)
     while True:
         calib_move.run()
         calib_move.print()
