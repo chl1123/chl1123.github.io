@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/13
+# @Date : 2026/4/14
 # @Author : zhaopengfei
-# @Coding : none
-# @Update : feat: 1.适配moveTask接口改动 2.二次调整适配TCP
+# @Coding : 顶升车
+# @Update : fix: 1.重构异常码 2. jackheight和扣除解耦  add: 完善jackload功能，支持识别/不识别取货，覆盖原地，前置点等多个场景。
 
 
 import json
@@ -1292,7 +1292,7 @@ class Jack(ModuleBase):
         self.end_height = self.task_args.get("endHeight", 0.06)
         # 识别相关
         self.is_recognize = self.task_args.get("recognize", None)
-        self.recfile = self.task_args.get("recFile", "default.srec")
+        self.recfile = self.task_args.get("recFile", None)
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
         # jackLoad/jackUnload
         self.how_go_site = self.task_args.get("howGoSite", "bezier")
@@ -1419,7 +1419,7 @@ class Jack(ModuleBase):
 
         else:
             # Error53301: 不支持的任务指令
-            Abnormal.setTask(53301,
+            Abnormal.setTask(53350,
                              f"Doesn't support key: {self.opt}",
                              "下发的任务指令格式脚本不支持",
                              "检查下发的任务指令是否符合正确，是否符合要求？",
@@ -1667,7 +1667,7 @@ class Jack(ModuleBase):
                 break
 
         if target_idx is None:
-            Abnormal.setTask(53325, f"Recognition side '{side_name}' not found in {object_key}",
+            Abnormal.setTask(53353, f"Recognition side '{side_name}' not found in {object_key}",
                              "recognize file param wrong", "check the param", "get_back_distance_info")
             self.status = ScriptStatus.FAILED
 
@@ -1683,7 +1683,7 @@ class Jack(ModuleBase):
 
         # 3) 基本校验
         if any(v is None or v == "none" for v in info.values()):
-            Abnormal.setTask(53325, f"Invalid back_distance_info, found None: {info}, script failed",
+            Abnormal.setTask(53354, f"Invalid back_distance_info, found None: {info}, script failed",
                              "recognize file param wrong", "check the param", "get_back_distance_info")
             self.status = ScriptStatus.FAILED
 
@@ -1762,10 +1762,14 @@ class Jack(ModuleBase):
         # 顶升
         self.action_list.append(
             JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed,
-                       self.recfile, deduct_info=self.laser_area_deduct_info))
+                       self.recfile))
 
-        # 顶升完成后绑定容器，设置货物模型
-        self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
+        # 顶升完成后设置激光扣除区域
+        self.action_list.append(SetLaserDeductArea(self.laser_area_deduct_info))
+
+        # 顶升完成后绑定容器，设置货物模型（识别开启或有recfile时才加载）
+        if self.is_recognize or self.recfile:
+            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
 
     def jack_load(self):
         """
@@ -1779,7 +1783,7 @@ class Jack(ModuleBase):
             # Error52179: 重复取货保护 - 检查车上是否已有货物
             # ============================================
             if config_params.load_again_error and Navigation.hasGoods():
-                Abnormal.setTask(52179,
+                Abnormal.setTask(53351,
                                  f"Jack Cannot Load Again.file:{__file__}",
                                  "顶升车身上有货物的情况下，再去执行取货",
                                  "如果需要重复取货，可在参数配置中将 LoadAgainError 关闭；"
@@ -1823,6 +1827,12 @@ class Jack(ModuleBase):
 
             # 启用识别
             if self.is_recognize:
+                if not self.recfile:
+                    Abnormal.setTask(53352, "recognize=ON but recFile is not set",
+                                     "开启识别但未配置识别文件",
+                                     "请在任务参数中配置 recFile", "jack_load")
+                    self.status = ScriptStatus.FAILED
+                    return
                 self.action_list.append(
                     RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
             else:
@@ -2058,7 +2068,7 @@ class Jack(ModuleBase):
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
             elif current_action.action_status == ActionStatus.FAILED:
-                Abnormal.setTask(53780, f"execute action {current_action} failed!",
+                Abnormal.setTask(53355, f"execute action {current_action} failed!",
                                  "",
                                  "",
                                  "execute_actions")
@@ -2576,7 +2586,7 @@ class RobotRotate(BaseAction):
 class JackHeight(BaseAction):
     """顶升动作，通过设置电机位置实现顶升"""
 
-    def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf", deduct_info=None):
+    def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf"):
         super().__init__("JackHeight")
 
         kwargs = locals()
@@ -2589,7 +2599,6 @@ class JackHeight(BaseAction):
         self.jackMotorSpeed = jack_motor_speed
         self.recfile = recfile
         self.object_key = object_key
-        self.deduct_info = deduct_info  # 激光扣除区数据，顶升完成后设置，下降完成后删除
         self.init = False
         self.jack_start_height = None
         self._count_recorded = False  # 防止重复计数
@@ -2621,7 +2630,7 @@ class JackHeight(BaseAction):
                 # 初始化前检查：上到位 DI 不应该已经触发
                 if config_params.jack_up_di and Di.getDi(config_params.jack_up_di):
                     Trace.log(f"[JACK] 警告: 上到位DI({config_params.jack_up_di})在顶升前已触发，请检查DI配置")
-                    Abnormal.setTask(53780, f"Jack up DI({config_params.jack_up_di}) already triggered before lifting",
+                    Abnormal.setTask(53304, f"Jack up DI({config_params.jack_up_di}) already triggered before lifting",
                                      "DI misconfigured or mechanically stuck",
                                      "Check jack_up_di configuration and sensor wiring",
                                      "JackHeight")
@@ -2636,7 +2645,7 @@ class JackHeight(BaseAction):
                 # 初始化前检查：下到位 DI 不应该已经触发
                 if config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di):
                     Trace.log(f"[JACK] 警告: 下到位DI({config_params.jack_zero_di})在下降前已触发，请检查DI配置")
-                    Abnormal.setTask(53781, f"Jack down DI({config_params.jack_zero_di}) already triggered before lowering",
+                    Abnormal.setTask(53305, f"Jack down DI({config_params.jack_zero_di}) already triggered before lowering",
                                      "DI misconfigured or mechanically stuck",
                                      "Check jack_zero_di configuration and sensor wiring",
                                      "JackHeight")
@@ -2680,8 +2689,6 @@ class JackHeight(BaseAction):
                     if not self._count_recorded:
                         self._count_recorded = True
                         jack_count_manager.increment_count()
-                    if self.deduct_info:
-                        self._set_deduct_area()
         else:
             # 下降动作
             if Motor.isMotorReached(self.motor_name) or (config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di)):
@@ -2690,7 +2697,6 @@ class JackHeight(BaseAction):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
                 debug_trace(f"[JACK] Jack down done pos={current_pos:.4f}m")
-                self._delete_deduct_area()
 
         j.report_info["JackHeight"] = {
             "actionStatus": self.action_status,
@@ -2699,38 +2705,6 @@ class JackHeight(BaseAction):
             "jackMotorSpeed": self.jackMotorSpeed,
         }
         Module.reportInfo(j.report_info)
-
-    def _set_deduct_area(self):
-        """顶升完成后设置激光扣除区域（机器人坐标系，车已在货架正下方）"""
-        try:
-            devices = self.deduct_info.get("deductDevice", [])
-            areas = self.deduct_info.get("area", [])
-            debug_trace(f"[LASER] Setting deduct area: {len(areas)} areas, devices={devices}")
-            for idx, area in enumerate(areas, start=1):
-                x_list = area.get("xList", area.get("x_list", []))
-                y_list = area.get("yList", area.get("y_list", []))
-                if len(x_list) < 3 or len(x_list) != len(y_list):
-                    debug_trace(f"[LASER] Skip invalid area idx={idx}")
-                    continue
-                region_name = f"ShelfDeductArea{idx}"
-                Navigation.setClearRegion(region_name, x_list, y_list, devices, Coordinate.ROBOT)
-                debug_trace(f"[LASER] Created {region_name}")
-        except Exception as e:
-            Trace.log(f"[LASER] _set_deduct_area error: {e}")
-
-    def _delete_deduct_area(self):
-        """下降完成后删除激光扣除区域"""
-        try:
-            clear_regions = Navigation.getClearRegion(Coordinate.ROBOT)
-            deleted_count = 0
-            if clear_regions:
-                for region in clear_regions:
-                    if region.startswith("ShelfDeductArea"):
-                        Navigation.deleteClearRegion(region, Coordinate.ROBOT)
-                        deleted_count += 1
-            debug_trace(f"[LASER] Deleted {deleted_count} deduct regions")
-        except Exception as e:
-            Trace.log(f"[LASER] _delete_deduct_area error: {e}")
 
 class BindContainer(BaseAction):
     """顶升完成后绑定容器并设置货物模型"""
@@ -3088,8 +3062,7 @@ class RecShelf(BaseAction):
 
                 if self.attempts > self.max_attempts:
                     self.action_status = ActionStatus.FAILED
-                    Abnormal.setTask(53781,
-                                     "Recognition failed, the maximum number of retries exceeded",
+                    Abnormal.setTask(53357,                                     "Recognition failed, the maximum number of retries exceeded",
                                      "The recognition distance may be too close or too far, or the sensor used for recognition may be faulty",
                                      "Check whether the recognition distance is too close or too far and whether the sensor used for recognition is normal.",
                                      "Recognize the shelf")
@@ -3160,7 +3133,7 @@ class GetApPosAdjustedViaPgv(BaseAction):
             self.pgv_info[2] = j.code_info["tag_diff_angle"]
             if abs(self.pgv_info[0]) > 0.02 and abs(self.pgv_info[1]) > 0.02:
                 self.action_status = ActionStatus.FAILED
-                Abnormal.setTask(53783,
+                Abnormal.setTask(53359,
                                  f"PGV diff_x or diff_y out of range:0.02",
                                  "The QR code of the goods is too biased",
                                  "Check whether there is any deviation of goods when picking up",
@@ -3262,7 +3235,7 @@ class GetPGVData(BaseAction):
         else:
             self.count += 1
             if self.count >= self.max_rec_num:
-                Abnormal.setTask(53782,
+                Abnormal.setTask(53358,
                                  f"Rec times over max {self.count} NO shelf_code or recognized code fail or shelf_code is Null",
                                  "The pgv camera is faulty or the robot does not move above or below the QR code",
                                  "Check the position of the QRcode and the installation pos of PGV camera ",
@@ -3768,7 +3741,7 @@ def main():
                         j._init_args(validated_params)
                     except ValueError as e:
                         Trace.log(f"[ERROR] Input params check fail: {e}")
-                        Abnormal.setTask(53780, f"Input error:{e}", "some input params are not valid",
+                        Abnormal.setTask(53356, f"Input error:{e}", "some input params are not valid",
                                          "check the input params", "input check")
 
         elif status == ScriptStatus.RUNNING:
