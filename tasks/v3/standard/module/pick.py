@@ -1399,8 +1399,7 @@ class Jack(ModuleBase):
                 break
 
         if target_idx is None:
-            Abnormal.setTask(53325, f"Recognition side '{side_name}' not found in {object_key}",
-                             "recognize file param wrong", "check the param", "get_back_distance_info")
+            Navigation.setTaskError("53353", f"识别文件中找不到方向 '{side_name}'，object={object_key}")
             self.status = ScriptStatus.FAILED
 
         # 2) 命中后读取 enableBackDistance / backDistance
@@ -1415,8 +1414,7 @@ class Jack(ModuleBase):
 
         # 3) 基本校验
         if any(v is None or v == "none" for v in info.values()):
-            Abnormal.setTask(53325, f"Invalid back_distance_info, found None: {info}, script failed",
-                             "recognize file param wrong", "check the param", "get_back_distance_info")
+            Navigation.setTaskError("53354", f"backDistance配置无效: {info}")
             self.status = ScriptStatus.FAILED
 
         debug_trace(f"backDistanceInfo = {info}")
@@ -1473,7 +1471,7 @@ class Jack(ModuleBase):
             # 获取AP点
             self.ap_id = self.ap_id or self.get_ap()
             if not self.ap_id:
-                Abnormal.setTask(53779, "lost ap id", "", "", "")
+                Navigation.setTaskError("53379", "丢失AP点ID")
                 return
 
             debug_trace(f"jack_load: ap_id={self.ap_id}")
@@ -1723,10 +1721,7 @@ class Jack(ModuleBase):
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
             elif current_action.action_status == ActionStatus.FAILED:
-                Abnormal.setTask(53780, f"execute action {current_action} failed!",
-                                 "",
-                                 "",
-                                 "execute_actions")
+                Navigation.setTaskError("53355", f"动作执行失败: {current_action}")
                 self.status = ScriptStatus.FAILED
             else:
                 current_action.run(self)
@@ -2748,11 +2743,7 @@ class GoBezierReturn(BaseAction):
 #
 #                 if self.attempts > self.max_attempts:
 #                     self.action_status = ActionStatus.FAILED
-#                     Abnormal.setTask(53781,
-#                                      "Recognition failed, the maximum number of retries exceeded",
-#                                      "The recognition distance may be too close or too far, or the sensor used for recognition may be faulty",
-#                                      "Check whether the recognition distance is too close or too far and whether the sensor used for recognition is normal.",
-#                                      "Recognize the shelf")
+#                     Navigation.setTaskError("53357", "识别重试次数超限，请检查识别距离或识别传感器是否正常")
 #                 else:
 #                     Recognize.resetRec()
 #                     self.do_rec = False
@@ -2840,13 +2831,7 @@ class RecShelf(BaseAction):
                         # 所有文件均失败
                         self.action_status = ActionStatus.FAILED
                         Trace.log(f"[RACK] RACK_NOT_MATCHED: 所有 {len(self.shelf_files)} 个文件均未匹配")
-                        Abnormal.setTask(
-                            53781,
-                            f"RACK_NOT_MATCHED: All {len(self.shelf_files)} rack size file(s) failed",
-                            "None of the configured rack sizes matched the actual shelf",
-                            "Check recognition distance, sensor status, and rack size config files",
-                            "RecShelf multi-file recognition"
-                        )
+                        Navigation.setTaskError("53357", f"识别失败: 所有{len(self.shelf_files)}个货架尺寸文件均不匹配，请检查识别距离、传感器及货架配置")
                 else:
                     Recognize.resetRec()
                     self.do_rec = False
@@ -2914,11 +2899,7 @@ class GetApPosAdjustedViaPgv(BaseAction):
             self.pgv_info[2] = j.code_info["tag_diff_angle"]
             if abs(self.pgv_info[0]) > 0.02 and abs(self.pgv_info[1]) > 0.02:
                 self.action_status = ActionStatus.FAILED
-                Abnormal.setTask(53783,
-                                 f"PGV diff_x or diff_y out of range:0.02",
-                                 "The QR code of the goods is too biased",
-                                 "Check whether there is any deviation of goods when picking up",
-                                 "Adjust AP point position with goods QR code deviation")
+                Navigation.setTaskError("53359", "PGV偏差超限(>0.02m)，请检查货物二维码偏移或调整AP点位置")
 
             else:
                 # 将车体终点位置，加入二维码的偏差补偿
@@ -3027,11 +3008,7 @@ class GetPGVData(BaseAction):
         else:
             self.count += 1
             if self.count >= self.max_rec_num:
-                Abnormal.setTask(53782,
-                                 f"Rec times over max {self.count} NO shelf_code or recognized code fail or shelf_code is Null",
-                                 "The pgv camera is faulty or the robot does not move above or below the QR code",
-                                 "Check the position of the QRcode and the installation pos of PGV camera ",
-                                 "Secondary adjustment with PGV")
+                Navigation.setTaskError("53358", f"PGV二次调整识别超限({self.count}次)，请检查PGV相机或二维码位置")
 
         # 上报
         j.report_info["GetPGVData"] = {
@@ -3341,8 +3318,7 @@ def main():
                         j._init_args(validated_params)
                     except ValueError as e:
                         Trace.log(f"[ERROR] Input params check fail: {e}")
-                        Abnormal.setTask(53780, f"Input error:{e}", "some input params are not valid",
-                                         "check the input params", "input check")
+                        Navigation.setTaskError("53356", f"输入参数校验失败: {e}")
 
         elif status == ScriptStatus.RUNNING:
             j.run()

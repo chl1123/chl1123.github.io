@@ -2,7 +2,7 @@
 # @Date : 2026/4/14
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : fix: 1.重构异常码 2. jackheight和扣除解耦  add: 完善jackload功能，支持识别/不识别取货，覆盖原地，到点、前置点等多个场景。
+# @Update :  fix: 1.重构异常码 2. jackheight和扣除解耦  add: 完善jackload功能，支持识别/不识别取货，覆盖原地，到点、前置点等多个场景。 feat：适配354最新设备/状态异常改动
 
 
 import json
@@ -1209,20 +1209,12 @@ class Jack(ModuleBase):
         # Error53301: 检查顶升电机配置
         # ============================================
         if not config_params.jack_motor_name:
-            Abnormal.setTask(53301,
-                             "Jack byController Mode. Cannot Find Linear Motor",
-                             "模型文件顶升设备配置有误，找不到顶升电机",
-                             "检查 jack 机构的配置文件中的电机配置是否配置或配置是否有误",
-                             "Jack.__init__")
+            Navigation.setDeviceError("53301", "模型文件顶升设备配置有误，找不到顶升电机")
         # ============================================
         # Error53302: 检查旋转电机配置
         # ============================================
         if not config_params.spin_motor_name:
-            Abnormal.setTask(53302,
-                             "Jack byController Mode. Cannot Find Spin Motor",
-                             "模型文件旋转设备配置有误，找不到旋转电机",
-                             "检查 jack 机构的配置文件中的旋转电机配置是否配置或配置是否有误",
-                             "Jack.__init__")
+            Navigation.setDeviceError("53302", "模型文件旋转设备配置有误，找不到旋转电机")
         # 脚本任务管理
         # set_info数据打印
         self._last_logged_action_id = None
@@ -1573,11 +1565,7 @@ class Jack(ModuleBase):
 
         else:
             # Error53301: 不支持的任务指令
-            Abnormal.setTask(53350,
-                             f"Doesn't support key: {self.opt}",
-                             "下发的任务指令格式脚本不支持",
-                             "检查下发的任务指令是否符合正确，是否符合要求？",
-                             "Jack.run")
+            Navigation.setTaskError("53350", f"不支持的任务指令: {self.opt}")
             self.status = ScriptStatus.FAILED
 
         # Trace.log(f"self.action_list: {self.action_list}")
@@ -1821,8 +1809,7 @@ class Jack(ModuleBase):
                 break
 
         if target_idx is None:
-            Abnormal.setTask(53353, f"Recognition side '{side_name}' not found in {object_key}",
-                             "recognize file param wrong", "check the param", "get_back_distance_info")
+            Navigation.setTaskError("53353", f"识别文件中找不到方向 '{side_name}'，object={object_key}")
             self.status = ScriptStatus.FAILED
 
         # 2) 命中后读取 enableBackDistance / backDistance
@@ -1837,8 +1824,7 @@ class Jack(ModuleBase):
 
         # 3) 基本校验
         if any(v is None or v == "none" for v in info.values()):
-            Abnormal.setTask(53354, f"Invalid back_distance_info, found None: {info}, script failed",
-                             "recognize file param wrong", "check the param", "get_back_distance_info")
+            Navigation.setTaskError("53354", f"backDistance配置无效: {info}")
             self.status = ScriptStatus.FAILED
 
         debug_trace(f"backDistanceInfo = {info}")
@@ -1943,13 +1929,7 @@ class Jack(ModuleBase):
             # Error53351: 重复取货保护 - 检查车上是否已有货物
             # ============================================
             if config_params.load_again_error and Navigation.hasGoods():
-                Abnormal.setTask(53351,
-                                 f"Jack Cannot Load Again.file:{__file__}",
-                                 "顶升车身上有货物的情况下，再去执行取货",
-                                 "如果需要重复取货，可在参数配置中将 LoadAgainError 关闭；"
-                                 "或先执行 JackUnload 卸载货物后再取货；"
-                                 "如果已卸载货物仍报此错误，检查脚本是否调用了 clearGoodsShape()",
-                                 "jack_load")
+                Navigation.setTaskError("53351", "车上已有货物，不可重复取货。如需重复取货请关闭 LoadAgainError，或先执行 JackUnload")
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -1998,9 +1978,7 @@ class Jack(ModuleBase):
                 # 启用识别
                 if self.is_recognize:
                     if not self.recfile:
-                        Abnormal.setTask(53352, "recognize=ON but recFile is not set",
-                                         "开启识别但未配置识别文件",
-                                         "请在任务参数中配置 recFile", "jack_load")
+                        Navigation.setTaskError("53352", "开启识别但未配置识别文件，请在任务参数中配置 recFile")
                         self.status = ScriptStatus.FAILED
                         return
                     self.action_list.append(
@@ -2251,10 +2229,7 @@ class Jack(ModuleBase):
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
             elif current_action.action_status == ActionStatus.FAILED:
-                Abnormal.setTask(53355, f"execute action {current_action} failed!",
-                                 "",
-                                 "",
-                                 "execute_actions")
+                Navigation.setTaskError("53355", f"动作执行失败: {current_action}")
                 self.status = ScriptStatus.FAILED
             else:
                 current_action.run(self)
@@ -2690,10 +2665,7 @@ class Spin(BaseAction):
             self.init = False
             self.action_status = ActionStatus.RUNNING
             if not config_params.spin_motor_name:
-                Abnormal.setTask(53303, "Spin motor not configured",
-                                 "旋转电机未配置，无法执行 Spin 动作",
-                                 "检查模型文件中的旋转电机配置",
-                                 "Spin.run")
+                Navigation.setDeviceError("53303", "旋转电机未配置，无法执行 Spin 动作，请检查模型文件中的旋转电机配置")
                 self.action_status = ActionStatus.FAILED
                 return
             # ✅ 在发指令前同周期内 reset，确保 Navigation 内部状态干净
@@ -2916,10 +2888,7 @@ class JackHeight(BaseAction):
                 # 初始化前检查：上到位 DI 不应该已经触发
                 if config_params.jack_up_di and Di.getDi(config_params.jack_up_di):
                     Trace.log(f"[JACK] 警告: 上到位DI({config_params.jack_up_di})在顶升前已触发，请检查DI配置")
-                    Abnormal.setTask(53304, f"Jack up DI({config_params.jack_up_di}) already triggered before lifting",
-                                     "DI misconfigured or mechanically stuck",
-                                     "Check jack_up_di configuration and sensor wiring",
-                                     "JackHeight")
+                    Navigation.setDeviceError("53304", f"顶升前上到位DI({config_params.jack_up_di})已触发，DI配置错误或机械卡住")
                     self.action_status = ActionStatus.FAILED
                     return
                 if config_params.jack_up_di:
@@ -2931,10 +2900,7 @@ class JackHeight(BaseAction):
                 # 初始化前检查：下到位 DI 不应该已经触发
                 if config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di):
                     Trace.log(f"[JACK] 警告: 下到位DI({config_params.jack_zero_di})在下降前已触发，请检查DI配置")
-                    Abnormal.setTask(53305, f"Jack down DI({config_params.jack_zero_di}) already triggered before lowering",
-                                     "DI misconfigured or mechanically stuck",
-                                     "Check jack_zero_di configuration and sensor wiring",
-                                     "JackHeight")
+                    Navigation.setDeviceError("53305", f"下降前下到位DI({config_params.jack_zero_di})已触发，DI配置错误或机械卡住")
                     self.action_status = ActionStatus.FAILED
                     return
                 if config_params.jack_zero_di:
@@ -2972,6 +2938,7 @@ class JackHeight(BaseAction):
                     self.action_status = ActionStatus.FINISHED
                     Motor.resetMotor(self.motor_name)
                     debug_trace(f"[JACK] 顶升完成 pos={current_pos:.4f}m")
+                    Navigation.clearDeviceError("53304")
                     if not self._count_recorded:
                         self._count_recorded = True
                         jack_count_manager.increment_count()
@@ -2983,6 +2950,7 @@ class JackHeight(BaseAction):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
                 debug_trace(f"[JACK] Jack down done pos={current_pos:.4f}m")
+                Navigation.clearDeviceError("53305")
 
         j.report_info["JackHeight"] = {
             "actionStatus": self.action_status,
@@ -3304,56 +3272,38 @@ class RecShelf(BaseAction):
         Trace.log("recognizing the shelf")
         rec_status = Recognize.getRecStatus()
         Trace.log(f"{rec_status=}")
-        # ===== 3.5.2.x识别 =====
+        # ===== 3.5.4.x识别 =====
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
             Trace.log(f"{rec_result=}")
             Recognize.resetRec()
             Trace.log(f"rec_result={rec_result}")
-            rec_x = rec_result['recoList'][0]['x']
-            rec_y = rec_result['recoList'][0]['y']
-            rec_yaw = rec_result['recoList'][0]['yaw']
-            rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
-            rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
-            Trace.log(f"{rec_x_y_yaw=}")
-            j.rec_result = rec_x_y_yaw
-            self.action_status = ActionStatus.FINISHED
-        # ===== 3.5.4.x识别 =====
-        # if rec_status == 2:
-        #     rec_result = Recognize.getRecResults()
-        #     Trace.log(f"{rec_result=}")
-        #     Recognize.resetRec()
-        #     Trace.log(f"rec_result={rec_result}")
-        #     reco_list = rec_result.get('recoList', [])
-        #     if not reco_list:
-        #         Trace.log("RecShelf: recoList is empty, retrying")
-        #         self.do_rec = False
-        #     else:
-        #         reco = reco_list[0]
-        #         if not reco.get('valid', False):
-        #             Trace.log("RecShelf: recognition result is invalid (valid=False), retrying")
-        #             self.do_rec = False
-        #         else:
-        #             world_result = reco.get('worldResult', {})
-        #             rec_x = world_result['x']
-        #             rec_y = world_result['y']
-        #             rec_yaw = world_result['yaw']
-        #             rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
-        #             rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
-        #             Trace.log(f"{rec_x_y_yaw=}")
-        #             j.rec_result = rec_x_y_yaw
-        #             self.action_status = ActionStatus.FINISHED
+            reco_list = rec_result.get('recoList', [])
+            if not reco_list:
+                Trace.log("RecShelf: recoList is empty, retrying")
+                self.do_rec = False
+            else:
+                reco = reco_list[0]
+                if not reco.get('valid', False):
+                    Trace.log("RecShelf: recognition result is invalid (valid=False), retrying")
+                    self.do_rec = False
+                else:
+                    world_result = reco.get('worldResult', {})
+                    rec_x = world_result['x']
+                    rec_y = world_result['y']
+                    rec_yaw = world_result['yaw']
+                    rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
+                    rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
+                    Trace.log(f"{rec_x_y_yaw=}")
+                    j.rec_result = rec_x_y_yaw
+                    self.action_status = ActionStatus.FINISHED
         elif rec_status in (3, -1):
             if Timer.delay(0.05):
                 self.attempts += 1
 
                 if self.attempts > self.max_attempts:
                     self.action_status = ActionStatus.FAILED
-                    Abnormal.setTask(53357,
-                                     "Recognition failed, the maximum number of retries exceeded",
-                                     "The recognition distance may be too close or too far, or the sensor used for recognition may be faulty",
-                                     "Check whether the recognition distance is too close or too far and whether the sensor used for recognition is normal.",
-                                     "Recognize the shelf")
+                    Navigation.setTaskError("53357", "识别重试次数超限，请检查识别距离或识别传感器是否正常")
                 else:
                     Recognize.resetRec()
                     self.do_rec = False
@@ -3420,11 +3370,7 @@ class GetApPosAdjustedViaPgv(BaseAction):
             self.pgv_info[2] = j.code_info["tag_diff_angle"]
             if abs(self.pgv_info[0]) > 0.02 and abs(self.pgv_info[1]) > 0.02:
                 self.action_status = ActionStatus.FAILED
-                Abnormal.setTask(53359,
-                                 f"PGV diff_x or diff_y out of range:0.02",
-                                 "The QR code of the goods is too biased",
-                                 "Check whether there is any deviation of goods when picking up",
-                                 "Adjust AP point position with goods QR code deviation")
+                Navigation.setTaskError("53359", "PGV偏差超限(>0.02m)，请检查货物二维码偏移或调整AP点位置")
 
             else:
                 # 将车体终点位置，加入二维码的偏差补偿
@@ -3522,11 +3468,7 @@ class GetPGVData(BaseAction):
         else:
             self.count += 1
             if self.count >= self.max_rec_num:
-                Abnormal.setTask(53358,
-                                 f"Rec times over max {self.count} NO shelf_code or recognized code fail or shelf_code is Null",
-                                 "The pgv camera is faulty or the robot does not move above or below the QR code",
-                                 "Check the position of the QRcode and the installation pos of PGV camera ",
-                                 "Secondary adjustment with PGV")
+                Navigation.setTaskError("53358", f"PGV二次调整识别超限({self.count}次)，请检查PGV相机或二维码位置")
 
         # 上报
         j.report_info["GetPGVData"] = {
@@ -3942,6 +3884,7 @@ param_loader.addAction(
         "operation.jackLoad.recognize": "OFF",
         "operation.jackLoad.howGoSite": "bezier",
         "operation.jackLoad.isSecondaryAdjust": "OFF",
+        "operation.jackLoad.atSite": False,
     },
     config={}
 )
@@ -4035,8 +3978,7 @@ def main():
                         j._init_args(validated_params)
                     except ValueError as e:
                         Trace.log(f"[ERROR] Input params check fail: {e}")
-                        Abnormal.setTask(53356, f"Input error:{e}", "some input params are not valid",
-                                         "check the input params", "input check")
+                        Navigation.setTaskError("53356", f"输入参数校验失败: {e}")
 
         elif status == ScriptStatus.RUNNING:
             j.run()
