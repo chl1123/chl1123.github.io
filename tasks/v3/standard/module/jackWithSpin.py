@@ -2,7 +2,7 @@
 # @Date : 2026/4/14
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update :  fix: 1.重构异常码 2. jackheight和扣除解耦  add: 完善jackload功能，支持识别/不识别取货，覆盖原地，前置点等多个场景。
+# @Update : fix: 1.重构异常码 2. jackheight和扣除解耦  add: 完善jackload功能，支持识别/不识别取货，覆盖原地，到点、前置点等多个场景。
 
 
 import json
@@ -221,7 +221,7 @@ class ConfigParams:
     pgv_reach_angle = 1.0  # 到点角度精度（deg）
 
     # 报错保护配置参数
-    load_again_error = True  # 是否启用重复取货保护 (Error52179)
+    load_again_error = True  # 是否启用重复取货保护
 
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
@@ -261,7 +261,7 @@ class ConfigParams:
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="loadAgainError", name="Load Again Error Protection",
-                                       desc="Enable protection to prevent loading when goods already on robot (Error52179)"):
+                                       desc="Enable protection to prevent loading when goods already on robot "):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
 
@@ -1417,6 +1417,8 @@ class Jack(ModuleBase):
         self.is_recognize = self.task_args.get("recognize", None)
         self.recfile = self.task_args.get("recFile", None)
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
+        # 到点动作：atSite=True 时跳过旋转/识别/导航，直接二次调整+顶升
+        self.at_site = self.task_args.get("atSite", False)
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
         rad = math.radians(self.spin_angle)  # 把spin_angle转为rad
@@ -1938,7 +1940,7 @@ class Jack(ModuleBase):
             debug_trace("jackLoad: Starting sequence")
 
             # ============================================
-            # Error52179: 重复取货保护 - 检查车上是否已有货物
+            # Error53351: 重复取货保护 - 检查车上是否已有货物
             # ============================================
             if config_params.load_again_error and Navigation.hasGoods():
                 Abnormal.setTask(53351,
@@ -1961,46 +1963,51 @@ class Jack(ModuleBase):
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed))
 
-            # 获取AP点
-            self.ap_id = self.ap_id or self.get_ap()
-            if not self.ap_id:
-                # 原地动作：无AP点，跳过导航，直接执行取货
-                debug_trace("jack_load: no ap_id, 原地执行")
+            # atSite=True: 已到点，跳过旋转/识别/导航，直接二次调整+顶升
+            if self.at_site:
+                debug_trace("jack_load: atSite=True, 跳过旋转/识别/导航，直接二次调整+顶升")
+                self._append_load_actions(None)
             else:
-                debug_trace(f"jack_load: ap_id={self.ap_id}")
-                self.ap_world_pos = Navigation.getLM(self.ap_id, True)
-                debug_trace(f"jack_load: AP_pos={self.ap_world_pos}")
-
-                self.report_info["jack_load"] = {"apWorldPos": self.ap_world_pos}
-                robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
-
-                # --- 启动前托盘旋转（beforeStart）---
-                if self.jack_spin_enable and self.jack_spin_phase == "beforeStart":
-                    Trace.log(f"jack_load: beforeStart spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
-                    self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None))
-
-                ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
-
-                # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
-                if self.is_backwards:
-                    target_angle = ap_to_robot_angle + math.pi
+                # 获取AP点
+                self.ap_id = self.ap_id or self.get_ap()
+                if not self.ap_id:
+                    # 原地动作：无AP点，跳过导航，直接执行取货
+                    debug_trace("jack_load: no ap_id, 原地执行")
                 else:
-                    target_angle = ap_to_robot_angle
-                self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
+                    debug_trace(f"jack_load: ap_id={self.ap_id}")
+                    self.ap_world_pos = Navigation.getLM(self.ap_id, True)
+                    debug_trace(f"jack_load: AP_pos={self.ap_world_pos}")
 
-            # 启用识别
-            if self.is_recognize:
-                if not self.recfile:
-                    Abnormal.setTask(53352, "recognize=ON but recFile is not set",
-                                     "开启识别但未配置识别文件",
-                                     "请在任务参数中配置 recFile", "jack_load")
-                    self.status = ScriptStatus.FAILED
-                    return
-                self.action_list.append(
-                    RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
-            else:
-                # 不识别时，直接在初始化阶段添加导航、二次调整、顶升等动作
-                self._append_load_actions(self.ap_world_pos)
+                    self.report_info["jack_load"] = {"apWorldPos": self.ap_world_pos}
+                    robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+
+                    # --- 启动前托盘旋转（beforeStart）---
+                    if self.jack_spin_enable and self.jack_spin_phase == "beforeStart":
+                        Trace.log(f"jack_load: beforeStart spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
+                        self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None))
+
+                    ap_to_robot_angle = math.atan2(self.ap_world_pos[1] - robot_loc[1], self.ap_world_pos[0] - robot_loc[0])
+
+                    # 正车：车头朝向AP；倒车：车尾朝向AP（偏转180°）
+                    if self.is_backwards:
+                        target_angle = ap_to_robot_angle + math.pi
+                    else:
+                        target_angle = ap_to_robot_angle
+                    self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
+
+                # 启用识别
+                if self.is_recognize:
+                    if not self.recfile:
+                        Abnormal.setTask(53352, "recognize=ON but recFile is not set",
+                                         "开启识别但未配置识别文件",
+                                         "请在任务参数中配置 recFile", "jack_load")
+                        self.status = ScriptStatus.FAILED
+                        return
+                    self.action_list.append(
+                        RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
+                else:
+                    # 不识别时，直接在初始化阶段添加导航、二次调整、顶升等动作
+                    self._append_load_actions(self.ap_world_pos)
 
         # 动态添加 action_list（识别完成后）
         if 0 <= self.action_id < len(self.action_list):
