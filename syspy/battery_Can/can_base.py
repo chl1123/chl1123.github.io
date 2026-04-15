@@ -86,7 +86,12 @@ class CanBase:
         self.child.setCallBack(self.handleData)
 
     def createBatteryMessage(self):
-        return msgBattery()
+        battery_msg = msgBattery()
+        if RBK_VERSION == 3:
+            battery_msg.userData = bytes("0000000000000000", encoding='utf-8')
+        else:
+            battery_msg.user_data = bytes("0000000000000000", encoding='utf-8')
+        return battery_msg
 
     def _set_status_init(self):
         self._battery_status_category = "INIT"

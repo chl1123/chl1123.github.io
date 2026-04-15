@@ -51,15 +51,15 @@ class CanBattery(cb.CanBase):
             self.judgeCanframe(msg)
             self.judgePublish()
         except ValueError as e:
-            Trace.log(f"ValueError occurred in handleData: %s", e)
+            Trace.log(f"ValueError occurred in handleData: {e}")
         except TypeError as e:
-            Trace.log(f"TypeError occurred in handleData: %s", e)
+            Trace.log(f"TypeError occurred in handleData: {e}")
         except Exception as e:
-            Trace.log(f"Unexpected exception in handleData: %s", e)
+            Trace.log(f"Unexpected exception in handleData: {e}")
 
     def judgeCanframe(self, msg):
         if len(msg.data) != 8:
-            log.warning(f"msg not valid: %s", str(msg))
+            log.warning(f"msg not valid: {str(msg)}")
             return
         if msg.arbitration_id == 0x0DA2F40D and not self.msg_userdata:
             # Trace.log("assert 1")
@@ -67,6 +67,8 @@ class CanBattery(cb.CanBase):
             if tem[2:14] == 'ffffffffffff':
                 self.msg_userdata = True
                 self.msg_ok = True
+                Trace.log(f"Userdata = 0XFFFFFFFFFFFF")
+                
             else:
                 if int(tem[1:2], 16) == 1:
                     self.id = hex(int(tem[3:4] + tem[5:6]))[2:].zfill(2)
@@ -79,6 +81,7 @@ class CanBattery(cb.CanBase):
                     self.battery_info.userData = bytes(self.id + self.year + self.week + self.number, encoding='utf-8')
                     self.msg_userdata = True
                     self.msg_ok = True
+                    Trace.log(f"Userdata:{self.battery_info.userData}")
         elif msg.arbitration_id == 0x0EA0F40D:
             # Trace.log("assert 2")
             tem = msg.data.hex()
