@@ -6,8 +6,8 @@ import syspy.battery_Can.can_base as cb
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu
-from syspy import Logger
-log = Logger("battery")
+from syspy import Trace
+
 
 error_dict = {
     1: "lowTemperature",
@@ -108,7 +108,7 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
             self.msg_ok = False
             self.connect_timeout_t.reset()
             if not self.clear:
-                if self.errorExists(57040):
+                if self.isTimeout():
                     print('clear')
                     self.clearTimeout()
                 else:

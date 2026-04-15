@@ -6,8 +6,8 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 # 打印工具类
 import syspy.lib.udp_debug as ud
-from syspy import Logger
-log = Logger("battery")
+from syspy import Trace
+
 class Battery(bb.batteryBase):
     """
     继承电池基类

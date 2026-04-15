@@ -7,8 +7,7 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu 
 #其他工具类,如定时器 
 import syspy.lib.misc_utility as mu 
-from syspy import Logger
-log = Logger("battery")
+from syspy import Trace
 
 class Battery(bb.batteryBase):
     """

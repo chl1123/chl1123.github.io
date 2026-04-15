@@ -7,8 +7,8 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-from syspy import Logger
-log = Logger("battery")
+from syspy import Trace
+
 """
 霍克能源集团有限公司YY系列BMS均支持标准工业modbus 协议
 

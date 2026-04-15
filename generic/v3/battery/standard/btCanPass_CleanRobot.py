@@ -6,8 +6,8 @@ import syspy.battery_Can.can_base as cb
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu 
-from syspy import Logger
-log = Logger("battery")
+from syspy import Trace
+
 class CanBattery(cb.CanBase):
 
     def __init__(self):

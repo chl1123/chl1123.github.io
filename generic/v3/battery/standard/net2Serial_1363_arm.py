@@ -15,7 +15,8 @@ from syspy.lib.module import ModuleBase
 from typing import List, Dict, Any
 import signal
 import sys
-log = Logger("battery")
+from syspy import Trace
+
 param_loader = ScriptParam(__file__) 
 class ConfigParams:
     config = {}
@@ -150,7 +151,7 @@ class Battery(bb.batteryBase):
                 self.publish(battery_info)
                 Trace.log("Receive Success")
             except Exception as e:
-                    log.warning(f"Error in handleData: {e}")
+                    Trace.log(f"Error in handleData: {e}")
             finally:
                 Trace.log(f'send set 2')
                 self._send_event.set()
@@ -169,7 +170,7 @@ class Battery(bb.batteryBase):
         else:
             if self.connect_timeout_t.isTimeUp():
                 self.setTimeout()
-                log.warning(f"Connection timeout")
+                Trace.log(f"Connection timeout")
             if self.reset_timeout_t.isTimeUp():
                 self.closeSerial()
                 self.__init__()

@@ -6,8 +6,8 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu 
 #other tools,like Timer
 import syspy.lib.misc_utility as mu
-from syspy import Logger
-log = Logger("battery")
+from syspy import Trace
+
 class Battery(bb.batteryBase):
    
     def __init__(self):

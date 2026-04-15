@@ -6,14 +6,12 @@ import syspy.lib.char_utility as cu
 #其他工具类,如定时器 
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
-from syspy import Logger
 from syspy import Trace
 import threading
 import os
 import signal
 import sys
-from syspy import Trace, RobotParam, Module, ScriptStatus
-log = Logger("battery")
+from syspy import RobotParam, Module, ScriptStatus
 class Battery(bb.batteryBase):
     def __init__(self):
         super(Battery,self).__init__()
@@ -91,7 +89,7 @@ class Battery(bb.batteryBase):
                 self.publish(battery_info)
                 Trace.log("Receive Success")
             except Exception as e:
-                    log.warning(f"Error in handleData: {e}")
+                    Trace.log(f"Error in handleData: {e}")
             finally:
                 Trace.log(f'send set')
                 self._send_event.set()
@@ -107,7 +105,7 @@ class Battery(bb.batteryBase):
         else:
             if self.connect_timeout_t.isTimeUp():
                 self.setTimeout()
-                log.warning(f"Connection timeout")
+                Trace.log(f"Connection timeout")
 
     def loop(self):
         while True:

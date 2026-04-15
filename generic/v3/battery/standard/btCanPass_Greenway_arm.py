@@ -5,9 +5,7 @@ import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
 import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
-from syspy import Logger
 from syspy import Trace
-log = Logger("battery")
 
 error_dict = {
     (1, 0): "first-level overvoltage",
@@ -59,7 +57,7 @@ class CanBattery(cb.CanBase):
 
     def judgeCanframe(self, msg):
         if len(msg.data) != 8:
-            log.warning(f"msg not valid: {str(msg)}")
+            Trace.log(f"msg not valid: {str(msg)}")
             return
         if msg.arbitration_id == 0x0DA2F40D and not self.msg_userdata:
             # Trace.log("assert 1")
@@ -90,10 +88,10 @@ class CanBattery(cb.CanBase):
             cycle = int(tem[4:6] + tem[6:8], 16)
             if self.id1:
                 if abs(cycle - self.battery_info.cycle) > 1:
-                    log.warning(f"cycle jumps form {self.battery_info.cycle} to {cycle}, drop msg:{str(msg)}")
+                    Trace.log(f"cycle jumps form {self.battery_info.cycle} to {cycle}, drop msg:{str(msg)}")
                     return
                 elif 0 > cycle or 0 == percentage:
-                    log.warning(f"cycle and SoC cannot be zero,per:{percentage},cycle:{cycle},msg:{str(msg)}")
+                    Trace.log(f"cycle and SoC cannot be zero,per:{percentage},cycle:{cycle},msg:{str(msg)}")
                     return
             if int(tem[12:14], 16) == 1:
                 self.battery_info.isCharging = True
@@ -112,11 +110,11 @@ class CanBattery(cb.CanBase):
             voltage = round(int(tem[8:12] + tem[12:16], 16) * 0.001, 2)
             if self.id2:
                 if abs(current - self.battery_info.chargeCurrent) > 100:
-                    log.warning(
+                    Trace.log(
                         f"current jumps form {self.battery_info.chargeCurrent} to {current}, drop msg:{str(msg)}")
                     return
                 if abs(voltage - self.battery_info.chargeVoltage) > 100:
-                    log.warning(
+                    Trace.log(
                         f"voltage jumps form {self.battery_info.chargeVoltage} to {voltage}, drop msg:{str(msg)}")
                     return
             self.battery_info.chargeVoltage = voltage
@@ -202,7 +200,7 @@ class CanBattery(cb.CanBase):
             self.wake_up = False
             Trace.log("Receive Success")
             if not self.clear:
-                exist = self.errorExists(57040)
+                exist = self.isTimeout()
                 if exist:
                     Trace.log('clearTimeout')
                     self.clearTimeout()
@@ -220,7 +218,7 @@ class CanBattery(cb.CanBase):
                     self.setTimeout()
                     
             if self.reset_timeout_t.isTimeUp():
-                log.warning("No complete data received for an extended period, resetting CAN bus.")
+                Trace.log("No complete data received for an extended period, resetting CAN bus.")
                 self.reset_timeout_t.reset()
                 self.resetBus()
         if self.isNeedCharge(): #继电器没有打开且需要打开

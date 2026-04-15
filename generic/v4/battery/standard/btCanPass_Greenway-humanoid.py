@@ -203,7 +203,7 @@ class CanBattery(cb.CanBase):
             self.wake_up = False
             log.info("Receive Success")
             if not self.clear:
-                exist = self.errorExists(57040)
+                exist = self.isTimeout()
                 if exist:
                     log.info('clearTimeout')
                     self.clearTimeout()

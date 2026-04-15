@@ -8,11 +8,9 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-from syspy import Logger
 from syspy import ParamServer
 from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace, RobotParam, Module, ScriptStatus
-log = Logger("battery")
 param_loader = ScriptParam(__file__) 
 class ConfigParams:
     config = {}

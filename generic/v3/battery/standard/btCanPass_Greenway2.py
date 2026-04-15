@@ -5,9 +5,7 @@ import syspy.battery_Can.can_base as cb
 import syspy.lib.misc_utility as mu
 import syspy.lib.char_utility as cu
 import json
-from syspy import Logger
 from syspy import Trace
-log = Logger("battery")
 error_dict = {
     (1, 0): "first-level overvoltage",
     (1, 1): "second-level overvoltage",
@@ -167,7 +165,7 @@ class CanBattery(cb.CanBase):
             self.connect_timeout_t.reset()
             self.wake_up = False
             if not self.clear:
-                if self.errorExists(57040):
+                if self.isTimeout():
                     Trace.log('clear')
                     self.clearTimeout()
                 else:
@@ -223,7 +221,6 @@ if __name__ == '__main__':
         except Exception as e:
             Trace.log(f"Unexpected error: {e}")
             mu.sleepS(2)
-
 
 
 
