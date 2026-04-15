@@ -898,6 +898,17 @@ class NavigationInterface(ABC, Service):
 
 
     @classmethod
+    def setTaskError(cls, key: str, desc: str) -> None:
+        """清除脚本任务异常
+
+        Args:
+            key (str): 异常唯一标识
+            desc (str): 异常描述信息
+        """
+        raise RBKVersionError()
+
+
+    @classmethod
     def clearTaskError(cls, key: str) -> None:
         """清除脚本任务异常
 
@@ -927,7 +938,7 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def errorExits(cls, key: str) -> bool:
+    def errorExists(cls, key: str) -> bool:
         """判断任务异常和设备异常是否存在，只要有一个存在就返回true
 
         Args:

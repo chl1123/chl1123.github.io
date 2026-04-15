@@ -2064,7 +2064,7 @@ class Fork(ModuleBase):
                     Navigation.setTaskError("forkMissingGood", "fork missing goods,No Contact Di Trigger")
                 else:
                     if Timer.delay(0.3):
-                        if Navigation.errorExits(53319):
+                        if Navigation.errorExists("forkMissingGood"):
                             Navigation.clearTaskError("forkMissingGood")
 
     def cage_stack(self):
@@ -2592,7 +2592,7 @@ class GoPathWithContactDi(BaseAction):
                                 self.di_clear_start_time = time.time()
                             elif time.time() - self.di_clear_start_time > 0.3:
                                 # 持续恢复超过 0.3s，清除异常并恢复运行
-                                if Navigation.errorExits("ForkTipDiTrigger"):
+                                if Navigation.errorExists("ForkTipDiTrigger"):
                                     Navigation.clearTaskError("ForkTipDiTrigger")
                                 Navigation.goPathParam(dict())  # 恢复路径规划
                                 self.di_triggered_stopped = False

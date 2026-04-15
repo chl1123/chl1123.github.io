@@ -1019,8 +1019,8 @@ class NavStatusV3(NavStatusInterface):
         cls.client().call_service("MoveFactory", "setTaskError", "ms@Module" + key, desc)
 
     @classmethod
-    def clearTaskError(cls, key: str, desc: str) -> None:
-        cls.client().call_service("MoveFactory", "clearTaskError", "ms@Module" + key, desc)
+    def clearTaskError(cls, key: str) -> None:
+        cls.client().call_service("MoveFactory", "clearTaskError", "ms@Module" + key)
 
     @classmethod
     def setDeviceError(cls, key: str, desc: str, param: str = "") -> None:
@@ -1031,7 +1031,7 @@ class NavStatusV3(NavStatusInterface):
         cls.client().call_service("MoveFactory", "clearDeviceError", "ms@Module" + key)
 
     @classmethod
-    def errorExits(cls, key: str) -> bool:
+    def errorExists(cls, key: str) -> bool:
         cls.client().call_service("MoveFactory", "errorExits", "ms@Module" + key)
 
 
