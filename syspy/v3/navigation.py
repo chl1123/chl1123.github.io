@@ -929,6 +929,26 @@ class NavigationV3(NavigationInterface):
         """
         pass
 
+    @classmethod
+    def setTaskError(cls, key: str, desc: str) -> None:
+        cls.client().call_service("MoveFactory", "setTaskError", "ms@Module" + key, desc)
+
+    @classmethod
+    def clearTaskError(cls, key: str) -> None:
+        cls.client().call_service("MoveFactory", "clearTaskError", "ms@Module" + key)
+
+    @classmethod
+    def setDeviceError(cls, key: str, desc: str, param: str = "") -> None:
+        cls.client().call_service("MoveFactory", "setDeviceError", "ms@Module" + key, desc, "", "Model", "Model-000", param)
+
+    @classmethod
+    def clearDeviceError(cls, key: str) -> None:
+        cls.client().call_service("MoveFactory", "clearDeviceError", "ms@Module" + key)
+
+    @classmethod
+    def errorExists(cls, key: str) -> bool:
+        return cls.client().call_service("MoveFactory", "errorExits", "ms@Module" + key)
+
 
 @default_plugin("MoveFactory")
 class NavStatusV3(NavStatusInterface):
@@ -1013,26 +1033,6 @@ class NavStatusV3(NavStatusInterface):
         """
         if self.update():
             return self.data.closestTarget
-
-    @classmethod
-    def setTaskError(cls, key: str, desc: str) -> None:
-        cls.client().call_service("MoveFactory", "setTaskError", "ms@Module" + key, desc)
-
-    @classmethod
-    def clearTaskError(cls, key: str) -> None:
-        cls.client().call_service("MoveFactory", "clearTaskError", "ms@Module" + key)
-
-    @classmethod
-    def setDeviceError(cls, key: str, desc: str, param: str = "") -> None:
-        cls.client().call_service("MoveFactory", "setDeviceError", "ms@Module" + key, desc, "", "Model", "Model-000", param)
-
-    @classmethod
-    def clearDeviceError(cls, key: str) -> None:
-        cls.client().call_service("MoveFactory", "clearDeviceError", "ms@Module" + key)
-
-    @classmethod
-    def errorExists(cls, key: str) -> bool:
-        cls.client().call_service("MoveFactory", "errorExits", "ms@Module" + key)
 
 
 class NavSpeedV3(NavSpeedInterface):
