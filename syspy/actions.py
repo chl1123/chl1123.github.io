@@ -799,10 +799,14 @@ def main():
     validator = ParamValidator(InputParams.builder.toDict())
     a = Actions()
     print_info()
-
+    current_task_id = 0
+    pre_task_id = 0
     while True:
         # 脚本任务状态管理
         status = Module.getStatus()
+        current_task_id = Module.getTaskId()
+        if current_task_id != pre_task_id:
+            pre_task_id = current_task_id
         print(f"-------------------------status:{status}")
         if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
             input_params = Module.getTaskArgs()
@@ -842,19 +846,22 @@ def main():
             start_time = time.time()
             new_task=False
             while time.time() - start_time < 1:
-                input_params = Module.getTaskArgs()
-                if input_params:
+                current_task_id = Module.getTaskId()
+                if current_task_id > pre_task_id:
                     new_task=True
                     break
                 else:
                     time.sleep(0.1)
-            if new_task:            
-                continue
+                
             Navigation.resetOdoMove()
             a.init_args = False
             a.action_id = 0
             a.action_list = []
-            break
+            if new_task:    
+                Module.setStatus(ScriptStatus.NONE)        
+                continue
+            else:
+                break
 
         time.sleep(0.1)
 
