@@ -949,7 +949,7 @@ class ParamBuilder:
         """将配置保存到文件
 
         Args:
-            merge (bool): 是否和原参数文件合并。True：合并（不会删除旧参数）；False：替换。
+            merge (bool): 是否和原参数文件合并。True：按新定义重建并保留可兼容 value；False：替换。
         """
         if self.p_type ==  "config":
             suffix = CONFIG_SUFFIX
@@ -991,102 +991,80 @@ class ParamBuilder:
         """将新定义与现有数据合并
 
         策略：
-        1. 保留现有文件中的所有参数（不删除任何参数）
-        2. 如果参数在新定义中存在，则更新其属性（名称、描述、类型等）
-        3. 如果参数在新定义中不存在，则保留原样
-        4. 新增的参数添加到对应的组中
+        1. 以新定义为准，输出结构与新定义一一对应（自动删除已废弃参数）
+        2. 同 key 参数若类型不变，则保留旧 value
+        3. 同 key 参数若类型变化，则 value 重置为新定义中的默认值
         """
         new_data = self.toDict()
-        # 创建现有参数的索引
-        existing_params = {}
-        for group in existing_data.get("groups", []):
-            self._index_params(group, existing_params)
-
-        # 创建新参数的索引
-        new_params = {}
-        for group in new_data.get("groups", []):
-            self._index_params(group, new_params)
-
-        # 合并数据
-        merged_groups = []
-
-        # 首先处理现有组
-        for existing_group in existing_data.get("groups", []):
-            group_key = existing_group.get("key")
-
-            # 查找对应的新组定义
-            new_group = None
-            for ng in new_data.get("groups", []):
-                if ng.get("key") == group_key:
-                    new_group = ng
-                    break
-
-            # 如果新定义中有这个组，则合并组属性
-            if new_group:
-                merged_group = {**existing_group, **new_group}
-
-                # 合并子参数
-                merged_children = self._merge_children(
-                    existing_group.get("children", []),
-                    new_group.get("children", [])
-                )
-
-                if merged_children:
-                    merged_group["children"] = merged_children
-
-                merged_groups.append(merged_group)
-            else:
-                # 新定义中没有这个组，保留原样
-                merged_groups.append(existing_group)
-
-        # 添加新定义中新增的组
-        for new_group in new_data.get("groups", []):
-            group_key = new_group.get("key")
-            if not any(g.get("key") == group_key for g in merged_groups):
-                merged_groups.append(new_group)
-
+        merged_groups = self._merge_children(
+            existing_data.get("groups", []),
+            new_data.get("groups", [])
+        )
         return {"desc": new_data.get("desc", ""), "groups": merged_groups}
+
+    @staticmethod
+    def _get_node_default_value(node: Dict[str, Any]) -> Tuple[bool, Any]:
+        """获取节点在代码定义中的默认值（defaultValue 优先，其次 value）"""
+        if "defaultValue" in node:
+            return True, node.get("defaultValue")
+        if "value" in node:
+            return True, node.get("value")
+        return False, None
+
+    def _merge_node_value(self, existing_node: Dict[str, Any], merged_node: Dict[str, Any]) -> None:
+        """按类型规则合并单节点 value"""
+        existing_type = existing_node.get("type")
+        merged_type = merged_node.get("type")
+
+        # 仅对有类型定义的参数节点处理 value，分组节点不处理
+        if not existing_type or not merged_type:
+            return
+
+        if existing_type == merged_type:
+            # 类型不变：保留旧 value（如果存在）
+            if "value" in existing_node:
+                merged_node["value"] = existing_node.get("value")
+            return
+
+        # 类型变化：重置为代码默认值；若无默认值则移除旧 value
+        has_default, default_value = self._get_node_default_value(merged_node)
+        if has_default:
+            merged_node["value"] = default_value
+        else:
+            merged_node.pop("value", None)
 
 
     def _merge_children(self, existing_children: List[Dict[str, Any]], new_children: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """合并子参数列表"""
+        """按新定义顺序合并子参数列表（不保留新定义外的旧参数）"""
+        existing_map = {
+            child.get("key"): child
+            for child in existing_children
+            if isinstance(child, dict) and child.get("key")
+        }
         merged_children = []
 
-        # 首先处理现有参数
-        for existing_child in existing_children:
-            child_key = existing_child.get("key")
-
-            # 查找对应的新参数定义
-            new_child = None
-            for nc in new_children:
-                if nc.get("key") == child_key:
-                    new_child = nc
-                    break
-
-            # 如果新定义中有这个参数，则合并属性
-            if new_child:
-                merged_child = {**existing_child, **new_child}
-
-                # 递归合并子参数
-                if "children" in existing_child or "children" in new_child:
-                    merged_child_children = self._merge_children(
-                        existing_child.get("children", []),
-                        new_child.get("children", [])
-                    )
-
-                    if merged_child_children:
-                        merged_child["children"] = merged_child_children
-
-                merged_children.append(merged_child)
-            else:
-                # 新定义中没有这个参数，保留原样
-                merged_children.append(existing_child)
-
-        # 添加新定义中新增的参数
         for new_child in new_children:
+            if not isinstance(new_child, dict):
+                continue
+
             child_key = new_child.get("key")
-            if not any(c.get("key") == child_key for c in merged_children):
-                merged_children.append(new_child)
+            existing_child = existing_map.get(child_key, {})
+            merged_child = dict(new_child)
+
+            if existing_child:
+                self._merge_node_value(existing_child, merged_child)
+
+            if "children" in new_child:
+                merged_child_children = self._merge_children(
+                    existing_child.get("children", []),
+                    new_child.get("children", [])
+                )
+                if merged_child_children:
+                    merged_child["children"] = merged_child_children
+                else:
+                    merged_child.pop("children", None)
+
+            merged_children.append(merged_child)
 
         return merged_children
 
