@@ -334,9 +334,10 @@ class Actions:
 
         self.lift_speed = config_params.lift_motor_speed
 
-        Abnormal.clear(53780)
-        Abnormal.clear(55300)
-        Abnormal.clear(57300)
+        Navigation.clearDeviceError('SPIN_MOTOR_LOST')
+        Navigation.clearDeviceError('LIFT_MOTOR_NOT_FOUND')
+
+
 
     def _init_args(self):
         """初始化任务参数"""
@@ -352,19 +353,13 @@ class Actions:
             # 检查托盘电机
             if config_params.spin_motor_name is None and (
                     self.task_args.get("shelfRotateAngle") is not None):
-                Abnormal.setTask(53780, "没有找到托盘旋转电机（spin）",
-                                 "Spin motor not found",
-                                 "Check robot model configuration",
-                                 "Motor check")
+                Navigation.setDeviceError("SPIN_MOTOR_LOST", "The tray spin motor is missing, this abnormality is caused by incorrect robot model configuration, please check the robot model configuration to fix this problem", "Spin motor not found", "Check robot model configuration", "Motor check")
                 self.script_status = ScriptStatus.FAILED
                 return
 
             # 检查升降电机
             if config_params.lift_motor_name is None and self.task_args.get("liftHeight") is not None:
-                Abnormal.setTask(53780, "没有找到升降电机（linear）",
-                                 "Lift motor not found",
-                                 "Check robot model configuration",
-                                 "Motor check")
+                Navigation.setDeviceError("LIFT_MOTOR_NOT_FOUND", "Lift motor (linear) not found, cause: device not detected, solution: check robot model configuration and perform motor check", "Lift motor not found", "Check robot model configuration", "Motor check")
                 self.script_status = ScriptStatus.FAILED
                 return
 
@@ -419,10 +414,10 @@ class Actions:
                 if (self.robot_rotate_angle is None
                         and self.shelf_rotate_angle is None
                         and self.lift_height is None):
-                    Abnormal.setTask(53780, "请设置底盘、货架旋转角度或者顶升高度",
-                                    "No action parameters provided",
-                                    "Set rotation angle or lift height",
-                                    "Parameter validation")
+                    Navigation.setTaskError(
+                        "No action parameters provided",
+                        "No action parameters provided Set rotation angle or lift height Parameter validation"
+                    )
                     self.script_status = ScriptStatus.FAILED
                     return
 
@@ -488,10 +483,10 @@ class Actions:
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
             elif current_action.action_status == ActionStatus.FAILED:
-                Abnormal.setTask(53780, f"execute action {current_action} failed!",
-                                 "",
-                                 "",
-                                 "execute_actions")
+                Navigation.setTaskError(
+                    "Action failed",
+                    f"execute action {current_action} failed!  execute_actions"
+                )
                 self.script_status = ActionStatus.FAILED
                 Module.setStatus(ScriptStatus.FAILED)
             else:
@@ -586,10 +581,10 @@ class Jack(BaseAction):
                 self.action_status = ActionStatus.FINISHED
         else:
             self.action_status = ActionStatus.FAILED
-            Abnormal.setTask(53780, "升降电机不存在",
-                             "Lift motor not found",
-                             "Check motor configuration",
-                             "Motor check")
+            Navigation.setDeviceError(
+                "LIFT_MOTOR_NOT_FOUND",
+                "Lift motor not found Check motor configuration Motor check"
+            )
 
         self.action_state['action_name'] = self.__class__.__name__
         self.action_state["action_args"] = self.action_args
@@ -653,10 +648,10 @@ class Rotate(BaseAction):
                 self.rparams["locMode"] = self.mode
                 if self.robot_direction == RotateDirection.NEARBY:
                     self.action_status = ActionStatus.FAILED
-                    Abnormal.setTask(53780, "不支持不指定方向旋转底盘",
-                                     "Auto direction not supported for robot rotation",
-                                     "Set explicit rotation direction",
-                                     "Parameter validation")
+                    Navigation.setTaskError(
+                        "Auto direction not supported",
+                        "Auto direction not supported for robot rotation Set explicit rotation direction Parameter validation"
+                    )
                     return self.action_status
 
             if self.shelf_angle is not None:
@@ -672,10 +667,10 @@ class Rotate(BaseAction):
 
             if self.shelf_angle is None and self.robot_rotate_angle is None:
                 self.action_status = ActionStatus.FAILED
-                Abnormal.setTask(53780, "请设置底盘或货架旋转角度",
-                                 "No rotation angle provided",
-                                 "Set robot or shelf rotation angle",
-                                 "Parameter validation")
+                Navigation.setTaskError(
+                    "No rotation angle provided",
+                    "No rotation angle provided Set robot or shelf rotation angle Parameter validation"
+                )
                 return self.action_status
 
         # 执行旋转
@@ -836,10 +831,10 @@ def main():
                     print("check ok, args:", json.dumps(validated_params, indent=2))
                 except ValueError as e:
                     print("check error:", e)
-                    Abnormal.setTask(53780, f"Input error:{e}",
-                                     "Some input params are not valid",
-                                     "Check the input params",
-                                     "Input validation")
+                    Navigation.setTaskError(
+                        "Input parameters invalid",
+                        f"Input error: {e} Some input params are not valid Check the input params Input validation"
+                    )
             a.run(validated_params)
 
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
