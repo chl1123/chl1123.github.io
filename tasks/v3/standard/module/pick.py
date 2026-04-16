@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/13
+# @Date : 2026/4/16
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : feat: 配送车脚本内置动作模板适配
+# @Update : fix：修复读取背篓状态初始化
 
 import json
 import math
@@ -12,7 +12,7 @@ from syspy.utils.time import Timer
 
 start_time = time.time()
 from datetime import datetime
-from syspy import (Module, Logger, Motor, Navigation, Loc, Abnormal, Recognize, Di,
+from syspy import (Module, Logger, Motor, Navigation, Loc, Recognize, Di,
                    CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Container)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
@@ -332,7 +332,7 @@ class ConfigParams:
     bezier_back_dist = 0.0
     bezier_adjust_dist = 2.0
     bezier_min_ahead_dist = 0.0
-    bezier_is_backwards = False
+    bezier_is_backwards = True
     bezier_is_hold_dir = False
     bezier_max_speed = 0.5
     bezier_max_accele = 0.3
@@ -688,7 +688,7 @@ class ConfigParams:
         cls.bezier_back_dist = cls.config.get("bezierBackDist", 0.0)
         cls.bezier_adjust_dist = cls.config.get("bezierAdjustDist", 2.0)
         cls.bezier_min_ahead_dist = cls.config.get("bezierMinAheadDist", 0)
-        cls.bezier_is_backwards = cls.config.get("bezierIsBackwards", False)
+        cls.bezier_is_backwards = cls.config.get("bezierIsBackwards", True)
         cls.bezier_is_hold_dir = cls.config.get("bezierIsHoldDir", False)
         cls.bezier_max_speed = cls.config.get("bezierMaxSpeed", 0.5)
         cls.bezier_max_accele = cls.config.get("bezierMaxAccele", 0.3)
@@ -1124,10 +1124,6 @@ class Jack(ModuleBase):
 
         # 数据打印
         self.report_info = {}
-        Abnormal.clear(53780)
-        Abnormal.clear(53781)
-        Abnormal.clear(53782)
-        Abnormal.clear(53783)
 
         # robotParam
         self.lift_motor = None
@@ -2645,6 +2641,14 @@ class GoBezier(BaseAction):
 
         if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
             self.action_status = self.go_bezier.run()
+            # 路径计算完成后打印一次起点、终点和轨迹
+            if not self.go_bezier.init and not hasattr(self, '_bezier_printed'):
+                self._bezier_printed = True
+                print(f"[GoBezier] 起点(robot_loc): {self.go_bezier.robot_loc}")
+                print(f"[GoBezier] 终点(end_position): {self.go_bezier.end_position_world}")
+                print(f"[GoBezier] 轨迹点数: {len(self.go_bezier.xs)}")
+                print(f"[GoBezier] 轨迹xs: {self.go_bezier.xs}")
+                print(f"[GoBezier] 轨迹ys: {self.go_bezier.ys}")
         debug_trace(f"bezier_status={self.action_status}")
         time.sleep(0.1)
 
@@ -3279,6 +3283,7 @@ def main():
     ScriptParam.setConfigChangeCallBack(script_config_callback)
 
     Module.init()
+    Container.initContainer(max_id=0, self_id="999")
     validator = ParamValidator(InputParams.builder.toDict())
     j = Jack()
 
