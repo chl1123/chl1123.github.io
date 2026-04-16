@@ -353,13 +353,13 @@ class Actions:
             # 检查托盘电机
             if config_params.spin_motor_name is None and (
                     self.task_args.get("shelfRotateAngle") is not None):
-                Navigation.setDeviceError("SPIN_MOTOR_LOST", "The tray spin motor is missing, this abnormality is caused by incorrect robot model configuration, please check the robot model configuration to fix this problem", "Spin motor not found", "Check robot model configuration", "Motor check")
+                Navigation.setDeviceError("SPIN_MOTOR_LOST", "The tray spin motor is missing, this abnormality is caused by incorrect robot model configuration, please check the robot model configuration to fix this problem")
                 self.script_status = ScriptStatus.FAILED
                 return
 
             # 检查升降电机
             if config_params.lift_motor_name is None and self.task_args.get("liftHeight") is not None:
-                Navigation.setDeviceError("LIFT_MOTOR_NOT_FOUND", "Lift motor (linear) not found, cause: device not detected, solution: check robot model configuration and perform motor check", "Lift motor not found", "Check robot model configuration", "Motor check")
+                Navigation.setDeviceError("LIFT_MOTOR_NOT_FOUND", "Lift motor (linear) not found, cause: device not detected, solution: check robot model configuration and perform motor check")
                 self.script_status = ScriptStatus.FAILED
                 return
 
