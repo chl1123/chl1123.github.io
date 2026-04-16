@@ -1403,11 +1403,14 @@ class Jack(ModuleBase):
         self.start_height = self.task_args.get("startHeight", 0)
         self.end_height = self.task_args.get("endHeight", 0.05)
         # 识别相关
-        self.is_recognize = self.task_args.get("recognize", False)
+        _rec_raw = self.task_args.get("recognize", False)
+        if isinstance(_rec_raw, str):
+            self.is_recognize = _rec_raw.strip().lower() == "on"
+        else:
+            self.is_recognize = bool(_rec_raw)
         self.recfile = self.task_args.get("recFile", None)
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
-        # 到点动作：scriptStage==2 时跳过旋转/识别/导航，直接二次调整+顶升
-        self.at_site = self._get_script_stage() == 2
+        self.at_site = (self._get_script_stage() != 3) and (not self.is_recognize)
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
         rad = math.radians(self.spin_angle)  # 把spin_angle转为rad
@@ -2004,11 +2007,11 @@ class Jack(ModuleBase):
                 # 识别结果在机器人坐标系下 x < 1m → 太近，先后退再二次识别
                 if result_robot[0] < 1:
                     self.action_list.append(GoPath([-0.3, 0, 0], "robot", True))
-                    self.action_list.append(RecShelf(..., "SecondRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
+                    self.action_list.append(RecShelf(self.recfile, "SecondRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
                 else:
                     self._append_load_actions(result_world)
 
-            if current_action.action_name == "SecondRec" and ...:
+            if current_action.action_name == "SecondRec" and current_action.action_status == ActionStatus.FINISHED:
                 result_world = self.rec_result
                 self._append_load_actions(result_world)
 
@@ -3901,7 +3904,6 @@ param_loader.addAction(
         "operation.jackLoad.recognize.on.insertShelfDir": "A",
         "operation.jackLoad.howGoSite": "bezier",
         "operation.jackLoad.isSecondaryAdjust": "off",
-        "operation.jackLoad.atSite": False,
     },
     config={}
 )
