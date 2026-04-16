@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/14
+# @Date : 2026/4/16
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update :  fix: 1.重构异常码 2. jackheight和扣除解耦  add: 完善jackload功能，支持识别/不识别取货，覆盖原地，到点、前置点等多个场景。 feat：适配354最新设备/状态异常改动
+# @Update : fix: 去除atsite字段用于到点动作 add:增加 FirstRec 后"太近→后退→SecondRec"功能 feat:重构jackload部分场景输入参数
 
 
 import json
@@ -15,7 +15,7 @@ from datetime import datetime
 
 from syspy import (Module, Logger, Motor, Navigation, Loc, Recognize,
                    CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer)
-from syspy.lib.module import pos2World, ModuleBase, SafeMoveStatus
+from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam, BindType, BindItem
 
@@ -1401,13 +1401,13 @@ class Jack(ModuleBase):
         self.ap_id = None  # targetName 从 Navigation.moveTask() 获取
         # 顶升高度相关
         self.start_height = self.task_args.get("startHeight", 0)
-        self.end_height = self.task_args.get("endHeight", 0.06)
+        self.end_height = self.task_args.get("endHeight", 0.05)
         # 识别相关
-        self.is_recognize = self.task_args.get("recognize", None)
+        self.is_recognize = self.task_args.get("recognize", False)
         self.recfile = self.task_args.get("recFile", None)
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
-        # 到点动作：atSite=True 时跳过旋转/识别/导航，直接二次调整+顶升
-        self.at_site = self.task_args.get("atSite", False)
+        # 到点动作：scriptStage==2 时跳过旋转/识别/导航，直接二次调整+顶升
+        self.at_site = self._get_script_stage() == 2
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
         rad = math.radians(self.spin_angle)  # 把spin_angle转为rad
@@ -1477,7 +1477,7 @@ class Jack(ModuleBase):
         # ============================================
         # PGV二次调整参数：从任务参数或脚本配置读取
         # ============================================
-        self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", None)
+        self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", False)
 
         # 顶层 codeAdjustType（任务参数可覆盖配置参数）
         self.pgv_code_adjust_type = self.task_args.get(
@@ -1855,6 +1855,14 @@ class Jack(ModuleBase):
         move_task = Navigation.moveTask()
         return move_task.get("targetName", None)
 
+    def _get_script_stage(self):
+        """从moveTask的params中获取scriptStage，默认返回2"""
+        move_task = Navigation.moveTask()
+        for p in move_task.get("params", []):
+            if p.get("key") == "scriptStage":
+                return p.get("int32Value", 2)
+        return 2
+
     def _append_load_actions(self, target_pos):
         """将导航、二次调整、旋转、顶升、绑定容器等动作添加到 action_list"""
         # 导航方式（无AP点原地执行时 target_pos 为 None，跳过导航）
@@ -1989,6 +1997,18 @@ class Jack(ModuleBase):
             current_action = self.action_list[self.action_id]
 
             if current_action.action_name == "FirstRec" and current_action.action_status == ActionStatus.FINISHED:
+                result_world = self.rec_result
+                robot_pos = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
+                result_robot = pos2Base(result_world, robot_pos)
+
+                # 识别结果在机器人坐标系下 x < 1m → 太近，先后退再二次识别
+                if result_robot[0] < 1:
+                    self.action_list.append(GoPath([-0.3, 0, 0], "robot", True))
+                    self.action_list.append(RecShelf(..., "SecondRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
+                else:
+                    self._append_load_actions(result_world)
+
+            if current_action.action_name == "SecondRec" and ...:
                 result_world = self.rec_result
                 self._append_load_actions(result_world)
 
@@ -2935,7 +2955,7 @@ class JackHeight(BaseAction):
                     self.action_status = ActionStatus.FINISHED
                     Motor.resetMotor(self.motor_name)
                     debug_trace(f"[JACK] 顶升完成 pos={current_pos:.4f}m")
-                    Navigation.clearDeviceError("53304")
+
                     if not self._count_recorded:
                         self._count_recorded = True
                         jack_count_manager.increment_count()
@@ -2947,7 +2967,7 @@ class JackHeight(BaseAction):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
                 debug_trace(f"[JACK] Jack down done pos={current_pos:.4f}m")
-                Navigation.clearDeviceError("53305")
+
 
         j.report_info["JackHeight"] = {
             "actionStatus": self.action_status,
@@ -3877,10 +3897,10 @@ param_loader.addAction(
         "operation": "jackLoad",
         "operation.jackLoad.endHeight": 0.06,
         "operation.jackLoad.recFile": "",
-        "operation.jackLoad.recognize": "on",
+        "operation.jackLoad.recognize": "off",
         "operation.jackLoad.recognize.on.insertShelfDir": "A",
         "operation.jackLoad.howGoSite": "bezier",
-        "operation.jackLoad.isSecondaryAdjust": "on",
+        "operation.jackLoad.isSecondaryAdjust": "off",
         "operation.jackLoad.atSite": False,
     },
     config={}
