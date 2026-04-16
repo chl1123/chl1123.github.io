@@ -7,7 +7,7 @@ from typing import Union, Optional, Callable, Tuple, Any
 from syspy.utils import ScriptType
 from ..core.rbk_rpc import Service
 from ..utils import SCRIPTS_DIR
-from syspy import RBK_VERSION, Container, Abnormal, ScriptParam
+from syspy import RBK_VERSION, Container, ScriptParam, Navigation
 from inspect import stack
 
 
@@ -215,11 +215,8 @@ class Module:
         while cls.getStatus() not in [ScriptStatus.NONE, ScriptStatus.FINISHED, ScriptStatus.FAILED]:
             wait_time = time.time() - start_time
             if wait_time > NEW_TASK_TIMEOUT:
-                Abnormal.client().call_service("Abnormal", "setTaskAbnormal", 53221,
-                                               f"Script '{cls.script_name}' task timeout",
-                                               f"Previous task timeout {NEW_TASK_TIMEOUT} second not set to NONE, FINISHED or FAILED status",
-                                               "Check whether the script calls Module.setStatus() to set the status of NONE, FINISHED or FAILED after responding to the cancel() method",
-                                               str(args), "", "", "", "", "", "")
+                Navigation.setTaskError("TaskTimeout", f"Script task timeout. Previous task timeout {NEW_TASK_TIMEOUT} second not set to NONE, FINISHED or FAILED status."
+                                                       f"Check whether the script calls Module.setStatus() to set the status of NONE, FINISHED or FAILED after responding to the cancel() method")
                 return
             time.sleep(0.05)
         cls.__initTaskArgs(args)
