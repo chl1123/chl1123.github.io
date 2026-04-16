@@ -1333,7 +1333,7 @@ class Jack(ModuleBase):
         # ============================================
         # PGV二次调整参数：从任务参数或脚本配置读取
         # ============================================
-        self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", None)
+        self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", False)
 
         # 顶层 codeAdjustType（任务参数可覆盖配置参数）
         self.pgv_code_adjust_type = self.task_args.get(
