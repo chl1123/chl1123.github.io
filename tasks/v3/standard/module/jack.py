@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/14
+# @Date : 2026/4/15
 # @Author : zhaopengfei
 # @Coding : 顶升车
-# @Update : fix: 1.重构异常码 2. jackheight和扣除解耦  add: 完善jackload功能，支持识别/不识别取货，覆盖原地，到点、前置点等多个场景。 feat：适配354最新设备/状态异常改动
+# @Update : fix: 1. 输入参数修改适配最新改动 2. 删除部分无效代码
 
 
 import json
@@ -13,7 +13,7 @@ from syspy.utils.time import Timer
 
 from datetime import datetime
 
-from syspy import (Module, Logger, Motor, Navigation, Loc, Abnormal, Recognize,
+from syspy import (Module, Logger, Motor, Navigation, Loc, Recognize,
                    CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer)
 from syspy.lib.module import pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
@@ -661,10 +661,6 @@ def create_end_height(builder: ParamBuilder):
 
 
 def create_recfile(builder: ParamBuilder):
-    with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
-        builder.TYPE(ParamType.STRING)
-        builder.REQUIRED(False)
-        builder.DEFAULTVALUE("default.srec")
     with builder.CHILD(key="insertShelfDir", name="Insert Shelf Direction", desc="direction to go under the shelf"):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(False)
@@ -690,6 +686,11 @@ def create_jack_load(builder: ParamBuilder):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     create_recfile(builder)
+
+    with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
+        builder.TYPE(ParamType.STRING)
+        builder.REQUIRED(False)
+        builder.DEFAULTVALUE("default.srec")
 
     with builder.CHILD(key="howGoSite", name="howGoSite", desc="choose the way to the landmark"):
         builder.TYPE(ParamType.COMBO_BOX)
@@ -1156,10 +1157,6 @@ class Jack(ModuleBase):
 
         # 数据打印
         self.report_info = {}
-        Abnormal.clear(53780)
-        Abnormal.clear(53781)
-        Abnormal.clear(53782)
-        Abnormal.clear(53783)
 
         # robotParam
         self.lift_motor = None
@@ -3600,11 +3597,11 @@ param_loader.addAction(
     args={
         "operation": "jackLoad",
         "operation.jackLoad.endHeight": 0.06,
-        "operation.jackLoad.recFile": "default.srec",
-        "operation.jackLoad.insertShelfDir": "A",
-        "operation.jackLoad.recognize": "OFF",
+        "operation.jackLoad.recFile": "",
+        "operation.jackLoad.recognize": "on",
+        "operation.jackLoad.recognize.on.insertShelfDir": "A",
         "operation.jackLoad.howGoSite": "bezier",
-        "operation.jackLoad.isSecondaryAdjust": "OFF",
+        "operation.jackLoad.isSecondaryAdjust": "on",
         "operation.jackLoad.atSite": False,
     },
     config={}
