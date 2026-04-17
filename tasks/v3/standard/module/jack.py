@@ -866,10 +866,6 @@ class InputParams:
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
                             create_end_height(builder)
-                            with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
-                                builder.TYPE(ParamType.STRING)
-                                builder.REQUIRED(False)
-                                builder.DEFAULTVALUE("default.srec")
 
                     # [DEBUG] 贝塞尔导航
                     with builder.CHILD(key="goBezier", name="[Debug] goBezier",
