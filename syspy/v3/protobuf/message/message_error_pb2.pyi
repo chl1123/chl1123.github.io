@@ -31,7 +31,7 @@ class msgDeviceError(_message.Message):
     def __init__(self, fileName: Optional[str] = ..., deviceType: Optional[str] = ..., deviceKey: Optional[str] = ..., param: Optional[str] = ..., errorCode: Optional[int] = ...) -> None: ...
 
 class msgError(_message.Message):
-    __slots__ = ["configError", "desc", "deviceError", "licenseError", "manual", "mapError", "taskError"]
+    __slots__ = ["configError", "desc", "deviceError", "licenseError", "manual", "mapError", "taskError", "timeStamp"]
     CONFIGERROR_FIELD_NUMBER: ClassVar[int]
     DESC_FIELD_NUMBER: ClassVar[int]
     DEVICEERROR_FIELD_NUMBER: ClassVar[int]
@@ -39,6 +39,7 @@ class msgError(_message.Message):
     MANUAL_FIELD_NUMBER: ClassVar[int]
     MAPERROR_FIELD_NUMBER: ClassVar[int]
     TASKERROR_FIELD_NUMBER: ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: ClassVar[int]
     configError: msgConfigError
     desc: str
     deviceError: msgDeviceError
@@ -46,7 +47,8 @@ class msgError(_message.Message):
     manual: bool
     mapError: msgMapError
     taskError: msgTaskError
-    def __init__(self, deviceError: Optional[Union[msgDeviceError, Mapping]] = ..., configError: Optional[Union[msgConfigError, Mapping]] = ..., mapError: Optional[Union[msgMapError, Mapping]] = ..., licenseError: Optional[Union[msgLicenseError, Mapping]] = ..., taskError: Optional[Union[msgTaskError, Mapping]] = ..., desc: Optional[str] = ..., manual: bool = ...) -> None: ...
+    timeStamp: int
+    def __init__(self, deviceError: Optional[Union[msgDeviceError, Mapping]] = ..., configError: Optional[Union[msgConfigError, Mapping]] = ..., mapError: Optional[Union[msgMapError, Mapping]] = ..., licenseError: Optional[Union[msgLicenseError, Mapping]] = ..., taskError: Optional[Union[msgTaskError, Mapping]] = ..., desc: Optional[str] = ..., manual: bool = ..., timeStamp: Optional[int] = ...) -> None: ...
 
 class msgLicenseError(_message.Message):
     __slots__ = ["licenseType"]

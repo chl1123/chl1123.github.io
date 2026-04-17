@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x13message_error.proto\x12\x0crbk.protocol\"B\n\x0emsgConfigError\x12\x10\n\x08\x66ileName\x18\x01 \x01(\t\x12\x0f\n\x07\x61ppType\x18\x02 \x01(\t\x12\r\n\x05param\x18\x03 \x01(\t\"k\n\x0emsgDeviceError\x12\x10\n\x08\x66ileName\x18\x01 \x01(\t\x12\x12\n\ndeviceType\x18\x02 \x01(\t\x12\x11\n\tdeviceKey\x18\x03 \x01(\t\x12\r\n\x05param\x18\x04 \x01(\t\x12\x11\n\terrorCode\x18\x05 \x01(\r\"Y\n\x0bmsgMapError\x12\x0f\n\x07mapType\x18\x01 \x01(\t\x12\x0f\n\x07mapName\x18\x02 \x01(\t\x12\x13\n\x0b\x65lementType\x18\x03 \x01(\t\x12\x13\n\x0b\x65lementName\x18\x04 \x01(\t\"&\n\x0fmsgLicenseError\x12\x13\n\x0blicenseType\x18\x01 \x01(\t\"\x1c\n\x0cmsgTaskError\x12\x0c\n\x04task\x18\x01 \x01(\t\"\xb6\x02\n\x08msgError\x12\x33\n\x0b\x64\x65viceError\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.msgDeviceErrorH\x00\x12\x33\n\x0b\x63onfigError\x18\x02 \x01(\x0b\x32\x1c.rbk.protocol.msgConfigErrorH\x00\x12-\n\x08mapError\x18\x03 \x01(\x0b\x32\x19.rbk.protocol.msgMapErrorH\x00\x12\x35\n\x0clicenseError\x18\x04 \x01(\x0b\x32\x1d.rbk.protocol.msgLicenseErrorH\x00\x12/\n\ttaskError\x18\x05 \x01(\x0b\x32\x1a.rbk.protocol.msgTaskErrorH\x00\x12\x0c\n\x04\x64\x65sc\x18\x06 \x01(\t\x12\x0e\n\x06manual\x18\x07 \x01(\x08\x42\x0b\n\terrorType\"\x92\x02\n\x0fmsgSystemStatus\x12:\n\x06status\x18\x01 \x01(\x0e\x32*.rbk.protocol.msgSystemStatus.systemStatus\x12\x39\n\x06\x65rrors\x18\x02 \x03(\x0b\x32).rbk.protocol.msgSystemStatus.ErrorsEntry\x1a\x45\n\x0b\x45rrorsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12%\n\x05value\x18\x02 \x01(\x0b\x32\x16.rbk.protocol.msgError:\x02\x38\x01\"A\n\x0csystemStatus\x12\x0c\n\x08starting\x10\x00\x12\x0b\n\x07running\x10\x01\x12\t\n\x05\x65rror\x10\x02\x12\x0b\n\x07\x63rashed\x10\x03\x62\x06proto3')
+  serialized_pb=_b('\n\x13message_error.proto\x12\x0crbk.protocol\"B\n\x0emsgConfigError\x12\x10\n\x08\x66ileName\x18\x01 \x01(\t\x12\x0f\n\x07\x61ppType\x18\x02 \x01(\t\x12\r\n\x05param\x18\x03 \x01(\t\"k\n\x0emsgDeviceError\x12\x10\n\x08\x66ileName\x18\x01 \x01(\t\x12\x12\n\ndeviceType\x18\x02 \x01(\t\x12\x11\n\tdeviceKey\x18\x03 \x01(\t\x12\r\n\x05param\x18\x04 \x01(\t\x12\x11\n\terrorCode\x18\x05 \x01(\r\"Y\n\x0bmsgMapError\x12\x0f\n\x07mapType\x18\x01 \x01(\t\x12\x0f\n\x07mapName\x18\x02 \x01(\t\x12\x13\n\x0b\x65lementType\x18\x03 \x01(\t\x12\x13\n\x0b\x65lementName\x18\x04 \x01(\t\"&\n\x0fmsgLicenseError\x12\x13\n\x0blicenseType\x18\x01 \x01(\t\"\x1c\n\x0cmsgTaskError\x12\x0c\n\x04task\x18\x01 \x01(\t\"\xc9\x02\n\x08msgError\x12\x33\n\x0b\x64\x65viceError\x18\x01 \x01(\x0b\x32\x1c.rbk.protocol.msgDeviceErrorH\x00\x12\x33\n\x0b\x63onfigError\x18\x02 \x01(\x0b\x32\x1c.rbk.protocol.msgConfigErrorH\x00\x12-\n\x08mapError\x18\x03 \x01(\x0b\x32\x19.rbk.protocol.msgMapErrorH\x00\x12\x35\n\x0clicenseError\x18\x04 \x01(\x0b\x32\x1d.rbk.protocol.msgLicenseErrorH\x00\x12/\n\ttaskError\x18\x05 \x01(\x0b\x32\x1a.rbk.protocol.msgTaskErrorH\x00\x12\x0c\n\x04\x64\x65sc\x18\x06 \x01(\t\x12\x0e\n\x06manual\x18\x07 \x01(\x08\x12\x11\n\ttimeStamp\x18\x08 \x01(\x04\x42\x0b\n\terrorType\"\x92\x02\n\x0fmsgSystemStatus\x12:\n\x06status\x18\x01 \x01(\x0e\x32*.rbk.protocol.msgSystemStatus.systemStatus\x12\x39\n\x06\x65rrors\x18\x02 \x03(\x0b\x32).rbk.protocol.msgSystemStatus.ErrorsEntry\x1a\x45\n\x0b\x45rrorsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12%\n\x05value\x18\x02 \x01(\x0b\x32\x16.rbk.protocol.msgError:\x02\x38\x01\"A\n\x0csystemStatus\x12\x0c\n\x08starting\x10\x00\x12\x0b\n\x07running\x10\x01\x12\t\n\x05\x65rror\x10\x02\x12\x0b\n\x07\x63rashed\x10\x03\x62\x06proto3')
 )
 
 
@@ -49,8 +49,8 @@ _MSGSYSTEMSTATUS_SYSTEMSTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=898,
-  serialized_end=963,
+  serialized_start=917,
+  serialized_end=982,
 )
 _sym_db.RegisterEnumDescriptor(_MSGSYSTEMSTATUS_SYSTEMSTATUS)
 
@@ -329,6 +329,13 @@ _MSGERROR = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='timeStamp', full_name='rbk.protocol.msgError.timeStamp', index=7,
+      number=8, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -345,7 +352,7 @@ _MSGERROR = _descriptor.Descriptor(
       index=0, containing_type=None, fields=[]),
   ],
   serialized_start=376,
-  serialized_end=686,
+  serialized_end=705,
 )
 
 
@@ -382,8 +389,8 @@ _MSGSYSTEMSTATUS_ERRORSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=827,
-  serialized_end=896,
+  serialized_start=846,
+  serialized_end=915,
 )
 
 _MSGSYSTEMSTATUS = _descriptor.Descriptor(
@@ -420,8 +427,8 @@ _MSGSYSTEMSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=689,
-  serialized_end=963,
+  serialized_start=708,
+  serialized_end=982,
 )
 
 _MSGERROR.fields_by_name['deviceError'].message_type = _MSGDEVICEERROR
