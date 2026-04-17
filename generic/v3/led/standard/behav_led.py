@@ -62,7 +62,7 @@ def _safe_trace(text: str) -> None:
 def _request_stop(_signum, _frame) -> None:
     global _STOP
     _STOP = True
-    _safe_trace("[dmx512_native] stop requested")
+    _safe_trace("[behav_led] stop requested")
 
 
 def _to_float(value: Any, default: float) -> float:
@@ -201,7 +201,7 @@ class ConfigParams:
         ]
 
         _safe_trace(
-            "[dmx512_native] config reload: "
+            "[behav_led] config reload: "
             f"update={cls.update_interval_sec:.2f}s resend={cls.resend_interval_sec:.2f}s "
             f"test={cls.dmx_test_flag} charging={cls.show_charging} battery={cls.show_battery} "
             f"back_breath={cls.is_back_breath} turn_pos={cls.turn_pos} turn_num={cls.turn_num}"
@@ -237,10 +237,10 @@ def load_robot_config_params() -> None:
         else:
             RobotConfig.shutdown_percentage = -1.0
     except Exception as exc:
-        _safe_trace(f"[dmx512_native] load_robot_config_params failed: {exc}")
+        _safe_trace(f"[behav_led] load_robot_config_params failed: {exc}")
 
     _safe_trace(
-        "[dmx512_native] robot config: "
+        "[behav_led] robot config: "
         f"error={RobotConfig.error_percentage} "
         f"auto_shutdown={RobotConfig.automatic_shutdown} "
         f"shutdown={RobotConfig.shutdown_percentage}"
@@ -293,7 +293,7 @@ class LedSender:
             if not ecal_core.ok():
                 cfg = ecal_core.Configuration()
                 cfg.registration.local.transport_type = ecal_core.LocalTransportType.SHM
-                ecal_core.initialize(cfg, "dmx512_native_led_pub")
+                ecal_core.initialize(cfg, "behav_led_led_pub")
         except Exception:
             return False
 
@@ -319,7 +319,7 @@ class LedSender:
             return False
 
         self._topic_send = send_fn
-        _safe_trace(f"[dmx512_native] topic publisher ready: {LED_CMD_TOPIC}")
+        _safe_trace(f"[behav_led] topic publisher ready: {LED_CMD_TOPIC}")
         return True
 
     def close(self) -> None:
@@ -395,7 +395,7 @@ class LedSender:
             led_idx_text = payload.get("led_idx", "ALL")
             context_text = json.dumps(context or {}, ensure_ascii=False, sort_keys=True)
             _safe_trace(
-                "[dmx512_native] led_cmd "
+                "[behav_led] led_cmd "
                 f"reason={reason} "
                 f"light_type={light_type} rgbw={rgbw} period={int(period)} "
                 f"led_idx={led_idx_text} context={context_text}\n"
@@ -413,19 +413,13 @@ class Dmx512NativeBehav:
     @staticmethod
     def is_alarm() -> bool:
         try:
-            abnormal_num = _to_int(Abnormal.getNum(), 0)
-            if abnormal_num <= 0:
-                return False
-
-            try:
-                exists_52200, exists_54506, exists_52201, exists_57049 = Abnormal.exists([52200, 54506, 52201, 57049])
-                allowed = [exists_52200, exists_54506, exists_52201, exists_57049]
-                allowed_count = sum(1 for item in allowed if bool(item))
-            except Exception:
-                allowed_count = 0
-            return abnormal_num > allowed_count
+            ret = _core.get_rpc().call("isAlarm")
+            if isinstance(ret, bool):
+                return ret
+            return str(ret).strip().lower() == "true"
         except Exception:
             return False
+
 
     @staticmethod
     def _get_battery_percentage() -> float:
@@ -512,7 +506,7 @@ class Dmx512NativeBehav:
     def _set_status(self, status: str) -> None:
         self.robot_status = status
         if self.robot_status != self.pre_robot_status:
-            _safe_trace(f"[dmx512_native] robot_status={self.robot_status}")
+            _safe_trace(f"[behav_led] robot_status={self.robot_status}")
             self.pre_robot_status = self.robot_status
 
     def handle_movement_effect(self, percentage: float) -> None:
@@ -713,7 +707,7 @@ class Dmx512NativeBehav:
         )
 
     def run(self) -> None:
-        _safe_trace("[dmx512_native] start running")
+        _safe_trace("[behav_led] start running")
         while not _STOP:
             self.tick()
             sleep_left = ConfigParams.update_interval_sec
@@ -730,7 +724,7 @@ class Dmx512NativeBehav:
             context={"status": "Stop"},
         )
         self.sender.close()
-        _safe_trace("[dmx512_native] stopped")
+        _safe_trace("[behav_led] stopped")
 
 
 ConfigParams.init()
