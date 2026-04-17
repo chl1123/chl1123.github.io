@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/4/14
+# @Date: 2026/4/17
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: feat：适配354最新设备/状态异常改动
+# @Update: fix：修复safeMoveCheck的bug
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -2120,9 +2120,21 @@ class ContainerRobot(ModuleBase):
             return
 
     def safe_move_check(self):
+        # safe_move_check 也需要驱动使能和标零，否则 zero() 发不出指令
+        self.check_motor_emc()
+        if self.enable_motor and not self.motor_calib_state:
+            self.motor_calib()
+
+        print(f"[safe_move_check] motor_calib 后: motor_calib_state={self.motor_calib_state}")
+
         status = SafeMoveStatus.RUNNING
-        if self.zero(0):
-            status = SafeMoveStatus.FINISHED
+        if self.motor_calib_state:          # 标零完成才执行 zero
+            zero_result = self.zero(0.5)
+            if zero_result:
+                status = SafeMoveStatus.FINISHED
+        else:
+            print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
+
         self.setSafeMoveStatus(status)
         Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
