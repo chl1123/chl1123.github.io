@@ -8,6 +8,7 @@
 
 import json
 import logging
+from typing import List, Optional
 
 from .rpc import BehavRpc
 
@@ -71,19 +72,90 @@ class LedOutput(_OutputBase):
 
     DEFAULT_PERIOD = 1000
 
+    TOPIC_NAME = "/rbk/behav/action/led"
+
     def __init__(self, rpc):
         super().__init__(
             rpc,
             "led",                # setAction channel
             "tryLed",                           # direct method
-            ("light_type", "rgbw", "period"),   # arg names（仅文档用）
+            ("light_type", "rgbw", "period", "led_idx"),   # arg names（仅文档用）
         )
+        self._topic_send = None
 
-    def trySet(self, light_type, rgbw, period=None):
+    @staticmethod
+    def _normalize_led_idx(led_idx: Optional[list]) -> List[int]:
+        if not led_idx:
+            return []
+        out: List[int] = []
+        for value in led_idx:
+            try:
+                idx = int(value)
+            except Exception:
+                continue
+            if idx > 0:
+                out.append(idx)
+        return out
+
+    def _ensure_topic_sender(self):
+        if self._topic_send is not None:
+            return self._topic_send
+        try:
+            import ecal.nanobind_core as ecal_core
+            from ecal.msg.string.core import Publisher as StringPublisher
+
+            if not ecal_core.ok():
+                cfg = ecal_core.Configuration()
+                cfg.registration.local.transport_type = ecal_core.LocalTransportType.SHM
+                ecal_core.initialize(cfg, "behavs_led_topic")
+
+            pub_cfg = ecal_core.PublisherConfiguration()
+            pub_cfg.layer.shm.enable = True
+            pub_cfg.layer.udp.enable = False
+            pub_cfg.layer.tcp.enable = False
+            topic_pub = StringPublisher(self.TOPIC_NAME, pub_cfg)
+
+            for name in ("send", "Send", "publish", "Publish"):
+                fn = getattr(topic_pub, name, None)
+                if callable(fn):
+                    self._topic_send = fn
+                    return self._topic_send
+        except Exception as exc:
+            log.warning("LED topic publisher init failed: %s", exc)
+        return None
+
+    def trySet(self, light_type, rgbw, period=None, led_idx=None):
         if period is None:
             period = self.DEFAULT_PERIOD
         payload = {"light_type": light_type, "rgbw": rgbw, "period": period}
-        self._send(payload, direct_values=(light_type, rgbw, period))
+        idx = self._normalize_led_idx(led_idx)
+        if idx:
+            payload["led_idx"] = idx
+        self._send(payload, direct_values=(light_type, rgbw, period, idx))
+
+    def trySetByTopic(self, light_type, rgbw, period=None, led_idx=None):
+        """仅通过 topic 下发；失败时回落到 trySet（RPC/setAction）。"""
+        if period is None:
+            period = self.DEFAULT_PERIOD
+        payload = {"light_type": light_type, "rgbw": rgbw, "period": period}
+        idx = self._normalize_led_idx(led_idx)
+        if idx:
+            payload["led_idx"] = idx
+
+        payload_text = json.dumps(payload, sort_keys=True)
+        if payload_text == self._last_payload:
+            return
+
+        sender = self._ensure_topic_sender()
+        if sender is not None:
+            try:
+                sender(payload_text)
+                self._last_payload = payload_text
+                return
+            except Exception as exc:
+                log.warning("LED topic publish failed, fallback RPC: %s", exc)
+
+        self._send(payload, direct_values=(light_type, rgbw, period, idx))
 
     def tryOff(self):
         """关灯：light_type=Off, rgbw=Off, period=0"""

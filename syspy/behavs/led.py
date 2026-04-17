@@ -20,5 +20,9 @@ class _LazyLed(object):
             _LazyLed._instance = LedOutput(_core.get_rpc())
         return getattr(self._instance, name)
 
+    def reset(self):
+        """重置缓存实例，用于热更新场景。"""
+        _LazyLed._instance = None
+
 
 led = _LazyLed()

@@ -26,7 +26,6 @@
 - 仅在灯效命令变化时打印结构化下发日志（含 `light_type/rgbw/period/led_idx` 与 `reason/context`）。
 """
 
-import atexit
 import json
 import signal
 import time
@@ -48,7 +47,6 @@ from syspy.behavs.led import led
 from syspy.utils.param_server import ParamType
 
 script_param = ScriptParam(__file__)
-LED_CMD_TOPIC = "/rbk/behav/action/led"
 _STOP = False
 
 
@@ -204,7 +202,8 @@ class ConfigParams:
             "[behav_led] config reload: "
             f"update={cls.update_interval_sec:.2f}s resend={cls.resend_interval_sec:.2f}s "
             f"test={cls.dmx_test_flag} charging={cls.show_charging} battery={cls.show_battery} "
-            f"back_breath={cls.is_back_breath} turn_pos={cls.turn_pos} turn_num={cls.turn_num}"
+            f"back_breath={cls.is_back_breath} "
+            f"turn_pos={cls.turn_pos} turn_num={cls.turn_num}"
         )
 
 
@@ -270,69 +269,18 @@ def script_config_callback() -> None:
     ConfigParams.reload()
 
 
-class LedSender:
-    """多路径下发 LED 命令（topic + tryLed + setAction + Python 封装）。"""
-
+class Dmx512NativeBehav:
     def __init__(self) -> None:
-        self._topic_pub = None
-        self._topic_send = None
+        self.robot_status = ""
+        self.pre_robot_status = ""
+        self._rpc = _core.get_rpc()
         self._last_payload = ""
         self._last_send_time = 0.0
         self._last_log_signature = ""
+        self._last_turn = 0
+        self._last_led_idx: List[int] = []
 
-        self._setup_topic_publisher()
-        atexit.register(self.close)
-
-    def _setup_topic_publisher(self) -> bool:
-        try:
-            import ecal.nanobind_core as ecal_core
-        except Exception:
-            return False
-
-        try:
-            if not ecal_core.ok():
-                cfg = ecal_core.Configuration()
-                cfg.registration.local.transport_type = ecal_core.LocalTransportType.SHM
-                ecal_core.initialize(cfg, "behav_led_led_pub")
-        except Exception:
-            return False
-
-        try:
-            from ecal.msg.string.core import Publisher as StringPublisher
-
-            pub_cfg = ecal_core.PublisherConfiguration()
-            pub_cfg.layer.shm.enable = True
-            pub_cfg.layer.udp.enable = False
-            pub_cfg.layer.tcp.enable = False
-            self._topic_pub = StringPublisher(LED_CMD_TOPIC, pub_cfg)
-        except Exception:
-            return False
-
-        send_fn = None
-        for name in ("send", "Send", "publish", "Publish"):
-            fn = getattr(self._topic_pub, name, None)
-            if callable(fn):
-                send_fn = fn
-                break
-        if send_fn is None:
-            self._topic_pub = None
-            return False
-
-        self._topic_send = send_fn
-        _safe_trace(f"[behav_led] topic publisher ready: {LED_CMD_TOPIC}")
-        return True
-
-    def close(self) -> None:
-        if self._topic_pub is not None:
-            try:
-                if hasattr(self._topic_pub, "destroy"):
-                    self._topic_pub.destroy()
-            except Exception:
-                pass
-        self._topic_pub = None
-        self._topic_send = None
-
-    def send(
+    def _send_led(
         self,
         light_type: str,
         rgbw: str,
@@ -342,8 +290,11 @@ class LedSender:
         context: Optional[Dict[str, Any]] = None,
     ) -> None:
         payload = {"light_type": light_type, "rgbw": rgbw, "period": int(period)}
+        idx: List[int] = []
         if led_idx:
-            payload["led_idx"] = [int(v) for v in led_idx if int(v) > 0]
+            idx = [int(v) for v in led_idx if int(v) > 0]
+            if idx:
+                payload["led_idx"] = idx
 
         payload_text = json.dumps(payload, sort_keys=True)
         now = time.time()
@@ -354,40 +305,7 @@ class LedSender:
         self._last_payload = payload_text
         self._last_send_time = now
 
-        # 0) Topic
-        if self._topic_send is not None:
-            try:
-                self._topic_send(payload_text)
-            except Exception:
-                pass
-
-        # 1) tryLed
-        rpc = _core.get_rpc()
-        idx = payload.get("led_idx", [])
-        try:
-            rpc.call("tryLed", light_type, rgbw, int(period), idx)
-        except Exception:
-            pass
-
-        # 2) setAction
-        try:
-            rpc.set_action("led", payload)
-        except Exception:
-            pass
-
-        # 3) Python 封装 fallback（兼容签名差异）
-        try:
-            if idx:
-                led.trySet(light_type, rgbw, int(period), idx)
-            else:
-                led.trySet(light_type, rgbw, int(period))
-        except TypeError:
-            try:
-                led.trySet(light_type, rgbw, int(period))
-            except Exception:
-                pass
-        except Exception:
-            pass
+        led.trySet(light_type, rgbw, int(period), idx)
 
         log_signature = f"{reason}|{payload_text}"
         if log_signature != self._last_log_signature:
@@ -401,25 +319,14 @@ class LedSender:
                 f"led_idx={led_idx_text} context={context_text}\n"
             )
 
-
-class Dmx512NativeBehav:
-    def __init__(self) -> None:
-        self.robot_status = ""
-        self.pre_robot_status = ""
-        self.sender = LedSender()
-        self._last_turn = 0
-        self._last_led_idx: List[int] = []
-
-    @staticmethod
-    def is_alarm() -> bool:
+    def is_alarm(self) -> bool:
         try:
-            ret = _core.get_rpc().call("isAlarm")
+            ret = self._rpc.call("isAlarm")
             if isinstance(ret, bool):
                 return ret
             return str(ret).strip().lower() == "true"
         except Exception:
             return False
-
 
     @staticmethod
     def _get_battery_percentage() -> float:
@@ -515,7 +422,7 @@ class Dmx512NativeBehav:
         if turn == 0:
             self._set_status("MovingRotation")
             if ConfigParams.is_back_breath and vx < 0:
-                self.sender.send(
+                self._send_led(
                     "MutableBreath",
                     "White",
                     period=3200,
@@ -529,7 +436,7 @@ class Dmx512NativeBehav:
                     },
                 )
             else:
-                self.sender.send(
+                self._send_led(
                     "MutableBreath",
                     "BlueCobalt",
                     period=3200,
@@ -549,7 +456,7 @@ class Dmx512NativeBehav:
             self._last_turn = turn
             self._last_led_idx = self._turn_to_led_idx(turn)
         led_idx = self._last_led_idx if self._last_led_idx else None
-        self.sender.send(
+        self._send_led(
             "Blink",
             "Yellow",
             period=1000,
@@ -567,7 +474,7 @@ class Dmx512NativeBehav:
     def handle_battery_effects(self, percentage: float) -> None:
         if ConfigParams.show_charging and self._safe_bool_call(Battery.getIsCharging, default=False):
             self._set_status("Charging")
-            self.sender.send(
+            self._send_led(
                 "MutableBreath",
                 "ChargeYellow",
                 period=3200,
@@ -582,7 +489,7 @@ class Dmx512NativeBehav:
             and percentage * 100.0 <= RobotConfig.shutdown_percentage
         ):
             self._set_status("Alarm")
-            self.sender.send(
+            self._send_led(
                 "MutableBreath",
                 "Red",
                 period=3200,
@@ -597,7 +504,7 @@ class Dmx512NativeBehav:
 
         if percentage * 100.0 <= RobotConfig.error_percentage:
             self._set_status("LowBattery")
-            self.sender.send(
+            self._send_led(
                 "MutableHorseRace",
                 "RedDark",
                 period=2000,
@@ -613,7 +520,7 @@ class Dmx512NativeBehav:
         if ConfigParams.show_battery:
             self._set_status("Battery")
             rgbw = self._battery_to_rgbw_name(percentage)
-            self.sender.send(
+            self._send_led(
                 "ConstantLight",
                 rgbw,
                 period=1000,
@@ -623,7 +530,7 @@ class Dmx512NativeBehav:
             return
 
         self._set_status("Normal")
-        self.sender.send(
+        self._send_led(
             "ConstantLight",
             "BlueCobalt",
             period=1000,
@@ -637,7 +544,7 @@ class Dmx512NativeBehav:
 
         if ConfigParams.dmx_test_flag:
             self._set_status("DmxTest")
-            self.sender.send(
+            self._send_led(
                 "MutableBreath",
                 "Red",
                 period=3200,
@@ -648,7 +555,7 @@ class Dmx512NativeBehav:
 
         if self.is_alarm():
             self._set_status("Alarm")
-            self.sender.send(
+            self._send_led(
                 "MutableBreath",
                 "Red",
                 period=3200,
@@ -659,7 +566,7 @@ class Dmx512NativeBehav:
 
         if self._safe_bool_call(Controller.getEmc, default=False):
             self._set_status("EStop")
-            self.sender.send(
+            self._send_led(
                 "Flow",
                 "RedDark",
                 period=10,
@@ -670,7 +577,7 @@ class Dmx512NativeBehav:
 
         if self._safe_bool_call(NavStatus.getBlock, default=False):
             self._set_status("Blocked")
-            self.sender.send(
+            self._send_led(
                 "MutableHorseRace",
                 "PinkPurple",
                 period=1000,
@@ -682,7 +589,7 @@ class Dmx512NativeBehav:
         if not self._safe_bool_call(NavStatus.getChassisStop, default=True):
             if sum(_to_int(v, 0) for v in ConfigParams.turn_num) <= 0:
                 self._set_status("Moving")
-                self.sender.send(
+                self._send_led(
                     "MutableBreath",
                     "BlueCobalt",
                     period=3200,
@@ -698,7 +605,7 @@ class Dmx512NativeBehav:
             return
 
         self._set_status("NoBattery")
-        self.sender.send(
+        self._send_led(
             "Rainbow",
             "Off",
             period=1000,
@@ -716,14 +623,13 @@ class Dmx512NativeBehav:
                 time.sleep(step)
                 sleep_left -= step
 
-        self.sender.send(
+        self._send_led(
             "Off",
             "Off",
             period=0,
             reason="script_stop",
             context={"status": "Stop"},
         )
-        self.sender.close()
         _safe_trace("[behav_led] stopped")
 
 
