@@ -5,11 +5,12 @@ from enum import IntEnum
 import time
 
 from syspy.script_data import ScriptData
-from syspy import Navigation, Loc, Abnormal, Logger, Module, ScriptStatus, Recognize, Trace
+from syspy import Navigation, Loc, Logger, Module, ScriptStatus, Recognize, Trace
 from syspy.lib.module import pos2World
 from syspy.utils.time import Timer
 from standard import goPath
 from syspy.core.rbk_rpc import Service
+
 
 class GoLiveRec:
     def __init__(self):
@@ -118,11 +119,8 @@ class GoLiveRec:
                     error_msg = rec_results["logMsg"]
                     Trace.log(f"error_type: {error_type}")
                     self.status = ScriptStatus.FAILED
-                    Abnormal.setTask(53306,
-                                     "Recognition failed, the maximum number of retries exceeded",
-                                     f"{error_msg}",
-                                     "",
-                                     "")
+                    Navigation.setTaskError("Recfailed","")
+
                 else:
                     Recognize.resetRec()
         else:

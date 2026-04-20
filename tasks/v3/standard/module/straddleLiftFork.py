@@ -15,8 +15,7 @@ import time
 import struct
 from enum import IntEnum
 from typing import Optional, List, Dict, Any
-from syspy import Module, Di, Do, Motor, Navigation, Loc, Recognize, ScriptStatus, \
-    Odometer, Laser, NetProtocol, Trace, NavSpeed, Controller, NavStatus, ModuleBase, Container
+from syspy import Module, Di, Do, Motor, Navigation, Loc, Recognize, ScriptStatus, Laser, NetProtocol, Trace, NavSpeed, Controller, NavStatus, Container
 from syspy.utils import Coordinate
 from syspy.utils.time import Timer
 from syspy.script_data import ScriptData
@@ -26,7 +25,7 @@ from syspy.lib.net_protocol import parseModbus
 from syspy.lib.robot_param import RobotParam
 import standard.goBezier as GoBezier
 from syspy import LevelDB
-from syspy.core.rbk_rpc import Service
+# from syspy.core.rbk_rpc import Service
 
 db = LevelDB("run")
 
@@ -3503,13 +3502,13 @@ def main():
 
                 f.min_safe_height = 0.0
                 f.save_mileage()
-                Module.setStatus(f.script_status)
                 checked_args = False
                 validated_params = {}
                 delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
                 delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
                 Trace.log(f"script end, script_status: {f.script_status}")
                 f.reset()
+                Module.setStatus(f.script_status)
                 continue
 
             f.run(args)
