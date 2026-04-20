@@ -305,7 +305,7 @@ class Dmx512NativeBehav:
         self._last_payload = payload_text
         self._last_send_time = now
 
-        led.trySet(light_type, rgbw, int(period), idx)
+        led.trySetByTopic(light_type, rgbw, int(period), idx)
 
         log_signature = f"{reason}|{payload_text}"
         if log_signature != self._last_log_signature:
