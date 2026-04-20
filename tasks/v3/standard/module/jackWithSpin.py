@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/16
+# @Date : 2026/4/20
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : fix: 去除atsite字段用于到点动作 add:增加 FirstRec 后"太近→后退→SecondRec"功能 feat:重构jackload部分场景输入参数
+# @Update : add: 1.放货适配二次调整随动 2.顶升高度超限做clamp
 
 
 import json
@@ -660,7 +660,7 @@ def create_end_height(builder: ParamBuilder):
         builder.TYPE(ParamType.FLOAT)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
-        builder.DEFAULTVALUE(0.06)
+        builder.DEFAULTVALUE(config_params.jack_max_height)
 
 
 def create_recfile(builder: ParamBuilder):
@@ -670,76 +670,7 @@ def create_recfile(builder: ParamBuilder):
         builder.DEFAULTVALUE("A")
 
 
-def create_jack_load(builder: ParamBuilder):
-    create_start_height(builder)
-    create_end_height(builder)
-
-    with builder.CHILD(key="recognize", name="recognize",
-                       desc="Enable recognition"):
-        builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        builder.DEFAULTVALUE("off")
-        with builder.CHILDREN():
-            # OFF 选项，不需要填识别文件
-            with builder.CHILD(key="off", name="OFF",
-                               desc="Load Without Recognition"):
-                builder.TYPE(ParamType.ARRAY)
-            # ON 也就是勾选需要识别后才会需要填写识别文件
-            with builder.CHILD(key="on", name="ON",
-                               desc="Load With Recognition"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    create_recfile(builder)
-
-    with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
-        builder.TYPE(ParamType.STRING)
-        builder.REQUIRED(False)
-        builder.DEFAULTVALUE("default.srec")
-
-    with builder.CHILD(key="howGoSite", name="howGoSite", desc="choose the way to the landmark"):
-        builder.TYPE(ParamType.COMBO_BOX)
-        builder.DEFAULTVALUE("bezier")
-        builder.REQUIRED(False)
-        with builder.CHILDREN():
-            with builder.CHILD(key="bezier", name="bezier", desc="bezier"):
-                builder.TYPE(ParamType.ARRAY)
-
-            with builder.CHILD(key="straight", name="straight", desc="straight"):
-                builder.TYPE(ParamType.ARRAY)
-
-            with builder.CHILD(key="polyline", name="polyline", desc="polyline"):
-                builder.TYPE(ParamType.ARRAY)
-
-    with builder.CHILD(key="spinTray", name="Spin Tray",
-                       desc="取货流程中调整托盘角度（机器人坐标系）"):
-        builder.TYPE(ParamType.COMBO_BOX_BOOL)
-        builder.DEFAULTVALUE("off")
-        with builder.CHILDREN():
-            with builder.CHILD(key="off", name="OFF",
-                               desc="不旋转托盘"):
-                builder.TYPE(ParamType.ARRAY)
-            with builder.CHILD(key="on", name="ON",
-                               desc="旋转托盘到指定角度"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    with builder.CHILD(key="spinPhase", name="Spin Phase",
-                                       desc="旋转阶段：beforeStart=启动前（前置点出发前）；beforeJack=顶升前（进入料架后）"):
-                        builder.TYPE(ParamType.STRING_COMBO_LIST)
-                        builder.DEFAULTVALUE("beforeJack")
-                        with builder.CHILDREN():
-                            with builder.CHILD(key="beforeStart", name="启动前 (Before Start)",
-                                               desc="在前置点对准 AP 方向之前旋转托盘"):
-                                builder.TYPE(ParamType.STRING)
-                            with builder.CHILD(key="beforeJack", name="顶升前 (Before Jack)",
-                                               desc="进入料架、二次调整完成后、顶升前旋转托盘"):
-                                builder.TYPE(ParamType.STRING)
-                    with builder.CHILD(key="spinAngle", name="Spin Angle (deg)",
-                                       desc="目标托盘角度，机器人坐标系，单位：度。0°=与车体对齐；90°=宽边进对齐场景"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.0)
-                        builder.UNIT("deg")
-                        builder.SINGLESTEP(1.0)
-
-
+def create_secondary_adjust(builder: ParamBuilder):
     with builder.CHILD(key="isSecondaryAdjust", name="isSecondaryAdjust",
                        desc="Enable secondary adjust"):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
@@ -851,6 +782,80 @@ def create_jack_load(builder: ParamBuilder):
                                                 builder.TYPE(ParamType.STRING)
 
 
+def create_jack_unload(builder: ParamBuilder):
+    create_secondary_adjust(builder)
+
+
+def create_jack_load(builder: ParamBuilder):
+    create_start_height(builder)
+    create_end_height(builder)
+    with builder.CHILD(key="recognize", name="recognize",
+                       desc="Enable recognition"):
+        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+        builder.DEFAULTVALUE("off")
+        with builder.CHILDREN():
+            # OFF 选项，不需要填识别文件
+            with builder.CHILD(key="off", name="OFF",
+                               desc="Load Without Recognition"):
+                builder.TYPE(ParamType.ARRAY)
+            # ON 也就是勾选需要识别后才会需要填写识别文件
+            with builder.CHILD(key="on", name="ON",
+                               desc="Load With Recognition"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    create_recfile(builder)
+    with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
+        builder.TYPE(ParamType.STRING)
+        builder.REQUIRED(False)
+        builder.DEFAULTVALUE("default.srec")
+
+    with builder.CHILD(key="howGoSite", name="howGoSite", desc="choose the way to the landmark"):
+        builder.TYPE(ParamType.COMBO_BOX)
+        builder.DEFAULTVALUE("bezier")
+        builder.REQUIRED(False)
+        with builder.CHILDREN():
+            with builder.CHILD(key="bezier", name="bezier", desc="bezier"):
+                builder.TYPE(ParamType.ARRAY)
+
+            with builder.CHILD(key="straight", name="straight", desc="straight"):
+                builder.TYPE(ParamType.ARRAY)
+
+            with builder.CHILD(key="polyline", name="polyline", desc="polyline"):
+                builder.TYPE(ParamType.ARRAY)
+
+    with builder.CHILD(key="spinTray", name="Spin Tray",
+                       desc="取货流程中调整托盘角度（机器人坐标系）"):
+        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+        builder.DEFAULTVALUE("off")
+        with builder.CHILDREN():
+            with builder.CHILD(key="off", name="OFF",
+                               desc="不旋转托盘"):
+                builder.TYPE(ParamType.ARRAY)
+            with builder.CHILD(key="on", name="ON",
+                               desc="旋转托盘到指定角度"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="spinPhase", name="Spin Phase",
+                                       desc="旋转阶段：beforeStart=启动前（前置点出发前）；beforeJack=顶升前（进入料架后）"):
+                        builder.TYPE(ParamType.STRING_COMBO_LIST)
+                        builder.DEFAULTVALUE("beforeJack")
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="beforeStart", name="启动前 (Before Start)",
+                                               desc="在前置点对准 AP 方向之前旋转托盘"):
+                                builder.TYPE(ParamType.STRING)
+                            with builder.CHILD(key="beforeJack", name="顶升前 (Before Jack)",
+                                               desc="进入料架、二次调整完成后、顶升前旋转托盘"):
+                                builder.TYPE(ParamType.STRING)
+                    with builder.CHILD(key="spinAngle", name="Spin Angle (deg)",
+                                       desc="目标托盘角度，机器人坐标系，单位：度。0°=与车体对齐；90°=宽边进对齐场景"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("deg")
+                        builder.SINGLESTEP(1.0)
+
+    create_secondary_adjust(builder)
+
+
 class InputParams:
     """
     任务输入参数
@@ -885,6 +890,8 @@ class InputParams:
                 # 放货
                 with builder.CHILD(key="jackUnload", name="Jack Unload", desc="recognize and unload the shelf"):
                     builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_jack_unload(builder)
 
                 # ============================================
                 # 调试/低频任务（需要开启debugMode才显示）
@@ -1397,7 +1404,10 @@ class Jack(ModuleBase):
         self.ap_id = None  # targetName 从 Navigation.moveTask() 获取
         # 顶升高度相关
         self.start_height = self.task_args.get("startHeight", 0)
-        self.end_height = self.task_args.get("endHeight", 0.05)
+        self.end_height = self.task_args.get("endHeight", config_params.jack_max_height)
+        # 防护：endHeight 超过电机物理上限时，自动截断到最大值
+        if self.end_height > config_params.jack_max_height:
+            self.end_height = config_params.jack_max_height
         # 识别相关
         _rec_raw = self.task_args.get("recognize", False)
         if isinstance(_rec_raw, str):
@@ -1407,6 +1417,7 @@ class Jack(ModuleBase):
         self.recfile = self.task_args.get("recFile", None)
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
         self.at_site = (self._get_script_stage() != 3) and (not self.is_recognize)
+
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
         rad = math.radians(self.spin_angle)  # 把spin_angle转为rad
@@ -2013,12 +2024,28 @@ class Jack(ModuleBase):
 
     def jack_unload(self):
         """
-        完整放货流程：下降托盘 → 删除激光扣除区域
+        完整放货流程：二次调整 → 下降托盘 → 删除激光扣除区域
         支持边走边动：如果预动作已经完成顶升下降，则跳过下降步骤
         """
         if not self.operation_init:
             self.operation_init = True
             debug_trace("jackUnload: Starting sequence")
+
+            # 二次调整
+            if self.is_secondary_adjust:
+                self.action_list.append(GetPGVData(self.pgv_scan_device))
+                self.action_list.append(PGVSecondaryAdjust(
+                    code_adjust_type=self.pgv_code_adjust_type,
+                    scan_device=self.pgv_scan_device,
+                    angle_adjust_type=self.pgv_angle_adjust_type,
+                    position_adjust_type=self.pgv_position_adjust_type,
+                    code_number=self.pgv_code_number,
+                    line_angle_threshold=self.pgv_line_angle_threshold,
+                    adjust_region=self.pgv_adjust_region,
+                    pgv_spin=self.pgv_spin,
+                    pgv_reach_dist=self.pgv_reach_dist,
+                    pgv_reach_angle=self.pgv_reach_angle,
+                ))
 
             # 检查是否是边走边动模式下已经完成了顶升下降
             current_height = Motor.getMotorPos(config_params.jack_motor_name)
@@ -2967,7 +2994,6 @@ class JackHeight(BaseAction):
                 Motor.resetMotor(self.motor_name)
                 debug_trace(f"[JACK] Jack down done pos={current_pos:.4f}m")
 
-
         j.report_info["JackHeight"] = {
             "actionStatus": self.action_status,
             "motorName": self.motor_name,
@@ -3894,7 +3920,7 @@ param_loader.addAction(
     policy = None,
     args={
         "operation": "jackLoad",
-        "operation.jackLoad.endHeight": 0.06,
+        "operation.jackLoad.endHeight": config_params.jack_max_height,
         "operation.jackLoad.recFile": "",
         "operation.jackLoad.recognize": "off",
         "operation.jackLoad.recognize.on.insertShelfDir": "A",
@@ -3910,6 +3936,7 @@ param_loader.addAction(
     policy = None,
     args={
         "operation": "jackUnload",
+        "operation.jackUnload.isSecondaryAdjust": "off",
     },
     config={}
 )
@@ -3920,7 +3947,7 @@ param_loader.addAction(
     policy={},
     args={
         "operation": "jackHeight",
-        "operation.jackHeight.endHeight": 0.06,
+        "operation.jackHeight.endHeight": config_params.jack_max_height,
     },
     config={}
 )

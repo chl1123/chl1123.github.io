@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/4/17
+# @Date: 2026/4/20
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: fix：修复safeMoveCheck的bug
+# @Update: fix：移除多余的abnormal接口，改为标零状态判定
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -17,7 +17,7 @@ import time
 from typing import List
 
 from syspy.utils.time import Timer
-from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Abnormal, Controller, Odometer, Recognize, \
+from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Controller, Odometer, Recognize, \
     RobotParam, Trace
 from syspy.lib.net_protocol import parseModbus, NetProtocol
 from syspy.bin import Container
@@ -1032,9 +1032,6 @@ class ContainerRobot(ModuleBase):
             self.rec_id = uuid.uuid4().hex
             self.box_code_file = self.script_args.get("codeFile", ConfigParams.box_code_file)
             self.shelf_code_file = self.script_args.get("shelfCodeFile", ConfigParams.shelf_code_file)
-            Abnormal.clear(53300)
-            Abnormal.clear(53310)
-            Abnormal.clear(53320)
             if "recAdjust" in self.script_args:
                 if self.target_type is None:
                     if self.operation == "load" or self.operation == "exTake":
@@ -1191,16 +1188,15 @@ class ContainerRobot(ModuleBase):
         self.enable_motor = not lift_motor_emc and not rotate_motor_emc and not stretch_motor_emc  # 驱动器使能状态
         if not controller_emc and time.time() - self.enable_motor_time > 0.5:  # 控制器未急停
             self.enable_motor_time = time.time()
-            if Abnormal.getNum() == 0:
-                if lift_motor_info and lift_motor_emc:  # 控制器未急停但是驱动器急停，给电机上使能
-                    Motor.enableMotor(ConfigParams.lift_motor_name)
-                    self.report_info['liftMotorInfo'] = lift_motor_info
-                if stretch_motor_info and stretch_motor_emc:
-                    Motor.enableMotor(ConfigParams.stretch_motor_name)
-                    self.report_info['stretchMotorInfo'] = stretch_motor_info
-                if rotate_motor_info and rotate_motor_emc:
-                    Motor.enableMotor(ConfigParams.rotate_motor_name)
-                    self.report_info['rotateMotorInfo'] = rotate_motor_info
+            if lift_motor_info and lift_motor_emc:  # 控制器未急停但是驱动器急停，给电机上使能
+                Motor.enableMotor(ConfigParams.lift_motor_name)
+                self.report_info['liftMotorInfo'] = lift_motor_info
+            if stretch_motor_info and stretch_motor_emc:
+                Motor.enableMotor(ConfigParams.stretch_motor_name)
+                self.report_info['stretchMotorInfo'] = stretch_motor_info
+            if rotate_motor_info and rotate_motor_emc:
+                Motor.enableMotor(ConfigParams.rotate_motor_name)
+                self.report_info['rotateMotorInfo'] = rotate_motor_info
 
     def motor_calib(self):
         self.get_motor_calib_state()
@@ -1223,12 +1219,17 @@ class ContainerRobot(ModuleBase):
                     Motor.motorCalib(ConfigParams.rotate_motor_name)
                     self.set_rotate_motor_calib = True
 
-            if Abnormal.exists(54305):
-                # 检测由车体抖动引起的标零失败，重置标志位，重新下发标零指令
+            # 检测标零失败：已下发标零指令且电机已停止，但calib未完成，重置标志位重新下发
+            calib_retry = (
+                (self.set_stretch_motor_calib and self.stretch_motor_stop and self.stretch_motor_calib != 2) or
+                (self.set_lift_motor_calib and self.lift_motor_stop and self.lift_motor_calib != 2) or
+                (self.set_rotate_motor_calib and self.rotate_motor_stop and self.rotate_motor_calib != 2)
+            )
+            if calib_retry:
+                Trace.log("标零失败检测：电机已停止但calib未完成，重置标志位重新下发")
                 self.set_lift_motor_calib = False
                 self.set_rotate_motor_calib = False
                 self.set_stretch_motor_calib = False
-                Abnormal.clear(54305)
 
             if self.stretch_motor_calib == 2:
                 self.calib_step[0] = True
