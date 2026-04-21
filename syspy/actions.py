@@ -488,11 +488,20 @@ class Actions:
                     f"execute action {current_action} failed!  execute_actions"
                 )
                 self.script_status = ActionStatus.FAILED
+                Navigation.resetOdoMove()
+                a.init_args = False
+                a.action_id = 0
+                a.action_list = []
                 Module.setStatus(ScriptStatus.FAILED)
             else:
+                Module.setStatus(ScriptStatus.RUNNING)
                 current_action.run(self)
         else:
             self.script_status = ActionStatus.FINISHED
+            Navigation.resetOdoMove()
+            a.init_args = False
+            a.action_id = 0
+            a.action_list = []
             Module.setStatus(ScriptStatus.FINISHED)
             # self.action_list = []
         Trace.log(f'{self.action_id=}, {self.action_list=}')
@@ -794,14 +803,9 @@ def main():
     validator = ParamValidator(InputParams.builder.toDict())
     a = Actions()
     print_info()
-    current_task_id = 0
-    pre_task_id = 0
     while True:
         # 脚本任务状态管理
         status = Module.getStatus()
-        current_task_id = Module.getTaskId()
-        if current_task_id != pre_task_id:
-            pre_task_id = current_task_id
         print(f"-------------------------status:{status}")
         if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
             input_params = Module.getTaskArgs()
@@ -837,26 +841,12 @@ def main():
                     )
             a.run(validated_params)
 
-        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            start_time = time.time()
-            new_task=False
-            while time.time() - start_time < 1:
-                current_task_id = Module.getTaskId()
-                if current_task_id > pre_task_id:
-                    new_task=True
-                    break
-                else:
-                    time.sleep(0.1)
-                
+        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):  
             Navigation.resetOdoMove()
             a.init_args = False
             a.action_id = 0
             a.action_list = []
-            if new_task:    
-                Module.setStatus(ScriptStatus.NONE)        
-                continue
-            else:
-                break
+            break
 
         time.sleep(0.1)
 
