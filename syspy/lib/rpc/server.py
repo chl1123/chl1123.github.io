@@ -1,5 +1,6 @@
 import json
 import logging
+import queue
 import threading
 from typing import Any
 
@@ -24,20 +25,18 @@ class RpcServer:
         """
         RpcServer.SCRIPT_NAME = name
         self.script_type = script_type
+        self._closed = False
+        self._started = False
+
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.DEALER)  # 使用 DEALER 套接字
+        self.socket = self.context.socket(zmq.DEALER)
+        self.socket.setsockopt(zmq.LINGER, 0)
         self.socket.connect(server_addr)
         log.debug("Server connected to %s", server_addr)
 
         self.stop_flag = threading.Event()
-        # 启动请求处理线程
-        self.zmq_server_thread = threading.Thread(
-            target=self._handle_request,
-            args=(self.socket,),
-            name="zmq_server_thread",
-            daemon=True
-        )
-        self.zmq_server_thread.start()
+        self._outgoing = queue.Queue()
+        self.zmq_server_thread = None
 
     def __del__(self):
         self.close()
@@ -54,35 +53,68 @@ class RpcServer:
             method_name = function.__name__
         RpcServer.FUNCS[method_name] = function
 
-        if is_immediately:
-            # 发送注册信息到代理
-            request = JSONRPCRequest("add_method", [RpcServer.SCRIPT_NAME, method_name])
-            log.debug(f"Sending registration method message: {request.to_json()}")
+        if not is_immediately:
+            return
 
-            self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
+        if not RpcServer.SCRIPT_NAME:
+            log.debug("Skip immediate add_method: empty SCRIPT_NAME for method=%s", method_name)
+            return
+
+        if not self._started:
+            return
+
+        request = JSONRPCRequest("add_method", [RpcServer.SCRIPT_NAME, method_name])
+        log.debug("Sending registration method message: %s", request.to_json())
+        self._enqueue_request(request)
 
     def start(self):
+        if self._started:
+            return
+
+        self.zmq_server_thread = threading.Thread(
+            target=self._handle_request,
+            name="zmq_server_thread",
+            daemon=True,
+        )
+        self.zmq_server_thread.start()
+
+        # Register service asynchronously via outgoing queue.
         self._register_server(RpcServer.SCRIPT_NAME)
+        self._started = True
 
-    def _handle_request(self, socket):
-        """处理来自客户端的请求。
+    def _enqueue_request(self, request: JSONRPCRequest):
+        self._outgoing.put([b"", request.to_json().encode("utf-8")])
 
-        Args:
-            socket (zmq.Socket): ZeroMQ 套接字，用于接收和发送消息。
-        """
+    def _register_server(self, name: str):
+        methods_name = list(RpcServer.FUNCS.keys())
+        request = JSONRPCRequest("register_service", [name, methods_name, self.script_type])
+        log.debug("Sending registration message: %s", request.to_json())
+        # 统一由 _handle_request 线程发送 socket 消息
+        self._enqueue_request(request)
+
+    def _handle_request(self):
+        poller = zmq.Poller()
+        poller.register(self.socket, zmq.POLLIN)
+
         while not self.stop_flag.is_set():
             try:
-                # 接收请求
-                message_parts = socket.recv_multipart()
-                log.debug("Received message part: %s", message_parts)
-                if len(message_parts) != 4:
-                    log.debug("Invalid request format: %s", message_parts)
+                while True:
+                    try:
+                        frames = self._outgoing.get_nowait()
+                    except queue.Empty:
+                        break
+                    self.socket.send_multipart(frames)
+
+                events = dict(poller.poll(100))
+                if self.socket not in events:
                     continue
+
+                message_parts = self.socket.recv_multipart()
+                log.debug("Received message part: %s", message_parts)
                 _, client_id, _, request_str = message_parts
                 request_dict = json.loads(request_str.decode('utf-8'))
                 request = JSONRPCRequest(**request_dict)
 
-                # 处理请求
                 method_name = request.get_method()
                 response = JSONRPCResponse(request.get_id())
                 if method_name in RpcServer.FUNCS:
@@ -93,15 +125,14 @@ class RpcServer:
                         response.set_error(InternalError(str(e)))
                 else:
                     response.set_error(
-                        MethodNotFound(f"{self.SCRIPT_NAME=}, Registered methods:{RpcServer.FUNCS.keys()}"))
-                # 构造响应
-                log.debug("Response => %s", response.to_json())
+                        MethodNotFound(f"{self.SCRIPT_NAME=}, Registered methods:{RpcServer.FUNCS.keys()}")
+                    )
 
-                # 发送响应
-                socket.send_multipart([client_id, b"", response.to_json().encode('utf-8')])
+                log.debug("Response => %s", response.to_json())
+                self.socket.send_multipart([client_id, b"", response.to_json().encode("utf-8")])
             except zmq.ZMQError as e:
                 if self.stop_flag.is_set():
-                    break  # 关闭线程时会触发 ZMQError，结束循环
+                    break
                 log.error("zmqServer loop error, zmq.ZMQError: %s", e)
             except Exception as e:
                 log.error("Error handling request: %s", e)
@@ -128,23 +159,17 @@ class RpcServer:
             res = func(args)
         return res
 
-    def _register_server(self, name):
-        """注册服务到代理
-
-        Args:
-            name (str): 脚本名称，用于注册到代理。
-        """
-
-        # 发送注册信息到代理
-        # register_msg = {"server": name}
-        methods_name = list(RpcServer.FUNCS.keys())
-        request = JSONRPCRequest("register_service", [name, methods_name, self.script_type])
-        log.debug("Sending registration message: %s", request.to_json())
-        self.socket.send_multipart([b"", request.to_json().encode('utf-8')])
-
     def close(self):
+        if self._closed:
+            return
+        self._closed = True
+
         log.debug("Closing RpcServer resources...")
         self.stop_flag.set()
-        self.socket.close()  # 关闭 socket 会终止 recv 的阻塞状态
-        self.context.term()  # 终止 context
+        if self.zmq_server_thread is not None and self.zmq_server_thread.is_alive():
+            self.zmq_server_thread.join(timeout=1.0)
+        try:
+            self.socket.close()
+        finally:
+            self.context.term()
         log.warning("context close")
