@@ -1,4 +1,4 @@
-from syspy.config import RBK_VERSION, RBK_FULL_VERSION
+from syspy.config import RBK_VERSION, RBK_FULL_VERSION, RBK_SIMULATION
 import sys
 import os
 
@@ -65,11 +65,13 @@ from .code_scanner import CodeScanner
 from .recognize import Recognize
 from .rfid import Rfid
 from .sound import Sound
+from .sim import is_simulation, sim_only
 
 
 __all__ = [
     "RBK_VERSION",
     "RBK_FULL_VERSION",
+    "RBK_SIMULATION",
     "LevelDB",
     "Abnormal",
     "Bin",
@@ -105,4 +107,6 @@ __all__ = [
     "Rfid",
     "Recognize",
     "Sound",
+    "is_simulation",
+    "sim_only",
 ]  # 列出所有公共模块

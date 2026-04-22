@@ -4,6 +4,7 @@ import time
 from typing import Tuple
 
 RBK_INFO_FILE = "/opt/.data/rbk/private/version/robokit.json"
+RBK_NETWORK_FILE = "/opt/.data/rbk/resources/network/default.ssys"
 # 获取RBK版本参数
 DEFAULT_RBK_VERSION = 3  # 获取失败后的默认版本
 MAX_RETRIES = 30  # 最大重试次数
@@ -44,6 +45,24 @@ def read_rbk_version_from_file(max_retries: int, retry_interval: float) -> Tuple
     return DEFAULT_RBK_VERSION, "x"
 
 
+def read_simulation_from_file(default: bool = False) -> bool:
+    """读取 network/default.ssys 中的 simulation 字段"""
+    try:
+        if os.path.exists(RBK_NETWORK_FILE):
+            with open(RBK_NETWORK_FILE, "r") as f:
+                info = json.load(f)
+            value = info.get("simulation", default)
+            if isinstance(value, str):
+                return value.strip().lower() in ("1", "true", "yes", "on")
+            return bool(value)
+    except Exception as e:
+        print(f"read simulation flag failed: {e}")
+    return default
+
+
 RBK_VERSION, RBK_FULL_VERSION = read_rbk_version_from_file(MAX_RETRIES, RETRY_INTERVAL)
+RBK_SIMULATION = read_simulation_from_file(False)
+os.environ["RBK_SIMULATION"] = "1" if RBK_SIMULATION else "0"
 print(f"{RBK_VERSION=}")
 print(f"{RBK_FULL_VERSION=}")
+print(f"{RBK_SIMULATION=}")
