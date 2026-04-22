@@ -379,7 +379,7 @@ class BindType:
         MODEL = "device:Model"
         CODE_SCANNER = "device:CodeScanner"
         DO_MOTOR = "device:DoMotor"
-        DI = "device:Di"
+        DI = "device:DI"
         GNSS = "device:GNSS"
         LED = "device:LED"
         MAGNETIC_SENSOR = "device:MagneticSensor"

@@ -4,7 +4,6 @@
 # @Coding : none
 # @Project: CKY-DG 称重设备 Modbus-RTU 模拟发送端
 
-import argparse
 import os
 import pty
 import select
@@ -13,6 +12,11 @@ import time
 
 import modbus_tk.defines as cst
 from modbus_tk import modbus_rtu
+
+DEFAULT_SLAVE_ID = 1 # 默认 Modbus 从站 ID
+DEFAULT_RAW_WEIGHT = 1234 # 默认重量
+DEFAULT_DECIMAL_POINT = 2 # 默认小数点位置（即显示重量 = raw_weight / (10 ** decimal_point)），例如 1234 和 2 则显示 12.34
+DEFAULT_UNIT_CODE = 2 # 默认单位代码（2=Kg)
 
 
 class PtyMasterSerial:
@@ -135,27 +139,21 @@ class ScaleModbusSimulator:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CKY-DG Modbus-RTU 模拟发送端")
-    parser.add_argument("--port", type=int, default=8, help="虚拟串口号（如 8 则对应 /dev/pts/8")
-    parser.add_argument("--slave-id", type=int, default=1, help="模拟设备从站ID")
-    parser.add_argument("--raw-weight", type=int, default=1234, help="初始原始重量值(16位有符号)")
-    parser.add_argument("--decimal-point", type=int, default=2, help="小数点位寄存器值")
-    parser.add_argument("--unit-code", type=int, default=2, help="单位寄存器值(2=Kg)")
-    args = parser.parse_args()
-
     sim = ScaleModbusSimulator(
-        slave_id=args.slave_id,
-        raw_weight=args.raw_weight,
-        decimal_point=args.decimal_point,
-        unit_code=args.unit_code,
+        slave_id=DEFAULT_SLAVE_ID,
+        raw_weight=DEFAULT_RAW_WEIGHT,
+        decimal_point=DEFAULT_DECIMAL_POINT,
+        unit_code=DEFAULT_UNIT_CODE,
     )
     sim.start()
 
-    print(f"[sender] started on slave_id={args.slave_id}, port={sim.slave_port}")
-    # if args.port_file:
-    #     with open(args.port_file, "w", encoding="utf-8") as f:
-    #         f.write(sim.slave_port)
-    #     print(f"[sender] wrote port file: {args.port_file}")
+    print(
+        "[sender] started "
+        f"port={sim.slave_port}, slave_id={DEFAULT_SLAVE_ID}, "
+        f"raw_weight={DEFAULT_RAW_WEIGHT}, decimal_point={DEFAULT_DECIMAL_POINT}, "
+        f"unit_code={DEFAULT_UNIT_CODE}"
+    )
+    print("[sender] press Ctrl+C to stop")
 
     try:
         while True:
