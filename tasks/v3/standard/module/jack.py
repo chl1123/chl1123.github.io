@@ -1681,10 +1681,13 @@ class Jack(ModuleBase):
             "backDistance": back_dist
         }
 
-        # 3) 基本校验
-        if any(v is None or v == "none" for v in info.values()):
-            Navigation.setTaskError("53354", f"backDistance配置无效: {info}")
-            self.status = ScriptStatus.FAILED
+        # 3) 容错处理：缺失时使用默认值，与 jackWithSpin 保持一致
+        if enable_back is None or enable_back == "none":
+            enable_back = "off"
+            info["enableBackDistance"] = enable_back
+        if back_dist is None or back_dist == "none":
+            back_dist = 0.24
+            info["backDistance"] = back_dist
 
         debug_trace(f"backDistanceInfo = {info}")
         return info
