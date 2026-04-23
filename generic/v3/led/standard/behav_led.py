@@ -41,12 +41,13 @@ from syspy import (
     RobotParam,
     ScriptParam,
     Trace,
+    sim_only,
 )
 from syspy.behavs import _core
 from syspy.behavs.led import led
 from syspy.utils.param_server import ParamType
 
-script_param = ScriptParam(__file__)
+script_param = ScriptParam(__file__) # 以脚本文件名为命名空间加载配置参数，文件路径见 /opt/.data/rbk/resources/scripts/params/tasks/v3/standard/
 _STOP = False
 
 
@@ -61,39 +62,6 @@ def _request_stop(_signum, _frame) -> None:
     global _STOP
     _STOP = True
     _safe_trace("[behav_led] stop requested")
-
-
-def _to_float(value: Any, default: float) -> float:
-    try:
-        out = float(value)
-    except Exception:
-        return default
-    return out
-
-
-def _to_int(value: Any, default: int) -> int:
-    try:
-        out = int(value)
-    except Exception:
-        return default
-    return out
-
-
-def _to_bool(value: Any, default: bool) -> bool:
-    if isinstance(value, bool):
-        return value
-    if value is None:
-        return default
-    if isinstance(value, str):
-        text = value.strip().lower()
-        if text in ("1", "true", "yes", "on"):
-            return True
-        if text in ("0", "false", "no", "off"):
-            return False
-    try:
-        return bool(value)
-    except Exception:
-        return default
 
 
 class ConfigParams:
@@ -178,24 +146,24 @@ class ConfigParams:
     @classmethod
     def reload(cls) -> None:
         cfg = script_param.loadConfig()
-        cls.update_interval_sec = max(0.02, _to_float(cfg.get("updateIntervalSec"), 0.1))
-        cls.resend_interval_sec = max(0.0, _to_float(cfg.get("resendIntervalSec"), 2.0))
-        cls.dmx_test_flag = _to_bool(cfg.get("dmxTestFlag"), False)
-        cls.show_charging = _to_bool(cfg.get("showCharging"), True)
-        cls.show_battery = _to_bool(cfg.get("showBattery"), True)
-        cls.is_back_breath = _to_bool(cfg.get("isBackBreath"), False)
+        cls.update_interval_sec = max(0.02, float(cfg.get("updateIntervalSec", 0.1)))
+        cls.resend_interval_sec = max(0.0, float(cfg.get("resendIntervalSec", 2.0)))
+        cls.dmx_test_flag = bool(cfg.get("dmxTestFlag", False))
+        cls.show_charging = bool(cfg.get("showCharging", True))
+        cls.show_battery = bool(cfg.get("showBattery", True))
+        cls.is_back_breath = bool(cfg.get("isBackBreath", False))
 
         cls.turn_pos = [
-            _to_int(cfg.get("turnPosLeftFront"), 4),
-            _to_int(cfg.get("turnPosLeftRear"), 3),
-            _to_int(cfg.get("turnPosRightFront"), 1),
-            _to_int(cfg.get("turnPosRightRear"), 2),
+            int(cfg.get("turnPosLeftFront", 4)),
+            int(cfg.get("turnPosLeftRear", 3)),
+            int(cfg.get("turnPosRightFront", 1)),
+            int(cfg.get("turnPosRightRear", 2)),
         ]
         cls.turn_num = [
-            _to_int(cfg.get("turnNumLeftFront"), 1),
-            _to_int(cfg.get("turnNumLeftRear"), 1),
-            _to_int(cfg.get("turnNumRightFront"), 1),
-            _to_int(cfg.get("turnNumRightRear"), 1),
+            int(cfg.get("turnNumLeftFront", 1)),
+            int(cfg.get("turnNumLeftRear", 1)),
+            int(cfg.get("turnNumRightFront", 1)),
+            int(cfg.get("turnNumRightRear", 1)),
         ]
 
         _safe_trace(
@@ -216,22 +184,26 @@ class RobotConfig:
 
 
 def load_robot_config_params() -> None:
+    """
+    从 RobotParam 加载配置参数，并赋值到 RobotConfig。
+    当电量低于 `error_percentage` 时才触发低电报警；
+    当 `automatic_shutdown` 开启且电量低于 `shutdown_percentage` 时触发关机报警。
+    默认值：`error_percentage=20.0`，`automatic_shutdown=OFF`，`shutdown_percentage=-1.0`（不启用）。
+    """
     try:
-        RobotConfig.error_percentage = _to_float(
-            RobotParam.getConfig("power", "lowBatteryManage.errorPercentage", default=20.0),
-            20.0,
+        RobotConfig.error_percentage = float(
+            RobotParam.getConfig("power", "lowBatteryManage.errorPercentage", default=20.0)
         )
         RobotConfig.automatic_shutdown = str(
             RobotParam.getConfig("power", "lowBatteryManage.automaticShutdown", default="OFF") or "OFF"
         )
         if RobotConfig.automatic_shutdown == "ON":
-            RobotConfig.shutdown_percentage = _to_float(
+            RobotConfig.shutdown_percentage = float(
                 RobotParam.getDevice(
                     "power",
                     "lowBatteryManage.automaticShutdown.on.shutdownPercentage",
                     default=-1.0,
-                ),
-                -1.0,
+                )
             )
         else:
             RobotConfig.shutdown_percentage = -1.0
@@ -247,11 +219,12 @@ def load_robot_config_params() -> None:
 
 
 def robot_config_change_callback(diff_map: Dict[str, Any]) -> None:
+    """RobotParam 配置变更回调，动态更新 RobotConfig 参数。"""
     if not isinstance(diff_map, dict):
         return
 
     if "lowBatteryManage.errorPercentage" in diff_map:
-        RobotConfig.error_percentage = _to_float(diff_map.get("lowBatteryManage.errorPercentage"), RobotConfig.error_percentage)
+        RobotConfig.error_percentage = float(diff_map.get("lowBatteryManage.errorPercentage"))
 
     if "lowBatteryManage.automaticShutdown" in diff_map:
         RobotConfig.automatic_shutdown = str(diff_map.get("lowBatteryManage.automaticShutdown") or "OFF")
@@ -259,10 +232,7 @@ def robot_config_change_callback(diff_map: Dict[str, Any]) -> None:
             RobotConfig.shutdown_percentage = -1.0
 
     if "lowBatteryManage.automaticShutdown.on.shutdownPercentage" in diff_map:
-        RobotConfig.shutdown_percentage = _to_float(
-            diff_map.get("lowBatteryManage.automaticShutdown.on.shutdownPercentage"),
-            RobotConfig.shutdown_percentage,
-        )
+        RobotConfig.shutdown_percentage = float(diff_map.get("lowBatteryManage.automaticShutdown.on.shutdownPercentage"))
 
 
 def script_config_callback() -> None:
@@ -329,6 +299,24 @@ class Dmx512NativeBehav:
             return False
 
     @staticmethod
+    def _mock_battery_percentage() -> float:
+        """
+        仿真环境下模拟电量周期变化：
+        每120秒为一个周期，前60秒从100%线性降到5%，后60秒从5%线性升到100%。
+        """
+        cycle_sec = 120.0
+        half_cycle = cycle_sec / 2.0
+        phase = time.time() % cycle_sec
+        if phase <= half_cycle:
+            ratio = phase / half_cycle
+            percentage = 1.0 - 0.95 * ratio
+        else:
+            ratio = (phase - half_cycle) / half_cycle
+            percentage = 0.05 + 0.95 * ratio
+        return max(0.0, min(1.0, percentage))
+
+    @staticmethod
+    @sim_only(on_sim=_mock_battery_percentage)
     def _get_battery_percentage() -> float:
         try:
             percentage = Battery.getPercentage()
@@ -336,7 +324,7 @@ class Dmx512NativeBehav:
             percentage = 0.0
         if percentage is None:
             return 0.0
-        out = _to_float(percentage, 0.0)
+        out = float(percentage)
         if out < 0.0:
             return 0.0
         if out > 1.0:
@@ -370,20 +358,20 @@ class Dmx512NativeBehav:
             value = func()
         except Exception:
             return default
-        return _to_bool(value, default)
+        return bool(value)
 
     @staticmethod
     def _safe_speeds() -> Tuple[float, float, float]:
         try:
             vx, vy, vw = NavSpeed.getSpeeds()
-            return _to_float(vx, 0.0), _to_float(vy, 0.0), _to_float(vw, 0.0)
+            return float(vx), float(vy), float(vw)
         except Exception:
             return 0.0, 0.0, 0.0
 
     @staticmethod
     def _safe_turn(vx: float, vw: float) -> int:
         try:
-            turn = _to_int(NavStatus.getTurn(vx, vw), 0)
+            turn = int(NavStatus.getTurn(vx, vw))
         except Exception:
             turn = 0
         # NavStatus.getTurn 约定：
@@ -397,8 +385,8 @@ class Dmx512NativeBehav:
     def _turn_to_led_idx(turn_left_or_right: int) -> List[int]:
         all_idx: List[int] = []
         for pos, num in zip(ConfigParams.turn_pos, ConfigParams.turn_num):
-            pos_i = _to_int(pos, 0)
-            num_i = _to_int(num, 0)
+            pos_i = int(pos)
+            num_i = int(num)
             if pos_i <= 0 or num_i <= 0:
                 continue
             all_idx.extend(range(pos_i, pos_i + num_i))
@@ -417,6 +405,7 @@ class Dmx512NativeBehav:
             self.pre_robot_status = self.robot_status
 
     def handle_movement_effect(self, percentage: float) -> None:
+        """处理运动状态的灯效。"""
         vx, _, vw = self._safe_speeds()
         turn = self._safe_turn(vx, vw)
         if turn == 0:
@@ -472,6 +461,7 @@ class Dmx512NativeBehav:
         )
 
     def handle_battery_effects(self, percentage: float) -> None:
+        """处理静止状态的电池相关灯效。"""
         if ConfigParams.show_charging and self._safe_bool_call(Battery.getIsCharging, default=False):
             self._set_status("Charging")
             self._send_led(
@@ -539,6 +529,7 @@ class Dmx512NativeBehav:
         )
 
     def tick(self) -> None:
+        """主逻辑函数，根据当前状态和电量决定灯效。"""
         percentage = self._get_battery_percentage()
         battery_exist = self._battery_exists(percentage)
 
@@ -587,7 +578,7 @@ class Dmx512NativeBehav:
             return
 
         if not self._safe_bool_call(NavStatus.getChassisStop, default=True):
-            if sum(_to_int(v, 0) for v in ConfigParams.turn_num) <= 0:
+            if sum(ConfigParams.turn_num) <= 0:
                 self._set_status("Moving")
                 self._send_led(
                     "MutableBreath",

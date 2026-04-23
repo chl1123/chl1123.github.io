@@ -38,7 +38,7 @@ class BehavRpc(object):
             request = json.dumps(args).encode("utf-8")
             responses = self._client.call_with_response(method, request, 1000)
             if responses:
-                print(f"RPC call response: {responses[0].response}")
+                # print(f"RPC call response: {responses[0].response}")
                 return json.loads(responses[0].response) if responses[0].response else None
             return None
         except Exception as e:
