@@ -489,9 +489,9 @@ class Actions:
                 )
                 self.script_status = ActionStatus.FAILED
                 Navigation.resetOdoMove()
-                a.init_args = False
-                a.action_id = 0
-                a.action_list = []
+                self.init_args = False
+                self.action_id = 0
+                self.action_list = []
                 Module.setStatus(ScriptStatus.FAILED)
             else:
                 Module.setStatus(ScriptStatus.RUNNING)
@@ -499,9 +499,9 @@ class Actions:
         else:
             self.script_status = ActionStatus.FINISHED
             Navigation.resetOdoMove()
-            a.init_args = False
-            a.action_id = 0
-            a.action_list = []
+            self.init_args = False
+            self.action_id = 0
+            self.action_list = []
             Module.setStatus(ScriptStatus.FINISHED)
             # self.action_list = []
         Trace.log(f'{self.action_id=}, {self.action_list=}')
