@@ -169,18 +169,22 @@ class InputParams:
                     with builder.CHILDREN():
                         # 底盘旋转角度
                         with builder.CHILD(key="robotRotateAngle", name="Robot Rotate Angle",
-                                        desc="底盘旋转的目标角度，任务结束时机器人在世界坐标系下的角度，单位°，范围 [-180~180]"):
+                                        desc="底盘旋转的目标角度，任务结束时机器人在世界坐标系下的角度，单位°，范围 >=0"):
                             builder.TYPE(ParamType.FLOAT)
-                            builder.MIN_VALUE(-180)
-                            builder.MAX_VALUE(180)
                             builder.REQUIRED(False)
                             builder.UNIT("°")
                             builder.SINGLESTEP(1)
                             builder.DEFAULTVALUE(0.0)
 
-                        # 底盘旋转方向
-                        with builder.CHILD(key="robotRotateDirection", name="Robot Rotate Direction",
-                                        desc="底盘旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
+                        # 底盘旋转角速度
+                        with builder.CHILD(key="robotRotateSpeed", name="Robot Rotate Speed",
+                                        desc="底盘旋转的速度，单位°/s"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE(10)
+                        
+                        with builder.CHILD(key='robotRotateDirection', name='Robot Rotate Direction',
+                                        desc='底盘旋转方向：-1 顺时针 1 逆时针'):
                             builder.TYPE(ParamType.INT)
                             builder.REQUIRED(False)
                             builder.DEFAULTVALUE(1)
@@ -212,6 +216,13 @@ class InputParams:
                             builder.REQUIRED(False)
                             builder.DEFAULTVALUE(1)
 
+                        #是否用于调试
+                        with builder.CHILD(key="isDebug", name="Is Debug",
+                                        desc="是否用于调试，若为 True，则在调试模式下运行，否则在正常模式下运行"):
+                            builder.TYPE(ParamType.BOOL)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE(False)
+
                         # 货物模型文件
                         with builder.CHILD(key="recFile", name="Rec File",
                                         desc="货物模型文件"):
@@ -222,6 +233,7 @@ class InputParams:
                                         desc="0 = 里程模式(根据里程进行运动), 1 = 定位模式, 若缺省则默认为里程模式"):
                             builder.TYPE(ParamType.INT)
                             builder.REQUIRED(False)
+
             with builder.CHILDREN():
                 with builder.CHILD(key="line", name="直线运动", desc="选择机器人直线运动"):
                     builder.TYPE(ParamType.ARRAY)
@@ -294,7 +306,7 @@ class RotateDirection(IntEnum):
 
 
 # --- 主控制类 ---
-class Actions:
+class Actions(ModuleBase):
     """动作控制主类"""
 
     def __init__(self):
@@ -312,7 +324,6 @@ class Actions:
         self.shelf_rotate_direction = RotateDirection.NEARBY
         self.lift_height = None
         self.rec_file = None
-        self.speed_w_robot = None
         self.lift_speed = None
         self.lift_stop_di = -1
 
@@ -337,18 +348,12 @@ class Actions:
         Navigation.clearDeviceError('SPIN_MOTOR_LOST')
         Navigation.clearDeviceError('LIFT_MOTOR_NOT_FOUND')
 
-
-
     def _init_args(self):
         """初始化任务参数"""
         if not self.init_args:
             self.init_args = True
             self.report_info["script_args"] = self.task_args
 
-            # 获取速度参数
-            self.speed_w_robot = self.task_args.get("speed_w_robot", None)
-            if self.speed_w_robot is None:
-                self.speed_w_robot = 0.5  # 默认角速度
 
             # 检查托盘电机
             if config_params.spin_motor_name is None and (
@@ -399,7 +404,9 @@ class Actions:
                 # 获取底盘旋转参数
 
                 self.robot_rotate_angle = self.task_args.get("robotRotateAngle", None)
-                self.robot_rotate_direction = self.task_args.get("robotRotateDirection", RotateDirection.NEARBY)
+                self.robot_rotate_speed = self.task_args.get("robotRotateSpeed", None)
+                self.robot_rotate_direction = self.task_args.get("robotRotateDirection",None)
+                self.is_debug = self.task_args.get("isDebug", False)
 
                 # 获取托盘旋转参数
                 self.shelf_rotate_angle = self.task_args.get("shelfRotateAngle", None)
@@ -409,6 +416,7 @@ class Actions:
                 self.lift_height = self.task_args.get("liftHeight", None)
                 self.lift_speed = self.task_args.get("lift_speed", self.lift_speed)
                 self.rec_file = self.task_args.get("recFile", None)
+
 
                 # 检查是否有任何动作参数
                 if (self.robot_rotate_angle is None
@@ -420,12 +428,18 @@ class Actions:
                     )
                     self.script_status = ScriptStatus.FAILED
                     return
-
-                # 需要先执行旋转动作，再执行顶升动作
-                if self.robot_rotate_angle is not None or self.shelf_rotate_angle is not None:
-                    self.action_list.append(
-                        Rotate(self.robot_rotate_angle, self.robot_rotate_direction,
-                            self.speed_w_robot, self.shelf_rotate_angle, self.shelf_rotate_direction, self.mode))
+                #优先执行支持里程，定位模式的旋转动作
+                if self.robot_rotate_angle is not None:
+                    if not self.robot_rotate_direction:
+                        if self.robot_rotate_speed is not None:
+                            self.robot_rotate_direction = -1 if self.robot_rotate_speed > 0 else 1
+                        else:
+                            self.robot_rotate_direction =-1
+                if self.robot_rotate_speed is None:
+                    self.robot_rotate_speed = 30
+                self.action_list.append(
+                    Rotate(robot_rotate_angle=self.robot_rotate_angle, robot_direction=self.robot_rotate_direction,
+                    speed_w_robot=self.robot_rotate_speed,  shelf_angle=self.shelf_rotate_angle, shelf_direction=self.shelf_rotate_direction, mode=self.mode,is_debug=self.is_debug))
 
                 if self.lift_height is not None:
                     self.action_list.append(
@@ -445,8 +459,26 @@ class Actions:
                 return
                 
 
+    def suspend(self):
+        Module.setStatus(ScriptStatus.SUSPENDED)
+        self.script_status = ScriptStatus.SUSPENDED
+        Trace.log("suspend")
 
-                
+    def resume(self):
+        if Module.getStatus() == ScriptStatus.SUSPENDED:
+            Module.setStatus(ScriptStatus.RUNNING)
+            self.script_status = ScriptStatus.RUNNING
+        Trace.log("resume")
+
+    def cancel(self):
+        Navigation.resetOdoMove()
+        self.init_args = False
+        self.action_id = 0
+        self.action_list = []
+        Module.setStatus(ScriptStatus.FAILED)
+        self.script_status = ScriptStatus.FAILED
+        Trace.log("cancel")
+    
 
 
 
@@ -497,11 +529,11 @@ class Actions:
                 Module.setStatus(ScriptStatus.RUNNING)
                 current_action.run(self)
         else:
-            self.script_status = ActionStatus.FINISHED
             Navigation.resetOdoMove()
             self.init_args = False
             self.action_id = 0
             self.action_list = []
+            self.script_status = ActionStatus.FINISHED
             Module.setStatus(ScriptStatus.FINISHED)
             # self.action_list = []
         Trace.log(f'{self.action_id=}, {self.action_list=}')
@@ -609,7 +641,7 @@ class Rotate(BaseAction):
     """旋转动作，支持底盘和托盘同时旋转或单独旋转"""
 
     def __init__(self, robot_rotate_angle=None, robot_direction=RotateDirection.NEARBY,
-                 speed_w_robot=None, shelf_angle=None, shelf_direction=RotateDirection.NEARBY, mode=0):
+                 speed_w_robot=None, shelf_angle=None, shelf_direction=RotateDirection.NEARBY,mode=0,is_debug=False):
         super().__init__("Rotate")
         self.action_args = {
             "mode": mode,
@@ -617,26 +649,28 @@ class Rotate(BaseAction):
             "robot_direction": robot_direction,
             "speed_w_robot": speed_w_robot,
             "shelf_angle": shelf_angle,
-            "shelf_direction": shelf_direction
+            "shelf_direction": shelf_direction,
+            "mode": mode,
+            "isDebug": is_debug
         }
         self.mode = mode
         self.action_status = ActionStatus.INIT
         self.init = True
         self.robot_direction = robot_direction
         self.shelf_direction = shelf_direction
-        self.speed_w_robot = speed_w_robot if speed_w_robot is not None else 0.5
+        self.speed_w_robot = math.radians(speed_w_robot) if speed_w_robot is not None else 0.5
+        self.is_debug = is_debug
+
 
         # 底盘角度处理
         self.robot_rotate_angle = None
         if robot_rotate_angle is not None:
-            rad_robot = math.radians(robot_rotate_angle)
-            self.robot_rotate_angle = (rad_robot + math.pi) % (2 * math.pi) - math.pi
+            self.robot_rotate_angle = math.radians(robot_rotate_angle)
 
         # 托盘角度处理
         self.shelf_angle = None
         if shelf_angle is not None:
-            rad_shelf = math.radians(shelf_angle)
-            self.shelf_angle = (rad_shelf + math.pi) % (2 * math.pi) - math.pi
+            self.shelf_angle = math.radians(shelf_angle)
 
         self.rparams = None
         self.sparams = None
@@ -649,45 +683,57 @@ class Rotate(BaseAction):
             Navigation.resetRotateMove()
             self.rparams = dict()
             self.sparams = dict()
+            if not self.is_debug:
+                if self.robot_rotate_angle is not None:
+                    while math.fabs(self.robot_rotate_angle) > math.pi:
+                        self.robot_rotate_angle = math.fabs(self.robot_rotate_angle) - 2 * math.pi
+                    self.rparams["moveAngle"] = self.robot_rotate_angle
+                    self.rparams["dir"] = self.robot_direction
+                    self.rparams["speedW"] = math.fabs(self.speed_w_robot)
+                    if self.robot_direction == RotateDirection.NEARBY:
+                        self.action_status = ActionStatus.FAILED
+                        Navigation.setTaskError(
+                            "Auto direction not supported",
+                            "Auto direction not supported for robot rotation Set explicit rotation direction Parameter validation"
+                        )
+                        return self.action_status
 
-            if self.robot_rotate_angle is not None:
-                self.rparams["moveAngle"] = self.robot_rotate_angle
-                self.rparams["dir"] = self.robot_direction
-                self.rparams["speedW"] = self.speed_w_robot
-                self.rparams["locMode"] = self.mode
-                if self.robot_direction == RotateDirection.NEARBY:
+                if self.shelf_angle is not None:
+                    self.sparams["angle"] = self.shelf_angle
+                    self.sparams["dir"] = self.shelf_direction
+                    # if self.shelf_direction == RotateDirection.NEARBY:
+                    #     self.action_status = ActionStatus.FAILED
+                    #     Abnormal.setTask(53780, "不支持不指定方向旋转托盘",
+                    #                      "Auto direction not supported for shelf rotation",
+                    #                      "Set explicit rotation direction",
+                    #                      "Parameter validation")
+                    #     return self.action_status
+
+                if self.shelf_angle is None and self.robot_rotate_angle is None:
                     self.action_status = ActionStatus.FAILED
                     Navigation.setTaskError(
-                        "Auto direction not supported",
-                        "Auto direction not supported for robot rotation Set explicit rotation direction Parameter validation"
+                        "No rotation angle provided",
+                        "No rotation angle provided Set robot or shelf rotation angle Parameter validation"
                     )
                     return self.action_status
-
-            if self.shelf_angle is not None:
-                self.sparams["angle"] = self.shelf_angle
-                self.sparams["dir"] = self.shelf_direction
-                # if self.shelf_direction == RotateDirection.NEARBY:
-                #     self.action_status = ActionStatus.FAILED
-                #     Abnormal.setTask(53780, "不支持不指定方向旋转托盘",
-                #                      "Auto direction not supported for shelf rotation",
-                #                      "Set explicit rotation direction",
-                #                      "Parameter validation")
-                #     return self.action_status
-
-            if self.shelf_angle is None and self.robot_rotate_angle is None:
-                self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError(
-                    "No rotation angle provided",
-                    "No rotation angle provided Set robot or shelf rotation angle Parameter validation"
-                )
-                return self.action_status
-
-        # 执行旋转
-        self.action_status = Navigation.runRotateMove(
-            robot_params=self.rparams if self.rparams else None,
-            shelf_params=self.sparams if self.sparams else None
-        )
-
+            else:
+                self.robot_rotate_angle = math.fabs(self.robot_rotate_angle)
+                self.rparams["moveAngle"] = self.robot_rotate_angle
+                self.rparams["speedW"] = self.speed_w_robot
+                self.rparams["locMode"] = self.mode 
+                
+        if not self.is_debug:
+            # 执行旋转
+            print("DEBUG-----执行RotateMove,当前为旋转模式")
+            self.action_status = Navigation.runRotateMove(
+                robot_params=self.rparams if self.rparams else None,
+                shelf_params=self.sparams if self.sparams else None
+            )
+        else:
+            print("DEBUG-----执行OdoMove,当前为调试模式")
+            self.action_status = Navigation.runOdoMove(
+                self.rparams if self.rparams else None
+            )
         self.action_state['action_name'] = self.__class__.__name__
         self.action_state["action_args"] = self.action_args
         self.action_state['rparams'] = self.rparams
@@ -777,7 +823,6 @@ class GoArc(BaseAction):
             "rotSpeed": self.rot_speed,
             "maxRotAcc":0.05,
             "maxRotDec":0.05,
-
             "actionName": "ass"
         }
 
@@ -803,6 +848,7 @@ def main():
     validator = ParamValidator(InputParams.builder.toDict())
     a = Actions()
     print_info()
+
     while True:
         # 脚本任务状态管理
         status = Module.getStatus()
@@ -841,8 +887,8 @@ def main():
                     )
             a.run(validated_params)
 
-        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):  
-            break
+        elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+                break
 
         time.sleep(0.1)
 
