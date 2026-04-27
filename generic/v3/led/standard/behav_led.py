@@ -32,7 +32,6 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from syspy import (
-    Abnormal,
     Battery,
     Controller,
     Module,
@@ -275,7 +274,7 @@ class Dmx512NativeBehav:
         self._last_payload = payload_text
         self._last_send_time = now
 
-        led.trySetByTopic(light_type, rgbw, int(period), idx)
+        led.trySet(light_type, rgbw, int(period), idx)
 
         log_signature = f"{reason}|{payload_text}"
         if log_signature != self._last_log_signature:
@@ -331,16 +330,20 @@ class Dmx512NativeBehav:
             return 1.0
         return out
 
-    @staticmethod
-    def _battery_exists(percentage: float) -> bool:
-        if int(percentage * 100.0) == 0:
-            return False
+    def _battery_exists(self, _percentage: float) -> bool:
+        """通过 RPC getState 返回的 JSON 判断电池信息是否存在。"""
         try:
-            if bool(Abnormal.exists(57040)):
+            state_raw = self._rpc.call("getState")
+            if isinstance(state_raw, dict):
+                state_dict = state_raw
+            else:
                 return False
+            device_status = state_dict.get("deviceStatus")
+            if not isinstance(device_status, dict):
+                return False
+            return "Battery-000" in device_status
         except Exception:
-            pass
-        return True
+            return False
 
     @staticmethod
     def _battery_to_rgbw_name(percentage: float) -> str:
