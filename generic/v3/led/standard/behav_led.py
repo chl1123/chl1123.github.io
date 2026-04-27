@@ -333,6 +333,8 @@ class Dmx512NativeBehav:
     @sim_only(on_sim=lambda *_args, **_kwargs: True)
     def _battery_exists(self, _percentage: float) -> bool:
         """通过 RPC getState 返回的 JSON 判断电池信息是否存在。"""
+        if _percentage == 0.0:
+            return False
         try:
             state_raw = self._rpc.call("getState")
             if isinstance(state_raw, dict):
