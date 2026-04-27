@@ -23,6 +23,9 @@ class BehavRpc(object):
             if not ecal_core.ok():
                 cfg = ecal_core.Configuration()
                 cfg.registration.local.transport_type = ecal_core.LocalTransportType.SHM
+                # Suppress optional runtime timesync module loading.
+                cfg.timesync.timesync_module_rt = ""
+                cfg.timesync.timesync_module_replay = ""
                 ecal_core.initialize(cfg, "behavs_rpc")
             self._client = ecal_core.ServiceClient("BehavFactory")
             self._use_ecal = True

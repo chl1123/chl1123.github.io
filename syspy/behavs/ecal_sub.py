@@ -77,6 +77,9 @@ class EcalStateSubscriber(object):
                 if self._use_nanobind:
                     cfg = self.ecal_core.Configuration()
                     cfg.registration.local.transport_type = self.ecal_core.LocalTransportType.SHM
+                    # Suppress optional runtime timesync module loading.
+                    cfg.timesync.timesync_module_rt = ""
+                    cfg.timesync.timesync_module_replay = ""
                     self.ecal_core.initialize(cfg, unit_name)
                 else:
                     self.ecal_core.initialize(unit_name)

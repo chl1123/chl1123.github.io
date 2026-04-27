@@ -32,6 +32,9 @@ def _ensure_ecal():
         if not ecal_core.ok():
             cfg = ecal_core.Configuration()
             cfg.registration.local.transport_type = ecal_core.LocalTransportType.SHM
+            # Avoid loading optional time sync shared module that is absent on target.
+            cfg.timesync.timesync_module_rt = ""
+            cfg.timesync.timesync_module_replay = ""
             ecal_core.initialize(cfg, _get_unit_name())
         _ecal_initialized = True
     except Exception:
