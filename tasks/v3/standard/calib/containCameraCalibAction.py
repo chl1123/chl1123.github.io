@@ -6,13 +6,13 @@ import time
 from syspy import Logger, ScriptStatus, Navigation, Module, Motor, Do
 from standard.module.cartonTransferUnit import ContainerRobot
 
-log = Logger("goLineCalibAction")
+log = Logger("containCameraCalibAction")
 
 """
 ####BEGIN DEFAULT ARGS####
 {
     "tagDistance": {
-        "value": 0.05,
+        "value": 0.0925,
         "tips": "Distance between two tags",
         "type": "double",
         "unit":"m",
@@ -20,7 +20,7 @@ log = Logger("goLineCalibAction")
         "minValue":0.01
     },
     "tagSize": {
-        "value": 0.1,
+        "value": 0.0615,
         "tips": "Tag size",
         "type": "double",
         "unit":"m",
