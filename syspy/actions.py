@@ -10,21 +10,13 @@ import time
 from enum import IntEnum
 
 start_time = time.time()
-from syspy import (Module, Logger, Di, Motor, Navigation, Loc, Abnormal,
-                   Odometer, ScriptStatus, Trace, Controller)
-from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
+from syspy import Module, Di, Motor, Navigation, Loc, ScriptStatus, Trace
+from syspy.lib.module import ModuleBase
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
-from standard import goPath, goBezier
-if hasattr(ScriptParam, '_instance'):
-    ScriptParam._instance = None 
-    ScriptParam._initialized = False
-    ScriptParam.config_change_callback = None
-    ScriptParam.event_task_config = False
+from standard import goPath
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot_param import RobotParam
-from syspy.utils import Coordinate, ScriptType
-
-log = Logger("actions")
+from syspy.utils import ScriptType
 
 
 # --- ConfigParams 类 ---
