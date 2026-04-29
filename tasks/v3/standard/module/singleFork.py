@@ -2827,6 +2827,7 @@ class RunMotorByPosition(BaseAction):
                                                             0.01)
                     and ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]):
                 self.action_status = ActionStatus.FINISHED
+                Motor.resetMotor(self.motor_name)
                 return
 
             # 把目标位置先夹到最大最小区间
