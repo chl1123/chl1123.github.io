@@ -44,6 +44,7 @@ from syspy import (
 )
 from syspy.behavs import _core
 from syspy.behavs.led import led
+from syspy.dmx512.dmx512_base import LightType, dmx512Base
 from syspy.utils.param_server import ParamType
 
 script_param = ScriptParam(__file__) # 以脚本文件名为命名空间加载配置参数，文件路径见 /opt/.data/rbk/resources/scripts/params/tasks/v3/standard/
@@ -63,6 +64,83 @@ def _request_stop(_signum, _frame) -> None:
     _safe_trace("[behav_led] stop requested")
 
 
+def _is_src2000_platform() -> bool:
+    """读取 /etc/srcname，包含 src2000 时启用旧 DMX 消息机制。"""
+    try:
+        with open("/etc/srcname", "r", encoding="utf-8") as f:
+            return "src2000" in f.read().lower()
+    except Exception:
+        return False
+
+
+def _rgbw_name_to_values(rgbw_name: str) -> Tuple[int, int, int, int]:
+    table = {
+        "Red": (255, 0, 0, 0),
+        "RedDark": (170, 20, 0, 0),
+        "PinkPurple": (30, 0, 30, 0),
+        "Green": (0, 255, 0, 0),
+        "Blue": (0, 0, 255, 0),
+        "BlueCobalt": (0, 80, 164, 0),
+        "Yellow": (255, 180, 0, 0),
+        "ChargeYellow": (255, 120, 0, 0),
+        "White": (255, 250, 250, 0),
+        "Off": (0, 0, 0, 0),
+    }
+    return table.get(str(rgbw_name), (0, 0, 0, 0))
+
+
+class LegacyDmxOutput:
+    """复用 dmx512_pass 旧消息机制，兼容 SRC2000 平台。"""
+
+    def __init__(self) -> None:
+        self._dmx = dmx512Base()
+
+    def send(
+        self,
+        light_type: str,
+        rgbw: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        msg = self._dmx.createDmx512Message()
+        context = context or {}
+
+        battery_pct = float(context.get("battery_pct", 100.0))
+        msg.battery = int(max(0.0, min(100.0, battery_pct)))
+
+        # 旧消息机制中，电量显示优先使用 Battery 类型。
+        reason = str(context.get("reason", ""))
+        if reason == "battery_display":
+            msg.type = LightType.Battery.value
+            self._dmx.sendDmx512(msg)
+            return
+
+        type_map = {
+            "ConstantLight": LightType.ConstantLight.value,
+            "Steady": LightType.ConstantLight.value,
+            "MutableBreath": LightType.MutableBreath.value,
+            "MutableHorseRace": LightType.MutableHorseRace.value,
+            "Flow": LightType.FlowCalculator.value,
+            "Rainbow": LightType.Rainbow.value,
+            "Blink": LightType.MutableBreath.value,
+            "Uint": LightType.ConstantLight.value,
+            "Off": LightType.ConstantLight.value,
+        }
+        msg.type = type_map.get(light_type, LightType.ConstantLight.value)
+
+        if light_type == "MutableBreath" and rgbw == "ChargeYellow":
+            msg.type = LightType.Charging.value
+
+        turn = int(context.get("turn", 0))
+        msg.turnLeftOrRight = turn if turn in (0, 1, 2, 3) else 0
+
+        red, green, blue, white = _rgbw_name_to_values(rgbw)
+        msg.colorRed = int(red)
+        msg.colorGreen = int(green)
+        msg.colorBlue = int(blue)
+        msg.colorWhite = int(white)
+        self._dmx.sendDmx512(msg)
+
+
 class ConfigParams:
     """脚本配置参数。"""
 
@@ -76,6 +154,7 @@ class ConfigParams:
 
     turn_pos = [4, 3, 1, 2]  # 左前/左后/右前/右后
     turn_num = [1, 1, 1, 1]  # 左前/左后/右前/右后
+    light_total_num = 4
 
     @classmethod
     def init(cls) -> None:
@@ -109,6 +188,9 @@ class ConfigParams:
                     with builder.CHILD(key="isBackBreath", name="Back Breath", desc="后退时显示白色呼吸"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="lightTotalNum", name="Light Total Num", desc="灯条总数"):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(4)
 
             with builder.GROUP(key="turnPos", name="Turn Pos", desc="左前/左后/右前/右后 转向灯起始位置"):
                 builder.TYPE(ParamType.ARRAY)
@@ -168,6 +250,7 @@ class ConfigParams:
             int(cfg.get("turnNumRightFront", 1)),
             int(cfg.get("turnNumRightRear", 1)),
         ]
+        cls.light_total_num = max(1, int(cfg.get("lightTotalNum", 4)))
 
         _safe_trace(
             "[behav_led] config reload: "
@@ -175,7 +258,8 @@ class ConfigParams:
             f"update={cls.update_interval_sec:.2f}s resend={cls.resend_interval_sec:.2f}s "
             f"test={cls.dmx_test_flag} charging={cls.show_charging} battery={cls.show_battery} "
             f"back_breath={cls.is_back_breath} "
-            f"turn_pos={cls.turn_pos} turn_num={cls.turn_num}"
+            f"turn_pos={cls.turn_pos} turn_num={cls.turn_num} "
+            f"light_total_num={cls.light_total_num}"
         )
 
 
@@ -249,11 +333,14 @@ class Dmx512NativeBehav:
         self.robot_status = ""
         self.pre_robot_status = ""
         self._rpc = _core.get_rpc()
+        self._use_legacy_dmx = _is_src2000_platform()
+        self._legacy_dmx = LegacyDmxOutput() if self._use_legacy_dmx else None
         self._last_payload = ""
         self._last_send_time = 0.0
         self._last_log_signature = ""
         self._last_turn = 0
         self._last_led_idx: List[int] = []
+        _safe_trace(f"[behav_led] dmx_output={'legacy_message' if self._use_legacy_dmx else 'behav_factory'}")
 
     def _send_led(
         self,
@@ -280,7 +367,12 @@ class Dmx512NativeBehav:
         self._last_payload = payload_text
         self._last_send_time = now
 
-        led.trySet(light_type, rgbw, int(period), idx)
+        context_send = dict(context or {})
+        context_send["reason"] = reason
+        if self._use_legacy_dmx and self._legacy_dmx is not None:
+            self._legacy_dmx.send(light_type, rgbw, context=context_send)
+        else:
+            led.trySet(light_type, rgbw, int(period), idx)
 
         log_signature = f"{reason}|{payload_text}"
         if log_signature != self._last_log_signature:
@@ -396,12 +488,13 @@ class Dmx512NativeBehav:
     @staticmethod
     def _turn_to_led_idx(turn_left_or_right: int) -> List[int]:
         all_idx: List[int] = []
+        max_idx = int(ConfigParams.light_total_num)
         for pos, num in zip(ConfigParams.turn_pos, ConfigParams.turn_num):
             pos_i = int(pos)
             num_i = int(num)
             if pos_i <= 0 or num_i <= 0:
                 continue
-            all_idx.extend(range(pos_i, pos_i + num_i))
+            all_idx.extend(i for i in range(pos_i, pos_i + num_i) if i <= max_idx)
 
         half = len(all_idx) // 2
         if turn_left_or_right == 1:
