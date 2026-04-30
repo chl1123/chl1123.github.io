@@ -84,6 +84,9 @@ class ConfigParams:
             with builder.GROUP(key="logic", name="Logic", desc="LED logic config"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
+                    with builder.CHILD(key="dmx_port", name="DMX port", desc="dmx串口"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("/dev/RS485_0")
                     with builder.CHILD(key="updateIntervalSec", name="Update Interval", desc="状态刷新周期(秒)"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.1, min_value=0.02, max_value=2.0)
@@ -145,6 +148,7 @@ class ConfigParams:
     @classmethod
     def reload(cls) -> None:
         cfg = script_param.loadConfig()
+        cls.dmx_port = str(cfg.get("dmx_port", "/dev/RS485_0"))
         cls.update_interval_sec = max(0.02, float(cfg.get("updateIntervalSec", 0.1)))
         cls.resend_interval_sec = max(0.0, float(cfg.get("resendIntervalSec", 2.0)))
         cls.dmx_test_flag = bool(cfg.get("dmxTestFlag", False))
@@ -167,6 +171,7 @@ class ConfigParams:
 
         _safe_trace(
             "[behav_led] config reload: "
+            f"dmx_port={cls.dmx_port} "
             f"update={cls.update_interval_sec:.2f}s resend={cls.resend_interval_sec:.2f}s "
             f"test={cls.dmx_test_flag} charging={cls.show_charging} battery={cls.show_battery} "
             f"back_breath={cls.is_back_breath} "
@@ -236,6 +241,7 @@ def robot_config_change_callback(diff_map: Dict[str, Any]) -> None:
 
 def script_config_callback() -> None:
     ConfigParams.reload()
+    _core._rpc.call("setDmxPort", ConfigParams.dmx_port)
 
 
 class Dmx512NativeBehav:
@@ -611,6 +617,7 @@ class Dmx512NativeBehav:
         )
 
     def run(self) -> None:
+        self._rpc.call("setDmxPort", ConfigParams.dmx_port)
         _safe_trace("[behav_led] start running")
         while not _STOP:
             self.tick()
