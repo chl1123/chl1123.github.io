@@ -58,7 +58,7 @@ class CanNative():
         if self.bus_guardT.isTimeUp():
             self.bus_guardT.reset()
             if self.is_bus_off():
-                log.warning(f"[CAN] Detected BUS-OFF state on {self.channel}, performing hard reset.")
+                Trace.log(f"[CAN] Detected BUS-OFF state on {self.channel}, performing hard reset.")
                 self.hard_reset_can()
     # unused filter cuz bus set_filters already done
     #  def can_filter(self, msg):
@@ -83,16 +83,16 @@ class CanNative():
         try:
             self.close()
         except Exception as e:
-            log.warning("Failed to reset CAN bus: {e}")
+             Trace.log("Failed to reset CAN bus: {e}")
 
-        log.warning("[CAN] Resetting CAN interface due to tx buffer full")
+        Trace.log("[CAN] Resetting CAN interface due to tx buffer full")
         self.createCanBus(self.channel,self.bitrate)
         self.attachCanID(*self.can_ids)
         Trace.log(f'[CAN] Config Ok')
         
     def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
         if not self.bus:
-            log.warning("please createCanBus first.")
+            Trace.log("please createCanBus first.")
             return
         try:
             self.bus.send(can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc))

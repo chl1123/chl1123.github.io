@@ -216,7 +216,9 @@ class CanBattery(cb.CanBase):
                     self.clear = False
                     Trace.log('timeout')
                     self.setTimeout()
-                    
+                    # 超时后清掉4个ID标志位, 阻断 judgePublish 继续用旧数据把 status 抬回 RUNNING
+                    self.id1 = self.id2 = self.id3 = self.id4 = False
+
             if self.reset_timeout_t.isTimeUp():
                 Trace.log("No complete data received for an extended period, resetting CAN bus.")
                 self.reset_timeout_t.reset()
@@ -236,5 +238,10 @@ class CanBattery(cb.CanBase):
 
 
 if __name__ == '__main__':
-    client = CanBattery()
-    client.loop()
+    while True:
+        try:
+            client = CanBattery()
+            client.loop()
+        except Exception as e:
+            Trace.log(f"CanBattery crashed: {e!r}, restart in 2s")
+            mu.sleepS(2)
