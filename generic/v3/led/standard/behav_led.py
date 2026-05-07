@@ -151,6 +151,7 @@ class ConfigParams:
     show_charging = True
     show_battery = True
     is_back_breath = False
+    led_dmx_enabled = True
 
     turn_pos = [4, 3, 1, 2]  # 左前/左后/右前/右后
     turn_num = [1, 1, 1, 1]  # 左前/左后/右前/右后
@@ -188,6 +189,9 @@ class ConfigParams:
                     with builder.CHILD(key="isBackBreath", name="Back Breath", desc="后退时显示白色呼吸"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="ledDmxEnabled", name="LED DMX Enabled", desc="是否启用DMX灯效下发"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(True)
                     with builder.CHILD(key="lightTotalNum", name="Light Total Num", desc="灯条总数"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(4)
@@ -237,6 +241,7 @@ class ConfigParams:
         cls.show_charging = bool(cfg.get("showCharging", True))
         cls.show_battery = bool(cfg.get("showBattery", True))
         cls.is_back_breath = bool(cfg.get("isBackBreath", False))
+        cls.led_dmx_enabled = bool(cfg.get("ledDmxEnabled", True))
 
         cls.turn_pos = [
             int(cfg.get("turnPosLeftFront", 4)),
@@ -325,7 +330,14 @@ def robot_config_change_callback(diff_map: Dict[str, Any]) -> None:
 
 def script_config_callback() -> None:
     ConfigParams.reload()
-    _core._rpc.call("setDmxPort", ConfigParams.dmx_port)
+    apply_runtime_config()
+
+
+def apply_runtime_config() -> None:
+    rpc = _core.get_rpc()
+    rpc.call("setDmxPort", ConfigParams.dmx_port)
+    rpc.call("setLightTotalNum", int(ConfigParams.light_total_num))
+    rpc.call("setLedDmxEnabled", bool(ConfigParams.led_dmx_enabled))
 
 
 class Dmx512NativeBehav:
@@ -710,7 +722,7 @@ class Dmx512NativeBehav:
         )
 
     def run(self) -> None:
-        self._rpc.call("setDmxPort", ConfigParams.dmx_port)
+        apply_runtime_config()
         _safe_trace("[behav_led] start running")
         while not _STOP:
             self.tick()
