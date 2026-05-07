@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/20
+# @Date : 2026/5/7
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add: 1.放货适配二次调整随动 2.顶升高度超限做clamp
+# @Update : add: 增加底盘角度旋转、托盘对齐、料架角度的处理；增加空载起步前的托盘对齐
 
 
 import json
@@ -1223,7 +1223,6 @@ class Jack(ModuleBase):
         # set_info数据打印
         self._last_logged_action_id = None
         self.info_count = 0
-        self.jack_spin = None
         self.jack_height = None
         self.jack_emc = None
         self.jack_isFull = None
@@ -1865,6 +1864,11 @@ class Jack(ModuleBase):
         move_task = Navigation.moveTask()
         return move_task.get("targetName", None)
 
+    def _should_auto_spin_for_wide_side(self):
+        if not config_params.spin_motor_name:
+            return False
+        return self.insert_shelf_dir in ("B", "D")
+
     def _get_script_stage(self):
         """从moveTask的params中获取scriptStage，默认返回2"""
         move_task = Navigation.moveTask()
@@ -1919,6 +1923,10 @@ class Jack(ModuleBase):
             Trace.log(f"jack_load: beforeJack spin -> {math.degrees(self.jack_spin_angle_rad):.1f}deg (robot frame)")
             self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None,
                                          deduct_info=self.laser_area_deduct_info))
+        elif self._should_auto_spin_for_wide_side():
+            Trace.log("jack_load: 宽边进(B/D)自动旋转顶升盘90°")
+            self.action_list.append(Spin(math.radians(90), "robot", None,
+                                         deduct_info=self.laser_area_deduct_info))
 
         # 顶升
         self.action_list.append(
@@ -1947,6 +1955,13 @@ class Jack(ModuleBase):
                 Navigation.setTaskError("53351", "车上已有货物，不可重复取货。如需重复取货请关闭 LoadAgainError，或先执行 JackUnload")
                 self.status = ScriptStatus.FAILED
                 return
+
+            # === 取货前检测顶升盘是否与车体对齐，未对齐则先回正 ===
+            if config_params.spin_motor_name:
+                _cur_spin = Motor.getMotorPos(config_params.spin_motor_name)
+                if _cur_spin is not None and abs(_cur_spin) > math.radians(1):
+                    debug_trace(f"jack_load: 顶升盘未对齐，当前角度 {math.degrees(_cur_spin):.1f}°，先回正到0°")
+                    self.action_list.append(Spin(0, "robot"))
 
             # === 初始化时解析并设置扣除区域配置 ===
             if self.recfile:
@@ -2316,6 +2331,9 @@ class Jack(ModuleBase):
         self.jack_isFull = Navigation.hasGoods()
         self.jack_emc = Controller.getEmc()
         self.jack_height = Motor.getMotorPos(config_params.jack_motor_name)
+        spin_angle_rad = None
+        if config_params.spin_motor_name:
+            spin_angle_rad = Motor.getMotorPos(config_params.spin_motor_name)
         self.report_info.update({
             "jackMode": True,
             "jackEnable": True,
@@ -2323,7 +2341,7 @@ class Jack(ModuleBase):
             "jackEmc": self.jack_emc,
             "jackIsFull": self.jack_isFull,
             "jackHeight": self.jack_height,
-            "jackSpin": self.jack_spin,
+            "jackSpin": spin_angle_rad,
             "containers": Container.getContainers()
         })
 
@@ -2715,12 +2733,13 @@ class Spin(BaseAction):
             Motor.resetMotor(config_params.spin_motor_name)
             # 记录 spin 开始时的电机角度，作为旋转基准
             self._initial_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
+            spin_dir = self.dir if self.dir is not None else 0
             if self.coordinate_system == "robot":
                 Trace.log("setRobotSpinAngle")
-                Navigation.setRobotSpinAngle(self.angle, self.dir)
+                Navigation.setRobotSpinAngle(self.angle, spin_dir)
             elif self.coordinate_system == "world":
                 Trace.log("setGlobalSpinAngle")
-                Navigation.setGlobalSpinAngle(self.angle, self.dir)
+                Navigation.setGlobalSpinAngle(self.angle, spin_dir)
             elif self.coordinate_system == "increase":
                 Trace.log("setIncreaseSpinAngle")
                 Navigation.setIncreaseSpinAngle(self.angle)
