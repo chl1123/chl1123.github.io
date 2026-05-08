@@ -52,3 +52,8 @@ class BehavRpc(object):
         """通用 setAction 通道派发。"""
         action = json.dumps(payload_dict, sort_keys=True)
         return self.call("setAction", channel, action)
+
+    def close(self):
+        """释放底层 ServiceClient 引用，便于进程退出前清理。"""
+        self._client = None
+        self._use_ecal = False

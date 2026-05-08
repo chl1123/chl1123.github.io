@@ -14,6 +14,7 @@ _ecal_sub = None
 _rpc = None
 _running = True
 _ecal_initialized = False
+_shutdown_done = False
 
 
 def _get_unit_name():
@@ -65,10 +66,30 @@ def is_running():
 
 
 def stop():
-    global _running
+    global _running, _shutdown_done, _ecal_initialized, _ecal_sub, _rpc
+    if _shutdown_done:
+        return
+    _shutdown_done = True
     _running = False
     if _ecal_sub is not None:
-        _ecal_sub.close()
+        try:
+            _ecal_sub.close()
+        except Exception:
+            pass
+        _ecal_sub = None
+    if _rpc is not None:
+        try:
+            _rpc.close()
+        except Exception:
+            pass
+        _rpc = None
+    try:
+        import ecal.nanobind_core as ecal_core
+        if _ecal_initialized and ecal_core.ok():
+            ecal_core.finalize()
+    except Exception:
+        pass
+    _ecal_initialized = False
 
 
 def _handle_signal(_signum, _frame):
@@ -83,3 +104,6 @@ for _sig_name in ("SIGINT", "SIGTERM"):
             signal.signal(_sig, _handle_signal)
         except Exception:
             pass
+
+
+atexit.register(stop)
