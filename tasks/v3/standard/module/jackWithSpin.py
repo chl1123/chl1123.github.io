@@ -3655,11 +3655,6 @@ class PGVSecondaryAdjust(BaseAction):
             self.reset()
             self._build_static_params(j)
 
-        # multiLine 模式：每帧刷新圆心偏移（来自当前读码偏差）
-        if (self.code_adjust_type == "singleCode"
-                and self.position_adjust_type == "multiLine"):
-            self._refresh_multiline_cx(j.code_info.get("tag_diff_x", 0.0))
-
         self.action_status = Navigation.goPGVRun(self.adjust_param)
 
         j.report_info["PGVSecondaryAdjust"] = {
@@ -3732,21 +3727,14 @@ class PGVSecondaryAdjust(BaseAction):
         # ---- positionAdjustType ----
         pos = self.position_adjust_type
         if pos == "frontAndBack":
-            # ignoreAngle → pgvXAdjust；其他 → pgvXAngleAdjust
             if angle == "ignoreAngle":
                 p['pgvXAdjust'] = True
             else:
                 p['pgvXAngleAdjust'] = True
-
         elif pos == "multiLine":
-            # adjustRegion 解析：取第一个元素 points 数组，计算 X 最大/最小值
-            cx, dist = self._parse_adjust_region(self.adjust_region)
-            p['pgvAdjustCx'] = cx
-            p['pgvAdjustDist'] = dist
-            p['pgvAdjustCy'] = 0.0
-            # lineAngleThreshold: 控制来回运动时的最大旋转角度范围
-            # UI 单位为 deg，底层接口需要 rad
-            p['lineAngleThreshold'] = math.radians(self.line_angle_threshold)
+            # adjustRegion / lineAngleThreshold 只放在 policy 中,
+            # 底层会自动解析并生成 pgvAdjustCx、pgvAdjustDist、pgvAdjustCy
+            pass
 
     def _build_codestrip_params(self):
         """codeNumber（码带）模式参数构建（文档 §3 codeNumber）。"""
@@ -3772,68 +3760,38 @@ class PGVSecondaryAdjust(BaseAction):
         """构建 policy JSON 传给 goPGVRun。"""
         policy = {
             "codeAdjustType": self.code_adjust_type,
-            "scanDevice": self.scan_device,
         }
 
         if self.code_adjust_type == "singleCode":
+            single_code = {
+                "scanDevice": self.scan_device,
+            }
             if self.code_number:
-                policy["codeNumber"] = self.code_number
+                single_code["codeNumber"] = self.code_number
             if self.angle_adjust_type:
-                policy["angleAdjustType"] = self.angle_adjust_type
+                single_code["angleAdjustType"] = self.angle_adjust_type
 
             if self.position_adjust_type == "multiLine":
-                policy["positionAdjustType"] = {
-                    "type": "multiLine",
-                    "lineAngleThreshold": math.radians(self.line_angle_threshold),
+                single_code["positionAdjustType"] = "multiLine"
+                single_code["multiLine"] = {
+                    "lineAngleThreshold": self.line_angle_threshold,
                     "adjustRegion": self.adjust_region,
                 }
             elif self.position_adjust_type == "frontAndBack":
-                policy["positionAdjustType"] = {"type": "frontAndBack"}
+                single_code["positionAdjustType"] = "frontAndBack"
+
+            policy["singleCode"] = single_code
 
         elif self.code_adjust_type == "codeNumber":
+            code_number = {
+                "scanDevice": self.scan_device,
+            }
             if self.angle_adjust_type:
-                policy["angleAdjustType"] = self.angle_adjust_type
+                code_number["angleAdjustType"] = self.angle_adjust_type
+
+            policy["codeNumber"] = code_number
 
         self.adjust_param['policy'] = policy
-
-    # ------------------------------------------------------------------
-    # 内部：multiLine 每帧刷新圆心 X
-    # ------------------------------------------------------------------
-    def _refresh_multiline_cx(self, tag_diff_x: float):
-        """multiLine 模式下每帧用当前读码 X 偏差更新 pgvAdjustCx。"""
-        self.adjust_param['pgvAdjustCx'] = tag_diff_x
-
-    # ------------------------------------------------------------------
-    # 内部：解析 adjustRegion JSON 字符串 → (cx, dist)
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _parse_adjust_region(region_str: str):
-        """
-        解析 adjustRegion JSON 字符串，返回 (pgvAdjustCx, pgvAdjustDist)。
-
-        文档逻辑：
-          max_x = max(points[*].x)
-          min_x = min(points[*].x)
-          pgvAdjustCx   = (max_x + min_x) / 2
-          pgvAdjustDist = |max_x - min_x| / 2
-        """
-        if not region_str:
-            Trace.log("PGVSecondaryAdjust: adjustRegion is empty, using (cx=0, dist=0.2)")
-            return 0.0, 0.2
-
-        try:
-            region_data = json.loads(region_str)
-            points = region_data[0].get("points", [])
-            x_values = [pt["x"] for pt in points]
-            max_x = max(x_values)
-            min_x = min(x_values)
-            cx = (max_x + min_x) / 2.0
-            dist = abs(max_x - min_x) / 2.0
-            Trace.log(f"PGVSecondaryAdjust: adjustRegion parsed → cx={cx:.4f}, dist={dist:.4f}")
-            return cx, dist
-        except Exception as e:
-            Trace.log(f"PGVSecondaryAdjust: adjustRegion parse error: {e}, using (cx=0, dist=0.2)")
-            return 0.0, 0.2
 
     def reset(self):
         debug_trace("reset PGV secondary adjustment")
@@ -3942,8 +3900,10 @@ class PGVCodeStripAdjust(BaseAction):
 
         self.adjust_param['policy'] = {
             "codeAdjustType": "codeNumber",
-            "scanDevice": "",
-            "angleAdjustType": self.angle_adjust_type,
+            "codeNumber": {
+                "scanDevice": "",
+                "angleAdjustType": self.angle_adjust_type,
+            },
         }
 
     def reset(self):
