@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/4/20
+# @Date: 2026/5/7
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: fix：移除多余的abnormal接口，改为标零状态判定
+# @Update: 重构状态机
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -14,6 +14,7 @@ import json
 import math
 import random
 import time
+from datetime import datetime
 from typing import List
 
 from syspy.utils.time import Timer
@@ -27,11 +28,6 @@ from standard.goPath import GoPath
 
 log = Logger("ContainerRobot")
 param_loader = ScriptParam(__file__)
-
-# ============================================================================
-# Debug 日志辅助
-# ============================================================================
-from datetime import datetime
 
 
 def _get_timestamp():
@@ -127,10 +123,6 @@ class ConfigParams:
         cls.left_finger_up_do = do_list[1]  # 左开
         cls.right_finger_down_do = do_list[2]  # 右关
         cls.right_finger_up_do = do_list[3]  # 右开
-
-        # # 拨指 DI - 先打印看返回格式
-        # finger_di = RobotParam.getDevice("Model-000", f"{base}.fingerDI")
-        # print(f"[DEBUG] fingerDI raw value: {finger_di}, type: {type(finger_di)}")
 
     @classmethod
     def _build_and_load_config(cls):
@@ -705,13 +697,6 @@ class MotorRun:
         self.state = dict()
 
     def run(self, vel=0., pos=0., max_vel=0.):
-        """
-        控制电机运转，辊筒电机需传参 vel，线性电机需传参 pos 和 max_vel
-        :param vel: 辊筒电机转速
-        :param pos: 线性电机目标位置
-        :param max_vel: 线性电机最大转速
-        :return:
-        """
         self.status = ScriptStatus.RUNNING
         if self.motor_type == MotorType.LINEAR_MOTOR:
             Motor.setMotorPosition(self.motor_name, pos, max_vel)
@@ -741,144 +726,14 @@ class MotorRun:
 
 
 class RobotRun:
-    """
-    实例化一个 AGV 对象，控制 AGV 移动和操作上层机构
-    """
 
     def __init__(self):
-        self.reach_angle = 0.01  # 路径导航的到点角度精度
-        self.reach_dist = 0.003  # 路径导航的到点精度
-        self.state = dict()  # 记录机器人状态
+        self.reach_angle = 0.01
+        self.reach_dist = 0.003
+        self.state = dict()
         self.init = True
 
-    def lift(self, motor: MotorRun, height: float, max_vel=0.3) -> bool:
-        """
-        控制升降电机
-        :param motor:
-        :param height:
-        :param max_vel:
-        :return:
-        """
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=float(height), max_vel=float(max_vel))
-        return False
-
-    def lift_door(self, motor: MotorRun, height: float, max_vel=0.3) -> bool:
-        """
-        料箱车门架电机
-        :param motor:
-        :param height:
-        :param max_vel:
-        :return:
-        """
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=float(height), max_vel=float(max_vel))
-        return False
-
-    def stretch(self, motor: MotorRun, length: float, max_vel=0.3) -> bool:
-        """
-        控制伸缩机构电机
-        :param motor:
-        :param length:
-        :param max_vel:
-        :return:
-        """
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=float(length), max_vel=float(max_vel))
-        return False
-
-    def rotate(self, motor: MotorRun, length: float, max_vel=0.3) -> bool:
-        """
-        控制旋转机构电机
-        :param motor:
-        :param length:
-        :param max_vel:
-        :return:
-        """
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=float(length), max_vel=float(max_vel))
-        return False
-
-    def roller(self, motor: MotorRun, vel) -> bool:
-        """
-        控制辊筒电机
-        :param motor:
-        :param vel:
-        :return:
-        """
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(vel=vel)
-        return False
-
-    def jack(self, motor: MotorRun, height: float, max_vel=0.3):
-        """
-        控制顶升电机
-        :param motor:
-        :param height:
-        :param max_vel:
-        :return:
-        """
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            # motor.reset()   # 适配多电机顶升同步顶升
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=height, max_vel=max_vel)
-        return False
-
     def run_motor(self, motor: MotorRun, pos=0, vel=0.3, max_vel=0.3, reach_di=-1):
-        """
-        @param motor: Motor类实例对象
-        @param pos: 位置模式下电机运动的目标位置
-        @param vel: 速度模式下电机运动的目标速度
-        @param max_vel: 电机运动的最大速度
-        @param reach_di: 到位 DI
-        @return: 电机运行到位返回True, 否则返回False
-        """
         motor.stop_di = reach_di
         self.state[f'{motor.motor_name}'] = motor.state
         if motor.status == ScriptStatus.NONE:
@@ -952,24 +807,17 @@ class ContainerRobot(ModuleBase):
         self.lift_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.lift_motor_name, -1)
         self.stretch_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.stretch_motor_name, -1)
         self.rotate_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.rotate_motor_name, -1)
-        self.load_step = [False] * 16
-        self.unload_step = [False] * 16
-        self.change_step = [False] * 10
-        self.rec_box_lift_step = [False] * 5
-        self.zero_step = [False] * 4
+        self.action_list = []
+        self.action_id = 0
+        self.cur_action_list = []
+        self.operation_init = False
         self.calib_step = [False] * 3
-        self.opt_step = [False] * 10
         self.yaw_adjust = 0
         self.rec_res = None
         self.rec_id = None
         self.rec_box_lift = None
         self.finger_open_start = False
         self.pre_finger = None
-
-        self.in_take_step = [False] * 20
-        self.ex_take_step = [False] * 20
-        self.in_put_step = [False] * 20
-        self.ex_put_step = [False] * 20
 
         self.lift_motor_calib = None
         self.stretch_motor_calib = None
@@ -1079,41 +927,35 @@ class ContainerRobot(ModuleBase):
         if self.motor_calib_state:
             if self.operation is not None and self.operation != 'none':
                 if self.operation == "zero":
-                    if self.zero():
-                        self.status = ScriptStatus.FINISHED
+                    self.do_zero()
                 elif self.operation == "calib":
-                    self.force_calib()
+                    self.do_calib()
                 elif self.operation == "zeroWithLift":
-                    self.lift_height = min(self.lift_real_pos, self.lift_height)
-                    if self.zero(self.lift_height):
-                        self.status = ScriptStatus.FINISHED
+                    self.do_zero_with_lift()
                 elif self.operation == "load":
-                    if self.load():
-                        self.status = ScriptStatus.FINISHED
+                    self.do_load()
                 elif self.operation == "unload":
-                    if self.unload():
-                        self.status = ScriptStatus.FINISHED
+                    self.do_unload()
                 elif self.operation == "recBoxBarcode":
-                    self.rec_box_barcode()
+                    self.do_rec_box_barcode()
                 elif self.operation == "recQrcode":
-                    self.rec_qrcode()
+                    self.do_rec_qrcode()
                 elif self.operation == "takePhoto":
-                    self.take_photo()
+                    self.do_take_photo()
                 elif self.operation == "inTake":
-                    if self.in_take():
-                        self.status = ScriptStatus.FINISHED
+                    self.do_in_take()
                 elif self.operation == "inPut":
-                    if self.in_put():
-                        self.status = ScriptStatus.FINISHED
+                    self.do_in_put()
                 elif self.operation == "exTake":
-                    if self.ex_take():
-                        self.status = ScriptStatus.FINISHED
+                    self.do_ex_take()
                 elif self.operation == "exPut":
-                    if self.ex_put():
-                        self.status = ScriptStatus.FINISHED
+                    self.do_ex_put()
                 else:
                     Navigation.setTaskError("53703", f"脚本输入参数错误!")
                     self.status = ScriptStatus.FAILED
+
+                if self.operation != "calib" and self.status != ScriptStatus.FAILED:
+                    self._execute_actions()
             else:
                 if "finger" in self.script_args:
                     if self.finger(self.finger_pos):
@@ -1138,8 +980,8 @@ class ContainerRobot(ModuleBase):
                         if self.rec_barcode():
                             self.status = ScriptStatus.FINISHED
                     elif self.code_type == "code":
-                        if self.rec_qrcode():
-                            self.status = ScriptStatus.FINISHED
+                        self.do_rec_qrcode()
+                        self._execute_actions()
         self.update_report_info()
         self.report_info['scriptArgs'] = self.script_args
         self.report_info['scriptStartTime'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self.start_time))
@@ -1155,7 +997,6 @@ class ContainerRobot(ModuleBase):
         self.report_info['containers'] = self.containers
         self.report_info['motorInfo'] = self.container_robot.state or -1
         if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
-            # r.disableMotor(ConfigParams.lift_motor_name)
             NetProtocol.release()
             Do.setDo(self.fill_light_do, False)
             Trace.log(f"script finished: {json.dumps(self.report_info)}")
@@ -1279,6 +1120,8 @@ class ContainerRobot(ModuleBase):
         Recognize.resetRec()
         self.close_finger()
         Do.setDo(self.fill_light_do, False)
+        self.action_list = []
+        self.action_id = 0
         self.status = ScriptStatus.FAILED
         Trace.log("carton cancel")
 
@@ -1293,26 +1136,305 @@ class ContainerRobot(ModuleBase):
             if p['key'] == '#containerId' and p['stringValue'] != "":
                 self.self_position = p['stringValue']
 
-    def zero(self, zero_height=0):
-        """
-        支持指定高度执行标零复位
-        :param zero_height:
-        :return:
-        """
-        Trace.log(f"----- running zero ------")
+    # ============================================================================
+    # 操作方法（每周期调用，内部用 operation_init 只构建一次动作队列）
+    # ============================================================================
+    def do_zero(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_zero_actions()
 
-        if not self.zero_step[0]:
-            self.zero_step[0] = Container.hasGoods("999") or self.finger(1)
-        elif self.zero_step[0] and not self.zero_step[1]:
-            self.zero_step[1] = self.stretch(0)
-        elif self.zero_step[1] and not self.zero_step[2]:
-            self.zero_step[2] = self.rotate(0)
-        elif self.zero_step[2] and not self.zero_step[3]:
-            self.zero_step[3] = self.lift(zero_height)
-        Trace.log(f"zero_step:{self.zero_step}")
-        if all(self.zero_step):
-            self.zero_step = [False] * 4
-            # r.release()
+    def do_zero_with_lift(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self.lift_height = min(self.lift_real_pos, self.lift_height)
+            self._build_zero_actions(self.lift_height)
+
+    def do_calib(self):
+        self.force_calib()
+
+    def do_load(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_load_actions()
+
+    def do_unload(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_unload_actions()
+
+    def do_rec_box_barcode(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_rec_box_barcode_actions()
+
+    def do_rec_qrcode(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_rec_qrcode_actions()
+
+    def do_take_photo(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_take_photo_actions()
+
+    def do_in_take(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_in_take_actions()
+
+    def do_in_put(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_in_put_actions()
+
+    def do_ex_take(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_ex_take_actions()
+
+    def do_ex_put(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._build_ex_put_actions()
+
+    # ============================================================================
+    # 动作队列执行
+    # ============================================================================
+    def _execute_actions(self):
+        self.cur_action_list = [a.opt_info for a in self.action_list]
+        if self.action_id < len(self.action_list):
+            current_action = self.action_list[self.action_id]
+            if current_action.action_status == ActionStatus.FINISHED:
+                self.action_id += 1
+            elif current_action.action_status == ActionStatus.FAILED:
+                self.status = ScriptStatus.FAILED
+            else:
+                current_action.run(self)
+            self.report_info["currentAction"] = {
+                "actionId": self.action_id,
+                "totalActions": len(self.action_list),
+                "actionList": self.cur_action_list,
+            }
+        else:
+            self.status = ScriptStatus.FINISHED
+            self.action_list = []
+
+    def _build_zero_actions(self, zero_height=0):
+        Trace.log(f"----- building zero actions ------")
+        if not Container.hasGoods("999"):
+            self.action_list.append(Finger(1))
+        self.action_list.append(Stretch(0))
+        self.action_list.append(Rotate(0))
+        self.action_list.append(Lift(zero_height))
+
+    def _build_rec_box_barcode_actions(self):
+        self.action_list.append(Parallel(Lift(self.lift_height), Rotate(self.rotate_pos)))
+        self.action_list.append(RecBarcodeCheck(self.lift_height, self.goods_id))
+
+    def _build_rec_qrcode_actions(self):
+        self.action_list.append(Parallel(Lift(self.lift_height), Rotate(self.rotate_pos)))
+        self.action_list.append(FillLightAndRec(self.fill_light_do, ConfigParams.light_delay_time))
+        self.action_list.append(RecQrcode(self.rec, self.fill_light_do))
+
+    def _build_take_photo_actions(self):
+        self.action_list.append(Parallel(Lift(self.lift_height), Rotate(self.rotate_pos)))
+        self.action_list.append(TakePhoto(self.fill_light_do, ConfigParams.light_delay_time, ConfigParams.box_code_file))
+
+    def _build_load_actions(self):
+        Trace.log(f"----- building load actions {self.goods_id} ------")
+        if not self.cur_c:
+            if (self.goods_id and Container.goodsExist(self.goods_id) and
+                    Container.getContainerByGoods(self.goods_id) != "999"):
+                Navigation.setTaskError("53714", f"货物{self.goods_id}已存在，请检查是否重复下发任务！")
+                self.status = ScriptStatus.FAILED
+                return
+            if self.self_position:
+                if Container.hasGoods(self.self_position):
+                    Navigation.setTaskError("53715", f"第{int(self.self_position) + 1}层({self.self_position}号)背篓已有货物，无法继续取货！请核对任务数据和背篓数据！")
+                    self.status = ScriptStatus.FAILED
+                    return
+                self.cur_c = self.self_position
+            else:
+                self.cur_c = self.search_operable_container('load')
+            Trace.log(f"load begin: {json.dumps(self.containers)}")
+            if self.cur_c is None:
+                Navigation.setTaskError("53716", f"车体所有背篓已满，无法继续取货！")
+                self.status = ScriptStatus.FAILED
+                return
+            if Container.hasGoods("999") and Container.getGoodsByContainer("999") == self.goods_id:
+                # 货叉已有目标货物，跳过外部取货阶段
+                self._build_load_internal_put(self.cur_c)
+                return
+            elif Container.hasGoods("999"):
+                Navigation.setTaskError("53717", f"货叉（999号）已载货，无法执行取货任务！请核对任务数据和背篓数据！")
+                self.status = ScriptStatus.FAILED
+                return
+
+        # 外部取货阶段
+        self.action_list.append(Parallel(Finger(1), Rotate(self.rotate_pos), Lift(self.lift_height)))
+        if self.barcode_height is not None:
+            self.action_list.append(RecBarcodeCheck(self.barcode_height, self.goods_id))
+        if self.rec_adjust is not None:
+            self.action_list.append(RunRecAdjust(self.rec_adjust, self.fill_light_do, ConfigParams.light_delay_time))
+        self.action_list.append(Lift(self.lift_height + self.load_height))
+        self.action_list.append(CheckFingerDi())
+        self.action_list.append(Stretch(self.stretch_length))
+        self.action_list.append(Finger(0))
+        self.action_list.append(Stretch(0))
+        self.action_list.append(GoodsCheckAndBind("999", self.goods_id, ConfigParams.goods_check_di))
+        # 内部放货阶段
+        self._build_load_internal_put(self.cur_c)
+
+    def _build_load_internal_put(self, cur_c):
+        if cur_c == "999":
+            self.action_list.append(Parallel(Rotate(0), LiftSafeHeight()))
+        else:
+            self.action_list.append(Parallel(Rotate(0), Lift(ConfigParams.high[int(cur_c)])))
+            self.action_list.append(Stretch(ConfigParams.stretch_self_length))
+            self.action_list.append(Finger(1))
+            self.action_list.append(Stretch(0))
+            self.action_list.append(Finger(0))
+            self.action_list.append(LiftSafeHeight())
+        self.action_list.append(UnbindContainer("999"))
+        self.action_list.append(BindContainer(cur_c, self.goods_id))
+
+    def _build_unload_actions(self):
+        Trace.log(f"----- building unload actions ------")
+        if not self.cur_c:
+            if self.self_position:
+                if Container.getGoodsByContainer(self.self_position) != self.goods_id:
+                    Navigation.setTaskError("53721", f"{int(self.self_position) + 1}层({self.self_position}号)背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！")
+                    self.status = ScriptStatus.FAILED
+                    return
+                if not Container.hasGoods(self.self_position):
+                    Navigation.setTaskError("53722", f"{int(self.self_position) + 1}层({self.self_position}号)背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！")
+                    self.status = ScriptStatus.FAILED
+                    return
+                if self.self_position != "999" and Container.hasGoods("999"):
+                    Navigation.setTaskError("53723", f"货叉（999号）已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！")
+                    self.status = ScriptStatus.FAILED
+                    return
+                self.cur_c = self.self_position
+            else:
+                if Container.hasGoods("999"):
+                    self.cur_c = "999"
+                    if Container.getGoodsByContainer("999") != self.goods_id:
+                        Navigation.setTaskError("53724", f"货叉（999号）已载货，无法先执行背篓的放货任务，必须优先释放货叉的货物！")
+                        self.status = ScriptStatus.FAILED
+                        return
+                else:
+                    self.cur_c = Container.getContainerByGoods(self.goods_id)
+            if not self.cur_c:
+                Navigation.setTaskError("53725", f"背篓中不存在货物: {self.goods_id}，无法执行放货任务！请核对任务数据和背篓数据！")
+                self.status = ScriptStatus.FAILED
+                return
+            Trace.log(f"unload begin: {json.dumps(self.containers)}")
+
+        # 内部取货阶段
+        if self.cur_c != "999":
+            self.action_list.append(Parallel(Lift(ConfigParams.low[int(self.cur_c)]), Finger(1), Rotate(0)))
+            self.action_list.append(Stretch(ConfigParams.stretch_self_length))
+            self.action_list.append(Finger(0))
+            self.action_list.append(Stretch(0))
+            self.action_list.append(GoodsCheckAndBind("999", self.goods_id, ConfigParams.goods_check_di))
+            self.action_list.append(UnbindContainer(self.cur_c))
+
+        # 外部放货阶段
+        if self.rec_box_lift:
+            self.action_list.append(RecBoxCheck(self.rec_box, self.fill_light_do, ConfigParams.light_delay_time, self.rec_box_lift, self.rotate_pos))
+        self.action_list.append(Parallel(Lift(self.lift_height), Rotate(self.rotate_pos)))
+        if self.rec_adjust is not None:
+            self.action_list.append(RunRecAdjust(self.rec_adjust, self.fill_light_do, ConfigParams.light_delay_time))
+        self.action_list.append(Lift(self.lift_height + self.unload_height))
+        self.action_list.append(Stretch(self.stretch_length))
+        self.action_list.append(Finger(1))
+        self.action_list.append(Stretch(0))
+        self.action_list.append(Parallel(Finger(0), Rotate(0), LiftSafeHeight()))
+        self.action_list.append(UnbindContainer("999"))
+
+    def _build_in_take_actions(self):
+        if not self.cur_c:
+            self.check_take()
+            if self.status == ScriptStatus.FAILED:
+                return
+        if self.cur_c == "999":
+            return
+        self.action_list.append(Parallel(Finger(1), Lift(ConfigParams.low[int(self.cur_c)]), Rotate(0)))
+        self.action_list.append(Stretch(ConfigParams.stretch_self_length))
+        self.action_list.append(Finger(0))
+        self.action_list.append(Stretch(0))
+        self.action_list.append(Parallel(Rotate(self.rotate_pos), Lift(self.lift_height)))
+        self.action_list.append(UnbindContainer(self.cur_c))
+        self.action_list.append(BindContainer("999", self.goods_id))
+
+    def _build_in_put_actions(self):
+        if not self.cur_c:
+            self.check_put()
+            if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
+                return
+        self.action_list.append(Parallel(Lift(ConfigParams.high[int(self.cur_c)]), Rotate(0)))
+        self.action_list.append(Stretch(ConfigParams.stretch_self_length))
+        self.action_list.append(Finger(1))
+        self.action_list.append(Stretch(0))
+        self.action_list.append(Finger(0))
+        self.action_list.append(LiftSafeHeight())
+        self.action_list.append(UnbindContainer("999"))
+        self.action_list.append(BindContainer(self.cur_c, self.goods_id))
+
+    def _build_ex_take_actions(self):
+        if Container.hasGoods("999"):
+            Navigation.setTaskError("53719", f"检测到货叉（999号）已载货，无法执行外部取货动作！请核对任务数据和背篓数据！")
+            self.status = ScriptStatus.FAILED
+            return
+        Trace.log(f"----- building ex_take actions ------")
+        if self.barcode_height is not None:
+            self.action_list.append(Parallel(Lift(self.barcode_height), Rotate(self.rotate_pos)))
+            self.action_list.append(RecBarcodeCheck(self.barcode_height, self.goods_id))
+        else:
+            self.action_list.append(Rotate(self.rotate_pos))
+        if self.rec_adjust is not None:
+            self.action_list.append(Parallel(Lift(self.lift_height), Rotate(self.rotate_pos)))
+            self.action_list.append(RunRecAdjust(self.rec_adjust, self.fill_light_do, ConfigParams.light_delay_time))
+        self.action_list.append(Lift(self.lift_height + self.load_height))
+        self.action_list.append(Finger(1))
+        self.action_list.append(Stretch(self.stretch_length))
+        self.action_list.append(Finger(0))
+        self.action_list.append(Stretch(0))
+        self.action_list.append(BindContainer("999", self.goods_id))
+
+    def _build_ex_put_actions(self):
+        Trace.log(f"----- building ex_put actions ------")
+        if not Container.hasGoods("999"):
+            self._build_unload_actions()
+            return
+        if self.rec_box_lift:
+            self.action_list.append(RecBoxCheck(self.rec_box, self.fill_light_do, ConfigParams.light_delay_time, self.rec_box_lift, self.rotate_pos))
+        self.action_list.append(Parallel(Lift(self.lift_height), Rotate(self.rotate_pos)))
+        if self.rec_adjust is not None:
+            self.action_list.append(RunRecAdjust(self.rec_adjust, self.fill_light_do, ConfigParams.light_delay_time))
+        self.action_list.append(Lift(self.lift_height + self.unload_height))
+        self.action_list.append(Stretch(self.stretch_length))
+        self.action_list.append(Finger(1))
+        self.action_list.append(Stretch(0))
+        self.action_list.append(Parallel(Finger(0), Rotate(0), LiftSafeHeight()))
+        self.action_list.append(UnbindContainer("999"))
+
+    def zero(self, zero_height=0):
+        """保留用于 safe_move_check 调用"""
+        Trace.log(f"----- running zero ------")
+        if not hasattr(self, '_zero_step'):
+            self._zero_step = [False] * 4
+        if not self._zero_step[0]:
+            self._zero_step[0] = Container.hasGoods("999") or self.finger(1)
+        elif self._zero_step[0] and not self._zero_step[1]:
+            self._zero_step[1] = self.stretch(0)
+        elif self._zero_step[1] and not self._zero_step[2]:
+            self._zero_step[2] = self.rotate(0)
+        elif self._zero_step[2] and not self._zero_step[3]:
+            self._zero_step[3] = self.lift(zero_height)
+        if all(self._zero_step):
+            self._zero_step = [False] * 4
             return True
         return False
 
@@ -1328,7 +1450,7 @@ class ContainerRobot(ModuleBase):
             Navigation.setTaskError("53705", f"检测到伸缩机构未回零，无法执行升降，请先执行标零复位！")
             self.status = ScriptStatus.FAILED
             return False
-        if self.container_robot.lift(self.lift_motor, height, ConfigParams.lift_motor_speed):
+        if self.container_robot.run_motor(self.lift_motor, pos=height, max_vel=ConfigParams.lift_motor_speed):
             return True
         return False
 
@@ -1420,7 +1542,7 @@ class ContainerRobot(ModuleBase):
         # 手臂伸出且目标位置大于0.1m, 后半段速度减半
         if length > 0.1 and self.stretch_real_pos > length * 0.6:
             temp_motor_speed = ConfigParams.stretch_motor_speed * 0.6
-        if self.container_robot.stretch(self.stretch_motor, length, temp_motor_speed):
+        if self.container_robot.run_motor(self.stretch_motor, pos=length, max_vel=temp_motor_speed):
             return True
         return False
 
@@ -1441,21 +1563,21 @@ class ContainerRobot(ModuleBase):
         else:
             speed = ConfigParams.rotate_motor_speed
 
-        if self.container_robot.rotate(self.rotate_motor, pos, speed):
+        if self.container_robot.run_motor(self.rotate_motor, pos=pos, max_vel=speed):
             return True
         return False
 
     def rec_barcode(self):
         """
         识别一维码
-        @param r:
-        @return:
         """
-        if not self.change_step[0]:
+        if not hasattr(self, '_rec_barcode_light_ready'):
+            self._rec_barcode_light_ready = False
+        if not self._rec_barcode_light_ready:
             Do.setDo(self.fill_light_do, True)
             if Do.getDo(self.fill_light_do):
                 if Timer.delay(ConfigParams.light_delay_time):
-                    self.change_step[0] = True
+                    self._rec_barcode_light_ready = True
         else:
             if self.rec_res and self.rec_res.get("status", 1) == 0:
                 Do.setDo(self.fill_light_do, False)
@@ -1469,568 +1591,6 @@ class ContainerRobot(ModuleBase):
                     Recognize.doRec(ConfigParams.barcode_file, "", "")
                 self.report_info["barCode"] = "None"
             self.report_info["recId"] = self.rec_id
-
-    def rec_box_barcode(self):
-        """
-        指定货叉高度和角度位置识别一维码
-        """
-        if time.time() - self.start_time > 20:
-            Navigation.setTaskError("53712", f"未识别到一维码！请检查相机是否对准了一维码！")
-            self.status = ScriptStatus.FAILED
-        if not self.opt_step[0]:
-            self.opt_step[0] = self.lift(self.lift_height)
-        if not self.opt_step[1]:
-            self.opt_step[1] = self.rotate(self.rotate_pos)
-        if self.opt_step[0] and self.opt_step[1] and not self.opt_step[2]:
-            self.rec_barcode()
-            if self.rec_res and self.rec_res.get("status", 1) == 0:
-                self.report_info["barcode"] = self.rec_res['barCode']
-                self.opt_step[2] = True
-        if all(self.opt_step[0:3]):
-            self.status = ScriptStatus.FINISHED
-
-    def rec_qrcode(self):
-        """
-        指定货叉高度和角度位置识别二维码
-        """
-        if time.time() - self.start_time > 20:
-            Navigation.setTaskError("53713", f"未识别到二维码！请检查相机是否对准了二维码！")
-            self.status = ScriptStatus.FAILED
-        if not self.opt_step[0]:
-            self.opt_step[0] = self.lift(self.lift_height)
-        if not self.opt_step[1]:
-            self.opt_step[1] = self.rotate(self.rotate_pos)
-        if all(self.opt_step[0:2]) and not self.opt_step[2]:
-            Do.setDo(self.fill_light_do, True)
-            if Timer.delay(ConfigParams.light_delay_time):
-                self.opt_step[2] = True
-        if all(self.opt_step[0:3]) and not self.opt_step[3]:
-            if self.rec.status == ScriptStatus.FINISHED:
-                data = {
-                    "containerRobot": {
-                        "locName": self.script_args.get("locName", ""),
-                        "taskId": self.script_args.get("taskId", ""),
-                        "load": {
-                            "lift": self.lift_real_pos + self.rec.result['z'] + ConfigParams.load_rec_lift_diff
-                        },
-                        "unload": {
-                            "lift": self.lift_real_pos + self.rec.result['z']
-                        }
-                    }
-                }
-                NetProtocol.tcpUploadString(json.dumps(data))  # 将数据传递给 Roboshop
-                self.report_info["recQrcodeData"] = data
-                self.rec.reset()
-                Do.setDo(self.fill_light_do, False)
-                self.opt_step[3] = True
-            else:
-                self.rec.run(self)
-
-        if all(self.opt_step[0:4]):
-            self.status = ScriptStatus.FINISHED
-
-    def take_photo(self):
-        """
-        指定货叉高度和角度拍照
-        @param r:
-        @return:
-        """
-        if not self.opt_step[0]:
-            self.opt_step[0] = self.lift(self.lift_height)
-        if not self.opt_step[1]:
-            self.opt_step[1] = self.rotate(self.rotate_pos)
-
-        if all(self.opt_step[0:2]) and not self.opt_step[2]:
-            Do.setDo(self.fill_light_do, True)
-            Recognize.resetRec()  # 重置识别模块
-            if Do.getDo(self.fill_light_do):
-                if Timer.delay(ConfigParams.light_delay_time):
-                    self.opt_step[2] = True
-        else:
-            Recognize.doRec(ConfigParams.box_code_file, "", "")  # 下发拍照指令
-            if Timer.delay(0.5):
-                Do.setDo(self.fill_light_do, False)
-                self.status = ScriptStatus.FINISHED
-
-    def load(self):
-        Trace.log(f"----- running load  {self.goods_id}------")
-        load_info = dict()
-        if not self.cur_c:
-            if (self.goods_id and Container.goodsExist(self.goods_id) and
-                    Container.getContainerByGoods(self.goods_id) != "999"):
-                Navigation.setTaskError("53714", f"货物{self.goods_id}已存在，请检查是否重复下发任务！")
-                self.status = ScriptStatus.FAILED
-            if self.self_position:
-                if Container.hasGoods(self.self_position):
-                    Navigation.setTaskError("53715", f"第{int(self.self_position) + 1}层({self.self_position}号)背篓已有货物，无法继续取货！请核对任务数据和背篓数据！")
-                    self.status = ScriptStatus.FAILED
-                self.cur_c = self.self_position
-            else:
-                self.cur_c = self.search_operable_container('load')
-            Trace.log(f"load begin: {json.dumps(self.containers)}")
-            if self.cur_c is None:  # 车体满载了
-                Navigation.setTaskError("53716", f"车体所有背篓已满，无法继续取货！")
-                self.status = ScriptStatus.FAILED
-                return
-            if Container.hasGoods("999") and Container.getGoodsByContainer("999") == self.goods_id:
-                self.load_step[:9] = [True] * 9
-            elif Container.hasGoods("999"):  # 货叉已载货,但不是目标货物
-                Navigation.setTaskError("53717", f"货叉（999号）已载货，无法执行取货任务！请核对任务数据和背篓数据！")
-                self.status = ScriptStatus.FAILED
-                return
-        else:
-            if not self.load_step[0]:
-                self.load_step[0] = self.finger(1)
-            if not self.load_step[1]:
-                self.load_step[1] = self.rotate(self.rotate_pos)
-            if not self.load_step[2]:
-                self.load_step[2] = self.lift(self.lift_height)
-            elif (self.load_step[0] and self.load_step[1] and self.load_step[2] and
-                  not self.load_step[3]):
-                if self.barcode_height is not None:
-                    self.lift(self.barcode_height)
-                    self.load_step[3] = self.goods_id == self.rec_barcode()
-                else:
-                    self.load_step[3] = True
-            elif self.load_step[3] and not self.load_step[4]:
-                if self.rec_adjust is not None:
-                    if self.light_st_time is None:
-                        Do.setDo(self.fill_light_do, True)
-                        self.light_st_time = time.time()
-                    if time.time() - self.light_st_time > ConfigParams.light_delay_time:
-                        if self.rec_adjust.status is ScriptStatus.FINISHED:
-                            Do.setDo(self.fill_light_do, False)
-                            self.light_st_time = None
-                            self.load_step[4] = True
-                        elif self.rec_adjust.status is ScriptStatus.FAILED:
-                            self.status = ScriptStatus.FAILED
-                        else:
-                            self.rec_adjust.run(self)
-                else:
-                    self.load_height = 0
-                    self.load_step[4] = True
-            elif self.load_step[4] and not self.load_step[5]:
-                self.load_step[5] = self.lift(self.lift_height + self.load_height)
-            elif self.load_step[5] and not self.load_step[6]:
-                if Di.getDi(ConfigParams.left_finger_up_di) and Di.getDi(ConfigParams.right_finger_up_di):
-                    self.load_step[6] = self.stretch(self.stretch_length)
-                else:
-                    Navigation.setTaskError("53718", f"检测到拨指未打开，取消执行伸出动作！请检查拨指及其到位光电是否正常！")
-                    self.status = ScriptStatus.FAILED
-            elif self.load_step[6] and not self.load_step[7]:
-                self.load_step[7] = self.finger(0)
-            elif self.load_step[7] and not self.load_step[8]:
-                self.load_step[8] = self.stretch(0)
-                if self.load_step[8] and Di.getDi(ConfigParams.goods_check_di):
-                    # 手臂收回且光电检测成功时，增加货叉货物数据
-                    Container.bindContainer("999", self.goods_id, "")
-            elif self.load_step[8] and (not self.load_step[9] or not self.load_step[10]):
-                if not self.load_step[9]:
-                    self.load_step[9] = self.rotate(0)
-                if self.cur_c == "999":
-                    self.load_step[:15] = [True] * 15
-                else:
-                    if not self.load_step[10]:
-                        self.load_step[10] = self.lift(ConfigParams.high[int(self.cur_c)])
-            elif self.load_step[9] and self.load_step[10] and not self.load_step[11]:
-                self.load_step[11] = self.stretch(ConfigParams.stretch_self_length)
-            elif self.load_step[11] and not self.load_step[12]:
-                self.load_step[12] = self.finger(1)
-            elif self.load_step[12] and not self.load_step[13]:
-                self.load_step[13] = self.stretch(0)
-            elif self.load_step[13] and not self.load_step[14]:
-                self.load_step[14] = self.finger(0)
-            elif self.load_step[14] and not self.load_step[15]:
-                self.load_step[15] = self.lift_safe_height()
-
-            load_info['curContainer'] = self.cur_c
-            load_info['goodsName'] = self.goods_id
-            load_info['loadStep'] = self.load_step
-            load_info['lift-height'] = self.lift_height
-            load_info['load-height'] = self.load_height
-            load_info['lift-real-height'] = self.lift_real_pos
-            self.report_info["loadInfo"] = load_info
-            if all(self.load_step):
-                # 在完成取货的所有动作后，增加背篓货物数据
-                Container.unbindContainer("999")
-                Container.bindContainer(self.cur_c, self.goods_id, "")
-                return True
-
-    def in_take(self):
-        """
-        内部取货： 从背篓取货到货叉
-        """
-        in_take_info = dict()
-        if not self.cur_c:
-            self.check_take()
-        else:
-            if self.cur_c == "999":
-                self.status = ScriptStatus.FINISHED
-            else:
-                if not self.in_take_step[0]:
-                    self.in_take_step[0] = self.finger(1)
-                if not self.in_take_step[1]:
-                    self.in_take_step[1] = self.lift(ConfigParams.low[int(self.cur_c)])
-                if not self.in_take_step[2]:
-                    self.in_take_step[2] = self.rotate(0)
-                if all(self.in_take_step[0:3]) and not self.in_take_step[3]:
-                    self.in_take_step[3] = self.stretch(ConfigParams.stretch_self_length)
-                elif self.in_take_step[3] and not self.in_take_step[4]:
-                    self.in_take_step[4] = self.finger(0)
-                elif self.in_take_step[4] and not self.in_take_step[5]:
-                    self.in_take_step[5] = self.stretch(0)
-                elif self.in_take_step[5] and not self.in_take_step[6]:
-                    self.in_take_step[6] = self.rotate(self.rotate_pos)
-                if self.in_take_step[5] and not self.in_take_step[7]:
-                    self.in_take_step[7] = self.lift(self.lift_height)
-
-        in_take_info["inTakeStep"] = self.in_take_step[:8]
-        in_take_info["curContainer"] = self.cur_c
-        in_take_info["goodsName"] = self.goods_id
-        self.report_info["inTakeInfo"] = in_take_info
-        if all(self.in_take_step[:8]):
-            Container.unbindContainer(self.cur_c)
-            goods_id = Container.getGoodsByContainer(self.cur_c)
-            Container.bindContainer("999", goods_id, "")
-            return True
-
-    def in_put(self):
-        """
-        内部放货： 从货叉放货到背篓
-        """
-        if not self.cur_c:
-            self.check_put()
-        else:
-            if not self.in_put_step[0]:
-                self.in_put_step[0] = self.lift(ConfigParams.high[int(self.cur_c)])
-            if not self.in_put_step[1]:
-                self.in_put_step[1] = self.rotate(0)
-            if not self.in_put_step[2]:
-                self.in_put_step[2] = True
-            if all(self.in_put_step[0:3]) and not self.in_put_step[3]:
-                self.in_put_step[3] = self.stretch(ConfigParams.stretch_self_length)
-            if all(self.in_put_step[0:4]) and not self.in_put_step[4]:
-                self.in_put_step[4] = self.finger(1)
-            if all(self.in_put_step[0:5]) and not self.in_put_step[5]:
-                self.in_put_step[5] = self.stretch(0)
-            if all(self.in_put_step[0:6]) and not self.in_put_step[6]:
-                self.in_put_step[6] = self.finger(0)
-            if all(self.in_put_step[0:7]) and not self.in_put_step[7]:
-                self.in_put_step[7] = self.lift_safe_height()
-        Trace.log(f"----- running in_put ------")
-        in_put_info = dict()
-        in_put_info["goodsName"] = self.goods_id
-        in_put_info["inPutStep"] = self.in_put_step[:7]
-        self.report_info["inPutInfo"] = in_put_info
-        if all(self.in_put_step[0:8]):
-            goods_id = Container.getGoodsByContainer("999")
-            Container.bindContainer(self.cur_c, goods_id, "")
-            Container.unbindContainer("999")
-            return True
-
-    def ex_take(self):
-        """
-        外部取货： 从货架取货到货叉
-        """
-        if Container.hasGoods("999"):  # 抓斗有货
-            Navigation.setTaskError("53719", f"检测到货叉（999号）已载货，无法执行外部取货动作！请核对任务数据和背篓数据！")
-            self.status = ScriptStatus.FAILED
-            return
-        Trace.log(f"----- running ex_take ------")
-        ex_take_info = dict()
-        if self.barcode_height is not None:
-            if not self.ex_take_step[0]:
-                self.ex_take_step[0] = self.lift(self.barcode_height)
-            if not self.ex_take_step[1]:
-                self.ex_take_step[1] = self.rotate(self.rotate_pos)
-            if all(self.ex_take_step[0:2]) and not self.ex_take_step[2]:
-                self.ex_take_step[2] = self.goods_id == self.rec_barcode()
-        else:
-            self.ex_take_step[0] = True
-            if not self.ex_take_step[1]:
-                self.ex_take_step[1] = self.rotate(self.rotate_pos)
-            self.ex_take_step[2] = True
-
-        if self.rec_adjust is not None:
-            if not self.change_step[0]:
-                self.change_step[0] = self.lift(self.lift_height)
-            if not self.change_step[1]:
-                self.change_step[1] = self.rotate(self.rotate_pos)
-            if all(self.change_step[0:2]) and not self.change_step[2]:
-                Do.setDo(self.fill_light_do, True)
-                self.rec_adjust.status = ScriptStatus.RUNNING
-                if Do.getDo(self.fill_light_do):
-                    if Timer.delay(ConfigParams.light_delay_time):
-                        self.change_step[2] = True
-            if self.change_step[2] and not self.ex_take_step[3]:
-                if self.rec_adjust.status is ScriptStatus.FINISHED:
-                    Do.setDo(self.fill_light_do, False)
-                    self.ex_take_step[3] = True
-                elif self.rec_adjust.status is ScriptStatus.FAILED:
-                    self.status = ScriptStatus.FAILED
-                else:
-                    self.rec_adjust.run(self)
-        else:
-            self.ex_take_step[3] = True
-
-        if all(self.ex_take_step[0:4]) and not self.ex_take_step[4]:
-            self.ex_take_step[4] = self.lift(self.lift_height + self.load_height)
-            self.ex_take_step[5] = True
-        if all(self.ex_take_step[0:6]) and not self.ex_take_step[6]:
-            self.ex_take_step[6] = self.finger(1)
-        if all(self.ex_take_step[0:7]) and not self.ex_take_step[7]:
-            self.ex_take_step[7] = self.stretch(self.stretch_length)
-        if all(self.ex_take_step[0:8]) and not self.ex_take_step[8]:
-            self.ex_take_step[8] = self.finger(0)
-        if all(self.ex_take_step[0:9]) and not self.ex_take_step[9]:
-            self.ex_take_step[9] = self.stretch(0)
-        # if all(self.ex_take_step[0:10]) and not self.ex_take_step[10]:
-        #     self.ex_take_step[10] = self.rotate(0)
-
-        ex_take_info['goodsName'] = self.goods_id
-        ex_take_info['curContainer'] = self.cur_c
-        ex_take_info['exTakeStep'] = self.ex_take_step[:10]
-        self.report_info["exTakeInfo"] = ex_take_info
-        if all(self.ex_take_step[:10]):
-            Container.bindContainer("999", self.goods_id, "")
-            return True
-
-    def ex_put(self):
-        """
-        外部放货： 从货叉放货到货架
-        """
-        Trace.log(f"----- running ex_put ------")
-        if not Container.hasGoods("999"):  # 抓斗没货
-            return self.unload()
-
-        ex_put_info = dict()
-        if self.rec_box_lift:  # 识别货架是否有货
-            if not self.ex_put_step[0]:
-                self.ex_put_step[0] = self.lift(self.rec_box_lift)
-            if not self.ex_put_step[1]:
-                self.ex_put_step[1] = self.rotate(self.rotate_pos)
-            if all(self.ex_put_step[0:2]) and not self.ex_put_step[2]:
-                self.rec_box.status = ScriptStatus.RUNNING
-                self.rec_box.is_error = True
-                Do.setDo(self.fill_light_do, True)
-                if Do.getDo(self.fill_light_do):
-                    if Timer.delay(ConfigParams.light_delay_time):
-                        self.ex_put_step[2] = True
-            if all(self.ex_put_step[0:3]) and not self.ex_put_step[3]:
-                if self.rec_box.status is ScriptStatus.FINISHED:
-                    self.rec_box.reset()
-                    self.rec_box.is_error = None
-                    Do.setDo(self.fill_light_do, False)
-                    if self.rec_box.hasGoods and not self.rec_box.goods_out_dist:
-                        Navigation.setTaskError("53720", "检测到货架上已经有货，取消放货动作！请人工核查货架和任务数据！")
-                        self.status = ScriptStatus.FAILED
-                        return
-                    else:
-                        self.ex_put_step[3] = True
-                elif self.rec_box.status is ScriptStatus.FAILED:
-                    Do.setDo(self.fill_light_do, False)
-                    self.ex_put_step[3] = True
-                else:
-                    self.rec_box.run(self)
-        else:
-            self.ex_put_step[0:4] = [True] * 4
-
-        if all(self.ex_put_step[0:4]) and not self.ex_put_step[4]:
-            self.ex_put_step[4] = self.lift(self.lift_height)
-        if all(self.ex_put_step[0:4]) and not self.ex_put_step[5]:
-            self.ex_put_step[5] = self.rotate(self.rotate_pos)
-        if all(self.ex_put_step[0:6]) and not self.ex_put_step[6]:
-            if self.rec_adjust is not None:
-                if not self.change_step[0]:
-                    Do.setDo(self.fill_light_do, True)
-                    self.rec_adjust.status = ScriptStatus.RUNNING
-                    if Do.getDo(self.fill_light_do):
-                        if Timer.delay(ConfigParams.light_delay_time):
-                            self.change_step[0] = True
-                else:
-                    if self.rec_adjust.status is ScriptStatus.FINISHED:
-                        Do.setDo(self.fill_light_do, False)
-                        self.ex_put_step[6] = True
-                    elif self.rec_adjust.status is ScriptStatus.FAILED:
-                        self.status = ScriptStatus.FAILED
-                    else:
-                        self.rec_adjust.run(self)
-            else:
-                self.ex_put_step[6] = True
-        if all(self.ex_put_step[0:7]) and not self.ex_put_step[7]:
-            self.ex_put_step[7] = self.lift(self.lift_height + self.unload_height)
-        if all(self.ex_put_step[0:8]) and not self.ex_put_step[8]:
-            self.ex_put_step[8] = self.stretch(self.stretch_length)
-        if all(self.ex_put_step[0:9]) and not self.ex_put_step[9]:
-            self.ex_put_step[9] = self.finger(1)
-        if all(self.ex_put_step[0:10]) and not self.ex_put_step[10]:
-            self.ex_put_step[10] = self.stretch(0)
-        if all(self.ex_put_step[0:11]) and not self.ex_put_step[11]:
-            self.ex_put_step[11] = self.rotate(0)
-        if all(self.ex_put_step[0:11]) and not self.ex_put_step[12]:
-            self.ex_put_step[12] = self.finger(0)
-        if all(self.ex_put_step[0:12]) and not self.ex_put_step[13]:
-            self.ex_put_step[13] = self.lift_safe_height()
-
-        ex_put_info["exPutStep"] = self.ex_put_step[:13]
-        ex_put_info["goodsName"] = self.goods_id
-        self.report_info["exPutInfo"] = ex_put_info
-        if all(self.ex_put_step[:14]):
-            Container.unbindContainer("999")
-            return True
-
-    def unload(self):
-        Trace.log(f"----- running unload ------")
-        unload_info = dict()
-
-        if not self.cur_c:
-            if self.self_position:
-                if Container.getGoodsByContainer(self.self_position) != self.goods_id:
-                    Navigation.setTaskError("53721", f"{int(self.self_position) + 1}层({self.self_position}号)背篓中的货物Id与任务的货物ID({self.goods_id})不匹配！请核对任务数据和背篓数据！")
-                    self.status = ScriptStatus.FAILED
-                if not Container.hasGoods(self.self_position):
-                    Navigation.setTaskError("53722", f"{int(self.self_position) + 1}层({self.self_position}号)背篓是空的，无法执行放货任务！请核对任务数据和背篓数据！")
-                    self.status = ScriptStatus.FAILED
-                if self.self_position != "999" and Container.hasGoods("999"):
-                    # r.setError(f"料斗已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！")
-                    Navigation.setTaskError("53723", f"货叉（999号）已载货，无法执行背篓的放货任务！请核对任务数据和背篓数据！")
-                    self.status = ScriptStatus.FAILED
-                self.cur_c = self.self_position
-            else:
-                if Container.hasGoods("999"):  # 抓斗有货
-                    self.cur_c = "999"
-                    if Container.getGoodsByContainer("999") != self.goods_id:
-                        # r.setError(f"料斗已载货，无法先执行背篓的放货任务，必须优先释放料斗的货物！")
-                        Navigation.setTaskError("53724", f"货叉（999号）已载货，无法先执行背篓的放货任务，必须优先释放货叉的货物！")
-                        self.status = ScriptStatus.FAILED
-                        return
-                else:
-                    self.cur_c = Container.getContainerByGoods(self.goods_id)
-
-            if not self.cur_c:
-                Navigation.setTaskError("53725", f"背篓中不存在货物: {self.goods_id}，无法执行放货任务！请核对任务数据和背篓数据！")
-                self.status = ScriptStatus.FAILED
-                return
-            Trace.log(f"unload begin: {json.dumps(self.containers)}")
-        else:
-            if self.cur_c == "999":
-                self.unload_step[:6] = [True] * 6
-            else:
-                if not self.unload_step[0] or not self.unload_step[1] or not self.unload_step[2]:
-                    if not self.unload_step[0]:
-                        self.unload_step[0] = self.lift(ConfigParams.low[int(self.cur_c)])
-                    if not self.unload_step[1]:
-                        self.unload_step[1] = self.finger(1)
-                    if not self.unload_step[2]:
-                        self.unload_step[2] = self.rotate(0)
-                elif self.unload_step[1] and self.unload_step[2] and not self.unload_step[3]:
-                    self.unload_step[3] = self.stretch(ConfigParams.stretch_self_length)
-                elif self.unload_step[3] and not self.unload_step[4]:
-                    self.unload_step[4] = self.finger(0)
-                elif self.unload_step[4] and not self.unload_step[5]:
-                    if all(self.unload_step[:6]) and (not self.unload_step[6] or not self.unload_step[7]):
-                        if not self.unload_step[6]:
-                            self.unload_step[6] = self.lift(self.lift_height)
-                        if not self.unload_step[7]:
-                            self.unload_step[7] = self.rotate(self.rotate_pos)
-                    self.unload_step[5] = self.stretch(0)
-                    if self.unload_step[5] and Di.getDi(ConfigParams.goods_check_di):
-                        goods_id = Container.getGoodsByContainer(self.cur_c)
-                        Container.bindContainer("999", goods_id, "")
-                        Container.unbindContainer(self.cur_c)
-
-            if all(self.unload_step[:6]) and (not self.unload_step[6] or not self.unload_step[7]):
-                if self.rec_box_lift:
-                    if not self.unload_step[6]:
-                        if not self.rec_box_lift_step[0]:
-                            self.rec_box_lift_step[0] = self.rotate(self.rotate_pos)
-                        if not self.rec_box_lift_step[1]:
-                            self.rec_box_lift_step[1] = self.lift(self.rec_box_lift)
-                        if self.rec_box_lift_step[0] and self.rec_box_lift_step[1]:
-                            self.unload_step[6] = True
-                    if not self.unload_step[7] and self.unload_step[6]:
-                        if self.rec_box is not None:
-                            if not self.rec_box_lift_step[2]:
-                                self.rec_box.status = ScriptStatus.RUNNING
-                                self.rec_box.is_error = True
-                                Do.setDo(self.fill_light_do, True)
-                                if Do.getDo(self.fill_light_do):
-                                    if Timer.delay(ConfigParams.light_delay_time):
-                                        self.rec_box_lift_step[2] = True
-                            if not self.rec_box_lift_step[3] and self.rec_box_lift_step[2]:
-                                if self.rec_box.status is ScriptStatus.FINISHED:
-                                    self.rec_box.reset()
-                                    self.rec_box.is_error = None
-                                    Do.setDo(self.fill_light_do, False)
-                                    if self.rec_box.hasGoods and not self.rec_box.goods_out_dist:
-                                        Navigation.setTaskError("53726", "检测到货架上有货，取消放货动作！")
-                                        self.status = ScriptStatus.FAILED
-                                        return
-                                    else:
-                                        self.rec_box_lift_step[3] = True
-                                elif self.rec_box.status is ScriptStatus.FAILED:
-                                    Do.setDo(self.fill_light_do, False)
-                                    self.rec_box_lift_step[3] = True
-                                else:
-                                    self.rec_box.run(self)
-                            if not self.rec_box_lift_step[4] and self.rec_box_lift_step[3]:
-                                self.rec_box_lift_step[4] = self.lift(self.lift_height)
-                            if self.rec_box_lift_step[4]:
-                                self.unload_step[7] = True
-                        else:
-                            self.unload_step[7] = True
-                else:
-                    if not self.unload_step[6]:
-                        self.unload_step[6] = self.lift(self.lift_height)
-                    if not self.unload_step[7]:
-                        self.unload_step[7] = self.rotate(self.rotate_pos)
-            elif self.unload_step[7] and not self.unload_step[8]:
-                if self.rec_adjust is not None:
-                    if not self.change_step[0]:
-                        Do.setDo(self.fill_light_do, True)
-                        self.rec_adjust.status = ScriptStatus.RUNNING
-                        if Do.getDo(self.fill_light_do):
-                            if Timer.delay(ConfigParams.light_delay_time):
-                                self.change_step[0] = True
-                    else:
-                        if self.rec_adjust.status is ScriptStatus.FINISHED:
-                            Do.setDo(self.fill_light_do, False)
-                            self.unload_step[8] = True
-                        elif self.rec_adjust.status is ScriptStatus.FAILED:
-                            self.status = ScriptStatus.FAILED
-                        else:
-                            self.rec_adjust.run(self)
-                else:
-                    self.unload_step[8] = True
-            elif self.unload_step[8] and not self.unload_step[9]:
-                self.unload_step[9] = self.lift(self.lift_height + self.unload_height)
-            elif self.unload_step[9] and not self.unload_step[10]:
-                if self.pre_finger is not None:
-                    self.finger(self.pre_finger)
-                self.unload_step[10] = self.stretch(self.stretch_length)
-            elif self.unload_step[10] and not self.unload_step[11]:
-                self.unload_step[11] = self.finger(1)
-            elif self.unload_step[11] and not self.unload_step[12]:
-                self.unload_step[12] = self.stretch(0)
-            elif self.unload_step[12] and (not self.unload_step[13]
-                                           or not self.unload_step[14]
-                                           or not self.unload_step[15]):
-                if not self.unload_step[13]:
-                    self.unload_step[13] = self.finger(0)
-                if not self.unload_step[14]:
-                    self.unload_step[14] = self.rotate(0)
-                if not self.unload_step[15]:
-                    self.unload_step[15] = self.lift_safe_height()
-
-            unload_info['unloadStep'] = self.unload_step
-            unload_info['curContainer'] = self.cur_c
-            unload_info['goodsName'] = self.goods_id
-            self.report_info["unloadInfo"] = unload_info
-
-        if all(self.unload_step):
-            # 在所有的动作完成后，将自身背篓的获取清除
-            Container.unbindContainer("999")
-            return True
 
     def lift_safe_height(self):
         if self.lift_real_pos > ConfigParams.safe_lift_height:
@@ -2126,7 +1686,7 @@ class ContainerRobot(ModuleBase):
         if self.enable_motor and not self.motor_calib_state:
             self.motor_calib()
 
-        print(f"[safe_move_check] motor_calib 后: motor_calib_state={self.motor_calib_state}")
+        debug_print(f"[safe_move_check] motor_calib 后: motor_calib_state={self.motor_calib_state}")
 
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:          # 标零完成才执行 zero
@@ -2134,7 +1694,7 @@ class ContainerRobot(ModuleBase):
             if zero_result:
                 status = SafeMoveStatus.FINISHED
         else:
-            print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
+            debug_print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
 
         self.setSafeMoveStatus(status)
         Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
@@ -2145,54 +1705,39 @@ class ContainerRobot(ModuleBase):
         """
         从Modbus读取参数并解析
         """
-        print("modbus___________ 读取Modbus数据")
+        debug_print("modbus: 读取Modbus数据")
         args = {}
-        # 1. 读取操作码
         op_data = NetProtocol.getModbusData("4x", 201, 1)
         if op_data:
             operation_code = parseModbus(op_data, 'uint16')
-            print(f"   操作码: {operation_code}")
-            # 根据操作码构建参数
+            debug_print(f"   操作码: {operation_code}")
             if operation_code == 1:
                 args["operation"] = "load"
-                # 读取高度参数
                 height_data = NetProtocol.getModbusData("4x", 202, 2)
                 if len(height_data) >= 2:
                     height = parseModbus(height_data, 'float')
-                    print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
-                    print(f"   解析后高度值: {height:.4f}m")
-                    # 限制在有效范围内
+                    debug_print(f"   高度寄存器值: [{height_data[0]}, {height_data[1]}], 解析: {height:.4f}m")
                     args["height"] = max(0.0, min(0.06, height))
-                    print(f"   设置高度: {args['height']:.4f}m")
             elif operation_code == 2:
                 args["operation"] = "unload"
             elif operation_code == 3:
                 args["operation"] = "spin"
-                # 3. 读取浮点型参数
-                print("读取浮点型参数:")
-                # 读取角度参数
                 angle_data = NetProtocol.getModbusData("4x", 202, 1)
                 if angle_data:
                     angle_raw = parseModbus(angle_data, 'int16')
-                    args["spinAngle"] = angle_raw / 100.0  # 转换为度
-                    print(f"   设置角度: {args['spinAngle']:.2f}度")
+                    args["spinAngle"] = angle_raw / 100.0
+                    debug_print(f"   设置角度: {args['spinAngle']:.2f}度")
                 else:
-                    args["spinAngle"] = 90.0  # 默认角度
-                    print("   使用默认角度")
-
+                    args["spinAngle"] = 90.0
             elif operation_code == 4:
                 args["operation"] = "getCurrentPathProperty"
-                # 4. 读取字符串参数
-                print("读取字符串参数:")
                 str_data = NetProtocol.getModbusData("4x", 202, 4)
                 if str_data:
-                    # 使用parse_modbus函数解析字符串
                     device_name = parseModbus(str_data, 'string', 0, len(str_data))
                     if device_name:
                         args["device"] = device_name
-                        print(f"   设备名称: {device_name}")
-
-            print(f"   操作类型: {args.get('operation', 'unknown')}")
+                        debug_print(f"   设备名称: {device_name}")
+            debug_print(f"   操作类型: {args.get('operation', 'unknown')}")
         return args
 
 
@@ -2334,9 +1879,6 @@ class RecAdjust:
 
                 code2fork = [self.rec.result['x'], self.rec.result['y'], self.rec.result['z'],
                              self.rec.result['yaw']]
-                # code2fork = [self.rec.result['x'], self.rec.result['y'], self.rec.result['yaw']]
-                # fork2robot = [-0, 0, agv.rotate_real_pos]
-                # self.code2robot = Pos2World(code2fork, fork2robot)
 
                 self.diff_height = self.rec.result['z']
                 agv.rec_height_diff = self.rec.result['z']
@@ -2439,6 +1981,370 @@ class RecAdjust:
 
 
 # ============================================================================
+# ActionList 动作队列架构
+# ============================================================================
+class ActionStatus(enum.IntEnum):
+    INIT = 0
+    RUNNING = 1
+    FINISHED = 3
+    FAILED = 4
+
+
+class BaseAction:
+    def __init__(self, action_name=None):
+        self.action_name = action_name or self.__class__.__name__
+        self.start_time = time.time()
+        self.action_status = ActionStatus.INIT
+        self.opt_info = self.__class__.__name__
+
+    def run(self, m):
+        pass
+
+    def reset(self):
+        pass
+
+
+class Parallel(BaseAction):
+    def __init__(self, *actions):
+        super().__init__("Parallel")
+        self.actions = list(actions)
+        self.opt_info = f"Parallel[{', '.join(a.action_name for a in actions)}]"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        all_finished = True
+        for action in self.actions:
+            if action.action_status == ActionStatus.FAILED:
+                self.action_status = ActionStatus.FAILED
+                return
+            if action.action_status != ActionStatus.FINISHED:
+                action.run(m)
+                all_finished = False
+        if all_finished:
+            self.action_status = ActionStatus.FINISHED
+
+
+class Lift(BaseAction):
+    def __init__(self, height):
+        super().__init__("Lift")
+        self.height = height
+        self.opt_info = f"Lift({height})"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if m.lift(self.height):
+            self.action_status = ActionStatus.FINISHED
+        if m.status == ScriptStatus.FAILED:
+            self.action_status = ActionStatus.FAILED
+
+
+class Rotate(BaseAction):
+    def __init__(self, angle_rad, max_speed=None):
+        super().__init__("Rotate")
+        self.angle_rad = angle_rad
+        self.max_speed = max_speed
+        self.opt_info = f"Rotate({angle_rad:.3f})"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if m.rotate(self.angle_rad, self.max_speed) if self.max_speed else m.rotate(self.angle_rad):
+            self.action_status = ActionStatus.FINISHED
+        if m.status == ScriptStatus.FAILED:
+            self.action_status = ActionStatus.FAILED
+
+
+class Stretch(BaseAction):
+    def __init__(self, length):
+        super().__init__("Stretch")
+        self.length = length
+        self.opt_info = f"Stretch({length})"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if m.stretch(self.length):
+            self.action_status = ActionStatus.FINISHED
+        if m.status == ScriptStatus.FAILED:
+            self.action_status = ActionStatus.FAILED
+
+
+class Finger(BaseAction):
+    def __init__(self, pos):
+        super().__init__("Finger")
+        self.pos = pos
+        self.opt_info = f"Finger({pos})"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if m.finger(self.pos):
+            self.action_status = ActionStatus.FINISHED
+        if m.status == ScriptStatus.FAILED:
+            self.action_status = ActionStatus.FAILED
+
+
+class LiftSafeHeight(BaseAction):
+    def __init__(self):
+        super().__init__("LiftSafeHeight")
+        self.opt_info = "LiftSafeHeight"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if m.lift_safe_height():
+            self.action_status = ActionStatus.FINISHED
+        if m.status == ScriptStatus.FAILED:
+            self.action_status = ActionStatus.FAILED
+
+
+class CheckFingerDi(BaseAction):
+    def __init__(self):
+        super().__init__("CheckFingerDi")
+        self.opt_info = "CheckFingerDi"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if Di.getDi(ConfigParams.left_finger_up_di) and Di.getDi(ConfigParams.right_finger_up_di):
+            self.action_status = ActionStatus.FINISHED
+        else:
+            self.action_status = ActionStatus.FAILED
+            m.status = ScriptStatus.FAILED
+
+
+class RunRecAdjust(BaseAction):
+    def __init__(self, rec_adjust_obj, fill_light_do, light_delay):
+        super().__init__("RecAdjust")
+        self.rec_adjust_obj = rec_adjust_obj
+        self.fill_light_do = fill_light_do
+        self.light_delay = light_delay
+        self.light_on_time = None
+        self.light_ready = False
+        self.opt_info = "RecAdjust"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if not self.light_ready:
+            if self.light_on_time is None:
+                Do.setDo(self.fill_light_do, True)
+                self.light_on_time = time.time()
+            if time.time() - self.light_on_time > self.light_delay:
+                self.light_ready = True
+        else:
+            if self.rec_adjust_obj.status is ScriptStatus.FINISHED:
+                Do.setDo(self.fill_light_do, False)
+                self.action_status = ActionStatus.FINISHED
+            elif self.rec_adjust_obj.status is ScriptStatus.FAILED:
+                Do.setDo(self.fill_light_do, False)
+                self.action_status = ActionStatus.FAILED
+                m.status = ScriptStatus.FAILED
+            else:
+                self.rec_adjust_obj.run(m)
+
+
+class RecBarcodeCheck(BaseAction):
+    def __init__(self, barcode_height, goods_id):
+        super().__init__("RecBarcodeCheck")
+        self.barcode_height = barcode_height
+        self.goods_id = goods_id
+        self.lift_done = False
+        self.opt_info = f"RecBarcodeCheck(h={barcode_height})"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if not self.lift_done:
+            if m.lift(self.barcode_height):
+                self.lift_done = True
+        else:
+            result = m.rec_barcode()
+            if result is not None:
+                if self.goods_id == result:
+                    self.action_status = ActionStatus.FINISHED
+                else:
+                    self.action_status = ActionStatus.FAILED
+                    m.status = ScriptStatus.FAILED
+
+
+class RecBoxCheck(BaseAction):
+    def __init__(self, rec_box_obj, fill_light_do, light_delay, lift_height, rotate_pos):
+        super().__init__("RecBoxCheck")
+        self.rec_box_obj = rec_box_obj
+        self.fill_light_do = fill_light_do
+        self.light_delay = light_delay
+        self.lift_height = lift_height
+        self.rotate_pos = rotate_pos
+        self.lift_done = False
+        self.rotate_done = False
+        self.light_ready = False
+        self.light_on_time = None
+        self.opt_info = "RecBoxCheck"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if not self.lift_done:
+            self.lift_done = m.lift(self.lift_height)
+        if not self.rotate_done:
+            self.rotate_done = m.rotate(self.rotate_pos)
+        if self.lift_done and self.rotate_done and not self.light_ready:
+            self.rec_box_obj.status = ScriptStatus.RUNNING
+            self.rec_box_obj.is_error = True
+            Do.setDo(self.fill_light_do, True)
+            if Do.getDo(self.fill_light_do):
+                if self.light_on_time is None:
+                    self.light_on_time = time.time()
+                if time.time() - self.light_on_time > self.light_delay:
+                    self.light_ready = True
+        if self.light_ready:
+            if self.rec_box_obj.status is ScriptStatus.FINISHED:
+                self.rec_box_obj.reset()
+                self.rec_box_obj.is_error = None
+                Do.setDo(self.fill_light_do, False)
+                if self.rec_box_obj.hasGoods and not self.rec_box_obj.goods_out_dist:
+                    Navigation.setTaskError("53726", "检测到货架上有货，取消放货动作！")
+                    self.action_status = ActionStatus.FAILED
+                    m.status = ScriptStatus.FAILED
+                else:
+                    self.action_status = ActionStatus.FINISHED
+            elif self.rec_box_obj.status is ScriptStatus.FAILED:
+                Do.setDo(self.fill_light_do, False)
+                self.action_status = ActionStatus.FINISHED
+            else:
+                self.rec_box_obj.run(m)
+
+
+class GoodsCheckAndBind(BaseAction):
+    def __init__(self, container_id, goods_id, goods_check_di):
+        super().__init__("GoodsCheckAndBind")
+        self.container_id = container_id
+        self.goods_id = goods_id
+        self.goods_check_di = goods_check_di
+        self.opt_info = f"GoodsCheckAndBind({container_id}, {goods_id})"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if Di.getDi(self.goods_check_di):
+            Container.bindContainer(self.container_id, self.goods_id, "")
+        self.action_status = ActionStatus.FINISHED
+
+
+class BindContainer(BaseAction):
+    def __init__(self, container_id, goods_id):
+        super().__init__("BindContainer")
+        self.container_id = container_id
+        self.goods_id = goods_id
+        self.opt_info = f"BindContainer({container_id}, {goods_id})"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        Container.bindContainer(self.container_id, self.goods_id, "")
+        self.action_status = ActionStatus.FINISHED
+
+
+class UnbindContainer(BaseAction):
+    def __init__(self, container_id):
+        super().__init__("UnbindContainer")
+        self.container_id = container_id
+        self.opt_info = f"UnbindContainer({container_id})"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        Container.unbindContainer(self.container_id)
+        self.action_status = ActionStatus.FINISHED
+
+
+class FillLightAndRec(BaseAction):
+    """补光灯开启 + 识别二维码（用于 rec_qrcode / take_photo 等）"""
+    def __init__(self, fill_light_do, light_delay):
+        super().__init__("FillLightAndRec")
+        self.fill_light_do = fill_light_do
+        self.light_delay = light_delay
+        self.light_on_time = None
+        self.opt_info = "FillLightAndRec"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        Do.setDo(self.fill_light_do, True)
+        if Do.getDo(self.fill_light_do):
+            if self.light_on_time is None:
+                self.light_on_time = time.time()
+            if time.time() - self.light_on_time > self.light_delay:
+                self.action_status = ActionStatus.FINISHED
+
+
+class RecQrcode(BaseAction):
+    """识别二维码并上报结果"""
+    def __init__(self, rec_obj, fill_light_do):
+        super().__init__("RecQrcode")
+        self.rec_obj = rec_obj
+        self.fill_light_do = fill_light_do
+        self.opt_info = "RecQrcode"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+        if self.rec_obj.status == ScriptStatus.FINISHED:
+            data = {
+                "containerRobot": {
+                    "locName": m.script_args.get("locName", ""),
+                    "taskId": m.script_args.get("taskId", ""),
+                    "load": {
+                        "lift": m.lift_real_pos + self.rec_obj.result['z'] + ConfigParams.load_rec_lift_diff
+                    },
+                    "unload": {
+                        "lift": m.lift_real_pos + self.rec_obj.result['z']
+                    }
+                }
+            }
+            NetProtocol.tcpUploadString(json.dumps(data))
+            m.report_info["recQrcodeData"] = data
+            self.rec_obj.reset()
+            Do.setDo(self.fill_light_do, False)
+            self.action_status = ActionStatus.FINISHED
+        else:
+            self.rec_obj.run(m)
+
+
+class TakePhoto(BaseAction):
+    """拍照动作"""
+    def __init__(self, fill_light_do, light_delay, code_file):
+        super().__init__("TakePhoto")
+        self.fill_light_do = fill_light_do
+        self.light_delay = light_delay
+        self.code_file = code_file
+        self.light_on_time = None
+        self.light_ready = False
+        self.photo_taken = False
+        self.opt_info = "TakePhoto"
+
+    def run(self, m):
+        if self.action_status == ActionStatus.INIT:
+            self.action_status = ActionStatus.RUNNING
+            Do.setDo(self.fill_light_do, True)
+            Recognize.resetRec()
+        if not self.light_ready:
+            if Do.getDo(self.fill_light_do):
+                if self.light_on_time is None:
+                    self.light_on_time = time.time()
+                if time.time() - self.light_on_time > self.light_delay:
+                    self.light_ready = True
+        else:
+            Recognize.doRec(self.code_file, "", "")
+            if Timer.delay(0.5):
+                Do.setDo(self.fill_light_do, False)
+                self.action_status = ActionStatus.FINISHED
+
+
+# ============================================================================
 # 脚本内置动作模板定义
 # ============================================================================
 # 添加 "zero" 动作模板（机构回零）
@@ -2537,11 +2443,6 @@ def main():
                     debug_print("check ok, args:", json.dumps(args, indent=2))
                 except ValueError as e:
                     print("check error:", e)
-                # # 调试任务拦截
-                # operation = args.get("operation", "")
-                # if not check_debug_task(operation):
-                #     Navigation.setTaskError("53740", f"任务 '{operation}' 为调试任务，请先在脚本配置中开启 debugMode！")
-                #     continue
                 robot = ContainerRobot()
                 robot.init_script_args(args)
         elif status == ScriptStatus.RUNNING:
