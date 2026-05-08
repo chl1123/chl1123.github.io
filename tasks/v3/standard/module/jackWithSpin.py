@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/7
+# @Date : 2026/5/8
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add: 增加底盘角度旋转、托盘对齐、料架角度的处理；增加空载起步前的托盘对齐
+# @Update : add: 增加底盘角度旋转、托盘对齐、料架角度的处理；增加空载起步前的托盘对齐 feat: 二次调整 codeAdjustType 序列化为json适配
 
 
 import json
@@ -3708,6 +3708,8 @@ class PGVSecondaryAdjust(BaseAction):
                       f"falling back to singleCode")
             self._build_singlecode_params()
 
+        self._build_policy()
+
         Trace.log(f"PGVSecondaryAdjust: built params: {json.dumps(self.adjust_param, indent=2)}")
 
     def _build_singlecode_params(self):
@@ -3762,6 +3764,37 @@ class PGVSecondaryAdjust(BaseAction):
             p['pgvAdjust90'] = True
         elif angle == "ignoreAngle":
             p['pgvXAdjust'] = True
+
+    # ------------------------------------------------------------------
+    # 内部：构建 policy JSON
+    # ------------------------------------------------------------------
+    def _build_policy(self):
+        """构建 policy JSON 传给 goPGVRun。"""
+        policy = {
+            "codeAdjustType": self.code_adjust_type,
+            "scanDevice": self.scan_device,
+        }
+
+        if self.code_adjust_type == "singleCode":
+            if self.code_number:
+                policy["codeNumber"] = self.code_number
+            if self.angle_adjust_type:
+                policy["angleAdjustType"] = self.angle_adjust_type
+
+            if self.position_adjust_type == "multiLine":
+                policy["positionAdjustType"] = {
+                    "type": "multiLine",
+                    "lineAngleThreshold": math.radians(self.line_angle_threshold),
+                    "adjustRegion": self.adjust_region,
+                }
+            elif self.position_adjust_type == "frontAndBack":
+                policy["positionAdjustType"] = {"type": "frontAndBack"}
+
+        elif self.code_adjust_type == "codeNumber":
+            if self.angle_adjust_type:
+                policy["angleAdjustType"] = self.angle_adjust_type
+
+        self.adjust_param['policy'] = policy
 
     # ------------------------------------------------------------------
     # 内部：multiLine 每帧刷新圆心 X
@@ -3906,6 +3939,12 @@ class PGVCodeStripAdjust(BaseAction):
             # 忽略角度，仅调整位置
             self.adjust_param['pgvXAdjust'] = True
             Trace.log("PGVCodeStripAdjust: ignoreAngle -> pgvXAdjust only")
+
+        self.adjust_param['policy'] = {
+            "codeAdjustType": "codeNumber",
+            "scanDevice": "",
+            "angleAdjustType": self.angle_adjust_type,
+        }
 
     def reset(self):
         Trace.log("Reset PGV code strip adjustment")
