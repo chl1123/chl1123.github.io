@@ -402,7 +402,15 @@ class Actions(ModuleBase):
                 pos_x=self.vx*t
                 pos_y=self.vy*t
                 theta=math.atan2(self.vy,self.vx)
-                self.action_list.append(GoPath((pos_x,pos_y,theta),self.mode,max_speed=v))
+                backMode=True if self.vx < 0 else False
+                if math.fabs(theta) < math.pi/2:
+                    pass
+                else:
+                    if theta > 0:
+                        theta=theta-math.pi
+                    else:
+                        theta=math.pi+theta
+                self.action_list.append(GoPath((pos_x,pos_y,theta),self.mode,back_mode=backMode,max_speed=v,max_rot=0))
                 
                 
             elif operation=='rotate':
