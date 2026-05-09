@@ -20,7 +20,7 @@ from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam, BindType, BindItem
 
 param_loader = ScriptParam(__file__)
-from syspy.lib.robot_param import RobotParam
+from syspy.lib.robot import RobotParam
 from syspy.utils import Coordinate
 
 log = Logger("jack")

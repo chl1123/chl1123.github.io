@@ -162,12 +162,27 @@ class RobotParamInterface(ABC, Service):
         raise RBKVersionError()
 
 
+class RobotErrorInterface(ABC, Service):
+
+    @classmethod
+    def setSystemError(cls, key: str, desc: str, clear: bool) -> None:
+        """设置机器人系统错误
+
+        Args:
+            key (str): 错误标识键
+            desc (str): 错误描述和解决方法
+            clear (bool): 错误是否能清除
+        """
+        raise RBKVersionError()
+
+
 from syspy import RBK_VERSION
 if RBK_VERSION == 3:
-    from syspy.v3.lib.robot_param import RobotParamV3
+    from syspy.v3.lib.robot import RobotParamV3, RobotErrorV3
     RobotParam: RobotParamInterface = RobotParamV3()
+    RobotError: RobotErrorInterface = RobotErrorV3()
 elif RBK_VERSION == 4:
-    from syspy.v4.lib.robot_param import RobotParamV4
+    from syspy.v4.lib.robot import RobotParamV4
     RobotParam: RobotParamInterface = RobotParamV4()
 else:
     raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")

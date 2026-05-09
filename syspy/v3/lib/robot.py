@@ -1,16 +1,18 @@
-from typing import Any, Dict, List, Callable
+import time
+from typing import Any, List, Dict, Callable
 from syspy.core.rbk_rpc import default_plugin, call_service, Service
-from syspy.lib.robot_param import RobotParamInterface
+from syspy.lib.robot import RobotParamInterface, RobotErrorInterface
+from ..protobuf.message.message_error_pb2 import msgError
+from google.protobuf import json_format
 
-
-@default_plugin("NetProtocol")  # todo RBK4
-class RobotParamV4(RobotParamInterface):
+@default_plugin("NetProtocol")
+class RobotParamV3(RobotParamInterface):
     config_change_callBack: Callable[[Dict[str, Any]], None] = None
     device_change_callBack: Callable[[List[str]], None] = None
 
     @classmethod
-    def getConfig(cls, app_name: str, param_path: str, file_name="", default: Any=None) -> Any:
-        value = cls.client().call_service("NetProtocol", "getParam", app_name=app_name, param_path=param_path, file_name=file_name)
+    def getConfig(cls, app_name: str, param_path: str, file_name: str="", default: Any=None) -> Any:
+        value = cls.client().call_service("NetProtocol", "getParam", app_name, param_path, file_name)
         if value is None:
             return default
         return value
@@ -20,7 +22,6 @@ class RobotParamV4(RobotParamInterface):
         return cls.getConfig(app_name, param_path+"._(size", file_name, 0)
 
     @classmethod
-    @call_service(plugin_name="NetProtocol", func_name="getDevice")
     def getDevice(cls, device_key: str, param_path: str, default: Any=None) -> Any:
         value = cls.client().call_service("NetProtocol", "getDevice", device_key, param_path)
         if value is None:
@@ -90,3 +91,23 @@ class RobotParamV4(RobotParamInterface):
         return {
             f"{name}.{param_path}": self.getCloneValues(name, param_path, clone_keys)
         }
+
+
+def to_dict(msg):
+    """将 protobuf 消息转为 dict，保留原始字段名"""
+    return json_format.MessageToDict(msg, preserving_proto_field_name=True)
+
+
+@default_plugin("Error")
+class RobotErrorV3(RobotErrorInterface):
+
+    @classmethod
+    def setSystemError(cls, key: str, desc: str, clear: bool) -> None:
+        error = msgError()
+        error.desc = desc
+        error.timeStamp = int(time.time_ns())
+        if clear:
+            key = f"ms@Module{key}"
+        else:
+            key = f"ss@Module{key}"
+        cls.client().call_service("Error", "setSystemError", key, to_dict(error))

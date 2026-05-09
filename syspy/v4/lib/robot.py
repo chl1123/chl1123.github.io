@@ -1,16 +1,16 @@
-from typing import Any, List, Dict, Callable
+from typing import Any, Dict, List, Callable
 from syspy.core.rbk_rpc import default_plugin, call_service, Service
-from syspy.lib.robot_param import RobotParamInterface
+from syspy.lib.robot import RobotParamInterface
 
 
-@default_plugin("NetProtocol")
-class RobotParamV3(RobotParamInterface):
+@default_plugin("NetProtocol")  # todo RBK4
+class RobotParamV4(RobotParamInterface):
     config_change_callBack: Callable[[Dict[str, Any]], None] = None
     device_change_callBack: Callable[[List[str]], None] = None
 
     @classmethod
-    def getConfig(cls, app_name: str, param_path: str, file_name: str="", default: Any=None) -> Any:
-        value = cls.client().call_service("NetProtocol", "getParam", app_name, param_path, file_name)
+    def getConfig(cls, app_name: str, param_path: str, file_name="", default: Any=None) -> Any:
+        value = cls.client().call_service("NetProtocol", "getParam", app_name=app_name, param_path=param_path, file_name=file_name)
         if value is None:
             return default
         return value
@@ -20,6 +20,7 @@ class RobotParamV3(RobotParamInterface):
         return cls.getConfig(app_name, param_path+"._(size", file_name, 0)
 
     @classmethod
+    @call_service(plugin_name="NetProtocol", func_name="getDevice")
     def getDevice(cls, device_key: str, param_path: str, default: Any=None) -> Any:
         value = cls.client().call_service("NetProtocol", "getDevice", device_key, param_path)
         if value is None:
