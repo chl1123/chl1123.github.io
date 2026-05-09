@@ -31,8 +31,8 @@ class _OutputBase(object):
         if not self._prefer_direct or self._direct_method is None:
             return False
         try:
-            self._rpc.call(self._direct_method, *values)
-            return True
+            result = self._rpc.call(self._direct_method, *values)
+            return result is not None
         except Exception as exc:
             self._prefer_direct = False
             if not self._warned:
@@ -50,8 +50,9 @@ class _OutputBase(object):
         if direct_values is not None and self._try_direct(direct_values):
             self._last_payload = payload_text
             return
-        self._rpc.set_action(self._channel, payload)
-        self._last_payload = payload_text
+        result = self._rpc.set_action(self._channel, payload)
+        if result is not None:
+            self._last_payload = payload_text
 
     def _clear(self, direct_values=None):
         self._send({}, direct_values=direct_values)

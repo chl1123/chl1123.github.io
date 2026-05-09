@@ -53,6 +53,14 @@ class BehavRpc(object):
         action = json.dumps(payload_dict, sort_keys=True)
         return self.call("setAction", channel, action)
 
+    def is_connected(self):
+        if not self._use_ecal or self._client is None:
+            return False
+        try:
+            return bool(self._client.is_connected())
+        except Exception:
+            return False
+
     def close(self):
         """释放底层 ServiceClient 引用，便于进程退出前清理。"""
         self._client = None
