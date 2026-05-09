@@ -347,6 +347,7 @@ def apply_runtime_config() -> None:
     rpc = _core.get_rpc()
     rpc.call("setDmxPort", ConfigParams.dmx_port)
     rpc.call("setLightTotalNum", int(ConfigParams.light_total_num))
+    rpc.call("setLedDmxEnabled", True)
     _trace_log(
         "runtime config applied "
         f"dmx_port={ConfigParams.dmx_port} "
@@ -742,13 +743,7 @@ class Dmx512NativeBehav:
                 self.tick()
                 time.sleep(0.1)
         finally:
-            self._send_led(
-                "Off",
-                "Off",
-                period=0,
-                reason="script_stop",
-                context={"status": "Stop"},
-            )
+            self._rpc.call("setLedDmxEnabled", False)
             _trace_log("task end script=behav_led", name=LOG_MODULE)
 
 
