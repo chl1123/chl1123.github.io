@@ -48,7 +48,7 @@ from syspy import Module, ScriptStatus, Trace, Navigation, Abnormal, Battery, Co
 
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
 
-from syspy.lib.robot_param import RobotParam
+from syspy.lib.robot import RobotParam
 
 # 机构控制日志
 log = Logger("clean_robot")

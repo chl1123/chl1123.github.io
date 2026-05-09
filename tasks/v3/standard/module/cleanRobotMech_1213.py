@@ -62,7 +62,7 @@ from typing import Optional
 from syspy.utils.param_server import ParamType, ScriptParam
 
 param_loader = ScriptParam(__file__)
-from syspy.lib.robot_param import RobotParam
+from syspy.lib.robot import RobotParam
 import can
 import base64
 import modbus_tk.defines as cst

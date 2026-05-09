@@ -45,7 +45,7 @@ from .lib.abnormal import Abnormal
 from .lib.can_frame import Can
 from .lib.logger import Logger
 from .utils.param_server import ParamServer, ScriptParam
-from .lib.robot_param import RobotParam
+from .lib.robot import RobotParam, RobotError
 from .lib.module import ScriptStatus, Module, ModuleBase
 from .lib.net_protocol import NetProtocol
 from .lib.trace import Trace
@@ -81,6 +81,7 @@ __all__ = [
     "NetProtocol",
     "Can",
     "RobotParam",
+    "RobotError",
     "ScriptStatus",
     "Module",
     "ModuleBase",
