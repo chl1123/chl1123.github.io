@@ -1,9 +1,12 @@
-originPath:
-  - ./syspy/*
-  - ./tasks/
-  - ./generic/v3/led/standard/dmx512_native.py
+ispy: true
 
-PackgeID: rbk-plugin1
+originPath:
+  - ./tasks
+  - ./syspy/motorTasks.py
+  - ./syspy/laser.py
+  - ./syspy/motor.py
+
+PackgeID: syspy_motorandlaser
 version: 1.0.0
-arch: [amd64]
-zipName: rbk-release1
+arch: [arm64]
+zipName: syspy_motorandlaserarm3

@@ -6,6 +6,7 @@ DEFAULT_CONFIG="$SCRIPT_DIR/build_deb.yml"
 OUTPUT_DIR="$SCRIPT_DIR/deb"
 DEFAULT_DESCRIPTION="Monthly release: RBK + navigation plugin + config update"
 TARGET_PATH="/opt"
+ISPY_PREFIX=".data/rbk/resources/scripts"
 DEFAULT_NODE="master"
 
 PACKAGE_ID=""
@@ -13,6 +14,7 @@ VERSION=""
 ZIP_NAME=""
 DESCRIPTION=""
 NODE="$DEFAULT_NODE"
+IS_PY="false"
 declare -a ARCHITECTURES=()
 declare -a ORIGIN_PATHS=()
 declare -a ORIGIN_FILES=()
@@ -57,6 +59,24 @@ json_escape() {
   value="${value//$'\r'/\\r}"
   value="${value//$'\t'/\\t}"
   printf '%s' "$value"
+}
+
+normalize_bool() {
+  local value
+  value="$(strip_quotes "$1")"
+  value="$(trim "$value")"
+  value="${value,,}"
+  case "$value" in
+    true|yes|1|on)
+      printf 'true'
+      ;;
+    false|no|0|off|"")
+      printf 'false'
+      ;;
+    *)
+      fail "unsupported boolean value: $1"
+      ;;
+  esac
 }
 
 require_cmd() {
@@ -142,6 +162,10 @@ load_config() {
         ;;
       description)
         DESCRIPTION="$(strip_quotes "$value")"
+        current_list=""
+        ;;
+      ispy)
+        IS_PY="$(normalize_bool "$value")"
         current_list=""
         ;;
       node)
@@ -270,7 +294,7 @@ remove_version_dir_from_path() {
   local result=()
 
   case "$path" in
-    tasks/*|generic/*)
+    "$ISPY_PREFIX"/tasks/*|"$ISPY_PREFIX"/generic/*)
       ;;
     *)
       printf '%s' "$path"
@@ -292,6 +316,7 @@ remove_version_dir_from_path() {
 stage_origin_files() {
   local stage_dir="$1"
   local src_rel=""
+  local archive_rel=""
   local dest_rel=""
   local dest_path=""
   local src_priority=0
@@ -304,7 +329,7 @@ stage_origin_files() {
     local path="$1"
 
     case "$path" in
-      tasks/*|generic/*)
+      "$ISPY_PREFIX"/tasks/*|"$ISPY_PREFIX"/generic/*)
         ;;
       *)
         printf '2'
@@ -322,9 +347,15 @@ stage_origin_files() {
   }
 
   for src_rel in "${ORIGIN_FILES[@]}"; do
-    dest_rel="$(remove_version_dir_from_path "$src_rel")"
+    if [[ "$IS_PY" == "true" ]]; then
+      archive_rel="$(normalize_rel_path "$ISPY_PREFIX/$src_rel")"
+    else
+      archive_rel="$(normalize_rel_path "$src_rel")"
+    fi
+
+    dest_rel="$(remove_version_dir_from_path "$archive_rel")"
     [[ -n "$dest_rel" ]] || fail "empty archive path after removing v3/v4: $src_rel"
-    src_priority="$(get_source_priority "$src_rel")"
+    src_priority="$(get_source_priority "$archive_rel")"
 
     if [[ -n "${staged_src[$dest_rel]+x}" ]]; then
       old_src="${staged_src[$dest_rel]}"
