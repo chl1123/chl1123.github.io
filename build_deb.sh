@@ -1,206 +1,418 @@
 #!/bin/bash
+set -euo pipefail
 
-# 检查参数
-if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-    echo "Usage: $0 <version> [config_file]"
-    echo "Example: $0 1.0.1"
-    exit 1
-fi
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+DEFAULT_CONFIG="$SCRIPT_DIR/build_deb.yml"
+OUTPUT_DIR="$SCRIPT_DIR/deb"
+DEFAULT_DESCRIPTION="Monthly release: RBK + navigation plugin + config update"
+TARGET_PATH="/opt"
+DEFAULT_NODE="master"
 
-VERSION="$1"
-CONFIG_FILE="${2:-build_dir.conf}"  # 默认配置文件名
+PACKAGE_ID=""
+VERSION=""
+ZIP_NAME=""
+DESCRIPTION=""
+NODE="$DEFAULT_NODE"
+declare -a ARCHITECTURES=()
+declare -a ORIGIN_PATHS=()
+declare -a ORIGIN_FILES=()
 
-# 读取配置文件中的脚本列表
-if [ -f "$CONFIG_FILE" ]; then
-    SCRIPT_FILES=$(cat "$CONFIG_FILE" | grep -v "^#" | grep -v "^$" | tr '\n' ' ')
-    echo "从配置文件读取脚本列表: $SCRIPT_FILES"
-else
-    echo "错误: 配置文件 '$CONFIG_FILE' 不存在!"
-    exit 1
-fi
+usage() {
+  cat <<'EOF'
+Usage:
+  ./build_deb.sh [build_deb.yml]
+EOF
+}
 
-# 定义架构数组
-ARCHITECTURES=("x86" "arm")
+fail() {
+  echo "build failed: $*" >&2
+  exit 1
+}
 
-# 保存当前目录
-ORIGINAL_DIR=$(pwd)
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
 
-echo "开始构建所有架构版本..."
+strip_quotes() {
+  local value
+  value="$(trim "$1")"
+  if [[ ${#value} -ge 2 ]]; then
+    if [[ ${value:0:1} == '"' && ${value: -1} == '"' ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ ${value:0:1} == "'" && ${value: -1} == "'" ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+  printf '%s' "$value"
+}
 
-# 为每个架构构建deb包
-for arch in "${ARCHITECTURES[@]}"; do
-    echo "========================================"
-    echo "正在构建 ${arch} 架构版本..."
-    echo "========================================"
+json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "$value"
+}
 
-    # 重置变量
-    ARCH="all"
-    SRC=""
+require_cmd() {
+  local cmd="$1"
+  command -v "$cmd" >/dev/null 2>&1 || fail "missing required command: $cmd"
+}
 
-    # 设置架构特定变量
-    case "${arch}" in
-        x86)
-            ARCH="amd64"
-            SRC="-2000-5000"
-            ;;
-        arm)
-            ARCH="arm64"
-            SRC="-880-1000-3000"
-            ;;
+parse_inline_list() {
+  local raw="$1"
+  local list_name="$2"
+  local item=""
+  local items=()
+
+  raw="${raw#\[}"
+  raw="${raw%\]}"
+  IFS=',' read -r -a items <<< "$raw"
+  for item in "${items[@]}"; do
+    item="$(strip_quotes "$item")"
+    item="$(trim "$item")"
+    [[ -n "$item" ]] || continue
+    case "$list_name" in
+      arch)
+        ARCHITECTURES+=("$item")
+        ;;
+      originPath)
+        ORIGIN_PATHS+=("$item")
+        ;;
+      *)
+        fail "unsupported list key: $list_name"
+        ;;
     esac
+  done
+}
 
-    TIMESTAMP=$(date +"%Y%m%d%H%M%S")
-    FILE_NAME="SRC-Scripts${SRC}-incremental-v${VERSION}-${TIMESTAMP}"
-    DEB_NAME="${FILE_NAME}.deb"
+load_config() {
+  local config_path="$1"
+  local current_list=""
+  local raw_line=""
+  local line=""
+  local key=""
+  local value=""
+  local item=""
 
-    # 创建临时构建目录
-    BUILD_ROOT=$(mktemp -d)
-    BUILD_DIR="${BUILD_ROOT}/build_dir"
-    INSTALL_DIR="/opt/.data/rbk/resources/scripts"
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="${raw_line%$'\r'}"
+    line="$(trim "$line")"
 
-    echo "构建临时目录: ${BUILD_ROOT}"
+    [[ -z "$line" ]] && continue
+    [[ ${line:0:1} == "#" ]] && continue
 
-    # 检查脚本文件是否存在，并支持目录
-    EXPANDED_SCRIPT_FILES=""
-    for item in ${SCRIPT_FILES}; do
-        if [ -d "${item}" ]; then
-            # 如果是目录，获取其中所有.py文件
-            for pyfile in $(find "${item}" -name "*.py" -type f); do
-                EXPANDED_SCRIPT_FILES="${EXPANDED_SCRIPT_FILES} ${pyfile}"
-            done
-        elif [ -f "${item}" ]; then
-            # 如果是文件，直接添加
-            EXPANDED_SCRIPT_FILES="${EXPANDED_SCRIPT_FILES} ${item}"
+    if [[ "$line" == -* ]]; then
+      item="$(strip_quotes "${line#-}")"
+      item="$(trim "$item")"
+      case "$current_list" in
+        arch)
+          ARCHITECTURES+=("$item")
+          ;;
+        originPath)
+          ORIGIN_PATHS+=("$item")
+          ;;
+        *)
+          fail "list item must follow arch or originPath: $line"
+          ;;
+      esac
+      continue
+    fi
+
+    key="$(trim "${line%%:*}")"
+    value="$(trim "${line#*:}")"
+
+    case "$key" in
+      PackgeID|PackageID)
+        PACKAGE_ID="$(strip_quotes "$value")"
+        current_list=""
+        ;;
+      version)
+        VERSION="$(strip_quotes "$value")"
+        current_list=""
+        ;;
+      zipName)
+        ZIP_NAME="$(strip_quotes "$value")"
+        current_list=""
+        ;;
+      description)
+        DESCRIPTION="$(strip_quotes "$value")"
+        current_list=""
+        ;;
+      node)
+        NODE="$(strip_quotes "$value")"
+        current_list=""
+        ;;
+      arch)
+        value="$(strip_quotes "$value")"
+        if [[ -n "$value" ]]; then
+          if [[ "$value" == \[*\] ]]; then
+            parse_inline_list "$value" arch
+          else
+            ARCHITECTURES+=("$value")
+          fi
+          current_list=""
         else
-            echo "错误: '${item}' 不存在且不是有效目录!"
-            rm -rf "${BUILD_ROOT}"
-            exit 1
+          current_list="arch"
         fi
-    done
-
-    # 更新SCRIPT_FILES为展开后的实际文件列表
-    SCRIPT_FILES=$(echo $EXPANDED_SCRIPT_FILES | tr ' ' '\n' | grep -v "^$" | tr '\n' ' ')
-
-    if [ -z "$SCRIPT_FILES" ]; then
-        echo "错误: 没有找到有效的脚本文件!"
-        rm -rf "${BUILD_ROOT}"
-        exit 1
-    fi
-
-    # 创建目录结构
-    mkdir -p "${BUILD_DIR}/DEBIAN"
-    mkdir -p "${BUILD_DIR}/${INSTALL_DIR}"
-
-    # 创建目标子目录并复制文件（合并目录结构）
-    for script in ${SCRIPT_FILES}; do
-        # 重新组织目录结构，移除版本相关目录
-        if [[ "${script}" == generic/* ]]; then
-            # 处理generic目录下的文件，移除v3/v4/common等中间目录
-            target_path=$(echo "${script}" | sed -E 's|generic/[^/]+/|generic/|')
-            echo "merge: ${script} -> ${target_path}"
-        elif [[ "${script}" == tasks/* ]]; then
-            # 处理tasks目录下的文件，移除v3/v4/common等中间目录
-            target_path=$(echo "${script}" | sed -E 's|tasks/[^/]+/|tasks/|')
-            echo "merge: ${script} -> ${target_path}"
+        ;;
+      originPath)
+        value="$(strip_quotes "$value")"
+        if [[ -n "$value" ]]; then
+          if [[ "$value" == \[*\] ]]; then
+            parse_inline_list "$value" originPath
+          else
+            ORIGIN_PATHS+=("$value")
+          fi
+          current_list=""
         else
-            # 其他路径保持不变
-            target_path="${script}"
-            echo "${script}"
+          current_list="originPath"
         fi
-        
-        # 获取处理后的目录部分
-        target_dir=$(dirname "${target_path}")
-        # 在目标目录中创建相应的子目录
-        mkdir -p "${BUILD_DIR}/${INSTALL_DIR}/${target_dir}"
-        # 复制文件到对应目录
-        cp "${script}" "${BUILD_DIR}/${INSTALL_DIR}/${target_path}"
+        ;;
+      *)
+        fail "unsupported config key: $key"
+        ;;
+    esac
+  done < "$config_path"
+}
+
+validate_arch() {
+  local arch="$1"
+  case "$arch" in
+    amd64|arm64|all|x86|x64|noarch)
+      ;;
+    *)
+      fail "unsupported architecture: $arch"
+      ;;
+  esac
+}
+
+normalize_rel_path() {
+  local path="$1"
+  path="${path#./}"
+  path="${path#/}"
+  printf '%s' "$path"
+}
+
+expand_origin_entry() {
+  local entry="$1"
+  local clean_entry=""
+  local prefix="$SCRIPT_DIR/"
+  local matches=()
+  local match=""
+  local file=""
+
+  entry="$(strip_quotes "$entry")"
+  entry="$(trim "$entry")"
+  [[ -n "$entry" ]] || fail "originPath cannot be empty"
+  [[ "$entry" != /* ]] || fail "originPath must be relative to build_deb.sh: $entry"
+
+  clean_entry="$(normalize_rel_path "$entry")"
+
+  if [[ "$clean_entry" == *"*"* || "$clean_entry" == *"?"* || "$clean_entry" == *"["* ]]; then
+    shopt -s nullglob
+    matches=( "$SCRIPT_DIR"/$clean_entry )
+    shopt -u nullglob
+    [[ ${#matches[@]} -gt 0 ]] || fail "originPath pattern matched no files: $entry"
+
+    for match in "${matches[@]}"; do
+      if [[ -d "$match" ]]; then
+        while IFS= read -r -d '' file; do
+          printf '%s\n' "${file#$prefix}"
+        done < <(find "$match" -type f -print0)
+      elif [[ -f "$match" ]]; then
+        printf '%s\n' "${match#$prefix}"
+      fi
     done
+    return
+  fi
 
-    # 创建preinst安装前脚本
-    cat > "${BUILD_DIR}/DEBIAN/preinst" <<EOF
-#!/bin/bash
-set -e
+  if [[ -d "$SCRIPT_DIR/$clean_entry" ]]; then
+    while IFS= read -r -d '' file; do
+      printf '%s\n' "${file#$prefix}"
+    done < <(find "$SCRIPT_DIR/$clean_entry" -type f -print0)
+    return
+  fi
 
-echo "准备安装增量更新..."
+  if [[ -f "$SCRIPT_DIR/$clean_entry" ]]; then
+    printf '%s\n' "$clean_entry"
+    return
+  fi
+
+  fail "originPath not found: $entry"
+}
+
+collect_origin_files() {
+  local entry=""
+  local file=""
+  declare -A seen=()
+  ORIGIN_FILES=()
+
+  for entry in "${ORIGIN_PATHS[@]}"; do
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      if [[ -z "${seen[$file]+x}" ]]; then
+        seen["$file"]=1
+        ORIGIN_FILES+=("$file")
+      fi
+    done < <(expand_origin_entry "$entry")
+  done
+}
+
+build_manifest() {
+  local plugin_zip_name="$1"
+  local plugin_sha256="$2"
+  local arch="$3"
+
+  cat <<EOF
+{
+  "manifestVersion": "1.0",
+  "metadata": {
+    "packageId": "$(json_escape "$PACKAGE_ID")",
+    "version": "$(json_escape "$VERSION")",
+    "arch": "$(json_escape "$arch")",
+    "node": "$(json_escape "$NODE")",
+    "type": "plugin",
+    "description": "$(json_escape "$DESCRIPTION")"
+  },
+  "resources": [
+    {
+      "type": "plugin",
+      "order": 1,
+      "name": "$(json_escape "$PACKAGE_ID")",
+      "version": "$(json_escape "$VERSION")",
+      "method": "zip_extract",
+      "fileName": "$(json_escape "$plugin_zip_name")",
+      "sha256": "$plugin_sha256",
+      "required": true,
+      "targetPath": "$TARGET_PATH"
+    }
+  ],
+  "lifecycle": {
+    "afterAll": {
+      "commands": [
+        "sync",
+        "systemctl reboot"
+      ],
+      "timeout": 60
+    }
+  }
+}
 EOF
+}
 
-    # 创建postinst安装后脚本
-    cat > "${BUILD_DIR}/DEBIAN/postinst" <<EOF
-#!/bin/bash
-set -e
+build_outer_zip_name() {
+  local arch="$1"
+  local arch_count="${#ARCHITECTURES[@]}"
+  local base_name="${ZIP_NAME%.zip}"
 
-# 设置文件权限
-for script in ${SCRIPT_FILES}; do
-    # 使用相同的目录重组逻辑来确定目标路径
-    if [[ "\${script}" == generic/* ]]; then
-        target_path=\$(echo "\${script}" | sed -E 's|generic/[^/]+/|generic/|')
-    elif [[ "\${script}" == tasks/* ]]; then
-        target_path=\$(echo "\${script}" | sed -E 's|tasks/[^/]+/|tasks/|')
-    else
-        target_path="\${script}"
-    fi
-    
-    if [ -f "${INSTALL_DIR}/\${target_path}" ]; then
-        chmod 755 "${INSTALL_DIR}/\${target_path}"
-        echo "已更新脚本: \${target_path}"
-    fi
-done
+  if [[ "$arch_count" -gt 1 ]]; then
+    printf '%s-%s.zip' "$base_name" "$arch"
+  else
+    printf '%s.zip' "$base_name"
+  fi
+}
 
-echo "增量更新安装完成"
-EOF
+package_for_arch() {
+  local arch="$1"
+  local plugin_zip_name="plugin-${PACKAGE_ID}-${VERSION}-${arch}.zip"
+  local plugin_zip_path="$OUTPUT_DIR/$plugin_zip_name"
+  local outer_zip_name=""
+  local outer_zip_path=""
+  local plugin_sha256=""
+  local temp_dir=""
+  local stage_dir=""
+  local manifest_path=""
+  local manifest_sha256=""
 
-    # 创建prerm卸载前脚本
-    cat > "${BUILD_DIR}/DEBIAN/prerm" <<EOF
-#!/bin/bash
-# 增量更新卸载不删除文件
-echo "卸载增量更新包"
-EOF
+  outer_zip_name="$(build_outer_zip_name "$arch")"
+  outer_zip_path="$OUTPUT_DIR/$outer_zip_name"
 
-    # 设置脚本权限
-    chmod 755 "${BUILD_DIR}/DEBIAN/preinst"
-    chmod 755 "${BUILD_DIR}/DEBIAN/postinst"
-    chmod 755 "${BUILD_DIR}/DEBIAN/prerm"
+  [[ ! -e "$plugin_zip_path" ]] || fail "inner zip already exists: $plugin_zip_path"
+  [[ ! -e "$outer_zip_path" ]] || fail "outer zip already exists: $outer_zip_path"
 
-    # 创建control文件
-    cat > "${BUILD_DIR}/DEBIAN/control" <<EOF
-Package: src-scripts-incremental
-Version: ${VERSION}
-Section: base
-Priority: optional
-Architecture: ${ARCH}
-Maintainer: SEER
-Description: syspy Scripts Incremental Update
- 此软件包提供对${INSTALL_DIR}目录下脚本文件的增量更新
- 包含以下文件: ${SCRIPT_FILES}
-EOF
+  (
+    cd "$SCRIPT_DIR"
+    zip -qr "$plugin_zip_path" "${ORIGIN_FILES[@]}"
+  )
 
-    # 构建deb包到临时目录
-    dpkg-deb --build "${BUILD_DIR}" "${BUILD_ROOT}/${DEB_NAME}"
+  plugin_sha256="$(sha256sum "$plugin_zip_path" | awk '{print $1}')"
+  temp_dir="$(mktemp -d)"
+  stage_dir="$temp_dir/stage"
+  manifest_path="$temp_dir/manifest.json"
+  mkdir -p "$stage_dir"
 
-    # 创建 ./deb 目录（如果不存在）
-    mkdir -p "./deb"
+  build_manifest "$plugin_zip_name" "$plugin_sha256" "$arch" > "$manifest_path"
+  manifest_sha256="$(sha256sum "$manifest_path" | awk '{print $1}')"
+  printf '%s  manifest.json\n' "$manifest_sha256" > "$temp_dir/manifest.json.sha256"
 
-    # 将生成的deb文件移动到当前目录的 ./deb 子目录
-    mv "${BUILD_ROOT}/${DEB_NAME}" "./deb/"
+  cp "$plugin_zip_path" "$stage_dir/$plugin_zip_name"
+  cp "$manifest_path" "$stage_dir/manifest.json"
+  cp "$temp_dir/manifest.json.sha256" "$stage_dir/manifest.json.sha256"
 
-    # 进入deb目录压缩deb文件为zip格式
-    cd "./deb" || exit
-    zip "${FILE_NAME}.zip" "${DEB_NAME}"
+  (
+    cd "$stage_dir"
+    zip -qr "$outer_zip_path" "$plugin_zip_name" manifest.json manifest.json.sha256
+  )
 
-    # 返回原始目录
-    cd "${ORIGINAL_DIR}" || exit
+  rm -rf "$temp_dir"
 
-    # 清理临时文件
-    rm -rf "${BUILD_ROOT}"
+  echo "generated inner zip: $plugin_zip_path"
+  echo "generated outer zip: $outer_zip_path"
+}
 
-    echo "----------------------------------------"
-    echo "成功生成 ${arch} 架构增量更新包: ${DEB_NAME}"
-    echo "包含脚本文件: ${SCRIPT_FILES}"
-    echo "安装命令: sudo dpkg -i --force-all deb/${DEB_NAME}"
-    echo "----------------------------------------"
-done
+main() {
+  local config_path=""
 
-echo "========================================"
-echo "所有架构版本构建完成!"
-echo "生成的文件位于 ./deb/ 目录中"
-echo "临时文件已完全清理"
+  if [[ $# -gt 1 ]]; then
+    usage
+    exit 1
+  fi
+
+  if [[ $# -eq 1 ]]; then
+    config_path="$1"
+  else
+    config_path="$DEFAULT_CONFIG"
+  fi
+
+  [[ -f "$config_path" ]] || fail "config file not found: $config_path"
+
+  require_cmd zip
+  require_cmd sha256sum
+  require_cmd awk
+  require_cmd mktemp
+  require_cmd find
+
+  load_config "$config_path"
+
+  [[ -n "$PACKAGE_ID" ]] || fail "PackgeID is required"
+  [[ -n "$VERSION" ]] || fail "version is required"
+  [[ -n "$ZIP_NAME" ]] || fail "zipName is required"
+  [[ ${#ARCHITECTURES[@]} -gt 0 ]] || fail "arch must contain at least one item"
+  [[ ${#ORIGIN_PATHS[@]} -gt 0 ]] || fail "originPath must contain at least one item"
+
+  PACKAGE_ID="${PACKAGE_ID%.zip}"
+  ZIP_NAME="${ZIP_NAME%.zip}"
+  DESCRIPTION="${DESCRIPTION:-$DEFAULT_DESCRIPTION}"
+  NODE="${NODE:-$DEFAULT_NODE}"
+
+  mkdir -p "$OUTPUT_DIR"
+
+  for arch in "${ARCHITECTURES[@]}"; do
+    validate_arch "$arch"
+  done
+
+  collect_origin_files
+  [[ ${#ORIGIN_FILES[@]} -gt 0 ]] || fail "originPath resolved to no files"
+
+  for arch in "${ARCHITECTURES[@]}"; do
+    package_for_arch "$arch"
+  done
+}
+
+main "$@"

@@ -48,28 +48,11 @@ from syspy.utils.param_server import ParamType
 
 script_param = ScriptParam(__file__) # 以脚本文件名为命名空间加载配置参数，文件路径见 /opt/.data/rbk/resources/scripts/params/tasks/v3/standard/
 LOG_MODULE = "LED"
-_TRACE_NAME_SUPPORTED: Optional[bool] = None
 
 
 def _trace_log(text: str, name: str) -> None:
-    """Emit trace logs with channel name; degrade gracefully for old Trace services."""
-    global _TRACE_NAME_SUPPORTED
-    if _TRACE_NAME_SUPPORTED is False:
-        # Trace.log(f"[{name}] {text}") rbk未更新到支持name参数的版本，降级输出
-        Trace.client().call_service("Trace", "traceLog", f"[{name}] {text}")
-        return
-    try:
-        # Trace.log(text, name=name)
-        Trace.log(text, name=name)
-        _TRACE_NAME_SUPPORTED = True
-    except Exception as exc:
-        msg = str(exc)
-        if "params size error" in msg or "Invalid params" in msg:
-            _TRACE_NAME_SUPPORTED = False
-            # Trace.log(f"[{name}] {text}")
-            Trace.client().call_service("Trace", "traceLog", f"[{name}] {text}")
-            return
-        raise
+    """Emit trace logs with channel name."""
+    Trace.log(text, name=name)
 
 def _is_src2000_platform() -> bool:
     """读取 /etc/srcname，包含 src2000 时启用旧 DMX 消息机制。"""
@@ -258,17 +241,9 @@ class ConfigParams:
             f"resend={cls.resend_interval_sec:.2f}s "
             f"test={cls.dmx_test_flag} charging={cls.show_charging} battery={cls.show_battery} "
             f"turn_pos={cls.turn_pos} turn_num={cls.turn_num} "
-            f"light_total_num={cls.light_total_num}",
-            name=f"{LOG_MODULE}.cfg",
+            f"light_total_num={cls.light_total_num} ok=True",
+            name=f"{LOG_MODULE}",
         )
-        print(f"[{LOG_MODULE}] config reload "
-              f"dmx_port={cls.dmx_port} "
-              f"resend={cls.resend_interval_sec:.2f}s "
-              f"test={cls.dmx_test_flag} charging={cls.show_charging} battery={cls.show_battery} "
-              f"turn_pos={cls.turn_pos} turn_num={cls.turn_num} "
-              f"light_total_num={cls.light_total_num}",
-        )
-
 
 class RobotConfig:
     """电池低电阈值参数（来自 RobotParam）。"""
@@ -340,23 +315,31 @@ def robot_config_change_callback(diff_map: Dict[str, Any]) -> None:
 
 def script_config_callback() -> None:
     ConfigParams.reload()
-    apply_runtime_config()
+    ok = apply_runtime_config()
+    if not ok:
+        _trace_log("runtime config apply failed in script_config_callback", name=f"{LOG_MODULE}.err")
 
 
-def apply_runtime_config() -> None:
+def apply_runtime_config() -> bool:
     rpc = _core.get_rpc()
-    rpc.call("setDmxPort", ConfigParams.dmx_port)
-    rpc.call("setLightTotalNum", int(ConfigParams.light_total_num))
-    rpc.call("setLedDmxEnabled", True)
+    port_ok = rpc.call("setDmxPort", ConfigParams.dmx_port) is not None
+    total_ok = rpc.call("setLightTotalNum", int(ConfigParams.light_total_num)) is not None
+    enable_ok = rpc.call("setLedDmxEnabled", True) is not None
+    ok = port_ok and total_ok and enable_ok
     _trace_log(
         "runtime config applied "
         f"dmx_port={ConfigParams.dmx_port} "
-        f"light_total_num={ConfigParams.light_total_num} ",
+        f"light_total_num={ConfigParams.light_total_num} "
+        f"port_ok={port_ok} total_ok={total_ok} enable_ok={enable_ok}",
         name=f"{LOG_MODULE}.cfg",
     )
+    return ok
 
 
 class Dmx512NativeBehav:
+    STARTUP_CONFIG_RETRY_MAX = 10 #脚本启动时 SDK的behav插件可能还没完全就绪，增加重试机制
+    STARTUP_CONFIG_RETRY_INTERVAL_SEC = 0.2 # 每次重试间隔，单位秒
+
     def __init__(self) -> None:
         self.robot_status = ""
         self.pre_robot_status = ""
@@ -736,7 +719,27 @@ class Dmx512NativeBehav:
         )
 
     def run(self) -> None:
-        apply_runtime_config()
+        rpc = _core.get_rpc()
+        for attempt in range(1, self.STARTUP_CONFIG_RETRY_MAX + 1):
+            is_connected = getattr(rpc, "is_connected", None)
+            if callable(is_connected):
+                connected = bool(is_connected())
+            else:
+                connected = True
+            ok = apply_runtime_config()
+            if connected and ok:
+                _trace_log(
+                    f"startup runtime config ready attempt={attempt}",
+                    name=f"{LOG_MODULE}.cfg",
+                )
+                break
+            if attempt < self.STARTUP_CONFIG_RETRY_MAX:
+                time.sleep(self.STARTUP_CONFIG_RETRY_INTERVAL_SEC)
+        else:
+            _trace_log(
+                "startup runtime config not fully ready after retries",
+                name=f"{LOG_MODULE}.err",
+            )
         _trace_log("task start script=behav_led", name=LOG_MODULE)
         try:
             while True:

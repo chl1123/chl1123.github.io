@@ -1,0 +1,9 @@
+originPath:
+  - ./syspy/*
+  - ./tasks/
+  - ./generic/v3/led/standard/dmx512_native.py
+
+PackgeID: rbk-plugin1
+version: 1.0.0
+arch: [amd64]
+zipName: rbk-release1
