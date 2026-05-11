@@ -2726,6 +2726,7 @@ class GoPathWithContactDi(BaseAction):
 
     def run(self):
         if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
+            self.back_action.reset()
             return
 
         self.action_status = ActionStatus.RUNNING

@@ -1613,6 +1613,9 @@ class Fork(ModuleBase):
     # 识别取货和非识别取货
     def load(self):
         if not self.operation_init:
+
+            Navigation.appendCustomPolicy("policy", {"navigation.freeBypass": "off"})
+
             self.operation_init = True
             r_loc = get_r_loc()
             source_pos = self.get_station_pos("sourceName")[0]
@@ -1928,6 +1931,9 @@ class Fork(ModuleBase):
 
     def unload(self):
         if not self.operation_init:
+
+            Navigation.appendCustomPolicy("policy", {"navigation.freeBypass": "off"})
+
             self.operation_init = True
             r_loc = get_r_loc()
             source_pos = self.get_station_pos("sourceName")[0]
@@ -2675,6 +2681,11 @@ class GoPathWithContactDi(BaseAction):
         self.set_policy = False
         self.clear_policy = False
         self.policy = {}
+        self.policy_unloadobs_dist = RobotParam.getConfig("navigation","obstacleStop.obsStopUnload.obsStopDist")
+        self.policy_loadobs_dist = RobotParam.getConfig("navigation","obstacleStop.obsStopLoad.obsStopDist")
+
+        self.policy["navigation.freeBypass"] = "off"
+
         target2robot = pos2Base(world_pos, get_r_loc())
         Trace.log(f"go path with di target pos:{world_pos},args:{args}")
 
@@ -2726,6 +2737,7 @@ class GoPathWithContactDi(BaseAction):
 
     def run(self):
         if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
+            self.back_action.reset()
             return
 
         self.action_status = ActionStatus.RUNNING
@@ -2734,9 +2746,7 @@ class GoPathWithContactDi(BaseAction):
                 self.init = True
                 self.start_loc = get_r_loc()
                 Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}")
-                # if cal_dist(self.target_pos, self.start_loc) < 0.05:
-                #     self.action_status = ActionStatus.FINISHED
-                #     return
+
                 if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
                     for laser in ConfigParams.fork_tip_2D_lasers:
                         Trace.log(f"set2DLaserWidth:{laser}")
@@ -2774,7 +2784,7 @@ class GoPathWithContactDi(BaseAction):
 
                 # Navigation.setObsStopDist(self.obs_dist)
 
-                Navigation.appendCustomPolicy("policy", self.policy)
+                Navigation.appendCustomPolicy("loadPolicy", self.policy)
                 time.sleep(0.5)
 
                 self.set_policy = True
@@ -2792,17 +2802,24 @@ class GoPathWithContactDi(BaseAction):
             if self.back_action.action_status in [ScriptStatus.FAILED, ActionStatus.FAILED]:
                 return
 
-            # 前进的时候不要设置避障距离
+            # 前进的时候恢复脚本走之前的避障距离
             vx = NavSpeed.getSpeeds()[0]
             if vx > 0.005 and not self.clear_policy:
-                Navigation.clearPolicy()
+                self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.policy_unloadobs_dist
+                self.policy['navigation.obstacleStop.obsStopLoad.loadObsStopDist'] = self.policy_loadobs_dist
+
+                Navigation.appendCustomPolicy("forwardPolicy",self.policy)
                 self.clear_policy = True
                 self.set_policy = False
-                Trace.log(f"vx:{vx},clear policy", True, True)
+                Trace.log(f"vx:{vx},set forward policy:{self.policy}", True, True)
+
             elif vx <= 0 and not self.set_policy:
-                Trace.log(f"vx:{vx},set policy", True, True)
+                if self.obs_dist is not None:
+                    self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.obs_dist
+                    self.policy['navigation.obstacleStop.obsStopLoad.loadObsStopDist'] = self.obs_dist
                 Navigation.appendCustomPolicy("policy", self.policy)
-                time.sleep(0.5)
+                Trace.log(f"vx:{vx},set load policy:{self.policy}", True, True)
+                time.sleep(0.2)
                 Navigation.goPathParam(dict())
                 self.clear_policy = False
                 self.set_policy = True
