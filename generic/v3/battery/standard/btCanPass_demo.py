@@ -1,4 +1,3 @@
-
 # 导入电池基类
 import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
@@ -19,6 +18,7 @@ class CanBattery(cb.CanBase):
         # 用来表示数据是否已经正确接收
         self.battery_info = self.createBatteryMessage()
         self.msg_ok = False
+        self.port = self.getBatteryCanPort()
         self.tem = ""
 
     def handleData(self,msg):
@@ -28,7 +28,7 @@ class CanBattery(cb.CanBase):
         if self.isNeedCharge():
             print("start charge")
             # 自问自答模式，需发送如此canframe信息等待上报，若主动上报模式则无需发送
-            self.sendCanframe(2, 0x36, 8, False, "10 20 33 54 66 18 77 00")
+            self.sendCanframe(2, 0x36, 8, False, [0x10, 0x20, 0x33, 0x54, 0x66, 0x18, 0x77, 0x00])
         canframe = self.recCanframe(msg)
         # 当id为54时，取电压，当id为55时，取电流
         # 取date部分值将hex转int（根据实际协议自行设定，此处为示例）
@@ -61,6 +61,7 @@ class CanBattery(cb.CanBase):
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
         mu.sleepS(5)
+        self.createCanBus(self.port, 250000)
         # 绑定多个can邮箱，为绑定的邮箱个数，54，55，56分别为绑定的三个邮箱编号，0表示未绑定第四个邮箱
         self.attachCanID(2, 3, 0x36, 0x37, 0x38, 0)
         while True:
@@ -70,8 +71,3 @@ class CanBattery(cb.CanBase):
 if __name__ == '__main__':
     client = CanBattery()
     client.loop()
-
-
-
-
-

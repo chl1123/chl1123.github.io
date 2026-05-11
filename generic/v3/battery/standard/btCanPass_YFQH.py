@@ -1,4 +1,3 @@
-
 # 导入电池基类
 import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
@@ -16,6 +15,7 @@ class CanBattery(cb.CanBase):
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
         # 用来表示数据是否已经正确接收
+        self.port = self.getBatteryCanPort()
         self.battery_info = self.createBatteryMessage()
         self.connect_timeout_t = mu.Timer(5000)
         self.msg_ok = False
@@ -28,11 +28,7 @@ class CanBattery(cb.CanBase):
             tem = canframe.data.hex()
             percentage = int(tem[2:4], 16) / 100
             voltage = round((int(tem[4:6], 16) * 256 + int(tem[6:8], 16)) / 1000, 2)
-            # if cu.getBitVal(canframe.data[0], 0) == 0:
-                # current = -round((int(tem[8:10], 16) * 256 + int(tem[10:12], 16)) / 100, 2)
             current = round(cu.hexStrToInt(tem[8:10] + tem[10:12], 16) * 0.01, 2)
-            # else:
-                # current = round((int(tem[8:10], 16) * 256 + int(tem[10:12], 16)) / 100, 2)
             if int(tem[12:14], 16) == 0:
                 temperature = round(int(tem[14:16], 16), 2)
             else:
@@ -50,7 +46,7 @@ class CanBattery(cb.CanBase):
             tem = canframe.data.hex()
             if self.isNeedCharge():
                 print("start charge")
-                self.sendCanframe(2, 0x18FF50E5, 8, True, '01 20 03 e8 00 00 00 00')
+                self.sendCanframe(self.port, 0x18FF50E5, 8, True, [0x01, 0x20, 0x03, 0xe8, 0x00, 0x00, 0x00, 0x00])
             max_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             max_current = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
             self.battery_info.maxChargeCurrent = max_current
@@ -70,7 +66,8 @@ class CanBattery(cb.CanBase):
     def loop(self):
         # 需要至少7s来等待底层初始化,否则将会覆盖操作
         mu.sleepS(5)
-        self.attachCanID(2, 2, 0x1AC, 0x1806E5F4, 0, 0)
+        self.createCanBus(self.port, 125000)
+        self.attachCanID(self.port, 2, 0x1AC, 0x1806E5F4)
         while True:
             self.judgeMsgok()
             mu.sleepS(2)

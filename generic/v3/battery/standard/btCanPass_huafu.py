@@ -1,11 +1,8 @@
-
-
-# 导入电池基类
 import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
-import syspy.lib.char_utility as cu 
+import syspy.lib.char_utility as cu
 import sys
 from syspy import Trace
 
@@ -18,6 +15,7 @@ class CanBattery(cb.CanBase):
         sys.stdout = self.__debug_out
         # 用来表示数据是否已经正确接收
         self.msg_ok = False
+        self.port = self.getBatteryCanPort()
         self.tem = []
 
     def handleData(self,msg):
@@ -46,8 +44,9 @@ class CanBattery(cb.CanBase):
         connect_timeout_t = mu.Timer(3000)
         # 需要至少7s来等待底层初始化,否则将会覆盖操作
         mu.sleepS(7)
+        self.createCanBus(self.port, 250000)
         # 绑定多个can邮箱，1为绑定的邮箱个数，false表示非扩展帧，0x2F0表示第一个邮箱canid号，0表示未绑定第四个邮箱
-        self.attachCanID(1, False, 1, 0x2F0, 0, 0, 0)
+        self.attachCanID(1, 1, 0x2F0, 0, 0, 0)
         while True:
             # 判断是否收到整包
             if self.msg_ok:
@@ -64,8 +63,3 @@ class CanBattery(cb.CanBase):
 if __name__ == '__main__':
     client = CanBattery()
     client.loop()
-
-
-
-
-

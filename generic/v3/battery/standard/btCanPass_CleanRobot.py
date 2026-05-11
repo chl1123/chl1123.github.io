@@ -1,11 +1,9 @@
-
-
 # 导入电池基类
 import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
-import syspy.lib.char_utility as cu 
+import syspy.lib.char_utility as cu
 from syspy import Trace
 
 class CanBattery(cb.CanBase):
@@ -16,21 +14,22 @@ class CanBattery(cb.CanBase):
         # self.__debug_out = ud.udpDebug()
         # sys.stdout = self.__debug_out
         # 创建一个超时定时器
-        self.connect_timeout_t = mu.Timer(2000)
+        self.connect_timeout_t = mu.Timer(5000)
         # 用来表示数据是否已经正确接收
-        self.msg_ok = False
-        self.tem = []
         self.battery_info = self.createBatteryMessage()
+        self.msg_ok = False
+        self.port = self.getBatteryCanPort()
+        self.tem = []
 
     def handleData(self, msg):
-        self.clearTimeout()
         canframe = self.recCanframe(msg)
-        tem = canframe.data.hex()
         if canframe.id == 0x112:
+            self.clearTimeout()
+            tem = canframe.data.hex()
             voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             percentage = round(int(tem[8:10], 16) * 0.004, 2)
-            temperature = round(int(tem[10:12], 16)-40, 2)
-            current = round(cu.hexStrToInt(tem[4:6] + tem[6:8],16) * 0.1, 2)
+            temperature = round(int(tem[10:12], 16) - 40, 2)
+            current = round(cu.hexStrToInt(tem[4:6] + tem[6:8], 16) * 0.1, 2)
             if current < 0:
                 isCharging = False
             else:
@@ -56,7 +55,8 @@ class CanBattery(cb.CanBase):
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
         mu.sleepS(5)
-        self.attachCanID(2, 1, 0x112, 0, 0, 0)
+        self.createCanBus(self.port, 500000)
+        self.attachCanID(self.port, 1, 0x112)
         self.battery_info = self.createBatteryMessage()
         while True:
             self.judgeMsgok()
@@ -65,11 +65,3 @@ class CanBattery(cb.CanBase):
 if __name__ == '__main__':
     client = CanBattery()
     client.loop()
-
-
-
-
-
-
-
-

@@ -33,6 +33,12 @@ class SerialPass:
         else:
             Trace.log("Write msg format error. please send a list")
 
+    def createSerial(self, name, baudrate):
+        Trace.log(f"NOTICE: Creating serial port in passThrough mode is not supported. Port: {name}, Baudrate: {baudrate}")
+
+    def closeSerial(self):
+        Trace.log("NOTICE: Closing serial port in passThrough mode is not supported.")
+
     def setCallBack(self, handleData):
         if not handleData:
             Trace.log("Set callback error.It should be implemented the func 'handleData'")

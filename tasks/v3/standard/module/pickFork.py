@@ -62,8 +62,10 @@ def _robot_device_change_callback(device_change_set: List[str]):
     """设备参数变化回调"""
     if "Model" in device_change_set:
         ConfigParams.get_device_model_param()
+        ConfigParams._build_module_motor()
     if "Motor" in device_change_set or "DOMotor" in device_change_set:
         ConfigParams.get_device_motor_param()
+        ConfigParams._build_module_motor()
     # InputParams.init()
 
 
@@ -103,6 +105,9 @@ class ConfigParams:
     center_distance_between_forks: float = 0.0
     fork_motor_name: str = ""
     shiftMotor = ""
+    pitch_motor_name = ""
+    reach_motor_name = ""
+    expand_motor_name = ""
     motor_func: str = ""
     min_height: float = 0.0
     max_height: float = 0.0
@@ -185,12 +190,24 @@ class ConfigParams:
     errorRecAngle: float = 15.0
     zMax: bool = True
 
+    # 上报信息
+    moduleMotor: list = []
+    scriptName: str = ""
+
+    # —— moduleMotor 相关
+    shiftMotorPosition: bool = True
+    pitchMotorPosition: bool = True
+    reachMotorPosition: bool = True
+    expandMotorPosition: bool = True
+
+
     @classmethod
     def init(cls):
         """初始化所有设备参数"""
         cls.get_device_model_param()
         cls.get_device_motor_param()
         cls._build_and_load_config()
+        cls._build_module_motor()
 
     @classmethod
     def reload_config(cls):
@@ -255,6 +272,14 @@ class ConfigParams:
         cls.obsAreaWidth = cfg.get("obsAreaWidth")
         cls.deviceName = cfg.get("deviceName")
 
+        # --- moduleMotor
+        cls.shiftMotorPosition = cfg.get("shiftMotorPosition", True)
+        cls.pitchMotorPosition = cfg.get("pitchMotorPosition", True)
+        cls.reachMotorPosition = cfg.get("reachMotorPosition", True)
+        cls.expandMotorPosition = cfg.get("expandMotorPosition", True)
+
+        cls._build_module_motor()
+
         if cls.scriptDebug:
             Trace.log(f"Updated config: {cls.config}")
 
@@ -263,8 +288,12 @@ class ConfigParams:
     def get_device_model_param(cls):
         cls.chassis_type = RobotParam.getDevice("Model-000", "chassisType")
         cls.module_type = RobotParam.getDevice("Model-000", "moduleType") or ""
+        cls.scriptName = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.moduleScript") or ""
         cls.fork_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.liftMotor") or ""
         cls.shiftMotor = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.shiftMotor")
+        cls.pitch_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.pitchMotor") or ""
+        cls.reach_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.reachMotor") or ""
+        cls.expand_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.expandMotor") or ""
         cls.shape = RobotParam.getDevice("Model-000", "shape") or ""
         cls.head = float(RobotParam.getDevice("Model-000", f"shape.{cls.shape}.head") or 0)
         cls.tail = float(RobotParam.getDevice("Model-000", f"shape.{cls.shape}.tail") or 0)
@@ -319,6 +348,73 @@ class ConfigParams:
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachUpDist") or 0)
             cls.reach_down_dist = float(
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist") or 0)
+
+
+    @classmethod
+    def _build_module_motor(cls):
+        """构建 moduleMotor 列表"""
+        cls.moduleMotor = []
+
+        # lift 电机
+        if cls.fork_motor_name:
+            lift_jog_support = cls.module_type not in ["liftFork", "pickFork"]
+            lift_motor = {
+                "type": "lift",
+                "motorKey": cls.fork_motor_name,
+                "jogSupport": lift_jog_support,
+                "currentPosition": 0.0,
+                "maxLength": cls.max_height,
+                "minLength": cls.min_height
+            }
+            cls.moduleMotor.append(lift_motor)
+
+        # shift 电机
+        if cls.shiftMotor:
+            shift_motor = {
+                "type": "shift",
+                "motorKey": cls.shiftMotor,
+                "jogSupport": cls.shiftMotorPosition,
+                "currentPosition": 0.0,
+                "maxLength": float(RobotParam.getDevice(f"{cls.shiftMotor}", "basic.maxLength") or 0),
+                "minLength": float(RobotParam.getDevice(f"{cls.shiftMotor}", "basic.minLength") or 0)
+            }
+            cls.moduleMotor.append(shift_motor)
+
+        # pitch 电机
+        if cls.pitch_motor_name:
+            pitch_motor = {
+                "type": "pitch",
+                "motorKey": cls.pitch_motor_name,
+                "jogSupport": cls.pitchMotorPosition,
+                "currentPosition": 0.0,
+                "maxLength": float(RobotParam.getDevice(f"{cls.pitch_motor_name}", "basic.maxLength") or 0),
+                "minLength": float(RobotParam.getDevice(f"{cls.pitch_motor_name}", "basic.minLength") or 0)
+            }
+            cls.moduleMotor.append(pitch_motor)
+
+        # reach 电机
+        if cls.reach_motor_name:
+            reach_motor = {
+                "type": "reach",
+                "motorKey": cls.reach_motor_name,
+                "jogSupport": cls.reachMotorPosition,
+                "currentPosition": 0.0,
+                "maxLength": float(RobotParam.getDevice(f"{cls.reach_motor_name}", "basic.maxLength") or 0),
+                "minLength": float(RobotParam.getDevice(f"{cls.reach_motor_name}", "basic.minLength") or 0)
+            }
+            cls.moduleMotor.append(reach_motor)
+
+        # expand 电机
+        if cls.expand_motor_name:
+            expand_motor = {
+                "type": "expand",
+                "motorKey": cls.expand_motor_name,
+                "jogSupport": cls.expandMotorPosition,
+                "currentPosition": 0.0,
+                "maxLength": float(RobotParam.getDevice(f"{cls.expand_motor_name}", "basic.maxLength") or 0),
+                "minLength": float(RobotParam.getDevice(f"{cls.expand_motor_name}", "basic.minLength") or 0)
+            }
+            cls.moduleMotor.append(expand_motor)
 
     def get_app_rec_param(cls):
         pass
@@ -567,6 +663,31 @@ class ConfigParams:
                                     builder.REQUIRED(True)
                                     builder.DEFAULTVALUE(2.0)
 
+            # ===== moduleMotor 相关 =====
+            with builder.GROUP(key="moduleMotor", name="Module Motor Settings", desc="模块电机相关配置"):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    if ConfigParams.shiftMotor:
+                        with builder.CHILD(key="shiftMotorPosition", name="Shift Motor Position Control",
+                                         desc="横移电机是否位置控制"):
+                            builder.TYPE(ParamType.BOOL)
+                            builder.DEFAULTVALUE(True)
+                    if ConfigParams.pitch_motor_name:
+                        with builder.CHILD(key="pitchMotorPosition", name="Pitch Motor Position Control",
+                                         desc="俯仰电机是否位置控制"):
+                            builder.TYPE(ParamType.BOOL)
+                            builder.DEFAULTVALUE(True)
+                    if ConfigParams.reach_motor_name:
+                        with builder.CHILD(key="reachMotorPosition", name="Reach Motor Position Control",
+                                         desc="前移电机是否位置控制"):
+                            builder.TYPE(ParamType.BOOL)
+                            builder.DEFAULTVALUE(True)
+                    if ConfigParams.expand_motor_name:
+                        with builder.CHILD(key="expandMotorPosition", name="Expand Motor Position Control",
+                                         desc="开合电机是否位置控制"):
+                            builder.TYPE(ParamType.BOOL)
+                            builder.DEFAULTVALUE(True)
+
             # ===== 线性堆栈 =====
             with builder.GROUP(key="linearUnload", name="Linear Unload", desc="线性堆栈相关配置"):
                 builder.TYPE(ParamType.ARRAY)
@@ -774,6 +895,81 @@ class InputParams:
                             cls.builder.SINGLESTEP(0.01)
                             # builder.REQUIRED(True)
                             cls.builder.DEFAULTVALUE(ConfigParams.fork_max_speed)
+
+                    # 电机点动/长按操作
+                    with cls.builder.CHILD(key="lift", name="Lift Motor", desc="Lift motor jog or move"):
+                        cls.builder.TYPE(ParamType.ARRAY)
+                        with cls.builder.CHILDREN():
+                            with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for lift motor"):
+                                cls.builder.TYPE(ParamType.FLOAT)
+                                cls.builder.UNIT("m")
+                                cls.builder.SINGLESTEP(0.01)
+                                cls.builder.DEFAULTVALUE(0.1)
+                            with cls.builder.CHILD(key="position", name="Position", desc="Target position for lift motor"):
+                                cls.builder.TYPE(ParamType.FLOAT)
+                                cls.builder.UNIT("m")
+                                cls.builder.SINGLESTEP(0.01)
+                                cls.builder.DEFAULTVALUE(-1)
+
+                    if ConfigParams.shiftMotor:
+                        with cls.builder.CHILD(key="shift", name="Shift Motor", desc="Shift motor jog or move"):
+                            cls.builder.TYPE(ParamType.ARRAY)
+                            with cls.builder.CHILDREN():
+                                with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for shift motor"):
+                                    cls.builder.TYPE(ParamType.FLOAT)
+                                    cls.builder.UNIT("m")
+                                    cls.builder.SINGLESTEP(0.01)
+                                    cls.builder.DEFAULTVALUE(0.1)
+                                with cls.builder.CHILD(key="position", name="Position", desc="Target position for shift motor"):
+                                    cls.builder.TYPE(ParamType.FLOAT)
+                                    cls.builder.UNIT("m")
+                                    cls.builder.SINGLESTEP(0.01)
+                                    cls.builder.DEFAULTVALUE(-1)
+
+                    if ConfigParams.pitch_motor_name:
+                        with cls.builder.CHILD(key="pitch", name="Pitch Motor", desc="Pitch motor jog or move"):
+                            cls.builder.TYPE(ParamType.ARRAY)
+                            with cls.builder.CHILDREN():
+                                with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for pitch motor"):
+                                    cls.builder.TYPE(ParamType.FLOAT)
+                                    cls.builder.UNIT("m")
+                                    cls.builder.SINGLESTEP(0.01)
+                                    cls.builder.DEFAULTVALUE(0.1)
+                                with cls.builder.CHILD(key="position", name="Position", desc="Target position for pitch motor"):
+                                    cls.builder.TYPE(ParamType.FLOAT)
+                                    cls.builder.UNIT("m")
+                                    cls.builder.SINGLESTEP(0.01)
+                                    cls.builder.DEFAULTVALUE(-1)
+
+                    if ConfigParams.reach_motor_name:
+                        with cls.builder.CHILD(key="reach", name="Reach Motor", desc="Reach motor jog or move"):
+                            cls.builder.TYPE(ParamType.ARRAY)
+                            with cls.builder.CHILDREN():
+                                with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for reach motor"):
+                                    cls.builder.TYPE(ParamType.FLOAT)
+                                    cls.builder.UNIT("m")
+                                    cls.builder.SINGLESTEP(0.01)
+                                    cls.builder.DEFAULTVALUE(0.1)
+                                with cls.builder.CHILD(key="position", name="Position", desc="Target position for reach motor"):
+                                    cls.builder.TYPE(ParamType.FLOAT)
+                                    cls.builder.UNIT("m")
+                                    cls.builder.SINGLESTEP(0.01)
+                                    cls.builder.DEFAULTVALUE(-1)
+
+                    if ConfigParams.expand_motor_name:
+                        with cls.builder.CHILD(key="expand", name="Expand Motor", desc="Expand motor jog or move"):
+                            cls.builder.TYPE(ParamType.ARRAY)
+                            with cls.builder.CHILDREN():
+                                with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for expand motor"):
+                                    cls.builder.TYPE(ParamType.FLOAT)
+                                    cls.builder.UNIT("m")
+                                    cls.builder.SINGLESTEP(0.01)
+                                    cls.builder.DEFAULTVALUE(0.1)
+                                with cls.builder.CHILD(key="position", name="Position", desc="Target position for expand motor"):
+                                    cls.builder.TYPE(ParamType.FLOAT)
+                                    cls.builder.UNIT("m")
+                                    cls.builder.SINGLESTEP(0.01)
+                                    cls.builder.DEFAULTVALUE(-1)
 
                     # 脱离库位操作
                     with cls.builder.CHILD(key="leaveLoc", name="Leave Loc",
@@ -1313,6 +1509,8 @@ class Fork(ModuleBase):
             self.delete_clear_region()
         elif self.opt == "cageStack":
             self.cage_stack()
+        elif self.opt in ["lift", "shift", "pitch", "reach", "expand"]:
+            self.motor_jog_or_move(self.opt)
         else:
             Navigation.setTaskError("WrongOperation", f"wrong operation:{self.opt}, script failed")
             self.script_status = ScriptStatus.FAILED
@@ -1415,6 +1613,9 @@ class Fork(ModuleBase):
     # 识别取货和非识别取货
     def load(self):
         if not self.operation_init:
+
+            Navigation.appendCustomPolicy("policy", {"navigation.freeBypass": "off"})
+
             self.operation_init = True
             r_loc = get_r_loc()
             source_pos = self.get_station_pos("sourceName")[0]
@@ -1730,6 +1931,9 @@ class Fork(ModuleBase):
 
     def unload(self):
         if not self.operation_init:
+
+            Navigation.appendCustomPolicy("policy", {"navigation.freeBypass": "off"})
+
             self.operation_init = True
             r_loc = get_r_loc()
             source_pos = self.get_station_pos("sourceName")[0]
@@ -1856,6 +2060,45 @@ class Fork(ModuleBase):
             "script.script_status": self.script_status
         })
 
+    def motor_jog_or_move(self, motor_type):
+        """电机点动或长按操作"""
+        if not self.operation_init:
+            self.operation_init = True
+
+            # 从 moduleMotor 中查找对应的电机
+            motor_info = None
+            for motor in ConfigParams.moduleMotor:
+                if motor["type"] == motor_type:
+                    motor_info = motor
+                    break
+
+            if not motor_info:
+                Navigation.setTaskError("motorTypeError", f"motor type {motor_type} not found,check moduleMotor config",)
+                self.script_status = ScriptStatus.FAILED
+                return
+
+            motor_key = motor_info["motorKey"]
+            min_length = motor_info["minLength"]
+            max_length = motor_info["maxLength"]
+
+            # 点动操作
+            if self.jog_step is not None:
+                current_pos = Motor.getMotorPos(motor_key)
+                target_pos = current_pos + self.jog_step
+                # 边界检查
+                target_pos = clamp(target_pos, min_length, max_length)
+                self.action_list = [RunMotorByPosition(motor_key, target_pos)]
+            # 长按操作
+            elif self.target_position is not None:
+                self.action_list = [RunMotorByPosition(motor_key, self.target_position)]
+            else:
+                Navigation.setTaskError("inputParamError",f"jogStep or position not provided check the input param provide jogStep or position" )
+                self.script_status = ScriptStatus.FAILED
+                return
+
+        if self.action_status == ActionStatus.FINISHED:
+            self.script_status = ScriptStatus.FINISHED
+
     def fork_move(self):
         if not self.operation_init:
             self.fork_height_in_place = False
@@ -1880,6 +2123,8 @@ class Fork(ModuleBase):
         self.forkHeight = self.task_args.get("height")
         self.forkSpeed = self.task_args.get("forkSpeed", ConfigParams.fork_max_speed)
         self.recSide = self.task_args.get("recSide")
+        self.jog_step = self.task_args.get("jogStep", None)
+        self.target_position = self.task_args.get("position", None)
         input_recognize = self.task_args.get("recognize", False)
 
         # 解析任务下发的参数，不含在 script_args 里的参数
@@ -1956,15 +2201,24 @@ class Fork(ModuleBase):
             self.last_saved_total = self.total_dist
 
     def period_run(self):
-        fork_height = Motor.getMotorPos(ConfigParams.fork_motor_name)
+        fork_height = round(Motor.getMotorPos(ConfigParams.fork_motor_name), 3)
         self.fork_height = fork_height
+
+        # 更新 moduleMotor 的 currentPosition
+        for motor in ConfigParams.moduleMotor:
+            try:
+                motor["currentPosition"] = round(Motor.getMotorPos(motor["motorKey"]), 3)
+            except Exception as e:
+                Trace.log(f"Failed to get motor position for {motor['motorKey']}: {e}")
 
         self.trace_chart.update({
             "forkHeight": fork_height,  # 货叉高度, 单位 m
             "forkHeightInPlace": self.fork_height_in_place,  # 货叉高度是否到位, true = 到位, false = 未到位
             "forkAutoFlag": not Controller.getIsExternalControl(),
             "forkMileage": self.total_dist,
-            "containers": Container.getContainers()
+            "containers": Container.getContainers(),
+            "moduleMotor": ConfigParams.moduleMotor,
+            "moduleScript": ConfigParams.scriptName
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.reportInfo(self.trace_chart)
@@ -2427,6 +2681,11 @@ class GoPathWithContactDi(BaseAction):
         self.set_policy = False
         self.clear_policy = False
         self.policy = {}
+        self.policy_unloadobs_dist = RobotParam.getConfig("navigation","obstacleStop.obsStopUnload.obsStopDist")
+        self.policy_loadobs_dist = RobotParam.getConfig("navigation","obstacleStop.obsStopLoad.obsStopDist")
+
+        self.policy["navigation.freeBypass"] = "off"
+
         target2robot = pos2Base(world_pos, get_r_loc())
         Trace.log(f"go path with di target pos:{world_pos},args:{args}")
 
@@ -2478,6 +2737,7 @@ class GoPathWithContactDi(BaseAction):
 
     def run(self):
         if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
+            self.back_action.reset()
             return
 
         self.action_status = ActionStatus.RUNNING
@@ -2486,9 +2746,7 @@ class GoPathWithContactDi(BaseAction):
                 self.init = True
                 self.start_loc = get_r_loc()
                 Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}")
-                # if cal_dist(self.target_pos, self.start_loc) < 0.05:
-                #     self.action_status = ActionStatus.FINISHED
-                #     return
+
                 if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
                     for laser in ConfigParams.fork_tip_2D_lasers:
                         Trace.log(f"set2DLaserWidth:{laser}")
@@ -2526,7 +2784,7 @@ class GoPathWithContactDi(BaseAction):
 
                 # Navigation.setObsStopDist(self.obs_dist)
 
-                Navigation.appendCustomPolicy("policy", self.policy)
+                Navigation.appendCustomPolicy("loadPolicy", self.policy)
                 time.sleep(0.5)
 
                 self.set_policy = True
@@ -2544,17 +2802,24 @@ class GoPathWithContactDi(BaseAction):
             if self.back_action.action_status in [ScriptStatus.FAILED, ActionStatus.FAILED]:
                 return
 
-            # 前进的时候不要设置避障距离
+            # 前进的时候恢复脚本走之前的避障距离
             vx = NavSpeed.getSpeeds()[0]
             if vx > 0.005 and not self.clear_policy:
-                Navigation.clearPolicy()
+                self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.policy_unloadobs_dist
+                self.policy['navigation.obstacleStop.obsStopLoad.loadObsStopDist'] = self.policy_loadobs_dist
+
+                Navigation.appendCustomPolicy("forwardPolicy",self.policy)
                 self.clear_policy = True
                 self.set_policy = False
-                Trace.log(f"vx:{vx},clear policy", True, True)
+                Trace.log(f"vx:{vx},set forward policy:{self.policy}", True, True)
+
             elif vx <= 0 and not self.set_policy:
-                Trace.log(f"vx:{vx},set policy", True, True)
+                if self.obs_dist is not None:
+                    self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.obs_dist
+                    self.policy['navigation.obstacleStop.obsStopLoad.loadObsStopDist'] = self.obs_dist
                 Navigation.appendCustomPolicy("policy", self.policy)
-                time.sleep(0.5)
+                Trace.log(f"vx:{vx},set load policy:{self.policy}", True, True)
+                time.sleep(0.2)
                 Navigation.goPathParam(dict())
                 self.clear_policy = False
                 self.set_policy = True
@@ -2827,6 +3092,7 @@ class RunMotorByPosition(BaseAction):
                                                             0.01)
                     and ConfigParams.module_type in ["straddleLiftFork", "counterBalanceFork"]):
                 self.action_status = ActionStatus.FINISHED
+                Motor.resetMotor(self.motor_name)
                 return
 
             # 把目标位置先夹到最大最小区间
