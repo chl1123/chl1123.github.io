@@ -2,7 +2,7 @@
 # @Date : 2026/5/11
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add: 1.增加底盘角度旋转、托盘对齐、料架角度的处理；增加空载起步前的托盘对齐 2.适配安卓屏幕点动，长按控制电机 feat: 二次调整 codeAdjustType 序列化为json适配
+# @Update : add: 1.增加底盘角度旋转、托盘对齐、料架角度的处理；增加空载起步前的托盘对齐 2.适配安卓屏幕点动，长按控制电机 feat: 二次调整 codeAdjustType 序列化为json适配 fix:二次调整multline模式支持policy传入
 
 
 import json
@@ -3860,41 +3860,35 @@ class PGVSecondaryAdjust(BaseAction):
     # 内部：构建 policy JSON
     # ------------------------------------------------------------------
     def _build_policy(self):
-        """构建 policy JSON 传给 goPGVRun。"""
-        policy = {
-            "codeAdjustType": self.code_adjust_type,
-        }
+        """构建 policy JSON 传给 goPGVRun。
+
+        C++ ParamReader 用点号路径读取，如:
+          POLICY_PARAM_READ(string, "codeAdjustType")
+          POLICY_PARAM_READ(string, "codeAdjustType.singleCode.scanDevice")
+        """
+        policy = {}
+        policy["codeAdjustType"] = self.code_adjust_type
 
         if self.code_adjust_type == "singleCode":
-            single_code = {
-                "scanDevice": self.scan_device,
-            }
+            policy["codeAdjustType.singleCode.scanDevice"] = self.scan_device
             if self.code_number:
-                single_code["codeNumber"] = self.code_number
+                policy["codeAdjustType.singleCode.codeNumber"] = self.code_number
             if self.angle_adjust_type:
-                single_code["angleAdjustType"] = self.angle_adjust_type
+                policy["codeAdjustType.singleCode.angleAdjustType"] = self.angle_adjust_type
 
             if self.position_adjust_type == "multiLine":
-                single_code["positionAdjustType"] = "multiLine"
-                single_code["multiLine"] = {
-                    "lineAngleThreshold": self.line_angle_threshold,
-                    "adjustRegion": self.adjust_region,
-                }
+                policy["codeAdjustType.singleCode.positionAdjustType"] = "multiLine"
+                policy["codeAdjustType.singleCode.positionAdjustType.multiLine.lineAngleThreshold"] = self.line_angle_threshold
+                policy["codeAdjustType.singleCode.positionAdjustType.multiLine.adjustRegion"] = self.adjust_region
             elif self.position_adjust_type == "frontAndBack":
-                single_code["positionAdjustType"] = "frontAndBack"
-
-            policy["singleCode"] = single_code
+                policy["codeAdjustType.singleCode.positionAdjustType"] = "frontAndBack"
 
         elif self.code_adjust_type == "codeNumber":
-            code_number = {
-                "scanDevice": self.scan_device,
-            }
+            policy["codeAdjustType.codeNumber.scanDevice"] = self.scan_device
             if self.angle_adjust_type:
-                code_number["angleAdjustType"] = self.angle_adjust_type
+                policy["codeAdjustType.codeNumber.angleAdjustType"] = self.angle_adjust_type
 
-            policy["codeNumber"] = code_number
-
-        self.adjust_param['policy'] = policy
+        self.adjust_param['policy'] = json.dumps(policy)
 
     def reset(self):
         debug_trace("reset PGV secondary adjustment")
