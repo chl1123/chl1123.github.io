@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/8
+# @Date : 2026/5/11
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add: 增加底盘角度旋转、托盘对齐、料架角度的处理；增加空载起步前的托盘对齐 feat: 二次调整 codeAdjustType 序列化为json适配
+# @Update : add: 1.增加底盘角度旋转、托盘对齐、料架角度的处理；增加空载起步前的托盘对齐 2.适配安卓屏幕点动，长按控制电机 feat: 二次调整 codeAdjustType 序列化为json适配
 
 
 import json
@@ -52,6 +52,11 @@ def debug_trace(*args, **kwargs):
             Trace.log(first_arg, *args[1:], **kwargs)
         else:
             Trace.log(timestamp, **kwargs)
+
+
+def clamp(val, lo, hi):
+    return max(lo, min(val, hi))
+
 
 class _SingletonDBManager:
     _instance = None
@@ -222,6 +227,10 @@ class ConfigParams:
 
     # 报错保护配置参数
     load_again_error = True  # 是否启用重复取货保护
+
+    # 屏幕接口上报信息
+    moduleMotor: list = []
+    scriptName: str = ""
 
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
@@ -593,6 +602,29 @@ class ConfigParams:
 
         debug_trace(f"Updated config: debug_mode={cls.debug_mode}")
 
+        # 构建屏幕接口上报的 moduleMotor
+        cls.scriptName = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.moduleScript") or ""
+        cls._build_module_motor()
+
+    @classmethod
+    def _build_module_motor(cls):
+        """构建 moduleMotor 列表，用于屏幕接口上报"""
+        cls.moduleMotor = []
+
+        # lift 电机（即顶升电机 jack）
+        if cls.jack_motor_name:
+            lift_motor = {
+                "type": "lift",
+                "motorKey": cls.jack_motor_name,
+                "jogSupport": True,
+                "currentPosition": 0.0,
+                "maxLength": cls.jack_max_height or float(
+                    RobotParam.getDevice(f"{cls.jack_motor_name}", f"func.{cls.motor_func}.maxLength") or 0),
+                "minLength": cls.jack_min_height or float(
+                    RobotParam.getDevice(f"{cls.jack_motor_name}", f"func.{cls.motor_func}.minLength") or 0)
+            }
+            cls.moduleMotor.append(lift_motor)
+
 
 # 创建全局配置管理器实例
 config_params = ConfigParams()
@@ -892,6 +924,21 @@ class InputParams:
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_jack_unload(builder)
+
+                # 屏幕接口：升降电机点动/长按
+                with builder.CHILD(key="lift", name="Lift Motor", desc="Lift motor jog or move (screen interface)"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for lift motor"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.UNIT("m")
+                            builder.SINGLESTEP(0.01)
+                            builder.DEFAULTVALUE(0.1)
+                        with builder.CHILD(key="position", name="Position", desc="Target position for lift motor"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.UNIT("m")
+                            builder.SINGLESTEP(0.01)
+                            builder.DEFAULTVALUE(-1)
 
                 # ============================================
                 # 调试/低频任务（需要开启debugMode才显示）
@@ -1517,6 +1564,11 @@ class Jack(ModuleBase):
 
         # laser area deduction
         self.create_or_delete_deducted_area = self.task_args.get("createOrDeleteDeductedArea", None)
+
+        # 屏幕接口电机点动/长按参数
+        self.jog_step = self.task_args.get("jogStep", None)
+        self.target_position = self.task_args.get("position", None)
+
         self.status = ScriptStatus.RUNNING
 
     def run(self):
@@ -1566,6 +1618,8 @@ class Jack(ModuleBase):
             self.jack_bezier_return()
         elif self.opt == "pressIoButton":
             self.press_button()
+        elif self.opt == "lift":  # 屏幕接口：升降电机点动/长按
+            self.motor_jog_or_move("lift")
         elif self.opt == "calib":  # 外部指令强制标零（需 debugMode）
             self.do_force_calib()
 
@@ -2198,6 +2252,45 @@ class Jack(ModuleBase):
 
             self.action_list.append(GoMapPath())
 
+    def motor_jog_or_move(self, motor_type):
+        """屏幕接口：电机点动或长按操作（参考 counterBalanceFork.py）"""
+        if not self.operation_init:
+            self.operation_init = True
+
+            # 从 moduleMotor 中查找对应的电机
+            motor_info = None
+            for motor in config_params.moduleMotor:
+                if motor["type"] == motor_type:
+                    motor_info = motor
+                    break
+
+            if not motor_info:
+                Abnormal.setTask(53350, f"motor type {motor_type} not found", "check moduleMotor config",
+                                 "check the device", "motor_jog_or_move")
+                self.status = ScriptStatus.FAILED
+                return
+
+            motor_key = motor_info["motorKey"]
+            min_length = motor_info["minLength"]
+            max_length = motor_info["maxLength"]
+
+            # 点动操作（屏幕按钮点击一下）
+            if self.jog_step is not None:
+                current_pos = Motor.getMotorPos(motor_key)
+                target_pos = current_pos + self.jog_step
+                # 边界检查
+                target_pos = clamp(target_pos, min_length, max_length)
+                self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
+            # 长按操作（屏幕按钮长按，发送最大或最小位置）
+            elif self.target_position is not None:
+                target_pos = clamp(self.target_position, min_length, max_length)
+                self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
+            else:
+                Abnormal.setTask(53350, "jogStep or position not provided", "check the input param",
+                                 "provide jogStep or position", "motor_jog_or_move")
+                self.status = ScriptStatus.FAILED
+                return
+
     def jack_target_height(self):
         """抬升托盘到指定高度"""
         if not self.operation_init:
@@ -2334,6 +2427,14 @@ class Jack(ModuleBase):
         spin_angle_rad = None
         if config_params.spin_motor_name:
             spin_angle_rad = Motor.getMotorPos(config_params.spin_motor_name)
+
+        # 更新 moduleMotor 的 currentPosition
+        for motor in config_params.moduleMotor:
+            try:
+                motor["currentPosition"] = round(Motor.getMotorPos(motor["motorKey"]), 3)
+            except Exception as e:
+                Trace.log(f"Failed to get motor position for {motor['motorKey']}: {e}")
+
         self.report_info.update({
             "jackMode": True,
             "jackEnable": True,
@@ -2342,7 +2443,9 @@ class Jack(ModuleBase):
             "jackIsFull": self.jack_isFull,
             "jackHeight": self.jack_height,
             "jackSpin": spin_angle_rad,
-            "containers": Container.getContainers()
+            "containers": Container.getContainers(),
+            "moduleMotor": config_params.moduleMotor,
+            "moduleScript": config_params.scriptName
         })
 
         Module.reportInfo(self.report_info)
@@ -3966,6 +4069,17 @@ param_loader.addAction(
     args={
         "operation": "jackHeight",
         "operation.jackHeight.endHeight": config_params.jack_max_height,
+    },
+    config={}
+)
+
+# 添加 "lift" 动作模板（屏幕接口点动）
+param_loader.addAction(
+    action_name="lift",
+    policy={},
+    args={
+        "operation": "lift",
+        "operation.lift.jogStep": 0.1,
     },
     config={}
 )
