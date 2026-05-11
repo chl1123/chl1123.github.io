@@ -264,6 +264,77 @@ collect_origin_files() {
   done
 }
 
+remove_version_dir_from_path() {
+  local path="$1"
+  local part=""
+  local result=()
+
+  IFS='/' read -r -a _parts <<< "$path"
+  for part in "${_parts[@]}"; do
+    if [[ "$part" == "v3" || "$part" == "v4" ]]; then
+      continue
+    fi
+    [[ -n "$part" ]] && result+=("$part")
+  done
+
+  (IFS='/'; printf '%s' "${result[*]}")
+}
+
+stage_origin_files() {
+  local stage_dir="$1"
+  local src_rel=""
+  local dest_rel=""
+  local dest_path=""
+  local src_priority=0
+  local old_priority=0
+  local old_src=""
+  declare -A staged_src=()
+  declare -A staged_priority=()
+
+  get_source_priority() {
+    local path="$1"
+    if [[ "$path" == *"/v3/"* || "$path" == v3/* ]]; then
+      printf '3'
+    elif [[ "$path" == *"/v4/"* || "$path" == v4/* ]]; then
+      printf '1'
+    else
+      printf '2'
+    fi
+  }
+
+  for src_rel in "${ORIGIN_FILES[@]}"; do
+    dest_rel="$(remove_version_dir_from_path "$src_rel")"
+    [[ -n "$dest_rel" ]] || fail "empty archive path after removing v3/v4: $src_rel"
+    src_priority="$(get_source_priority "$src_rel")"
+
+    if [[ -n "${staged_src[$dest_rel]+x}" ]]; then
+      old_src="${staged_src[$dest_rel]}"
+      old_priority="${staged_priority[$dest_rel]}"
+
+      if (( src_priority > old_priority )); then
+        staged_src["$dest_rel"]="$src_rel"
+        staged_priority["$dest_rel"]="$src_priority"
+      elif (( src_priority == old_priority )) && [[ "$old_src" != "$src_rel" ]]; then
+        fail "archive path conflict with same priority: $old_src and $src_rel -> $dest_rel"
+      fi
+    else
+      staged_src["$dest_rel"]="$src_rel"
+      staged_priority["$dest_rel"]="$src_priority"
+    fi
+  done
+
+  for dest_rel in "${!staged_src[@]}"; do
+    src_rel="${staged_src[$dest_rel]}"
+    dest_path="$stage_dir/$dest_rel"
+    if [[ "${staged_priority[$dest_rel]}" == "1" ]]; then
+      echo "skip v4 override kept for archive path: $dest_rel"
+    fi
+
+    mkdir -p "$(dirname "$dest_path")"
+    cp "$SCRIPT_DIR/$src_rel" "$dest_path"
+  done
+}
+
 build_manifest() {
   local plugin_zip_name="$1"
   local plugin_sha256="$2"
@@ -321,32 +392,35 @@ build_outer_zip_name() {
 package_for_arch() {
   local arch="$1"
   local plugin_zip_name="plugin-${PACKAGE_ID}-${VERSION}-${arch}.zip"
-  local plugin_zip_path="$OUTPUT_DIR/$plugin_zip_name"
+  local plugin_zip_path=""
   local outer_zip_name=""
   local outer_zip_path=""
   local plugin_sha256=""
   local temp_dir=""
   local stage_dir=""
+  local plugin_stage_dir=""
   local manifest_path=""
   local manifest_sha256=""
 
   outer_zip_name="$(build_outer_zip_name "$arch")"
   outer_zip_path="$OUTPUT_DIR/$outer_zip_name"
 
-  [[ ! -e "$plugin_zip_path" ]] || fail "inner zip already exists: $plugin_zip_path"
   [[ ! -e "$outer_zip_path" ]] || fail "outer zip already exists: $outer_zip_path"
+  temp_dir="$(mktemp -d)"
+  stage_dir="$temp_dir/stage"
+  plugin_stage_dir="$temp_dir/plugin"
+  plugin_zip_path="$temp_dir/$plugin_zip_name"
+  manifest_path="$temp_dir/manifest.json"
+  mkdir -p "$stage_dir"
+  mkdir -p "$plugin_stage_dir"
 
+  stage_origin_files "$plugin_stage_dir"
   (
-    cd "$SCRIPT_DIR"
-    zip -qr "$plugin_zip_path" "${ORIGIN_FILES[@]}"
+    cd "$plugin_stage_dir"
+    zip -qr "$plugin_zip_path" .
   )
 
   plugin_sha256="$(sha256sum "$plugin_zip_path" | awk '{print $1}')"
-  temp_dir="$(mktemp -d)"
-  stage_dir="$temp_dir/stage"
-  manifest_path="$temp_dir/manifest.json"
-  mkdir -p "$stage_dir"
-
   build_manifest "$plugin_zip_name" "$plugin_sha256" "$arch" > "$manifest_path"
   manifest_sha256="$(sha256sum "$manifest_path" | awk '{print $1}')"
   printf '%s  manifest.json\n' "$manifest_sha256" > "$temp_dir/manifest.json.sha256"
@@ -362,7 +436,6 @@ package_for_arch() {
 
   rm -rf "$temp_dir"
 
-  echo "generated inner zip: $plugin_zip_path"
   echo "generated outer zip: $outer_zip_path"
 }
 
