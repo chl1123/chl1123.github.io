@@ -1,7 +1,5 @@
 # --coding:utf-8--
 
-
-# 导入电池基类
 import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
@@ -21,6 +19,7 @@ class CanBattery(cb.CanBase):
         self.wait = mu.Timer(10000)
         self.msg_ok = False
         self.first = True
+        self.port = self.getBatteryCanPort()
         self.tem = []
 
     def handleData(self, msg):
@@ -46,10 +45,8 @@ class CanBattery(cb.CanBase):
             tem = canframe.data.hex()
             if self.isNeedCharge():
                 Trace.log("start charge")
-                can_data = [tem[0:2], tem[2:4], tem[4:6], tem[6:8], '00', '00', '00', '00']
-                can_string = ' '.join(can_data).upper()
-                Trace.log(can_string)
-                self.sendCanframe(2, 0x18FF50E5, 8, True, can_string)
+                can_data = [int(tem[0:2], 16), int(tem[2:4], 16), int(tem[4:6], 16), int(tem[6:8], 16), 0x00, 0x00, 0x00, 0x00]
+                self.sendCanframe(2, 0x18FF50E5, 8, True, can_data)
             max_voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)
             max_current = round(int(tem[4:6] + tem[6:8], 16) * 0.1, 2)
             self.battery_info.maxChargeCurrent = max_current
@@ -82,8 +79,8 @@ class CanBattery(cb.CanBase):
     def loop(self):
         # 需要至少5s来等待底层初始化,否则将会覆盖操作
         mu.sleepS(5)
+        self.createCanBus(self.port, 250000)
         self.attachCanID(2, 3, 0x1806E5F4, 0x1800FFF4, 0x019E, 0)
-        #self.attachCanID(1, 1, 0x019E, 0, 0, 0)
         while True:
             # 等待是否收到整包,若超时则报超时,并进入下次循环
             self.judgeMsgok()
@@ -92,11 +89,3 @@ class CanBattery(cb.CanBase):
 if __name__ == '__main__':
     client = CanBattery()
     client.loop()
-
-
-
-
-
-
-
-

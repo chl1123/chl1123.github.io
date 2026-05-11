@@ -5,6 +5,14 @@ from syspy import Trace
 log = logging.getLogger("rbk.script")
 
 
+class _CanFrameAdapter:
+    __slots__ = ('id', 'data')
+
+    def __init__(self, msg):
+        self.id = msg.arbitration_id
+        self.data = msg.data
+
+
 class CanNative():
     def __init__(self):
         Trace.log("CanNative start!")
@@ -26,6 +34,9 @@ class CanNative():
         log.debug(f"message received: {msg}")
         if msg is not None and self.__callback is not None:
             self.__callback(msg)
+
+    def recCanframe(self, msg):
+        return _CanFrameAdapter(msg)
 
     def createCanBus(self, channel, bitrate):
         self.channel = channel
@@ -65,9 +76,16 @@ class CanNative():
     #      return msg.arbitration_id in self.can_ids
 
     def attachCanID(self, *canid):
-        self.can_ids.clear()
-        for i in range(len(canid)):
-            self.can_ids.append(canid[i])
+        # Accept passthrough-style (channel, id_nums, *ids), unified-style (port_str, id_nums, *ids), and native-style (*ids)
+        if len(canid) >= 2 and isinstance(canid[0], int) and canid[0] < 3 and isinstance(canid[1], int) and 1 <= canid[1] <= 5:
+            ids = canid[2:]  # passthrough-style on native
+        elif len(canid) >= 2 and isinstance(canid[0], str):
+            ids = canid[2:]  # unified-style (port_name, id_nums, *ids) on native
+        else:
+            ids = canid  # native-style (*ids)
+        for id_ in ids:
+            if id_ != 0 and id_ not in self.can_ids:
+                self.can_ids.append(id_)
         filters = []
         for id_ in self.can_ids:
             if id_ < 0x800:
@@ -90,10 +108,12 @@ class CanNative():
         self.attachCanID(*self.can_ids)
         Trace.log(f'[CAN] Config Ok')
         
-    def sendCanframe(self, channel, can_id, dlc, extend, can_string: list):
+    def sendCanframe(self, channel, can_id, dlc, extend, can_string):
         if not self.bus:
             Trace.log("please createCanBus first.")
             return
+        if isinstance(can_string, str):
+            can_string = [int(b, 16) for b in can_string.split()]
         try:
             self.bus.send(can.Message(arbitration_id=can_id, data=can_string, is_extended_id=extend, dlc=dlc))
             Trace.log(f'message send: {channel=}, {hex(can_id)=}, {dlc=}, {extend=}, {can_string=}')

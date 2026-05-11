@@ -7,6 +7,7 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
+from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace
 
 """
@@ -14,6 +15,42 @@ from syspy import Trace
 
 武汉彦阳物联科技 YY-BCU系列 MODBUS协议 V1
 """
+
+param_loader = ScriptParam(__file__)
+
+class ConfigParams:
+    config = {}
+    devName = None
+    baudrate = None
+    timeoutThreshold = None
+
+    def __init__(self):
+        self._build_and_load_config()
+
+    @classmethod
+    def _build_and_load_config(cls):
+        builder = param_loader.builderConfig()
+        with builder.GROUPS():
+            with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):
+                builder.TYPE(ParamType.STRING)
+                builder.DEFAULTVALUE("/dev/ttyS8")
+            with builder.GROUP(key="baudrate", name="Baudrate", desc="波特率"):
+                builder.TYPE(ParamType.UINT)
+                builder.DEFAULTVALUE(9600)
+            with builder.GROUP(key="timeoutThreshold", name="timeoutThreshold", desc="超时时间阈值(ms)"):
+                builder.TYPE(ParamType.UINT)
+                builder.DEFAULTVALUE(2000)
+        builder.save(merge=True)
+        cls.reload_config()
+
+    @classmethod
+    def reload_config(cls):
+        cls.config = param_loader.loadConfig()
+        cls.devName = cls.config.get("devName")
+        cls.baudrate = cls.config.get("baudrate")
+        cls.timeoutThreshold = cls.config.get("timeoutThreshold")
+
+config_params = ConfigParams()
 
 
 class BatteryHuoKeYy(bb.batteryBase):
@@ -24,6 +61,8 @@ class BatteryHuoKeYy(bb.batteryBase):
     def __init__(self):
         # 初始化基类,必须做
         super(BatteryHuoKeYy, self).__init__()
+        self.createSerial(config_params.devName, config_params.baudrate)
+        self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
         # 创建一个列表用来缓冲接收数据
         self.data_buff = []
         # 用来表示数据是否已经正确接收
@@ -66,29 +105,26 @@ class BatteryHuoKeYy(bb.batteryBase):
                 # 标记该次数据接收完成且正确
                 self.msg_ok = True
 
+    def judgeMsgok(self):
+        if self.msg_ok:
+            self.clearTimeout()
+            self.msg_ok = False
+            self.connect_timeout_t.reset()
+        else:
+            if self.connect_timeout_t.isTimeUp():
+                self.setTimeout()
+
     def loop(self):
         """
         循环,处理发送及超时逻辑
         """
-        # 创建一个超时定时器
-        connect_timeout_t = mu.Timer(2000)
         while True:
             # 初始化查询报文list
             request = [0x01, 0x03, 0x00, 0x0A, 0x00, 0x0C, 0x65, 0xCD]  # 返回 [01 03 18 26 ae 00 0b 67 66 00 00 00 c7 00 00 44 43 00 00 0c f1 0c ea 00 a2 08 34 e3 c4]
             # 发送查询报文
             self.send(request)
-            # 判断是否收到整包
-            if self.msg_ok:
-                # 清除超时错误,重置标志位
-                self.clearTimeout()
-                self.msg_ok = False
-                connect_timeout_t.reset()
-            # 等待是否收到整包,若超时则报超时,并进入下次循环
-            while not self.msg_ok:
-                if connect_timeout_t.isTimeUp():
-                    self.setTimeout()
-                    break
-            mu.sleepS(1)
+            self.judgeMsgok()
+            mu.sleepS(2)
 
 
 if __name__ == '__main__':

@@ -6,7 +6,44 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 # 打印工具类
 import syspy.lib.udp_debug as ud
+from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace
+
+param_loader = ScriptParam(__file__)
+
+class ConfigParams:
+    config = {}
+    devName = None
+    baudrate = None
+    timeoutThreshold = None
+
+    def __init__(self):
+        self._build_and_load_config()
+
+    @classmethod
+    def _build_and_load_config(cls):
+        builder = param_loader.builderConfig()
+        with builder.GROUPS():
+            with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):
+                builder.TYPE(ParamType.STRING)
+                builder.DEFAULTVALUE("/dev/ttyS8")
+            with builder.GROUP(key="baudrate", name="Baudrate", desc="波特率"):
+                builder.TYPE(ParamType.UINT)
+                builder.DEFAULTVALUE(9600)
+            with builder.GROUP(key="timeoutThreshold", name="timeoutThreshold", desc="超时时间阈值(ms)"):
+                builder.TYPE(ParamType.UINT)
+                builder.DEFAULTVALUE(8000)
+        builder.save(merge=True)
+        cls.reload_config()
+
+    @classmethod
+    def reload_config(cls):
+        cls.config = param_loader.loadConfig()
+        cls.devName = cls.config.get("devName")
+        cls.baudrate = cls.config.get("baudrate")
+        cls.timeoutThreshold = cls.config.get("timeoutThreshold")
+
+config_params = ConfigParams()
 
 class Battery(bb.batteryBase):
     """
@@ -15,7 +52,8 @@ class Battery(bb.batteryBase):
     def __init__(self):
         # 初始化基类,必须做
         super(Battery, self).__init__()
-        self.connect_timeout_t = mu.Timer(8000)
+        self.createSerial(config_params.devName, config_params.baudrate)
+        self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
         self.__debug_out = ud.udpDebug()
         sys.stdout = self.__debug_out
         #
@@ -50,7 +88,7 @@ class Battery(bb.batteryBase):
         必须实现基类中处理数据的handleData(msg)的函数)
         如下为示例
         """
-        # 存入收到的数据到缓冲中        
+        # 存入收到的数据到缓冲中
         self.data_buff.extend(msg)
         # 判断报文长度
         if len(self.data_buff) >= 26 and self.case == "listen2":

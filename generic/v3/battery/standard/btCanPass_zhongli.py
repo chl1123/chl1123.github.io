@@ -121,6 +121,7 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
 
     def loop(self):  # 重置底层
         mu.sleepS(5)
+        self.createCanBus(self.port, 125000)
         # 绑定can通道和id
         self.attachCanID(self.port, 2, 0x3FC, 0x4FC)
         while True:  # 

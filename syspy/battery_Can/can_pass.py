@@ -43,10 +43,14 @@ class CanPass():
         return rec_canframe
 
     def sendCanframe(self, channel, can_id, dlc, extend, can_string):
+        if isinstance(can_string, list):
+            can_string = ' '.join(f'{b:02x}' for b in can_string)
         Trace.log(
             f'message send: {channel=}, {hex(can_id)=}, {dlc=}, {extend=}, {can_string=}')
         Can.sendPassThroughCanFrame(channel, can_id, dlc, extend, can_string)
-
+    def createCanBus(self, channel, bitrate):
+        Trace.log(f"NOTICE: Creating CAN bus in passThrough mode is not supported. Channel: {channel}, Bitrate: {bitrate}")
+        
     def attachCanID(self, channel, id_nums, *canid):
         can_ids = []
         for i in range(min(len(canid), 5)):
