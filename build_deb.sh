@@ -269,6 +269,15 @@ remove_version_dir_from_path() {
   local part=""
   local result=()
 
+  case "$path" in
+    tasks/*|generic/*)
+      ;;
+    *)
+      printf '%s' "$path"
+      return
+      ;;
+  esac
+
   IFS='/' read -r -a _parts <<< "$path"
   for part in "${_parts[@]}"; do
     if [[ "$part" == "v3" || "$part" == "v4" ]]; then
@@ -293,6 +302,16 @@ stage_origin_files() {
 
   get_source_priority() {
     local path="$1"
+
+    case "$path" in
+      tasks/*|generic/*)
+        ;;
+      *)
+        printf '2'
+        return
+        ;;
+    esac
+
     if [[ "$path" == *"/v3/"* || "$path" == v3/* ]]; then
       printf '3'
     elif [[ "$path" == *"/v4/"* || "$path" == v4/* ]]; then
