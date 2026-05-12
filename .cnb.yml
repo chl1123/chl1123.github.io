@@ -1,18 +1,2 @@
 include:
   - https://cnb.cool/seer-robotics/IT/plugins-sbs360-lpm/-/blob/main/.cnb.yml
-
-
-release:
-  push:
-    - imports:
-        - https://cnb.cool/chl245/secret-chl/-/blob/26a714e513ae41476f9a4b3625d20626c9b4fe70/env.yml
-      stages:
-        - name: sync to github
-          image: tencentcom/git-sync
-          settings:
-            target_url: https://github.com/chl1123/chl1123.github.io.git
-            auth_type: https
-            username: ${GIT_USERNAME}
-            password: ${GIT_ACCESS_TOKEN}
-            branch: release
-            sync_mode: rebase
