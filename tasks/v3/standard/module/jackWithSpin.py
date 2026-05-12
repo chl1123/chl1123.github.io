@@ -2265,8 +2265,7 @@ class Jack(ModuleBase):
                     break
 
             if not motor_info:
-                Abnormal.setTask(53350, f"motor type {motor_type} not found", "check moduleMotor config",
-                                 "check the device", "motor_jog_or_move")
+                Navigation.setTaskError(53366, f"motor type {motor_type} not found, check moduleMotor config, check the device, motor_jog_or_move")
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -2286,8 +2285,7 @@ class Jack(ModuleBase):
                 target_pos = clamp(self.target_position, min_length, max_length)
                 self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
             else:
-                Abnormal.setTask(53350, "jogStep or position not provided", "check the input param",
-                                 "provide jogStep or position", "motor_jog_or_move")
+                Navigation.setTaskError(53366, "jogStep or position not provided, check the input param, provide jogStep or position, motor_jog_or_move")
                 self.status = ScriptStatus.FAILED
                 return
 
