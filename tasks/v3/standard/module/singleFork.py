@@ -2265,29 +2265,27 @@ class Fork(ModuleBase):
                         Navigation.collisionDetection(collision_device, x_list, y_list)
 
             # 堆高车处理后激光的屏蔽
-            if Loc.getLocState() == 1:
-                # if ConfigParams.scriptDebug:
-                #     Trace.log(
-                #         f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}")
-                if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
-                    self.set_fork_region_by_height = True
-                    self.clear_fork_region_by_height = False
-                    # Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
-                    #                           [p["y"] for p in self.points_left],
-                    #                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                    Navigation.setClearRegion(self.back_laser_clear_region_name, [p["x"] for p in self.fork_points],
-                                              [p["y"] for p in self.fork_points],
-                                              [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                    Trace.log(f"set clear region:{self.back_laser_clear_region_name},{self.fork_points}")
+            # if Loc.getLocState() == 1:
+            if ConfigParams.scriptDebug:
+                Trace.log(
+                    f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}")
+            if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
+                self.set_fork_region_by_height = True
+                self.clear_fork_region_by_height = False
+                # Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
+                #                           [p["y"] for p in self.points_left],
+                #                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                Navigation.setClearRegion(self.back_laser_clear_region_name, [p["x"] for p in self.fork_points],
+                                          [p["y"] for p in self.fork_points],
+                                          [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                Trace.log(f"set clear region:{self.back_laser_clear_region_name},{self.fork_points}")
 
-                elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
-                    self.clear_fork_region_by_height = True
-                    self.set_fork_region_by_height = False
-                    Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
+            elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
+                self.clear_fork_region_by_height = True
+                self.set_fork_region_by_height = False
+                Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
 
-                    Trace.log(f"delete clear region:{self.back_laser_clear_region_name},{self.fork_points}")
-
-                    # Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
+                Trace.log(f"delete clear region:{self.back_laser_clear_region_name},{self.fork_points}")
 
         # 处理载货时di状态监控
         if ConfigParams.checkGoodsWhileLoad:
