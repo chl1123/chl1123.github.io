@@ -1,7 +1,7 @@
 from abc import ABC
 
 from syspy.core.rbk_rpc import Service, RBKVersionError
-
+from typing import Union
 
 class TraceInterface(ABC, Service):
 
@@ -18,11 +18,11 @@ class TraceInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def log(cls, msg: str, output_console: bool = True, output_time: bool = False, *, name: str = ""):
+    def log(cls, msg: Union[str, dict], output_console: bool = True, output_time: bool = False, *, name: str = ""):
         """记录日志
 
         Args:
-            msg (str): 日志内容。
+            msg (Union[str, dict]): 日志内容。类型为str时, key固定为 "log"; 类型为dict时, 按照字典key value
             output_console (bool): 是否开启控制台输出。默认开启。
             output_time (bool): 是否在控制台打印时间。默认不开启。
             name (str): 日志名称。默认为"log", 否则 f"log.{name}"
