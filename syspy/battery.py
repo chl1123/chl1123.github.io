@@ -120,14 +120,6 @@ class BatteryInterface:
         """
         return self.child.getSoh(topic=topic)
 
-    def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
-        """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
-
-        Returns:
-            (int): 电池告警、电池错误和关掉电池的百分比的最大值
-        """
-        return self.child.getAlarmPercentage(topic=topic)
-
     def publish(self, battery_info: "msgBattery", *, topic: str = "Battery-000") -> int:
         """发布电池信息
 

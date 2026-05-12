@@ -121,15 +121,6 @@ class BatteryV4(Message):
         """
         raise RBKVersionError()
 
-    def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
-        """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
-
-        Returns:
-            (int):
-        """
-        # todo RBK4
-        return self.client().call_service("DSPChassis", "getBatteryMaxPercentage", topic=topic)
-
     def publish(self, battery_msg: "MessageV4_Battery", *, topic: str = "Battery-000"):
         """发布电池信息
 

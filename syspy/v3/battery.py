@@ -127,14 +127,6 @@ class BatteryV3(Message):
         if self.update():
             return self.data.SOH
 
-    def getAlarmPercentage(self, *, topic: str = "Battery-000") -> int:
-        """获取配置项中电池告警、电池错误和关掉电池的百分比的最大值
-
-        Returns:
-            (int)
-        """
-        return self.client().call_service("DSPChassis", "getBatteryMaxPercentage")
-
     def publish(self, battery_msg: "msgBattery", *, topic: str = "Battery-000") -> int:
         """发布电池信息
 

@@ -29,15 +29,6 @@ class LedInterface(ABC, Service):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getLedExternalControlInfo(cls) -> str:
-        """todo
-
-        Returns:
-
-        """
-        raise RBKVersionError()
-
 
 from syspy import RBK_VERSION
 if RBK_VERSION == 3:

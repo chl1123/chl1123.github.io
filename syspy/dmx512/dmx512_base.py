@@ -48,9 +48,6 @@ class dmx512Base:
     def getDOStates(self, index) -> bool:
         return Do.get_do(index)
 
-    def getBatteryMaxPercentage(self):
-        return Battery.getAlarmPercentage()
-
     def getErrorNum(self):
         return Abnormal.getNum()
 
@@ -72,11 +69,6 @@ class dmx512Base:
 
     def sendDmx512(self, dmx512_info):
         self.child.sendDmx512(dmx512_info)
-
-    def getLedExternalControlInfo(self):
-        json_string = Led.getLedExternalControlInfo()
-        Trace.log("getinfo: ", json_string)
-        return json_string
 
     # Serial
     def createSerial(self, name, baudrate):
