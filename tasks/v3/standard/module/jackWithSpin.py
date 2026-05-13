@@ -224,6 +224,8 @@ class ConfigParams:
     pgv_spin = True  # 随动状态下货叉朝向不动
     pgv_reach_dist = 0.02  # 到点距离精度（m）
     pgv_reach_angle = 1.0  # 到点角度精度（deg）
+    pgv_adjust_max_speed = 0.0  # 二次调整最大速度（m/s），0表示不限速
+    pgv_adjust_max_rot = 0.0  # 二次调整最大旋转速度（rad/s），0表示不限速
 
     # 报错保护配置参数
     load_again_error = True  # 是否启用重复取货保护
@@ -535,6 +537,18 @@ class ConfigParams:
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("deg")
                         builder.SINGLESTEP(0.1)
+                    with builder.CHILD(key="pgvAdjustMaxSpeed", name="PGV Adjust Max Speed",
+                                       desc="Max speed during PGV secondary adjustment (0=unlimited)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0, min_value=0.0, max_value=1.0)
+                        builder.UNIT("m/s")
+                        builder.SINGLESTEP(0.01)
+                    with builder.CHILD(key="pgvAdjustMaxRot", name="PGV Adjust Max Rot",
+                                       desc="Max rotation speed during PGV secondary adjustment (0=unlimited)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0, min_value=0.0, max_value=3.14)
+                        builder.UNIT("rad/s")
+                        builder.SINGLESTEP(0.01)
 
         builder.save(merge=True)
         cls.reload_config()
@@ -599,6 +613,8 @@ class ConfigParams:
         cls.pgv_spin = cls.config.get("pgvSpin", True)
         cls.pgv_reach_dist = cls.config.get("pgvReachDist", 0.02)
         cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 1.0)
+        cls.pgv_adjust_max_speed = cls.config.get("pgvAdjustMaxSpeed", 0.0)
+        cls.pgv_adjust_max_rot = cls.config.get("pgvAdjustMaxRot", 0.0)
 
         debug_trace(f"Updated config: debug_mode={cls.debug_mode}")
 
@@ -812,6 +828,19 @@ def create_secondary_adjust(builder: ParamBuilder):
                                             with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                "pgvXAdjust only"):
                                                 builder.TYPE(ParamType.STRING)
+
+                    with builder.CHILD(key="pgvAdjustMaxSpeed", name="PGV Adjust Max Speed",
+                                       desc="Max speed during PGV secondary adjustment (0=unlimited)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0, min_value=0.0, max_value=1.0)
+                        builder.UNIT("m/s")
+                        builder.SINGLESTEP(0.01)
+                    with builder.CHILD(key="pgvAdjustMaxRot", name="PGV Adjust Max Rot",
+                                       desc="Max rotation speed during PGV secondary adjustment (0=unlimited)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0, min_value=0.0, max_value=3.14)
+                        builder.UNIT("rad/s")
+                        builder.SINGLESTEP(0.01)
 
 
 def create_jack_unload(builder: ParamBuilder):
@@ -1561,6 +1590,8 @@ class Jack(ModuleBase):
         self.pgv_spin = self.task_args.get("pgvSpin", config_params.pgv_spin)
         self.pgv_reach_dist = self.task_args.get("pgvReachDist", config_params.pgv_reach_dist)
         self.pgv_reach_angle = self.task_args.get("pgvReachAngle", config_params.pgv_reach_angle)
+        self.pgv_adjust_max_speed = self.task_args.get("pgvAdjustMaxSpeed", config_params.pgv_adjust_max_speed)
+        self.pgv_adjust_max_rot = self.task_args.get("pgvAdjustMaxRot", config_params.pgv_adjust_max_rot)
 
         # laser area deduction
         self.create_or_delete_deducted_area = self.task_args.get("createOrDeleteDeductedArea", None)
@@ -1970,6 +2001,8 @@ class Jack(ModuleBase):
                 pgv_spin=self.pgv_spin,
                 pgv_reach_dist=self.pgv_reach_dist,
                 pgv_reach_angle=self.pgv_reach_angle,
+                pgv_adjust_max_speed=self.pgv_adjust_max_speed,
+                pgv_adjust_max_rot=self.pgv_adjust_max_rot,
             ))
 
         # --- 顶升前托盘旋转（beforeJack） "料架旋转只按劣弧转"---
@@ -2114,6 +2147,8 @@ class Jack(ModuleBase):
                     pgv_spin=self.pgv_spin,
                     pgv_reach_dist=self.pgv_reach_dist,
                     pgv_reach_angle=self.pgv_reach_angle,
+                    pgv_adjust_max_speed=self.pgv_adjust_max_speed,
+                pgv_adjust_max_rot=self.pgv_adjust_max_rot,
                 ))
 
             # 检查是否是边走边动模式下已经完成了顶升下降
@@ -2346,7 +2381,9 @@ class Jack(ModuleBase):
                 adjust_region=self.pgv_adjust_region,
                 pgv_spin=self.pgv_spin,
                 pgv_reach_dist=self.pgv_reach_dist,
-                pgv_reach_angle=self.pgv_reach_angle
+                pgv_reach_angle=self.pgv_reach_angle,
+                pgv_adjust_max_speed=self.pgv_adjust_max_speed,
+                pgv_adjust_max_rot=self.pgv_adjust_max_rot,
             ))
 
     # def pgv_code_strip_adjust(self):
@@ -3727,6 +3764,8 @@ class PGVSecondaryAdjust(BaseAction):
                  pgv_spin: bool = True,
                  pgv_reach_dist: float = 0.02,
                  pgv_reach_angle: float = 1.0,
+                 pgv_adjust_max_speed: float = 0.0,
+                 pgv_adjust_max_rot: float = 0.0,
                  useTCP: bool = False):
         super().__init__("PGVSecondaryAdjust")
         self.opt_info = (f"{self.__class__.__name__}{{"
@@ -3748,6 +3787,8 @@ class PGVSecondaryAdjust(BaseAction):
         self.pgv_spin = pgv_spin
         self.pgv_reach_dist = pgv_reach_dist
         self.pgv_reach_angle = pgv_reach_angle
+        self.pgv_adjust_max_speed = pgv_adjust_max_speed
+        self.pgv_adjust_max_rot = pgv_adjust_max_rot
         self.useTCP = useTCP
 
     def run(self, j: Jack):
@@ -3755,8 +3796,22 @@ class PGVSecondaryAdjust(BaseAction):
             self.init = False
             self.reset()
             self._build_static_params(j)
+            if self.pgv_adjust_max_speed > 0 or self.pgv_adjust_max_rot > 0:
+                policy = {}
+                if self.pgv_adjust_max_speed > 0:
+                    policy["navigation.basic.unload.maxSpeed"] = self.pgv_adjust_max_speed
+                if self.pgv_adjust_max_rot > 0:
+                    policy["navigation.basic.unload.maxRot"] = self.pgv_adjust_max_rot
+                Navigation.appendCustomPolicy("policy_pgv_adjust", policy)
+                Trace.log(f"PGVSecondaryAdjust: set policy maxSpeed={self.pgv_adjust_max_speed} m/s, "
+                          f"maxRot={self.pgv_adjust_max_rot} rad/s")
 
         self.action_status = Navigation.goPGVRun(self.adjust_param)
+
+        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            if self.pgv_adjust_max_speed > 0 or self.pgv_adjust_max_rot > 0:
+                Navigation.clearPolicy()
+                Trace.log("PGVSecondaryAdjust: cleared policy")
 
         j.report_info["PGVSecondaryAdjust"] = {
             "actionStatus": self.action_status,
