@@ -31,13 +31,3 @@ class LedV4(LedInterface):
             (int): 0: 成功
         """
         pass
-
-    @classmethod
-    @call_service()
-    def getLedExternalControlInfo(cls) -> str:
-        """todo
-
-        Returns:
-
-        """
-        pass

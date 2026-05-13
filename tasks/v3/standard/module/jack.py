@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/20
+# @Date : 2026/5/11
 # @Author : zhaopengfei
 # @Coding : 顶升车
-# @Update : add: 1.放货适配二次调整随动 2.顶升高度超限做clamp
+# @Update : 适配最新改动
 
 
 import json
@@ -52,6 +52,11 @@ def debug_trace(*args, **kwargs):
             Trace.log(first_arg, *args[1:], **kwargs)
         else:
             Trace.log(timestamp, **kwargs)
+
+
+def clamp(val, lo, hi):
+    return max(lo, min(val, hi))
+
 
 class _SingletonDBManager:
     _instance = None
@@ -222,6 +227,10 @@ class ConfigParams:
 
     # 报错保护配置参数
     load_again_error = True  # 是否启用重复取货保护
+
+    # 屏幕接口上报信息
+    moduleMotor: list = []
+    scriptName: str = ""
 
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
@@ -592,6 +601,29 @@ class ConfigParams:
 
         debug_trace(f"Updated config: debug_mode={cls.debug_mode}")
 
+        # 构建屏幕接口上报的 moduleMotor
+        cls.scriptName = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.moduleScript") or ""
+        cls._build_module_motor()
+
+    @classmethod
+    def _build_module_motor(cls):
+        """构建 moduleMotor 列表，用于屏幕接口上报"""
+        cls.moduleMotor = []
+
+        # lift 电机（即顶升电机 jack）
+        if cls.jack_motor_name:
+            lift_motor = {
+                "type": "lift",
+                "motorKey": cls.jack_motor_name,
+                "jogSupport": True,
+                "currentPosition": 0.0,
+                "maxLength": cls.jack_max_height or float(
+                    RobotParam.getDevice(f"{cls.jack_motor_name}", f"func.{cls.motor_func}.maxLength") or 0),
+                "minLength": cls.jack_min_height or float(
+                    RobotParam.getDevice(f"{cls.jack_motor_name}", f"func.{cls.motor_func}.minLength") or 0)
+            }
+            cls.moduleMotor.append(lift_motor)
+
 
 # 创建全局配置管理器实例
 config_params = ConfigParams()
@@ -801,7 +833,6 @@ def create_jack_load(builder: ParamBuilder):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     create_recfile(builder)
-
     with builder.CHILD(key="recFile", name="RecFile", desc="file for recognizing"):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(False)
@@ -860,6 +891,21 @@ class InputParams:
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_jack_unload(builder)
+
+                # 屏幕接口：升降电机点动/长按
+                with builder.CHILD(key="lift", name="Lift Motor", desc="Lift motor jog or move (screen interface)"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for lift motor"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.UNIT("m")
+                            builder.SINGLESTEP(0.01)
+                            builder.DEFAULTVALUE(0.1)
+                        with builder.CHILD(key="position", name="Position", desc="Target position for lift motor"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.UNIT("m")
+                            builder.SINGLESTEP(0.01)
+                            builder.DEFAULTVALUE(-1)
 
                 # ============================================
                 # 调试/低频任务（需要开启debugMode才显示）
@@ -1288,6 +1334,7 @@ class Jack(ModuleBase):
         # 顶升高度相关
         self.start_height = self.task_args.get("startHeight", 0)
         self.end_height = self.task_args.get("endHeight", config_params.jack_max_height)
+        # 防护：endHeight 超过电机物理上限时，自动截断到最大值
         if self.end_height > config_params.jack_max_height:
             self.end_height = config_params.jack_max_height
         # 识别相关
@@ -1374,6 +1421,11 @@ class Jack(ModuleBase):
 
         # laser area deduction
         self.create_or_delete_deducted_area = self.task_args.get("createOrDeleteDeductedArea", None)
+
+        # 屏幕接口电机点动/长按参数
+        self.jog_step = self.task_args.get("jogStep", None)
+        self.target_position = self.task_args.get("position", None)
+
         self.status = ScriptStatus.RUNNING
 
     def run(self):
@@ -1419,6 +1471,8 @@ class Jack(ModuleBase):
             self.jack_bezier_return()
         elif self.opt == "pressIoButton":
             self.press_button()
+        elif self.opt == "lift":  # 屏幕接口：升降电机点动/长按
+            self.motor_jog_or_move("lift")
         elif self.opt == "calib":  # 外部指令强制标零（需 debugMode）
             self.do_force_calib()
 
@@ -1783,7 +1837,7 @@ class Jack(ModuleBase):
 
     def jack_load(self):
         """
-        完整取货流程：旋转车体对准 → 识别货架 → 导航 → 二次调整 → 顶升 → 设置激光扣除区域
+        完整识别取货流程：旋转车体对准 → 识别货架 → 导航 → 二次调整 → 顶升 → 设置激光扣除区域
         """
         if not self.operation_init:
             self.operation_init = True
@@ -2027,6 +2081,43 @@ class Jack(ModuleBase):
 
             self.action_list.append(GoMapPath())
 
+    def motor_jog_or_move(self, motor_type):
+        """屏幕接口：电机点动或长按操作（参考 counterBalanceFork.py）"""
+        if not self.operation_init:
+            self.operation_init = True
+
+            # 从 moduleMotor 中查找对应的电机
+            motor_info = None
+            for motor in config_params.moduleMotor:
+                if motor["type"] == motor_type:
+                    motor_info = motor
+                    break
+
+            if not motor_info:
+                Navigation.setTaskError(53366, f"motor type {motor_type} not found, check moduleMotor config, check the device, motor_jog_or_move")
+                self.status = ScriptStatus.FAILED
+                return
+
+            motor_key = motor_info["motorKey"]
+            min_length = motor_info["minLength"]
+            max_length = motor_info["maxLength"]
+
+            # 点动操作（屏幕按钮点击一下）
+            if self.jog_step is not None:
+                current_pos = Motor.getMotorPos(motor_key)
+                target_pos = current_pos + self.jog_step
+                # 边界检查
+                target_pos = clamp(target_pos, min_length, max_length)
+                self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
+            # 长按操作（屏幕按钮长按，发送最大或最小位置）
+            elif self.target_position is not None:
+                target_pos = clamp(self.target_position, min_length, max_length)
+                self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
+            else:
+                Navigation.setTaskError(53366, "jogStep or position not provided, check the input param, provide jogStep or position, motor_jog_or_move")
+                self.status = ScriptStatus.FAILED
+                return
+
     def jack_target_height(self):
         """抬升托盘到指定高度"""
         if not self.operation_init:
@@ -2154,7 +2245,9 @@ class Jack(ModuleBase):
             "jackEmc": self.jack_emc,
             "jackIsFull": self.jack_isFull,
             "jackHeight": self.jack_height,
-            "containers": Container.getContainers()
+            "containers": Container.getContainers(),
+            "moduleMotor": config_params.moduleMotor,
+            "moduleScript": config_params.scriptName
         })
 
         Module.reportInfo(self.report_info)
@@ -2725,7 +2818,6 @@ class JackHeight(BaseAction):
                 Motor.resetMotor(self.motor_name)
                 debug_trace(f"[JACK] Jack down done pos={current_pos:.4f}m")
 
-
         j.report_info["JackHeight"] = {
             "actionStatus": self.action_status,
             "motorName": self.motor_name,
@@ -2733,6 +2825,7 @@ class JackHeight(BaseAction):
             "jackMotorSpeed": self.jackMotorSpeed,
         }
         Module.reportInfo(j.report_info)
+
 
 class BindContainer(BaseAction):
     """顶升完成后绑定容器并设置货物模型"""
@@ -3137,7 +3230,6 @@ class GetApPosAdjustedViaPgv(BaseAction):
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("target_name", None)
             self.target_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
-
             # 获取qrcode的偏移数值，并补偿到终点坐标中
             self.pgv_info[0] = j.code_info["tag_diff_x"]  # 上视pgv读到的货架在车体坐标系偏移,用于补偿货架机械偏差
             self.pgv_info[1] = j.code_info["tag_diff_y"]
@@ -3368,11 +3460,6 @@ class PGVSecondaryAdjust(BaseAction):
             self.reset()
             self._build_static_params(j)
 
-        # multiLine 模式：每帧刷新圆心偏移（来自当前读码偏差）
-        if (self.code_adjust_type == "singleCode"
-                and self.position_adjust_type == "multiLine"):
-            self._refresh_multiline_cx(j.code_info.get("tag_diff_x", 0.0))
-
         self.action_status = Navigation.goPGVRun(self.adjust_param)
 
         j.report_info["PGVSecondaryAdjust"] = {
@@ -3421,6 +3508,8 @@ class PGVSecondaryAdjust(BaseAction):
                       f"falling back to singleCode")
             self._build_singlecode_params()
 
+        self._build_policy()
+
         Trace.log(f"PGVSecondaryAdjust: built params: {json.dumps(self.adjust_param, indent=2)}")
 
     def _build_singlecode_params(self):
@@ -3443,21 +3532,14 @@ class PGVSecondaryAdjust(BaseAction):
         # ---- positionAdjustType ----
         pos = self.position_adjust_type
         if pos == "frontAndBack":
-            # ignoreAngle → pgvXAdjust；其他 → pgvXAngleAdjust
             if angle == "ignoreAngle":
                 p['pgvXAdjust'] = True
             else:
                 p['pgvXAngleAdjust'] = True
-
         elif pos == "multiLine":
-            # adjustRegion 解析：取第一个元素 points 数组，计算 X 最大/最小值
-            cx, dist = self._parse_adjust_region(self.adjust_region)
-            p['pgvAdjustCx'] = cx
-            p['pgvAdjustDist'] = dist
-            p['pgvAdjustCy'] = 0.0
-            # lineAngleThreshold: 控制来回运动时的最大旋转角度范围
-            # UI 单位为 deg，底层接口需要 rad
-            p['lineAngleThreshold'] = math.radians(self.line_angle_threshold)
+            # adjustRegion / lineAngleThreshold 只放在 policy 中,
+            # 底层会自动解析并生成 pgvAdjustCx、pgvAdjustDist、pgvAdjustCy
+            pass
 
     def _build_codestrip_params(self):
         """codeNumber（码带）模式参数构建（文档 §3 codeNumber）。"""
@@ -3477,43 +3559,38 @@ class PGVSecondaryAdjust(BaseAction):
             p['pgvXAdjust'] = True
 
     # ------------------------------------------------------------------
-    # 内部：multiLine 每帧刷新圆心 X
+    # 内部：构建 policy JSON
     # ------------------------------------------------------------------
-    def _refresh_multiline_cx(self, tag_diff_x: float):
-        """multiLine 模式下每帧用当前读码 X 偏差更新 pgvAdjustCx。"""
-        self.adjust_param['pgvAdjustCx'] = tag_diff_x
+    def _build_policy(self):
+        """构建 policy JSON 传给 goPGVRun。
 
-    # ------------------------------------------------------------------
-    # 内部：解析 adjustRegion JSON 字符串 → (cx, dist)
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _parse_adjust_region(region_str: str):
+        C++ ParamReader 用点号路径读取，如:
+          POLICY_PARAM_READ(string, "codeAdjustType")
+          POLICY_PARAM_READ(string, "codeAdjustType.singleCode.scanDevice")
         """
-        解析 adjustRegion JSON 字符串，返回 (pgvAdjustCx, pgvAdjustDist)。
+        policy = {}
+        policy["codeAdjustType"] = self.code_adjust_type
 
-        文档逻辑：
-          max_x = max(points[*].x)
-          min_x = min(points[*].x)
-          pgvAdjustCx   = (max_x + min_x) / 2
-          pgvAdjustDist = |max_x - min_x| / 2
-        """
-        if not region_str:
-            Trace.log("PGVSecondaryAdjust: adjustRegion is empty, using (cx=0, dist=0.2)")
-            return 0.0, 0.2
+        if self.code_adjust_type == "singleCode":
+            policy["codeAdjustType.singleCode.scanDevice"] = self.scan_device
+            if self.code_number:
+                policy["codeAdjustType.singleCode.codeNumber"] = self.code_number
+            if self.angle_adjust_type:
+                policy["codeAdjustType.singleCode.angleAdjustType"] = self.angle_adjust_type
 
-        try:
-            region_data = json.loads(region_str)
-            points = region_data[0].get("points", [])
-            x_values = [pt["x"] for pt in points]
-            max_x = max(x_values)
-            min_x = min(x_values)
-            cx = (max_x + min_x) / 2.0
-            dist = abs(max_x - min_x) / 2.0
-            Trace.log(f"PGVSecondaryAdjust: adjustRegion parsed → cx={cx:.4f}, dist={dist:.4f}")
-            return cx, dist
-        except Exception as e:
-            Trace.log(f"PGVSecondaryAdjust: adjustRegion parse error: {e}, using (cx=0, dist=0.2)")
-            return 0.0, 0.2
+            if self.position_adjust_type == "multiLine":
+                policy["codeAdjustType.singleCode.positionAdjustType"] = "multiLine"
+                policy["codeAdjustType.singleCode.positionAdjustType.multiLine.lineAngleThreshold"] = self.line_angle_threshold
+                policy["codeAdjustType.singleCode.positionAdjustType.multiLine.adjustRegion"] = self.adjust_region
+            elif self.position_adjust_type == "frontAndBack":
+                policy["codeAdjustType.singleCode.positionAdjustType"] = "frontAndBack"
+
+        elif self.code_adjust_type == "codeNumber":
+            policy["codeAdjustType.codeNumber.scanDevice"] = self.scan_device
+            if self.angle_adjust_type:
+                policy["codeAdjustType.codeNumber.angleAdjustType"] = self.angle_adjust_type
+
+        self.adjust_param['policy'] = json.dumps(policy)
 
     def reset(self):
         debug_trace("reset PGV secondary adjustment")
@@ -3620,6 +3697,14 @@ class PGVCodeStripAdjust(BaseAction):
             self.adjust_param['pgvXAdjust'] = True
             Trace.log("PGVCodeStripAdjust: ignoreAngle -> pgvXAdjust only")
 
+        self.adjust_param['policy'] = {
+            "codeAdjustType": "codeNumber",
+            "codeNumber": {
+                "scanDevice": "",
+                "angleAdjustType": self.angle_adjust_type,
+            },
+        }
+
     def reset(self):
         Trace.log("Reset PGV code strip adjustment")
         self.action_status = ActionStatus.RUNNING
@@ -3647,10 +3732,10 @@ param_loader.addAction(
         "operation": "jackLoad",
         "operation.jackLoad.endHeight": config_params.jack_max_height,
         "operation.jackLoad.recFile": "",
-        "operation.jackLoad.recognize": "on",
+        "operation.jackLoad.recognize": "off",
         "operation.jackLoad.recognize.on.insertShelfDir": "A",
         "operation.jackLoad.howGoSite": "bezier",
-        "operation.jackLoad.isSecondaryAdjust": "on",
+        "operation.jackLoad.isSecondaryAdjust": "off",
     },
     config={}
 )
@@ -3673,6 +3758,17 @@ param_loader.addAction(
     args={
         "operation": "jackHeight",
         "operation.jackHeight.endHeight": config_params.jack_max_height,
+    },
+    config={}
+)
+
+# 添加 "lift" 动作模板（屏幕接口点动）
+param_loader.addAction(
+    action_name="lift",
+    policy={},
+    args={
+        "operation": "lift",
+        "operation.lift.jogStep": 0.1,
     },
     config={}
 )
