@@ -401,10 +401,7 @@ class Module:
                 instance=ScriptParam.getInstance(cls.script_file)
                 if instance:
                     instance.clearTaskConfig()
-                else:
-                    print(f"ScriptParam.getInstance({cls.script_file}) is None")
-                    return
-
+                    
     @classmethod
     def reportInfo(cls, info: Union[dict, list]):
         with cls.__lock:
