@@ -8,7 +8,7 @@
 import time
 from typing import Dict, List, Optional, Tuple
 
-from standard.modbusRtuProto import ModbusRtuProto
+from syspy.comms.modbus import ModbusRtuProto
 
 
 class CkyDgScale:
