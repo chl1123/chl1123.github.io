@@ -175,6 +175,24 @@ class RobotErrorInterface(ABC, Service):
         """
         raise RBKVersionError()
 
+    @classmethod
+    def clearSystemError(cls, key: str) -> None:
+        """清除机器人系统错误
+
+        Args:
+            key (str): 错误标识键
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def existSystemError(cls, key: str) -> bool:
+        """查询机器人系统错误是否存在
+
+        Args:
+            key (str): 错误标识键
+        """
+        raise RBKVersionError()
+
 
 from syspy import RBK_VERSION
 if RBK_VERSION == 3:
