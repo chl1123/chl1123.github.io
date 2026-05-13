@@ -137,7 +137,7 @@ class ConfigParams:
     upMaxSpeedWithGoods: float = 0.06
     downMaxSpeedWithGoods: float = 0.06
     backLaserEnableHeight: float = 0.3
-    checkGoodsWhileLoad: bool = True
+    checkGoodsWhileLoad: bool = False
     checkAllContactDis: bool = False
     upDo: str = ""
     upDoStatus: bool = True
@@ -463,7 +463,7 @@ class ConfigParams:
                     with builder.CHILD(key="checkGoodsWhileLoad", name="Check Goods While Load",
                                        desc="载货时检测到位 di"):
                         builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(True)
+                        builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="loadTime", name="Load Time",
                                        desc="货叉上升超时时间"):
                         builder.TYPE(ParamType.FLOAT)
@@ -2025,17 +2025,20 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
 
     def _execute_actions(self):
+        if len(self.action_list) == 0:
+            Trace.log(f"no action found")
+            return
+
         if self.action_id < len(self.action_list):
             self.current_action = self.action_list[self.action_id]
 
-            if self.current_action.action_status == ActionStatus.FINISHED:
-                Trace.log(f"execute {self.current_action.action_name} finished", True, True)
-                self.action_id += 1
-
-            elif self.current_action.action_status == ActionStatus.FAILED:
+            if self.current_action.action_status == ActionStatus.FAILED:
                 Navigation.setTaskError("ExecuteActionError", f"execute action {self.current_action} failed!")
                 self.action_status = ActionStatus.FAILED
                 return
+            elif self.current_action.action_status == ActionStatus.FINISHED:
+                Trace.log(f"execute {self.current_action.action_name} finished", True, True)
+                self.action_id += 1
             elif self.current_action.action_status == ActionStatus.INIT:
                 self.current_action.reset()
             else:
@@ -2725,6 +2728,7 @@ class GoPathWithContactDi(BaseAction):
     def run(self):
         if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
             self.back_action.reset()
+            Trace.log(f"action status:{self.action_status}")
             return
 
         self.action_status = ActionStatus.RUNNING
@@ -3066,6 +3070,7 @@ class RunMotorByPosition(BaseAction):
             self.action_status = ActionStatus.RUNNING
             self.last_sample_time = time.time()
             self.start_time = time.time()
+            Trace.log(f"started at {self.start_time}")
             self.init = True
             self.cur_fork_height_at_init = cur_fork_height
 
@@ -3144,6 +3149,7 @@ class RunMotorByPosition(BaseAction):
                     Trace.log(f"fork moving down, set downDo:{ConfigParams.downDo} to {ConfigParams.downDoStatus}")
 
         # 检查超时（仅对fork_motor_name）
+        Trace.log(f"{self.start_time}")
         if self.timeout is not None and (time.time() - self.start_time) > self.timeout:
             Navigation.setTaskError("ForkMoveTimeout", f"Fork motor timeout: {self.motor_name} exceeded {self.timeout}s")
             self.action_status = ActionStatus.FAILED

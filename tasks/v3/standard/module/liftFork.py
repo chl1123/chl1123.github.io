@@ -2025,17 +2025,20 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
 
     def _execute_actions(self):
+        if len(self.action_list) == 0:
+            Trace.log(f"no action found")
+            return
+
         if self.action_id < len(self.action_list):
             self.current_action = self.action_list[self.action_id]
 
-            if self.current_action.action_status == ActionStatus.FINISHED:
-                Trace.log(f"execute {self.current_action.action_name} finished", True, True)
-                self.action_id += 1
-
-            elif self.current_action.action_status == ActionStatus.FAILED:
+            if self.current_action.action_status == ActionStatus.FAILED:
                 Navigation.setTaskError("ExecuteActionError", f"execute action {self.current_action} failed!")
                 self.action_status = ActionStatus.FAILED
                 return
+            elif self.current_action.action_status == ActionStatus.FINISHED:
+                Trace.log(f"execute {self.current_action.action_name} finished", True, True)
+                self.action_id += 1
             elif self.current_action.action_status == ActionStatus.INIT:
                 self.current_action.reset()
             else:
