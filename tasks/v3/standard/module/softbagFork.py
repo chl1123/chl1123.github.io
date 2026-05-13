@@ -21,15 +21,9 @@ from syspy.lib.net_protocol import parseModbus
 from syspy.lib.robot import RobotParam
 import standard.goBezier as GoBezier
 from enum import IntEnum
-
 from syspy import LevelDB
-# from syspy.core.rbk_rpc import Service
+from standard.weighing_scale import CkyDgScale
 
-try:
-    from tasks.v3.standard.weighingScale import CkyDgScale
-except Exception:
-    print(" faile to import CkyDgScale")
-    CkyDgScale = None
 
 db = LevelDB("run")
 
@@ -43,56 +37,14 @@ db = LevelDB("run")
 param_loader = ScriptParam(__file__)
 
 LOG_MODULE = "softbagFork"
-_TRACE_NAME_SUPPORTED: Optional[bool] = None
-_TRACE_CHART_NAME_SUPPORTED: Optional[bool] = None
 
-def _trace_log(msg: str, output_console: bool = True, output_time: bool = False, *, name: str = LOG_MODULE) -> None:
-    """Emit trace logs with channel name; degrade gracefully for old Trace services."""
-    global _TRACE_NAME_SUPPORTED
-    if _TRACE_NAME_SUPPORTED is False:
-        if output_console:
-            if output_time:
-                now = time.strftime("%Y-%m-%d %H:%M:%S")
-                print(f"{now} | {name}: {msg}")
-            else:
-                print(f"{name}: {msg}")
-        Trace.client().call_service("Trace", "traceLog", f"[{name}] {msg}")
-        return
+def _trace_log(text: str, name: str = LOG_MODULE) -> None:
+    """Emit trace logs with channel name."""
+    Trace.log(f"[{name}] {text}", name=name)
 
-    try:
-        Trace.log(msg, output_console, output_time, name=name)
-        _TRACE_NAME_SUPPORTED = True
-    except Exception as exc:
-        err = str(exc)
-        if "params size error" in err or "Invalid params" in err:
-            _TRACE_NAME_SUPPORTED = False
-            if output_console:
-                if output_time:
-                    now = time.strftime("%Y-%m-%d %H:%M:%S")
-                    print(f"{now} | {name}: {msg}")
-                else:
-                    print(f"{name}: {msg}")
-            Trace.client().call_service("Trace", "traceLog", f"[{name}] {msg}")
-            return
-        raise
-
-def _trace_chart(msg: dict, output_console: bool = False, output_time: bool = False, *, name: str = f"{LOG_MODULE}.chart") -> None:
+def _trace_chart(msg: dict, name: str = f"{LOG_MODULE}.action") -> None:
     """Emit trace chart with channel name; degrade gracefully for old Trace services."""
-    global _TRACE_CHART_NAME_SUPPORTED
-    if _TRACE_CHART_NAME_SUPPORTED is False:
-        Trace.client().call_service("Trace", "traceChart", msg)
-        return
-
-    try:
-        Trace.chart(msg, output_console, output_time, name=name)
-        _TRACE_CHART_NAME_SUPPORTED = True
-    except Exception as exc:
-        err = str(exc)
-        if "params size error" in err or "Invalid params" in err:
-            _TRACE_CHART_NAME_SUPPORTED = False
-            Trace.client().call_service("Trace", "traceChart", msg)
-            return
-        raise
+    Trace.chart(f"[{name}] {json.dumps(msg)}", name=name)
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
@@ -251,6 +203,7 @@ class ConfigParams:
     qrTimeout: float = 12.0
     loadEndHeightExtra: float = 0.0
     stackGoodsLayerDefault: int = 1 # 默认识别堆叠货物的层数，1表示第一层（最高层），2表示第二层，以此类推
+    canCalibHeight: float = 0.0
     stackHeightOffset: float = 0.2
     stackRecRetry: int = 6
     ultrasonicDiKey1: str = ""
@@ -332,6 +285,7 @@ class ConfigParams:
         cls.qrTimeout = cfg.get("qrTimeout", 12.0)
         cls.loadEndHeightExtra = cfg.get("loadEndHeightExtra", 0.0)
         cls.stackGoodsLayerDefault = cfg.get("stackGoodsLayerDefault", 1)
+        cls.canCalibHeight = cfg.get("canCalibHeight", 0.0)
         cls.stackHeightOffset = cfg.get("stackHeightOffset", 0.03)
         cls.stackRecRetry = cfg.get("stackRecRetry", 6)
         cls.ultrasonicDiKey1 = cfg.get("ultrasonicDiKey1", "")
@@ -357,7 +311,6 @@ class ConfigParams:
         cls.pathAdjustMode = cfg.get("pathAdjustMode", "bezier")
         cls.maxCurve = cfg.get("maxCurve", 3.0)
         cls.maxAngle = cfg.get("maxAngle", 3.0)
-        print(cls.pathAdjustMode, cls.maxCurve, cls.maxAngle)
 
         # --- linearUnload
         cls.laserWidth = cfg.get("laserWidth")
@@ -524,10 +477,15 @@ class ConfigParams:
                                        desc="默认取第几层(1=最高层)"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(1)
+                    with builder.CHILD(key="canCalibHeight", name="Can Calib Height",
+                                       desc="相机标定高度，仅用于识别后pick_height换算"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("m")
                     with builder.CHILD(key="stackHeightOffset", name="Stack Height Offset",
                                        desc="识别高度到货叉高度补偿"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.03)
+                        builder.DEFAULTVALUE(0.00)
                         builder.UNIT("m")
                     with builder.CHILD(key="stackRecRetry", name="Stack Rec Retry", desc="栈板识别失败重试次数"):
                         builder.TYPE(ParamType.INT)
@@ -1328,7 +1286,7 @@ def get_rec_side_info(recfile, rec_side):
     else:
         if len(rec_sides) == 0:
             Navigation.setTaskError("RecSideError", f"RecSide is not config in {recfile}, script failed")
-            _trace_log(f"no rec side in {recfile}", True, True)
+            _trace_log(f"no rec side in {recfile}")
             return None
         rec_info = rec_sides[0]
 
@@ -1835,7 +1793,7 @@ class Fork(ModuleBase):
                 else:
                     target2robot = pos2Base(self.target_pos, r_loc)
                     rec_center2robot = pos2World([ConfigParams.module_x, 0, 0], target2robot)
-                _trace_log(f"rec center to robot :{rec_center2robot}", True, True)
+                _trace_log(f"rec center to robot :{rec_center2robot}")
 
                 # 先看识别文件是否有启用 back_dist，如果启用了，用识别文件的值，没启用的话，用设备模型中的值
                 if self.rec_info.get("enableBackDistance", 'off') != 'on':
@@ -1858,6 +1816,7 @@ class Fork(ModuleBase):
                     RecPalletSelect(
                         self.recfile,
                         goods_layer=self.goods_layer,
+                        rec_base_height=float(ConfigParams.canCalibHeight),
                         rec_center_x=rec_center2robot[0],
                         rec_center_y=rec_center2robot[1],
                         rec_radius=ConfigParams.recRadius,
@@ -1870,7 +1829,7 @@ class Fork(ModuleBase):
                     ),
                 ]
 
-            _trace_log(f"task:{self.action_list}", True, True)
+            _trace_log(f"task:{self.action_list}")
 
         if self.action_id < len(self.action_list):
             self._apply_qr_fallback_if_needed()
@@ -1886,7 +1845,7 @@ class Fork(ModuleBase):
                     and self.recognize):
                 self.check_di = self.rec_info.get("enableCargoContactDI")
 
-                _trace_log(f"add task list {self.action_list[self.action_id]},id {self.action_id}", True, True)
+                _trace_log(f"add task list {self.action_list[self.action_id]},id {self.action_id}")
 
                 rec_action = self.action_list[self.action_id]
                 results = rec_action.results_list
@@ -1894,7 +1853,7 @@ class Fork(ModuleBase):
                 rec_result_dict = results[0]
                 self.obstacle_polygon_by_rec = rec_action.obstacle_polygon
 
-                _trace_log(f"carrier {self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}", True, True)
+                _trace_log(f"carrier {self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}")
                 # # 拿到 y 最小的值
                 # results_in_r = []
                 # if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
@@ -1922,14 +1881,14 @@ class Fork(ModuleBase):
                     robotResult.get("y", 0.0),
                     robotResult.get("yaw", 0.0),
                 ]
-                _trace_log(f"rec_world_pos: {rec_world_pos},robotResult:{rec_robot_pos}", True, True)
+                _trace_log(f"rec_world_pos: {rec_world_pos},robotResult:{rec_robot_pos}")
 
                 if ConfigParams.enableTcp:
                     rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0], rec_world_pos[1], rec_world_pos[2],
                                                                "defaultTCP")
                     rec_world_pos_tcp_list = [rec_world_pos_tcp["x"], rec_world_pos_tcp["y"],
                                               rec_world_pos_tcp["theta"]]
-                    _trace_log(f"after tcp:{rec_world_pos_tcp_list}", True, True)
+                    _trace_log(f"after tcp:{rec_world_pos_tcp_list}")
                     rec_world_pos = rec_world_pos_tcp_list
 
                 # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
@@ -1937,8 +1896,7 @@ class Fork(ModuleBase):
                     rec2ap_pos = pos2Base(rec_world_pos, self.target_pos)
                     angle = math.degrees(rec2ap_pos[2])
                     _trace_log(
-                        f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}",
-                        True, True)
+                        f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}")
                     y = rec2ap_pos[1]
                     if abs(angle) > ConfigParams.errorRecAngle != -1:
                         Navigation.setTaskError("RecYError", f"rec result yaw angle too large:{angle}° from action point")
@@ -1965,6 +1923,7 @@ class Fork(ModuleBase):
                 # 1) pickHeight: 先调到选层高度，避免碰撞
                 # 2) GoPathWithContactDi: 前进到识别位姿并进行接触检测
                 # 3) upFork: 取货后抬叉到运输高度
+                _trace_log(f"pick_height:{rec_action.selected_pick_height}, start_height:{self.start_height}, end_height:{self.end_height}")
                 self.action_list.extend([
                     RunMotorByPosition(
                         ConfigParams.fork_motor_name,
@@ -1978,8 +1937,9 @@ class Fork(ModuleBase):
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, ConfigParams.fork_max_speed,
                                        "upFork")
                     # load抬叉高度可通过loadEndHeightExtra附加，将self.end_height改为self._get_load_end_height()
+                    # todo: end_height改为货叉当前高度+一定距离
                 ])
-                _trace_log(f"task after rec:{self.action_list}", True, True)
+                _trace_log(f"task after rec:{self.action_list}")
 
                 if self.leave_loc_height >= 0: # 是否需要原路返回
                     args = {
@@ -2009,7 +1969,7 @@ class Fork(ModuleBase):
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.leave_loc_height)
                     )
 
-                    _trace_log(f"task after leave loc:{self.action_list}", True, True)
+                    _trace_log(f"task after leave loc:{self.action_list}")
 
             # 取完货后离库位前，抬升货叉就加载货物模型
             if (isinstance(self.action_list[self.action_id], RunMotorByPosition)
@@ -2182,7 +2142,7 @@ class Fork(ModuleBase):
             self.current_action = self.action_list[self.action_id]
 
             if self.current_action.action_status == ActionStatus.FINISHED:
-                _trace_log(f"execute {self.current_action.action_name} finished", True, True)
+                _trace_log(f"execute {self.current_action.action_name} finished")
                 self.action_id += 1
 
             elif self.current_action.action_status == ActionStatus.FAILED:
@@ -2237,7 +2197,7 @@ class Fork(ModuleBase):
         if self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
             self.fork_height_in_place = True
-        # print("action_status:" + json.dumps(cur_status))
+        _trace_log(f"fork move action list:{self.action_list}")
 
     def _init_args(self):
 
@@ -2376,7 +2336,7 @@ class Fork(ModuleBase):
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.reportInfo(self.trace_chart)
-        _trace_chart(self.trace_chart, False, name=f"{LOG_MODULE}.chart")
+        _trace_chart(self.trace_chart, name=f"{LOG_MODULE}.period_run")
 
         # 根据变动量记录货叉的里程数据
         if self.last_pos is not None:
@@ -2451,7 +2411,7 @@ class Fork(ModuleBase):
 
         # 处理载货时di状态监控
         if ConfigParams.checkGoodsWhileLoad:
-            # print(f"checkGoodsWhileLoad:{ConfigParams.checkGoodsWhileLoad}")
+            _trace_log(f"checkGoodsWhileLoad:{ConfigParams.checkGoodsWhileLoad}")
 
             # 获取到位 di 的状态
             di_status = []
@@ -2493,7 +2453,7 @@ class Fork(ModuleBase):
             #     self.script_status = ScriptStatus.FAILED
             #     return
             self.target_pos, tcp_name = self.get_station_pos("targetName")
-            _trace_log(f"target_pos: {self.target_pos}", True, True)
+            _trace_log(f"target_pos: {self.target_pos}")
             #
             # self.action_list = [
             #     RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)
@@ -2509,7 +2469,7 @@ class Fork(ModuleBase):
                                                               tcp_name)
                     ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"], ap_world_pos_tcp["theta"]]
                     self.target_pos = ap_world_pos_tcp_list
-                    _trace_log(f"ap world tcp :{ap_world_pos_tcp_list}", True, True)
+                    _trace_log(f"ap world tcp :{ap_world_pos_tcp_list}")
 
                     # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                     args = {
@@ -2530,7 +2490,7 @@ class Fork(ModuleBase):
                 self.action_list.append(
                     GoPathWithContactDi(ConfigParams.contact_ids, self.target_pos, None, method, args,
                                         False))
-            _trace_log(f"task list: {self.action_list}", True, True)
+            _trace_log(f"task list: {self.action_list}")
             self.action_list.append(Rec(self.recfile, -ConfigParams.tail, 0, ConfigParams.recRadius))
 
         # 识别结束后动态加调整的类
@@ -2540,13 +2500,13 @@ class Fork(ModuleBase):
                 and self.current_action.action_status == ActionStatus.FINISHED):
             # 计算出上料笼腿相对于下料笼顶的位置
             robot2pos = self.get_robot2target_pos(self.current_action.results_list)
-            _trace_log(f"robot2pos: {robot2pos},yaw: {math.degrees(robot2pos[2])}", True, True)
+            _trace_log(f"robot2pos: {robot2pos},yaw: {math.degrees(robot2pos[2])}")
 
             if abs(math.degrees(robot2pos[2])) > 8 or abs(robot2pos[0]) > 0.2:
                 Navigation.setTaskError("CageTooFar", "cage too far from")
                 self.script_status = ScriptStatus.FAILED
                 return
-            _trace_log(f"cage_count:{self.cage_count}", True, True)
+            _trace_log(f"cage_count:{self.cage_count}")
 
             if (abs(math.degrees(robot2pos[2])) <= 0.5 and abs(robot2pos[0]) <= 0.01 and abs(
                     robot2pos[1]) <= 0.01) or self.cage_count >= 2:
@@ -2557,7 +2517,7 @@ class Fork(ModuleBase):
                                          Rec(self.recfile, -ConfigParams.tail, 0, ConfigParams.recRadius)])
 
                 self.cage_count += 1
-            _trace_log(f"task list: {self.action_list},cage_count:{self.cage_count}", True, True)
+            _trace_log(f"task list: {self.action_list},cage_count:{self.cage_count}")
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
             delete_deduct_area(["no_rec_deduct_pallet_area", "PalletRobotRegionByHeight"], Coordinate.ROBOT)
@@ -2898,7 +2858,8 @@ class RecPalletSelect(Rec):
         - pallet_file: 识别配置文件，json格式，包含识别算法、识别区域等信息
         - goods_layer: 货物层数，整数，表示要选择的货物所在的层数，1表示最底层，2表示第二层，以此类推
         - rec_center_x, rec_center_y, rec_radius: 识别区域参数，定义一个圆形区域，中心坐标为(rec_center_x, rec_center_y)，半径为rec_radius，单位为米
-        - height_offset: 选定的识别结果的z轴坐标基础上增加的高度偏移量，单位为米，默认为0.03米，用于调整机械臂的抓取高度
+        - rec_base_height: 标定基准高度(即canCalibHeight)。识别结果z视为相对此高度的偏移量
+        - height_offset: 在(基准高度+识别z偏移)基础上增加的高度补偿量，单位为米
         - retry_max: 最大识别尝试次数，默认为6次，超过该次数仍未成功识别则判定为失败
         - z_max: 是否优先选择z轴坐标最大的识别结果，默认为True
         - min_height: 选定的识别结果的z轴坐标的最小值，单位为米，默认为0.0米，用于限制机械臂的最低抓取高度
@@ -2908,18 +2869,19 @@ class RecPalletSelect(Rec):
         - selected_result: 选定的识别结果，包含托盘上货物的位姿信息
         - selected_world_pos: 选定的识别结果中的世界坐标位置，格式为[x, y, yaw]
         - selected_robot_pos: 选定的识别结果中的机器人坐标位置，格式为[x, y, yaw]
-        - selected_pick_height: 选定的识别结果的z轴坐标加上height_offset后的值，经过clamp_fn函数限制后的最终抓取高度
+        - selected_pick_height: canCalibHeight + 识别z偏移 + height_offset 后的值，经过clamp_fn限制后的最终抓取高度
      - 识别流程：
         1. 调用父类Rec的识别流程获取识别结果列表
         2. 解析识别结果列表，提取每个识别结果的z轴坐标、世界坐标位置和机器人坐标位置，存储在一个新的列表中
         3. 根据z轴坐标对识别结果进行排序，如果z_max为True则降序排序，否则升序排序
         4. 根据goods_layer参数选择对应层数的识别结果，1表示选择z轴坐标最大的结果，2表示选择第二大的结果，以此类推，如果goods_layer超过了识别结果的数量则选择最后一个结果
-        5. 从选定的识别结果中提取世界坐标位置和机器人坐标位置，并计算选定的识别结果的z轴坐标加上height_offset后的值，如果clamp_fn函数不为None则对调整后的值进行限制
+        5. 从选定的识别结果中提取世界坐标位置和机器人坐标位置，并计算 canCalibHeight + z偏移 + height_offset，如果clamp_fn不为None则对结果进行限制
     """
     def __init__(
             self,
             pallet_file: str,
             goods_layer: int,
+            rec_base_height: float,
             rec_center_x: float = -1.0,
             rec_center_y: float = 0.0,
             rec_radius: float = 0.7,
@@ -2940,6 +2902,7 @@ class RecPalletSelect(Rec):
             max_attempts=max(1, int(retry_max)),
         )
         self.goods_layer = max(1, int(goods_layer))
+        self.rec_base_height = float(rec_base_height)
         self.height_offset = float(height_offset)
         self.min_height = float(min_height)
         self.max_height = float(max_height)
@@ -2992,22 +2955,26 @@ class RecPalletSelect(Rec):
             return
 
         parsed_list.sort(key=lambda x: x["z"], reverse=True)
-        print(f"############## parsed_list: {parsed_list} ######################")
+        _trace_log(f"############## parsed_list: {parsed_list} ######################")
         idx = min(max(0, self.goods_layer - 1), len(parsed_list) - 1)
         selected = parsed_list[idx]
-        print(f"############### sleected: {selected} #############################")
+        _trace_log(f"############### sleected: {selected} #############################")
 
         self.results_list = [selected["raw"]]
         self.result = selected["raw"]
         self.selected_result = selected["raw"]
         self.selected_world_pos = selected["world"]
         self.selected_robot_pos = selected["robot"]
-        pick_h = selected["z"] + self.height_offset
+        # 识别结果 z 解释为“相对于识别基准高度的偏移量”，换算到电机绝对高度后再补偿
+        pick_h = self.rec_base_height + selected["z"] + self.height_offset
         if self.clamp_fn is not None:
             self.selected_pick_height = self.clamp_fn(pick_h, self.min_height, self.max_height)
         else:
             self.selected_pick_height = pick_h
-        _trace_log(f"rec select layer={self.goods_layer}, z={selected['z']}, pick={self.selected_pick_height}")
+        _trace_log(
+            f"rec select layer={self.goods_layer}, z_offset={selected['z']}, "
+            f"canCalibHeight={self.rec_base_height}, pick={self.selected_pick_height}"
+        )
         self.action_status = ActionStatus.FINISHED
 
 
@@ -3177,9 +3144,9 @@ class GoPathWithContactDi(BaseAction):
                 Navigation.clearPolicy()
                 self.clear_policy = True
                 self.set_policy = False
-                _trace_log(f"vx:{vx},clear policy", True, True)
+                _trace_log(f"vx:{vx},clear policy")
             elif vx <= 0 and not self.set_policy:
-                _trace_log(f"vx:{vx},set policy", True, True)
+                _trace_log(f"vx:{vx},set policy")
                 Navigation.appendCustomPolicy("policy", self.policy)
                 time.sleep(0.5)
                 Navigation.goPathParam(dict())
@@ -3573,7 +3540,7 @@ class RunMotorByPosition(BaseAction):
         # self.action_state["motor_speed"] = Motor.get_motor_speed(self.motor_name)
         # self.action_state["motor_position"] = Motor.get_motor_pos(self.motor_name)
         # self.action_state["status"] = self.action_status
-        # _trace_log(self.action_state)
+        # _trace_log(f"Action State: {self.action_state}")
         # print(json.dumps(self.action_state))
 
     def reset(self):
@@ -3633,7 +3600,7 @@ class RunMotorWithLaserMonitor(BaseAction):
 
     def __init__(self, motor_name: str, position: float, max_speed=ConfigParams.fork_max_speed, action_name="RunMotorWithLaserMonitor"):
         super().__init__(action_name)
-        self.motor_action = RunMotorByPosition(motor_name, position, max_speed, "liftForUnload")
+        self.motor_action = RunMotorByPosition(motor_name, position, max_speed, "liftForUnload") # 改用BySpeed，todo: 超过start_height一定范围(0.5m+)后报错 
         self.prev_dist: Optional[float] = None
         self.increase_count = 0
         self.obstacle_reduced = False
@@ -3645,7 +3612,6 @@ class RunMotorWithLaserMonitor(BaseAction):
 
     def _resolve_back_laser_key(self) -> str:
         raw = ConfigParams.fork_root_2D_lasers
-        print(f"############ 绑定的激光: {raw} ##############")
         parts = [p.strip() for p in str(raw or "").split(",")]
         for p in parts:
             if p:
@@ -3668,7 +3634,6 @@ class RunMotorWithLaserMonitor(BaseAction):
             return None
         try:
             data = Laser.getData()
-            print(f"size of data: {len(data)}")
         except Exception:
             return None
         if data is None:
@@ -3791,7 +3756,7 @@ class RunMotorWithLaserMonitor(BaseAction):
         if not front_x_values:
             return None
         front_x_values.sort()
-        print(f"############ front_x: {front_x_values} ##############")
+        _trace_log(f"############ front_x: {front_x_values} ##############")
         idx = max(0, min(len(front_x_values) - 1, int(len(front_x_values) * 0.1)))
         return float(front_x_values[idx])
 
@@ -4606,7 +4571,7 @@ class UnloadReleaseCheckAction(BaseAction):
         abs_v = abs(float(ConfigParams.releaseSlowDownSpeed)) if slow else abs(float(self.max_speed))
         v = -max(0.001, abs_v)
         Motor.setMotorSpeed(self.motor_name, v)
-        self.speed_mode = "slow" if slow else "fast"
+        self.speed_mode = "slow" if slow else "fast" #todo: 增加货叉保护，不能一直上升或下降
 
     def _is_target_reached(self) -> bool:
         if self.current_target is None:
@@ -4646,10 +4611,6 @@ class UnloadReleaseCheckAction(BaseAction):
             self.di_skip_reason = "di_keys_empty"
             _trace_log("ultrasonic di disabled: keys empty, fallback to laser(+weight if available)")
 
-        if CkyDgScale is None:
-            self.weight_skip_reason = "scale_import_failed"
-            _trace_log("weight monitor disabled: CkyDgScale import failed, fallback to DI only")
-            return True
 
         try:
             self.weight_monitor = WeightDropMonitor(self.cfg)
@@ -4835,7 +4796,7 @@ def main():
         status = Module.getStatus()
 
         if ConfigParams.scriptDebug:
-            # _trace_log(f"script status:{status}")
+            _trace_log(f"script status:{status}")
             pass
 
         if status == ScriptStatus.RUNNING:

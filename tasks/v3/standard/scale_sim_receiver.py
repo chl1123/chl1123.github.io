@@ -9,10 +9,15 @@ start_time = time.time()
 from syspy import Module, ModuleBase, ScriptStatus, ScriptParam, Trace
 from syspy.utils.param_server import ParamType
 
-from standard.weighingScale import CkyDgScale
+from standard.weighing_scale import CkyDgScale
 
 
 script_param = ScriptParam(__file__)
+LOG_MODULE = "SCALE_SIM_RECEIVER"
+
+
+def _trace_log(text: str, name: str) -> None:
+    Trace.log(f"[{name}] {text}", name=name)
 
 
 class ConfigParams:
@@ -95,12 +100,13 @@ class ConfigParams:
         cls.sample_count = int(config.get("sample_count", cls.sample_count))
         cls.sample_interval = float(config.get("sample_interval", cls.sample_interval))
 
-        Trace.log(
-            "scale_sim_receiver config loaded: "
-            f"port={cls.port}, slave_id={cls.slave_id}, baudrate={cls.baudrate}, "
-            f"timeout={cls.timeout}, bytesize={cls.bytesize}, parity={cls.parity}, "
-            f"stopbits={cls.stopbits}, sample_count={cls.sample_count}, "
-            f"sample_interval={cls.sample_interval}"
+        _trace_log(
+            "config reload "
+            f"port={cls.port} slave_id={cls.slave_id} baudrate={cls.baudrate} "
+            f"timeout={cls.timeout:.3f}s bytesize={cls.bytesize} parity={cls.parity} "
+            f"stopbits={cls.stopbits} sample_count={cls.sample_count} "
+            f"sample_interval={cls.sample_interval:.3f}s ok=True",
+            name=f"{LOG_MODULE}.cfg",
         )
 
 
@@ -109,7 +115,7 @@ ConfigParams.init()
 
 def script_config_callback():
     """脚本配置参数修改回调"""
-    Trace.log("script_config_callback()")
+    _trace_log("script config callback reload=True", name=f"{LOG_MODULE}.cfg")
     ConfigParams.load_config()
 
 
@@ -125,9 +131,77 @@ class ScaleSimReceiver(ModuleBase):
         self.status = ScriptStatus.RUNNING
 
     @staticmethod
+    def _to_kg(value, unit):
+        if value is None or unit is None:
+            return None
+
+        unit_text = str(unit).strip().lower()
+        if unit_text == "kg":
+            return float(value)
+        if unit_text == "g":
+            return float(value) / 1000.0
+        if unit_text == "t":
+            return float(value) * 1000.0
+        return None
+
+    @classmethod
+    def _format_weight_text(cls, data: dict, label: str = "实际重量") -> str:
+        if not isinstance(data, dict):
+            return str(data)
+
+        parts = []
+        raw = data.get("raw")
+        if raw is not None:
+            parts.append(f"原始值={raw}")
+
+        value = data.get("value")
+        unit = data.get("unit")
+        weight_kg = cls._to_kg(value, unit)
+        if weight_kg is not None:
+            parts.append(f"{label}={weight_kg:.3f} kg")
+        elif value is not None and unit is not None:
+            parts.append(f"{label}={value} {unit}")
+
+        return ", ".join(parts) if parts else str(data)
+
+    @classmethod
+    def _format_check_detail(cls, name: str, detail: dict) -> str:
+        if name == "read_weight_once":
+            return cls._format_weight_text(detail)
+
+        if name == "read_weight_samples":
+            parts = [f"采样次数={detail.get('sampleCount')}"]
+            average_value = detail.get("averageValue")
+            unit = detail.get("unit")
+            average_kg = cls._to_kg(average_value, unit)
+            if average_kg is not None:
+                parts.append(f"平均重量={average_kg:.3f} kg")
+            elif average_value is not None and unit is not None:
+                parts.append(f"平均重量={average_value} {unit}")
+            return ", ".join(parts)
+
+        if name == "tare":
+            return f"去皮后{cls._format_weight_text(detail, label='当前重量')}"
+
+        if name == "clear_tare":
+            baseline_raw = detail.get("baselineRaw")
+            current = detail.get("current", {})
+            formatted = cls._format_weight_text(current, label="当前重量")
+            return f"清皮前原始值={baseline_raw}, 清皮后{formatted}"
+
+        if name == "zero":
+            return f"清零后{cls._format_weight_text(detail, label='当前重量')}"
+
+        return str(detail)
+
+    @staticmethod
     def _check(name: str, ok: bool, detail: dict, report: dict):
         report[name] = {"ok": bool(ok), "detail": detail}
-        Trace.log(f"[{name}] {'SUCCESS' if ok else 'FAIL'} {detail}")
+        _trace_log(
+            f"check={name}"
+            f"{ScaleSimReceiver._format_check_detail(name, detail)}",
+            name=f"{LOG_MODULE}",
+        )
 
     def run_once(self) -> bool:
         all_ok = True
@@ -212,22 +286,22 @@ class ScaleSimReceiver(ModuleBase):
             self.status = ScriptStatus.FINISHED if ok else ScriptStatus.FAILED
         except Exception as e:
             self.report_info["error"] = str(e)
-            Trace.log(f"scale_sim_receiver exception: {e}")
+            _trace_log(f"run exception err={e!r}", name=f"{LOG_MODULE}.err")
             self.status = ScriptStatus.FAILED
 
     def suspend(self):
         if Module.getStatus() == ScriptStatus.RUNNING:
             self.status = ScriptStatus.SUSPENDED
-        Trace.log("suspend")
+        _trace_log("task suspend", name=f"{LOG_MODULE}.state")
 
     def resume(self):
         if Module.getStatus() == ScriptStatus.SUSPENDED:
             self.status = ScriptStatus.RUNNING
-        Trace.log("resume")
+        _trace_log("task resume", name=f"{LOG_MODULE}.state")
 
     def cancel(self):
         self.status = ScriptStatus.FAILED
-        Trace.log("cancel")
+        _trace_log("task cancel", name=f"{LOG_MODULE}.state")
 
 
 def main():
