@@ -111,3 +111,13 @@ class RobotErrorV3(RobotErrorInterface):
         else:
             key = f"ss@Module{key}"
         cls.client().call_service("Error", "setSystemError", key, to_dict(error))
+
+    @classmethod
+    @call_service()
+    def clearSystemError(cls, key: str) -> None:
+        pass
+
+    @classmethod
+    @call_service()
+    def existSystemError(cls, key: str) -> bool:
+        pass
