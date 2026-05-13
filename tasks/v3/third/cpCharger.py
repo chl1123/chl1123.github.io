@@ -35,8 +35,6 @@ class ConfigParams:
 
     end_current = None
     charge_time_s = None
-    mock_max_voltage = None
-    mock_max_current = None
 
     @classmethod
     def init(cls):
@@ -77,26 +75,6 @@ class ConfigParams:
                         builder.DEFAULTVALUE(3600, min_value=1, max_value=86400)
                         builder.UNIT("s")
 
-                    with builder.CHILD(
-                        key="mockMaxVoltage",
-                        name="Mock Max Voltage",
-                        desc="Fallback mock max charge voltage when Battery interface is unavailable or invalid",
-                    ):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(83.4, min_value=0.1, max_value=1000.0)
-                        builder.UNIT("V")
-                        builder.SINGLESTEP(0.1)
-
-                    with builder.CHILD(
-                        key="mockMaxCurrent",
-                        name="Mock Max Current",
-                        desc="Fallback mock max charge current when Battery interface is unavailable or invalid",
-                    ):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(100.0, min_value=0.1, max_value=1000.0)
-                        builder.UNIT("A")
-                        builder.SINGLESTEP(0.1)
-
         builder.save(merge=True)
         cls.load_config()
 
@@ -136,17 +114,6 @@ class InputParams:
             with builder.CHILDREN():
                 with builder.CHILD(key="charge", name="Charge", desc="Set charge params and start charging"):
                     builder.TYPE(ParamType.ARRAY)
-                    # with builder.CHILDREN():
-                    #     with builder.CHILD(key="endCurrent", name="End Current", desc="Charge end current"):
-                    #         builder.TYPE(ParamType.FLOAT)
-                    #         builder.DEFAULTVALUE(ConfigParams.end_current, min_value=0.1, max_value=500.0)
-                    #         builder.UNIT("A")
-                    #         builder.SINGLESTEP(0.1)
-
-                    #     with builder.CHILD(key="chargeTimeS", name="Charge Time", desc="Charge time"):
-                    #         builder.TYPE(ParamType.INT)
-                    #         builder.DEFAULTVALUE(ConfigParams.charge_time_s, min_value=1, max_value=86400)
-                    #         builder.UNIT("s")
 
                 with builder.CHILD(key="stop", name="Stop", desc="Stop charging and reset charger"):
                     builder.TYPE(ParamType.ARRAY)
@@ -159,8 +126,6 @@ script_param.addAction(
     policy={},
     args={
         "operation": "charge",
-        # "operation.charge.endCurrent": ConfigParams.end_current,
-        # "operation.charge.chargeTimeS": ConfigParams.charge_time_s,
     },
     config={},
 )
@@ -331,10 +296,10 @@ class CpChargerTask(ModuleBase):
         if not self._is_positive_number(voltage) or not self._is_positive_number(current):
             _trace_log(
                 f"[WARN] invalid battery max charge values: voltage={voltage}, current={current}, "
-                f"use mock values voltage={ConfigParams.mock_max_voltage}, current={ConfigParams.mock_max_current}"
+                f"使用模拟数据： 充电电压voltage={83.4}, 充电电流current={100.0}"
             )
-            voltage = ConfigParams.mock_max_voltage
-            current = ConfigParams.mock_max_current
+            voltage = 83.4
+            current = 100.0
 
         return float(voltage), float(current)
 
