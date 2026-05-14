@@ -203,7 +203,7 @@ class ConfigParams:
     qrTimeout: float = 12.0
     loadEndHeightExtra: float = 0.0
     stackGoodsLayerDefault: int = 1 # 默认识别堆叠货物的层数，1表示第一层（最高层），2表示第二层，以此类推
-    canCalibHeight: float = 0.0
+    camCalibMotorHeight: float = 0.0
     stackHeightOffset: float = 0.2
     stackRecRetry: int = 6
     ultrasonicDiKey1: str = ""
@@ -285,7 +285,7 @@ class ConfigParams:
         cls.qrTimeout = cfg.get("qrTimeout", 12.0)
         cls.loadEndHeightExtra = cfg.get("loadEndHeightExtra", 0.0)
         cls.stackGoodsLayerDefault = cfg.get("stackGoodsLayerDefault", 1)
-        cls.canCalibHeight = cfg.get("canCalibHeight", 0.0)
+        cls.camCalibMotorHeight = cfg.get("camCalibMotorHeight", 0.0)
         cls.stackHeightOffset = cfg.get("stackHeightOffset", 0.03)
         cls.stackRecRetry = cfg.get("stackRecRetry", 6)
         cls.ultrasonicDiKey1 = cfg.get("ultrasonicDiKey1", "")
@@ -477,8 +477,8 @@ class ConfigParams:
                                        desc="默认取第几层(1=最高层)"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(1)
-                    with builder.CHILD(key="canCalibHeight", name="Can Calib Height",
-                                       desc="相机标定高度，仅用于识别后pick_height换算"):
+                    with builder.CHILD(key="camCalibMotorHeight", name="Camera Calib Motor Height",
+                                       desc="标定相机时的升降电机高度，仅用于识别后pick_height换算"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
@@ -1650,7 +1650,8 @@ class Fork(ModuleBase):
         )
 
     def _get_load_end_height(self) -> float:
-        return self.end_height + float(ConfigParams.loadEndHeightExtra or 0.0)
+        self.fork_cur_height = Motor.getMotorPos(ConfigParams.fork_motor_name)
+        return self.fork_cur_height + float(ConfigParams.loadEndHeightExtra)
 
     def _apply_qr_fallback_if_needed(self):
         """
@@ -1816,7 +1817,7 @@ class Fork(ModuleBase):
                     RecPalletSelect(
                         self.recfile,
                         goods_layer=self.goods_layer,
-                        rec_base_height=float(ConfigParams.canCalibHeight),
+                        rec_base_height=float(ConfigParams.camCalibMotorHeight),
                         rec_center_x=rec_center2robot[0],
                         rec_center_y=rec_center2robot[1],
                         rec_radius=ConfigParams.recRadius,
@@ -1923,7 +1924,7 @@ class Fork(ModuleBase):
                 # 1) pickHeight: 先调到选层高度，避免碰撞
                 # 2) GoPathWithContactDi: 前进到识别位姿并进行接触检测
                 # 3) upFork: 取货后抬叉到运输高度
-                _trace_log(f"pick_height:{rec_action.selected_pick_height}, start_height:{self.start_height}, end_height:{self.end_height}")
+                _trace_log(f"pick_height:{rec_action.selected_pick_height}, start_height:{self.start_height}")
                 self.action_list.extend([
                     RunMotorByPosition(
                         ConfigParams.fork_motor_name,
@@ -1934,10 +1935,8 @@ class Fork(ModuleBase):
                     GoPathWithContactDi(ConfigParams.contact_ids, rec_world_pos, ConfigParams.loadObsStopDist, method,
                                         args,
                                         self.check_di, "load"),
-                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, ConfigParams.fork_max_speed,
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self._get_load_end_height(), ConfigParams.fork_max_speed,
                                        "upFork")
-                    # load抬叉高度可通过loadEndHeightExtra附加，将self.end_height改为self._get_load_end_height()
-                    # todo: end_height改为货叉当前高度+一定距离
                 ])
                 _trace_log(f"task after rec:{self.action_list}")
 
@@ -2411,7 +2410,7 @@ class Fork(ModuleBase):
 
         # 处理载货时di状态监控
         if ConfigParams.checkGoodsWhileLoad:
-            _trace_log(f"checkGoodsWhileLoad:{ConfigParams.checkGoodsWhileLoad}")
+            # _trace_chart(f"checkGoodsWhileLoad:{ConfigParams.checkGoodsWhileLoad}")
 
             # 获取到位 di 的状态
             di_status = []
@@ -2858,7 +2857,7 @@ class RecPalletSelect(Rec):
         - pallet_file: 识别配置文件，json格式，包含识别算法、识别区域等信息
         - goods_layer: 货物层数，整数，表示要选择的货物所在的层数，1表示最底层，2表示第二层，以此类推
         - rec_center_x, rec_center_y, rec_radius: 识别区域参数，定义一个圆形区域，中心坐标为(rec_center_x, rec_center_y)，半径为rec_radius，单位为米
-        - rec_base_height: 标定基准高度(即canCalibHeight)。识别结果z视为相对此高度的偏移量
+        - rec_base_height: 标定基准高度(即camCalibMotorHeight)。识别结果z视为相对此高度的偏移量
         - height_offset: 在(基准高度+识别z偏移)基础上增加的高度补偿量，单位为米
         - retry_max: 最大识别尝试次数，默认为6次，超过该次数仍未成功识别则判定为失败
         - z_max: 是否优先选择z轴坐标最大的识别结果，默认为True
@@ -2869,13 +2868,13 @@ class RecPalletSelect(Rec):
         - selected_result: 选定的识别结果，包含托盘上货物的位姿信息
         - selected_world_pos: 选定的识别结果中的世界坐标位置，格式为[x, y, yaw]
         - selected_robot_pos: 选定的识别结果中的机器人坐标位置，格式为[x, y, yaw]
-        - selected_pick_height: canCalibHeight + 识别z偏移 + height_offset 后的值，经过clamp_fn限制后的最终抓取高度
+        - selected_pick_height: 当前高度 - camCalibMotorHeight + 识别z偏移 + height_offset 后的值，经过clamp_fn限制后的最终抓取高度
      - 识别流程：
         1. 调用父类Rec的识别流程获取识别结果列表
         2. 解析识别结果列表，提取每个识别结果的z轴坐标、世界坐标位置和机器人坐标位置，存储在一个新的列表中
         3. 根据z轴坐标对识别结果进行排序，如果z_max为True则降序排序，否则升序排序
         4. 根据goods_layer参数选择对应层数的识别结果，1表示选择z轴坐标最大的结果，2表示选择第二大的结果，以此类推，如果goods_layer超过了识别结果的数量则选择最后一个结果
-        5. 从选定的识别结果中提取世界坐标位置和机器人坐标位置，并计算 canCalibHeight + z偏移 + height_offset，如果clamp_fn不为None则对结果进行限制
+        5. 从选定的识别结果中提取世界坐标位置和机器人坐标位置，并计算 当前高度 - camCalibMotorHeight  + z偏移 + height_offset，如果clamp_fn不为None则对结果进行限制
     """
     def __init__(
             self,
@@ -2955,25 +2954,27 @@ class RecPalletSelect(Rec):
             return
 
         parsed_list.sort(key=lambda x: x["z"], reverse=True)
-        _trace_log(f"############## parsed_list: {parsed_list} ######################")
+        for i, item in enumerate(parsed_list):
+            _trace_log(f"\n############## parsed_list idx:{i}, z:{item['z']}, world:{item['world']}, robot:{item['robot']} #########\n")
         idx = min(max(0, self.goods_layer - 1), len(parsed_list) - 1)
         selected = parsed_list[idx]
-        _trace_log(f"############### sleected: {selected} #############################")
+        _trace_log(f"\n############### sleected idx: {idx}, z: {selected['z']} #############################\n")
 
         self.results_list = [selected["raw"]]
         self.result = selected["raw"]
         self.selected_result = selected["raw"]
         self.selected_world_pos = selected["world"]
         self.selected_robot_pos = selected["robot"]
+        cur_height = Motor.getMotorPos(ConfigParams.fork_motor_name)
         # 识别结果 z 解释为“相对于识别基准高度的偏移量”，换算到电机绝对高度后再补偿
-        pick_h = self.rec_base_height + selected["z"] + self.height_offset
+        pick_h = cur_height - self.rec_base_height + selected["z"] + self.height_offset
         if self.clamp_fn is not None:
             self.selected_pick_height = self.clamp_fn(pick_h, self.min_height, self.max_height)
         else:
             self.selected_pick_height = pick_h
         _trace_log(
             f"rec select layer={self.goods_layer}, z_offset={selected['z']}, "
-            f"canCalibHeight={self.rec_base_height}, pick={self.selected_pick_height}"
+            f"camCalibMotorHeight={self.rec_base_height}, pick={self.selected_pick_height}"
         )
         self.action_status = ActionStatus.FINISHED
 
@@ -4796,7 +4797,7 @@ def main():
         status = Module.getStatus()
 
         if ConfigParams.scriptDebug:
-            _trace_log(f"script status:{status}")
+            # _trace_log(f"script status:{status}")
             pass
 
         if status == ScriptStatus.RUNNING:
