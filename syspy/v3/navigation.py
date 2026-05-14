@@ -947,7 +947,7 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     def errorExists(cls, key: str) -> bool:
-        return cls.client().call_service("MoveFactory", "errorExits", "ms@Module" + key)
+        return cls.client().call_service("MoveFactory", "errorExists", "ms@Module" + key)
 
 
 @default_plugin("MoveFactory")
