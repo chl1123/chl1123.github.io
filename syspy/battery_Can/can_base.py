@@ -166,14 +166,30 @@ class CanBase:
     def recCanframe(self, msg):
         return self.child.recCanframe(msg)
 
-    def attachCanID(self, *args):
+    def attachCanID(self, *args, extended=None, remote=None):
         if isinstance(args[0], int) and args[0] < 3:
             channel = args[0]
             id_nums = args[1]
             can_ids = [arg for arg in args[2:]]
+            if extended or remote:
+                ext_list = extended or [False] * len(can_ids)
+                rtr_list = remote or [False] * len(can_ids)
+                for i in range(min(len(can_ids), len(ext_list), len(rtr_list))):
+                    if ext_list[i]:
+                        can_ids[i] |= 0x80000000
+                    if rtr_list[i]:
+                        can_ids[i] |= 0x40000000
             self.child.attachCanID(channel, id_nums, *can_ids)
         else:
             can_ids = [arg for arg in args]
+            if extended or remote:
+                ext_list = extended or [False] * len(can_ids)
+                rtr_list = remote or [False] * len(can_ids)
+                for i in range(min(len(can_ids), len(ext_list), len(rtr_list))):
+                    if ext_list[i]:
+                        can_ids[i] |= 0x80000000
+                    if rtr_list[i]:
+                        can_ids[i] |= 0x40000000
             self.child.attachCanID(*can_ids)
 
     def sendCanframe(self, channel: int, can_id: int, dlc: int, extend: bool, can_string: Union[list, str]):
