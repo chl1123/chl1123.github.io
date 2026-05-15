@@ -75,26 +75,41 @@ class CanNative():
     #  def can_filter(self, msg):
     #      return msg.arbitration_id in self.can_ids
 
-    def attachCanID(self, *canid):
+    def _extract_attach_ids(self, *canid):
         # Accept passthrough-style (channel, id_nums, *ids), unified-style (port_str, id_nums, *ids), and native-style (*ids)
         if len(canid) >= 2 and isinstance(canid[0], int) and canid[0] < 3 and isinstance(canid[1], int) and 1 <= canid[1] <= 5:
-            ids = canid[2:]  # passthrough-style on native
-        elif len(canid) >= 2 and isinstance(canid[0], str):
-            ids = canid[2:]  # unified-style (port_name, id_nums, *ids) on native
-        else:
-            ids = canid  # native-style (*ids)
-        for id_ in ids:
-            if id_ != 0 and id_ not in self.can_ids:
-                self.can_ids.append(id_)
+            return canid[2:]
+        if len(canid) >= 2 and isinstance(canid[0], str) and isinstance(canid[1], int):
+            return canid[2:]
+        return canid
+
+    def attachCanID(self, *canid):
+        ids = self._extract_attach_ids(*canid)
+        for raw_id in ids:
+            if raw_id != 0 and raw_id not in self.can_ids:
+                self.can_ids.append(raw_id)
         filters = []
-        for id_ in self.can_ids:
-            if id_ < 0x800:
-                can_mask = 0x7FF
+        for raw_id in self.can_ids:
+            is_extended = (raw_id & 0x80000000) != 0
+            is_remote = (raw_id & 0x40000000) != 0
+            can_id = raw_id & 0x1FFFFFFF
+            if can_id == 0:
+                continue
+
+            if is_extended or can_id > 0x7FF:
+                can_mask = 0xDFFFFFFF if is_remote else 0x9FFFFFFF
+                filter_item = {"can_id": can_id | 0x80000000, "can_mask": can_mask, "extended": True}
             else:
-                can_mask = 0x1FFFFFFF
-            filters.append({"can_id": id_, "can_mask": can_mask})
+                can_mask = 0xC00007FF if is_remote else 0x800007FF
+                filter_item = {"can_id": can_id, "can_mask": can_mask, "extended": False}
+
+            if is_remote:
+                filter_item["can_id"] |= 0x40000000
+            filters.append(filter_item)
+
         self.bus.set_filters(filters)
-        Trace.log(f"Attached CAN IDs: {[hex(id) for id in self.can_ids]}")
+        Trace.log(f"Attached CAN IDs: {[hex(raw_id) for raw_id in self.can_ids]}")
+
 
     def resetBus(self):
         """重启 CAN 接口并重新创建 bus"""
@@ -105,7 +120,7 @@ class CanNative():
 
         Trace.log("[CAN] Resetting CAN interface due to tx buffer full")
         self.createCanBus(self.channel,self.bitrate)
-        self.attachCanID(*self.can_ids)
+        self.attachCanID(*tuple(self.can_ids))
         Trace.log(f'[CAN] Config Ok')
         
     def sendCanframe(self, channel, can_id, dlc, extend, can_string):
