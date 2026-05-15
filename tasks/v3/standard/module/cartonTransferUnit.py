@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/5/7
+# @Date: 2026/5/15
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: 重构状态机
+# @Update: feat：统一日志记录规范
 # @RBK Version: V3.5+
 import enum
 import uuid
 
 
-SCRIPT_VERSION = "20260204"
+SCRIPT_VERSION = "20260515"
 import json
 import math
 import random
@@ -43,15 +43,11 @@ def debug_print(*args, **kwargs):
         print(f"{timestamp}", *args, **kwargs)
 
 
-def debug_trace(*args, **kwargs):
-    """Log to Trace only when debug_mode is enabled (with timestamp)"""
+def debug_trace(msg: str, *, name: str):
+    """Log to Trace only when debug_mode is enabled. name 为必填关键字参数。"""
     if ConfigParams.debug_mode:
         timestamp = _get_timestamp()
-        if args:
-            first_arg = f"{timestamp} {args[0]}"
-            Trace.log(first_arg, *args[1:], **kwargs)
-        else:
-            Trace.log(timestamp, **kwargs)
+        Trace.log(f"{timestamp} {msg}", name=name)
 
 
 class ConfigParams:
@@ -483,8 +479,7 @@ def check_debug_task(operation: str) -> bool:
     if operation in DEBUG_ONLY_TASKS:
         if not config_params.debug_mode:
             Trace.log(
-                f"[ERROR] Task '{operation}' is a debug-only task. "
-                f"Please enable 'debugMode' in script config first.")
+                f"task '{operation}' is debug-only, enable debugMode first", name="ctu.err")
             return False
     return True
 
@@ -703,7 +698,7 @@ class MotorRun:
         elif self.motor_type == MotorType.ROLLER_MOTOR:
             Motor.setMotorSpeed(self.motor_name, vel)
         else:
-            Trace.log(f"motor type error {self.motor_type}")
+            Trace.log(f"motor type error motor_type={self.motor_type}", name="ctu.err")
             self.status = ScriptStatus.FAILED
         if Motor.isMotorReached(self.motor_name):
             Motor.resetMotor(self.motor_name)
@@ -715,7 +710,7 @@ class MotorRun:
         self.state['motorStatus'] = self.status
 
     def reset(self):
-        Trace.log(f"motor reset: {self.motor_name}")
+        Trace.log(f"motor reset motor={self.motor_name}", name="ctu.motor")
         Motor.resetMotor(self.motor_name)
         self.status = ScriptStatus.RUNNING
 
@@ -842,7 +837,7 @@ class ContainerRobot(ModuleBase):
 
         self.counter = 0
         self.count = 0
-        Trace.log(f"init args: {args}")
+        Trace.log(f"init args operation={args.get('operation', '?')}", name="ctu")
 
     def init_script_args(self, args):
         self.script_args = args or Module.getTaskArgs()
@@ -905,7 +900,7 @@ class ContainerRobot(ModuleBase):
                         Container.unbindContainer("999")
             else:
                 Navigation.setTaskError("53701", f"请在脚本参数中正确配置 goodsCheckDi 参数！")
-                Trace.log(f"请在脚本参数中正确配置 goodsCheckDi 参数！")
+                Trace.log("goodsCheckDi config missing", name="ctu.err")
                 self.status = ScriptStatus.FINISHED
 
             self.start_time = time.time()
@@ -999,7 +994,7 @@ class ContainerRobot(ModuleBase):
         if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
             NetProtocol.release()
             Do.setDo(self.fill_light_do, False)
-            Trace.log(f"script finished: {json.dumps(self.report_info)}")
+            Trace.log(f"script finished operation={self.operation}", name="ctu")
         Module.reportInfo(self.report_info)
         return self.status
 
@@ -1048,15 +1043,17 @@ class ContainerRobot(ModuleBase):
                     self.set_stretch_motor_calib = True
 
             elif self.calib_step[0] and not self.calib_step[1]:
-                Trace.log(f"calib_step[3]----------")
+                if not self.set_lift_motor_calib:
+                    Trace.log("calib stretch done, starting lift", name="ctu.motor")
                 if not self.set_lift_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
                     Motor.motorCalib(ConfigParams.lift_motor_name)
                     self.set_lift_motor_calib = True
 
             elif self.calib_step[1] and not self.calib_step[2]:
-                Trace.log(f"calib_step[1]----------")
+                if not self.set_rotate_motor_calib:
+                    Trace.log("calib lift done, starting rotate", name="ctu.motor")
                 if not self.set_rotate_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
-                    Trace.log(f"calib_step[2]----------")
+                    # rotate motorCalib 指令下发（日志已在上行记录）
                     Motor.motorCalib(ConfigParams.rotate_motor_name)
                     self.set_rotate_motor_calib = True
 
@@ -1067,7 +1064,7 @@ class ContainerRobot(ModuleBase):
                 (self.set_rotate_motor_calib and self.rotate_motor_stop and self.rotate_motor_calib != 2)
             )
             if calib_retry:
-                Trace.log("标零失败检测：电机已停止但calib未完成，重置标志位重新下发")
+                Trace.log("calib retry: motor stopped but calib not done, resend", name="ctu.err")
                 self.set_lift_motor_calib = False
                 self.set_rotate_motor_calib = False
                 self.set_stretch_motor_calib = False
@@ -1123,7 +1120,7 @@ class ContainerRobot(ModuleBase):
         self.action_list = []
         self.action_id = 0
         self.status = ScriptStatus.FAILED
-        Trace.log("carton cancel")
+        Trace.log("task cancelled", name="ctu")
 
     def update_move_task_params(self):
         """
@@ -1221,7 +1218,7 @@ class ContainerRobot(ModuleBase):
             self.action_list = []
 
     def _build_zero_actions(self, zero_height=0):
-        Trace.log(f"----- building zero actions ------")
+        Trace.log("building zero actions", name="ctu.action")
         if not Container.hasGoods("999"):
             self.action_list.append(Finger(1))
         self.action_list.append(Stretch(0))
@@ -1242,7 +1239,7 @@ class ContainerRobot(ModuleBase):
         self.action_list.append(TakePhoto(self.fill_light_do, ConfigParams.light_delay_time, ConfigParams.box_code_file))
 
     def _build_load_actions(self):
-        Trace.log(f"----- building load actions {self.goods_id} ------")
+        Trace.log(f"building load actions goods_id={self.goods_id}", name="ctu.action")
         if not self.cur_c:
             if (self.goods_id and Container.goodsExist(self.goods_id) and
                     Container.getContainerByGoods(self.goods_id) != "999"):
@@ -1257,7 +1254,7 @@ class ContainerRobot(ModuleBase):
                 self.cur_c = self.self_position
             else:
                 self.cur_c = self.search_operable_container('load')
-            Trace.log(f"load begin: {json.dumps(self.containers)}")
+            Trace.log(f"load begin containers_count={len(self.containers)}", name="ctu")
             if self.cur_c is None:
                 Navigation.setTaskError("53716", f"车体所有背篓已满，无法继续取货！")
                 self.status = ScriptStatus.FAILED
@@ -1300,7 +1297,7 @@ class ContainerRobot(ModuleBase):
         self.action_list.append(BindContainer(cur_c, self.goods_id))
 
     def _build_unload_actions(self):
-        Trace.log(f"----- building unload actions ------")
+        Trace.log("building unload actions", name="ctu.action")
         if not self.cur_c:
             if self.self_position:
                 if Container.getGoodsByContainer(self.self_position) != self.goods_id:
@@ -1329,7 +1326,7 @@ class ContainerRobot(ModuleBase):
                 Navigation.setTaskError("53725", f"背篓中不存在货物: {self.goods_id}，无法执行放货任务！请核对任务数据和背篓数据！")
                 self.status = ScriptStatus.FAILED
                 return
-            Trace.log(f"unload begin: {json.dumps(self.containers)}")
+            Trace.log(f"unload begin containers_count={len(self.containers)}", name="ctu")
 
         # 内部取货阶段
         if self.cur_c != "999":
@@ -1387,7 +1384,7 @@ class ContainerRobot(ModuleBase):
             Navigation.setTaskError("53719", f"检测到货叉（999号）已载货，无法执行外部取货动作！请核对任务数据和背篓数据！")
             self.status = ScriptStatus.FAILED
             return
-        Trace.log(f"----- building ex_take actions ------")
+        Trace.log("building ex_take actions", name="ctu.action")
         if self.barcode_height is not None:
             self.action_list.append(Parallel(Lift(self.barcode_height), Rotate(self.rotate_pos)))
             self.action_list.append(RecBarcodeCheck(self.barcode_height, self.goods_id))
@@ -1404,7 +1401,7 @@ class ContainerRobot(ModuleBase):
         self.action_list.append(BindContainer("999", self.goods_id))
 
     def _build_ex_put_actions(self):
-        Trace.log(f"----- building ex_put actions ------")
+        Trace.log("building ex_put actions", name="ctu.action")
         if not Container.hasGoods("999"):
             self._build_unload_actions()
             return
@@ -1422,7 +1419,7 @@ class ContainerRobot(ModuleBase):
 
     def zero(self, zero_height=0):
         """保留用于 safe_move_check 调用"""
-        Trace.log(f"----- running zero ------")
+        Trace.log("running zero", name="ctu.motor")
         if not hasattr(self, '_zero_step'):
             self._zero_step = [False] * 4
         if not self._zero_step[0]:
@@ -1439,7 +1436,7 @@ class ContainerRobot(ModuleBase):
         return False
 
     def lift(self, height):
-        Trace.log(f"----- running lift ------")
+        Trace.log("running lift", name="ctu.motor")
         if height < ConfigParams.min_lift_height:
             height = ConfigParams.min_lift_height
         if height > ConfigParams.max_lift_height:
@@ -1481,7 +1478,7 @@ class ContainerRobot(ModuleBase):
                 Do.setDo(ConfigParams.right_finger_up_do, False)
 
             if self.left_finger_real_pos == 1 and self.right_finger_real_pos == 1:
-                Trace.log(f"手指打开成功")
+                Trace.log("finger open done", name="ctu.motor")
                 self.finger_open_start = False
                 return True
 
@@ -1505,7 +1502,7 @@ class ContainerRobot(ModuleBase):
                 Do.setDo(ConfigParams.right_finger_down_do, False)
 
             if self.left_finger_real_pos == 0 and self.right_finger_real_pos == 0:
-                Trace.log(f"手指关闭成功")
+                Trace.log("finger close done", name="ctu.motor")
                 self.finger_open_start = False
                 return True
 
@@ -1530,7 +1527,7 @@ class ContainerRobot(ModuleBase):
         self.finger_info["rightFinger"] = self.right_finger_real_pos
 
     def stretch(self, length):
-        Trace.log(f"----- running stretch ------")
+        Trace.log("running stretch", name="ctu.motor")
         temp_motor_speed = ConfigParams.stretch_motor_speed
         if ConfigParams.max_stretch_length < length < ConfigParams.max_stretch_length + 0.1:
             Navigation.setTaskError("53708", f"下发伸出长度值略微超上限，下发值：{length}，上限值：{ConfigParams.max_stretch_length}。请检查货物是否离车体太远了！")
@@ -1547,7 +1544,7 @@ class ContainerRobot(ModuleBase):
         return False
 
     def rotate(self, pos, max_speed=None):
-        Trace.log(f"----- running rotate ------")
+        Trace.log("running rotate", name="ctu.motor")
         if abs(pos) > abs(ConfigParams.max_rotate_angle / 180 * math.pi):
             Navigation.setTaskError("53709", f"下发角度值超上限，下发值：{pos / math.pi * 180}，上限值：{ConfigParams.max_rotate_angle}，请检查箱子是否摆歪，二维码是否破损！")
             self.status = ScriptStatus.FAILED
@@ -1612,7 +1609,7 @@ class ContainerRobot(ModuleBase):
         self.report_info["currentPos"] = module_pos
 
     def has_goods_id(self, goods_id: str):
-        Trace.log(f"goodsName: {goods_id}")
+        Trace.log(f"has_goods_id check goods_id={goods_id}", name="ctu")
         for c in self.containers:
             if goods_id == c['containerId']:
                 return True
@@ -1697,7 +1694,7 @@ class ContainerRobot(ModuleBase):
             debug_print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
 
         self.setSafeMoveStatus(status)
-        Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
+        Trace.log(f"safe_move_check={Module.getSafeMoveCheck()}", name="ctu")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
@@ -1759,7 +1756,7 @@ class Rec:
         self.status = ScriptStatus.RUNNING
         rec_status = Recognize.getRecStatus()  # 获取识别状态 0: 初始化, 1: 识别中, 2: 获得结果, 3：识别出错, -1: 未知错误
         if rec_status == 3 or rec_status == -1:  # 识别失败的状态
-            Trace.log("rec failed:{}".format(self.result))
+            Trace.log(f"rec failed result={self.result}", name="ctu.rec")
             if Timer.delay(0.05):
                 self.rec_times = self.rec_times + 1
                 if self.rec_times > self.max_rec_times:
@@ -1778,7 +1775,7 @@ class Rec:
                 if len(rec_results["recoList"]) == 1:
                     reco = rec_results["recoList"][0]
                     if not reco.get('valid', False):
-                        Trace.log("Rec: recognition result is invalid (valid=False), retrying")
+                        Trace.log("rec result invalid, retrying", name="ctu.rec")
                         Recognize.resetRec()
                         Recognize.doRec(self.filename, "", "")
                         return
@@ -1788,7 +1785,7 @@ class Rec:
             if self.result.get("x", 0) > self.max_goods_dist:
                 self.goods_out_dist = True
             self.status = ScriptStatus.FINISHED
-        Trace.log(f"rec success: {self.status.name} {self.result}")
+        # rec 状态通过 reportInfo 上报，不在每 tick 写 Trace.log
 
         cur_state = dict()
         cur_state['recResult'] = self.result
@@ -1850,7 +1847,7 @@ class RecAdjust:
         if self.plan_status is not ScriptStatus.FINISHED:
             self.plan_status = ScriptStatus.RUNNING
             if self.rec.status is ScriptStatus.RUNNING or self.rec.status is ScriptStatus.NONE:
-                Trace.log(f"----- rec to adjust {self.rec.status.name}------")
+                Trace.log(f"rec to adjust status={self.rec.status.name}", name="ctu.rec")
                 self.rec.run(agv)
             elif self.rec.status is ScriptStatus.FAILED:
                 self.rec_fail_time = self.rec_fail_time + 1
@@ -1861,9 +1858,9 @@ class RecAdjust:
                     self.rec.run(agv)
                 else:
                     self.status = ScriptStatus.FAILED
-                Trace.log("rec fail!!! {}".format(self.rec_fail_time))
+                Trace.log(f"rec failed rec_fail_time={self.rec_fail_time}", name="ctu.rec")
             elif self.rec.status is ScriptStatus.FINISHED:
-                Trace.log(f"------------------ move to adjust -----------------")
+                Trace.log("move to adjust", name="ctu.rec")
                 self.rec_fail_time = 0
                 # 通过参数配置，使识别结果为二维码在料斗坐标系下的坐标位置, (右手坐标系)x轴向前，y轴向左, z轴向上
 
@@ -1920,11 +1917,11 @@ class RecAdjust:
                         agv.ok_yaw = 1.15 / 180 * math.pi  # 约1.15°转弧度
                     # 精度满足, 识别调整任务完成
                     if not ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x:
-                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
+                        Trace.log(f"adjust finished adjust_count={self.adjust_count}", name="ctu.rec")
                         self.status = ScriptStatus.FINISHED
                     elif ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x and abs(
                             agv.yaw_adjust) <= agv.ok_yaw:
-                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
+                        Trace.log(f"adjust finished adjust_count={self.adjust_count}", name="ctu.rec")
                         self.status = ScriptStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
@@ -1968,10 +1965,7 @@ class RecAdjust:
         cur_state["lastYawAdjust"] = self.last_yaw_adjust / math.pi * 180
         cur_state["nextRotatePos"] = self.next_rotate_pos / math.pi * 180
         agv.report_info["recAdjust"] = cur_state
-        Trace.log(f"[ContainerRobot][{agv.lift_real_pos}|{agv.stretch_real_pos}|{agv.rotate_real_pos / math.pi * 180}|"
-                  f"{self.rec.result.get('x', 0)}|{self.rec.result.get('y', 0)}|{self.rec.result.get('z', 0)}|{self.rec.result.get('yaw', 0)}|"
-                  f"{agv.yaw_adjust / math.pi * 180}|{self.last_yaw_adjust / math.pi * 180}|{self.next_rotate_pos / math.pi * 180}|"
-                  f"{self.rec_fail_time}|{self.adjust_count}|{self.rec.rec_times}|{self.go_args.get('x', 0)}|")
+        # RecAdjust 实时数据通过 reportInfo 上报，不在每 tick 写 Trace.log
 
     def reset(self):
         self.rec.reset()
@@ -2429,6 +2423,27 @@ def main():
         robot.report_info['containers'] = containers
         Module.reportInfo(robot.report_info)
         robot.report_info["status"] = status
+
+        # === Trace.chart: 主循环末尾集中上报（§3 规范） ===
+        cur_action = robot.action_list[robot.action_id] if hasattr(robot, 'action_id') and hasattr(robot, 'action_list') and 0 <= robot.action_id < len(robot.action_list) else None
+        Trace.chart(
+            {
+                "scriptStatus": int(status),
+                "actionId": getattr(robot, "action_id", 0),
+                "actionTotal": len(getattr(robot, "action_list", [])),
+                "curActionState": int(cur_action.status) if cur_action and hasattr(cur_action, "status") else 0,
+            },
+            name="ctu.task",
+        )
+        Trace.chart(
+            {
+                "ctuHeight": float(Motor.getMotorPos(ConfigParams.lift_motor_name) or 0),
+                "ctuTarget": 0.0,
+                "ctuInPlace": bool(Motor.isMotorReached(ConfigParams.lift_motor_name)),
+                "containerCount": len(containers),
+            },
+            name="ctu.motor",
+        )
         if robot.event_safe_move_check:
             robot.safe_move_check()
         if robot.event_modbus:
@@ -2442,7 +2457,7 @@ def main():
                     args = validator.validate(args)
                     debug_print("check ok, args:", json.dumps(args, indent=2))
                 except ValueError as e:
-                    print("check error:", e)
+                    Trace.log(f"input params validate failed error={e}", name="ctu.err")
                 robot = ContainerRobot()
                 robot.init_script_args(args)
         elif status == ScriptStatus.RUNNING:
