@@ -48,6 +48,18 @@ class RobotParamInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
+    def getDeviceList(cls, device_key: str) -> List[str]:
+        """获取启用的设备列表
+
+        Args:
+            device_key (str): 设备的key
+
+        Returns:
+            (List[str]): 启用的设备列表
+        """
+        raise RBKVersionError()
+
+    @classmethod
     def getDeviceCloneSize(cls, device_key: str, param_path: str) -> int:
         """获取机器人设备模型-克隆类型参数个数(devices/robot.model)
 

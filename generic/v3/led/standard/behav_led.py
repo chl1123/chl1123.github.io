@@ -322,15 +322,13 @@ def script_config_callback() -> None:
 
 def apply_runtime_config() -> bool:
     rpc = _core.get_rpc()
-    port_ok = rpc.call("setDmxPort", ConfigParams.dmx_port) is not None
     total_ok = rpc.call("setLightTotalNum", int(ConfigParams.light_total_num)) is not None
     enable_ok = rpc.call("setLedDmxEnabled", True) is not None
-    ok = port_ok and total_ok and enable_ok
+    ok = total_ok and enable_ok
     _trace_log(
         "runtime config applied "
-        f"dmx_port={ConfigParams.dmx_port} "
         f"light_total_num={ConfigParams.light_total_num} "
-        f"port_ok={port_ok} total_ok={total_ok} enable_ok={enable_ok}",
+        f"total_ok={total_ok} enable_ok={enable_ok}",
         name=f"{LOG_MODULE}.cfg",
     )
     return ok
@@ -450,21 +448,14 @@ class Dmx512NativeBehav:
             return 1.0
         return out
 
-    @sim_only(on_sim=lambda *_args, **_kwargs: True) 
+    @sim_only(on_sim=lambda *_args, **_kwargs: True)
     def _battery_exists(self, _percentage: float) -> bool:
         """通过 RPC getState 返回的 JSON 判断电池信息是否存在。"""
         if _percentage == 0.0:
             return False
         try:
-            state_raw = self._rpc.call("getState")
-            if isinstance(state_raw, dict):
-                state_dict = state_raw
-            else:
-                return False
-            device_status = state_dict.get("deviceStatus")
-            if not isinstance(device_status, dict):
-                return False
-            return "Battery-000" in device_status
+            battery_keys = RobotParam.getDeviceList("Battery")
+            return battery_keys is not None and len(battery_keys) > 0
         except Exception:
             return False
 
@@ -704,7 +695,7 @@ class Dmx512NativeBehav:
             else:
                 self.handle_movement_effect(percentage)
             return
-# todo: 功能安全车型是否需要独立灯效
+        # todo: 功能安全车型是否需要独立灯效
         if battery_exist:
             self.handle_battery_effects(percentage)
             return

@@ -20,7 +20,7 @@
 # - 使用机器人坐标位置（而非进度百分比）实现断点续扫
 #
 # 接口说明：
-# - goBoustrophedonPath(area, entrance, exit, startPos, params): 执行弓字形清扫
+# - goBoustrophedonPath(entrance, exit, startPos, params): 执行弓字形清扫
 # - cancelBoustrophedonPath(): 取消清扫，返回当前位置
 # - resetBoustrophedonPath(): 重置清扫状态
 #
@@ -30,202 +30,74 @@
 ####END DEFAULT ARGS####
 """
 
+from inspect import trace
 import json
 import math
+from re import S
 import time
 import datetime
 import base64
 from typing import Any, Dict, List, Optional, Tuple
-from enum import IntEnum, auto
+from enum import IntEnum
 import requests
-
-import can
 import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
 
-from syspy import Module, ScriptStatus, Trace, Navigation, Abnormal, Battery, Controller, Logger, Do, Can, NavStatus, \
-    NavSpeed, Loc
-
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
+from syspy.lib.module import ModuleBase
+from syspy import (
+    Module,
+    ScriptStatus,
+    Trace,
+    Navigation,
+    Battery,
+    Controller,
+    Loc,
+    Logger,
+    Do,
+    Can,
+    NavStatus,
+    NavSpeed,
+)
 
 from syspy.lib.robot import RobotParam
-
-# 机构控制日志
-log = Logger("clean_robot")
+from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
 
 # 本脚本自己的 param loader
 param_loader = ScriptParam(__file__)
 
-# 调度/任务相关常量（如需可改成 Param 配置）
-SCENE_ID = "690843857C47EE4EE84D5AB7"
-ROBOT_NAME = "300J"
-CHARGING_SITE = "AP20100"
-LOW_BATTERY_SOC = 0.2
-HIGH_BATTERY_SOC = 0.9
-HMI_PERIOD = 1.0  # /s 车载屏轮询周期
-ROBOSHOP_PERIOD = 1.0  # /s 单车平台轮询周期
 
-# 调度 HTTP 地址
-SCHEDULER_URL = "http://172.17.30.50:5800/api/fleet/orders/create"
-SCHEDULER_CANCEL_URL = "http://172.17.30.50:5800/api/fleet/orders/cancel"
+# 添加动作
+for action_name in [
+    "WashStart",
+    "WashEnd",
+    "DustStart",
+    "DustEnd",
+    "Charge",
+    "AddWater",
+    "RunCleanPath",
+    "RunCleanPathAndWashStart",
+    "CancelCleanPath",
+    "ResetCleanPath",
+    "SetTask",
+    "SendOrders",
+    "SendContinueOrders",
+    "CancelOrder",
+    "SendChargeOrder",
+    "SendWaterOrder",
+    "RunScheduledCleanNow",
+]:
+    param_loader.addAction(
+        action_name=action_name,
+        policy={},
+        args={"operation": action_name},
+        config={}
+    )
+param_loader.saveAction()
 
-
-# ============================================================
-#  状态机枚举定义
-# ============================================================
-
-class ERPState(IntEnum):
-    """
-    ERP状态机 - 控制何时可以发单给M4调度系统
-
-    注：仅保留 IDLE、TASK_RUNNING、ERROR 三个状态
-    - TASK_PAUSED 和 TASK_COMPLETED 可以通过 IDLE + 断点信息来表达
-    """
-    IDLE = 0  # 空闲，可以接收新任务并发单
-    TASK_RUNNING = 1  # 任务执行中
-    ERROR = 4  # 错误状态，需要人工干预
-
-
-# 删除 MechState:
-# 原因：mech_state 只在初始化时赋值为 IDLE，从未被更新或使用
-# 机构的实际状态已由 CleanRobotMech 类内部管理（如 action_status）
-
-
-class VehicleState(IntEnum):
-    """车辆状态机 - 机器人本身的状态"""
-    IDLE = 0  # 无任务
-    ADD_WATER = 1  # 加水/排污中
-    CHARGING = 2  # 充电中
-    CLEANING = 3  # 清洁中（在清洁区域内执行清洁）
-    NAVIGATING = 4  # 无清洁导航中（在清洁区和清洁区之间的过程）
-
-
-class BoustrophedonPathState(IntEnum):
-    """BoustrophedonPath状态机 - 走工艺路径的状态"""
-    INIT = 0  # 初始化
-    RUNNING = 1  # 路径运行中
-    FINISHED = 3  # 路径完成
-    FAILED = 4  # 路径失败
-    SUSPENDED = 5  # 路径暂停
-
-
-class TaskType(IntEnum):
-    """任务类型枚举"""
-    NONE = 0  # 无任务
-    CLEAN = 1  # 清洁任务
-    CHARGE = 2  # 充电任务
-    WATER_CHANGE = 3  # 换水任务
-
-
-# 注：CleanAreaStatus 已删除，不再通过CA前缀判断清洁区域
-
-
-# ============================================================
-#  清洁任务断点数据结构
-# ============================================================
-
-class CleanTaskCheckpoint:
-    """
-    清洁任务断点数据结构（简化版）
-    用于在充电/换水中断时保存清洁任务状态，以便后续恢复
-
-    简化说明：只记录站点，不再使用清洁区域概念
-    使用 Navigation.moveTask().get("targetName") 获取当前导航目标点
-    """
-
-    def __init__(self):
-        # 原始任务数据
-        self.task_data: Optional[Dict[str, Any]] = None
-
-        # 断点位置信息
-        self.step_index: int = 0  # 中断时的步骤索引
-        self.location: Optional[str] = None  # 中断时的位置（站点名称）
-
-        # 当前导航目标点（用于断点续扫时计算恢复起点）
-        self.nav_target: Optional[str] = None  # 中断时正在前往的目标点名称
-        self.nav_target_index: int = -1  # 目标点在任务站点列表中的索引
-
-        # 中断原因
-        self.interrupt_reason: Optional[str] = None  # "charge" 或 "water_change"
-        self.interrupt_time: float = 0.0  # 中断时间戳
-
-        # 运单ID（用于取消）
-        self.order_id: Optional[str] = None
-
-    def save_checkpoint(
-            self,
-            task_data: Dict[str, Any],
-            step_index: int,
-            location: str,
-            interrupt_reason: str = "",
-            order_id: Optional[str] = None,
-            nav_target: Optional[str] = None,
-            nav_target_index: int = -1,
-    ):
-        """保存断点信息（简化版：只记录站点）"""
-        self.task_data = task_data.copy() if task_data else None
-        self.step_index = step_index
-        self.location = location
-        self.interrupt_reason = interrupt_reason
-        self.interrupt_time = time.time()
-        self.order_id = order_id
-        self.nav_target = nav_target
-        self.nav_target_index = nav_target_index
-
-        Trace.log(f"[CleanTaskCheckpoint] Saved: location={location}, "
-                  f"step_index={step_index}, reason={interrupt_reason}, "
-                  f"nav_target={nav_target}, nav_target_index={nav_target_index}")
-
-    def has_checkpoint(self) -> bool:
-        """检查是否有保存的断点"""
-        return self.task_data is not None
-
-    def clear(self):
-        """清除断点信息"""
-        self.task_data = None
-        self.step_index = 0
-        self.location = None
-        self.nav_target = None
-        self.nav_target_index = -1
-        self.interrupt_reason = None
-        self.interrupt_time = 0.0
-        self.order_id = None
-        Trace.log("[CleanTaskCheckpoint] Cleared")
-
-    def get_resume_info(self) -> Dict[str, Any]:
-        """
-        获取用于恢复的信息（简化版）
-        """
-        return {
-            "task_data": self.task_data,
-            "step_index": self.step_index,
-            "nav_target": self.nav_target,
-            "nav_target_index": self.nav_target_index,
-        }
-
-    def get_resume_start_index(self) -> int:
-        """
-        获取恢复任务时的起始索引
-
-        逻辑：
-        - 如果有 nav_target_index，从它的前一个站点开始（确保机器人先到达前一个点）
-        - 如果 nav_target_index 是 0，则从 0 开始
-        - 否则使用 step_index
-        """
-        if self.nav_target_index > 0:
-            return self.nav_target_index - 1
-        elif self.nav_target_index == 0:
-            return 0
-        else:
-            return self.step_index
-
-
-# ============================================================
-#  配置参数管理
-# ============================================================
 
 class ConfigParams:
-    """生成和定义配置参数"""
+    """Shared config for clean robot manage/mech modules."""
+
     config: Dict[str, Any] = {}
 
     def __init__(self):
@@ -233,7 +105,6 @@ class ConfigParams:
 
     @classmethod
     def build_and_load_config(cls):
-        """构建并加载配置参数"""
         _ = RobotParam.getDevice("Model-000", "moduleType")
         builder = param_loader.builderConfig()
 
@@ -246,168 +117,249 @@ class ConfigParams:
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
-                    with builder.CHILD(key="timeout", name="timeout",
-                                       desc="脚本运行超时时间"):
+                    with builder.CHILD(key="isDebug", name="isDebug", desc="机器人模式"):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
+
+                    with builder.CHILD(key="timeout", name="timeout", desc="脚本运行超时时间"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(120.0, min_value=0.000, max_value=999)
                         builder.UNIT("s")
                         builder.SINGLESTEP(0.001)
 
-                    with builder.CHILD(key="min_clean_water_level", name="min_clean_water_level",
-                                       desc="清水液位最小值，达到此值机器人停止工作去加水"):
+                    with builder.CHILD(key="scene_id", name="scene_id", desc="M4 场景 ID"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("69FBE6C4F8A8853F8874E107")
+
+                    with builder.CHILD(key="robot_name", name="robot_name", desc="机器人名称"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("AMB-01")
+                    
+                    with builder.CHILD(key="m4_app_id", name="m4_app_id", desc="M4 应用 ID"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("test")
+
+                    with builder.CHILD(key="m4_app_key", name="m4_app_key", desc="M4 应用密钥"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("test")
+
+                    with builder.CHILD(key="ip", name="ip", desc="M4调度系统IP地址"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("172.16.86.151")
+
+                    with builder.CHILD(key="charging_site", name="charging_site", desc="充电站点"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("AP20100")
+
+                    with builder.CHILD(key="low_battery_soc", name="low_battery_soc", desc="低电量阈值"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.2)
+                        builder.SINGLESTEP(0.01)
+
+                    with builder.CHILD(key="high_battery_soc", name="high_battery_soc", desc="高电量恢复阈值"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.9)
+                        builder.SINGLESTEP(0.01)
+
+                    with builder.CHILD(key="hmi_period", name="hmi_period", desc="车载屏轮询周期"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(1.0)
+                        builder.UNIT("s")
+                        builder.SINGLESTEP(0.1)
+
+                    with builder.CHILD(
+                            key="min_clean_water_level",
+                            name="min_clean_water_level",
+                            desc="清水液位最小值，达到此值机器人停止工作去加水",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5.0)
                         builder.SINGLESTEP(0.001)
 
-                    with builder.CHILD(key="max_clean_water_level", name="max_clean_water_level",
-                                       desc="清水液位最大值，达到此值机器人停止加水"):
+                    with builder.CHILD(
+                            key="max_clean_water_level",
+                            name="max_clean_water_level",
+                            desc="清水液位最大值，达到此值机器人停止加水",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(95.0)
                         builder.SINGLESTEP(0.001)
 
-                    with builder.CHILD(key="min_waste_water_level", name="min_waste_water_level",
-                                       desc="污水液位最小值，达到此值机器人停止排污"):
+                    with builder.CHILD(
+                            key="min_waste_water_level",
+                            name="min_waste_water_level",
+                            desc="污水液位最小值，达到此值机器人停止排污",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.SINGLESTEP(0.001)
 
-                    with builder.CHILD(key="max_waste_water_level", name="max_waste_water_level",
-                                       desc="污水液位最大值，达到此值机器人停止工作去排污"):
+                    with builder.CHILD(
+                            key="max_waste_water_level",
+                            name="max_waste_water_level",
+                            desc="污水液位最大值，达到此值机器人停止工作去排污",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(90.0)
                         builder.SINGLESTEP(0.001)
 
-                    with builder.CHILD(key="add_water_do", name="add_water_do",
-                                       desc="加水DO"):
+                    with builder.CHILD(key="add_water_do", name="add_water_do", desc="加水DO"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DO-004")
 
-                    with builder.CHILD(key="push_rod_length", name="push_rod_length",
-                                       desc="刷盘推杆行程, 取值: 70-100, 刷盘下降的高度,参数可缺省"):
+                    with builder.CHILD(
+                            key="push_rod_length",
+                            name="push_rod_length",
+                            desc="刷盘推杆行程, 取值: 70-100, 刷盘下降的高度,参数可缺省",
+                    ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(75)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="brush_power", name="brush_power",
-                                       desc="刷盘电机默认功率"):
+                    with builder.CHILD(key="brush_power", name="brush_power", desc="刷盘电机默认功率"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(67)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="suck_power", name="suck_power",
-                                       desc="吸风电机默认功率"):
+                    with builder.CHILD(key="suck_power", name="suck_power", desc="吸风电机默认功率"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(50)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="jet_power", name="jet_power",
-                                       desc="喷水泵电机默认功率"):
+                    with builder.CHILD(key="jet_power", name="jet_power", desc="喷水泵电机默认功率"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(20)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="auto_adjust_power", name="auto_adjust_power",
-                                       desc="是否启动电机功率自动调节模式, 1: 启动， 0: 不启动"):
+                    with builder.CHILD(
+                            key="auto_adjust_power",
+                            name="auto_adjust_power",
+                            desc="是否启动电机功率自动调节模式, 1: 启动， 0: 不启动",
+                    ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(1)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="add_water_delay_time", name="add_water_delay_time",
-                                       desc="加水延时关闭时间"):
+                    with builder.CHILD(key="add_water_delay_time", name="add_water_delay_time", desc="加水延时关闭时间"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5.0)
                         builder.SINGLESTEP(1.0)
 
-                    with builder.CHILD(key="close_jet_delay_time", name="close_jet_delay_time",
-                                       desc="关闭喷水电机后延时停止清洁工作的时间"):
+                    with builder.CHILD(
+                            key="close_jet_delay_time",
+                            name="close_jet_delay_time",
+                            desc="关闭喷水电机后延时停止清洁工作的时间",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5.0)
                         builder.SINGLESTEP(1.0)
 
-                    with builder.CHILD(key="high_mode_x_speed", name="high_mode_x_speed",
-                                       desc="x速度大于该值时, 清洁机构以高功率工作"):
+                    with builder.CHILD(
+                            key="high_mode_x_speed",
+                            name="high_mode_x_speed",
+                            desc="x速度大于该值时, 清洁机构以高功率工作",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.8)
                         builder.SINGLESTEP(0.1)
 
-                    with builder.CHILD(key="std_mode_x_speed", name="std_mode_x_speed",
-                                       desc="x速度大于该值时, 清洁机构以标准功率工作"):
+                    with builder.CHILD(
+                            key="std_mode_x_speed",
+                            name="std_mode_x_speed",
+                            desc="x速度大于该值时, 清洁机构以标准功率工作",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.4)
                         builder.SINGLESTEP(0.1)
 
-                    with builder.CHILD(key="stop_x_speed", name="stop_x_speed",
-                                       desc="x速度小于该值时, 清洁机构停止工作"):
+                    with builder.CHILD(
+                            key="stop_x_speed",
+                            name="stop_x_speed",
+                            desc="x速度小于该值时, 清洁机构停止工作",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
                         builder.SINGLESTEP(0.1)
 
-                    with builder.CHILD(key="boustrophedon_path_max_speed", name="boustrophedon_path_max_speed",
-                                       desc="弓字形路径最大直线速度"):
+                    with builder.CHILD(
+                            key="boustrophedon_path_max_speed",
+                            name="boustrophedon_path_max_speed",
+                            desc="弓字形路径最大直线速度",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.1)
 
-                    with builder.CHILD(key="boustrophedon_path_max_rot", name="boustrophedon_path_max_rot",
-                                       desc="弓字形路径最大旋转速度"):
+                    with builder.CHILD(
+                            key="boustrophedon_path_max_rot",
+                            name="boustrophedon_path_max_rot",
+                            desc="弓字形路径最大旋转速度",
+                    ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5)
                         builder.UNIT("rad/s")
                         builder.SINGLESTEP(0.1)
 
-                    with builder.CHILD(key="boustrophedon_path_free_bypass", name="boustrophedon_path_free_bypass",
-                                       desc="弓字形路径是否启用绕障"):
+                    with builder.CHILD(
+                            key="boustrophedon_path_free_bypass",
+                            name="boustrophedon_path_free_bypass",
+                            desc="弓字形路径是否启用绕障",
+                    ):
                         builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(0)  # 默认不启用
+                        builder.DEFAULTVALUE(0)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="roboshop_task_interval", name="roboshop_task_interval",
-                                       desc="单车平台定时清洁任务执行间隔时间"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(5.0)
-                        builder.UNIT("h")
-                        builder.SINGLESTEP(0.1)
-
-                    with builder.CHILD(key="roboshop_clean_areas", name="roboshop_clean_areas",
-                                       desc="单车平台定时清洁任务的清洁区域路径"):
-                        builder.TYPE(ParamType.ARRAY)
-                        builder.DEFAULTVALUE(["LM1", "AP2", "CA3", "AP4", "AP5", "CA6", "AP7"])
-
-                    with builder.CHILD(key="scheduled_clean_enabled", name="scheduled_clean_enabled",
-                                       desc="是否启用每日定时清洁任务"):
+                    with builder.CHILD(
+                            key="scheduled_clean_enabled",
+                            name="scheduled_clean_enabled",
+                            desc="是否启用每日定时清洁任务",
+                    ):
                         builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(1)  # 默认启用
+                        builder.DEFAULTVALUE(1)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="scheduled_clean_hour", name="scheduled_clean_hour",
-                                       desc="每日定时清洁任务执行时间（小时，0-23）"):
+                    with builder.CHILD(
+                            key="scheduled_clean_hour",
+                            name="scheduled_clean_hour",
+                            desc="每日定时清洁任务执行时间（小时，0-23）",
+                    ):
                         builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(8)  # 默认早上8点
+                        builder.DEFAULTVALUE(8)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="scheduled_clean_minute", name="scheduled_clean_minute",
-                                       desc="每日定时清洁任务执行时间（分钟，0-59）"):
+                    with builder.CHILD(
+                            key="scheduled_clean_minute",
+                            name="scheduled_clean_minute",
+                            desc="每日定时清洁任务执行时间（分钟，0-59）",
+                    ):
                         builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(0)  # 默认整点
+                        builder.DEFAULTVALUE(0)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="scheduled_clean_locations", name="scheduled_clean_locations",
-                                       desc="每日定时清洁任务的站点路径"):
-                        builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILD(
+                            key="scheduled_clean_locations",
+                            name="scheduled_clean_locations",
+                            desc="每日定时清洁任务的站点路径",
+                    ):
+                        builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE(
-                            ["LM1", "LM2", "AP3", "AP4", "LM5", "AP6", "AP7", "AP8", "AP9", "AP10", "LM11", "LM12"])
+                            '["AP9", "AP8", "LM7", "AP5", "AP6", "LM3", "AP1", "AP2"]')
 
         builder.save(merge=True)
         cls.reload_config()
 
     @classmethod
     def reload_config(cls):
-        """重新加载配置参数"""
         Trace.log("Reloading cleanRobotManage config parameters")
         cls.config = param_loader.loadConfig()
-
         cls.timeout = cls.config.get("timeout")
+        cls.scene_id = cls.config.get("scene_id", "690843857C47EE4EE84D5AB7")
+        cls.robot_name = cls.config.get("robot_name", "300J")
+        cls.charging_site = cls.config.get("charging_site", "AP20100")
+        cls.low_battery_soc = cls.config.get("low_battery_soc", 0.2)
+        cls.high_battery_soc = cls.config.get("high_battery_soc", 0.9)
+        cls.hmi_period = cls.config.get("hmi_period", 1.0)
         cls.min_clean_water_level = cls.config.get("min_clean_water_level")
         cls.max_clean_water_level = cls.config.get("max_clean_water_level")
         cls.min_waste_water_level = cls.config.get("min_waste_water_level")
@@ -426,98 +378,23 @@ class ConfigParams:
         cls.boustrophedon_path_max_speed = cls.config.get("boustrophedon_path_max_speed", 1.0)
         cls.boustrophedon_path_max_rot = cls.config.get("boustrophedon_path_max_rot", 0.5)
         cls.boustrophedon_path_free_bypass = cls.config.get("boustrophedon_path_free_bypass", 0)
-        cls.roboshop_task_interval = cls.config.get("roboshop_task_interval")
-        cls.roboshop_clean_areas = cls.config.get("roboshop_clean_areas")
-
-        # 每日定时清洁任务配置
         cls.scheduled_clean_enabled = cls.config.get("scheduled_clean_enabled", 1)
         cls.scheduled_clean_hour = cls.config.get("scheduled_clean_hour", 8)
         cls.scheduled_clean_minute = cls.config.get("scheduled_clean_minute", 0)
-        cls.scheduled_clean_locations = cls.config.get("scheduled_clean_locations", [])
+        cls.scheduled_clean_locations = json.loads(cls.config.get("scheduled_clean_locations", "[]"))
+        cls.isDebug = cls.config.get("isDebug", False)
+        cls.m4_app_id = cls.config.get("m4_app_id", "test")
+        cls.m4_app_key = cls.config.get("m4_app_key", "test")
+        cls.ip = cls.config.get("ip", "172.16.86.151")
 
         Trace.log(f"Updated cleanRobotManage config: {cls.config}")
 
 
-# 创建全局配置管理器实例
 config_params = ConfigParams()
-
-
-def script_config_callback():
-    Trace.log("Reloading script config parameters for cleanRobotManage")
-    config_params.reload_config()
-
-
-class InputParams:
-    builder = ParamBuilder(__file__, desc="Input Params Config")
-
-    with builder.GROUPS():
-        # 公共参数:
-        pass
-
-        # 操作组合参数
-        with builder.GROUP(key="operation", name="Task Operation", desc="Choose an operation for task"):
-            builder.TYPE(ParamType.COMBO_BOX)
-
-            with builder.CHILDREN():
-                with builder.CHILD(key="WashStart", name="WashStart", desc="WashStart"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="WashEnd", name="WashEnd", desc="WashEnd"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="DustStart", name="DustStart", desc="DustStart"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="DustEnd", name="DustEnd", desc="DustEnd"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="Charge", name="Charge", desc="Charge"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="AddWater", name="AddWater", desc="AddWater"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="RunCleanPath", name="RunCleanPath", desc="RunCleanPath"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="CancelCleanPath", name="CancelCleanPath", desc="CancelCleanPath"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="ResetCleanPath", name="ResetCleanPath", desc="ResetCleanPath"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="SetTask", name="SetTask", desc="SetTask"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="SendOrders", name="SendOrders", desc="SendOrders"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="SendContinueOrders", name="SendContinueOrders", desc="SendContinueOrders"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="CancelOrder", name="CancelOrder", desc="CancelOrder"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="SendChargeOrder", name="SendChargeOrder",
-                                   desc="发送充电运单（中断当前清洁任务）"):
-                    builder.TYPE(ParamType.ARRAY)
-
-                with builder.CHILD(key="SendWaterOrder", name="SendWaterOrder", desc="发送换水运单（中断当前清洁任务）"):
-                    builder.TYPE(ParamType.ARRAY)
-
-    builder.save_to_file()
-
-
-# ============================================================
-#  清洁任务数据结构
-# ============================================================
-
-
-
-
-# ============================================================
-#  机构控制相关枚举和类（原 cleanRobotMech.py）
-# ============================================================
+log = Logger("clean_robot")
+# 调度 HTTP 地址
+SCHEDULER_URL = f"http://{config_params.ip}:5800/api/fleet/orders/create"
+SCHEDULER_CANCEL_URL = f"http://{config_params.ip}:5800/api/fleet/orders/cancel"
 
 class MechWorkingStatus(IntEnum):
     """机构工作状态枚举"""
@@ -662,14 +539,12 @@ class CleanRobotMech:
     """
 
     def __init__(self):
-        # Modbus TCP 连接
         self.ip = "127.0.0.1"
         self.port = 502
         self.modbus_tcp = modbus_tcp.TcpMaster(self.ip, self.port, 1)
         self.is_connected = False
         self.rbk_addr = 110
 
-        # 清洁机构工作状态
         self.brush_status = None
         self.jet_status = None
         self.suck_status = None
@@ -682,37 +557,29 @@ class CleanRobotMech:
         self.clean_robot_closed = None
         self.work_mode = MechWorkMode.STD
 
-        # 液位数据
         self.clean_water_level: float = -1
         self.waste_water_level: float = -1
         self.clean_filter = MeanValue(1000)
         self.waste_filter = MeanValue(1000)
 
-        # 控制参数
         self.auto_adjust_power = config_params.auto_adjust_power
         self.jet_power = config_params.jet_power
         self.brush_power = config_params.brush_power
         self.suck_power = config_params.suck_power
         self.push_rod_length = config_params.push_rod_length
 
-        # 时间戳
-        self.wash_start_time = None
         self.add_water_time_start = None
         self.close_jet_pump_start = None
         self.add_water_opt_start = False
 
-        # 操作状态
         self.operation = None
         self.init = False
         self.action_status = ScriptStatus.NONE
         self.report_info = {}
 
-        # 计数器
-        self.period_run_start = time.time()
         self.task_update_start = time.time()
         self.period_run_counter = 0
 
-        # 硬件接口
         self.hardware = CleanRobotHardware(self)
 
         log.info("CleanRobotMech initialized")
@@ -733,7 +600,6 @@ class CleanRobotMech:
         if time.time() - self.task_update_start > 0.2:
             self.task_update_start = time.time()
             self.save_to_rbk()
-            #TODO:检查后可以删除这部分内容，
             self.update_by_task_status()
 
         return True
@@ -766,7 +632,7 @@ class CleanRobotMech:
             self.update_all_info()
             self.action_status = ScriptStatus.FINISHED
         else:
-            Abnormal.setTask(53910, f"args error: {self.operation}", "参数错误", "检查operation参数", "run")
+            Navigation.setTaskError("args error",f"cleanRobotMech args error operation not support input: {args}")
             self.action_status = ScriptStatus.FAILED
 
         self.update_all_info()
@@ -783,31 +649,60 @@ class CleanRobotMech:
         """根据任务状态更新"""
         task_status = NavStatus.getTaskStatus()
 
-        if task_status == 2:  # Running
+        if task_status == 2:
             if self.operation == "WashStart" and self.action_status == ScriptStatus.FINISHED:
-                self.wash_open()
-        elif task_status == 3:  # Suspended
+                self.update_power_by_speed()
+        elif task_status == 3:
             self.wash_suspend()
-        elif task_status == 5:  # Failed
+        elif task_status == 5:
             self.wash_end()
-        elif task_status == 6:  # Canceled
+        elif task_status == 6:
             self.wash_suspend()
-
         if Controller.getEmc():
             self.wash_end()
-
         loc_state = Loc.getLocState()
         if self.filter_waste_water_level() > config_params.max_waste_water_level:
-            Abnormal.setTask(53980, "Waste water full!", "污水满", "去排水", "update_by_task_status")
+            Trace.log("Waste water full!")
             if self.operation != "AddWater" and loc_state == 1:
                 self.wash_end()
         elif self.filter_clean_water_level() < config_params.min_clean_water_level and self.filter_clean_water_level() != -1:
-            Abnormal.setTask(53980, "Clean water empty!", "清水空", "去加水", "update_by_task_status")
+            Trace.log("Clean water empty!")
             if self.operation != "AddWater" and loc_state == 1:
                 self.wash_end()
+
+    def update_power_by_speed(self):
+        """根据车速自动调节电机功率"""
+        try:
+            agv_speed = NavSpeed.getSpeeds()
+        except Exception as e:
+            log.info(f"update_power_by_speed error: {e}")
+            self.wash_open()
+            return
+
+        speed_x = agv_speed[0] if len(agv_speed) > 0 else 0.0
+        speed_y = agv_speed[1] if len(agv_speed) > 1 else 0.0
+        drive_speed = max(abs(speed_x), abs(speed_y))
+
+        if bool(self.auto_adjust_power):
+            if drive_speed > config_params.high_mode_x_speed:
+                self.work_mode = MechWorkMode.HIGH
+                self.suck_power, self.jet_power, self.brush_power = (70, 50, 67)
+            elif config_params.std_mode_x_speed < drive_speed <= config_params.high_mode_x_speed:
+                self.work_mode = MechWorkMode.STD
+                self.suck_power, self.jet_power, self.brush_power = (
+                    config_params.suck_power,
+                    config_params.jet_power,
+                    config_params.brush_power,
+                )
+            elif config_params.stop_x_speed < drive_speed <= config_params.std_mode_x_speed:
+                self.work_mode = MechWorkMode.LOW
+                self.suck_power, self.jet_power, self.brush_power = (40, 10, 50)
+
+        if drive_speed < config_params.stop_x_speed:
+            self.work_mode = MechWorkMode.STOP
+            self.wash_suspend()
         else:
-            if Abnormal.exists(53980):
-                Abnormal.clear(53980)
+            self.wash_open()
 
     def connect(self):
         """连接Modbus TCP"""
@@ -820,9 +715,15 @@ class CleanRobotMech:
     def save_to_rbk(self):
         """保存液位数据到RBK"""
         try:
-            self.modbus_tcp.execute(1, cst.WRITE_MULTIPLE_REGISTERS, self.rbk_addr,
-                                    output_value=[round(self.filter_clean_water_level()),
-                                                  round(self.filter_waste_water_level())])
+            self.modbus_tcp.execute(
+                1,
+                cst.WRITE_MULTIPLE_REGISTERS,
+                self.rbk_addr,
+                output_value=[
+                    round(self.filter_clean_water_level()),
+                    round(self.filter_waste_water_level()),
+                ],
+            )
         except Exception as e:
             log.info(f"save_to_rbk error: {e}")
 
@@ -845,10 +746,13 @@ class CleanRobotMech:
     def is_fit_push_rod(self):
         """检查推杆长度"""
         if int(self.push_rod_length) < 70 or int(self.push_rod_length) > 100:
-            Abnormal.setTask(53901, f"Push rod length limit: {self.push_rod_length}", "推杆超限", "调整参数",
-                             "is_fit_push_rod")
+            Navigation.setDeviceError("DeviceError-PUSH_ROD_LENGTH_LIMIT",f"cleanRobotMech args error push rod length limit: {self.push_rod_length},you need adjust it to 70-100")
             self.wash_end()
         else:
+            try:
+                Navigation.clearDeviceError("DeviceError-PUSH_ROD_LENGTH_LIMIT")
+            except:
+                pass
             self.hardware.ctrl_pod_length(self.push_rod_length)
 
     def wash_start(self):
@@ -931,14 +835,7 @@ class CleanRobotMech:
 
     def dust_start(self):
         """开始吸尘"""
-        # if self.mop_lift_status != MechWorkingStatus.RUNNING:
-        #     self.hardware.ctrl_mop_lift(MechWorkState.OPEN)
-        # if self.suck_status != MechWorkingStatus.RUNNING:
-        #     self.hardware.ctrl_suck(self.suck_power)
-        # else:
-        #     self.action_status = ScriptStatus.FINISHED
         self.is_fit_push_rod()
-
 
     def dust_end(self):
         """结束吸尘"""
@@ -956,9 +853,13 @@ class CleanRobotMech:
         if not is_charging:
             Do.setDo(config_params.add_water_do, False)
             self.hardware.ctrl_waste_valve(MechWorkState.CLOSE)
-            Abnormal.setTask(53900, "Not charging!", "未充电", "移动到充电桩", "add_water")
+            Navigation.setDeviceError("DeviceError-TO_CHARGE_STATION", "cleanRobotMech args error not charging,please move to charge station")
             self.action_status = ScriptStatus.FAILED
         else:
+            try:
+                Navigation.clearDeviceError("DeviceError-TO_CHARGE_STATION")
+            except:
+                pass
             if not self.add_water_opt_start:
                 Do.setDo(config_params.add_water_do, True)
                 self.hardware.ctrl_waste_valve(MechWorkState.OPEN)
@@ -997,7 +898,6 @@ class CleanRobotMech:
     def update_all_info(self):
         """更新所有机构状态"""
         recv_data = self.hardware.query_all_info()
-        print(f"{recv_data=}")
         if self.hardware.query_all_cmd_status == MechWorkingStatus.FINISHED:
             self.hardware.query_all_cmd_status = MechWorkingStatus.INIT
             state = bin(int(recv_data[12:14], 16))[2:].zfill(8)
@@ -1020,7 +920,23 @@ class CleanRobotMech:
             'brush_lift_state': self.brush_lift_status, 'waste_valve_state': self.waste_valve_status,
             'clean_valve_state': self.clean_valve_status, 'push_rod_state': self.push_rod_status
         }
-        Module.reportInfo(self.report_info)
+        try:
+            cur_speed = NavSpeed.getSpeeds()
+        except Exception:
+            cur_speed = [0.0, 0.0, 0.0]
+
+        self.report_info["auto_adjust"] = {
+            "auto_adjust": bool(self.auto_adjust_power),
+            "work_mode": self.work_mode.name,
+            "suck_power": self.suck_power,
+            "jet_power": self.jet_power,
+            "brush_power": self.brush_power,
+        }
+        self.report_info["agv_speed"] = {
+            "x": round(cur_speed[0], 6) if len(cur_speed) > 0 else 0.0,
+            "y": round(cur_speed[1], 6) if len(cur_speed) > 1 else 0.0,
+            "rotate": round(cur_speed[2], 6) if len(cur_speed) > 2 else 0.0,
+        }
 
     def cancel(self):
         """取消操作"""
@@ -1034,6 +950,343 @@ class CleanRobotMech:
         return self.filter_clean_water_level(), self.filter_waste_water_level()
 
 
+def script_config_callback():
+    Trace.log("Reloading script config parameters for cleanRobotManage")
+    config_params.reload_config()
+
+
+class ERPState(IntEnum):
+    """
+    ERP状态机。
+
+    当前脚本里它只承担“总控状态”作用，不再细分任务执行阶段。
+    是否存在正在执行的任务，由 current_task / current_task_type 负责表达。
+    """
+    NORMAL = 0  # 正常状态：系统可继续运行，也允许在满足条件时恢复断点任务
+    ERROR = 4   # 异常状态：出现调度或任务错误，需要人工介入处理
+
+
+class VehicleState(IntEnum):
+    """
+    车辆状态机。
+
+    用于描述机器人当前在“做什么”，偏向业务层语义，
+    例如空闲、充电、换水、清洁、普通导航。
+    """
+    IDLE = 0        # 空闲：当前没有执行中的业务任务
+    ADD_WATER = 1   # 换水：正在执行加清水/排污等补给动作
+    CHARGING = 2    # 充电：正在前往充电或处于充电流程中
+    CLEANING = 3    # 清洁：正在清洁区内执行清扫动作
+    NAVIGATING = 4  # 导航：属于清洁任务的一部分，但当前是在站点间移动
+
+
+class BoustrophedonPathState(IntEnum):
+    """
+    BoustrophedonPath 状态机。
+
+    用于描述弓字形工艺路径本身的执行状态，只关注路径模块是否启动、
+    运行、结束、失败或被暂停，不直接代表整车任务是否结束。
+    """
+    INIT = 0       # 初始态：尚未开始执行路径，或路径状态已被重置
+    RUNNING = 1    # 运行中：正在按弓字形路径清扫
+    FINISHED = 3   # 已完成：本次弓字形路径执行完成
+    FAILED = 4     # 失败：路径执行失败，需要上层处理
+    SUSPENDED = 5  # 暂停：路径被中断或挂起，等待后续恢复/重置
+
+
+class TaskType(IntEnum):
+    """
+    当前主任务类型。
+
+    它回答的是“当前主流程属于哪一类任务”，通常和 vehicle_state 配合使用：
+    task_type 负责标记任务类别，vehicle_state 负责标记当前执行阶段。
+    """
+    NONE = 0          # 无任务：当前没有挂载业务任务
+    CLEAN = 1         # 清洁任务：包含清洁区清扫和清洁任务内的站点导航
+    CHARGE = 2        # 充电任务：低电量触发或外部下发的充电流程
+    WATER_CHANGE = 3  # 换水任务：低清水/高污水触发或外部下发的补给流程
+
+
+class CleanTaskCheckpoint:
+    """
+    清洁任务断点数据结构。
+
+    用于在充电/换水等高优先级任务中断清洁任务时，保存最小必要信息，
+    以便后续从合适的站点位置恢复续扫。
+    """
+
+    def __init__(self):
+        # 原始任务数据
+        self.task_data: Optional[Dict[str, Any]] = None
+
+        # 断点位置信息
+        self.step_index: int = 0  # 中断时的步骤索引
+        self.location: Optional[str] = None  # 中断时所在站点
+
+        # 当前导航目标点信息
+        self.nav_target: Optional[str] = None  # 中断时正在前往的目标点名称
+        self.nav_target_index: int = -1  # 目标点在任务站点列表中的索引
+
+        # 中断原因
+        self.interrupt_reason: Optional[str] = None  # "charge" 或 "water_change"
+        self.interrupt_time: float = 0.0  # 中断时间戳
+
+        # 运单 ID
+        self.order_id: Optional[str] = None
+
+    def save_checkpoint(
+            self,
+            task_data: Dict[str, Any],
+            step_index: int,
+            location: Optional[str],
+            interrupt_reason: str = "",
+            order_id: Optional[str] = None,
+            nav_target: Optional[str] = None,
+            nav_target_index: int = -1,
+    ):
+        """保存断点信息。"""
+        self.task_data = task_data.copy() if task_data else None
+        self.step_index = step_index
+        self.location = location
+        self.interrupt_reason = interrupt_reason
+        self.interrupt_time = time.time()
+        self.order_id = order_id
+        self.nav_target = nav_target
+        self.nav_target_index = nav_target_index
+
+        Trace.log(
+            f"[CleanTaskCheckpoint] Saved: location={location}, "
+            f"step_index={step_index}, reason={interrupt_reason}, "
+            f"nav_target={nav_target}, nav_target_index={nav_target_index}"
+        )
+
+    def has_checkpoint(self) -> bool:
+        """检查是否已有可恢复断点。"""
+        return self.task_data is not None
+
+    def clear(self):
+        """清除断点信息。"""
+        self.task_data = None
+        self.step_index = 0
+        self.location = None
+        self.nav_target = None
+        self.nav_target_index = -1
+        self.interrupt_reason = None
+        self.interrupt_time = 0.0
+        self.order_id = None
+        Trace.log("[CleanTaskCheckpoint] Cleared")
+
+    def get_resume_info(self) -> Dict[str, Any]:
+        """返回恢复清洁任务所需的断点数据。"""
+        return {
+            "task_data": self.task_data,
+            "step_index": self.step_index,
+            "nav_target": self.nav_target,
+            "nav_target_index": self.nav_target_index,
+        }
+
+    def get_resume_start_index(self) -> int:
+        """
+        计算恢复任务时的起始索引。
+
+        逻辑：
+        - 如果已有导航目标点索引，则从它的前一个站点开始恢复
+        - 如果导航目标点刚好是第一个站点，则从 0 开始
+        - 如果没有导航目标点信息，则退化为 step_index
+        """
+        if self.nav_target_index > 0:
+            return self.nav_target_index - 1
+        if self.nav_target_index == 0:
+            return 0
+        return self.step_index
+
+
+class InputParams:
+    builder = ParamBuilder(__file__, desc="Input Params Config")
+
+    with builder.GROUPS():
+        # 公共参数:
+        pass
+
+        # 操作组合参数
+        with builder.GROUP(key="operation", name="Task Operation", desc="Choose an operation for task"):
+            builder.TYPE(ParamType.COMBO_BOX)
+
+            with builder.CHILDREN():
+                with builder.CHILD(key="WashStart", name="WashStart", desc="WashStart"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="WashEnd", name="WashEnd", desc="WashEnd"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="DustStart", name="DustStart", desc="DustStart"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="DustEnd", name="DustEnd", desc="DustEnd"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="Charge", name="Charge", desc="Charge"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="AddWater", name="AddWater", desc="AddWater"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="RunCleanPath", name="RunCleanPath", desc="RunCleanPath"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="CancelCleanPath", name="CancelCleanPath", desc="CancelCleanPath"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="ResetCleanPath", name="ResetCleanPath", desc="ResetCleanPath"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="SetTask", name="SetTask", desc="SetTask"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="SendOrders", name="SendOrders", desc="SendOrders"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="SendContinueOrders", name="SendContinueOrders", desc="SendContinueOrders"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="CancelOrder", name="CancelOrder", desc="CancelOrder"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="SendChargeOrder", name="SendChargeOrder",
+                                   desc="发送充电运单（中断当前清洁任务）"):
+                    builder.TYPE(ParamType.ARRAY)
+
+                with builder.CHILD(key="SendWaterOrder", name="SendWaterOrder", desc="发送换水运单（中断当前清洁任务）"):
+                    builder.TYPE(ParamType.ARRAY)
+                
+                with builder.CHILD(key="RunCleanPathAndWashStart", name="RunCleanPathAndWashStart", desc="RunCleanPathAndWashStart"):
+                    builder.TYPE(ParamType.ARRAY)
+
+
+
+    builder.save_to_file()
+
+class EmcManager:
+    """急停类"""
+
+    def __init__(self,manager):
+        self.emc_suspended_vehicle_state: Optional[VehicleState] = None
+        self.emc_suspended_task_type: Optional[TaskType] = None
+        self.emc_suspended_position: Optional[List[float]] = None
+
+        self.manager = manager
+    
+    def _handle_emc(self, emc_status: bool):
+        """
+        处理急停状态变化
+
+        Args:
+            emc_status: True=急停触发, False=急停解除
+        """
+        if emc_status and not self.manager.emc_triggered:
+            # 急停刚触发
+            self._on_emc_triggered()
+        elif not emc_status and self.manager.emc_triggered:
+            # 急停刚解除
+            self._on_emc_recovered()
+
+    def _on_emc_triggered(self):
+        """
+        急停触发时的处理
+
+        处理流程：
+        1. 标记急停状态
+        2. 保存当前状态（车辆状态、任务类型）
+        3. 取消当前运单（发送HTTP请求到M4调度系统）
+        4. 发送 CancelCleanPath 操作（如果在清洁中）
+        5. 关闭清洁机构（WashEnd）
+        6. 重置车辆状态为 IDLE
+        """
+        Trace.log("[cleanRobotManage] EMC triggered - starting emergency stop procedure")
+        self.manager.emc_triggered = True
+
+        # 1. 保存急停前的状态（用于恢复）
+        self.emc_suspended_vehicle_state = self.manager.vehicle_state
+        self.emc_suspended_task_type = self.manager.current_task_type
+        Trace.log(
+            f"[cleanRobotManage] EMC: Saved pre-EMC state: vehicle={self.manager.vehicle_state.name}, task={self.manager.current_task_type.name}")
+
+        # 4. 关闭清洁机构
+        Trace.log("[cleanRobotManage] EMC: Closing cleaning mechanism (WashEnd)")
+        self.manager.call_mech("WashEnd")
+
+        # 5. 重置车辆状态
+        self.manager.vehicle_state = VehicleState.IDLE
+        # 注：保持 TASK_RUNNING 状态，通过 emc_triggered 标记来表示暂停
+        # 这样急停恢复后可以根据之前的状态进行恢复
+
+        Trace.log(f"[cleanRobotManage] EMC procedure completed, position={self.emc_suspended_position}")
+
+    def _on_emc_recovered(self):
+        """
+        急停解除时的处理
+
+        根据急停前保存的状态，恢复相应的操作：
+        - CLEANING: 恢复清洁任务，从断点位置继续
+        - NAVIGATING: 恢复导航状态
+        - CHARGING/ADD_WATER: 恢复充电/换水状态
+        - 其他: 恢复为空闲状态
+        """
+        Trace.log("[cleanRobotManage] EMC recovered - starting recovery procedure")
+        self.manager.emc_triggered = False
+
+        # 根据急停前的状态进行恢复
+        if self.emc_suspended_vehicle_state == VehicleState.CLEANING:
+            # 恢复清洁任务
+            Trace.log("[cleanRobotManage] EMC Recovery: Resuming CLEANING state")
+            self._resume_clean_after_emc()
+        elif self.emc_suspended_vehicle_state == VehicleState.NAVIGATING:
+            # 恢复导航状态
+            Trace.log("[cleanRobotManage] EMC Recovery: Resuming NAVIGATING state")
+            self.manager.vehicle_state = VehicleState.NAVIGATING
+            self.manager.current_task_type = self.emc_suspended_task_type
+            self.manager.erp_state = ERPState.NORMAL
+        elif self.emc_suspended_vehicle_state in (VehicleState.CHARGING, VehicleState.ADD_WATER):
+            # 恢复充电/换水状态
+            Trace.log(f"[cleanRobotManage] EMC Recovery: Resuming {self.emc_suspended_vehicle_state.name} state")
+            self.manager.vehicle_state = self.emc_suspended_vehicle_state
+            self.manager.current_task_type = self.emc_suspended_task_type
+            self.manager.erp_state = ERPState.NORMAL
+        else:
+            # 其他情况恢复为空闲状态
+            Trace.log("[cleanRobotManage] EMC Recovery: Resuming to IDLE state")
+            self.manager.vehicle_state = VehicleState.IDLE
+            self.manager.erp_state = ERPState.NORMAL
+
+        # 清理急停临时数据
+        self.emc_suspended_vehicle_state = None
+        self.emc_suspended_task_type = None
+        self.emc_suspended_position = None
+        Trace.log("[cleanRobotManage] EMC recovery completed")
+
+    def _resume_clean_after_emc(self):
+        """急停恢复后继续清洁任务"""
+        Trace.log(f"[cleanRobotManage] Resuming clean after EMC, position={self.emc_suspended_position}")
+
+        # 使用保存的位置作为起始点
+        if self.emc_suspended_position:
+            self.manager.current_start_pos = self.emc_suspended_position
+
+        self.manager.current_task_type = TaskType.CLEAN
+        self.manager.vehicle_state = VehicleState.CLEANING
+        self.manager.erp_state = ERPState.NORMAL
+
+        self.manager.call_mech(
+            "WashStart",
+            brush_power=config_params.brush_power,
+            suck_power=config_params.suck_power,
+            jet_power=config_params.jet_power,
+            auto_adjust_power=config_params.auto_adjust_power,
+        )
+    
+
+
+
 # ============================================================
 #  主管理类
 # ============================================================
@@ -1042,10 +1295,9 @@ class CleanRobotManage:
 
     def __init__(self):
         # ========== 状态机 ==========
-        self.erp_state = ERPState.IDLE
+        self.erp_state = ERPState.NORMAL
         # 删除 mech_state：机构状态由 CleanRobotMech 内部管理
         self.vehicle_state = VehicleState.IDLE
-        self.mech_status = ScriptStatus.NONE
         self.boustrophedon_path_state = BoustrophedonPathState.INIT
 
         self.current_task_type = TaskType.NONE
@@ -1055,12 +1307,10 @@ class CleanRobotManage:
 
         # ========== 任务缓存 ==========
 
-        self.roboshop_schedule: List[Dict[str, Any]] = []
-        self.last_roboshop_pull = 0.0
-        self.last_roboshop_task_time = 0.0
-
         self.current_task: Optional[Dict[str, Any]] = None
         self.current_order_id: Optional[str] = None
+        self.last_scheduler_error: str = ""
+        self.scheduler_retry_count: int = 0
 
         # ========== 自动任务标记 ==========
         self.auto_charge_sent = False
@@ -1077,23 +1327,12 @@ class CleanRobotManage:
 
         # ========== 清洁任务断点 ==========
         self.clean_checkpoint = CleanTaskCheckpoint()
-        self.pos = []
 
         # ========== 上报信息 ==========
         self.report_info: Dict[str, Any] = {}
 
-        # ========== 时间戳 ==========
-        self.last_rbk_sync_time = time.time()
-        self.state_change_time = time.time()
-
         # ========== 急停相关 ==========
         self.emc_triggered = False
-        self.emc_suspended_vehicle_state: Optional[VehicleState] = None
-        self.emc_suspended_task_type: Optional[TaskType] = None
-        self.emc_suspended_position: Optional[List[float]] = None
-
-        # ========== runCleanPath ==========
-        self.run_clean_path_init = True
 
         # ========== 当前导航目标点跟踪 ==========
         self.current_nav_target: Optional[str] = None  # 当前正在前往的目标点名称
@@ -1102,21 +1341,18 @@ class CleanRobotManage:
         self.last_scheduled_clean_date: Optional[str] = None  # 上次执行定时清洁的日期，格式 "YYYY-MM-DD"
         self.scheduled_clean_triggered_today: bool = False  # 今天是否已触发定时清洁
 
-        # ========== cancel once ==========
-        self.cancel_once = True
-        self.cancel_count = 0
         self.saved_exit_id = None
         self.have_cancelled = False
 
-        # ========== 原始站点列表（用于断点续传）==========
-        self.original_step_locations: List[str] = []  # 保存SendOrders的原始站点列表
-        self.remaining_step_locations: List[str] = []  # 实时更新的剩余站点列表
+        # call_mech 原始参数
+        self.pre_arg=None
 
         Trace.log("[cleanRobotManage] Initialized")
 
     # ============================================================
     #  获取当前导航目标点
     # ============================================================
+
 
     def _get_current_nav_target(self) -> Optional[str]:
         """
@@ -1151,27 +1387,41 @@ class CleanRobotManage:
             Trace.log(f"[cleanRobotManage] Nav target {self.current_nav_target} not found in task locations")
             return -1
 
+    def _get_current_task_step(self) -> int:
+        """
+        估算当前任务进度索引，用于状态上报。
+
+        优先使用当前导航 sourceName；若没有，则退化为 targetName 的前一站。
+        """
+        if not self.current_task:
+            return 0
+
+        step_locations = self.current_task.get("step_locations", [])
+        if not step_locations:
+            return 0
+
+        try:
+            move_task = Navigation.moveTask()
+        except Exception:
+            return 0
+
+        source_name = move_task.get("sourceName", None)
+        target_name = self.current_nav_target or move_task.get("targetName", None)
+
+        if source_name in step_locations:
+            return step_locations.index(source_name)
+
+        if target_name in step_locations:
+            return max(step_locations.index(target_name) - 1, 0)
+
+        return 0
+
     # ============================================================
     #  ERP状态机
     # ============================================================
 
     def can_dispatch_to_m4(self) -> bool:
-        return self.erp_state == ERPState.IDLE
-
-    def _erp_state_update(self):
-        """
-        ERP状态机更新（简化版）
-
-        只保留 IDLE、TASK_RUNNING、ERROR 三个状态:
-        - 充电/换水期间的"暂停"通过 clean_checkpoint 断点信息表达
-        - 任务完成后直接切换到 IDLE
-        """
-        if self.erp_state == ERPState.IDLE:
-            pass
-        elif self.erp_state == ERPState.TASK_RUNNING:
-            # 任务完成检查已在其他地方处理（通过 current_task = None）
-            pass
-        # ERROR 状态需要人工干预，不自动转换
+        return self.erp_state == ERPState.NORMAL and self.current_task_type == TaskType.NONE
 
     # ============================================================
     #  车辆状态机更新
@@ -1231,13 +1481,17 @@ class CleanRobotManage:
         - 中断时正在前往 AP8（nav_target_index = 7）
         - 恢复时从 AP7（index 6）开始，发送: [AP7, AP8, AP9, AP10, LM11, LM12]
         """
-        if self.current_task_type != TaskType.CLEAN or not self.current_task:
+        if self.current_task_type != TaskType.CLEAN or (not self.current_task and not config_params.isDebug):
             Trace.log(f"[cleanRobotManage] No clean task to interrupt, reason={interrupt_reason}")
             return True
 
         Trace.log(f"[cleanRobotManage] Interrupting clean task for {interrupt_reason}")
 
-        step_locations = self.current_task.get("step_locations", [])
+        try:
+            step_locations = self.current_task.get("step_locations", [])
+        except Exception:
+            Trace.log(f"[cleanRobotManage] Error in get step_locations: {self.current_task}")
+            step_locations = []
         current_location = step_locations[0] if step_locations else None
 
         # 1. 获取当前导航目标点
@@ -1249,6 +1503,8 @@ class CleanRobotManage:
         robot_position = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
 
         # 3. 如果弓字形路径正在运行，取消它
+        self.saved_exit_id = self.current_exit
+
         if self.boustrophedon_path_state == BoustrophedonPathState.RUNNING:
             Trace.log("[cleanRobotManage] Cancelling running boustrophedon path")
             cancel_result = self._cancel_boustrophedon_path()
@@ -1275,12 +1531,18 @@ class CleanRobotManage:
         )
 
         # 5. 关闭清洁机构
-        self.call_mech("WashEnd")
+        if not config_params.isDebug:
+            self.call_mech("WashEnd")
 
-        # 6. 取消当前运单
-        self._cancel_current_order()
+            # 6. 取消当前运单
+            cancel_result = self._cancel_current_order()
+            if not cancel_result:
+                Trace.log(f"[cleanRobotManage] Failed to cancel order {self.current_order_id}")
+                return False
 
         # 7. 清理当前任务状态
+        self.have_cancelled = True
+    
         self.current_task = None
         self.current_task_type = TaskType.NONE
         self.vehicle_state = VehicleState.IDLE
@@ -1296,63 +1558,13 @@ class CleanRobotManage:
         """取消弓字形导航，返回当前机器人位置 [x, y, yaw]"""
         return Navigation.cancelBoustrophedonPath()
 
-    def _reset_boustrophedon_path(self):
-        """重置弓字形导航状态"""
-        Navigation.resetBoustrophedonPath()
-        self.pos = []
-        self.boustrophedon_path_state = BoustrophedonPathState.INIT
-
-    def _cancel_current_order(self):
-        """
-        取消当前运单
-
-        通过HTTP POST调用调度系统的取消运单API
-
-        API地址: SCHEDULER_CANCEL_URL
-        请求格式: {"orderId": "xxx", "reason": "xxx"}
-        """
-        if not self.current_order_id:
-            Trace.log("[cleanRobotManage] No order to cancel")
-            return
-
-        payload = {
-            "sceneId": SCENE_ID,
-            "orderId": self.current_order_id
-            # "reason": "Priority task interrupt"
-        }
-
-        Trace.log(f"[cleanRobotManage] Cancelling order: {self.current_order_id}")
-
-        # try:
-        response = requests.post(
-            SCHEDULER_CANCEL_URL,
-            json=payload,
-            headers = {
-            'xyy-app-id': 'm4',
-            'xyy-app-key': 'Seer1234',
-            'Content-Type': 'application/json'},
-            timeout=5
-        )
-
-        if response.status_code == 200:
-            Trace.log(f"[cleanRobotManage] Order {self.current_order_id} cancelled successfully")
-            self.current_order_id = None
-        else:
-            Trace.log(f"[cleanRobotManage] Failed to cancel order: HTTP {response.status_code}, {response.text}")
-        #
-        # except requests.exceptions.Timeout:
-        #     Trace.log(f"[cleanRobotManage] Request timeout when cancelling order {self.current_order_id}")
-        # except requests.exceptions.ConnectionError as e:
-        #     Trace.log(f"[cleanRobotManage] Connection error when cancelling order: {e}")
-        # except Exception as e:
-        #     Trace.log(f"[cleanRobotManage] Unexpected error cancelling order: {e}")
 
     def _check_and_resume_clean_task(self):
         """检查充电/换水是否完成，如果完成则恢复清洁任务"""
         if not self.clean_checkpoint.has_checkpoint():
             return
 
-        if self.erp_state != ERPState.IDLE:
+        if not self.can_dispatch_to_m4():
             return
 
         interrupt_reason = self.clean_checkpoint.interrupt_reason
@@ -1360,19 +1572,25 @@ class CleanRobotManage:
 
         if interrupt_reason == "charge":
             soc = Battery.getPercentage()
-            if soc >= HIGH_BATTERY_SOC:
+            if soc >= config_params.high_battery_soc:
                 can_resume = True
                 self.auto_charge_sent = False
                 Trace.log(f"[cleanRobotManage] Charge completed (SOC={soc}%), ready to resume")
 
         elif interrupt_reason == "water_change":
-            clean_level, waste_level = 50, 50  # TODO
-            if clean_level is not None and waste_level is not None:
+            clean_level = self.clean_water_level
+            waste_level = self.waste_water_level
+
+            if clean_level is None or waste_level is None:
+                clean_level, waste_level = self.get_water_levels()
+                self.clean_water_level = clean_level
+                self.waste_water_level = waste_level
+
+            if clean_level not in (None, -1) and waste_level not in (None, -1):
                 if (clean_level >= config_params.max_clean_water_level and
                         waste_level <= config_params.min_waste_water_level):
                     can_resume = True
                     self.auto_water_sent = False
-                    Abnormal.clear(53301)
                     Trace.log(f"[cleanRobotManage] Water change completed, ready to resume")
 
         if can_resume:
@@ -1424,443 +1642,116 @@ class CleanRobotManage:
         # 构造并发送恢复运单（使用简单格式）
         payload = self._build_simple_order(
             step_locations=resume_locations,
-            robot_name=resume_task_data.get("robot_name", ROBOT_NAME),
+            robot_name=resume_task_data.get("robot_name", config_params.robot_name),
             priority=resume_task_data.get("priority", 50)
         )
         Trace.log(f"[cleanRobotManage] Sending resume clean order")
         order_id = self.post_to_scheduler(payload)
+        if not order_id:
+            Trace.log(f"[cleanRobotManage] Failed to send resume clean order")
+            return False
         self.current_order_id = order_id
 
-        self.erp_state = ERPState.TASK_RUNNING
+        self.erp_state = ERPState.NORMAL
         self.clean_checkpoint.clear()
-
-    # 删除 build_resume_clean_order_json 方法，改用 _build_simple_order
-
-    # ============================================================
-    #  急停处理
-    # ============================================================
-
-    def _handle_emc(self, emc_status: bool):
-        """
-        处理急停状态变化
-
-        Args:
-            emc_status: True=急停触发, False=急停解除
-        """
-        if emc_status and not self.emc_triggered:
-            # 急停刚触发
-            self._on_emc_triggered()
-        elif not emc_status and self.emc_triggered:
-            # 急停刚解除
-            self._on_emc_recovered()
-
-    def _on_emc_triggered(self):
-        """
-        急停触发时的处理
-
-        处理流程：
-        1. 标记急停状态
-        2. 保存当前状态（车辆状态、任务类型）
-        3. 取消当前运单（发送HTTP请求到M4调度系统）
-        4. 发送 CancelCleanPath 操作（如果在清洁中）
-        5. 关闭清洁机构（WashEnd）
-        6. 重置车辆状态为 IDLE
-        """
-        Trace.log("[cleanRobotManage] EMC triggered - starting emergency stop procedure")
-        self.emc_triggered = True
-
-        # 1. 保存急停前的状态（用于恢复）
-        self.emc_suspended_vehicle_state = self.vehicle_state
-        self.emc_suspended_task_type = self.current_task_type
-        Trace.log(
-            f"[cleanRobotManage] EMC: Saved pre-EMC state: vehicle={self.vehicle_state.name}, task={self.current_task_type.name}")
-
-        # 4. 关闭清洁机构
-        Trace.log("[cleanRobotManage] EMC: Closing cleaning mechanism (WashEnd)")
-        self.call_mech("WashEnd")
-
-        # 5. 重置车辆状态
-        self.vehicle_state = VehicleState.IDLE
-        # 注：保持 TASK_RUNNING 状态，通过 emc_triggered 标记来表示暂停
-        # 这样急停恢复后可以根据之前的状态进行恢复
-
-        Trace.log(f"[cleanRobotManage] EMC procedure completed, position={self.emc_suspended_position}")
-
-    def _on_emc_recovered(self):
-        """
-        急停解除时的处理
-
-        根据急停前保存的状态，恢复相应的操作：
-        - CLEANING: 恢复清洁任务，从断点位置继续
-        - NAVIGATING: 恢复导航状态
-        - CHARGING/ADD_WATER: 恢复充电/换水状态
-        - 其他: 恢复为空闲状态
-        """
-        Trace.log("[cleanRobotManage] EMC recovered - starting recovery procedure")
-        self.emc_triggered = False
-
-        # 根据急停前的状态进行恢复
-        if self.emc_suspended_vehicle_state == VehicleState.CLEANING:
-            # 恢复清洁任务
-            Trace.log("[cleanRobotManage] EMC Recovery: Resuming CLEANING state")
-            self._resume_clean_after_emc()
-        elif self.emc_suspended_vehicle_state == VehicleState.NAVIGATING:
-            # 恢复导航状态
-            Trace.log("[cleanRobotManage] EMC Recovery: Resuming NAVIGATING state")
-            self.vehicle_state = VehicleState.NAVIGATING
-            self.current_task_type = self.emc_suspended_task_type
-            self.erp_state = ERPState.TASK_RUNNING
-        elif self.emc_suspended_vehicle_state in (VehicleState.CHARGING, VehicleState.ADD_WATER):
-            # 恢复充电/换水状态
-            Trace.log(f"[cleanRobotManage] EMC Recovery: Resuming {self.emc_suspended_vehicle_state.name} state")
-            self.vehicle_state = self.emc_suspended_vehicle_state
-            self.current_task_type = self.emc_suspended_task_type
-            self.erp_state = ERPState.TASK_RUNNING
-        else:
-            # 其他情况恢复为空闲状态
-            Trace.log("[cleanRobotManage] EMC Recovery: Resuming to IDLE state")
-            self.vehicle_state = VehicleState.IDLE
-            self.erp_state = ERPState.IDLE
-
-        # 清理急停临时数据
-        self.emc_suspended_vehicle_state = None
-        self.emc_suspended_task_type = None
-        self.emc_suspended_position = None
-        Trace.log("[cleanRobotManage] EMC recovery completed")
-
-    def _resume_clean_after_emc(self):
-        """急停恢复后继续清洁任务"""
-        Trace.log(f"[cleanRobotManage] Resuming clean after EMC, position={self.emc_suspended_position}")
-
-        # 使用保存的位置作为起始点
-        if self.emc_suspended_position:
-            self.current_start_pos = self.emc_suspended_position
-
-        self.current_task_type = TaskType.CLEAN
-        self.vehicle_state = VehicleState.CLEANING
-        self.erp_state = ERPState.TASK_RUNNING
-
-        self.call_mech(
-            "WashStart",
-            brush_power=config_params.brush_power,
-            suck_power=config_params.suck_power,
-            jet_power=config_params.jet_power,
-            auto_adjust_power=config_params.auto_adjust_power,
-        )
 
     # ============================================================
     #  外部调用接口
     # ============================================================
 
-    def run(self, args: Dict[str, Any]):
+    def period_run(self):
+        self.mech.period_run()
+
+    def reset_state(self):
+        self.mech.reset_state()
+
+    def run(self, args: Dict[str, Any], isFirstRun: bool = False):
         op = args.get("operation")
-
-        Trace.log(f"[cleanRobotManage] external run(): {op}")
-
         if not op:
-            return
+            Trace.log(f"[cleanRobotManage] run() called with operation=None, args={args}")
 
         self._update_path_context(args)
 
-        if op == "WashStart":
-            self._handle_wash_start(args)
-        elif op == "WashEnd":
-            self._handle_wash_end()
-        elif op == "DustStart":
-            self._handle_dust_start()
-        elif op == "DustStart":
-            self._handle_dust_end()
-        elif op == "Charge":
-            self._handle_charge()
-        elif op == "AddWater":
-            self._handle_add_water()
+        if op == "RunCleanPathAndWashStart":
+            if isFirstRun:
+                Trace.log(f"[cleanRobotManage] First go clean path and wash start, validated_params={args}")
+            self._handle_run_clean_path_and_wash(args, is_wash=True)
         elif op == "RunCleanPath":
-            self._handle_run_clean_path()
+            if isFirstRun:
+                Trace.log(f"[cleanRobotManage] First go clean path, validated_params={args}")
+            self._handle_run_clean_path_and_wash(args, is_wash=False)
         elif op == "CancelCleanPath":
-            self._handle_cancel_clean_path()
+            Trace.log(f"[cleanRobotManage] run() operation={op}, args={args}")
+            self._handle_cancel_clean_path('water_change')
         elif op == "ResetCleanPath":
+            Trace.log(f"[cleanRobotManage] run() operation={op}, args={args}")
             self._handle_reset_clean_path()
-        elif op == "SetTask":
-            self._handle_set_task(args)
-        elif op == "SendOrders":
-            self._handle_send_orders(args)
-        elif op == "SendContinueOrders":
-            self._handle_send_continue_orders(args)
-        elif op == "CancelOrder":
-            self._handle_cancel_order(args)
-        elif op == "SendChargeOrder":
-            self._handle_send_charge_order(args)
-        elif op == "SendWaterOrder":
-            self._handle_send_water_order(args)
-        elif op == "RunCleanPathAndWashStart":
-            self._handle_run_clean_path_and_wash(args)
+        else:
+            if isFirstRun:
+                Trace.log(f"[cleanRobotManage] run() called with unknown operation={op}, args={args}")
 
-    def _handle_send_charge_order(self, args: Dict[str, Any]):
-        """
-        发送充电运单（会中断当前清洁任务）
-
-        Args:
-            args: {
-                "operation": "SendChargeOrder",
-                "charge_station": "CP1",  # 可选，充电站位置
-                "robot_name": "SVJ-01",   # 可选
-                "priority": 90            # 可选
-            }
-
-        流程：
-        1. 如果正在执行清洁任务，先中断并保存断点
-        2. 发送充电运单
-        """
-        Trace.log("[cleanRobotManage] SendChargeOrder triggered")
-
-        # 如果正在执行清洁任务，先中断
-        if self.current_task_type == TaskType.CLEAN and self.current_task:
-            if not self._interrupt_clean_for_priority_task("charge"):
-                Trace.log("[cleanRobotManage] Failed to interrupt clean task for charging")
-                Module.setStatus(ScriptStatus.FAILED)
-                return
-
-        # 发送充电运单
-        charge_station = args.get("charge_station", CHARGING_SITE)
-        payload = self._build_simple_order(
-            step_locations=[charge_station],
-            robot_name=args.get("robot_name", ROBOT_NAME),
-            priority=args.get("priority", 90)
-        )
-        order_id = self.post_to_scheduler(payload)
-        self.current_order_id = order_id
-        self.current_task_type = TaskType.CHARGE
-        self.vehicle_state = VehicleState.CHARGING
-        self.erp_state = ERPState.TASK_RUNNING
-        self.auto_charge_sent = True
-
-        Module.setStatus(ScriptStatus.FINISHED)
-
-    def _handle_send_water_order(self, args: Dict[str, Any]):
-        """
-        发送换水运单（会中断当前清洁任务）
-
-        Args:
-            args: {
-                "operation": "SendWaterOrder",
-                "water_station": "CP1",   # 可选，换水站位置
-                "robot_name": "SVJ-01",   # 可选
-                "priority": 90            # 可选
-            }
-
-        流程：
-        1. 如果正在执行清洁任务，先中断并保存断点
-        2. 发送换水运单
-        """
-        Trace.log("[cleanRobotManage] SendWaterOrder triggered")
-
-        # 如果正在执行清洁任务，先中断
-        if self.current_task_type == TaskType.CLEAN and self.current_task:
-            if not self._interrupt_clean_for_priority_task("water_change"):
-                Trace.log("[cleanRobotManage] Failed to interrupt clean task for water change")
-                Module.setStatus(ScriptStatus.FAILED)
-                return
-
-        # 发送换水运单
-        water_station = args.get("water_station", CHARGING_SITE)
-        payload = self._build_simple_order(
-            step_locations=[water_station],
-            robot_name=args.get("robot_name", ROBOT_NAME),
-            priority=args.get("priority", 90)
-        )
-        order_id = self.post_to_scheduler(payload)
-        self.current_order_id = order_id
-        self.current_task_type = TaskType.WATER_CHANGE
-        self.vehicle_state = VehicleState.ADD_WATER
-        self.erp_state = ERPState.TASK_RUNNING
-        self.auto_water_sent = True
-
-        Module.setStatus(ScriptStatus.FINISHED)
-
-    def _handle_run_clean_path_and_wash(self, args: Dict[str, Any]):
+    # 开始清扫任务接口
+    def _handle_run_clean_path_and_wash(self, args: Dict[str, Any], is_wash: bool = False):
         self.current_task_type = TaskType.CLEAN
         self.vehicle_state = VehicleState.CLEANING
 
-        self.current_entrance = Navigation.moveTask().get("sourceName", None)
-        self.current_exit = Navigation.moveTask().get("targetName", None)
+        source = Navigation.moveTask().get("sourceName", None)
+        target = Navigation.moveTask().get("targetName", None)
 
-        print(f"-----{self.current_exit=}")
-        print(f"-----{self.saved_exit_id=}")
-        print(f"-----{self.have_cancelled=}")
-
+        if self.current_entrance != source or self.current_exit != target:
+            self.current_entrance = source
+            self.current_exit = target
+            Trace.log(f"[cleanRobotManage] run_clean_path: path context changed, {self.current_entrance} -> {self.current_exit}")
         if not self.saved_exit_id:
-            self.run_clean_path_and_wash(args)
+            if is_wash:
+                self.run_clean_path_and_wash(args)
+            else:
+                self.run_clean_path()
         else:
             if self.saved_exit_id != self.current_exit and self.current_exit != "":
-                print(f"---------run_cross_path")
                 self.run_cross_path()
             elif self.have_cancelled:
-                print(f"---------run_exit_path")
                 self.run_exit_path()  # self.have_cancelled重置
             elif self.saved_exit_id == self.current_exit:
-                print(f"---------run_exit_path")
                 self.run_remaining_path()  # self.saved_exit_id重置
             else:
-                print(f"---------run_no_path")
-
-    def _handle_send_orders(self, args: Dict[str, Any]):
-        """
-        发送运单给M4调度系统
-
-        Args:
-            args: {
-                "operation": "SendOrders",
-                "order_type": "clean" / "charge" / "water",
-                "step_locations": ["LM29", "LM55", ...],  # 站点列表
-                "priority": 90,
-                "robot_name": "SVJ-01"
-            }
-        """
-        # step_locations = args.get("step_locations", ["AP20001", "AP20002", "AP20112", "AP20111"])
-        #TODO：可以在配置项里上传，最后一个点是停靠点，每2个站点表示一个清洁区（一个入口，一个出口）
-        step_locations = args.get("step_locations", ["AP20116", "AP20115", "AP20114", "AP20113", "AP20027", "AP20028",
-                                                     "AP20031", "AP20032", "AP20033", "AP20034", "AP20040", "AP20041",
-                                                     "AP20045", "AP20046", "AP20054", "AP20055", "AP20063", "AP20064",
-                                                     "AP20071", "AP20072", "AP20077", "AP20078", "AP20083", "AP20084",
-                                                     "AP20089", "AP20090", "AP20095", "AP20096", "LM20103"])
-
-        if not step_locations:
-            Trace.log("[cleanRobotManage] SendOrders: step_locations is empty")
-            return
-
-        # 保存原始站点列表，用于断点续传
-        self.original_step_locations = step_locations.copy()
-        self.remaining_step_locations = step_locations.copy()  # 初始时剩余站点等于原始站点
-        Trace.log(f"[cleanRobotManage] SendOrders: saved original locations = {self.original_step_locations}")
-
-        # 构造任务数据
-        task = {
-            "step_locations": step_locations,
-            "robot_name": args.get("robot_name", ROBOT_NAME),
-            "priority": args.get("priority", 90)
-        }
-
-        self.current_task = task
-        self.current_task_type = TaskType.CLEAN
-
-        # 构造运单
-        payload = self._build_simple_order(
-            step_locations=step_locations,
-            robot_name=args.get("robot_name", ROBOT_NAME),
-            priority=args.get("priority", 90)
-        )
-        order_id = self.post_to_scheduler(payload)
-        self.current_order_id = order_id
-        self.erp_state = ERPState.TASK_RUNNING
-
-        Module.setStatus(ScriptStatus.FINISHED)
-
-    def _handle_send_continue_orders(self, args: Dict[str, Any]):
-        """
-        发送续传运单给M4调度系统
-
-        直接使用在main循环中持续更新的 remaining_step_locations
-
-        Args:
-            args: {
-                "operation": "SendContinueOrders",
-                "robot_name": "SVJ-01",   # 可选
-                "priority": 90            # 可选
-            }
-        """
-        Trace.log(f"[cleanRobotManage] SendContinueOrders: "
-                  f"original={self.original_step_locations}, "
-                  f"remaining={self.remaining_step_locations}")
-
-        # 检查是否有剩余站点列表
-        if not self.remaining_step_locations:
-            # 如果没有剩余站点，尝试使用参数中的站点列表
-            step_locations = args.get("step_locations", [])
-            if not step_locations:
-                Trace.log("[cleanRobotManage] SendContinueOrders: no remaining locations and no new locations provided")
+                pass
+    #暂停清扫任务
+    def _handle_cancel_clean_path(self,reason:str=""):
+        if self._interrupt_clean_for_priority_task(reason):
+            payload = config_params.isDebug or self.build_water_order_json()
+            order_id = config_params.isDebug or self.post_to_scheduler(payload)
+            # 更新状态
+            if order_id:
+                self.current_order_id = order_id
+                if reason == "water_change":
+                    self.auto_water_sent = True  # 标记已发送，防止重复发送
+                elif reason == "charge":
+                    self.auto_charge_sent = True  # 标记已发送，防止重复发送
+                self.current_task_type = TaskType.WATER_CHANGE if reason == "water_change" else TaskType.CHARGE
+                self.vehicle_state = VehicleState.ADD_WATER if reason == "water_change" else VehicleState.CHARGING
+                self.erp_state = ERPState.NORMAL
+                Trace.log(f"[cleanRobotManage] Order sent ({reason}), order_id={order_id}")
+                Module.setStatus(ScriptStatus.FINISHED)
+            else:
+                Trace.log(f"[cleanRobotManage] Failed to send order ({reason})")
                 Module.setStatus(ScriptStatus.FAILED)
-                return
-            # 如果提供了新的站点列表，直接使用
-            Trace.log(f"[cleanRobotManage] SendContinueOrders: using provided locations = {step_locations}")
-        else:
-            # 使用实时更新的剩余站点列表
-            step_locations = self.remaining_step_locations.copy()
 
-        Trace.log(f"[cleanRobotManage] SendContinueOrders: sending locations = {step_locations}")
+    #重置任务状态
+    def _handle_reset_clean_path(self):
+            """处理重置清洁路径"""
+            self._reset_boustrophedon_path()
+            self.have_cancelled = False
+            self.saved_exit_id = None
+            Module.setStatus(ScriptStatus.FINISHED)
 
-        # 构造任务数据
-        task = {
-            "step_locations": step_locations,
-            "robot_name": args.get("robot_name", ROBOT_NAME),
-            "priority": args.get("priority", 90)
-        }
+    
+    def _reset_boustrophedon_path(self):
+        """重置弓字形导航状态"""
+        Navigation.resetBoustrophedonPath()
+        self.pos = []
+        self.boustrophedon_path_state = BoustrophedonPathState.INIT
 
-        self.current_task = task
-        self.current_task_type = TaskType.CLEAN
-
-        # 构造运单
-        payload = self._build_simple_order(
-            step_locations=step_locations,
-            robot_name=args.get("robot_name", ROBOT_NAME),
-            priority=args.get("priority", 90)
-        )
-        order_id = self.post_to_scheduler(payload)
-        self.current_order_id = order_id
-        self.erp_state = ERPState.TASK_RUNNING
-
-        Module.setStatus(ScriptStatus.FINISHED)
-
-    def _update_remaining_locations(self):
-        """
-        持续更新剩余站点列表（在main循环中调用）
-
-        通过 Navigation.moveTask() 获取当前导航状态，
-        根据 source_name 更新 remaining_step_locations
-
-        逻辑：
-        - 当 source_name 在原始列表中时，从 source_name 开始（包含）到列表末尾
-        - 随着机器人移动，source_name 会变化，remaining_step_locations 会逐步缩短
-
-        示例：
-            原始列表: ["AP1", "AP2", "AP3", "AP4", "AP5"]
-
-            机器人在 AP1 → AP2 途中: source_name="AP1", target_name="AP2"
-                → remaining = ["AP1", "AP2", "AP3", "AP4", "AP5"]
-
-            机器人在 AP2 → AP3 途中: source_name="AP2", target_name="AP3"
-                → remaining = ["AP2", "AP3", "AP4", "AP5"]
-
-            机器人在 AP4 → AP5 途中: source_name="AP4", target_name="AP5"
-                → remaining = ["AP4", "AP5"]
-        """
-        # 如果没有原始站点列表，不需要更新
-        if not self.original_step_locations:
-            return
-
-        # 获取当前导航状态
-        source_name = Navigation.moveTask().get("sourceName", None)
-        target_name = Navigation.moveTask().get("targetName", None)
-
-        # 如果 source_name 为空，不更新
-        if not source_name:
-            return
-
-        # 如果 source_name 在原始列表中，更新剩余站点
-        if source_name in self.original_step_locations:
-            source_index = self.original_step_locations.index(source_name)
-            new_remaining = self.original_step_locations[source_index:]
-
-            # 只有当剩余站点变化时才更新和打印日志
-            if new_remaining != self.remaining_step_locations:
-                self.remaining_step_locations = new_remaining
-                Trace.log(f"[cleanRobotManage] Updated remaining locations: "
-                          f"source={source_name}, target={target_name}, "
-                          f"remaining={self.remaining_step_locations}")
-
-    def _handle_cancel_order(self, args: Dict[str, Any]):
-        self._cancel_current_order()
-
-        Module.setStatus(ScriptStatus.FINISHED)
 
 
     def _build_simple_order(self, step_locations: List[str], robot_name: str, priority: int) -> Dict[str, Any]:
@@ -1875,12 +1766,178 @@ class CleanRobotManage:
             })
 
         return {
-            "sceneId": SCENE_ID,
+            "sceneId": config_params.scene_id,
             "expectedRobotNames": [robot_name],
             "stepFixed": True,
             "priority": priority,
             "steps": steps
         }
+
+    def build_charge_order_json(self) -> Dict[str, Any]:
+        return {
+            "sceneId": config_params.scene_id,
+            "priority": 60,
+            "expectedRobotNames": [config_params.robot_name],
+            "expectedRobotGroups": [],
+            "keyLocations": [],
+            "stepFixed": True,
+            "steps": [{
+                "location": config_params.charging_site,
+                "rbkArgs": {"binTask": "Charge"},
+                "forLoad": False,
+                "forUnload": False,
+                "withdrawOrderAllowed": True,
+                "nextStepSameOrder": False
+            }]
+        }
+
+    def build_water_order_json(self) -> Dict[str, Any]:
+        return {
+            "sceneId": config_params.scene_id,
+            "priority": 60,
+            "expectedRobotNames": [config_params.robot_name],
+            "expectedRobotGroups": [],
+            "keyLocations": [],
+            "stepFixed": True,
+            "steps": [{
+                "location": config_params.charging_site,
+                "rbkArgs": {"binTask": "WaterChange"},
+                "forLoad": False,
+                "forUnload": False,
+                "withdrawOrderAllowed": True,
+                "nextStepSameOrder": False
+            }]
+        }
+
+    def post_to_scheduler(self, payload: Dict[str, Any]) -> Optional[str]:
+        """
+        通过 HTTP POST 发送运单给调度系统
+
+        Args:
+            payload: 运单数据
+
+        Returns:
+            运单ID，失败返回None
+        """
+        Trace.log(f"[cleanRobotManage] POST {SCHEDULER_URL} -> {json.dumps(payload, ensure_ascii=False)}")
+        headers = {
+            'xyy-app-id': config_params.m4_app_id,
+            'xyy-app-key': config_params.m4_app_key,
+            'Content-Type': 'application/json'
+        }
+        self.last_scheduler_error = ""
+        self.scheduler_retry_count = 0
+
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            self.scheduler_retry_count = attempt
+            try:
+                response = requests.post(
+                    SCHEDULER_URL,
+                    headers=headers,
+                    json=payload,
+                    timeout=5
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    order_id = result.get("orderId") or result.get("order_id") or result.get("id")
+                    self.last_scheduler_error = ""
+                    Trace.log(f"[cleanRobotManage] Order created successfully: {order_id} (attempt={attempt})")
+                    return order_id
+
+                self.last_scheduler_error = f"HTTP {response.status_code}: {response.text}"
+                Trace.log(
+                    f"[cleanRobotManage] Failed to create order "
+                    f"(attempt={attempt}/{max_retries}): {self.last_scheduler_error}"
+                )
+            except requests.exceptions.Timeout:
+                self.last_scheduler_error = "Request timeout when posting to scheduler"
+                Trace.log(
+                    f"[cleanRobotManage] {self.last_scheduler_error} "
+                    f"(attempt={attempt}/{max_retries})"
+                )
+            except requests.exceptions.ConnectionError as e:
+                self.last_scheduler_error = f"Connection error: {e}"
+                Trace.log(
+                    f"[cleanRobotManage] {self.last_scheduler_error} "
+                    f"(attempt={attempt}/{max_retries})"
+                )
+            except Exception as e:
+                self.last_scheduler_error = f"Unexpected error posting to scheduler: {e}"
+                Trace.log(
+                    f"[cleanRobotManage] {self.last_scheduler_error} "
+                    f"(attempt={attempt}/{max_retries})"
+                )
+
+            if attempt < max_retries:
+                time.sleep(0.5)
+
+        return None
+
+    def _cancel_current_order(self):
+        """
+        取消当前运单
+
+        通过HTTP POST调用调度系统的取消运单API
+
+        API地址: SCHEDULER_CANCEL_URL
+        请求格式: {"orderId": "xxx", "reason": "xxx"}
+        """
+        if not self.current_order_id:
+            Trace.log("[cleanRobotManage] No order to cancel")
+            return
+
+        payload = {
+            "sceneId": config_params.scene_id,
+            "orderId": self.current_order_id
+            # "reason": "Priority task interrupt"
+        }
+
+        Trace.log(f"[cleanRobotManage] Cancelling order: {self.current_order_id}")
+
+        # try:
+        response = requests.post(
+            SCHEDULER_CANCEL_URL,
+            json=payload,
+            headers = {
+            'xyy-app-id': 'm4',
+            'xyy-app-key': 'Seer1234',
+            'Content-Type': 'application/json'},
+            timeout=5
+        )
+
+        if response.status_code == 200:
+            Trace.log(f"[cleanRobotManage] Order {self.current_order_id} cancelled successfully")
+            self.current_order_id = None
+            return True
+        else:
+            Trace.log(f"[cleanRobotManage] Failed to cancel order: HTTP {response.status_code}, {response.text}")
+            return False
+        #
+        # except requests.exceptions.Timeout:
+        #     Trace.log(f"[cleanRobotManage] Request timeout when cancelling order {self.current_order_id}")
+        # except requests.exceptions.ConnectionError as e:
+        #     Trace.log(f"[cleanRobotManage] Connection error when cancelling order: {e}")
+        # except Exception as e:
+        #     Trace.log(f"[cleanRobotManage] Unexpected error cancelling order: {e}")
+
+    def _normalize_start_pos(self, position: Any) -> Optional[List[float]]:
+        if not position:
+            return None
+
+        if isinstance(position, (list, tuple)) and len(position) >= 3:
+            return [position[0], position[1], position[2]]
+
+        if isinstance(position, dict):
+            x = position.get("x")
+            y = position.get("y")
+            yaw = position.get("angle", position.get("theta"))
+            if x is not None and y is not None and yaw is not None:
+                return [x, y, yaw]
+
+        Trace.log(f"[cleanRobotManage] Invalid start position: {position}")
+        return None
 
     def _update_path_context(self, args: Dict[str, Any]):
         if "entrance" in args:
@@ -1888,106 +1945,9 @@ class CleanRobotManage:
         if "exit" in args:
             self.current_exit = args["exit"]
         if "startPos" in args:
-            self.current_start_pos = args["startPos"]
+            self.current_start_pos = self._normalize_start_pos(args["startPos"])
 
-    def _handle_wash_start(self, args: Dict[str, Any]):
-        self.mech_status = self.call_mech(
-            "WashStart",
-            brush_power=args.get("brush_power"),
-            suck_power=args.get("suck_power"),
-            jet_power=args.get("jet_power"),
-            auto_adjust_power=args.get("auto_adjust_power"),
-        )
 
-    def _handle_wash_end(self):
-        self.mech_status = self.call_mech("WashEnd")
-
-    def _handle_dust_start(self):
-        self.mech_status = self.call_mech("DustStart")
-
-    def _handle_dust_end(self):
-        self.mech_status = self.call_mech("DustEnd")
-
-    def _handle_charge(self):
-        if self.vehicle_state == VehicleState.CLEANING:
-            self._cancel_boustrophedon_path()
-        self.current_task_type = TaskType.CHARGE
-        self.vehicle_state = VehicleState.CHARGING
-        self.call_mech("Charge")
-
-    def _handle_add_water(self):
-        if self.vehicle_state == VehicleState.CLEANING:
-            self._cancel_boustrophedon_path()
-        self.current_task_type = TaskType.WATER_CHANGE
-        self.vehicle_state = VehicleState.ADD_WATER
-        self.call_mech("AddWater")
-
-    def _handle_run_clean_path(self):
-        self.current_task_type = TaskType.CLEAN
-        self.vehicle_state = VehicleState.CLEANING
-
-        self.current_entrance = Navigation.moveTask().get("sourceName", None)
-        self.current_exit = Navigation.moveTask().get("targetName", None)
-
-        print(f"-----{self.current_exit=}")
-        print(f"-----{self.saved_exit_id=}")
-        print(f"-----{self.have_cancelled=}")
-
-        #TODO:绘制电子图方便理解
-        if not self.saved_exit_id:
-            self.run_clean_path()
-
-        else:
-            if self.have_cancelled:
-                print(f"---------run_exit_path")
-                self.run_exit_path() # self.have_cancelled重置
-            elif self.saved_exit_id != self.current_exit and self.current_exit != "":
-                print(f"---------run_cross_path")
-                self.run_cross_path()
-            elif self.saved_exit_id == self.current_exit:
-                print(f"---------run_remaining_path")
-                self.run_remaining_path() # self.saved_exit_id重置
-            else:
-                print(f"---------run_no_path")
-                Module.setStatus(ScriptStatus.FAILED)
-    def _handle_cancel_clean_path(self):
-        """处理取消清洁路径"""
-        # TODO:写一下指向逻辑
-        self.cancel_count = self.cancel_count + 1
-        if self.cancel_count > 5:
-            self.cancel_once = False
-
-        if self.vehicle_state == VehicleState.CLEANING:
-            self.saved_exit_id = self.current_exit
-            Trace.log(f"Saved exit id when canceling clean path = {self.saved_exit_id}")
-            self.pos = self._cancel_boustrophedon_path()
-
-            Trace.log(f"[cleanRobotManage] Clean path cancelled, position={self.pos}")
-            self.have_cancelled = True
-            Module.setStatus(ScriptStatus.FINISHED)
-
-    def _handle_reset_clean_path(self):
-        """处理重置清洁路径"""
-        self._reset_boustrophedon_path()
-        print("reset clean path")
-        self.cancel_once = True
-        self.cancel_count = 0
-        self.have_cancelled = False
-        self.saved_exit_id = None
-        # 同时清除原始站点列表和剩余站点列表
-        self.original_step_locations = []
-        self.remaining_step_locations = []
-        Module.setStatus(ScriptStatus.FINISHED)
-
-    def _handle_set_task(self, args: Dict[str, Any]):
-        self.current_task = args
-        self.current_task_type = TaskType.CLEAN
-        # 初始化区域状态
-        Trace.log(f"[cleanRobotManage] New task set: {args.get('step_locations', [])}")
-
-    # ============================================================
-    #  机构脚本调用封装
-    # ============================================================
 
     def call_mech(
             self,
@@ -2022,158 +1982,21 @@ class CleanRobotManage:
 
         args = {
             "operation": operation,
-            "brush_power": brush_power,
-            "suck_power": suck_power,
-            "jet_power": jet_power,
+            "brush_power": self.mech.brush_power,
+            "suck_power": self.mech.suck_power,
+            "jet_power": self.mech.jet_power,
             "auto_adjust_power": auto_adjust_power,
             "push_rod_length": push_rod_length,
         }
-        Trace.log(f"[cleanRobotManage] call_mech -> {args}")
-
-        # 重置机构状态并调用
-        self.mech.reset_state()
-        return self.mech.run(args)
+        if self.pre_arg != args:
+            Trace.log(f"[cleanRobotManage] New args: {self.pre_arg} -> {args}")
+            self.pre_arg = args
+            self.mech.reset_state()
+            return self.mech.run(args)
 
     def get_water_levels(self) -> Tuple[float, float]:
         """从机构获取水位信息"""
         return self.mech.get_water_levels()
-
-    # ============================================================
-    #  任务派发
-    # ============================================================
-
-    def dispatch_clean_task_if_needed(self):
-        now_ts = time.time()
-        task: Optional[Dict[str, Any]] = None
-
-        if not task:
-            due = [t for t in self.roboshop_schedule if float(t.get("trigger_ts", 0)) <= now_ts]
-            if due:
-                due.sort(key=lambda x: x.get("trigger_ts", 0))
-                task = due[0]
-                self.roboshop_schedule.remove(task)
-
-        if not task:
-            return
-
-        self.current_task = task
-        self.current_task_type = TaskType.CLEAN
-
-        # 初始化区域状态
-
-        payload = self.build_clean_order_json(task)
-        Trace.log(f"[cleanRobotManage] Dispatching clean task")
-        order_id = self.post_to_scheduler(payload)
-        self.current_order_id = order_id
-        self.erp_state = ERPState.TASK_RUNNING
-
-    def build_clean_order_json(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """构造清洁任务运单（简化版：不再判断CA前缀）"""
-        step_locations = task.get("step_locations", [])
-        robot_name = task.get("robot_name", ROBOT_NAME)
-        priority = task.get("priority", 50)
-
-        steps = []
-        for i, location in enumerate(step_locations):
-            is_last_step = (i == len(step_locations) - 1)
-            step = {
-                "location": location,
-                "rbkArgs": {},
-                "forLoad": False,
-                "forUnload": False,
-                "withdrawOrderAllowed": True,
-                "nextStepSameOrder": not is_last_step
-            }
-            steps.append(step)
-
-        return {
-            "sceneId": SCENE_ID,
-            "priority": priority,
-            "expectedRobotNames": [robot_name],
-            "expectedRobotGroups": [],
-            "keyLocations": [],
-            "stepFixed": True,
-            "steps": steps
-        }
-
-    def build_charge_order_json(self) -> Dict[str, Any]:
-        return {
-            "sceneId": SCENE_ID,
-            "priority": 60,
-            "expectedRobotNames": [ROBOT_NAME],
-            "expectedRobotGroups": [],
-            "keyLocations": [],
-            "stepFixed": True,
-            "steps": [{
-                "location": CHARGING_SITE,
-                "rbkArgs": {"binTask": "Charge"},
-                "forLoad": False,
-                "forUnload": False,
-                "withdrawOrderAllowed": True,
-                "nextStepSameOrder": False
-            }]
-        }
-
-    def build_water_order_json(self) -> Dict[str, Any]:
-        return {
-            "sceneId": SCENE_ID,
-            "priority": 60,
-            "expectedRobotNames": [ROBOT_NAME],
-            "expectedRobotGroups": [],
-            "keyLocations": [],
-            "stepFixed": True,
-            "steps": [{
-                "location": CHARGING_SITE,
-                "rbkArgs": {"binTask": "WaterChange"},
-                "forLoad": False,
-                "forUnload": False,
-                "withdrawOrderAllowed": True,
-                "nextStepSameOrder": False
-            }]
-        }
-
-    def post_to_scheduler(self, payload: Dict[str, Any]) -> Optional[str]:
-        """
-        通过 HTTP POST 发送运单给调度系统
-
-        Args:
-            payload: 运单数据
-
-        Returns:
-            运单ID，失败返回None
-        """
-        Trace.log(f"[cleanRobotManage] POST {SCHEDULER_URL} -> {json.dumps(payload, ensure_ascii=False)}")
-        headers = {
-            'xyy-app-id': 'm4',
-            'xyy-app-key': 'Seer1234',
-            'Content-Type': 'application/json'
-        }
-        # try:
-        response = requests.post(
-            SCHEDULER_URL,
-            headers=headers,
-            json=payload,
-            timeout=5
-        )
-
-        if response.status_code == 200:
-            result = response.json()
-            order_id = result.get("orderId") or result.get("order_id") or result.get("id")
-            Trace.log(f"[cleanRobotManage] Order created successfully: {order_id}")
-            return order_id
-        else:
-            Trace.log(f"[cleanRobotManage] Failed to create order: HTTP {response.status_code}, {response.text}")
-            return None
-        #
-        # except requests.exceptions.Timeout:
-        #     Trace.log(f"[cleanRobotManage] Request timeout when posting to scheduler")
-        #     return None
-        # except requests.exceptions.ConnectionError as e:
-        #     Trace.log(f"[cleanRobotManage] Connection error: {e}")
-        #     return None
-        # except Exception as e:
-        #     Trace.log(f"[cleanRobotManage] Unexpected error posting to scheduler: {e}")
-        #     return None
 
     # ============================================================
     #  清洁路径控制 - 使用新接口
@@ -2183,17 +2006,9 @@ class CleanRobotManage:
         """
         执行弓字形清洁路径
 
-        调用 Navigation.goBoustrophedonPath(area, entrance, exit, startPos, params)
+        调用 Navigation.goBoustrophedonPath(entrance, exit, startPos, params)
         - startPos 为空时从头开始，有值时从指定位置断点续扫
         """
-
-        self.current_entrance = Navigation.moveTask().get("sourceName", None)
-        self.current_exit = Navigation.moveTask().get("targetName", None)
-
-        if self.run_clean_path_init:
-            self.run_clean_path_init = False
-            # Navigation.resetBoustrophedonPath()
-
         if not self.current_exit:
             Trace.log("[cleanRobotManage] run_clean_path: missing path context")
             self.vehicle_state = VehicleState.IDLE
@@ -2210,20 +2025,22 @@ class CleanRobotManage:
         }
 
         # startPos: 断点续扫位置，None表示从头开始
-        # start_pos = self.current_start_pos if self.current_start_pos else []
-        start_pos = [self.pos['x'], self.pos['y'], self.pos['angle']] if self.pos else []
+        start_pos = self.current_start_pos if self.current_start_pos else []
 
-        Trace.log(f"entrance={self.current_entrance}, exit={self.current_exit}, "
-                  f"startPos={start_pos}, params={params}")
+        # Trace.log(f"entrance={self.current_entrance}, exit={self.current_exit}, "
+        #           f"startPos={start_pos}, params={params}")
 
         # 调用goBoustrophedonPath
         status_value = Navigation.goBoustrophedonPath(
             self.current_entrance,
             self.current_exit,
             start_pos,
-            {}
+            params
         )
+        pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
+        if pre_state != self.boustrophedon_path_state:
+            Trace.log(f"[cleanRobotManage] run_clean_path：goBoustrophedonPath status changed from {pre_state} to {self.boustrophedon_path_state}")
 
         # 清除startPos，避免重复使用
         if self.current_start_pos:
@@ -2231,7 +2048,6 @@ class CleanRobotManage:
 
         # 处理状态
         if self.boustrophedon_path_state in (BoustrophedonPathState.INIT, BoustrophedonPathState.RUNNING):
-            self.pos = {}
             return
 
         if self.boustrophedon_path_state == BoustrophedonPathState.FINISHED:
@@ -2240,8 +2056,6 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             Navigation.resetBoustrophedonPath()
-            self.cancel_once = True
-            self.cancel_count = 0
             Module.setStatus(ScriptStatus.FINISHED)
             return
 
@@ -2251,8 +2065,6 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             self.erp_state = ERPState.ERROR
-            self.cancel_once = True
-            self.cancel_count = 0
             Module.setStatus(ScriptStatus.FAILED)
             return
 
@@ -2264,15 +2076,9 @@ class CleanRobotManage:
         """
                 执行弓字形清洁路径
 
-                调用 Navigation.goBoustrophedonPath(area, entrance, exit, startPos, params)
+                调用 Navigation.goBoustrophedonPath(entrance, exit, startPos, params)
                 - startPos 为空时从头开始，有值时从指定位置断点续扫
                 """
-        self.current_entrance = Navigation.moveTask().get("sourceName", None)
-        self.current_exit = Navigation.moveTask().get("targetName", None)
-
-        if self.run_clean_path_init:
-            self.run_clean_path_init = False
-            # Navigation.resetBoustrophedonPath()
 
         if not self.current_exit:
             Trace.log("[cleanRobotManage] run_clean_path: missing path context")
@@ -2290,21 +2096,21 @@ class CleanRobotManage:
         }
 
         # startPos: 断点续扫位置，None表示从头开始
-        # start_pos = self.current_start_pos if self.current_start_pos else []
-        start_pos = [self.pos['x'], self.pos['y'], self.pos['angle']] if self.pos else []
+        start_pos = self.current_start_pos if self.current_start_pos else []
 
-        Trace.log(f"entrance={self.current_entrance}, exit={self.current_exit}, "
-                  f"startPos={start_pos}, params={params}")
 
         # 调用goBoustrophedonPath
         status_value = Navigation.goBoustrophedonPath(
             self.current_entrance,
             self.current_exit,
             start_pos,
-            {}
+            params
         )
+        pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
-
+        if pre_state != self.boustrophedon_path_state:
+            Trace.log(f"[cleanRobotManage] run_clean_path_and_wash：goBoustrophedonPath status changed from {pre_state} to {self.boustrophedon_path_state}")
+    
         # 清除startPos，避免重复使用
         if self.current_start_pos:
             self.current_start_pos = None
@@ -2350,11 +2156,9 @@ class CleanRobotManage:
                 调用 Navigation.goCrossArea(entrance, exit, params)
         """
 
-        self.current_entrance = Navigation.moveTask().get("sourceName", None)
-        self.current_exit = Navigation.moveTask().get("targetName", None)
 
         if not self.current_exit:
-            Trace.log("[cleanRobotManage] run_clean_path: missing path context")
+            Trace.log("[cleanRobotManage] run_cross_path: missing path context")
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             return
@@ -2368,16 +2172,17 @@ class CleanRobotManage:
             "isFreeByPass": bool(config_params.boustrophedon_path_free_bypass)
         }
 
-        Trace.log(f"entrance={self.current_entrance}, exit={self.current_exit}, params={params}")
 
-        # 调用goBoustrophedonPath
+        # 调用goCrossArea
         status_value = Navigation.goCrossArea(
             self.current_entrance,
             self.current_exit,
-            {}
+            params
         )
+        pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
-
+        if pre_state != self.boustrophedon_path_state:
+            Trace.log(f"[cleanRobotManage] run_cross_path：goCrossArea status changed from {pre_state} to {self.boustrophedon_path_state}")
         # 处理状态
         if self.boustrophedon_path_state in (BoustrophedonPathState.INIT, BoustrophedonPathState.RUNNING):
             return
@@ -2388,8 +2193,6 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             Navigation.resetBoustrophedonPath()
-            self.cancel_once = True
-            self.cancel_count = 0
             Module.setStatus(ScriptStatus.FINISHED)
             return
 
@@ -2399,8 +2202,6 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             self.erp_state = ERPState.ERROR
-            self.cancel_once = True
-            self.cancel_count = 0
             Module.setStatus(ScriptStatus.FAILED)
             return
 
@@ -2415,11 +2216,9 @@ class CleanRobotManage:
                 调用 Navigation.goExitPoint(entrance, exit, params)
         """
 
-        self.current_entrance = Navigation.moveTask().get("sourceName", None)
-        self.current_exit = Navigation.moveTask().get("targetName", None)
 
         if not self.current_exit:
-            Trace.log("[cleanRobotManage] run_clean_path: missing path context")
+            Trace.log("[cleanRobotManage] run_exit_path: missing path context")
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             return
@@ -2433,16 +2232,17 @@ class CleanRobotManage:
             "isFreeByPass": bool(config_params.boustrophedon_path_free_bypass)
         }
 
-        # Trace.log(f"entrance={self.current_entrance}, exit={self.current_exit}, params={params}")
 
-        # 调用goBoustrophedonPath
+        # 调用goExitPoint
         status_value = Navigation.goExitPoint(
             self.current_entrance,
             self.current_exit,
-            {}
+            params
         )
+        pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
-
+        if pre_state != self.boustrophedon_path_state:
+            Trace.log(f"[cleanRobotManage] run_exit_path：goExitPoint status changed from {pre_state} to {self.boustrophedon_path_state}")
         # 处理状态
         if self.boustrophedon_path_state in (BoustrophedonPathState.INIT, BoustrophedonPathState.RUNNING):
             return
@@ -2453,8 +2253,6 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             Navigation.resetBoustrophedonPath()
-            self.cancel_once = True
-            self.cancel_count = 0
             self.have_cancelled = False
             Module.setStatus(ScriptStatus.FINISHED)
             return
@@ -2465,8 +2263,6 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             self.erp_state = ERPState.ERROR
-            self.cancel_once = True
-            self.cancel_count = 0
             Module.setStatus(ScriptStatus.FAILED)
             return
 
@@ -2481,11 +2277,9 @@ class CleanRobotManage:
                 调用 Navigation.goCrossArea(entrance, exit, params)
         """
 
-        self.current_entrance = ""
-        self.current_exit = Navigation.moveTask().get("targetName", None)
 
         if not self.current_exit:
-            Trace.log("[cleanRobotManage] run_clean_path: missing path context")
+            Trace.log("[cleanRobotManage] run_remaining_path: missing path context")
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             return
@@ -2499,16 +2293,17 @@ class CleanRobotManage:
             "isFreeByPass": bool(config_params.boustrophedon_path_free_bypass)
         }
 
-        Trace.log(f"entrance={self.current_entrance}, exit={self.current_exit}, params={params}")
 
-        # 调用goBoustrophedonPath
+        # 调用goRemainingPath
         status_value = Navigation.goRemainingPath(
             self.current_entrance,
             self.current_exit,
-            {}
+            params
         )
+        pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
-
+        if pre_state != self.boustrophedon_path_state:
+            Trace.log(f"[cleanRobotManage] run_remaining_path：goRemainingPath status changed from {pre_state} to {self.boustrophedon_path_state}")
         # 处理状态
         if self.boustrophedon_path_state in (BoustrophedonPathState.INIT, BoustrophedonPathState.RUNNING):
             return
@@ -2519,8 +2314,6 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             Navigation.resetBoustrophedonPath()
-            self.cancel_once = True
-            self.cancel_count = 0
             self.saved_exit_id = ""
             Module.setStatus(ScriptStatus.FINISHED)
             return
@@ -2531,8 +2324,6 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
             self.erp_state = ERPState.ERROR
-            self.cancel_once = True
-            self.cancel_count = 0
             Module.setStatus(ScriptStatus.FAILED)
             return
 
@@ -2548,41 +2339,6 @@ class CleanRobotManage:
         # 现在由外部 args 传入，不再基于 CA 前缀自动判断
         self.vehicle_state = VehicleState.NAVIGATING
 
-    # ============================================================
-    #  电量监控
-    # ============================================================
-
-    def check_battery(self):
-        soc = Battery.getPercentage()
-        if soc < 0:
-            return
-
-        if soc <= LOW_BATTERY_SOC and not self.auto_charge_sent:
-            Trace.log(f"[cleanRobotManage] Low battery ({soc}), interrupting for charge")
-
-            if self.current_task_type == TaskType.CLEAN:
-                if not self._interrupt_clean_for_priority_task("charge"):
-                    return
-
-            #发送前往充电点运单
-            payload = self.build_charge_order_json()
-            order_id = self.post_to_scheduler(payload)
-            self.current_order_id = order_id
-            self.auto_charge_sent = True
-            self.current_task_type = TaskType.CHARGE
-            self.vehicle_state = VehicleState.CHARGING
-            self.erp_state = ERPState.TASK_RUNNING
-
-        if soc >= HIGH_BATTERY_SOC:
-            self.auto_charge_sent = False
-
-    # ============================================================
-    #  水位监控
-    # ============================================================
-
-    # ============================================================
-    #  每日定时清洁任务
-    # ============================================================
 
     def check_scheduled_clean_task(self):
         """
@@ -2608,7 +2364,6 @@ class CleanRobotManage:
         current_date = now.strftime("%Y-%m-%d")
         current_hour = now.hour
         current_minute = now.minute
-        print(f"current_time: {current_date} , {current_hour} , {current_minute}")
 
         # 检查是否跨天，重置触发标记
         if self.last_scheduled_clean_date != current_date:
@@ -2623,7 +2378,7 @@ class CleanRobotManage:
         target_hour = config_params.scheduled_clean_hour
         target_minute = config_params.scheduled_clean_minute
 
-        if current_hour == target_hour and current_minute >= target_minute:
+        if current_hour == target_hour and current_minute >= target_minute or config_params.isDebug:
             # 检查是否可以发送任务（空闲状态）
             if not self.can_dispatch_to_m4():
                 Trace.log(
@@ -2636,9 +2391,11 @@ class CleanRobotManage:
                 return
 
             # 触发定时清洁任务
-            self._send_scheduled_clean_task()
-            self.scheduled_clean_triggered_today = True
-            Trace.log(f"[cleanRobotManage] Scheduled clean task triggered at {current_hour:02d}:{current_minute:02d}")
+            if self._send_scheduled_clean_task():
+                self.scheduled_clean_triggered_today = True
+                Trace.log(f"[cleanRobotManage] Scheduled clean task triggered at {current_hour:02d}:{current_minute:02d}")
+            else:
+                Trace.log(f"[cleanRobotManage] Failed to trigger scheduled clean task at {current_hour:02d}:{current_minute:02d}")
 
     def _send_scheduled_clean_task(self):
         """
@@ -2651,27 +2408,32 @@ class CleanRobotManage:
         # 构造任务数据
         task = {
             "step_locations": step_locations,
-            "robot_name": ROBOT_NAME,
+            "robot_name": config_params.robot_name,
             "priority": 50,  # 定时任务使用中等优先级
             "task_id": f"scheduled_clean_{int(time.time())}"
         }
 
-        self.current_task = task
-        self.current_task_type = TaskType.CLEAN
 
         # 初始化区域状态
 
         # 构造并发送运单
         payload = self._build_simple_order(
             step_locations=step_locations,
-            robot_name=ROBOT_NAME,
+            robot_name=config_params.robot_name,
             priority=50
         )
         order_id = self.post_to_scheduler(payload)
-        self.current_order_id = order_id
-        self.erp_state = ERPState.TASK_RUNNING
-
-        Trace.log(f"[cleanRobotManage] Scheduled clean order sent: {order_id}")
+        if order_id:
+            self.current_task = task
+            self.current_task_type = TaskType.CLEAN
+            self.current_order_id = order_id
+            self.erp_state = ERPState.NORMAL
+            Trace.log(f"[cleanRobotManage] Scheduled clean order sent: {order_id}")
+            return True
+        else:
+            Trace.log(f"[cleanRobotManage] Failed to send scheduled clean order")
+            Navigation.setTaskError("HTTP-M4-ERROR",f"send scheduled clean order failed, please check: 1. IP and port are correct. 2. M4 server is running. 3. Network connection is stable. 4.token is correct.")
+            return False
 
     # ============================================================
     #  上报信息
@@ -2679,6 +2441,7 @@ class CleanRobotManage:
 
     def update_report_info(self):
         soc = Battery.getPercentage()
+        current_task_step = self._get_current_task_step()
 
         self.report_info = {
             # 状态机
@@ -2700,9 +2463,6 @@ class CleanRobotManage:
             "auto_charge_sent": self.auto_charge_sent,
             "auto_water_sent": self.auto_water_sent,
 
-            # 任务队列
-            "roboshop_schedule_count": len(self.roboshop_schedule),
-
             # 当前路径
             "current_entrance": self.current_entrance,
             "current_exit": self.current_exit,
@@ -2711,15 +2471,12 @@ class CleanRobotManage:
             # 当前导航目标点
             "current_nav_target": self.current_nav_target,
 
-            # 原始站点列表（用于断点续传）
-            "original_step_locations": self.original_step_locations,
-            "remaining_step_locations": self.remaining_step_locations,
 
             # 区域状态
 
             # 当前任务
             "current_task_id": self.current_task.get("task_id", "") if self.current_task else "",
-            "current_task_step": 0,  # 原 current_step_index 从未被更新，始终为 0
+            "current_task_step": current_task_step,
             "current_task_total_steps": len(self.current_task.get("step_locations", [])) if self.current_task else 0,
             "current_task_locations": self.current_task.get("step_locations", []) if self.current_task else [],
 
@@ -2733,6 +2490,8 @@ class CleanRobotManage:
 
             # 运单
             "current_order_id": self.current_order_id,
+            "last_scheduler_error": self.last_scheduler_error,
+            "scheduler_retry_count": self.scheduler_retry_count,
 
             # 每日定时清洁任务
             "scheduled_clean_enabled": config_params.scheduled_clean_enabled,
@@ -2743,7 +2502,6 @@ class CleanRobotManage:
             # 时间
             "time": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
-
 
 # ============================================================
 #  主函数
@@ -2802,7 +2560,6 @@ def main():
 
     说明：
     - SendOrders 会保存原始站点列表到 original_step_locations 和 remaining_step_locations
-    - main循环中持续调用 _update_remaining_locations() 根据 Navigation.moveTask() 更新剩余站点
     - 当机器人从 AP2 前往 AP3 时 (source_name="AP2", target_name="AP3")
       remaining_step_locations 会更新为 ["AP2", "AP3", "AP4", "AP5"]
     - SendContinueOrders 直接使用 remaining_step_locations 发送运单
@@ -2814,10 +2571,13 @@ def main():
     Module.init()
     validator = ParamValidator(InputParams.builder.toDict())
     mgr = CleanRobotManage()
-
+    emc_manager = EmcManager(mgr)
+    isFirstRun= True
+    pre_water_level = -1
+    pre_waste_water_level = -1
+    pre_soc=-1
     while True:
         status = Module.getStatus()
-        print(f"---------------status{status}")
 
         # ============================================================
         # 每日定时清洁任务检查（每天8:00触发）
@@ -2828,105 +2588,53 @@ def main():
         current_date = now.strftime("%Y-%m-%d")
         current_hour = now.hour
         current_minute = now.minute
-        print(f"current_time: {current_date} , {current_hour} , {current_minute}")
 
         # ============================================================
         # 2. 机构周期性运行（更新液位等）
         # ============================================================
         # 说明：周期性更新机构状态、液位数据，并同步到RBK
-        mgr.mech.period_run()
-
-        # ============================================================
-        # 2.5 持续更新剩余站点列表（用于断点续传）
-        # ============================================================
-        # 说明：通过 Navigation.moveTask() 获取当前导航状态，
-        #       根据 source_name 实时更新 remaining_step_locations
-        #       这样中断后重新发送运单时，不会重复走过的站点
-        mgr._update_remaining_locations()
+        # mgr.period_run()
 
         # ============================================================
         # 3. 同步水位信息到管理类
         # ============================================================
         mgr.clean_water_level, mgr.waste_water_level = mgr.get_water_levels()
-
+        if pre_water_level != mgr.clean_water_level or pre_waste_water_level != mgr.waste_water_level:
+            Trace.log(f"[cleanRobotManage] Water levels updated: clean:{pre_water_level} -> {mgr.clean_water_level}, waste:{pre_waste_water_level} -> {mgr.waste_water_level}")
+            pre_water_level = mgr.clean_water_level
+            pre_waste_water_level = mgr.waste_water_level
         # ============================================================
-        # 4. 水位监控 - 污水满检测
+        # 4. 水位监控 - 污水满 或 清水不足检测
         # ============================================================
-        # 说明：当污水液位超过 max_waste_water_level 阈值时，
-        #       需要中断当前清洁任务，去充电桩排污
-        #
-        # 处理流程：
-        #   1. 调用 _interrupt_clean_for_priority_task("water_change") 中断清洁任务
-        #      该函数内部会：
-        #      - 保存断点信息（任务数据、当前位置、导航目标等）
-        #      - 关闭清洁机构 (调用 call_mech("WashEnd"))
-        #      - 取消当前运单 (调用 _cancel_current_order())
-        #      - 取消弓字形路径 (调用 _cancel_boustrophedon_path()，即 CancelCleanPath)
-        #   2. 发送换水运单到 M4 调度系统
-        #   3. 更新状态机
-        if mgr.waste_water_level > config_params.max_waste_water_level:
-            # 只有在执行清洁任务且尚未发送换水运单时才处理
-            if mgr.current_task_type == TaskType.CLEAN and not mgr.auto_water_sent:
-                Trace.log(
-                    f"[cleanRobotManage] Waste water full ({mgr.waste_water_level}%), interrupting for water change")
-
-                # 中断当前清洁任务并保存断点
-                if mgr._interrupt_clean_for_priority_task("water_change"):
-                    # 构造并发送换水运单
-                    payload = mgr.build_water_order_json()
-                    order_id = mgr.post_to_scheduler(payload)
-
-                    # 更新状态
-                    mgr.current_order_id = order_id
-                    mgr.auto_water_sent = True  # 标记已发送，防止重复发送
-                    mgr.current_task_type = TaskType.WATER_CHANGE
-                    mgr.vehicle_state = VehicleState.ADD_WATER
-                    mgr.erp_state = ERPState.TASK_RUNNING
-
-                    Trace.log(f"[cleanRobotManage] Water change order sent (waste water full), order_id={order_id}")
-
-        # ============================================================
-        # 5. 水位监控 - 清水不足检测
-        # ============================================================
-        # 说明：当清水液位低于 min_clean_water_level 阈值时，
-        #       需要中断当前清洁任务，去充电桩加水
-        #
-        # 处理流程与污水满检测相同
-        #TODO:可以和上面污水水位检测合并
-        elif mgr.clean_water_level < config_params.min_clean_water_level and mgr.clean_water_level != -1:
-            # 只有在执行清洁任务且尚未发送换水运单时才处理
-            # 注意：clean_water_level == -1 表示传感器未初始化，不处理
-            if mgr.current_task_type == TaskType.CLEAN and not mgr.auto_water_sent:
-                Trace.log(
-                    f"[cleanRobotManage] Clean water low ({mgr.clean_water_level}%), interrupting for water change")
-
-                # 中断当前清洁任务并保存断点
-                if mgr._interrupt_clean_for_priority_task("water_change"):
-                    # 构造并发送换水运单
-                    payload = mgr.build_water_order_json()
-                    order_id = mgr.post_to_scheduler(payload)
-
-                    # 更新状态
-                    mgr.current_order_id = order_id
-                    mgr.auto_water_sent = True
-                    mgr.current_task_type = TaskType.WATER_CHANGE
-                    mgr.vehicle_state = VehicleState.ADD_WATER
-                    mgr.erp_state = ERPState.TASK_RUNNING
-
-                    Trace.log(f"[cleanRobotManage] Water change order sent (clean water low), order_id={order_id}")
+        # 说明：clean_water_level == -1 表示传感器未初始化，不处理
+        waste_full = mgr.waste_water_level > config_params.max_waste_water_level
+        clean_low = mgr.clean_water_level < config_params.min_clean_water_level and mgr.clean_water_level != -1
+        if (waste_full or clean_low) and mgr.current_task_type == TaskType.CLEAN and not mgr.auto_water_sent:
+            water_reason = "waste water full" if waste_full else "clean water low"
+            Trace.log(f"[cleanRobotManage] Water change triggered ({water_reason}), interrupting for water change")
+            mgr._handle_cancel_clean_path("water_change")
 
         # ============================================================
         # 6. 电量监控（自动充电）
         # ============================================================
         # 说明：check_battery() 内部会：
-        #   - 检测电量是否低于 LOW_BATTERY_SOC (20%)
+        #   - 检测电量是否低于 config_params.low_battery_soc (20%)
         #   - 如果低于阈值且正在执行清洁任务：
         #     1. 调用 _interrupt_clean_for_priority_task("charge") 中断清洁
         #     2. 发送充电运单
-        #   - 检测电量是否高于 HIGH_BATTERY_SOC (90%)
+        #   - 检测电量是否高于 config_params.high_battery_soc (90%)
         #   - 如果高于阈值，重置 auto_charge_sent 标记
-        mgr.check_battery()
-
+        soc = Battery.getPercentage()
+        if soc < 0:
+            return
+        if pre_soc != soc:
+            Trace.log(f"[cleanRobotManage] Battery updated updated: {pre_soc} -> {soc}")
+            pre_soc = soc
+        if soc <= config_params.low_battery_soc and not mgr.auto_charge_sent:
+            Trace.log(f"[cleanRobotManage] Low battery ({soc}), interrupting for charge")
+            mgr._handle_cancel_clean_path("charge")
+        if soc >= config_params.high_battery_soc:
+            mgr.auto_charge_sent = False
         # ============================================================
         # 7. 急停状态检测和处理
         # ============================================================
@@ -2942,7 +2650,7 @@ def main():
         # 急停恢复时 (_on_emc_recovered) 会：
         #   - 根据急停前的状态恢复相应操作
         emc_status = Controller.getEmc()
-        mgr._handle_emc(emc_status)
+        emc_manager._handle_emc(emc_status)
 
         # ============================================================
         # 8. 检查是否可以恢复清洁任务（充电/换水完成后）
@@ -2951,7 +2659,7 @@ def main():
         #   1. 检查是否有保存的断点 (clean_checkpoint.has_checkpoint())
         #   2. 检查 ERP 状态是否为 IDLE（当前无任务执行）
         #   3. 根据中断原因检查恢复条件：
-        #      - charge: 电量 >= HIGH_BATTERY_SOC (90%)
+        #      - charge: 电量 >= config_params.high_battery_soc (90%)
         #      - water_change: 清水满 且 污水空
         #   4. 如果满足条件，调用 _resume_clean_task_from_checkpoint() 恢复任务
         #
@@ -2960,17 +2668,7 @@ def main():
         #   - 构造恢复任务（剩余站点列表）
         #   - 发送恢复运单到 M4 调度系统
         #   - 清除断点信息
-        #TODO:这部分可能是无用的，可以删除
         mgr._check_and_resume_clean_task()
-
-        # ============================================================
-        # 9. 更新ERP状态机
-        # ============================================================
-        # 说明：检查任务完成情况，自动切换状态
-        #   - TASK_RUNNING -> IDLE: 当任务完成时
-        #   - ERROR: 需要人工干预，不自动转换
-        # TODO:erp相关需要检查后删除
-        mgr._erp_state_update()
 
         # ============================================================
         # 10. 更新车辆状态机
@@ -2983,41 +2681,26 @@ def main():
         #   - CLEAN + 其他路径状态 -> NAVIGATING
         mgr._vehicle_state_update()
 
-        # ============================================================
-        # 11. 派发定时清洁任务
-        # ============================================================
-        # 说明：从任务队列中取出到期的任务并发送到 M4 调度系统
-        #   - 只有在 can_dispatch_to_m4() 返回 True 时才派发
-        #   - 即 ERP 状态为 IDLE
-        # TODO:此部分内容检查后可以删除
-        if mgr.can_dispatch_to_m4():
-            mgr.dispatch_clean_task_if_needed()
-
         if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
             input_params = Module.getTaskArgs()
-            print("task args:", json.dumps(input_params, indent=2))
             validated_params = {}
             if input_params:
                 try:
                     # 验证参数
                     validated_params = param_loader.loadInput(input_params)
-                    print("check ok, args:", json.dumps(validated_params, indent=2))
+                    if isFirstRun:
+                        isFirstRun = False
+                        Trace.log(f"[cleanRobotManage] First run, Parameter validation passed，validated_params={validated_params}")
+                        mgr.run(validated_params,True)
+                    else:
+                        mgr.run(validated_params,False)
                 except ValueError as e:
-                    print("check error:", e)
-                    Abnormal.setTask(53780, f"Input error:{e}", "some input params are not valid",
-                                     "check the input params", "input check")
-            print(f"validated_params={validated_params}")
-            mgr.run(validated_params)
-            # 机构周期性运行（更新液位等）
-            mgr.mech.period_run()
-            soc = Battery.getPercentage()
-            # 同步水位信息到管理类
-            mgr.clean_water_level, mgr.waste_water_level = mgr.get_water_levels()
-            print(f"{mgr.clean_water_level=},{mgr.waste_water_level=}")
-            print(f"{soc=}")
-
+                    Trace.log(f"[cleanRobotManage] Parameter validation failed,Current parameters={input_params},error: {e}")
+                    Navigation.setTaskError("args error",f"input args error:{e}")
+                    self.action_status = ScriptStatus.FAILED
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            mgr.mech.reset_state()
+            isFirstRun = True
+            mgr.reset_state()
 
         # ============================================================
         # 12. 更新并上报状态信息
