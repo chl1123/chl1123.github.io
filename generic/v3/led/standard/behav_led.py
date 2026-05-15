@@ -454,15 +454,8 @@ class Dmx512NativeBehav:
         if _percentage == 0.0:
             return False
         try:
-            state_raw = self._rpc.call("getState")
-            if isinstance(state_raw, dict):
-                state_dict = state_raw
-            else:
-                return False
-            device_status = state_dict.get("deviceStatus")
-            if not isinstance(device_status, dict):
-                return False
-            return "Battery-000" in device_status
+            battery_keys = RobotParam.getDeviceList("Battery")
+            return battery_keys is not None and len(battery_keys) > 0
         except Exception:
             return False
 

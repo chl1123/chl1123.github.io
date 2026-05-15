@@ -29,6 +29,10 @@ class RobotParamV3(RobotParamInterface):
         return value
 
     @classmethod
+    def getDeviceList(cls, device_key: str) -> List[str]:
+        return cls.client().call_service("Robot", "getDeviceList", device_key)
+
+    @classmethod
     def getDeviceCloneSize(cls, device_key: str, param_path: str) -> int:
         return cls.getDevice(device_key, param_path+"._(size", 0)
 
