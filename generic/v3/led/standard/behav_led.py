@@ -735,7 +735,7 @@ class Dmx512NativeBehav:
         try:
             while True:
                 self.tick()
-                time.sleep(0.1)
+                time.sleep(1)
         finally:
             self._rpc.call("setLedDmxEnabled", False)
             _trace_log("task end script=behav_led", name=LOG_MODULE)
