@@ -1,8 +1,7 @@
 import json
 import logging
-import queue
 import threading
-from typing import Union, Optional
+from typing import Optional, Union
 
 import zmq
 
@@ -12,72 +11,106 @@ from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse
 log = logging.getLogger("rbk.script")
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
 
-
-class ResultEvent(threading.Event):
-    def __init__(self):
-        super().__init__()
-        self.result = None  # 添加 result 属性
+_RPC_RECV_TIMEOUT_MS = 3000
 
 
 class ZmqClient:
+    """同步 ZMQ REQ 客户端（线程安全）。
+
+    REQ socket 同步往返，用 lock 串行；超时后自动重建 socket。
+    """
+
     def __init__(self, identity: Optional[str] = None):
+        self._identity = identity
+        self._addr: Optional[str] = None
+        self._lock = threading.Lock()
+        self._closed = False
+
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        if identity:
-            self.socket.setsockopt(zmq.IDENTITY, ("py::" + identity).encode("utf-8"))
-        else:
-            # 随机标识符
-            self.socket.setsockopt(zmq.IDENTITY, ("py::" + str(id(self))).encode("utf-8"))
-
+        self.socket: Optional[zmq.Socket] = None
         self.poller = zmq.Poller()
-        self.poller.register(self.socket, zmq.POLLIN)
+        self._open_socket()
 
-        self.stop_flag = threading.Event()  # 线程关闭标志
-        self.queue = queue.Queue()
-        self.worker_thread = threading.Thread(target=self.worker, name="ZmqClient", daemon=True)
-        self.worker_thread.start()
-        self.addr = PYTHON_CPP_IPC
+    def _identity_bytes(self) -> bytes:
+        if self._identity:
+            return ("py::" + self._identity).encode("utf-8")
+        return ("py::" + str(id(self))).encode("utf-8")
 
-    def __del__(self):
-        self.close()
+    def _open_socket(self):
+        sock = self.context.socket(zmq.REQ)
+        sock.setsockopt(zmq.IDENTITY, self._identity_bytes())
+        sock.setsockopt(zmq.LINGER, 0)
+        self.socket = sock
+        self.poller.register(sock, zmq.POLLIN)
+        if self._addr:
+            sock.connect(self._addr)
 
-    def close(self):
-        log.debug("ZmqClient close the socket")
-        self.stop_flag.set()
-        self.queue.put((None, None))
-        if self.socket:
-            self.socket.close()
-        self.context.term()
+    def _reset_socket(self):
+        if self.socket is not None:
+            try:
+                self.poller.unregister(self.socket)
+            except Exception:
+                pass
+            try:
+                self.socket.close(linger=0)
+            except Exception:
+                pass
+            self.socket = None
+        self._open_socket()
 
     def connect(self, addr: str):
-        self.socket.connect(addr)
+        with self._lock:
+            self._addr = addr
+            self.socket.connect(addr)
 
-    def putQueue(self, data: JSONRPCRequest, event: ResultEvent):
-        # 将请求放入队列，并传入事件对象
-        self.queue.put((data, event))
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
-    def recv(self):
-        return self.socket.recv()
-
-    def worker(self):
-        while not self.stop_flag.is_set():
+    def close(self):
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            log.debug("ZmqClient close the socket")
+            if self.socket is not None:
+                try:
+                    self.poller.unregister(self.socket)
+                except Exception:
+                    pass
+                try:
+                    self.socket.close(linger=0)
+                except Exception:
+                    pass
+                self.socket = None
             try:
-                data, event = self.queue.get(timeout=1)
-                self.socket.send(data.to_json().encode('utf-8'))  # 发送数据
-                # 利用 self.poller.poll(3000) 对发送的数据进行轮询，等待最多 3000 毫秒
-                events = dict(self.poller.poll(3000))
-                # 如果 socket 在从 poll 返回的事件中，则表示收到了响应
-                if self.socket in events:
-                    response = self.recv()
-                    event.result = response
-                    event.set()
-                else:  # 3秒内没有收到响应（即 socket 不在从 poll 返回的事件中）
-                    event.result = None
-                    event.set()
-                    self.stop_flag.set()
-            except queue.Empty:
-                continue
-        log.debug("ZmqClient worker exit")
+                self.context.term()
+            except Exception:
+                pass
+
+    def send_recv(self, payload: bytes, timeout_ms: int = _RPC_RECV_TIMEOUT_MS) -> Optional[bytes]:
+        """同步发送并接收响应。超时或 socket 异常时返回 None 并重建 socket。"""
+        with self._lock:
+            if self._closed or self.socket is None:
+                return None
+            try:
+                self.socket.send(payload)
+            except zmq.ZMQError:
+                self._reset_socket()
+                return None
+
+            events = dict(self.poller.poll(timeout_ms))
+            if self.socket in events:
+                try:
+                    return self.socket.recv()
+                except zmq.ZMQError:
+                    self._reset_socket()
+                    return None
+            # 超时：REQ socket 已进入坏状态，必须重建以恢复后续调用
+            self._reset_socket()
+            return None
 
 
 class RpcClient:
@@ -98,7 +131,10 @@ class RpcClient:
             RpcClient._initialized = True
 
     def __del__(self):
-        self.close()
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def close(self):
         self.zmq_client.close()
@@ -126,26 +162,21 @@ class RpcClient:
         setattr(self, function, _func)
         return _func
 
-    # 提取公共的部分为方法
     def handle_request(self, method: str, params: Union[list, dict]):
         request = JSONRPCRequest(method, params)
-        event = ResultEvent()
-        # 将请求放入队列，并传入事件对象
-        self.zmq_client.putQueue(request, event)
-        # log.debug("req => %s", request.to_json())
-        # 阻塞等待，直到工作线程处理完成并调用 event.set() 或 超时，避免无限等待
-        if not event.wait(timeout=5):  # 设置适当的超时时间
-            raise TimeoutError(f"Call RBK wait timeout, check whether RBK is running, {request.to_json()=}")
-        # event.result 不为空，表示收到响应
-        if event.result:
-            response_json = json.loads(event.result.decode())
-            response = JSONRPCResponse.parse(response_json)
-            if response.has_error():
-                raise Exception(response_json)
+        payload = request.to_json().encode("utf-8")
+        result = self.zmq_client.send_recv(payload)
+        if result is None:
+            raise TimeoutError(
+                f"Call RBK timeout, check whether RBK is running, {request.to_json()=}"
+            )
+        response_json = json.loads(result.decode())
+        response = JSONRPCResponse.parse(response_json)
+        if response.has_error():
+            raise Exception(response_json)
+        if log.isEnabledFor(logging.DEBUG):
             log.debug("res <= %s", response.get_print())
-            return response.get_result()
-        else:  # event.result 为 None
-            raise TimeoutError(f"Call RBK result Timeout, check whether RBK is running, {request.to_json()=}")
+        return response.get_result()
 
 
 if __name__ == "__main__":
@@ -160,14 +191,14 @@ if __name__ == "__main__":
     #     print("msgBattery ", client.get_message("rbk.protocol.msgBattery", "RBKSim"))
     #     time.sleep(1)
 
-    # 模拟RBK RPC Client
+    # 模拟 RBK RPC Client
     client = RpcClient("ipc:///tmp/cpp2broker.ipc")
 
     # print("client.start() ", client.call_service("broker", "start", "tasks/chl/get_script_data.py"))
     # print("client.stop() ", client.call_service("broker", "stop", "tasks/chl/get_script_data.py"))
     print("client.update_cmd() ", client.call_service(
         "tasks/v3/standard/example/jack_params.py",
-               "update_cmd",
+        "update_cmd",
         {
             "args": {
                 "operation": "load",
