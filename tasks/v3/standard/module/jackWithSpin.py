@@ -2063,7 +2063,8 @@ class Jack(ModuleBase):
 
     def set_vda_param(self):
         # VDA下发的参数
-        self.action_parameters = self.task_args.get("action_parameters", None)
+        if self.task_args:
+            self.action_parameters = self.task_args.get("action_parameters", None)
 
     def get_lm(self):
         debug_trace("getLM start", name="jack")
@@ -2905,7 +2906,7 @@ class Jack(ModuleBase):
         在导航过程中慢慢把顶升电机降下来
         """
 
-        self.set_info()  # 更新状态信息
+        # self.set_info()  # 更新状态信息
 
         self.report_info['preActionMode'] = True
         self.report_info['preActionCompleted'] = self.pre_action_completed
@@ -4375,7 +4376,7 @@ def main():
         status = j.status
         Module.setStatus(status)
         # 打印数据
-        j.set_info()
+        # j.set_info()
 
         # 脚本任务状态管理
         if j.event_safe_move_check:
