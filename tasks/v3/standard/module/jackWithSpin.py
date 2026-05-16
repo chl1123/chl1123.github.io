@@ -12,7 +12,7 @@ from syspy.utils.time import Timer
 
 from datetime import datetime
 
-from syspy import (Module, Logger, Motor, Navigation, Loc, Recognize,
+from syspy import (Module, Motor, Navigation, Loc, Recognize,
                    CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
@@ -21,8 +21,6 @@ from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, Sc
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot import RobotParam
 from syspy.utils import Coordinate
-
-log = Logger("jack")
 
 
 # ============================================================================
