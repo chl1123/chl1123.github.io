@@ -212,7 +212,7 @@ class ConfigParams:
     @classmethod
     def reload_config(cls):
         """重新加载配置参数"""
-        Trace.log("Reloading config parameters")
+        Trace.log("Reloading config parameters", name="fork.cfg")
         cfg = param_loader.loadConfig()
         cls.config = cfg
 
@@ -220,7 +220,7 @@ class ConfigParams:
         cls.timeout = cfg.get("timeout", 120.0)
         cls.scriptDebug = cfg.get("scriptDebug", False)
         if cls.scriptDebug:
-            Trace.log(f"Loaded config: {cls.config}")
+            Trace.log(f"Loaded config: {cls.config}", name="fork.cfg")
 
         # --- fork
         cls.upMaxSpeedWithGoods = cfg.get("upMaxSpeedWithGoods")
@@ -281,7 +281,7 @@ class ConfigParams:
         cls._build_module_motor()
 
         if cls.scriptDebug:
-            Trace.log(f"Updated config: {cls.config}")
+            Trace.log(f"Updated config: {cls.config}", name="fork.cfg")
 
     # 从设备模型文件中获取的参数
     @classmethod
@@ -319,7 +319,7 @@ class ConfigParams:
 
         # 如果是搬运车，需要判断一下是否是变轴距的车
         if cls.module_type == "liftFork":
-            Trace.log(f"chassis_type:{cls.chassis_type}")
+            Trace.log(f"chassis_type:{cls.chassis_type}", name="fork.cfg")
             if cls.chassis_type in ("variableWheelbaseSingleStandardSteer", "variableWheelbaseSingleDifferentialSteer"):
                 cls.base_shift = True
                 ConfigParams.base_shift_length = float(
@@ -1151,7 +1151,7 @@ def set_deduct_area(area_infos, base_pos, prefix: str, coordinate):
 
             # 区域合法性检查
             if len(x_coords) < 3 or len(x_coords) != len(y_coords):
-                Trace.log(f"skip invalid area idx={area_idx}, device={devices}")
+                Trace.log(f"skip invalid area idx={area_idx}, device={devices}", name="fork.cfg")
                 continue
 
             region_name = f"{prefix}{info_idx + 1}_{area_idx}"
@@ -1163,7 +1163,7 @@ def set_deduct_area(area_infos, base_pos, prefix: str, coordinate):
                 coordinate,
             )
 
-            Trace.log(f"set clear region: {region_name}, devices={devices}")
+            Trace.log(f"set clear region: {region_name}, devices={devices}", name="fork.task")
 
 
 def get_deduct_area(recfile):
@@ -1223,7 +1223,7 @@ def get_deduct_area(recfile):
         if devices and areas:
             result.append({"deduct_device": devices, "areas": areas})
 
-    Trace.log(f"pallet_deduct_infos: {result}")
+    Trace.log(f"pallet_deduct_infos: {result}", name="fork.cfg")
     return result
 
 
@@ -1271,16 +1271,16 @@ def get_rec_side_info(recfile, rec_side):
         rec_info = next((s for s in rec_sides if s["side_value"] == rec_side), None)
         if rec_info is None:
             Navigation.setTaskError("RecSideError", f"Recognition side {rec_side} is not match in {recfile}, script failed")
-            Trace.log(f"input rec_side:{rec_side}, rec_info: None, rec_sides:{rec_sides}")
+            Trace.log(f"input rec_side:{rec_side}, rec_info: None, rec_sides:{rec_sides}", name="fork.err")
             return None
     else:
         if len(rec_sides) == 0:
             Navigation.setTaskError("RecSideError", f"RecSide is not config in {recfile}, script failed")
-            Trace.log(f"no rec side in {recfile}", True, True)
+            Trace.log(f"no rec side in {recfile}", output_console=True, output_time=True, name="fork.err")
             return None
         rec_info = rec_sides[0]
 
-    Trace.log(f"input rec_side:{rec_side}, rec_info:{rec_info}, rec_sides:{rec_sides}")
+    Trace.log(f"input rec_side:{rec_side}, rec_info:{rec_info}, rec_sides:{rec_sides}", name="fork.cfg")
     return rec_info
 
 
@@ -1343,28 +1343,11 @@ def convex_hull(points1, points2=None, points3=None):
     return [{"x": x, "y": y} for x, y in hull]
 
 
-def _flat_attrs(action, idx1: int):
-    """把 action 展平为 {1.Class.attr: value, ...}"""
-    snap = {}
+def _action_chart_dict(action, idx: int) -> dict:
+    """把 action._trace_state() 加上前缀 action.{idx}.{cls}. 用于 Trace.chart"""
     cls = action.__class__.__name__
-    for name in dir(action):
-        if name.startswith("_"):
-            continue
-        try:
-            val = getattr(action, name)
-            if not callable(val):
-                # 尝试序列化，不行就转成 str
-                try:
-                    # 尝试序列化
-                    json.dumps(val)
-                    safe_val = val
-                except TypeError:
-                    # 序列化失败就转字符串
-                    safe_val = str(val)
-                snap[f"action.{idx1}.{cls}.{name}"] = safe_val
-        except Exception:
-            pass
-    return snap
+    state = action._trace_state() if hasattr(action, "_trace_state") else {}
+    return {f"action.{idx}.{cls}.{k}": v for k, v in state.items()}
 
 
 class Fork(ModuleBase):
@@ -1476,6 +1459,10 @@ class Fork(ModuleBase):
         self.save_interval = 5  # 写数据库时间
         Container.initContainer(0)
 
+        # 周期循环日志守卫状态
+        self._last_fork_moving_state = None  # 记录上次 fork_is_moving 状态，变化时才打 log
+        self._last_set_fork_region_state = None  # 记录上次 set_fork_region_by_height 状态
+
     def run(self, args):
 
         if not self.init_args:
@@ -1488,7 +1475,7 @@ class Fork(ModuleBase):
             self.action_id = 0
             self.action_list = []
             self.min_safe_height = 0.0  # 每次新任务复位，_init_args 会重新解析
-            Trace.log(f"script args:{self.task_args}")
+            Trace.log(f"script args:{self.task_args}", name="fork.task")
             self._init_args()
 
         self._check_timeout()
@@ -1521,18 +1508,18 @@ class Fork(ModuleBase):
 
     def suspend(self):
         self.script_status = ScriptStatus.SUSPENDED
-        Trace.log("suspend")
+        Trace.log("suspend", name="fork.task")
 
     def resume(self):
         if self.script_status == ScriptStatus.SUSPENDED:
             self.script_status = ScriptStatus.RUNNING
-        Trace.log("resume")
+        Trace.log("resume", name="fork.task")
 
     def cancel(self):
         self.script_status = ScriptStatus.FAILED
         self.action_list[self.action_id].cancel()
         self.reset()
-        Trace.log("cancel")
+        Trace.log("cancel", name="fork.task")
         return
 
     def reset(self):
@@ -1579,7 +1566,7 @@ class Fork(ModuleBase):
         status = SafeMoveStatus.FINISHED
         self.setSafeMoveStatus(status)
         if ConfigParams.scriptDebug:
-            Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
+            Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}", name="fork.task")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
@@ -1587,24 +1574,24 @@ class Fork(ModuleBase):
         pos = [0, 0, 0, -1]
         tcp_name = ""
         station_id = self.move_task.get(station_type, "")  # int, 可能是 LM，可能是 AP
-        Trace.log(f"target id:{station_id}")
+        Trace.log(f"target id:{station_id}", name="fork.task")
         if station_id == "" and station_type == "targetName":
             # task_args 里已经是带前缀的字符串
             target_id_str = self.task_args.get("targetName", "")
             pos = Navigation.getLM(target_id_str, True)
             tcp_name = Navigation.getLmTcpName(target_id_str)
-            Trace.log(f"pos:{pos}, tcp name:{tcp_name}")
+            Trace.log(f"pos:{pos}, tcp name:{tcp_name}", name="fork.task")
         elif station_id != "":
             # 尝试 AP 和 LM 两个前缀
 
             pos = Navigation.getLM(station_id, True)
             tcp_name = Navigation.getLmTcpName(station_id)
             if pos[3] != -1:  # 找到有效结果
-                Trace.log(f"id_str:{station_id}, id:{station_id}, pos:{pos} tcp name:{tcp_name}")
+                Trace.log(f"id_str:{station_id}, id:{station_id}, pos:{pos} tcp name:{tcp_name}", name="fork.task")
                 return pos, tcp_name  # 优先返回成功的结果
 
             # 如果走到这里，说明 AP 和 LM 都失败了
-            Trace.log(f"{station_id} not found, return {pos}")
+            Trace.log(f"{station_id} not found, return {pos}", name="fork.err")
         return pos, tcp_name
 
     def test(self):
@@ -1619,7 +1606,7 @@ class Fork(ModuleBase):
             self.operation_init = True
             r_loc = get_r_loc()
             source_pos = self.get_station_pos("sourceName")[0]
-            Trace.log(f"source_pos:{source_pos},recfile:{self.recfile}")
+            Trace.log(f"source_pos:{source_pos},recfile:{self.recfile}", name="fork.task")
             self.start_loc = r_loc if source_pos[3] == -1 else source_pos
             if (self.recognize and self.check_di) or (not self.recognize and ConfigParams.enableContactDiNoRec):
                 ConfigParams.checkGoodsWhileLoad = False
@@ -1682,7 +1669,7 @@ class Fork(ModuleBase):
                         ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"],
                                                  ap_world_pos_tcp["theta"]]
                         target_pos = ap_world_pos_tcp_list
-                        Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}")
+                        Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}", name="fork.task")
 
                         # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                         args = {
@@ -1732,7 +1719,7 @@ class Fork(ModuleBase):
                 else:
                     target2robot = pos2Base(self.target_pos, r_loc)
                     rec_center2robot = pos2World([ConfigParams.module_x, 0, 0], target2robot)
-                Trace.log(f"rec center to robot :{rec_center2robot}", True, True)
+                Trace.log(f"rec center to robot :{rec_center2robot}", output_console=True, output_time=True, name="fork.task")
 
                 # 先看识别文件是否有启用 back_dist，如果启用了，用识别文件的值，没启用的话，用设备模型中的值
                 if self.rec_info.get("enableBackDistance", 'off') != 'on':
@@ -1750,7 +1737,7 @@ class Fork(ModuleBase):
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.rec_height)
                     )
 
-            Trace.log(f"task:{self.action_list}", True, True)
+            Trace.log(f"task:{self.action_list}", output_console=True, output_time=True, name="fork.task")
 
         if self.action_id < len(self.action_list):
             # 如果有识别，识别结束后动态加调整的类
@@ -1760,14 +1747,14 @@ class Fork(ModuleBase):
                     and self.recognize):
                 self.check_di = self.rec_info.get("enableCargoContactDI")
 
-                Trace.log(f"add task list {self.action_list[self.action_id]},id {self.action_id}", True, True)
+                Trace.log(f"add task list {self.action_list[self.action_id]},id {self.action_id}", output_console=True, output_time=True, name="fork.task")
 
                 results = self.action_list[self.action_id].results_list
                 self.pallet_width = results[0]["palletWidth"]
                 rec_result_dict = results[0]
                 self.obstacle_polygon_by_rec = self.action_list[self.action_id].obstacle_polygon
 
-                Trace.log(f"carrier {self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}", True, True)
+                Trace.log(f"carrier {self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}", output_console=True, output_time=True, name="fork.task")
                 # # 拿到 y 最小的值
                 # results_in_r = []
                 # if self.rec_info.get("coordinateSystem") == Coordinate.WORLD.value:
@@ -1787,14 +1774,14 @@ class Fork(ModuleBase):
 
                 robotResult = rec_result_dict.get(f"robotResult", dict())
                 rec_robot_pos = [robotResult["x"], robotResult["y"], robotResult["yaw"]]
-                Trace.log(f"rec_world_pos: {rec_world_pos},robotResult:{rec_robot_pos}", True, True)
+                Trace.log(f"rec_world_pos: {rec_world_pos},robotResult:{rec_robot_pos}", output_console=True, output_time=True, name="fork.task")
 
                 if ConfigParams.enableTcp:
                     rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0], rec_world_pos[1], rec_world_pos[2],
                                                                "defaultTCP")
                     rec_world_pos_tcp_list = [rec_world_pos_tcp["x"], rec_world_pos_tcp["y"],
                                               rec_world_pos_tcp["theta"]]
-                    Trace.log(f"after tcp:{rec_world_pos_tcp_list}", True, True)
+                    Trace.log(f"after tcp:{rec_world_pos_tcp_list}", output_console=True, output_time=True, name="fork.task")
                     rec_world_pos = rec_world_pos_tcp_list
 
                 # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
@@ -1802,8 +1789,7 @@ class Fork(ModuleBase):
                     rec2ap_pos = pos2Base(rec_world_pos, self.target_pos)
                     angle = math.degrees(rec2ap_pos[2])
                     Trace.log(
-                        f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}",
-                        True, True)
+                        f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}", output_console=True, output_time=True, name="fork.task")
                     y = rec2ap_pos[1]
                     if abs(angle) > ConfigParams.errorRecAngle != -1:
                         Navigation.setTaskError("RecYError", f"rec result yaw angle too large:{angle}° from action point")
@@ -1821,7 +1807,7 @@ class Fork(ModuleBase):
                     "adjust_dist": ConfigParams.aheadDist,
                 }
                 method = ConfigParams.pathAdjustMode
-                Trace.log(f"method:{method}")
+                Trace.log(f"method:{method}", name="fork.task")
                 if method == "straightLine":
                     args["max_angle"] = ConfigParams.maxAngle
                 elif method == "bezier":
@@ -1833,7 +1819,7 @@ class Fork(ModuleBase):
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, ConfigParams.fork_max_speed,
                                        "upFork")
                 ])
-                Trace.log(f"task after rec:{self.action_list}", True, True)
+                Trace.log(f"task after rec:{self.action_list}", output_console=True, output_time=True, name="fork.task")
 
                 if self.leave_loc_height >= 0:
                     args = {
@@ -1863,7 +1849,7 @@ class Fork(ModuleBase):
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.leave_loc_height)
                     )
 
-                    Trace.log(f"task after leave loc:{self.action_list}", True, True)
+                    Trace.log(f"task after leave loc:{self.action_list}", output_console=True, output_time=True, name="fork.task")
 
             # 取完货后离库位前，抬升货叉就加载货物模型
             if (isinstance(self.action_list[self.action_id], RunMotorByPosition)
@@ -1924,7 +1910,7 @@ class Fork(ModuleBase):
                 ]
 
             self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height))
-            Trace.log(f"task:{self.action_list}")
+            Trace.log(f"task:{self.action_list}", name="fork.task")
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
@@ -1944,7 +1930,7 @@ class Fork(ModuleBase):
                 self.script_status = ScriptStatus.FAILED
                 return
             target_pos, tcp_name = self.get_station_pos("targetName")
-            Trace.log(f"target_pos: {target_pos}")
+            Trace.log(f"target_pos: {target_pos}", name="fork.task")
             if not target_pos or target_pos[3] == -1:
                 self.action_list = [
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,
@@ -1959,7 +1945,7 @@ class Fork(ModuleBase):
                                                               tcp_name)
                     ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"], ap_world_pos_tcp["theta"]]
                     target_pos = ap_world_pos_tcp_list
-                    Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}")
+                    Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}", name="fork.task")
 
                     # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                     args = {
@@ -2016,7 +2002,7 @@ class Fork(ModuleBase):
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.leave_loc_height)
                     )
 
-            Trace.log(f"task list: {self.action_list}")
+            Trace.log(f"task list: {self.action_list}", name="fork.task")
 
         if self.action_id < len(self.action_list):
             # 放完货就取消货物模型
@@ -2032,36 +2018,42 @@ class Fork(ModuleBase):
 
     def _execute_actions(self):
         if len(self.action_list) == 0:
-            Trace.log(f"no action found")
+            Trace.log(f"no action found", name="fork.err")
             return
 
         if self.action_id < len(self.action_list):
             self.current_action = self.action_list[self.action_id]
 
             if self.current_action.action_status == ActionStatus.FAILED:
+                Trace.log(f"execute {self.current_action.action_name} failed", output_console=True, output_time=True, name="fork.err")
                 Navigation.setTaskError("ExecuteActionError", f"execute action {self.current_action} failed!")
                 self.action_status = ActionStatus.FAILED
                 return
             elif self.current_action.action_status == ActionStatus.FINISHED:
-                Trace.log(f"execute {self.current_action.action_name} finished", True, True)
+                Trace.log(f"execute {self.current_action.action_name} finished", output_console=True, output_time=True, name="fork.action")
                 self.action_id += 1
             elif self.current_action.action_status == ActionStatus.INIT:
+                Trace.log(f"execute {self.current_action.action_name} start", output_console=True, output_time=True, name="fork.action")
                 self.current_action.reset()
             else:
                 self.current_action.run()
+            # action 状态推 chart（调用 _trace_state()）
             self.trace_chart.update(
-                _flat_attrs(self.current_action, idx1=self.action_id)
+                _action_chart_dict(self.current_action, self.action_id)
             )
         else:
             self.action_status = ActionStatus.FINISHED
-        self.trace_chart.update({
+
+        # script 状态独立 chart 通道
+        script_chart = {
             "script.task_len": len(self.action_list),
             "script.action_id": self.action_id,
-            "script.all_action_status": self.action_status,
-            "script.cur_action": self.current_action.action_name,
-            "script.cur_action_status": self.current_action.action_status,
-            "script.script_status": self.script_status
-        })
+            "script.all_action_status": int(self.action_status),
+            "script.cur_action": self.current_action.action_name if self.current_action else "",
+            "script.cur_action_status": int(self.current_action.action_status) if self.current_action else 0,
+            "script.script_status": int(self.script_status)
+        }
+        Trace.chart(script_chart, name="fork.script")
 
     def motor_jog_or_move(self, motor_type):
         """电机点动或长按操作"""
@@ -2143,8 +2135,8 @@ class Fork(ModuleBase):
              if p.get('key') == 'minSafeHeight'),
             0.0
         )
-        Trace.log(f"min_safe_height:{self.min_safe_height}")
-        Trace.log(f"move task:{self.move_task}")
+        Trace.log(f"min_safe_height:{self.min_safe_height}", name="fork.task")
+        Trace.log(f"move task:{self.move_task}", name="fork.task")
 
         self.recognize = any([input_recognize, movetask_recognize])
 
@@ -2164,14 +2156,14 @@ class Fork(ModuleBase):
                              {"x": -ConfigParams.tail, "y": self.outer},
                              {"x": -ConfigParams.tail, "y": self.inner},
                              {"x": ConfigParams.module_x, "y": self.inner}]
-        Trace.log(f"init args")
+        Trace.log("init args", name="fork.task")
         # self.opt = "rec"
         # Abnormal.setTask(53000, "test", "", "", "")
 
     def _check_timeout(self):
         self.script_runtime = time.time() - self.start_time
         if self.script_runtime > ConfigParams.timeout:
-            Trace.log(f"script timeout:{ConfigParams.timeout}")
+            Trace.log(f"script timeout:{ConfigParams.timeout}", name="fork.err")
             Navigation.setTaskError("ScriptTimeout", f"script timeout:{ConfigParams.timeout}, script failed")
             self.script_status = ScriptStatus.FAILED
             self.action_list[self.action_id].cancel()
@@ -2212,7 +2204,7 @@ class Fork(ModuleBase):
             try:
                 motor["currentPosition"] = round(Motor.getMotorPos(motor["motorKey"]), 3)
             except Exception as e:
-                Trace.log(f"Failed to get motor position for {motor['motorKey']}: {e}")
+                Trace.log(f"Failed to get motor position for {motor['motorKey']}: {e}", name="fork.err")
 
         self.trace_chart.update({
             "forkHeight": fork_height,  # 货叉高度, 单位 m
@@ -2225,7 +2217,7 @@ class Fork(ModuleBase):
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.reportInfo(self.trace_chart)
-        Trace.chart(self.trace_chart, False)
+        Trace.chart(self.trace_chart, name="fork.motor") # todo periodrun怎么写name
 
         # 根据变动量记录货叉的里程数据
         if self.last_pos is not None:
@@ -2268,35 +2260,38 @@ class Fork(ModuleBase):
                             and self.current_action.action_status == ActionStatus.RUNNING
                     )
                     if 0 < self.min_safe_height <= fork_height and fork_is_moving:
-                        Trace.log(
-                            f"fork moving, height:{fork_height} >= min_safe_height:{self.min_safe_height}, skip back laser collision detection")
+                        # 只在状态首次变化时打 log
+                        if self._last_fork_moving_state != True:
+                            self._last_fork_moving_state = True
+                            Trace.log(
+                                f"fork moving, height:{fork_height} >= min_safe_height:{self.min_safe_height}, skip back laser collision detection", name="fork.task")
                     else:
+                        if self._last_fork_moving_state != False:
+                            self._last_fork_moving_state = False
                         Navigation.collisionDetection(collision_device, x_list, y_list)
 
             # 堆高车处理后激光的屏蔽
-            if Loc.getLocState() == 1:
-                # if ConfigParams.scriptDebug:
-                #     Trace.log(
-                #         f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}")
-                if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
-                    self.set_fork_region_by_height = True
-                    self.clear_fork_region_by_height = False
-                    # Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
-                    #                           [p["y"] for p in self.points_left],
-                    #                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                    Navigation.setClearRegion(self.back_laser_clear_region_name, [p["x"] for p in self.fork_points],
-                                              [p["y"] for p in self.fork_points],
-                                              [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                    Trace.log(f"set clear region:{self.back_laser_clear_region_name},{self.fork_points}")
+            # if Loc.getLocState() == 1:
+            if ConfigParams.scriptDebug:
+                Trace.log(
+                    f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}", name="fork.task")
+            if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
+                self.set_fork_region_by_height = True
+                self.clear_fork_region_by_height = False
+                # Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
+                #                           [p["y"] for p in self.points_left],
+                #                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                Navigation.setClearRegion(self.back_laser_clear_region_name, [p["x"] for p in self.fork_points],
+                                          [p["y"] for p in self.fork_points],
+                                          [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                Trace.log(f"set clear region:{self.back_laser_clear_region_name},{self.fork_points}", name="fork.task")
 
-                elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
-                    self.clear_fork_region_by_height = True
-                    self.set_fork_region_by_height = False
-                    Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
+            elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
+                self.clear_fork_region_by_height = True
+                self.set_fork_region_by_height = False
+                Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
 
-                    Trace.log(f"delete clear region:{self.back_laser_clear_region_name},{self.fork_points}")
-
-                    # Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
+                Trace.log(f"delete clear region:{self.back_laser_clear_region_name},{self.fork_points}", name="fork.task")
 
         # 处理载货时di状态监控
         if ConfigParams.checkGoodsWhileLoad:
@@ -2342,7 +2337,7 @@ class Fork(ModuleBase):
             #     self.script_status = ScriptStatus.FAILED
             #     return
             self.target_pos, tcp_name = self.get_station_pos("targetName")
-            Trace.log(f"target_pos: {self.target_pos}", True, True)
+            Trace.log(f"target_pos: {self.target_pos}", output_console=True, output_time=True, name="fork.task")
             #
             # self.action_list = [
             #     RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)
@@ -2358,7 +2353,7 @@ class Fork(ModuleBase):
                                                               tcp_name)
                     ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"], ap_world_pos_tcp["theta"]]
                     self.target_pos = ap_world_pos_tcp_list
-                    Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}", True, True)
+                    Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}", output_console=True, output_time=True, name="fork.task")
 
                     # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
                     args = {
@@ -2379,7 +2374,7 @@ class Fork(ModuleBase):
                 self.action_list.append(
                     GoPathWithContactDi(ConfigParams.contact_ids, self.target_pos, None, method, args,
                                         False))
-            Trace.log(f"task list: {self.action_list}", True, True)
+            Trace.log(f"task list: {self.action_list}", output_console=True, output_time=True, name="fork.task")
             self.action_list.append(Rec(self.recfile, -ConfigParams.tail, 0, ConfigParams.recRadius))
 
         # 识别结束后动态加调整的类
@@ -2389,13 +2384,13 @@ class Fork(ModuleBase):
                 and self.current_action.action_status == ActionStatus.FINISHED):
             # 计算出上料笼腿相对于下料笼顶的位置
             robot2pos = self.get_robot2target_pos(self.current_action.results_list)
-            Trace.log(f"robot2pos: {robot2pos},yaw: {math.degrees(robot2pos[2])}", True, True)
+            Trace.log(f"robot2pos: {robot2pos},yaw: {math.degrees(robot2pos[2])}", output_console=True, output_time=True, name="fork.task")
 
             if abs(math.degrees(robot2pos[2])) > 8 or abs(robot2pos[0]) > 0.2:
                 Navigation.setTaskError("CageTooFar", "cage too far from")
                 self.script_status = ScriptStatus.FAILED
                 return
-            Trace.log(f"cage_count:{self.cage_count}", True, True)
+            Trace.log(f"cage_count:{self.cage_count}", output_console=True, output_time=True, name="fork.task")
 
             if (abs(math.degrees(robot2pos[2])) <= 0.5 and abs(robot2pos[0]) <= 0.01 and abs(
                     robot2pos[1]) <= 0.01) or self.cage_count >= 2:
@@ -2406,7 +2401,7 @@ class Fork(ModuleBase):
                                          Rec(self.recfile, -ConfigParams.tail, 0, ConfigParams.recRadius)])
 
                 self.cage_count += 1
-            Trace.log(f"task list: {self.action_list},cage_count:{self.cage_count}", True, True)
+            Trace.log(f"task list: {self.action_list},cage_count:{self.cage_count}", output_console=True, output_time=True, name="fork.task")
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
             delete_deduct_area(["no_rec_deduct_pallet_area", "PalletRobotRegionByHeight"], Coordinate.ROBOT)
@@ -2500,7 +2495,7 @@ class Fork(ModuleBase):
         # bottom2top_pos = pos2Base([top_mid['x'], top_mid['y'], top_mid['yaw']], bottom_mid_offset)
 
         Trace.log(
-            f"top_mid:{top_mid},bottom_mid:{bottom_mid}, bottom_mid_offset:{bottom_mid_offset},bottom2top_pos: {robot2target_pos}")
+            f"top_mid:{top_mid},bottom_mid:{bottom_mid}, bottom_mid_offset:{bottom_mid_offset},bottom2top_pos: {robot2target_pos}", name="fork.task")
         return robot2target_pos
 
 
@@ -2519,6 +2514,10 @@ class BaseAction:
         self.action_state["action_runtime"] = time.time() - self.start_time
         self.action_state['action_name'] = self.action_name
         pass
+
+    def _trace_state(self) -> dict:
+        """返回用于 Trace.chart 的状态 dict。子类覆写扩展。"""
+        return {"action_status": int(self.action_status)}
 
     def reset(self):
         pass
@@ -2581,7 +2580,7 @@ class Rec(BaseAction):
             "radius": self.rec_radius,
             "shape": "circle"
         }
-        Trace.log(f"region: {self.region}")
+        Trace.log(f"region: {self.region}", name="fork.task")
 
     def run(self):
         if not self.init:
@@ -2608,7 +2607,7 @@ class Rec(BaseAction):
             self.results_list = results_list
             self.result = self.results_list[0]
 
-            Trace.log(f"rec_result_list: {self.results_list}")
+            Trace.log(f"rec_result_list: {self.results_list}", name="fork.cfg")
 
             self.action_status = ActionStatus.FINISHED
 
@@ -2620,7 +2619,7 @@ class Rec(BaseAction):
         rec_status = Recognize.getRecStatus()
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
-            Trace.log(f"raw results:{rec_result}")
+            Trace.log(f"raw results:{rec_result}", name="fork.cfg")
             return True, rec_status, rec_result
         elif rec_status in (-1, 3):
             if Timer.delay(0.05):
@@ -2630,17 +2629,25 @@ class Rec(BaseAction):
                     # Trace.log(f"raw results:{results}")
                     error_type = results["error"]
                     error_msg = results["logMsg"]
-                    Trace.log(f"error_type: {error_type}")
+                    Trace.log(f"error_type: {error_type}", name="fork.err")
                     self.action_status = ActionStatus.FAILED
                     Navigation.setTaskError("RecFailed", f"Recognition failed, the maximum number of retries exceeded")
                 else:
                     Recognize.resetRec()
         else:
-            Trace.log(f"recfile:{recfile}")
+            Trace.log(f"recfile:{recfile}", name="fork.task")
             Recognize.doRec(recfile, json.dumps(self.region))
 
             Timer.delay(0.05)
         return False, rec_status, list
+
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+            "attempts": self.attempts,
+            "success": self.success,
+            "rec_status": self.rec_status or 0,
+        }
 
 
 class GoPathWithContactDi(BaseAction):
@@ -2690,7 +2697,7 @@ class GoPathWithContactDi(BaseAction):
         self.policy["navigation.freeBypass"] = "off"
 
         target2robot = pos2Base(world_pos, get_r_loc())
-        Trace.log(f"go path with di target pos:{world_pos},args:{args}")
+        Trace.log(f"go path with di target pos:{world_pos},args:{args}", name="fork.task")
 
         if self.check_di:
             back_dist = args.get("back_dist", 0.0) + ConfigParams.forkDiDist
@@ -2705,7 +2712,7 @@ class GoPathWithContactDi(BaseAction):
                 target_pos = world_pos
             self.final_target = target_pos
 
-            Trace.log(f"go path with di target pos:{target_pos}")
+            Trace.log(f"go path with di target pos:{target_pos}", name="fork.task")
             self.back_args = {
                 'x': target_pos[0],
                 'y': target_pos[1],
@@ -2726,13 +2733,13 @@ class GoPathWithContactDi(BaseAction):
                                                       args["min_ahead_dist"], True,
                                                       None, 0.1, 0.3, 0.2, 0.5, args["max_curve"])
             self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
-            Trace.log(f"goBezier target pos:{self.final_target}")
+            Trace.log(f"goBezier target pos:{self.final_target}", name="fork.task")
 
         elif method == "straightLine":
             self.back_action = GoTwoStraightLine(world_pos, args["min_ahead_dist"], args["adjust_dist"],
                                                  back_dist, 0.2, args['max_angle'], 1)
             self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
-            Trace.log(f"twoStraightLine target pos:{self.final_target}")
+            Trace.log(f"twoStraightLine target pos:{self.final_target}", name="fork.task")
         else:
             Navigation.setTaskError("WrongGoPathMethod", f"wrong gopath method :{method}, script failed")
             self.action_status = ActionStatus.FAILED
@@ -2748,16 +2755,18 @@ class GoPathWithContactDi(BaseAction):
             if not self.init:
                 self.init = True
                 self.start_loc = get_r_loc()
-                Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}")
-
+                Trace.log(f"fork tip 2d laser:{ConfigParams.fork_tip_2D_lasers}", name="fork.task")
+                # if cal_dist(self.target_pos, self.start_loc) < 0.05:
+                #     self.action_status = ActionStatus.FINISHED
+                #     return
                 if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
                     for laser in ConfigParams.fork_tip_2D_lasers:
-                        Trace.log(f"set2DLaserWidth:{laser}")
+                        Trace.log(f"set2DLaserWidth:{laser}", name="fork.task")
                         Laser.set2DLaserWidth(laser, 0.05)
 
                 # 根据操作类型决定是否屏蔽叉尖 di sensor（从碰撞检测设备列表中移除）
                 Trace.log(
-                    f"fork tip di sensors:{ConfigParams.fork_tip_di_sensors}, fork_tip_di_ids:{self.fork_tip_di_ids}, operation_type:{self.operation_type}")
+                    f"fork tip di sensors:{ConfigParams.fork_tip_di_sensors}, fork_tip_di_ids:{self.fork_tip_di_ids}, operation_type:{self.operation_type}", name="fork.task")
                 should_shield_di = False
                 if ConfigParams.fork_tip_di_sensors:
                     if self.operation_type == "load":
@@ -2771,13 +2780,13 @@ class GoPathWithContactDi(BaseAction):
                     current_collision_device_str = (RobotParam.getConfig("navigation",
                                                                          "collisionDetection.detectionDevice"))
                     current_collision_device = current_collision_device_str.split(",")
-                    Trace.log(f"current_collision_device:{current_collision_device}")
+                    Trace.log(f"current_collision_device:{current_collision_device}", name="fork.task")
                     for di_sensor in ConfigParams.fork_tip_di_sensors:
                         if di_sensor in current_collision_device:
                             current_collision_device.remove(di_sensor)
                     current_collision_device_str = ",".join(current_collision_device)
                     self.policy["navigation.collisionDetection.detectionDevice"] = current_collision_device_str
-                    Trace.log(f"shielded fork tip di, new collision device:{current_collision_device_str}")
+                    Trace.log(f"shielded fork tip di, new collision device:{current_collision_device_str}", name="fork.task")
 
                 if self.obs_dist is not None:
                     self.policy['navigation.obstacleStop.obsStopUnload.obsStopDist'] = self.obs_dist
@@ -2795,7 +2804,7 @@ class GoPathWithContactDi(BaseAction):
                                                                         "collisionDetection.detectionDevice"))
                 unload_stop_dist = (RobotParam.getConfig("navigation", "obstacleStop.obsStopUnload.obsStopDist"))
                 Trace.log(
-                    f"policy :{self.policy},current_collision_device_change:{current_collision_device_change}, cur_unload_stop_dist:{unload_stop_dist}")
+                    f"policy :{self.policy},current_collision_device_change:{current_collision_device_change}, cur_unload_stop_dist:{unload_stop_dist}", name="fork.task")
 
             # 开始后退
             if self.back_action.action_status not in [ScriptStatus.FAILED, ScriptStatus.FINISHED, ActionStatus.FAILED,
@@ -2847,7 +2856,7 @@ class GoPathWithContactDi(BaseAction):
                                 Navigation.stopRobotNow()
                                 Navigation.setTaskError("ForkTipDiTrigger", f"unload fork tip di triggered, goods detected")
                                 self.di_triggered_stopped = True
-                                Trace.log(f"autoClearError: fork tip di triggered, stopped robot")
+                                Trace.log(f"autoClearError: fork tip di triggered, stopped robot", name="fork.err")
                             # 重置清除计时
                             self.di_clear_start_time = None
                     else:
@@ -2864,7 +2873,7 @@ class GoPathWithContactDi(BaseAction):
                                 Navigation.goPathParam(dict())  # 恢复路径规划
                                 self.di_triggered_stopped = False
                                 self.di_clear_start_time = None
-                                Trace.log(f"autoClearError: fork tip di cleared, resumed robot")
+                                Trace.log(f"autoClearError: fork tip di cleared, resumed robot", name="fork.task")
                         else:
                             # 正常运行中，清除计时
                             self.di_clear_start_time = None
@@ -2879,7 +2888,7 @@ class GoPathWithContactDi(BaseAction):
                             Navigation.stopRobotNow()
                             Navigation.setTaskError("UnloadTipDiFail", f"unload fork tip di triggered, fail task")
                             self.action_status = ActionStatus.FAILED
-                            Trace.log(f"failTask: fork tip di triggered, failed task")
+                            Trace.log(f"failTask: fork tip di triggered, failed task", name="fork.err")
                             return
                     else:
                         self.di_trigger_start_time = None
@@ -2967,6 +2976,16 @@ class GoPathWithContactDi(BaseAction):
         self.back_action.cancel()
         self.action_status = ActionStatus.FINISHED
 
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+            "di_status": self.di_status,
+            "di_triggered_stopped": self.di_triggered_stopped,
+            "set_policy": self.set_policy,
+            "clear_policy": self.clear_policy,
+            "goal": self.goal if isinstance(self.goal, list) else [],
+        }
+
 
 class LocDetectGoods(BaseAction):
     def __init__(self, loc_name: str, rec_file: str):
@@ -3033,6 +3052,13 @@ class LocDetectGoods(BaseAction):
     def reset(self):
         Recognize.resetRec()
         self.action_status = ActionStatus.RUNNING
+
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+            "rec_status": self.rec_status,
+            "rec_failed_time": self.rec_failed_time,
+        }
 
 
 class RunMotorByPosition(BaseAction):
@@ -3101,7 +3127,7 @@ class RunMotorByPosition(BaseAction):
             # 把目标位置先夹到最大最小区间
             min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             self.position = clamp(self.position, min_h, max_h)
-            Trace.log(f"position:{self.position}")
+            Trace.log(f"position:{self.position}", name="fork.task")
 
             # 仅对fork_motor_name进行超时检查
             if self.motor_name == ConfigParams.fork_motor_name:
@@ -3158,11 +3184,11 @@ class RunMotorByPosition(BaseAction):
                 if delta > 0 and ConfigParams.upDo:
                     # 上升运动，打开 upDo
                     Do.setDo(ConfigParams.upDo, ConfigParams.upDoStatus)
-                    Trace.log(f"fork moving up, set upDo:{ConfigParams.upDo} to {ConfigParams.upDoStatus}")
+                    Trace.log(f"fork moving up, set upDo:{ConfigParams.upDo} to {ConfigParams.upDoStatus}", name="fork.task")
                 elif delta < 0 and ConfigParams.downDo:
                     # 下降运动，打开 downDo
                     Do.setDo(ConfigParams.downDo, ConfigParams.downDoStatus)
-                    Trace.log(f"fork moving down, set downDo:{ConfigParams.downDo} to {ConfigParams.downDoStatus}")
+                    Trace.log(f"fork moving down, set downDo:{ConfigParams.downDo} to {ConfigParams.downDoStatus}", name="fork.task")
 
         # 检查超时（仅对fork_motor_name）
         if self.timeout is not None and (time.time() - self.start_time) > self.timeout:
@@ -3176,16 +3202,16 @@ class RunMotorByPosition(BaseAction):
             # 货叉运动结束，关闭对应 DO
             self._close_fork_dos()
 
-            Trace.log(f"agv has base shift:{ConfigParams.base_shift}")
+            Trace.log(f"agv has base shift:{ConfigParams.base_shift}", name="fork.task")
             if ConfigParams.base_shift and abs(self.position - ConfigParams.max_height) < EPS:
                 Navigation.wheelBaseShift(True)
                 # Navigation.setGoodsShape(1, 0.1, 1)
-                Trace.log(f"base shift true")
+                Trace.log(f"base shift true", name="fork.task")
             elif ConfigParams.base_shift and abs(self.position - ConfigParams.min_height) < EPS:
                 Navigation.wheelBaseShift(False)
                 # Navigation.clearGoodsShape()
 
-                Trace.log(f"base shift false")
+                Trace.log(f"base shift false", name="fork.task")
 
             self.action_status = ActionStatus.FINISHED
 
@@ -3231,6 +3257,14 @@ class RunMotorByPosition(BaseAction):
         self._close_fork_dos()
         self.action_status = ActionStatus.FAILED
 
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+            "is_reach": self.is_reach,
+            "cur_fork_height_at_init": self.cur_fork_height_at_init or 0.0,
+            "timeout": self.timeout or 0,
+        }
+
 
 class RunMotorBySpeed(BaseAction):
     def __init__(self, motor_name, max_speed, stop_di=""):
@@ -3260,6 +3294,12 @@ class RunMotorBySpeed(BaseAction):
     def reset(self):
         self.action_status = ActionStatus.INIT
         Motor.resetMotor(self.motor_name)
+
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+            "max_speed": self.max_speed,
+        }
 
 
 class RunMotorByDOInterlock(BaseAction):
@@ -3342,6 +3382,11 @@ class RunMotorByDOInterlock(BaseAction):
         Do.setDo(self.leak_do, False)
         Do.setDo(self.pump_do, False)
 
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+        }
+
 
 # 用于走直线
 class GoPath(BaseAction):
@@ -3361,7 +3406,7 @@ class GoPath(BaseAction):
                 "reachDist":0
                 }
         """
-        Trace.log(f"go path init")
+        Trace.log(f"go path init", name="fork.task")
 
     def run(self):
         self.action_status = ActionStatus.RUNNING
@@ -3406,7 +3451,7 @@ class GoPath(BaseAction):
                 if "maxRotDec" in args:
                     self.param["maxRotDec"] = float(args["maxRotDec"])
 
-                Trace.log(f"goal: {str(self.goal)}")
+                Trace.log(f"goal: {str(self.goal)}", name="fork.task")
                 if args["coordinate"] == "robot":
                     Navigation.setPathOnRobot([0, self.goal[0]], [0, self.goal[1]], self.goal[2])
                 elif args["coordinate"] == "world":
@@ -3431,12 +3476,18 @@ class GoPath(BaseAction):
 
     def reset(self):
         Navigation.resetPath()
-        Trace.log(f"reset path")
+        Trace.log(f"reset path", name="fork.task")
         self.action_status = ActionStatus.RUNNING
 
     def cancel(self):
         Navigation.resetPath()
         self.action_status = ActionStatus.FAILED
+
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+            "goal": self.goal if isinstance(self.goal, list) else [],
+        }
 
 
 class MoveChassisByY(BaseAction):
@@ -3493,7 +3544,7 @@ class MoveChassisByY(BaseAction):
                 "reachAngle": math.radians(0.5),
                 "reachDist": 0.005
             }
-            Trace.log(f"chassis args:{chassis_args}")
+            Trace.log(f"chassis args:{chassis_args}", name="fork.task")
             if self.x < 0:
                 chassis_args["backMode"] = 1
             self.chassis_move = GoPath(chassis_args)
@@ -3513,6 +3564,11 @@ class MoveChassisByY(BaseAction):
     def cancel(self):
         self.init = False
         self.action_status = ActionStatus.FAILED
+
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+        }
 
 
 class GoTwoStraightLine(BaseAction):
@@ -3560,7 +3616,7 @@ class GoTwoStraightLine(BaseAction):
         # 如果执行原路返回
         else:
             points = ScriptData.get('goTwoStraightLine').get('points', [])
-            Trace.log(f"points:{points}")
+            Trace.log(f"points:{points}", name="fork.task")
             if not points:
                 self.action_status = ActionStatus.FAILED
                 Navigation.setTaskError("NoRoute", "no route before leave loc, script failed")
@@ -3674,7 +3730,6 @@ class GoTwoStraightLine(BaseAction):
     def cal_angle(self, start_pos, end_pos):
         start2end = pos2Base(start_pos, end_pos)
         angle = math.degrees(math.atan2(start2end[1], start2end[0]))
-        Trace.log(f"angle:{angle}")
         return angle
 
     def search_min_angle_str(self, max_angle, step):
@@ -3700,6 +3755,12 @@ class GoTwoStraightLine(BaseAction):
     def cancel(self):
         Navigation.resetPath()
         self.action_status = ScriptStatus.FAILED
+
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+            "go_step": self.go_step if isinstance(self.go_step, list) else [],
+        }
 
 
 class ActionStatus(IntEnum):
@@ -3751,7 +3812,7 @@ def main():
             if not checked_args:
                 checked_args = True
                 f.init_args = False
-                Trace.log(f"check before, args:{input_params}")
+                Trace.log(f"check before, args:{input_params}", name="fork.task")
                 if args is None:
                     Navigation.setTaskError("ArgsIsNone", f"args is none,script failed")
                     f.script_status = ScriptStatus.FAILED
@@ -3760,9 +3821,9 @@ def main():
                         # 验证参数
                         args = validator.validate(input_params)
                         f.script_status = ScriptStatus.RUNNING
-                        Trace.log(f"check ok, args:{json.dumps(args, indent=2)}")
+                        Trace.log(f"check ok, args:{json.dumps(args, indent=2)}", name="fork.task")
                     except ValueError as e:
-                        Trace.log(f"check error:f{e}")
+                        Trace.log(f"check error:{e}", name="fork.err")
 
             if f.script_status in [ScriptStatus.FINISHED, ScriptStatus.FAILED] and checked_args:
                 keys_to_delete = [k for k in f.trace_chart if k.startswith("action.")]
@@ -3775,7 +3836,7 @@ def main():
                 validated_params = {}
                 delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
                 delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
-                Trace.log(f"script end, script_status: {f.script_status}")
+                Trace.log(f"script end, script_status: {f.script_status}", name="fork.task")
                 f.reset()
                 Module.setStatus(f.script_status)
                 continue
