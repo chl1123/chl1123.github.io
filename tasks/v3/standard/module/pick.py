@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/4/16
+# @Date : 2026/5/18
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : fix：修复读取背篓状态初始化
+# @Update : P300脚本最新改动适配
 
 import json
 import math
@@ -2816,12 +2816,23 @@ class RecShelf(BaseAction):
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
             Recognize.resetRec()
-            rec_x = rec_result['recoList'][0]['x']
-            rec_y = rec_result['recoList'][0]['y']
-            rec_yaw = rec_result['recoList'][0]['yaw']
+            reco_list = rec_result.get('recoList', [])
+            if not reco_list:
+                debug_trace("RecShelf: recoList empty, retrying")
+                self.do_rec = False
+                return
+            reco = reco_list[0]
+            if not reco.get('valid', False):
+                debug_trace("RecShelf: result invalid, retrying")
+                self.do_rec = False
+                return
+            world_result = reco.get('worldResult', {})
+            rec_x = world_result['x']
+            rec_y = world_result['y']
+            rec_yaw = world_result['yaw']
             rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
             j.rec_result = [rec_x, rec_y, rec_yaw]
-            j.matched_recfile = self.recfile  # 记录成功匹配的文件
+            j.matched_recfile = self.recfile
             debug_trace(f"RecShelf: 识别成功，匹配文件: {self.recfile}, 结果: {j.rec_result}")
             Trace.log(f"[RACK] 识别成功，匹配文件: {self.recfile}")
             self.action_status = ActionStatus.FINISHED
