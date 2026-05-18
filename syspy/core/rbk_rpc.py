@@ -49,12 +49,46 @@ class RpcClient:
 
 
 class V3RpcClient(RpcClient):
+    # get_message 路径选择：
+    #   "json"  — 原 JSON-RPC + protobuf JSON 双重序列化（baseline）
+    #   "raw"   — 独立 ZMQ 二进制通道，直传 protobuf binary（绕过 JSON-RPC 协议）
+    _MODE: str = "raw"
+    _bin_client = None  # lazy 初始化
+
     def __init__(self, script_id: str = "", script_type: ScriptType = ScriptType.GENERAL):
         super().__init__(script_id, script_type)
         from ..v3.lib.rpc import client  # v3专用实现
         self._impl = client.RpcClient(identity=script_id)
+        self._script_id = script_id
+        # 环境变量优先
+        import os as _os
+        env_mode = _os.environ.get("RBK_GETMSG_MODE", "").strip().lower()
+        if env_mode in ("json", "raw"):
+            V3RpcClient._MODE = env_mode
+
+    def _get_bin_client(self):
+        if V3RpcClient._bin_client is None:
+            from ..v3.lib.rpc import client
+            V3RpcClient._bin_client = client.BinMsgClient(identity=self._script_id)
+        return V3RpcClient._bin_client
 
     def get_message(self, topic: str, model_class: Type[message.Message], plugin: str = "RBKSim") -> message.Message:
+        # 纯二进制通道
+        if V3RpcClient._MODE == "raw":
+            try:
+                bin_data = self._get_bin_client().get_message(topic, plugin)
+                if bin_data is None:
+                    raise RuntimeError("BinMsgClient timeout/error")
+                if not bin_data:
+                    return None
+                msg = model_class()
+                msg.ParseFromString(bin_data)
+                return msg
+            except Exception:
+                V3RpcClient._MODE = "json"  # 降级
+        else:
+            V3RpcClient._MODE = "json"  # 降级
+
         response = self._impl.get_message(topic, plugin)
         return json_format.Parse(response, model_class(), ignore_unknown_fields=True)
 

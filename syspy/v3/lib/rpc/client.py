@@ -10,6 +10,7 @@ from syspy.lib.rpc.json_rpc import JSONRPCRequest, JSONRPCResponse
 
 log = logging.getLogger("rbk.script")
 PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
+PYTHON_CPP_BIN_IPC = "ipc:///tmp/python2cpp_binmsg.ipc"
 
 _RPC_RECV_TIMEOUT_MS = 3000
 
@@ -177,6 +178,107 @@ class RpcClient:
         if log.isEnabledFor(logging.DEBUG):
             log.debug("res <= %s", response.get_print())
         return response.get_result()
+
+
+class BinMsgClient:
+    """纯二进制消息通道客户端（独立 ZMQ REQ socket，连 C++ 端独立 binmsg ROUTER）。
+
+    协议：
+        请求: [topic_bytes][plugin_bytes]
+        响应: [protobuf_binary]   (空 bytes 表示无消息)
+    """
+
+    _instance_lock = threading.Lock()
+    _instance: "Optional[BinMsgClient]" = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = object.__new__(cls)
+        return cls._instance
+
+    def __init__(self, ipc: str = PYTHON_CPP_BIN_IPC, identity: Optional[str] = None):
+        if getattr(self, "_initialized", False):
+            return
+        self._initialized = True
+        self._lock = threading.Lock()
+        self._addr = ipc
+        self._identity = identity
+        self._closed = False
+        self.context = zmq.Context()
+        self.socket: Optional[zmq.Socket] = None
+        self.poller = zmq.Poller()
+        self._open_socket()
+
+    def _identity_bytes(self) -> bytes:
+        if self._identity:
+            return ("py-bin::" + self._identity).encode("utf-8")
+        return ("py-bin::" + str(id(self))).encode("utf-8")
+
+    def _open_socket(self):
+        sock = self.context.socket(zmq.REQ)
+        sock.setsockopt(zmq.IDENTITY, self._identity_bytes())
+        sock.setsockopt(zmq.LINGER, 0)
+        sock.connect(self._addr)
+        self.socket = sock
+        self.poller.register(sock, zmq.POLLIN)
+
+    def _reset_socket(self):
+        if self.socket is not None:
+            try:
+                self.poller.unregister(self.socket)
+            except Exception:
+                pass
+            try:
+                self.socket.close(linger=0)
+            except Exception:
+                pass
+            self.socket = None
+        self._open_socket()
+
+    def close(self):
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            if self.socket is not None:
+                try:
+                    self.poller.unregister(self.socket)
+                except Exception:
+                    pass
+                try:
+                    self.socket.close(linger=0)
+                except Exception:
+                    pass
+                self.socket = None
+            try:
+                self.context.term()
+            except Exception:
+                pass
+
+    def get_message(self, topic: str, plugin: str,
+                    timeout_ms: int = _RPC_RECV_TIMEOUT_MS) -> Optional[bytes]:
+        """返回 protobuf 二进制；无消息返回 b''；超时/异常返回 None。"""
+        with self._lock:
+            if self._closed or self.socket is None:
+                return None
+            try:
+                self.socket.send(topic.encode("utf-8"), zmq.SNDMORE)
+                self.socket.send(plugin.encode("utf-8"))
+            except zmq.ZMQError:
+                self._reset_socket()
+                return None
+
+            events = dict(self.poller.poll(timeout_ms))
+            if self.socket not in events:
+                self._reset_socket()
+                return None
+            try:
+                return self.socket.recv()
+            except zmq.ZMQError:
+                self._reset_socket()
+                return None
 
 
 if __name__ == "__main__":
