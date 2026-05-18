@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/15
+# @Date : 2026/5/18
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : feat：1. 适配doMotor顶升电机 2.统一日志记录规范 add: https://project.feishu.cn/seer_rd_center/rd_request_new/detail/6922661150
+# @Update : fix: 修复vda任务下发为空的报错
 
 import json
 import math
@@ -85,7 +85,7 @@ class JackCountManager(_SingletonDBManager):
                 self._db.add(self.KEY_TOTAL_COUNT, 0, False)
                 self._db.add(self.KEY_TODAY_COUNT, 0, False)
                 self._db.add(self.KEY_LAST_DATE, "", False)
-                debug_trace("JackCountManager: 数据库初始化完成", name="jack.cfg")
+                debug_trace("JackCountManager DB init done", name="jack.cfg")
         except Exception as e:
             Trace.log(f"JackCountManager DB init failed error={e}", name="jack.err")
             self._db = None
@@ -239,6 +239,8 @@ class ConfigParams:
     reset_by_speed = ""
     jack_up_di = ""
     jack_zero_di = ""
+    jack_up_do: str = ""
+    jack_down_do: str = ""
 
     if jack_motor_name and jack_motor_name.startswith("DOMotor"):
         DOMotor = True
@@ -1377,7 +1379,11 @@ class Jack(ModuleBase):
         # robotParam
         self.lift_motor = None
         debug_trace(
-            f"Jack init: motor={config_params.jack_motor_name}, height=[{config_params.jack_min_height}~{config_params.jack_max_height}]m, DI=[up:{config_params.jack_up_di}, zero:{config_params.jack_zero_di}]", name="jack.cfg")
+            f"Jack init motor={config_params.jack_motor_name} height=[{config_params.jack_min_height}~{config_params.jack_max_height}]m"
+            f" DOMotor={config_params.DOMotor}"
+            f" upDI={config_params.jack_up_di!r} zeroDI={config_params.jack_zero_di!r}"
+            f" enableDO={config_params.jack_up_do!r} reverseDO={config_params.jack_down_do!r}",
+            name="jack.cfg")
 
         self.status = ScriptStatus.NONE
 
@@ -2062,7 +2068,9 @@ class Jack(ModuleBase):
             self.action_list.append(RecTargetObs("laser1"))
 
     def set_vda_param(self):
-        # VDA下发的参数
+        if self.task_args is None:
+            self.action_parameters = None
+            return
         if self.task_args:
             self.action_parameters = self.task_args.get("action_parameters", None)
 
