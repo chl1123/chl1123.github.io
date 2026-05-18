@@ -19,7 +19,7 @@ class TraceV4(TraceInterface):
         cls.client().call_service("Trace", "traceChart", msg=msg, name=trace_name)
 
     @classmethod
-    def log(cls, msg: str, output_console: bool = True, output_time: bool = False, *, name: str = ""):
+    def log(cls, msg: str, output_console: bool = True, output_time: bool = False, *, name: str = "", debug: bool = False):
         if output_console:
             if output_time:
                 time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
@@ -27,4 +27,7 @@ class TraceV4(TraceInterface):
             else:
                 print("log:", msg)
         trace_name = f"log.{name}" if name else "log"
-        cls.client().call_service("Trace", "traceLog", msg=msg, name=trace_name)
+        if debug:
+            cls.client().call_service("Trace", "traceLogDebug", msg=msg, name=trace_name)
+        else:
+            cls.client().call_service("Trace", "traceLog", msg=msg, name=trace_name)
