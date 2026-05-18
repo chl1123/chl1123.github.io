@@ -2,7 +2,7 @@
 # @Date : 2026/5/18
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : fix: 修复vda任务下发为空的报错
+# @Update : fix: 1. 修复vda任务下发为空的报错 2. 空载行走对齐默认关闭 3. 部分配置参数ui修改为英文
 
 import json
 import math
@@ -223,7 +223,7 @@ class ConfigParams:
 
     # 顶升盘旋转配置
     jack_adjust_precision = 0.0174       # 弧度，默认1°
-    no_moving_jack_parallel = False      # 禁用空载行走对齐（圆形/小顶升盘）
+    no_moving_jack_parallel = True       # 禁用空载行走对齐（圆形/小顶升盘）
     can_rotate_under_shelf = False       # 顶升车在料架下能旋转
     jack_plate_shape = "rectangle"       # 顶升盘形状："rectangle" / "circle"
 
@@ -325,30 +325,30 @@ class ConfigParams:
             # ============================================
             # 顶升盘旋转配置组
             # ============================================
-            with builder.GROUP(key="jackRotationConfig", name="顶升盘旋转配置",
+            with builder.GROUP(key="jackRotationConfig", name="jackRotationConfig",
                                desc="顶升盘对齐、旋转相关参数"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="jackAdjustPrecision", name="顶升盘角度调整精度",
+                    with builder.CHILD(key="jackAdjustPrecision", name="jackAdjustPrecision",
                                        desc="顶升盘初始角度与目标角度相差小于此值则不调整"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("deg")
                         builder.SINGLESTEP(0.1)
-                    with builder.CHILD(key="noMovingJackParallel", name="禁用空载行走对齐",
+                    with builder.CHILD(key="noMovingJackParallel", name="noMovingJackParallel",
                                        desc="圆形或小顶升盘不需要对齐"):
                         builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="jackPlateShape", name="顶升盘形状",
+                        builder.DEFAULTVALUE(True)
+                    with builder.CHILD(key="jackPlateShape", name="jackPlateShape",
                                        desc="圆形顶升盘不需要旋转对齐"):
                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                         builder.DEFAULTVALUE("rectangle")
                         with builder.CHILDREN():
-                            with builder.CHILD("rectangle", "矩形", "矩形顶升盘"):
+                            with builder.CHILD("rectangle", "rectangle", "矩形顶升盘"):
                                 builder.TYPE(ParamType.STRING)
-                            with builder.CHILD("circle", "圆形", "圆形顶升盘"):
+                            with builder.CHILD("circle", "circle", "圆形顶升盘"):
                                 builder.TYPE(ParamType.STRING)
-                    with builder.CHILD(key="canRotateUnderShelf", name="顶升车在料架下能旋转",
+                    with builder.CHILD(key="canRotateUnderShelf", name="canRotateUnderShelf",
                                        desc="为true则顶升车在容器下面可以自由旋转，不会和料架腿碰撞。宽边进时需开启才会自动旋转90°"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
