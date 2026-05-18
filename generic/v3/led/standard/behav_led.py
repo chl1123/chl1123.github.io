@@ -152,9 +152,6 @@ class ConfigParams:
             with builder.GROUP(key="logic", name="Logic", desc="LED logic config"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="dmx_port", name="DMX port", desc="dmx串口"):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("/dev/RS485_0")
                     with builder.CHILD(key="resendIntervalSec", name="Resend Interval", desc="同一灯效周期性重发间隔(秒)"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0, min_value=0.0, max_value=30.0)
@@ -214,7 +211,6 @@ class ConfigParams:
     @classmethod
     def reload(cls) -> None:
         cfg = script_param.loadConfig()
-        cls.dmx_port = str(cfg.get("dmx_port", "/dev/RS485_0"))
         cls.resend_interval_sec = max(0.0, float(cfg.get("resendIntervalSec", 2.0)))
         cls.dmx_test_flag = bool(cfg.get("dmxTestFlag", False))
         cls.show_charging = bool(cfg.get("showCharging", True))
@@ -237,7 +233,6 @@ class ConfigParams:
 
         _trace_log(
             "config reload "
-            f"dmx_port={cls.dmx_port} "
             f"resend={cls.resend_interval_sec:.2f}s "
             f"test={cls.dmx_test_flag} charging={cls.show_charging} battery={cls.show_battery} "
             f"turn_pos={cls.turn_pos} turn_num={cls.turn_num} "
