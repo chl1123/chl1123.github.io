@@ -60,17 +60,9 @@ class ConfigParams:
     container_count = 0
     debug_mode = False
 
-    DEFAULT_TRAY_HEIGHTS = [
-        (0.400, 0.410),  # 0
-        (0.805, 0.815),  # 1
-        (1.210, 1.220),  # 2
-        (1.620, 1.630),  # 3
-        (2.040, 2.045),  # 4
-        (2.440, 2.445),  # 5
-        (2.945, 2.955),  # 6
-        (3.375, 3.385),  # 7
-        (3.825, 3.835),  # 8
-    ]
+    first_layer_low = 0.400
+    layer_spacing = 0.405
+    layer_height_diff = 0.010
 
     @staticmethod
     def get_container_count():
@@ -136,21 +128,34 @@ class ConfigParams:
                                desc="Backpack layer height parameters, Counted from No. 0"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
+                    with builder.CHILD(key="firstLayerLow", name="First Layer Low",
+                                       desc="Height of the first layer (No.0) low position"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(cls.first_layer_low)
+                    with builder.CHILD(key="layerSpacing", name="Layer Spacing",
+                                       desc="Height spacing between adjacent layers"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(cls.layer_spacing)
+                    with builder.CHILD(key="layerHeightDiff", name="Layer Height Diff",
+                                       desc="Height difference between low and high position of the same layer"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(cls.layer_height_diff)
                     for i in range(cls.container_count):
-                        default_low = cls.DEFAULT_TRAY_HEIGHTS[i][0] if i < len(
-                            cls.DEFAULT_TRAY_HEIGHTS) else 0.400 + i * 0.410
-                        default_high = cls.DEFAULT_TRAY_HEIGHTS[i][1] if i < len(
-                            cls.DEFAULT_TRAY_HEIGHTS) else default_low + 0.010
+                        default_low = cls.first_layer_low + i * cls.layer_spacing
+                        default_high = default_low + cls.layer_height_diff
                         with builder.CHILD(key=f"low{i}", name=f"Low{i}",
                                            desc=f"Height of the No. {i} Backboard Retrieval Box"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
-                            builder.DEFAULTVALUE(default_low)
+                            builder.DEFAULTVALUE(round(default_low, 3))
                         with builder.CHILD(key=f"high{i}", name=f"High{i}",
                                            desc=f"Height of the No. {i} Backbasket Material Box"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
-                            builder.DEFAULTVALUE(default_high)
+                            builder.DEFAULTVALUE(round(default_high, 3))
 
             # 识别组
             with builder.GROUP(key="recognizeConfig", name="Recognize Config",
@@ -339,6 +344,9 @@ class ConfigParams:
         Trace.log(f"config loaded", name="ctu.cfg")
 
         cls.debug_mode = cls.config.get("debugMode", False)
+        cls.first_layer_low = cls.config.get("firstLayerLow", 0.400)
+        cls.layer_spacing = cls.config.get("layerSpacing", 0.405)
+        cls.layer_height_diff = cls.config.get("layerHeightDiff", 0.010)
         cls.low.clear()
         cls.high.clear()
         for i in range(cls.container_count):
@@ -1314,12 +1322,8 @@ class ContainerRobot(ModuleBase):
         self.rec_height_diff = 0
 
         self.fill_light_do = "DO-004"
-        self.collision_di = 0
         self.light_st_time = None
 
-        self.lift_zero_di = 8
-        self.stretch_limit = 10
-        self.rotate_limit = 7
         self.target_type = None
         self.code_type = None
         self.barcode_height = None
@@ -1586,7 +1590,7 @@ class ContainerRobot(ModuleBase):
     # ================================================================
     # action_list 构建方法
     # ================================================================
-    def _build_zero_actions(self, zero_height=0):
+    def _build_zero_actions(self, zero_height=0.5):
         if self.operation_init:
             return
         self.operation_init = True
@@ -2036,7 +2040,7 @@ class ContainerRobot(ModuleBase):
             if p['key'] == '#containerId' and p['stringValue'] != "":
                 self.self_position = p['stringValue']
 
-    def zero(self, zero_height=0):
+    def zero(self, zero_height=0.5):
         if not any(self.zero_step):
             Trace.log("zero start", name="ctu.motor")
         if not self.zero_step[0]:
