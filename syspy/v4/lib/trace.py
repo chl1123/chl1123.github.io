@@ -1,4 +1,5 @@
 import datetime
+from typing import Union
 
 from syspy.core.rbk_rpc import default_plugin
 from syspy.lib.trace import TraceInterface
@@ -8,7 +9,7 @@ from syspy.lib.trace import TraceInterface
 class TraceV4(TraceInterface):
 
     @classmethod
-    def chart(cls, msg: dict, output_console: bool = False, output_time: bool = False, *, name: str = ""):
+    def chart(cls, msg: dict, output_console: bool = False, output_time: bool = False, *, name: str = "", debug: bool = False):
         if output_console:
             if output_time:
                 time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
@@ -16,10 +17,13 @@ class TraceV4(TraceInterface):
             else:
                 print("chart:", msg)
         trace_name = f"chart.{name}" if name else "chart"
-        cls.client().call_service("Trace", "traceChart", msg=msg, name=trace_name)
+        if debug:
+            cls.client().call_service("Trace", "traceLogD", msg=msg, trace_name=trace_name)
+        else:
+            cls.client().call_service("Trace", "traceLog", msg=msg, trace_name=trace_name)
 
     @classmethod
-    def log(cls, msg: str, output_console: bool = True, output_time: bool = False, *, name: str = "", debug: bool = False):
+    def log(cls, msg: Union[str, dict], output_console: bool = True, output_time: bool = False, *, name: str = "", debug: bool = False):
         if output_console:
             if output_time:
                 time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
@@ -27,7 +31,9 @@ class TraceV4(TraceInterface):
             else:
                 print("log:", msg)
         trace_name = f"log.{name}" if name else "log"
+        if isinstance(msg, str):
+            msg = {"log": msg}
         if debug:
-            cls.client().call_service("Trace", "traceLogDebug", msg=msg, name=trace_name)
+            cls.client().call_service("Trace", "traceLogD", msg=msg, trace_name=trace_name)
         else:
-            cls.client().call_service("Trace", "traceLog", msg=msg, name=trace_name)
+            cls.client().call_service("Trace", "traceLog", msg=msg, trace_name=trace_name)
