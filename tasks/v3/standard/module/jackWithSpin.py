@@ -1394,6 +1394,7 @@ class Jack(ModuleBase):
 
         # ========== 料架角度跟踪 ==========
         self.container_world_angle = None  # 料架在世界坐标系下的角度（取货后记录）
+        self.pgv_goods_angle_robot = None  # 上视PGV读取的货架在机器人坐标系下的角度（弧度）
 
         # ========== 空载对齐状态 ==========
         self._idle_align_done = False     # 本次空载期间是否已完成对齐检查
@@ -1545,9 +1546,11 @@ class Jack(ModuleBase):
         if self._run_calib_steps("强制标零"):
             self.status = ScriptStatus.FINISHED
 
-    def bindContainer(self, container_id: str, goods_name: str, desc: str, insert_dir: str = "D") -> bool:
+    def bindContainer(self, container_id: str, goods_name: str, desc: str,
+                      insert_dir: str = "D", goods_angle: float = None) -> bool:
         """
         重写 bindContainer：绑定容器并设置货物多边形形状。
+        goods_angle: 上视PGV读取的货架在机器人坐标系下的角度（弧度），优先于 insert_dir。
         """
         # 1. 绑定容器
         Container.bindContainer(container_id, goods_name, desc)
@@ -1566,27 +1569,45 @@ class Jack(ModuleBase):
         shapes = json.loads(goods_shape)
         shape = shapes[0]["points"]
 
-        # 3. 根据插入方向旋转货物模型
-        # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
-        def _rotate_pt(pt, dir_):
-            if dir_ == "A":  # 0°: (x, y) -> (x, y)
-                if isinstance(pt, dict):  return {"x": pt["y"], "y":-pt["x"] }
-                return [pt[0], pt[1]]
-            elif dir_ == "B":  # 顺时针90°: (x, y) -> (y, -x)
-                if isinstance(pt, dict):  return {"x":pt["x"] , "y": pt["y"]}
-                return [pt[1], -pt[0]]
-            elif dir_ == "C":  # 180°: (x, y) -> (-x, -y)
-                if isinstance(pt, dict):  return {"x": -pt["y"], "y": pt["x"] }
-                return [-pt[0], -pt[1]]
-            else:  # D: 逆时针90°: (x, y) -> (-y, x)
-                if isinstance(pt, dict):  return {"x":-pt["x"] , "y":-pt["y"]}
-                return [-pt[1], pt[0]]
+        if goods_angle is not None:
+            # 3a. 使用上视PGV角度旋转货物模型（二次调整场景，弧度直接用于cos/sin）
+            cos_a = math.cos(goods_angle)
+            sin_a = math.sin(goods_angle)
 
-        shape = [_rotate_pt(pt, insert_dir) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
+            def _rotate_by_angle(pt):
+                if isinstance(pt, dict):
+                    x, y = pt["x"], pt["y"]
+                    return {"x": x * cos_a - y * sin_a, "y": x * sin_a + y * cos_a}
+                x, y = pt[0], pt[1]
+                return [x * cos_a - y * sin_a, x * sin_a + y * cos_a]
+
+            shape = [_rotate_by_angle(pt) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
+
+            Trace.log(f"bindContainer ok angle={math.degrees(goods_angle):.1f}deg "
+                      f"container={container_id} goods={goods_name} "
+                      f"shape_points={len(shape)} recfile={self.recfile}", name="jack")
+        else:
+            # 3b. 根据插入方向旋转货物模型（固定方向）
+            # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
+            def _rotate_pt(pt, dir_):
+                if dir_ == "A":  # 0°: (x, y) -> (x, y)
+                    if isinstance(pt, dict):  return {"x": pt["y"], "y":-pt["x"] }
+                    return [pt[0], pt[1]]
+                elif dir_ == "B":  # 顺时针90°: (x, y) -> (y, -x)
+                    if isinstance(pt, dict):  return {"x":pt["x"] , "y": pt["y"]}
+                    return [pt[1], -pt[0]]
+                elif dir_ == "C":  # 180°: (x, y) -> (-x, -y)
+                    if isinstance(pt, dict):  return {"x": -pt["y"], "y": pt["x"] }
+                    return [-pt[0], -pt[1]]
+                else:  # D: 逆时针90°: (x, y) -> (-y, x)
+                    if isinstance(pt, dict):  return {"x":-pt["x"] , "y":-pt["y"]}
+                    return [-pt[1], pt[0]]
+
+            shape = [_rotate_pt(pt, insert_dir) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
+            Trace.log(f"bindContainer ok dir={insert_dir} container={container_id} goods={goods_name} "
+                      f"shape_points={len(shape)} recfile={self.recfile}", name="jack")
 
         Navigation.setGoodsPolyShape(shape, goods_name)
-        Trace.log(f"bindContainer ok dir={insert_dir} container={container_id} goods={goods_name} "
-                  f"shape_points={len(shape)} recfile={self.recfile}", name="jack")
         return True
 
     def _init_args(self, args):
@@ -1716,6 +1737,7 @@ class Jack(ModuleBase):
         # ============================================
         self.unload_container_dir = None       # 弧度，世界坐标系
         self.unload_container_dir_or_opposite = False
+        self.pgv_goods_angle_robot = None      # 每次任务重置
         # 优先从 moveTask params 读取（调度侧下发）
         try:
             _mt = Navigation.moveTask()
@@ -2137,6 +2159,7 @@ class Jack(ModuleBase):
         # 二次调整
         if self.is_secondary_adjust:
             self.action_list.append(GetPGVData(self.pgv_scan_device))
+            self.action_list.append(GetGoodsDirFromPGV())
             self.action_list.append(PGVSecondaryAdjust(
                 code_adjust_type=self.pgv_code_adjust_type,
                 scan_device=self.pgv_scan_device,
@@ -2170,7 +2193,8 @@ class Jack(ModuleBase):
 
         # 顶升完成后绑定容器，设置货物模型（识别开启或有recfile时才加载）
         if self.is_recognize or self.recfile:
-            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
+            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
+                                                   use_pgv_angle=self.is_secondary_adjust))
 
         # 记录料架在世界坐标系下的角度（供后续路径/放货角度决策使用）
         self.action_list.append(RecordContainerAngle())
@@ -2321,6 +2345,7 @@ class Jack(ModuleBase):
             # 二次调整
             if self.is_secondary_adjust:
                 self.action_list.append(GetPGVData(self.pgv_scan_device))
+                self.action_list.append(GetGoodsDirFromPGV())
                 self.action_list.append(PGVSecondaryAdjust(
                     code_adjust_type=self.pgv_code_adjust_type,
                     scan_device=self.pgv_scan_device,
@@ -3082,6 +3107,32 @@ class RecordContainerAngle(BaseAction):
         self.action_status = ActionStatus.FINISHED
 
 
+class GetGoodsDirFromPGV(BaseAction):
+    """二次调整时读取上视扫码器角度，作为货架在机器人坐标系下的角度，用于加载货物模型"""
+
+    def __init__(self):
+        super().__init__("GetGoodsDirFromPGV")
+        self.opt_info = "GetGoodsDirFromPGV"
+
+    def run(self, j: Jack):
+        pgv_data = CodeScanner.getCodeScanners()
+        for pgv in pgv_data:
+            info = getattr(pgv, 'codeScannerInfo', None)
+            is_upside = getattr(info, 'isUpside', False) if info else False
+            if pgv.isDMTDetected and is_upside:
+                j.pgv_goods_angle_robot = pgv.tagDiffAngle
+                Trace.log(
+                    f"getGoodsDirFro"
+                    f"mPGV goods2robot={math.degrees(pgv.tagDiffAngle):.1f}deg "
+                    f"(raw={pgv.tagDiffAngle:.4f}rad)",
+                    name="jack.rec")
+                self.action_status = ActionStatus.FINISHED
+                return
+        Trace.log("getGoodsDirFromPGV: no upside PGV with DMT detected, fallback to insert_dir",
+                  name="jack.err")
+        self.action_status = ActionStatus.FINISHED
+
+
 class Spin(BaseAction):
     def __init__(self, angle, spin_mode="world", direction=None, deduct_info=None):
         super().__init__("Spin")
@@ -3415,16 +3466,20 @@ class JackHeight(BaseAction):
 class BindContainer(BaseAction):
     """顶升完成后绑定容器并设置货物模型"""
 
-    def __init__(self, container_id: str, goods_name: str, recfile: str, insert_dir: str = "D"):
+    def __init__(self, container_id: str, goods_name: str, recfile: str, insert_dir: str = "D",
+                 use_pgv_angle: bool = False):
         super().__init__("BindContainer")
         self.opt_info = f"BindContainer{{container_id={container_id}, goods_name={goods_name}, recfile={recfile}}}"
         self.container_id = container_id
         self.goods_name = goods_name
         self.recfile = recfile
         self.insert_dir = insert_dir
+        self.use_pgv_angle = use_pgv_angle
 
     def run(self, j: Jack):
-        ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec", self.insert_dir)
+        goods_angle = j.pgv_goods_angle_robot if self.use_pgv_angle else None
+        ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec",
+                             self.insert_dir, goods_angle=goods_angle)
         if not ok:
             Trace.log(f"BindContainer failed recfile={self.recfile}", name="jack.err")
         self.action_status = ActionStatus.FINISHED
