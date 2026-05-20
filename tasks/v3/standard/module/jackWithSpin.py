@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/18
+# @Date : 2026/5/20
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : fix: 1. 修复vda任务下发为空的报错 2. 空载行走对齐默认关闭 3. 部分配置参数ui修改为英文
+# @Update : add: 增加顶升前读取二维码作为货物朝向
 
 import json
 import math
