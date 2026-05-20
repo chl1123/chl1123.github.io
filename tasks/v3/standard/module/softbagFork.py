@@ -224,6 +224,7 @@ class ConfigParams:
     weightSampleInterval: float = 0.05
     weightPollInterval: float = 0.25
     weightMinInitial: float = 1.0
+    weightEmptyThreshold: float = 300.0
     weightDropThreshold: float = 0.8
     releaseSlowDownSpeed: float = 0.01
     releaseMaxExtraDownDist: float = 0.05
@@ -304,6 +305,7 @@ class ConfigParams:
         cls.weightSampleInterval = cfg.get("weightSampleInterval", 0.05)
         cls.weightPollInterval = cfg.get("weightPollInterval", 0.25)
         cls.weightMinInitial = cfg.get("weightMinInitial", 1.0)
+        cls.weightEmptyThreshold = cfg.get("weightEmptyThreshold", 300.0)
         cls.weightDropThreshold = cfg.get("weightDropThreshold", 0.8)
         cls.releaseSlowDownSpeed = cfg.get("releaseSlowDownSpeed", 0.01)
         cls.releaseMaxExtraDownDist = cfg.get("releaseMaxExtraDownDist", 0.05)
@@ -718,13 +720,19 @@ class ConfigParams:
                         builder.UNIT("s")
                     with builder.CHILD(key="weightPollInterval", name="Weight Poll Interval", desc="实时轮询间隔"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.25)
+                        builder.DEFAULTVALUE(0.40)
                         builder.UNIT("s")
                     with builder.CHILD(key="weightMinInitial", name="Weight Min Initial", desc="初始最小重量"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("kg")
-                    with builder.CHILD(key="weightDropThreshold", name="Weight Drop Threshold", desc="重量下降阈值"):
+                    with builder.CHILD(key="weightEmptyThreshold", name="Weight Empty Threshold",
+                                       desc="空载阈值，低于300kg认为已经脱离；低于该值即视为空载"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(300.0)
+                        builder.UNIT("kg")
+                    with builder.CHILD(key="weightDropThreshold", name="Weight Drop Threshold",
+                                       desc="重量下降阈值，仅在未启用空载阈值时作为备用判定"):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.8)
                         builder.UNIT("kg")
@@ -1415,10 +1423,10 @@ class Fork(ModuleBase):
                              {"x": -ConfigParams.tail, "y": self.inner},
                              {"x": ConfigParams.module_x, "y": self.inner}]
         # 叉车车头后面那块区域
-        self.fork_points = [{"x": ConfigParams.module_x + 0.05, "y": ConfigParams.width / 2},
-                            {"x": -ConfigParams.tail, "y": ConfigParams.width / 2},
-                            {"x": -ConfigParams.tail, "y": -ConfigParams.width / 2},
-                            {"x": ConfigParams.module_x + 0.05, "y": -ConfigParams.width / 2}]
+        self.fork_points = [{"x": ConfigParams.module_x + 0.1, "y": ConfigParams.width / 2},
+                            {"x": -ConfigParams.tail-0.1, "y": ConfigParams.width / 2},
+                            {"x": -ConfigParams.tail-0.1, "y": -ConfigParams.width / 2},
+                            {"x": ConfigParams.module_x + 0.1, "y": -ConfigParams.width / 2}]
         self.carrier_shape = []
 
         self.check_di = False
@@ -1430,6 +1438,7 @@ class Fork(ModuleBase):
         self.qr_recfile = ""
         self.goods_name = ""
         self.goods_layer = 1
+        self.unload_start_back_laser_blocked = False
         self.qr_good_name = ""
 
         self.target_pos = [0, 0, 0, -1]
@@ -1635,6 +1644,43 @@ class Fork(ModuleBase):
     def _has_back_laser(self) -> bool:
         return bool(self._resolve_back_laser_key())
 
+    def _read_back_laser_blocked(self) -> bool:
+        """
+        放货起始前读取一次后2D激光，若货叉宽度范围内存在近距离有效点，则认为后激光被阻挡。
+        这里复用 RunMotorWithLaserMonitor 的点云距离提取逻辑，避免两套判断口径不一致。
+        """
+        if not self._has_back_laser():
+            return False
+        try:
+            probe = RunMotorWithLaserMonitor(
+                ConfigParams.fork_motor_name,
+                Motor.getMotorPos(ConfigParams.fork_motor_name),
+                0.001,
+                action_name="UnloadLaserProbe"
+            )
+            dist = probe._read_back_laser_dist()
+        except Exception as e:
+            _trace_log(f"read unload start back laser failed: {e}")
+            return False
+        if dist is None:
+            _trace_log("unload start back laser probe: no valid distance")
+            return False
+        blocked = dist <= 2.5 
+        _trace_log(f"unload start back laser probe: dist={dist:.3f}m, blocked={blocked}")
+        return blocked
+
+    def _need_unload_laser_monitor(self) -> bool:
+        need_by_laser = bool(getattr(self, "unload_start_back_laser_blocked", False))
+        need = need_by_laser
+        _trace_log(f"need unload laser monitor={need}, start_back_laser_blocked={self.unload_start_back_laser_blocked}")
+        return need
+
+    def _make_unload_lift_action(self, position: float, max_speed=ConfigParams.fork_max_speed):
+        """放货抬叉：起始被后激光挡住时才走激光监控，否则走普通位置控制。"""
+        if self._need_unload_laser_monitor():
+            return RunMotorWithLaserMonitor(ConfigParams.fork_motor_name, position, max_speed)
+        return RunMotorByPosition(ConfigParams.fork_motor_name, position, max_speed)
+
     def _make_unload_release_action(self):
         """
         放货末段动作选择：
@@ -1651,7 +1697,9 @@ class Fork(ModuleBase):
 
     def _get_load_end_height(self) -> float:
         self.fork_cur_height = Motor.getMotorPos(ConfigParams.fork_motor_name)
-        return self.fork_cur_height + float(ConfigParams.loadEndHeightExtra)
+        target_height = self.fork_cur_height + float(ConfigParams.loadEndHeightExtra)
+        _trace_log(f"current fork height: {self.fork_cur_height:.3f}m,  target end height: {target_height:.3f}m")
+        return target_height
 
     def _apply_qr_fallback_if_needed(self):
         """
@@ -1849,10 +1897,12 @@ class Fork(ModuleBase):
                 _trace_log(f"add task list {self.action_list[self.action_id]},id {self.action_id}")
 
                 rec_action = self.action_list[self.action_id]
+                total_layers = int(getattr(rec_action, "total_layers", 0) or 0)
                 results = rec_action.results_list
                 self.pallet_width = results[0].get("palletWidth", 0.0)
                 rec_result_dict = results[0]
                 self.obstacle_polygon_by_rec = rec_action.obstacle_polygon
+                _trace_log(f"load rec total layers: {total_layers}")
 
                 _trace_log(f"carrier {self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}")
                 # # 拿到 y 最小的值
@@ -2045,6 +2095,7 @@ class Fork(ModuleBase):
                 Navigation.setTaskError("ForkNoGoods", f"fork has no goods, cannot unload, script failed")
                 self.script_status = ScriptStatus.FAILED
                 return
+            self.unload_start_back_laser_blocked = self._read_back_laser_blocked()
             target_pos, tcp_name = self.get_station_pos("targetName")
             _trace_log(f"target_pos: {target_pos}")
             if not target_pos or target_pos[3] == -1:
@@ -2053,7 +2104,7 @@ class Fork(ModuleBase):
                     self.action_list = [release_action]
                 else:
                     self.action_list = [
-                        RunMotorWithLaserMonitor(ConfigParams.fork_motor_name, self.end_height),
+                        self._make_unload_lift_action(self.start_height),
                         release_action,
                     ]
             else:
@@ -2084,7 +2135,7 @@ class Fork(ModuleBase):
                 if ConfigParams.base_shift:
                     target_pos = pos2World([-ConfigParams.base_shift_length, 0, 0], target_pos)
                 self.action_list = [
-                    RunMotorWithLaserMonitor(ConfigParams.fork_motor_name, self.start_height),
+                    self._make_unload_lift_action(self.start_height),
                     GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
                                         False, "unload"),
                     self._make_unload_release_action(),
@@ -2380,37 +2431,36 @@ class Fork(ModuleBase):
                     if 0 < self.min_safe_height <= fork_height and fork_is_moving:
                         _trace_log(
                             f"fork moving, height:{fork_height} >= min_safe_height:{self.min_safe_height}, skip back laser collision detection")
-                    else:
-                        Navigation.collisionDetection(collision_device, x_list, y_list)
+                    # else:
+                        # Navigation.collisionDetection(collision_device, x_list, y_list)
 
             # 堆高车处理后激光的屏蔽
-            if Loc.getLocState() == 1:
-                # if ConfigParams.scriptDebug:
-                #     _trace_log(
-                #         f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}")
-                if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
-                    self.set_fork_region_by_height = True
-                    self.clear_fork_region_by_height = False
-                    # Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
-                    #                           [p["y"] for p in self.points_left],
-                    #                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                    Navigation.setClearRegion(self.back_laser_clear_region_name, [p["x"] for p in self.fork_points],
-                                              [p["y"] for p in self.fork_points],
-                                              [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                    _trace_log(f"set clear region:{self.back_laser_clear_region_name},{self.fork_points}")
+            # if ConfigParams.scriptDebug:
+            #     _trace_log(
+            #         f"set_fork_region_by_height:{self.set_fork_region_by_height},clear_fork_region_by_height:{self.clear_fork_region_by_height}")
+            if fork_height <= ConfigParams.backLaserEnableHeight and not self.set_fork_region_by_height:
+                self.set_fork_region_by_height = True
+                self.clear_fork_region_by_height = False
+                # Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
+                #                           [p["y"] for p in self.points_left],
+                #                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                Navigation.setClearRegion(self.back_laser_clear_region_name, [p["x"] for p in self.fork_points],
+                                            [p["y"] for p in self.fork_points],
+                                            [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
+                _trace_log(f"set clear region:{self.back_laser_clear_region_name},{self.fork_points}")
 
-                elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
-                    self.clear_fork_region_by_height = True
-                    self.set_fork_region_by_height = False
-                    Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
+            elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
+                self.clear_fork_region_by_height = True
+                self.set_fork_region_by_height = False
+                Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
 
-                    _trace_log(f"delete clear region:{self.back_laser_clear_region_name},{self.fork_points}")
+                _trace_log(f"delete clear region:{self.back_laser_clear_region_name},{self.fork_points}")
 
                     # Navigation.deleteClearRegion(self.name_right, Coordinate.ROBOT)
 
         # 处理载货时di状态监控
         if ConfigParams.checkGoodsWhileLoad:
-            # _trace_chart(f"checkGoodsWhileLoad:{ConfigParams.checkGoodsWhileLoad}")
+            # print(f"checkGoodsWhileLoad:{ConfigParams.checkGoodsWhileLoad}")
 
             # 获取到位 di 的状态
             di_status = []
@@ -2910,6 +2960,7 @@ class RecPalletSelect(Rec):
         self.selected_world_pos: Optional[List[float]] = None
         self.selected_robot_pos: Optional[List[float]] = None
         self.selected_result: Dict[str, Any] = {}
+        self.total_layers: int = 0
 
     def run(self):
         # 栈板识别选层流程：识别结果解析 -> 按z排序 -> 根据goods_layer选目标 -> 计算pick高度
@@ -2954,6 +3005,7 @@ class RecPalletSelect(Rec):
             return
 
         parsed_list.sort(key=lambda x: x["z"], reverse=True)
+        self.total_layers = len(parsed_list)
         for i, item in enumerate(parsed_list):
             _trace_log(f"\n############## parsed_list idx:{i}, z:{item['z']}, world:{item['world']}, robot:{item['robot']} #########\n")
         idx = min(max(0, self.goods_layer - 1), len(parsed_list) - 1)
@@ -2973,7 +3025,7 @@ class RecPalletSelect(Rec):
         else:
             self.selected_pick_height = pick_h
         _trace_log(
-            f"rec select layer={self.goods_layer}, z_offset={selected['z']}, "
+            f"rec total_layers={self.total_layers}, select layer={self.goods_layer}, z_offset={selected['z']}, "
             f"camCalibMotorHeight={self.rec_base_height}, pick={self.selected_pick_height}"
         )
         self.action_status = ActionStatus.FINISHED
@@ -3100,6 +3152,17 @@ class GoPathWithContactDi(BaseAction):
                         should_shield_di = not ConfigParams.forkDiEnableAtUnload
                     else:
                         should_shield_di = True
+
+                if ConfigParams.fork_root_2D_lasers:
+                    current_collision_device_str = (RobotParam.getConfig("navigation",
+                                                                         "collisionDetection.detectionDevice"))
+                    current_collision_device = current_collision_device_str.split(",")
+                    _trace_log(f"current_collision_device:{current_collision_device}")
+
+                    current_collision_device.remove(ConfigParams.fork_root_2D_lasers)
+                    current_collision_device_str = ",".join(current_collision_device)
+                    self.policy["navigation.collisionDetection.detectionDevice"] = current_collision_device_str
+                    _trace_log(f"shielded fork tip di, new collision device:{current_collision_device_str}")
 
                 if should_shield_di:
                     current_collision_device_str = (RobotParam.getConfig("navigation",
@@ -3384,9 +3447,6 @@ class RunMotorByPosition(BaseAction):
         self.position = position
         self.max_speed = max_speed
         self.is_reach = False
-        # self.motor_name = "DOMotor-000"
-        # self.position = 0.05
-        # self.max_speed = 1
         self.stop_di = stop_di
         self.init = False
 
@@ -3596,16 +3656,20 @@ class RunMotorWithLaserMonitor(BaseAction):
     - 抬升过程持续读取3D点云，判断后激光是否从“被阻挡”变为“障碍减少/不阻挡”
     - 电机到位和激光条件同时满足后，才放行到下一步
     """
-    DIST_INCREASE_THRESHOLD = 0.03 # 距离增加超过3cm，认为障碍有明显减少
+    DIST_INCREASE_THRESHOLD = 0.2 # 距离增加超过20cm，认为障碍有明显减少
     DIST_INCREASE_DEBOUNCE = 2 # 连续2次（约1s）距离增加超过阈值，才认为是有效的障碍减少，避免偶尔的点云波动导致误判
 
     def __init__(self, motor_name: str, position: float, max_speed=ConfigParams.fork_max_speed, action_name="RunMotorWithLaserMonitor"):
         super().__init__(action_name)
-        self.motor_action = RunMotorByPosition(motor_name, position, max_speed, "liftForUnload") # 改用BySpeed，todo: 超过start_height一定范围(0.5m+)后报错 
+        self.motor_action = RunMotorBySpeed(motor_name, abs(max_speed), "")
+        self.target_position = float(position)
+        self.max_speed = abs(float(max_speed))
         self.prev_dist: Optional[float] = None
         self.increase_count = 0
         self.obstacle_reduced = False
-        self._warn_no_data_once = False
+        self.beam_seen = False
+        self.beam_missing_count = 0
+        self._warn_no_data_once = False # 后激光数据缺失只警告一次
         self._xy_sample_logged_once = False
         self._laser_gate_wait_start: float = 0.0
         # 可选值: "auto"(默认按机器人系处理并打印样本供人工判断), "robot", "world"
@@ -3771,14 +3835,22 @@ class RunMotorWithLaserMonitor(BaseAction):
             return
         self.action_status = ActionStatus.RUNNING
         self.motor_action.run()
+        cur_h = Motor.getMotorPos(ConfigParams.fork_motor_name)
 
         dist = self._read_back_laser_dist()
         if dist is None:
             if not self._warn_no_data_once:
                 _trace_log("back 2d laser has no valid beam data this cycle")
                 self._warn_no_data_once = True
+            if self.beam_seen:
+                self.beam_missing_count += 1
+                if self.beam_missing_count >= 1 and not self.obstacle_reduced:
+                    self.obstacle_reduced = True
+                    _trace_log("unload laser monitor: back laser data missing but previously seen, consider obstacle reduced")
         else:
             self._warn_no_data_once = False
+            self.beam_seen = True
+            self.beam_missing_count = 0
             _trace_log(f"back laser distance: {dist:.3f} m")
         # 如果读到了有效的距离数据，且之前也有数据，那么比较两次距离的变化；如果增加超过阈值，则认为障碍有明显减少，开始计数；
         # 如果没有增加超过阈值，则重置计数；如果连续多次增加超过阈值，则认为是有效的障碍减少，记录日志
@@ -3792,23 +3864,27 @@ class RunMotorWithLaserMonitor(BaseAction):
                 self.obstacle_reduced = True
                 _trace_log(f"unload laser monitor: obstacle reduced, dist={dist}")
 
-        if self.motor_action.action_status == ActionStatus.FINISHED:
-            if self.obstacle_reduced:
-                self.action_status = ActionStatus.FINISHED
-                return
+        # 有 beam -> 无 beam 视为已经脱离阻挡
+        beam_cleared = self.beam_seen and self.beam_missing_count >= 1
+        if beam_cleared and not self.obstacle_reduced:
+            self.obstacle_reduced = True
+            _trace_log("unload laser monitor: 激光点云清除，认为已不被阻挡")
 
-            if self._laser_gate_wait_start <= 0.0:
-                self._laser_gate_wait_start = time.time()
-                _trace_log("laser lift gate waiting for obstacle reduced before proceeding to AP")
-                return
+        # 接近目标高度时减速，避免一下冲太快
+        if cur_h <= self.target_position + max(ConfigParams.reach_down_dist, 0.01):
+            if getattr(self.motor_action, "max_speed", 0.0) > abs(ConfigParams.releaseSlowDownSpeed):
+                self.motor_action.max_speed = abs(ConfigParams.releaseSlowDownSpeed)
 
-            if (time.time() - self._laser_gate_wait_start) > float(ConfigParams.laserLiftGateTimeout):
-                Navigation.setTaskError("laserLiftGateTimeout", f"laser lift gate timeout>{ConfigParams.laserLiftGateTimeout}s")
-                self.action_status = ActionStatus.FAILED
-                self.cancel()
-                return
-
+        if self.obstacle_reduced:
+            Motor.resetMotor(ConfigParams.fork_motor_name)
+            self.action_status = ActionStatus.FINISHED
+            self.motor_action.action_status = ActionStatus.FINISHED
             return
+
+        if self.motor_action.action_status == ActionStatus.FINISHED:
+            self.action_status = ActionStatus.FINISHED
+            return
+
         self._laser_gate_wait_start = 0.0
         if self.motor_action.action_status == ActionStatus.FAILED:
             self.action_status = ActionStatus.FAILED
@@ -4294,6 +4370,7 @@ class WeightDropMonitor:
         self.last_weight: Optional[float] = None
         self.last_poll_time = 0.0
         self.drop_ok = False
+        self.drop_hit_count = 0
         self._mock_sequence: Optional[List[float]] = None
         self._mock_idx = 0
 
@@ -4305,6 +4382,7 @@ class WeightDropMonitor:
             self.last_weight = self.base_weight
             self.last_poll_time = 0.0
             self.drop_ok = False
+            self.drop_hit_count = 0
             self._mock_idx = 1
             return
         if CkyDgScale is None:
@@ -4320,8 +4398,9 @@ class WeightDropMonitor:
         )
         self.base_weight = self._sample_weight()
         self.last_weight = self.base_weight
-        self.last_poll_time = 0.0
+        self.last_poll_time = time.time()
         self.drop_ok = False
+        self.drop_hit_count = 0
 
     def mock_start(self, sequence: Optional[List[float]] = None):
         """
@@ -4333,6 +4412,20 @@ class WeightDropMonitor:
         self._mock_sequence = [float(x) for x in sequence]
         self._mock_idx = 0
         self.start()
+
+    @staticmethod
+    def _to_kg(value: Any, unit: Any) -> Optional[float]:
+        if value is None or unit is None:
+            return None
+        unit_text = str(unit).strip().lower()
+        numeric_value = float(value)
+        if unit_text == "kg":
+            return numeric_value
+        if unit_text == "g":
+            return numeric_value / 1000.0
+        if unit_text == "t":
+            return numeric_value * 1000.0
+        return None
 
     def _sample_weight(self) -> float:
         if self._mock_sequence is not None:
@@ -4347,7 +4440,23 @@ class WeightDropMonitor:
             sample_count=max(1, int(self.cfg.weightSampleCount)),
             sample_interval=max(0.0, float(self.cfg.weightSampleInterval)),
         )
-        return float(sample.get("averageValue", 0.0))
+        average_value = float(sample.get("averageValue", 0.0))
+        last_sample = sample.get("last", {}) or {}
+        unit = last_sample.get("unit")
+        weight_kg = self._to_kg(average_value, unit)
+        if weight_kg is not None:
+            _trace_log(
+                f"weight samples avg={weight_kg:.3f}kg, raw_avg={average_value}, "
+                f"unit={unit}, last_raw={last_sample.get('raw')}, "
+                f"decimalPoint={last_sample.get('decimalPoint')}, unitCode={last_sample.get('unitCode')}"
+            )
+            return weight_kg
+        _trace_log(
+            f"weight samples avg={average_value}, unit={unit}, cannot_convert_to_kg=True, "
+            f"last_raw={last_sample.get('raw')}, decimalPoint={last_sample.get('decimalPoint')}, "
+            f"unitCode={last_sample.get('unitCode')}"
+        )
+        return average_value
 
     def update(self) -> bool:
         now = time.time()
@@ -4361,7 +4470,21 @@ class WeightDropMonitor:
         if float(self.base_weight) < float(self.cfg.weightMinInitial):
             self.drop_ok = False
             return self.drop_ok
+        empty_threshold = float(getattr(self.cfg, "weightEmptyThreshold", 0.0))
+        if empty_threshold > 0.0:
+            # 启用空载阈值时，只要有一次读数低于阈值，就立即判定已脱离
+            self.drop_ok = float(self.last_weight) < empty_threshold
+            _trace_log(
+                f"weight empty threshold check: current={float(self.last_weight):.3f}kg, "
+                f"threshold={empty_threshold:.3f}kg, drop_ok={self.drop_ok}"
+            )
+            return self.drop_ok
         self.drop_ok = (float(self.base_weight) - float(self.last_weight)) >= float(self.cfg.weightDropThreshold)
+        _trace_log(
+            f"weight drop delta={(float(self.base_weight) - float(self.last_weight)):.3f}kg, "
+            f"threshold={float(self.cfg.weightDropThreshold):.3f}kg, "
+            f"empty_threshold={empty_threshold:.3f}kg, drop_ok={self.drop_ok}"
+        )
         return self.drop_ok
 
     def close(self):
@@ -4375,6 +4498,7 @@ class WeightDropMonitor:
         return {
             "baseWeight": self.base_weight,
             "lastWeight": self.last_weight,
+            "emptyThreshold": getattr(self.cfg, "weightEmptyThreshold", 0.0),
             "dropThreshold": self.cfg.weightDropThreshold,
             "dropOk": self.drop_ok,
         }
@@ -4525,11 +4649,14 @@ class UnloadReleaseCheckAction(BaseAction):
     1. 初始化时，设置电机目标高度和最大速度，并启动重量/双超声DI监控。
     2. 在run方法中，持续下降电机高度，并并行检测重量和双超声DI：
         - 两个条件都满足时，先额外下降一小段，再判定动作成功；
-        - 超时或下降到底仍不满足时，动作失败。
+        - end_height 仅作为接近目标时的减速参考，实际停止主要依赖称重模块；
+        - 接近机械下限仍未满足时，执行货叉保护并失败任务；
+        - 超时仍不满足时，动作失败。
     """
-    RELEASE_DOWN_STEP = 0.1 # endHeight以上阶段下降速度映射参数
-    RELEASE_DETECT_TIMEOUT = 18.0 # 确认阶段检测超时时间，单位秒
+    RELEASE_DETECT_TIMEOUT = 28.0 # 确认阶段检测超时时间，单位秒
     RELEASE_EXTRA_DOWN_STEP = 0.003 # 卸货判定完成后额外下降一小段
+    RELEASE_NEAR_END_HEIGHT = 0.01
+    RELEASE_NEAR_MIN_HEIGHT = 0.03
 
     def __init__(self, motor_name: str, end_height: float, max_speed: float, cfg, clamp_fn):
         super().__init__("UnloadReleaseCheck")
@@ -4537,14 +4664,13 @@ class UnloadReleaseCheckAction(BaseAction):
         self.clamp_fn = clamp_fn
         self.motor_name = motor_name
         self.end_height = end_height
-        self.max_speed = max_speed
+        self.max_speed = 0.02 # 0.02米/秒的默认最大速度，保证下降过程足够慢以提高检测的可靠性，实际速度可以动态调整
         self.phase = "release"
         self.current_target: Optional[float] = None
         self.post_release_down_done = False
         self.back_laser_key: str = ""
         self.search_start_time = 0.0
         self.start_height = 0.0
-        self.extra_down_base_height = 0.0
         self.speed_mode = "fast"
         self.post_release_down_start_time = 0.0
         self.weight_monitor: Optional[WeightDropMonitor] = None
@@ -4577,7 +4703,7 @@ class UnloadReleaseCheckAction(BaseAction):
     def _is_target_reached(self) -> bool:
         if self.current_target is None:
             return False
-        cur_h = Motor.getMotorPos(self.motor_name)
+        cur_h = Motor.getMotorPos(ConfigParams.fork_motor_name)
         return abs(cur_h - self.current_target) <= max(self.cfg.reach_up_dist, self.cfg.reach_down_dist, 0.005) \
             or Motor.isMotorReached(self.motor_name)
 
@@ -4615,9 +4741,9 @@ class UnloadReleaseCheckAction(BaseAction):
 
         try:
             self.weight_monitor = WeightDropMonitor(self.cfg)
-            # self.weight_monitor.start()
+            self.weight_monitor.start()
             # 调试时可切换为模拟输入:
-            self.weight_monitor.mock_start()
+            # self.weight_monitor.mock_start()
             self.weight_required = True
             return True
         except Exception as e:
@@ -4709,14 +4835,18 @@ class UnloadReleaseCheckAction(BaseAction):
             self.phase = "release"
             self.back_laser_key = self._resolve_back_laser_key()
             self.search_start_time = time.time()
-            self.start_height = Motor.getMotorPos(self.motor_name)
-            self.extra_down_base_height = self.end_height
+            self.start_height = Motor.getMotorPos(ConfigParams.fork_motor_name)
+            try:
+                Motor.resetMotor(ConfigParams.fork_motor_name)
+            except Exception:
+                pass
             self._set_motor_down_speed(slow=False)
 
         weight_ok, di_ok, all_ok = self._update_release_condition()
 
         # 如果重量和DI条件都满足，先额外下降一小段，再结束
         if all_ok:
+            _trace_log(f"release condition met, weight_ok={weight_ok}, di_ok={di_ok}, current_target={self.current_target}, current_height={Motor.getMotorPos(ConfigParams.fork_motor_name)}")
             if not self.post_release_down_done:
                 self.post_release_down_done = True
                 self.post_release_down_start_time = time.time()
@@ -4728,7 +4858,7 @@ class UnloadReleaseCheckAction(BaseAction):
                 if (time.time() - self.post_release_down_start_time) < (extra_dist / slow_v):
                     return
             try:
-                Motor.resetMotor(self.motor_name) # 复位电机以结束动作，后续可以根据实际情况调整为保持当前高度或其他操作
+                Motor.resetMotor(ConfigParams.fork_motor_name) # 复位电机以结束动作，后续可以根据实际情况调整为保持当前高度或其他操作
             except Exception:
                 pass
             self._cleanup_monitors()
@@ -4744,16 +4874,17 @@ class UnloadReleaseCheckAction(BaseAction):
             self.cancel()
             return
 
-        # 如果到达end_height高度时仍未满足条件，降速并继续下降，如果超过额外下降限制仍不满足则判定失败
-        cur_h = Motor.getMotorPos(self.motor_name)
-        if cur_h <= self.end_height + max(self.cfg.reach_down_dist, 0.002):
+        # end_height 只是估算值，到了附近先减速，但是否停止仍主要看称重模块
+        cur_h = Motor.getMotorPos(ConfigParams.fork_motor_name)
+        if cur_h <= self.end_height + max(self.cfg.reach_down_dist, self.RELEASE_NEAR_END_HEIGHT):
             if self.speed_mode != "slow":
                 self._set_motor_down_speed(slow=True)
-        max_extra = max(0.0, float(ConfigParams.releaseMaxExtraDownDist))
-        if cur_h <= (self.extra_down_base_height - max_extra) and not all_ok:
+        # 如果接近机械下限仍未满足条件，则执行货叉保护并失败任务，避免继续下降造成机械损伤
+        if cur_h <= self.cfg.min_height + max(self.cfg.reach_down_dist, self.RELEASE_NEAR_MIN_HEIGHT) and not all_ok:
             self._fail_with_report(
-                "ReleaseExtraDownLimit",
-                f"extra down exceeded {max_extra}, weight_ok={weight_ok}, di_ok={di_ok}"
+                "ReleaseForkProtection",
+                f"fork reached lower protection limit, current_height={cur_h:.3f}, "
+                f"min_height={self.cfg.min_height:.3f}, weight_ok={weight_ok}, di_ok={di_ok}"
             )
             self.action_status = ActionStatus.FAILED
             self.cancel()
