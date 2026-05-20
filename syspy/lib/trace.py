@@ -18,7 +18,7 @@ class TraceInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def log(cls, msg: str, output_console: bool = True, output_time: bool = False, *, name: str = ""):
+    def log(cls, msg: str, output_console: bool = True, output_time: bool = False, *, name: str = "", debug: bool = False):
         """记录日志
 
         Args:
@@ -26,6 +26,7 @@ class TraceInterface(ABC, Service):
             output_console (bool): 是否开启控制台输出。默认开启。
             output_time (bool): 是否在控制台打印时间。默认不开启。
             name (str): 日志名称。默认为"log", 否则 f"log.{name}"
+            debug (bool): 是否为 debug 日志。True 表示 debug 模式下才落盘
         """
         raise RBKVersionError()
 
