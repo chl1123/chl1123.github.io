@@ -26,8 +26,26 @@ def _trace_log(msg: str, name: str = LOG_NAME) -> None:
     Trace.log(msg, name=name)
 
 
+def _trace_chart(msg: dict, name: str = f"{LOG_NAME}.state") -> None:
+    Trace.chart(msg, name=name)
+
+
 def _normalize_angle_rad(angle: float) -> float:
     return math.atan2(math.sin(angle), math.cos(angle))
+
+
+def _normalize_operation(task_args: dict) -> str:
+    operation = task_args.get("operation")
+    if operation and operation != 123:
+        return operation
+    keys = set(task_args.keys())
+    if {"robotRotateAngle", "robotRotateDirection", "shelfRotateAngle", "liftHeight"} & keys:
+        return "rotate"
+    if "dist" in keys:
+        return "line"
+    if {"rotRadius", "rotDegree", "rotSpeed"} & keys:
+        return "arc"
+    return ""
 
 
 # --- ConfigParams 类 ---
@@ -72,11 +90,11 @@ class ConfigParams:
     @classmethod
     def reload_config(cls):
         """重新加载配置参数"""
-        Trace.log("Reloading config parameters")
+        _trace_log("Reloading config parameters", name=f"{LOG_NAME}.cfg")
         cls.config = param_loader.loadConfig()
-        Trace.log(f"Loaded config: {cls.config}")
+        _trace_log(f"Loaded config: {cls.config}", name=f"{LOG_NAME}.cfg")
         cls.lift_motor_speed = cls.config.get("liftMotorSpeed")
-        Trace.log(f"Updated config: {cls.config}")
+        _trace_log(f"Updated config: {cls.config}", name=f"{LOG_NAME}.cfg")
 
 
 # 创建全局配置管理器实例
@@ -84,14 +102,19 @@ config_params = ConfigParams()
 
 
 def script_config_callback():
-    Trace.log("Reloading script config parameters")
+    _trace_log("Reloading script config parameters", name=f"{LOG_NAME}.cfg")
     config_params.reload_config()
 
 
 def print_info():
-    print(f"{config_params.lift_motor_speed=}")
-    print(f"{config_params.lift_motor_name=}")
-    print(f"{config_params.spin_motor_name=}")
+    _trace_chart(
+        {
+            "liftMotorSpeed": config_params.lift_motor_speed,
+            "liftMotorName": config_params.lift_motor_name,
+            "spinMotorName": config_params.spin_motor_name,
+        },
+        name=f"{LOG_NAME}.cfg",
+    )
 
     
     
@@ -351,9 +374,9 @@ class Actions(ModuleBase):
         self.shelf_pos = None
         self.shelf_pos_init = None
 
-        Trace.log(f"moduleType = {config_params.module_type}")
-        Trace.log(f"liftMotorName = {config_params.lift_motor_name}")
-        Trace.log(f"spinMotorName = {config_params.spin_motor_name}")
+        _trace_log(f"moduleType = {config_params.module_type}", name=f"{LOG_NAME}.cfg")
+        _trace_log(f"liftMotorName = {config_params.lift_motor_name}", name=f"{LOG_NAME}.cfg")
+        _trace_log(f"spinMotorName = {config_params.spin_motor_name}", name=f"{LOG_NAME}.cfg")
 
         # 获取电机初始位置
         if config_params.lift_motor_name:
@@ -370,6 +393,8 @@ class Actions(ModuleBase):
         """初始化任务参数"""
         if not self.init_args:
             self.init_args = True
+            self.action_list = []
+            self.action_id = 0
             self.report_info["script_args"] = self.task_args
 
 
@@ -386,19 +411,8 @@ class Actions(ModuleBase):
                 self.script_status = ScriptStatus.FAILED
                 return
 
-            operation = self.task_args.get("operation", "")
-            if operation == 123:
-                Trace.log(f"operation is None")
-                keys=self.task_args.keys()
-                if "robotRotateAngle" in keys or "robotRotateDirection" in keys or "shelfRotateAngle" in keys:
-                    operation="rotate"
-                    Trace.log(f"operation is rotate")
-                elif "dist" in keys:
-                    operation="line"
-                    Trace.log(f"operation is line")
-                elif "rotRadius" in keys or "rotDegree" in keys or "rotSpeed" in keys:
-                    operation="arc"
-                    Trace.log(f"operation is arc")
+            operation = _normalize_operation(self.task_args)
+            _trace_log(f"normalized operation: {operation or 'unknown'}", name=f"{LOG_NAME}.task")
                     
             if operation=='line':
                 # 获取直线运动参数
@@ -407,26 +421,41 @@ class Actions(ModuleBase):
                 self.vy = self.task_args.get("vy", 0.0)
                 self.mode = self.task_args.get("mode", None)
                 if self.mode is None:
-                    self.mode = 0  
-                v=(self.vx**2+self.vy**2)**0.5
-                t=self.dist/v
-                pos_x=self.vx*t
-                pos_y=self.vy*t
-                theta=math.atan2(self.vy,self.vx)
-                backMode=True if self.vx < 0 else False
-                if math.fabs(theta) < math.pi/2:
-                    pass
+                    self.mode = 0
+                v = math.hypot(self.vx, self.vy)
+                if v <= 1e-6:
+                    Navigation.setTaskError(
+                        "LineSpeedInvalid",
+                        "Line motion requires vx or vy to be non-zero"
+                    )
+                    self.script_status = ScriptStatus.FAILED
+                    return
+                t = self.dist / v
+                pos_x = self.vx * t
+                pos_y = self.vy * t
+                heading = 0.0
+                back_mode = False
+                hold_dir = None
+                if abs(self.vx) > 1e-6 and abs(self.vy) <= 1e-6:
+                    back_mode = self.vx < 0
+                    heading = 0.0
                 else:
-                    if theta > 0:
-                        theta=theta-math.pi
-                    else:
-                        theta=math.pi+theta
-                self.action_list.append(GoPath((pos_x,pos_y,theta),self.mode,back_mode=backMode,max_speed=v,max_rot=0))
+                    hold_dir = float(Loc.getPose().get("yaw", 0.0))
+                self.action_list.append(
+                    GoPath(
+                        (pos_x, pos_y, heading),
+                        self.mode,
+                        back_mode=back_mode,
+                        is_hold_dir=hold_dir,
+                        max_speed=v,
+                        max_rot=0,
+                    )
+                )
                 
                 
             elif operation=='rotate':
                 self.mode = self.task_args.get("mode", 0)
-                Trace.log(f"mode is {self.mode}")
+                _trace_log(f"mode is {self.mode}", name=f"{LOG_NAME}.task")
                 # 获取底盘旋转参数
 
                 self.robot_rotate_angle = self.task_args.get("robotRotateAngle", None)
@@ -482,20 +511,25 @@ class Actions(ModuleBase):
                     self.mode = 0  
                 self.action_list.append(GoArc(self.rot_radius, self.rot_degree, self.rot_speed, self.mode))
             else:
-                Trace.log(f"operation {operation} not support!")
+                _trace_log(f"operation {operation} not support!", name=f"{LOG_NAME}.err")
+                Navigation.setTaskError(
+                    "OperationNotSupported",
+                    f"operation {operation} not support"
+                )
+                self.script_status = ScriptStatus.FAILED
                 return
                 
 
     def suspend(self):
         Module.setStatus(ScriptStatus.SUSPENDED)
         self.script_status = ScriptStatus.SUSPENDED
-        Trace.log("suspend")
+        _trace_log("suspend", name=f"{LOG_NAME}.task")
 
     def resume(self):
         if Module.getStatus() == ScriptStatus.SUSPENDED:
             Module.setStatus(ScriptStatus.RUNNING)
             self.script_status = ScriptStatus.RUNNING
-        Trace.log("resume")
+        _trace_log("resume", name=f"{LOG_NAME}.task")
 
     def cancel(self):
         Navigation.resetOdoMove()
@@ -515,13 +549,18 @@ class Actions(ModuleBase):
         self.script_status = ScriptStatus.RUNNING
         self.task_args = args
         self._init_args()
+        if self.script_status == ScriptStatus.FAILED:
+            self._update_report_info()
+            Module.reportInfo(self.report_info)
+            _trace_chart(self.report_info, name=f"{LOG_NAME}.report")
+            return self.script_status
         self._execute_actions()
 
         if self.action_id < len(self.action_list):
             self.report_info["current_action"] = self.action_list[self.action_id].action_state
         self._update_report_info()
         Module.reportInfo(self.report_info)
-        Trace.log(json.dumps(self.report_info))
+        _trace_chart(self.report_info, name=f"{LOG_NAME}.report")
         return self.script_status
 
     def _execute_actions(self):
@@ -547,7 +586,7 @@ class Actions(ModuleBase):
                     "Action failed",
                     f"execute action {current_action} failed!  execute_actions"
                 )
-                self.script_status = ActionStatus.FAILED
+                self.script_status = ScriptStatus.FAILED
                 Navigation.resetOdoMove()
                 self.init_args = False
                 self.action_id = 0
@@ -561,11 +600,11 @@ class Actions(ModuleBase):
             self.init_args = False
             self.action_id = 0
             self.action_list = []
-            self.script_status = ActionStatus.FINISHED
+            self.script_status = ScriptStatus.FINISHED
             Module.setStatus(ScriptStatus.FINISHED)
             # self.action_list = []
-        Trace.log(f'{self.action_id=}, {self.action_list=}')
-        Trace.log(f"self.action_list: {self.action_list}")
+        _trace_log(f"action_id={self.action_id}, action_count={len(self.action_list)}", name=f"{LOG_NAME}.task")
+        _trace_log(f"self.action_list: {self.action_list}", name=f"{LOG_NAME}.task")
 
     def _update_report_info(self):
         """更新上报信息"""
@@ -808,7 +847,6 @@ class GoPath(BaseAction):
             "y": self.go_pos[1],
             "theta": self.go_pos[2],
             "backMode": self.back_mode,
-            "hold_dir": self.is_hold_dir,
             "coordinate": self.coordinate,
             "maxSpeed": self.max_speed,
             "maxRot": self.max_rot,
@@ -816,7 +854,9 @@ class GoPath(BaseAction):
             "reachAngle": self.path_angle_accuracy,
             "useOdo": self.useOdo
         }
-        print(f"参数：{args}")
+        if self.is_hold_dir is not None:
+            args["holdDir"] = self.is_hold_dir
+        _trace_chart(args, name=f"{LOG_NAME}.go_path")
         self.action_status = self.go_path.run(args)
 
         j.report_info["GoPath"] = {
@@ -861,8 +901,13 @@ class GoArc(BaseAction):
             "actionName": "ass"
         }
 
-
-        print(f"参数：{self.arg},status:{self.action_status}")
+        _trace_chart(
+            {
+                "params": self.arg,
+                "status": self.action_status,
+            },
+            name=f"{LOG_NAME}.go_arc",
+        )
         # self.arg={'rotDegree': 180.0, 'rotRadius': -1.0, 'rotSpeed': 0.3, 'actionName': 'GoLeftArc'}
         self.action_status=Navigation.runOdoMove(self.arg)
 
@@ -887,10 +932,10 @@ def main():
     while True:
         # 脚本任务状态管理
         status = Module.getStatus()
-        print(f"-------------------------status:{status}")
+        _trace_log(f"status:{status}", name=f"{LOG_NAME}.task")
         if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
             input_params = Module.getTaskArgs()
-            print("task args:", json.dumps(input_params, indent=2))
+            _trace_chart({"taskArgs": input_params}, name=f"{LOG_NAME}.task_args")
             # input_params = {
             #     "type": "Arc",
             #     "rotRadius": -1,
@@ -913,9 +958,9 @@ def main():
                 try:
                     # 验证参数
                     validated_params = param_loader.loadInput(input_params)
-                    print("check ok, args:", json.dumps(validated_params, indent=2))
+                    _trace_chart({"validatedArgs": validated_params}, name=f"{LOG_NAME}.task_args")
                 except ValueError as e:
-                    print("check error:", e)
+                    _trace_log(f"check error: {e}", name=f"{LOG_NAME}.err")
                     Navigation.setTaskError(
                         "Input parameters invalid",
                         f"Input error: {e} Some input params are not valid Check the input params Input validation"
