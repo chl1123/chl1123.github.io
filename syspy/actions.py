@@ -19,6 +19,17 @@ from syspy.lib.robot import RobotParam
 from syspy.utils import ScriptType
 
 
+LOG_NAME = "actions"
+
+
+def _trace_log(msg: str, name: str = LOG_NAME) -> None:
+    Trace.log(msg, name=name)
+
+
+def _normalize_angle_rad(angle: float) -> float:
+    return math.atan2(math.sin(angle), math.cos(angle))
+
+
 # --- ConfigParams 类 ---
 class ConfigParams:
     """配置管理器，用于管理动态配置参数"""
@@ -446,11 +457,11 @@ class Actions(ModuleBase):
                     return
                 #优先执行支持里程，定位模式的旋转动作
                 if self.robot_rotate_angle is not None:
-                    if not self.robot_rotate_direction:
+                    if self.robot_rotate_direction is None:
                         if self.robot_rotate_speed is not None:
                             self.robot_rotate_direction = -1 if self.robot_rotate_speed > 0 else 1
                         else:
-                            self.robot_rotate_direction =-1
+                            self.robot_rotate_direction = RotateDirection.NEARBY
                 if self.robot_rotate_speed is None:
                     self.robot_rotate_speed = 30
                 self.action_list.append(
@@ -488,12 +499,13 @@ class Actions(ModuleBase):
 
     def cancel(self):
         Navigation.resetOdoMove()
+        Navigation.resetRotateMove()
         self.init_args = False
         self.action_id = 0
         self.action_list = []
         Module.setStatus(ScriptStatus.FAILED)
         self.script_status = ScriptStatus.FAILED
-        Trace.log("cancel")
+        _trace_log("cancel", name=f"{LOG_NAME}.task")
     
 
 
@@ -701,11 +713,10 @@ class Rotate(BaseAction):
             self.sparams = dict()
             if not self.is_debug:
                 if self.robot_rotate_angle is not None:
-                    while math.fabs(self.robot_rotate_angle) > math.pi:
-                        self.robot_rotate_angle = math.fabs(self.robot_rotate_angle) - 2 * math.pi
-                    self.rparams["moveAngle"] = self.robot_rotate_angle
+                    self.robot_rotate_angle = _normalize_angle_rad(self.robot_rotate_angle)
+                    self.rparams["move_angle"] = self.robot_rotate_angle
                     self.rparams["dir"] = self.robot_direction
-                    self.rparams["speedW"] = math.fabs(self.speed_w_robot)
+                    self.rparams["speed_w"] = math.fabs(self.speed_w_robot)
 
                 if self.shelf_angle is not None:
                     self.sparams["angle"] = self.shelf_angle
@@ -728,31 +739,29 @@ class Rotate(BaseAction):
             else:
                 if self.selfCoordinateAxis is not None:
                     if self.selfCoordinateAxis == "robotSpinAngle":
-                        Trace.log("setRobotSpinAngle")
+                        _trace_log("setRobotSpinAngle", name=f"{LOG_NAME}.task")
                         Navigation.setRobotSpinAngle(self.shelf_angle, self.shelf_direction)
                     elif self.selfCoordinateAxis == "globalSpinAngle":
-                        Trace.log("setGlobalSpinAngle")
-                        print("==============")
-                        print(self.shelf_direction)
+                        _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
                         Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction)
                     elif self.selfCoordinateAxis == "increaseSpinAngle":
-                        Trace.log("setIncreaseSpinAngle")
+                        _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
                         Navigation.setIncreaseSpinAngle(self.shelf_angle)
                 else:
-                    self.robot_rotate_angle = math.fabs(self.robot_rotate_angle)
+                    self.robot_rotate_angle = _normalize_angle_rad(self.robot_rotate_angle)
                     self.rparams["moveAngle"] = self.robot_rotate_angle
-                    self.rparams["speedW"] = self.speed_w_robot
+                    self.rparams["speedW"] = abs(self.speed_w_robot)
                     self.rparams["locMode"] = self.mode 
         if self.selfCoordinateAxis is  None:
             if not self.is_debug:
                 # 执行旋转
-                print("DEBUG-----执行RotateMove,当前为旋转模式")
+                _trace_log("execute RotateMove", name=f"{LOG_NAME}.task")
                 self.action_status = Navigation.runRotateMove(
                     robot_params=self.rparams if self.rparams else None,
                     shelf_params=self.sparams if self.sparams else None
                 )
             else:
-                print("DEBUG-----执行OdoMove,当前为调试模式")
+                _trace_log("execute OdoMove in debug mode", name=f"{LOG_NAME}.task")
                 self.action_status = Navigation.runOdoMove(
                     self.rparams if self.rparams else None
                 )
