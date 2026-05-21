@@ -438,6 +438,8 @@ class Actions(ModuleBase):
                 hold_dir = None
                 if abs(self.vx) > 1e-6 and abs(self.vy) <= 1e-6:
                     back_mode = self.vx < 0
+                    pos_x = abs(pos_x)
+                    pos_y = 0.0
                     heading = 0.0
                 else:
                     hold_dir = float(Loc.getPose().get("yaw", 0.0))
