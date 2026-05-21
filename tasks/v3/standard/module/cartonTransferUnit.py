@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/5/18
+# @Date: 2026/5/21
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: fix：修复电机控制分帧的问题
+# @Update: fix：修复unload货物检测光电遗漏
 # @RBK Version: V3.5+
 import enum
 import uuid
 
-SCRIPT_VERSION = "20260518"
+SCRIPT_VERSION = "20260521"
 import json
 import math
 import random
@@ -46,11 +46,15 @@ def debug_print(*args, **kwargs):
         print(f"{timestamp}", *args, **kwargs)
 
 
-def debug_trace(msg: str, *, name: str):
-    """Log to Trace only when debug_mode is enabled. name 为必填关键字参数。"""
+def debug_trace(*args, **kwargs):
+    """Log to Trace only when debug_mode is enabled (with timestamp)"""
     if ConfigParams.debug_mode:
         timestamp = _get_timestamp()
-        Trace.log(f"{timestamp} {msg}", name=name)
+        if args:
+            first_arg = f"{timestamp} {args[0]}"
+            Trace.log(first_arg, *args[1:], **kwargs)
+        else:
+            Trace.log(timestamp, **kwargs)
 
 
 class ConfigParams:
@@ -60,9 +64,17 @@ class ConfigParams:
     container_count = 0
     debug_mode = False
 
-    first_layer_low = 0.400
-    layer_spacing = 0.405
-    layer_height_diff = 0.010
+    DEFAULT_TRAY_HEIGHTS = [
+        (0.400, 0.410),  # 0
+        (0.805, 0.815),  # 1
+        (1.210, 1.220),  # 2
+        (1.620, 1.630),  # 3
+        (2.040, 2.045),  # 4
+        (2.440, 2.445),  # 5
+        (2.945, 2.955),  # 6
+        (3.375, 3.385),  # 7
+        (3.825, 3.835),  # 8
+    ]
 
     @staticmethod
     def get_container_count():
@@ -128,34 +140,21 @@ class ConfigParams:
                                desc="Backpack layer height parameters, Counted from No. 0"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="firstLayerLow", name="First Layer Low",
-                                       desc="Height of the first layer (No.0) low position"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.UNIT("m")
-                        builder.DEFAULTVALUE(cls.first_layer_low)
-                    with builder.CHILD(key="layerSpacing", name="Layer Spacing",
-                                       desc="Height spacing between adjacent layers"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.UNIT("m")
-                        builder.DEFAULTVALUE(cls.layer_spacing)
-                    with builder.CHILD(key="layerHeightDiff", name="Layer Height Diff",
-                                       desc="Height difference between low and high position of the same layer"):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.UNIT("m")
-                        builder.DEFAULTVALUE(cls.layer_height_diff)
                     for i in range(cls.container_count):
-                        default_low = cls.first_layer_low + i * cls.layer_spacing
-                        default_high = default_low + cls.layer_height_diff
+                        default_low = cls.DEFAULT_TRAY_HEIGHTS[i][0] if i < len(
+                            cls.DEFAULT_TRAY_HEIGHTS) else 0.400 + i * 0.410
+                        default_high = cls.DEFAULT_TRAY_HEIGHTS[i][1] if i < len(
+                            cls.DEFAULT_TRAY_HEIGHTS) else default_low + 0.010
                         with builder.CHILD(key=f"low{i}", name=f"Low{i}",
                                            desc=f"Height of the No. {i} Backboard Retrieval Box"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
-                            builder.DEFAULTVALUE(round(default_low, 3))
+                            builder.DEFAULTVALUE(default_low)
                         with builder.CHILD(key=f"high{i}", name=f"High{i}",
                                            desc=f"Height of the No. {i} Backbasket Material Box"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
-                            builder.DEFAULTVALUE(round(default_high, 3))
+                            builder.DEFAULTVALUE(default_high)
 
             # 识别组
             with builder.GROUP(key="recognizeConfig", name="Recognize Config",
@@ -341,12 +340,9 @@ class ConfigParams:
         cls.container_count = cls.get_container_count()
         cls.read_device_model()
         cls.config = script_param.loadConfig()
-        Trace.log(f"config loaded", name="ctu.cfg")
+        Trace.log(f"Loaded config: {cls.config}")
 
         cls.debug_mode = cls.config.get("debugMode", False)
-        cls.first_layer_low = cls.config.get("firstLayerLow", 0.400)
-        cls.layer_spacing = cls.config.get("layerSpacing", 0.405)
-        cls.layer_height_diff = cls.config.get("layerHeightDiff", 0.010)
         cls.low.clear()
         cls.high.clear()
         for i in range(cls.container_count):
@@ -426,7 +422,8 @@ def check_debug_task(operation: str) -> bool:
     if operation in DEBUG_ONLY_TASKS:
         if not ConfigParams.debug_mode:
             Trace.log(
-                f"task '{operation}' is debug-only, enable debugMode first", name="ctu.err")
+                f"[ERROR] Task '{operation}' is a debug-only task. "
+                f"Please enable 'debugMode' in script config first.")
             return False
     return True
 
@@ -745,7 +742,7 @@ class MotorRun:
         elif self.motor_type == MotorType.ROLLER_MOTOR:
             Motor.setMotorSpeed(self.motor_name, vel)
         else:
-            Trace.log(f"motor type error motor_type={self.motor_type}", name="ctu.err")
+            Trace.log(f"motor type error {self.motor_type}")
             self.status = ScriptStatus.FAILED
         if Motor.isMotorReached(self.motor_name):
             Motor.resetMotor(self.motor_name)
@@ -757,7 +754,7 @@ class MotorRun:
         self.state['motorStatus'] = self.status
 
     def reset(self):
-        Trace.log(f"motor reset motor={self.motor_name}", name="ctu.motor")
+        Trace.log(f"motor reset: {self.motor_name}")
         Motor.resetMotor(self.motor_name)
         self.status = ScriptStatus.RUNNING
 
@@ -997,7 +994,7 @@ class FingerAction(BaseAction):
                 self.agv.right_finger_real_pos = 1
                 Do.setDo(ConfigParams.right_finger_up_do, False)
             if self.agv.left_finger_real_pos == 1 and self.agv.right_finger_real_pos == 1:
-                Trace.log("finger open done", name="ctu.motor")
+                Trace.log(f"手指打开成功")
                 self.action_status = ActionStatus.FINISHED
 
         elif self.pos == 0:
@@ -1016,7 +1013,7 @@ class FingerAction(BaseAction):
                 self.agv.right_finger_real_pos = 0
                 Do.setDo(ConfigParams.right_finger_down_do, False)
             if self.agv.left_finger_real_pos == 0 and self.agv.right_finger_real_pos == 0:
-                Trace.log("finger close done", name="ctu.motor")
+                Trace.log(f"手指关闭成功")
                 self.action_status = ActionStatus.FINISHED
 
     def reset(self):
@@ -1144,6 +1141,28 @@ class CheckGoodsDiAction(BaseAction):
         super().run()
         if Di.getDi(ConfigParams.goods_check_di):
             Container.bindContainer("999", self.agv.goods_id, "")
+        self.action_status = ActionStatus.FINISHED
+
+    def reset(self):
+        super().reset()
+
+
+class CheckGoodsDiUnloadTakeAction(BaseAction):
+    """放货流程-从背篓取出后检查光电，有货则转绑到999"""
+    def __init__(self, agv, action_name="CheckGoodsDiUnloadTake"):
+        super().__init__(action_name)
+        self.agv = agv
+
+    def run(self):
+        super().run()
+        if Di.getDi(ConfigParams.goods_check_di):
+            goods_id = Container.getGoodsByContainer(self.agv.cur_c)
+            Container.bindContainer("999", goods_id, "")
+            Container.unbindContainer(self.agv.cur_c)
+        else:
+            Navigation.setTaskError("53726", "从背篓取货失败，货叉光电未检测到货物！请检查背篓和货物状态！")
+            self.action_status = ActionStatus.FAILED
+            return
         self.action_status = ActionStatus.FINISHED
 
     def reset(self):
@@ -1322,8 +1341,12 @@ class ContainerRobot(ModuleBase):
         self.rec_height_diff = 0
 
         self.fill_light_do = "DO-004"
+        self.collision_di = 0
         self.light_st_time = None
 
+        self.lift_zero_di = 8
+        self.stretch_limit = 10
+        self.rotate_limit = 7
         self.target_type = None
         self.code_type = None
         self.barcode_height = None
@@ -1436,7 +1459,7 @@ class ContainerRobot(ModuleBase):
                         Container.unbindContainer("999")
             else:
                 Navigation.setTaskError("53701", f"请在脚本参数中正确配置 goodsCheckDi 参数！")
-                Trace.log("goodsCheckDi config missing", name="ctu.err")
+                Trace.log(f"请在脚本参数中正确配置 goodsCheckDi 参数！")
                 self.status = ScriptStatus.FINISHED
 
             self.start_time = time.time()
@@ -1566,7 +1589,7 @@ class ContainerRobot(ModuleBase):
         if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
             NetProtocol.release()
             Do.setDo(self.fill_light_do, False)
-            Trace.log(f"script finished operation={self.operation}", name="ctu")
+            Trace.log(f"script finished: {json.dumps(self.report_info)}")
         Module.reportInfo(self.report_info)
         return self.status
 
@@ -1578,7 +1601,7 @@ class ContainerRobot(ModuleBase):
             if self.current_action.action_status == ActionStatus.FAILED:
                 self.action_status = ActionStatus.FAILED
             elif self.current_action.action_status == ActionStatus.FINISHED:
-                Trace.log(f"action [{self.action_id}] {self.current_action.action_name} finished", name="ctu.action")
+                Trace.log(f"action [{self.action_id}] {self.current_action.action_name} finished")
                 self.action_id += 1
             elif self.current_action.action_status == ActionStatus.INIT:
                 self.current_action.reset()
@@ -1606,7 +1629,7 @@ class ContainerRobot(ModuleBase):
         if self.operation_init:
             return
         self.operation_init = True
-        Trace.log(f"building load actions goods_id={self.goods_id}", name="ctu.action")
+        Trace.log(f"----- building load actions {self.goods_id} ------")
 
         if not self.cur_c:
             if (self.goods_id and Container.goodsExist(self.goods_id) and
@@ -1622,7 +1645,7 @@ class ContainerRobot(ModuleBase):
                 self.cur_c = self.self_position
             else:
                 self.cur_c = self.search_operable_container('load')
-            Trace.log(f"load begin containers_count={len(self.containers)}", name="ctu")
+            Trace.log(f"load begin: {json.dumps(self.containers)}")
             if self.cur_c is None:
                 Navigation.setTaskError("53716", f"车体所有背篓已满，无法继续取货！")
                 self.status = ScriptStatus.FAILED
@@ -1741,7 +1764,7 @@ class ContainerRobot(ModuleBase):
             Navigation.setTaskError("53719", f"检测到货叉（999号）已载货，无法执行外部取货动作！请核对任务数据和背篓数据！")
             self.status = ScriptStatus.FAILED
             return
-        Trace.log("building ex_take actions", name="ctu.action")
+        Trace.log(f"----- building ex_take actions ------")
         actions = []
         if self.barcode_height is not None:
             actions.append(ParallelAction([
@@ -1769,7 +1792,7 @@ class ContainerRobot(ModuleBase):
         if self.operation_init:
             return
         self.operation_init = True
-        Trace.log("building ex_put actions", name="ctu.action")
+        Trace.log(f"----- building ex_put actions ------")
         if not Container.hasGoods("999"):
             self._build_unload_actions()
             return
@@ -1802,7 +1825,7 @@ class ContainerRobot(ModuleBase):
         if self.operation_init:
             return
         self.operation_init = True
-        Trace.log("building unload actions", name="ctu.action")
+        Trace.log(f"----- building unload actions ------")
 
         if not self.cur_c:
             if self.self_position:
@@ -1832,7 +1855,7 @@ class ContainerRobot(ModuleBase):
                 Navigation.setTaskError("53725", f"背篓中不存在货物: {self.goods_id}，无法执行放货任务！请核对任务数据和背篓数据！")
                 self.status = ScriptStatus.FAILED
                 return
-            Trace.log(f"unload begin containers_count={len(self.containers)}", name="ctu")
+            Trace.log(f"unload begin: {json.dumps(self.containers)}")
 
         actions = []
         if self.cur_c != "999":
@@ -1844,6 +1867,7 @@ class ContainerRobot(ModuleBase):
             actions.append(StretchAction(self, ConfigParams.stretch_self_length, "unload_stretch_self"))
             actions.append(FingerAction(self, 0, "unload_finger_close_take"))
             actions.append(StretchAction(self, 0, "unload_stretch_retract_take"))
+            actions.append(CheckGoodsDiUnloadTakeAction(self, "unload_check_goods_take"))
 
         if self.rec_box_lift:
             actions.append(ParallelAction([
@@ -1971,9 +1995,7 @@ class ContainerRobot(ModuleBase):
                 (self.set_rotate_motor_calib and self.rotate_motor_stop and self.rotate_motor_calib != 2)
             )
             if calib_retry:
-                if not getattr(self, "_calib_retry_logged", False):
-                    Trace.log("calib retry: motor stopped but calib not done, resend", name="ctu.err")
-                    self._calib_retry_logged = True
+                Trace.log("标零失败检测：电机已停止但calib未完成，重置标志位重新下发")
                 self.set_lift_motor_calib = False
                 self.set_rotate_motor_calib = False
                 self.set_stretch_motor_calib = False
@@ -2030,7 +2052,7 @@ class ContainerRobot(ModuleBase):
         self.close_finger()
         Do.setDo(self.fill_light_do, False)
         self.status = ScriptStatus.FAILED
-        Trace.log("task cancelled", name="ctu")
+        Trace.log("carton cancel")
 
     def update_move_task_params(self):
         move_task = Navigation.moveTask()
@@ -2040,9 +2062,8 @@ class ContainerRobot(ModuleBase):
             if p['key'] == '#containerId' and p['stringValue'] != "":
                 self.self_position = p['stringValue']
 
-    def zero(self, zero_height=0.5):
-        if not any(self.zero_step):
-            Trace.log("zero start", name="ctu.motor")
+    def zero(self, zero_height=0):
+        Trace.log(f"----- running zero ------")
         if not self.zero_step[0]:
             self.zero_step[0] = Container.hasGoods("999") or self.finger(1)
         elif self.zero_step[0] and not self.zero_step[1]:
@@ -2051,12 +2072,14 @@ class ContainerRobot(ModuleBase):
             self.zero_step[2] = self.rotate(0)
         elif self.zero_step[2] and not self.zero_step[3]:
             self.zero_step[3] = self.lift(zero_height)
+        Trace.log(f"zero_step:{self.zero_step}")
         if all(self.zero_step):
             self.zero_step = [False] * 4
             return True
         return False
 
     def lift(self, height):
+        Trace.log(f"----- running lift ------")
         if height < ConfigParams.min_lift_height:
             height = ConfigParams.min_lift_height
         if height > ConfigParams.max_lift_height:
@@ -2095,7 +2118,7 @@ class ContainerRobot(ModuleBase):
                 self.right_finger_real_pos = 1
                 Do.setDo(ConfigParams.right_finger_up_do, False)
             if self.left_finger_real_pos == 1 and self.right_finger_real_pos == 1:
-                Trace.log("finger open done", name="ctu.motor")
+                Trace.log(f"手指打开成功")
                 self.finger_open_start = False
                 return True
 
@@ -2115,7 +2138,7 @@ class ContainerRobot(ModuleBase):
                 self.right_finger_real_pos = 0
                 Do.setDo(ConfigParams.right_finger_down_do, False)
             if self.left_finger_real_pos == 0 and self.right_finger_real_pos == 0:
-                Trace.log("finger close done", name="ctu.motor")
+                Trace.log(f"手指关闭成功")
                 self.finger_open_start = False
                 return True
 
@@ -2140,6 +2163,7 @@ class ContainerRobot(ModuleBase):
         self.finger_info["rightFinger"] = self.right_finger_real_pos
 
     def stretch(self, length):
+        Trace.log(f"----- running stretch ------")
         temp_motor_speed = ConfigParams.stretch_motor_speed
         if ConfigParams.max_stretch_length < length < ConfigParams.max_stretch_length + 0.1:
             Navigation.setTaskError("53708", f"下发伸出长度值略微超上限，下发值：{length}，上限值：{ConfigParams.max_stretch_length}。请检查货物是否离车体太远了！")
@@ -2155,6 +2179,7 @@ class ContainerRobot(ModuleBase):
         return False
 
     def rotate(self, pos, max_speed=None):
+        Trace.log(f"----- running rotate ------")
         if abs(pos) > abs(ConfigParams.max_rotate_angle / 180 * math.pi):
             Navigation.setTaskError("53709", f"下发角度值超上限，下发值：{pos / math.pi * 180}，上限值：{ConfigParams.max_rotate_angle}，请检查箱子是否摆歪，二维码是否破损！")
             self.status = ScriptStatus.FAILED
@@ -2186,7 +2211,7 @@ class ContainerRobot(ModuleBase):
         self.report_info["currentPos"] = module_pos
 
     def has_goods_id(self, goods_id: str):
-        Trace.log(f"has_goods_id check goods_id={goods_id}", name="ctu")
+        Trace.log(f"goodsName: {goods_id}")
         for c in self.containers:
             if goods_id == c['containerId']:
                 return True
@@ -2248,7 +2273,7 @@ class ContainerRobot(ModuleBase):
         if self.enable_motor and not self.motor_calib_state:
             self.motor_calib()
 
-        debug_print(f"[safe_move_check] motor_calib_state={self.motor_calib_state}")
+        print(f"[safe_move_check] motor_calib 后: motor_calib_state={self.motor_calib_state}")
 
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:
@@ -2256,52 +2281,52 @@ class ContainerRobot(ModuleBase):
             if zero_result:
                 status = SafeMoveStatus.FINISHED
         else:
-            debug_print("[safe_move_check] motor not calibrated, skip zero")
+            print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
 
         self.setSafeMoveStatus(status)
-        Trace.log(f"safe_move_check={Module.getSafeMoveCheck()}", name="ctu")
+        Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
     def modbus(self):
-        debug_print("modbus: reading")
+        print("modbus___________ 读取Modbus数据")
         args = {}
         op_data = NetProtocol.getModbusData("4x", 201, 1)
         if op_data:
             operation_code = parseModbus(op_data, 'uint16')
-            debug_print(f"modbus operation_code={operation_code}")
+            print(f"   操作码: {operation_code}")
             if operation_code == 1:
                 args["operation"] = "load"
                 height_data = NetProtocol.getModbusData("4x", 202, 2)
                 if len(height_data) >= 2:
                     height = parseModbus(height_data, 'float')
-                    debug_print(f"modbus height_reg=[{height_data[0]}, {height_data[1]}]")
-                    debug_print(f"modbus height={height:.4f}m")
+                    print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
+                    print(f"   解析后高度值: {height:.4f}m")
                     args["height"] = max(0.0, min(0.06, height))
-                    debug_print(f"modbus set height={args['height']:.4f}m")
+                    print(f"   设置高度: {args['height']:.4f}m")
             elif operation_code == 2:
                 args["operation"] = "unload"
             elif operation_code == 3:
                 args["operation"] = "spin"
-                debug_print("modbus reading float params")
+                print("读取浮点型参数:")
                 angle_data = NetProtocol.getModbusData("4x", 202, 1)
                 if angle_data:
                     angle_raw = parseModbus(angle_data, 'int16')
                     args["spinAngle"] = angle_raw / 100.0
-                    debug_print(f"modbus set angle={args['spinAngle']:.2f}deg")
+                    print(f"   设置角度: {args['spinAngle']:.2f}度")
                 else:
                     args["spinAngle"] = 90.0
-                    debug_print("modbus using default angle")
+                    print("   使用默认角度")
             elif operation_code == 4:
                 args["operation"] = "getCurrentPathProperty"
-                debug_print("modbus reading string params")
+                print("读取字符串参数:")
                 str_data = NetProtocol.getModbusData("4x", 202, 4)
                 if str_data:
                     device_name = parseModbus(str_data, 'string', 0, len(str_data))
                     if device_name:
                         args["device"] = device_name
-                        debug_print(f"modbus device_name={device_name}")
-            debug_print(f"modbus operation={args.get('operation', 'unknown')}")
+                        print(f"   设备名称: {device_name}")
+            print(f"   操作类型: {args.get('operation', 'unknown')}")
         return args
 
 
@@ -2326,7 +2351,7 @@ class Rec:
         self.status = ScriptStatus.RUNNING
         rec_status = Recognize.getRecStatus()
         if rec_status == 3 or rec_status == -1:
-            Trace.log(f"rec failed result={self.result}", name="ctu.rec")
+            Trace.log("rec failed:{}".format(self.result))
             if Timer.delay(0.05):
                 self.rec_times = self.rec_times + 1
                 if self.rec_times > self.max_rec_times:
@@ -2344,7 +2369,7 @@ class Rec:
                 if len(rec_results["recoList"]) == 1:
                     reco = rec_results["recoList"][0]
                     if not reco.get('valid', False):
-                        Trace.log("rec result invalid, retrying", name="ctu.rec")
+                        Trace.log("Rec: recognition result is invalid (valid=False), retrying")
                         Recognize.resetRec()
                         Recognize.doRec(self.filename, "", "")
                         return
@@ -2354,7 +2379,7 @@ class Rec:
             if self.result.get("x", 0) > self.max_goods_dist:
                 self.goods_out_dist = True
             self.status = ScriptStatus.FINISHED
-        # rec 状态通过 reportInfo 上报，不在每 tick 写 Trace.log
+        Trace.log(f"rec success: {self.status.name} {self.result}")
 
         cur_state = dict()
         cur_state['recResult'] = self.result
@@ -2410,7 +2435,7 @@ class RecAdjust:
         if self.plan_status is not ScriptStatus.FINISHED:
             self.plan_status = ScriptStatus.RUNNING
             if self.rec.status is ScriptStatus.RUNNING or self.rec.status is ScriptStatus.NONE:
-                Trace.log(f"rec to adjust status={self.rec.status.name}", name="ctu.rec")
+                Trace.log(f"----- rec to adjust {self.rec.status.name}------")
                 self.rec.run(agv)
             elif self.rec.status is ScriptStatus.FAILED:
                 self.rec_fail_time = self.rec_fail_time + 1
@@ -2421,9 +2446,9 @@ class RecAdjust:
                     self.rec.run(agv)
                 else:
                     self.status = ScriptStatus.FAILED
-                Trace.log(f"rec failed rec_fail_time={self.rec_fail_time}", name="ctu.rec")
+                Trace.log("rec fail!!! {}".format(self.rec_fail_time))
             elif self.rec.status is ScriptStatus.FINISHED:
-                Trace.log("move to adjust", name="ctu.rec")
+                Trace.log(f"------------------ move to adjust -----------------")
                 self.rec_fail_time = 0
 
                 if agv.is_auto_stretch:
@@ -2474,11 +2499,11 @@ class RecAdjust:
                         agv.ok_x = 0.01
                         agv.ok_yaw = 1.15 / 180 * math.pi
                     if not ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x:
-                        Trace.log(f"adjust finished adjust_count={self.adjust_count}", name="ctu.rec")
+                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = ScriptStatus.FINISHED
                     elif ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x and abs(
                             agv.yaw_adjust) <= agv.ok_yaw:
-                        Trace.log(f"adjust finished adjust_count={self.adjust_count}", name="ctu.rec")
+                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
                         self.status = ScriptStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
@@ -2522,7 +2547,10 @@ class RecAdjust:
         cur_state["lastYawAdjust"] = self.last_yaw_adjust / math.pi * 180
         cur_state["nextRotatePos"] = self.next_rotate_pos / math.pi * 180
         agv.report_info["recAdjust"] = cur_state
-        # RecAdjust 实时数据通过 reportInfo 上报，不在每 tick 写 Trace.log
+        Trace.log(f"[ContainerRobot][{agv.lift_real_pos}|{agv.stretch_real_pos}|{agv.rotate_real_pos / math.pi * 180}|"
+                  f"{self.rec.result.get('x', 0)}|{self.rec.result.get('y', 0)}|{self.rec.result.get('z', 0)}|{self.rec.result.get('yaw', 0)}|"
+                  f"{agv.yaw_adjust / math.pi * 180}|{self.last_yaw_adjust / math.pi * 180}|{self.next_rotate_pos / math.pi * 180}|"
+                  f"{self.rec_fail_time}|{self.adjust_count}|{self.rec.rec_times}|{self.go_args.get('x', 0)}|")
 
     def reset(self):
         self.rec.reset()
@@ -2558,30 +2586,6 @@ def main():
         # 上报信息
         Module.reportInfo(robot.report_info)
 
-        # === Trace.chart: 主循环末尾集中上报（§3 规范） ===
-        _cur_act = None
-        if hasattr(robot, 'action_list') and hasattr(robot, 'action_id'):
-            if 0 <= robot.action_id < len(robot.action_list):
-                _cur_act = robot.action_list[robot.action_id]
-        Trace.chart(
-            {
-                "scriptStatus": int(status),
-                "actionId": getattr(robot, "action_id", 0),
-                "actionTotal": len(getattr(robot, "action_list", [])),
-                "curActionState": int(_cur_act.action_status) if _cur_act else 0,
-            },
-            name="ctu.task",
-        )
-        Trace.chart(
-            {
-                "ctuHeight": float(Motor.getMotorPos(ConfigParams.lift_motor_name) or 0),
-                "ctuTarget": 0.0,
-                "ctuInPlace": bool(Motor.isMotorReached(ConfigParams.lift_motor_name)),
-                "containerCount": len(containers),
-            },
-            name="ctu.motor",
-        )
-
         # 触发安全检查事件
         if robot.event_safe_move_check:
             robot.safeMoveCheck()
@@ -2593,15 +2597,15 @@ def main():
             args = modbus_args or Module.getTaskArgs()
             if args:
                 try:
-                    debug_print(f"task args received")
+                    print("args", args)
                     # 校验参数, 解析为不带.的参数
                     args = script_param.loadInput(args)
-                    debug_print("task args validated ok")
+                    print("check ok, args:", json.dumps(args, indent=2))
                     # 初始化参数，成功时设置任务状态为RUNNING
                     robot = ContainerRobot()
                     robot.init_args(args)
                 except ValueError as e:
-                    Trace.log(f"input params validate failed error={e}", name="ctu.err")
+                    print("check error:", e)
         elif status == ScriptStatus.RUNNING:
             robot.run()
         elif status == ScriptStatus.SUSPENDED:
@@ -2616,3 +2620,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
