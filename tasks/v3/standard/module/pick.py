@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/18
+# @Date : 2026/5/21
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : P300脚本最新改动适配
+# @Update : 修复bug
 
 import json
 import math
@@ -1432,6 +1432,7 @@ class Jack(ModuleBase):
         self.report_info["getLM"] = {
             "LM": result
         }
+        self.report_info["containers"] = Container.getContainers()
         Module.reportInfo(self.report_info)
         debug_trace(f"getLM={result}")
         self.status = ScriptStatus.FINISHED
@@ -1537,7 +1538,7 @@ class Jack(ModuleBase):
                                self.recfile, deduct_info=deduct_info_lift))
 
                 # 顶升完成后绑定容器，设置货物模型
-                self.action_list.append(BindContainer("999", "shelf", self.recfile, self.insert_shelf_dir))
+                self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
 
                 # 取货完成后清除策略
                 self.action_list.append(ClearPolicy())
@@ -1559,13 +1560,13 @@ class Jack(ModuleBase):
             if self.pre_action_completed and current_height <= 0.005:
                 # 边走边动模式下顶升已经下降完成，跳过下降步骤
                 debug_trace(f"jackUnload: 边走边动模式，顶升已下降 (height={current_height:.4f}m)，跳过下降步骤")
-                self.action_list.append(UnbindContainer("999"))
+                self.action_list.append(UnbindContainer("0"))
             else:
                 # 正常模式或边走边动未完成，执行下降托盘
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed, self.recfile))
                 # 下降完成后解绑容器，清除货物模型
-                self.action_list.append(UnbindContainer("999"))
+                self.action_list.append(UnbindContainer("0"))
             # === 放货完成后删除激光扣除区域 ===
             self.action_list.append(DeleteLaserDeductArea())
 
@@ -1768,6 +1769,7 @@ class Jack(ModuleBase):
             "jackEmc": self.jack_emc,
             "jackIsFull": self.jack_isFull,
             "jackHeight": self.jack_height,
+            "containers": Container.getContainers(),
         })
 
         Module.reportInfo(self.report_info)
@@ -3294,7 +3296,7 @@ def main():
     ScriptParam.setConfigChangeCallBack(script_config_callback)
 
     Module.init()
-    Container.initContainer(max_id=0, self_id="999")
+    Container.initContainer(max_id=0, self_id="0")
     validator = ParamValidator(InputParams.builder.toDict())
     j = Jack()
 
