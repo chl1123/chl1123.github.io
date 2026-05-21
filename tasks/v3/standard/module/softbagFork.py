@@ -43,8 +43,8 @@ def _trace_log(text: str, name: str = LOG_MODULE) -> None:
     Trace.log(f"[{name}] {text}", name=name)
 
 def _trace_chart(msg: dict, name: str = f"{LOG_MODULE}.action") -> None:
-    """Emit trace chart with channel name; degrade gracefully for old Trace services."""
-    Trace.chart(f"[{name}] {json.dumps(msg)}", name=name)
+    """Emit structured trace chart data with channel name."""
+    Trace.chart(msg, name=name)
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
@@ -209,7 +209,7 @@ class ConfigParams:
     ultrasonicDiKey1: str = ""
     ultrasonicDiKey2: str = ""
     ultrasonicNeedTriggerFirst: bool = True
-    ultrasonicClearDebounce: float = 0.30
+    ultrasonicClearDebounce: float = 0.20
     ultrasonicSyncWindow: float = 0.20
 
     # 称重模块
@@ -292,7 +292,7 @@ class ConfigParams:
         cls.ultrasonicDiKey1 = cfg.get("ultrasonicDiKey1", "")
         cls.ultrasonicDiKey2 = cfg.get("ultrasonicDiKey2", "")
         cls.ultrasonicNeedTriggerFirst = cfg.get("ultrasonicNeedTriggerFirst", True)
-        cls.ultrasonicClearDebounce = cfg.get("ultrasonicClearDebounce", 0.30)
+        cls.ultrasonicClearDebounce = cfg.get("ultrasonicClearDebounce", 0.20)
         cls.ultrasonicSyncWindow = cfg.get("ultrasonicSyncWindow", 0.20)
         cls.weightPort = cfg.get("weightPort", "/dev/ttyUSB0")
         cls.weightBaudrate = cfg.get("weightBaudrate", 9600)
@@ -4494,7 +4494,7 @@ class WeightDropMonitor:
             except Exception:
                 pass
 
-    def report(self) -> Dict[str, Any]:
+    def snapshot(self) -> Dict[str, Any]:
         return {
             "baseWeight": self.base_weight,
             "lastWeight": self.last_weight,
@@ -4545,11 +4545,14 @@ class UltrasonicDetachMonitor:
             return pair
         return bool(Di.getDi(self.di_key1)), bool(Di.getDi(self.di_key2))
 
-    def start(self):
+    def start(self) -> bool:
         if not self.di_key1 or not self.di_key2:
-            raise RuntimeError("ultrasonic di keys are empty")
+            _trace_log("ultrasonic di monitor start skipped: keys are empty")
+            self.detach_ok = False
+            return False
         now = time.time()
         cur1, cur2 = self._read_di_pair()
+        _trace_log(f"ultrasonic di monitor start: di1={cur1}, di2={cur2}")
         self.prev_states = {self.di_key1: cur1, self.di_key2: cur2}
         self.last_rise_ts = {
             self.di_key1: now if cur1 else None,
@@ -4560,6 +4563,7 @@ class UltrasonicDetachMonitor:
             self.seen_pair_triggered = True
         self.clear_since = None
         self.detach_ok = False
+        return True
 
     def mock_start(self, states: Optional[List[Tuple[bool, bool]]] = None):
         """
@@ -4620,7 +4624,7 @@ class UltrasonicDetachMonitor:
         self.detach_ok = (now - self.clear_since) >= self.clear_debounce
         return self.detach_ok
 
-    def report(self) -> Dict[str, Any]:
+    def snapshot(self) -> Dict[str, Any]:
         return {
             "diKey1": self.di_key1,
             "diKey2": self.di_key2,
@@ -4655,8 +4659,8 @@ class UnloadReleaseCheckAction(BaseAction):
     """
     RELEASE_DETECT_TIMEOUT = 28.0 # 确认阶段检测超时时间，单位秒
     RELEASE_EXTRA_DOWN_STEP = 0.003 # 卸货判定完成后额外下降一小段
-    RELEASE_NEAR_END_HEIGHT = 0.01
-    RELEASE_NEAR_MIN_HEIGHT = 0.03
+    RELEASE_NEAR_END_HEIGHT = 0.01 # 接近目标高度时的参考值，单位米
+    RELEASE_NEAR_MIN_HEIGHT = 0.03 # 接近机械下限时的参考值，单位米
 
     def __init__(self, motor_name: str, end_height: float, max_speed: float, cfg, clamp_fn):
         super().__init__("UnloadReleaseCheck")
@@ -4664,7 +4668,7 @@ class UnloadReleaseCheckAction(BaseAction):
         self.clamp_fn = clamp_fn
         self.motor_name = motor_name
         self.end_height = end_height
-        self.max_speed = 0.02 # 0.02米/秒的默认最大速度，保证下降过程足够慢以提高检测的可靠性，实际速度可以动态调整
+        self.max_speed = 0.03 # 0.03米/秒的默认最大速度，保证下降过程足够慢以提高检测的可靠性，实际速度可以动态调整
         self.phase = "release"
         self.current_target: Optional[float] = None
         self.post_release_down_done = False
@@ -4725,13 +4729,18 @@ class UnloadReleaseCheckAction(BaseAction):
                     sync_window=self.cfg.ultrasonicSyncWindow,
                     clear_debounce=self.cfg.ultrasonicClearDebounce,
                 )
-                # self.di_monitor.start()
+                if not self.di_monitor.start():
+                    self.di_monitor = None
+                    self.di_required = False
+                    self.di_skip_reason = "di_start_return_false"
                 # 调试时可切换为模拟输入:
-                self.di_monitor.mock_start()
+                # self.di_monitor.mock_start()
                 self.di_required = True
             except Exception as e:
-                self._fail_with_report("ReleaseDiInitFail", str(e))
-                return False
+                self.di_monitor = None
+                self.di_required = False
+                self.di_skip_reason = f"di_init_failed:{e}"
+                _trace_log(f"ultrasonic di init failed, fallback to weight only, err={e}")
         else:
             self.di_monitor = None
             self.di_required = False
@@ -4780,12 +4789,12 @@ class UnloadReleaseCheckAction(BaseAction):
                     di_ok = self.di_monitor.update()
                 else:
                     di_ok = True
-                return weight_ok, di_ok, (weight_ok and di_ok)
+                return weight_ok, di_ok, (weight_ok or di_ok)
             self._fail_with_report("ReleaseSensorReadFail", f"sensor read failed: {e}")
             self.action_status = ActionStatus.FAILED
             self.cancel()
             return False, False, False
-        return weight_ok, di_ok, (weight_ok and di_ok)
+        return weight_ok, di_ok, (weight_ok or di_ok)
 
     def _cleanup_monitors(self):
         if self.weight_monitor is not None:
@@ -4803,9 +4812,15 @@ class UnloadReleaseCheckAction(BaseAction):
             "diSkipReason": self.di_skip_reason,
         }
         if self.weight_monitor:
-            report["weight"] = self.weight_monitor.report()
+            report["weight"] = self.weight_monitor.snapshot()
         if self.di_monitor:
-            report["ultrasonic"] = self.di_monitor.report()
+            report["ultrasonic"] = self.di_monitor.snapshot()
+        _trace_chart({
+            "event": "detach_fail",
+            "error": err,
+            "message": msg,
+            "report": report,
+        })
         _trace_log(f"detach fail [{err}] {msg}, report={report}")
 
     def run(self):
@@ -4813,7 +4828,7 @@ class UnloadReleaseCheckAction(BaseAction):
         卸货释放流程（按现场流程）：
         1) 货叉从当前高度持续下降到 end_height
         2) 下降过程中并行检测重量和双超声DI
-        3) 仅当 weight_ok 和 di_ok 同时满足时，判定放货成功
+        3) 仅当 weight_ok 或 di_ok 满足时，判定放货成功
         4) 若下降到底或超时仍不满足，判定失败
         """
         # 释放判定不依赖激光趋势，激光仅用于前段到位高度相关流程
