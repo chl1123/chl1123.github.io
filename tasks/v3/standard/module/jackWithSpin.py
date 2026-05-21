@@ -562,6 +562,9 @@ class ConfigParams:
                                             with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                "XY adjust, ignore angle → pgvAdjustXY"):
                                                 builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("alignWithCode", "Align With Code",
+                                                               "Align to code directly, no 180/90/XY constraint"):
+                                                builder.TYPE(ParamType.STRING)
                             with builder.CHILD(key="codeNumber", name="Code Number Strip",
                                                desc="Adjust along a QR code strip → auto sets pgvCodeStrip=True"):
                                 builder.TYPE(ParamType.ARRAY)
@@ -1122,6 +1125,9 @@ class InputParams:
                                                     with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                        "pgvAdjustXY"):
                                                         builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("alignWithCode", "Align With Code",
+                                                                       "No 180/90/XY constraint"):
+                                                        builder.TYPE(ParamType.STRING)
 
                                     with builder.CHILD(key="codeNumber", name="Code Number Strip",
                                                        desc="Code strip mode → pgvCodeStrip=True"):
@@ -1150,6 +1156,9 @@ class InputParams:
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                        "pgvXAdjust only"):
+                                                        builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("alignWithCode", "Align With Code",
+                                                                       "No 180/90/XY constraint"):
                                                         builder.TYPE(ParamType.STRING)
 
                             with builder.CHILD(key="pgvSpin", name="Spin Hold During Adjust",
@@ -1606,9 +1615,8 @@ class Jack(ModuleBase):
 
         if goods_angle is not None:
             # 3a. 使用上视PGV角度旋转货物模型
-            adjusted = goods_angle
-            cos_a = math.cos(adjusted)
-            sin_a = math.sin(adjusted)
+            cos_a = math.cos(goods_angle)
+            sin_a = math.sin(goods_angle)
 
             def _rotate_by_angle(pt):
                 if isinstance(pt, dict):
@@ -1620,7 +1628,6 @@ class Jack(ModuleBase):
             shape = [_rotate_by_angle(pt) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
 
             Trace.log(f"bindContainer ok angle={math.degrees(goods_angle):.1f}deg "
-                      f"adjusted={math.degrees(adjusted):.1f}deg "
                       f"container={container_id} goods={goods_name} "
                       f"shape_points={len(shape)} recfile={self.recfile}", name="jack")
         else:
@@ -4209,6 +4216,7 @@ class PGVSecondaryAdjust(BaseAction):
             p['pgvAdjust90'] = True
         elif angle == "ignoreAngle":
             p['pgvAdjustXY'] = True
+        # alignWithCode: 不设置 pgvAdjust180/pgvAdjust90/pgvAdjustXY
 
         # ---- positionAdjustType ----
         pos = self.position_adjust_type
@@ -4238,6 +4246,8 @@ class PGVSecondaryAdjust(BaseAction):
             p['pgvAdjust90'] = True
         elif angle == "ignoreAngle":
             p['pgvXAdjust'] = True
+        elif angle == "alignWithCode":
+            p['pgvXAngleAdjust'] = True
 
     # ------------------------------------------------------------------
     # 内部：构建 policy JSON
