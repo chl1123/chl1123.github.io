@@ -1488,6 +1488,36 @@ class Jack(ModuleBase):
         diff_to_pi = abs(Jack._normalize_angle(cur_angle - math.pi))
         return 0.0 if diff_to_0 <= diff_to_pi else math.pi
 
+    def _get_actual_insert_dir_from_pgv(self) -> str:
+        """根据 PGV 角度计算实际的进入方向（A/B/C/D）
+
+        PGV 角度定义：
+        - 0°: D 边朝车头
+        - 90°: A 边朝车头
+        - 180°/-180°: B 边朝车头
+        - -90°/270°: C 边朝车头
+
+        Returns:
+            str: 'A', 'B', 'C', or 'D'
+        """
+        if self.pgv_goods_angle_robot is None:
+            return "D"  # 默认 D 边
+
+        angle_deg = math.degrees(self.pgv_goods_angle_robot)
+        # 归一化到 [0, 360)
+        if angle_deg < 0:
+            angle_deg += 360
+
+        # 根据角度判断方向（每个方向 90° 范围）
+        if angle_deg >= 315 or angle_deg < 45:  # -45° ~ 45°
+            return "D"  # D 边朝车头
+        elif angle_deg >= 45 and angle_deg < 135:  # 45° ~ 135°
+            return "A"  # A 边朝车头
+        elif angle_deg >= 135 and angle_deg < 225:  # 135° ~ 225°
+            return "B"  # B 边朝车头
+        else:  # 225° ~ 315°
+            return "C"  # C 边朝车头
+
     # ============================================================================
     # 空载启动对齐
     # ============================================================================
@@ -3545,16 +3575,16 @@ class BindContainer(BaseAction):
         self.use_pgv_angle = use_pgv_angle
 
     def run(self, j: Jack):
+        # 当使用PGV角度时，同时使用 goods_angle 和 insert_dir
         if self.use_pgv_angle:
-            raw_angle = j.pgv_goods_angle_robot
-            if raw_angle is not None and raw_angle < 0:
-                goods_angle = raw_angle + 2 * math.pi
-            else:
-                goods_angle = raw_angle
+            goods_angle = j.pgv_goods_angle_robot
+            insert_dir = j._get_actual_insert_dir_from_pgv()
         else:
             goods_angle = None
+            insert_dir = self.insert_dir
+
         ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec",
-                             self.insert_dir, goods_angle=goods_angle)
+                             insert_dir, goods_angle=goods_angle)
         if not ok:
             Trace.log(f"BindContainer failed recfile={self.recfile}", name="jack.err")
         self.action_status = ActionStatus.FINISHED
