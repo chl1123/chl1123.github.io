@@ -34,6 +34,19 @@ def _normalize_angle_rad(angle: float) -> float:
     return math.atan2(math.sin(angle), math.cos(angle))
 
 
+def _normalize_increment_angle_deg(angle_deg: float) -> float:
+    angle_deg = math.fmod(float(angle_deg), 360.0)
+    if angle_deg > 180.0:
+        angle_deg -= 360.0
+    elif angle_deg < -180.0:
+        angle_deg += 360.0
+    if abs(angle_deg) == 180.0:
+        return 180.0 if angle_deg > 0 else -180.0
+    if abs(angle_deg) < 1e-9:
+        return 0.0
+    return angle_deg
+
+
 def _normalize_operation(task_args: dict) -> str:
     operation = task_args.get("operation")
     if operation and operation != 123:
@@ -498,7 +511,7 @@ class Actions(ModuleBase):
                     return
                 #优先执行支持里程，定位模式的旋转动作
                 if self.robot_rotate_angle is not None:
-                    if self.robot_rotate_direction in (None, RotateDirection.NEARBY):
+                    if self.robot_rotate_direction is None:
                         if self.robot_rotate_speed is not None:
                             if self.robot_rotate_speed > 0:
                                 self.robot_rotate_direction = RotateDirection.COUNTERCLOCKWISE
@@ -803,9 +816,22 @@ class Rotate(BaseAction):
                         _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
                         Navigation.setIncreaseSpinAngle(self.shelf_angle)
                 else:
-                    move_angle = math.radians(self.action_args["robotRotateAngle"])
+                    move_angle_deg = _normalize_increment_angle_deg(self.action_args["robotRotateAngle"])
+                    move_angle = math.radians(abs(move_angle_deg))
+                    speed_w = abs(self.speed_w_robot)
+                    if self.robot_direction == RotateDirection.NEARBY:
+                        if move_angle_deg > 0:
+                            speed_w = abs(self.speed_w_robot)
+                        elif move_angle_deg < 0:
+                            speed_w = -abs(self.speed_w_robot)
+                        else:
+                            speed_w = abs(self.speed_w_robot)
+                    elif self.robot_direction == RotateDirection.CLOCKWISE:
+                        speed_w = -abs(self.speed_w_robot)
+                    else:
+                        speed_w = abs(self.speed_w_robot)
                     self.rparams["moveAngle"] = move_angle
-                    self.rparams["speedW"] = self.speed_w_robot
+                    self.rparams["speedW"] = speed_w
                     self.rparams["locMode"] = self.mode 
             _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")           
         if self.selfCoordinateAxis is  None:
