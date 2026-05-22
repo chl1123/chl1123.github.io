@@ -2,7 +2,7 @@
 # @Date : 2026/5/20
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add: 增加顶升前读取二维码作为货物朝向
+# @Update : add: 1.增加顶升前读取二维码作为货物朝向 2. 增加jack电机到位超时检测 feat:适配最新goPGVRun接口改动
 
 import json
 import math
@@ -173,6 +173,8 @@ class ConfigParams:
     jack_motor_speed = None
     jack_min_height = None
     jack_max_height = None
+    jack_load_time = 30.0  # 顶升到位超时（秒）
+    jack_unload_time = 30.0  # 下降到位超时（秒）
 
     # Debug开关
     debug_mode = False
@@ -217,6 +219,8 @@ class ConfigParams:
     pgv_spin = True  # 随动状态下货叉朝向不动
     pgv_reach_dist = 0.02  # 到点距离精度（m）
     pgv_reach_angle = 1.0  # 到点角度精度（deg）
+    pgv_max_speed = 0.5  # PGV调整最大线速度（m/s）
+    pgv_max_rot_speed = 10.0  # PGV调整最大角速度（deg/s）
 
     # 报错保护配置参数
     load_again_error = True  # 是否启用重复取货保护
@@ -321,6 +325,18 @@ class ConfigParams:
                         builder.DEFAULTVALUE(default_max_length)
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
+                    with builder.CHILD(key="jackLoadTime", name="Jack Load Timeout",
+                                       desc="Timeout for jack lifting up (DI not triggered)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(30.0, min_value=1.0, max_value=120.0)
+                        builder.UNIT("s")
+                        builder.SINGLESTEP(1.0)
+                    with builder.CHILD(key="jackUnloadTime", name="Jack Unload Timeout",
+                                       desc="Timeout for jack lowering down (DI not triggered)"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(30.0, min_value=1.0, max_value=120.0)
+                        builder.UNIT("s")
+                        builder.SINGLESTEP(1.0)
 
             # ============================================
             # 顶升盘旋转配置组
@@ -546,6 +562,9 @@ class ConfigParams:
                                             with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                "XY adjust, ignore angle → pgvAdjustXY"):
                                                 builder.TYPE(ParamType.STRING)
+                                            with builder.CHILD("alignWithCode", "Align With Code",
+                                                               "Align to code directly, no 180/90/XY constraint"):
+                                                builder.TYPE(ParamType.STRING)
                             with builder.CHILD(key="codeNumber", name="Code Number Strip",
                                                desc="Adjust along a QR code strip → auto sets pgvCodeStrip=True"):
                                 builder.TYPE(ParamType.ARRAY)
@@ -604,6 +623,8 @@ class ConfigParams:
         cls.jack_motor_speed = cls.config.get("jackMotorSpeed")
         cls.jack_min_height = cls.config.get("jackMinHeight")
         cls.jack_max_height = cls.config.get("jackMaxHeight")
+        cls.jack_load_time = cls.config.get("jackLoadTime", 30.0)
+        cls.jack_unload_time = cls.config.get("jackUnloadTime", 30.0)
 
         # 顶升盘旋转配置
         cls.jack_adjust_precision = math.radians(cls.config.get("jackAdjustPrecision", 1.0))
@@ -662,6 +683,8 @@ class ConfigParams:
         cls.pgv_spin = cls.config.get("pgvSpin", True)
         cls.pgv_reach_dist = cls.config.get("pgvReachDist", 0.02)
         cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 1.0)
+        cls.pgv_max_speed = cls.config.get("pgvMaxSpeed", 0.5)
+        cls.pgv_max_rot_speed = cls.config.get("pgvMaxRotSpeed", 10.0)
 
         debug_trace(f"config reloaded debug_mode={cls.debug_mode}", name="jack.cfg")
 
@@ -1102,6 +1125,9 @@ class InputParams:
                                                     with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                        "pgvAdjustXY"):
                                                         builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("alignWithCode", "Align With Code",
+                                                                       "No 180/90/XY constraint"):
+                                                        builder.TYPE(ParamType.STRING)
 
                                     with builder.CHILD(key="codeNumber", name="Code Number Strip",
                                                        desc="Code strip mode → pgvCodeStrip=True"):
@@ -1131,6 +1157,9 @@ class InputParams:
                                                     with builder.CHILD("ignoreAngle", "Ignore Angle",
                                                                        "pgvXAdjust only"):
                                                         builder.TYPE(ParamType.STRING)
+                                                    with builder.CHILD("alignWithCode", "Align With Code",
+                                                                       "No 180/90/XY constraint"):
+                                                        builder.TYPE(ParamType.STRING)
 
                             with builder.CHILD(key="pgvSpin", name="Spin Hold During Adjust",
                                                desc="Hold fork direction during PGV adjustment"):
@@ -1147,6 +1176,22 @@ class InputParams:
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(config_params.pgv_reach_angle)
                                 builder.UNIT("deg")
+                                builder.SINGLESTEP(0.1)
+                            with builder.CHILD(key="pgvMaxSpeed", name="PGV Max Speed",
+                                               desc="PGV secondary adjustment max linear speed"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(config_params.pgv_max_speed)
+                                builder.UNIT("m/s")
+                                builder.MIN_VALUE(0.001)
+                                builder.MAX_VALUE(1.0)
+                                builder.SINGLESTEP(0.01)
+                            with builder.CHILD(key="pgvMaxRotSpeed", name="PGV Max Rot Speed",
+                                               desc="PGV secondary adjustment max rotation speed"):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(config_params.pgv_max_rot_speed)
+                                builder.UNIT("deg/s")
+                                builder.MIN_VALUE(0.001)
+                                builder.MAX_VALUE(180.0)
                                 builder.SINGLESTEP(0.1)
                     # [DEBUG] 托盘旋转
                     with builder.CHILD(key="spinTray", name="[Debug] spinTray", desc="Spin the tray (debug only)"):
@@ -1393,7 +1438,6 @@ class Jack(ModuleBase):
         Container.initContainer(0)
 
         # ========== 料架角度跟踪 ==========
-        self.container_world_angle = None  # 料架在世界坐标系下的角度（取货后记录）
         self.pgv_goods_angle_robot = None  # 上视PGV读取的货架在机器人坐标系下的角度（弧度）
 
         # ========== 空载对齐状态 ==========
@@ -1570,7 +1614,7 @@ class Jack(ModuleBase):
         shape = shapes[0]["points"]
 
         if goods_angle is not None:
-            # 3a. 使用上视PGV角度旋转货物模型（二次调整场景，弧度直接用于cos/sin）
+            # 3a. 使用上视PGV角度旋转货物模型
             cos_a = math.cos(goods_angle)
             sin_a = math.sin(goods_angle)
 
@@ -1728,6 +1772,8 @@ class Jack(ModuleBase):
         self.pgv_spin = self.task_args.get("pgvSpin", config_params.pgv_spin)
         self.pgv_reach_dist = self.task_args.get("pgvReachDist", config_params.pgv_reach_dist)
         self.pgv_reach_angle = self.task_args.get("pgvReachAngle", config_params.pgv_reach_angle)
+        self.pgv_max_speed = self.task_args.get("pgvMaxSpeed", config_params.pgv_max_speed)
+        self.pgv_max_rot_speed = self.task_args.get("pgvMaxRotSpeed", config_params.pgv_max_rot_speed)
 
         # laser area deduction
         self.create_or_delete_deducted_area = self.task_args.get("createOrDeleteDeductedArea", None)
@@ -1865,7 +1911,9 @@ class Jack(ModuleBase):
                 adjust_region=self.pgv_adjust_region,
                 pgv_spin=self.pgv_spin,
                 pgv_reach_dist=self.pgv_reach_dist,
-                pgv_reach_angle=self.pgv_reach_angle
+                pgv_reach_angle=self.pgv_reach_angle,
+                pgv_max_speed=self.pgv_max_speed,
+                pgv_max_rot_speed=self.pgv_max_rot_speed,
             ))
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
                                                config_params.jack_motor_speed))
@@ -2159,7 +2207,6 @@ class Jack(ModuleBase):
         # 二次调整
         if self.is_secondary_adjust:
             self.action_list.append(GetPGVData(self.pgv_scan_device))
-            self.action_list.append(GetGoodsDirFromPGV())
             self.action_list.append(PGVSecondaryAdjust(
                 code_adjust_type=self.pgv_code_adjust_type,
                 scan_device=self.pgv_scan_device,
@@ -2171,7 +2218,10 @@ class Jack(ModuleBase):
                 pgv_spin=self.pgv_spin,
                 pgv_reach_dist=self.pgv_reach_dist,
                 pgv_reach_angle=self.pgv_reach_angle,
+                pgv_max_speed=self.pgv_max_speed,
+                pgv_max_rot_speed=self.pgv_max_rot_speed,
             ))
+            self.action_list.append(GetGoodsDirFromPGV())
 
         # --- 顶升前顶升盘旋转（beforeJack） "料架旋转只按劣弧转"---
         if self.jack_spin_enable and self.jack_spin_phase == "beforeJack":
@@ -2195,9 +2245,6 @@ class Jack(ModuleBase):
         if self.is_recognize or self.recfile:
             self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
                                                    use_pgv_angle=self.is_secondary_adjust))
-
-        # 记录料架在世界坐标系下的角度（供后续路径/放货角度决策使用）
-        self.action_list.append(RecordContainerAngle())
 
     def jack_load(self):
         """
@@ -2345,7 +2392,6 @@ class Jack(ModuleBase):
             # 二次调整
             if self.is_secondary_adjust:
                 self.action_list.append(GetPGVData(self.pgv_scan_device))
-                self.action_list.append(GetGoodsDirFromPGV())
                 self.action_list.append(PGVSecondaryAdjust(
                     code_adjust_type=self.pgv_code_adjust_type,
                     scan_device=self.pgv_scan_device,
@@ -2357,7 +2403,10 @@ class Jack(ModuleBase):
                     pgv_spin=self.pgv_spin,
                     pgv_reach_dist=self.pgv_reach_dist,
                     pgv_reach_angle=self.pgv_reach_angle,
+                    pgv_max_speed=self.pgv_max_speed,
+                    pgv_max_rot_speed=self.pgv_max_rot_speed,
                 ))
+                self.action_list.append(GetGoodsDirFromPGV())
 
             # === 放货前料架角度调整 ===
             if (self.unload_container_dir is not None
@@ -2595,7 +2644,9 @@ class Jack(ModuleBase):
                 adjust_region=self.pgv_adjust_region,
                 pgv_spin=self.pgv_spin,
                 pgv_reach_dist=self.pgv_reach_dist,
-                pgv_reach_angle=self.pgv_reach_angle
+                pgv_reach_angle=self.pgv_reach_angle,
+                pgv_max_speed=self.pgv_max_speed,
+                pgv_max_rot_speed=self.pgv_max_rot_speed,
             ))
 
     # def pgv_code_strip_adjust(self):
@@ -3086,27 +3137,6 @@ class DeleteLaserDeductArea(BaseAction):
         Module.reportInfo(j.report_info)
 
 
-class RecordContainerAngle(BaseAction):
-    """取货完成后记录料架在世界坐标系下的角度"""
-    def __init__(self):
-        super().__init__("RecordContainerAngle")
-        self.opt_info = "RecordContainerAngle"
-
-    def run(self, j: Jack):
-        try:
-            robot_yaw = math.radians(Loc.getPose()["yaw"])
-            jack_angle = 0.0
-            if config_params.spin_motor_name:
-                jack_angle = Motor.getMotorPos(config_params.spin_motor_name) or 0.0
-            j.container_world_angle = Jack._normalize_angle(robot_yaw + jack_angle)
-            Trace.log(f"料架世界角度={math.degrees(j.container_world_angle):.1f}° "
-                      f"(robot={math.degrees(robot_yaw):.1f}° + jack={math.degrees(jack_angle):.1f}°)",
-                      name="jack")
-        except Exception as e:
-            Trace.log(f"RecordContainerAngle error={e}", name="jack.err")
-        self.action_status = ActionStatus.FINISHED
-
-
 class GetGoodsDirFromPGV(BaseAction):
     """二次调整时读取上视扫码器角度，作为货架在机器人坐标系下的角度，用于加载货物模型"""
 
@@ -3427,7 +3457,16 @@ class JackHeight(BaseAction):
                 self._last_progress = progress_10
                 debug_trace(f"jack progress={progress_10}% pos={current_pos:.4f}m", name="jack.motor")
 
+        elapsed = time.time() - self._init_time
+
         if self.target_height > self.jack_start_height:
+            # 顶升动作：超时检测
+            if config_params.jack_load_time and elapsed > config_params.jack_load_time:
+                Motor.resetMotor(self.motor_name)
+                Trace.log(f"jack up timeout {elapsed:.1f}s > {config_params.jack_load_time}s pos={current_pos:.4f}m", name="jack.err")
+                Navigation.setDeviceError("53306", f"顶升超时({config_params.jack_load_time}s)，上到位DI未触发，请检查DI和电机状态！")
+                self.action_status = ActionStatus.FAILED
+                return
             # 顶升动作：触发上到位 DI 后结束
             if Motor.isMotorReached(self.motor_name) or (config_params.jack_up_di and Di.getDi(config_params.jack_up_di)):
                 if not self._motor_moved and not getattr(self, "_warn_logged", False):
@@ -3445,6 +3484,13 @@ class JackHeight(BaseAction):
                         self._count_recorded = True
                         jack_count_manager.increment_count()
         else:
+            # 下降动作：超时检测
+            if config_params.jack_unload_time and elapsed > config_params.jack_unload_time:
+                Motor.resetMotor(self.motor_name)
+                Trace.log(f"jack down timeout {elapsed:.1f}s > {config_params.jack_unload_time}s pos={current_pos:.4f}m", name="jack.err")
+                Navigation.setDeviceError("53307", f"下降超时({config_params.jack_unload_time}s)，下到位DI未触发，请检查DI和电机状态！")
+                self.action_status = ActionStatus.FAILED
+                return
             # 下降动作
             if Motor.isMotorReached(self.motor_name) or (config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di)):
                 if not self._motor_moved and not getattr(self, "_warn_logged", False):
@@ -3477,7 +3523,14 @@ class BindContainer(BaseAction):
         self.use_pgv_angle = use_pgv_angle
 
     def run(self, j: Jack):
-        goods_angle = j.pgv_goods_angle_robot if self.use_pgv_angle else None
+        if self.use_pgv_angle:
+            raw_angle = j.pgv_goods_angle_robot
+            if raw_angle is not None and raw_angle < 0:
+                goods_angle = raw_angle + 2 * math.pi
+            else:
+                goods_angle = raw_angle
+        else:
+            goods_angle = None
         ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec",
                              self.insert_dir, goods_angle=goods_angle)
         if not ok:
@@ -4062,6 +4115,8 @@ class PGVSecondaryAdjust(BaseAction):
                  pgv_spin: bool = True,
                  pgv_reach_dist: float = 0.02,
                  pgv_reach_angle: float = 1.0,
+                 pgv_max_speed: float = 0.5,
+                 pgv_max_rot_speed: float = 10.0,
                  useTCP: bool = False):
         super().__init__("PGVSecondaryAdjust")
         self.opt_info = (f"{self.__class__.__name__}{{"
@@ -4083,6 +4138,8 @@ class PGVSecondaryAdjust(BaseAction):
         self.pgv_spin = pgv_spin
         self.pgv_reach_dist = pgv_reach_dist
         self.pgv_reach_angle = pgv_reach_angle
+        self.pgv_max_speed = pgv_max_speed
+        self.pgv_max_rot_speed = pgv_max_rot_speed
         self.useTCP = useTCP
 
     def run(self, j: Jack):
@@ -4116,6 +4173,8 @@ class PGVSecondaryAdjust(BaseAction):
         # ---- 精度 ----
         p['pgvReachDist'] = self.pgv_reach_dist
         p['pgvReachAngle'] = self.pgv_reach_angle  # 单位 deg
+        p['pgvMaxSpeed'] = self.pgv_max_speed
+        p['pgvMaxRotSpeed'] = self.pgv_max_rot_speed
 
         # ---- 扫码设备 → R2ADP / R2AUP ----
         # 根据 GetPGVData 阶段获取的 codeScannerInfo.isUpside 判断上视/下视
@@ -4157,6 +4216,7 @@ class PGVSecondaryAdjust(BaseAction):
             p['pgvAdjust90'] = True
         elif angle == "ignoreAngle":
             p['pgvAdjustXY'] = True
+        # alignWithCode: 不设置 pgvAdjust180/pgvAdjust90/pgvAdjustXY
 
         # ---- positionAdjustType ----
         pos = self.position_adjust_type
@@ -4186,6 +4246,8 @@ class PGVSecondaryAdjust(BaseAction):
             p['pgvAdjust90'] = True
         elif angle == "ignoreAngle":
             p['pgvXAdjust'] = True
+        elif angle == "alignWithCode":
+            p['pgvXAngleAdjust'] = True
 
     # ------------------------------------------------------------------
     # 内部：构建 policy JSON
