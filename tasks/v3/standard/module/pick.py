@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/21
+# @Date : 2026/5/22
 # @Author : zhaopengfei
 # @Coding : none
-# @Update : 修复bug
+# @Update :  add：默认读取模型文件的电机速度
 
 import json
 import math
@@ -335,6 +335,7 @@ class ConfigParams:
     bezier_is_backwards = True
     bezier_is_hold_dir = False
     bezier_max_speed = 0.5
+    bezier_min_speed = 0.05
     bezier_max_accele = 0.3
     bezier_max_decele = 0.2
     bezier_decele_dist = 1.0
@@ -380,6 +381,7 @@ class ConfigParams:
         jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
         motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
         reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
+        default_max_speed = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.maxSpeed") or 0.015
 
         builder = param_loader.builderConfig()
 
@@ -407,9 +409,9 @@ class ConfigParams:
                 with builder.CHILDREN():
                     # 顶升电机速度
                     with builder.CHILD(key="jackMotorSpeed", name="Jack Motor Speed",
-                                       desc="Speed of the jack motor"):
+                                       desc="Speed of the jack motor (default from model file maxSpeed)"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.015, min_value=0.001, max_value=0.1)
+                        builder.DEFAULTVALUE(default_max_speed, min_value=0.001, max_value=0.1)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.001)
 
@@ -510,6 +512,12 @@ class ConfigParams:
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
                         builder.UNIT("rad")
+                    with builder.CHILD(key="bezierMinSpeed", name="[Bezier] Min Speed",
+                                       desc="Minimum speed when decelerating near target"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.05, min_value=0.01, max_value=0.2)
+                        builder.UNIT("m/s")
+                        builder.SINGLESTEP(0.01)
 
             # ============================================
             # 折线导航配置组（现场实施后基本不变）
@@ -676,7 +684,9 @@ class ConfigParams:
         cls.debug_mode = cls.config.get("debugMode", False)
 
         # 电机配置
-        cls.jack_motor_speed = cls.config.get("jackMotorSpeed")
+        _default_max_speed = RobotParam.getDevice(
+            f"{cls.jack_motor_name}", f"func.{cls.motor_func}.maxSpeed") or 0.015
+        cls.jack_motor_speed = cls.config.get("jackMotorSpeed") or _default_max_speed
         cls.jack_min_height = cls.config.get("jackMinHeight")
         cls.jack_max_height = cls.config.get("jackMaxHeight")
 
@@ -697,6 +707,7 @@ class ConfigParams:
         cls.bezier_curvature_limit = cls.config.get("bezierCurvatureLimit", 1.3)
         cls.bezier_path_dist_accuracy = cls.config.get("bezierPathDistAccuracy", 0.01)
         cls.bezier_path_angle_accuracy = cls.config.get("bezierPathAngleAccuracy", 0.05)
+        cls.bezier_min_speed = cls.config.get("bezierMinSpeed", 0.05)
 
         # Polyline导航配置
         cls.polyline_back_dist = cls.config.get("polylineBackDist", 0.0)
@@ -1187,6 +1198,7 @@ class Jack(ModuleBase):
         self.curvature_limit = config_params.bezier_curvature_limit
         self.path_dist_accuracy = config_params.bezier_path_dist_accuracy
         self.path_angle_accuracy = config_params.bezier_path_angle_accuracy
+        self.min_speed = config_params.bezier_min_speed
 
         # 如果选择的是polyline，则使用polyline配置
         if self.how_go_site == "polyline":
@@ -1395,7 +1407,7 @@ class Jack(ModuleBase):
                 break
 
         if target_idx is None:
-            Navigation.setTaskError("53353", f"识别文件中找不到方向 '{side_name}'，object={object_key}")
+            Navigation.setTaskError("RecSideError", f"识别文件中找不到方向 '{side_name}'，object={object_key}")
             self.status = ScriptStatus.FAILED
 
         # 2) 命中后读取 enableBackDistance / backDistance
@@ -1410,7 +1422,7 @@ class Jack(ModuleBase):
 
         # 3) 基本校验
         if any(v is None or v == "none" for v in info.values()):
-            Navigation.setTaskError("53354", f"backDistance配置无效: {info}")
+            Navigation.setTaskError("BackDistInvalid", f"backDistance配置无效: {info}")
             self.status = ScriptStatus.FAILED
 
         debug_trace(f"backDistanceInfo = {info}")
@@ -1468,7 +1480,7 @@ class Jack(ModuleBase):
             # 获取AP点
             self.ap_id = self.ap_id or self.get_ap()
             if not self.ap_id:
-                Navigation.setTaskError("53379", "丢失AP点ID")
+                Navigation.setTaskError("NoTargetId", "丢失AP点ID")
                 return
 
             debug_trace(f"jack_load: ap_id={self.ap_id}")
@@ -1513,7 +1525,8 @@ class Jack(ModuleBase):
                         GoBezier(result_world, self.back_dist, self.adjust_dist_for_curvature_limit,
                                  self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
                                  self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
-                                 self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
+                                 self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy,
+                                 self.min_speed))
 
                 elif self.how_go_site == "polyline":
                     self.action_list.append(
@@ -1639,7 +1652,8 @@ class Jack(ModuleBase):
                 GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
                          self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
                          self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
-                         self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy))
+                         self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy,
+                         self.min_speed))
 
     def go_polyline(self):
         if not self.operation_init:
@@ -1718,7 +1732,7 @@ class Jack(ModuleBase):
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
             elif current_action.action_status == ActionStatus.FAILED:
-                Navigation.setTaskError("53355", f"动作执行失败: {current_action}")
+                Navigation.setTaskError("ExecuteActionError", f"动作执行失败: {current_action}")
                 self.status = ScriptStatus.FAILED
             else:
                 current_action.run(self)
@@ -2579,7 +2593,7 @@ class GoBezierCombined(BaseAction):
                  is_backwards=False, is_hold_dir=None,
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=1, curvature_limit=1.3,
                  path_dist_accuracy=0.01,
-                 path_angle_accuracy=0.05):
+                 path_angle_accuracy=0.05, min_speed=0.05):
         super().__init__()
         self.init = True
         self.action_status = ActionStatus.INIT
@@ -2589,7 +2603,8 @@ class GoBezierCombined(BaseAction):
         self.go_bezier = goBezier.GoBezierWorld(target_world, back_dist, adjust_dist_for_curvature_limit,
                                                 min_ahead_dist, is_backwards, is_hold_dir, max_speed, max_accele,
                                                 max_decele, decele_dist,
-                                                curvature_limit, path_dist_accuracy, path_angle_accuracy)
+                                                curvature_limit, path_dist_accuracy, path_angle_accuracy,
+                                                min_speed=min_speed)
         self.go_bezier_return = goBezier.GoBezierWorldReturn(not is_backwards)
 
     def run(self, j: Jack):
@@ -2619,7 +2634,7 @@ class GoBezier(BaseAction):
     def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.0,
                  is_backwards=False, is_hold_dir=None,
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3,
-                 path_dist_accuracy=0.01, path_angle_accuracy=0.05):
+                 path_dist_accuracy=0.01, path_angle_accuracy=0.05, min_speed=0.05):
         super().__init__()
 
         kwargs = locals()
@@ -2634,7 +2649,8 @@ class GoBezier(BaseAction):
                                                 min_ahead_dist,
                                                 is_backwards, is_hold_dir, max_speed, max_accele, max_decele,
                                                 decele_dist,
-                                                curvature_limit, path_dist_accuracy, path_angle_accuracy)
+                                                curvature_limit, path_dist_accuracy, path_angle_accuracy,
+                                                min_speed=min_speed)
 
     def run(self, j: Jack):
         if self.init:
@@ -2749,7 +2765,7 @@ class GoBezierReturn(BaseAction):
 #
 #                 if self.attempts > self.max_attempts:
 #                     self.action_status = ActionStatus.FAILED
-#                     Navigation.setTaskError("53357", "识别重试次数超限，请检查识别距离或识别传感器是否正常")
+#                     Navigation.setTaskError("RecFailed", "识别重试次数超限，请检查识别距离或识别传感器是否正常")
 #                 else:
 #                     Recognize.resetRec()
 #                     self.do_rec = False
@@ -2848,7 +2864,7 @@ class RecShelf(BaseAction):
                         # 所有文件均失败
                         self.action_status = ActionStatus.FAILED
                         Trace.log(f"[RACK] RACK_NOT_MATCHED: 所有 {len(self.shelf_files)} 个文件均未匹配")
-                        Navigation.setTaskError("53357", f"识别失败: 所有{len(self.shelf_files)}个货架尺寸文件均不匹配，请检查识别距离、传感器及货架配置")
+                        Navigation.setTaskError("RecFailed", f"识别失败: 所有{len(self.shelf_files)}个货架尺寸文件均不匹配，请检查识别距离、传感器及货架配置")
                 else:
                     Recognize.resetRec()
                     self.do_rec = False
@@ -2916,7 +2932,7 @@ class GetApPosAdjustedViaPgv(BaseAction):
             self.pgv_info[2] = j.code_info["tag_diff_angle"]
             if abs(self.pgv_info[0]) > 0.02 and abs(self.pgv_info[1]) > 0.02:
                 self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError("53359", "PGV偏差超限(>0.02m)，请检查货物二维码偏移或调整AP点位置")
+                Navigation.setTaskError("PgvOffsetError", "PGV偏差超限(>0.02m)，请检查货物二维码偏移或调整AP点位置")
 
             else:
                 # 将车体终点位置，加入二维码的偏差补偿
@@ -3025,7 +3041,7 @@ class GetPGVData(BaseAction):
         else:
             self.count += 1
             if self.count >= self.max_rec_num:
-                Navigation.setTaskError("53358", f"PGV二次调整识别超限({self.count}次)，请检查PGV相机或二维码位置")
+                Navigation.setTaskError("PgvRecExceeded", f"PGV二次调整识别超限({self.count}次)，请检查PGV相机或二维码位置")
 
         # 上报
         j.report_info["GetPGVData"] = {
@@ -3336,7 +3352,7 @@ def main():
                         j._init_args(validated_params)
                     except ValueError as e:
                         Trace.log(f"[ERROR] Input params check fail: {e}")
-                        Navigation.setTaskError("53356", f"输入参数校验失败: {e}")
+                        Navigation.setTaskError("InputParamError", f"输入参数校验失败: {e}")
 
         elif status == ScriptStatus.RUNNING:
             j.run()
