@@ -243,65 +243,69 @@ class ConfigParams:
 class RobotConfig:
     """电池低电阈值参数（来自 RobotParam）。"""
 
-    error_percentage = RobotParam.getConfig("power", "lowBatteryManage.errorPercentage", default=20.0)
-    automatic_shutdown = RobotParam.getConfig("power", "lowBatteryManage.automaticShutdown", default="OFF") or "OFF"
-    shutdown_percentage = (
-        RobotParam.getDevice(
-            "power",
-            "lowBatteryManage.automaticShutdown.on.shutdownPercentage",
-            default=-1.0,
-        )
-        if automatic_shutdown == "ON"
-        else -1.0
-    )
+    low_battery_warning = "off"
+    warning_percentage = -1.0
+    automatic_shutdown = "off"
+    shutdown_percentage = -1.0
 
-def load_robot_config_params() -> None:
-    """
-    从 RobotParam 加载配置参数，并赋值到 RobotConfig。
-    当电量低于 `error_percentage` 时才触发低电报警；
-    当 `automatic_shutdown` 开启且电量低于 `shutdown_percentage` 时触发关机报警。
-    默认值：`error_percentage=20.0`，`automatic_shutdown=OFF`，`shutdown_percentage=-1.0`（不启用）。
-    """
-    try:
-        RobotConfig.error_percentage = float(
-            RobotParam.getConfig("power", "lowBatteryManage.errorPercentage", default=20.0)
-        )
-        RobotConfig.automatic_shutdown = str(
-            RobotParam.getConfig("power", "lowBatteryManage.automaticShutdown", default="OFF") or "OFF"
-        )
-        if RobotConfig.automatic_shutdown == "ON":
-            RobotConfig.shutdown_percentage = float(
-                RobotParam.getDevice(
-                    "power",
-                    "lowBatteryManage.automaticShutdown.on.shutdownPercentage",
-                    default=-1.0,
-                )
+    @classmethod
+    def load_robot_config_params(cls):
+        try:
+            cls.low_battery_warning = str(
+                RobotParam.getConfig("power", "lowBatteryManage.lowBatteryWarning", default="off")
             )
-        else:
-            RobotConfig.shutdown_percentage = -1.0
-    except Exception as exc:
-        _trace_log(f"load_robot_config_params failed, err={exc}", name=f"{LOG_MODULE}.err")
+            if cls.low_battery_warning == "on":
+                cls.warning_percentage = float(
+                    RobotParam.getConfig(
+                        "power",
+                        "lowBatteryManage.lowBatteryWarning.on.warningPercentage",
+                        default=-1.0,
+                    )
+                )
+            else:
+                cls.warning_percentage = -1.0
 
-    _trace_log(
-        "robot config "
-        f"error={RobotConfig.error_percentage} "
-        f"auto_shutdown={RobotConfig.automatic_shutdown} "
-        f"shutdown={RobotConfig.shutdown_percentage}",
-        name=f"{LOG_MODULE}.cfg",
-    )
+            cls.automatic_shutdown = str(
+                RobotParam.getConfig("power", "lowBatteryManage.automaticShutdown", default="off")
+            )
+            if cls.automatic_shutdown == "on":
+                cls.shutdown_percentage = float(
+                    RobotParam.getConfig(
+                        "power",
+                        "lowBatteryManage.automaticShutdown.on.shutdownPercentage",
+                        default=-1.0,
+                    )
+                )
+            else:
+                cls.shutdown_percentage = -1.0
+        except Exception as exc:
+            _trace_log(f"load_robot_config_params failed, err={exc}", name=f"{LOG_MODULE}.err")
 
+        _trace_log(
+            "robot config "
+            f"{cls.low_battery_warning=} "
+            f"{cls.warning_percentage=} "
+            f"{cls.automatic_shutdown=} "
+            f"{cls.shutdown_percentage=}",
+            name=f"{LOG_MODULE}.cfg",
+        )
 
 def robot_config_change_callback(diff_map: Dict[str, Any]) -> None:
     """RobotParam 配置变更回调，动态更新 RobotConfig 参数。"""
     if not isinstance(diff_map, dict):
         return
 
-    if "lowBatteryManage.errorPercentage" in diff_map:
-        RobotConfig.error_percentage = float(diff_map.get("lowBatteryManage.errorPercentage"))
+    if "lowBatteryManage.lowBatteryWarning" in diff_map:
+        RobotConfig.low_battery_warning = str(diff_map.get("lowBatteryManage.lowBatteryWarning") or "off")
+        if RobotConfig.low_battery_warning != "on":
+            RobotConfig.warning_percentage = -1.0
+
+    if "lowBatteryManage.lowBatteryWarning.on.warningPercentage" in diff_map:
+        RobotConfig.warning_percentage = float(diff_map.get("lowBatteryManage.lowBatteryWarning.on.warningPercentage"))
 
     if "lowBatteryManage.automaticShutdown" in diff_map:
-        RobotConfig.automatic_shutdown = str(diff_map.get("lowBatteryManage.automaticShutdown") or "OFF")
-        if RobotConfig.automatic_shutdown != "ON":
+        RobotConfig.automatic_shutdown = str(diff_map.get("lowBatteryManage.automaticShutdown") or "off")
+        if RobotConfig.automatic_shutdown != "on":
             RobotConfig.shutdown_percentage = -1.0
 
     if "lowBatteryManage.automaticShutdown.on.shutdownPercentage" in diff_map:
@@ -562,7 +566,7 @@ class Dmx512NativeBehav:
             return
 
         if (
-            RobotConfig.automatic_shutdown == "ON"
+            RobotConfig.automatic_shutdown == "on"
             and RobotConfig.shutdown_percentage >= 0
             and percentage * 100.0 <= RobotConfig.shutdown_percentage
         ):
@@ -580,7 +584,11 @@ class Dmx512NativeBehav:
             )
             return
 
-        if percentage * 100.0 <= RobotConfig.error_percentage:
+        if (
+            RobotConfig.low_battery_warning == "on"
+            and RobotConfig.warning_percentage >= 0
+            and percentage * 100.0 <= RobotConfig.warning_percentage
+        ):
             self._set_status("LowBattery")
             self._send_led(
                 "MutableHorseRace",
@@ -590,7 +598,7 @@ class Dmx512NativeBehav:
                 context={
                     "status": self.robot_status,
                     "battery_pct": round(percentage * 100.0, 1),
-                    "error_pct": RobotConfig.error_percentage,
+                    "warning_pct": RobotConfig.warning_percentage,
                 },
             )
             return
@@ -745,7 +753,7 @@ def main() -> None:
     ScriptParam.setConfigChangeCallBack(script_config_callback)
     RobotParam.setConfigChangeCallBack(robot_config_change_callback)
 
-    load_robot_config_params()
+    RobotConfig.load_robot_config_params()
     Dmx512NativeBehav().run()
 
 
