@@ -210,10 +210,10 @@ class InputParams:
                             builder.DEFAULTVALUE(10)
                         
                         with builder.CHILD(key='robotRotateDirection', name='Robot Rotate Direction',
-                                        desc='底盘旋转方向：-1 顺时针 1 逆时针'):
+                                        desc='底盘旋转方向：-1 顺时针 0 自主选择 1 逆时针；不填时根据角速度正负自动推导'):
                             builder.TYPE(ParamType.INT)
                             builder.REQUIRED(False)
-                            builder.DEFAULTVALUE(1)
+                            builder.DEFAULTVALUE(0)
 
                         # 升降高度
                         with builder.CHILD(key="liftHeight", name="Lift Height",
@@ -462,7 +462,7 @@ class Actions(ModuleBase):
 
                 self.robot_rotate_angle = self.task_args.get("robotRotateAngle", None)
                 self.robot_rotate_speed = self.task_args.get("robotRotateSpeed", None)
-                self.robot_rotate_direction = self.task_args.get("robotRotateDirection",None)
+                self.robot_rotate_direction = self.task_args.get("robotRotateDirection", None)
                 self.is_debug = self.task_args.get("isDebug", False)
 
                 # 获取托盘旋转参数
@@ -488,9 +488,14 @@ class Actions(ModuleBase):
                     return
                 #优先执行支持里程，定位模式的旋转动作
                 if self.robot_rotate_angle is not None:
-                    if self.robot_rotate_direction is None:
+                    if self.robot_rotate_direction in (None, RotateDirection.NEARBY):
                         if self.robot_rotate_speed is not None:
-                            self.robot_rotate_direction = -1 if self.robot_rotate_speed > 0 else 1
+                            if self.robot_rotate_speed > 0:
+                                self.robot_rotate_direction = RotateDirection.COUNTERCLOCKWISE
+                            elif self.robot_rotate_speed < 0:
+                                self.robot_rotate_direction = RotateDirection.CLOCKWISE
+                            else:
+                                self.robot_rotate_direction = RotateDirection.NEARBY
                         else:
                             self.robot_rotate_direction = RotateDirection.NEARBY
                 if self.robot_rotate_speed is None:
