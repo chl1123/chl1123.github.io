@@ -395,7 +395,7 @@ class Actions(ModuleBase):
             self.init_args = True
             self.action_list = []
             self.action_id = 0
-            self.report_info["script_args"] = self.task_args
+            self.report_info["scriptArgs"] = self.task_args
 
 
             # 检查托盘电机
@@ -574,7 +574,7 @@ class Actions(ModuleBase):
         self._execute_actions()
 
         if self.action_id < len(self.action_list):
-            self.report_info["current_action"] = self.action_list[self.action_id].action_state
+            self.report_info["currentAction"] = self.action_list[self.action_id].action_state
         self._update_report_info()
         Module.reportInfo(self.report_info)
         _trace_chart(self.report_info, name=f"{LOG_NAME}.report")
@@ -634,16 +634,16 @@ class Actions(ModuleBase):
             self.shelf_pos = Motor.getMotorPos(config_params.spin_motor_name)
 
         if self.lift_pos is not None:
-            self.report_info["current_lift_height"] = self.lift_pos
+            self.report_info["currentLiftHeight"] = self.lift_pos
         if self.shelf_pos is not None:
             current_shelf_angle_in_robot = self.shelf_pos / math.pi * 180
-            self.report_info["current_shelf_angle_in_robot"] = current_shelf_angle_in_robot
-            self.report_info["current_shelf_angle_in_world"] = current_robot_angle + current_shelf_angle_in_robot
+            self.report_info["currentShelfAngleInRobot"] = current_shelf_angle_in_robot
+            self.report_info["currentShelfAngleInWorld"] = current_robot_angle + current_shelf_angle_in_robot
 
-        self.report_info["action_list_name"] = [a.__class__.__name__ for a in self.action_list]
-        self.report_info["action_id"] = self.action_id
-        self.report_info["current_robot_angle"] = current_robot_angle
-        self.report_info["script_status"] = self.script_status
+        self.report_info["actionListName"] = [a.__class__.__name__ for a in self.action_list]
+        self.report_info["actionId"] = self.action_id
+        self.report_info["currentRobotAngle"] = current_robot_angle
+        self.report_info["scriptStatus"] = self.script_status
 
 
 # --- 基础动作类 ---
@@ -660,10 +660,10 @@ class BaseAction:
 
     def run(self, a: Actions):
         """外部调用时，输出或打印实例对象的 action_state 字段"""
-        self.action_state['action_name'] = self.__class__.__name__
-        self.action_state["action_args"] = self.action_args
-        self.action_state['action_status'] = self.action_status
-        self.action_state["action_runtime"] = time.time() - self.start_time
+        self.action_state['actionName'] = self.__class__.__name__
+        self.action_state["actionArgs"] = self.action_args
+        self.action_state['actionStatus'] = self.action_status
+        self.action_state["actionRuntime"] = time.time() - self.start_time
 
     def reset(self):
         pass
@@ -711,10 +711,10 @@ class Jack(BaseAction):
                 "Lift motor not found Check motor configuration Motor check"
             )
 
-        self.action_state['action_name'] = self.__class__.__name__
-        self.action_state["action_args"] = self.action_args
-        self.action_state['action_status'] = self.action_status
-        self.action_state["action_runtime"] = time.time() - self.start_time
+        self.action_state['actionName'] = self.__class__.__name__
+        self.action_state["actionArgs"] = self.action_args
+        self.action_state['actionStatus'] = self.action_status
+        self.action_state["actionRuntime"] = time.time() - self.start_time
         
 
     def reset(self):
@@ -734,7 +734,6 @@ class Rotate(BaseAction):
             "speed_w_robot": speed_w_robot,
             "shelf_angle": shelf_angle,
             "shelf_direction": shelf_direction,
-            "mode": mode,
             "isDebug": is_debug
         }
         self.mode = mode
@@ -759,12 +758,12 @@ class Rotate(BaseAction):
 
         self.rparams = None
         self.sparams = None
-
     def run(self, a: Actions):
         if self.init:
             self.init = False
             self.action_status = ActionStatus.RUNNING
             Navigation.resetRotateMove()
+            Navigation.resetOdoMove()
             self.rparams = dict()
             self.sparams = dict()
             if not self.is_debug:
@@ -804,14 +803,11 @@ class Rotate(BaseAction):
                         _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
                         Navigation.setIncreaseSpinAngle(self.shelf_angle)
                 else:
-                    move_angle = abs(math.radians(self.action_args["robotRotateAngle"]))
-                    if self.robot_direction == RotateDirection.CLOCKWISE:
-                        move_angle = -move_angle
-                    elif self.robot_direction == RotateDirection.NEARBY and self.speed_w_robot < 0:
-                        move_angle = -move_angle
+                    move_angle = math.radians(self.action_args["robotRotateAngle"])
                     self.rparams["moveAngle"] = move_angle
-                    self.rparams["speedW"] = abs(self.speed_w_robot)
+                    self.rparams["speedW"] = self.speed_w_robot
                     self.rparams["locMode"] = self.mode 
+            _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")           
         if self.selfCoordinateAxis is  None:
             if not self.is_debug:
                 # 执行旋转
@@ -829,12 +825,12 @@ class Rotate(BaseAction):
             if Navigation.spinRun():
                 self.action_status = ActionStatus.FINISHED
                 
-        self.action_state['action_name'] = self.__class__.__name__
-        self.action_state["action_args"] = self.action_args
+        self.action_state['actionName'] = self.__class__.__name__
+        self.action_state["actionArgs"] = self.action_args
         self.action_state['rparams'] = self.rparams
         self.action_state['sparams'] = self.sparams
-        self.action_state['action_status'] = self.action_status
-        self.action_state["action_runtime"] = time.time() - self.start_time
+        self.action_state['actionStatus'] = self.action_status
+        self.action_state["actionRuntime"] = time.time() - self.start_time
 
         return self.action_status
 
