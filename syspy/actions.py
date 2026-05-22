@@ -760,9 +760,9 @@ class Rotate(BaseAction):
             if not self.is_debug:
                 if self.robot_rotate_angle is not None:
                     self.robot_rotate_angle = _normalize_angle_rad(self.robot_rotate_angle)
-                    self.rparams["move_angle"] = self.robot_rotate_angle
+                    self.rparams["moveAngle"] = self.robot_rotate_angle
                     self.rparams["dir"] = self.robot_direction
-                    self.rparams["speed_w"] = math.fabs(self.speed_w_robot)
+                    self.rparams["speedW"] = math.fabs(self.speed_w_robot)
 
                 if self.shelf_angle is not None:
                     self.sparams["angle"] = self.shelf_angle
