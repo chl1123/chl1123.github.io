@@ -430,29 +430,39 @@ class Actions(ModuleBase):
                     )
                     self.script_status = ScriptStatus.FAILED
                     return
-                t = self.dist / v
-                pos_x = self.vx * t
-                pos_y = self.vy * t
-                heading = 0.0
-                back_mode = False
-                hold_dir = None
-                if abs(self.vx) > 1e-6 and abs(self.vy) <= 1e-6:
-                    back_mode = self.vx < 0
-                    pos_x = abs(pos_x)
-                    pos_y = 0.0
-                    heading = 0.0
-                else:
-                    hold_dir = float(Loc.getPose().get("yaw", 0.0))
-                self.action_list.append(
-                    GoPath(
-                        (pos_x, pos_y, heading),
-                        self.mode,
-                        back_mode=back_mode,
-                        is_hold_dir=hold_dir,
-                        max_speed=v,
-                        max_rot=0,
+                move_dist = abs(float(self.dist))
+                if self.mode == 0:
+                    self.action_list.append(
+                        GoLineByOdo(
+                            move_dist=move_dist,
+                            speed_x=float(self.vx),
+                            speed_y=float(self.vy),
+                        )
                     )
-                )
+                else:
+                    t = move_dist / v
+                    pos_x = self.vx * t
+                    pos_y = self.vy * t
+                    heading = 0.0
+                    back_mode = False
+                    hold_dir = None
+                    if abs(self.vx) > 1e-6 and abs(self.vy) <= 1e-6:
+                        back_mode = self.vx < 0
+                        pos_x = abs(pos_x)
+                        pos_y = 0.0
+                        heading = 0.0
+                    else:
+                        hold_dir = float(Loc.getPose().get("yaw", 0.0))
+                    self.action_list.append(
+                        GoPath(
+                            (pos_x, pos_y, heading),
+                            self.mode,
+                            back_mode=back_mode,
+                            is_hold_dir=hold_dir,
+                            max_speed=v,
+                            max_rot=0,
+                        )
+                    )
                 
                 
             elif operation=='rotate':
@@ -794,8 +804,12 @@ class Rotate(BaseAction):
                         _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
                         Navigation.setIncreaseSpinAngle(self.shelf_angle)
                 else:
-                    self.robot_rotate_angle = _normalize_angle_rad(self.robot_rotate_angle)
-                    self.rparams["moveAngle"] = self.robot_rotate_angle
+                    move_angle = abs(math.radians(self.action_args["robotRotateAngle"]))
+                    if self.robot_direction == RotateDirection.CLOCKWISE:
+                        move_angle = -move_angle
+                    elif self.robot_direction == RotateDirection.NEARBY and self.speed_w_robot < 0:
+                        move_angle = -move_angle
+                    self.rparams["moveAngle"] = move_angle
                     self.rparams["speedW"] = abs(self.speed_w_robot)
                     self.rparams["locMode"] = self.mode 
         if self.selfCoordinateAxis is  None:
@@ -876,6 +890,39 @@ class GoPath(BaseAction):
             "maxRot": self.max_rot,
             "reachDist": self.path_dist_accuracy,
             "reachAngle": self.path_angle_accuracy
+        }
+        Module.reportInfo(j.report_info)
+
+class GoLineByOdo(BaseAction):
+    """使用里程接口执行直线/平移运动"""
+
+    def __init__(self, move_dist: float, speed_x: float, speed_y: float):
+        super().__init__("GoLineByOdo")
+        self.move_dist = move_dist
+        self.speed_x = speed_x
+        self.speed_y = speed_y
+        self.init = True
+        self.action_status = ActionStatus.INIT
+
+    def run(self, j: Jack):
+        if self.init:
+            Navigation.resetOdoMove()
+            self.init = False
+            self.action_status = ActionStatus.RUNNING
+        params = {
+            "moveDist": float(self.move_dist),
+            "speedX": float(self.speed_x),
+            "speedY": float(self.speed_y),
+            "actionName": "GoLineByOdo",
+        }
+        _trace_chart(params, name=f"{LOG_NAME}.go_line_odo")
+        self.action_status = Navigation.runOdoMove(params)
+
+        j.report_info["GoLineByOdo"] = {
+            "actionStatus": self.action_status,
+            "moveDist": self.move_dist,
+            "speedX": self.speed_x,
+            "speedY": self.speed_y,
         }
         Module.reportInfo(j.report_info)
 
