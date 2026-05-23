@@ -20,6 +20,14 @@ from syspy.utils import ScriptType
 
 
 LOG_NAME = "actions"
+OMNI_CHASSIS_TYPES = {
+    "multipleDifferentialSteers",
+    "multiStandardAndDifferentialSteers",
+    "multiSteers",
+    "omni",
+    "quadruped",
+    "wheeledLeggedQuadruped",
+}
 
 
 def _trace_log(msg: str, name: str = LOG_NAME) -> None:
@@ -66,6 +74,7 @@ class ConfigParams:
     """配置管理器，用于管理动态配置参数"""
     config = {}
     lift_motor_speed = None
+    chassis_type = RobotParam.getDevice("Model-000", "chassisType")
 
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     lift_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
@@ -78,6 +87,7 @@ class ConfigParams:
     @classmethod
     def _build_and_load_config(cls):
         """构建并加载配置参数"""
+        cls.chassis_type = RobotParam.getDevice("Model-000", "chassisType")
         module_type = RobotParam.getDevice("Model-000", "moduleType")
         lift_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
         motor_func = RobotParam.getDevice(f"{lift_motor_name}", "func") if lift_motor_name else None
@@ -440,6 +450,13 @@ class Actions(ModuleBase):
                     Navigation.setTaskError(
                         "LineSpeedInvalid",
                         "Line motion requires vx or vy to be non-zero"
+                    )
+                    self.script_status = ScriptStatus.FAILED
+                    return
+                if abs(self.vy) > 1e-6 and config_params.chassis_type not in OMNI_CHASSIS_TYPES:
+                    Navigation.setTaskError(
+                        "LineLateralUnsupported",
+                        f"chassisType {config_params.chassis_type} does not support lateral motion"
                     )
                     self.script_status = ScriptStatus.FAILED
                     return
