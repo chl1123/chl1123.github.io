@@ -2944,34 +2944,19 @@ class GoPathWithContactDi(BaseAction):
             # 如果不需要检查所有的到位 di，一个到位任务结束
             if not self.check_all_contact_di:
 
-                if dist2target[0] > 0.2 and any(self.di_status):
-                    Navigation.setTaskError("NotReachGoal", f"reach di not reach goal, still {dist2target[0]}m left, ")
-                    self.action_status = ActionStatus.FAILED
-                    return
 
-                # 任务结束超过 1 s，且没有到位 di 触发，则报错结束任务
-                if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(
-                        1):
-                    Navigation.setTaskError("NoContactDiTriger", f"not trigger di but robot reach goal")
-                    self.action_status = ActionStatus.FAILED
-                    return
-                # 一个到位任务结束
-                if any(self.di_status):
-                    if self.stop_robot():
-                        self.action_status = ActionStatus.FINISHED
-                        return
-
-            # 仅检查所有到位 di 的情况
-            else:
                 if dist2target[0] > 0.2 and all(self.di_status):
                     Navigation.setTaskError("NotReachGoal",
                                             f"reach di not reach goal, still {dist2target[0]:.2f}m left, ")
+                    RobotError.setSystemError("NotReachGoal",
+                                              f"reach di not reach goal, still {dist2target[0]:.2f}m left, ", True)
                     self.action_status = ActionStatus.FAILED
                     return
                 # 所有到位 di 没有全部触发，则报错结束任务
                 if self.back_action.action_status == ActionStatus.FINISHED and not any(self.di_status) and Timer.delay(
                         1):
                     Navigation.setTaskError("NoContactDiTriger", f"not trigger di but robot reach goal")
+                    RobotError.setSystemError("NoContactDiTriger", f"not trigger di but robot reach goal", True)
                     self.action_status = ActionStatus.FAILED
                     return
                 # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
@@ -2983,6 +2968,8 @@ class GoPathWithContactDi(BaseAction):
                         else:
                             Navigation.setTaskError("NoAllContactDiTriger",
                                                     f"not all di triggered but robot reach goal")
+                            RobotError.setSystemError("NoAllContactDiTriger",
+                                                      f"not all di triggered but robot reach goal", True)
                             self.action_status = ActionStatus.FAILED
                             return
 
@@ -3233,6 +3220,8 @@ class RunMotorByPosition(BaseAction):
         if self.timeout is not None and (time.time() - self.start_time) > self.timeout:
             Navigation.setTaskError("ForkMoveTimeout",
                                     f"Fork motor timeout: {self.motor_name} exceeded {self.timeout}s")
+            RobotError.setSystemError("ForkMoveTimeout",
+                                      f"Fork motor timeout: {self.motor_name} exceeded {self.timeout}s", True)
             self.action_status = ActionStatus.FAILED
             return
 
@@ -3269,6 +3258,9 @@ class RunMotorByPosition(BaseAction):
                 if abs(max_pos - min_pos) <= 0.005:
                     Navigation.setTaskError("ForkNoMove",
                                             f"fork height not change between:{min_pos}m-{max_pos}m in {self.check_duration}s")
+                    RobotError.setSystemError("ForkNoMove",
+                                              f"fork height not change between:{min_pos}m-{max_pos}m in {self.check_duration}s",
+                                              True)
                     self.action_status = ActionStatus.FAILED
                     return
 
