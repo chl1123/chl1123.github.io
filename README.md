@@ -18,6 +18,8 @@
 - `syspy/config.py`：从 `/opt/.data/rbk/private/version/robokit.json` 读取版本，失败默认 v3。
 - `syspy/core/rbk_rpc.py`：RPC 抽象层（`Service`/`Message`、`@call_service`、v3/v4 客户端差异屏蔽）。
 - `syspy/lib/module.py`：任务脚本运行时核心（`Module`、`ModuleBase`、`ScriptStatus`、安全检查/Modbus事件）。
+- `syspy/lib/action_task.py`：Action 队列调度器（`ActionBase` / `ActionStatus` / `ActionTask`），按 VDA5050 §6.8/§6.11/§6.12 风格调度并产出结构化事件流（`taskBuild` / `actionStateChanged` / `taskFinished` / `taskFailed`）。
+- `docs/guide/spec/logging.md`：日志与队列事件落盘规范（`Trace.log` / `Trace.chart` / `Module.reportInfo` / Action 队列协议）。新增脚本必须遵循此规范。
 - `syspy/utils/param_server.py`：参数系统（配置参数、输入参数、动作模板、参数校验）。
 - `tasks/v3/standard/example/`：脚本模板与参数示例（建议从 `template.py` 开始）。
 - `tasks/v3/standard/module/`：复杂业务脚本（如 `jack.py`，使用动作链编排）。
@@ -103,11 +105,12 @@ from syspy import Navigation, Loc, Motor
 
 ### 4.3 动作链编排脚本（复杂业务）
 
-以 `module/jack.py` 为代表：
+以 `example/template.py` 为代表：
 
 - 主类负责参数解析、动作队列构建、事件入口。
-- 每个动作独立成 `BaseAction` 子类（`run/reset`）。
-- 在主循环中推进 `action_list + action_id`。
+- 每个动作独立成 `ActionBase` 子类（`run/reset`），由 `syspy/lib/action_task.py` 提供。
+- 用 `ActionTask.build()` / `extend()` 装配队列；`blocking_type`（`HARD` / `SOFT` / `NONE`）由调用方在装配时按本次任务指派，动作类本身不携带（同一动作可串可并）。
+- 主循环每 tick 调 `task.step(self)`；队列内部按 `docs/guide/spec/logging.md §四` 自动产出 `taskBuild` / `actionStateChanged` / `taskFinished` / `taskFailed` 结构化事件。
 - 通过 `Navigation.setTaskError()` / `Navigation.setDeviceError()` 标准化异常上报（`Abnormal` 异常码机制已废弃）
 
 适合取放货、识别+导航+执行器组合流程。
@@ -134,6 +137,7 @@ from syspy import Navigation, Loc, Motor
 
 ### 5.4 日志与可观测性
 
+- 日志/图表/上报规范以 `docs/guide/spec/logging.md` 为准（含通道命名、`Trace.log/chart` 类型约束、Action 队列结构化事件协议、检查清单），新增或修改脚本前请先对照。
 - 过程日志：`Trace.log(...)` / `Logger(...)`
 - 结构化上报：`Module.reportInfo(dict)`
 - 异常上报（RBK3.5 推荐）：
@@ -181,8 +185,9 @@ if not has_lift_motor:
 
 1. 先读 `tasks/v3/standard/example/template.py`，理解标准生命周期。
 2. 再看 `tasks/v3/standard/goPath.py`，掌握最小导航脚本写法。
-3. 再看 `tasks/v3/standard/module/jack.py`，理解动作链架构。
-4. 按需查 `syspy/lib/module.py` 与 `syspy/utils/param_server.py` 两个核心基础设施。
+3. 再看 `tasks/v3/standard/module/jack.py`，理解动作链架构；配套阅读 `syspy/lib/action_task.py` 了解 `ActionBase` / `ActionTask` 的调度与事件协议。
+4. 通读 `docs/guide/spec/logging.md`，掌握日志/图表/Action 队列结构化事件的落盘规范（提交代码前对照检查清单自查）。
+5. 按需查 `syspy/lib/module.py` 与 `syspy/utils/param_server.py` 两个核心基础设施。
 
 ## 7. 运行与发布注意事项
 

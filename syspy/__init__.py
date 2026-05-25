@@ -45,11 +45,12 @@ from .lib.abnormal import Abnormal
 from .lib.can_frame import Can
 from .lib.logger import Logger
 from .utils import _TR
-from .utils.param_server import ParamServer, ScriptParam
+from .utils.param_server import ParamServer, ScriptParam, ParamType
 from .lib.robot import RobotParam, RobotError
 from .lib.module import ScriptStatus, Module, ModuleBase
 from .lib.net_protocol import NetProtocol
 from .lib.trace import Trace
+from .lib.action_task import ActionBase, ActionStatus, ActionTask
 
 from .battery import Battery
 from .charger import Charger
@@ -79,6 +80,9 @@ __all__ = [
     "Container",
     "Trace",
     "Logger",
+    "ActionBase",
+    "ActionStatus",
+    "ActionTask",
     "NetProtocol",
     "Can",
     "RobotParam",
@@ -89,6 +93,7 @@ __all__ = [
     "_TR",
     "ParamServer",
     "ScriptParam",
+    "ParamType",
     "Battery",
     "Charger",
     "Controller",
