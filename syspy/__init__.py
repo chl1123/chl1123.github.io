@@ -44,6 +44,7 @@ from .bin import Bin, Container
 from .lib.abnormal import Abnormal
 from .lib.can_frame import Can
 from .lib.logger import Logger
+from .utils import _TR
 from .utils.param_server import ParamServer, ScriptParam
 from .lib.robot import RobotParam, RobotError
 from .lib.module import ScriptStatus, Module, ModuleBase
@@ -85,6 +86,7 @@ __all__ = [
     "ScriptStatus",
     "Module",
     "ModuleBase",
+    "_TR",
     "ParamServer",
     "ScriptParam",
     "Battery",
