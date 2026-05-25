@@ -20,6 +20,14 @@ from syspy.utils import ScriptType
 
 
 LOG_NAME = "actions"
+OMNI_CHASSIS_TYPES = {
+    "multipleDifferentialSteers",
+    "multiStandardAndDifferentialSteers",
+    "multiSteers",
+    "omni",
+    "quadruped",
+    "wheeledLeggedQuadruped",
+}
 
 
 def _trace_log(msg: str, name: str = LOG_NAME) -> None:
@@ -32,6 +40,19 @@ def _trace_chart(msg: dict, name: str = f"{LOG_NAME}.state") -> None:
 
 def _normalize_angle_rad(angle: float) -> float:
     return math.atan2(math.sin(angle), math.cos(angle))
+
+
+def _normalize_increment_angle_deg(angle_deg: float) -> float:
+    angle_deg = math.fmod(float(angle_deg), 360.0)
+    if angle_deg > 180.0:
+        angle_deg -= 360.0
+    elif angle_deg < -180.0:
+        angle_deg += 360.0
+    if abs(angle_deg) == 180.0:
+        return 180.0 if angle_deg > 0 else -180.0
+    if abs(angle_deg) < 1e-9:
+        return 0.0
+    return angle_deg
 
 
 def _normalize_operation(task_args: dict) -> str:
@@ -53,6 +74,7 @@ class ConfigParams:
     """配置管理器，用于管理动态配置参数"""
     config = {}
     lift_motor_speed = None
+    chassis_type = RobotParam.getDevice("Model-000", "chassisType")
 
     module_type = RobotParam.getDevice("Model-000", "moduleType")
     lift_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
@@ -65,6 +87,7 @@ class ConfigParams:
     @classmethod
     def _build_and_load_config(cls):
         """构建并加载配置参数"""
+        cls.chassis_type = RobotParam.getDevice("Model-000", "chassisType")
         module_type = RobotParam.getDevice("Model-000", "moduleType")
         lift_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
         motor_func = RobotParam.getDevice(f"{lift_motor_name}", "func") if lift_motor_name else None
@@ -395,7 +418,7 @@ class Actions(ModuleBase):
             self.init_args = True
             self.action_list = []
             self.action_id = 0
-            self.report_info["script_args"] = self.task_args
+            self.report_info["scriptArgs"] = self.task_args
 
 
             # 检查托盘电机
@@ -430,29 +453,46 @@ class Actions(ModuleBase):
                     )
                     self.script_status = ScriptStatus.FAILED
                     return
-                t = self.dist / v
-                pos_x = self.vx * t
-                pos_y = self.vy * t
-                heading = 0.0
-                back_mode = False
-                hold_dir = None
-                if abs(self.vx) > 1e-6 and abs(self.vy) <= 1e-6:
-                    back_mode = self.vx < 0
-                    pos_x = abs(pos_x)
-                    pos_y = 0.0
-                    heading = 0.0
-                else:
-                    hold_dir = float(Loc.getPose().get("yaw", 0.0))
-                self.action_list.append(
-                    GoPath(
-                        (pos_x, pos_y, heading),
-                        self.mode,
-                        back_mode=back_mode,
-                        is_hold_dir=hold_dir,
-                        max_speed=v,
-                        max_rot=0,
+                if abs(self.vy) > 1e-6 and config_params.chassis_type not in OMNI_CHASSIS_TYPES:
+                    Navigation.setTaskError(
+                        "LineLateralUnsupported",
+                        f"chassisType {config_params.chassis_type} does not support lateral motion"
                     )
-                )
+                    self.script_status = ScriptStatus.FAILED
+                    return
+                move_dist = abs(float(self.dist))
+                if self.mode == 0:
+                    self.action_list.append(
+                        GoLineByOdo(
+                            move_dist=move_dist,
+                            speed_x=float(self.vx),
+                            speed_y=float(self.vy),
+                        )
+                    )
+                else:
+                    t = move_dist / v
+                    pos_x = self.vx * t
+                    pos_y = self.vy * t
+                    heading = 0.0
+                    back_mode = False
+                    hold_dir = None
+                    if abs(self.vx) > 1e-6 and abs(self.vy) <= 1e-6:
+                        back_mode = self.vx < 0
+                        pos_x = abs(pos_x)
+                        pos_y = 0.0
+                        heading = 0.0
+                    else:
+                        hold_dir = float(Loc.getPose().get("yaw", 0.0))
+                    self.action_list.append(
+                        GoPath(
+                            (pos_x, pos_y, heading),
+                            self.mode,
+                            back_mode=back_mode,
+                            is_hold_dir=hold_dir,
+                            max_speed=v,
+                            max_rot=0,
+                        )
+                    )
                 
                 
             elif operation=='rotate':
@@ -488,7 +528,7 @@ class Actions(ModuleBase):
                     return
                 #优先执行支持里程，定位模式的旋转动作
                 if self.robot_rotate_angle is not None:
-                    if self.robot_rotate_direction in (None, RotateDirection.NEARBY):
+                    if self.robot_rotate_direction is None:
                         if self.robot_rotate_speed is not None:
                             if self.robot_rotate_speed > 0:
                                 self.robot_rotate_direction = RotateDirection.COUNTERCLOCKWISE
@@ -564,7 +604,7 @@ class Actions(ModuleBase):
         self._execute_actions()
 
         if self.action_id < len(self.action_list):
-            self.report_info["current_action"] = self.action_list[self.action_id].action_state
+            self.report_info["currentAction"] = self.action_list[self.action_id].action_state
         self._update_report_info()
         Module.reportInfo(self.report_info)
         _trace_chart(self.report_info, name=f"{LOG_NAME}.report")
@@ -624,16 +664,16 @@ class Actions(ModuleBase):
             self.shelf_pos = Motor.getMotorPos(config_params.spin_motor_name)
 
         if self.lift_pos is not None:
-            self.report_info["current_lift_height"] = self.lift_pos
+            self.report_info["currentLiftHeight"] = self.lift_pos
         if self.shelf_pos is not None:
             current_shelf_angle_in_robot = self.shelf_pos / math.pi * 180
-            self.report_info["current_shelf_angle_in_robot"] = current_shelf_angle_in_robot
-            self.report_info["current_shelf_angle_in_world"] = current_robot_angle + current_shelf_angle_in_robot
+            self.report_info["currentShelfAngleInRobot"] = current_shelf_angle_in_robot
+            self.report_info["currentShelfAngleInWorld"] = current_robot_angle + current_shelf_angle_in_robot
 
-        self.report_info["action_list_name"] = [a.__class__.__name__ for a in self.action_list]
-        self.report_info["action_id"] = self.action_id
-        self.report_info["current_robot_angle"] = current_robot_angle
-        self.report_info["script_status"] = self.script_status
+        self.report_info["actionListName"] = [a.__class__.__name__ for a in self.action_list]
+        self.report_info["actionId"] = self.action_id
+        self.report_info["currentRobotAngle"] = current_robot_angle
+        self.report_info["scriptStatus"] = self.script_status
 
 
 # --- 基础动作类 ---
@@ -650,10 +690,10 @@ class BaseAction:
 
     def run(self, a: Actions):
         """外部调用时，输出或打印实例对象的 action_state 字段"""
-        self.action_state['action_name'] = self.__class__.__name__
-        self.action_state["action_args"] = self.action_args
-        self.action_state['action_status'] = self.action_status
-        self.action_state["action_runtime"] = time.time() - self.start_time
+        self.action_state['actionName'] = self.__class__.__name__
+        self.action_state["actionArgs"] = self.action_args
+        self.action_state['actionStatus'] = self.action_status
+        self.action_state["actionRuntime"] = time.time() - self.start_time
 
     def reset(self):
         pass
@@ -701,10 +741,10 @@ class Jack(BaseAction):
                 "Lift motor not found Check motor configuration Motor check"
             )
 
-        self.action_state['action_name'] = self.__class__.__name__
-        self.action_state["action_args"] = self.action_args
-        self.action_state['action_status'] = self.action_status
-        self.action_state["action_runtime"] = time.time() - self.start_time
+        self.action_state['actionName'] = self.__class__.__name__
+        self.action_state["actionArgs"] = self.action_args
+        self.action_state['actionStatus'] = self.action_status
+        self.action_state["actionRuntime"] = time.time() - self.start_time
         
 
     def reset(self):
@@ -724,7 +764,6 @@ class Rotate(BaseAction):
             "speed_w_robot": speed_w_robot,
             "shelf_angle": shelf_angle,
             "shelf_direction": shelf_direction,
-            "mode": mode,
             "isDebug": is_debug
         }
         self.mode = mode
@@ -749,12 +788,12 @@ class Rotate(BaseAction):
 
         self.rparams = None
         self.sparams = None
-
     def run(self, a: Actions):
         if self.init:
             self.init = False
             self.action_status = ActionStatus.RUNNING
             Navigation.resetRotateMove()
+            Navigation.resetOdoMove()
             self.rparams = dict()
             self.sparams = dict()
             if not self.is_debug:
@@ -794,10 +833,24 @@ class Rotate(BaseAction):
                         _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
                         Navigation.setIncreaseSpinAngle(self.shelf_angle)
                 else:
-                    self.robot_rotate_angle = _normalize_angle_rad(self.robot_rotate_angle)
-                    self.rparams["moveAngle"] = self.robot_rotate_angle
-                    self.rparams["speedW"] = abs(self.speed_w_robot)
+                    move_angle_deg = _normalize_increment_angle_deg(self.action_args["robotRotateAngle"])
+                    move_angle = math.radians(abs(move_angle_deg))
+                    speed_w = abs(self.speed_w_robot)
+                    if self.robot_direction == RotateDirection.NEARBY:
+                        if move_angle_deg > 0:
+                            speed_w = abs(self.speed_w_robot)
+                        elif move_angle_deg < 0:
+                            speed_w = -abs(self.speed_w_robot)
+                        else:
+                            speed_w = abs(self.speed_w_robot)
+                    elif self.robot_direction == RotateDirection.CLOCKWISE:
+                        speed_w = -abs(self.speed_w_robot)
+                    else:
+                        speed_w = abs(self.speed_w_robot)
+                    self.rparams["moveAngle"] = move_angle
+                    self.rparams["speedW"] = speed_w
                     self.rparams["locMode"] = self.mode 
+            _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")           
         if self.selfCoordinateAxis is  None:
             if not self.is_debug:
                 # 执行旋转
@@ -815,12 +868,12 @@ class Rotate(BaseAction):
             if Navigation.spinRun():
                 self.action_status = ActionStatus.FINISHED
                 
-        self.action_state['action_name'] = self.__class__.__name__
-        self.action_state["action_args"] = self.action_args
+        self.action_state['actionName'] = self.__class__.__name__
+        self.action_state["actionArgs"] = self.action_args
         self.action_state['rparams'] = self.rparams
         self.action_state['sparams'] = self.sparams
-        self.action_state['action_status'] = self.action_status
-        self.action_state["action_runtime"] = time.time() - self.start_time
+        self.action_state['actionStatus'] = self.action_status
+        self.action_state["actionRuntime"] = time.time() - self.start_time
 
         return self.action_status
 
@@ -876,6 +929,39 @@ class GoPath(BaseAction):
             "maxRot": self.max_rot,
             "reachDist": self.path_dist_accuracy,
             "reachAngle": self.path_angle_accuracy
+        }
+        Module.reportInfo(j.report_info)
+
+class GoLineByOdo(BaseAction):
+    """使用里程接口执行直线/平移运动"""
+
+    def __init__(self, move_dist: float, speed_x: float, speed_y: float):
+        super().__init__("GoLineByOdo")
+        self.move_dist = move_dist
+        self.speed_x = speed_x
+        self.speed_y = speed_y
+        self.init = True
+        self.action_status = ActionStatus.INIT
+
+    def run(self, j: Jack):
+        if self.init:
+            Navigation.resetOdoMove()
+            self.init = False
+            self.action_status = ActionStatus.RUNNING
+        params = {
+            "moveDist": float(self.move_dist),
+            "speedX": float(self.speed_x),
+            "speedY": float(self.speed_y),
+            "actionName": "GoLineByOdo",
+        }
+        _trace_chart(params, name=f"{LOG_NAME}.go_line_odo")
+        self.action_status = Navigation.runOdoMove(params)
+
+        j.report_info["GoLineByOdo"] = {
+            "actionStatus": self.action_status,
+            "moveDist": self.move_dist,
+            "speedX": self.speed_x,
+            "speedY": self.speed_y,
         }
         Module.reportInfo(j.report_info)
 
