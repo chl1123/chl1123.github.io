@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/22
+# @Date : 2026/5/25
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add：1. 默认读取模型文件的电机速度 2.增加顶升超时参数功能 feat：适配最新setTaskError等接口
+# @Update :feat：机器人错误翻译整理  https://project.feishu.cn/seer_rd_center/rd_request_new/detail/6989928220
 
 import json
 import math
@@ -21,6 +21,7 @@ from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, Sc
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot import RobotParam
 from syspy.utils import Coordinate
+from syspy import RobotError
 
 
 # ============================================================================
@@ -1388,12 +1389,12 @@ class Jack(ModuleBase):
         # Error53301: 检查顶升电机配置
         # ============================================
         if not config_params.jack_motor_name:
-            Navigation.setDeviceError("NoJackMotor", "模型文件顶升设备配置有误，找不到顶升电机")
+            Navigation.setDeviceError("NoJackMotor", "Jack motor not found in model file. Check jack device configuration")
         # ============================================
         # Error53302: 检查旋转电机配置
         # ============================================
         if not config_params.spin_motor_name:
-            Navigation.setDeviceError("NoSpinMotor", "模型文件旋转设备配置有误，找不到旋转电机")
+            Navigation.setDeviceError("NoSpinMotor", "Spin motor not configured. Check spin motor configuration in model file")
         # 脚本任务管理
         # set_info数据打印
         self._last_logged_action_id = None
@@ -1912,10 +1913,8 @@ class Jack(ModuleBase):
 
         else:
             # Error53301: 不支持的任务指令
-            Navigation.setTaskError("WrongOperation", f"不支持的任务指令: {self.opt}")
+            Navigation.setTaskError("WrongOperation", f"Unsupported task operation: {self.opt}")
             self.status = ScriptStatus.FAILED
-
-        # Trace.log(f"self.action_list: {self.action_list}")
 
         self.cur_action_list = []
         for task in self.action_list:
@@ -2155,24 +2154,22 @@ class Jack(ModuleBase):
                 break
 
         if target_idx is None:
-            Navigation.setTaskError("RecSideError", f"识别文件中找不到方向 '{side_name}'，object={object_key}")
+            Navigation.setTaskError("RecSideError", f"Direction not found in recognition file. Check recognition config,{side_name}'，object={object_key}")
             self.status = ScriptStatus.FAILED
+            return {"side": side_name, "enableBackDistance": None, "backDistance": None}
 
-        # 2) 命中后读取 enableBackDistance / backDistance
+        # 2) 读取 enableBackDistance，仅在开启时才读取并校验 backDistance
         base = f"{recognition_side_key}._{target_idx}.{side_name}"
         enable_back = RobotParam.getConfig("recognition", f"{base}.enableBackDistance", recfile)
-        back_dist = RobotParam.getConfig("recognition", f"{base}.enableBackDistance.on.backDistance", recfile)
+        back_dist = None
+        if enable_back == "on":
+            back_dist = RobotParam.getConfig("recognition", f"{base}.enableBackDistance.on.backDistance", recfile)
+
         info = {
             "side": side_name,
             "enableBackDistance": enable_back,
             "backDistance": back_dist
         }
-
-        # 3) 基本校验
-        if any(v is None or v == "none" for v in info.values()):
-            Navigation.setTaskError("BackDistInvalid", f"backDistance配置无效: {info}")
-            self.status = ScriptStatus.FAILED
-
         debug_trace(f"backDistanceInfo={info}", name="jack.cfg")
         return info
 
@@ -2236,7 +2233,7 @@ class Jack(ModuleBase):
                 recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
                 if not self.back_dist:
                     if recfile_back_dist.get("enableBackDistance") == "on":
-                        self.back_dist = recfile_back_dist.get("backDistance", 0.24)
+                        self.back_dist = recfile_back_dist.get("backDistance") or 0.24
                     else:
                         self.back_dist = 0.24
                 self.action_list.append(
@@ -2304,7 +2301,7 @@ class Jack(ModuleBase):
             # Error53351: 重复取货保护 - 检查车上是否已有货物
             # ============================================
             if config_params.load_again_error and Navigation.hasGoods():
-                Navigation.setTaskError("JackHasGoods", "车上已有货物，不可重复取货。如需重复取货请关闭 LoadAgainError，或先执行 JackUnload")
+                Navigation.setTaskError("JackHasGoods", "Robot already has goods, cannot load again. Disable LoadAgainError or execute JackUnload first")
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -2364,7 +2361,7 @@ class Jack(ModuleBase):
                 # 启用识别
                 if self.is_recognize:
                     if not self.recfile:
-                        Navigation.setTaskError("NoRecFile", "开启识别但未配置识别文件，请在任务参数中配置 recFile")
+                        Navigation.setTaskError("NoRecFile", "Recognition enabled but no recognition file configured. Set recFile in task parameters")
                         self.status = ScriptStatus.FAILED
                         return
                     self.action_list.append(
@@ -2573,7 +2570,7 @@ class Jack(ModuleBase):
                 recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
                 if not self.back_dist:
                     if recfile_back_dist.get("enableBackDistance") == "on":
-                        self.back_dist = recfile_back_dist.get("backDistance", 0.24)
+                        self.back_dist = recfile_back_dist.get("backDistance") or 0.24
                     else:
                         self.back_dist = 0.24
                 self.action_list.append(
@@ -2615,7 +2612,7 @@ class Jack(ModuleBase):
                     break
 
             if not motor_info:
-                Navigation.setTaskError("MotorTypeError", f"motor type {motor_type} not found, check moduleMotor config, check the device, motor_jog_or_move")
+                Navigation.setDeviceError("MotorTypeError", f"motor type {motor_type} not found, check moduleMotor config, check the device, motor_jog_or_move")
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -2730,7 +2727,7 @@ class Jack(ModuleBase):
             if current_action.action_status == ActionStatus.FINISHED:
                 self.action_id += 1
             elif current_action.action_status == ActionStatus.FAILED:
-                Navigation.setTaskError("ExecuteActionError", f"动作执行失败: {current_action}")
+                Navigation.setTaskError("ExecuteActionError", f"Action execution failed. Check action configuration: {current_action}")
                 self.status = ScriptStatus.FAILED
             else:
                 current_action.run(self)
@@ -3471,7 +3468,7 @@ class JackHeight(BaseAction):
                 # 初始化前检查：上到位 DI 不应该已经触发
                 if config_params.jack_up_di and Di.getDi(config_params.jack_up_di):
                     Trace.log(f"jack up DI({config_params.jack_up_di}) already triggered before lift, check DI config", name="jack.err")
-                    Navigation.setDeviceError("JackUpDiError", f"顶升前上到位DI({config_params.jack_up_di})已触发，DI配置错误或机械卡住")
+                    Navigation.setDeviceError("JackUpDiError", f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed")
                     self.action_status = ActionStatus.FAILED
                     return
                 if config_params.jack_up_di:
@@ -3483,7 +3480,7 @@ class JackHeight(BaseAction):
                 # 初始化前检查：下到位 DI 不应该已经触发
                 if config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di):
                     Trace.log(f"jack down DI({config_params.jack_zero_di}) already triggered before lower, check DI config", name="jack.err")
-                    Navigation.setDeviceError("JackDownDiError", f"下降前下到位DI({config_params.jack_zero_di})已触发，DI配置错误或机械卡住")
+                    Navigation.setDeviceError("JackDownDiError", f"Jack-down DI({config_params.jack_zero_di}) already triggered before lowering. DI config error or mechanism jammed")
                     self.action_status = ActionStatus.FAILED
                     return
                 if config_params.jack_zero_di:
@@ -3516,7 +3513,7 @@ class JackHeight(BaseAction):
             if config_params.jack_load_time and elapsed > config_params.jack_load_time:
                 Motor.resetMotor(self.motor_name)
                 Trace.log(f"jack up timeout {elapsed:.1f}s > {config_params.jack_load_time}s pos={current_pos:.4f}m", name="jack.err")
-                Navigation.setDeviceError("JackUpTimeout", f"顶升超时({config_params.jack_load_time}s)，上到位DI未触发，请检查DI和电机状态！")
+                Navigation.setDeviceError("JackUpTimeout", f"Jack-up timeout({config_params.jack_load_time}s), up-position DI not triggered. Check DI and motor status")
                 self.action_status = ActionStatus.FAILED
                 return
             # 顶升动作：触发上到位 DI 后结束
@@ -3540,7 +3537,7 @@ class JackHeight(BaseAction):
             if config_params.jack_unload_time and elapsed > config_params.jack_unload_time:
                 Motor.resetMotor(self.motor_name)
                 Trace.log(f"jack down timeout {elapsed:.1f}s > {config_params.jack_unload_time}s pos={current_pos:.4f}m", name="jack.err")
-                Navigation.setDeviceError("JackDownTimeout", f"下降超时({config_params.jack_unload_time}s)，下到位DI未触发，请检查DI和电机状态！")
+                Navigation.setDeviceError("JackDownTimeout", f"Jack-down timeout({config_params.jack_unload_time}s), down-position DI not triggered. Check DI and motor status")
                 self.action_status = ActionStatus.FAILED
                 return
             # 下降动作
@@ -3915,7 +3912,7 @@ class RecShelf(BaseAction):
 
                 if self.attempts > self.max_attempts:
                     self.action_status = ActionStatus.FAILED
-                    Navigation.setTaskError("RecFailed", "识别重试次数超限，请检查识别距离或识别传感器是否正常")
+                    Navigation.setTaskError("RecFailed", "Recognition retries exceeded. Check recognition distance or sensor")
                 else:
                     Recognize.resetRec()
                     self.do_rec = False
@@ -3982,7 +3979,7 @@ class GetApPosAdjustedViaPgv(BaseAction):
             self.pgv_info[2] = j.code_info["tag_diff_angle"]
             if abs(self.pgv_info[0]) > 0.02 and abs(self.pgv_info[1]) > 0.02:
                 self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError("PgvOffsetError", "PGV偏差超限(>0.02m)，请检查货物二维码偏移或调整AP点位置")
+                Navigation.setTaskError("PgvOffsetError", "PGV offset exceeds limit (>0.02m). Check goods QR code offset or adjust AP point")
 
             else:
                 # 将车体终点位置，加入二维码的偏差补偿
@@ -4080,7 +4077,7 @@ class GetPGVData(BaseAction):
         else:
             self.count += 1
             if self.count >= self.max_rec_num:
-                Navigation.setTaskError("PgvRecExceeded", f"PGV二次调整识别超限({self.count}次)，请检查PGV相机或二维码位置")
+                Navigation.setTaskError("PgvRecExceeded", f"PGV secondary adjustment recognition exceeded. Check PGV camera or QR code position")
 
         # 上报
         j.report_info["GetPGVData"] = {
@@ -4607,7 +4604,7 @@ def main():
                         j._init_args(validated_params)
                     except ValueError as e:
                         Trace.log(f"input params validate failed error={e}", name="jack.err")
-                        Navigation.setTaskError("InputParamError", f"输入参数校验失败: {e}")
+                        Navigation.setTaskError("InputParamError", f"Input parameter validation failed. Check the input parameters")
 
         elif status == ScriptStatus.RUNNING:
             j.run()

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/22
+# @Date : 2026/5/25
 # @Author : zhaopengfei
 # @Coding : 顶升车
-# @Update : add：1. 默认读取模型文件的电机速度 2.增加顶升超时参数功能 feat：适配最新setTaskError等接口
+# @Update : feat：机器人错误翻译整理  https://project.feishu.cn/seer_rd_center/rd_request_new/detail/6989928220
 
 import json
 import math
@@ -1869,22 +1869,20 @@ class Jack(ModuleBase):
         if target_idx is None:
             Navigation.setTaskError("RecSideError", f"识别文件中找不到方向 '{side_name}'，object={object_key}")
             self.status = ScriptStatus.FAILED
+            return {"side": side_name, "enableBackDistance": None, "backDistance": None}
 
-        # 2) 命中后读取 enableBackDistance / backDistance
+        # 2) 读取 enableBackDistance，仅在开启时才读取并校验 backDistance
         base = f"{recognition_side_key}._{target_idx}.{side_name}"
         enable_back = RobotParam.getConfig("recognition", f"{base}.enableBackDistance", recfile)
-        back_dist = RobotParam.getConfig("recognition", f"{base}.enableBackDistance.on.backDistance", recfile)
+        back_dist = None
+        if enable_back == "on":
+            back_dist = RobotParam.getConfig("recognition", f"{base}.enableBackDistance.on.backDistance", recfile)
+
         info = {
             "side": side_name,
             "enableBackDistance": enable_back,
             "backDistance": back_dist
         }
-
-        # 3) 基本校验
-        if any(v is None or v == "none" for v in info.values()):
-            Navigation.setTaskError("BackDistInvalid", f"backDistance配置无效: {info}")
-            self.status = ScriptStatus.FAILED
-
         debug_trace(f"backDistanceInfo={info}", name="jack.cfg")
         return info
 
@@ -1940,7 +1938,7 @@ class Jack(ModuleBase):
                 recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
                 if not self.back_dist:
                     if recfile_back_dist.get("enableBackDistance") == "on":
-                        self.back_dist = recfile_back_dist.get("backDistance", 0.24)
+                        self.back_dist = recfile_back_dist.get("backDistance") or 0.24
                     else:
                         self.back_dist = 0.24
                 self.action_list.append(
@@ -2212,7 +2210,7 @@ class Jack(ModuleBase):
                 recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
                 if not self.back_dist:
                     if recfile_back_dist.get("enableBackDistance") == "on":
-                        self.back_dist = recfile_back_dist.get("backDistance", 0.24)
+                        self.back_dist = recfile_back_dist.get("backDistance") or 0.24
                     else:
                         self.back_dist = 0.24
                 self.action_list.append(
@@ -2254,7 +2252,7 @@ class Jack(ModuleBase):
                     break
 
             if not motor_info:
-                Navigation.setTaskError("MotorTypeError", f"motor type {motor_type} not found, check moduleMotor config, check the device, motor_jog_or_move")
+                Navigation.setDeviceError("MotorTypeError", f"motor type {motor_type} not found, check moduleMotor config, check the device, motor_jog_or_move")
                 self.status = ScriptStatus.FAILED
                 return
 
