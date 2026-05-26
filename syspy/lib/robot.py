@@ -177,7 +177,7 @@ class RobotParamInterface(ABC, Service):
 class RobotErrorInterface(ABC, Service):
 
     @classmethod
-    def setSystemError(cls, key: str, desc: str, clear: bool) -> None:
+    def setSystemError(cls, key: str, desc: str, clear: bool = True) -> None:
         """设置机器人系统错误
 
         Args:

@@ -106,7 +106,7 @@ def to_dict(msg):
 class RobotErrorV3(RobotErrorInterface):
 
     @classmethod
-    def setSystemError(cls, key: str, desc: str, clear: bool) -> None:
+    def setSystemError(cls, key: str, desc: str, clear: bool = True) -> None:
         error = msgError()
         error.desc = desc
         error.timeStamp = int(time.time_ns())
