@@ -4862,6 +4862,7 @@ class UnloadReleaseCheckAction(BaseAction):
                 "ReleaseDetectTimeout",
                 f"release timeout>{self.RELEASE_DETECT_TIMEOUT}s, weight_ok={weight_ok}, di_ok={di_ok}"
             )
+            Navigation.setTaskError("ReleaseDetectTimeout", f"release timeout>{self.RELEASE_DETECT_TIMEOUT}s")
             self.action_status = ActionStatus.FAILED
             self.cancel()
             return
@@ -4878,6 +4879,7 @@ class UnloadReleaseCheckAction(BaseAction):
                 f"fork reached lower protection limit, current_height={cur_h:.3f}, "
                 f"min_height={self.cfg.min_height:.3f}, weight_ok={weight_ok}, di_ok={di_ok}"
             )
+            Navigation.setTaskError("ReleaseForkProtection", "fork reached lower protection limit, release failed")
             self.action_status = ActionStatus.FAILED
             self.cancel()
             return
