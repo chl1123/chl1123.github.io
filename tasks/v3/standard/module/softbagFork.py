@@ -1475,7 +1475,6 @@ class Fork(ModuleBase):
         self.pallet_deduct_info = {}
         self.fork_height_in_place = True
         self.current_action = None
-        self.unload_release_fallback_tried = False
 
         # 处理货叉里程数据
 
@@ -1682,11 +1681,7 @@ class Fork(ModuleBase):
         return RunMotorByPosition(ConfigParams.fork_motor_name, position, max_speed)
 
     def _make_unload_release_action(self):
-        """
-        放货末段动作选择：
-        - 统一走“下降+双超声DI+称重”确认逻辑（UnloadReleaseCheckAction）
-        - 释放动作失败时，由 _execute_actions() 的 fallback 回退 downFork
-        """
+        """放货末段：下降+双超声DI+称重 确认逻辑（UnloadReleaseCheckAction）。"""
         return UnloadReleaseCheckAction(
             motor_name=ConfigParams.fork_motor_name,
             end_height=self.end_height,
@@ -2176,10 +2171,7 @@ class Fork(ModuleBase):
         if self.action_id < len(self.action_list):
             # 放完货就取消货物模型
             cur = self.action_list[self.action_id]
-            if ((isinstance(cur, UnloadReleaseCheckAction) and cur.action_status == ActionStatus.FINISHED)
-                    or (isinstance(cur, RunMotorByPosition)
-                        and cur.action_name == "downFork"
-                        and cur.action_status == ActionStatus.FINISHED)):
+            if isinstance(cur, UnloadReleaseCheckAction) and cur.action_status == ActionStatus.FINISHED:
                 Navigation.clearGoodsShape()
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
@@ -2196,20 +2188,6 @@ class Fork(ModuleBase):
                 self.action_id += 1
 
             elif self.current_action.action_status == ActionStatus.FAILED:
-                if (self.opt == "unload"
-                        and isinstance(self.current_action, UnloadReleaseCheckAction)
-                        and not self.unload_release_fallback_tried):
-                    self.unload_release_fallback_tried = True
-                    _trace_log("unload release check failed, fallback to downFork")
-                    self.action_list[self.action_id] = RunMotorByPosition(
-                        ConfigParams.fork_motor_name,
-                        self.end_height,
-                        ConfigParams.downMaxSpeedWithGoods,
-                        "downForkFallback"
-                    )
-                    self.current_action = self.action_list[self.action_id]
-                    self.current_action.reset()
-                    return
                 # Navigation.setTaskError("ExecuteActionError", f"execute action {self.current_action} failed!")
                 self.action_status = ActionStatus.FAILED
                 return
@@ -2313,7 +2291,6 @@ class Fork(ModuleBase):
         self.start_time = time.time()
 
         self.clear_fork_region_by_height = False
-        self.unload_release_fallback_tried = False
         self.name_left = "back_laser_clear_left"
         self.name_right = "back_laser_clear_right"
         self.back_laser_clear_region_name = "back_laser_clear_region"
