@@ -2113,9 +2113,6 @@ class Jack(ModuleBase):
             # === 放货完成后删除激光扣除区域 ===
             self.action_list.append(DeleteLaserDeductArea())
 
-            # === 放货后转盘到车头0° ===
-            self.action_list.append(Spin(0, "robot"))
-
     def go_ap_site(self):
         if not self.operation_init:
             self.operation_init = True
@@ -2829,104 +2826,6 @@ class GetGoodsDirFromPGV(BaseAction):
         Trace.log("getGoodsDirFromPGV: no upside PGV with DMT detected, fallback to insert_dir",
                   name="jack.err")
         self.action_status = ActionStatus.FINISHED
-
-
-class Spin(BaseAction):
-    def __init__(self, angle, spin_mode="world", direction=None, deduct_info=None):
-        super().__init__("Spin")
-        kwargs = locals()
-        del kwargs['self']
-        del kwargs['__class__']
-        self.opt_info = f"{__class__.__name__}{kwargs}"
-
-        self.action_status = ActionStatus.INIT
-        self.init = True
-        self.angle = angle
-        self.dir = direction
-        self.coordinate_system = spin_mode
-        self.deduct_info = deduct_info
-        self._initial_spin_angle = None
-
-    def run(self, j: Jack):
-        if self.init:
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-            if not config_params.spin_motor_name:
-                Navigation.setDeviceError("NoSpinMotor", "旋转电机未配置，无法执行 Spin 动作，请检查模型文件中的旋转电机配置")
-                self.action_status = ActionStatus.FAILED
-                return
-            # ✅ 在发指令前同周期内 reset，确保 Navigation 内部状态干净
-            Motor.resetMotor(config_params.spin_motor_name)
-            # 记录 spin 开始时的电机角度，作为旋转基准
-            self._initial_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
-            spin_dir = self.dir if self.dir is not None else 0
-            if self.coordinate_system == "robot":
-                Trace.log(f"spin start mode=robot angle={self.angle}", name="jack.motor")
-                Navigation.setRobotSpinAngle(self.angle, spin_dir)
-            elif self.coordinate_system == "world":
-                Trace.log(f"spin start mode=world angle={self.angle}", name="jack.motor")
-                Navigation.setGlobalSpinAngle(self.angle, spin_dir)
-            elif self.coordinate_system == "increase":
-                Trace.log(f"spin start mode=increase angle={self.angle}", name="jack.motor")
-                Navigation.setIncreaseSpinAngle(self.angle)
-
-        # === 实时更新扣除区域（每个周期都根据当前spin角度更新） ===
-        if self.deduct_info:
-            self._update_deduct_area_by_spin()
-
-        if Navigation.spinRun():
-            self.action_status = ActionStatus.FINISHED
-            # spin完成后最后更新一次确保最终位置准确
-            if self.deduct_info:
-                self._update_deduct_area_by_spin()
-
-
-        j.report_info["Spin"] = {
-            "actionStatus": self.action_status,
-            "spinAngle": self.angle,
-            "spinMode": self.coordinate_system,
-            "direction": self.dir
-        }
-        Module.reportInfo(j.report_info)
-
-    def _update_deduct_area_by_spin(self):
-        """根据当前spin电机角度，旋转扣除区域坐标并重新设置"""
-        try:
-            current_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
-            # 计算相对于初始位置的旋转增量
-            delta_angle = current_spin_angle - (self._initial_spin_angle or 0)
-
-            cos_a = math.cos(delta_angle)
-            sin_a = math.sin(delta_angle)
-
-            devices = self.deduct_info.get("deductDevice", [])
-            areas = self.deduct_info.get("area", [])
-
-            for idx, area in enumerate(areas, start=1):
-                x_list = area.get("xList", area.get("x_list", []))
-                y_list = area.get("yList", area.get("y_list", []))
-                if len(x_list) < 3 or len(x_list) != len(y_list):
-                    continue
-
-                # 对每个点做二维旋转: x'=x*cos-y*sin, y'=x*sin+y*cos
-                rotated_x = [x * cos_a - y * sin_a for x, y in zip(x_list, y_list)]
-                rotated_y = [x * sin_a + y * cos_a for x, y in zip(x_list, y_list)]
-
-                region_name = f"ShelfDeductArea{idx}"
-                # 先删除旧区域再设置新区域
-                try:
-                    Navigation.deleteClearRegion(region_name, Coordinate.ROBOT)
-                except Exception:
-                    pass
-                Navigation.setClearRegion(region_name, rotated_x, rotated_y, devices, Coordinate.ROBOT)
-
-            debug_trace(f"spin deduct area updated delta_angle={math.degrees(delta_angle):.1f}deg", name="jack.motor")
-        except Exception as e:
-            Trace.log(f"spin deduct area update failed error={e}", name="jack.err")
-
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
-
 
 class RobotRotate(BaseAction):
     """底盘旋转"""
