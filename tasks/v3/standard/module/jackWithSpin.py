@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/25
+# @Date : 2026/5/26
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update :feat：机器人错误翻译整理  https://project.feishu.cn/seer_rd_center/rd_request_new/detail/6989928220
+# @Update :feat：机器人错误翻译整理  https://project.feishu.cn/seer_rd_center/rd_request_new/detail/6989928220 add: 顶升超时报错参数 https://project.feishu.cn/seer_rd_center/issue/detail/6996017023
 
 import json
 import math
@@ -21,7 +21,6 @@ from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, Sc
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot import RobotParam
 from syspy.utils import Coordinate
-from syspy import RobotError
 
 
 # ============================================================================
@@ -3517,7 +3516,12 @@ class JackHeight(BaseAction):
                 self.action_status = ActionStatus.FAILED
                 return
             # 顶升动作：触发上到位 DI 后结束
-            if Motor.isMotorReached(self.motor_name) or (config_params.jack_up_di and Di.getDi(config_params.jack_up_di)):
+            # 配置了上到位DI时，必须DI触发才算到位；未配置DI时才用电机到位判断
+            if config_params.jack_up_di:
+                up_done = Di.getDi(config_params.jack_up_di)
+            else:
+                up_done = Motor.isMotorReached(self.motor_name)
+            if up_done:
                 if not self._motor_moved and not getattr(self, "_warn_logged", False):
                     Trace.log(f"jack up DI triggered without motor movement pos={current_pos:.4f}m", name="jack.err")
                     self._warn_logged = True
@@ -3540,8 +3544,12 @@ class JackHeight(BaseAction):
                 Navigation.setDeviceError("JackDownTimeout", f"Jack-down timeout({config_params.jack_unload_time}s), down-position DI not triggered. Check DI and motor status")
                 self.action_status = ActionStatus.FAILED
                 return
-            # 下降动作
-            if Motor.isMotorReached(self.motor_name) or (config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di)):
+            # 下降动作：配置了下到位DI时，必须DI触发才算到位；未配置DI时才用电机到位判断
+            if config_params.jack_zero_di:
+                down_done = Di.getDi(config_params.jack_zero_di)
+            else:
+                down_done = Motor.isMotorReached(self.motor_name)
+            if down_done:
                 if not self._motor_moved and not getattr(self, "_warn_logged", False):
                     Trace.log(f"jack down DI triggered without motor movement pos={current_pos:.4f}m", name="jack.err")
                     self._warn_logged = True
