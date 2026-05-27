@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/25
+# @Date : 2026/5/27
 # @Author : zhaopengfei
 # @Coding : none
-# @Update :feat：机器人错误翻译整理  https://project.feishu.cn/seer_rd_center/rd_request_new/detail/6989928220
+# @Update : 适配jack.py改动
 
 import json
 import math
@@ -781,6 +781,19 @@ def check_debug_task(operation: str) -> bool:
 # ============================================================================
 # RS485已移除，改用Motor API控制顶升电机
 # ============================================================================
+
+
+def _robot_device_change_callback(device_change_set):
+    """设备参数变化回调"""
+    if "Model" in device_change_set:
+        ConfigParams._build_and_load_config()
+    if "Motor" in device_change_set or "DOMotor" in device_change_set:
+        ConfigParams._build_and_load_config()
+
+
+def _robot_config_change_callback(diff_map):
+    """机器人配置参数变化回调"""
+    pass
 
 
 def script_config_callback():
@@ -1953,7 +1966,7 @@ class Jack(ModuleBase):
                 Motor.setMotorPosition(config_params.jack_motor_name, target_height, slow_speed,
                                        config_params.jack_zero_di)
 
-                if Motor.isMotorReached(config_params.jack_motor_name) or Di.getDi(config_params.jack_zero_di):
+                if Motor.isMotorReached(config_params.jack_motor_name):
                     self.pre_action_step[0] = True
                     Motor.resetMotor(config_params.jack_motor_name)
                     debug_trace(f"[边走边动] 顶升下降完成: {current_height:.4f}m -> {target_height}m")
@@ -2304,8 +2317,8 @@ class JackHeight(BaseAction):
                 debug_trace(f"[JACK] progress: {progress_10}% (pos={current_pos:.4f}m)")
 
         if self.target_height > self.jack_start_height:
-            # 顶升动作：触发上到位 DI 后结束
-            if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_up_di):
+            # 顶升动作：到位判断统一使用 isMotorReached
+            if Motor.isMotorReached(self.motor_name):
                 if self._up_di_triggered_time is None:
                     self._up_di_triggered_time = time.time()
                     debug_trace(f"[JACK] 上到位触发 pos={current_pos:.4f}m")
@@ -2321,8 +2334,8 @@ class JackHeight(BaseAction):
                     if self.deduct_info:
                         self._set_deduct_area()
         else:
-            # 下降动作
-            if Motor.isMotorReached(self.motor_name) or Di.getDi(config_params.jack_zero_di):
+            # 下降动作：到位判断统一使用 isMotorReached
+            if Motor.isMotorReached(self.motor_name):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
                 debug_trace(f"[JACK] Jack down done pos={current_pos:.4f}m")
@@ -2455,7 +2468,7 @@ class JackUpDown(BaseAction):
 
         # 检查是否完成
         if self.direction == "up":
-            if Motor.isMotorReached(config_params.jack_motor_name) or Di.getDi(config_params.jack_up_di):
+            if Motor.isMotorReached(config_params.jack_motor_name):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(config_params.jack_motor_name)
                 debug_trace(f"[JACK] JackUpDown UP done")
@@ -2464,7 +2477,7 @@ class JackUpDown(BaseAction):
                     self._count_recorded = True
                     jack_count_manager.increment_count()
         else:
-            if Motor.isMotorReached(config_params.jack_motor_name) or Di.getDi(config_params.jack_zero_di):
+            if Motor.isMotorReached(config_params.jack_motor_name):
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(config_params.jack_motor_name)
                 debug_trace(f"[JACK] JackUpDown DOWN done")
@@ -3306,7 +3319,9 @@ param_loader.addAction(
 param_loader.saveAction()
 
 def main():
-    # 注册脚本参数变更回调
+    # 设备 参数 脚本参数的回调
+    RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
+    RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
     ScriptParam.setConfigChangeCallBack(script_config_callback)
 
     Module.init()
