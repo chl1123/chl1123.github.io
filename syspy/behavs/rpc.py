@@ -7,8 +7,12 @@
 
 import json
 import logging
+import time
 
 log = logging.getLogger("rbk.behavs.rpc")
+
+CONNECT_RETRY_MAX = 10
+CONNECT_RETRY_INTERVAL_SEC = 0.1
 
 
 class BehavRpc(object):
@@ -33,9 +37,28 @@ class BehavRpc(object):
         except Exception as e:
             log.warning(f"eCAL client init failed: {e}")
 
+    def _wait_until_connected(
+        self,
+        retry_max=CONNECT_RETRY_MAX,
+        retry_interval_sec=CONNECT_RETRY_INTERVAL_SEC,
+    ):
+        if not self._use_ecal or self._client is None:
+            return False
+
+        attempts = max(1, int(retry_max))
+        sleep_sec = max(0.0, float(retry_interval_sec))
+        for attempt in range(1, attempts + 1):
+            if self.is_connected():
+                return True
+            if attempt < attempts and sleep_sec > 0.0:
+                time.sleep(sleep_sec)
+        return False
+
     def call(self, method, *args):
         """调用 BehavFactory 的指定 service。"""
         if not self._use_ecal:
+            return None
+        if not self._wait_until_connected():
             return None
         try:
             request = json.dumps(args).encode("utf-8")

@@ -308,22 +308,35 @@ def robot_config_change_callback(diff_map: Dict[str, Any]) -> None:
     if watched_keys.isdisjoint(diff_map.keys()):
         return
     RobotConfig.load_robot_config_params()
+    _trace_log(f"robot config changed diff={diff_map}", name=f"{LOG_MODULE}.cfg")
 
 def script_config_callback() -> None:
     ConfigParams.reload()
     apply_runtime_config()
 
-def apply_runtime_config(rpc=None) -> None:
+def apply_runtime_config(rpc=None) -> bool:
     if IS_SRC2000_PLATFORM:
         _trace_log("runtime config skipped mode=legacy_message", name=f"{LOG_MODULE}.cfg")
-        return
+        return True
     if rpc is None:
         rpc = _core.get_rpc()
-    rpc.call("setLightTotalNum", int(ConfigParams.light_total_num))
-    rpc.call("setLedDmxEnabled", True)
+
+    light_total_ok = bool(rpc.call("setLightTotalNum", int(ConfigParams.light_total_num)))
+    dmx_enabled_ok = bool(rpc.call("setLedDmxEnabled", True))
+    ok = light_total_ok and dmx_enabled_ok
+    _trace_log(
+        "runtime config applied "
+        f"light_total_num={ConfigParams.light_total_num} "
+        f"total_ok={light_total_ok} enable_ok={dmx_enabled_ok}",
+        name=f"{LOG_MODULE}.cfg",
+    )
+    return ok
 
 
 class Dmx512NativeBehav:
+    STARTUP_CONFIG_RETRY_MAX = 4
+    STARTUP_CONFIG_RETRY_INTERVAL_SEC = 0.2
+
     def __init__(self) -> None:
         self.robot_status = ""
         self.pre_robot_status = ""
@@ -688,7 +701,23 @@ class Dmx512NativeBehav:
 
     def run(self) -> None:
         rpc = self._rpc
-        apply_runtime_config(rpc=rpc)
+        if not self._use_legacy_dmx:
+            for attempt in range(1, self.STARTUP_CONFIG_RETRY_MAX + 1):
+                connected = bool(rpc.is_connected()) if rpc is not None else False
+                runtime_config_ok = apply_runtime_config(rpc=rpc)
+                if connected and runtime_config_ok:
+                    _trace_log(
+                        f"startup runtime config ready attempt={attempt}",
+                        name=f"{LOG_MODULE}.cfg",
+                    )
+                    break
+                if attempt < self.STARTUP_CONFIG_RETRY_MAX:
+                    time.sleep(self.STARTUP_CONFIG_RETRY_INTERVAL_SEC)
+            else:
+                _trace_log(
+                    "startup runtime config not fully ready after retries",
+                    name=f"{LOG_MODULE}.err",
+                )
         _trace_log("task start script=behav_led", name=LOG_MODULE)
         try:
             while True:
