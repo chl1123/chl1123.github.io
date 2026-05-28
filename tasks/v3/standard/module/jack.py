@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/25
+# @Date : 2026/5/27
 # @Author : zhaopengfei
 # @Coding : 顶升车
-# @Update :feat：机器人错误翻译整理  https://project.feishu.cn/seer_rd_center/rd_request_new/detail/6989928220 add: 顶升超时报错参数 https://project.feishu.cn/seer_rd_center/issue/detail/6996017023
+# @Update : fix: 1.修复未响应设备参数回调的bug 2.修改GetDi全部用isMotorReached判断到位
 
 import json
 import math
@@ -759,6 +759,19 @@ def check_debug_task(operation: str) -> bool:
                 f"task '{operation}' is debug-only, enable debugMode first", name="jack.err")
             return False
     return True
+
+
+def _robot_device_change_callback(device_change_set):
+    """设备参数变化回调"""
+    if "Model" in device_change_set:
+        ConfigParams._build_and_load_config()
+    if "Motor" in device_change_set or "DOMotor" in device_change_set:
+        ConfigParams._build_and_load_config()
+
+
+def _robot_config_change_callback(diff_map):
+    """机器人配置参数变化回调"""
+    pass
 
 
 def script_config_callback():
@@ -2619,11 +2632,8 @@ class Jack(ModuleBase):
                     slow_speed = config_params.jack_motor_speed * 0.5
                     Motor.setMotorPosition(config_params.jack_motor_name, target_height, slow_speed)
 
-                # 检查是否到达：配置了下到位DI时，必须DI触发才算到位
-                if config_params.jack_zero_di:
-                    pre_down_done = Di.getDi(config_params.jack_zero_di)
-                else:
-                    pre_down_done = Motor.isMotorReached(config_params.jack_motor_name)
+                # 检查是否到达：统一使用 isMotorReached
+                pre_down_done = Motor.isMotorReached(config_params.jack_motor_name)
                 if pre_down_done:
                     self.pre_action_step[0] = True
                     Motor.resetMotor(config_params.jack_motor_name)
@@ -3031,15 +3041,11 @@ class JackHeight(BaseAction):
             if config_params.jack_load_time and elapsed > config_params.jack_load_time:
                 Motor.resetMotor(self.motor_name)
                 Trace.log(f"jack up timeout {elapsed:.1f}s > {config_params.jack_load_time}s pos={current_pos:.4f}m", name="jack.err")
-                Navigation.setDeviceError("JackUpTimeout", f"顶升超时({config_params.jack_load_time}s)，上到位DI未触发，请检查DI和电机状态！")
+                Navigation.setDeviceError("JackUpTimeout", f"顶升超时({config_params.jack_load_time}s)，电机未到达目标位置，请检查电机和编码器状态！")
                 self.action_status = ActionStatus.FAILED
                 return
-            # 顶升动作：触发上到位 DI 后结束
-            # 配置了上到位DI时，必须DI触发才算到位；未配置DI时才用电机到位判断
-            if config_params.jack_up_di:
-                up_done = Di.getDi(config_params.jack_up_di)
-            else:
-                up_done = Motor.isMotorReached(self.motor_name)
+            # 顶升动作：到位判断统一使用 isMotorReached
+            up_done = Motor.isMotorReached(self.motor_name)
             if up_done:
                 if not self._motor_moved and not getattr(self, "_warn_logged", False):
                     Trace.log(f"jack up DI triggered without motor movement pos={current_pos:.4f}m", name="jack.err")
@@ -3060,14 +3066,11 @@ class JackHeight(BaseAction):
             if config_params.jack_unload_time and elapsed > config_params.jack_unload_time:
                 Motor.resetMotor(self.motor_name)
                 Trace.log(f"jack down timeout {elapsed:.1f}s > {config_params.jack_unload_time}s pos={current_pos:.4f}m", name="jack.err")
-                Navigation.setDeviceError("JackDownTimeout", f"下降超时({config_params.jack_unload_time}s)，下到位DI未触发，请检查DI和电机状态！")
+                Navigation.setDeviceError("JackDownTimeout", f"下降超时({config_params.jack_unload_time}s)，电机未到达目标位置，请检查电机和编码器状态！")
                 self.action_status = ActionStatus.FAILED
                 return
-            # 下降动作：配置了下到位DI时，必须DI触发才算到位；未配置DI时才用电机到位判断
-            if config_params.jack_zero_di:
-                down_done = Di.getDi(config_params.jack_zero_di)
-            else:
-                down_done = Motor.isMotorReached(self.motor_name)
+            # 下降动作：到位判断统一使用 isMotorReached
+            down_done = Motor.isMotorReached(self.motor_name)
             if down_done:
                 if not self._motor_moved and not getattr(self, "_warn_logged", False):
                     Trace.log(f"jack down DI triggered without motor movement pos={current_pos:.4f}m", name="jack.err")
@@ -4062,7 +4065,9 @@ param_loader.saveAction()
 
 
 def main():
-    # 注册脚本参数变更回调
+    # 设备 参数 脚本参数的回调
+    RobotParam.setConfigChangeCallBack(_robot_config_change_callback)
+    RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
     ScriptParam.setConfigChangeCallBack(script_config_callback)
 
     Module.init()
