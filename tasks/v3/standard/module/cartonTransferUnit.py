@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/5/25
+# @Date: 2026/5/28
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: feat：机器人错误翻译整理  https://project.feishu.cn/seer_rd_center/rd_request_new/detail/6989928220
+# @Update: fix: 避免链式绑定回调响应风险 https://project.feishu.cn/seer_rd_center/issue/detail/7001697750  add：增加脚本配置参数手指DO组，默认依然从model读取，用于重命名
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -64,6 +64,16 @@ class ConfigParams:
     container_count = 0
     debug_mode = False
 
+    # 手指 DO（默认值从设备模型读取，可在脚本配置中重命名覆盖）
+    left_finger_up_do: str = ""
+    left_finger_down_do: str = ""
+    right_finger_up_do: str = ""
+    right_finger_down_do: str = ""
+    _default_left_finger_up_do: str = ""
+    _default_left_finger_down_do: str = ""
+    _default_right_finger_up_do: str = ""
+    _default_right_finger_down_do: str = ""
+
     DEFAULT_TRAY_HEIGHTS = [
         (0.400, 0.410),  # 0
         (0.805, 0.815),  # 1
@@ -107,15 +117,23 @@ class ConfigParams:
             )
 
         finger_do = RobotParam.getDevice("Model-000", f"{base}.fingerDO")
-        if not finger_do or not isinstance(finger_do, str):
-            raise ValueError(f"读取拨指DO失败: fingerDO={finger_do}，请在设备模型中正确配置！")
-        do_list = [x.strip() for x in finger_do.split(",") if x.strip()]
-        if len(do_list) < 4:
-            raise ValueError(f"拨指DO配置不完整，需要4个值，实际: {do_list}")
-        cls.left_finger_down_do = do_list[3]
-        cls.left_finger_up_do = do_list[2]
-        cls.right_finger_down_do = do_list[0]
-        cls.right_finger_up_do = do_list[1]
+        if finger_do and isinstance(finger_do, str):
+            do_list = [x.strip() for x in finger_do.split(",") if x.strip()]
+            if len(do_list) >= 4:
+                cls._default_right_finger_down_do = do_list[0]
+                cls._default_right_finger_up_do = do_list[1]
+                cls._default_left_finger_up_do = do_list[2]
+                cls._default_left_finger_down_do = do_list[3]
+            else:
+                cls._default_right_finger_down_do = ""
+                cls._default_right_finger_up_do = ""
+                cls._default_left_finger_up_do = ""
+                cls._default_left_finger_down_do = ""
+        else:
+            cls._default_right_finger_down_do = ""
+            cls._default_right_finger_up_do = ""
+            cls._default_left_finger_up_do = ""
+            cls._default_left_finger_down_do = ""
 
     @classmethod
     def init(cls):
@@ -291,6 +309,24 @@ class ConfigParams:
                                desc="Finger related configuration parameters"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
+                    with builder.CHILD(key="leftFingerUpDo", name="Left Finger Up Do", desc="Open Left Finger DO"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE(cls._default_left_finger_up_do or "DO-002")
+                        builder.REQUIRED(True)
+                    with builder.CHILD(key="leftFingerDownDo", name="Left Finger Down Do",
+                                       desc="Close Left Finger DO"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE(cls._default_left_finger_down_do or "DO-003")
+                        builder.REQUIRED(True)
+                    with builder.CHILD(key="rightFingerUpDo", name="Right Finger Up Do", desc="Open Right Finger DO"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE(cls._default_right_finger_up_do or "DO-001")
+                        builder.REQUIRED(True)
+                    with builder.CHILD(key="rightFingerDownDo", name="Right Finger Down Do",
+                                       desc="Close Right Finger DO"):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE(cls._default_right_finger_down_do or "DO-000")
+                        builder.REQUIRED(True)
                     with builder.CHILD(key="leftFingerUpDi", name="Left Finger Up Di", desc="Open Left Fingers"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-003")
@@ -378,6 +414,11 @@ class ConfigParams:
         cls.auto_unload_stretch_dist = cls.config.get("autoUnloadStretchDist")
         cls.auto_stretch_odo_len = cls.config.get("autoStretchOdoLen")
 
+        cls.left_finger_up_do = cls.config.get("leftFingerUpDo") or cls._default_left_finger_up_do
+        cls.left_finger_down_do = cls.config.get("leftFingerDownDo") or cls._default_left_finger_down_do
+        cls.right_finger_up_do = cls.config.get("rightFingerUpDo") or cls._default_right_finger_up_do
+        cls.right_finger_down_do = cls.config.get("rightFingerDownDo") or cls._default_right_finger_down_do
+
         cls.left_finger_up_di = cls.config.get("leftFingerUpDi")
         cls.left_finger_down_di = cls.config.get("leftFingerDownDi")
         cls.right_finger_up_di = cls.config.get("rightFingerUpDi")
@@ -402,9 +443,9 @@ def script_config_callback():
 def robot_device_callback(change_devices: List[str]):
     """机器人设备参数修改回调，设备参数修改时会调用"""
     log.info(f"{change_devices=}")
-    for device in change_devices:
-        if device == "Model":
-            ConfigParams.load_config()
+    relevant_devices = {"Model", "Motor", "DOMotor", "CodeScanner"}
+    if set(change_devices) & relevant_devices:
+        ConfigParams.load_config()
 
 
 # ============================================================================
