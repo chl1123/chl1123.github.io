@@ -314,8 +314,32 @@ normalize_file_type() {
   esac
 }
 
+validate_binary_arch() {
+  local source_path="$1"
+  local arch="$2"
+  local file_info=""
+
+  file_info="$(file -Lb "$source_path")"
+
+  case "$arch" in
+    arm64)
+      [[ "$file_info" == *"ARM aarch64"* ]] || fail "binary architecture mismatch for $source_path: expected arm64, got: $file_info"
+      ;;
+    amd64)
+      [[ "$file_info" == *"x86-64"* ]] || fail "binary architecture mismatch for $source_path: expected amd64, got: $file_info"
+      ;;
+    all)
+      fail "binary file does not support architecture 'all': $source_path"
+      ;;
+    *)
+      fail "unsupported architecture: $arch"
+      ;;
+  esac
+}
+
 stage_payload_files() {
   local payload_dir="$1"
+  local arch="$2"
   local i=""
   local file_type=""
   local source_path=""
@@ -330,6 +354,7 @@ stage_payload_files() {
     if [[ "$file_type" == "script" ]]; then
       target_path="$(normalize_script_target "${FILE_TARGETS[$i]}")"
     else
+      validate_binary_arch "$source_path" "$arch"
       target_path="$(normalize_lib_target "${FILE_TARGETS[$i]}")"
     fi
 
@@ -375,7 +400,7 @@ build_for_arch() {
   inner_zip="$work_dir/${PACKAGE_ID}-${version_value}-${arch}-${description_slug}.zip"
 
   mkdir -p "$payload_dir"
-  stage_payload_files "$payload_dir"
+  stage_payload_files "$payload_dir" "$arch"
 
   (
     cd "$payload_dir"
@@ -420,6 +445,7 @@ main() {
   require_cmd zip
   require_cmd mktemp
   require_cmd cp
+  require_cmd file
   ensure_rms_tool
 
   load_config "$config_path"
