@@ -5,9 +5,11 @@
 
 import json
 import time
-from typing import Dict
+from typing import Callable, Dict
 
 start_time = time.time()
+
+import modbus_tk.hooks as modbus_hooks
 
 from syspy import Battery, Module, ModuleBase, ScriptParam, ScriptStatus, Trace
 from syspy.utils.param_server import ParamType
@@ -23,6 +25,10 @@ LOG_MODULE = "CP_CHARGER"
 def _trace_log(text: str, name: str = LOG_MODULE) -> None:
     """Emit trace logs with channel name."""
     Trace.log(f"[{name}] {text}", name=name)
+
+
+def _hex_bytes(data: bytes) -> str:
+    return " ".join(f"{byte:02X}" for byte in data)
 
 
 class ConfigParams:
@@ -89,8 +95,6 @@ class ConfigParams:
 
         cls.end_current = float(config.get("endCurrent"))
         cls.charge_time_s = int(config.get("chargeTimeS"))
-        cls.mock_max_voltage = float(config.get("mockMaxVoltage"))
-        cls.mock_max_current = float(config.get("mockMaxCurrent"))
 
 
 ConfigParams.init()
@@ -164,19 +168,41 @@ class _CpChargerClient:
     def __init__(self, host: str, port: int, timeout: float, slave_id: int):
         self.slave_id = int(slave_id)
         self.modbus = ModbusTcpProto(host=host, port=port, timeout=timeout)
+        self._send_hook = self._before_send
 
     def close(self):
+        try:
+            modbus_hooks.uninstall_hook("modbus_tcp.TcpMaster.before_send", self._send_hook)
+        except Exception:
+            pass
         self.modbus.close()
 
+    def _before_send(self, args):
+        master, request = args
+        if master is self.modbus.master:
+            _trace_log(f"modbus tx: { _hex_bytes(request) }")
+        return None
+
+    def _install_send_hook(self):
+        try:
+            modbus_hooks.uninstall_hook("modbus_tcp.TcpMaster.before_send", self._send_hook)
+        except Exception:
+            pass
+        modbus_hooks.install_hook("modbus_tcp.TcpMaster.before_send", self._send_hook)
+
     def _write_register(self, address: int, value: int):
+        _trace_log(f"write register addr=0x{int(address):04X} value=0x{int(value):04X}")
         return self.modbus.write_single_register(int(address), int(value), self.slave_id)
 
     def _read_input_register(self, address: int) -> int:
         return self.modbus.read_input_registers(int(address), 1, self.slave_id)[0]
 
-    def _pulse_coil(self, address: int):
+    def _pulse_coil(self, address: int, release: bool = True):
+        _trace_log(f"pulse coil addr=0x{int(address):04X} value=0xFF00")
         self.modbus.write_single_coil(int(address), 1, self.slave_id)
-        self.modbus.write_single_coil(int(address), 0, self.slave_id)
+        if release:
+            _trace_log(f"pulse coil addr=0x{int(address):04X} value=0x0000")
+            self.modbus.write_single_coil(int(address), 0, self.slave_id)
 
     @staticmethod
     def _to_scaled_u16(name: str, value: float, scale: int = 10) -> int:
@@ -212,7 +238,11 @@ class _CpChargerClient:
         current: float,
         end_current: float,
         charge_time_s: int,
+        start_retry_timeout_s: float,
+        start_retry_interval_s: float,
+        started_predicate: Callable[[], bool],
     ) -> Dict:
+        self._install_send_hook()
         voltage_raw = self._to_scaled_u16("voltage", voltage, 10)
         current_raw = self._to_scaled_u16("current", current, 10)
         end_current_raw = self._to_scaled_u16("end_current", end_current, 10)
@@ -220,18 +250,39 @@ class _CpChargerClient:
         if not (0 <= charge_time_s <= 0xFFFF):
             raise ValueError(f"charge_time_s out of range: {charge_time_s}")
 
-        self._write_register(self.REG_CHARGE_VOLTAGE, voltage_raw)
         self._write_register(self.REG_CHARGE_CURRENT, current_raw)
+        self._write_register(self.REG_CHARGE_VOLTAGE, voltage_raw)
         self._write_register(self.REG_END_CURRENT, end_current_raw)
         self._write_register(self.REG_CHARGE_TIME, charge_time_s)
-        self._pulse_coil(self.COIL_START)
+        start_time_local = time.time()
+        start_attempts = 0
+        last_status = {}
+
+        while True:
+            start_attempts += 1
+            _trace_log(
+                f"send start coil continuously: attempt={start_attempts}, "
+                f"elapsed={round(time.time() - start_time_local, 3)}s"
+            )
+            self._pulse_coil(self.COIL_START, release=False)
+            last_status = self.read_status()
+            if started_predicate():
+                break
+            if time.time() - start_time_local > float(start_retry_timeout_s):
+                raise TimeoutError(
+                    f"wait charger extend timeout: {start_retry_timeout_s}s, last_status={last_status}"
+                )
+            time.sleep(float(start_retry_interval_s))
 
         return {
             "voltage": float(voltage),
             "current": float(current),
             "endCurrent": float(end_current),
             "chargeTimeS": charge_time_s,
-            "status": self.read_status(),
+            "startRetryTimeoutS": float(start_retry_timeout_s),
+            "startRetryIntervalS": float(start_retry_interval_s),
+            "startAttempts": int(start_attempts),
+            "status": last_status,
         }
 
     def stop(
@@ -239,6 +290,7 @@ class _CpChargerClient:
         retract_timeout_s: float,
         poll_interval_s: float,
     ) -> Dict:
+        self._install_send_hook()
         self._pulse_coil(self.COIL_STOP)
 
         start_time_local = time.time()
@@ -259,6 +311,8 @@ class _CpChargerClient:
 class CpChargerTask(ModuleBase):
     """CP 充电站标准任务脚本"""
 
+    DEFAULT_START_RETRY_TIMEOUT_S = 120.0  # 连续发送启动报文的默认超时时间，单位秒
+    DEFAULT_START_RETRY_INTERVAL_S = 0.2  # 连续发送启动报文的默认周期，单位秒
     DEFAULT_RETRACT_TIMEOUT_S = 30.0  # 等待机械臂缩到位的默认超时时间，单位秒
     DEFAULT_POLL_INTERVAL_S = 0.2  # 轮询缩到位信号的默认周期，单位秒
 
@@ -290,8 +344,10 @@ class CpChargerTask(ModuleBase):
             return False
 
     def _get_battery_max_charge_values(self):
-        voltage = Battery.getMaxChargeVoltage(topic=BATTERY_TOPIC)
-        current = Battery.getMaxChargeCurrent(topic=BATTERY_TOPIC)
+        # voltage = Battery.getMaxChargeVoltage(topic=BATTERY_TOPIC)
+        # current = Battery.getMaxChargeCurrent(topic=BATTERY_TOPIC)
+        voltage = 90.0
+        current = 200.0
 
         if not self._is_positive_number(voltage) or not self._is_positive_number(current):
             _trace_log(
@@ -321,20 +377,42 @@ class CpChargerTask(ModuleBase):
             slave_id=ConfigParams.slave_id,
         )
 
+    def _is_charge_started(self) -> bool:
+        charge_current = float(Battery.getChargeCurrent(topic=BATTERY_TOPIC) or 0.0)
+        is_charging = bool(Battery.getIsCharging(topic=BATTERY_TOPIC))
+        self.report_info["chargeDetect"] = {
+            "chargeCurrent": charge_current,
+            "isCharging": is_charging,
+        }
+        _trace_log(
+            f"charge detect: charge_current={charge_current}A, is_charging={is_charging}"
+        )
+        return charge_current > 0.0 or is_charging
+
     def _run_charge(self):
         battery_max_voltage, battery_max_current = self._get_battery_max_charge_values()
         voltage = battery_max_voltage
         current = battery_max_current
         end_current = self._resolve_float_arg("endCurrent", ConfigParams.end_current)
         charge_time_s = self._resolve_int_arg("chargeTimeS", ConfigParams.charge_time_s)
+        start_retry_timeout_s = self._resolve_float_arg("startRetryTimeoutS", self.DEFAULT_START_RETRY_TIMEOUT_S)
+        start_retry_interval_s = self._resolve_float_arg("startRetryIntervalS", self.DEFAULT_START_RETRY_INTERVAL_S)
         client = self._build_client()
         try:
-            _trace_log(f"start cp charger charge: voltage={voltage}V, current={current}A, end_current={end_current}A, charge_time_s={charge_time_s}s")
+            _trace_log(
+                f"start cp charger charge: voltage={voltage}V, current={current}A, "
+                f"end_current={end_current}A, charge_time_s={charge_time_s}s, "
+                f"start_retry_timeout_s={start_retry_timeout_s}s, "
+                f"start_retry_interval_s={start_retry_interval_s}s"
+            )
             result = client.charge(
                 voltage=voltage,
                 current=current,
                 end_current=end_current,
                 charge_time_s=charge_time_s,
+                start_retry_timeout_s=start_retry_timeout_s,
+                start_retry_interval_s=start_retry_interval_s,
+                started_predicate=self._is_charge_started,
             )
         finally:
             client.close()
@@ -351,6 +429,8 @@ class CpChargerTask(ModuleBase):
             "chargeCurrent": current,
             "endCurrent": end_current,
             "chargeTimeS": charge_time_s,
+            "startRetryTimeoutS": start_retry_timeout_s,
+            "startRetryIntervalS": start_retry_interval_s,
         }
         return result
 
@@ -451,6 +531,7 @@ def main():
         elif status == ScriptStatus.SUSPENDED:
             task.suspend()
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
+            _trace_log(f"cp charger task finished with status: {status}", name=f"{LOG_MODULE}.status")
             task.reset()
             task.status = ScriptStatus.NONE
 
