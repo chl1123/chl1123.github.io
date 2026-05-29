@@ -24,16 +24,9 @@
 # - cancelBoustrophedonPath(): 取消清扫，返回当前位置
 # - resetBoustrophedonPath(): 重置清扫状态
 #
-"""
-####BEGIN DEFAULT ARGS####
-{}
-####END DEFAULT ARGS####
-"""
 
-from inspect import trace
 import json
 import math
-from re import S
 import time
 import datetime
 import base64
@@ -43,7 +36,6 @@ import requests
 import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
 
-from syspy.lib.module import ModuleBase
 from syspy import (
     Module,
     ScriptStatus,
@@ -2697,7 +2689,6 @@ def main():
                 except ValueError as e:
                     Trace.log(f"[cleanRobotManage] Parameter validation failed,Current parameters={input_params},error: {e}")
                     Navigation.setTaskError("args error",f"input args error:{e}")
-                    self.action_status = ScriptStatus.FAILED
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             isFirstRun = True
             mgr.reset_state()

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/27
+# @Date : 2026/5/28
 # @Author : zhaopengfei
 # @Coding : 顶升车
-# @Update : fix: 1.修复未响应设备参数回调的bug 2.修改GetDi全部用isMotorReached判断到位
+# @Update : fix: 避免链式绑定回调响应风险 https://project.feishu.cn/seer_rd_center/issue/detail/7001697750
 
 import json
 import math
@@ -763,9 +763,8 @@ def check_debug_task(operation: str) -> bool:
 
 def _robot_device_change_callback(device_change_set):
     """设备参数变化回调"""
-    if "Model" in device_change_set:
-        ConfigParams._build_and_load_config()
-    if "Motor" in device_change_set or "DOMotor" in device_change_set:
+    relevant_devices = {"Model", "Motor", "DOMotor", "CodeScanner"}
+    if device_change_set & relevant_devices:
         ConfigParams._build_and_load_config()
 
 
