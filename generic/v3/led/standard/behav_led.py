@@ -173,41 +173,43 @@ class ConfigParams:
                     with builder.CHILD(key="isBackBreath", name="Back Breath", desc="后退时显示白色呼吸"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="lightTotalNum", name="Light Total Num", desc="灯条总数"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(4)
+                    if not IS_SRC2000_PLATFORM:
+                        with builder.CHILD(key="lightTotalNum", name="Light Total Num", desc="灯条总数"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(4)
 
-            with builder.GROUP(key="turnPos", name="Turn Pos", desc="左前/左后/右前/右后 转向灯起始位置"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    with builder.CHILD(key="turnPosLeftFront", name="Left Front", desc="左前"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(4, min_value=1, max_value=256)
-                    with builder.CHILD(key="turnPosLeftRear", name="Left Rear", desc="左后"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(3, min_value=1, max_value=256)
-                    with builder.CHILD(key="turnPosRightFront", name="Right Front", desc="右前"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(1, min_value=1, max_value=256)
-                    with builder.CHILD(key="turnPosRightRear", name="Right Rear", desc="右后"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(2, min_value=1, max_value=256)
+            if not IS_SRC2000_PLATFORM:
+                with builder.GROUP(key="turnPos", name="Turn Pos", desc="左前/左后/右前/右后 转向灯起始位置"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="turnPosLeftFront", name="Left Front", desc="左前"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(4, min_value=1, max_value=256)
+                        with builder.CHILD(key="turnPosLeftRear", name="Left Rear", desc="左后"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(3, min_value=1, max_value=256)
+                        with builder.CHILD(key="turnPosRightFront", name="Right Front", desc="右前"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(1, min_value=1, max_value=256)
+                        with builder.CHILD(key="turnPosRightRear", name="Right Rear", desc="右后"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(2, min_value=1, max_value=256)
 
-            with builder.GROUP(key="turnNum", name="Turn Num", desc="左前/左后/右前/右后 转向灯数量"):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    with builder.CHILD(key="turnNumLeftFront", name="Left Front", desc="左前数量"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                    with builder.CHILD(key="turnNumLeftRear", name="Left Rear", desc="左后数量"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                    with builder.CHILD(key="turnNumRightFront", name="Right Front", desc="右前数量"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                    with builder.CHILD(key="turnNumRightRear", name="Right Rear", desc="右后数量"):
-                        builder.TYPE(ParamType.INT)
-                        builder.DEFAULTVALUE(1, min_value=0, max_value=256)
+                with builder.GROUP(key="turnNum", name="Turn Num", desc="左前/左后/右前/右后 转向灯数量"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="turnNumLeftFront", name="Left Front", desc="左前数量"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(1, min_value=0, max_value=256)
+                        with builder.CHILD(key="turnNumLeftRear", name="Left Rear", desc="左后数量"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(1, min_value=0, max_value=256)
+                        with builder.CHILD(key="turnNumRightFront", name="Right Front", desc="右前数量"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(1, min_value=0, max_value=256)
+                        with builder.CHILD(key="turnNumRightRear", name="Right Rear", desc="右后数量"):
+                            builder.TYPE(ParamType.INT)
+                            builder.DEFAULTVALUE(1, min_value=0, max_value=256)
 
         builder.save(merge=True)
         cls.reload()
@@ -222,19 +224,20 @@ class ConfigParams:
         cls.turn_pos = [4, 3, 1, 2]
         cls.turn_num = [1, 1, 1, 1]
         cls.light_total_num = 4
-        cls.turn_pos = [
-            int(cfg.get("turnPosLeftFront", 4)),
-            int(cfg.get("turnPosLeftRear", 3)),
-            int(cfg.get("turnPosRightFront", 1)),
-            int(cfg.get("turnPosRightRear", 2)),
-        ]
-        cls.turn_num = [
-            int(cfg.get("turnNumLeftFront", 1)),
-            int(cfg.get("turnNumLeftRear", 1)),
-            int(cfg.get("turnNumRightFront", 1)),
-            int(cfg.get("turnNumRightRear", 1)),
-        ]
-        cls.light_total_num = max(1, int(cfg.get("lightTotalNum", 4)))
+        if not IS_SRC2000_PLATFORM:
+            cls.turn_pos = [
+                int(cfg.get("turnPosLeftFront", 4)),
+                int(cfg.get("turnPosLeftRear", 3)),
+                int(cfg.get("turnPosRightFront", 1)),
+                int(cfg.get("turnPosRightRear", 2)),
+            ]
+            cls.turn_num = [
+                int(cfg.get("turnNumLeftFront", 1)),
+                int(cfg.get("turnNumLeftRear", 1)),
+                int(cfg.get("turnNumRightFront", 1)),
+                int(cfg.get("turnNumRightRear", 1)),
+            ]
+            cls.light_total_num = max(1, int(cfg.get("lightTotalNum", 4)))
 
         _trace_log(
             "config reload "
@@ -321,8 +324,8 @@ def apply_runtime_config(rpc=None) -> bool:
     if rpc is None:
         rpc = _core.get_rpc()
 
-    light_total_ok = bool(rpc.call("setLightTotalNum", int(ConfigParams.light_total_num)))
-    dmx_enabled_ok = bool(rpc.call("setLedDmxEnabled", True))
+    light_total_ok = rpc.call("setLightTotalNum", int(ConfigParams.light_total_num))
+    dmx_enabled_ok = rpc.call("setLedDmxEnabled", True)
     ok = light_total_ok and dmx_enabled_ok
     _trace_log(
         "runtime config applied "
@@ -334,7 +337,7 @@ def apply_runtime_config(rpc=None) -> bool:
 
 
 class Dmx512NativeBehav:
-    STARTUP_CONFIG_RETRY_MAX = 4
+    STARTUP_CONFIG_RETRY_MAX = 10
     STARTUP_CONFIG_RETRY_INTERVAL_SEC = 0.2
 
     def __init__(self) -> None:
@@ -728,14 +731,12 @@ class Dmx512NativeBehav:
                 self._rpc.call("setLedDmxEnabled", False)
             _trace_log("task end script=behav_led", name=LOG_MODULE)
 
-if not IS_SRC2000_PLATFORM:
-    ConfigParams.init()
+ConfigParams.init()
 
 def main() -> None:
 
     Module.init()
-    if not IS_SRC2000_PLATFORM:
-        ScriptParam.setConfigChangeCallBack(script_config_callback)
+    ScriptParam.setConfigChangeCallBack(script_config_callback)
     RobotParam.setConfigChangeCallBack(robot_config_change_callback)
 
     RobotConfig.load_robot_config_params()
