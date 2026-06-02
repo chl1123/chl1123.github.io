@@ -60,6 +60,7 @@ def cal_dist(first_loc, second_loc):
 def _robot_device_change_callback(device_change_set: List[str]):
     """机器人设备参数改变回调"""
     """设备参数变化回调"""
+    Trace.log(f"device change callback", True, True, name="fork.cfg")
     if "Model" in device_change_set:
         ConfigParams.get_device_model_param()
         ConfigParams._build_module_motor()
@@ -70,8 +71,10 @@ def _robot_device_change_callback(device_change_set: List[str]):
 
 
 def _robot_config_change_callback(diff_map: Dict[str, Any]):
+
     """机器人配置参数变化回调"""
-    pass
+    Trace.log(f"app config change callback", True, True, name="fork.cfg")
+
     # for key, value in diff_map.items():
     #     if key == "manualControl.manualBlock.on.manualSlowDownDist":
     #         robot_param["manualSlowDownDist"] = value
@@ -86,6 +89,7 @@ def _robot_config_change_callback(diff_map: Dict[str, Any]):
 
 
 def _script_config_callback():
+    Trace.log(f"script config change callback", True, True, name="fork.cfg")
     ConfigParams.reload_config()
 
 
@@ -231,8 +235,8 @@ class ConfigParams:
         # --- script
         cls.timeout = cfg.get("timeout", 120.0)
         cls.scriptDebug = cfg.get("scriptDebug", False)
-        if cls.scriptDebug:
-            Trace.log(f"Loaded config: {cls.config}", name="fork.cfg")
+
+        Trace.log(f"Loaded config: {cls.config}", False, True, name="fork.cfg")
 
         # --- fork
         cls.upMaxSpeedWithGoods = cfg.get("upMaxSpeedWithGoods")
@@ -270,7 +274,6 @@ class ConfigParams:
         cls.pathAdjustMode = cfg.get("pathAdjustMode", "bezier")
         cls.maxCurve = cfg.get("maxCurve", 3.0)
         cls.maxAngle = cfg.get("maxAngle", 3.0)
-        print(cls.pathAdjustMode, cls.maxCurve, cls.maxAngle)
 
         # --- linearUnload
         cls.laserWidth = cfg.get("laserWidth")
@@ -301,8 +304,7 @@ class ConfigParams:
 
         cls._build_module_motor()
 
-        if cls.scriptDebug:
-            Trace.log(f"Updated config: {cls.config}", name="fork.cfg")
+        Trace.log(f"Updated config: {cls.config}", False, True, name="fork.cfg")
 
     # 从设备模型文件中获取的参数
     @classmethod
@@ -501,12 +503,12 @@ class ConfigParams:
                     with builder.CHILD(key="upMaxSpeedWithGoods", name="Up Max Speed With Goods",
                                        desc="载货时的货叉上升最大速度"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.5)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="downMaxSpeedWithGoods", name="Down Max Speed With Goods",
                                        desc="载货时的货叉下降最大速度"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.5)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="backLaserEnableHeight", name="Back Laser Enable Height",
                                        desc="后置激光避障生效时的货叉高度"):
@@ -1769,6 +1771,7 @@ class Fork(ModuleBase):
                     Navigation.setTaskError("InvalidRecInfo",
                                             f"Invalid side info, found None: {self.rec_info},script failed")
                     self.script_status = ScriptStatus.FAILED
+                    return
 
             # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
             self.target_pos, tcp_name = self.get_station_pos("targetName")
@@ -2845,7 +2848,7 @@ class Rec(BaseAction):
                     error_msg = results["logMsg"]
                     Trace.log(f"error_type: {error_type}", name="fork.err")
                     self.action_status = ActionStatus.FAILED
-                    Navigation.setTaskError("RecFailed", f"Recognition failed, the maximum number of retries exceeded,")
+                    Navigation.setTaskError("RecFailed", f"Recognition failed:{error_msg}, the maximum number of retries exceeded")
                 else:
                     Recognize.resetRec()
         else:
@@ -3385,6 +3388,11 @@ class RunMotorByPosition(BaseAction):
     def run(self):
         cur_fork_height = Motor.getMotorPos(self.motor_name)
 
+        if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
+            Motor.resetMotor(self.motor_name)
+            self.start_time = None
+            Trace.log(f"reset motor and time", name="fork.task")
+
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.last_sample_time = time.time()
@@ -3445,9 +3453,9 @@ class RunMotorByPosition(BaseAction):
                             self.action_status = ActionStatus.FINISHED
                             return
                         # 取最大速度
-                        if delta > 0:
+                        if delta > 0 and (ConfigParams.upMaxSpeedWithGoods + 1 > EPS):
                             max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
-                        else:
+                        elif delta < 0 and (ConfigParams.downMaxSpeedWithGoods + 1 > EPS):
                             max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
 
                     self.max_speed = max_speed

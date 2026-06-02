@@ -449,12 +449,12 @@ class ConfigParams:
                     with builder.CHILD(key="upMaxSpeedWithGoods", name="Up Max Speed With Goods",
                                        desc="载货时的货叉上升最大速度"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.5)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="downMaxSpeedWithGoods", name="Down Max Speed With Goods",
                                        desc="载货时的货叉下降最大速度"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.5)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="backLaserEnableHeight", name="Back Laser Enable Height",
                                        desc="后置激光避障生效时的货叉高度"):
@@ -1050,8 +1050,7 @@ param_loader.addAction(
         "operation.load.recognize": 0,
         "operation.load.leaveLocHeight": -1,
     },
-    config={},
-    stage=3
+    config={}
 )
 
 param_loader.addAction(
@@ -1063,8 +1062,7 @@ param_loader.addAction(
         "operation.unload.endHeight": 0.1,
         "operation.unload.leaveLocHeight": -1,
     },
-    config={},
-    stage=3
+    config={}
 )
 
 param_loader.addAction(
@@ -1085,8 +1083,7 @@ param_loader.addAction(
         "operation": "leaveLoc",
         "operation.leaveLoc.endHeight": 0.1,
     },
-    config={},
-    stage=3
+    config={}
 )
 
 param_loader.addAction(
@@ -1098,8 +1095,7 @@ param_loader.addAction(
         "operation.cageStack.endHeight": 0.1,
         "operation.cageStack.recognize": 0,
     },
-    config={},
-    stage=3
+    config={}
 )
 
 param_loader.saveAction()
@@ -1653,6 +1649,7 @@ class Fork(ModuleBase):
                     Navigation.setTaskError("InvalidRecInfo",
                                             f"Invalid side info, found None: {self.rec_info},script failed")
                     self.script_status = ScriptStatus.FAILED
+                    return
 
             # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
             self.target_pos, tcp_name = self.get_station_pos("targetName")
@@ -2948,7 +2945,6 @@ class GoPathWithContactDi(BaseAction):
             # 如果不需要检查所有的到位 di，一个到位任务结束
             if not self.check_all_contact_di:
 
-
                 if dist2target[0] > 0.2 and all(self.di_status):
                     Navigation.setTaskError("NotReachGoal",
                                             f"reach di not reach goal, still {dist2target[0]:.2f}m left, ")
@@ -3137,6 +3133,11 @@ class RunMotorByPosition(BaseAction):
     def run(self):
         cur_fork_height = Motor.getMotorPos(self.motor_name)
 
+        if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
+            Motor.resetMotor(self.motor_name)
+            self.start_time = None
+            Trace.log(f"reset motor and time", name="fork.task")
+
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.last_sample_time = time.time()
@@ -3197,9 +3198,9 @@ class RunMotorByPosition(BaseAction):
                             self.action_status = ActionStatus.FINISHED
                             return
                         # 取最大速度
-                        if delta > 0:
+                        if delta > 0 and (ConfigParams.upMaxSpeedWithGoods + 1 > EPS):
                             max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
-                        else:
+                        elif delta < 0 and (ConfigParams.downMaxSpeedWithGoods + 1 > EPS):
                             max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
 
                     self.max_speed = max_speed
