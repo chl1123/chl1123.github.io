@@ -1120,6 +1120,7 @@ class InputParams:
 
 InputParams.init()
 
+
 param_loader.addAction(
     action_name="Fork Load",
     policy={},
@@ -1130,7 +1131,8 @@ param_loader.addAction(
         "operation.load.recognize": 0,
         "operation.load.leaveLocHeight": -1,
     },
-    config={}
+    config={},
+    stage=3
 )
 
 param_loader.addAction(
@@ -1142,7 +1144,8 @@ param_loader.addAction(
         "operation.unload.endHeight": 0.1,
         "operation.unload.leaveLocHeight": -1,
     },
-    config={}
+    config={},
+    stage=3
 )
 
 param_loader.addAction(
@@ -1163,7 +1166,8 @@ param_loader.addAction(
         "operation": "leaveLoc",
         "operation.leaveLoc.endHeight": 0.1,
     },
-    config={}
+    config={},
+    stage=3
 )
 
 param_loader.addAction(
@@ -1175,7 +1179,8 @@ param_loader.addAction(
         "operation.cageStack.endHeight": 0.1,
         "operation.cageStack.recognize": 0,
     },
-    config={}
+    config={},
+    stage=3
 )
 
 param_loader.saveAction()
