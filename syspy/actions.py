@@ -809,6 +809,9 @@ class Rotate(BaseAction):
                         else:
                             speed_w = abs(self.speed_w_robot)
                         self.rparams["speedW"] = speed_w
+                    else:
+                        nav_default = _get_rotate_nav_defaults()
+                        self.rparams["speedW"] = nav_default.get("maxRot")
                     self.rparams["locMode"] = self.mode 
             _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")           
         if self.selfCoordinateAxis is  None:
