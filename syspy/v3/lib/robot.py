@@ -111,17 +111,17 @@ class RobotErrorV3(RobotErrorInterface):
         error.desc = desc
         error.timeStamp = int(time.time_ns())
         if clear:
-            key = f"ms@Module{key}"
+            key = f"py@{key}"
         else:
-            key = f"ss@Module{key}"
+            key = f"ss@Py{key}"
         cls.client().call_service("Error", "setSystemError", key, to_dict(error))
 
     @classmethod
-    @call_service()
     def clearSystemError(cls, key: str) -> None:
-        pass
+        key = f"py@{key}"
+        cls.client().call_service("Error", "clearSystemError", key)
 
     @classmethod
-    @call_service()
     def existSystemError(cls, key: str) -> bool:
-        pass
+        key = f"py@{key}"
+        return cls.client().call_service("Error", "existSystemError", key)

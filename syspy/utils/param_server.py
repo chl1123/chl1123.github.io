@@ -244,7 +244,8 @@ class ScriptParam:
     def addAction(self, action_name: str,
                 policy: Dict[str, Any] = None,
                 args: Dict[str, Any] = None,
-                config: Dict[str, Any] = None) -> Dict[str, Any]:
+                config: Dict[str, Any] = None,
+                stage: int = 2) -> Dict[str, Any]:
         """添加动作
 
         Args:
@@ -252,6 +253,11 @@ class ScriptParam:
             policy (Dict[str, Any]): 策略配置
             args (Dict[str, Any]): 脚本任务参数
             config (Dict[str, Any]): 脚本配置参数
+            stage (int): 脚本执行阶段。
+                0 = 在前置点执行脚本, 脚本完成后开始导航;
+                1 = 在前置点执行脚本, 脚本和导航同时运行;
+                2 = 在目标点执行脚本
+                3 = 在前置点执行脚本, 后续导航由脚本控制
 
         Returns:
             Dict[str, Any]: 动作示例数据结构
@@ -268,7 +274,8 @@ class ScriptParam:
                 "operation": "load",
                 "operation.load.height": 0.02,
             },
-            config={"load.recognize": "on"}
+            config={"load.recognize": "on"},
+            stage=3
         )
         ```
         """
@@ -277,7 +284,8 @@ class ScriptParam:
             "script": {
                 "name": script_dir,
                 "args": args or {},
-                "config": config or {}
+                "config": config or {},
+                "stage": stage
             }
         }
 
@@ -663,7 +671,7 @@ class ParamField:
             result["children"] = [child.toDict() for child in self.children]
 
         # 清理空值
-        return {k: v for k, v in result.items() if v not in (None, [], {}) and not (isinstance(v, list) and not v)}
+        return {k: v for k, v in result.items() if v not in (None, []) and not (isinstance(v, list) and not v)}
 
 # 输入参数和配置参数枚举
 _COMBO_TYPES_REQUIRE_DEFAULT = {ParamType.STRING_COMBO_LIST, ParamType.COMBO_BOX_BOOL}
