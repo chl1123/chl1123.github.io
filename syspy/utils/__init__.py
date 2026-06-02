@@ -15,7 +15,7 @@ class Coordinate(str, Enum):
     WORLD = "world"
 
 
-def _TR(text: str):
+def _TR(text: str) -> str:
     """文本翻译
 
     Args:
@@ -43,4 +43,4 @@ def _TR(text: str):
         Hello World, {1}, {2} ~-~ 你好，世界, {1}, {2}
         ```
     """
-    pass
+    return text
