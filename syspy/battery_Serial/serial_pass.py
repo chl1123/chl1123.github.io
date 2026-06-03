@@ -39,6 +39,10 @@ class SerialPass:
     def closeSerial(self):
         Trace.log("NOTICE: Closing serial port in passThrough mode is not supported.")
 
+    def close(self):
+        if self.__pass:
+            self.__pass.close()
+
     def setCallBack(self, handleData):
         if not handleData:
             Trace.log("Set callback error.It should be implemented the func 'handleData'")
@@ -48,7 +52,7 @@ class SerialPass:
     def shutdown(self):
         try:
             if self.__pass:
-                self.__pass.shoutDown()  # Assuming typo in original code is fixed here
+                self.__pass.close()
         except Exception as e:
             Trace.log(f"Failed to shutdown properly: {e}")
 

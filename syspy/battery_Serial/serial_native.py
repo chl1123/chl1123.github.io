@@ -47,6 +47,9 @@ class SerialNative:
 
         Trace.log("closeSerial done.")
 
+    def close(self):
+        self.closeSerial()
+
 
     def send(self, msg: list):
         self.ser.write(msg)

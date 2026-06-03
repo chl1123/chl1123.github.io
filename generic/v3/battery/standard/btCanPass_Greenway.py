@@ -7,6 +7,13 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 from syspy import Trace
 
+from syspy.battery_runner import run_battery_script
+
+
+class BatteryTimeoutRestartError(RuntimeError):
+    pass
+
+
 error_dict = {
     (1, 0): "first-level overvoltage",
     (1, 1): "second-level overvoltage",
@@ -27,9 +34,6 @@ error_dict = {
     (3, 0): "large difference in inter-group cycling times",
     (3, 1): "excessive individual cell pressure difference",
 }
-
-class RestartException(Exception):
-    pass
 
 class CanBattery(cb.CanBase):
 
@@ -190,8 +194,7 @@ class CanBattery(cb.CanBase):
                     Trace.log('timeout')
                     self.setTimeout()
                     self.id1 = self.id2 = self.id3 = self.id4 = False
-                    self.close()
-                    raise RestartException("battery timeout")
+                    raise BatteryTimeoutRestartError("greenway battery timeout")
 
             if self.reset_timeout_t.isTimeUp():
                 Trace.log("No complete data received for an extended period, resetting CAN bus.")
@@ -221,12 +224,4 @@ class CanBattery(cb.CanBase):
 
 
 if __name__ == '__main__':
-    while True:
-        try:
-            client = CanBattery()
-            client.loop()
-        except RestartException:
-            Trace.log("Restarting CanBattery class ...")
-        except Exception as e:
-            Trace.log(f"CanBattery crashed: {e!r}, restart in 2s")
-            mu.sleepS(2)
+    run_battery_script(CanBattery)
