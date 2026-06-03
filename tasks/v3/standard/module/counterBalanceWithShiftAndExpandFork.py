@@ -1439,7 +1439,7 @@ def convex_hull(points1, points2=None, points3=None):
 
 
 def _action_chart_dict(action, idx: int) -> dict:
-    """把 action._trace_state() 加上前缀 action.{idx}.{cls}. 用于 Trace.chart"""
+    """把 action._trace_state() 加上前缀 action.{idx}.{cls}. 用于 Trace.log 图表"""
     cls = action.__class__.__name__
     state = action._trace_state() if hasattr(action, "_trace_state") else {}
     return {f"action.{idx}.{cls}.{k}": v for k, v in state.items()}
@@ -2218,7 +2218,7 @@ class Fork(ModuleBase):
             "script.cur_action_status": int(self.current_action.action_status) if self.current_action else 0,
             "script.script_status": int(self.script_status)
         }
-        Trace.chart(script_chart, name="fork.script")
+        Trace.log(script_chart, False, name="fork.script")
 
     def motor_jog_or_move(self, motor_type):
         """电机点动或长按操作"""
@@ -2384,7 +2384,7 @@ class Fork(ModuleBase):
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.reportInfo(self.trace_chart)
-        Trace.chart(self.trace_chart, name="fork.reportInfo")  # todo periodrun怎么写name
+        Trace.log(self.trace_chart, False, name="fork.reportInfo")  # todo periodrun怎么写name
 
         # 根据变动量记录货叉的里程数据
         if self.last_pos is not None:
@@ -2690,7 +2690,7 @@ class BaseAction:
         pass
 
     def _trace_state(self) -> dict:
-        """返回用于 Trace.chart 的状态 dict。子类覆写扩展。"""
+        """返回用于 Trace.log 图表的状态 dict。子类覆写扩展。"""
         return {"action_status": int(self.action_status)}
 
     def reset(self):

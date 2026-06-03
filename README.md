@@ -19,7 +19,7 @@
 - `syspy/core/rbk_rpc.py`：RPC 抽象层（`Service`/`Message`、`@call_service`、v3/v4 客户端差异屏蔽）。
 - `syspy/lib/module.py`：任务脚本运行时核心（`Module`、`ModuleBase`、`ScriptStatus`、安全检查/Modbus事件）。
 - `syspy/lib/action_task.py`：Action 队列调度器（`ActionBase` / `ActionStatus` / `ActionTask`），按 VDA5050 §6.8/§6.11/§6.12 风格调度并产出结构化事件流（`taskBuild` / `actionStateChanged` / `taskFinished` / `taskFailed`）。
-- `docs/guide/spec/logging.md`：日志与队列事件落盘规范（`Trace.log` / `Trace.chart` / `Module.reportInfo` / Action 队列协议）。新增脚本必须遵循此规范。
+- `docs/guide/spec/logging.md`：日志与队列事件落盘规范（`Trace.log` / `Module.reportInfo` / Action 队列协议）。新增脚本必须遵循此规范。
 - `syspy/utils/param_server.py`：参数系统（配置参数、输入参数、动作模板、参数校验）。
 - `tasks/v3/standard/example/`：脚本模板与参数示例（建议从 `template.py` 开始）。
 - `tasks/v3/standard/module/`：复杂业务脚本（如 `jack.py`，使用动作链编排）。
@@ -137,7 +137,7 @@ from syspy import Navigation, Loc, Motor
 
 ### 5.4 日志与可观测性
 
-- 日志/图表/上报规范以 `docs/guide/spec/logging.md` 为准（含通道命名、`Trace.log/chart` 类型约束、Action 队列结构化事件协议、检查清单），新增或修改脚本前请先对照。
+- 日志/图表/上报规范以 `docs/guide/spec/logging.md` 为准（含通道命名、`Trace.log` 类型约束、Action 队列结构化事件协议、检查清单），新增或修改脚本前请先对照。
 - 过程日志：`Trace.log(...)` / `Logger(...)`
 - 结构化上报：`Module.reportInfo(dict)`
 - 异常上报（RBK3.5 推荐）：

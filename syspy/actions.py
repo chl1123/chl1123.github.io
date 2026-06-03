@@ -35,7 +35,7 @@ def _trace_log(msg: str, name: str = LOG_NAME) -> None:
 
 
 def _trace_chart(msg: dict, name: str = f"{LOG_NAME}.state") -> None:
-    Trace.chart(msg, name=name)
+    Trace.log(msg, False, name=name)
 
 
 def _normalize_angle_rad(angle: float) -> float:

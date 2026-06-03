@@ -2423,16 +2423,17 @@ class Jack(ModuleBase):
         Module.reportInfo(self.report_info)
         self.info_count = self.info_count + 1
 
-        # === Trace.chart: 主循环末尾集中上报（§3 规范） ===
+        # === Trace.log: 主循环末尾集中上报（§3 规范） ===
         # jack.task: 任务级状态
         cur_action = self.action_list[self.action_id] if 0 <= self.action_id < len(self.action_list) else None
-        Trace.chart(
+        Trace.log(
             {
                 "scriptStatus": int(self.status),
                 "actionId": self.action_id,
                 "actionTotal": len(self.action_list),
                 "curActionState": int(cur_action.action_status) if cur_action else 0,
             },
+            False,
             name="jack.task",
         )
 
@@ -2442,12 +2443,13 @@ class Jack(ModuleBase):
         if cur_action and hasattr(cur_action, 'target_height'):
             jack_target = float(cur_action.target_height)
             jack_in_place = Motor.isMotorReached(config_params.jack_motor_name)
-        Trace.chart(
+        Trace.log(
             {
                 "jackHeight": float(self.jack_height or 0),
                 "jackTarget": float(jack_target),
                 "jackInPlace": bool(jack_in_place),
             },
+            False,
             name="jack.motor",
         )
 

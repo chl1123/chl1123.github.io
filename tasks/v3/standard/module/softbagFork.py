@@ -44,7 +44,7 @@ def _trace_log(text: str, name: str = LOG_MODULE) -> None:
 
 def _trace_chart(msg: dict, name: str = f"{LOG_MODULE}.action") -> None:
     """Emit structured trace chart data with channel name."""
-    Trace.chart(msg, name=name)
+    Trace.log(msg, False, name=name)
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
