@@ -6,8 +6,9 @@
 
 | 版本 | 主要变更 |
 |------|----------|
-| v2（当前） | Action 队列协议对齐 [VDA5050 v3.0](https://github.com/VDA5050/VDA5050) §6.8 / §6.11 / §6.12：`actionId` 改为字符串 UUID；引入 `blockingType` 声明式并行调度（`HARD` / `SOFT` / `NONE`）；状态转移统一走单事件 `actionStateChanged`（携带 wire 字符串 `status`）；`actionParameters` 命名与 VDA5050 一致；chart 端用 `runningCount` / `waitingCount` / `finishedCount` / `failedCount` / `suspendedCount` 表达并行集合 |
-| v1 | 顺序型队列：整型 `id` 索引；三事件 `actionStart` / `actionFinished` / `actionFailed`；chart 用单值 `curActionState`；事件名 `queueBuild` / `queueExtend` / `queueDone` |
+| v3（当前） | 弃用 `Trace.chart`，统一使用 `Trace.log`：数值时序 / 图表数据改为 `Trace.log(dict)` 上报，落盘通道即 `name` 本身（缺省 `log`）。`Trace.chart` 保留但标记弃用，调用时提示改用 `Trace.log` |
+| v2 | Action 队列协议对齐 [VDA5050 v3.0](https://github.com/VDA5050/VDA5050) §6.8 / §6.11 / §6.12：`actionId` 改为字符串 UUID；引入 `blockingType` 声明式并行调度（`HARD` / `SOFT` / `NONE`）；状态转移统一走单事件 `actionStateChanged`（携带 wire 字符串 `status`）；`actionParameters` 命名与 VDA5050 一致；并行集合用 `runningCount` / `waitingCount` / `finishedCount` / `failedCount` / `suspendedCount` 表达 |
+| v1 | 顺序型队列：整型 `id` 索引；三事件 `actionStart` / `actionFinished` / `actionFailed`；单值 `curActionState`；事件名 `queueBuild` / `queueExtend` / `queueDone` |
 
 ---
 
@@ -15,30 +16,29 @@
 
 | 方法 | 落盘 | 终端打印（默认） | 上报调度 | 用途 |
 |------|------|----------|----------|------|
-| `Trace.log(msg, output_console=True, output_time=False, *, name="", debug=False)` | Yes | Yes | No | 文本 / 结构化运行日志，按 name 分通道；`msg` 可为 `str` 或 `dict` |
-| `Trace.chart(msg, output_console=False, output_time=False, *, name="", debug=False)` | Yes | No | No | 结构化数值数据，按 name 分组用于图表 |
+| `Trace.log(msg, output_console=True, output_time=False, *, name="", debug=False)` | Yes | Yes | No | 文本 / 结构化运行日志 + 数值时序，按 name 分通道；`msg` 可为 `str` 或 `dict` |
 | `Module.reportInfo(data)` | No | No | Yes | 实时状态上报（调度/Roboshop 可见） |
 | `print(msg)` | No | Yes | No | 仅开发调试，禁止在生产代码中使用 |
+
+/// warning | `Trace.chart` 已弃用
+`Trace.chart` 已弃用，请统一改用 `Trace.log`。数值时序 / 图表数据用 `Trace.log(dict, name="...")` 上报即可（类型稳定约束见 §三），落盘通道即 `name` 本身（缺省 `log`）。`Trace.chart` 仍可调用但会触发弃用提示，新代码禁止使用。
+///
 
 ### 1.1 接口签名说明
 
 ```python
-Trace.log(msg: Union[str, dict], output_console=True,  output_time=False, *, name="", debug=False)
-Trace.chart(msg: dict,           output_console=False, output_time=False, *, name="", debug=False)
+Trace.log(msg: Union[str, dict], output_console=True, output_time=False, *, name="", debug=False)
 ```
 
-- `msg`：位置参数
-    - `Trace.log` 接受 `str` 或 `dict`：
-        - 传 `str` 时，内部自动包装为 `{"log": "<msg>"}` 后落盘（key 固定为 `"log"`）
-        - 传 `dict` 时，按字典 key/value 原样落盘，适合结构化上下文
-    - `Trace.chart` 只接受 `dict`
-- `output_console`：是否打印到终端。**log 默认 True，chart 默认 False**
+- `msg`：位置参数，`Trace.log` 接受 `str` 或 `dict`：
+    - 传 `str` 时，内部自动包装为 `{"log": "<msg>"}` 后落盘（key 固定为 `"log"`），适合人读事件描述
+    - 传 `dict` 时，按字典 key/value 原样落盘，适合结构化事件上下文与数值时序（见 §二、§三）
+- `output_console`：是否打印到终端。**log 默认 True**；数值时序等高频数据应手动设为 `False`，避免刷屏淹没关键日志
 - `output_time`：是否在终端输出中带时间戳
-- `name`：**关键字参数（keyword-only）**，必须写作 `name="xxx"`；默认 `""`。系统会自动按前缀拼接落盘通道名：
-    - `Trace.log(..., name="jack")`  → 落盘通道 `log.jack`
-    - `Trace.chart(..., name="jack.motor")` → 落盘通道 `chart.jack.motor`
-    - 不传 `name` 时回落为裸通道 `log` / `chart`（禁止依赖，见 §1.2）
-    - 因为 log 与 chart 各自有独立前缀，**允许在 log 和 chart 中使用相同的 `name` 字符串**（如同时使用 `name="jack.motor"`），二者会落入互不冲突的两个通道
+- `name`：**关键字参数（keyword-only）**，必须写作 `name="xxx"`；默认 `"log"`。落盘通道名即 `name` 本身：
+    - `Trace.log(..., name="jack")`  → 落盘通道 `jack`
+    - `Trace.log(..., name="jack.motor")` → 落盘通道 `jack.motor`
+    - 不传 `name` 时回落为裸通道 `log`（禁止依赖，见 §1.2）
 - `debug`：**关键字参数（keyword-only）**，默认 `False`
     - `False`：常规落盘，日志级别为 `[I]`，模块标识为 `rbk.script.utils_rpc`
     - `True`：debug 日志，**仅当系统处于 debug 模式时才会落盘**；日志级别变为 `[D]`，模块标识带 `.d` 后缀（`rbk.script.utils_rpc.d`）。用于生产环境默认沉默、需要时再打开排查的高频或低优先级数据（见 §1.4）
@@ -47,54 +47,51 @@ Trace.chart(msg: dict,           output_console=False, output_time=False, *, nam
 
 ```python
 # 文本日志（str）：内部落盘为 {"log": "..."}
-Trace.log("status IDLE -> RUNNING", name="jack")                          # 落盘通道 log.jack
-Trace.log(f"motor timeout, {motor_id=}", name="jack.err")                 # 落盘通道 log.jack.err
+Trace.log("status IDLE -> RUNNING", name="jack")                          # 落盘通道 jack
+Trace.log(f"motor timeout, {motor_id=}", name="jack.err")                 # 落盘通道 jack.err
 
-# 结构化日志（dict）：按 key/value 原样落盘，便于检索
+# 结构化事件日志（dict）：按 key/value 原样落盘，便于检索
 Trace.log({"event": "actionStateChanged", "actionId": "pick-7c4a", "status": "running"}, name="jack.action")
 
-# 图表数据
-Trace.chart({"jackHeight": h, "jackTarget": t}, name="jack.motor")        # 落盘通道 chart.jack.motor
+# 数值时序 / 图表数据（dict）：高频，关闭终端打印
+Trace.log({"jackHeight": h, "jackTarget": t}, output_console=False, name="jack.motor")   # 落盘通道 jack.motor
 ```
 
 ### 1.2 关于 name 参数
 
-`name` 是日志在系统中的**业务逻辑通道名**。系统会自动按接口类型为其加前缀（`log.` / `chart.`）后落盘，最终通道格式为 `log.<name>` 或 `chart.<name>`。落盘日志格式为：
+`name` 是日志在系统中的**业务逻辑通道名**，直接作为落盘通道名（缺省回落为 `log`）。落盘日志格式为：
 
 ```
 # Trace.log(str) —— str 会被包装为 {"log": "..."}
-[20260505.11:37:10.554.499.765][rbk.script.utils_rpc][log.<name>][I]: {"log": "<内容>"}
+[20260505.11:37:10.554.499.765][rbk.script.utils_rpc][<name>][I]: {"log": "<内容>"}
 
-# Trace.log(dict) —— 按 key/value 原样落盘
-[20260505.11:37:10.554.499.765][rbk.script.utils_rpc][log.<name>][I]: {"event": "...", "id": 3, ...}
-
-# Trace.chart(dict)
-[20260505.11:37:10.554.499.765][rbk.script.utils_rpc][chart.<name>][I]: {"jackHeight": 1.25, ...}
+# Trace.log(dict) —— 按 key/value 原样落盘（结构化事件或数值时序）
+[20260505.11:37:10.554.499.765][rbk.script.utils_rpc][<name>][I]: {"event": "...", "id": 3, ...}
+[20260505.11:37:10.554.499.765][rbk.script.utils_rpc][<name>][I]: {"jackHeight": 1.25, ...}
 
 # debug=True —— 模块标识带 .d 后缀，级别变为 [D]，仅 debug 模式下落盘
-[20260505.11:37:10.554.499.765][rbk.script.utils_rpc.d][log.<name>][D]: {"log": "<内容>"}
-[20260505.11:37:10.554.499.765][rbk.script.utils_rpc.d][chart.<name>][D]: {"jackHeight": 1.25, ...}
+[20260505.11:37:10.554.499.765][rbk.script.utils_rpc.d][<name>][D]: {"log": "<内容>"}
 ```
 
-- 终端、日志检索、图表绘制都按落盘通道（`log.<name>` / `chart.<name>`）聚合或筛选
-- log 与 chart 的前缀由系统自动区分，业务侧填写的 `name` 只需描述模块/子主题，**不要手动带 `log.` / `chart.` 前缀**
-- 由于前缀自动区分，log 和 chart 可以使用相同的业务 `name`（如均使用 `name="jack.motor"`），二者落入 `log.jack.motor` 与 `chart.jack.motor` 两条独立通道，互不干扰
+- 终端、日志检索、图表绘制都按落盘通道（`<name>`）聚合或筛选
+- 业务侧填写的 `name` 即落盘通道名，按"模块.子主题"组织（§2.2）
+- 同一通道可同时承载事件日志与数值时序——按 §二的通道命名规范区分子主题（事件走 `<module>` / `<module>.err` 等，数值时序走 `<module>.task` / `<module>.motor` 等）即可天然隔离
 - `name` 必须采用稳定可枚举的字符串（不要拼接动态值如 task_id）
 - 同一逻辑通道的日志必须使用相同 `name`
-- **始终显式指定 `name`**，禁止依赖默认值 `""`；缺省时落盘通道回落为裸 `log` / `chart`，会把所有模块的日志混在同一通道，丧失分组意义
+- **始终显式指定 `name`**，禁止依赖默认值 `"log"`；缺省时落盘通道回落为裸 `log`，会把所有模块的日志混在同一通道，丧失分组意义
 
 ### 1.3 output_console / output_time 使用约定
 
 - `output_console`：
-    - `Trace.log` 默认 True，保留默认即可；仅高频重复事件可手动设为 False
-    - `Trace.chart` 默认 False，**不要改为 True**（图表数据刷终端会淹没关键日志）
+    - 文本 / 事件日志默认 True，保留默认即可；仅高频重复事件可手动设为 False
+    - 数值时序 / 图表数据**必须手动设为 False**（高频数据刷终端会淹没关键日志）
 - `output_time`：
     - 默认 False，依赖日志前缀时间戳即可
     - 仅在终端实时调试、需要二次对时的场景临时设为 True，提交代码前复位
 
 ### 1.4 debug 使用约定
 
-`debug=True` 用于**生产环境默认沉默、需要时再打开排查**的日志/图表：
+`debug=True` 用于**生产环境默认沉默、需要时再打开排查**的日志/数据：
 
 - 仅当系统处于 debug 模式时才落盘，常规运行时既不落盘也不刷终端日志文件，避免日志体积膨胀
 - 落盘时日志级别为 `[D]`，模块标识自动带 `.d` 后缀（`rbk.script.utils_rpc.d`），便于检索时与常规 `[I]` 日志区分
@@ -109,8 +106,8 @@ Trace.chart({"jackHeight": h, "jackTarget": t}, name="jack.motor")        # 落�
 Trace.log(f"开始顶升 target={target}", name="jack.motor")
 
 # 高频诊断 —— 仅 debug 模式下落盘
-Trace.log({"rawHeight": raw, "filtered": filt}, name="jack.motor.raw", debug=True)
-Trace.chart({"jackMotorCurrent": cur}, name="jack.motor.diag", debug=True)
+Trace.log({"rawHeight": raw, "filtered": filt}, output_console=False, name="jack.motor.raw", debug=True)
+Trace.log({"jackMotorCurrent": cur}, output_console=False, name="jack.motor.diag", debug=True)
 ```
 
 ---
@@ -120,9 +117,9 @@ Trace.chart({"jackMotorCurrent": cur}, name="jack.motor.diag", debug=True)
 ### 2.1 记录原则
 
 - **记录事件类信息**：状态变更、关键决策、异常、配置加载结果；支持文本或结构化字典两种形态（见 §2.3）
-- **禁止重复记录**：同一事件在同一执行路径中只允许出现一次
-- **禁止记录纯数值时序数据**：数值型时序（高度、速度、电流等）走 `Trace.chart`；`Trace.log(dict)` 仅用于事件型结构化上下文
-- **必须显式指定 `name=`**，禁止使用默认值 `""`（缺省落盘通道为裸 `log`）
+- **数值时序也走 `Trace.log(dict)`**：高度、速度、电流等数值型时序用 `Trace.log(dict, output_console=False, ...)` 上报，类型稳定约束见 §三；与事件日志按通道命名（§2.2）区分子主题
+- **禁止重复记录事件**：同一事件在同一执行路径中只允许出现一次（数值时序按 tick 周期采样不受此限）
+- **必须显式指定 `name=`**，禁止使用默认值 `"log"`（缺省落盘通道为裸 `log`）
 
 ### 2.2 name 命名规范
 
@@ -146,7 +143,7 @@ Trace.chart({"jackMotorCurrent": cur}, name="jack.motor.diag", debug=True)
 
 - **默认用 `str`**：人读事件描述；关键上下文以 `key=value` 形式追加。内部会被包装为 `{"log": "<内容>"}` 落盘。
 - **需要结构化检索时用 `dict`**：事件字段多、下游需要按字段过滤/聚合（如 action 队列事件、reportInfo 前的结构化快照）。字典按 key/value 原样落盘，便于日志检索系统索引。
-- **不要把 `dict` 用作数值时序采样**：数值时序（高度、速度、电流等）继续走 `Trace.chart`；`Trace.log(dict)` 只用于"发生了一件事，事件本身带有结构化属性"。
+- **数值时序也用 `dict`**：高度、速度、电流等数值型时序用 `Trace.log(dict)` 上报，须满足 §三 的类型稳定约束，并设 `output_console=False`；与事件型 `dict` 按通道命名（§2.2）区分子主题。
 
 ```python
 # str 形态：事件描述 + 上下文 key=value
@@ -186,12 +183,12 @@ Trace.log(
 |----------|------|----------|
 | 循环体内每次迭代的状态 | 大量重复 | 仅记录开始/结束/异常退出 |
 | 周期性轮询结果（无变化） | 刷屏 | 仅在状态变化时记录 |
-| 纯数值序列 | 应走 chart | `Trace.chart` |
+| 用文本 / `key=value` 打数值序列 | 刷屏、不可绘图 | 改用 `Trace.log(dict, output_console=False)` 走数值时序通道（§三） |
 | 与上一条相同的信息 | 重复 | 加条件判断去重 |
 
 ### 2.6 去重模式
 
-文本日志只记录"发生了什么"（状态跳变、动作开始/结束、异常），**数值的变化过程不应走 `Trace.log`**，应该交给 `Trace.chart` 作为时序数据上报。主循环每 tick 都会调用一次 chart，等于天然以 tick 频率采样，不需要在日志里再手写边界采样。
+文本日志只记录"发生了什么"（状态跳变、动作开始/结束、异常），**数值的变化过程不应混进文本日志**，应交给数值时序通道用 `Trace.log(dict, output_console=False)` 上报。主循环每 tick 调用一次数值上报，等于天然以 tick 频率采样，不需要在文本日志里再手写边界采样。
 
 ```python
 # 错误 1：循环内无条件打印 —— 刷屏
@@ -199,37 +196,38 @@ while not in_place:
     Trace.log(f"等待到位 current={get_height()}", name="jack.motor")
     time.sleep(0.1)
 
-# 错误 2：用 Trace.log 记录数值变化 —— 数值序列应走 chart
+# 错误 2：用文本日志记录数值变化 —— 数值序列应走数值时序通道
 _last_bucket = None
 while not in_place:
     bucket = get_height() // 100
     if bucket != _last_bucket:
-        Trace.log(f"顶升中 height={get_height()}", name="jack.motor")  # 应走 chart
+        Trace.log(f"顶升中 height={get_height()}", name="jack.motor")  # 应走数值时序 dict
         _last_bucket = bucket
     time.sleep(0.1)
 
-# 正确：Trace.log 只记首尾状态事件；高度的时序由主循环的 Trace.chart 覆盖
+# 正确：文本日志只记首尾状态事件；高度的时序由主循环的数值 Trace.log(dict) 覆盖
 Trace.log(f"开始顶升 target={target}", name="jack.motor")
 t0 = time.time()
 while not in_place:
-    time.sleep(0.1)  # 高度通过主循环末尾的 Trace.chart 持续上报到 jack.motor
+    time.sleep(0.1)  # 高度通过主循环末尾的 Trace.log(dict) 持续上报到 jack.motor
 Trace.log(
     f"顶升完成 actual={get_height()} elapsed={int((time.time()-t0)*1000)}ms",
     name="jack.motor",
 )
 
 # 主循环末尾（每 tick 调用一次，自然形成高度时序曲线）
-Trace.chart(
+Trace.log(
     {
         "jackHeight": float(get_height()),
         "jackTarget": float(target),
         "jackInPlace": bool(in_place),
     },
+    output_console=False,
     name="jack.motor",
 )
 ```
 
-如果某个数值型事件确实需要"状态跳变"语义（例如高度越限、触发到位边沿），那是状态事件而不是数值采样，仍可用 `Trace.log` 记一次，但消息是"事件描述"而不是"当前值的打印"：
+如果某个数值型事件确实需要"状态跳变"语义（例如高度越限、触发到位边沿），那是状态事件而不是数值采样，仍可用文本 `Trace.log` 记一次，但消息是"事件描述"而不是"当前值的打印"：
 
 ```python
 # OK：这是边沿事件，不是数值采样
@@ -263,7 +261,9 @@ except json.JSONDecodeError as e:
 
 ---
 
-## 三、Trace.chart 规范
+## 三、数值 / 图表数据规范（`Trace.log(dict)`）
+
+数值时序 / 图表数据统一用 `Trace.log(dict, output_console=False, name="...")` 上报，按 name 分通道（落盘通道即 `name`），图表端按通道聚合绘制。本节约束这类 dict 的字段类型，与 §二的事件型 dict 共用 `Trace.log`，靠通道命名（§3.2）区分。
 
 ### 3.1 核心规则
 
@@ -276,7 +276,8 @@ except json.JSONDecodeError as e:
     - JSON 布尔：Python `True` / `False`（会序列化为 JSON `true` / `false`）
     - JSON 嵌套：`dict`（JSON object），内部字段同样受 "类型稳定" 约束
     - **禁止**：`str` / `None` / `list` / 枚举对象（枚举请显式 `int(x)` 或 `.value` 转 int）
-- **调用点建议统一**：同一 `name` 的 `Trace.chart` 推荐在主循环固定末尾位置集中调用（如 `_loop()` / `execute()` 末尾），方便维护；允许多处调用，但须自行保证各调用点满足上述类型稳定约束
+- **关闭终端打印**：数值时序 `output_console=False`，避免高频数据刷屏淹没关键日志
+- **调用点建议统一**：同一 `name` 的数值上报推荐在主循环固定末尾位置集中调用（如 `_loop()` / `execute()` 末尾），方便维护；允许多处调用，但须自行保证各调用点满足上述类型稳定约束
 
 ### 3.2 多 name 分组
 
@@ -287,6 +288,8 @@ except json.JSONDecodeError as e:
 | `<module>.task` | 任务级状态：script_status / action_id / action 总数 |
 | `<module>.motor` | 机构状态：高度、目标、电流、到位 |
 | `<module>.nav` | 导航状态：速度、里程、避障 |
+
+数值时序与事件日志可复用同一 `<module>.xxx` 子主题（如机构事件与机构数值都落 `jack.motor`），由图表端按 key 自动识别数值序列。
 
 ### 3.3 数据结构示例
 
@@ -311,7 +314,7 @@ if self.recognize:
         "y":   float(self.rec_world_pos[1]),
         "yaw": float(self.rec_world_pos[2]),
     }
-Trace.chart(chart_task, name="jack.task")
+Trace.log(chart_task, output_console=False, name="jack.task")
 ```
 
 ### 3.4 字段命名与类型规范
@@ -323,7 +326,7 @@ Trace.chart(chart_task, name="jack.task")
 - 嵌套 dict：内部字段同样遵守上述类型稳定与允许类型约束
 - **禁止**：字符串、`None`、`list`、不可 JSON 序列化的对象
 
-### 3.5 各车型必须包含的 chart name 与字段
+### 3.5 各车型必须包含的数值通道与字段
 
 "类型"列是该 key 在整个生命周期中必须保持的类型；"可缺省"列标识某些场景下允许不上报，图表端会按 0 呈现。
 
@@ -500,7 +503,7 @@ taskFailed:
 
 时序保证：
 - 同一 actionId 上，`init -> running`、`running -> finished/failed`、`running <-> suspended` 转移**各发一条 `actionStateChanged`**
-- 中间态（`running` 持续）**不打 Trace.log**，数值时序走 `Trace.chart`（见 §4.8）
+- 中间态（`running` 持续）**不打事件 Trace.log**，数值时序用 `Trace.log(dict)`（见 §4.8）
 - 动态扩展时，先发 `taskExtend`，再按正常规则启动新 action（发对应的 `actionStateChanged: init -> running`）
 - 整队重跑：重新调用 `ActionTask.build()` 发新 `taskBuild`；新一轮 `actionId` 重新生成
 
@@ -623,13 +626,13 @@ class Jack(ModuleBase):
 - 取消：`cancel()` 把所有 active action 推到 `failed`（各自发 `actionStateChanged: running -> failed`），整队落 `taskFailed`
 - 入参形态：`build()` / `extend()` 接受单个 `ActionBase`、`(ActionBase, "HARD"/"SOFT"/"NONE")` 元组，或它们的列表；批默认通过 `blocking_type=` 关键字参数指定（缺省 `"HARD"`）
 
-### 4.8 队列状态走 chart
+### 4.8 队列状态走数值通道
 
-事件流描述"什么时候发生了什么"，chart 描述"现在的快照"。每 tick 主循环末尾：
+事件流描述"什么时候发生了什么"，数值通道描述"现在的快照"。每 tick 主循环末尾：
 
 ```python
 counts = self.queue.status_counts()      # {"init": int, "running": int, "finished": int, "failed": int, "suspended": int}
-Trace.chart(
+Trace.log(
     {
         "scriptStatus":   int(self.script_status),
         "total":          int(self.queue.total),
@@ -639,16 +642,17 @@ Trace.chart(
         "failedCount":    int(counts["failed"]),
         "suspendedCount": int(counts["suspended"]),
     },
+    output_console=False,
     name=f"{self.MOD}.task",
 )
 ```
 
-字段类型稳定为 `int`，与 §3.1 chart 类型约束一致。并行场景下"当前在跑的 action"是集合而非单值，因此用 5 个 count 表达整个队列的状态分布。
+字段类型稳定为 `int`，与 §3.1 类型约束一致。并行场景下"当前在跑的 action"是集合而非单值，因此用 5 个 count 表达整个队列的状态分布。
 
 ### 4.9 反模式（禁止）
 
 ```python
-# 错误：每个 tick 都打印 action 状态（高频刷屏；chart 已经表达）
+# 错误：每个 tick 都打印 action 状态（高频刷屏；数值通道已经表达）
 Trace.log({"event": "actionStateChanged", "actionId": id, "status": "running"}, name="jack.action")
 # 状态没变化时不要发 actionStateChanged
 
@@ -671,7 +675,7 @@ Trace.log({"event": "actionStateChanged", "status": 1, ...})  # 必须是 "runni
 
 # 错误：不写 name= 关键字，走缺省裸通道
 Trace.log({"event": "taskBuild", ...})    # 必须加 name="jack.action"
-Trace.chart({"runningCount": 2})           # 必须加 name="jack.task"
+Trace.log({"runningCount": 2}, output_console=False)   # 必须加 name="jack.task"
 
 # 错误：status 用协议未定义的字符串
 Trace.log({"event": "actionStateChanged", "status": "initializing", ...})   # 仅允许 init/running/finished/failed/suspended
@@ -823,18 +827,18 @@ Trace.log("电机通信超时 ...",         name="jack.err")  # ERROR（走 .err
 
 新增或修改代码时按以下清单自查：
 
-- [ ] 每条 `Trace.log` / `Trace.chart` 均以 **关键字参数** 显式指定 `name=`（不依赖默认值 `""`，避免落盘到裸 `log` / `chart` 通道）
-- [ ] 业务 `name` 不带 `log.` / `chart.` 前缀（前缀由系统自动添加）
-- [ ] `Trace.log` 的 `msg` 形态：事件描述用 `str`；需要按字段检索的结构化事件用 `dict`；数值时序继续走 `Trace.chart`
-- [ ] `Trace.chart` 的 `output_console` 保留默认 False（不刷终端）
-- [ ] `debug=True` 仅用于生产默认沉默、按需打开的诊断日志/图表；必须事件（§2.4）保持 `debug=False`；同一通道不混用
+- [ ] 每条 `Trace.log` 均以 **关键字参数** 显式指定 `name=`（不依赖默认值 `"log"`，避免落盘到裸 `log` 通道）
+- [ ] 业务 `name` 即落盘通道名，按"模块.子主题"组织（不带 `log.` 前缀）
+- [ ] `Trace.log` 的 `msg` 形态：事件描述用 `str`；需要按字段检索的结构化事件用 `dict`；数值时序用 `dict` 并设 `output_console=False`（§三）
+- [ ] 不再使用已弃用的 `Trace.chart`；数值 / 图表数据统一改用 `Trace.log(dict, output_console=False, name=...)`
+- [ ] `debug=True` 仅用于生产默认沉默、按需打开的诊断日志/数据；必须事件（§2.4）保持 `debug=False`；同一通道不混用
 - [ ] 每条 Trace.log 都指定明确的 `name` 通道（`<module>` / `<module>.xxx`）
 - [ ] 每个状态机切换都有且仅有一条 Trace.log
 - [ ] 每个 try/except 块中最多一条 Trace.log 记录异常，走 `<module>.err` 通道
-- [ ] 循环体内无无条件 Trace.log（使用去重或仅记录首尾）
-- [ ] 同一个 `name` 的 Trace.chart 推荐集中在主循环末尾调用（允许多处，但需保证类型约束）
-- [ ] 同一个 `name` 的 Trace.chart 下，每个 key 的 value 类型保持稳定（不出现类型切换）
-- [ ] Trace.chart 的 value 仅为 int / float / bool / dict，无 None / str / list / 枚举对象
+- [ ] 循环体内无无条件文本 Trace.log（使用去重或仅记录首尾）
+- [ ] 同一个 `name` 的数值 `Trace.log(dict)` 推荐集中在主循环末尾调用（允许多处，但需保证类型约束）
+- [ ] 同一个 `name` 的数值 `Trace.log(dict)` 下，每个 key 的 value 类型保持稳定（不出现类型切换）
+- [ ] 数值 `Trace.log(dict)` 的 value 仅为 int / float / bool / dict，无 None / str / list / 枚举对象
 - [ ] Action 队列使用 `syspy.lib.action_task.ActionTask`（新脚本一律走 ActionTask，不手写事件代码）
 - [ ] Action 队列事件统一使用 `Trace.log(dict, name=f"{MOD}.action")`，每条事件带 `event` 字段作为类型判别器
 - [ ] Action 队列：每个 `actionId` 的状态转移（`init -> running`、`running -> finished/failed`、`running <-> suspended`）各发一条 `actionStateChanged`；同一状态不重复发

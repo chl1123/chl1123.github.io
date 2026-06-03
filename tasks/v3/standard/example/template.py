@@ -9,7 +9,7 @@
   3. 日志规范：参见 docs/guide/spec/logging.md
        - Trace.log(name="<MOD>[.xxx]")：事件型日志（状态切换、关键决策、异常、配置加载）
        - Trace.log(dict, name="<MOD>.action")：结构化任务队列事件（taskBuild / taskExtend / actionStateChanged / taskFinished / taskFailed）
-       - Trace.chart(name="<MOD>.task" / "<MOD>.motor")：tick 级时序采样，主循环末尾集中调用
+       - Trace.log(dict, False, name="<MOD>.task" / "<MOD>.motor")：tick 级数值时序采样，主循环末尾集中调用
        - Module.reportInfo：每次必须携带 containers 字段
 """
 import json
@@ -201,7 +201,7 @@ class Operation1Action(ActionBase):
 
     def run(self, m):
         self._tick += 1
-        # 数值变化只走 chart（在主循环末尾），这里只在边沿事件落 log
+        # 数值变化只走数值时序通道（在主循环末尾 Trace.log(dict)），这里只在边沿事件落 log
         self.cur_value = min(self.target_value, self._tick * self.target_value / 100.0)
         if self._tick >= 50:
             self.cur_value = self.target_value
@@ -249,7 +249,7 @@ class ModuleXXX(ModuleBase):
     与 module/* 的差异：队列状态/事件日志统一委托给 ActionTask，主类只负责：
       - 根据任务参数 _dispatch 出 action 列表
       - 把 self 作为 ctx 传给 queue.step()，供 action 访问模块字段（如 report_info）
-      - 主循环末尾统一上报（reportInfo + Trace.chart）
+      - 主循环末尾统一上报（reportInfo + Trace.log 数值时序）
     """
 
     def __init__(self):
@@ -349,10 +349,10 @@ class ModuleXXX(ModuleBase):
             self.event_safe_move_check = False
 
     # ----------------------------------------------------------------
-    # 主循环末尾上报：reportInfo + 集中 Trace.chart
+    # 主循环末尾上报：reportInfo + 集中 Trace.log 数值时序
     # ----------------------------------------------------------------
     def tick_report(self):
-        """每 tick 调用一次：合并一次 reportInfo + 集中 chart 上报。"""
+        """每 tick 调用一次：合并一次 reportInfo + 集中数值时序上报。"""
         cur = self.action_task.current
         counts = self.action_task.status_counts()
 
@@ -369,9 +369,10 @@ class ModuleXXX(ModuleBase):
         })
         Module.reportInfo(self.report_info)
 
-        # ===== Trace.chart：时序采样（参考 docs/guide/spec/logging.md §4.8） =====
+        # ===== Trace.log 数值时序：tick 级采样（参考 docs/guide/spec/logging.md §4.8） =====
+        # 数值时序用 Trace.log(dict, False)，避免高频刷屏
         # <MOD>.task：任务级状态分布（key 类型必须稳定）
-        Trace.chart(
+        Trace.log(
             {
                 "scriptStatus":   int(self.status),
                 "total":          int(self.action_task.total),
@@ -381,18 +382,20 @@ class ModuleXXX(ModuleBase):
                 "failedCount":    int(counts["failed"]),
                 "suspendedCount": int(counts["suspended"]),
             },
+            False,
             name=f"{MOD}.task",
         )
 
         # <MOD>.motor：机构状态（按车型替换字段名前缀，如 jack* / ctu* / fork* / clean*）
         cur_value = float(getattr(cur, "cur_value", 0.0) or 0.0)
         target_value = float(getattr(cur, "target_value", 0.0) or 0.0)
-        Trace.chart(
+        Trace.log(
             {
                 "demoCurrent": cur_value,
                 "demoTarget": target_value,
                 "demoInPlace": bool(cur and cur.action_status == ActionStatus.FINISHED),
             },
+            False,
             name=f"{MOD}.motor",
         )
 
@@ -412,7 +415,7 @@ def main():
         # 1) 同步本地状态到 Module
         Module.setStatus(m.status)
 
-        # 2) 每 tick 上报（reportInfo + Trace.chart）
+        # 2) 每 tick 上报（reportInfo + Trace.log 数值时序）
         m.tick_report()
 
         # 3) 安全检查事件
