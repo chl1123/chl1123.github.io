@@ -132,6 +132,7 @@ nav:
       - 脚本数据: api/script_data.md
       - 通用库:
           - 异常: api/lib/abnormal.md
+          - 动作任务: api/lib/action_task.md
           - CAN: api/lib/can_frame.md
           - 脚本模块: api/lib/module.md
           - 网络协议: api/lib/net_protocol.md
