@@ -136,7 +136,7 @@ nav:
           - 脚本模块: api/lib/module.md
           - 网络协议: api/lib/net_protocol.md
           - leveldb: api/lib/plyvel_db.md
-          - 机器人参数: api/lib/robot_param.md
+          - 机器人: api/lib/robot.md
           - trace: api/lib/trace.md
   - 消息:
       - 消息模型: api/v3/message/index.md
