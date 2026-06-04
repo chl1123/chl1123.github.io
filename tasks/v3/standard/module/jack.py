@@ -13,7 +13,7 @@ from syspy.utils.time import Timer
 from datetime import datetime
 
 from syspy import (Module, Motor, Navigation, Loc, Recognize,
-                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Do, Container, Odometer)
+                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam, BindType, BindItem
@@ -627,8 +627,8 @@ class ConfigParams:
             _default_max_speed = RobotParam.getDevice(
                 f"{cls.jack_motor_name}", f"func.{cls.motor_func}.maxSpeed") or 0.015
         cls.jack_motor_speed = cls.config.get("jackMotorSpeed") or _default_max_speed
-        cls.jack_min_height = cls.config.get("jackMinHeight")
-        cls.jack_max_height = cls.config.get("jackMaxHeight")
+        cls.jack_min_height = cls.config.get("jackMinHeight",0)
+        cls.jack_max_height = cls.config.get("jackMaxHeight",0.06)
         cls.jack_load_time = cls.config.get("jackLoadTime", 30.0)
         cls.jack_unload_time = cls.config.get("jackUnloadTime", 30.0)
 
@@ -1299,7 +1299,7 @@ class Jack(ModuleBase):
         # Error53301: 检查顶升电机配置
         # ============================================
         if not config_params.jack_motor_name:
-            Navigation.setDeviceError("NoJackMotor", "模型文件顶升设备配置有误，找不到顶升电机")
+            Navigation.setDeviceError("NoJackMotor", "Jack motor not found in model file. Check jack device configuration")
         # 脚本任务管理
         # set_info数据打印
         self._last_logged_action_id = None

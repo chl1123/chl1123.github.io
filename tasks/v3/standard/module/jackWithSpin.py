@@ -2,7 +2,7 @@
 # @Date : 2026/5/28
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : fix: 避免链式绑定回调响应风险 https://project.feishu.cn/seer_rd_center/issue/detail/7001697750
+# @Update : feat: 增加仿真模式的使用
 
 import json
 import math
@@ -13,7 +13,8 @@ from syspy.utils.time import Timer
 from datetime import datetime
 
 from syspy import (Module, Motor, Navigation, Loc, Recognize,
-                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer)
+                   CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer,
+                   is_simulation)
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam, BindType, BindItem
@@ -49,6 +50,11 @@ def debug_trace(msg: str, *, name: str):
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
+
+
+@sim_only(on_sim=lambda *_args, **_kwargs: False)
+def _is_jack_down_di_triggered(di_name: str) -> bool:
+    return bool(di_name and Di.getDi(di_name))
 
 
 class _SingletonDBManager:
@@ -634,8 +640,8 @@ class ConfigParams:
             _default_max_speed = RobotParam.getDevice(
                 f"{cls.jack_motor_name}", f"func.{cls.motor_func}.maxSpeed") or 0.015
         cls.jack_motor_speed = cls.config.get("jackMotorSpeed") or _default_max_speed
-        cls.jack_min_height = cls.config.get("jackMinHeight")
-        cls.jack_max_height = cls.config.get("jackMaxHeight")
+        cls.jack_min_height = cls.config.get("jackMinHeight",0)
+        cls.jack_max_height = cls.config.get("jackMaxHeight",0.06)
         cls.jack_load_time = cls.config.get("jackLoadTime", 30.0)
         cls.jack_unload_time = cls.config.get("jackUnloadTime", 30.0)
 
@@ -1728,7 +1734,7 @@ class Jack(ModuleBase):
         else:
             self.is_recognize = bool(_rec_raw)
         self.recfile = self.task_args.get("recFile", None)
-        self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
+        self.insert_shelf_dir = self.task_args.get("insertShelfDir", "B")
         self.at_site = (self._get_script_stage() != 3) and (not self.is_recognize)
 
         # spin,rotate相关
@@ -3479,23 +3485,25 @@ class JackHeight(BaseAction):
                 Motor.setMotorSpeed(self.motor_name, vel, stop_di)
             elif self.target_height > self.jack_start_height:
                 # 初始化前检查：上到位 DI 不应该已经触发
-                if config_params.jack_up_di and Di.getDi(config_params.jack_up_di):
-                    Trace.log(f"jack up DI({config_params.jack_up_di}) already triggered before lift, check DI config", name="jack.err")
-                    Navigation.setDeviceError("JackUpDiError", f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed")
-                    self.action_status = ActionStatus.FAILED
-                    return
-                if config_params.jack_up_di:
-                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
-                                           config_params.jack_up_di)
-                else:
-                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
+                if not is_simulation():
+                    if config_params.jack_up_di and Di.getDi(config_params.jack_up_di):
+                        Trace.log(f"jack up DI({config_params.jack_up_di}) already triggered before lift, check DI config", name="jack.err")
+                        Navigation.setDeviceError("JackUpDiError", f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed")
+                        self.action_status = ActionStatus.FAILED
+                        return
+                    if config_params.jack_up_di:
+                        Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
+                                            config_params.jack_up_di)
+                    else:
+                        Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
             else:
                 # 初始化前检查：下到位 DI 不应该已经触发
-                if config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di):
-                    Trace.log(f"jack down DI({config_params.jack_zero_di}) already triggered before lower, check DI config", name="jack.err")
-                    Navigation.setDeviceError("JackDownDiError", f"Jack-down DI({config_params.jack_zero_di}) already triggered before lowering. DI config error or mechanism jammed")
-                    self.action_status = ActionStatus.FAILED
-                    return
+                if not is_simulation():
+                    if config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di):
+                        Trace.log(f"jack down DI({config_params.jack_zero_di}) already triggered before lower, check DI config", name="jack.err")
+                        Navigation.setDeviceError("JackDownDiError", f"Jack-down DI({config_params.jack_zero_di}) already triggered before lowering. DI config error or mechanism jammed")
+                        self.action_status = ActionStatus.FAILED
+                        return
                 if config_params.jack_zero_di:
                     Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                            config_params.jack_zero_di)
