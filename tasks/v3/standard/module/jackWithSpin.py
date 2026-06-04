@@ -51,12 +51,6 @@ def debug_trace(msg: str, *, name: str):
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
 
-
-@sim_only(on_sim=lambda *_args, **_kwargs: False)
-def _is_jack_down_di_triggered(di_name: str) -> bool:
-    return bool(di_name and Di.getDi(di_name))
-
-
 class _SingletonDBManager:
     _instance = None
     _db = None
@@ -3491,11 +3485,11 @@ class JackHeight(BaseAction):
                         Navigation.setDeviceError("JackUpDiError", f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed")
                         self.action_status = ActionStatus.FAILED
                         return
-                    if config_params.jack_up_di:
-                        Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
+                if config_params.jack_up_di:
+                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                             config_params.jack_up_di)
-                    else:
-                        Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
+                else:
+                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
             else:
                 # 初始化前检查：下到位 DI 不应该已经触发
                 if not is_simulation():
@@ -3534,7 +3528,7 @@ class JackHeight(BaseAction):
             if config_params.jack_load_time and elapsed > config_params.jack_load_time:
                 Motor.resetMotor(self.motor_name)
                 Trace.log(f"jack up timeout {elapsed:.1f}s > {config_params.jack_load_time}s pos={current_pos:.4f}m", name="jack.err")
-                Navigation.setDeviceError("JackUpTimeout", f"Jack-up timeout({config_params.jack_load_time}s), motor not reached target position. Check motor and encoder status")
+                Navigation.setTaskError("JackUpTimeout", f"Jack-up timeout({config_params.jack_load_time}s), motor not reached target position. Check motor and encoder status")
                 self.action_status = ActionStatus.FAILED
                 return
             # 顶升动作：到位判断统一使用 isMotorReached
@@ -3559,7 +3553,7 @@ class JackHeight(BaseAction):
             if config_params.jack_unload_time and elapsed > config_params.jack_unload_time:
                 Motor.resetMotor(self.motor_name)
                 Trace.log(f"jack down timeout {elapsed:.1f}s > {config_params.jack_unload_time}s pos={current_pos:.4f}m", name="jack.err")
-                Navigation.setDeviceError("JackDownTimeout", f"Jack-down timeout({config_params.jack_unload_time}s), motor not reached target position. Check motor and encoder status")
+                Navigation.setTaskError("JackDownTimeout", f"Jack-down timeout({config_params.jack_unload_time}s), motor not reached target position. Check motor and encoder status")
                 self.action_status = ActionStatus.FAILED
                 return
             # 下降动作：到位判断统一使用 isMotorReached
