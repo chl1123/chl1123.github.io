@@ -9,6 +9,7 @@ import syspy.lib.udp_debug as ud
 from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace
 
+from syspy.battery_runner import run_battery_script
 param_loader = ScriptParam(__file__)
 
 class ConfigParams:
@@ -210,5 +211,4 @@ class Battery(bb.batteryBase):
 
 
 if __name__ == '__main__':
-    client = Battery()
-    client.loop()
+    run_battery_script(Battery)

@@ -6,6 +6,7 @@ import syspy.lib.misc_utility as mu
 import syspy.lib.udp_debug as ud
 from syspy import Trace
 
+from syspy.battery_runner import run_battery_script
 class CanBattery(cb.CanBase):
 
     def __init__(self):
@@ -89,5 +90,4 @@ class CanBattery(cb.CanBase):
             mu.sleepS(2)
 
 if __name__ == '__main__':
-    client = CanBattery()
-    client.loop()
+    run_battery_script(CanBattery)

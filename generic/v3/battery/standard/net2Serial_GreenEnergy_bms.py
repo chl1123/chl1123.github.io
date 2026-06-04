@@ -10,6 +10,7 @@ import syspy.lib.misc_utility as mu
 from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace
 
+from syspy.battery_runner import run_battery_script
 param_loader = ScriptParam(__file__)
 
 class ConfigParams:
@@ -143,5 +144,4 @@ class Battery(bb.batteryBase):
                 self.setTimeout()
 
 if __name__ == '__main__':
-    client = Battery()
-    client.loop()
+    run_battery_script(Battery)

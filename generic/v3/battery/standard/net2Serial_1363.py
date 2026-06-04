@@ -10,12 +10,8 @@ import syspy.lib.misc_utility as mu
 from syspy import Logger
 from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace, RobotParam, Module, ScriptStatus
-from syspy.lib.module import ModuleBase
-from typing import List, Dict, Any
-import signal
-import sys
-from syspy import Trace
 
+from syspy.battery_runner import run_battery_script
 param_loader = ScriptParam(__file__)
 class ConfigParams:
     config = {}
@@ -179,18 +175,4 @@ class Battery(bb.batteryBase):
 
 
 if __name__ == '__main__':
-    Trace.log(f"Scripts Start.")
-    Module.init()
-    client = Battery()
-
-    def handle_exit(signum, frame):
-        Trace.log("Exit detected, stopping client...")
-        client.stop()
-        sys.exit(0)  #当主线程阻塞时退出方式无效
-
-    signal.signal(signal.SIGINT, handle_exit)
-    signal.signal(signal.SIGTERM, handle_exit)
-    try:
-        client.loop()
-    except KeyboardInterrupt:
-        handle_exit(None, None)
+    run_battery_script(Battery, init_hook=Module.init)

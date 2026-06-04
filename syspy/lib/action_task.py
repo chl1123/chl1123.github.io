@@ -145,7 +145,7 @@ class ActionTask:
       1. 维护 action 列表 + 每条 action 的状态
       2. 按 blocking_type 调度：HARD 独占；SOFT/NONE 可与非 HARD 并行
       3. 检测状态转移并落 actionStateChanged；任务起止落 taskBuild / taskFinished / taskFailed
-      4. 提供 status_counts() 给 chart 端做时序快照
+      4. 提供 status_counts() 给 log 图表端做时序快照
 
     使用模式：
         self.task = ActionTask(mod="jack")

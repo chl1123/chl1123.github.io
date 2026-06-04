@@ -9,6 +9,7 @@ import syspy.lib.char_utility as cu
 from syspy import Trace
 
 
+from syspy.battery_runner import run_battery_script
 error_dict = {
     1: "lowTemperature",
     2: "HighTemperature",
@@ -130,5 +131,4 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
 
 
 if __name__ == '__main__':
-    client = ZLCanBattery()
-    client.loop()
+    run_battery_script(ZLCanBattery)

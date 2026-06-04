@@ -6,6 +6,7 @@ import syspy.lib.char_utility as cu
 import sys
 from syspy import Trace
 
+from syspy.battery_runner import run_battery_script
 class CanBattery(cb.CanBase):
 
     def __init__(self):
@@ -61,5 +62,4 @@ class CanBattery(cb.CanBase):
                     break
 
 if __name__ == '__main__':
-    client = CanBattery()
-    client.loop()
+    run_battery_script(CanBattery)

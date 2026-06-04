@@ -10,6 +10,7 @@ import syspy.lib.misc_utility as mu
 from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace, RobotParam, Module, ScriptStatus
 
+from syspy.battery_runner import run_battery_script
 param_loader = ScriptParam(__file__)
 class ConfigParams:
     config = {}
@@ -135,7 +136,4 @@ class Battery(bb.batteryBase):
             mu.sleepS(2)
 
 if __name__ == '__main__':
-    Trace.log(f"Scripts Start.")
-    Module.init()
-    client = Battery()
-    client.loop()
+    run_battery_script(Battery, init_hook=Module.init)

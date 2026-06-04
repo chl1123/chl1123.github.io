@@ -8,10 +8,16 @@ import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
 from syspy import Logger, Module
 
+from syspy.battery_runner import run_battery_script
+
 name = "Battery-000"
 Module.init(name)
 
 log = Logger("battery")
+
+
+class BatteryTimeoutRestartError(RuntimeError):
+    pass
 
 error_dict = {
     (1, 0): "first-level overvoltage",
@@ -219,6 +225,7 @@ class CanBattery(cb.CanBase):
                     self.clear = False
                     log.error('timeout')
                     self.setTimeout()
+                    raise BatteryTimeoutRestartError("greenway battery timeout")
             if self.reset_timeout_t.isTimeUp():
                 log.warning("No complete data received for an extended period, resetting CAN bus.")
                 self.reset_timeout_t.reset()
@@ -236,6 +243,4 @@ class CanBattery(cb.CanBase):
 
 
 if __name__ == '__main__':
-    while True:
-        client = CanBattery()
-        client.loop()
+    run_battery_script(CanBattery)

@@ -176,9 +176,20 @@ class batteryBase:
     def isNeedCharge(self):
         return self.need_charge
 
-    def __del__(self):
+    def close(self):
         self._stop_heartbeat.set()
+        if self._heartbeat_thread.is_alive():
+            self._heartbeat_thread.join(timeout=1.0)
+        self.__rpc_server.close()
         self.__rpc_client.close()
+        close = getattr(self.child, "close", None)
+        if callable(close):
+            close()
+        else:
+            self.closeSerial()
+
+    def __del__(self):
+        self.close()
 
 
 if __name__ == "__main__":
