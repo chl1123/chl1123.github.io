@@ -60,7 +60,12 @@ class LedRGBA:
 
 
 class DmxFrameParser:
-    """Parse DMX frames from a byte stream (start code + 4*N channels)."""
+    """Parse fixed-length DMX frames from a PTY byte stream.
+
+    真正的 DMX512 依赖 break + MAB 做帧边界，而 PTY 流里看不到这个边界。
+    payload 内部本来就会大量出现 0x00，所以不能再把 start code 0 当作可靠分隔符。
+    对联调场景，我们约定发送端按固定长度持续写帧，这里直接按长度切块即可。
+    """
 
     def __init__(self, led_count: int):
         self.expected_len = 1 + 4 * int(led_count)
@@ -72,32 +77,10 @@ class DmxFrameParser:
         self._buffer.extend(data)
         out: List[bytes] = []
 
-        while True:
-            if len(self._buffer) < self.expected_len:
-                break
-
-            max_start = len(self._buffer) - self.expected_len
-            start = -1
-            for i in range(max_start + 1):
-                if self._buffer[i] == 0:
-                    start = i
-                    break
-
-            if start < 0:
-                keep = self.expected_len - 1
-                self._buffer = self._buffer[-keep:] if keep > 0 else bytearray()
-                break
-
-            if start > 0:
-                del self._buffer[:start]
-
-            if len(self._buffer) < self.expected_len:
-                break
-
+        while len(self._buffer) >= self.expected_len:
             frame = bytes(self._buffer[: self.expected_len])
             del self._buffer[: self.expected_len]
-            if frame and frame[0] == 0:
-                out.append(frame)
+            out.append(frame)
 
         return out
 
@@ -130,6 +113,15 @@ def _encode_frame(leds: Sequence[LedRGBA], channel_map: Sequence[int]) -> bytes:
     return bytes(raw)
 
 
+def _format_leds_for_log(leds: Sequence[LedRGBA]) -> str:
+    if not leds:
+        return "[]"
+    return " ".join(
+        f"L{i + 1}(R{led.r:3d},G{led.g:3d},B{led.b:3d},W{led.w:3d})"
+        for i, led in enumerate(leds)
+    )
+
+
 def _mix_rgbw_for_display(led: LedRGBA) -> Tuple[int, int, int]:
     # Convert RGBW to display RGB: white channel adds equally to RGB.
     r = min(255, led.r + led.w)
@@ -156,6 +148,9 @@ class PtyDmxReceiver:
         led_count: int,
         channel_map: Sequence[int],
         on_frame: Callable[[List[LedRGBA], bytes], None],
+        *,
+        print_rgbw: bool = False,
+        print_interval_ms: int = 200,
     ):
         self.master_fd = master_fd
         self.channel_map = tuple(channel_map)
@@ -165,6 +160,10 @@ class PtyDmxReceiver:
         self.stop_event = threading.Event()
         self.thread: Optional[threading.Thread] = None
         self.frame_count = 0
+        self.print_rgbw = bool(print_rgbw)
+        self.print_interval_sec = max(0.0, float(print_interval_ms) / 1000.0)
+        self._last_print_time = 0.0
+        self._last_print_signature: Optional[Tuple[Tuple[int, int, int, int], ...]] = None
 
     def start(self) -> None:
         if self.thread is not None:
@@ -176,6 +175,25 @@ class PtyDmxReceiver:
         self.stop_event.set()
         if self.thread is not None:
             self.thread.join(timeout=1.0)
+
+    def _maybe_print_frame(self, leds: Sequence[LedRGBA], frame: bytes) -> None:
+        if not self.print_rgbw:
+            return
+
+        signature = tuple((led.r, led.g, led.b, led.w) for led in leds)
+        now = time.monotonic()
+        if now - self._last_print_time < self.print_interval_sec:
+            return
+        if signature == self._last_print_signature and self.print_interval_sec > 0.0:
+            return
+
+        self._last_print_time = now
+        self._last_print_signature = signature
+        print(
+            f"[dmx-sim] frame={self.frame_count} bytes={len(frame)} "
+            f"rgbw={_format_leds_for_log(leds)}",
+            flush=True,
+        )
 
     def _run(self) -> None:
         while not self.stop_event.is_set():
@@ -191,6 +209,7 @@ class PtyDmxReceiver:
                 for frame in frames:
                     leds = _decode_frame(frame, self.led_count, self.channel_map)
                     self.frame_count += 1
+                    self._maybe_print_frame(leds, frame)
                     self.on_frame(leds, frame)
             except OSError:
                 break
@@ -490,6 +509,8 @@ def main() -> int:
     parser.add_argument("--layout", type=str, default="car", choices=["car", "line", "grid", "ring"], help="UI 布局")
     parser.add_argument("--fps", type=float, default=30.0, help="渲染帧率")
     parser.add_argument("--show-values", action="store_true", help="显示每颗灯的 RGWB 数值")
+    parser.add_argument("--print-rgbw", action="store_true", help="终端打印收到的逐灯 RGBW 数据")
+    parser.add_argument("--print-interval-ms", type=int, default=200, help="终端打印最小间隔（毫秒）")
     parser.add_argument("--mock-link", type=str, default="/tmp/ttyS8", help="给发送端使用的软链接路径（如 /dev/RS485_0）")
     parser.add_argument("--port-file", type=str, default="", help="可选：将生成的从串口路径写入文件")
     parser.add_argument("--demo-send", action="store_true", help="内部启用演示发送（彩色动画）")
@@ -516,7 +537,14 @@ def main() -> int:
         show_values=bool(args.show_values),
     )
 
-    receiver = PtyDmxReceiver(master_fd, led_count, channel_map, renderer.on_frame)
+    receiver = PtyDmxReceiver(
+        master_fd,
+        led_count,
+        channel_map,
+        renderer.on_frame,
+        print_rgbw=bool(args.print_rgbw),
+        print_interval_ms=max(0, int(args.print_interval_ms)),
+    )
     receiver.start()
 
     demo_sender: Optional[DemoDmxSender] = None
