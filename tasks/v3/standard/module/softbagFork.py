@@ -2957,11 +2957,29 @@ class RecPalletSelect(Rec):
         for item in results_list:
             if not isinstance(item, dict):
                 continue
+            info_data = item.get("info", [])
+            try:
+                info_list = json.loads(info_data) if isinstance(info_data, str) else info_data
+            except (TypeError, json.JSONDecodeError):
+                _trace_log(f"skip invalid info data: {info_data}")
+                continue
+            if not isinstance(info_list, list):
+                continue
+            info_item = None
+            for info in info_list:
+                if isinstance(info, str):
+                    try:
+                        info = json.loads(info)
+                    except (TypeError, json.JSONDecodeError):
+                        continue
+                if isinstance(info, dict) and info.get("robotResultZ") is not None:
+                    info_item = info
+                    break
+            if info_item is None:
+                continue
             world_result = item.get("worldResult", {}) if isinstance(item.get("worldResult"), dict) else {}
             robot_result = item.get("robotResult", {}) if isinstance(item.get("robotResult"), dict) else {}
-            z = world_result.get("z", robot_result.get("z", item.get("z")))
-            if z is None:
-                continue
+            z = info_item.get("robotResultZ")
             parsed_list.append({
                 "z": float(z),
                 "world": [
