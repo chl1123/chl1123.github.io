@@ -11,7 +11,7 @@ import math
 import time
 import struct
 from typing import Optional, List, Dict, Any, Tuple, Callable
-from syspy import Module, Di, Do, Motor, Navigation, Loc, Recognize, ScriptStatus, Laser, Laser3D, NetProtocol, Trace, NavSpeed, Controller, NavStatus, Container, RobotError
+from syspy import Module, Di, Do, Motor, Navigation, Loc, Recognize, ScriptStatus, Laser, Laser3D, NetProtocol, Trace, NavSpeed, Controller, NavStatus, Container, RobotError, Distance
 from syspy.utils import Coordinate
 from syspy.utils.time import Timer
 from syspy.script_data import ScriptData
@@ -1986,7 +1986,7 @@ class Fork(ModuleBase):
                     ),
                     GoPathWithContactDi(ConfigParams.contact_ids, rec_world_pos, ConfigParams.loadObsStopDist, method,
                                         args,
-                                        self.check_di, "load"),
+                                        self.check_di, "load", distance_check_length=self.carrier_length),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self._get_load_end_height(), ConfigParams.fork_max_speed,
                                        "upFork")
                 ])
@@ -3053,7 +3053,8 @@ class RecPalletSelect(Rec):
 
 # 用于识别栈板并获取识别的栈板坐标
 class GoPathWithContactDi(BaseAction):
-    def __init__(self, contact_dis, world_pos, obs_dist, method, args, check_di=True, operation_type=""):
+    def __init__(self, contact_dis, world_pos, obs_dist, method, args, check_di=True, operation_type="",
+                 distance_check_length: Optional[float] = None):
         super().__init__()
         if args is None:
             args = {}
@@ -3093,6 +3094,15 @@ class GoPathWithContactDi(BaseAction):
         self.set_policy = False
         self.clear_policy = False
         self.policy = {}
+        self.motion_target = [world_pos[0], world_pos[1], world_pos[2]]
+        self.distance_check_length = max(0.0, float(distance_check_length or 0.0))
+        self.distance_check_enabled = (
+            self.operation_type == "load"
+            and self.method == "bezier"
+            and self.distance_check_length > EPS
+        )
+        self.distance_check_done = not self.distance_check_enabled
+        self.distance_sensor_device_keys = []
         target2robot = pos2Base(world_pos, get_r_loc())
         _trace_log(f"go path with di target pos:{world_pos},args:{args}")
 
@@ -3108,6 +3118,7 @@ class GoPathWithContactDi(BaseAction):
             else:
                 target_pos = world_pos
             self.final_target = target_pos
+            self.motion_target = target_pos
 
             _trace_log(f"go path with di target pos:{target_pos}")
             self.back_args = {
@@ -3126,21 +3137,123 @@ class GoPathWithContactDi(BaseAction):
                 self.back_args["backMode"] = 0
             self.back_action = GoPath(self.back_args)
         elif method == "bezier":
-            self.back_action = GoBezier.GoBezierWorld(world_pos, back_dist, args["adjust_dist"],
-                                                      args["min_ahead_dist"], True,
-                                                      None, 0.1, 0.3, 0.2, 0.5, args["max_curve"])
+            self.motion_target = pos2World([-back_dist, 0, 0], world_pos)
             self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
-            _trace_log(f"goBezier target pos:{self.final_target}")
+            if self.distance_check_enabled:
+                self.back_action = GoBezier.GoBezierWorld(world_pos, 0.0, args["adjust_dist"],
+                                                          args["min_ahead_dist"], True,
+                                                          None, 0.1, 0.3, 0.2, 0.5, args["max_curve"])
+                _trace_log(
+                    f"goBezier front-check target pos:{world_pos}, motion target:{self.motion_target}, final target:{self.final_target}, "
+                    f"distance_check_length:{self.distance_check_length}"
+                )
+            else:
+                self.back_action = GoBezier.GoBezierWorld(world_pos, back_dist, args["adjust_dist"],
+                                                          args["min_ahead_dist"], True,
+                                                          None, 0.1, 0.3, 0.2, 0.5, args["max_curve"])
+                _trace_log(f"goBezier target pos:{self.final_target}")
 
         elif method == "straightLine":
             self.back_action = GoTwoStraightLine(world_pos, args["min_ahead_dist"], args["adjust_dist"],
                                                  back_dist, 0.2, args['max_angle'], 1)
             self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
+            self.motion_target = pos2World([-back_dist, 0, 0], world_pos)
             _trace_log(f"twoStraightLine target pos:{self.final_target}")
         else:
             Navigation.setTaskError("WrongGoPathMethod", f"wrong gopath method :{method}, script failed")
             self.action_status = ActionStatus.FAILED
         # self.back_status = self.back_action.action_status
+
+    def _load_distance_sensor_config(self) -> bool:
+        sensor_keys = [str(sensor_key).strip() for sensor_key in (ConfigParams.fork_tip_distance_sensors or []) if str(sensor_key).strip()]
+        if not sensor_keys:
+            Navigation.setTaskError("DistanceSensorNotConfigured",
+                                    "fork_tip_distance_sensors is not configured")
+            self.action_status = ActionStatus.FAILED
+            return False
+
+        self.distance_sensor_device_keys = sensor_keys
+        return True
+
+    def _read_distance_sensor_dist(self) -> Optional[float]:
+        try:
+            data = Distance.getData(["node"])
+        except Exception as e:
+            _trace_log(f"read distance sensor failed: {e}")
+            return None
+
+        nodes = data.get("node", []) if isinstance(data, dict) else []
+        if not isinstance(nodes, list):
+            return None
+
+        matched_distances = []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            node_key = str(node.get("key") or node.get("name") or "").strip()
+            if node_key not in self.distance_sensor_device_keys:
+                continue
+            if not bool(node.get("valid", False)):
+                continue
+            try:
+                dist = float(node.get("dist"))
+            except (TypeError, ValueError):
+                continue
+            if dist <= 0.0:
+                continue
+            matched_distances.append(dist)
+
+        if not matched_distances:
+            return None
+        return min(matched_distances)
+
+    def _make_continue_back_action(self):
+        back_args = {
+            'x': self.motion_target[0],
+            'y': self.motion_target[1],
+            'theta': self.motion_target[2],
+            'coordinate': 'world',
+            'backMode': 1,
+            'maxRot': 10,
+            'maxSpeed': 0.15,
+            'useOdo': 0,
+            'reachAngle': math.radians(0.5),
+            'reachDist': 0.005
+        }
+        return GoPath(back_args)
+
+    def _handle_rec_distance_check(self) -> bool:
+        if self.distance_check_done:
+            return True
+        if not self._load_distance_sensor_config():
+            return False
+
+        dist = self._read_distance_sensor_dist()
+        if dist is None:
+            Navigation.setTaskError("DistanceSensorNoData",
+                                    f"distance sensor {self.distance_sensor_device_keys} has no valid data")
+            self.action_status = ActionStatus.FAILED
+            return False
+
+        _trace_log(
+            f"distance sensor check passed read, sensors={self.distance_sensor_device_keys}, "
+            f"dist={dist}, pallet_length={self.distance_check_length}"
+        )
+        if dist < self.distance_check_length:
+            Navigation.setTaskError(
+                "PalletBackDistanceInsufficient",
+                f"distance sensor {self.distance_sensor_device_keys} dist={dist:.3f}m < pallet_length={self.distance_check_length:.3f}m"
+            )
+            self.action_status = ActionStatus.FAILED
+            return False
+
+        self.distance_check_done = True
+        if abs(pos2Base(self.motion_target, get_r_loc())[0]) > 0.005:
+            self.back_action = self._make_continue_back_action()
+            _trace_log(
+                f"distance sensor check ok, continue backing to motion target:{self.motion_target}"
+            )
+        return True
 
     def run(self):
         # 路径执行流程：初始化避障/DI策略 -> 执行GoPath/Bezier/TwoStraightLine -> contact DI到位判定
@@ -3222,6 +3335,12 @@ class GoPathWithContactDi(BaseAction):
             if self.back_action.action_status in [ScriptStatus.FAILED, ActionStatus.FAILED]:
                 return
 
+            if self.distance_check_enabled and not self.distance_check_done:
+                if self.back_action.action_status in [ScriptStatus.FINISHED, ActionStatus.FINISHED]:
+                    if not self._handle_rec_distance_check():
+                        return
+                    return
+
             # 前进的时候不要设置避障距离
             vx = NavSpeed.getSpeeds()[0]
             if vx > 0.005 and not self.clear_policy:
@@ -3293,6 +3412,10 @@ class GoPathWithContactDi(BaseAction):
                             return
                     else:
                         self.di_trigger_start_time = None
+
+            # 识别后距离校验完成前，不进入DI到位判断
+            if self.distance_check_enabled and not self.distance_check_done:
+                return
 
             # 如果没有到位 di
             if not self.check_di:
