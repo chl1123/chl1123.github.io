@@ -63,7 +63,6 @@ def cal_dist(first_loc, second_loc):
 def _robot_device_change_callback(device_change_set: List[str]):
     """机器人设备参数改变回调"""
     """设备参数变化回调"""
-    Trace.log(f"device change callback", True, True, name="fork.cfg")
     if "Model" in device_change_set:
         ConfigParams.get_device_model_param()
         ConfigParams._build_module_motor()
@@ -74,10 +73,8 @@ def _robot_device_change_callback(device_change_set: List[str]):
 
 
 def _robot_config_change_callback(diff_map: Dict[str, Any]):
-
     """机器人配置参数变化回调"""
-    Trace.log(f"app config change callback", True, True, name="fork.cfg")
-
+    pass
     # for key, value in diff_map.items():
     #     if key == "manualControl.manualBlock.on.manualSlowDownDist":
     #         robot_param["manualSlowDownDist"] = value
@@ -92,7 +89,6 @@ def _robot_config_change_callback(diff_map: Dict[str, Any]):
 
 
 def _script_config_callback():
-    Trace.log(f"script config change callback", True, True, name="fork.cfg")
     ConfigParams.reload_config()
 
 
@@ -225,8 +221,8 @@ class ConfigParams:
         # --- script
         cls.timeout = cfg.get("timeout", 120.0)
         cls.scriptDebug = cfg.get("scriptDebug", False)
-
-        Trace.log(f"Loaded config: {cls.config}", False, True, name="fork.cfg")
+        if cls.scriptDebug:
+            Trace.log(f"Loaded config: {cls.config}", name="fork.cfg")
 
         # --- fork
         cls.upMaxSpeedWithGoods = cfg.get("upMaxSpeedWithGoods")
@@ -264,6 +260,7 @@ class ConfigParams:
         cls.pathAdjustMode = cfg.get("pathAdjustMode", "bezier")
         cls.maxCurve = cfg.get("maxCurve", 3.0)
         cls.maxAngle = cfg.get("maxAngle", 3.0)
+        print(cls.pathAdjustMode, cls.maxCurve, cls.maxAngle)
 
         # --- linearUnload
         cls.laserWidth = cfg.get("laserWidth")
@@ -285,7 +282,8 @@ class ConfigParams:
 
         cls._build_module_motor()
 
-        Trace.log(f"Updated config: {cls.config}", False, True, name="fork.cfg")
+        if cls.scriptDebug:
+            Trace.log(f"Updated config: {cls.config}", name="fork.cfg")
 
     # 从设备模型文件中获取的参数
     @classmethod
@@ -451,12 +449,12 @@ class ConfigParams:
                     with builder.CHILD(key="upMaxSpeedWithGoods", name="Up Max Speed With Goods",
                                        desc="载货时的货叉上升最大速度"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
+                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="downMaxSpeedWithGoods", name="Down Max Speed With Goods",
                                        desc="载货时的货叉下降最大速度"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
+                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="backLaserEnableHeight", name="Back Laser Enable Height",
                                        desc="后置激光避障生效时的货叉高度"):
@@ -1042,7 +1040,6 @@ class InputParams:
 
 InputParams.init()
 
-
 param_loader.addAction(
     action_name="Fork Load",
     policy={},
@@ -1359,7 +1356,7 @@ def convex_hull(points1, points2=None, points3=None):
 
 
 def _action_chart_dict(action, idx: int) -> dict:
-    """把 action._trace_state() 加上前缀 action.{idx}.{cls}. 用于 Trace.log 图表"""
+    """把 action._trace_state() 加上前缀 action.{idx}.{cls}. 用于 Trace.chart"""
     cls = action.__class__.__name__
     state = action._trace_state() if hasattr(action, "_trace_state") else {}
     return {f"action.{idx}.{cls}.{k}": v for k, v in state.items()}
@@ -1656,7 +1653,6 @@ class Fork(ModuleBase):
                     Navigation.setTaskError("InvalidRecInfo",
                                             f"Invalid side info, found None: {self.rec_info},script failed")
                     self.script_status = ScriptStatus.FAILED
-                    return
 
             # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
             self.target_pos, tcp_name = self.get_station_pos("targetName")
@@ -2082,7 +2078,7 @@ class Fork(ModuleBase):
             "script.cur_action_status": int(self.current_action.action_status) if self.current_action else 0,
             "script.script_status": int(self.script_status)
         }
-        Trace.log(script_chart, False, name="fork.script")
+        Trace.chart(script_chart, name="fork.script")
 
     def motor_jog_or_move(self, motor_type):
         """电机点动或长按操作"""
@@ -2248,7 +2244,7 @@ class Fork(ModuleBase):
             # 叉车的控制模式(通过叉车上的物理按钮切换), ture = 自动控制(控制器控制), false = 手动控制(方向盘驾驶)
         })
         Module.reportInfo(self.trace_chart)
-        Trace.log(self.trace_chart, False, name="fork.reportInfo")  # todo periodrun怎么写name
+        Trace.chart(self.trace_chart, name="fork.reportInfo")  # todo periodrun怎么写name
 
         # 根据变动量记录货叉的里程数据
         if self.last_pos is not None:
@@ -2554,7 +2550,7 @@ class BaseAction:
         pass
 
     def _trace_state(self) -> dict:
-        """返回用于 Trace.log 图表的状态 dict。子类覆写扩展。"""
+        """返回用于 Trace.chart 的状态 dict。子类覆写扩展。"""
         return {"action_status": int(self.action_status)}
 
     def reset(self):
@@ -2669,7 +2665,7 @@ class Rec(BaseAction):
                     error_msg = results["logMsg"]
                     Trace.log(f"error_type: {error_type}", name="fork.err")
                     self.action_status = ActionStatus.FAILED
-                    Navigation.setTaskError("RecFailed", f"Recognition failed:{error_msg}, the maximum number of retries exceeded")
+                    Navigation.setTaskError("RecFailed", f"Recognition failed, the maximum number of retries exceeded")
                 else:
                     Recognize.resetRec()
         else:
@@ -2952,6 +2948,28 @@ class GoPathWithContactDi(BaseAction):
             # 如果不需要检查所有的到位 di，一个到位任务结束
             if not self.check_all_contact_di:
 
+                if dist2target[0] > 0.2 and any(self.di_status):
+                    Navigation.setTaskError("NotReachGoal", f"reach di not reach goal, still {dist2target[0]}m left, ")
+                    RobotError.setSystemError("NoContactDiTriger", f"not trigger di but robot reach goal", True)
+                    self.action_status = ActionStatus.FAILED
+                    return
+
+                # 任务结束超过 1 s，且没有到位 di 触发，则报错结束任务
+                if self.back_action.action_status == ActionStatus.FINISHED and not all(self.di_status) and Timer.delay(
+                        1):
+                    Navigation.setTaskError("NoContactDiTriger", f"not trigger di but robot reach goal")
+                    RobotError.setSystemError("NoContactDiTriger", f"not trigger di but robot reach goal", True)
+                    self.action_status = ActionStatus.FAILED
+                    return
+                # 一个到位任务结束
+                if any(self.di_status):
+                    if self.stop_robot():
+                        self.action_status = ActionStatus.FINISHED
+                        return
+
+                # 仅检查所有到位 di 的情况
+            else:
+
                 if dist2target[0] > 0.2 and all(self.di_status):
                     Navigation.setTaskError("NotReachGoal",
                                             f"reach di not reach goal, still {dist2target[0]:.2f}m left, ")
@@ -2966,19 +2984,20 @@ class GoPathWithContactDi(BaseAction):
                     RobotError.setSystemError("NoContactDiTriger", f"not trigger di but robot reach goal", True)
                     self.action_status = ActionStatus.FAILED
                     return
+
                 # 到位触发判断，从一个 di 触发后的一段时间内，其他 di 都触发，算任务结束；如果没有全部触发，则报错
                 if any(self.di_status):
-                    if Timer.delay(self.di_trigger_time):
-                        if all(self.di_status):
-                            if self.stop_robot():
-                                self.action_status = ActionStatus.FINISHED
-                        else:
-                            Navigation.setTaskError("NoAllContactDiTriger",
-                                                    f"not all di triggered but robot reach goal")
-                            RobotError.setSystemError("NoAllContactDiTriger",
-                                                      f"not all di triggered but robot reach goal", True)
-                            self.action_status = ActionStatus.FAILED
-                            return
+                    if Timer.delay(self.di_trigger_time) and not all(self.di_status):
+                        Navigation.setTaskError("NoAllContactDiTriger",
+                                                f"not all di triggered but robot reach goal")
+                        RobotError.setSystemError("NoAllContactDiTriger",
+                                                  f"not all di triggered but robot reach goal", True)
+                        self.action_status = ActionStatus.FAILED
+                        return
+
+                    if all(self.di_status):
+                        if self.stop_robot():
+                            self.action_status = ActionStatus.FINISHED
 
         finally:
             if self.action_status in [ActionStatus.FINISHED, ActionStatus.FAILED]:
@@ -3140,11 +3159,6 @@ class RunMotorByPosition(BaseAction):
     def run(self):
         cur_fork_height = Motor.getMotorPos(self.motor_name)
 
-        if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
-            Motor.resetMotor(self.motor_name)
-            self.start_time = None
-            Trace.log(f"reset motor and time", name="fork.task")
-
         if not self.init:
             self.action_status = ActionStatus.RUNNING
             self.last_sample_time = time.time()
@@ -3205,9 +3219,9 @@ class RunMotorByPosition(BaseAction):
                             self.action_status = ActionStatus.FINISHED
                             return
                         # 取最大速度
-                        if delta > 0 and (ConfigParams.upMaxSpeedWithGoods + 1 > EPS):
+                        if delta > 0:
                             max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
-                        elif delta < 0 and (ConfigParams.downMaxSpeedWithGoods + 1 > EPS):
+                        else:
                             max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
 
                     self.max_speed = max_speed
