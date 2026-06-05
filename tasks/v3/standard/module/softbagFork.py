@@ -206,6 +206,7 @@ class ConfigParams:
     camCalibMotorHeight: float = 0.0
     stackHeightOffset: float = 0.2
     stackRecRetry: int = 6
+    stackHoleZAvgThreshold: float = 0.01
     ultrasonicDiKey1: str = ""
     ultrasonicDiKey2: str = ""
     ultrasonicNeedTriggerFirst: bool = True
@@ -289,6 +290,7 @@ class ConfigParams:
         cls.camCalibMotorHeight = cfg.get("camCalibMotorHeight", 0.0)
         cls.stackHeightOffset = cfg.get("stackHeightOffset", 0.03)
         cls.stackRecRetry = cfg.get("stackRecRetry", 6)
+        cls.stackHoleZAvgThreshold = cfg.get("stackHoleZAvgThreshold", 0.01)
         cls.ultrasonicDiKey1 = cfg.get("ultrasonicDiKey1", "")
         cls.ultrasonicDiKey2 = cfg.get("ultrasonicDiKey2", "")
         cls.ultrasonicNeedTriggerFirst = cfg.get("ultrasonicNeedTriggerFirst", True)
@@ -492,6 +494,11 @@ class ConfigParams:
                     with builder.CHILD(key="stackRecRetry", name="Stack Rec Retry", desc="栈板识别失败重试次数"):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(6)
+                    with builder.CHILD(key="stackHoleZAvgThreshold", name="Stack Hole Z Avg Threshold",
+                                       desc="单层双孔时，左右孔z差超过该值则取平均z"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.01)
+                        builder.UNIT("m")
 
                     with builder.CHILD(key="ultrasonicDiKey1", name="Ultrasonic Di Key 1", desc="超声DI key 1"):
                         builder.TYPE(ParamType.BIND_TYPE)
@@ -2965,6 +2972,7 @@ class RecPalletSelect(Rec):
                 continue
             if not isinstance(info_list, list):
                 continue
+            info_count = len(info_list)
             info_item = None
             for info in info_list:
                 if isinstance(info, str):
@@ -2992,6 +3000,7 @@ class RecPalletSelect(Rec):
                     float(robot_result.get("y", item.get("y", 0.0))),
                     float(robot_result.get("yaw", item.get("yaw", 0.0))),
                 ],
+                "info_count": info_count,
                 "raw": item,
             })
 
@@ -3000,11 +3009,27 @@ class RecPalletSelect(Rec):
             return
 
         parsed_list.sort(key=lambda x: x["z"], reverse=True)
-        self.total_layers = len(parsed_list)
+        avg_selected_z = None
+        # 单层双孔时，如果左右孔z差超过阈值，则用平均z抹平孔位倾斜误差
+        single_layer_two_holes = len(parsed_list) == 2 and all(item.get("info_count") == 1 for item in parsed_list)
+        if single_layer_two_holes:
+            self.total_layers = 1
+            hole_z_avg_threshold = max(0.0, float(ConfigParams.stackHoleZAvgThreshold or 0.0))
+            hole_z_diff = abs(parsed_list[0]["z"] - parsed_list[1]["z"])
+            if hole_z_diff > hole_z_avg_threshold:
+                avg_selected_z = (parsed_list[0]["z"] + parsed_list[1]["z"]) / 2.0
+                _trace_log(
+                    f"single layer two holes detected, use avg z={avg_selected_z}, "
+                    f"left_right_diff={hole_z_diff}, threshold={hole_z_avg_threshold}"
+                )
+        else:
+            self.total_layers = len(parsed_list)
         for i, item in enumerate(parsed_list):
             _trace_log(f"\n############## parsed_list idx:{i}, z:{item['z']}, world:{item['world']}, robot:{item['robot']} #########\n")
-        idx = min(max(0, self.goods_layer - 1), len(parsed_list) - 1)
-        selected = parsed_list[idx]
+        idx = min(max(0, self.goods_layer - 1), self.total_layers - 1)
+        selected = dict(parsed_list[idx])
+        if avg_selected_z is not None:
+            selected["z"] = avg_selected_z
         _trace_log(f"\n############### sleected idx: {idx}, z: {selected['z']} #############################\n")
 
         self.results_list = [selected["raw"]]
