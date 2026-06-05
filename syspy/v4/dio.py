@@ -1,4 +1,3 @@
-import typing
 from typing import Optional, List
 from syspy.dio import DiInterface, DoInterface
 from syspy.core.rbk_rpc import call_service, default_plugin
@@ -20,33 +19,14 @@ class DiV4(DiInterface):
     @classmethod
     @call_service()
     def setDIValid(cls, name: str, status: bool):
-        """设置DI是否生效
-
-        Args:
-            name (str): DI名
-            status (bool): True表示生效，False表示不生效
-        """
         pass
 
     @classmethod
     @call_service()
     def setVirtualDI(cls, name: str, status: bool):
-        """设置虚拟DI状态
-
-        Args:
-            name (str): 虚拟DI名
-            status (bool):虚拟DI状态
-        """
         pass
 
     def getDi(self, name: str) -> bool:
-        """检测单个DI状态信息
-        Args:
-            name (str): DI名
-
-        Returns:
-            (bool): 返回指定DI的状态，若DI不存在返回False
-        """
         self.update()
         if self.data:
             for node in self.data.node:
@@ -55,20 +35,10 @@ class DiV4(DiInterface):
         return False
 
     def getDis(self) -> Optional[List["MessageV4_DINode"]]:
-        """获取DI消息中的节点列表
-
-        Returns:
-            (Optional[List["MessageV4_DINode"]]): DI消息中的节点列表
-        """
         if self.update():
             return self.data.node
 
     def getMaxDi(self) -> int:
-        """获取DI消息中的最大节点数
-
-        Returns:
-            (int): DI消息中的最大节点数
-        """
         if self.update():
             return self.data.max_node
 
@@ -90,26 +60,9 @@ class DoV4(DoInterface):
     @classmethod
     @call_service(plugin_name="MoveFactory", func_name="setDO")  # todo RBK4
     def setDo(cls, name: str, status: bool) -> bool:
-        """控制DO的开关
-
-        Args:
-            name (str): DO名
-            status (bool): 是否打开这个DO
-
-        Returns:
-            (bool): 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
-        """
         pass
 
     def getDo(self, name: str) -> bool:
-        """检测单个DO状态信息
-
-        Args:
-            name (str): DO名
-
-        Returns:
-            (bool): 返回指定DO的状态，若DO不存在返回False
-        """
         self.update()
         if self.data:
             for node in self.data.node:
@@ -118,19 +71,9 @@ class DoV4(DoInterface):
         return False
 
     def getDos(self) -> Optional[List["MessageV4_DONode"]]:
-        """获取DO消息中的节点列表
-
-        Returns:
-            (Optional[List["MessageV4_DONode"]]): DO消息中的节点列表
-        """
         if self.update():
             return self.data.node
 
     def getMaxNode(self) -> Optional[int]:
-        """获取DO消息中的最大节点数
-
-        Returns:
-            (Optional[int]): DO消息中的最大节点数
-        """
         if self.update():
             return self.data.max_node

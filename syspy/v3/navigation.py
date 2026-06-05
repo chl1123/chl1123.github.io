@@ -1,12 +1,11 @@
 import math
-import typing
-from typing import Tuple, List, Optional
+from typing import Dict, Tuple, List, Optional, TYPE_CHECKING
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
 from ..utils import Coordinate
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from .protobuf import msgMotorCmd
 
 
@@ -17,205 +16,116 @@ class NavigationV3(NavigationInterface):
     @classmethod
     @call_service()
     def resetPath(cls):
-        """让agv沿着规划的线路行驶"""
         pass
 
     @classmethod
     @call_service()
     def goPathParam(cls, params: dict):
-        """ """
         pass
 
     @classmethod
     @call_service()
     def getLM(cls, name: str, flag: bool) -> list:
-        """获取点位坐标
-
-        Args:
-            name (str): 站点或者库位名称
-            flag (bool): True 返回的坐标是地图坐标系， False返回的坐标是机器人坐标系
-
-        Returns:
-            （list): 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
-        """
         pass
 
     @classmethod
     @call_service()
     def runOdoMove(cls, params: dict):
-        """执行按里程运动的任务
-
-        Args:
-            params (dict):
-        """
         pass
 
     @classmethod
     @call_service()
     def clearGoodsShape(cls):
-        """去除agv身上的状态"""
         pass
 
     @classmethod
     @call_service()
     def getCurrentAdvancedArea(cls) -> dict:
-        """机器人运行时，当前所在高级区域的属性
-
-        Returns:
-            (dict):
-        """
         pass
 
     @classmethod
     @call_service()
     def getCurrentPathProperty(cls) -> dict:
-        """机器人运行时，当前路线上的属性
-
-        Returns:
-            (dict):
-        """
         pass
 
     @classmethod
     @call_service()
     def getGoodsName(cls) -> str:
-        """
-
-        Returns:
-        """
         pass
 
     @classmethod
     @call_service()
     def getMinDynamicObs(cls) -> list:
-        """获得离机器最近的一个动态障碍物坐标。 如果没有障碍物反馈0.,0.
-
-        Returns:
-            （list): 两个元素，分别为x,y。单位为m
-        """
         pass
 
     @classmethod
     @call_service()
     def getTargetPGVParam(cls) -> dict:
-        """
-
-        Returns:
-            (dict):
-        """
         pass
 
     @classmethod
     @call_service()
     def goForkPath(cls):
-        """叉车依据规划的路径导航，需要先调用 resetGoForkPath"""
         pass
 
     @classmethod
     @call_service()
     def goForkUseStraightLine(cls):
-        """ """
         pass
 
     @classmethod
     @call_service()
     def goMapPath(cls) -> int:
-        """按地图路线行走"""
         pass
 
     @classmethod
     @call_service()
     def goPath(cls):
-        """控制AGV移动"""
         pass
 
     @classmethod
     @call_service()
     def goPGVRun(cls, params: dict) -> int:
-        """按地图路线行走
-
-        Args:
-            params (dict):
-
-        Returns:
-            (int):
-        """
         pass
 
     @classmethod
     @call_service()
     def hasGoods(cls) -> bool:
-        """获取身上是否有货物的状态
-
-        Returns:
-            (bool): 是否有货物
-        """
         pass
 
     @classmethod
     @call_service()
     def inSpin(cls) -> bool:
-        """是否在随动"""
         pass
 
     @classmethod
     @call_service()
     def isPathReached(cls) -> bool:
-        """agv是否完成线路
-
-        Returns:
-            (bool): 如果完成则返回True
-        """
         pass
 
     @classmethod
     @call_service()
     def laserCollision(cls, ids: list) -> bool:
-        """检测激光点是否和自身碰撞
-
-        Returns:
-            (bool): 激光点是否和自身碰撞
-        """
         pass
 
     @classmethod
     @call_service()
     def moveTask(cls) -> dict:
-        """获得任务信息以字典类型返回
-
-        Returns:
-            (dict): 具体的任务信息
-        """
         pass
 
     @classmethod
     @call_service()
     def realTimeMoveTask(cls) -> dict:
-        """获得任务信息以字典类型返回
-
-        Returns:
-            (dict): 具体的任务信息
-        """
         pass
 
     @classmethod
     @call_service()
     def getBinTask(cls, bin_name: str, task_key: str) -> dict:
-        """获取库位任务
-
-        Args:
-            bin_name (str): 库位名称
-            task_key (str): 库位任务的键
-
-        Returns:
-            (dict): 库位任务的值
-        """
         pass
 
     @classmethod
     @call_service()
     def openSpeed(cls, vx: float, vy: float, vw: float):
-        """让agv按vx,vy,vw行走，此函数考虑了碰撞检测"""
         pass
 
     @classmethod
@@ -229,92 +139,46 @@ class NavigationV3(NavigationInterface):
             min_ahead_dist: float,
             ahead_dist: float,
     ):
-        """重置叉车去往识别点的路径规划
-
-        Args:
-            x (float): 终点x坐标 m
-            y (float): 终点y坐标 m
-            yaw (float): 终点角度坐标 rad
-            back_dist (float): 到终点后的后退距离
-            min_ahead_dist (float): 栈板前直线距离 m
-            ahead_dist (float): 到终点前的直线距离
-        """
         pass
 
     @classmethod
     @call_service()
     def resetGoMapPath(cls):
-        """行走的动作"""
         pass
 
     @classmethod
     @call_service()
     def resetGoPGV(cls):
-        """ """
         pass
 
     @classmethod
     @call_service()
     def resetLocalShelfArea(cls):
-        """取消顶升上的货架"""
         pass
 
     @classmethod
     @call_service()
     def resetOdoMove(cls):
-        """ """
         pass
 
     @classmethod
     @call_service()
     def setBlockReason(cls, collision_type: int, x: float, y: float, key: str):
-        """设置阻挡原因
-
-        Args:
-            collision_type (int): 阻挡原因见syspy/lib/module.py脚本中的CollisionType类
-            x (float): 障碍物位置
-            y (float): 障碍物位置
-            key (str): 障碍物key
-        """
         pass
 
     @classmethod
     @call_service()
     def setGlobalSpinAngle(cls, angle: float, direction: int):
-        """
-
-        Args:
-            angle (float):
-            direction (int):
-        """
         pass
 
     @classmethod
     @call_service()
     def setGoForkForkPos(cls, x: float, y: float, theta: float, hold_dir: float):
-        """重置叉车去往识别点的路径规划
-
-        Args:
-            x (float): 货叉相对于里程中心的 x 轴坐标 m
-            y (float): 货叉相对于里程中心的 y 轴坐标 m
-            theta (float): 是货叉相对于里程中心的偏移角度 rad
-            hold_dir (float): 是车体的横移角度 单位：°
-
-        """
         pass
 
     @classmethod
     @call_service()
     def setGoodsShape(cls, head: float, tail: float, width: float):
-        """设置货物形状，并且告诉rbk车上装载有货物了。
-           如果head,tail, width都小于等于0，则没有货物形状。
-           货物的0，0点与小车的0，0点一样
-
-        Args:
-            head (float): 货物头部长度
-            tail (float): 货物的尾部长度
-            width (float): 货物的宽度
-        """
         pass
 
     @classmethod
@@ -322,184 +186,81 @@ class NavigationV3(NavigationInterface):
     def setGoodsShapeWithName(
             cls, head: float, tail: float, width: float, recfile: str
     ):
-        """设置货物形状时传入识别文件路径
-
-        Args:
-            head (float):
-            tail (float):
-            width (float):
-            recfile (str):
-        """
         pass
     @classmethod
     @call_service()
     def setGoodsPolyShape(
             cls, shape, recfile: str
     ):
-        """设置货物形状时传入识别文件路径
-            shape = [
-            {"x": 1.0, "y": 1.0},
-            {"x": -1.0, "y": 1.0},
-            {"x": -1.0, "y": -1.0},
-            {"x": 1.0, "y": 1.0}]
-
-        Args:
-            shape (List[Dict[str, float]]):
-            recfile (str):
-        """
         pass
     @classmethod
     @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
-        """增量旋转托盘到一个弧度
-
-        Args:
-            angle (float): 弧度
-        """
         pass
 
     @classmethod
     @call_service()
     def setLocalShelfArea(cls, object_model_path: str) -> bool:
-        """加载顶升上的货物模型
-
-        Args:
-            object_model_path (str): 货架模型文件名称
-
-        Returns:
-            (bool): 如果不存在这个货架模型则报错
-        """
         pass
 
     @classmethod
     @call_service()
     def setObsStopDist(cls, dist: float):
-        """设置避障距离
-
-        Args:
-            dist (float): 避障距离，单位 m
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathBackMode(cls, a: bool) -> None:
-        """路径导航是否倒走
-
-        Args:
-            a (bool): 如果倒走则为True
-
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathHoldDir(cls, a: float):
-        """路径导航的 hold_dir
-
-        Args:
-            a (float): 单位度
-
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathMaxRot(cls, a: float):
-        """路径导航的最大角速度
-
-        Args:
-            a (float): 单位rad/s
-
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathMaxSpeed(cls, a: float):
-        """路径导航的最大速度
-
-        Args:
-            a (float): 单位m/s
-
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathOnRobot(cls, x: list, y: list, angle: float):
-        """让agv在agv坐标系下以特定线路行走
-
-        Args:
-            x (list): 线路的x坐标
-            y (list): 线路的y坐标
-            angle (float): 终点的朝向
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathOnWorld(cls, x: list, y: list, angle: float):
-        """让agv在世界坐标系下以特定线路行走
-
-        Args:
-            x (list): 线路的x坐标
-            y (list): 线路的y坐标
-            angle (float): 终点的朝向
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathReachAngle(cls, a: float):
-        """路径导航的到点角度精度
-
-        Args:
-            a (float): 单位rad
-
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathReachDist(cls, a: float) -> None:
-        """路径导航的到点精度
-
-        Args:
-            a (float): 单位m
-        """
         pass
 
     @classmethod
     @call_service()
     def setPathUseOdo(cls, a: bool):
-        """路径导航是否用里程定位
-
-        Args:
-            a (bool): 如果用里程定位则为True
-        """
         pass
 
     @classmethod
     @call_service()
     def setRobotSpinAngle(cls, angle: float, direction: int):
-        """
-
-        Args:
-            angle (float):
-            direction (int):
-        """
         pass
 
     @classmethod
     @call_service(plugin_name="DSPChassis")
     def setSafeOssdSwitch(cls, laser_key: str, ossdRegion: int):
-        """设置OSSD区域组切换
-
-        Args:
-            laser_key (str)：激光设备的key。""表示选择全部激光。
-            ossdRegion (int)：表示需要切换到的OSSD区域组，0代表未载货或者载小货，1代表已载货或者载大货
-        """
         pass
 
     @classmethod
@@ -512,140 +273,56 @@ class NavigationV3(NavigationInterface):
             muteAudio: bool,
             muteEnable: bool,
     ):
-        """
-
-        Args:
-            zoneType:
-            maxSpeed:
-            autoRestart:
-            muteAudio:
-            muteEnable:
-        """
         pass
 
     @classmethod
     @call_service()
     def setSteerAngle(cls, name: str, angle: float, action_name: str = "") -> bool:
-        """转动舵角
-
-        Args:
-            name (str): 舵机名称
-            angle (float): 角度位置, 单位rad
-            action_name (str): 动作名。缺省为""
-
-        Returns:
-            (bool): 如果为True电机到位
-        """
         pass
 
     @classmethod
     @call_service()
     def spinRun(cls) -> bool:
-        """
-
-        Returns:
-            (bool):
-        """
         pass
 
     @classmethod
     @call_service()
     def stopRobot(cls, flag: bool):
-        """让agv停下来
-
-        Args:
-            flag (bool): 如果是True就是急停，如果是False则以StopAcc停下来
-        """
         pass
 
     @classmethod
     @call_service()
     def stopRobotNow(cls):
-        """让agv立即停下来"""
         pass
 
     @classmethod
     @call_service(func_name="calibRecordService")
     def calibRecord(cls) -> bool:
-        """XXX
-
-        Returns:
-            (bool): 数据记录成功
-        """
         pass
 
     @classmethod
     @call_service(func_name="wheelBaseShift")
     def wheelBaseShift(cls, flag: bool) -> bool:
-        """变轴距标定时,触发MF中的模型变化响应
-
-        Args:
-            flag : False:放下货叉， True:抬起货叉
-
-        Returns:
-            (bool): 是否完成
-        """
         pass
 
     @classmethod
     @call_service(func_name="recordCapture")
     def recordCapture(cls, fileName: str, filePath: str, cameraKey: str) -> bool:
-        """相机标定时,触发图像采集
-
-        Args:
-            fileName : 文件名称
-            filePath : 文件保存路径
-            cameraKey : 相机设备的key
-
-        Returns:
-            (bool): 是否完成
-        """
         pass
 
     @classmethod
     @call_service()
-    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_name: str) -> typing.Dict:
-        """将目标点增加TCP坐标系补偿
-
-        Args:
-            x (float): 目标点的 x 坐标（单位：米）
-            y (float): 目标点的 y 坐标（单位：米）
-            theta (float): 目标点的角度（单位：弧度）
-            tcp_name (str): TCP 名称，若不存在TCP 名称，则返回原始的目标点不进行TCP变换
-
-        Returns:
-            typing.Dict: 包含转换后的目标点位置信息，格式为 {"x": double, "y": double, "theta": double}
-        """
+    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_name: str) -> Dict:
         pass
 
     @classmethod
     @call_service()
-    def liveRecGoReset(cls, recfile: str, x: float, y: float, theta: float, tracker_id: str, paths: typing.Dict) -> bool:
-        """重置实时识别行走路径，用于重新初始化路径跟踪器
-
-        Args:
-            recfile (str): 记录文件路径
-            x (float): 起始位置的 x 坐标（单位：米）
-            y (float): 起始位置的 y 坐标（单位：米）
-            theta (float): 起始位置的角度（单位：弧度）
-            tracker_id (str): 跟踪器ID
-            paths (typing.Dict): 路径数据数组，包含PathData对象的JSON数组
-
-        Returns:
-            (bool): 重置是否成功，成功返回true，失败返回false
-        """
+    def liveRecGoReset(cls, recfile: str, x: float, y: float, theta: float, tracker_id: str, paths: Dict) -> bool:
         pass
 
     @classmethod
     @call_service()
     def liveRecGo(cls) -> int:
-        """启动实时识别行走任务
-
-        Returns:
-            (int): 返回路径状态码，可能的值包括：
-            0(NONE-无状态)、1(RUNNING-运行中)、2(NEARTOGOAL-接近目标)、3(FINISHED-已完成)、4(FAILED-失败)、5(SUSPENDED-暂停)。
-            若m_live_go_path为空则返回FAILED(4)
-        """
         pass
 
     @classmethod
@@ -653,86 +330,35 @@ class NavigationV3(NavigationInterface):
     def getRecPath(cls, robot_pos_x: float, robot_pos_y: float, robot_pos_theta: float, rec_x: float, rec_y: float,
                    rec_theta: float, back_dist: float, min_ahead_dist: float, ahead_dist: float, back_mode: bool,
                    use_bezier: bool, hold_dir: float, max_speed: float, slow_down_dist: float, slow_down_speed: float,
-                   liveRec: bool) -> typing.Dict:
-        """根据机器人当前位置和识别位置生成路径，支持贝塞尔曲线和直线路径两种模式
-
-        Args:
-            robot_pos_x (float): 机器人当前位置的 x 坐标（单位：米）
-            robot_pos_y (float): 机器人当前位置的 y 坐标（单位：米）
-            robot_pos_theta (float): 机器人当前位置的角度（单位：弧度）
-            rec_x (float): 识别位置的 x 坐标（单位：米）
-            rec_y (float): 识别位置的 y 坐标（单位：米）
-            rec_theta (float): 识别位置的角度（单位：弧度）
-            back_dist (float): 后退距离（单位：米）
-            min_ahead_dist (float): 最小前进距离（单位：米）
-            ahead_dist (float): 前进距离（单位：米）
-            back_mode (bool): 是否使用后退模式
-            use_bezier (bool): 是否使用贝塞尔曲线路径
-            hold_dir (float): 保持方向角度（单位：弧度），若为999则不保持方向
-            max_speed (float): 最大速度（单位：米/秒）
-            slow_down_dist (float): 减速距离（单位：米）
-            slow_down_speed (float): 减速速度（单位：米/秒）
-            liveRec (bool): 是否为实时识别模式
-
-        Returns:
-            (typing.Dict): 包含路径数据的JSON数组
-        """
+                   liveRec: bool) -> Dict:
         pass
 
     @classmethod
     @call_service()
     def cancelLiveRecGo(cls):
-        """取消当前正在执行的实时识别行走任务"""
         pass
 
     @classmethod
     @call_service()
-    def getLiveResult(cls) -> typing.Dict:
-        """获取实时识别行走任务的结果
-
-        Returns:
-            (typing.Dict): 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
-        """
+    def getLiveResult(cls) -> Dict:
         pass
 
     @classmethod
     def appendPolicy(cls, name: str):
-        """增加策略
-
-        Args:
-            name (str): 策略名
-        """
         return cls.client().call_service("MoveFactory", "updatePolicy", [name])
 
     @classmethod
     def appendCustomPolicy(cls, name: str, params: dict):
-        """增加策略参数
-
-        Args:
-            name (str): 策略名
-            params (dict): 待增加的策略参数，没有指定的参数保留旧值
-        """
         return cls.client().call_service("MoveFactory", "updatePolicy", [], [(name, params)])
 
 
     @classmethod
     def clearPolicy(cls):
-        """清除策略"""
         return cls.client().call_service("MoveFactory", "updatePolicy", [], [])
 
     @classmethod
-    def setClearRegion(cls, name: str, x: typing.List[float], y: typing.List[float],
-                       lasers_key: typing.List[str], coordinate: Coordinate):
-        """
-        设置避障扣除区域。
-
-        Args:
-            name (str): 区域名称。
-            x (List[float]): 区域顶点的x坐标列表。
-            y (List[float]): 区域顶点的y坐标列表。
-            lasers_key (List[str]): 激光传感器键值列表。
-            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
-        """
+    def setClearRegion(cls, name: str, x: List[float], y: List[float],
+                       lasers_key: List[str], coordinate: Coordinate):
         if coordinate == Coordinate.ROBOT:
             return cls.client().call_service("MoveFactory", "setClearRegionInRobotFrame", name, x, y, lasers_key)
         elif coordinate == Coordinate.WORLD:
@@ -740,13 +366,6 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     def deleteClearRegion(cls, name: str, coordinate: Coordinate):
-        """
-        删除避障扣除区域。
-
-        Args:
-            name (str): 要删除的区域名称。
-            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
-        """
         if coordinate == Coordinate.ROBOT:
             cls.client().call_service("MoveFactory", "deleteClearRegionInRobotFrame", name)
         elif coordinate == Coordinate.WORLD:
@@ -754,16 +373,7 @@ class NavigationV3(NavigationInterface):
 
 
     @classmethod
-    def getClearRegion(cls, coordinate: Coordinate) -> typing.List[str]:
-        """
-        获取避障扣除区域。
-
-        Args:
-            coordinate (Coordinate): 区域坐标系。Coordinate.ROBOT 或 Coordinate.WORLD。
-
-        Returns:
-            List[str]: 避障扣除区域名称列表。
-        """
+    def getClearRegion(cls, coordinate: Coordinate) -> List[str]:
         if coordinate == Coordinate.ROBOT:
             return cls.client().call_service("MoveFactory", "getClearRegionInRobotFrame")
         elif coordinate == Coordinate.WORLD:
@@ -771,19 +381,6 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     def collisionDetection(cls, device_keys: List[str], x: List[float], y: List[float]) -> bool:
-        """检测指定传感器设备与指定机器人坐标系下的区域是否发生碰撞
-
-        Args:
-            device_keys (List[str]): 参与碰撞检测的传感器（支持相机、激光、距离传感器）列表。（如["Laser-000", "Camera-001"]表示使用key为"Laser-000", "Camera-001"的传感器）
-            x (List[float]): 区域顶点的x坐标列表。
-            y (List[float]): 区域顶点的y坐标列表。
-
-        Returns:
-            (bool): 碰撞检测结果。发生碰撞返回True，未碰撞返回False
-
-        Raises:
-            ValueError: device_keys只支持"Laser"、"Camera"和"DistanceSensor"
-        """
         if not device_keys:
             raise ValueError("collisionDetection method param cannot be empty")
 
@@ -795,138 +392,48 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     @call_service()
-    def goBoustrophedonPath(cls, entranceName: str, exitName: str, startPos: typing.List[float], params: typing.Dict) -> int:
-        """执行拓扑区域路径规划
-
-        Args:
-            entranceName (str): 入口点名称
-            exitName (str): 出口点名称
-            startPos (typing.List[float]): 起始位置坐标 [x, y, angle]
-            params (typing.Dict): 路径规划参数
-
-        Returns:
-            (int): 返回MoveStatus状态码
-        """
+    def goBoustrophedonPath(cls, entranceName: str, exitName: str, startPos: List[float], params: Dict) -> int:
         pass
 
     @classmethod
     @call_service()
     def resetBoustrophedonPath(cls) -> None:
-        """重置拓扑区域路径规划"""
         pass
 
     @classmethod
     @call_service()
-    def cancelBoustrophedonPath(cls) -> typing.Dict:
-        """停止拓扑区域路径规划并返回当前机器人位置
-
-        Returns:
-            (typing.Dict): 包含机器人当前位置的JSON对象，格式为：
-                {
-                    "x": double,      // 机器人x坐标（单位：米）
-                    "y": double,      // 机器人y坐标（单位：米）
-                    "angle": double,  // 机器人角度（单位：弧度）
-                    "success": bool   // 是否成功获取位置
-                }
-        """
+    def cancelBoustrophedonPath(cls) -> Dict:
         pass
 
     @classmethod
     @call_service()
-    def goRemainingPath(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
-        """走剩余路径
-
-        Args:
-            entranceName (str): 入口点名称
-            exitName (str): 出口点名称
-            params (typing.Dict): 路径参数
-
-        Returns:
-            (int): 返回MoveStatus状态码；
-        """
+    def goRemainingPath(cls, entranceName: str, exitName: str, params: Dict) -> int:
         pass
 
     @classmethod
     @call_service()
-    def goCrossArea(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
-        """横穿区域
-
-        Args:
-            entranceName (str): 入口点名称
-            exitName (str): 出口点名称
-            params (typing.Dict): 路径参数
-
-        Returns:
-            (int): 返回MoveStatus状态码
-        """
+    def goCrossArea(cls, entranceName: str, exitName: str, params: Dict) -> int:
         pass
 
     @classmethod
     @call_service()
-    def goExitPoint(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
-        """从断点去出口点
-
-        Args:
-            entranceName (str): 入口点名称
-            exitName (str): 出口点名称
-            params (typing.Dict): 路径参数
-
-        Returns:
-            (int): 返回MoveStatus状态码
-        """
+    def goExitPoint(cls, entranceName: str, exitName: str, params: Dict) -> int:
         pass
 
     @classmethod
     @call_service()
     def getLmTcpName(cls, lm_name: str) -> str:
-        """根据站点名称获取TCP名称
-
-        Args:
-            lm_name (str): 站点名称
-
-        Returns:
-            (str): TCP名称，如果站点不存在或未设置TCP则返回空字符串
-        """
         pass
 
 
     @classmethod
     @call_service()
     def runRotateMove(cls, robot_params: dict, shelf_params: dict) -> int:
-        """执行基于里程计的运动控制
-        RBK-MF 插件自动处理托盘旋转速度问题。特别是托盘在世界坐标系下的目标角度没有变化时，需要自动规划为随动（holdOnWorld）的效果。
-        Args:
-            robot_params (dict): 运动控制参数字典，支持以下参数（所有参数均为可选）：
-                - move_angle (float): 底盘在世界坐标系下的目标角度（rad）
-                - speed_w (float): 车开环原地旋转的角速度（rad/s），只支持正数
-                - dir (int): 世界坐标系下车旋转的方向, dir 0 自主决策  1逆时针  -1顺时针
-            shelf_params (dict): 托盘旋转控制参数字典，支持以下参数（所有参数均为可选）：
-                - angle (float): 机器人坐标系下托盘旋转的目标角度（rad），只支持正数
-                - dir (int): 机器人坐标系下托盘旋转的方向, dir 0 自主决策 1逆时针  -1顺时针
-
-        Returns:
-            int: 运动状态，"MoveStatus"类型的int值
-
-        Examples:
-            robot_params = {
-                "dir": 1,
-                "speed_w": 0.5,
-                "move_angle": 1.57
-            }
-            shelf_params = {
-                "angle": 1.57,
-                "dir": 1
-            }
-            status = runRotateMove(robot_params, shelf_params)
-        """
         pass
 
     @classmethod
     @call_service()
     def resetRotateMove(cls):
-        """
-        重置runRotateMove的状态
-        """
         pass
 
     @classmethod
@@ -957,7 +464,7 @@ class NavStatusV3(NavStatusInterface):
     _TOPIC = "rbk.protocol.msgMoveStatus"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
-    if typing.TYPE_CHECKING:
+    if TYPE_CHECKING:
         from .protobuf import msgMoveStatus
         data: msgMoveStatus = None
 
@@ -969,11 +476,6 @@ class NavStatusV3(NavStatusInterface):
 
     @classmethod
     def getChassisStop(cls) -> bool:
-        """底盘是否停止（仅通过walk电机判断）
-
-        Returns:
-            (bool): 停止为True, 否则为False
-        """
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
     def getBlock(self):
@@ -1008,29 +510,14 @@ class NavStatusV3(NavStatusInterface):
         return turn
 
     def getTaskStatus(self) -> Optional[int]:
-        """获取任务状态
-
-        Returns:
-            (Optional[int]): 返回脚本任务状态 (0=None, 1=waiting, 2=running, 3=suspended, 4=completed, 5=failed)
-        """
         if self.update():
             return self.data.taskStatus
 
     def getRunningStatus(self) -> Optional[int]:
-        """获取运行状态
-
-        Returns:
-            (Optional[int]): 返回运行状态 (0=rNone, 1=rRunning, 2=rNearToGoal, 3=rFinished, 4=rFailed)
-        """
         if self.update():
             return self.data.runningStatus
 
     def getCurrentStation(self) -> str:
-        """获取机器人当前所在站点
-
-        Returns:
-            (str): 机器人站点名
-        """
         if self.update():
             return self.data.closestTarget
 
@@ -1041,7 +528,7 @@ class NavSpeedV3(NavSpeedInterface):
     _TOPIC = "rbk.protocol.msgNavSpeed"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
-    if typing.TYPE_CHECKING:
+    if TYPE_CHECKING:
         from .protobuf import msgNavSpeed
         data: msgNavSpeed = None
 
@@ -1056,19 +543,9 @@ class NavSpeedV3(NavSpeedInterface):
             return self.data.x, self.data.y, self.data.rotate
 
     def getMotorCmd(self) -> Optional[List["msgMotorCmd"]]:
-        """获取电机指令列表
-
-        Returns:
-            (Optional[List[msgMotorCmd]]): 返回电机指令列表
-        """
         if self.update():
             return self.data.motorCmd
 
     def getIs2Move(self) -> Optional[bool]:
-        """获取是否准备移动的标志位
-
-        Returns:
-            (Optional[bool]): True表示准备移动，False表示未准备移动
-        """
         if self.update():
             return self.data.isToMove

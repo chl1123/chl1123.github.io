@@ -19,22 +19,8 @@ class ScriptDataV3(ScriptDataInterface):
             cls._MODEL_CLASS = msgScript
 
     def set(self, name: str, data: dict) -> None:
-        """设置脚本数据
-
-        Args:
-            name (str): 脚本名或标识
-            data (bool): 脚本数据
-        """
         return self.client().call_service("NetProtocol", "setScriptData", name, json.dumps(data))
 
     def get(self, name: str) -> Optional[dict]:
-        """获取脚本数据
-
-        Args:
-            name (str): 脚本名或标识
-
-        Returns:
-            (Optional[dict]): 脚本数据
-        """
         if self.update():
             return json.loads(self.data.scriptData.get(name, "{}"))

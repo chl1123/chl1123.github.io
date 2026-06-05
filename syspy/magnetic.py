@@ -1,10 +1,9 @@
-import typing
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy import RBK_VERSION
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     if RBK_VERSION == 3:
         from syspy.v3.protobuf import msgMagneticNode
     elif RBK_VERSION == 4:

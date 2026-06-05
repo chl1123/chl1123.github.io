@@ -1,14 +1,13 @@
-import typing
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from syspy.code_scanner import CodeScannerInterface
 
 class CodeScannerV3(CodeScannerInterface):
-    """PGV类"""
+    """扫码器类"""
 
     _TOPIC = "rbk.protocol.msgCodeScanner"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
-    if typing.TYPE_CHECKING:
+    if TYPE_CHECKING:
         from .protobuf import msgCodeScanner, msgCodeScannerDMT
         data: msgCodeScanner = None
 
@@ -19,10 +18,5 @@ class CodeScannerV3(CodeScannerInterface):
             cls._MODEL_CLASS = msgCodeScanner
 
     def getCodeScanners(self) -> Optional[List["msgCodeScannerDMT"]]:
-        """获取msgPGV_DMT对象列表
-
-        Returns:
-            (Optional[List["msgCodeScannerDMT"]]): msgPGV_DMT对象列表
-        """
         if self.update():
             return self.data.codeScanners

@@ -70,7 +70,6 @@ class RobotParamV3(RobotParamInterface):
         return values
 
     def getCollisionModel(self) -> Dict[str, List[Dict[str, str]]]:
-        """获取碰撞检测模型"""
         name = "navigation"
         param_path = "collisionDetection.collisionModel"
         clone_keys = ["collisionDevice", "collisionShape"]
@@ -79,7 +78,6 @@ class RobotParamV3(RobotParamInterface):
         }
 
     def getDeductModel(self) -> Dict[str, List[Dict[str, Any]]]:
-        """获取扣除模型"""
         name = "navigation"
         param_path = "collisionDetection.deductModel"
         clone_keys = ["deductDevice", "deductShape", "ignoreZ", "zMax", "zMin"]
@@ -88,7 +86,6 @@ class RobotParamV3(RobotParamInterface):
         }
 
     def getDoRegion(self) -> Dict[str, List[Dict[str, Any]]]:
-        """获取DO区域"""
         name = "navigation"
         param_path = "collisionDetection.doRegion"
         clone_keys = ["shape", "do", "filterNum"]

@@ -1,5 +1,4 @@
-import typing
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from syspy.dio import DiInterface, DoInterface
 from syspy.core.rbk_rpc import call_service, default_plugin
 
@@ -11,7 +10,7 @@ class DiV3(DiInterface):
     _TOPIC = "rbk.protocol.msgDI"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
-    if typing.TYPE_CHECKING:
+    if TYPE_CHECKING:
         from .protobuf import msgDI, msgDINode
         data: msgDI = None
 
@@ -24,33 +23,14 @@ class DiV3(DiInterface):
     @classmethod
     @call_service(plugin_name="MoveFactory", func_name="setDIValid")
     def setDIValid(cls, key: str, status: bool):
-        """设置DI是否生效
-
-        Args:
-            key (str): DI key
-            status (bool): True表示生效，False表示不生效
-        """
         pass
 
     @classmethod
     @call_service()
     def setVirtualDI(cls, key: str, status: bool):
-        """设置虚拟DI状态
-
-        Args:
-            key (str): 虚拟DI key
-            status (bool):虚拟DI状态
-        """
         pass
 
     def getDi(self, key: str) -> bool:
-        """检测单个DI状态信息
-        Args:
-            key (str): DI key
-
-        Returns:
-            (bool): 返回指定DI的状态，若DI不存在返回False
-        """
         self.update()
         if self.data:
             for node in self.data.node:
@@ -58,21 +38,11 @@ class DiV3(DiInterface):
                     return node.status
         return False
 
-    def getDis(self) -> Optional[List[msgDINode]]:
-        """获取DI消息中的节点列表
-
-        Returns:
-            (Optional[List[msgDINode]]): DI消息中的节点列表
-        """
+    def getDis(self) -> Optional[List["msgDINode"]]:
         if self.update():
             return self.data.node
 
     def getMaxDi(self) -> int:
-        """获取DI消息中的最大节点数
-
-        Returns:
-            (int): DI消息中的最大节点数
-        """
         if self.update():
             return self.data.maxNode
 
@@ -84,7 +54,7 @@ class DoV3(DoInterface):
     _TOPIC = "rbk.protocol.msgDO"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
-    if typing.TYPE_CHECKING:
+    if TYPE_CHECKING:
         from .protobuf import msgDO, msgDONode
         data: msgDO = None
 
@@ -97,26 +67,9 @@ class DoV3(DoInterface):
     @classmethod
     @call_service(plugin_name="MoveFactory", func_name="setDO")
     def setDo(cls, key: str, status: bool) -> bool:
-        """控制DO的开关
-
-        Args:
-            key (str): DO key
-            status (bool): 是否打开这个DO
-
-        Returns:
-            (bool): 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
-        """
         pass
 
     def getDo(self, key: str) -> bool:
-        """检测单个DO状态信息
-
-        Args:
-            key (str): DO设备的key
-
-        Returns:
-            (bool): 返回指定DO的状态，若DO不存在返回False
-        """
         self.update()
         if self.data:
             for node in self.data.node:
@@ -124,20 +77,10 @@ class DoV3(DoInterface):
                     return node.status
         return False
 
-    def getDos(self) -> Optional[List[msgDONode]]:
-        """获取DO消息中的节点列表
-
-        Returns:
-            (Optional[List[msgDONode]]): DO消息中的节点列表
-        """
+    def getDos(self) -> Optional[List["msgDONode"]]:
         if self.update():
             return self.data.node
 
     def getMaxNode(self) -> Optional[int]:
-        """获取DO消息中的最大节点数
-
-        Returns:
-            (Optional[int]): DO消息中的最大节点数
-        """
         if self.update():
             return self.data.maxNode

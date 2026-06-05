@@ -24,22 +24,12 @@ class BinV3(BinInterface):
             cls._MODEL_CLASS = msgBins
 
     def getBins(self) -> Optional[List["msgBin"]]:
-        """获取库位列表
-
-        Returns:
-            (Optional[List["msgBin"]]): 库位列表
-        """
         if self.update():
             return self.data.bins
 
     @classmethod
     @call_service()
     def binDetection(cls, seq: int):
-        """库位检测
-
-        Args:
-            seq (int): 时间戳
-        """
         pass
 
 

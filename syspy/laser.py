@@ -1,23 +1,16 @@
-import typing
-from typing import Union, List, Dict, Optional, Any
-import sys
-import os
+from typing import List, Dict, Optional, Any, TYPE_CHECKING
 import json
 import time
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-# sys.path.insert(0, os.path.join(current_dir, ".."))
-from syspy import Module, ModuleBase, ScriptStatus, Trace, RobotParam, ScriptParam, RBK_VERSION
+from syspy import Module, ScriptStatus, Trace, RobotParam, ScriptParam, RBK_VERSION
 from syspy.core.rbk_rpc import Service
-from syspy.lib.module import SafeMoveStatus
 from syspy.utils.param_server import ParamType
-from syspy.utils import Coordinate, ScriptType
+from syspy.utils import ScriptType
 if hasattr(ScriptParam, '_instance'):
     ScriptParam._instance = None 
     ScriptParam._initialized = False
     ScriptParam.config_change_callback = None
     ScriptParam.event_task_config = False
 
-# __file__=os.path.abspath(__file__)
 start_time = time.time()
 script_param = ScriptParam(__file__)
 
@@ -82,7 +75,7 @@ class InputParams:
 
     builder.save()
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     if RBK_VERSION == 3:
         from syspy.v3.protobuf import msgLaser3D
     elif RBK_VERSION == 4:
@@ -102,7 +95,7 @@ class LaserInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def getData(self, fields: typing.Optional[List[str]] = None, *, topic: str = None) -> dict:
+    def getData(self, fields: Optional[List[str]] = None, *, topic: str = None) -> dict:
         """通用获取消息接口
 
         Args:

@@ -20,22 +20,12 @@ class BinV4(BinInterface):
             cls._MODEL_CLASS = None
 
     def getBins(self) -> Optional[List["MessageV4_Bin"]]:
-        """获取库位列表
-
-        Returns:
-            (Optional[List["MessageV4_Bin"]]): 库位列表
-        """
         if self.update():
             return self.data.bins
 
     @classmethod
     @call_service()
     def binDetection(cls, seq: int):
-        """库位检测
-
-        Args:
-            seq (int): 时间戳
-        """
         pass
 
 

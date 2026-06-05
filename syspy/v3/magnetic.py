@@ -1,5 +1,4 @@
-import typing
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from syspy.magnetic import MagneticInterface
 
 
@@ -9,7 +8,7 @@ class MagneticV3(MagneticInterface):
     _TOPIC = "rbk.protocol.msgMagnetic"
     _PLUGIN = "MagneticSensor"
     _MODEL_CLASS = None
-    if typing.TYPE_CHECKING:
+    if TYPE_CHECKING:
         from .protobuf import msgMagnetic, msgMagneticNode
         data: msgMagnetic = None
 
@@ -19,11 +18,6 @@ class MagneticV3(MagneticInterface):
             from .protobuf import msgMagnetic
             cls._MODEL_CLASS = msgMagnetic
 
-    def getMagnetics(self) -> Optional[List[msgMagneticNode]]:
-        """获取磁节点列表
-
-        Returns:
-            (Optional[List[msgMagneticNode]]): 包含所有磁节点信息的列表
-        """
+    def getMagnetics(self) -> Optional[List["msgMagneticNode"]]:
         if self.update():
             return self.data.magneticNodes

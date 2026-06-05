@@ -1,4 +1,3 @@
-import typing
 from typing import Optional, Dict
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError

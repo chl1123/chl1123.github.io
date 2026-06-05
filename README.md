@@ -9,27 +9,29 @@
 
 可以把它理解为：
 
-- SDK 提供“能力接口层”（导航、定位、电机、识别、参数、异常、日志等）。
-- tasks 提供“业务编排层”（把能力按状态机/动作链组织成可执行任务）。
+- SDK 提供"能力接口层"（导航、定位、电机、识别、参数、异常、日志等）。
+- tasks 提供"业务编排层"（把能力按状态机/动作链组织成可执行任务）。
 
 ## 2. 目录速览
 
 - `syspy/__init__.py`：对外统一导出模块，并按 `RBK_VERSION` 注入 v3/v4 实现。
 - `syspy/config.py`：从 `/opt/.data/rbk/private/version/robokit.json` 读取版本，失败默认 v3。
-- `syspy/core/rbk_rpc.py`：RPC 抽象层（`Service`/`Message`、`@call_service`、v3/v4 客户端差异屏蔽）。
+- `syspy/core/rbk_rpc.py`：RPC 抽象层（`Service`/`Message`、`@call_service`、v3/v4 客户端差异屏蔽、二进制消息通道 `BinMsgClient`）。
 - `syspy/lib/module.py`：任务脚本运行时核心（`Module`、`ModuleBase`、`ScriptStatus`、安全检查/Modbus事件）。
 - `syspy/lib/action_task.py`：Action 队列调度器（`ActionBase` / `ActionStatus` / `ActionTask`），按 VDA5050 §6.8/§6.11/§6.12 风格调度并产出结构化事件流（`taskBuild` / `actionStateChanged` / `taskFinished` / `taskFailed`）。
+- `syspy/lib/robot.py`：机器人参数与系统错误接口（`RobotParam` / `RobotError`），提供配置/设备参数读取、碰撞检测模型获取、系统错误管理。
+- `syspy/lib/trace.py`：统一日志接口（`Trace.log`），已取代 `Trace.chart`。
 - `docs/guide/spec/logging.md`：日志与队列事件落盘规范（`Trace.log` / `Module.reportInfo` / Action 队列协议）。新增脚本必须遵循此规范。
-- `syspy/utils/param_server.py`：参数系统（配置参数、输入参数、动作模板、参数校验）。
+- `syspy/utils/param_server.py`：参数系统（配置参数、输入参数、动作模板含 `stage` 字段、参数校验）。
 - `tasks/v3/standard/example/`：脚本模板与参数示例（建议从 `template.py` 开始）。
 - `tasks/v3/standard/module/`：复杂业务脚本（如 `jack.py`，使用动作链编排）。
-- `tasks/v3/standard/calib/`：标定脚本，偏“单任务小状态机”写法。
+- `tasks/v3/standard/calib/`：标定脚本，偏"单任务小状态机"写法。
 
 ## 3. SDK 开发范式（`syspy`）
 
 ### 3.1 统一接口 + 版本适配
 
-典型模式是“三层”：
+典型模式是"三层"：
 
 1. `syspy/<module>.py`：定义 `XXXInterface`（抽象接口）。
 2. `syspy/v3/<module>.py` 与 `syspy/v4/<module>.py`：分别实现。
@@ -49,6 +51,70 @@ from syspy import Navigation, Loc, Motor
 - **Message 类接口**：订阅消息并缓存（如 `Controller.getVoltage()`）。
 
 `@default_plugin` + `@call_service` 在 v3/v4 间做参数打包方式适配（v3 偏位置参数，v4 偏关键字参数）。
+
+#### 二进制消息通道
+
+V3 RPC 客户端新增独立 ZMQ 二进制通道（`BinMsgClient`），绕过 JSON-RPC + protobuf JSON 双重序列化，直接传输 protobuf 二进制数据，显著降低 CPU 占用。默认模式为 `"raw"`，失败时自动降级为 `"json"` 模式。
+
+```python
+# 内部机制（调用方无感知）
+class V3RpcClient(RpcClient):
+    _MODE: str = "raw"  # "raw" = 二进制; "json" = JSON-RPC 降级
+
+    def get_message(self, topic, model_class, plugin="RBKSim"):
+        if V3RpcClient._MODE == "raw":
+            bin_data = self._get_bin_client().get_message(topic, plugin)
+            msg = model_class()
+            msg.ParseFromString(bin_data)  # 直接 protobuf 二进制反序列化
+            return msg
+```
+
+#### 系统错误接口（`RobotError`）
+
+`RobotError` 提供机器人系统错误管理，与 `Navigation.setTaskError/setDeviceError`（任务/设备异常）互补，用于上报脚本侧检测到的系统级错误：
+
+```python
+from syspy import RobotError
+
+# 设置系统错误（clear=True 时可清除，clear=False 时需人工介入）
+RobotError.setSystemError("LiftTimeout", "顶升超时，请检查电机状态", clear=True)
+
+# 查询系统错误是否存在
+if RobotError.existSystemError("LiftTimeout"):
+    pass
+
+# 清除系统错误
+RobotError.clearSystemError("LiftTimeout")
+```
+
+**key 命名空间规则**：`clear=True` 时底层自动加 `py@` 前缀（可清除），`clear=False` 时加 `ss@Py` 前缀（不可清除，需人工介入）。脚本层只需传业务 key。
+
+#### Message 接口返回值约定
+
+所有 Message 类接口的 getter 方法（即通过 `self.update()` 获取数据的模式）返回值类型统一标注为 `Optional[T]`。当数据不可用（如机器人未启动、消息未到达）时，方法返回 `None`而非零值或空集合，避免语义混淆。
+
+```python
+# 签名示例
+def getSpeeds(self) -> Optional[Tuple[float, float, float]]:
+    if self.update():
+        return self.data.x, self.data.y, self.data.rotate
+
+# 调用方必须对 None 做防御
+speeds = NavSpeed.getSpeeds()
+if speeds is None:
+    # 数据不可用，走安全逻辑
+    return
+vx, _, vw = speeds
+```
+
+**涉及模块**：Battery、Controller、NavStatus、NavSpeed、Odometer、Loc、Di、Do、Sound、Laser3D、Rfid、Magnetic、CodeScanner、Bin、ScriptData。
+
+**不返回 Optional 的方法**（有自身 fallback 逻辑或非 update 模式）：
+
+- `Di.getDi()` / `Do.getDo()`：数据不可用时返回 `False`
+- `NavStatus.getChassisStop()`：RPC 调用，非 update 模式
+- `NavStatus.getTurn()`：纯计算方法，永远返回 `int`
+- `Message.getData()`：数据不可用时返回 `{}`
 
 ### 3.3 强状态驱动
 
@@ -70,12 +136,83 @@ from syspy import Navigation, Loc, Motor
 - 输入参数（`builderInput`，用于任务入参 UI/校验）
 - 动作模板（`addAction` + `saveAction`）
 
+#### 动作模板 `stage` 字段
+
+`addAction` 的 `stage` 参数定义脚本执行阶段，控制脚本与导航的时序关系：
+
+| stage | 含义 |
+|-------|------|
+| 0 | 在前置点执行脚本，脚本完成后开始导航 |
+| 1 | 在前置点执行脚本，脚本和导航同时运行 |
+| 2 | 在目标点执行脚本（默认） |
+| 3 | 在前置点执行脚本，后续导航由脚本控制 |
+
+```python
+param_loader.addAction(
+    action_name="load",
+    policy={"goodsDir": 90},
+    args={"operation": "load", "operation.load.height": 0.02},
+    config={"load.recognize": "on"},
+    stage=3  # 前置点执行，脚本控制后续导航
+)
+```
+
+#### `RobotParam` 机器人参数接口
+
+`RobotParam` 提供机器人配置/设备参数读取、碰撞检测模型获取、参数变更回调等能力：
+
+```python
+from syspy import RobotParam
+
+# 读取配置参数
+rec_obj = RobotParam.getConfig("recognition", "recognitionObject")
+
+# 读取设备模型参数
+lift_motor = RobotParam.getDevice("Model-000", "moduleType.liftFork.liftMotor")
+
+# 获取启用的设备列表
+laser_list = RobotParam.getDeviceList("Laser")
+
+# 获取碰撞检测模型 / 扣除模型 / DO区域
+collision = RobotParam.getCollisionModel()
+deduct = RobotParam.getDeductModel()
+do_region = RobotParam.getDoRegion()
+
+# 配置参数变更回调（支持延迟注册）
+RobotParam.setConfigChangeCallBack(on_config_changed)
+
+# 设备参数变更回调（支持延迟注册）
+RobotParam.setDeviceChangeCallBack(on_device_changed)
+```
+
 脚本运行时常用流程：
 
 1. 全局创建参数定义并保存。
 2. `ParamValidator` 或 `script_param.loadInput()` 校验入参。
 3. `script_param.loadConfig()` 读取配置。
 4. 配置变更回调中热加载配置。
+
+### 3.5 国际化支持（`_TR`）
+
+`_TR` 提供脚本文本翻译接口，运行时直接返回原文，翻译由 RBK 系统层在编译时完成：
+
+```python
+from syspy import _TR
+
+# 简单文本
+print(_TR("Hello World"))  # 运行时返回 "Hello World"
+
+# f-string 参数化（编译后 rbk.ts 中为 "Hello World, {1}, {2}"）
+param1, param2 = 1, 2
+print(_TR(f"Hello World, {param1=}, {param2=}"))
+```
+
+RBK 编译后 `rbk.ts` 文件自动增加翻译条目，手动编辑即可完成翻译：
+
+```
+Hello World ~-~ 你好，世界
+Hello World, {1}, {2} ~-~ 你好，世界, {1}, {2}
+```
 
 ## 4. 任务脚本开发范式（`tasks`）
 
@@ -122,12 +259,14 @@ from syspy import Navigation, Loc, Motor
 - 类名：`PascalCase`
 - 方法/变量：以 `snake_case` 为主；外部参数字段常见 `camelCase`（因对接配置/UI字段）
 - 常量：全大写（如异常码范围、路径常量）
-- 异常码机制已废弃，更新为errors字典，value为`xx@xxx`格式，如`ms@TargetId`
+- 异常码机制已废弃，更新为errors字典，value为`xx@xxx`格式，如`py@TargetId`
+- 错误码前缀：脚本侧上报的系统错误自动加 `py@` 前缀，不可清除的加 `ss@Py` 前缀
 
 ### 5.2 导入与依赖
 
 - 常见顺序：标准库 -> 第三方 -> `syspy` -> 本地模块
 - 任务脚本常在头部记录 `start_time = time.time()` 用于运行时长统计
+- 国际化文本使用 `_TR()` 包裹，RBK 编译时自动提取到 `rbk.ts` 翻译文件
 
 ### 5.3 状态与时序
 
@@ -138,24 +277,31 @@ from syspy import Navigation, Loc, Motor
 ### 5.4 日志与可观测性
 
 - 日志/图表/上报规范以 `docs/guide/spec/logging.md` 为准（含通道命名、`Trace.log` 类型约束、Action 队列结构化事件协议、检查清单），新增或修改脚本前请先对照。
+- **`Trace.chart()` 已弃用**，统一改用 `Trace.log()`：
+  - `Trace.log` 的 `msg` 参数同时支持 `str`（文本日志）和 `dict`（数值时序/图表数据），传 str 时自动包装为 `{"log": msg}` 落盘
+  - `output_console` 默认值从 `chart` 的 `False` 改为 `log` 的 `True`
+  - 数值图表数据改用 `Trace.log(dict, output_console=False, name="xxx")` 上报
+  - 按 `name` 参数分通道落盘
+  - `debug=True` 时仅在 debug 模式下落盘
 - 过程日志：`Trace.log(...)` / `Logger(...)`
 - 结构化上报：`Module.reportInfo(dict)`
 - 异常上报（RBK3.5 推荐）：
-- 任务异常：`Navigation.setTaskError(key, desc)`
-- 设备模型异常：`Navigation.setDeviceError(key, desc, param="")`
-- 异常清除：`Navigation.clearTaskError(key)` / `Navigation.clearDeviceError(key)`
-- 存在性判断：`Navigation.errorExists(key)`（任务异常或设备异常任一存在即返回 `True`）
+  - 任务异常：`Navigation.setTaskError(key, desc)`
+  - 设备模型异常：`Navigation.setDeviceError(key, desc, param="")`
+  - 系统错误：`RobotError.setSystemError(key, desc, clear=True)`
+  - 异常清除：`Navigation.clearTaskError(key)` / `Navigation.clearDeviceError(key)` / `RobotError.clearSystemError(key)`
+  - 存在性判断：`Navigation.errorExists(key)` / `RobotError.existSystemError(key)`
 - 约定说明（基于 `syspy/navigation.py` 与 `syspy/v3/navigation.py`）：
-- `key` 由脚本侧定义，要求同一脚本内稳定且唯一；底层会统一做命名空间封装，脚本层只需传业务 key。
-- `desc` 应写“可执行”的排障信息（现象 + 原因 + 建议动作），避免仅写 `failed`/`unknown`。
-- `param` 用于设备模型定位（可选），建议传具体设备参数路径，便于实施和售后快速定位。
+  - `key` 由脚本侧定义，要求同一脚本内稳定且唯一；底层会统一做命名空间封装，脚本层只需传业务 key。
+  - `desc` 应写"可执行"的排障信息（现象 + 原因 + 建议动作），避免仅写 `failed`/`unknown`。
+  - `param` 用于设备模型定位（可选），建议传具体设备参数路径，便于实施和售后快速定位。
 - 使用建议：
-- 可恢复告警：先 `set*Error`，恢复后显式 `clear*Error`，避免异常残留。
-- 不可恢复故障：`set*Error` 后进入 `FAILED`，由上层重新下发任务或人工处理。
-- 高频循环内上报同一异常前，建议先 `errorExists(key)` 判重，避免重复刷屏。
+  - 可恢复告警：先 `set*Error`，恢复后显式 `clear*Error`，避免异常残留。
+  - 不可恢复故障：`set*Error` 后进入 `FAILED`，由上层重新下发任务或人工处理。
+  - 高频循环内上报同一异常前，建议先 `errorExists(key)` 判重，避免重复刷屏。
 
 ```python
-from syspy import Navigation
+from syspy import Navigation, RobotError
 
 # 任务异常：识别失败
 if not rec_ok:
@@ -173,13 +319,18 @@ if not has_lift_motor:
         "顶升电机未配置，请检查模型文件 Device.Model",
         "Device.Model.liftMotor",
     )
+
+# 系统错误：顶升超时
+RobotError.setSystemError("LiftTimeout", "顶升超时，请检查电机状态", clear=True)
+if RobotError.existSystemError("LiftTimeout"):
+    RobotError.clearSystemError("LiftTimeout")
 ```
 
 ### 5.5 参数与配置
 
 - 参数定义尽量集中到 `ConfigParams`/`InputParams`
 - 输入参数进入业务前先校验（`ParamValidator` 或 `loadInput`）
-- 配置参数支持热更新回调
+- 配置参数支持热更新回调（`setConfigChangeCallBack` / `setDeviceChangeCallBack`）
 
 ## 6. 新人上手建议路径
 
@@ -197,19 +348,17 @@ if not has_lift_motor:
 
 ## 8. 仿真环境脚本开发推荐（RBK3.5）
 
-### 8.1 先区分“实机能力”和“业务状态机”
+### 8.1 先区分"实机能力"和"业务状态机"
 
 - 建议把脚本拆成两层：
 - 业务层：状态机、参数解析、异常流转、日志结构。
 - 设备层：真实硬件接口调用（传感器、执行器、识别等）。
-- 仿真主要替换“设备层输入”，尽量不改“业务层逻辑”，这样实机一致性最好。
+- 仿真主要替换"设备层输入"，尽量不改"业务层逻辑"，这样实机一致性最好。
 
 ### 8.2 优先使用 `@sim_only(on_sim=...)` 做最小替换
 
-- 推荐写法：为“真实接口读取函数”提供同签名 mock，并用 `@sim_only(on_sim=mock_func)` 挂接。
+- 推荐写法：为"真实接口读取函数"提供同签名 mock，并用 `@sim_only(on_sim=mock_func)` 挂接。
 - 实机环境自动走原函数，仿真环境自动走 mock，避免主流程里写大量 `if is_simulation()` 分支。
 - 参考文件：
 - `syspy/sim.py`：`is_simulation()` 与 `@sim_only` 定义。
 - `tasks/v3/standard/example/sim_only_demo.py`：最小示例。
-
-

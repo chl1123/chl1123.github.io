@@ -1,4 +1,3 @@
-import typing
 from typing import Optional, List
 from syspy.magnetic import MagneticInterface
 
@@ -16,10 +15,5 @@ class MagneticV4(MagneticInterface):
             cls._MODEL_CLASS = MessageV4_Magnetic
 
     def getMagnetics(self) -> Optional[List["MessageV4_MagneticNode"]]:
-        """获取磁节点列表
-
-        Returns:
-            (Optional[List["MessageV4_MagneticNode"]]): 包含所有磁节点信息的列表
-        """
         if self.update():
             return self.data.magnetic_nodes

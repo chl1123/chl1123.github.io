@@ -1,11 +1,11 @@
 import typing
-from typing import Tuple, List, Optional
+from typing import Dict, Tuple, List, Optional, TYPE_CHECKING
 from abc import ABC
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 from syspy import RBK_VERSION
 from syspy.utils import Coordinate
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     if RBK_VERSION == 3:
         from syspy.v3.protobuf import msgMotorCmd
         from syspy.v3.protobuf import msgMoveStatus
@@ -627,7 +627,7 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setClearRegion(cls, name: str, x: typing.List[float], y: typing.List[float], lasers_key: typing.List[str], coordinate: Coordinate):
+    def setClearRegion(cls, name: str, x: List[float], y: List[float], lasers_key: List[str], coordinate: Coordinate):
         """
         设置避障扣除区域。
 
@@ -652,7 +652,7 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def getClearRegion(cls, coordinate: Coordinate) -> typing.List[str]:
+    def getClearRegion(cls, coordinate: Coordinate) -> List[str]:
         """
         获取避障扣除区域。
 
@@ -682,7 +682,7 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_name: str) -> typing.Dict:
+    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_name: str) -> Dict:
         """将目标点增加TCP坐标系补偿
 
         Args:
@@ -692,12 +692,12 @@ class NavigationInterface(ABC, Service):
             tcp_name (str): TCP 名称，若不存在TCP 名称，则返回原始的目标点不进行TCP变换
 
         Returns:
-            (typing.Dict): 包含转换后的目标点位置信息，格式为 {"x": double, "y": double, "theta": double}
+            (Dict): 包含转换后的目标点位置信息，格式为 {"x": double, "y": double, "theta": double}
         """
         raise RBKVersionError()
 
     @classmethod
-    def liveRecGoReset(cls, recfile: str, x: float, y: float, theta: float, tracker_id: str, paths: typing.Dict) -> bool:
+    def liveRecGoReset(cls, recfile: str, x: float, y: float, theta: float, tracker_id: str, paths: Dict) -> bool:
         """重置实时识别行走路径，用于重新初始化路径跟踪器
 
         Args:
@@ -706,7 +706,7 @@ class NavigationInterface(ABC, Service):
             y (float): 起始位置的 y 坐标（单位：米）
             theta (float): 起始位置的角度（单位：弧度）
             tracker_id (str): 跟踪器ID
-            paths (typing.Dict): 路径数据数组，包含PathData对象的JSON数组
+            paths (Dict): 路径数据数组，包含PathData对象的JSON数组
 
         Returns:
             (bool): 重置是否成功，成功返回true，失败返回false
@@ -728,7 +728,7 @@ class NavigationInterface(ABC, Service):
     def getRecPath(cls, robot_pos_x: float, robot_pos_y: float, robot_pos_theta: float, rec_x: float, rec_y: float,
                    rec_theta: float, back_dist: float, min_ahead_dist: float, ahead_dist: float, back_mode: bool,
                    use_bezier: bool, hold_dir: float, max_speed: float, slow_down_dist: float, slow_down_speed: float,
-                   liveRec: bool) -> typing.Dict:
+                   liveRec: bool) -> Dict:
         """根据机器人当前位置和识别位置生成路径，支持贝塞尔曲线和直线路径两种模式
 
         Args:
@@ -750,7 +750,7 @@ class NavigationInterface(ABC, Service):
             liveRec (bool): 是否为实时识别模式
 
         Returns:
-            (typing.Dict): 包含路径数据的JSON数组
+            (Dict): 包含路径数据的JSON数组
         """
         raise RBKVersionError()
 
@@ -761,23 +761,23 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def getLiveResult(cls) -> typing.Dict:
+    def getLiveResult(cls) -> Dict:
         """获取实时识别行走任务的结果
 
         Returns:
-            (typing.Dict): 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
+            (Dict): 包含任务执行结果的JSON对象，若任务不存在则返回空JSON
         """
         raise RBKVersionError()
 
     @classmethod
-    def goBoustrophedonPath(cls, entranceName: str, exitName: str, startPos: typing.List[float], params: typing.Dict) -> int:
+    def goBoustrophedonPath(cls, entranceName: str, exitName: str, startPos: List[float], params: Dict) -> int:
         """执行拓扑区域路径规划
 
         Args:
             entranceName (str): 入口点名称
             exitName (str): 出口点名称
-            startPos (typing.List[float]): 起始位置坐标 [x, y, angle]
-            params (typing.Dict): 路径规划参数
+            startPos (List[float]): 起始位置坐标 [x, y, angle]
+            params (Dict): 路径规划参数
 
         Returns:
             (int): 返回MoveStatus状态码
@@ -790,11 +790,11 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def cancelBoustrophedonPath(cls) -> typing.Dict:
+    def cancelBoustrophedonPath(cls) -> Dict:
         """停止拓扑区域路径规划并返回当前机器人位置
 
         Returns:
-            (typing.Dict): 包含机器人当前位置的JSON对象，格式为：
+            (Dict): 包含机器人当前位置的JSON对象，格式为：
                 {
                     "x": double,      // 机器人x坐标（单位：米）
                     "y": double,      // 机器人y坐标（单位：米）
@@ -806,13 +806,13 @@ class NavigationInterface(ABC, Service):
 
 
     @classmethod
-    def goCrossArea(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
+    def goCrossArea(cls, entranceName: str, exitName: str, params: Dict) -> int:
         """横穿区域
 
         Args:
             entranceName (str): 入口点名称
             exitName (str): 出口点名称
-            params (typing.Dict): 路径参数
+            params (Dict): 路径参数
 
         Returns:
             (int): 返回MoveStatus状态码
@@ -820,13 +820,13 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def goRemainingPath(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
+    def goRemainingPath(cls, entranceName: str, exitName: str, params: Dict) -> int:
         """走剩余路径
 
         Args:
             entranceName (str): 入口点名称
             exitName (str): 出口点名称
-            params (typing.Dict): 路径参数
+            params (Dict): 路径参数
 
         Returns:
             (int): 返回MoveStatus状态码；
@@ -834,13 +834,13 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def goExitPoint(cls, entranceName: str, exitName: str, params: typing.Dict) -> int:
+    def goExitPoint(cls, entranceName: str, exitName: str, params: Dict) -> int:
         """从断点去出口点
 
         Args:
             entranceName (str): 入口点名称
             exitName (str): 出口点名称
-            params (typing.Dict): 路径参数
+            params (Dict): 路径参数
 
         Returns:
             (int): 返回MoveStatus状态码

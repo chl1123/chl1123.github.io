@@ -1,10 +1,9 @@
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
-import typing
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TYPE_CHECKING
 from syspy import RBK_VERSION
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     if RBK_VERSION == 3:
         from syspy.v3.protobuf import msgMotorInfo
 

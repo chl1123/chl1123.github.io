@@ -3,7 +3,7 @@ from syspy.code_scanner import CodeScannerInterface
 
 
 class CodeScannerV4(CodeScannerInterface):
-    """PGV类"""
+    """扫码器类"""
 
     _TOPIC = ""  # todo RBK4
     _MODEL_CLASS = None
@@ -15,10 +15,5 @@ class CodeScannerV4(CodeScannerInterface):
             cls._MODEL_CLASS = MessageV4_PGV
 
     def getCodeScanners(self) -> Optional[List["MessageV4_PGV_DMT"]]:
-        """获取Message_PGV_DMT对象列表
-
-        Returns:
-            (Optional[List["MessageV4_PGV_DMT"]]): MessageV4_PGV_DMT对象列表
-        """
         if self.update():
             return self.data.pgvs

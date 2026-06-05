@@ -3,22 +3,16 @@
 # @Project: 3.5版本电机控制任务脚本
 import json
 import time
-import typing
-from typing import Union, List, Dict, Optional, Any
-from abc import ABC, abstractmethod
+from typing import Union, Dict, Optional, Any, TYPE_CHECKING
+from abc import ABC
 
 from syspy.core.rbk_rpc import Message, RBKVersionError
 
 start_time = time.time()
 from typing import List
-import os
-import sys
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-# sys.path.insert(0, os.path.join(current_dir, ".."))
-from syspy import Module, ModuleBase, ScriptStatus, Trace, RobotParam, ScriptParam, RBK_VERSION
-from syspy.lib.module import SafeMoveStatus
+from syspy import Module, ScriptStatus, Trace, RobotParam, ScriptParam, RBK_VERSION
 from syspy.utils.param_server import ParamType
-from syspy.utils import Coordinate, ScriptType
+from syspy.utils import ScriptType
 from syspy.core.rbk_rpc import Service
 
 if hasattr(ScriptParam, '_instance'):
@@ -89,7 +83,7 @@ class ParamCheck:
     def optional(param_name: str, req: Dict[str, Any],default: Optional[Any] = None) -> Optional[Any]:
         return req.get(param_name, default)
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     if RBK_VERSION == 3:
         from syspy.v3.protobuf import msgMotorInfo
     elif RBK_VERSION == 4:

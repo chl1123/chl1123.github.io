@@ -9,14 +9,6 @@ class AbnormalV3(AbnormalInterface):
 
     @classmethod
     def exists(cls, codes: Union[int, List[int]]) -> Union[bool, List[bool]]:
-        """异常是否存在
-
-        Args:
-            codes (Union[int, List[int]]): 单个或多个异常码
-
-        Returns:
-            Union[bool, List[bool]]: 是否异常。异常为True, 否则为False。输入int, 输出bool; 输入List[int], 输出List[bool]
-        """
         if isinstance(codes, int):
             return cls.client().call_service("Abnormal", "existsAbnormal", [codes])[0]
         else:
@@ -25,91 +17,36 @@ class AbnormalV3(AbnormalInterface):
     @classmethod
     @call_service(func_name="existsDeviceAbnormal")
     def existsDevice(cls, deviceKey: str, code: Optional[int] =  None) -> bool:
-        """是否存在指定设备及异常码的异常
-
-        Args:
-            deviceKey (str): 设备的key
-            code (Optional[int]): 异常码; 缺省表示是否存在设备key为deviceKey所有异常
-
-        Returns:
-            (bool): 是否异常。异常为True, 否则为False
-        """
         pass
 
     @classmethod
     @call_service(func_name="clearAbnormal")
     def clear(cls, code: int) -> bool:
-        """清除异常
-
-        Args:
-            code (int): 异常码
-
-        Returns:
-            (bool): 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
-        """
         pass
 
     @classmethod
     @call_service(func_name="clearDeviceAbnormal")
     def clearDevice(cls, deviceKey: str, code: Optional[int] =  None) -> bool:
-        """清除指定设备及异常码的异常
-
-        Args:
-            deviceKey (str): 需要清除的设备的key
-            code (Optional[int]): 需要清除的异常码；缺省表示清除指定deviceKey的所有异常
-
-        Returns:
-            (bool): 是否清除成功。清除成功返回True; 不存在异常码或清除失败返回False。
-        """
         pass
 
     @classmethod
     @call_service(func_name="maskAbnormal")
     def mask(cls, code: int, deviceKey: Optional[str] = None) -> bool:
-        """屏蔽指定异常码及设备的异常
-
-        Args:
-            code (int): 需要屏蔽的异常码
-            deviceKey (Optional[str]): 需要屏蔽的设备的key；缺省表示清除code的所有异常
-
-        Returns:
-            (bool): 是否屏蔽成功。成功返回True; 不存在异常码或清除失败返回False。
-        """
         pass
 
     @classmethod
     @call_service(func_name="unmaskAbnormal")
     def unmask(cls, code: int, deviceKey: Optional[str] = None):
-        """取消屏蔽指定异常码及设备的异常
-
-        Args:
-            code (int): 需要取消屏蔽的异常码
-            deviceKey (Optional[str]): 需要屏蔽的设备的key；缺省表示清除code的所有异常
-        """
         pass
 
     @classmethod
     @call_service(func_name="isMaskedAbnormal")
     def isMasked(cls, code: int, deviceKey: Optional[str] = None) -> bool:
-        """查询指定异常码及设备的异常是否被屏蔽
-
-        Args:
-            code (int): 需要查询屏蔽的异常码
-            deviceKey (Optional[str]): 需要查询屏蔽的设备key；缺省时表示查询是否屏蔽指定code的异常
-
-        Returns:
-            (bool): 是否屏蔽异常。屏蔽返回True; 没有屏蔽返回False。
-        """
         pass
 
     @classmethod
     @call_service(func_name="getNumAbnormal")
     def getNum(cls) -> int:
-        """获取异常码数量
-
-        Returns:
-            (int) 异常的数量
-        """
         pass
 
     @classmethod
