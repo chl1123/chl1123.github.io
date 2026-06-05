@@ -1,4 +1,4 @@
-from typing import List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy import RBK_VERSION
@@ -15,11 +15,11 @@ class CodeScannerInterface(ABC, Message):
     """PGV类"""
 
     @classmethod
-    def getCodeScanners(cls) -> List["msgCodeScannerDMT"]:
+    def getCodeScanners(cls) -> Optional[List["msgCodeScannerDMT"]]:
         """获取msgCodeScannerDMT对象列表
 
         Returns:
-            (List["msgCodeScannerDMT"]): msgCodeScannerDMT对象列表
+            (Optional[List["msgCodeScannerDMT"]]): msgCodeScannerDMT对象列表
 
         Examples:
         ```python

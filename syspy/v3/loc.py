@@ -1,5 +1,6 @@
 import math
 import typing
+from typing import Optional, Dict
 from syspy.loc import LocInterface
 
 class LocV3(LocInterface):
@@ -18,11 +19,11 @@ class LocV3(LocInterface):
             from .protobuf import msgLocalization  # 延迟导入
             cls._MODEL_CLASS = msgLocalization
 
-    def getPose(self) -> typing.Dict[str, float]:
+    def getPose(self) -> Optional[Dict[str, float]]:
         """获取机器人位姿（位置和姿态）
 
         Returns:
-            typing.Dict[str, float]: 包含以下键值对的字典：
+            (Optional[Dict[str, float]]): 包含以下键值对的字典：
                 - x (float): x坐标
                 - y (float): y坐标
                 - z (float): z坐标
@@ -44,7 +45,7 @@ class LocV3(LocInterface):
         """获取定位置信度
 
         Returns:
-            (float): 返回定位置信度数值
+            (Optional[float]): 返回定位置信度数值
         """
         if self.update():
             return self.data.confidence
@@ -53,7 +54,7 @@ class LocV3(LocInterface):
         """获取定位状态
 
         Returns:
-            (int) 返回定位状态值：
+            (Optional[int]) 返回定位状态值：
                 - 0：未初始化
                 - 1：重定位成功
                 - 2：重定位中
@@ -62,11 +63,11 @@ class LocV3(LocInterface):
         if self.update():
             return self.data.locState
 
-    def getLocMethod(self) -> int:
+    def getLocMethod(self) -> Optional[int]:
         """获取定位方法
 
         Returns:
-            (int) 返回定位方法值，
+            (Optional[int]) 返回定位方法值，
                 - 0为里程计模式
                 - 1为自然轮廓定位
                 - 2为反光柱定位

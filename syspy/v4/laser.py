@@ -1,6 +1,6 @@
 import math
 import typing
-from typing import List
+from typing import List, Optional
 
 from syspy.core.rbk_rpc import call_service, Message
 
@@ -117,11 +117,11 @@ class Laser3DV4(Message):
         if cls._MODEL_CLASS is None:
             cls._MODEL_CLASS = MessageV4_Laser3D
 
-    def getLasers3d(self) -> List["Message_Laser3D"]:
+    def getLasers3d(self) -> Optional[List["MessageV4_Laser3D"]]:
         """获取所有3D激光数据列表
 
         Returns:
-            List[Message_Laser3D]: 返回所有3D激光数据的列表
+            (Optional[List["MessageV4_Laser3D"]]): 返回所有3D激光数据的列表
         """
         if self.update():
             return self.data.lasers3d

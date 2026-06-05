@@ -1,4 +1,5 @@
 import typing
+from typing import Optional, List
 from syspy.dio import DiInterface, DoInterface
 from syspy.core.rbk_rpc import call_service, default_plugin
 
@@ -53,11 +54,11 @@ class DiV4(DiInterface):
                     return node.status
         return False
 
-    def getDis(self) -> typing.List["Message_DINode"]:
+    def getDis(self) -> Optional[List["MessageV4_DINode"]]:
         """获取DI消息中的节点列表
 
         Returns:
-            typing.List[Message_DINode]: DI消息中的节点列表
+            (Optional[List["MessageV4_DINode"]]): DI消息中的节点列表
         """
         if self.update():
             return self.data.node
@@ -116,20 +117,20 @@ class DoV4(DoInterface):
                     return node.status
         return False
 
-    def getDos(self) -> typing.List["Message_DONode"]:
+    def getDos(self) -> Optional[List["MessageV4_DONode"]]:
         """获取DO消息中的节点列表
 
         Returns:
-            typing.List[Message_DONode]: DO消息中的节点列表
+            (Optional[List["MessageV4_DONode"]]): DO消息中的节点列表
         """
         if self.update():
             return self.data.node
 
-    def getMaxNode(self) -> int:
+    def getMaxNode(self) -> Optional[int]:
         """获取DO消息中的最大节点数
 
         Returns:
-            (int): DO消息中的最大节点数
+            (Optional[int]): DO消息中的最大节点数
         """
         if self.update():
             return self.data.max_node

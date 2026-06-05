@@ -1,3 +1,5 @@
+from typing import Optional
+
 from syspy import RBK_VERSION
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
@@ -18,15 +20,15 @@ class BatteryInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def getPercentage(self, *, topic: str = "Battery-000") -> float:
+    def getPercentage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取电池电量百分比
 
         Returns:
-            (float): 返回电池电量百分比数值
+            (Optional[float]): 返回电池电量百分比数值
         """
         return self.child.getPercentage(topic=topic)
 
-    def getChargeCurrent(self, *, topic: str = "Battery-000") -> float:
+    def getChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取充电电流
 
         Returns:
@@ -34,7 +36,7 @@ class BatteryInterface:
         """
         return self.child.getChargeCurrent(topic=topic)
 
-    def getChargeVoltage(self, *, topic: str = "Battery-000") -> float:
+    def getChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取充电电压
 
         Returns:
@@ -42,7 +44,7 @@ class BatteryInterface:
         """
         return self.child.getChargeVoltage(topic=topic)
 
-    def getIsCharging(self, *, topic: str = "Battery-000") -> bool:
+    def getIsCharging(self, *, topic: str = "Battery-000") -> Optional[bool]:
         """获取是否正在充电状态
 
         Returns:
@@ -50,7 +52,7 @@ class BatteryInterface:
         """
         return self.child.getIsCharging(topic=topic)
 
-    def getTemperature(self, *, topic: str = "Battery-000") -> float:
+    def getTemperature(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取电池温度
 
         Returns:
@@ -58,15 +60,15 @@ class BatteryInterface:
         """
         return self.child.getTemperature(topic=topic)
 
-    def getCycle(self, *, topic: str = "Battery-000") -> int:
+    def getCycle(self, *, topic: str = "Battery-000") -> Optional[int]:
         """获取电池循环次数
 
         Returns:
-            (int): 返回电池循环次数数值
+            (Optional[int]): 返回电池循环次数数值
         """
         return self.child.getCycle(topic=topic)
 
-    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取最大充电电流
 
         Returns:
@@ -74,7 +76,7 @@ class BatteryInterface:
         """
         return self.child.getMaxChargeCurrent(topic=topic)
 
-    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取最大充电电压
 
         Returns:
@@ -82,15 +84,15 @@ class BatteryInterface:
         """
         return self.child.getMaxChargeVoltage(topic=topic)
 
-    def getExtra(self, *, topic: str = "Battery-000") -> str:
+    def getExtra(self, *, topic: str = "Battery-000") -> Optional[str]:
         """获取额外信息
 
         Returns:
-            (str): 返回额外信息字符串
+            (Optional[str]): 返回额外信息字符串
         """
         return self.child.getExtra(topic=topic)
 
-    def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> bool:
+    def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> Optional[bool]:
         """获取是否手动连接状态
 
         Returns:
@@ -101,7 +103,7 @@ class BatteryInterface:
         """
         return self.child.getIsManuallyConnected(topic=topic)
 
-    def getUserData(self, *, topic: str = "Battery-000") -> bytes:
+    def getUserData(self, *, topic: str = "Battery-000") -> Optional[bytes]:
         """获取用户数据
 
         Returns:
@@ -109,11 +111,11 @@ class BatteryInterface:
         """
         return self.child.getUserData(topic=topic)
 
-    def getSoh(self, *, topic: str = "Battery-000") -> int:
+    def getSoh(self, *, topic: str = "Battery-000") -> Optional[int]:
         """获取电池健康度
 
         Returns:
-            (int): 健康度。-1 表示无效。
+            (Optional[int]): 健康度。-1 表示无效。
 
         Compatibility:
             该接口仅在 RBK 版本 3 中可用。

@@ -1,5 +1,5 @@
 import ast
-from typing import List, Union
+from typing import List, Union, Optional
 from syspy.bin import BinInterface, ContainerInterface
 from syspy.v4.lib.plyvel_db import LevelDBV4
 from syspy.v4.navigation import NavigationV4
@@ -19,7 +19,12 @@ class BinV4(BinInterface):
             # todo RBK4
             cls._MODEL_CLASS = None
 
-    def getBins(self) -> List["Message_Bin"]:
+    def getBins(self) -> Optional[List["MessageV4_Bin"]]:
+        """获取库位列表
+
+        Returns:
+            (Optional[List["MessageV4_Bin"]]): 库位列表
+        """
         if self.update():
             return self.data.bins
 

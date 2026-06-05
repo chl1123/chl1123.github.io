@@ -1,5 +1,5 @@
 import typing
-from typing import List
+from typing import Optional, List
 from syspy.code_scanner import CodeScannerInterface
 
 class CodeScannerV3(CodeScannerInterface):
@@ -18,11 +18,11 @@ class CodeScannerV3(CodeScannerInterface):
             from .protobuf import msgCodeScanner
             cls._MODEL_CLASS = msgCodeScanner
 
-    def getCodeScanners(self) -> List["msgCodeScannerDMT"]:
+    def getCodeScanners(self) -> Optional[List["msgCodeScannerDMT"]]:
         """获取msgPGV_DMT对象列表
 
         Returns:
-            msgPGV_DMT对象列表
+            (Optional[List["msgCodeScannerDMT"]]): msgPGV_DMT对象列表
         """
         if self.update():
             return self.data.codeScanners

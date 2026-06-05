@@ -1,3 +1,4 @@
+from typing import Optional
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
 
@@ -16,11 +17,14 @@ class ScriptDataInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def get(cls, name: str) -> dict:
+    def get(cls, name: str) -> Optional[dict]:
         """获取脚本数据
 
         Args:
             name (str): 脚本名或标识
+
+        Returns:
+            (Optional[dict]): 脚本数据
         """
         raise RBKVersionError()
 

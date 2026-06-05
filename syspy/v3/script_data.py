@@ -1,5 +1,5 @@
 import json
-import typing
+from typing import TYPE_CHECKING, Optional
 from syspy.script_data import ScriptDataInterface
 
 class ScriptDataV3(ScriptDataInterface):
@@ -8,7 +8,7 @@ class ScriptDataV3(ScriptDataInterface):
     _TOPIC = "rbk.protocol.msgScript"
     _PLUGIN = "NetProtocol"
     _MODEL_CLASS = None
-    if typing.TYPE_CHECKING:
+    if TYPE_CHECKING:
         from .protobuf import msgScript
         data: msgScript = None
 
@@ -27,11 +27,14 @@ class ScriptDataV3(ScriptDataInterface):
         """
         return self.client().call_service("NetProtocol", "setScriptData", name, json.dumps(data))
 
-    def get(self, name: str) -> dict:
+    def get(self, name: str) -> Optional[dict]:
         """获取脚本数据
 
         Args:
             name (str): 脚本名或标识
+
+        Returns:
+            (Optional[dict]): 脚本数据
         """
         if self.update():
             return json.loads(self.data.scriptData.get(name, "{}"))

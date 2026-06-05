@@ -1,4 +1,5 @@
 import typing
+from typing import Optional, List
 from syspy.magnetic import MagneticInterface
 
 
@@ -18,11 +19,11 @@ class MagneticV3(MagneticInterface):
             from .protobuf import msgMagnetic
             cls._MODEL_CLASS = msgMagnetic
 
-    def getMagnetics(self) -> typing.List["msgMagneticNode"]:
+    def getMagnetics(self) -> Optional[List[msgMagneticNode]]:
         """获取磁节点列表
 
         Returns:
-            typing.List[msgMagneticNode]: 包含所有磁节点信息的列表
+            (Optional[List[msgMagneticNode]]): 包含所有磁节点信息的列表
         """
         if self.update():
             return self.data.magneticNodes

@@ -1,4 +1,5 @@
 import typing
+from typing import Optional, List
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy import RBK_VERSION
@@ -46,11 +47,11 @@ class DiInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getDis(cls) -> typing.List["msgDINode"]:
+    def getDis(cls) -> Optional[List[msgDINode]]:
         """获取DI消息中的节点列表
 
         Returns:
-            (typing.List[msgDINode]): DI消息中的节点列表
+            (Optional[List[msgDINode]]): DI消息中的节点列表
 
         Examples:
         ```python
@@ -101,11 +102,11 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getDos(cls) -> typing.List["msgDONode"]:
+    def getDos(cls) -> Optional[List[msgDONode]]:
         """获取DO消息中的节点列表
 
         Returns:
-            typing.List[msgDONode]: DO消息中的节点列表
+            (Optional[List[msgDONode]]): DO消息中的节点列表
 
         Examples:
         ```python
@@ -119,11 +120,11 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getMaxNode(cls) -> int:
+    def getMaxNode(cls) -> Optional[int]:
         """获取DO消息中的最大节点数
 
         Returns:
-            (int): DO消息中的最大节点数
+            (Optional[int]): DO消息中的最大节点数
         """
         raise RBKVersionError()
 

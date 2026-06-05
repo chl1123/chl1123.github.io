@@ -1,5 +1,5 @@
 import typing
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from abc import ABC
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 from syspy import RBK_VERSION
@@ -1002,11 +1002,11 @@ class NavSpeedInterface(ABC, Message):
     """导航速度类"""
 
     @classmethod
-    def getSpeeds(cls) -> Tuple[float, float, float]:
+    def getSpeeds(cls) -> Optional[Tuple[float, float, float]]:
         """获取当前速度信息
 
         Returns:
-            (Tuple[float, float, float]): 包含三个速度分量的元组
+            (Optional[Tuple[float, float, float]]): 包含三个速度分量的元组
                 - v_x (float): X轴方向速度，单位 m/s
                 - v_y (float): Y轴方向速度，单位 m/s
                 - v_w (float): 角速度，单位 rad/s
@@ -1014,11 +1014,11 @@ class NavSpeedInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getMotorCmd(cls) -> typing.List["msgMotorCmd"]:
+    def getMotorCmd(cls) -> Optional[List["msgMotorCmd"]]:
         """获取电机指令列表
 
         Returns:
-            (typing.List[msgMotorCmd]): 返回电机指令列表
+            (Optional[List[msgMotorCmd]]): 返回电机指令列表
         """
         raise RBKVersionError()
 

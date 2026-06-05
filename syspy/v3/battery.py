@@ -1,4 +1,5 @@
 import typing
+from typing import Optional
 from google.protobuf.json_format import MessageToJson
 from syspy.core.rbk_rpc import default_plugin, Message
 
@@ -19,16 +20,11 @@ class BatteryV3(Message):
             from .protobuf import msgBattery
             cls._MODEL_CLASS = msgBattery
 
-    def getPercentage(self, *, topic: str = "Battery-000") -> float:
-        """获取电池电量百分比
-
-        Returns:
-            (float): 返回电池电量百分比数值
-        """
+    def getPercentage(self, *, topic: str = "Battery-000") -> Optional[float]:
         if self.update():
             return self.data.percentage
 
-    def getChargeCurrent(self, *, topic: str = "Battery-000") -> float:
+    def getChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取充电电流
 
         Returns:
@@ -37,7 +33,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.chargeCurrent
 
-    def getChargeVoltage(self, *, topic: str = "Battery-000") -> float:
+    def getChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取充电电压
 
         Returns:
@@ -46,25 +42,25 @@ class BatteryV3(Message):
         if self.update():
             return self.data.chargeVoltage
 
-    def getIsCharging(self, *, topic: str = "Battery-000") -> bool:
+    def getIsCharging(self, *, topic: str = "Battery-000") -> Optional[bool]:
         """获取是否正在充电状态
 
         Returns:
-            (bool): True表示正在充电，False表示未充电
+            (Optional[bool]): True表示正在充电，False表示未充电
         """
         if self.update():
             return self.data.isCharging
 
-    def getTemperature(self, *, topic: str = "Battery-000") -> float:
+    def getTemperature(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取电池温度
 
         Returns:
-            (float): 返回电池温度数值
+            (Optional[float]): 返回电池温度数值
         """
         if self.update():
             return self.data.temperature
 
-    def getCycle(self, *, topic: str = "Battery-000") -> int:
+    def getCycle(self, *, topic: str = "Battery-000") -> Optional[int]:
         """获取电池循环次数
 
         Returns:
@@ -73,7 +69,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.cycle
 
-    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取最大充电电流
 
         Returns:
@@ -82,7 +78,7 @@ class BatteryV3(Message):
         if self.update():
             return self.data.maxChargeCurrent
 
-    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取最大充电电压
 
         Returns:
@@ -91,38 +87,38 @@ class BatteryV3(Message):
         if self.update():
             return self.data.maxChargeVoltage
 
-    def getExtra(self, *, topic: str = "Battery-000") -> str:
+    def getExtra(self, *, topic: str = "Battery-000") -> Optional[str]:
         """获取额外信息
 
         Returns:
-            (str): 返回额外信息字符串
+            (Optional[str]): 返回额外信息字符串
         """
         if self.update():
             return self.data.extra
 
-    def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> bool:
+    def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> Optional[bool]:
         """获取是否手动连接状态
 
         Returns:
-            (bool): True表示手动连接，False表示非手动连接
+            (Optional[bool]): True表示手动连接，False表示非手动连接
         """
         if self.update():
             return self.data.isManuallyConnected
 
-    def getUserData(self, *, topic: str = "Battery-000") -> bytes:
+    def getUserData(self, *, topic: str = "Battery-000") -> Optional[bytes]:
         """获取用户数据
 
         Returns:
-            bytes: 返回用户数据字节流
+            (Optional[bytes]): 返回用户数据字节流
         """
         if self.update():
             return self.data.userData
 
-    def getSoh(self, *, topic: str = "Battery-000") -> int:
+    def getSoh(self, *, topic: str = "Battery-000") -> Optional[int]:
         """获取电池健康度
 
         Returns:
-            (int): 健康度。-1 表示无效。
+            (Optional[int]): 健康度。-1 表示无效。
         """
         if self.update():
             return self.data.SOH

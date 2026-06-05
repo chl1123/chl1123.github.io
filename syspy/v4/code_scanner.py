@@ -1,5 +1,6 @@
-from typing import List
+from typing import List, Optional
 from syspy.code_scanner import CodeScannerInterface
+
 
 class CodeScannerV4(CodeScannerInterface):
     """PGV类"""
@@ -13,11 +14,11 @@ class CodeScannerV4(CodeScannerInterface):
             from syspy.v4.protobuf.message.messageV4_pgv_pb2 import MessageV4_PGV
             cls._MODEL_CLASS = MessageV4_PGV
 
-    def getCodeScanners(self) -> List["MessageV4_PGV_DMT"]:
+    def getCodeScanners(self) -> Optional[List["MessageV4_PGV_DMT"]]:
         """获取Message_PGV_DMT对象列表
 
         Returns:
-            Message_PGV_DMT对象列表
+            (Optional[List["MessageV4_PGV_DMT"]]): MessageV4_PGV_DMT对象列表
         """
         if self.update():
             return self.data.pgvs

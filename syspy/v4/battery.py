@@ -1,3 +1,5 @@
+from typing import Optional
+
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy.v4.lib.rbk import datapool
 from syspy.v4.protobuf.message.messageV4_battery_pb2 import MessageV4_Battery
@@ -15,25 +17,25 @@ class BatteryV4(Message):
         if cls._MODEL_CLASS is None:
             cls._MODEL_CLASS = MessageV4_Battery
 
-    def getPercentage(self, *, topic: str = "Battery-000") -> float:
+    def getPercentage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取电池电量百分比
 
         Returns:
-            (float): 返回电池电量百分比数值
+            (Optional[float]): 返回电池电量百分比数值
         """
         if self.update(topic):
             return self._topic_data[topic].percetage
 
-    def getChargeCurrent(self, *, topic: str = "Battery-000") -> float:
+    def getChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取充电电流
 
         Returns:
-            (float): 返回充电电流数值
+            (Optional[float]): 返回充电电流数值
         """
         if self.update(topic):
             return self._topic_data[topic].charge_current
 
-    def getChargeVoltage(self, *, topic: str = "Battery-000") -> float:
+    def getChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取充电电压
 
         Returns:
@@ -42,34 +44,34 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].charge_voltage
 
-    def getIsCharging(self, *, topic: str = "Battery-000") -> bool:
+    def getIsCharging(self, *, topic: str = "Battery-000") -> Optional[bool]:
         """获取是否正在充电状态
 
         Returns:
-            (bool): True表示正在充电，False表示未充电
+            (Optional[bool]): True表示正在充电，False表示未充电
         """
         if self.update(topic):
             return self._topic_data[topic].is_charging
 
-    def getTemperature(self, *, topic: str = "Battery-000") -> float:
+    def getTemperature(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取电池温度
 
         Returns:
-            (float): 返回电池温度数值
+            (Optional[float]): 返回电池温度数值
         """
         if self.update(topic):
             return self._topic_data[topic].temperature
 
-    def getCycle(self, *, topic: str = "Battery-000") -> int:
+    def getCycle(self, *, topic: str = "Battery-000") -> Optional[int]:
         """获取电池循环次数
 
         Returns:
-            (int): 返回电池循环次数数值
+            (Optional[int]): 返回电池循环次数数值
         """
         if self.update(topic):
             return self._topic_data[topic].cycle
 
-    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取最大充电电流
 
         Returns:
@@ -78,20 +80,20 @@ class BatteryV4(Message):
         if self.update(topic):
             return self._topic_data[topic].max_charge_current
 
-    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> float:
+    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取最大充电电压
 
         Returns:
-            (float): 返回最大充电电压数值
+            (Optional[float]): 返回最大充电电压数值
         """
         if self.update(topic):
             return self._topic_data[topic].max_charge_voltage
 
-    def getExtra(self, *, topic: str = "Battery-000") -> str:
+    def getExtra(self, *, topic: str = "Battery-000") -> Optional[str]:
         """获取额外信息
 
         Returns:
-            (str): 返回额外信息字符串
+            (Optional[str]): 返回额外信息字符串
         """
         if self.update(topic):
             return self._topic_data[topic].extra
@@ -100,15 +102,15 @@ class BatteryV4(Message):
         """获取是否手动连接状态
 
         Returns:
-            (bool): True表示手动连接，False表示非手动连接
+            (Optional[bool]): True表示手动连接，False表示非手动连接
         """
         raise RBKVersionError()
 
-    def getUserData(self, *, topic: str = "Battery-000") -> bytes:
+    def getUserData(self, *, topic: str = "Battery-000") -> Optional[bytes]:
         """获取用户数据
 
         Returns:
-            bytes: 返回用户数据字节流
+            (Optional[bytes]): 返回用户数据字节流
         """
         if self.update(topic):
             return self._topic_data[topic].user_data
@@ -117,7 +119,7 @@ class BatteryV4(Message):
         """获取电池健康度
 
         Returns:
-            (int): 健康度。-1 表示无效。
+            (Optional[int]): 健康度。-1 表示无效。
         """
         raise RBKVersionError()
 

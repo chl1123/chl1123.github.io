@@ -1,5 +1,5 @@
 import ast
-from typing import List, TYPE_CHECKING, Union
+from typing import List, TYPE_CHECKING, Union, Optional
 from syspy.bin import BinInterface, ContainerInterface
 from syspy.v3.lib.plyvel_db import LevelDBV3
 from syspy.v3.navigation import NavigationV3
@@ -23,7 +23,12 @@ class BinV3(BinInterface):
             from .protobuf import msgBins
             cls._MODEL_CLASS = msgBins
 
-    def getBins(self) -> List["msgBin"]:
+    def getBins(self) -> Optional[List["msgBin"]]:
+        """获取库位列表
+
+        Returns:
+            (Optional[List["msgBin"]]): 库位列表
+        """
         if self.update():
             return self.data.bins
 

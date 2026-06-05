@@ -1,6 +1,6 @@
 import math
 import typing
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
@@ -1007,20 +1007,20 @@ class NavStatusV3(NavStatusInterface):
                 turn = 3
         return turn
 
-    def getTaskStatus(self) -> "msgMoveStatus.taskStatus":
+    def getTaskStatus(self) -> Optional[int]:
         """获取任务状态
 
         Returns:
-            msgMoveStatus.TaskStatus: 返回脚本任务状态
+            (Optional[int]): 返回脚本任务状态 (0=None, 1=waiting, 2=running, 3=suspended, 4=completed, 5=failed)
         """
         if self.update():
             return self.data.taskStatus
 
-    def getRunningStatus(self) -> "msgMoveStatus.runningStatus":
+    def getRunningStatus(self) -> Optional[int]:
         """获取运行状态
 
         Returns:
-            (msgMoveStatus.runningStatus): 返回运行状态
+            (Optional[int]): 返回运行状态 (0=rNone, 1=rRunning, 2=rNearToGoal, 3=rFinished, 4=rFailed)
         """
         if self.update():
             return self.data.runningStatus
@@ -1051,24 +1051,24 @@ class NavSpeedV3(NavSpeedInterface):
             from .protobuf import msgNavSpeed
             cls._MODEL_CLASS = msgNavSpeed
 
-    def getSpeeds(self) -> Tuple[float, float, float]:
+    def getSpeeds(self) -> Optional[Tuple[float, float, float]]:
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
-    def getMotorCmd(self) -> typing.List["msgMotorCmd"]:
+    def getMotorCmd(self) -> Optional[List["msgMotorCmd"]]:
         """获取电机指令列表
 
         Returns:
-            typing.List[msgMotorCmd]: 返回电机指令列表
+            (Optional[List[msgMotorCmd]]): 返回电机指令列表
         """
         if self.update():
             return self.data.motorCmd
 
-    def getIs2Move(self) -> bool:
+    def getIs2Move(self) -> Optional[bool]:
         """获取是否准备移动的标志位
 
         Returns:
-            (bool): True表示准备移动，False表示未准备移动
+            (Optional[bool]): True表示准备移动，False表示未准备移动
         """
         if self.update():
             return self.data.isToMove

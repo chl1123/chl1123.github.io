@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import List, TYPE_CHECKING, Union
+from typing import List, TYPE_CHECKING, Union, Optional
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 
 
@@ -11,11 +11,11 @@ class BinInterface(ABC, Message):
     """库位类"""
 
     @classmethod
-    def getBins(cls) -> List["msgBin"]:
+    def getBins(cls) -> Optional[List["msgBin"]]:
         """获取库位列表
 
         Returns:
-            (List["msgBin"]): 库位列表
+            (Optional[List["msgBin"]]): 库位列表
 
         Examples:
         ```python

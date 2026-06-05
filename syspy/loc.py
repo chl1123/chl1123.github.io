@@ -1,4 +1,5 @@
 import typing
+from typing import Optional, Dict
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
 
@@ -7,11 +8,11 @@ class LocInterface(ABC, Message):
     """定位类"""
 
     @classmethod
-    def getPose(cls) -> typing.Dict[str, float]:
+    def getPose(cls) -> Optional[Dict[str, float]]:
         """获取机器人位姿（位置和姿态）
 
         Returns:
-            (typing.Dict[str, float]): 包含以下键值对的字典：
+            (Optional[Dict[str, float]]): 包含以下键值对的字典：
                 - x (float): x坐标
                 - y (float): y坐标
                 - z (float): z坐标
@@ -22,20 +23,20 @@ class LocInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getConfidence(cls) -> float:
+    def getConfidence(cls) -> Optional[float]:
         """获取定位置信度
 
         Returns:
-            (float): 返回定位置信度数值
+            (Optional[float]): 返回定位置信度数值
         """
         raise RBKVersionError()
 
     @classmethod
-    def getLocState(cls) -> int:
+    def getLocState(cls) -> Optional[int]:
         """获取定位状态
 
         Returns:
-            (int): 定位状态:
+            (Optional[int]): 定位状态:
 
                 - 0 = 未初始化\n
                 - 1 = 重定位成功\n
@@ -45,11 +46,11 @@ class LocInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getLocMethod(cls) -> int:
+    def getLocMethod(cls) -> Optional[int]:
         """获取定位方法
 
         Returns:
-            (int): 定位方法:
+            (Optional[int]): 定位方法:
 
                 - 0 = 里程计模式\n
                 - 1 = 自然轮廓定位\n

@@ -1,6 +1,6 @@
 import math
 import typing
-from typing import List
+from typing import List, Optional
 
 from syspy.core.rbk_rpc import call_service, Message
 
@@ -124,7 +124,7 @@ class Laser3DV3(Message):
             from .protobuf import msgAllLasers3D
             cls._MODEL_CLASS = msgAllLasers3D
 
-    def getLasers3d(self) -> List["msgLaser3D"]:
+    def getLasers3d(self) -> Optional[List["msgLaser3D"]]:
         """获取所有3D激光数据列表
 
         Returns:

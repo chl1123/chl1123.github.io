@@ -1,6 +1,6 @@
 import math
 import typing
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 from syspy.core.rbk_rpc import call_service, default_plugin, RBKVersionError
 from ..utils import Coordinate
@@ -727,11 +727,11 @@ class NavStatusV4(NavStatusInterface):
                 turn = 3
         return turn
 
-    def getTaskStatus(self) -> "MessageV4_MoveStatus.TaskStatus":
+    def getTaskStatus(self) -> Optional["MessageV4_MoveStatus.TaskStatus"]:
         """获取任务状态
 
         Returns:
-            Message_MoveStatus.TaskStatus: 返回脚本任务状态
+            (Optional["MessageV4_MoveStatus.TaskStatus"]): 返回脚本任务状态
         """
         if self.update():
             return self.data.task_status
@@ -749,15 +749,15 @@ class NavSpeedV4(NavSpeedInterface):
             from .protobuf.message.messageV4_navigation_pb2 import MessageV4_NavSpeed
             cls._MODEL_CLASS = MessageV4_NavSpeed
 
-    def getSpeeds(self) -> Tuple[float, float, float]:
+    def getSpeeds(self) -> Optional[Tuple[float, float, float]]:
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
-    def getMotorCmd(self) -> typing.List["MessageV4_MotorCmd"]:
+    def getMotorCmd(self) -> Optional[List["MessageV4_MotorCmd"]]:
         """获取电机指令列表
 
         Returns:
-            typing.List[MessageV4_MotorCmd]: 返回电机指令列表
+            (Optional[List["MessageV4_MotorCmd"]]): 返回电机指令列表
         """
         if self.update():
             return self.data.motor_cmd

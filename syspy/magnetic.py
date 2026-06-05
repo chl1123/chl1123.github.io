@@ -1,4 +1,5 @@
 import typing
+from typing import List, Optional
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy import RBK_VERSION
@@ -14,11 +15,11 @@ class MagneticInterface(ABC, Message):
     """磁传感器类"""
 
     @classmethod
-    def getMagnetics(cls) -> typing.List["msgMagneticNode"]:
+    def getMagnetics(cls) -> Optional[List["msgMagneticNode"]]:
         """获取磁节点列表
 
         Returns:
-            (typing.List[msgMagneticNode]): 包含所有磁节点信息的列表
+            (Optional[List[msgMagneticNode]]): 包含所有磁节点信息的列表
         """
         raise RBKVersionError()
 

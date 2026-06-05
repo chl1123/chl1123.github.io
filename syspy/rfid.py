@@ -1,4 +1,5 @@
 import typing
+from typing import List, Optional
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy import RBK_VERSION
@@ -15,11 +16,11 @@ class RfidInterface(ABC, Message):
     """RFID类"""
 
     @classmethod
-    def getRfids(cls) -> typing.List["msgRFIDNode"]:
+    def getRfids(cls) -> Optional[List["msgRFIDNode"]]:
         """获取RFID节点列表
 
         Returns:
-            (typing.List["msgRFIDNode"]): 返回包含RFID节点信息的列表
+            (Optional[List["msgRFIDNode"]]): 返回包含RFID节点信息的列表
         """
         raise RBKVersionError()
 
