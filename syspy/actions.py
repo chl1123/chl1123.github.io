@@ -41,6 +41,18 @@ def _trace_chart(msg: dict, name: str = f"{LOG_NAME}.state") -> None:
 def _normalize_angle_rad(angle: float) -> float:
     return math.atan2(math.sin(angle), math.cos(angle))
 
+def _normalize_increment_angle_deg(angle_deg: float) -> float:
+    angle_deg = math.fmod(float(angle_deg), 360.0)
+    if angle_deg > 180.0:
+        angle_deg -= 360.0
+    elif angle_deg < -180.0:
+        angle_deg += 360.0
+    if abs(angle_deg) == 180.0:
+        return 180.0 if angle_deg > 0 else -180.0
+    if abs(angle_deg) < 1e-9:
+        return 0.0
+    return angle_deg
+
 def _set_if_not_none(target: dict, key: str, value, transform=None) -> None:
     if value is None:
         return
@@ -780,7 +792,7 @@ class Rotate(BaseAction):
                         _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
                         Navigation.setIncreaseSpinAngle(self.shelf_angle)
                 else:
-                    move_angle_deg = float(self.action_args["robotRotateAngle"])
+                    move_angle_deg = _normalize_increment_angle_deg(self.action_args["robotRotateAngle"])
                     move_angle = math.radians(abs(move_angle_deg))
                     self.rparams["moveAngle"] = move_angle
                     if self.speed_w_robot is not None:
