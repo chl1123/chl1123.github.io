@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/5/28
+# @Date : 2026/6/5
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : feat: 增加仿真模式的使用
+# @Update : fix：修复DoMotor模式下电机偶发不动
 
 import json
 import math
@@ -2436,7 +2436,7 @@ class Jack(ModuleBase):
 
     def jack_unload(self):
         """
-        完整放货流程：二次调整 → 料架角度调整 → 下降顶升盘 → 删除激光扣除区域
+        完整放货流程：二次调整 → 二维码二次调整 → 下降顶升盘 → 删除激光扣除区域
         支持边走边动：如果预动作已经完成顶升下降，则跳过下降步骤
         """
         if not self.operation_init:
@@ -2483,9 +2483,6 @@ class Jack(ModuleBase):
 
             # === 放货完成后删除激光扣除区域 ===
             self.action_list.append(DeleteLaserDeductArea())
-
-            # === 放货后转盘到车头0° ===
-            self.action_list.append(Spin(0, "robot"))
 
     def go_ap_site(self):
         if not self.operation_init:
@@ -2810,7 +2807,7 @@ class Jack(ModuleBase):
         Module.reportInfo(self.report_info)
         self.info_count = self.info_count + 1
 
-        # === Trace.log 图表: 主循环末尾集中上报（§3 规范） ===
+        # === Trace.log: 主循环末尾集中上报（§3 规范） ===
         # jack.task: 任务级状态
         cur_action = self.action_list[self.action_id] if 0 <= self.action_id < len(self.action_list) else None
         Trace.log(
@@ -3011,6 +3008,7 @@ class Jack(ModuleBase):
             # 持续下降顶升
             if not self.pre_action_step[0]:
                 if config_params.DOMotor:
+                    Motor.resetMotor(config_params.jack_motor_name)
                     Motor.setMotorSpeed(config_params.jack_motor_name, -0.01, config_params.jack_zero_di or "")
                 elif config_params.jack_zero_di:
                     slow_speed = config_params.jack_motor_speed * 0.5
@@ -3476,6 +3474,7 @@ class JackHeight(BaseAction):
                 else:
                     self.action_status = ActionStatus.FINISHED
                     return
+                Motor.resetMotor(self.motor_name)
                 Motor.setMotorSpeed(self.motor_name, vel, stop_di)
             elif self.target_height > self.jack_start_height:
                 # 初始化前检查：上到位 DI 不应该已经触发
