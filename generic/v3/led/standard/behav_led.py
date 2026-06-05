@@ -8,8 +8,8 @@
 todo: 增加灯效定制文档，说明各灯效类型和颜色的视觉效果，以及参数配置方式，包括src2000平台的兼容说明
 状态优先级（从高到低）：
 1) 报警：`MutableBreath + Red`
-2) 急停：`Flow + RedDark`
-3) 阻挡：`MutableHorseRace + PinkPurple`
+2) 急停：`Flow + RedDark` (内置灯效，无法通过脚本调整)
+3) 阻挡：`MutableHorseRace + PinkPurple`(内置灯效，无法通过脚本调整)
 4) 运动：
    - 无转向：`MutableBreath + BlueCobalt`（后退且 `is_back_breath=True` 时用 `White`）
    - 转向：`Blink + Yellow`，并按 `turn_pos/turn_num` 生成 `led_idx`
@@ -650,26 +650,6 @@ class Dmx512NativeBehav:
                 "Red",
                 period=3200,
                 reason="alarm",
-                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
-            )
-            return
-        elif Controller.getEmc():
-            self._set_status("EStop")
-            self._send_led(
-                "Flow",
-                "RedDark",
-                period=10,
-                reason="emc",
-                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
-            )
-            return
-        elif NavStatus.getBlock():
-            self._set_status("Blocked")
-            self._send_led(
-                "MutableHorseRace",
-                "PinkPurple",
-                period=1000,
-                reason="blocked",
                 context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
             )
             return
