@@ -33,6 +33,7 @@ from syspy import (
     Battery,
     Controller,
     Module,
+    Navigation,
     NavSpeed,
     NavStatus,
     RobotParam,
@@ -85,6 +86,13 @@ def _rgbw_name_to_values(rgbw_name: str) -> Tuple[int, int, int, int]:
         "Off": (0, 0, 0, 0),
     }
     return table.get(str(rgbw_name), (0, 0, 0, 0))
+
+
+class BehavLedTaskError(RuntimeError):
+    def __init__(self, key: str, desc: str) -> None:
+        super().__init__(desc)
+        self.key = key
+        self.desc = desc
 
 
 class LegacyDmxOutput:
@@ -498,8 +506,14 @@ class Dmx512NativeBehav:
 
     def handle_movement_effect(self, percentage: float) -> None:
         """处理运动状态的灯效。"""
-        vx, _, vw = NavSpeed.getSpeeds()
-        turn = NavStatus.getTurn(vx, vw)
+        try:
+            vx, _, vw = NavSpeed.getSpeeds()
+            turn = NavStatus.getTurn(vx, vw)
+        except Exception as exc:
+            raise BehavLedTaskError(
+                "GetSpeedError",
+                f"Error getting speeds or turn: {exc}",
+            ) from exc
         if turn == 0:
             self._set_status("MovingRotation")
             if ConfigParams.is_back_breath and vx < 0:
@@ -724,7 +738,11 @@ class Dmx512NativeBehav:
         _trace_log("task start script=behav_led", name=LOG_MODULE)
         try:
             while True:
-                self.tick()
+                try:
+                    self.tick()
+                except Exception as exc:
+                    Navigation.setTaskError(exc.key, exc.desc)
+                    _trace_log(f"task error key={exc.key} desc={exc.desc}", name=f"{LOG_MODULE}.err")
                 time.sleep(1)
         finally:
             if not self._use_legacy_dmx:
