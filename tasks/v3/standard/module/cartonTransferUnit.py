@@ -3,7 +3,7 @@
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: fix: 避免链式绑定回调响应风险 https://project.feishu.cn/seer_rd_center/issue/detail/7001697750  add：增加脚本配置参数手指DO组，默认依然从model读取，用于重命名
+# @Update:  add：脚本参数翻译补充  feat：1. 适配3.5日志统一记录格式  2. 手指电机控制部分重构
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -17,15 +17,19 @@ from typing import List
 
 from syspy.utils.time import Timer
 from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Controller, Odometer, Recognize, \
-    RobotParam, Trace
+    RobotParam, Trace, _TR
 from syspy.lib.net_protocol import parseModbus, NetProtocol
 from syspy.bin import Container
 from syspy.lib.module import SafeMoveStatus, ModuleBase
+from syspy.lib.action_task import ActionBase, ActionStatus, ActionTask
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ScriptParam
 from standard.goPath import GoPath
 
 log = Logger("ContainerRobot")
 script_param = ScriptParam(__file__)
+
+# 业务通道名前缀（日志规范 <MOD>[.xxx]）
+MOD = "ctu"
 
 # ============================================================================
 # Debug 日志辅助
@@ -49,6 +53,7 @@ def debug_print(*args, **kwargs):
 def debug_trace(*args, **kwargs):
     """Log to Trace only when debug_mode is enabled (with timestamp)"""
     if ConfigParams.debug_mode:
+        kwargs.setdefault("name", MOD)
         timestamp = _get_timestamp()
         if args:
             first_arg = f"{timestamp} {args[0]}"
@@ -139,23 +144,23 @@ class ConfigParams:
     def init(cls):
         cls.container_count = cls.get_container_count()
         cls.read_device_model()
-        log.info(f"Container count from device model: {cls.container_count}")
+        Trace.log(f"Container count from device model: {cls.container_count}", name=f"{MOD}.cfg")
         builder = script_param.builderConfig()
 
         with builder.GROUPS():
             # 通用配置组
-            with builder.GROUP(key="generalConfig", name="General Configuration",
-                               desc="General configuration parameters"):
+            with builder.GROUP(key="generalConfig", name=_TR("General Configuration"),
+                               desc=_TR("General configuration parameters")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="debugMode", name="Debug Mode",
-                                       desc="Enable debug mode to show debug tasks and low-frequency parameters"):
+                    with builder.CHILD(key="debugMode", name=_TR("Debug Mode"),
+                                       desc=_TR("Enable debug mode to show debug tasks and low-frequency parameters")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
             # 背篓组
-            with builder.GROUP(key="traysConfig", name="Trays Config",
-                               desc="Backpack layer height parameters, Counted from No. 0"):
+            with builder.GROUP(key="traysConfig", name=_TR("Trays Config"),
+                               desc=_TR("Backpack layer height parameters, Counted from No. 0")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     for i in range(cls.container_count):
@@ -163,206 +168,206 @@ class ConfigParams:
                             cls.DEFAULT_TRAY_HEIGHTS) else 0.400 + i * 0.410
                         default_high = cls.DEFAULT_TRAY_HEIGHTS[i][1] if i < len(
                             cls.DEFAULT_TRAY_HEIGHTS) else default_low + 0.010
-                        with builder.CHILD(key=f"low{i}", name=f"Low{i}",
-                                           desc=f"Height of the No. {i} Backboard Retrieval Box"):
+                        with builder.CHILD(key=f"low{i}", name=_TR(f"Low{i}"),
+                                           desc=_TR(f"Height of the No. {i} Backboard Retrieval Box")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(default_low)
-                        with builder.CHILD(key=f"high{i}", name=f"High{i}",
-                                           desc=f"Height of the No. {i} Backbasket Material Box"):
+                        with builder.CHILD(key=f"high{i}", name=_TR(f"High{i}"),
+                                           desc=_TR(f"Height of the No. {i} Backbasket Material Box")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(default_high)
 
             # 识别组
-            with builder.GROUP(key="recognizeConfig", name="Recognize Config",
-                               desc="Recognition relevant parameters"):
+            with builder.GROUP(key="recognizeConfig", name=_TR("Recognize Config"),
+                               desc=_TR("Recognition relevant parameters")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="recOffzBox", name="rec Offz Box", desc="Adjust Height Twice for Pick"):
+                    with builder.CHILD(key="recOffzBox", name=_TR("rec Offz Box"), desc=_TR("Adjust Height Twice for Pick")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(-0.030)
-                    with builder.CHILD(key="recOffzShelf", name="Rec Offz Shelf", desc="Adjust Height Twice for Place"):
+                    with builder.CHILD(key="recOffzShelf", name=_TR("Rec Offz Shelf"), desc=_TR("Adjust Height Twice for Place")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.030)
-                    with builder.CHILD(key="boxCodeFile", name="Box Code File", desc="Box Code Recognition Config"):
+                    with builder.CHILD(key="boxCodeFile", name=_TR("Box Code File"), desc=_TR("Box Code Recognition Config")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("default.srec")
-                    with builder.CHILD(key="shelfCodeFile", name="Shelf Code File",
-                                       desc="Shelf Code Recognition Config"):
+                    with builder.CHILD(key="shelfCodeFile", name=_TR("Shelf Code File"),
+                                       desc=_TR("Shelf Code Recognition Config")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("default1.srec")
-                    with builder.CHILD(key="barcodeFile", name="Barcode File", desc="Barcode Recognition Config"):
+                    with builder.CHILD(key="barcodeFile", name=_TR("Barcode File"), desc=_TR("Barcode Recognition Config")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("default2.srec")
-                    with builder.CHILD(key="offsetX", name="Offset X", desc="Walking Direction Offset"):
+                    with builder.CHILD(key="offsetX", name=_TR("Offset X"), desc=_TR("Walking Direction Offset")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.000)
-                    with builder.CHILD(key="loadRecLiftDiff", name="Load Rec Lift Diff",
-                                       desc="Height difference from bin to shelf"):
+                    with builder.CHILD(key="loadRecLiftDiff", name=_TR("Load Rec Lift Diff"),
+                                       desc=_TR("Height difference from bin to shelf")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.050)
-                    with builder.CHILD(key="recBoxExtraHeight", name="Rec Box Extra Height",
-                                       desc="Lift height for shelf stock detection"):
+                    with builder.CHILD(key="recBoxExtraHeight", name=_TR("Rec Box Extra Height"),
+                                       desc=_TR("Lift height for shelf stock detection")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.000)
-                    with builder.CHILD(key="okX", name="Ok X", desc="Walking Direction Recognition Threshold"):
+                    with builder.CHILD(key="okX", name=_TR("Ok X"), desc=_TR("Walking Direction Recognition Threshold")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.01)
-                    with builder.CHILD(key="okYaw", name="Ok Yaw", desc="Adjustment Completion Threshold"):
+                    with builder.CHILD(key="okYaw", name=_TR("Ok Yaw"), desc=_TR("Adjustment Completion Threshold")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("deg")
                         builder.DEFAULTVALUE(0.86)
-                    with builder.CHILD(key="maxYawBias", name="Max Yaw Bias", desc="Max Fork Angle Offset (deg)"):
+                    with builder.CHILD(key="maxYawBias", name=_TR("Max Yaw Bias"), desc=_TR("Max Fork Angle Offset (deg)")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("deg")
                         builder.DEFAULTVALUE(7.45)
 
             # 电机组
-            with builder.GROUP(key="motorConfig", name="Motor Configuration",
-                               desc="Motor related configuration parameters"):
+            with builder.GROUP(key="motorConfig", name=_TR("Motor Configuration"),
+                               desc=_TR("Motor related configuration parameters")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="liftMotorSpeed", name="Lift Motor Speed", desc="Speed of the lift motor"):
+                    with builder.CHILD(key="liftMotorSpeed", name=_TR("Lift Motor Speed"), desc=_TR("Speed of the lift motor")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.500)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.1)
-                    with builder.CHILD(key="maxForkHeight", name="Max Lift Height", desc="Maximum position for lift"):
+                    with builder.CHILD(key="maxForkHeight", name=_TR("Max Lift Height"), desc=_TR("Maximum position for lift")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(4.500)
                         builder.UNIT("m")
-                    with builder.CHILD(key="minForkHeight", name="Min Lift Height", desc="Zero position for lift"):
+                    with builder.CHILD(key="minForkHeight", name=_TR("Min Lift Height"), desc=_TR("Zero position for lift")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.380)
                         builder.UNIT("m")
-                    with builder.CHILD(key="safeLiftHeight", name="Safe Lift Height",
-                                       desc="Safe position for lift, the highest height during forklift navigation"):
+                    with builder.CHILD(key="safeLiftHeight", name=_TR("Safe Lift Height"),
+                                       desc=_TR("Safe position for lift, the highest height during forklift navigation")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.000)
                         builder.UNIT("m")
                 with builder.CHILDREN():
-                    with builder.CHILD(key="rotateMotorSpeed", name="Rotate Motor Speed",
-                                       desc="Speed of the rotate motor"):
+                    with builder.CHILD(key="rotateMotorSpeed", name=_TR("Rotate Motor Speed"),
+                                       desc=_TR("Speed of the rotate motor")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.000)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.1)
-                    with builder.CHILD(key="maxRotateAngle", name="Max Rotate Angle", desc="Maximum angle for rotate"):
+                    with builder.CHILD(key="maxRotateAngle", name=_TR("Max Rotate Angle"), desc=_TR("Maximum angle for rotate")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(100)
                         builder.UNIT("deg")
-                    with builder.CHILD(key="autoAdjustRotate", name="Auto Adjust Rotate",
-                                       desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
+                    with builder.CHILD(key="autoAdjustRotate", name=_TR("Auto Adjust Rotate"),
+                                       desc=_TR("The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length")):
                         builder.TYPE(ParamType.BOOL)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="stretchMotorSpeed", name="Stretch Motor Speed",
-                                       desc="Speed of the stretch motor"):
+                    with builder.CHILD(key="stretchMotorSpeed", name=_TR("Stretch Motor Speed"),
+                                       desc=_TR("Speed of the stretch motor")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.000)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.1)
-                    with builder.CHILD(key="maxStretchLength", name="Max Stretch Length",
-                                       desc="Maximum length of fork"):
+                    with builder.CHILD(key="maxStretchLength", name=_TR("Max Stretch Length"),
+                                       desc=_TR("Maximum length of fork")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.900)
                         builder.UNIT("m")
-                    with builder.CHILD(key="safeStretchLength", name="Safe Stretch Length",
-                                       desc="Safe length of telescopic arm during forklift lifting and rotating operations"):
+                    with builder.CHILD(key="safeStretchLength", name=_TR("Safe Stretch Length"),
+                                       desc=_TR("Safe length of telescopic arm during forklift lifting and rotating operations")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.900)
                         builder.UNIT("m")
-                    with builder.CHILD(key="stretchSelfLength", name="Stretch Self Length",
-                                       desc="The length when picking up and placing goods in one's own backpack"):
+                    with builder.CHILD(key="stretchSelfLength", name=_TR("Stretch Self Length"),
+                                       desc=_TR("The length when picking up and placing goods in one's own backpack")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.760)
                         builder.UNIT("m")
-                    with builder.CHILD(key="autoStretchBoxLen", name="Auto Stretch Box Len",
-                                       desc="The length of box, Used for automatic calculation of fork extension length"):
+                    with builder.CHILD(key="autoStretchBoxLen", name=_TR("Auto Stretch Box Len"),
+                                       desc=_TR("The length of box, Used for automatic calculation of fork extension length")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.600)
                         builder.UNIT("m")
-                    with builder.CHILD(key="autoLoadStretchDist", name="Auto Load Stretch Dist",
-                                       desc="The compensation value for the extended length of the pickup fork when picking up goods"):
+                    with builder.CHILD(key="autoLoadStretchDist", name=_TR("Auto Load Stretch Dist"),
+                                       desc=_TR("The compensation value for the extended length of the pickup fork when picking up goods")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.010)
                         builder.UNIT("m")
-                    with builder.CHILD(key="autoUnloadStretchDist", name="Auto Unload Stretch Dist",
-                                       desc="The compensation value for the extended length of the pickup fork when putting down goods"):
+                    with builder.CHILD(key="autoUnloadStretchDist", name=_TR("Auto Unload Stretch Dist"),
+                                       desc=_TR("The compensation value for the extended length of the pickup fork when putting down goods")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.010)
                         builder.UNIT("m")
-                    with builder.CHILD(key="autoStretchOdoLen", name="Auto Stretch Odo Len",
-                                       desc="The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length"):
+                    with builder.CHILD(key="autoStretchOdoLen", name=_TR("Auto Stretch Odo Len"),
+                                       desc=_TR("The distance between the finger mechanism and the fork rotation center, Used for automatic calculation of fork extension length")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.380)
                         builder.UNIT("m")
 
             # 拨指组
-            with builder.GROUP(key="fingerConfig", name="Finger Configuration",
-                               desc="Finger related configuration parameters"):
+            with builder.GROUP(key="fingerConfig", name=_TR("Finger Configuration"),
+                               desc=_TR("Finger related configuration parameters")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="leftFingerUpDo", name="Left Finger Up Do", desc="Open Left Finger DO"):
+                    with builder.CHILD(key="leftFingerUpDo", name=_TR("Left Finger Up Do"), desc=_TR("Open Left Finger DO")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE(cls._default_left_finger_up_do or "DO-002")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="leftFingerDownDo", name="Left Finger Down Do",
-                                       desc="Close Left Finger DO"):
+                    with builder.CHILD(key="leftFingerDownDo", name=_TR("Left Finger Down Do"),
+                                       desc=_TR("Close Left Finger DO")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE(cls._default_left_finger_down_do or "DO-003")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="rightFingerUpDo", name="Right Finger Up Do", desc="Open Right Finger DO"):
+                    with builder.CHILD(key="rightFingerUpDo", name=_TR("Right Finger Up Do"), desc=_TR("Open Right Finger DO")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE(cls._default_right_finger_up_do or "DO-001")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="rightFingerDownDo", name="Right Finger Down Do",
-                                       desc="Close Right Finger DO"):
+                    with builder.CHILD(key="rightFingerDownDo", name=_TR("Right Finger Down Do"),
+                                       desc=_TR("Close Right Finger DO")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE(cls._default_right_finger_down_do or "DO-000")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="leftFingerUpDi", name="Left Finger Up Di", desc="Open Left Fingers"):
+                    with builder.CHILD(key="leftFingerUpDi", name=_TR("Left Finger Up Di"), desc=_TR("Open Left Fingers")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-003")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="leftFingerDownDi", name="Left Finger Down Di",
-                                       desc="Close Left Fingers"):
+                    with builder.CHILD(key="leftFingerDownDi", name=_TR("Left Finger Down Di"),
+                                       desc=_TR("Close Left Fingers")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-000")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="rightFingerUpDi", name="Right Finger Up Di", desc="Open Right Fingers"):
+                    with builder.CHILD(key="rightFingerUpDi", name=_TR("Right Finger Up Di"), desc=_TR("Open Right Fingers")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-004")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="rightFingerDownDi", name="Right Finger Down Di",
-                                       desc="Close Right Fingers"):
+                    with builder.CHILD(key="rightFingerDownDi", name=_TR("Right Finger Down Di"),
+                                       desc=_TR("Close Right Fingers")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-005")
                         builder.REQUIRED(True)
 
             # 其他组
-            with builder.GROUP(key="otherConfig", name="Other Configuration", desc="Other configuration parameters"):
+            with builder.GROUP(key="otherConfig", name=_TR("Other Configuration"), desc=_TR("Other configuration parameters")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="timeout", name="Timeout", desc="Execution Timeout"):
+                    with builder.CHILD(key="timeout", name=_TR("Timeout"), desc=_TR("Execution Timeout")):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(120, min_value=0, max_value=300)
-                    with builder.CHILD(key="goodsCheckDi", name="Goods Check Di", desc="Fork Midpoint Detection DI"):
+                    with builder.CHILD(key="goodsCheckDi", name=_TR("Goods Check Di"), desc=_TR("Fork Midpoint Detection DI")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-008")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="overlimitDetectDi", name="Overlimit Detect Di",
-                                       desc="Fork Safe Travel Limit"):
+                    with builder.CHILD(key="overlimitDetectDi", name=_TR("Overlimit Detect Di"),
+                                       desc=_TR("Fork Safe Travel Limit")):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DI-009")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="lightDelayTime", name="Light Delay Time", desc="time for light"):
+                    with builder.CHILD(key="lightDelayTime", name=_TR("Light Delay Time"), desc=_TR("time for light")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3, min_value=0, max_value=100)
                         builder.REQUIRED(True)
@@ -376,7 +381,7 @@ class ConfigParams:
         cls.container_count = cls.get_container_count()
         cls.read_device_model()
         cls.config = script_param.loadConfig()
-        Trace.log(f"Loaded config: {cls.config}")
+        Trace.log(f"Loaded config: {cls.config}", name=f"{MOD}.cfg")
 
         cls.debug_mode = cls.config.get("debugMode", False)
         cls.low.clear()
@@ -436,13 +441,13 @@ ConfigParams.init()
 
 def script_config_callback():
     """脚本配置参数修改回调，脚本配置修改时会调用"""
-    log.info("Reloading script config parameters")
+    Trace.log("Reloading script config parameters", name=f"{MOD}.cfg")
     ConfigParams.load_config()
 
 
 def robot_device_callback(change_devices: List[str]):
     """机器人设备参数修改回调，设备参数修改时会调用"""
-    log.info(f"{change_devices=}")
+    Trace.log(f"{change_devices=}", name=f"{MOD}.cfg")
     relevant_devices = {"Model", "Motor", "DOMotor", "CodeScanner"}
     if set(change_devices) & relevant_devices:
         ConfigParams.load_config()
@@ -464,7 +469,7 @@ def check_debug_task(operation: str) -> bool:
         if not ConfigParams.debug_mode:
             Trace.log(
                 f"[ERROR] Task '{operation}' is a debug-only task. "
-                f"Please enable 'debugMode' in script config first.")
+                f"Please enable 'debugMode' in script config first.", name=f"{MOD}.err")
             return False
     return True
 
@@ -472,22 +477,22 @@ def check_debug_task(operation: str) -> bool:
 # ============================================================================
 # 可复用参数创建辅助函数
 # ============================================================================
-def create_container_param(builder: ParamBuilder, desc: str = "车体背篓号"):
-    with builder.CHILD(key="container", name="Container", desc=desc):
+def create_container_param(builder: ParamBuilder, desc: str = _TR("Vehicle basket number")):
+    with builder.CHILD(key="container", name=_TR("Container"), desc=desc):
         builder.MIN_VALUE(0)
         builder.MAX_VALUE(999)
         builder.TYPE(ParamType.INT)
         builder.DEFAULTVALUE(0)
 
 
-def create_goods_id_param(builder: ParamBuilder, desc: str = "货物编号"):
-    with builder.CHILD(key="goodsName", name="Goods Name", desc=desc):
+def create_goods_id_param(builder: ParamBuilder, desc: str = _TR("Goods number")):
+    with builder.CHILD(key="goodsName", name=_TR("Goods Name"), desc=desc):
         builder.TYPE(ParamType.STRING)
         builder.DEFAULTVALUE("")
 
 
-def create_lift_param(builder: ParamBuilder, desc: str = "货叉高度"):
-    with builder.CHILD(key="lift", name="Lift", desc=desc):
+def create_lift_param(builder: ParamBuilder, desc: str = _TR("Fork height")):
+    with builder.CHILD(key="lift", name=_TR("Lift"), desc=desc):
         builder.MIN_VALUE(ConfigParams.min_lift_height)
         builder.MAX_VALUE(ConfigParams.max_lift_height)
         builder.TYPE(ParamType.FLOAT)
@@ -495,8 +500,8 @@ def create_lift_param(builder: ParamBuilder, desc: str = "货叉高度"):
         builder.DEFAULTVALUE(0)
 
 
-def create_rotate_param(builder: ParamBuilder, desc: str = "旋转角度"):
-    with builder.CHILD(key="rotate", name="Rotate", desc=desc):
+def create_rotate_param(builder: ParamBuilder, desc: str = _TR("Rotation angle")):
+    with builder.CHILD(key="rotate", name=_TR("Rotate"), desc=desc):
         builder.MIN_VALUE(-ConfigParams.max_rotate_angle)
         builder.MAX_VALUE(ConfigParams.max_rotate_angle)
         builder.TYPE(ParamType.DOUBLE)
@@ -504,8 +509,8 @@ def create_rotate_param(builder: ParamBuilder, desc: str = "旋转角度"):
         builder.DEFAULTVALUE(0)
 
 
-def create_stretch_param(builder: ParamBuilder, desc: str = "伸缩机构长度"):
-    with builder.CHILD(key="stretch", name="Stretch", desc=desc):
+def create_stretch_param(builder: ParamBuilder, desc: str = _TR("Telescopic mechanism length")):
+    with builder.CHILD(key="stretch", name=_TR("Stretch"), desc=desc):
         builder.MIN_VALUE(0)
         builder.MAX_VALUE(ConfigParams.max_stretch_length)
         builder.TYPE(ParamType.FLOAT)
@@ -513,14 +518,14 @@ def create_stretch_param(builder: ParamBuilder, desc: str = "伸缩机构长度"
         builder.DEFAULTVALUE(0)
 
 
-def create_vision_type_param(builder: ParamBuilder, desc: str = "识别类型"):
-    with builder.CHILD(key="visionType", name="visionType", desc=desc):
+def create_vision_type_param(builder: ParamBuilder, desc: str = _TR("Vision type")):
+    with builder.CHILD(key="visionType", name=_TR("visionType"), desc=desc):
         builder.TYPE(ParamType.STRING)
         builder.DEFAULTVALUE("box")
 
 
-def create_rec_adjust_param(builder: ParamBuilder, desc: str = "开启识别控制机器人位置"):
-    with builder.CHILD(key="recAdjust", name="Rec Adjust", desc=desc):
+def create_rec_adjust_param(builder: ParamBuilder, desc: str = _TR("Enable recognition to control robot position")):
+    with builder.CHILD(key="recAdjust", name=_TR("Rec Adjust"), desc=desc):
         builder.TYPE(ParamType.INT)
         builder.DEFAULTVALUE(1)
 
@@ -533,7 +538,7 @@ class InputParams:
     builder = script_param.builderInput()
 
     with builder.GROUPS():
-        with builder.CHILD(key="finger", name="finger", desc="手指"):
+        with builder.CHILD(key="finger", name=_TR("finger"), desc=_TR("Finger")):
             builder.TYPE(ParamType.INT)
             builder.REQUIRED(False)
             builder.DEFAULTVALUE(0)
@@ -542,103 +547,103 @@ class InputParams:
         create_rotate_param(builder)
         create_stretch_param(builder)
 
-        with builder.CHILD(key="modbusIp", name="Modbus IP", desc="Modbus TCP IP"):
+        with builder.CHILD(key="modbusIp", name=_TR("Modbus IP"), desc=_TR("Modbus TCP IP")):
             builder.TYPE(ParamType.IP)
             builder.DEFAULTVALUE("192.168.192.6")
 
-        with builder.GROUP(key="operation", name="Operation", desc="机构动作选项"):
+        with builder.GROUP(key="operation", name=_TR("Operation"), desc=_TR("Mechanism action options")):
             builder.TYPE(ParamType.COMBO_BOX)
             with builder.CHILDREN():
-                with builder.CHILD(key="zero", name="Zero", desc="机构回零"):
+                with builder.CHILD(key="zero", name=_TR("Zero"), desc=_TR("Mechanism homing")):
                     builder.TYPE(ParamType.ARRAY)
-                with builder.CHILD(key="load", name="Load", desc="取货"):
-                    builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILDREN():
-                        create_vision_type_param(builder, "识别类型: 'box'或'shelf'，可缺省")
-                        create_lift_param(builder, "取货前识别时的货叉高度")
-                        create_rotate_param(builder, "取货前的货叉角度")
-                        create_rec_adjust_param(builder, "开启识别时调整机器人位置")
-                        create_stretch_param(builder, "取货时货叉伸出长度，缺省时根据识别结果自动计算")
-                        create_container_param(builder, "车体背篓号，指定内部放货的背篓号，缺省时将按照从下往上依次放货")
-                        create_goods_id_param(builder, "设置货物编号，缺省时为空字符串")
-                with builder.CHILD(key="unload", name="Unload", desc="放货"):
+                with builder.CHILD(key="load", name=_TR("Load"), desc=_TR("Pick up goods")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        create_vision_type_param(builder, "识别类型: 'shelf'")
-                        create_lift_param(builder, "放货前识别时的货叉高度")
-                        create_rec_adjust_param(builder, "开启识别时调整机器人位置")
-                        create_rotate_param(builder, "放货前的货叉角度")
-                        create_stretch_param(builder, "放货时货叉伸出长度，缺省时根据识别结果自动计算")
-                        with builder.CHILD(key="recBoxLift", name="Rec Box Lift",
-                                           desc="识别料箱码的高度，用于放货前先识别库位是否已经有货"):
+                        create_vision_type_param(builder, _TR("Vision type: 'box' or 'shelf', optional"))
+                        create_lift_param(builder, _TR("Fork height for recognition before picking"))
+                        create_rotate_param(builder, _TR("Fork angle before picking"))
+                        create_rec_adjust_param(builder, _TR("Adjust robot position when recognition is enabled"))
+                        create_stretch_param(builder, _TR("Fork extension length when picking; auto-calculated from the recognition result if omitted"))
+                        create_container_param(builder, _TR("Vehicle basket number; specifies the basket for internal put; if omitted, put in order from bottom to top"))
+                        create_goods_id_param(builder, _TR("Set the goods number; empty string if omitted"))
+                with builder.CHILD(key="unload", name=_TR("Unload"), desc=_TR("Put down goods")):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        create_vision_type_param(builder, _TR("Vision type: 'shelf'"))
+                        create_lift_param(builder, _TR("Fork height for recognition before putting"))
+                        create_rec_adjust_param(builder, _TR("Adjust robot position when recognition is enabled"))
+                        create_rotate_param(builder, _TR("Fork angle before putting"))
+                        create_stretch_param(builder, _TR("Fork extension length when putting; auto-calculated from the recognition result if omitted"))
+                        with builder.CHILD(key="recBoxLift", name=_TR("Rec Box Lift"),
+                                           desc=_TR("Lift height for scanning the box code, used to check whether the slot already has goods before unloading")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(-1)
-                        with builder.CHILD(key="preFinger", name="Pre Finger",
-                                           desc="放货时提前打开手指，解决推箱子后由于箱体表面不规则结构卡手指"):
+                        with builder.CHILD(key="preFinger", name=_TR("Pre Finger"),
+                                           desc=_TR("Open the fingers in advance when unloading, to prevent the fingers from getting stuck on the irregular box surface after pushing the box")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1)
-                        create_container_param(builder, "车体背篓号，指定内部取货的背篓号，缺省时将按照从下往上依次取货")
-                        create_goods_id_param(builder, "货物编号，指定要取货的货物编号，若车体背篓中无此goodsName，会报错")
+                        create_container_param(builder, _TR("Vehicle basket number; specifies the basket for internal pick; if omitted, pick in order from bottom to top"))
+                        create_goods_id_param(builder, _TR("Goods number; specifies the goods to pick; an error is raised if no such goodsName exists in the vehicle basket"))
 
                 # 调试/低频任务（需要开启 debugMode 才显示）
                 if ConfigParams.debug_mode:
-                    with builder.CHILD(key="none", name="[Debug] none", desc="空"):
+                    with builder.CHILD(key="none", name=_TR("[Debug] none"), desc=_TR("Empty")):
                         builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="recQrcode", name="[Debug] Rec_Qrcode", desc="识别二维码"):
-                        builder.TYPE(ParamType.ARRAY)
-                        with builder.CHILDREN():
-                            create_vision_type_param(builder, "识别类型: 'box' 或 'shelf'")
-                            create_lift_param(builder, "识别时的货叉高度")
-                            create_rotate_param(builder, "识别时的货叉角度")
-
-                    with builder.CHILD(key="recBoxBarcode", name="Rec_Box_Barcode", desc="识别料箱一维码"):
-                        builder.TYPE(ParamType.ARRAY)
-                        create_lift_param(builder, "识别前的货叉高度")
-                        create_rotate_param(builder, "识别前的货叉角度")
-
-                    with builder.CHILD(key="takePhoto", name="Take_Photo", desc="拍照"):
+                    with builder.CHILD(key="recQrcode", name=_TR("[Debug] Rec_Qrcode"), desc=_TR("Recognize QR code")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
-                            create_lift_param(builder, "拍照前的货叉高度")
-                            create_rotate_param(builder, "拍照前的货叉角度")
+                            create_vision_type_param(builder, _TR("Vision type: 'box' or 'shelf'"))
+                            create_lift_param(builder, _TR("Fork height during recognition"))
+                            create_rotate_param(builder, _TR("Fork angle during recognition"))
 
-                    with builder.CHILD(key="inTake", name="In Take", desc="内部取货"):
+                    with builder.CHILD(key="recBoxBarcode", name=_TR("Rec_Box_Barcode"), desc=_TR("Recognize box barcode")):
+                        builder.TYPE(ParamType.ARRAY)
+                        create_lift_param(builder, _TR("Fork height before recognition"))
+                        create_rotate_param(builder, _TR("Fork angle before recognition"))
+
+                    with builder.CHILD(key="takePhoto", name=_TR("Take_Photo"), desc=_TR("Take photo")):
+                        builder.TYPE(ParamType.ARRAY)
+                        with builder.CHILDREN():
+                            create_lift_param(builder, _TR("Fork height before taking photo"))
+                            create_rotate_param(builder, _TR("Fork angle before taking photo"))
+
+                    with builder.CHILD(key="inTake", name=_TR("In Take"), desc=_TR("Internal pick")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
                             create_container_param(builder,
-                                                   "车体背篓号，指定内部取货的背篓号，缺省时将按照从下往上依次取货")
+                                                   _TR("Vehicle basket number; specifies the basket for internal pick; if omitted, pick in order from bottom to top"))
                             create_goods_id_param(builder,
-                                                  "货物编号，指定要取货的货物编号，若车体背篓中无此goodsName，会报错")
+                                                  _TR("Goods number; specifies the goods to pick; an error is raised if no such goodsName exists in the vehicle basket"))
                             create_rotate_param(builder,
-                                                "内部取货后货叉停止的角度，可设置为下一个动作的目标角度，缺省时默认为0")
+                                                _TR("Fork stop angle after internal pick; can be set to the target angle of the next action; defaults to 0 if omitted"))
                             create_lift_param(builder,
-                                              "内部取货后货叉停止的高度，可设置为下一个动作的目标高度，缺省时默认为0")
+                                              _TR("Fork stop height after internal pick; can be set to the target height of the next action; defaults to 0 if omitted"))
 
-                    with builder.CHILD(key="inPut", name="In_Put", desc="内部放货"):
+                    with builder.CHILD(key="inPut", name=_TR("In_Put"), desc=_TR("Internal put")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
                             create_container_param(builder,
-                                                   "车体背篓号，指定内部放货的背篓号，缺省时将按照从下往上依次放货")
-                            create_goods_id_param(builder, "设置货物编号，缺省时为空字符串")
+                                                   _TR("Vehicle basket number; specifies the basket for internal put; if omitted, put in order from bottom to top"))
+                            create_goods_id_param(builder, _TR("Set the goods number; empty string if omitted"))
 
-                    with builder.CHILD(key="exTake", name="Ex_Take", desc="外部取货"):
+                    with builder.CHILD(key="exTake", name=_TR("Ex_Take"), desc=_TR("External pick")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
-                            create_vision_type_param(builder, "识别类型: 'box'或'shelf' ")
-                            create_lift_param(builder, "取货前识别时的货叉高度")
-                            create_rec_adjust_param(builder, "开启识别时调整机器人位置")
-                            create_rotate_param(builder, "取货前的货叉角度")
-                            create_stretch_param(builder, "取货时的伸缩机构长度")
+                            create_vision_type_param(builder, _TR("Vision type: 'box' or 'shelf'"))
+                            create_lift_param(builder, _TR("Fork height for recognition before picking"))
+                            create_rec_adjust_param(builder, _TR("Adjust robot position when recognition is enabled"))
+                            create_rotate_param(builder, _TR("Fork angle before picking"))
+                            create_stretch_param(builder, _TR("Telescopic mechanism length when picking"))
 
-                    with builder.CHILD(key="exPut", name="Ex_Put", desc="外部放货"):
+                    with builder.CHILD(key="exPut", name=_TR("Ex_Put"), desc=_TR("External put")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
-                            create_vision_type_param(builder, "识别类型: 'shelf'")
-                            create_lift_param(builder, "放货前识别时的货叉高度")
-                            create_rec_adjust_param(builder, "开启识别时调整机器人位置")
-                            create_rotate_param(builder, "放货前的货叉角度")
-                            create_stretch_param(builder, "放货时的伸缩机构长度")
+                            create_vision_type_param(builder, _TR("Vision type: 'shelf'"))
+                            create_lift_param(builder, _TR("Fork height for recognition before putting"))
+                            create_rec_adjust_param(builder, _TR("Adjust robot position when recognition is enabled"))
+                            create_rotate_param(builder, _TR("Fork angle before putting"))
+                            create_stretch_param(builder, _TR("Telescopic mechanism length when putting"))
 
     # 保存脚本任务输入参数
     builder.save()
@@ -701,31 +706,22 @@ script_param.saveAction()
 # ============================================================================
 # Action 状态机基础设施
 # ============================================================================
-class ActionStatus(enum.IntEnum):
-    INIT = 0
-    RUNNING = 1
-    FINISHED = 3
-    FAILED = 4
-    SUSPENDED = 5
+class BaseAction(ActionBase):
+    """ctu 桥接基类:继承框架 ActionBase, 保留 ctu 原有 start_time/action_state 约定。
+    run(self, m) 的 ctx 参数 m 仅为满足 ActionTask.step(ctx) 调用, 子类用 self.agv。"""
 
-
-class BaseAction:
     def __init__(self, action_name: str = None):
-        self.action_name = action_name or self.__class__.__name__
+        super().__init__(action_name)
         self.start_time = time.time()
-        self.action_status = ActionStatus.INIT
         self.action_state = {}
 
-    def run(self):
+    def run(self, m):
         self.action_state["action_runtime"] = time.time() - self.start_time
         self.action_state["action_name"] = self.action_name
 
     def reset(self):
-        self.action_status = ActionStatus.RUNNING
+        super().reset()
         self.start_time = time.time()
-
-    def cancel(self):
-        self.action_status = ActionStatus.FAILED
 
 
 class ParallelAction(BaseAction):
@@ -733,8 +729,8 @@ class ParallelAction(BaseAction):
         super().__init__(action_name)
         self.actions = actions
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         all_finished = True
         for action in self.actions:
             if action.action_status == ActionStatus.FAILED:
@@ -744,7 +740,7 @@ class ParallelAction(BaseAction):
                 action.reset()
                 all_finished = False
             elif action.action_status != ActionStatus.FINISHED:
-                action.run()
+                action.run(m)
                 all_finished = False
         if all_finished:
             self.action_status = ActionStatus.FINISHED
@@ -783,7 +779,7 @@ class MotorRun:
         elif self.motor_type == MotorType.ROLLER_MOTOR:
             Motor.setMotorSpeed(self.motor_name, vel)
         else:
-            Trace.log(f"motor type error {self.motor_type}")
+            Trace.log(f"motor type error {self.motor_type}", name=f"{MOD}.err")
             self.status = ScriptStatus.FAILED
         if Motor.isMotorReached(self.motor_name):
             Motor.resetMotor(self.motor_name)
@@ -795,7 +791,7 @@ class MotorRun:
         self.state['motorStatus'] = self.status
 
     def reset(self):
-        Trace.log(f"motor reset: {self.motor_name}")
+        Trace.log(f"motor reset: {self.motor_name}", name=f"{MOD}.motor")
         Motor.resetMotor(self.motor_name)
         self.status = ScriptStatus.RUNNING
 
@@ -913,8 +909,8 @@ class LiftAction(BaseAction):
         self.agv = agv
         self.height = height
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if self.height < ConfigParams.min_lift_height:
             self.height = ConfigParams.min_lift_height
         if self.height > ConfigParams.max_lift_height:
@@ -938,8 +934,8 @@ class LiftSafeAction(BaseAction):
         super().__init__(action_name)
         self.agv = agv
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if self.agv.lift_real_pos <= ConfigParams.safe_lift_height:
             self.action_status = ActionStatus.FINISHED
             return
@@ -961,8 +957,8 @@ class RotateAction(BaseAction):
         self.pos = pos
         self.max_speed = max_speed
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if abs(self.pos) > abs(ConfigParams.max_rotate_angle / 180 * math.pi):
             Navigation.setTaskError("RotateAngleExceeded", f"Rotate angle {self.pos / math.pi * 180} exceeds upper limit {ConfigParams.max_rotate_angle}. Check if box is tilted or QR code is damaged")
             self.action_status = ActionStatus.FAILED
@@ -986,8 +982,8 @@ class StretchAction(BaseAction):
         self.agv = agv
         self.length = length
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         temp_motor_speed = ConfigParams.stretch_motor_speed
         if ConfigParams.max_stretch_length < self.length < ConfigParams.max_stretch_length + 0.1:
             Navigation.setTaskError("StretchLengthExceeded", f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！")
@@ -1012,8 +1008,8 @@ class FingerAction(BaseAction):
         self.agv = agv
         self.pos = pos
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if time.time() - self.start_time > 3:
             Navigation.setDeviceError("FingerTimeout", f"Finger control timeout. Check if finger is stuck or photoelectric sensor works")
             Do.setDo(ConfigParams.left_finger_up_do, False)
@@ -1035,7 +1031,7 @@ class FingerAction(BaseAction):
                 self.agv.right_finger_real_pos = 1
                 Do.setDo(ConfigParams.right_finger_up_do, False)
             if self.agv.left_finger_real_pos == 1 and self.agv.right_finger_real_pos == 1:
-                Trace.log(f"手指打开成功")
+                Trace.log(f"手指打开成功", name=f"{MOD}.motor")
                 self.action_status = ActionStatus.FINISHED
 
         elif self.pos == 0:
@@ -1054,7 +1050,7 @@ class FingerAction(BaseAction):
                 self.agv.right_finger_real_pos = 0
                 Do.setDo(ConfigParams.right_finger_down_do, False)
             if self.agv.left_finger_real_pos == 0 and self.agv.right_finger_real_pos == 0:
-                Trace.log(f"手指关闭成功")
+                Trace.log(f"手指关闭成功", name=f"{MOD}.motor")
                 self.action_status = ActionStatus.FINISHED
 
     def reset(self):
@@ -1067,8 +1063,8 @@ class CheckFingerOpenAction(BaseAction):
         super().__init__(action_name)
         self.agv = agv
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if Di.getDi(ConfigParams.left_finger_up_di) and Di.getDi(ConfigParams.right_finger_up_di):
             self.action_status = ActionStatus.FINISHED
         else:
@@ -1086,8 +1082,8 @@ class RecAdjustAction(BaseAction):
         self.agv = agv
         self.light_started = False
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if not self.light_started:
             Do.setDo(self.agv.fill_light_do, True)
             self.light_started = True
@@ -1114,8 +1110,8 @@ class RecBarcodeAction(BaseAction):
         self.agv = agv
         self.light_on = False
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if not self.light_on:
             Do.setDo(self.agv.fill_light_do, True)
             if Do.getDo(self.agv.fill_light_do):
@@ -1148,8 +1144,8 @@ class BindContainerAction(BaseAction):
         self.goods_id = goods_id
         self.desc = desc
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         Container.bindContainer(self.container_id, self.goods_id, self.desc)
         self.action_status = ActionStatus.FINISHED
 
@@ -1163,8 +1159,8 @@ class UnbindContainerAction(BaseAction):
         super().__init__(action_name)
         self.container_id = container_id
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         Container.unbindContainer(self.container_id)
         self.action_status = ActionStatus.FINISHED
 
@@ -1178,8 +1174,8 @@ class CheckGoodsDiAction(BaseAction):
         super().__init__(action_name)
         self.agv = agv
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if Di.getDi(ConfigParams.goods_check_di):
             Container.bindContainer("999", self.agv.goods_id, "")
         self.action_status = ActionStatus.FINISHED
@@ -1194,8 +1190,8 @@ class CheckGoodsDiUnloadTakeAction(BaseAction):
         super().__init__(action_name)
         self.agv = agv
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if Di.getDi(ConfigParams.goods_check_di):
             goods_id = Container.getGoodsByContainer(self.agv.cur_c)
             Container.bindContainer("999", goods_id, "")
@@ -1218,8 +1214,8 @@ class RecBoxCheckAction(BaseAction):
         self.light_started = False
         self.light_ready = False
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if not self.light_started:
             self.agv.rec_box.status = ScriptStatus.RUNNING
             self.agv.rec_box.is_error = True
@@ -1258,8 +1254,8 @@ class FillLightAction(BaseAction):
         self.agv = agv
         self.light_on = False
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if not self.light_on:
             Do.setDo(self.agv.fill_light_do, True)
             self.light_on = True
@@ -1277,8 +1273,8 @@ class RecQrcodeAction(BaseAction):
         super().__init__(action_name)
         self.agv = agv
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if time.time() - self.start_time > 20:
             Navigation.setTaskError("RecFailed",f"Recognition failed after max retries{self.max_rec_times}. Check if QR code is damaged or camera is clear")
             self.action_status = ActionStatus.FAILED
@@ -1316,8 +1312,8 @@ class TakePhotoAction(BaseAction):
         self.light_on = False
         self.light_ready = False
 
-    def run(self):
-        super().run()
+    def run(self, m):
+        super().run(m)
         if not self.light_on:
             Do.setDo(self.agv.fill_light_do, True)
             Recognize.resetRec()
@@ -1439,6 +1435,8 @@ class ContainerRobot(ModuleBase):
         self.action_status = ActionStatus.INIT
         self.current_action = None
         self.operation_init = False
+        # 框架动作队列引擎(action_list 作暂存源, 经 _sync_task 镜像到此队列执行)
+        self.action_task = ActionTask(mod=MOD)
 
     def init_args(self, args):
         """初始化任务参数"""
@@ -1500,7 +1498,7 @@ class ContainerRobot(ModuleBase):
                         Container.unbindContainer("999")
             else:
                 Navigation.setTaskError("GoodsCheckDiError", f"goodsCheckDi not configured properly in script parameters！")
-                Trace.log(f"请在脚本参数中正确配置 goodsCheckDi 参数！")
+                Trace.log(f"请在脚本参数中正确配置 goodsCheckDi 参数！", name=f"{MOD}.err")
                 self.status = ScriptStatus.FINISHED
 
             self.start_time = time.time()
@@ -1551,7 +1549,7 @@ class ContainerRobot(ModuleBase):
                     Navigation.setTaskError("InputParamError", f"Invalid script input parameters")
                     self.status = ScriptStatus.FAILED
 
-                self._execute_actions()
+                self._drive_queue()
                 if self.action_status == ActionStatus.FINISHED:
                     self.status = ScriptStatus.FINISHED
                 elif self.action_status == ActionStatus.FAILED:
@@ -1561,7 +1559,7 @@ class ContainerRobot(ModuleBase):
                     if not self.operation_init:
                         self.operation_init = True
                         self.action_list = [FingerAction(self, self.finger_pos)]
-                    self._execute_actions()
+                    self._drive_queue()
                     if self.action_status == ActionStatus.FINISHED:
                         self.update_finger_info()
                         self.status = ScriptStatus.FINISHED
@@ -1576,7 +1574,7 @@ class ContainerRobot(ModuleBase):
                         if "rotate" in self.script_args:
                             actions.append(RotateAction(self, self.rotate_pos))
                         self.action_list = [ParallelAction(actions)] if len(actions) > 1 else actions
-                    self._execute_actions()
+                    self._drive_queue()
                     if self.action_status == ActionStatus.FINISHED:
                         self.status = ScriptStatus.FINISHED
                     elif self.action_status == ActionStatus.FAILED:
@@ -1585,7 +1583,7 @@ class ContainerRobot(ModuleBase):
                     if not self.operation_init:
                         self.operation_init = True
                         self.action_list = [StretchAction(self, self.stretch_length)]
-                    self._execute_actions()
+                    self._drive_queue()
                     if self.action_status == ActionStatus.FINISHED:
                         self.status = ScriptStatus.FINISHED
                     elif self.action_status == ActionStatus.FAILED:
@@ -1595,14 +1593,14 @@ class ContainerRobot(ModuleBase):
                         if not self.operation_init:
                             self.operation_init = True
                             self.action_list = [RecBarcodeAction(self)]
-                        self._execute_actions()
+                        self._drive_queue()
                         if self.action_status == ActionStatus.FINISHED:
                             self.status = ScriptStatus.FINISHED
                         elif self.action_status == ActionStatus.FAILED:
                             self.status = ScriptStatus.FAILED
                     elif self.code_type == "code":
                         self._build_rec_qrcode_actions()
-                        self._execute_actions()
+                        self._drive_queue()
                         if self.action_status == ActionStatus.FINISHED:
                             self.status = ScriptStatus.FINISHED
                         elif self.action_status == ActionStatus.FAILED:
@@ -1630,26 +1628,35 @@ class ContainerRobot(ModuleBase):
         if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
             NetProtocol.release()
             Do.setDo(self.fill_light_do, False)
-            Trace.log(f"script finished: {json.dumps(self.report_info)}")
-        Module.reportInfo(self.report_info)
+            Trace.log(f"script finished: {json.dumps(self.report_info)}", name=MOD)
         return self.status
 
-    def _execute_actions(self):
-        if not self.action_list:
+    def _sync_task(self):
+        """将 action_list 新增的尾部动作镜像进 action_task(build/extend)。
+        action_list 是各 operation 装配动作的暂存源; action_task 是框架执行引擎, 共享同一批动作对象。
+        ctu 各 operation 一次性 build(无运行中动态追加), 通常仅首次 build。"""
+        have = self.action_task.total
+        want = len(self.action_list)
+        if want <= have:
             return
-        if self.action_id < len(self.action_list):
-            self.current_action = self.action_list[self.action_id]
-            if self.current_action.action_status == ActionStatus.FAILED:
-                self.action_status = ActionStatus.FAILED
-            elif self.current_action.action_status == ActionStatus.FINISHED:
-                Trace.log(f"action [{self.action_id}] {self.current_action.action_name} finished")
-                self.action_id += 1
-            elif self.current_action.action_status == ActionStatus.INIT:
-                self.current_action.reset()
-            else:
-                self.current_action.run()
+        new = self.action_list[have:]
+        if self.action_task.status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED):
+            self.action_task.extend(new)
         else:
-            self.action_status = ActionStatus.FINISHED
+            self.action_task.build(new)
+            self.action_list = new
+
+    def _drive_queue(self):
+        """推进框架队列一步, 并把队列终态同步回 self.action_status(沿用既有 status 判定)。"""
+        self._sync_task()
+        if self.action_task.total == 0:
+            return
+        self.action_task.step(self)
+        self.current_action = self.action_task.current
+        if self.action_task.is_done:
+            self.action_status = (ActionStatus.FAILED
+                                  if self.action_task.status == ActionStatus.FAILED
+                                  else ActionStatus.FINISHED)
 
     # ================================================================
     # action_list 构建方法
@@ -1670,7 +1677,7 @@ class ContainerRobot(ModuleBase):
         if self.operation_init:
             return
         self.operation_init = True
-        Trace.log(f"----- building load actions {self.goods_id} ------")
+        Trace.log(f"----- building load actions {self.goods_id} ------", name=f"{MOD}.action")
 
         if not self.cur_c:
             if (self.goods_id and Container.goodsExist(self.goods_id) and
@@ -1686,7 +1693,7 @@ class ContainerRobot(ModuleBase):
                 self.cur_c = self.self_position
             else:
                 self.cur_c = self.search_operable_container('load')
-            Trace.log(f"load begin: {json.dumps(self.containers)}")
+            Trace.log(f"load begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
             if self.cur_c is None:
                 Navigation.setTaskError("AllBackpackFull", f"All backpack slots are full, cannot load more goods！")
                 self.status = ScriptStatus.FAILED
@@ -1805,7 +1812,7 @@ class ContainerRobot(ModuleBase):
             Navigation.setTaskError("ForkHasGoods", f"Fork (slot 999) already has goods, cannot execute current task. Verify data")
             self.status = ScriptStatus.FAILED
             return
-        Trace.log(f"----- building ex_take actions ------")
+        Trace.log(f"----- building ex_take actions ------", name=f"{MOD}.action")
         actions = []
         if self.barcode_height is not None:
             actions.append(ParallelAction([
@@ -1833,7 +1840,7 @@ class ContainerRobot(ModuleBase):
         if self.operation_init:
             return
         self.operation_init = True
-        Trace.log(f"----- building ex_put actions ------")
+        Trace.log(f"----- building ex_put actions ------", name=f"{MOD}.action")
         if not Container.hasGoods("999"):
             self._build_unload_actions()
             return
@@ -1866,7 +1873,7 @@ class ContainerRobot(ModuleBase):
         if self.operation_init:
             return
         self.operation_init = True
-        Trace.log(f"----- building unload actions ------")
+        Trace.log(f"----- building unload actions ------", name=f"{MOD}.action")
 
         if not self.cur_c:
             if self.self_position:
@@ -1896,7 +1903,7 @@ class ContainerRobot(ModuleBase):
                 Navigation.setTaskError("GoodsNotFound", f"Goods {self.goods_id} not found in backpack, cannot unload! Verify task and backpack data!")
                 self.status = ScriptStatus.FAILED
                 return
-            Trace.log(f"unload begin: {json.dumps(self.containers)}")
+            Trace.log(f"unload begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
 
         actions = []
         if self.cur_c != "999":
@@ -2036,7 +2043,7 @@ class ContainerRobot(ModuleBase):
                 (self.set_rotate_motor_calib and self.rotate_motor_stop and self.rotate_motor_calib != 2)
             )
             if calib_retry:
-                Trace.log("标零失败检测：电机已停止但calib未完成，重置标志位重新下发")
+                Trace.log("标零失败检测：电机已停止但calib未完成，重置标志位重新下发", name=f"{MOD}.motor")
                 self.set_lift_motor_calib = False
                 self.set_rotate_motor_calib = False
                 self.set_stretch_motor_calib = False
@@ -2080,11 +2087,13 @@ class ContainerRobot(ModuleBase):
     def suspend(self):
         """暂停任务方法（必须）"""
         if Module.getStatus() == ScriptStatus.RUNNING:
+            self.action_task.suspend()
             self.status = ScriptStatus.SUSPENDED
 
     def resume(self):
         """恢复任务方法（必须）"""
         if Module.getStatus() == ScriptStatus.SUSPENDED:
+            self.action_task.resume()
             self.status = ScriptStatus.RUNNING
 
     def cancel(self):
@@ -2092,8 +2101,9 @@ class ContainerRobot(ModuleBase):
         Recognize.resetRec()
         self.close_finger()
         Do.setDo(self.fill_light_do, False)
+        self.action_task.cancel()
         self.status = ScriptStatus.FAILED
-        Trace.log("carton cancel")
+        Trace.log("carton cancel", name=MOD)
 
     def update_move_task_params(self):
         move_task = Navigation.moveTask()
@@ -2104,7 +2114,7 @@ class ContainerRobot(ModuleBase):
                 self.self_position = p['stringValue']
 
     def zero(self, zero_height=0):
-        Trace.log(f"----- running zero ------")
+        Trace.log(f"----- running zero ------", name=f"{MOD}.motor")
         if not self.zero_step[0]:
             self.zero_step[0] = Container.hasGoods("999") or self.finger(1)
         elif self.zero_step[0] and not self.zero_step[1]:
@@ -2113,14 +2123,14 @@ class ContainerRobot(ModuleBase):
             self.zero_step[2] = self.rotate(0)
         elif self.zero_step[2] and not self.zero_step[3]:
             self.zero_step[3] = self.lift(zero_height)
-        Trace.log(f"zero_step:{self.zero_step}")
+        Trace.log(f"zero_step:{self.zero_step}", name=f"{MOD}.motor")
         if all(self.zero_step):
             self.zero_step = [False] * 4
             return True
         return False
 
     def lift(self, height):
-        Trace.log(f"----- running lift ------")
+        Trace.log(f"----- running lift ------", name=f"{MOD}.motor")
         if height < ConfigParams.min_lift_height:
             height = ConfigParams.min_lift_height
         if height > ConfigParams.max_lift_height:
@@ -2159,7 +2169,7 @@ class ContainerRobot(ModuleBase):
                 self.right_finger_real_pos = 1
                 Do.setDo(ConfigParams.right_finger_up_do, False)
             if self.left_finger_real_pos == 1 and self.right_finger_real_pos == 1:
-                Trace.log(f"手指打开成功")
+                Trace.log(f"手指打开成功", name=f"{MOD}.motor")
                 self.finger_open_start = False
                 return True
 
@@ -2179,7 +2189,7 @@ class ContainerRobot(ModuleBase):
                 self.right_finger_real_pos = 0
                 Do.setDo(ConfigParams.right_finger_down_do, False)
             if self.left_finger_real_pos == 0 and self.right_finger_real_pos == 0:
-                Trace.log(f"手指关闭成功")
+                Trace.log(f"手指关闭成功", name=f"{MOD}.motor")
                 self.finger_open_start = False
                 return True
 
@@ -2204,7 +2214,7 @@ class ContainerRobot(ModuleBase):
         self.finger_info["rightFinger"] = self.right_finger_real_pos
 
     def stretch(self, length):
-        Trace.log(f"----- running stretch ------")
+        Trace.log(f"----- running stretch ------", name=f"{MOD}.motor")
         temp_motor_speed = ConfigParams.stretch_motor_speed
         if ConfigParams.max_stretch_length < length < ConfigParams.max_stretch_length + 0.1:
             Navigation.setTaskError("StretchLengthExceeded", f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！！！")
@@ -2220,7 +2230,7 @@ class ContainerRobot(ModuleBase):
         return False
 
     def rotate(self, pos, max_speed=None):
-        Trace.log(f"----- running rotate ------")
+        Trace.log(f"----- running rotate ------", name=f"{MOD}.motor")
         if abs(pos) > abs(ConfigParams.max_rotate_angle / 180 * math.pi):
             Navigation.setTaskError("RotateAngleExceeded",f"Rotate angle {self.pos / math.pi * 180} exceeds upper limit {ConfigParams.max_rotate_angle}. Check if box is tilted or QR code is damaged")
             self.status = ScriptStatus.FAILED
@@ -2251,8 +2261,51 @@ class ContainerRobot(ModuleBase):
         self.containers = Container.getContainers()
         self.report_info["currentPos"] = module_pos
 
+    def tick_report(self):
+        """每 tick 调用一次:合并一次 reportInfo(含 containers)+ 集中数值时序(ctu.task / ctu.motor)。"""
+        self.update_report_info()
+        cur = self.action_task.current
+        counts = self.action_task.status_counts()
+        containers = self.containers or []
+        container_count = sum(1 for c in containers if c.get("hasGoods"))
+
+        # 调度/Roboshop 上报(合并一次; containers 必带)
+        self.report_info.update({
+            "status": self.status,
+            "action": cur.action_name if cur else "",
+            "actionTotal": self.action_task.total,
+            "containers": containers,
+        })
+        Module.reportInfo(self.report_info)
+
+        # ctu.task 数值时序(int 稳定)
+        Trace.log(
+            {
+                "scriptStatus":   int(self.status),
+                "total":          int(self.action_task.total),
+                "runningCount":   int(counts["running"]),
+                "waitingCount":   int(counts["init"]),
+                "finishedCount":  int(counts["finished"]),
+                "failedCount":    int(counts["failed"]),
+                "suspendedCount": int(counts["suspended"]),
+            },
+            False,
+            name=f"{MOD}.task",
+        )
+        # ctu.motor 数值时序(料箱车机构状态)
+        Trace.log(
+            {
+                "ctuHeight": float(self.lift_real_pos or 0.0),
+                "ctuTarget": float(self.lift_height or 0.0),
+                "ctuInPlace": bool(cur and cur.action_status == ActionStatus.FINISHED),
+                "containerCount": int(container_count),
+            },
+            False,
+            name=f"{MOD}.motor",
+        )
+
     def has_goods_id(self, goods_id: str):
-        Trace.log(f"goodsName: {goods_id}")
+        Trace.log(f"goodsName: {goods_id}", name=MOD)
         for c in self.containers:
             if goods_id == c['containerId']:
                 return True
@@ -2314,7 +2367,7 @@ class ContainerRobot(ModuleBase):
         if self.enable_motor and not self.motor_calib_state:
             self.motor_calib()
 
-        print(f"[safe_move_check] motor_calib 后: motor_calib_state={self.motor_calib_state}")
+        debug_print(f"[safe_move_check] motor_calib 后: motor_calib_state={self.motor_calib_state}")
 
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:
@@ -2322,52 +2375,52 @@ class ContainerRobot(ModuleBase):
             if zero_result:
                 status = SafeMoveStatus.FINISHED
         else:
-            print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
+            debug_print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
 
         self.setSafeMoveStatus(status)
-        Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}")
+        Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}", name=MOD)
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
     def modbus(self):
-        print("modbus___________ 读取Modbus数据")
+        debug_print("modbus___________ 读取Modbus数据")
         args = {}
         op_data = NetProtocol.getModbusData("4x", 201, 1)
         if op_data:
             operation_code = parseModbus(op_data, 'uint16')
-            print(f"   操作码: {operation_code}")
+            debug_print(f"   操作码: {operation_code}")
             if operation_code == 1:
                 args["operation"] = "load"
                 height_data = NetProtocol.getModbusData("4x", 202, 2)
                 if len(height_data) >= 2:
                     height = parseModbus(height_data, 'float')
-                    print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
-                    print(f"   解析后高度值: {height:.4f}m")
+                    debug_print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
+                    debug_print(f"   解析后高度值: {height:.4f}m")
                     args["height"] = max(0.0, min(0.06, height))
-                    print(f"   设置高度: {args['height']:.4f}m")
+                    debug_print(f"   设置高度: {args['height']:.4f}m")
             elif operation_code == 2:
                 args["operation"] = "unload"
             elif operation_code == 3:
                 args["operation"] = "spin"
-                print("读取浮点型参数:")
+                debug_print("读取浮点型参数:")
                 angle_data = NetProtocol.getModbusData("4x", 202, 1)
                 if angle_data:
                     angle_raw = parseModbus(angle_data, 'int16')
                     args["spinAngle"] = angle_raw / 100.0
-                    print(f"   设置角度: {args['spinAngle']:.2f}度")
+                    debug_print(f"   设置角度: {args['spinAngle']:.2f}度")
                 else:
                     args["spinAngle"] = 90.0
-                    print("   使用默认角度")
+                    debug_print("   使用默认角度")
             elif operation_code == 4:
                 args["operation"] = "getCurrentPathProperty"
-                print("读取字符串参数:")
+                debug_print("读取字符串参数:")
                 str_data = NetProtocol.getModbusData("4x", 202, 4)
                 if str_data:
                     device_name = parseModbus(str_data, 'string', 0, len(str_data))
                     if device_name:
                         args["device"] = device_name
-                        print(f"   设备名称: {device_name}")
-            print(f"   操作类型: {args.get('operation', 'unknown')}")
+                        debug_print(f"   设备名称: {device_name}")
+            debug_print(f"   操作类型: {args.get('operation', 'unknown')}")
         return args
 
 
@@ -2392,7 +2445,7 @@ class Rec:
         self.status = ScriptStatus.RUNNING
         rec_status = Recognize.getRecStatus()
         if rec_status == 3 or rec_status == -1:
-            Trace.log("rec failed:{}".format(self.result))
+            Trace.log("rec failed:{}".format(self.result), name=f"{MOD}.rec")
             if Timer.delay(0.05):
                 self.rec_times = self.rec_times + 1
                 if self.rec_times > self.max_rec_times:
@@ -2410,7 +2463,7 @@ class Rec:
                 if len(rec_results["recoList"]) == 1:
                     reco = rec_results["recoList"][0]
                     if not reco.get('valid', False):
-                        Trace.log("Rec: recognition result is invalid (valid=False), retrying")
+                        Trace.log("Rec: recognition result is invalid (valid=False), retrying", name=f"{MOD}.rec")
                         Recognize.resetRec()
                         Recognize.doRec(self.filename, "", "")
                         return
@@ -2420,7 +2473,7 @@ class Rec:
             if self.result.get("x", 0) > self.max_goods_dist:
                 self.goods_out_dist = True
             self.status = ScriptStatus.FINISHED
-        Trace.log(f"rec success: {self.status.name} {self.result}")
+        Trace.log(f"rec success: {self.status.name} {self.result}", name=f"{MOD}.rec")
 
         cur_state = dict()
         cur_state['recResult'] = self.result
@@ -2476,7 +2529,7 @@ class RecAdjust:
         if self.plan_status is not ScriptStatus.FINISHED:
             self.plan_status = ScriptStatus.RUNNING
             if self.rec.status is ScriptStatus.RUNNING or self.rec.status is ScriptStatus.NONE:
-                Trace.log(f"----- rec to adjust {self.rec.status.name}------")
+                Trace.log(f"----- rec to adjust {self.rec.status.name}------", name=f"{MOD}.rec")
                 self.rec.run(agv)
             elif self.rec.status is ScriptStatus.FAILED:
                 self.rec_fail_time = self.rec_fail_time + 1
@@ -2487,9 +2540,9 @@ class RecAdjust:
                     self.rec.run(agv)
                 else:
                     self.status = ScriptStatus.FAILED
-                Trace.log("rec fail!!! {}".format(self.rec_fail_time))
+                Trace.log("rec fail!!! {}".format(self.rec_fail_time), name=f"{MOD}.rec")
             elif self.rec.status is ScriptStatus.FINISHED:
-                Trace.log(f"------------------ move to adjust -----------------")
+                Trace.log(f"------------------ move to adjust -----------------", name=f"{MOD}.rec")
                 self.rec_fail_time = 0
 
                 if agv.is_auto_stretch:
@@ -2540,11 +2593,11 @@ class RecAdjust:
                         agv.ok_x = 0.01
                         agv.ok_yaw = 1.15 / 180 * math.pi
                     if not ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x:
-                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
+                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}", name=f"{MOD}.rec")
                         self.status = ScriptStatus.FINISHED
                     elif ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x and abs(
                             agv.yaw_adjust) <= agv.ok_yaw:
-                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}")
+                        Trace.log(f"adjust finished, adjust count: {self.adjust_count}", name=f"{MOD}.rec")
                         self.status = ScriptStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
@@ -2591,7 +2644,7 @@ class RecAdjust:
         Trace.log(f"[ContainerRobot][{agv.lift_real_pos}|{agv.stretch_real_pos}|{agv.rotate_real_pos / math.pi * 180}|"
                   f"{self.rec.result.get('x', 0)}|{self.rec.result.get('y', 0)}|{self.rec.result.get('z', 0)}|{self.rec.result.get('yaw', 0)}|"
                   f"{agv.yaw_adjust / math.pi * 180}|{self.last_yaw_adjust / math.pi * 180}|{self.next_rotate_pos / math.pi * 180}|"
-                  f"{self.rec_fail_time}|{self.adjust_count}|{self.rec.rec_times}|{self.go_args.get('x', 0)}|")
+                  f"{self.rec_fail_time}|{self.adjust_count}|{self.rec.rec_times}|{self.go_args.get('x', 0)}|", name=f"{MOD}.rec", debug=True)
 
     def reset(self):
         self.rec.reset()
@@ -2621,11 +2674,8 @@ def main():
         # 上报脚本任务状态
         Module.setStatus(status)
 
-        containers = Container.getContainers()
-        robot.report_info['containers'] = containers
-        robot.report_info["status"] = status
-        # 上报信息
-        Module.reportInfo(robot.report_info)
+        # 每 tick 集中上报(reportInfo 含 containers + ctu.task/ctu.motor 数值时序)
+        robot.tick_report()
 
         # 触发安全检查事件
         if robot.event_safe_move_check:
@@ -2638,15 +2688,15 @@ def main():
             args = modbus_args or Module.getTaskArgs()
             if args:
                 try:
-                    print("args", args)
+                    debug_print("args", args)
                     # 校验参数, 解析为不带.的参数
                     args = script_param.loadInput(args)
-                    print("check ok, args:", json.dumps(args, indent=2))
+                    debug_print("check ok, args:", json.dumps(args, indent=2))
                     # 初始化参数，成功时设置任务状态为RUNNING
                     robot = ContainerRobot()
                     robot.init_args(args)
                 except ValueError as e:
-                    print("check error:", e)
+                    Trace.log(f"check error: {e}", name=f"{MOD}.err")
         elif status == ScriptStatus.RUNNING:
             robot.run()
         elif status == ScriptStatus.SUSPENDED:
