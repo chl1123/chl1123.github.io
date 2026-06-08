@@ -1,2 +1,12 @@
 include:
   - https://cnb.cool/seer-robotics/IT/plugins-sbs360-lpm/-/blob/main/.cnb.yml
+
+$:
+  pull_request.target:
+    - stages:
+        - name: 添加评审人
+          type: git:reviewer
+          options:
+            type: add-reviewer
+            reviewers: chenhongli
+            exclude: ${CNB_BUILD_USER}
