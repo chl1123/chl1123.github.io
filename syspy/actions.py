@@ -789,23 +789,22 @@ class Rotate(BaseAction):
                     move_angle_deg = float(self.action_args["robotRotateAngle"])
                     move_angle = math.radians(abs(move_angle_deg))
                     self.rparams["moveAngle"] = move_angle
+                    speed_w = None
                     if self.speed_w_robot is not None:
                         speed_w = abs(self.speed_w_robot)
-                        if self.robot_direction == RotateDirection.NEARBY:
-                            if move_angle_deg > 0:
-                                speed_w = abs(self.speed_w_robot)
-                            elif move_angle_deg < 0:
-                                speed_w = -abs(self.speed_w_robot)
-                            else:
-                                speed_w = abs(self.speed_w_robot)
-                        elif self.robot_direction == RotateDirection.CLOCKWISE:
-                            speed_w = -abs(self.speed_w_robot)
-                        else:
-                            speed_w = abs(self.speed_w_robot)
-                        self.rparams["speedW"] = speed_w
                     else:
                         nav_default = _get_rotate_nav_defaults()
-                        self.rparams["speedW"] = nav_default.get("maxRot")
+                        default_rot_speed = nav_default.get("maxRot")
+                        if default_rot_speed is not None:
+                            speed_w = abs(default_rot_speed)
+
+                    if speed_w is not None:
+                        if self.robot_direction == RotateDirection.NEARBY:
+                            if move_angle_deg < 0:
+                                speed_w = -speed_w
+                        elif self.robot_direction == RotateDirection.CLOCKWISE:
+                            speed_w = -speed_w
+                        self.rparams["speedW"] = speed_w
                     self.rparams["locMode"] = self.mode 
             _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")           
         if self.selfCoordinateAxis is  None:
