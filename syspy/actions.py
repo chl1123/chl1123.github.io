@@ -496,18 +496,24 @@ class Actions(ModuleBase):
                                 self.robot_rotate_direction = RotateDirection.NEARBY
                         else:
                             self.robot_rotate_direction = RotateDirection.NEARBY
-                rotate_kwargs = {
-                    "robot_rotate_angle": self.robot_rotate_angle,
-                    "robot_direction": self.robot_rotate_direction,
-                    "shelf_angle": self.shelf_rotate_angle,
-                    "shelf_direction": self.shelf_rotate_direction,
-                    "selfCoordinateAxis": self.selfCoordinateAxis,
-                    "mode": self.mode,
-                    "is_debug": self.is_debug,
-                }
-                if self.robot_rotate_speed_rad is not None:
-                    rotate_kwargs["speed_w_robot"] = self.robot_rotate_speed_rad
-                self.action_list.append(Rotate(**rotate_kwargs))
+                has_rotate_action = (
+                    self.robot_rotate_angle is not None
+                    or self.shelf_rotate_angle is not None
+                    or self.selfCoordinateAxis is not None
+                )
+                if has_rotate_action:
+                    rotate_kwargs = {
+                        "robot_rotate_angle": self.robot_rotate_angle,
+                        "robot_direction": self.robot_rotate_direction,
+                        "shelf_angle": self.shelf_rotate_angle,
+                        "shelf_direction": self.shelf_rotate_direction,
+                        "selfCoordinateAxis": self.selfCoordinateAxis,
+                        "mode": self.mode,
+                        "is_debug": self.is_debug,
+                    }
+                    if self.robot_rotate_speed_rad is not None:
+                        rotate_kwargs["speed_w_robot"] = self.robot_rotate_speed_rad
+                    self.action_list.append(Rotate(**rotate_kwargs))
 
                 if self.lift_height is not None:
                     self.action_list.append(
