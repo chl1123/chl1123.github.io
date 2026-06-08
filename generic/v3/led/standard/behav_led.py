@@ -31,7 +31,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from syspy import (
     Battery,
-    Controller,
     Module,
     Navigation,
     NavSpeed,
@@ -506,14 +505,11 @@ class Dmx512NativeBehav:
 
     def handle_movement_effect(self, percentage: float) -> None:
         """处理运动状态的灯效。"""
-        try:
-            vx, _, vw = NavSpeed.getSpeeds()
-            turn = NavStatus.getTurn(vx, vw)
-        except Exception as exc:
-            raise BehavLedTaskError(
-                "GetSpeedError",
-                f"Error getting speeds or turn: {exc}",
-            ) from exc
+        speeds = NavSpeed.getSpeeds()
+        if not speeds:
+            return
+        vx, _, vw = speeds
+        turn = NavStatus.getTurn(vx, vw)
         if turn == 0:
             self._set_status("MovingRotation")
             if ConfigParams.is_back_breath and vx < 0:
