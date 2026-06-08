@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/5/28
+# @Date: 2026/6/8
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
@@ -22,7 +22,7 @@ from syspy.lib.net_protocol import parseModbus, NetProtocol
 from syspy.bin import Container
 from syspy.lib.module import SafeMoveStatus, ModuleBase
 from syspy.lib.action_task import ActionBase, ActionStatus, ActionTask
-from syspy.utils.param_server import ParamBuilder, ParamType, ParamServer, ScriptParam
+from syspy.utils.param_server import ParamBuilder, ParamType, ScriptParam
 from standard.goPath import GoPath
 
 log = Logger("ContainerRobot")
@@ -50,18 +50,6 @@ def debug_print(*args, **kwargs):
         print(f"{timestamp}", *args, **kwargs)
 
 
-def debug_trace(*args, **kwargs):
-    """Log to Trace only when debug_mode is enabled (with timestamp)"""
-    if ConfigParams.debug_mode:
-        kwargs.setdefault("name", MOD)
-        timestamp = _get_timestamp()
-        if args:
-            first_arg = f"{timestamp} {args[0]}"
-            Trace.log(first_arg, *args[1:], **kwargs)
-        else:
-            Trace.log(timestamp, **kwargs)
-
-
 class ConfigParams:
     config = {}
     high = dict()
@@ -69,15 +57,15 @@ class ConfigParams:
     container_count = 0
     debug_mode = False
 
-    # 手指 DO（默认值从设备模型读取，可在脚本配置中重命名覆盖）
-    left_finger_up_do: str = ""
-    left_finger_down_do: str = ""
-    right_finger_up_do: str = ""
-    right_finger_down_do: str = ""
-    _default_left_finger_up_do: str = ""
-    _default_left_finger_down_do: str = ""
-    _default_right_finger_up_do: str = ""
-    _default_right_finger_down_do: str = ""
+    # 手指 DoMotor（从设备模型 fingerMotor 克隆读取，._0=左手指, ._1=右手指）
+    has_finger_motor: bool = False
+    left_finger_motor_name: str = ""
+    right_finger_motor_name: str = ""
+    # 手指 DI（直接从 DoMotor 设备模型读取，如 DOMotor-XXX.basic.upReachDI）
+    left_finger_up_di: str = ""
+    left_finger_down_di: str = ""
+    right_finger_up_di: str = ""
+    right_finger_down_di: str = ""
 
     DEFAULT_TRAY_HEIGHTS = [
         (0.400, 0.410),  # 0
@@ -121,24 +109,40 @@ class ConfigParams:
                 f"请在设备模型中正确配置！"
             )
 
-        finger_do = RobotParam.getDevice("Model-000", f"{base}.fingerDO")
-        if finger_do and isinstance(finger_do, str):
-            do_list = [x.strip() for x in finger_do.split(",") if x.strip()]
-            if len(do_list) >= 4:
-                cls._default_right_finger_down_do = do_list[0]
-                cls._default_right_finger_up_do = do_list[1]
-                cls._default_left_finger_up_do = do_list[2]
-                cls._default_left_finger_down_do = do_list[3]
+        # 读取手指 DoMotor（逗号分隔字符串，第1个=左手指, 第2个=右手指）
+        finger_motor = RobotParam.getDevice("Model-000", f"{base}.fingerMotor")
+        if finger_motor and isinstance(finger_motor, str):
+            motor_list = [x.strip() for x in finger_motor.split(",") if x.strip()]
+            if len(motor_list) >= 2:
+                cls.left_finger_motor_name = motor_list[0]
+                cls.right_finger_motor_name = motor_list[1]
+                cls.has_finger_motor = True
+                cls.left_finger_up_di = RobotParam.getDevice(
+                    f"{cls.left_finger_motor_name}", "basic.upReachDI") or ""
+                cls.left_finger_down_di = RobotParam.getDevice(
+                    f"{cls.left_finger_motor_name}", "basic.downReachDI") or ""
+                cls.right_finger_up_di = RobotParam.getDevice(
+                    f"{cls.right_finger_motor_name}", "basic.upReachDI") or ""
+                cls.right_finger_down_di = RobotParam.getDevice(
+                    f"{cls.right_finger_motor_name}", "basic.downReachDI") or ""
+                Trace.log(
+                    f"fingerMotor bindings: left={cls.left_finger_motor_name} (upDI={cls.left_finger_up_di}, downDI={cls.left_finger_down_di}), "
+                    f"right={cls.right_finger_motor_name} (upDI={cls.right_finger_up_di}, downDI={cls.right_finger_down_di})",
+                    name=f"{MOD}.cfg")
             else:
-                cls._default_right_finger_down_do = ""
-                cls._default_right_finger_up_do = ""
-                cls._default_left_finger_up_do = ""
-                cls._default_left_finger_down_do = ""
+                cls.has_finger_motor = False
+                cls.left_finger_motor_name = ""
+                cls.right_finger_motor_name = ""
+                Trace.log(
+                    f"fingerMotor config incomplete: need 2 values, got {len(motor_list)}. "
+                    f"Finger control disabled.", name=f"{MOD}.cfg")
         else:
-            cls._default_right_finger_down_do = ""
-            cls._default_right_finger_up_do = ""
-            cls._default_left_finger_up_do = ""
-            cls._default_left_finger_down_do = ""
+            cls.has_finger_motor = False
+            cls.left_finger_motor_name = ""
+            cls.right_finger_motor_name = ""
+            Trace.log(
+                f"fingerMotor NOT configured at Model-000.{base}.fingerMotor. "
+                f"Finger control disabled.", name=f"{MOD}.cfg")
 
     @classmethod
     def init(cls):
@@ -309,48 +313,6 @@ class ConfigParams:
                         builder.DEFAULTVALUE(0.380)
                         builder.UNIT("m")
 
-            # 拨指组
-            with builder.GROUP(key="fingerConfig", name=_TR("Finger Configuration"),
-                               desc=_TR("Finger related configuration parameters")):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    with builder.CHILD(key="leftFingerUpDo", name=_TR("Left Finger Up Do"), desc=_TR("Open Left Finger DO")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(cls._default_left_finger_up_do or "DO-002")
-                        builder.REQUIRED(True)
-                    with builder.CHILD(key="leftFingerDownDo", name=_TR("Left Finger Down Do"),
-                                       desc=_TR("Close Left Finger DO")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(cls._default_left_finger_down_do or "DO-003")
-                        builder.REQUIRED(True)
-                    with builder.CHILD(key="rightFingerUpDo", name=_TR("Right Finger Up Do"), desc=_TR("Open Right Finger DO")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(cls._default_right_finger_up_do or "DO-001")
-                        builder.REQUIRED(True)
-                    with builder.CHILD(key="rightFingerDownDo", name=_TR("Right Finger Down Do"),
-                                       desc=_TR("Close Right Finger DO")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE(cls._default_right_finger_down_do or "DO-000")
-                        builder.REQUIRED(True)
-                    with builder.CHILD(key="leftFingerUpDi", name=_TR("Left Finger Up Di"), desc=_TR("Open Left Fingers")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DI-003")
-                        builder.REQUIRED(True)
-                    with builder.CHILD(key="leftFingerDownDi", name=_TR("Left Finger Down Di"),
-                                       desc=_TR("Close Left Fingers")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DI-000")
-                        builder.REQUIRED(True)
-                    with builder.CHILD(key="rightFingerUpDi", name=_TR("Right Finger Up Di"), desc=_TR("Open Right Fingers")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DI-004")
-                        builder.REQUIRED(True)
-                    with builder.CHILD(key="rightFingerDownDi", name=_TR("Right Finger Down Di"),
-                                       desc=_TR("Close Right Fingers")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DI-005")
-                        builder.REQUIRED(True)
-
             # 其他组
             with builder.GROUP(key="otherConfig", name=_TR("Other Configuration"), desc=_TR("Other configuration parameters")):
                 builder.TYPE(ParamType.ARRAY)
@@ -392,7 +354,6 @@ class ConfigParams:
 
         cls.rec_offz_box = cls.config.get("recOffzBox")
         cls.rec_offz_shelf = cls.config.get("recOffzShelf")
-        cls.rec_load_offz_shelf = cls.config.get("recLoadOffzShelf")
         cls.box_code_file = cls.config.get("boxCodeFile")
         cls.shelf_code_file = cls.config.get("shelfCodeFile")
         cls.barcode_file = cls.config.get("barcodeFile")
@@ -419,15 +380,16 @@ class ConfigParams:
         cls.auto_unload_stretch_dist = cls.config.get("autoUnloadStretchDist")
         cls.auto_stretch_odo_len = cls.config.get("autoStretchOdoLen")
 
-        cls.left_finger_up_do = cls.config.get("leftFingerUpDo") or cls._default_left_finger_up_do
-        cls.left_finger_down_do = cls.config.get("leftFingerDownDo") or cls._default_left_finger_down_do
-        cls.right_finger_up_do = cls.config.get("rightFingerUpDo") or cls._default_right_finger_up_do
-        cls.right_finger_down_do = cls.config.get("rightFingerDownDo") or cls._default_right_finger_down_do
-
-        cls.left_finger_up_di = cls.config.get("leftFingerUpDi")
-        cls.left_finger_down_di = cls.config.get("leftFingerDownDi")
-        cls.right_finger_up_di = cls.config.get("rightFingerUpDi")
-        cls.right_finger_down_di = cls.config.get("rightFingerDownDi")
+        # 手指 DoMotor DI：直接从设备模型读取（如 DOMotor-XXX.basic.upReachDI）
+        if cls.has_finger_motor and cls.left_finger_motor_name and cls.right_finger_motor_name:
+            cls.left_finger_up_di = RobotParam.getDevice(
+                f"{cls.left_finger_motor_name}", "basic.upReachDI") or ""
+            cls.left_finger_down_di = RobotParam.getDevice(
+                f"{cls.left_finger_motor_name}", "basic.downReachDI") or ""
+            cls.right_finger_up_di = RobotParam.getDevice(
+                f"{cls.right_finger_motor_name}", "basic.upReachDI") or ""
+            cls.right_finger_down_di = RobotParam.getDevice(
+                f"{cls.right_finger_motor_name}", "basic.downReachDI") or ""
 
         cls.timeout = cls.config.get("timeout")
         cls.goods_check_di = cls.config.get("goodsCheckDi")
@@ -821,19 +783,6 @@ class RobotRun:
             motor.run(pos=float(height), max_vel=float(max_vel))
         return False
 
-    def lift_door(self, motor: MotorRun, height: float, max_vel=0.3) -> bool:
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=float(height), max_vel=float(max_vel))
-        return False
-
     def stretch(self, motor: MotorRun, length: float, max_vel=0.3) -> bool:
         self.state[f'{motor.motor_name}'] = motor.state
         if motor.status == ScriptStatus.NONE:
@@ -858,45 +807,6 @@ class RobotRun:
             return False
         else:
             motor.run(pos=float(length), max_vel=float(max_vel))
-        return False
-
-    def roller(self, motor: MotorRun, vel) -> bool:
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(vel=vel)
-        return False
-
-    def jack(self, motor: MotorRun, height: float, max_vel=0.3):
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(pos=height, max_vel=max_vel)
-        return False
-
-    def run_motor(self, motor: MotorRun, pos=0, vel=0.3, max_vel=0.3, reach_di=-1):
-        motor.stop_di = reach_di
-        self.state[f'{motor.motor_name}'] = motor.state
-        if motor.status == ScriptStatus.NONE:
-            motor.reset()
-        elif motor.status == ScriptStatus.FINISHED:
-            motor.reset()
-            return True
-        elif motor.status == ScriptStatus.FAILED:
-            return False
-        else:
-            motor.run(vel=vel, pos=pos, max_vel=max_vel)
         return False
 
 
@@ -1007,54 +917,64 @@ class FingerAction(BaseAction):
         super().__init__(action_name)
         self.agv = agv
         self.pos = pos
+        self._motor_started = False
 
     def run(self, m):
         super().run(m)
+        if not ConfigParams.has_finger_motor:
+            Navigation.setDeviceError("FingerMotorNotConfig",
+                f"fingerMotor not configured in device model. "
+                f"Please add two fingerMotor entries under Model-000.moduleType.cartonTransferUnit.fingerMotor")
+            self.action_status = ActionStatus.FAILED
+            return
         if time.time() - self.start_time > 3:
             Navigation.setDeviceError("FingerTimeout", f"Finger control timeout. Check if finger is stuck or photoelectric sensor works")
-            Do.setDo(ConfigParams.left_finger_up_do, False)
-            Do.setDo(ConfigParams.right_finger_up_do, False)
-            Do.setDo(ConfigParams.left_finger_down_do, False)
-            Do.setDo(ConfigParams.right_finger_down_do, False)
+            self._stop_finger()
             self.action_status = ActionStatus.FAILED
             return
 
-        if self.pos == 1:
-            Do.setDo(ConfigParams.left_finger_down_do, False)
-            Do.setDo(ConfigParams.right_finger_down_do, False)
-            Do.setDo(ConfigParams.left_finger_up_do, True)
-            Do.setDo(ConfigParams.right_finger_up_do, True)
-            if Di.getDi(ConfigParams.left_finger_up_di) and not Di.getDi(ConfigParams.left_finger_down_di):
-                self.agv.left_finger_real_pos = 1
-                Do.setDo(ConfigParams.left_finger_up_do, False)
-            if Di.getDi(ConfigParams.right_finger_up_di) and not Di.getDi(ConfigParams.right_finger_down_di):
-                self.agv.right_finger_real_pos = 1
-                Do.setDo(ConfigParams.right_finger_up_do, False)
-            if self.agv.left_finger_real_pos == 1 and self.agv.right_finger_real_pos == 1:
-                Trace.log(f"手指打开成功", name=f"{MOD}.motor")
-                self.action_status = ActionStatus.FINISHED
+        if not self._motor_started:
+            self._motor_started = True
+            Motor.resetMotor(ConfigParams.left_finger_motor_name)
+            Motor.resetMotor(ConfigParams.right_finger_motor_name)
+            if self.pos == 1:
+                # 打开手指：正转，到 upReachDI 停止
+                Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, 1.0,
+                                    ConfigParams.left_finger_up_di or "")
+                Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
+                                    ConfigParams.right_finger_up_di or "")
+            else:
+                # 关闭手指：反转，到 downReachDI 停止
+                if Di.getDi(ConfigParams.overlimit_detect_di):
+                    Navigation.setTaskError("StretchObstacle", f"Fork overlimit photoelectric sensor detected obstacle. Increase stretch compensation")
+                    self.action_status = ActionStatus.FAILED
+                    return
+                Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, -1.0,
+                                    ConfigParams.left_finger_down_di or "")
+                Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, -1.0,
+                                    ConfigParams.right_finger_down_di or "")
 
-        elif self.pos == 0:
-            if Di.getDi(ConfigParams.overlimit_detect_di):
-                Navigation.setTaskError("StretchObstacle", f"Fork overlimit photoelectric sensor detected obstacle. Increase stretch compensation")
-                self.action_status = ActionStatus.FAILED
-                return
-            Do.setDo(ConfigParams.left_finger_up_do, False)
-            Do.setDo(ConfigParams.right_finger_up_do, False)
-            Do.setDo(ConfigParams.left_finger_down_do, True)
-            Do.setDo(ConfigParams.right_finger_down_do, True)
-            if Di.getDi(ConfigParams.left_finger_down_di) and not Di.getDi(ConfigParams.left_finger_up_di):
-                self.agv.left_finger_real_pos = 0
-                Do.setDo(ConfigParams.left_finger_down_do, False)
-            if Di.getDi(ConfigParams.right_finger_down_di) and not Di.getDi(ConfigParams.right_finger_up_di):
-                self.agv.right_finger_real_pos = 0
-                Do.setDo(ConfigParams.right_finger_down_do, False)
-            if self.agv.left_finger_real_pos == 0 and self.agv.right_finger_real_pos == 0:
-                Trace.log(f"手指关闭成功", name=f"{MOD}.motor")
-                self.action_status = ActionStatus.FINISHED
+        left_reached = Motor.isMotorReached(ConfigParams.left_finger_motor_name)
+        right_reached = Motor.isMotorReached(ConfigParams.right_finger_motor_name)
+
+        if left_reached:
+            self.agv.left_finger_real_pos = self.pos
+            Motor.resetMotor(ConfigParams.left_finger_motor_name)
+        if right_reached:
+            self.agv.right_finger_real_pos = self.pos
+            Motor.resetMotor(ConfigParams.right_finger_motor_name)
+        if left_reached and right_reached:
+            Trace.log(f"手指{'打开' if self.pos == 1 else '关闭'}成功", name=f"{MOD}.motor")
+            self.action_status = ActionStatus.FINISHED
+
+    def _stop_finger(self):
+        """停止手指电机"""
+        Motor.resetMotor(ConfigParams.left_finger_motor_name)
+        Motor.resetMotor(ConfigParams.right_finger_motor_name)
 
     def reset(self):
         super().reset()
+        self._motor_started = False
 
 
 class CheckFingerOpenAction(BaseAction):
@@ -1359,7 +1279,6 @@ class ContainerRobot(ModuleBase):
         self.start_time = time.time()
         self.goods_id = ""
         self.lift_height = None
-        self.door_height = None
         self.stretch_length = None
         self.is_auto_stretch = None
         self.rotate_pos = None
@@ -1378,12 +1297,6 @@ class ContainerRobot(ModuleBase):
         self.rec_height_diff = 0
 
         self.fill_light_do = "DO-004"
-        self.collision_di = 0
-        self.light_st_time = None
-
-        self.lift_zero_di = 8
-        self.stretch_limit = 10
-        self.rotate_limit = 7
         self.target_type = None
         self.code_type = None
         self.barcode_height = None
@@ -1415,19 +1328,13 @@ class ContainerRobot(ModuleBase):
         self.motor_calib_state = False
         self.motor_calib_info = {}
         self.enable_motor = False
-        self.send_enable_motor_count = 0
         self.enable_motor_time = time.time()
         self.set_force_calib = False
 
         self.box_code_file = None
         self.shelf_code_file = None
 
-        self.lift_ok = False
-        self.rotate_ok = False
-        self.stretch_ok = False
-
         self.counter = 0
-        self.count = 0
 
         # action_list 状态机
         self.action_list = []
@@ -1448,7 +1355,6 @@ class ContainerRobot(ModuleBase):
             self.update_move_task_params()
             self.finger_pos = self.script_args.get("finger", 0)
             self.lift_height = self.script_args.get("lift", 0)
-            self.door_height = self.script_args.get("lift-door", 0)
             self.stretch_length = self.script_args.get("stretch", 0)
             self.is_auto_stretch = bool("stretch" not in self.script_args)
             self.rotate_pos = self.script_args.get("rotate", 0) / 180 * math.pi
@@ -1520,6 +1426,9 @@ class ContainerRobot(ModuleBase):
 
         if self.motor_calib_state:
             if self.operation is not None and self.operation != 'none':
+                if not check_debug_task(self.operation):
+                    self.status = ScriptStatus.FAILED
+                    return self.status
                 if self.operation == "zero":
                     self._build_zero_actions()
                 elif self.operation == "calib":
@@ -2116,90 +2025,57 @@ class ContainerRobot(ModuleBase):
     def zero(self, zero_height=0):
         Trace.log(f"----- running zero ------", name=f"{MOD}.motor")
         if not self.zero_step[0]:
-            self.zero_step[0] = Container.hasGoods("999") or self.finger(1)
+            self.zero_step[0] = Container.hasGoods("999") or self._finger_open_for_zero()
         elif self.zero_step[0] and not self.zero_step[1]:
-            self.zero_step[1] = self.stretch(0)
+            self.zero_step[1] = self.container_robot.stretch(self.stretch_motor, 0)
         elif self.zero_step[1] and not self.zero_step[2]:
-            self.zero_step[2] = self.rotate(0)
+            self.zero_step[2] = self.container_robot.rotate(self.rotate_motor, 0)
         elif self.zero_step[2] and not self.zero_step[3]:
-            self.zero_step[3] = self.lift(zero_height)
+            self.zero_step[3] = self.container_robot.lift(self.lift_motor, zero_height, ConfigParams.lift_motor_speed)
         Trace.log(f"zero_step:{self.zero_step}", name=f"{MOD}.motor")
         if all(self.zero_step):
             self.zero_step = [False] * 4
             return True
         return False
 
-    def lift(self, height):
-        Trace.log(f"----- running lift ------", name=f"{MOD}.motor")
-        if height < ConfigParams.min_lift_height:
-            height = ConfigParams.min_lift_height
-        if height > ConfigParams.max_lift_height:
-            Navigation.setTaskError("LiftHeightExceeded",f"Lift height exceeds upper limit, max: {ConfigParams.max_lift_height}, commanded: {self.height}")
+    def _finger_open_for_zero(self):
+        """ DoMotor 打开手指，每帧推进，超时3秒"""
+        if not getattr(self, '_zero_finger_ts', None):
+            self._zero_finger_ts = time.time()
+        elif time.time() - self._zero_finger_ts > 3:
+            Navigation.setDeviceError("FingerTimeout", f"Finger control timeout during zero. Check if finger is stuck or photoelectric sensor works")
+            self.close_finger()
             self.status = ScriptStatus.FAILED
+            self._zero_finger_ts = None
             return False
-        if self.stretch_real_pos > ConfigParams.safe_stretch_length:
-            Navigation.setTaskError("StretchNotZeroed",f"Stretch mechanism not zeroed, cannot perform lift/rotate. Please zero first")
-            self.status = ScriptStatus.FAILED
-            return False
-        if self.container_robot.lift(self.lift_motor, height, ConfigParams.lift_motor_speed):
+
+        if not getattr(self, '_zero_finger_started', False):
+            self._zero_finger_started = True
+            Motor.resetMotor(ConfigParams.left_finger_motor_name)
+            Motor.resetMotor(ConfigParams.right_finger_motor_name)
+            Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, 1.0,
+                                ConfigParams.left_finger_up_di or "")
+            Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
+                                ConfigParams.right_finger_up_di or "")
+
+        left_reached = Motor.isMotorReached(ConfigParams.left_finger_motor_name)
+        right_reached = Motor.isMotorReached(ConfigParams.right_finger_motor_name)
+        if left_reached:
+            self.left_finger_real_pos = 1
+            Motor.resetMotor(ConfigParams.left_finger_motor_name)
+        if right_reached:
+            self.right_finger_real_pos = 1
+            Motor.resetMotor(ConfigParams.right_finger_motor_name)
+        if left_reached and right_reached:
+            Trace.log(f"手指打开成功 (zero)", name=f"{MOD}.motor")
+            self._zero_finger_started = False
+            self._zero_finger_ts = None
             return True
         return False
 
-    def finger(self, pos):
-        if not self.finger_open_start:
-            self.finger_open_start = time.time()
-        elif time.time() - self.finger_open_start > 3:
-            Navigation.setDeviceError("FingerTimeout", f"Finger control timeout. Check if finger is stuck or photoelectric sensor works")
-            Do.setDo(ConfigParams.left_finger_up_do, False)
-            Do.setDo(ConfigParams.right_finger_up_do, False)
-            Do.setDo(ConfigParams.left_finger_down_do, False)
-            Do.setDo(ConfigParams.right_finger_down_do, False)
-            self.status = ScriptStatus.FAILED
-            return False
-
-        if pos == 1:
-            Do.setDo(ConfigParams.left_finger_down_do, False)
-            Do.setDo(ConfigParams.right_finger_down_do, False)
-            Do.setDo(ConfigParams.left_finger_up_do, True)
-            Do.setDo(ConfigParams.right_finger_up_do, True)
-            if Di.getDi(ConfigParams.left_finger_up_di) and not Di.getDi(ConfigParams.left_finger_down_di):
-                self.left_finger_real_pos = 1
-                Do.setDo(ConfigParams.left_finger_up_do, False)
-            if Di.getDi(ConfigParams.right_finger_up_di) and not Di.getDi(ConfigParams.right_finger_down_di):
-                self.right_finger_real_pos = 1
-                Do.setDo(ConfigParams.right_finger_up_do, False)
-            if self.left_finger_real_pos == 1 and self.right_finger_real_pos == 1:
-                Trace.log(f"手指打开成功", name=f"{MOD}.motor")
-                self.finger_open_start = False
-                return True
-
-        elif pos == 0:
-            if Di.getDi(ConfigParams.overlimit_detect_di):
-                Navigation.setTaskError("StretchObstacle", f"Fork overlimit photoelectric sensor detected obstacle. Increase stretch compensation")
-                self.status = ScriptStatus.FAILED
-                return False
-            Do.setDo(ConfigParams.left_finger_up_do, False)
-            Do.setDo(ConfigParams.right_finger_up_do, False)
-            Do.setDo(ConfigParams.left_finger_down_do, True)
-            Do.setDo(ConfigParams.right_finger_down_do, True)
-            if Di.getDi(ConfigParams.left_finger_down_di) and not Di.getDi(ConfigParams.left_finger_up_di):
-                self.left_finger_real_pos = 0
-                Do.setDo(ConfigParams.left_finger_down_do, False)
-            if Di.getDi(ConfigParams.right_finger_down_di) and not Di.getDi(ConfigParams.right_finger_up_di):
-                self.right_finger_real_pos = 0
-                Do.setDo(ConfigParams.right_finger_down_do, False)
-            if self.left_finger_real_pos == 0 and self.right_finger_real_pos == 0:
-                Trace.log(f"手指关闭成功", name=f"{MOD}.motor")
-                self.finger_open_start = False
-                return True
-
-        return False
-
     def close_finger(self):
-        Do.setDo(ConfigParams.left_finger_up_do, False)
-        Do.setDo(ConfigParams.right_finger_up_do, False)
-        Do.setDo(ConfigParams.left_finger_down_do, False)
-        Do.setDo(ConfigParams.right_finger_down_do, False)
+        Motor.resetMotor(ConfigParams.left_finger_motor_name)
+        Motor.resetMotor(ConfigParams.right_finger_motor_name)
 
     def update_finger_info(self):
         if Di.getDi(ConfigParams.left_finger_down_di) and not Di.getDi(ConfigParams.left_finger_up_di):
@@ -2212,22 +2088,6 @@ class ContainerRobot(ModuleBase):
             self.right_finger_real_pos = 1
         self.finger_info["leftFinger"] = self.left_finger_real_pos
         self.finger_info["rightFinger"] = self.right_finger_real_pos
-
-    def stretch(self, length):
-        Trace.log(f"----- running stretch ------", name=f"{MOD}.motor")
-        temp_motor_speed = ConfigParams.stretch_motor_speed
-        if ConfigParams.max_stretch_length < length < ConfigParams.max_stretch_length + 0.1:
-            Navigation.setTaskError("StretchLengthExceeded", f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！！！")
-            length = ConfigParams.max_stretch_length
-        elif length > ConfigParams.max_stretch_length + 0.1:
-            Navigation.setTaskError("StretchLengthExceeded",f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！！！")
-            self.status = ScriptStatus.FAILED
-            return False
-        if length > 0.1 and self.stretch_real_pos > length * 0.6:
-            temp_motor_speed = ConfigParams.stretch_motor_speed * 0.6
-        if self.container_robot.stretch(self.stretch_motor, length, temp_motor_speed):
-            return True
-        return False
 
     def rotate(self, pos, max_speed=None):
         Trace.log(f"----- running rotate ------", name=f"{MOD}.motor")
