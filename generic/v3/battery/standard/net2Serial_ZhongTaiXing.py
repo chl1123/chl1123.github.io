@@ -55,8 +55,6 @@ class Battery(bb.batteryBase):
         super(Battery, self).__init__()
         self.createSerial(config_params.devName, config_params.baudrate)
         self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
-        self.__debug_out = ud.udpDebug()
-        sys.stdout = self.__debug_out
         #
         self.state_info = 0
         self.battery_capacity = 0
