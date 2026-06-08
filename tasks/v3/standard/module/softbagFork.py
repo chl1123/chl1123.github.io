@@ -3103,6 +3103,10 @@ class GoPathWithContactDi(BaseAction):
         )
         self.distance_check_done = not self.distance_check_enabled
         self.distance_sensor_device_keys = []
+        self.latest_distance_sensor_dist = None
+        self.last_distance_sensor_log_dist = None
+        self.last_distance_sensor_log_time = 0.0
+        self.distance_sensor_no_data_logged = False
         target2robot = pos2Base(world_pos, get_r_loc())
         _trace_log(f"go path with di target pos:{world_pos},args:{args}")
 
@@ -3139,6 +3143,7 @@ class GoPathWithContactDi(BaseAction):
         elif method == "bezier":
             self.motion_target = pos2World([-back_dist, 0, 0], world_pos)
             self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
+            self.motion_target = pos2World([-back_dist, 0, 0], world_pos)
             if self.distance_check_enabled:
                 self.back_action = GoBezier.GoBezierWorld(world_pos, 0.0, args["adjust_dist"],
                                                           args["min_ahead_dist"], True,
@@ -3222,13 +3227,77 @@ class GoPathWithContactDi(BaseAction):
         }
         return GoPath(back_args)
 
-    def _handle_rec_distance_check(self) -> bool:
-        if self.distance_check_done:
+    def _fail_pallet_back_distance_insufficient(self, dist: float, source: str) -> bool:
+        Navigation.setTaskError(
+            "PalletBackDistanceInsufficient",
+            f"{source}: distance sensor {self.distance_sensor_device_keys} dist={dist:.3f}m < "
+            f"pallet_length={self.distance_check_length:.3f}m"
+        )
+        self.action_status = ActionStatus.FAILED
+        _trace_log(
+            f"{source}: pallet back distance insufficient, dist={dist}, "
+            f"pallet_length={self.distance_check_length}"
+        )
+        return False
+
+    def _stream_distance_sensor_dist(self, force_log: bool = False) -> bool:
+        if not self.distance_check_enabled:
             return True
-        if not self._load_distance_sensor_config():
+        if not self.distance_sensor_device_keys and not self._load_distance_sensor_config():
             return False
 
         dist = self._read_distance_sensor_dist()
+        now = time.time()
+        if dist is None:
+            if not self.distance_sensor_no_data_logged:
+                _trace_log(f"distance sensor streaming no valid data, sensors={self.distance_sensor_device_keys}")
+                self.distance_sensor_no_data_logged = True
+            return True
+
+        self.distance_sensor_no_data_logged = False
+        self.latest_distance_sensor_dist = dist
+        need_log = force_log
+        if self.last_distance_sensor_log_dist is None:
+            need_log = True
+        elif abs(dist - self.last_distance_sensor_log_dist) >= 0.02:
+            need_log = True
+        elif (now - self.last_distance_sensor_log_time) >= 0.5:
+            need_log = True
+
+        if need_log:
+            _trace_log(
+                f"distance sensor streaming read, sensors={self.distance_sensor_device_keys}, "
+                f"dist={dist}, pallet_length={self.distance_check_length}"
+            )
+            self.last_distance_sensor_log_dist = dist
+            self.last_distance_sensor_log_time = now
+
+        if dist < self.distance_check_length:
+            return self._fail_pallet_back_distance_insufficient(dist, "distance sensor streaming")
+        return True
+
+    def _handle_contact_di_fallback(self) -> bool:
+        if not self.check_di:
+            return False
+        self.di_status = [Di.getDi(d) for d in self.contact_di]
+        if not any(self.di_status):
+            return False
+        _trace_log(
+            f"contact di fallback triggered during distance check, di_status:{self.di_status}, "
+            f"distance_check_done:{self.distance_check_done}"
+        )
+        if self.stop_robot():
+            self.action_status = ActionStatus.FINISHED
+            return True
+        return False
+
+    def _handle_rec_distance_check(self) -> bool:
+        if self.distance_check_done:
+            return True
+        if not self._stream_distance_sensor_dist(force_log=True):
+            return False
+
+        dist = self.latest_distance_sensor_dist
         if dist is None:
             Navigation.setTaskError("DistanceSensorNoData",
                                     f"distance sensor {self.distance_sensor_device_keys} has no valid data")
@@ -3240,12 +3309,7 @@ class GoPathWithContactDi(BaseAction):
             f"dist={dist}, pallet_length={self.distance_check_length}"
         )
         if dist < self.distance_check_length:
-            Navigation.setTaskError(
-                "PalletBackDistanceInsufficient",
-                f"distance sensor {self.distance_sensor_device_keys} dist={dist:.3f}m < pallet_length={self.distance_check_length:.3f}m"
-            )
-            self.action_status = ActionStatus.FAILED
-            return False
+            return self._fail_pallet_back_distance_insufficient(dist, "distance sensor final check")
 
         self.distance_check_done = True
         if abs(pos2Base(self.motion_target, get_r_loc())[0]) > 0.005:
@@ -3254,7 +3318,6 @@ class GoPathWithContactDi(BaseAction):
                 f"distance sensor check ok, continue backing to motion target:{self.motion_target}"
             )
         return True
-
     def run(self):
         # 路径执行流程：初始化避障/DI策略 -> 执行GoPath/Bezier/TwoStraightLine -> contact DI到位判定
         if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
@@ -3336,11 +3399,18 @@ class GoPathWithContactDi(BaseAction):
                 return
 
             if self.distance_check_enabled and not self.distance_check_done:
+                if not self._stream_distance_sensor_dist():
+                    return
+
+            if self.distance_check_enabled and not self.distance_check_done:
+                if self._handle_contact_di_fallback():
+                    return
+
+            if self.distance_check_enabled and not self.distance_check_done:
                 if self.back_action.action_status in [ScriptStatus.FINISHED, ActionStatus.FINISHED]:
                     if not self._handle_rec_distance_check():
                         return
                     return
-
             # 前进的时候不要设置避障距离
             vx = NavSpeed.getSpeeds()[0]
             if vx > 0.005 and not self.clear_policy:
