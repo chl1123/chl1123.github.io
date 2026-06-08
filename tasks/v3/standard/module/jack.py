@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/6/6
+# @Date : 2026/6/8
 # @Author : zhaopengfei
 # @Coding : 顶升车
-# @Update : add：脚本参数翻译补充  feat：适配3.5日志统一记录格式
+# @Update : 更新最新jackWithSpin.py改动
 
 import json
 import math
@@ -737,7 +737,7 @@ def check_debug_task(operation: str) -> bool:
 def _robot_device_change_callback(device_change_set):
     """设备参数变化回调"""
     relevant_devices = {"Model", "Motor", "DOMotor", "CodeScanner"}
-    if device_change_set & relevant_devices:
+    if set(device_change_set) & relevant_devices:
         ConfigParams._build_and_load_config()
 
 
@@ -1281,7 +1281,6 @@ class Jack(ModuleBase):
         self.jack_isFull = None
         self.jack_speed = None
         self.jack_motors = None
-        self.count = 0
         # 脚本运行相关变量
         self.task_args = None
         self.action_list = []
@@ -1339,6 +1338,53 @@ class Jack(ModuleBase):
         self.final_loc = None  # finalLoc 参数
         self.result = None  # 边走边动结果参数
         self.jack_calib_step = [False, False]  # [0]=motorCalib指令已下发  [1]=标零已确认完成
+
+    # ============================================================================
+    # 角度工具方法
+    # ============================================================================
+
+    @staticmethod
+    def _normalize_angle(rad):
+        """归一化到 (-π, π]"""
+        return (rad + math.pi) % (2 * math.pi) - math.pi
+
+    @staticmethod
+    def _calc_align_target(cur_angle):
+        """计算就近对齐目标：0° 或 180°（文档定义的'对齐'）
+        返回目标弧度值（0 或 π）"""
+        diff_to_0 = abs(Jack._normalize_angle(cur_angle))
+        diff_to_pi = abs(Jack._normalize_angle(cur_angle - math.pi))
+        return 0.0 if diff_to_0 <= diff_to_pi else math.pi
+
+    def _get_actual_insert_dir_from_pgv(self) -> str:
+        """根据 PGV 角度计算实际的进入方向（A/B/C/D）
+
+        PGV 角度定义：
+        - 0°: D 边朝车头
+        - 90°: A 边朝车头
+        - 180°/-180°: B 边朝车头
+        - -90°/270°: C 边朝车头
+
+        Returns:
+            str: 'A', 'B', 'C', or 'D'
+        """
+        if self.pgv_goods_angle_robot is None:
+            return "D"  # 默认 D 边
+
+        angle_deg = math.degrees(self.pgv_goods_angle_robot)
+        # 归一化到 [0, 360)
+        if angle_deg < 0:
+            angle_deg += 360
+
+        # 根据角度判断方向（每个方向 90° 范围）
+        if angle_deg >= 315 or angle_deg < 45:  # -45° ~ 45°
+            return "D"  # D 边朝车头
+        elif angle_deg >= 45 and angle_deg < 135:  # 45° ~ 135°
+            return "A"  # A 边朝车头
+        elif angle_deg >= 135 and angle_deg < 225:  # 135° ~ 225°
+            return "B"  # B 边朝车头
+        else:  # 225° ~ 315°
+            return "C"  # C 边朝车头
 
     def _get_motor_calib_state(self, motor_name):
         """从 Odometer 读取指定电机的 calib 字段（2=标零完成）"""
@@ -1629,9 +1675,6 @@ class Jack(ModuleBase):
             self.motor_jog_or_move("lift")
         elif self.opt == "calib":  # 外部指令强制标零（需 debugMode）
             self.do_force_calib()
-        elif self.opt == "_idleAlign":  # 空载对齐（内部触发，无需额外初始化）
-            pass  # action_list 已在 align_jack_plate_if_needed 中构建，直接由 _execute_actions 执行
-
         else:
             # Error53301: 不支持的任务指令
             Navigation.setTaskError("WrongOperation", f"Unsupported task operation: {self.opt}")
@@ -1697,8 +1740,8 @@ class Jack(ModuleBase):
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
                                                config_params.jack_motor_speed))
             # 顶升完成后绑定容器，设置货物模型
-            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
-
+            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
+                                                  is_backwards=self.is_backwards))
     def laser_area_deduction(self):
         if not self.operation_init:
             self.operation_init = True
@@ -2004,11 +2047,12 @@ class Jack(ModuleBase):
         # 顶升完成后绑定容器，设置货物模型（识别开启或有recfile时才加载）
         if self.is_recognize or self.recfile:
             self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
-                                                  use_pgv_angle=self.is_secondary_adjust))
+                                                  use_pgv_angle=self.is_secondary_adjust,
+                                                  is_backwards=self.is_backwards))
 
     def jack_load(self):
         """
-        完整识别取货流程：旋转车体对准 → 识别货架 → 导航 → 二次调整 → 顶升 → 设置激光扣除区域
+        完整识别取货流程：旋转车体对准 → 识别货架 → 导航 → 二次调整 → 顶升 → 设置激光扣除区域 → 加载货物模型
         """
         if not self.operation_init:
             self.operation_init = True
@@ -2119,7 +2163,7 @@ class Jack(ModuleBase):
                     pgv_max_speed=self.pgv_max_speed,
                     pgv_max_rot_speed=self.pgv_max_rot_speed,
                 ))
-
+                self.action_list.append(GetGoodsDirFromPGV())
             # 检查是否是边走边动模式下已经完成了顶升下降
             current_height = Motor.getMotorPos(config_params.jack_motor_name)
             if self.pre_action_completed and current_height <= 0.005:
@@ -2242,8 +2286,8 @@ class Jack(ModuleBase):
             # 顶升
             self.action_list.append(
                 JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
-            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
-
+            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
+                                                  is_backwards=self.is_backwards))
             # bezier 退回起始位置
             self.action_list.append(
                 GoBezier(self.return_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
@@ -2369,20 +2413,6 @@ class Jack(ModuleBase):
             Motor.stopMotor()
             Motor.resetMotor(config_params.jack_motor_name)
 
-    def _execute_actions(self):
-        if self.action_id < len(self.action_list):
-            current_action = self.action_list[self.action_id]
-            if current_action.action_status == ActionStatus.FINISHED:
-                self.action_id += 1
-            elif current_action.action_status == ActionStatus.FAILED:
-                Navigation.setTaskError("ExecuteActionError", f"Action execution failed. Check action configuration: {current_action}")
-                self.status = ScriptStatus.FAILED
-            else:
-                current_action.run(self)
-        else:
-            self.status = ScriptStatus.FINISHED
-            self.action_list = []
-
     def suspend(self):
         if self.status == ScriptStatus.RUNNING:
             self.action_task.suspend()
@@ -2407,15 +2437,9 @@ class Jack(ModuleBase):
         debug_trace("task cancelled", name=MOD)
 
     def safe_move_check(self):
-        self.count += 1
-        status = SafeMoveStatus.RUNNING
-        if self.count == 100:
-            self.count = 0
-            status = SafeMoveStatus.FINISHED
-        self.setSafeMoveStatus(status)
-        debug_trace(f"safe_move_check={Module.getSafeMoveCheck()}", name=MOD)
-        if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
-            self.event_safe_move_check = False
+        # 无真实安全检查逻辑，直接上报 FINISHED 允许底盘移动，避免阻塞正常运行
+        self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
+        self.event_safe_move_check = False
 
     def tick_report(self):
         self.jack_motors = NavSpeed.getMotorCmd()
@@ -2687,7 +2711,7 @@ class Jack(ModuleBase):
         在导航过程中慢慢把顶升电机降下来
         """
 
-        self.set_info()  # 更新状态信息
+        self.tick_report()  # 更新状态信息
 
         self.report_info['preActionMode'] = True
         self.report_info['preActionCompleted'] = self.pre_action_completed
@@ -2695,14 +2719,12 @@ class Jack(ModuleBase):
 
         if not self.pre_action_completed:
             self.execute_pre_action()
-            debug_trace(f"pre-action running step={self.pre_action_step}", name="jack.motor")
+            debug_trace(f"pre-action running step={self.pre_action_step}", name=f"{MOD}.motor")
         elif self.at_final_loc:
             self.switch_to_full_action()
-            debug_trace("pre-action at final loc, switch to full action", name="jack")
+            debug_trace("pre-action at final loc, switch to full action", name=MOD)
         else:
-            debug_trace("pre-action done, waiting for final loc", name="jack")
-
-        Module.reportInfo(self.report_info)
+            debug_trace("pre-action done, waiting for final loc", name=MOD)
 
     def switch_to_full_action(self):
         """切换到完整动作模式"""
@@ -2711,7 +2733,7 @@ class Jack(ModuleBase):
 
             if operation == 'jackUnload':
                 # 顶升已经在预动作中下降完成，直接标记完成或执行剩余动作
-                debug_trace("pre-action jackUnload switch to full action", name="jack")
+                debug_trace("pre-action jackUnload switch to full action", name=MOD)
 
             self.pre_action_mode = False
             self.status = ScriptStatus.NONE
@@ -2720,35 +2742,13 @@ class Jack(ModuleBase):
             # 设置result，让main循环中的常规流程继续执行剩余动作
             self.result = self.full_action_args
 
-            debug_trace("pre-action mode ended, waiting for binTask", name="jack")
+            debug_trace("pre-action mode ended, waiting for binTask", name=MOD)
             return True
         return False
 
 
 # --- 以下为各个基础动作类（内容保持不变） ---
-class BaseAction:
-    """定义动作的基类"""
-
-    def __init__(self, action_name: str = None):
-        self.action_name = action_name or self.__class__.__name__
-        self.start_time = time.time()
-        self.action_status = ActionStatus.INIT
-        self.action_state = {}
-
-    def run(self, m):
-        self.action_state["action_runtime"] = time.time() - self.start_time
-        pass
-
-    def reset(self):
-        pass
-
-    def __str__(self):
-        return json.dumps({
-            "class_name": self.__class__.__name__
-        })
-
-
-class SetLaserDeductArea(BaseAction):
+class SetLaserDeductArea(ActionBase):
     """设置激光扣除区域（取货完成后调用）"""
 
     def __init__(self, deduct_info, prefix: str = "ShelfDeductArea", coordinate=Coordinate.ROBOT):
@@ -2759,13 +2759,21 @@ class SetLaserDeductArea(BaseAction):
         self.init = True
         self.opt_info = f"{self.__class__.__name__}{{prefix={prefix}}}"
 
+    def args_summary(self) -> dict:
+        # §4.5: 排除大对象(deduct_info)与枚举实例(coordinate), 仅留精简摘要
+        return {
+            "deductAreaCount": len((self.deduct_info or {}).get("area", []) or []),
+            "prefix": self.prefix,
+            "coordinate": str(getattr(self.coordinate, "value", self.coordinate)),
+        }
+
     def run(self, j: Jack):
         if self.init:
             self.init = False
             self.action_status = ActionStatus.RUNNING
 
             if not self.deduct_info:
-                debug_trace("SetLaserDeductArea: no deduct info, skip", name="jack")
+                debug_trace("SetLaserDeductArea: no deduct info, skip", name=MOD)
                 self.action_status = ActionStatus.FINISHED
                 return
 
@@ -2773,31 +2781,30 @@ class SetLaserDeductArea(BaseAction):
                 devices = self.deduct_info.get("deductDevice", [])
                 areas = self.deduct_info.get("area", [])
 
-                debug_trace(f"SetLaserDeductArea: setting {len(areas)} areas devices={devices}", name="jack")
+                debug_trace(f"SetLaserDeductArea: setting {len(areas)} areas devices={devices}", name=MOD)
 
                 for idx, area in enumerate(areas, start=1):
                     x_list = area.get("xList", area.get("x_list", []))
                     y_list = area.get("yList", area.get("y_list", []))
 
                     if len(x_list) < 3 or len(x_list) != len(y_list):
-                        debug_trace(f"SetLaserDeductArea: skip invalid area idx={idx}", name="jack.err")
+                        debug_trace(f"SetLaserDeductArea: skip invalid area idx={idx}", name=f"{MOD}.err")
                         continue
 
                     region_name = f"{self.prefix}{idx}"
                     Navigation.setClearRegion(region_name, x_list, y_list, devices, self.coordinate)
-                    debug_trace(f"SetLaserDeductArea: created {region_name}", name="jack")
+                    debug_trace(f"SetLaserDeductArea: created {region_name}", name=MOD)
 
                 self.action_status = ActionStatus.FINISHED
 
             except Exception as e:
-                Trace.log(f"SetLaserDeductArea error={e}", name="jack.err")
+                Trace.log(f"SetLaserDeductArea error={e}", name=f"{MOD}.err")
                 self.action_status = ActionStatus.FINISHED
 
         j.report_info["SetLaserDeductArea"] = {"actionStatus": self.action_status, "prefix": self.prefix}
-        Module.reportInfo(j.report_info)
 
 
-class DeleteLaserDeductArea(BaseAction):
+class DeleteLaserDeductArea(ActionBase):
     """删除激光扣除区域（放货完成后调用）"""
 
     def __init__(self, prefix: str = "ShelfDeductArea", coordinate=Coordinate.ROBOT):
@@ -2806,6 +2813,13 @@ class DeleteLaserDeductArea(BaseAction):
         self.coordinate = coordinate
         self.init = True
         self.opt_info = f"{self.__class__.__name__}{{prefix={prefix}}}"
+
+    def args_summary(self) -> dict:
+        # §4.5: coordinate 枚举转字符串
+        return {
+            "prefix": self.prefix,
+            "coordinate": str(getattr(self.coordinate, "value", self.coordinate)),
+        }
 
     def run(self, j: Jack):
         if self.init:
@@ -2820,21 +2834,20 @@ class DeleteLaserDeductArea(BaseAction):
                     for region in clear_regions:
                         if region.startswith(self.prefix):
                             Navigation.deleteClearRegion(region, self.coordinate)
-                            debug_trace(f"DeleteLaserDeductArea: deleted {region}", name="jack")
+                            debug_trace(f"DeleteLaserDeductArea: deleted {region}", name=MOD)
                             deleted_count += 1
 
-                debug_trace(f"DeleteLaserDeductArea: deleted {deleted_count} regions", name="jack")
+                debug_trace(f"DeleteLaserDeductArea: deleted {deleted_count} regions", name=MOD)
                 self.action_status = ActionStatus.FINISHED
 
             except Exception as e:
-                Trace.log(f"DeleteLaserDeductArea error={e}", name="jack.err")
+                Trace.log(f"DeleteLaserDeductArea error={e}", name=f"{MOD}.err")
                 self.action_status = ActionStatus.FINISHED
 
         j.report_info["DeleteLaserDeductArea"] = {"actionStatus": self.action_status, "prefix": self.prefix}
-        Module.reportInfo(j.report_info)
 
 
-class GetGoodsDirFromPGV(BaseAction):
+class GetGoodsDirFromPGV(ActionBase):
     """二次调整时读取上视扫码器角度，作为货架在机器人坐标系下的角度，用于加载货物模型"""
 
     def __init__(self):
@@ -2852,14 +2865,14 @@ class GetGoodsDirFromPGV(BaseAction):
                     f"getGoodsDirFro"
                     f"mPGV goods2robot={math.degrees(pgv.tagDiffAngle):.1f}deg "
                     f"(raw={pgv.tagDiffAngle:.4f}rad)",
-                    name="jack.rec")
+                    name=f"{MOD}.rec")
                 self.action_status = ActionStatus.FINISHED
                 return
         Trace.log("getGoodsDirFromPGV: no upside PGV with DMT detected, fallback to insert_dir",
-                  name="jack.err")
+                  name=f"{MOD}.err")
         self.action_status = ActionStatus.FINISHED
 
-class RobotRotate(BaseAction):
+class RobotRotate(ActionBase):
     """底盘旋转"""
 
     def __init__(self, angle, coordinate, spin=True, direction=None, unit="rad"):
@@ -2876,7 +2889,7 @@ class RobotRotate(BaseAction):
         self.angle = angle  # 角度或弧度
         self.coordinate = coordinate
         self.spin = spin
-        self.direction = direction  # 0 shortest; -1 cw; 1 ccw
+        self.direction = direction  # None=就近; RotateDirection.CLOCKWISE=-1; COUNTERCLOCKWISE=1
         self.speed = 0.7
         self.move_args = dict()
         self.robot_ang = []
@@ -2884,6 +2897,17 @@ class RobotRotate(BaseAction):
             self.angle = math.radians(angle)  # 统一转成弧度存储
         else:
             self.angle = angle  # 已经是弧度，直接存
+
+    def args_summary(self) -> dict:
+        # §4.5: coordinate / direction 枚举转字符串/整数, 不塞枚举实例
+        s = {
+            "angle": float(self.angle),
+            "coordinate": str(getattr(self.coordinate, "value", self.coordinate)),
+            "spin": bool(self.spin),
+        }
+        if self.direction is not None:
+            s["direction"] = int(self.direction)
+        return s
 
     def run(self, j: Jack):
         if self.init:
@@ -2935,7 +2959,7 @@ class RobotRotate(BaseAction):
                 })
 
         status = Navigation.runOdoMove(self.move_args)
-        debug_trace(f"RobotRotate {status=}", name="jack.motor")
+        debug_trace(f"RobotRotate {status=}", name=f"{MOD}.motor")
         if status == ActionStatus.FINISHED:
             self.action_status = ActionStatus.FINISHED
 
@@ -2946,11 +2970,10 @@ class RobotRotate(BaseAction):
             "coordinate": self.coordinate,
             "direction": self.direction
         }
-        Module.reportInfo(j.report_info)
 
     def reset(self):
         Navigation.resetOdoMove()
-        debug_trace("RobotRotate reset", name="jack.motor")
+        debug_trace("RobotRotate reset", name=f"{MOD}.motor")
         self.action_status = ActionStatus.RUNNING
 
     def normalize(self, rad: float) -> float:
@@ -2958,7 +2981,7 @@ class RobotRotate(BaseAction):
         return (rad + math.pi) % (2 * math.pi) - math.pi
 
 
-class JackHeight(BaseAction):
+class JackHeight(ActionBase):
     """顶升动作，通过设置电机位置实现顶升"""
 
     def __init__(self, motor_name, target_height, jack_motor_speed, recfile=None, object_key="shelf"):
@@ -2977,8 +3000,7 @@ class JackHeight(BaseAction):
         self.init = False
         self.jack_start_height = None
         self._count_recorded = False  # 防止重复计数
-        self._last_progress = -1  # 用于进度日志去重
-        self._up_di_triggered_time = None # 上到位 DI/isReached 触发时间戳（用于延迟）
+        self._up_di_triggered_time = None  # 上到位 DI/isReached 触发时间戳（用于延迟）
         self._motor_moved = False  # 电机是否已开始运动
         if not config_params.DOMotor:
             Motor.resetMotor(self.motor_name)
@@ -2994,11 +3016,12 @@ class JackHeight(BaseAction):
             # 只在初始化时输出一次关键信息
             direction = "↑Jack up" if self.target_height > self.jack_start_height else "↓Jack down"
             debug_trace(
-                f"{direction} {self.jack_start_height:.3f}m -> {self.target_height:.3f}m speed={self.jackMotorSpeed}", name="jack.motor")
+                f"{direction} {self.jack_start_height:.3f}m -> {self.target_height:.3f}m speed={self.jackMotorSpeed}",
+                name=f"{MOD}.motor")
 
             # 目标高度等于当前高度，无需动作
             if abs(self.target_height - self.jack_start_height) < 0.001:
-                Trace.log(f"jack height already at target={self.jack_start_height:.3f}m, skip", name="jack.motor")
+                Trace.log(f"jack height already at target={self.jack_start_height:.3f}m, skip", name=f"{MOD}.motor")
                 self.action_status = ActionStatus.FINISHED
                 return
 
@@ -3019,21 +3042,27 @@ class JackHeight(BaseAction):
                 # 初始化前检查：上到位 DI 不应该已经触发
                 if not is_simulation():
                     if config_params.jack_up_di and Di.getDi(config_params.jack_up_di):
-                        Trace.log(f"jack up DI({config_params.jack_up_di}) already triggered before lift, check DI config", name="jack.err")
-                        Navigation.setDeviceError("JackUpDiError", f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed")
+                        Trace.log(
+                            f"jack up DI({config_params.jack_up_di}) already triggered before lift, check DI config",
+                            name=f"{MOD}.err")
+                        Navigation.setDeviceError("JackUpDiError",
+                                                  f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed")
                         self.action_status = ActionStatus.FAILED
                         return
                 if config_params.jack_up_di:
                     Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
-                                            config_params.jack_up_di)
+                                           config_params.jack_up_di)
                 else:
                     Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
             else:
                 # 初始化前检查：下到位 DI 不应该已经触发
                 if not is_simulation():
                     if config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di):
-                        Trace.log(f"jack down DI({config_params.jack_zero_di}) already triggered before lower, check DI config", name="jack.err")
-                        Navigation.setDeviceError("JackDownDiError", f"Jack-down DI({config_params.jack_zero_di}) already triggered before lowering. DI config error or mechanism jammed")
+                        Trace.log(
+                            f"jack down DI({config_params.jack_zero_di}) already triggered before lower, check DI config",
+                            name=f"{MOD}.err")
+                        Navigation.setDeviceError("JackDownDiError",
+                                                  f"Jack-down DI({config_params.jack_zero_di}) already triggered before lowering. DI config error or mechanism jammed")
                         self.action_status = ActionStatus.FAILED
                         return
                 if config_params.jack_zero_di:
@@ -3049,39 +3078,31 @@ class JackHeight(BaseAction):
         if not self._motor_moved and abs(current_pos - self.jack_start_height) > 0.001:
             self._motor_moved = True
 
-        # 计算并输出进度（每10%输出一次，避免刷屏）
-        if self.jack_start_height != self.target_height:
-            progress = int(
-                abs(current_pos - self.jack_start_height) / abs(self.target_height - self.jack_start_height) * 100)
-            progress = min(progress, 100)
-            progress_10 = progress // 10 * 10  # 取整到10%
-            if self._last_progress < progress_10 < 100:
-                self._last_progress = progress_10
-                debug_trace(f"jack progress={progress_10}% pos={current_pos:.4f}m", name="jack.motor")
-
         elapsed = time.time() - self._init_time
 
         if self.target_height > self.jack_start_height:
             # 顶升动作：超时检测
             if config_params.jack_load_time and elapsed > config_params.jack_load_time:
                 Motor.resetMotor(self.motor_name)
-                Trace.log(f"jack up timeout {elapsed:.1f}s > {config_params.jack_load_time}s pos={current_pos:.4f}m", name="jack.err")
-                Navigation.setTaskError("JackUpTimeout", f"Jack-up timeout({config_params.jack_load_time}s), motor not reached target position. Check motor and encoder status")
+                Trace.log(f"jack up timeout {elapsed:.1f}s > {config_params.jack_load_time}s pos={current_pos:.4f}m",
+                          name=f"{MOD}.err")
+                Navigation.setTaskError("JackUpTimeout",
+                                        f"Jack-up timeout({config_params.jack_load_time}s), motor not reached target position. Check motor and encoder status")
                 self.action_status = ActionStatus.FAILED
                 return
             # 顶升动作：到位判断统一使用 isMotorReached
             up_done = Motor.isMotorReached(self.motor_name)
             if up_done:
                 if not self._motor_moved and not getattr(self, "_warn_logged", False):
-                    Trace.log(f"jack up DI triggered without motor movement pos={current_pos:.4f}m", name="jack.err")
+                    Trace.log(f"jack up DI triggered without motor movement pos={current_pos:.4f}m", name=f"{MOD}.err")
                     self._warn_logged = True
                 if self._up_di_triggered_time is None:
                     self._up_di_triggered_time = time.time()
-                    debug_trace(f"jack up DI triggered pos={current_pos:.4f}m", name="jack.motor")
+                    debug_trace(f"jack up DI triggered pos={current_pos:.4f}m", name=f"{MOD}.motor")
                 elif time.time() - self._up_di_triggered_time >= 0.2:
                     self.action_status = ActionStatus.FINISHED
                     Motor.resetMotor(self.motor_name)
-                    debug_trace(f"jack up done pos={current_pos:.4f}m", name="jack.motor")
+                    debug_trace(f"jack up done pos={current_pos:.4f}m", name=f"{MOD}.motor")
 
                     if not self._count_recorded:
                         self._count_recorded = True
@@ -3090,19 +3111,23 @@ class JackHeight(BaseAction):
             # 下降动作：超时检测
             if config_params.jack_unload_time and elapsed > config_params.jack_unload_time:
                 Motor.resetMotor(self.motor_name)
-                Trace.log(f"jack down timeout {elapsed:.1f}s > {config_params.jack_unload_time}s pos={current_pos:.4f}m", name="jack.err")
-                Navigation.setTaskError("JackDownTimeout", f"Jack-down timeout({config_params.jack_unload_time}s), motor not reached target position. Check motor and encoder status")
+                Trace.log(
+                    f"jack down timeout {elapsed:.1f}s > {config_params.jack_unload_time}s pos={current_pos:.4f}m",
+                    name=f"{MOD}.err")
+                Navigation.setTaskError("JackDownTimeout",
+                                        f"Jack-down timeout({config_params.jack_unload_time}s), motor not reached target position. Check motor and encoder status")
                 self.action_status = ActionStatus.FAILED
                 return
             # 下降动作：到位判断统一使用 isMotorReached
             down_done = Motor.isMotorReached(self.motor_name)
             if down_done:
                 if not self._motor_moved and not getattr(self, "_warn_logged", False):
-                    Trace.log(f"jack down DI triggered without motor movement pos={current_pos:.4f}m", name="jack.err")
+                    Trace.log(f"jack down DI triggered without motor movement pos={current_pos:.4f}m",
+                              name=f"{MOD}.err")
                     self._warn_logged = True
                 self.action_status = ActionStatus.FINISHED
                 Motor.resetMotor(self.motor_name)
-                debug_trace(f"jack down done pos={current_pos:.4f}m", name="jack.motor")
+                debug_trace(f"jack down done pos={current_pos:.4f}m", name=f"{MOD}.motor")
 
         j.report_info["JackHeight"] = {
             "actionStatus": self.action_status,
@@ -3110,14 +3135,13 @@ class JackHeight(BaseAction):
             "targetHeight": self.target_height,
             "jackMotorSpeed": self.jackMotorSpeed,
         }
-        Module.reportInfo(j.report_info)
 
 
-class BindContainer(BaseAction):
+class BindContainer(ActionBase):
     """顶升完成后绑定容器并设置货物模型"""
 
     def __init__(self, container_id: str, goods_name: str, recfile: str, insert_dir: str = "D",
-                 use_pgv_angle: bool = False):
+                 use_pgv_angle: bool = False, is_backwards: bool = False):
         super().__init__("BindContainer")
         self.opt_info = f"BindContainer{{container_id={container_id}, goods_name={goods_name}, recfile={recfile}}}"
         self.container_id = container_id
@@ -3125,6 +3149,7 @@ class BindContainer(BaseAction):
         self.recfile = recfile
         self.insert_dir = insert_dir
         self.use_pgv_angle = use_pgv_angle
+        self.is_backwards = is_backwards
 
     def run(self, j: Jack):
         # 当使用PGV角度时，同时使用 goods_angle 和 insert_dir
@@ -3134,15 +3159,19 @@ class BindContainer(BaseAction):
         else:
             goods_angle = None
             insert_dir = self.insert_dir
+            # 倒走取货时，货物模型朝向需额外旋转 180°（未开启PGV朝向读取的前提下）
+            if self.is_backwards:
+                _opposite = {'A': 'C', 'B': 'D', 'C': 'A', 'D': 'B'}
+                insert_dir = _opposite.get(insert_dir, insert_dir)
 
         ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec",
                              insert_dir, goods_angle=goods_angle)
         if not ok:
-            Trace.log(f"BindContainer failed recfile={self.recfile}", name="jack.err")
+            Trace.log(f"BindContainer failed recfile={self.recfile}", name=f"{MOD}.err")
         self.action_status = ActionStatus.FINISHED
 
 
-class UnbindContainer(BaseAction):
+class UnbindContainer(ActionBase):
     """下降完成后解绑容器并清除货物模型"""
 
     def __init__(self, container_id: str):
@@ -3152,11 +3181,11 @@ class UnbindContainer(BaseAction):
 
     def run(self, j: Jack):
         j.unbindContainer(self.container_id)
-        Trace.log(f"UnbindContainer ok container={self.container_id}", name="jack")
+        Trace.log(f"UnbindContainer ok container={self.container_id}", name=MOD)
         self.action_status = ActionStatus.FINISHED
 
 
-class GoMapPath(BaseAction):
+class GoMapPath(ActionBase):
     """前进指定距离"""
 
     def __init__(self):
@@ -3164,6 +3193,7 @@ class GoMapPath(BaseAction):
         self.opt_info = f"{self.__class__.__name__}{{}}"
         self.init = True
         self.action_status = ActionStatus.INIT
+        self.action_state = {}
         self.task = Navigation.moveTask()
 
     def run(self, j: Jack):
@@ -3178,7 +3208,7 @@ class GoMapPath(BaseAction):
         self.action_state['status'] = self.action_status
 
 
-class GoStraightDist(BaseAction):
+class GoStraightDist(ActionBase):
     """前进/后退指定距离"""
 
     def __init__(self, go_dist):
@@ -3203,13 +3233,10 @@ class GoStraightDist(BaseAction):
         if finished:
             self.action_status = ActionStatus.FINISHED
 
-        Module.reportInfo({
-            "GoStraightDist": {"status": self.action_status, "goDist": self.go_dist},
-            "containers": Container.getContainers(),
-        })
+        j.report_info["GoStraightDist"] = {"status": self.action_status, "goDist": self.go_dist}
 
 
-class GoPath(BaseAction):
+class GoPath(ActionBase):
     """直线走到指定点"""
 
     def __init__(self, go_pos, coordinate='robot', back_mode=False, is_hold_dir=None, max_speed=0.5, max_rot=0.3,
@@ -3263,10 +3290,9 @@ class GoPath(BaseAction):
             "reachDist": self.path_dist_accuracy,
             "reachAngle": self.path_angle_accuracy
         }
-        Module.reportInfo(j.report_info)
 
 
-class GoBezierCombined(BaseAction):
+class GoBezierCombined(ActionBase):
     """执行行走贝塞尔曲线到达取货点"""
 
     def __init__(self, target_world, back_dist=0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0,
@@ -3295,13 +3321,13 @@ class GoBezierCombined(BaseAction):
 
         if self.bezier_status in (ActionStatus.INIT, ActionStatus.RUNNING):
             self.bezier_status = self.go_bezier.run()
-            debug_trace(f"bezier_status={self.bezier_status}", name="jack.nav")
+            debug_trace(f"bezier_status={self.bezier_status}", name=f"{MOD}.nav")
         elif self.bezier_status == ActionStatus.FAILED:
             self.action_status = ActionStatus.FAILED
         elif self.bezier_status == ActionStatus.FINISHED:
             if self.bezier_return_status in (ActionStatus.INIT, ActionStatus.RUNNING):
                 self.bezier_return_status = self.go_bezier_return.run()
-                debug_trace(f"bezier_return_status={self.bezier_return_status}", name="jack.nav")
+                debug_trace(f"bezier_return_status={self.bezier_return_status}", name=f"{MOD}.nav")
             elif self.bezier_return_status == ActionStatus.FAILED:
                 self.action_status = ActionStatus.FAILED
             elif self.bezier_return_status == ActionStatus.FINISHED:
@@ -3309,7 +3335,7 @@ class GoBezierCombined(BaseAction):
         time.sleep(0.1)
 
 
-class GoBezier(BaseAction):
+class GoBezier(ActionBase):
     """执行行走贝塞尔曲线到达取货点"""
 
     def __init__(self, target_world, back_dist=0.0, adjust_dist_for_curvature_limit=2, min_ahead_dist=0.0,
@@ -3338,7 +3364,8 @@ class GoBezier(BaseAction):
         if self.init:
             self.init = False
             self.action_status = ActionStatus.RUNNING
-            debug_trace(f"bezier nav start target=({self.target_world[0]:.2f}, {self.target_world[1]:.2f})", name="jack.nav")
+            debug_trace(f"bezier nav start target=({self.target_world[0]:.2f}, {self.target_world[1]:.2f})",
+                        name=f"{MOD}.nav")
 
         if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
             self.action_status = self.go_bezier.run()
@@ -3347,9 +3374,9 @@ class GoBezier(BaseAction):
         if self.action_status != self._last_status:
             self._last_status = self.action_status
             if self.action_status == ActionStatus.FINISHED:
-                debug_trace("bezier nav done", name="jack.nav")
+                debug_trace("bezier nav done", name=f"{MOD}.nav")
             elif self.action_status == ActionStatus.FAILED:
-                debug_trace("bezier nav failed", name="jack.nav")
+                debug_trace("bezier nav failed", name=f"{MOD}.nav")
 
         time.sleep(0.1)
 
@@ -3369,10 +3396,9 @@ class GoBezier(BaseAction):
             "pathDistAccuracy": self.go_bezier.path_dist_accuracy,
             "pathAngleAccuracy": self.go_bezier.path_angle_accuracy,
         }
-        Module.reportInfo(j.report_info)
 
 
-class GoBezierReturn(BaseAction):
+class GoBezierReturn(ActionBase):
     """执行行走贝塞尔曲线到达取货点"""
 
     def __init__(self, is_backwards=True, is_hold_dir=None, max_speed=0.3, max_accele=0.3, max_decele=0.7,
@@ -3396,11 +3422,11 @@ class GoBezierReturn(BaseAction):
 
         if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
             self.action_status = self.go_bezier_return.run()
-        debug_trace(f"bezier_return_status={self.action_status}", name="jack.nav")
+        debug_trace(f"bezier_return_status={self.action_status}", name=f"{MOD}.nav")
         time.sleep(0.1)
 
 
-class RecShelf(BaseAction):
+class RecShelf(ActionBase):
     """识别货架"""
 
     def __init__(self, shelf_file, action_name="RecShelf", recognition_region=None, side="A", is_backwards=False):
@@ -3441,15 +3467,15 @@ class RecShelf(BaseAction):
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
             Recognize.resetRec()
-            Trace.log(f"rec result recoList_count={len(rec_result.get('recoList', []))}", name="jack.rec")
+            Trace.log(f"rec result recoList_count={len(rec_result.get('recoList', []))}", name=f"{MOD}.rec")
             reco_list = rec_result.get('recoList', [])
             if not reco_list:
-                Trace.log("RecShelf recoList empty, retrying", name="jack.rec")
+                Trace.log("RecShelf recoList empty, retrying", name=f"{MOD}.rec")
                 self.do_rec = False
             else:
                 reco = reco_list[0]
                 if not reco.get('valid', False):
-                    Trace.log("RecShelf result invalid, retrying", name="jack.rec")
+                    Trace.log("RecShelf result invalid, retrying", name=f"{MOD}.rec")
                     self.do_rec = False
                 else:
                     world_result = reco.get('worldResult', {})
@@ -3458,7 +3484,7 @@ class RecShelf(BaseAction):
                     rec_yaw = world_result['yaw']
                     rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
                     rec_x_y_yaw = [rec_x, rec_y, rec_yaw]
-                    Trace.log(f"RecShelf done x={rec_x:.4f} y={rec_y:.4f} yaw={rec_yaw:.4f}", name="jack.rec")
+                    Trace.log(f"RecShelf done x={rec_x:.4f} y={rec_y:.4f} yaw={rec_yaw:.4f}", name=f"{MOD}.rec")
                     j.rec_result = rec_x_y_yaw
                     self.action_status = ActionStatus.FINISHED
         elif rec_status in (3, -1):
@@ -3467,7 +3493,8 @@ class RecShelf(BaseAction):
 
                 if self.attempts > self.max_attempts:
                     self.action_status = ActionStatus.FAILED
-                    Navigation.setTaskError("RecFailed", "Recognition retries exceeded. Check recognition distance or sensor")
+                    Navigation.setTaskError("RecFailed",
+                                            "Recognition retries exceeded. Check recognition distance or sensor")
                 else:
                     Recognize.resetRec()
                     self.do_rec = False
@@ -3481,10 +3508,9 @@ class RecShelf(BaseAction):
             "recStatus": rec_status,
             "recTimes": self.attempts
         }
-        Module.reportInfo(j.report_info)
 
 
-class RecTargetObs(BaseAction):
+class RecTargetObs(ActionBase):
     """识别货架"""
 
     def __init__(self, device_name):
@@ -3501,10 +3527,9 @@ class RecTargetObs(BaseAction):
         j.report_info["RecTargetObs"] = {
             "actionStatus": self.action_status
         }
-        Module.reportInfo(j.report_info)
 
 
-class GetApPosAdjustedViaPgv(BaseAction):
+class GetApPosAdjustedViaPgv(ActionBase):
     # 路径导航  导航到站点
     def __init__(self, ap_id=None, dist=0, back_dist=0, ahead_dist=0.7):
         super().__init__("GetApPosAdjustedViaPgv")
@@ -3534,7 +3559,8 @@ class GetApPosAdjustedViaPgv(BaseAction):
             self.pgv_info[2] = j.code_info["tag_diff_angle"]
             if abs(self.pgv_info[0]) > 0.02 and abs(self.pgv_info[1]) > 0.02:
                 self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError("PgvOffsetError", "PGV offset exceeds limit (>0.02m). Check goods QR code offset or adjust AP point")
+                Navigation.setTaskError("PgvOffsetError",
+                                        "PGV offset exceeds limit (>0.02m). Check goods QR code offset or adjust AP point")
 
             else:
                 # 将车体终点位置，加入二维码的偏差补偿
@@ -3547,7 +3573,7 @@ class GetApPosAdjustedViaPgv(BaseAction):
         self.action_status = ActionStatus.RUNNING
 
 
-class GetPGVData(BaseAction):
+class GetPGVData(ActionBase):
     """获取二维码资料"""
 
     def __init__(self, scan_device: str):
@@ -3600,7 +3626,7 @@ class GetPGVData(BaseAction):
                                       not k.startswith('_')} if hasattr(pgv.codeScannerInfo, '__dict__') else str(
                             pgv.codeScannerInfo)
                     debug_print(f"GetPGVData: pgv[{i}] attrs={pgv_attrs}, codeScannerInfo attrs={info_attrs}")
-                Trace.log(f"GetPGVData scan_device={self.scan_device} not found", name="jack.err")
+                Trace.log(f"GetPGVData scan_device={self.scan_device} not found", name=f"{MOD}.err")
         else:
             self.tag_value = chosen_pgv.tagValue
             self.tag_diff_x = chosen_pgv.tagDiffX
@@ -3626,23 +3652,23 @@ class GetPGVData(BaseAction):
         # 判断二维码识别逻辑
         if self.is_DMT_detected and self.tag_value != "":
             debug_trace(
-                f"PGV read code success tag={self.tag_value} scan_device={self.scan_device}", name="jack.rec"
+                f"PGV read code success tag={self.tag_value} scan_device={self.scan_device}", name=f"{MOD}.rec"
             )
             self.action_status = ActionStatus.FINISHED
         else:
             self.count += 1
             if self.count >= self.max_rec_num:
-                Navigation.setTaskError("PgvRecExceeded", f"PGV secondary adjustment recognition exceeded. Check PGV camera or QR code position")
+                Navigation.setTaskError("PgvRecExceeded",
+                                        f"PGV secondary adjustment recognition exceeded. Check PGV camera or QR code position")
 
         # 上报
         j.report_info["GetPGVData"] = {
             "actionStatus": self.action_status,
             "codeInfo": j.code_info
         }
-        Module.reportInfo(j.report_info)
 
 
-class GoPolyline(BaseAction):
+class GoPolyline(ActionBase):
     """折线导航 """
 
     def __init__(self, world_target, min_ahead_dist=0, ahead_dist=0, back_dist=0, max_speed=0.5, max_angle=0.5,
@@ -3665,24 +3691,27 @@ class GoPolyline(BaseAction):
             self.init = True
             self.action_status = ActionStatus.RUNNING
             pos = Loc.getData()
-            Trace.log(f"GoPolyline start pos=({pos['x']:.4f},{pos['y']:.4f},{pos['angle']:.4f}) goal=({self.goal[0]:.4f},{self.goal[1]:.4f},{self.goal[2]:.4f}) back_dist={self.back_dist}", name="jack.nav")
+            Trace.log(
+                f"GoPolyline start pos=({pos['x']:.4f},{pos['y']:.4f},{pos['angle']:.4f}) goal=({self.goal[0]:.4f},{self.goal[1]:.4f},{self.goal[2]:.4f}) back_dist={self.back_dist}",
+                name=f"{MOD}.nav")
             Navigation.resetGoForkPath(self.goal[0], self.goal[1], self.goal[2],
                                        self.back_dist, self.min_ahead_dist, self.ahead_dist)
             Navigation.goForkUseStraightLine()  # 走折线
-            Trace.log("GoPolyline nav init done", name="jack.nav")
+            Trace.log("GoPolyline nav init done", name=f"{MOD}.nav")
         self.action_status = Navigation.goForkPath()
         self._log_counter += 1
         if self.action_status == ActionStatus.FINISHED:
             pos = Loc.getData()
-            Trace.log(f"GoPolyline finished pos=({pos['x']:.4f},{pos['y']:.4f},{pos['angle']:.4f})", name="jack.nav")
+            Trace.log(f"GoPolyline finished pos=({pos['x']:.4f},{pos['y']:.4f},{pos['angle']:.4f})", name=f"{MOD}.nav")
         elif self.action_status == ActionStatus.FAILED:
-            Trace.log("GoPolyline failed", name="jack.err")
+            Trace.log("GoPolyline failed", name=f"{MOD}.err")
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
         self.init = False
 
-class PGVSecondaryAdjust(BaseAction):
+
+class PGVSecondaryAdjust(ActionBase):
     """
     PGV二次调整（singleCode / codeNumber 模式）。
 
@@ -3761,7 +3790,6 @@ class PGVSecondaryAdjust(BaseAction):
             "adjustParam": self.adjust_param,
             "codeInfo": j.code_info
         }
-        Module.reportInfo(j.report_info)
 
     # ------------------------------------------------------------------
     # 内部：一次性构建静态参数（init 阶段调用）
@@ -3792,19 +3820,22 @@ class PGVSecondaryAdjust(BaseAction):
         else:
             p['R2AUP'] = False
             p['R2ADP'] = True
-        Trace.log(f"PGV adjust scan_device={self.scan_device} isUpside={is_upside} R2AUP={p['R2AUP']} R2ADP={p['R2ADP']}", name="jack.rec")
+        Trace.log(
+            f"PGV adjust scan_device={self.scan_device} isUpside={is_upside} R2AUP={p['R2AUP']} R2ADP={p['R2ADP']}",
+            name=f"{MOD}.rec")
 
         if self.code_adjust_type == "singleCode":
             self._build_singlecode_params()
         elif self.code_adjust_type == "codeNumber":
             self._build_codestrip_params()
         else:
-            Trace.log(f"PGV adjust unknown codeAdjustType={self.code_adjust_type} fallback to singleCode", name="jack.err")
+            Trace.log(f"PGV adjust unknown codeAdjustType={self.code_adjust_type} fallback to singleCode",
+                      name=f"{MOD}.err")
             self._build_singlecode_params()
 
         self._build_policy()
 
-        Trace.log(f"PGV adjust params built codeAdjustType={self.code_adjust_type}", name="jack.rec")
+        Trace.log(f"PGV adjust params built codeAdjustType={self.code_adjust_type}", name=f"{MOD}.rec")
 
     def _build_singlecode_params(self):
         """singleCode 模式参数构建（文档 §2 singleCode）。"""
@@ -3877,7 +3908,8 @@ class PGVSecondaryAdjust(BaseAction):
 
             if self.position_adjust_type == "multiLine":
                 policy["codeAdjustType.singleCode.positionAdjustType"] = "multiLine"
-                policy["codeAdjustType.singleCode.positionAdjustType.multiLine.lineAngleThreshold"] = self.line_angle_threshold
+                policy[
+                    "codeAdjustType.singleCode.positionAdjustType.multiLine.lineAngleThreshold"] = self.line_angle_threshold
                 policy["codeAdjustType.singleCode.positionAdjustType.multiLine.adjustRegion"] = self.adjust_region
             elif self.position_adjust_type == "frontAndBack":
                 policy["codeAdjustType.singleCode.positionAdjustType"] = "frontAndBack"
@@ -3890,12 +3922,12 @@ class PGVSecondaryAdjust(BaseAction):
         self.adjust_param['policy'] = json.dumps(policy)
 
     def reset(self):
-        debug_trace("PGV secondary adjust reset", name="jack.rec")
+        debug_trace("PGV secondary adjust reset", name=f"{MOD}.rec")
         self.action_status = ActionStatus.RUNNING
         Navigation.resetGoPGV()
 
 
-class PGVCodeStripAdjust(BaseAction):
+class PGVCodeStripAdjust(ActionBase):
     """
     PGV码带调整（codeNumber模式）
 
@@ -3946,7 +3978,8 @@ class PGVCodeStripAdjust(BaseAction):
             self.adjust_param['R2ADy'] = self.r2ad_y
             self.adjust_param['R2ADtheta'] = self.r2ad_theta
             Trace.log(
-                f"PGVCodeStripAdjust target pos x={self.r2ad_x} y={self.r2ad_y} theta={self.r2ad_theta}", name="jack.rec")
+                f"PGVCodeStripAdjust target pos x={self.r2ad_x} y={self.r2ad_y} theta={self.r2ad_theta}",
+                name=f"{MOD}.rec")
 
         # 数值偏差通过 reportInfo 上报，不在每 tick 写 Trace.log
 
@@ -3965,7 +3998,6 @@ class PGVCodeStripAdjust(BaseAction):
                 "R2ADtheta": self.r2ad_theta
             } if self.use_target_position else None
         }
-        Module.reportInfo(j.report_info)
 
     def _parse_angle_adjust_type(self):
         """根据 angleAdjustType 设置底层参数"""
@@ -3981,16 +4013,16 @@ class PGVCodeStripAdjust(BaseAction):
             # 机器人平行于码带方向
             self.adjust_param['pgvXAngleAdjust'] = True
             self.adjust_param['pgvAdjust180'] = True
-            Trace.log("PGVCodeStripAdjust init parallelToCode -> pgvXAngleAdjust+pgvAdjust180", name="jack.rec")
+            Trace.log("PGVCodeStripAdjust init parallelToCode -> pgvXAngleAdjust+pgvAdjust180", name=f"{MOD}.rec")
         elif self.angle_adjust_type == "verticalToCode":
             # 机器人垂直于码带方向
             self.adjust_param['pgvXAngleAdjust'] = True
             self.adjust_param['pgvAdjust90'] = True
-            Trace.log("PGVCodeStripAdjust init verticalToCode -> pgvXAngleAdjust+pgvAdjust90", name="jack.rec")
+            Trace.log("PGVCodeStripAdjust init verticalToCode -> pgvXAngleAdjust+pgvAdjust90", name=f"{MOD}.rec")
         elif self.angle_adjust_type == "ignoreAngle":
             # 忽略角度，仅调整位置
             self.adjust_param['pgvXAdjust'] = True
-            Trace.log("PGVCodeStripAdjust init ignoreAngle -> pgvXAdjust", name="jack.rec")
+            Trace.log("PGVCodeStripAdjust init ignoreAngle -> pgvXAdjust", name=f"{MOD}.rec")
 
         self.adjust_param['policy'] = {
             "codeAdjustType": "codeNumber",
@@ -4001,18 +4033,9 @@ class PGVCodeStripAdjust(BaseAction):
         }
 
     def reset(self):
-        Trace.log("PGVCodeStripAdjust reset", name="jack.rec")
+        Trace.log("PGVCodeStripAdjust reset", name=f"{MOD}.rec")
         self.action_status = ActionStatus.RUNNING
         Navigation.resetGoPGV()
-
-
-class ActionStatus(IntEnum):
-    """ 动作运行状态枚举，对标 ActionStatus """
-    INIT = 0
-    RUNNING = 1
-    FINISHED = 3
-    FAILED = 4
-    SUSPENDED = 5
 
 
 class RotateDirection(IntEnum):
@@ -4027,9 +4050,9 @@ class RotateDirection(IntEnum):
 # ============================================================================
 
 # 添加 "jackLoad" 动作模板
-param_loader.addAction(
+script_param.addAction(
     action_name="jackLoad",
-    policy = None,
+    policy=None,
     args={
         "operation": "jackLoad",
         "operation.jackLoad.endHeight": config_params.jack_max_height,
@@ -4043,9 +4066,9 @@ param_loader.addAction(
 )
 
 # 添加 "jackUnload" 动作模板
-param_loader.addAction(
+script_param.addAction(
     action_name="jackUnload",
-    policy = None,
+    policy=None,
     args={
         "operation": "jackUnload",
         "operation.jackUnload.isSecondaryAdjust": "off",
@@ -4054,7 +4077,7 @@ param_loader.addAction(
 )
 
 # 添加 "jackHeight" 动作模板
-param_loader.addAction(
+script_param.addAction(
     action_name="jackHeight",
     policy={},
     args={
@@ -4065,7 +4088,7 @@ param_loader.addAction(
 )
 
 # 添加 "lift" 动作模板（屏幕接口点动）
-param_loader.addAction(
+script_param.addAction(
     action_name="lift",
     policy={},
     args={
@@ -4076,7 +4099,7 @@ param_loader.addAction(
 )
 
 # 添加 "PGVSecondaryAdjust" 动作模板
-param_loader.addAction(
+script_param.addAction(
     action_name="PGVSecondaryAdjust",
     policy=None,
     args={
@@ -4086,7 +4109,7 @@ param_loader.addAction(
 )
 
 # 保存动作模板到文件
-param_loader.saveAction()
+script_param.saveAction()
 
 
 def main():
@@ -4095,9 +4118,7 @@ def main():
     RobotParam.setDeviceChangeCallBack(_robot_device_change_callback)
     ScriptParam.setConfigChangeCallBack(script_config_callback)
 
-
     Module.init()
-    validator = ParamValidator(InputParams.builder.toDict())
     j = Jack()
     # 每次脚本启动都重置标零状态，确保开机标零一次
     if config_params.auto_calib_enable:
@@ -4110,7 +4131,7 @@ def main():
         status = j.status
         Module.setStatus(status)
         # 打印数据
-        j.set_info()
+        j.tick_report()
 
         # 脚本任务状态管理
         if j.event_safe_move_check:
@@ -4136,26 +4157,31 @@ def main():
 
                         # 精简的任务参数输出
                         operation = input_params.get("operation", "unknown")
-                        debug_trace(f"task start operation={operation}", name="jack")
+                        debug_trace(f"task start operation={operation}", name=MOD)
                         debug_print(f"  Input Params: {json.dumps(input_params, indent=2, ensure_ascii=False)}")
 
                         # 验证参数
-                        validated_params = validator.validate(input_params)
-                        debug_trace("task input params validated", name="jack")
+                        validated_params = script_param.loadInput(input_params)
+                        debug_trace("task input params validated", name=MOD)
 
-                        j._init_args(validated_params)
+                        j.init_args(validated_params)
                     except ValueError as e:
-                        Trace.log(f"input params validate failed error={e}", name="jack.err")
-                        Navigation.setTaskError("InputParamError", f"Input parameter validation failed. Check the input parameters")
+                        Trace.log(f"input params validate failed error={e}", name=f"{MOD}.err")
+                        Navigation.setTaskError("InputParamError",
+                                                f"Input parameter validation failed. Check the input parameters")
 
         elif status == ScriptStatus.RUNNING:
             j.run()
             # 确保状态同步
             Module.setStatus(j.status)
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
-            j.action_id = 0
+            j.action_task.reset()
             j.action_list = []
             j.operation_init = False
+            # 重置动态 extend 去重门闩
+            j._first_rec_extended = False
+            j._second_rec_extended = False
+            j._bezier_rec_extended = False
             j.result = None  # 清空 result 防止完成后重复触发
             # 重置空载对齐状态（下次空载时重新检查）
             j._idle_align_done = False

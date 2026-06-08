@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/6/6
+# @Date : 2026/6/8
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add：脚本参数翻译补充  feat：适配3.5日志统一记录格式
+# @Update : add：脚本参数翻译补充  feat：适配3.5日志统一记录格式 fix: 1. 移除safemovecheck无用代码  2. 修复倒走模式货物模型不正常
 
 import json
 import math
@@ -782,7 +782,7 @@ def check_debug_task(operation: str) -> bool:
 def _robot_device_change_callback(device_change_set):
     """设备参数变化回调"""
     relevant_devices = {"Model", "Motor", "DOMotor", "CodeScanner"}
-    if device_change_set & relevant_devices:
+    if set(device_change_set) & relevant_devices:
         ConfigParams._build_and_load_config()
 
 
@@ -1418,7 +1418,6 @@ class Jack(ModuleBase):
         self.jack_isFull = None
         self.jack_speed = None
         self.jack_motors = None
-        self.count = 0
         # 脚本运行相关变量
         self.task_args = None
         self.action_list = []
@@ -2014,8 +2013,8 @@ class Jack(ModuleBase):
             self.action_list.append(JackHeight(config_params.jack_motor_name, self.end_height,
                                                config_params.jack_motor_speed))
             # 顶升完成后绑定容器，设置货物模型
-            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
-
+            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
+                                                  is_backwards=self.is_backwards))
     def laser_area_deduction(self):
         if not self.operation_init:
             self.operation_init = True
@@ -2057,14 +2056,14 @@ class Jack(ModuleBase):
                     clear_region_robot = Navigation.getClearRegion(Coordinate.ROBOT)
                     for region in clear_region_robot:
                         Navigation.deleteClearRegion(region, Coordinate.ROBOT)
-                    self.report_info["test"] = {
+                    self.report_info["createOrDeleteDeductedArea"] = {
                         "clearRegion": clear_region_robot
                     }
                 elif self.coordinate == "world":
                     clear_region_world = Navigation.getClearRegion(Coordinate.WORLD)
                     for region in clear_region_world:
                         Navigation.deleteClearRegion(region, Coordinate.WORLD)
-                    self.report_info["test"] = {
+                    self.report_info["createOrDeleteDeductedArea"] = {
                         "clearRegion": clear_region_world
                     }
                     self.report_info["containers"] = Container.getContainers()
@@ -2339,7 +2338,8 @@ class Jack(ModuleBase):
         # 顶升完成后绑定容器，设置货物模型（识别开启或有recfile时才加载）
         if self.is_recognize or self.recfile:
             self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
-                                                  use_pgv_angle=self.is_secondary_adjust))
+                                                  use_pgv_angle=self.is_secondary_adjust,
+                                                  is_backwards=self.is_backwards))
 
     def jack_load(self):
         """
@@ -2636,8 +2636,8 @@ class Jack(ModuleBase):
             # 顶升
             self.action_list.append(
                 JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
-            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir))
-
+            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
+                                                  is_backwards=self.is_backwards))
             # bezier 退回起始位置
             self.action_list.append(
                 GoBezier(self.return_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
@@ -2800,15 +2800,9 @@ class Jack(ModuleBase):
         debug_trace("task cancelled", name=MOD)
 
     def safe_move_check(self):
-        self.count += 1
-        status = SafeMoveStatus.RUNNING
-        if self.count == 100:
-            self.count = 0
-            status = SafeMoveStatus.FINISHED
-        self.setSafeMoveStatus(status)
-        debug_trace(f"safe_move_check={Module.getSafeMoveCheck()}", name=MOD)
-        if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
-            self.event_safe_move_check = False
+        # 无真实安全检查逻辑，直接上报 FINISHED 允许底盘移动，避免阻塞正常运行
+        self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
+        self.event_safe_move_check = False
 
     def tick_report(self):
         self.jack_motors = NavSpeed.getMotorCmd()
@@ -3629,7 +3623,7 @@ class BindContainer(ActionBase):
     """顶升完成后绑定容器并设置货物模型"""
 
     def __init__(self, container_id: str, goods_name: str, recfile: str, insert_dir: str = "D",
-                 use_pgv_angle: bool = False):
+                 use_pgv_angle: bool = False, is_backwards: bool = False):
         super().__init__("BindContainer")
         self.opt_info = f"BindContainer{{container_id={container_id}, goods_name={goods_name}, recfile={recfile}}}"
         self.container_id = container_id
@@ -3637,6 +3631,7 @@ class BindContainer(ActionBase):
         self.recfile = recfile
         self.insert_dir = insert_dir
         self.use_pgv_angle = use_pgv_angle
+        self.is_backwards = is_backwards
 
     def run(self, j: Jack):
         # 当使用PGV角度时，同时使用 goods_angle 和 insert_dir
@@ -3646,6 +3641,10 @@ class BindContainer(ActionBase):
         else:
             goods_angle = None
             insert_dir = self.insert_dir
+            # 倒走取货时，货物模型朝向需额外旋转 180°（未开启PGV朝向读取的前提下）
+            if self.is_backwards:
+                _opposite = {'A': 'C', 'B': 'D', 'C': 'A', 'D': 'B'}
+                insert_dir = _opposite.get(insert_dir, insert_dir)
 
         ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec",
                              insert_dir, goods_angle=goods_angle)
