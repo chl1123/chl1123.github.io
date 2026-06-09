@@ -273,12 +273,35 @@ ensure_safe_target_rel() {
 
 normalize_script_target() {
   local target="$1"
+  local source_path="$2"
   target="$(strip_quotes "$target")"
   target="$(trim "$target")"
-  target="${target#/opt/.data/rbk/resources/scripts/}"
-  target="${target#/.data/rbk/resources/scripts/}"
-  target="${target#${SCRIPT_TARGET_PREFIX}/}"
-  target="$(normalize_rel_path "$target")"
+
+  if [[ -z "$target" ]]; then
+    [[ "$source_path" == "$SCRIPT_DIR/"* ]] || fail "script target is empty and source is outside repo: $source_path"
+    target="${source_path#"$SCRIPT_DIR"/}"
+    target="$(normalize_rel_path "$target")"
+    case "$target" in
+      tasks/v3/*)
+        target="tasks/${target#tasks/v3/}"
+        ;;
+      tasks/v4/*)
+        target="tasks/${target#tasks/v4/}"
+        ;;
+      generic/v3/*)
+        target="generic/${target#generic/v3/}"
+        ;;
+      generic/v4/*)
+        target="generic/${target#generic/v4/}"
+        ;;
+    esac
+  else
+    target="${target#/opt/.data/rbk/resources/scripts/}"
+    target="${target#/.data/rbk/resources/scripts/}"
+    target="${target#${SCRIPT_TARGET_PREFIX}/}"
+    target="$(normalize_rel_path "$target")"
+  fi
+
   ensure_safe_target_rel "$target"
   printf '%s/%s' "$SCRIPT_TARGET_PREFIX" "$target"
 }
@@ -352,7 +375,7 @@ stage_payload_files() {
     [[ -f "$source_path" ]] || fail "source file not found: $source_path"
 
     if [[ "$file_type" == "script" ]]; then
-      target_path="$(normalize_script_target "${FILE_TARGETS[$i]}")"
+      target_path="$(normalize_script_target "${FILE_TARGETS[$i]}" "$source_path")"
     else
       validate_binary_arch "$source_path" "$arch"
       target_path="$(normalize_lib_target "${FILE_TARGETS[$i]}")"

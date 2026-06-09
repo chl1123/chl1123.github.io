@@ -8,14 +8,16 @@ arch:
 files:
   - type: script
     source: ./syspy/behavs/rpc.py # 本地文件路径
-    target: syspy/behavs/rpc.py # 基于/opt/.data/rbk/resources/scripts/ + target路径进行拼接
+    # target 可省略。script 缺省时会直接使用 source 的相对路径
   - type: script
     source: ./generic/v3/led/standard/behav_led.py
-    target: generic/led/standard/behav_led.py
+    # target 可省略。generic/tasks 下会自动去掉 v3/v4 这一层
+    # 上面的 source 最终会落到:
+    # /opt/.data/rbk/resources/scripts/generic/led/standard/behav_led.py
 
   # - type: lib
   #   source: /absolute/path/to/your/libdemo.so
-  #   target: plugins/libdemo.so 基于/opt/data/rbk/ + target路径进行拼接
+  #   target: plugins/libdemo.so # lib 必须显式指定 target, 基于 /opt/data/rbk/ + target 拼接
   #   target: lib/libdemo.so
   #   target: 3rdlibs/libdemo.so
   #   target: tools/libdemo.so

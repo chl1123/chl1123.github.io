@@ -343,8 +343,141 @@ if RobotError.existSystemError("LiftTimeout"):
 ## 7. 运行与发布注意事项
 
 - 该代码默认运行环境路径是 `/opt/.data/rbk/resources/scripts/`（见 `syspy/utils/__init__.py`），很多参数文件读写依赖该路径。
-- `build_deb.sh` + `build_dir.conf` 用于打增量脚本包，安装目标同样是 `/opt/.data/rbk/resources/scripts`。
+- 增量包打包当前使用 `build_deb.yml` + `build_deb.sh`。
 - 本地纯 PC 调试可做静态分析/语法检查，但完整联调依赖机器人运行时服务。
+
+### 7.1 使用 `submit_pr.sh` 提交 PR
+
+仓库根目录下的 `submit_pr.sh` 适合处理以下 4 类常见场景：
+
+1. 普通 commit PR：从当前分支或指定分支挑一个或多个 commit，自动创建临时 worktree、提交 submit 分支并发起 PR。
+2. 单文件 PR：通过 `--path` 只提交某个文件在指定快照下的内容，适合"只提 `syspy/actions.py`"这类场景。
+3. 多文件 PR：通过多个 `--path` 把一组相关脚本、配置和文档一起打成一个 PR。
+4. 更新已有 PR：通过 `--reuse-branch --update-pr <编号>` 复用已有 submit 分支，强推并同步更新 PR 标题/正文。
+
+常用命令示例：
+
+```bash
+# 1) 普通 commit PR
+./submit_pr.sh --source-branch mazj 4e8ce316
+
+# 2) 只提交一个文件
+./submit_pr.sh \
+  --source-branch mazj \
+  --path syspy/actions.py \
+  --title "feat: m-6998182168 refactor actions rotate flow" \
+  HEAD
+
+# 3) 只提交多个文件
+./submit_pr.sh \
+  --source-branch mazj \
+  --path submit_pr.sh \
+  --path build_deb.sh \
+  --path build_deb.yml \
+  --path README.md \
+  --title "chore: update pr helper and packaging docs" \
+  HEAD
+
+# 4) 更新已有 PR：复用 submit 分支并同步改标题/正文
+./submit_pr.sh \
+  --source-branch mazj \
+  --submit-branch mazj-actions-release-v2 \
+  --path syspy/actions.py \
+  --reuse-branch \
+  --update-pr 8 \
+  --title "feat: m-6998182168 refactor actions rotate flow" \
+  --body-file pr.md \
+  HEAD
+```
+
+补充说明：
+
+- `--path` 模式不会 cherry-pick commit，而是把指定文件从源快照复制到 base 分支后生成一个新提交。
+- `--path` 模式当前只支持一个 commit/ref，适合"只提一个文件"或"把几个相关文件打成一个 PR"的场景。
+- `--base` 默认是 `release`，通常保持默认即可；只有明确要对其他远端分支提 PR 时才需要手动指定。
+- `--reuse-branch` 会对 submit 分支执行 `push --force-with-lease`，适合 amend / rebase 后更新已有 PR。
+
+### 7.2 增量包打包方法
+
+当前增量包打包方式是：
+
+- 配置文件：`build_deb.yml`
+- 打包脚本：`build_deb.sh`
+
+基本用法：
+
+```bash
+./build_deb.sh
+./build_deb.sh build_deb.yml
+./build_deb.sh /absolute/path/to/your_build.yml
+```
+
+`build_deb.yml` 里最常用的字段如下：
+
+```yaml
+PackageID: your-package-id
+version: 2026.06.09.160000   # 可省略，缺省时自动使用当前时间戳
+description: your hotfix
+node: master
+arch:
+  - arm64
+
+files:
+  - type: script
+    source: ./syspy/actions.py
+  - type: script
+    source: ./tasks/v3/standard/example/template.py
+    # target 可省略；tasks/generic 下会自动去掉 v3/v4 目录层
+```
+
+字段说明：
+
+- `PackageID`：增量包唯一标识，必填。
+- `version`：包版本号；不填时自动生成时间戳版本。
+- `description`：包描述，会体现在最终产物命名里。
+- `node`：默认 `master`。
+- `arch`：支持 `arm64`、`amd64`、`all`。其中二进制库文件通常不应使用 `all`。
+- `files`：要打进增量包的文件列表。
+
+`files` 每项支持两种类型：
+
+- `type: script`
+  - `target` 可省略
+  - 显式指定时，`target` 相对于 `/opt/.data/rbk/resources/scripts/`
+  - 省略时，默认使用 `source` 相对于仓库根目录的路径
+  - 如果 `source` 在 `tasks/v3/`、`tasks/v4/`、`generic/v3/`、`generic/v4/` 下，会自动去掉中间这层版本目录
+    - 例如 `./tasks/v3/standard/example/template.py` 会自动落到 `tasks/standard/example/template.py`
+    - 例如 `./generic/v3/led/standard/behav_led.py` 会自动落到 `generic/led/standard/behav_led.py`
+- `type: lib`
+  - `target` 必填
+  - `target` 相对于 `/opt/data/rbk/`
+
+打包脚本会自动做这些事：
+
+- 校验配置字段和源文件是否存在
+- 对 `lib` 文件按 `arch` 做二进制架构检查
+- 将文件暂存到 payload 目录后打成 zip
+- 调用 `/tmp/rms-plugin-zip/build_package.sh` 生成最终增量包
+
+首次打包时，如本机没有 RMS 打包工具，`build_deb.sh` 会自动从：
+
+```text
+https://cnb.cool/seer-robotics/src/tools/rms-plugin-zip.git
+```
+
+拉取到：
+
+```text
+/tmp/rms-plugin-zip
+```
+
+产物默认输出到仓库根目录下形如：
+
+```text
+dist_rms_arm64_YYYYMMDDHHMMSS/
+```
+
+的目录中。实际使用时建议先复制一份 `build_deb.yml` 再按本次热修或增量内容修改 `files` 列表。
 
 ## 8. 仿真环境脚本开发推荐（RBK3.5）
 
