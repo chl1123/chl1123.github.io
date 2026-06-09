@@ -13,7 +13,6 @@ start_time = time.time()
 from syspy import Module, Di, Motor, Navigation, Loc, ScriptStatus, Trace
 from syspy.lib.module import ModuleBase
 from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, ScriptParam
-from standard import goPath
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot import RobotParam
 from syspy.utils import ScriptType
@@ -419,37 +418,14 @@ class Actions(ModuleBase):
                     self.script_status = ScriptStatus.FAILED
                     return
                 move_dist = abs(float(self.dist))
-                if self.mode == 0:
-                    self.action_list.append(
-                        GoLineByOdo(
-                            move_dist=move_dist,
-                            speed_x=None if self.vx is None else float(self.vx),
-                            speed_y=None if self.vy is None else float(self.vy),
-                        )
+                self.action_list.append(
+                    GoLineByOdo(
+                        move_dist=move_dist,
+                        speed_x=None if self.vx is None else float(self.vx),
+                        speed_y=None if self.vy is None else float(self.vy),
+                        mode=self.mode,
                     )
-                else:
-                    t = move_dist / v
-                    pos_x = vx_value * t
-                    pos_y = vy_value * t
-                    heading = 0.0
-                    back_mode = False
-                    hold_dir = None
-                    if abs(vx_value) > 1e-6 and abs(vy_value) <= 1e-6:
-                        back_mode = vx_value < 0
-                        pos_x = abs(pos_x)
-                        pos_y = 0.0
-                        heading = 0.0
-                    else:
-                        hold_dir = float(Loc.getPose().get("yaw", 0.0))
-                    self.action_list.append(
-                        GoPath(
-                            (pos_x, pos_y, heading),
-                            self.mode,
-                            back_mode=back_mode,
-                            is_hold_dir=hold_dir,
-                            max_speed=v,
-                        )
-                    )
+                )
                 
                 
             elif operation=='rotate':
@@ -831,69 +807,15 @@ class Rotate(BaseAction):
 
         return self.action_status
 
-class GoPath(BaseAction):
-    """直线走到指定点"""
-
-    def __init__(self, go_pos,mode=True,coordinate='robot', back_mode=False, is_hold_dir=None, max_speed=None, max_rot=None,
-                 path_dist_accuracy=0.01, path_angle_accuracy=0.05):
-        super().__init__("GoPath")
-
-        self.init = True
-        self.action_status = ActionStatus.INIT
-        self.go_pos = go_pos
-        self.coordinate = coordinate
-        self.back_mode = back_mode
-        self.is_hold_dir = is_hold_dir
-        self.max_speed = max_speed
-        self.max_rot = max_rot
-        self.path_dist_accuracy = path_dist_accuracy
-        self.path_angle_accuracy = path_angle_accuracy
-        self.useOdo = True if mode == 0 else False
-        self.go_path = goPath.GoPath()
-
-    def run(self, j: Jack):
-        if self.init:
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-
-        args = {
-            "x": self.go_pos[0],
-            "y": self.go_pos[1],
-            "theta": self.go_pos[2],
-            "backMode": self.back_mode,
-            "coordinate": self.coordinate,
-            "reachDist": self.path_dist_accuracy,
-            "reachAngle": self.path_angle_accuracy,
-            "useOdo": self.useOdo
-        }
-        _set_if_not_none(args, "maxSpeed", self.max_speed)
-        _set_if_not_none(args, "maxRot", self.max_rot)
-        if self.is_hold_dir is not None:
-            args["holdDir"] = self.is_hold_dir
-        _trace_chart(args, name=f"{LOG_NAME}.go_path")
-        self.action_status = self.go_path.run(args)
-
-        j.report_info["GoPath"] = {
-            "actionStatus": self.action_status,
-            "goPos": self.go_pos,
-            "backMode": self.back_mode,
-            "holdDir": self.is_hold_dir,
-            "coordinate": self.coordinate,
-            "maxSpeed": self.max_speed,
-            "maxRot": self.max_rot,
-            "reachDist": self.path_dist_accuracy,
-            "reachAngle": self.path_angle_accuracy
-        }
-        Module.reportInfo(j.report_info)
-
 class GoLineByOdo(BaseAction):
     """使用里程接口执行直线/平移运动"""
 
-    def __init__(self, move_dist: float, speed_x=None, speed_y=None):
+    def __init__(self, move_dist: float, speed_x=None, speed_y=None, mode=0):
         super().__init__("GoLineByOdo")
         self.move_dist = move_dist
         self.speed_x = speed_x
         self.speed_y = speed_y
+        self.mode = mode
         self.init = True
         self.action_status = ActionStatus.INIT
 
@@ -904,6 +826,7 @@ class GoLineByOdo(BaseAction):
             self.action_status = ActionStatus.RUNNING
         params = {
             "moveDist": float(self.move_dist),
+            "locMode": int(self.mode),
             "actionName": "GoLineByOdo",
         }
         _set_if_not_none(params, "speedX", self.speed_x, float)
@@ -916,6 +839,7 @@ class GoLineByOdo(BaseAction):
             "moveDist": self.move_dist,
             "speedX": self.speed_x,
             "speedY": self.speed_y,
+            "mode": self.mode,
         }
         Module.reportInfo(j.report_info)
 
