@@ -107,6 +107,9 @@ nav:
       - 安装: guide/install.md
       - 使用: guide/usage.md
       - 基础: guide/basic.md
+      - 规范:
+          - 日志记录规范: guide/spec/logging.md
+          - RBK 插件接口接入规范: guide/spec/plugin_interface.md
   - API:
       - API: api/index.md
       - 充电桩: api/charger.md
