@@ -2,14 +2,10 @@ import os
 import threading
 #导入电池基类
 import syspy.battery_Serial.battery_base as bb
-#处理字符的工具类，处理字符的工具类，如将uint16_t的数据转换成int16_t,
-#用途:负号转换，将两个字节数据组合成一个16位的数据，其他数据处理需要自行编写。
-import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-from syspy import Logger
 from syspy.utils.param_server import ParamType, ScriptParam
-from syspy import Trace, RobotParam, Module, ScriptStatus
+from syspy import Trace, Module
 
 from syspy.battery_runner import run_battery_script
 param_loader = ScriptParam(__file__)

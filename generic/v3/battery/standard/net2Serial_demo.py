@@ -8,7 +8,7 @@ import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
 from syspy.utils.param_server import ParamType, ScriptParam
-from syspy import Trace, RobotParam, Module, ScriptStatus
+from syspy import Trace, Module
 
 from syspy.battery_runner import run_battery_script
 param_loader = ScriptParam(__file__)

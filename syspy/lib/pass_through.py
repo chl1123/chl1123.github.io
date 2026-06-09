@@ -1,5 +1,5 @@
 import threading, zmq, time, sys
-import syspy.lib.udp_debug as ud
+
 
 # 导入protobuf定义
 try:

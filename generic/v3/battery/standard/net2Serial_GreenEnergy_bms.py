@@ -1,6 +1,5 @@
 import sys
 import os
-sys.path.append('/usr/local/etc/.SeerRobotics/rbk/resources/scripts/site-packages')
 #导入电池基类
 import syspy.battery_Serial.battery_base as bb
 #处理字符的工具类

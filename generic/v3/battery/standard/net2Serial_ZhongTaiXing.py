@@ -5,7 +5,7 @@ import syspy.lib.char_utility as cu
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
 # 打印工具类
-import syspy.lib.udp_debug as ud
+
 from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace
 

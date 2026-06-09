@@ -1,7 +1,6 @@
 import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-import syspy.lib.udp_debug as ud
 import syspy.lib.char_utility as cu
 import sys
 from syspy import Trace

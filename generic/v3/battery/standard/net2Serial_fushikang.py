@@ -4,7 +4,7 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-import syspy.lib.udp_debug as ud
+
 from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace
 

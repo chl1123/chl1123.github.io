@@ -5,13 +5,12 @@ import threading
 import time
 import syspy.v3.lib.rpc.client as rc
 import syspy.lib.rpc.server as rs
-import syspy.lib.udp_debug as ud
+
 from google.protobuf.json_format import MessageToDict
 from syspy import Battery, Di, Do
 from syspy import  RBK_VERSION
 from syspy import Trace
 import subprocess
-_syslog = ud.syslogDebug("serial_battery")
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message.message_battery_pb2 import msgBattery
 if RBK_VERSION == 4:
