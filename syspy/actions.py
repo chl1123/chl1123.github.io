@@ -136,7 +136,6 @@ def _parse_loc_mode(value):
         return LocMode.ODO
     return LocMode(int(value))
 
-
 def _normalize_motion_status(status):
     # TODO(seer): 当前部分运动接口首拍会返回 INIT，导致 ActionTask 可能出现
     # RUNNING -> INIT -> RUNNING 的状态回跳。这里先在 actions.py 内做兼容，
@@ -775,7 +774,6 @@ class Actions(ModuleBase):
 
     def __init__(self):
         super().__init__()
-        self.init_args = False
         self.task_args = {}
         self.report_info = {}
         self.script_status = ScriptStatus.NONE
@@ -808,10 +806,6 @@ class Actions(ModuleBase):
 
     def init_task(self, args: dict) -> None:
         """初始化任务参数并装配动作队列。"""
-        if self.init_args:
-            return
-
-        self.init_args = True
         self.task_args = dict(args or {})
         self.report_info = {"scriptArgs": self.task_args}
         planner = ActionPlanner(self.task_args, self.lift_stop_di)
@@ -894,7 +888,6 @@ class Actions(ModuleBase):
     def reset_task_state(self) -> None:
         """单次任务结束后复位，继续驻留等待下一次任务。"""
         self.action_task.reset()
-        self.init_args = False
         self.task_args = {}
         self.report_info = {}
         self.set_status(ScriptStatus.NONE)
@@ -944,6 +937,7 @@ class Actions(ModuleBase):
         )
 
 
+# --- 动作定义 ---
 class Jack(ActionBase):
     """顶升动作"""
 
@@ -955,29 +949,28 @@ class Jack(ActionBase):
         self.stop_di = stop_di
         self.rec_file = rec_file
 
-    def run(self, a: Actions):
-        self.action_status = ActionStatus.RUNNING
-        if not self.init:
-            self.init = True
-
-        if self.motor_name:
-            Motor.setMotorPosition(self.motor_name, self.height, self.speed, str(self.stop_di))
-            if Motor.isMotorReached(self.motor_name) or (self.stop_di >= 0 and Di.getDi(self.stop_di)):
-                if self.height > 0:
-                    if self.rec_file:
-                        Navigation.setLocalShelfArea(self.rec_file)
-                else:
-                    Navigation.resetLocalShelfArea()
-                self.action_status = ActionStatus.FINISHED
-        else:
-            self.action_status = ActionStatus.FAILED
-            Navigation.setDeviceError(
-                "LIFT_MOTOR_NOT_FOUND",
-                "Lift motor not found Check motor configuration Motor check"
-            )
-
     def reset(self):
-        pass
+        super().reset()
+        if self.motor_name:
+            return
+        self.action_status = ActionStatus.FAILED
+        Navigation.setDeviceError(
+            "LIFT_MOTOR_NOT_FOUND",
+            "Lift motor not found Check motor configuration Motor check",
+        )
+
+    def run(self, a: Actions):
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
+        Motor.setMotorPosition(self.motor_name, self.height, self.speed, str(self.stop_di))
+        if Motor.isMotorReached(self.motor_name) or (self.stop_di >= 0 and Di.getDi(self.stop_di)):
+            if self.height > 0:
+                if self.rec_file:
+                    Navigation.setLocalShelfArea(self.rec_file)
+            else:
+                Navigation.resetLocalShelfArea()
+            self.action_status = ActionStatus.FINISHED
+        return self.action_status
 
 
 class AbsoluteRobotRotate(ActionBase):
@@ -991,8 +984,6 @@ class AbsoluteRobotRotate(ActionBase):
                  speed_w_robot=None, mode=LocMode.ODO):
         super().__init__("AbsoluteRobotRotate")
         self.mode = mode
-        self.action_status = ActionStatus.INIT
-        self.init = True
         self.robot_direction = robot_direction
         self.speed_w_robot = float(speed_w_robot) if speed_w_robot is not None else None
         self.robot_target_angle = None
@@ -1000,41 +991,42 @@ class AbsoluteRobotRotate(ActionBase):
             self.robot_target_angle = math.radians(robot_target_angle)
         self.rparams = None
 
-    def run(self, a: Actions):
-        if self.init:
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetRotateMove()
-            if self.robot_target_angle is None:
-                self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError(
-                    "No rotation angle provided",
-                    "Absolute robot rotation requires robotTargetAngle",
-                )
-                return self.action_status
-            self.robot_target_angle = _normalize_angle_rad(self.robot_target_angle)
-            self.rparams = {}
-            self.rparams.update(_get_rotate_nav_defaults())
-            self.rparams["moveAngle"] = self.robot_target_angle
-            self.rparams["dir"] = self.robot_direction.value
-            if self.speed_w_robot is not None:
-                self.rparams["speedW"] = math.fabs(self.speed_w_robot)
-            else:
-                _set_if_not_none(self.rparams, "speedW", self.rparams.get("maxRot"), math.fabs)
-            _trace_log(f"rparams: {self.rparams}", name=f"{LOG_NAME}.task")
+    def reset(self):
+        super().reset()
+        Navigation.resetRotateMove()
+        self.rparams = None
+        if self.robot_target_angle is None:
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(
+                "No rotation angle provided",
+                "Absolute robot rotation requires robotTargetAngle",
+            )
+            return
+        self.robot_target_angle = _normalize_angle_rad(self.robot_target_angle)
+        self.rparams = {}
+        self.rparams.update(_get_rotate_nav_defaults())
+        self.rparams["moveAngle"] = self.robot_target_angle
+        self.rparams["dir"] = self.robot_direction.value
+        if self.speed_w_robot is not None:
+            self.rparams["speedW"] = math.fabs(self.speed_w_robot)
+        else:
+            _set_if_not_none(self.rparams, "speedW", self.rparams.get("maxRot"), math.fabs)
+        _trace_log(f"rparams: {self.rparams}", name=f"{LOG_NAME}.task")
 
+    def cancel(self):
+        Navigation.resetRotateMove()
+        super().cancel()
+
+    def run(self, a: Actions):
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
         self.action_status = _normalize_motion_status(Navigation.runRotateMove(
             robot_params=self.rparams if self.rparams else None,
             shelf_params=None,
         ))
         if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
             Navigation.resetRotateMove()
-
         return self.action_status
-
-    def cancel(self):
-        Navigation.resetRotateMove()
-        super().cancel()
 
 
 class AbsoluteRobotAndShelfRotate(ActionBase):
@@ -1055,49 +1047,49 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
         self.shelf_angle = None if shelf_angle is None else math.radians(shelf_angle)
         self.rparams = None
         self.sparams = None
-        self.init = True
+
+    def reset(self):
+        super().reset()
+        Navigation.resetRotateMove()
+        self.rparams = None
+        self.sparams = None
+        if self.robot_target_angle is None or self.shelf_angle is None:
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(
+                "No rotation angle provided",
+                "Combined absolute rotation requires robotTargetAngle and shelfRotateAngle",
+            )
+            return
+        self.robot_target_angle = _normalize_angle_rad(self.robot_target_angle)
+        self.rparams = {}
+        self.rparams.update(_get_rotate_nav_defaults())
+        self.rparams["moveAngle"] = self.robot_target_angle
+        self.rparams["dir"] = self.robot_direction.value
+        if self.speed_w_robot is not None:
+            self.rparams["speedW"] = math.fabs(self.speed_w_robot)
+        else:
+            _set_if_not_none(self.rparams, "speedW", self.rparams.get("maxRot"), math.fabs)
+
+        self.sparams = {
+            "angle": self.shelf_angle,
+            "dir": self.shelf_direction.value,
+        }
+        _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")
+
+    def cancel(self):
+        Navigation.resetRotateMove()
+        super().cancel()
 
     def run(self, a: Actions):
-        if self.init:
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-            Navigation.resetRotateMove()
-            if self.robot_target_angle is None or self.shelf_angle is None:
-                self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError(
-                    "No rotation angle provided",
-                    "Combined absolute rotation requires robotTargetAngle and shelfRotateAngle",
-                )
-                return self.action_status
-
-            self.robot_target_angle = _normalize_angle_rad(self.robot_target_angle)
-            self.rparams = {}
-            self.rparams.update(_get_rotate_nav_defaults())
-            self.rparams["moveAngle"] = self.robot_target_angle
-            self.rparams["dir"] = self.robot_direction.value
-            if self.speed_w_robot is not None:
-                self.rparams["speedW"] = math.fabs(self.speed_w_robot)
-            else:
-                _set_if_not_none(self.rparams, "speedW", self.rparams.get("maxRot"), math.fabs)
-
-            self.sparams = {
-                "angle": self.shelf_angle,
-                "dir": self.shelf_direction.value,
-            }
-            _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")
-
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
         self.action_status = _normalize_motion_status(Navigation.runRotateMove(
             robot_params=self.rparams,
             shelf_params=self.sparams,
         ))
         if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
             Navigation.resetRotateMove()
-
         return self.action_status
-
-    def cancel(self):
-        Navigation.resetRotateMove()
-        super().cancel()
 
 
 class AbsoluteShelfRotate(ActionBase):
@@ -1114,41 +1106,38 @@ class AbsoluteShelfRotate(ActionBase):
             coordinate_axis = ShelfCoordinateAxis.ROBOT
         self.shelf_direction = shelf_direction
         self.coordinate_axis = coordinate_axis
-        self.action_status = ActionStatus.INIT
-        self.init = True
         self.shelf_angle = None
         if shelf_angle is not None:
             self.shelf_angle = math.radians(shelf_angle)
 
+    def reset(self):
+        super().reset()
+        if self.shelf_angle is None:
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(
+                "No rotation angle provided",
+                "Absolute shelf rotation requires shelfRotateAngle",
+            )
+            return
+
+        if self.coordinate_axis == ShelfCoordinateAxis.ROBOT:
+            _trace_log("setRobotSpinAngle", name=f"{LOG_NAME}.task")
+            Navigation.setRobotSpinAngle(self.shelf_angle, self.shelf_direction.value)
+        elif self.coordinate_axis == ShelfCoordinateAxis.WORLD:
+            _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
+            Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction.value)
+        else:
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(
+                "CoordinateAxisUnsupported",
+                f"coordinateAxis {self.coordinate_axis.value} not support in absolute shelf rotation",
+            )
+
     def run(self, a: Actions):
-        if self.init:
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-            if self.shelf_angle is None:
-                self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError(
-                    "No rotation angle provided",
-                    "Absolute shelf rotation requires shelfRotateAngle",
-                )
-                return self.action_status
-
-            if self.coordinate_axis == ShelfCoordinateAxis.ROBOT:
-                _trace_log("setRobotSpinAngle", name=f"{LOG_NAME}.task")
-                Navigation.setRobotSpinAngle(self.shelf_angle, self.shelf_direction.value)
-            elif self.coordinate_axis == ShelfCoordinateAxis.WORLD:
-                _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
-                Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction.value)
-            else:
-                self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError(
-                    "CoordinateAxisUnsupported",
-                    f"coordinateAxis {self.coordinate_axis.value} not support in absolute shelf rotation",
-                )
-                return self.action_status
-
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
         if Navigation.spinRun():
             self.action_status = ActionStatus.FINISHED
-
         return self.action_status
 
 
@@ -1167,65 +1156,63 @@ class RobotIncrementalRotate(ActionBase):
         self.robot_direction = robot_direction
         self.speed_w_robot = float(speed_w_robot) if speed_w_robot is not None else None
         self.disable_nearby = disable_nearby
-        self.action_status = ActionStatus.INIT
-        self.init = True
         self.rparams = None
 
         self.robot_delta_angle_deg = None
         if robot_delta_angle is not None:
             self.robot_delta_angle_deg = float(robot_delta_angle)
 
-    def run(self, j: Actions):
-        if self.init:
-            Navigation.resetOdoMove()
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-            self.rparams = {}
-            if self.robot_delta_angle_deg is None:
-                self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError(
-                    "No rotation angle provided",
-                    "Incremental robot rotation requires robotDeltaAngle"
-                )
-                return self.action_status
+    def reset(self):
+        super().reset()
+        Navigation.resetOdoMove()
+        self.rparams = {}
+        if self.robot_delta_angle_deg is None:
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(
+                "No rotation angle provided",
+                "Incremental robot rotation requires robotDeltaAngle",
+            )
+            return
+        if self.disable_nearby:
+            move_angle_deg = float(self.robot_delta_angle_deg)
+        else:
+            move_angle_deg = _normalize_increment_angle_deg(self.robot_delta_angle_deg)
+        self.rparams["moveAngle"] = math.radians(abs(move_angle_deg))
+        self.rparams["locMode"] = self.mode.value
+        self.rparams["actionName"] = self.action_name
+        speed_w = abs(self.speed_w_robot) if self.speed_w_robot is not None else None
+        if speed_w is None:
+            rotate_defaults = _get_rotate_nav_defaults()
+            default_rot_speed = rotate_defaults.get("maxRot")
+            if default_rot_speed is not None:
+                speed_w = abs(default_rot_speed)
+        if speed_w is not None:
             if self.disable_nearby:
-                move_angle_deg = float(self.robot_delta_angle_deg)
-            else:
-                move_angle_deg = _normalize_increment_angle_deg(self.robot_delta_angle_deg)
-            self.rparams["moveAngle"] = math.radians(abs(move_angle_deg))
-            self.rparams["locMode"] = self.mode.value
-            self.rparams["actionName"] = self.action_name
-            speed_w = abs(self.speed_w_robot) if self.speed_w_robot is not None else None
-            if speed_w is None:
-                rotate_defaults = _get_rotate_nav_defaults()
-                default_rot_speed = rotate_defaults.get("maxRot")
-                if default_rot_speed is not None:
-                    speed_w = abs(default_rot_speed)
-            if speed_w is not None:
-                if self.disable_nearby:
-                    if self.robot_direction == RotateDirection.CLOCKWISE:
-                        speed_w = -speed_w
-                    elif self.robot_direction == RotateDirection.NEARBY and move_angle_deg < 0:
-                        speed_w = -speed_w
-                elif self.robot_direction == RotateDirection.NEARBY:
-                    if move_angle_deg < 0:
-                        speed_w = -speed_w
-                elif self.robot_direction == RotateDirection.CLOCKWISE:
+                if self.robot_direction == RotateDirection.CLOCKWISE:
                     speed_w = -speed_w
-                self.rparams["speedW"] = speed_w
-            _trace_log(f"rparams: {self.rparams}", name=f"{LOG_NAME}.task")
+                elif self.robot_direction == RotateDirection.NEARBY and move_angle_deg < 0:
+                    speed_w = -speed_w
+            elif self.robot_direction == RotateDirection.NEARBY:
+                if move_angle_deg < 0:
+                    speed_w = -speed_w
+            elif self.robot_direction == RotateDirection.CLOCKWISE:
+                speed_w = -speed_w
+            self.rparams["speedW"] = speed_w
+        _trace_log(f"rparams: {self.rparams}", name=f"{LOG_NAME}.task")
 
+    def cancel(self):
+        Navigation.resetOdoMove()
+        super().cancel()
+
+    def run(self, j: Actions):
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
         self.action_status = _normalize_motion_status(Navigation.runOdoMove(
             self.rparams if self.rparams else None
         ))
         if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
             Navigation.resetOdoMove()
-
         return self.action_status
-
-    def cancel(self):
-        Navigation.resetOdoMove()
-        super().cancel()
 
 
 class ShelfCoordinateRotate(ActionBase):
@@ -1241,45 +1228,43 @@ class ShelfCoordinateRotate(ActionBase):
         super().__init__("ShelfCoordinateRotate")
         self.shelf_direction = shelf_direction
         self.coordinate_axis = coordinate_axis
-        self.action_status = ActionStatus.INIT
-        self.init = True
 
         self.shelf_angle = None
         if shelf_angle is not None:
             self.shelf_angle = math.radians(shelf_angle)
 
-    def run(self, j: Actions):
-        if self.init:
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-            if self.shelf_angle is None:
-                self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError(
-                    "No rotation angle provided",
-                    "Shelf coordinate rotation requires shelfRotateAngle"
-                )
-                return self.action_status
-            if self.coordinate_axis == ShelfCoordinateAxis.ROBOT:
-                _trace_log("setRobotSpinAngle", name=f"{LOG_NAME}.task")
-                Navigation.setRobotSpinAngle(self.shelf_angle, self.shelf_direction.value)
-            elif self.coordinate_axis == ShelfCoordinateAxis.WORLD:
-                _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
-                Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction.value)
-            elif self.coordinate_axis == ShelfCoordinateAxis.INCREMENTAL:
-                _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
-                Navigation.setIncreaseSpinAngle(self.shelf_angle)
-            else:
-                self.action_status = ActionStatus.FAILED
-                Navigation.setTaskError(
-                    "CoordinateAxisUnsupported",
-                    f"coordinateAxis {self.coordinate_axis.value if self.coordinate_axis else self.coordinate_axis} not support"
-                )
-                return self.action_status
+    def reset(self):
+        super().reset()
+        if self.shelf_angle is None:
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(
+                "No rotation angle provided",
+                "Shelf coordinate rotation requires shelfRotateAngle",
+            )
+            return
+        if self.coordinate_axis == ShelfCoordinateAxis.ROBOT:
+            _trace_log("setRobotSpinAngle", name=f"{LOG_NAME}.task")
+            Navigation.setRobotSpinAngle(self.shelf_angle, self.shelf_direction.value)
+        elif self.coordinate_axis == ShelfCoordinateAxis.WORLD:
+            _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
+            Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction.value)
+        elif self.coordinate_axis == ShelfCoordinateAxis.INCREMENTAL:
+            _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
+            Navigation.setIncreaseSpinAngle(self.shelf_angle)
+        else:
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(
+                "CoordinateAxisUnsupported",
+                f"coordinateAxis {self.coordinate_axis.value if self.coordinate_axis else self.coordinate_axis} not support",
+            )
 
+    def run(self, j: Actions):
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
         if Navigation.spinRun():
             self.action_status = ActionStatus.FINISHED
-
         return self.action_status
+
 
 class GoLineByOdo(ActionBase):
     """使用里程接口执行直线/平移运动"""
@@ -1290,24 +1275,28 @@ class GoLineByOdo(ActionBase):
         self.speed_x = speed_x
         self.speed_y = speed_y
         self.mode = mode
-        self.init = True
-        self.action_status = ActionStatus.INIT
+        self.params = None
 
-    def run(self, j: Actions):
-        if self.init:
-            Navigation.resetOdoMove()
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-        params = {
+    def reset(self):
+        super().reset()
+        Navigation.resetOdoMove()
+        self.params = {
             "moveDist": float(self.move_dist),
             "locMode": self.mode.value,
             "actionName": "GoLineByOdo",
         }
-        _set_if_not_none(params, "speedX", self.speed_x, float)
-        _set_if_not_none(params, "speedY", self.speed_y, float)
-        if self.action_status == ActionStatus.RUNNING and "GoLineByOdo" not in j.report_info:
-            _trace_log(f"odo move start params={params}", name=f"{LOG_NAME}.nav")
-        self.action_status = _normalize_motion_status(Navigation.runOdoMove(params))
+        _set_if_not_none(self.params, "speedX", self.speed_x, float)
+        _set_if_not_none(self.params, "speedY", self.speed_y, float)
+        _trace_log(f"odo move start params={self.params}", name=f"{LOG_NAME}.nav")
+
+    def cancel(self):
+        Navigation.resetOdoMove()
+        super().cancel()
+
+    def run(self, j: Actions):
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
+        self.action_status = _normalize_motion_status(Navigation.runOdoMove(self.params))
         if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
             Navigation.resetOdoMove()
 
@@ -1318,10 +1307,8 @@ class GoLineByOdo(ActionBase):
             "speedY": self.speed_y,
             "mode": self.mode.value,
         }
+        return self.action_status
 
-    def cancel(self):
-        Navigation.resetOdoMove()
-        super().cancel()
 
 class GoArc(ActionBase):
     """圆弧走到指定点"""
@@ -1332,26 +1319,28 @@ class GoArc(ActionBase):
         self.rot_degree = rot_degree
         self.rot_speed = rot_speed
         self.mode = mode
-        self.action_status = ActionStatus.INIT
+        self.params = None
 
-        self.init = True
-
-    
-    def run(self, j: Actions):
-        if self.init:
-            Navigation.resetOdoMove()
-            self.init = False
-            self.action_status = ActionStatus.RUNNING
-        self.arg={
+    def reset(self):
+        super().reset()
+        Navigation.resetOdoMove()
+        self.params = {
             "locMode": self.mode.value,
             "rotDegree": float(self.rot_degree),
             "rotRadius": float(self.rot_radius),
             "actionName": self.action_name,
         }
-        _set_if_not_none(self.arg, "rotSpeed", self.rot_speed, float)
-        if self.action_status == ActionStatus.RUNNING and "GoArc" not in j.report_info:
-            _trace_log(f"arc move start params={self.arg}", name=f"{LOG_NAME}.nav")
-        self.action_status = _normalize_motion_status(Navigation.runOdoMove(self.arg))
+        _set_if_not_none(self.params, "rotSpeed", self.rot_speed, float)
+        _trace_log(f"arc move start params={self.params}", name=f"{LOG_NAME}.nav")
+
+    def cancel(self):
+        Navigation.resetOdoMove()
+        super().cancel()
+
+    def run(self, j: Actions):
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
+        self.action_status = _normalize_motion_status(Navigation.runOdoMove(self.params))
         if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
             Navigation.resetOdoMove()
 
@@ -1360,12 +1349,9 @@ class GoArc(ActionBase):
             "rotRadius": self.rot_radius,
             "rotDegree": self.rot_degree,
             "rotSpeed": self.rot_speed,
-            "mode": self.mode.value
+            "mode": self.mode.value,
         }
-
-    def cancel(self):
-        Navigation.resetOdoMove()
-        super().cancel()
+        return self.action_status
 
 def main():
     # 注册脚本参数变更回调
