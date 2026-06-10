@@ -1,11 +1,14 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from abc import ABC
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy import RBK_VERSION
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from .v3.protobuf import msgCodeScannerDMT as msgCodeScannerDMT
+        from .v3.protobuf.message.message_codescanner_pb2 import msgCodeScannerDMT as msgCodeScannerDMT
         pass
     elif RBK_VERSION == 4:
         from .v4.protobuf.message.messageV4_pgv_pb2 import MessageV4_PGV_DMT as msgCodeScannerDMT
@@ -15,11 +18,11 @@ class CodeScannerInterface(ABC, Message):
     """PGV类"""
 
     @classmethod
-    def getCodeScanners(cls) -> Optional[List["msgCodeScannerDMT"]]:
+    def getCodeScanners(cls) -> Optional[RepeatedCompositeFieldContainer["msgCodeScannerDMT"]]:
         """获取msgCodeScannerDMT对象列表
 
         Returns:
-            (Optional[List["msgCodeScannerDMT"]]): msgCodeScannerDMT对象列表
+            (Optional[RepeatedCompositeFieldContainer["msgCodeScannerDMT"]]): msgCodeScannerDMT对象列表
 
         Examples:
         ```python

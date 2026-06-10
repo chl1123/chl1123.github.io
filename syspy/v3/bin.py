@@ -1,29 +1,36 @@
+from __future__ import annotations
+
 import ast
-from typing import List, TYPE_CHECKING, Union, Optional
+from typing import List, Union, Optional, TYPE_CHECKING
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.bin import BinInterface, ContainerInterface
 from syspy.v3.lib.plyvel_db import LevelDBV3
 from syspy.v3.navigation import NavigationV3
 from syspy.core.rbk_rpc import call_service, default_plugin
+
+if TYPE_CHECKING:
+    from .protobuf.message.message_bin_pb2 import msgBins, msgBin
 
 
 @default_plugin("RecoFactory")
 class BinV3(BinInterface):
     """库位类"""
 
+    data: msgBins = None
+
     _TOPIC = "rbk.protocol.msgBins"
     _PLUGIN = "RecoFactory"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgBins, msgBin  # IDE类型提示
-        data: msgBins = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgBins
+            from .protobuf.message.message_bin_pb2 import msgBins
             cls._MODEL_CLASS = msgBins
 
-    def getBins(self) -> Optional[List["msgBin"]]:
+    def getBins(self) -> Optional[RepeatedCompositeFieldContainer["msgBin"]]:
         if self.update():
             return self.data.bins
 

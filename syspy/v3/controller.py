@@ -1,23 +1,23 @@
+from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 from syspy.controller import ControllerInterface
-
+if TYPE_CHECKING:
+    from .protobuf.message.message_controller_pb2 import msgController
 
 class ControllerV3(ControllerInterface):
     """控制器类"""
+
+    data: msgController = None
 
     _TOPIC = "rbk.protocol.msgController"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
 
-    if TYPE_CHECKING:
-        from .protobuf import msgController
-        data: msgController = None
-
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgController
+            from .protobuf.message.message_controller_pb2 import msgController
             cls._MODEL_CLASS = msgController
 
     def getTemperature(self) -> Optional[float]:

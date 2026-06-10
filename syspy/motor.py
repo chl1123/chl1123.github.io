@@ -85,7 +85,7 @@ class ParamCheck:
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import msgMotorInfo
+        from syspy.v3.protobuf.message.message_motorinfos_pb2 import msgMotorInfo
     elif RBK_VERSION == 4:
         from v4.protobuf.message.messageV4_movetask_pb2 import MessageV4_MInfo as msgMotorInfo
 

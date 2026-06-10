@@ -14,7 +14,7 @@ class LocV4(LocInterface):
             from syspy.v4.protobuf.message.message_localization_pb2 import Message_Localization  # 延迟导入
             cls._MODEL_CLASS = Message_Localization
 
-    def get_pose(self) -> Dict[str, float]:
+    def get_pose(self) -> Optional[Dict[str, float]]:
         if self.update():
             return {
                 "x": self.data.x,

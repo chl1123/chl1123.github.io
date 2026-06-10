@@ -1,12 +1,15 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from abc import ABC
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy import RBK_VERSION
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import msgDINode
-        from syspy.v3.protobuf import msgDONode
+        from syspy.v3.protobuf.message.message_io_pb2 import msgDINode
+        from syspy.v3.protobuf.message.message_io_pb2 import msgDONode
     elif RBK_VERSION == 4:
         pass
 
@@ -46,11 +49,11 @@ class DiInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getDis(cls) -> Optional[List["msgDINode"]]:
+    def getDis(cls) -> Optional[RepeatedCompositeFieldContainer["msgDINode"]]:
         """获取DI消息中的节点列表
 
         Returns:
-            (Optional[List[msgDINode]]): DI消息中的节点列表
+            (Optional[RepeatedCompositeFieldContainer[msgDINode]]): DI消息中的节点列表
 
         Examples:
         ```python
@@ -101,11 +104,11 @@ class DoInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getDos(cls) -> Optional[List["msgDONode"]]:
+    def getDos(cls) -> Optional[RepeatedCompositeFieldContainer["msgDONode"]]:
         """获取DO消息中的节点列表
 
         Returns:
-            (Optional[List[msgDONode]]): DO消息中的节点列表
+            (Optional[RepeatedCompositeFieldContainer[msgDONode]]): DO消息中的节点列表
 
         Examples:
         ```python

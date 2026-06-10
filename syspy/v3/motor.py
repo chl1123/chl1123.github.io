@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from typing import Union, List, TYPE_CHECKING
 
 from syspy.core.rbk_rpc import default_plugin, call_service
 from syspy.motor import MotorInterface
+
 if TYPE_CHECKING:
-    from .protobuf import msgMotorInfo  # IDE类型提示
+    from .protobuf.message.message_motorinfos_pb2 import msgMotorInfo  # IDE类型提示
 
 @default_plugin("MoveFactory")
 class MotorV3(MotorInterface):

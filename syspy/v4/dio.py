@@ -1,4 +1,7 @@
-from typing import Optional, List
+from typing import Optional
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.dio import DiInterface, DoInterface
 from syspy.core.rbk_rpc import call_service, default_plugin
 
@@ -34,11 +37,11 @@ class DiV4(DiInterface):
                     return node.status
         return False
 
-    def getDis(self) -> Optional[List["MessageV4_DINode"]]:
+    def getDis(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_DINode"]]:
         if self.update():
             return self.data.node
 
-    def getMaxDi(self) -> int:
+    def getMaxDi(self) -> Optional[int]:
         if self.update():
             return self.data.max_node
 
@@ -70,7 +73,7 @@ class DoV4(DoInterface):
                     return node.status
         return False
 
-    def getDos(self) -> Optional[List["MessageV4_DONode"]]:
+    def getDos(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_DONode"]]:
         if self.update():
             return self.data.node
 

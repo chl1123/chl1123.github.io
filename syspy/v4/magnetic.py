@@ -1,4 +1,7 @@
-from typing import Optional, List
+from typing import Optional
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.magnetic import MagneticInterface
 
 
@@ -14,6 +17,6 @@ class MagneticV4(MagneticInterface):
             from syspy.v4.protobuf.message.messageV4_magnetic_pb2 import MessageV4_Magnetic
             cls._MODEL_CLASS = MessageV4_Magnetic
 
-    def getMagnetics(self) -> Optional[List["MessageV4_MagneticNode"]]:
+    def getMagnetics(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_MagneticNode"]]:
         if self.update():
             return self.data.magnetic_nodes

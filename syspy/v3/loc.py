@@ -1,21 +1,24 @@
+from __future__ import annotations
 import math
 from typing import Optional, Dict, TYPE_CHECKING
+
 from syspy.loc import LocInterface
+if TYPE_CHECKING:
+    from .protobuf.message.message_localization_pb2 import msgLocalization
 
 class LocV3(LocInterface):
     """定位类"""
 
+    data: msgLocalization = None
+
     _TOPIC = "rbk.protocol.msgLocalization"
     _PLUGIN = "MCLoc"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgLocalization
-        data: msgLocalization = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgLocalization  # 延迟导入
+            from .protobuf.message.message_localization_pb2 import msgLocalization  # 延迟导入
             cls._MODEL_CLASS = msgLocalization
 
     def getPose(self) -> Optional[Dict[str, float]]:
@@ -29,11 +32,11 @@ class LocV3(LocInterface):
                 "pitch": math.degrees(self.data.pitch),
             }
 
-    def getConfidence(self) -> float:
+    def getConfidence(self) -> Optional[float]:
         if self.update():
             return self.data.confidence
 
-    def getLocState(self) -> int:
+    def getLocState(self) -> Optional[int]:
         if self.update():
             return self.data.locState
 

@@ -1,14 +1,16 @@
-import typing
 from typing import Dict, Tuple, List, Optional, TYPE_CHECKING
 from abc import ABC
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 from syspy import RBK_VERSION
 from syspy.utils import Coordinate
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import msgMotorCmd
-        from syspy.v3.protobuf import msgMoveStatus
+        from syspy.v3.protobuf.message.message_navigation_pb2 import msgMotorCmd
+        from syspy.v3.protobuf.message.message_movetask_pb2 import msgMoveStatus
     elif RBK_VERSION == 4:
         pass
 
@@ -1014,11 +1016,11 @@ class NavSpeedInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getMotorCmd(cls) -> Optional[List["msgMotorCmd"]]:
+    def getMotorCmd(cls) -> Optional[RepeatedCompositeFieldContainer["msgMotorCmd"]]:
         """获取电机指令列表
 
         Returns:
-            (Optional[List[msgMotorCmd]]): 返回电机指令列表
+            (Optional[RepeatedCompositeFieldContainer[msgMotorCmd]]): 返回电机指令列表
         """
         raise RBKVersionError()
 

@@ -1,6 +1,8 @@
 import math
 from typing import List, Optional, TYPE_CHECKING
 
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.core.rbk_rpc import call_service, Message
 
 if TYPE_CHECKING:
@@ -71,6 +73,6 @@ class Laser3DV4(Message):
         if cls._MODEL_CLASS is None:
             cls._MODEL_CLASS = MessageV4_Laser3D
 
-    def getLasers3d(self) -> Optional[List["MessageV4_Laser3D"]]:
+    def getLasers3d(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_Laser3D"]]:
         if self.update():
             return self.data.lasers3d

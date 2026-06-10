@@ -1,27 +1,29 @@
+from __future__ import annotations
+
 import math
 from typing import List, Optional, TYPE_CHECKING
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 
 from syspy.core.rbk_rpc import call_service, Message
 
 if TYPE_CHECKING:
-    from .protobuf import msgLaser3D
+    from .protobuf.message.message_laser_pb2 import msgAllLasers, msgAllLasers3D, msgLaser3D
 
 
 class LaserV3(Message):
     """激光类"""
 
+    data: msgAllLasers = None
+
     _TOPIC = "rbk.protocol.msgAllLasers"
     _PLUGIN = "MultiLaser"
     _MODEL_CLASS = None
 
-    if TYPE_CHECKING:
-        from .protobuf import msgAllLasers
-        data: msgAllLasers = None
-
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgAllLasers
+            from .protobuf.message.message_laser_pb2 import msgAllLasers
             cls._MODEL_CLASS = msgAllLasers
 
     @classmethod
@@ -65,19 +67,18 @@ class LaserV3(Message):
 class Laser3DV3(Message):
     """激光类"""
 
+    data: msgAllLasers3D = None
+
     _TOPIC = "rbk.protocol.msgAllLasers3D"
     _PLUGIN = "MultiLaser"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgAllLasers3D, msgLaser3D
-        data: msgAllLasers3D = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgAllLasers3D
+            from .protobuf.message.message_laser_pb2 import msgAllLasers3D
             cls._MODEL_CLASS = msgAllLasers3D
 
-    def getLasers3d(self) -> Optional[List["msgLaser3D"]]:
+    def getLasers3d(self) -> Optional[RepeatedCompositeFieldContainer["msgLaser3D"]]:
         if self.update():
             return self.data.lasers3D

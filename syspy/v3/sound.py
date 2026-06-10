@@ -1,24 +1,25 @@
+from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.sound import SoundInterface
-
+if TYPE_CHECKING:
+    from .protobuf.message.message_sound_pb2 import msgSound
 
 @default_plugin("MoveFactory")
 class SoundV3(SoundInterface):
     """音频"""
 
+    data: msgSound = None
+
     _TOPIC = "rbk.protocol.msgSound"
     _PLUGIN = "SoundPlayer"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgSound
-        data: msgSound = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgSound
+            from .protobuf.message.message_sound_pb2 import msgSound
             cls._MODEL_CLASS = msgSound
 
     @classmethod
@@ -40,7 +41,7 @@ class SoundV3(SoundInterface):
         if self.update():
             return self.data.status
 
-    def getSoundName(self) -> str:
+    def getSoundName(self) -> Optional[str]:
         if self.update():
             return self.data.soundName
 

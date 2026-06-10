@@ -10,5 +10,5 @@ class DistanceV3(DistanceInterface):
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgDistanceSensor
+            from .protobuf.message.message_distancesensor_pb2 import msgDistanceSensor
             cls._MODEL_CLASS = msgDistanceSensor

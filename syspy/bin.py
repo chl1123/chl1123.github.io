@@ -1,21 +1,26 @@
 from abc import ABC
 from typing import List, TYPE_CHECKING, Union, Optional
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+from syspy import RBK_VERSION
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
 
 
 if TYPE_CHECKING:
-    from syspy.v3.protobuf import msgBin  # IDE类型提示
-
+    if RBK_VERSION == 3:
+        from syspy.v3.protobuf.message.message_bin_pb2 import msgBin  # IDE类型提示
+    elif RBK_VERSION == 4:
+        pass
 
 class BinInterface(ABC, Message):
     """库位类"""
 
     @classmethod
-    def getBins(cls) -> Optional[List["msgBin"]]:
+    def getBins(cls) -> Optional[RepeatedCompositeFieldContainer["msgBin"]]:
         """获取库位列表
 
         Returns:
-            (Optional[List["msgBin"]]): 库位列表
+            (Optional[RepeatedCompositeFieldContainer["msgBin"]]): 库位列表
 
         Examples:
         ```python

@@ -1,23 +1,30 @@
-from typing import Optional, List, TYPE_CHECKING
-from syspy.dio import DiInterface, DoInterface
+from __future__ import annotations
+
+from typing import Optional, TYPE_CHECKING
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.core.rbk_rpc import call_service, default_plugin
+from syspy.dio import DiInterface, DoInterface
+
+if TYPE_CHECKING:
+    from .protobuf.message.message_io_pb2 import msgDI, msgDINode, msgDO, msgDONode
 
 
 @default_plugin("DSPChassis")
 class DiV3(DiInterface):
     """数字输入类"""
 
+    data: msgDI = None
+
     _TOPIC = "rbk.protocol.msgDI"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgDI, msgDINode
-        data: msgDI = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgDI
+            from .protobuf.message.message_io_pb2 import msgDI
             cls._MODEL_CLASS = msgDI
 
     @classmethod
@@ -38,11 +45,11 @@ class DiV3(DiInterface):
                     return node.status
         return False
 
-    def getDis(self) -> Optional[List["msgDINode"]]:
+    def getDis(self) -> Optional[RepeatedCompositeFieldContainer["msgDINode"]]:
         if self.update():
             return self.data.node
 
-    def getMaxDi(self) -> int:
+    def getMaxDi(self) -> Optional[int]:
         if self.update():
             return self.data.maxNode
 
@@ -51,17 +58,16 @@ class DiV3(DiInterface):
 class DoV3(DoInterface):
     """数字输出类"""
 
+    data: msgDO = None
+
     _TOPIC = "rbk.protocol.msgDO"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgDO, msgDONode
-        data: msgDO = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgDO
+            from .protobuf.message.message_io_pb2 import msgDO
             cls._MODEL_CLASS = msgDO
 
     @classmethod
@@ -77,7 +83,7 @@ class DoV3(DoInterface):
                     return node.status
         return False
 
-    def getDos(self) -> Optional[List["msgDONode"]]:
+    def getDos(self) -> Optional[RepeatedCompositeFieldContainer["msgDONode"]]:
         if self.update():
             return self.data.node
 

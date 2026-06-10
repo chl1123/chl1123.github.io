@@ -1,11 +1,14 @@
 from abc import ABC
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.core.rbk_rpc import Message, RBKVersionError
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING
 from syspy import RBK_VERSION
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import msgMotorInfo
+        from syspy.v3.protobuf.message.message_motorinfos_pb2 import msgMotorInfo
 
 
 class OdometerInterface(ABC, Message):
@@ -50,11 +53,11 @@ class OdometerInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getMotorInfos(cls) -> Optional[List["msgMotorInfo"]]:
+    def getMotorInfos(cls) -> Optional[RepeatedCompositeFieldContainer["msgMotorInfo"]]:
         """获取电机信息列表
 
         Returns:
-            (Optional[List[msgMotorInfo]]): 返回电机信息列表，列表内元素为msgMotorInfo对象
+            (Optional[RepeatedCompositeFieldContainer[msgMotorInfo]]): 返回电机信息列表，列表内元素为msgMotorInfo对象
 
         Examples:
         ```python

@@ -1,6 +1,8 @@
 import math
 from typing import Tuple, List, Optional
 
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.core.rbk_rpc import call_service, default_plugin, RBKVersionError
 from ..utils import Coordinate
 from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
@@ -362,7 +364,7 @@ class NavStatusV4(NavStatusInterface):
         # todo RBK4
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
-    def getBlock(self):
+    def getBlock(self)-> Optional[bool]:
         if self.update():
             return self.data.blocked
 
@@ -414,7 +416,7 @@ class NavSpeedV4(NavSpeedInterface):
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
-    def getMotorCmd(self) -> Optional[List["MessageV4_MotorCmd"]]:
+    def getMotorCmd(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_MotorCmd"]]:
         if self.update():
             return self.data.motor_cmd
 

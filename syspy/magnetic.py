@@ -1,11 +1,14 @@
-from typing import List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from abc import ABC
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.core.rbk_rpc import Message, RBKVersionError
 from syspy import RBK_VERSION
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import msgMagneticNode
+        from syspy.v3.protobuf.message.message_magnetic_pb2 import msgMagneticNode
     elif RBK_VERSION == 4:
         pass
 
@@ -14,11 +17,11 @@ class MagneticInterface(ABC, Message):
     """磁传感器类"""
 
     @classmethod
-    def getMagnetics(cls) -> Optional[List["msgMagneticNode"]]:
+    def getMagnetics(cls) -> Optional[RepeatedCompositeFieldContainer["msgMagneticNode"]]:
         """获取磁节点列表
 
         Returns:
-            (Optional[List[msgMagneticNode]]): 包含所有磁节点信息的列表
+            (Optional[RepeatedCompositeFieldContainer[msgMagneticNode]]): 包含所有磁节点信息的列表
         """
         raise RBKVersionError()
 

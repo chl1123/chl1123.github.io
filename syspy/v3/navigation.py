@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import math
 from typing import Dict, Tuple, List, Optional, TYPE_CHECKING
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
 from ..utils import Coordinate
 
 if TYPE_CHECKING:
-    from .protobuf import msgMotorCmd
+    from .protobuf.message.message_navigation_pb2 import msgMotorCmd, msgNavSpeed
+    from .protobuf.message.message_movetask_pb2 import msgMoveStatus
 
 
 @default_plugin("MoveFactory")
@@ -461,24 +466,23 @@ class NavigationV3(NavigationInterface):
 class NavStatusV3(NavStatusInterface):
     """导航状态类"""
 
+    data: msgMoveStatus = None
+
     _TOPIC = "rbk.protocol.msgMoveStatus"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgMoveStatus
-        data: msgMoveStatus = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgMoveStatus
+            from .protobuf.message.message_movetask_pb2 import msgMoveStatus
             cls._MODEL_CLASS = msgMoveStatus
 
     @classmethod
     def getChassisStop(cls) -> bool:
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
-    def getBlock(self):
+    def getBlock(self)-> Optional[bool]:
         if self.update():
             return self.data.blocked
 
@@ -517,7 +521,7 @@ class NavStatusV3(NavStatusInterface):
         if self.update():
             return self.data.runningStatus
 
-    def getCurrentStation(self) -> str:
+    def getCurrentStation(self) -> Optional[str]:
         if self.update():
             return self.data.closestTarget
 
@@ -525,24 +529,23 @@ class NavStatusV3(NavStatusInterface):
 class NavSpeedV3(NavSpeedInterface):
     """导航速度类"""
 
+    data: msgNavSpeed = None
+
     _TOPIC = "rbk.protocol.msgNavSpeed"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgNavSpeed
-        data: msgNavSpeed = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgNavSpeed
+            from .protobuf.message.message_navigation_pb2 import msgNavSpeed
             cls._MODEL_CLASS = msgNavSpeed
 
     def getSpeeds(self) -> Optional[Tuple[float, float, float]]:
         if self.update():
             return self.data.x, self.data.y, self.data.rotate
 
-    def getMotorCmd(self) -> Optional[List["msgMotorCmd"]]:
+    def getMotorCmd(self) -> Optional[RepeatedCompositeFieldContainer["msgMotorCmd"]]:
         if self.update():
             return self.data.motorCmd
 

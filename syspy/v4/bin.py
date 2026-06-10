@@ -1,5 +1,8 @@
 import ast
 from typing import List, Union, Optional
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.bin import BinInterface, ContainerInterface
 from syspy.v4.lib.plyvel_db import LevelDBV4
 from syspy.v4.navigation import NavigationV4
@@ -19,7 +22,7 @@ class BinV4(BinInterface):
             # todo RBK4
             cls._MODEL_CLASS = None
 
-    def getBins(self) -> Optional[List["MessageV4_Bin"]]:
+    def getBins(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_Bin"]]:
         if self.update():
             return self.data.bins
 

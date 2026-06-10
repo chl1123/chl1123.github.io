@@ -1,4 +1,7 @@
-from typing import Optional, List
+from typing import Optional
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.rfid import RfidInterface
 
 
@@ -14,6 +17,6 @@ class RfidV4(RfidInterface):
             from syspy.v4.protobuf.message.messageV4_rfid_pb2 import MessageV4_RFID
             cls._MODEL_CLASS = MessageV4_RFID
 
-    def getRfids(self) -> Optional[List["MessageV4_RFIDNode"]]:
+    def getRfids(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_RFIDNode"]]:
         if self.update():
             return self.data.rfid_nodes

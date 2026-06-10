@@ -1,4 +1,7 @@
-from typing import List, Optional
+from typing import Optional
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy.code_scanner import CodeScannerInterface
 
 
@@ -14,6 +17,6 @@ class CodeScannerV4(CodeScannerInterface):
             from syspy.v4.protobuf.message.messageV4_pgv_pb2 import MessageV4_PGV
             cls._MODEL_CLASS = MessageV4_PGV
 
-    def getCodeScanners(self) -> Optional[List["MessageV4_PGV_DMT"]]:
+    def getCodeScanners(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_PGV_DMT"]]:
         if self.update():
             return self.data.pgvs

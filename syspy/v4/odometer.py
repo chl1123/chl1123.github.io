@@ -17,7 +17,7 @@ class OdometerV4(OdometerInterface):
             from syspy.v4.protobuf.message.messageV4_odometer_pb2 import MessageV4_Odometer
             cls._MODEL_CLASS = MessageV4_Odometer
 
-    def getCycle(self) -> int:
+    def getCycle(self) -> Optional[int]:
         if self.update():
             return self.data.cycle
 

@@ -77,7 +77,7 @@ class InputParams:
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf import msgLaser3D
+        from syspy.v3.protobuf.message.message_laser_pb2 import msgLaser3D
     elif RBK_VERSION == 4:
         pass
 

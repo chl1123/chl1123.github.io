@@ -1,22 +1,24 @@
+from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
+
 from google.protobuf.json_format import MessageToJson
 from syspy.core.rbk_rpc import default_plugin, Message
-
+if TYPE_CHECKING:
+    from .protobuf.message.message_battery_pb2 import msgBattery
 
 @default_plugin("DSPChassis")
 class BatteryV3(Message):
     """RBK3电池实现"""
+    data: msgBattery = None
+
     _TOPIC = "rbk.protocol.msgBattery"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
-    if TYPE_CHECKING:
-        from .protobuf import msgBattery
-        data: msgBattery = None
 
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from .protobuf import msgBattery
+            from .protobuf.message.message_battery_pb2 import msgBattery
             cls._MODEL_CLASS = msgBattery
 
     def getPercentage(self, *, topic: str = "Battery-000") -> Optional[float]:
