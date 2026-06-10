@@ -10,7 +10,7 @@ import time
 from enum import Enum, IntEnum
 
 from syspy import (Module, Di, Motor, Navigation, Loc, ScriptStatus, Trace,
-                   Container, ActionBase, ActionTask, ActionStatus)
+                   ActionBase, ActionTask, ActionStatus)
 from syspy.lib.module import ModuleBase
 from syspy.utils.param_server import ParamBuilder, ParamType, ScriptParam
 param_loader = ScriptParam(__file__)
@@ -770,7 +770,6 @@ class Actions(ModuleBase):
             self.shelf_pos_init = Motor.getMotorPos(config_params.spin_motor_name)
         Navigation.clearDeviceError('SPIN_MOTOR_LOST')
         Navigation.clearDeviceError('LIFT_MOTOR_NOT_FOUND')
-        Container.initContainer(0)
 
     def set_status(self, new_status: ScriptStatus) -> None:
         """统一状态切换入口，避免重复状态日志。"""
@@ -908,7 +907,6 @@ class Actions(ModuleBase):
             "currentRobotAngle": current_robot_angle,
             "scriptStatus": int(self.script_status),
             "taskId": Module.getTaskId(),
-            "containers": Container.getContainers(),
         })
 
         _trace_dict(
