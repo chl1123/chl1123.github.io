@@ -137,6 +137,15 @@ def _parse_loc_mode(value):
     return LocMode(int(value))
 
 
+def _normalize_motion_status(status):
+    # TODO(seer): 当前部分运动接口首拍会返回 INIT，导致 ActionTask 可能出现
+    # RUNNING -> INIT -> RUNNING 的状态回跳。这里先在 actions.py 内做兼容，
+    # 后续应在 syspy/lib/action_task.py 中收敛状态机，避免 RUNNING 之后再次回到 INIT。
+    if status == ActionStatus.INIT:
+        return ActionStatus.RUNNING
+    return status
+
+
 def _normalize_legacy_task_args(task_args: dict) -> dict:
     """将旧版下发字段轻量映射到当前脚本字段。"""
     normalized = dict(task_args or {})
@@ -862,8 +871,6 @@ class Actions(ModuleBase):
             self.set_status(ScriptStatus.RUNNING)
 
     def cancel(self):
-        Navigation.resetOdoMove()
-        Navigation.resetRotateMove()
         self.action_task.cancel()
         self.set_status(ScriptStatus.FAILED)
         _trace_log("task cancelled", name=f"{LOG_NAME}.task")
@@ -886,8 +893,6 @@ class Actions(ModuleBase):
 
     def reset_task_state(self) -> None:
         """单次任务结束后复位，继续驻留等待下一次任务。"""
-        Navigation.resetOdoMove()
-        Navigation.resetRotateMove()
         self.action_task.reset()
         self.init_args = False
         self.task_args = {}
@@ -1000,7 +1005,6 @@ class AbsoluteRobotRotate(ActionBase):
             self.init = False
             self.action_status = ActionStatus.RUNNING
             Navigation.resetRotateMove()
-            Navigation.resetOdoMove()
             if self.robot_target_angle is None:
                 self.action_status = ActionStatus.FAILED
                 Navigation.setTaskError(
@@ -1018,12 +1022,19 @@ class AbsoluteRobotRotate(ActionBase):
             else:
                 _set_if_not_none(self.rparams, "speedW", self.rparams.get("maxRot"), math.fabs)
             _trace_log(f"rparams: {self.rparams}", name=f"{LOG_NAME}.task")
-        self.action_status = Navigation.runRotateMove(
+
+        self.action_status = _normalize_motion_status(Navigation.runRotateMove(
             robot_params=self.rparams if self.rparams else None,
             shelf_params=None,
-        )
+        ))
+        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            Navigation.resetRotateMove()
 
         return self.action_status
+
+    def cancel(self):
+        Navigation.resetRotateMove()
+        super().cancel()
 
 
 class AbsoluteRobotAndShelfRotate(ActionBase):
@@ -1051,7 +1062,6 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
             self.init = False
             self.action_status = ActionStatus.RUNNING
             Navigation.resetRotateMove()
-            Navigation.resetOdoMove()
             if self.robot_target_angle is None or self.shelf_angle is None:
                 self.action_status = ActionStatus.FAILED
                 Navigation.setTaskError(
@@ -1076,12 +1086,18 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
             }
             _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")
 
-        self.action_status = Navigation.runRotateMove(
+        self.action_status = _normalize_motion_status(Navigation.runRotateMove(
             robot_params=self.rparams,
             shelf_params=self.sparams,
-        )
+        ))
+        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            Navigation.resetRotateMove()
 
         return self.action_status
+
+    def cancel(self):
+        Navigation.resetRotateMove()
+        super().cancel()
 
 
 class AbsoluteShelfRotate(ActionBase):
@@ -1106,8 +1122,6 @@ class AbsoluteShelfRotate(ActionBase):
 
     def run(self, a: Actions):
         if self.init:
-            Navigation.resetRotateMove()
-            Navigation.resetOdoMove()
             self.init = False
             self.action_status = ActionStatus.RUNNING
             if self.shelf_angle is None:
@@ -1163,7 +1177,6 @@ class RobotIncrementalRotate(ActionBase):
 
     def run(self, j: Actions):
         if self.init:
-            Navigation.resetRotateMove()
             Navigation.resetOdoMove()
             self.init = False
             self.action_status = ActionStatus.RUNNING
@@ -1202,11 +1215,17 @@ class RobotIncrementalRotate(ActionBase):
                 self.rparams["speedW"] = speed_w
             _trace_log(f"rparams: {self.rparams}", name=f"{LOG_NAME}.task")
 
-        self.action_status = Navigation.runOdoMove(
+        self.action_status = _normalize_motion_status(Navigation.runOdoMove(
             self.rparams if self.rparams else None
-        )
+        ))
+        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            Navigation.resetOdoMove()
 
         return self.action_status
+
+    def cancel(self):
+        Navigation.resetOdoMove()
+        super().cancel()
 
 
 class ShelfCoordinateRotate(ActionBase):
@@ -1231,8 +1250,6 @@ class ShelfCoordinateRotate(ActionBase):
 
     def run(self, j: Actions):
         if self.init:
-            Navigation.resetRotateMove()
-            Navigation.resetOdoMove()
             self.init = False
             self.action_status = ActionStatus.RUNNING
             if self.shelf_angle is None:
@@ -1290,7 +1307,9 @@ class GoLineByOdo(ActionBase):
         _set_if_not_none(params, "speedY", self.speed_y, float)
         if self.action_status == ActionStatus.RUNNING and "GoLineByOdo" not in j.report_info:
             _trace_log(f"odo move start params={params}", name=f"{LOG_NAME}.nav")
-        self.action_status = Navigation.runOdoMove(params)
+        self.action_status = _normalize_motion_status(Navigation.runOdoMove(params))
+        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            Navigation.resetOdoMove()
 
         j.report_info["GoLineByOdo"] = {
             "actionStatus": self.action_status,
@@ -1299,6 +1318,10 @@ class GoLineByOdo(ActionBase):
             "speedY": self.speed_y,
             "mode": self.mode.value,
         }
+
+    def cancel(self):
+        Navigation.resetOdoMove()
+        super().cancel()
 
 class GoArc(ActionBase):
     """圆弧走到指定点"""
@@ -1328,7 +1351,9 @@ class GoArc(ActionBase):
         _set_if_not_none(self.arg, "rotSpeed", self.rot_speed, float)
         if self.action_status == ActionStatus.RUNNING and "GoArc" not in j.report_info:
             _trace_log(f"arc move start params={self.arg}", name=f"{LOG_NAME}.nav")
-        self.action_status=Navigation.runOdoMove(self.arg)
+        self.action_status = _normalize_motion_status(Navigation.runOdoMove(self.arg))
+        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            Navigation.resetOdoMove()
 
         j.report_info["GoArc"] = {
             "actionStatus": self.action_status,
@@ -1337,6 +1362,10 @@ class GoArc(ActionBase):
             "rotSpeed": self.rot_speed,
             "mode": self.mode.value
         }
+
+    def cancel(self):
+        Navigation.resetOdoMove()
+        super().cancel()
 
 def main():
     # 注册脚本参数变更回调
