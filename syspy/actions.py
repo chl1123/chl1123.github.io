@@ -743,13 +743,22 @@ class ActionBuildError(Exception):
         self.desc = desc
 
 
-def _init_legacy_action_state(action) -> None:
-    if not hasattr(action, "action_args"):
-        action.action_args = {}
-    if not hasattr(action, "init"):
-        action.init = False
-    action.start_time = time.time()
-    action.action_state = {}
+def _build_action_report(action_task: ActionTask, action: ActionBase) -> dict:
+    report = {
+        "actionName": action.__class__.__name__,
+        "actionArgs": action.args_summary(),
+        "actionStatus": int(action.action_status),
+        "actionRuntime": 0.0,
+    }
+    start_ts = action_task._action_start_ts.get(action.action_id)
+    if start_ts is not None:
+        report["actionRuntime"] = time.time() - start_ts
+
+    for key in ("params", "rparams", "sparams"):
+        value = getattr(action, key, None)
+        if value is not None:
+            report[key] = value
+    return report
 
 # --- 主控制类 ---
 class Actions(ModuleBase):
@@ -863,11 +872,6 @@ class Actions(ModuleBase):
         """推进当前动作队列。"""
         try:
             self.action_task.step(self)
-            current_action = self.action_task.current
-            if current_action:
-                self.report_info["currentAction"] = current_action.action_state
-            else:
-                self.report_info.pop("currentAction", None)
             if self.action_task.is_done:
                 if self.action_task.status == ActionStatus.FAILED:
                     self.set_status(ScriptStatus.FAILED)
@@ -908,6 +912,10 @@ class Actions(ModuleBase):
             current_shelf_angle_in_robot = self.shelf_pos / math.pi * 180
             self.report_info["currentShelfAngleInRobot"] = current_shelf_angle_in_robot
             self.report_info["currentShelfAngleInWorld"] = current_robot_angle + current_shelf_angle_in_robot
+        if current_action is not None:
+            self.report_info["currentAction"] = _build_action_report(self.action_task, current_action)
+        else:
+            self.report_info.pop("currentAction", None)
 
         self.report_info.update({
             "actionListName": [a.__class__.__name__ for a in self.action_task.action_list],
@@ -936,19 +944,11 @@ class Jack(ActionBase):
 
     def __init__(self, motor_name: str, height: float, speed=None, stop_di="", rec_file=None):
         super().__init__("Jack")
-        self.action_args = {
-            "motorName": motor_name,
-            "height": height,
-            "speed": speed,
-            "stopDi": stop_di,
-            "recFile": rec_file
-        }
         self.motor_name = motor_name
         self.height = height
         self.speed = speed
         self.stop_di = stop_di
         self.rec_file = rec_file
-        _init_legacy_action_state(self)
 
     def run(self, a: Actions):
         self.action_status = ActionStatus.RUNNING
@@ -971,12 +971,6 @@ class Jack(ActionBase):
                 "Lift motor not found Check motor configuration Motor check"
             )
 
-        self.action_state['actionName'] = self.__class__.__name__
-        self.action_state["actionArgs"] = self.action_args
-        self.action_state['actionStatus'] = self.action_status
-        self.action_state["actionRuntime"] = time.time() - self.start_time
-        
-
     def reset(self):
         pass
 
@@ -991,12 +985,6 @@ class AbsoluteRobotRotate(ActionBase):
     def __init__(self, robot_target_angle=None, robot_direction=RotateDirection.NEARBY,
                  speed_w_robot=None, mode=LocMode.ODO):
         super().__init__("AbsoluteRobotRotate")
-        self.action_args = {
-            "mode": mode.value,
-            "robotTargetAngle": robot_target_angle,
-            "robotRotateDirection": robot_direction.value,
-            "robotRotateSpeed": speed_w_robot,
-        }
         self.mode = mode
         self.action_status = ActionStatus.INIT
         self.init = True
@@ -1006,7 +994,6 @@ class AbsoluteRobotRotate(ActionBase):
         if robot_target_angle is not None:
             self.robot_target_angle = math.radians(robot_target_angle)
         self.rparams = None
-        _init_legacy_action_state(self)
 
     def run(self, a: Actions):
         if self.init:
@@ -1036,12 +1023,6 @@ class AbsoluteRobotRotate(ActionBase):
             shelf_params=None,
         )
 
-        self.action_state['actionName'] = self.__class__.__name__
-        self.action_state["actionArgs"] = self.action_args
-        self.action_state['rparams'] = self.rparams
-        self.action_state['actionStatus'] = self.action_status
-        self.action_state["actionRuntime"] = time.time() - self.start_time
-
         return self.action_status
 
 
@@ -1056,13 +1037,6 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
     def __init__(self, robot_target_angle=None, robot_direction=RotateDirection.NEARBY,
                  speed_w_robot=None, shelf_angle=None, shelf_direction=RotateDirection.NEARBY):
         super().__init__("AbsoluteRobotAndShelfRotate")
-        self.action_args = {
-            "robotTargetAngle": robot_target_angle,
-            "robotRotateDirection": robot_direction.value,
-            "robotRotateSpeed": speed_w_robot,
-            "shelfRotateAngle": shelf_angle,
-            "shelfRotateDirection": shelf_direction.value,
-        }
         self.robot_direction = robot_direction
         self.shelf_direction = shelf_direction
         self.speed_w_robot = float(speed_w_robot) if speed_w_robot is not None else None
@@ -1071,7 +1045,6 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
         self.rparams = None
         self.sparams = None
         self.init = True
-        _init_legacy_action_state(self)
 
     def run(self, a: Actions):
         if self.init:
@@ -1108,13 +1081,6 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
             shelf_params=self.sparams,
         )
 
-        self.action_state['actionName'] = self.__class__.__name__
-        self.action_state["actionArgs"] = self.action_args
-        self.action_state['rparams'] = self.rparams
-        self.action_state['sparams'] = self.sparams
-        self.action_state['actionStatus'] = self.action_status
-        self.action_state["actionRuntime"] = time.time() - self.start_time
-
         return self.action_status
 
 
@@ -1130,11 +1096,6 @@ class AbsoluteShelfRotate(ActionBase):
         super().__init__("AbsoluteShelfRotate")
         if coordinate_axis is None:
             coordinate_axis = ShelfCoordinateAxis.ROBOT
-        self.action_args = {
-            "shelfRotateAngle": shelf_angle,
-            "shelfRotateDirection": shelf_direction.value,
-            "coordinateAxis": coordinate_axis.value,
-        }
         self.shelf_direction = shelf_direction
         self.coordinate_axis = coordinate_axis
         self.action_status = ActionStatus.INIT
@@ -1142,7 +1103,6 @@ class AbsoluteShelfRotate(ActionBase):
         self.shelf_angle = None
         if shelf_angle is not None:
             self.shelf_angle = math.radians(shelf_angle)
-        _init_legacy_action_state(self)
 
     def run(self, a: Actions):
         if self.init:
@@ -1175,11 +1135,6 @@ class AbsoluteShelfRotate(ActionBase):
         if Navigation.spinRun():
             self.action_status = ActionStatus.FINISHED
 
-        self.action_state['actionName'] = self.__class__.__name__
-        self.action_state["actionArgs"] = self.action_args
-        self.action_state['actionStatus'] = self.action_status
-        self.action_state["actionRuntime"] = time.time() - self.start_time
-
         return self.action_status
 
 
@@ -1194,13 +1149,6 @@ class RobotIncrementalRotate(ActionBase):
     def __init__(self, robot_delta_angle=None, robot_direction=RotateDirection.NEARBY,
                  speed_w_robot=None, mode=LocMode.ODO, disable_nearby=False):
         super().__init__("RobotIncrementalRotate")
-        self.action_args = {
-            "mode": mode.value,
-            "robotDeltaAngle": robot_delta_angle,
-            "robotRotateDirection": robot_direction.value,
-            "robotRotateSpeed": speed_w_robot,
-            "disableNearby": disable_nearby,
-        }
         self.mode = mode
         self.robot_direction = robot_direction
         self.speed_w_robot = float(speed_w_robot) if speed_w_robot is not None else None
@@ -1212,7 +1160,6 @@ class RobotIncrementalRotate(ActionBase):
         self.robot_delta_angle_deg = None
         if robot_delta_angle is not None:
             self.robot_delta_angle_deg = float(robot_delta_angle)
-        _init_legacy_action_state(self)
 
     def run(self, j: Actions):
         if self.init:
@@ -1259,12 +1206,6 @@ class RobotIncrementalRotate(ActionBase):
             self.rparams if self.rparams else None
         )
 
-        self.action_state['actionName'] = self.__class__.__name__
-        self.action_state["actionArgs"] = self.action_args
-        self.action_state['rparams'] = self.rparams
-        self.action_state['actionStatus'] = self.action_status
-        self.action_state["actionRuntime"] = time.time() - self.start_time
-
         return self.action_status
 
 
@@ -1279,11 +1220,6 @@ class ShelfCoordinateRotate(ActionBase):
 
     def __init__(self, shelf_angle=None, shelf_direction=RotateDirection.NEARBY, coordinate_axis=None):
         super().__init__("ShelfCoordinateRotate")
-        self.action_args = {
-            "shelfRotateAngle": shelf_angle,
-            "shelfRotateDirection": shelf_direction.value,
-            "coordinateAxis": None if coordinate_axis is None else coordinate_axis.value,
-        }
         self.shelf_direction = shelf_direction
         self.coordinate_axis = coordinate_axis
         self.action_status = ActionStatus.INIT
@@ -1292,7 +1228,6 @@ class ShelfCoordinateRotate(ActionBase):
         self.shelf_angle = None
         if shelf_angle is not None:
             self.shelf_angle = math.radians(shelf_angle)
-        _init_legacy_action_state(self)
 
     def run(self, j: Actions):
         if self.init:
@@ -1327,11 +1262,6 @@ class ShelfCoordinateRotate(ActionBase):
         if Navigation.spinRun():
             self.action_status = ActionStatus.FINISHED
 
-        self.action_state['actionName'] = self.__class__.__name__
-        self.action_state["actionArgs"] = self.action_args
-        self.action_state['actionStatus'] = self.action_status
-        self.action_state["actionRuntime"] = time.time() - self.start_time
-
         return self.action_status
 
 class GoLineByOdo(ActionBase):
@@ -1345,7 +1275,6 @@ class GoLineByOdo(ActionBase):
         self.mode = mode
         self.init = True
         self.action_status = ActionStatus.INIT
-        _init_legacy_action_state(self)
 
     def run(self, j: Actions):
         if self.init:
@@ -1383,7 +1312,6 @@ class GoArc(ActionBase):
         self.action_status = ActionStatus.INIT
 
         self.init = True
-        _init_legacy_action_state(self)
 
     
     def run(self, j: Actions):
