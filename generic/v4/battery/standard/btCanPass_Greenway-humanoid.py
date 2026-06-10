@@ -6,14 +6,14 @@ import syspy.battery_Can.can_base as cb
 # 其他工具类,如定时器
 import syspy.lib.char_utility as cu
 import syspy.lib.misc_utility as mu
-from syspy import  Module
+from syspy import Logger, Module
 
 from syspy.battery_runner import run_battery_script
 
 name = "Battery-000"
 Module.init(name)
 
-
+log = Logger("battery")
 
 class BatteryTimeoutRestartError(RuntimeError):
     pass
