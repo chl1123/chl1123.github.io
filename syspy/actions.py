@@ -444,7 +444,7 @@ class ActionPlanner:
             return self._build_arc_actions()
 
         self._fail(
-            "OperationNotSupported",
+            "operationNotSupported",
             f"operation {operation} not support",
         )
         return []
@@ -507,12 +507,12 @@ class LineActionBuilder:
         speed = math.hypot(vx_value, vy_value)
         if speed <= 1e-6:
             raise ActionBuildError(
-                "LineSpeedInvalid",
+                "lineSpeedInvalid",
                 "Line motion requires vx or vy to be non-zero",
             )
         if abs(vy_value) > 1e-6 and config_params.chassis_type not in OMNI_CHASSIS_TYPES:
             raise ActionBuildError(
-                "LineLateralUnsupported",
+                "lateralMoveUnsupported",
                 f"chassisType {config_params.chassis_type} does not support lateral motion",
             )
 
@@ -543,7 +543,7 @@ class RotateActionBuilder:
         robot_delta_angle = self.task_args.get("robotDeltaAngle")
         if robot_target_angle is not None and robot_delta_angle is not None:
             raise ActionBuildError(
-                "RobotRotateAngleConflict",
+                "robotRotateAngleConflict",
                 "robotTargetAngle and robotDeltaAngle cannot both be set",
             )
 
@@ -567,7 +567,7 @@ class RotateActionBuilder:
 
         if robot_rotate_angle is None and shelf_rotate_angle is None and lift_height is None:
             raise ActionBuildError(
-                "No action parameters provided",
+                "missingActionParams",
                 "No action parameters provided Set rotation angle or lift height Parameter validation",
             )
 
@@ -645,14 +645,14 @@ class AbsoluteRotateBuilder:
     def build(self):
         if self.coordinate_axis == ShelfCoordinateAxis.INCREMENTAL:
             raise ActionBuildError(
-                "CoordinateAxisUnsupported",
+                "coordinateAxisUnsupported",
                 "increaseSpinAngle only supports incremental shelf rotation",
             )
         if (self.robot_target_angle is not None
                 and self.shelf_angle is not None
                 and self.coordinate_axis == ShelfCoordinateAxis.WORLD):
             raise ActionBuildError(
-                "CoordinateAxisUnsupported",
+                "coordinateAxisUnsupported",
                 "globalSpinAngle cannot be combined with robotTargetAngle in a single absolute rotate action",
             )
 
@@ -703,7 +703,7 @@ class IncrementalRotateBuilder:
     def build(self):
         if self.robot_delta_angle is not None and self.coordinate_axis is not None:
             raise ActionBuildError(
-                "IncrementalRotateConflict",
+                "incrementalRotateConflict",
                 "robotDeltaAngle and coordinateAxis-based shelf rotation cannot be set together",
             )
 
@@ -816,7 +816,7 @@ class Actions(ModuleBase):
             return
         except Exception as exc:
             self._fail_task(
-                "ActionPlanBuildFailed",
+                "actionPlanBuildFailed",
                 f"unexpected error while building action plan: {_format_exception(exc)}",
             )
             return
@@ -826,7 +826,7 @@ class Actions(ModuleBase):
             return
         if not actions:
             self._fail_task(
-                "ActionPlanEmpty",
+                "emptyActionPlan",
                 "planner did not generate executable actions",
             )
             return
@@ -880,7 +880,7 @@ class Actions(ModuleBase):
                     self.set_status(ScriptStatus.FINISHED)
         except Exception as exc:
             self._fail_task(
-                "ActionRuntimeUnexpected",
+                "actionRuntimeUnexpected",
                 f"unexpected error while running actions: {_format_exception(exc)}",
             )
         return self.script_status
@@ -998,7 +998,7 @@ class AbsoluteRobotRotate(ActionBase):
         if self.robot_target_angle is None:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
-                "No rotation angle provided",
+                "missingRobotTargetAngle",
                 "Absolute robot rotation requires robotTargetAngle",
             )
             return
@@ -1056,7 +1056,7 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
         if self.robot_target_angle is None or self.shelf_angle is None:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
-                "No rotation angle provided",
+                "missingCombinedRotateAngle",
                 "Combined absolute rotation requires robotTargetAngle and shelfRotateAngle",
             )
             return
@@ -1115,7 +1115,7 @@ class AbsoluteShelfRotate(ActionBase):
         if self.shelf_angle is None:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
-                "No rotation angle provided",
+                "missingShelfRotateAngle",
                 "Absolute shelf rotation requires shelfRotateAngle",
             )
             return
@@ -1129,7 +1129,7 @@ class AbsoluteShelfRotate(ActionBase):
         else:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
-                "CoordinateAxisUnsupported",
+                "coordinateAxisUnsupported",
                 f"coordinateAxis {self.coordinate_axis.value} not support in absolute shelf rotation",
             )
 
@@ -1169,7 +1169,7 @@ class RobotIncrementalRotate(ActionBase):
         if self.robot_delta_angle_deg is None:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
-                "No rotation angle provided",
+                "missingRobotDeltaAngle",
                 "Incremental robot rotation requires robotDeltaAngle",
             )
             return
@@ -1238,7 +1238,7 @@ class ShelfCoordinateRotate(ActionBase):
         if self.shelf_angle is None:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
-                "No rotation angle provided",
+                "missingShelfRotateAngle",
                 "Shelf coordinate rotation requires shelfRotateAngle",
             )
             return
@@ -1254,7 +1254,7 @@ class ShelfCoordinateRotate(ActionBase):
         else:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
-                "CoordinateAxisUnsupported",
+                "coordinateAxisUnsupported",
                 f"coordinateAxis {self.coordinate_axis.value if self.coordinate_axis else self.coordinate_axis} not support",
             )
 
@@ -1375,7 +1375,7 @@ def main():
                 except ValueError as e:
                     _trace_log(f"check error: {e}", name=f"{LOG_NAME}.err")
                     Navigation.setTaskError(
-                        "Input parameters invalid",
+                        "invalidInputParams",
                         f"Input error: {e} Some input params are not valid Check the input params Input validation"
                     )
                     a.set_status(ScriptStatus.FAILED)
