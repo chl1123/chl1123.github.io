@@ -4,7 +4,6 @@
 # @File: actions.py
 # @Update: 支持功能说明，机器人底盘单独旋转，托盘单独旋转，机器人和托盘同时旋转，顶升功能
 
-import json
 import math
 import time
 from enum import Enum, IntEnum
@@ -743,6 +742,15 @@ class ActionBuildError(Exception):
         self.key = key
         self.desc = desc
 
+
+def _init_legacy_action_state(action) -> None:
+    if not hasattr(action, "action_args"):
+        action.action_args = {}
+    if not hasattr(action, "init"):
+        action.init = False
+    action.start_time = time.time()
+    action.action_state = {}
+
 # --- 主控制类 ---
 class Actions(ModuleBase):
     """动作控制主类，只负责生命周期管理和动作编排。"""
@@ -923,33 +931,7 @@ class Actions(ModuleBase):
         )
 
 
-# --- 基础动作类 ---
-class BaseAction(ActionBase):
-    """定义动作的基类"""
-
-    def __init__(self, action_name: str = None):
-        super().__init__(action_name=action_name)
-        self.action_args = {}
-        self.init = False
-        self.start_time = time.time()
-        self.action_state = {}
-
-    def run(self, a: Actions):
-        """外部调用时，输出或打印实例对象的 action_state 字段"""
-        self.action_state['actionName'] = self.__class__.__name__
-        self.action_state["actionArgs"] = self.action_args
-        self.action_state['actionStatus'] = self.action_status
-        self.action_state["actionRuntime"] = time.time() - self.start_time
-
-    def reset(self):
-        self.action_status = ActionStatus.RUNNING
-        self.start_time = time.time()
-
-    def __str__(self):
-        return json.dumps({"action_state": self.action_state})
-
-
-class Jack(BaseAction):
+class Jack(ActionBase):
     """顶升动作"""
 
     def __init__(self, motor_name: str, height: float, speed=None, stop_di="", rec_file=None):
@@ -966,6 +948,7 @@ class Jack(BaseAction):
         self.speed = speed
         self.stop_di = stop_di
         self.rec_file = rec_file
+        _init_legacy_action_state(self)
 
     def run(self, a: Actions):
         self.action_status = ActionStatus.RUNNING
@@ -998,7 +981,7 @@ class Jack(BaseAction):
         pass
 
 
-class AbsoluteRobotRotate(BaseAction):
+class AbsoluteRobotRotate(ActionBase):
     """底盘绝对角旋转动作。
 
     坐标系对应关系:
@@ -1023,6 +1006,7 @@ class AbsoluteRobotRotate(BaseAction):
         if robot_target_angle is not None:
             self.robot_target_angle = math.radians(robot_target_angle)
         self.rparams = None
+        _init_legacy_action_state(self)
 
     def run(self, a: Actions):
         if self.init:
@@ -1061,7 +1045,7 @@ class AbsoluteRobotRotate(BaseAction):
         return self.action_status
 
 
-class AbsoluteRobotAndShelfRotate(BaseAction):
+class AbsoluteRobotAndShelfRotate(ActionBase):
     """底盘与托盘同时执行绝对角旋转。
 
     坐标系对应关系:
@@ -1087,6 +1071,7 @@ class AbsoluteRobotAndShelfRotate(BaseAction):
         self.rparams = None
         self.sparams = None
         self.init = True
+        _init_legacy_action_state(self)
 
     def run(self, a: Actions):
         if self.init:
@@ -1133,7 +1118,7 @@ class AbsoluteRobotAndShelfRotate(BaseAction):
         return self.action_status
 
 
-class AbsoluteShelfRotate(BaseAction):
+class AbsoluteShelfRotate(ActionBase):
     """托盘绝对角旋转动作。
 
     坐标系对应关系:
@@ -1157,6 +1142,7 @@ class AbsoluteShelfRotate(BaseAction):
         self.shelf_angle = None
         if shelf_angle is not None:
             self.shelf_angle = math.radians(shelf_angle)
+        _init_legacy_action_state(self)
 
     def run(self, a: Actions):
         if self.init:
@@ -1197,7 +1183,7 @@ class AbsoluteShelfRotate(BaseAction):
         return self.action_status
 
 
-class RobotIncrementalRotate(BaseAction):
+class RobotIncrementalRotate(ActionBase):
     """底盘增量旋转动作。
 
     坐标系对应关系:
@@ -1226,6 +1212,7 @@ class RobotIncrementalRotate(BaseAction):
         self.robot_delta_angle_deg = None
         if robot_delta_angle is not None:
             self.robot_delta_angle_deg = float(robot_delta_angle)
+        _init_legacy_action_state(self)
 
     def run(self, j: Actions):
         if self.init:
@@ -1281,7 +1268,7 @@ class RobotIncrementalRotate(BaseAction):
         return self.action_status
 
 
-class ShelfCoordinateRotate(BaseAction):
+class ShelfCoordinateRotate(ActionBase):
     """托盘坐标系旋转动作。
 
     坐标系对应关系:
@@ -1305,6 +1292,7 @@ class ShelfCoordinateRotate(BaseAction):
         self.shelf_angle = None
         if shelf_angle is not None:
             self.shelf_angle = math.radians(shelf_angle)
+        _init_legacy_action_state(self)
 
     def run(self, j: Actions):
         if self.init:
@@ -1346,7 +1334,7 @@ class ShelfCoordinateRotate(BaseAction):
 
         return self.action_status
 
-class GoLineByOdo(BaseAction):
+class GoLineByOdo(ActionBase):
     """使用里程接口执行直线/平移运动"""
 
     def __init__(self, move_dist: float, speed_x=None, speed_y=None, mode=LocMode.ODO):
@@ -1357,6 +1345,7 @@ class GoLineByOdo(BaseAction):
         self.mode = mode
         self.init = True
         self.action_status = ActionStatus.INIT
+        _init_legacy_action_state(self)
 
     def run(self, j: Actions):
         if self.init:
@@ -1382,7 +1371,7 @@ class GoLineByOdo(BaseAction):
             "mode": self.mode.value,
         }
 
-class GoArc(BaseAction):
+class GoArc(ActionBase):
     """圆弧走到指定点"""
     
     def __init__(self, rot_radius, rot_degree, rot_speed, mode=LocMode.ODO):
@@ -1394,6 +1383,7 @@ class GoArc(BaseAction):
         self.action_status = ActionStatus.INIT
 
         self.init = True
+        _init_legacy_action_state(self)
 
     
     def run(self, j: Actions):
