@@ -32,10 +32,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from syspy import (
     Battery,
     Module,
-    Navigation,
     NavSpeed,
     NavStatus,
     RobotParam,
+    Controller,
     ScriptParam,
     Trace,
     sim_only,
@@ -85,13 +85,6 @@ def _rgbw_name_to_values(rgbw_name: str) -> Tuple[int, int, int, int]:
         "Off": (0, 0, 0, 0),
     }
     return table.get(str(rgbw_name), (0, 0, 0, 0))
-
-
-class BehavLedTaskError(RuntimeError):
-    def __init__(self, key: str, desc: str) -> None:
-        super().__init__(desc)
-        self.key = key
-        self.desc = desc
 
 
 class LegacyDmxOutput:
@@ -650,6 +643,28 @@ class Dmx512NativeBehav:
             )
             return
 
+        elif IS_SRC2000_PLATFORM and Controller.getEmc():
+            self._set_status("EStop")
+            self._send_led(
+                "Flow",
+                "RedDark",
+                period=10,
+                reason="emc",
+                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
+            )
+            return
+
+        elif IS_SRC2000_PLATFORM and NavStatus.getBlock():
+            self._set_status("Blocked")
+            self._send_led(
+                "MutableHorseRace",
+                "PinkPurple",
+                period=1000,
+                reason="blocked",
+                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
+            )
+            return
+
         try:
             chassis_stop = NavStatus.getChassisStop()
         except Exception:
@@ -714,11 +729,7 @@ class Dmx512NativeBehav:
         _trace_log("task start script=behav_led", name=LOG_MODULE)
         try:
             while True:
-                try:
-                    self.tick()
-                except Exception as exc:
-                    Navigation.setTaskError(exc.key, exc.desc)
-                    _trace_log(f"task error key={exc.key} desc={exc.desc}", name=f"{LOG_MODULE}.err")
+                self.tick()
                 time.sleep(1)
         finally:
             if not self._use_legacy_dmx:
