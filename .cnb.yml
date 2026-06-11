@@ -10,3 +10,10 @@ $:
             type: add-reviewer
             reviewers: chenhongli
             exclude: ${CNB_BUILD_USER}
+
+        - name: AI 评审
+          image: cnbcool/code-review:latest
+          settings:
+            comment: true
+            max_comments: 10
+            fail_on_critical: true
