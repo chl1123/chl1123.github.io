@@ -14,6 +14,7 @@ usage() {
   ./submit_pr.sh --submit-branch mazj-release-submit-v2 e047c541
   ./submit_pr.sh --title "fix: xxx" --body-file pr.md e047c541
   ./submit_pr.sh --reuse-branch --update-pr 8 --submit-branch feature-fix-v2 --path syspy/actions.py --body-file pr.md HEAD
+  ./submit_pr.sh --yes --source-branch mazj HEAD
   ./submit_pr.sh --dry-run e047c541
 
 说明:
@@ -22,6 +23,7 @@ usage() {
   - 默认 base 分支: release
   - 默认 PR 标题: 复用最后一个 commit 的 subject
   - 多个 commit 时, PR body 会列出所有 commit subject
+  - 默认会在 push / 创建 PR 前展示预览并等待用户确认
   - `--path` 模式下不会 cherry-pick commit, 而是把指定文件从源快照复制到 base 分支后生成一个新的提交
   - `--path` 模式当前只支持一个 commit/ref, 适合做“只提交 actions.py”或“只提交几个脚本/文档”的 PR
   - 更新已有 PR 时, 用 `--reuse-branch --update-pr <编号>` 复用远端分支并 PATCH 标题/正文
@@ -35,6 +37,7 @@ usage() {
   --body-file <file>        从文件读取 PR 正文
   --reuse-branch            允许复用已存在的 submit 分支, push 时使用 --force-with-lease
   --update-pr <number>      不新建 PR, 改为更新指定 PR 的标题/正文
+  --yes, -y                 跳过交互确认，直接 push / 创建 PR
   --dry-run                 只执行到本地 cherry-pick, 不 push 不开 PR
   -h, --help                查看帮助
 
@@ -200,13 +203,66 @@ PY
 }
 
 extract_pr_number() {
-  python3 - <<'PY'
+  python3 -c '
 import json
 import sys
 
 data = json.load(sys.stdin)
 print(data.get("number", ""))
-PY
+'
+}
+
+print_pr_preview() {
+  printf '[submit_pr] PR preview\n'
+  printf '[submit_pr]   action: %s\n' "${UPDATE_PR:+update PR #$UPDATE_PR}${UPDATE_PR:-create PR}"
+  printf '[submit_pr]   base: %s\n' "$BASE_BRANCH"
+  printf '[submit_pr]   submit branch: %s\n' "$SUBMIT_BRANCH"
+  printf '[submit_pr]   title: %s\n' "$pr_title"
+  if [[ ${#PATHS[@]} -gt 0 ]]; then
+    printf '[submit_pr]   mode: path-copy (%s)\n' "${SOURCE_SNAPSHOT:0:8}"
+  else
+    printf '[submit_pr]   commits:\n'
+    local i
+    for i in "${!COMMIT_SHAS[@]}"; do
+      printf '[submit_pr]     - %s %s\n' "${COMMIT_SHAS[$i]:0:8}" "${COMMIT_SUBJECTS[$i]}"
+    done
+  fi
+  printf '[submit_pr]   files:\n'
+  git -C "$WORKTREE_DIR" diff --name-status "${REMOTE}/${BASE_BRANCH}..HEAD" | sed 's/^/[submit_pr]     /'
+  printf '[submit_pr]   body:\n%s\n' "$pr_body"
+}
+
+confirm_before_remote() {
+  local reply=""
+
+  if [[ "$ASSUME_YES" == 1 ]]; then
+    log "skip confirm: --yes"
+    return
+  fi
+
+  print_pr_preview
+
+  if [[ -r /dev/tty ]]; then
+    printf '[submit_pr] 确认继续 push 并提交 PR 吗? [y/N] ' > /dev/tty
+    if ! read -r reply < /dev/tty; then
+      die "用户取消，未 push，未创建/更新 PR"
+    fi
+  elif [[ -t 0 ]]; then
+    printf '[submit_pr] 确认继续 push 并提交 PR 吗? [y/N] '
+    if ! read -r reply; then
+      die "用户取消，未 push，未创建/更新 PR"
+    fi
+  else
+    die "当前无交互终端，请使用 --yes 跳过确认"
+  fi
+
+  case "$reply" in
+    y|Y|yes|YES)
+      ;;
+    *)
+      die "用户取消，未 push，未创建/更新 PR"
+      ;;
+  esac
 }
 
 apply_paths_from_ref() {
@@ -242,6 +298,7 @@ UPDATE_PR=""
 SOURCE_SNAPSHOT=""
 LOCAL_BRANCH_EXISTS=0
 REMOTE_BRANCH_EXISTS=0
+ASSUME_YES=0
 
 require_cmd git curl python3 mktemp
 
@@ -286,6 +343,10 @@ while (($# > 0)); do
       UPDATE_PR="$2"
       REUSE_BRANCH=1
       shift 2
+      ;;
+    --yes|-y)
+      ASSUME_YES=1
+      shift
       ;;
     --dry-run)
       DRY_RUN=1
@@ -453,6 +514,8 @@ if [[ "$DRY_RUN" == 1 ]]; then
   log "dry-run 完成, 未 push, 未创建 PR"
   exit 0
 fi
+
+confirm_before_remote
 
 log "push submit branch"
 if [[ "$REUSE_BRANCH" == 1 ]]; then
