@@ -323,17 +323,6 @@ class RobotMotorController:
 
                 else:
                     Motor.disableMotor(real_key)
-                    
-                
-            elif req_type == "clearEncoder":
-                real_key = self._get_real_key(req)
-                
-                if not self.simulation:
-                    # Trace.log(f"clearMotorEncoder接口未提供")
-                    Service.client().call_service("DSPChassis", "clearMotorEncoder",real_key)
-
-                else:
-                    Trace.log(f"[SIM] clearMotorEncoder: {real_key}")
                                         
             elif req_type == "setMotion":
                 motors = ParamCheck.required("motors", req)
@@ -472,17 +461,6 @@ class InputParams:
                             builder.TYPE(ParamType.BOOL)
                             builder.REQUIRED(True)
                             builder.DEFAULTVALUE(True)
-
-                # 清除编码器
-                with builder.CHILD(key="clearEncoder", name="清除编码器", desc="清除电机编码器数值"):
-                    builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILDREN():
-                        with builder.CHILD(key="key", name="电机Key", desc="电机设备Key，与name二选一"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(False)
-                        with builder.CHILD(key="name", name="电机名称", desc="电机设备名称，与key二选一"):
-                            builder.TYPE(ParamType.STRING)
-                            builder.REQUIRED(False)
 
                 # 设置运动
                 with builder.CHILD(key="setMotion", name="设置电机运动", desc="控制电机速度或位置"):
