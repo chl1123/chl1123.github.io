@@ -3231,7 +3231,6 @@ class RunMotorByPosition(BaseAction):
             # 把目标位置先夹到最大最小区间
             min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             self.position = clamp(self.position, min_h, max_h)
-            Trace.log(f"position:{self.position}", name="fork.task")
 
             # 仅对fork_motor_name进行超时检查
             if self.motor_name == ConfigParams.fork_motor_name:
@@ -3270,6 +3269,7 @@ class RunMotorByPosition(BaseAction):
                         self.position = ConfigParams.min_height
                     elif self.position > (ConfigParams.max_height + ConfigParams.min_height) / 2:
                         self.position = ConfigParams.max_height
+                    Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
 
             if ConfigParams.module_type not in ["liftFork", "singleFork", "pickFork"]:
                 # 目标位置比初始位置差得不大就不要执行动作了
@@ -3303,6 +3303,7 @@ class RunMotorByPosition(BaseAction):
                 self.max_speed = max_speed
 
                 Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
+            Trace.log(f"position:{self.position}", name="fork.task")
 
         # 检查超时（仅对fork_motor_name）
         if self.motor_name == ConfigParams.fork_motor_name:
