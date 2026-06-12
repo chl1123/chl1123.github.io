@@ -482,9 +482,14 @@ class NavStatusV3(NavStatusInterface):
     def getChassisStop(cls) -> bool:
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
-    def getBlock(self)-> Optional[bool]:
+    def getBlock(self) -> Optional[bool]:
         if self.update():
             return self.data.blocked
+
+    @classmethod
+    def clearBlock(cls) -> None:
+        """清除机器人的阻挡状态"""
+        cls.client().call_service("MoveFactory", "clearBlockError")
 
     @classmethod
     def getTurn(cls, v_x, v_w):

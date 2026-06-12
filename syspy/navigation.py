@@ -969,6 +969,11 @@ class NavStatusInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
+    def clearBlock(cls) -> None:
+        """清除机器人的阻挡状态"""
+        raise RBKVersionError()
+
+    @classmethod
     def getTurn(cls, v_x, v_w):
         raise RBKVersionError()
 
@@ -982,7 +987,7 @@ class NavStatusInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getRunningStatus(self) -> "msgMoveStatus.runningStatus":
+    def getRunningStatus(cls) -> "msgMoveStatus.runningStatus":
         """获取运行状态
 
         Returns:
@@ -991,7 +996,7 @@ class NavStatusInterface(ABC, Message):
         raise RBKVersionError()
 
     @classmethod
-    def getCurrentStation(self) -> str:
+    def getCurrentStation(cls) -> str:
         """获取机器人当前所在站点
 
         Returns:
