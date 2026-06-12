@@ -260,7 +260,8 @@ class CanBase:
         self._publish_cached()
 
     def clearTimeout(self):
-        self._set_status_running()
+        if self._battery_status_category == "CONNECT_ERROR":
+            self._set_status_init()
 
     def setError(self, errNum, errMessage, reason='battery', method='check out', filename='btCanPass_xx.py'):
         self._set_status_device_error(errNum, errMessage)
