@@ -157,58 +157,56 @@ class ConfigParams:
     def init(cls) -> None:
         builder = script_param.builderConfig()
         with builder.GROUPS():
-            with builder.GROUP(key="logic", name="Logic", desc="LED logic config"):
+            with builder.GROUP(key="logic", name=_TR("Logic"), desc=_TR("LED logic config")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="resendIntervalSec", name=_TR("Resend Interval"), desc=_TR(" resend the same command if the same command was sent more than this interval ago")):
+                    with builder.CHILD(key="resendIntervalSec", name=_TR("Resend Interval"), desc=_TR("Periodically resend the same LED command after this interval (seconds)")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0, min_value=0.0, max_value=30.0)
                         builder.SINGLESTEP(0.1)
                         builder.UNIT("s")
-                    with builder.CHILD(key="showCharging", name=_TR("Show Charging"), desc=_TR("show charging status when charging or not")):
+                    with builder.CHILD(key="showCharging", name=_TR("Show Charging"), desc=_TR("Whether to display the charging status")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="showBattery", name=_TR("Show Battery"), desc=_TR("show battery status when idle or not")):
+                    with builder.CHILD(key="showBattery", name=_TR("Show Battery"), desc=_TR("Whether to display the battery status when idle")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="isBackBreath", name=_TR("Back Breath"), desc=_TR("show back breath effect when moving backward or not")):
+                    with builder.CHILD(key="isBackBreath", name=_TR("Back Breath"), desc=_TR("Whether to show a white breathing effect when moving backward")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     if not IS_SRC2000_PLATFORM:
-                        with builder.CHILD(key="lightTotalNum", name=_TR("Light Total Num"), desc=_TR("total light num for turn effect, should be no less than the max of turnPos + turnNum")):
+                        with builder.CHILD(key="lightTotalNum", name=_TR("Light Total Num"), desc=_TR("Total number of lights for the turn signal effect")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(4)
-
             if not IS_SRC2000_PLATFORM:
-                with builder.GROUP(key="turnPos", name=_TR("Turn Pos"), desc=_TR("front/left/rear/right turn light position, should be positive integer, and no less than 1")):
+                with builder.GROUP(key="turnPos", name=_TR("Turn Pos"), desc=_TR("Starting positions of turn signal lights (left-front, left-rear, right-front, right-rear)")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        with builder.CHILD(key="turnPosLeftFront", name=_TR("Left Front"), desc=_TR("left front position")):
+                        with builder.CHILD(key="turnPosLeftFront", name=_TR("Left Front"), desc=_TR("Starting position of the left-front turn signal")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(4, min_value=1, max_value=256)
-                        with builder.CHILD(key="turnPosLeftRear", name=_TR("Left Rear"), desc=_TR("left rear position")):
+                        with builder.CHILD(key="turnPosLeftRear", name=_TR("Left Rear"), desc=_TR("Starting position of the left-rear turn signal")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(3, min_value=1, max_value=256)
-                        with builder.CHILD(key="turnPosRightFront", name=_TR("Right Front"), desc=_TR("right front position")):
+                        with builder.CHILD(key="turnPosRightFront", name=_TR("Right Front"), desc=_TR("Starting position of the right-front turn signal")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=1, max_value=256)
-                        with builder.CHILD(key="turnPosRightRear", name=_TR("Right Rear"), desc=_TR("right rear position")):
+                        with builder.CHILD(key="turnPosRightRear", name=_TR("Right Rear"), desc=_TR("Starting position of the right-rear turn signal")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(2, min_value=1, max_value=256)
-
-                with builder.GROUP(key="turnNum", name=_TR("Turn Num"), desc=_TR("front/left/rear/right turn light number, should be non-negative integer")):
+                with builder.GROUP(key="turnNum", name=_TR("Turn Num"), desc=_TR("Number of lights for each turn signal (left-front, left-rear, right-front, right-rear)")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        with builder.CHILD(key="turnNumLeftFront", name=_TR("Left Front"), desc=_TR("left front number")):
+                        with builder.CHILD(key="turnNumLeftFront", name=_TR("Left Front"), desc=_TR("Number of left-front turn signal lights")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                        with builder.CHILD(key="turnNumLeftRear", name=_TR("Left Rear"), desc=_TR("left rear number")):
+                        with builder.CHILD(key="turnNumLeftRear", name=_TR("Left Rear"), desc=_TR("Number of left-rear turn signal lights")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                        with builder.CHILD(key="turnNumRightFront", name=_TR("Right Front"), desc=_TR("right front number")):
+                        with builder.CHILD(key="turnNumRightFront", name=_TR("Right Front"), desc=_TR("Number of right-front turn signal lights")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                        with builder.CHILD(key="turnNumRightRear", name=_TR("Right Rear"), desc=_TR("right rear number")):
+                        with builder.CHILD(key="turnNumRightRear", name=_TR("Right Rear"), desc=_TR("Number of right-rear turn signal lights")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=0, max_value=256)
 
