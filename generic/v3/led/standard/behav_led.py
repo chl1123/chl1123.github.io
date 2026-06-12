@@ -39,6 +39,7 @@ from syspy import (
     ScriptParam,
     Trace,
     sim_only,
+    _TR
 )
 from syspy.dmx512.dmx512_base import LightType, dmx512Base
 from syspy.utils.param_server import ParamType
@@ -159,55 +160,55 @@ class ConfigParams:
             with builder.GROUP(key="logic", name="Logic", desc="LED logic config"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="resendIntervalSec", name="Resend Interval", desc="同一灯效周期性重发间隔(秒)"):
+                    with builder.CHILD(key="resendIntervalSec", name=_TR("Resend Interval"), desc=_TR(" resend the same command if the same command was sent more than this interval ago")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0, min_value=0.0, max_value=30.0)
                         builder.SINGLESTEP(0.1)
                         builder.UNIT("s")
-                    with builder.CHILD(key="showCharging", name="Show Charging", desc="是否显示充电状态"):
+                    with builder.CHILD(key="showCharging", name=_TR("Show Charging"), desc=_TR("show charging status when charging or not")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="showBattery", name="Show Battery", desc="是否显示电量状态"):
+                    with builder.CHILD(key="showBattery", name=_TR("Show Battery"), desc=_TR("show battery status when idle or not")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="isBackBreath", name="Back Breath", desc="后退时显示白色呼吸"):
+                    with builder.CHILD(key="isBackBreath", name=_TR("Back Breath"), desc=_TR("show back breath effect when moving backward or not")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     if not IS_SRC2000_PLATFORM:
-                        with builder.CHILD(key="lightTotalNum", name="Light Total Num", desc="灯条总数"):
+                        with builder.CHILD(key="lightTotalNum", name=_TR("Light Total Num"), desc=_TR("total light num for turn effect, should be no less than the max of turnPos + turnNum")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(4)
 
             if not IS_SRC2000_PLATFORM:
-                with builder.GROUP(key="turnPos", name="Turn Pos", desc="左前/左后/右前/右后 转向灯起始位置"):
+                with builder.GROUP(key="turnPos", name=_TR("Turn Pos"), desc=_TR("front/left/rear/right turn light position, should be positive integer, and no less than 1")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        with builder.CHILD(key="turnPosLeftFront", name="Left Front", desc="左前"):
+                        with builder.CHILD(key="turnPosLeftFront", name=_TR("Left Front"), desc=_TR("left front position")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(4, min_value=1, max_value=256)
-                        with builder.CHILD(key="turnPosLeftRear", name="Left Rear", desc="左后"):
+                        with builder.CHILD(key="turnPosLeftRear", name=_TR("Left Rear"), desc=_TR("left rear position")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(3, min_value=1, max_value=256)
-                        with builder.CHILD(key="turnPosRightFront", name="Right Front", desc="右前"):
+                        with builder.CHILD(key="turnPosRightFront", name=_TR("Right Front"), desc=_TR("right front position")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=1, max_value=256)
-                        with builder.CHILD(key="turnPosRightRear", name="Right Rear", desc="右后"):
+                        with builder.CHILD(key="turnPosRightRear", name=_TR("Right Rear"), desc=_TR("right rear position")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(2, min_value=1, max_value=256)
 
-                with builder.GROUP(key="turnNum", name="Turn Num", desc="左前/左后/右前/右后 转向灯数量"):
+                with builder.GROUP(key="turnNum", name=_TR("Turn Num"), desc=_TR("front/left/rear/right turn light number, should be non-negative integer")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        with builder.CHILD(key="turnNumLeftFront", name="Left Front", desc="左前数量"):
+                        with builder.CHILD(key="turnNumLeftFront", name=_TR("Left Front"), desc=_TR("left front number")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                        with builder.CHILD(key="turnNumLeftRear", name="Left Rear", desc="左后数量"):
+                        with builder.CHILD(key="turnNumLeftRear", name=_TR("Left Rear"), desc=_TR("left rear number")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                        with builder.CHILD(key="turnNumRightFront", name="Right Front", desc="右前数量"):
+                        with builder.CHILD(key="turnNumRightFront", name=_TR("Right Front"), desc=_TR("right front number")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=0, max_value=256)
-                        with builder.CHILD(key="turnNumRightRear", name="Right Rear", desc="右后数量"):
+                        with builder.CHILD(key="turnNumRightRear", name=_TR("Right Rear"), desc=_TR("right rear number")):
                             builder.TYPE(ParamType.INT)
                             builder.DEFAULTVALUE(1, min_value=0, max_value=256)
 
