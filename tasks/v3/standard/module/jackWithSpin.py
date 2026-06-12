@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/6/8
+# @Date : 2026/6/12
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add：脚本参数翻译补充  feat：适配3.5日志统一记录格式 fix: 1. 移除safemovecheck无用代码  2. 修复倒走模式货物模型不正常
+# @Update : add：读取地图线路属性决定正倒走
 
 import json
 import math
@@ -2276,8 +2276,12 @@ class Jack(ModuleBase):
         # 导航方式（无AP点原地执行时 target_pos 为 None，跳过导航）
         if target_pos is not None:
             if self.how_go_site == "straight":
+                # 倒走时翻转目标 theta（+π），避免到点后为对齐 AP 朝向而原地旋转一圈
+                straight_target = list(self.ap_world_pos)
+                if self.is_backwards:
+                    straight_target[2] = self._normalize_angle(straight_target[2] + math.pi)
                 self.action_list.append(
-                    GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
+                    GoPath(straight_target, "world", self.is_backwards, self.is_hold_dir,
                            self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
             elif self.how_go_site == "bezier":
                 recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
@@ -2538,7 +2542,11 @@ class Jack(ModuleBase):
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'go_ap_site AP_pos={self.ap_world_pos}', name=f"{MOD}.nav")
             if self.how_go_site == "straight":
-                self.action_list.append(GoPath(self.ap_world_pos, "world"))
+                # 倒走时翻转目标 theta（+π），避免到点后为对齐 AP 朝向而原地旋转一圈
+                straight_target = list(self.ap_world_pos)
+                if self.is_backwards:
+                    straight_target[2] = self._normalize_angle(straight_target[2] + math.pi)
+                self.action_list.append(GoPath(straight_target, "world", self.is_backwards))
             elif self.how_go_site == "bezier":
                 self.action_list.append(GoBezier(self.ap_world_pos))
             elif self.how_go_site == "polyline":
