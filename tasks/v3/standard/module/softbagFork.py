@@ -3102,6 +3102,9 @@ class GoPathWithContactDi(BaseAction):
             and self.distance_check_length > EPS
         )
         self.distance_check_done = not self.distance_check_enabled
+        self.distance_check_motion_started = not self.distance_check_enabled
+        self.distance_check_wait_start_time = None
+        self.distance_check_wait_delay = 1.0
         self.distance_sensor_device_keys = []
         self.latest_distance_sensor_dist = None
         self.last_distance_sensor_log_dist = None
@@ -3291,12 +3294,7 @@ class GoPathWithContactDi(BaseAction):
             return True
         return False
 
-    def _handle_rec_distance_check(self) -> bool:
-        if self.distance_check_done:
-            return True
-        if not self._stream_distance_sensor_dist(force_log=True):
-            return False
-
+    def _start_distance_checked_backing(self) -> bool:
         dist = self.latest_distance_sensor_dist
         if dist is None:
             Navigation.setTaskError("DistanceSensorNoData",
@@ -3305,19 +3303,20 @@ class GoPathWithContactDi(BaseAction):
             return False
 
         _trace_log(
-            f"distance sensor check passed read, sensors={self.distance_sensor_device_keys}, "
+            f"distance sensor align check passed read, sensors={self.distance_sensor_device_keys}, "
             f"dist={dist}, pallet_length={self.distance_check_length}"
         )
         if dist < self.distance_check_length:
-            return self._fail_pallet_back_distance_insufficient(dist, "distance sensor final check")
+            return self._fail_pallet_back_distance_insufficient(dist, "distance sensor align check")
 
-        self.distance_check_done = True
-        if abs(pos2Base(self.motion_target, get_r_loc())[0]) > 0.005:
-            self.back_action = self._make_continue_back_action()
-            _trace_log(
-                f"distance sensor check ok, continue backing to motion target:{self.motion_target}"
-            )
+        self.distance_check_motion_started = True
+        self.back_action = self._make_continue_back_action()
+        _trace_log(
+            f"distance sensor warmup ok after {self.distance_check_wait_delay}s, "
+            f"start backing to motion target:{self.motion_target}"
+        )
         return True
+
     def run(self):
         # 路径执行流程：初始化避障/DI策略 -> 执行GoPath/Bezier/TwoStraightLine -> contact DI到位判定
         if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
@@ -3398,19 +3397,37 @@ class GoPathWithContactDi(BaseAction):
             if self.back_action.action_status in [ScriptStatus.FAILED, ActionStatus.FAILED]:
                 return
 
-            if self.distance_check_enabled and not self.distance_check_done:
+            if self.distance_check_enabled and not self.distance_check_motion_started:
+                if self.back_action.action_status in [ScriptStatus.FINISHED, ActionStatus.FINISHED]:
+                    if self.distance_check_wait_start_time is None:
+                        self.distance_check_wait_start_time = time.time()
+                        self.last_distance_sensor_log_dist = None
+                        self.last_distance_sensor_log_time = 0.0
+                        _trace_log(
+                            f"reach align point, start distance sensor warmup for "
+                            f"{self.distance_check_wait_delay}s before backing"
+                        )
+                    if not self._stream_distance_sensor_dist(force_log=True):
+                        return
+                    if self._handle_contact_di_fallback():
+                        return
+                    if time.time() - self.distance_check_wait_start_time < self.distance_check_wait_delay:
+                        return
+                    if not self._start_distance_checked_backing():
+                        return
+                    return
+
+            if self.distance_check_enabled and self.distance_check_motion_started and not self.distance_check_done:
                 if not self._stream_distance_sensor_dist():
                     return
 
-            if self.distance_check_enabled and not self.distance_check_done:
+            if self.distance_check_enabled and self.distance_check_motion_started and not self.distance_check_done:
                 if self._handle_contact_di_fallback():
                     return
 
-            if self.distance_check_enabled and not self.distance_check_done:
+            if self.distance_check_enabled and self.distance_check_motion_started and not self.distance_check_done:
                 if self.back_action.action_status in [ScriptStatus.FINISHED, ActionStatus.FINISHED]:
-                    if not self._handle_rec_distance_check():
-                        return
-                    return
+                    self.distance_check_done = True
             # 前进的时候不要设置避障距离
             vx = NavSpeed.getSpeeds()[0]
             if vx > 0.005 and not self.clear_policy:
