@@ -38,6 +38,7 @@ from syspy import (
     Controller,
     ScriptParam,
     Trace,
+    RobotError,
     sim_only,
     _TR
 )
@@ -404,15 +405,7 @@ class Dmx512NativeBehav:
             )
 
     def is_alarm(self) -> bool:
-        if self._rpc is None:
-            return False
-        try:
-            ret = self._rpc.call("isAlarm")
-            if isinstance(ret, bool):
-                return ret
-            return str(ret).strip().lower() == "true"
-        except Exception:
-            return False
+        return RobotError.existSystemError()
 
     @staticmethod
     def _mock_battery_percentage() -> float:

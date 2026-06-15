@@ -119,6 +119,6 @@ class RobotErrorV3(RobotErrorInterface):
         cls.client().call_service("Error", "clearSystemError", key)
 
     @classmethod
-    def existSystemError(cls, key: str) -> bool:
-        key = f"py@{key}"
+    def existSystemError(cls, key: str = "") -> bool:
+        key = f"py@{key}" if key else ""
         return cls.client().call_service("Error", "existSystemError", key)

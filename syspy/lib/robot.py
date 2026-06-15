@@ -197,7 +197,7 @@ class RobotErrorInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def existSystemError(cls, key: str) -> bool:
+    def existSystemError(cls, key: str = "") -> bool:
         """查询机器人系统错误是否存在
 
         Args:
