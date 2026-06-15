@@ -12,6 +12,7 @@ $:
             exclude: ${CNB_BUILD_USER}
 
         - name: AI 评审
+          allowFailure: true  # 失败不影响流水线状态
           image: cnbcool/code-review:latest
           settings:
             comment: true
