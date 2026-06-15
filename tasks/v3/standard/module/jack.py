@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/6/8
+# @Date : 2026/6/12
 # @Author : zhaopengfei
 # @Coding : 顶升车
-# @Update : 更新最新jackWithSpin.py改动
+# @Update : add：读取地图线路属性决定正倒走
 
 import json
 import math
@@ -1556,6 +1556,20 @@ class Jack(ModuleBase):
             self.path_dist_accuracy = config_params.polyline_path_dist_accuracy
             self.path_angle_accuracy = config_params.polyline_path_angle_accuracy
 
+        # 按当前线路 direction 决定正走/倒走（Forward=正走, Backward=倒走）
+        # 仅当 direction 明确为 Forward/Backward 时生效，其他值（含读取失败/空）保留 isBackwards 兜底
+        try:
+            path_prop = Navigation.getCurrentPathProperty()
+            direction = path_prop.get("direction") if path_prop else None
+            if direction == "Forward":
+                self.is_backwards = False
+            elif direction == "Backward":
+                self.is_backwards = True
+            debug_trace(f"direction={direction} -> is_backwards={self.is_backwards}", name=f"{MOD}.nav")
+        except Exception as e:
+            debug_trace(f"getCurrentPathProperty failed, keep is_backwards={self.is_backwards} error={e}",
+                        name=f"{MOD}.err")
+
         # goPath相关
         self.goPath_x = self.task_args.get("goPathX", None)
         self.goPath_y = self.task_args.get("goPathY", None)
@@ -1783,14 +1797,14 @@ class Jack(ModuleBase):
                     clear_region_robot = Navigation.getClearRegion(Coordinate.ROBOT)
                     for region in clear_region_robot:
                         Navigation.deleteClearRegion(region, Coordinate.ROBOT)
-                    self.report_info["test"] = {
+                    self.report_info["createOrDeleteDeductedArea"] = {
                         "clearRegion": clear_region_robot
                     }
                 elif self.coordinate == "world":
                     clear_region_world = Navigation.getClearRegion(Coordinate.WORLD)
                     for region in clear_region_world:
                         Navigation.deleteClearRegion(region, Coordinate.WORLD)
-                    self.report_info["test"] = {
+                    self.report_info["createOrDeleteDeductedArea"] = {
                         "clearRegion": clear_region_world
                     }
                     self.report_info["containers"] = Container.getContainers()
@@ -1995,8 +2009,12 @@ class Jack(ModuleBase):
         # 导航方式（无AP点原地执行时 target_pos 为 None，跳过导航）
         if target_pos is not None:
             if self.how_go_site == "straight":
+                # 倒走时翻转目标 theta（+π），避免到点后为对齐 AP 朝向而原地旋转一圈
+                straight_target = list(self.ap_world_pos)
+                if self.is_backwards:
+                    straight_target[2] = self._normalize_angle(straight_target[2] + math.pi)
                 self.action_list.append(
-                    GoPath(self.ap_world_pos, "world", self.is_backwards, self.is_hold_dir,
+                    GoPath(straight_target, "world", self.is_backwards, self.is_hold_dir,
                            self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
             elif self.how_go_site == "bezier":
                 recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
@@ -2188,7 +2206,11 @@ class Jack(ModuleBase):
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
             debug_trace(f'go_ap_site AP_pos={self.ap_world_pos}', name=f"{MOD}.nav")
             if self.how_go_site == "straight":
-                self.action_list.append(GoPath(self.ap_world_pos, "world"))
+                # 倒走时翻转目标 theta（+π），避免到点后为对齐 AP 朝向而原地旋转一圈
+                straight_target = list(self.ap_world_pos)
+                if self.is_backwards:
+                    straight_target[2] = self._normalize_angle(straight_target[2] + math.pi)
+                self.action_list.append(GoPath(straight_target, "world", self.is_backwards))
             elif self.how_go_site == "bezier":
                 self.action_list.append(GoBezier(self.ap_world_pos))
             elif self.how_go_site == "polyline":
