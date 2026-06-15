@@ -3389,6 +3389,9 @@ class RunMotorByPosition(BaseAction):
                 self.positions.pop(0)
                 self.fork_timestamps.pop(0)
 
+        if self.action_status in [ActionStatus.FAILED, ActionStatus.FINISHED]:
+            Motor.resetMotor(self.motor_name)
+
     def reset(self):
         Motor.resetMotor(self.motor_name)
         self.action_status = ActionStatus.RUNNING
