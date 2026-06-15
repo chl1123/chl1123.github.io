@@ -117,7 +117,7 @@ class CalibMove:
         elif self.move_action == MoveAction.Rot4th4GoBackward:
             self.status = Navigation.runOdoMove({"moveAngle": math.pi/2,  "speedW":-self.speed_w, "actionName":"Rot4th4GoBackward"})
         elif self.move_action == MoveAction.GoBackward2Origin:
-            self.status = Navigation.runOdoMove({"moveDist":self.move_dist, "speedX":-self.speed_x,  "actionName":"GoForward2Origin"})
+            self.status = Navigation.runOdoMove({"moveDist":self.move_dist, "speedX":-self.speed_x,  "actionName":"GoBackward2Origin"})
 
         # 当前任务完成时改变状态
         if self.status == ScriptStatus.FINISHED:
