@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/6/8
+# @Date: 2026/6/15
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update:  add：脚本参数翻译补充  feat：1. 适配3.5日志统一记录格式  2. 手指电机控制部分重构
+# @Update: fix: 1. 修改部分setDeviceError为setTaskError 2.修复def cancel下电机未停止 feat:优化常用参数模板ui显示
 # @RBK Version: V3.5+
 import enum
 import uuid
 
-SCRIPT_VERSION = "20260525"
+SCRIPT_VERSION = "20260615"
 import json
 import math
 import random
@@ -500,19 +500,6 @@ class InputParams:
     builder = script_param.builderInput()
 
     with builder.GROUPS():
-        with builder.CHILD(key="finger", name=_TR("finger"), desc=_TR("Finger")):
-            builder.TYPE(ParamType.INT)
-            builder.REQUIRED(False)
-            builder.DEFAULTVALUE(0)
-
-        create_lift_param(builder)
-        create_rotate_param(builder)
-        create_stretch_param(builder)
-
-        with builder.CHILD(key="modbusIp", name=_TR("Modbus IP"), desc=_TR("Modbus TCP IP")):
-            builder.TYPE(ParamType.IP)
-            builder.DEFAULTVALUE("192.168.192.6")
-
         with builder.GROUP(key="operation", name=_TR("Operation"), desc=_TR("Mechanism action options")):
             builder.TYPE(ParamType.COMBO_BOX)
             with builder.CHILDREN():
@@ -615,16 +602,37 @@ class InputParams:
 # 脚本内置动作模板定义
 # ============================================================================
 script_param.addAction(
-    action_name="zero",
+    action_name="liftAndRotate",
     policy=None,
-    args={"operation": "zero"},
+    args={
+        "lift": 0.0,
+        "rotate": 0,
+    },
     config={}
 )
 
 script_param.addAction(
-    action_name="calib",
+    action_name="finger",
     policy=None,
-    args={"operation": "calib"},
+    args={
+        "finger": 0,
+    },
+    config={}
+)
+
+script_param.addAction(
+    action_name="stretch",
+    policy=None,
+    args={
+        "stretch": 0.0,
+    },
+    config={}
+)
+
+script_param.addAction(
+    action_name="zero",
+    policy=None,
+    args={"operation": "zero"},
     config={}
 )
 
@@ -928,7 +936,7 @@ class FingerAction(BaseAction):
             self.action_status = ActionStatus.FAILED
             return
         if time.time() - self.start_time > 3:
-            Navigation.setDeviceError("FingerTimeout", f"Finger control timeout. Check if finger is stuck or photoelectric sensor works")
+            Navigation.setTaskError("FingerTimeout", f"Finger control timeout. Check if finger is stuck or photoelectric sensor works")
             self._stop_finger()
             self.action_status = ActionStatus.FAILED
             return
@@ -988,7 +996,7 @@ class CheckFingerOpenAction(BaseAction):
         if Di.getDi(ConfigParams.left_finger_up_di) and Di.getDi(ConfigParams.right_finger_up_di):
             self.action_status = ActionStatus.FINISHED
         else:
-            Navigation.setDeviceError("FingerNotOpen", f"Finger not open, stretch cancelled. Check finger and photoelectric sensor")
+            Navigation.setTaskError("FingerNotOpen", f"Finger not open, stretch cancelled. Check finger and photoelectric sensor")
             self.action_status = ActionStatus.FAILED
 
     def reset(self):
@@ -1117,7 +1125,7 @@ class CheckGoodsDiUnloadTakeAction(BaseAction):
             Container.bindContainer("999", goods_id, "")
             Container.unbindContainer(self.agv.cur_c)
         else:
-            Navigation.setDeviceError("BackpackPickFailed", "Failed to pick from backpack, fork photoelectric did not detect goods")
+            Navigation.setTaskError("BackpackPickFailed", "Failed to pick from backpack, fork photoelectric did not detect goods")
             self.action_status = ActionStatus.FAILED
             return
         self.action_status = ActionStatus.FINISHED
@@ -1309,7 +1317,6 @@ class ContainerRobot(ModuleBase):
         self.lift_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.lift_motor_name, -1)
         self.stretch_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.stretch_motor_name, -1)
         self.rotate_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.rotate_motor_name, -1)
-        self.zero_step = [False] * 4
         self.calib_step = [False] * 3
         self.yaw_adjust = 0
         self.rec_res = None
@@ -1344,6 +1351,8 @@ class ContainerRobot(ModuleBase):
         self.operation_init = False
         # 框架动作队列引擎(action_list 作暂存源, 经 _sync_task 镜像到此队列执行)
         self.action_task = ActionTask(mod=MOD)
+        # safeMoveCheck 专用归零队列(与任务 action_task 隔离, 复用同一组归零动作定义)
+        self.safe_zero_task = ActionTask(mod=MOD)
 
     def init_args(self, args):
         """初始化任务参数"""
@@ -1570,17 +1579,22 @@ class ContainerRobot(ModuleBase):
     # ================================================================
     # action_list 构建方法
     # ================================================================
-    def _build_zero_actions(self, zero_height=0.5):
-        if self.operation_init:
-            return
-        self.operation_init = True
+    def _make_zero_actions(self, zero_height=0.5):
+        """归零动作定义（唯一来源）：手指张开→伸缩归0→旋转归0→升降到位。
+        仅返回动作列表，不触碰 action_list/operation_init，供任务 zero 与 safeMoveCheck 共用。"""
         actions = []
         if not Container.hasGoods("999"):
             actions.append(FingerAction(self, 1, "zero_finger_open"))
         actions.append(StretchAction(self, 0, "zero_stretch"))
         actions.append(RotateAction(self, 0, action_name="zero_rotate"))
         actions.append(LiftAction(self, zero_height, "zero_lift"))
-        self.action_list = actions
+        return actions
+
+    def _build_zero_actions(self, zero_height=0.5):
+        if self.operation_init:
+            return
+        self.operation_init = True
+        self.action_list = self._make_zero_actions(zero_height)
 
     def _build_load_actions(self):
         if self.operation_init:
@@ -2006,9 +2020,15 @@ class ContainerRobot(ModuleBase):
             self.status = ScriptStatus.RUNNING
 
     def cancel(self):
-        """取消任务方法（必须）"""
         Recognize.resetRec()
-        self.close_finger()
+        motor_names = [self.lift_motor.motor_name, self.stretch_motor.motor_name,
+                       self.rotate_motor.motor_name]
+        if ConfigParams.has_finger_motor:
+            motor_names += [ConfigParams.left_finger_motor_name,
+                            ConfigParams.right_finger_motor_name]
+        for name in motor_names:
+            Motor.isMotorStop(name)
+            Motor.resetMotor(name)
         Do.setDo(self.fill_light_do, False)
         self.action_task.cancel()
         self.status = ScriptStatus.FAILED
@@ -2021,57 +2041,6 @@ class ContainerRobot(ModuleBase):
                 self.goods_id = p['stringValue']
             if p['key'] == '#containerId' and p['stringValue'] != "":
                 self.self_position = p['stringValue']
-
-    def zero(self, zero_height=0):
-        Trace.log(f"----- running zero ------", name=f"{MOD}.motor")
-        if not self.zero_step[0]:
-            self.zero_step[0] = Container.hasGoods("999") or self._finger_open_for_zero()
-        elif self.zero_step[0] and not self.zero_step[1]:
-            self.zero_step[1] = self.container_robot.stretch(self.stretch_motor, 0)
-        elif self.zero_step[1] and not self.zero_step[2]:
-            self.zero_step[2] = self.container_robot.rotate(self.rotate_motor, 0)
-        elif self.zero_step[2] and not self.zero_step[3]:
-            self.zero_step[3] = self.container_robot.lift(self.lift_motor, zero_height, ConfigParams.lift_motor_speed)
-        Trace.log(f"zero_step:{self.zero_step}", name=f"{MOD}.motor")
-        if all(self.zero_step):
-            self.zero_step = [False] * 4
-            return True
-        return False
-
-    def _finger_open_for_zero(self):
-        """ DoMotor 打开手指，每帧推进，超时3秒"""
-        if not getattr(self, '_zero_finger_ts', None):
-            self._zero_finger_ts = time.time()
-        elif time.time() - self._zero_finger_ts > 3:
-            Navigation.setDeviceError("FingerTimeout", f"Finger control timeout during zero. Check if finger is stuck or photoelectric sensor works")
-            self.close_finger()
-            self.status = ScriptStatus.FAILED
-            self._zero_finger_ts = None
-            return False
-
-        if not getattr(self, '_zero_finger_started', False):
-            self._zero_finger_started = True
-            Motor.resetMotor(ConfigParams.left_finger_motor_name)
-            Motor.resetMotor(ConfigParams.right_finger_motor_name)
-            Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, 1.0,
-                                ConfigParams.left_finger_up_di or "")
-            Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
-                                ConfigParams.right_finger_up_di or "")
-
-        left_reached = Motor.isMotorReached(ConfigParams.left_finger_motor_name)
-        right_reached = Motor.isMotorReached(ConfigParams.right_finger_motor_name)
-        if left_reached:
-            self.left_finger_real_pos = 1
-            Motor.resetMotor(ConfigParams.left_finger_motor_name)
-        if right_reached:
-            self.right_finger_real_pos = 1
-            Motor.resetMotor(ConfigParams.right_finger_motor_name)
-        if left_reached and right_reached:
-            Trace.log(f"手指打开成功 (zero)", name=f"{MOD}.motor")
-            self._zero_finger_started = False
-            self._zero_finger_ts = None
-            return True
-        return False
 
     def close_finger(self):
         Motor.resetMotor(ConfigParams.left_finger_motor_name)
@@ -2231,9 +2200,15 @@ class ContainerRobot(ModuleBase):
 
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:
-            zero_result = self.zero(0.5)
-            if zero_result:
+            if self.safe_zero_task.status == ActionStatus.INIT:
+                self.safe_zero_task.build(self._make_zero_actions(0.5))
+            self.safe_zero_task.step(self)
+            if self.safe_zero_task.status == ActionStatus.FINISHED:
+                self.safe_zero_task.reset()  # 复位以便下次移动重新归零
                 status = SafeMoveStatus.FINISHED
+            elif self.safe_zero_task.status == ActionStatus.FAILED:
+                self.safe_zero_task.reset()
+                status = SafeMoveStatus.FAILED
         else:
             debug_print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
 
