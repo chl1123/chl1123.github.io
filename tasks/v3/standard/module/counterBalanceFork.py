@@ -69,7 +69,6 @@ def _robot_device_change_callback(device_change_set: List[str]):
         ConfigParams._build_module_motor()
     if "Motor" in device_change_set or "DOMotor" in device_change_set:
         ConfigParams.get_device_motor_param()
-        ConfigParams._build_fork_area()
         ConfigParams._build_module_motor()
     # InputParams.init()
 
@@ -148,8 +147,8 @@ class ConfigParams:
     upDoStatus: bool = True
     downDo: str = ""
     downDoStatus: bool = True
-    loadTime: float = 20.0
-    unloadTime: float = 20.0
+    loadTime: float = -1
+    unloadTime: float = -1
     # —— DO 控 fork
     downDelayTime: float = 10.0
     upDelayTime: float = 10.0
@@ -207,6 +206,7 @@ class ConfigParams:
 
     # 叉车车头后面那块区域
     fork_area: list = []
+    chassis_area: list = []
 
     @classmethod
     def init(cls):
@@ -357,10 +357,16 @@ class ConfigParams:
 
     @classmethod
     def _build_fork_area(cls):
-        cls.fork_area = [{"x": cls.module_x, "y": cls.width / 2 + 0.02},
-                         {"x": -cls.tail - 0.05, "y": cls.width / 2 + 0.02},
-                         {"x": -cls.tail - 0.05, "y": -cls.width / 2 - 0.02},
-                         {"x": cls.module_x, "y": -cls.width / 2 - 0.02}]
+        # 货叉往后7cm，车宽多个3cm
+        cls.fork_area = [{"x": cls.module_x-0.07, "y": cls.width / 2 + 0.03},
+                         {"x": -cls.tail - 0.07, "y": cls.width / 2 + 0.03},
+                         {"x": -cls.tail - 0.07, "y": -cls.width / 2 - 0.03},
+                         {"x": cls.module_x-0.07, "y": -cls.width / 2 - 0.03}]
+
+        cls.chassis_area = [{"x": cls.head, "y": cls.width / 2},
+                            {"x": -cls.tail, "y": cls.width / 2},
+                            {"x": -cls.tail, "y": -cls.width / 2},
+                            {"x": cls.head, "y": -cls.width / 2}]
 
     @classmethod
     def _build_module_motor(cls):
@@ -479,12 +485,12 @@ class ConfigParams:
                     with builder.CHILD(key="loadTime", name="Load Time",
                                        desc="货叉上升超时时间"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(20.0, min_value=1, max_value=300)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=300)
                         builder.UNIT("s")
                     with builder.CHILD(key="unloadTime", name="Unload Time",
                                        desc="货叉下降超时时间"):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(20.0, min_value=1, max_value=300)
+                        builder.DEFAULTVALUE(-1.0, min_value=-1, max_value=300)
                         builder.UNIT("s")
                     with builder.CHILD(key="upDo", name="UP DO", desc="升货叉时的 do"):
                         builder.TYPE(ParamType.BIND_TYPE)
@@ -1440,6 +1446,7 @@ class Fork(ModuleBase):
         self.name_left = "back_laser_clear_left"
         self.name_right = "back_laser_clear_right"
         self.back_laser_clear_region_name = "back_laser_clear_region"
+        self.chassis_clear_region = "chassis_clear_region"
 
         self.outer = (ConfigParams.center_distance_between_forks + ConfigParams.fork_tip_width) / 2
         self.inner = (ConfigParams.center_distance_between_forks - ConfigParams.fork_tip_width) / 2
@@ -2347,18 +2354,18 @@ class Fork(ModuleBase):
                 # Navigation.setClearRegion(self.name_left, [p["x"] for p in self.points_left],
                 #                           [p["y"] for p in self.points_left],
                 #                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                Navigation.setClearRegion(self.back_laser_clear_region_name, [p["x"] for p in ConfigParams.fork_area],
-                                          [p["y"] for p in ConfigParams.fork_area],
+                Navigation.setClearRegion(self.chassis_clear_region, [p["x"] for p in ConfigParams.chassis_area],
+                                          [p["y"] for p in ConfigParams.chassis_area],
                                           [ConfigParams.fork_root_2D_lasers], Coordinate.ROBOT)
-                Trace.log(f"set clear region:{self.back_laser_clear_region_name},{ConfigParams.fork_area}",
+                Trace.log(f"set clear region:{self.chassis_clear_region},{ConfigParams.chassis_area}",
                           name="fork.task")
 
             elif fork_height > ConfigParams.backLaserEnableHeight and not self.clear_fork_region_by_height:
                 self.clear_fork_region_by_height = True
                 self.set_fork_region_by_height = False
-                Navigation.deleteClearRegion(self.back_laser_clear_region_name, Coordinate.ROBOT)
+                Navigation.deleteClearRegion(self.chassis_clear_region, Coordinate.ROBOT)
 
-                Trace.log(f"delete clear region:{self.back_laser_clear_region_name},{ConfigParams.fork_area}",
+                Trace.log(f"delete clear region:{self.chassis_clear_region},{ConfigParams.chassis_area}",
                           name="fork.task")
 
         # 处理载货时di状态监控
@@ -3234,9 +3241,9 @@ class RunMotorByPosition(BaseAction):
 
             # 仅对fork_motor_name进行超时检查
             if self.motor_name == ConfigParams.fork_motor_name:
-                if self.delta > EPS:  # 上升
+                if self.delta > EPS and self.timeout is not None:  # 上升
                     self.timeout = ConfigParams.loadTime
-                elif self.delta < -EPS:  # 下降
+                elif self.delta < -EPS and self.timeout is not None:  # 下降
                     self.timeout = ConfigParams.unloadTime
                 else:  # 位置相同
                     self.timeout = None
@@ -3271,6 +3278,22 @@ class RunMotorByPosition(BaseAction):
                         self.position = ConfigParams.max_height
                     Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
 
+            if ConfigParams.module_type in ["singleFork","pickFork"]:
+                # 从输入参数和设备配置参数里选出最小速度
+                max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
+
+                # 考虑载货时的货叉升降速度
+                if Navigation.hasGoods():
+                    # 取最大速度
+                    if self.delta > 0:
+                        max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
+                    else:
+                        max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
+
+                self.max_speed = max_speed
+
+                Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
+
             if ConfigParams.module_type not in ["liftFork", "singleFork", "pickFork"]:
                 # 目标位置比初始位置差得不大就不要执行动作了
                 if abs(self.delta) <= max(ConfigParams.reach_up_dist, ConfigParams.reach_down_dist, 0.01):
@@ -3287,9 +3310,7 @@ class RunMotorByPosition(BaseAction):
                                 name="fork.task")
                         else:
                             Navigation.collisionDetection(self.collision_device, self.x_list, self.y_list)
-                            # print(collision)
 
-                # 从输入参数和设备配置参数里选出最小速度
                 max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
 
                 # 考虑载货时的货叉升降速度
@@ -3303,6 +3324,7 @@ class RunMotorByPosition(BaseAction):
                 self.max_speed = max_speed
 
                 Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
+
             Trace.log(f"position:{self.position}", name="fork.task")
 
         # 检查超时（仅对fork_motor_name）
