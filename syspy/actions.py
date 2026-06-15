@@ -749,23 +749,6 @@ class ActionBuildError(Exception):
         self.desc = desc
 
 
-def _build_action_report(action_task: ActionTask, action: ActionBase) -> dict:
-    report = {
-        "actionName": action.action_name,
-        "actionArgs": action.args_summary(),
-        "actionStatus": int(action.action_status),
-        "actionRuntime": 0.0,
-    }
-    start_ts = action_task._action_start_ts.get(action.action_id)
-    if start_ts is not None:
-        report["actionRuntime"] = time.time() - start_ts
-
-    for key in ("params", "rparams", "sparams"):
-        value = getattr(action, key, None)
-        if value is not None:
-            report[key] = value
-    return report
-
 # --- 主控制类 ---
 class Actions(ModuleBase):
     """动作控制主类，只负责生命周期管理和动作编排。"""
@@ -773,7 +756,6 @@ class Actions(ModuleBase):
     def __init__(self):
         super().__init__()
         self.task_args = {}
-        self.report_info = {}
         self.script_status = ScriptStatus.NONE
         self.action_task = ActionTask(mod=LOG_NAME)
 
@@ -805,9 +787,6 @@ class Actions(ModuleBase):
     def init_task(self, args: dict) -> None:
         """初始化任务参数并装配动作队列。"""
         self.task_args = dict(args or {})
-        # 内部归一化产生的辅助字段不进入对外上报。
-        self.task_args.pop("_legacyOriginalArgs", None)
-        self.report_info = {"scriptArgs": self.task_args}
         planner = ActionPlanner(self.task_args, self.lift_stop_di)
         try:
             actions = planner.build()
@@ -842,17 +821,8 @@ class Actions(ModuleBase):
         Navigation.setTaskError(key, desc)
         if self.action_task.status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED):
             self.action_task.cancel(reason=desc)
-        self.report_info["taskError"] = {"key": key, "desc": desc}
         self.set_status(ScriptStatus.FAILED)
         _trace_log(f"{key}: {desc}", name=f"{LOG_NAME}.err")
-
-    def _tick_report(self) -> None:
-        try:
-            self._update_report_info()
-            Module.reportInfo(self.report_info)
-        except Exception as exc:
-            detail = _format_exception(exc)
-            _trace_log(f"ReportInfoFailed: {detail}", name=f"{LOG_NAME}.err")
 
     def suspend(self):
         if self.script_status == ScriptStatus.RUNNING:
@@ -889,53 +859,7 @@ class Actions(ModuleBase):
         """单次任务结束后复位，继续驻留等待下一次任务。"""
         self.action_task.reset()
         self.task_args = {}
-        self.report_info = {}
         self.set_status(ScriptStatus.NONE)
-
-    def _update_report_info(self):
-        """更新上报信息"""
-        current_robot_angle = Loc.getPose().get("yaw", 0.)
-        current_action = self.action_task.current
-        counts = self.action_task.status_counts()
-
-        # 获取电机位置
-        if config_params.lift_motor_name:
-            self.lift_pos = Motor.getMotorPos(config_params.lift_motor_name)
-        if config_params.spin_motor_name:
-            self.shelf_pos = Motor.getMotorPos(config_params.spin_motor_name)
-
-        if self.lift_pos is not None:
-            self.report_info["currentLiftHeight"] = self.lift_pos
-        if self.shelf_pos is not None:
-            current_shelf_angle_in_robot = self.shelf_pos / math.pi * 180
-            self.report_info["currentShelfAngleInRobot"] = current_shelf_angle_in_robot
-            self.report_info["currentShelfAngleInWorld"] = current_robot_angle + current_shelf_angle_in_robot
-        if current_action is not None:
-            self.report_info["currentAction"] = _build_action_report(self.action_task, current_action)
-        else:
-            self.report_info.pop("currentAction", None)
-
-        self.report_info.update({
-            "actionListName": [a.__class__.__name__ for a in self.action_task.action_list],
-            "actionId": current_action.action_id if current_action else "",
-            "currentRobotAngle": current_robot_angle,
-            "scriptStatus": int(self.script_status),
-            "taskId": Module.getTaskId(),
-        })
-
-        _trace_dict(
-            {
-                "scriptStatus": int(self.script_status),
-                "total": int(self.action_task.total),
-                "runningCount": int(counts["running"]),
-                "waitingCount": int(counts["init"]),
-                "finishedCount": int(counts["finished"]),
-                "failedCount": int(counts["failed"]),
-                "suspendedCount": int(counts["suspended"]),
-            },
-            name=f"{LOG_NAME}.task",
-        )
-
 
 # --- 动作定义 ---
 class Jack(ActionBase):
@@ -1292,13 +1216,6 @@ class GoLineByOdo(ActionBase):
         if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
             Navigation.resetOdoMove()
 
-        j.report_info["GoLineByOdo"] = {
-            "actionStatus": self.action_status,
-            "moveDist": self.move_dist,
-            "speedX": self.speed_x,
-            "speedY": self.speed_y,
-            "mode": self.mode.value,
-        }
         return self.action_status
 
 
@@ -1336,13 +1253,6 @@ class GoArc(ActionBase):
         if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
             Navigation.resetOdoMove()
 
-        j.report_info["GoArc"] = {
-            "actionStatus": self.action_status,
-            "rotRadius": self.rot_radius,
-            "rotDegree": self.rot_degree,
-            "rotSpeed": self.rot_speed,
-            "mode": self.mode.value,
-        }
         return self.action_status
 
 def main():
@@ -1355,7 +1265,6 @@ def main():
     while True:
         status = a.script_status
         Module.setStatus(status)
-        a._tick_report()
 
         if status == ScriptStatus.NONE:
             input_params = Module.getTaskArgs()
@@ -1375,7 +1284,6 @@ def main():
             a.run()
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             _trace_log(f"task cycle end status={ScriptStatus(status).name}", name=f"{LOG_NAME}.task")
-            # a.reset_task_state()
             break
         time.sleep(0.1)
 

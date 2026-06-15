@@ -315,7 +315,7 @@ if rec_ok and Navigation.errorExists("RecFailed"):
 # 设备模型异常：电机配置缺失
 if not has_lift_motor:
     Navigation.setDeviceError(
-        "LIFT_MOTOR_NOT_FOUND",
+        "liftMotorNotFound",
         "顶升电机未配置，请检查模型文件 Device.Model",
         "Device.Model.liftMotor",
     )
