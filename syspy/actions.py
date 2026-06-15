@@ -452,11 +452,11 @@ class ActionPlanner:
     def _check_device_prerequisites(self) -> bool:
         if config_params.spin_motor_name is None and self.task_args.get("shelfRotateAngle") is not None:
             _trace_log(
-                "SPIN_MOTOR_LOST: shelf rotation requested but spin motor is not configured",
+                "spinMotorLost: shelf rotation requested but spin motor is not configured",
                 name=f"{LOG_NAME}.err",
             )
             Navigation.setDeviceError(
-                "SPIN_MOTOR_LOST",
+                "spinMotorLost",
                 "The tray spin motor is missing, this abnormality is caused by incorrect robot model configuration, please check the robot model configuration to fix this problem",
             )
             self.script_status = ScriptStatus.FAILED
@@ -464,11 +464,11 @@ class ActionPlanner:
 
         if config_params.lift_motor_name is None and self.task_args.get("liftHeight") is not None:
             _trace_log(
-                "LIFT_MOTOR_NOT_FOUND: lift requested but lift motor is not configured",
+                "liftMotorNotFound: lift requested but lift motor is not configured",
                 name=f"{LOG_NAME}.err",
             )
             Navigation.setDeviceError(
-                "LIFT_MOTOR_NOT_FOUND",
+                "liftMotorNotFound",
                 "Lift motor (linear) not found, cause: device not detected, solution: check robot model configuration and perform motor check",
             )
             self.script_status = ScriptStatus.FAILED
@@ -542,9 +542,13 @@ class RotateActionBuilder:
         robot_target_angle = self.task_args.get("robotTargetAngle")
         robot_delta_angle = self.task_args.get("robotDeltaAngle")
         if robot_target_angle is not None and robot_delta_angle is not None:
+            # 外部协议字段是 robotRotateAngle + (isDebug | rotateTargetMode)，
+            # 在 _normalize_legacy_task_args 中映射为 robotTargetAngle / robotDeltaAngle。
+            # 同一次下发不应同时落到两个目标字段。
             raise ActionBuildError(
                 "robotRotateAngleConflict",
-                "robotTargetAngle and robotDeltaAngle cannot both be set",
+                "robotTargetAngle and robotDeltaAngle cannot both be set "
+                "(legacy robotRotateAngle is normalized to one of them based on isDebug/rotateTargetMode)",
             )
 
         robot_rotate_angle = (
@@ -643,19 +647,6 @@ class AbsoluteRotateBuilder:
         self.coordinate_axis = coordinate_axis
 
     def build(self):
-        if self.coordinate_axis == ShelfCoordinateAxis.INCREMENTAL:
-            raise ActionBuildError(
-                "coordinateAxisUnsupported",
-                "increaseSpinAngle only supports incremental shelf rotation",
-            )
-        if (self.robot_target_angle is not None
-                and self.shelf_angle is not None
-                and self.coordinate_axis == ShelfCoordinateAxis.WORLD):
-            raise ActionBuildError(
-                "coordinateAxisUnsupported",
-                "globalSpinAngle cannot be combined with robotTargetAngle in a single absolute rotate action",
-            )
-
         if self.robot_target_angle is not None and self.shelf_angle is not None:
             return [
                 AbsoluteRobotAndShelfRotate(
@@ -701,10 +692,17 @@ class IncrementalRotateBuilder:
         self.disable_nearby_for_incremental = disable_nearby_for_incremental
 
     def build(self):
-        if self.robot_delta_angle is not None and self.coordinate_axis is not None:
+        # 协议约束：robotRotateAngle + isDebug=true 触发底盘增量调试模式（脚本内部归一为
+        # robotDeltaAngle / INCREMENTAL），此时不允许再叠加托盘随动。
+        # 仅传托盘字段 + isDebug=true 不会进入该分支，按托盘动作正常执行。
+        if self.robot_delta_angle is not None and (
+            self.shelf_angle is not None or self.coordinate_axis is not None
+        ):
             raise ActionBuildError(
-                "incrementalRotateConflict",
-                "robotDeltaAngle and coordinateAxis-based shelf rotation cannot be set together",
+                "shelfRotateNotAllowedInDebug",
+                "robotRotateAngle + isDebug=true is chassis-only debug rotation; "
+                "shelfRotateAngle / coordinateAxis must be omitted in this combination "
+                "(internally normalized to robotDeltaAngle in INCREMENTAL mode)",
             )
 
         actions = []
@@ -753,7 +751,7 @@ class ActionBuildError(Exception):
 
 def _build_action_report(action_task: ActionTask, action: ActionBase) -> dict:
     report = {
-        "actionName": action.__class__.__name__,
+        "actionName": action.action_name,
         "actionArgs": action.args_summary(),
         "actionStatus": int(action.action_status),
         "actionRuntime": 0.0,
@@ -792,8 +790,8 @@ class Actions(ModuleBase):
             self.lift_pos_init = Motor.getMotorPos(config_params.lift_motor_name)
         if config_params.spin_motor_name:
             self.shelf_pos_init = Motor.getMotorPos(config_params.spin_motor_name)
-        Navigation.clearDeviceError('SPIN_MOTOR_LOST')
-        Navigation.clearDeviceError('LIFT_MOTOR_NOT_FOUND')
+        Navigation.clearDeviceError('spinMotorLost')
+        Navigation.clearDeviceError('liftMotorNotFound')
 
     def set_status(self, new_status: ScriptStatus) -> None:
         """统一状态切换入口，避免重复状态日志。"""
@@ -807,6 +805,8 @@ class Actions(ModuleBase):
     def init_task(self, args: dict) -> None:
         """初始化任务参数并装配动作队列。"""
         self.task_args = dict(args or {})
+        # 内部归一化产生的辅助字段不进入对外上报。
+        self.task_args.pop("_legacyOriginalArgs", None)
         self.report_info = {"scriptArgs": self.task_args}
         planner = ActionPlanner(self.task_args, self.lift_stop_di)
         try:
@@ -955,7 +955,7 @@ class Jack(ActionBase):
             return
         self.action_status = ActionStatus.FAILED
         Navigation.setDeviceError(
-            "LIFT_MOTOR_NOT_FOUND",
+            "liftMotorNotFound",
             "Lift motor not found Check motor configuration Motor check",
         )
 
@@ -1126,12 +1126,9 @@ class AbsoluteShelfRotate(ActionBase):
         elif self.coordinate_axis == ShelfCoordinateAxis.WORLD:
             _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
             Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction.value)
-        else:
-            self.action_status = ActionStatus.FAILED
-            Navigation.setTaskError(
-                "coordinateAxisUnsupported",
-                f"coordinateAxis {self.coordinate_axis.value} not support in absolute shelf rotation",
-            )
+        else:  # ShelfCoordinateAxis.INCREMENTAL
+            _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
+            Navigation.setIncreaseSpinAngle(self.shelf_angle)
 
     def run(self, a: Actions):
         if self.action_status != ActionStatus.RUNNING:
@@ -1227,7 +1224,8 @@ class ShelfCoordinateRotate(ActionBase):
     def __init__(self, shelf_angle=None, shelf_direction=RotateDirection.NEARBY, coordinate_axis=None):
         super().__init__("ShelfCoordinateRotate")
         self.shelf_direction = shelf_direction
-        self.coordinate_axis = coordinate_axis
+        # coordinateAxis 协议定义：缺省按机器人坐标系处理
+        self.coordinate_axis = coordinate_axis if coordinate_axis is not None else ShelfCoordinateAxis.ROBOT
 
         self.shelf_angle = None
         if shelf_angle is not None:
@@ -1248,15 +1246,9 @@ class ShelfCoordinateRotate(ActionBase):
         elif self.coordinate_axis == ShelfCoordinateAxis.WORLD:
             _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
             Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction.value)
-        elif self.coordinate_axis == ShelfCoordinateAxis.INCREMENTAL:
+        else:  # ShelfCoordinateAxis.INCREMENTAL
             _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
             Navigation.setIncreaseSpinAngle(self.shelf_angle)
-        else:
-            self.action_status = ActionStatus.FAILED
-            Navigation.setTaskError(
-                "coordinateAxisUnsupported",
-                f"coordinateAxis {self.coordinate_axis.value if self.coordinate_axis else self.coordinate_axis} not support",
-            )
 
     def run(self, j: Actions):
         if self.action_status != ActionStatus.RUNNING:
