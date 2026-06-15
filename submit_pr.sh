@@ -421,8 +421,14 @@ last_subject="${COMMIT_SUBJECTS[$last_index]}"
 SOURCE_SNAPSHOT="$last_sha"
 
 if [[ -z "$SUBMIT_BRANCH" ]]; then
-  sanitized_source_branch="$(printf '%s' "$SOURCE_BRANCH" | sed 's/[^A-Za-z0-9._-]/-/g')"
-  SUBMIT_BRANCH="${sanitized_source_branch}-${BASE_BRANCH}-submit-${last_sha:0:8}"
+  branch_desc_source="$last_subject"
+  if [[ -n "$TITLE_OVERRIDE" ]]; then
+    branch_desc_source="$TITLE_OVERRIDE"
+  fi
+  # 规范: dev/{目标分支}/{描述}-{短 sha}; git 分支名不允许空格/冒号, 统一转/合并为 -
+  sanitized_desc="$(printf '%s' "$branch_desc_source" | sed -e 's/[^A-Za-z0-9._-]/-/g' -e 's/--*/-/g' -e 's/^-*//' -e 's/-*$//')"
+  [[ -n "$sanitized_desc" ]] || sanitized_desc="pr"
+  SUBMIT_BRANCH="dev/${BASE_BRANCH}/${sanitized_desc}-${last_sha:0:8}"
 fi
 
 if [[ -n "$BODY_FILE" ]]; then
