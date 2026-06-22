@@ -10,8 +10,8 @@ from syspy import Trace
 from syspy.battery_runner import run_battery_script
 
 
-class BatteryTimeoutRestartError(RuntimeError):
-    pass
+# class BatteryTimeoutRestartError(RuntimeError):
+#     pass
 
 
 error_dict = {
@@ -194,7 +194,7 @@ class CanBattery(cb.CanBase):
                     Trace.log('timeout')
                     self.setTimeout()
                     self.id1 = self.id2 = self.id3 = self.id4 = False
-                    raise BatteryTimeoutRestartError("greenway battery timeout")
+                    # raise BatteryTimeoutRestartError("greenway battery timeout")
 
             if self.reset_timeout_t.isTimeUp():
                 Trace.log("No complete data received for an extended period, resetting CAN bus.")

@@ -116,7 +116,7 @@ class CanNative():
         try:
             self.close()
         except Exception as e:
-             Trace.log("Failed to reset CAN bus: {e}")
+             Trace.log(f"Failed to reset CAN bus: {e}")
 
         Trace.log("[CAN] Resetting CAN interface due to tx buffer full")
         self.createCanBus(self.channel,self.bitrate)
@@ -142,9 +142,17 @@ class CanNative():
 
     def close(self):
         if self.notifier:
-            self.notifier.stop()  # 停止 Notifier
+            try:
+                self.notifier.stop()
+            except Exception as e:
+                Trace.log(f"Notifier stop failed: {e}")
+            self.notifier = None
         if self.bus:
-            self.bus.shutdown()
+            try:
+                self.bus.shutdown()
+            except Exception as e:
+                Trace.log(f"Bus shutdown failed: {e}")
+            self.bus = None
 
     def __del__(self):
         self.close()  # 确保资源被正确清理
