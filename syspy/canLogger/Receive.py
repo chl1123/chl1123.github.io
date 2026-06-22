@@ -64,20 +64,20 @@ class receiveByUdp(receiveBase):
                 print('pbdata parse error')
                 print(self.data)
                 os.system('pause')
-            self.msgdict[frame.ID] = frame
+            self.msgdict[frame.id] = frame
             update = True
             self.count = self.count + 1
         elif 0x00001041 == msgId:
             self.framerate = struct.unpack('<2I', pbdata)
         if(update):
             frametype = 'D'
-            if frame.Remote:
+            if frame.remote:
                 frametype = "R"
             isExtended = False
-            if frame.Extended:
+            if frame.extended:
                 isExtended = True
             dirc = ''
-            if(self.msgdict[frame.ID].Direction == 1):
+            if(self.msgdict[frame.id].direction == 1):
                 dirc = 'TX'
             else:
                 dirc = 'RX'
@@ -86,22 +86,22 @@ class receiveByUdp(receiveBase):
                         datetime.strftime(datetime.now(), '%H:%M:%S.%f')[0:-3],
                         self.count,
                         dirc,
-                        self.msgdict[frame.ID].Channel,
-                        self.msgdict[frame.ID].ID,
-                        self.msgdict[frame.ID].DLC
+                        self.msgdict[frame.id].channel,
+                        self.msgdict[frame.id].id,
+                        self.msgdict[frame.id].dlc
                         )
             else:
                 tmps = '%s\t%d\t%s\t %d 0x%03X [%d]  ' % (
                         datetime.strftime(datetime.now(), '%H:%M:%S.%f')[0:-3],
                         self.count,
                         dirc,
-                        self.msgdict[frame.ID].Channel,
-                        self.msgdict[frame.ID].ID,
-                        self.msgdict[frame.ID].DLC
+                        self.msgdict[frame.id].channel,
+                        self.msgdict[frame.id].id,
+                        self.msgdict[frame.id].dlc
                         )
 
-            for i in range(0, self.msgdict[frame.ID].DLC):
-                tmps += ('%02X ' % self.msgdict[frame.ID].Data[i])
+            for i in range(0, self.msgdict[frame.id].dlc):
+                tmps += ('%02X ' % self.msgdict[frame.id].data[i])
             tmps += "\n"
             print_callback(tmps)
             return tmps
