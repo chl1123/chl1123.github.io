@@ -56,7 +56,7 @@ class NavigationInterface(ABC, Service):
                 - jerkRot (float): 车开环导航的旋转jerk（rad/s^3）
                 - rotDegree (float): 车开环导航走弧线，弧线对应的角度（deg）
                 - rotRadius (float): 车开环导航走弧线，对应的半径（m）
-                - rotSpeed (float): 车开环导航走弧线，导航速度（m/s）
+                - rotSpeed (float): 车开环导航走弧线，导航速度（rad/s）
                 - spin (bool): 是否启用随动
                 - actionName (str): 动作名
                 - moveDist (float): 车开环直线导航距离（m）

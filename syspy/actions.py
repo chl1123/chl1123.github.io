@@ -18,6 +18,7 @@ from syspy.utils import ScriptType
 
 
 LOG_NAME = "actions"
+MOTION_EPS = 1e-6
 OMNI_CHASSIS_TYPES = {  # 支持全向运动的底盘类型
     "multipleDifferentialSteers",
     "multiStandardAndDifferentialSteers",
@@ -33,19 +34,6 @@ class RotateDirection(IntEnum):
     NEARBY = 0
     COUNTERCLOCKWISE = 1
     CLOCKWISE = -1
-
-
-class RotateTargetMode(IntEnum):
-    """底盘旋转目标模式枚举。
-
-    `ABSOLUTE`:
-    `robotTargetAngle` 表示世界坐标系下的底盘目标朝向。
-
-    `INCREMENTAL`:
-    `robotDeltaAngle` 表示相对当前底盘朝向的增量角。
-    """
-    ABSOLUTE = 0
-    INCREMENTAL = 1
 
 
 class ShelfCoordinateAxis(str, Enum):
@@ -65,6 +53,21 @@ class ShelfCoordinateAxis(str, Enum):
     INCREMENTAL = "increaseSpinAngle"
 
 
+_FRAME_TYPE_VALUE_TO_AXIS = {
+    "robot": ShelfCoordinateAxis.ROBOT,
+    ShelfCoordinateAxis.ROBOT.value: ShelfCoordinateAxis.ROBOT,
+    "world": ShelfCoordinateAxis.WORLD,
+    ShelfCoordinateAxis.WORLD.value: ShelfCoordinateAxis.WORLD,
+    "spin": ShelfCoordinateAxis.INCREMENTAL,
+    ShelfCoordinateAxis.INCREMENTAL.value: ShelfCoordinateAxis.INCREMENTAL,
+}
+_AXIS_VALUE_TO_FRAME_TYPE = {
+    ShelfCoordinateAxis.ROBOT.value: "robot",
+    ShelfCoordinateAxis.WORLD.value: "world",
+    ShelfCoordinateAxis.INCREMENTAL.value: "spin",
+}
+
+
 class LocMode(IntEnum):
     """运动定位模式枚举。"""
     ODO = 0
@@ -81,18 +84,6 @@ def _trace_dict(msg: dict, name: str, output_console: bool = False) -> None:
 
 def _normalize_angle_rad(angle: float) -> float:
     return math.atan2(math.sin(angle), math.cos(angle))
-
-def _normalize_increment_angle_deg(angle_deg: float) -> float:
-    angle_deg = math.fmod(float(angle_deg), 360.0)
-    if angle_deg > 180.0:
-        angle_deg -= 360.0
-    elif angle_deg < -180.0:
-        angle_deg += 360.0
-    if abs(angle_deg) == 180.0:
-        return 180.0 if angle_deg > 0 else -180.0
-    if abs(angle_deg) < 1e-9:
-        return 0.0
-    return angle_deg
 
 def _set_if_not_none(target: dict, key: str, value, transform=None) -> None:
     if value is None:
@@ -113,22 +104,36 @@ def _format_exception(exc: Exception) -> str:
     return exc.__class__.__name__
 
 
-def _parse_coordinate_axis(value):
+def _parse_frame_type(value):
     if value is None:
         return None
-    return ShelfCoordinateAxis(value)
+    text = str(value).strip()
+    axis = _FRAME_TYPE_VALUE_TO_AXIS.get(text)
+    if axis is not None:
+        return axis
+    lower_text = text.lower()
+    axis = _FRAME_TYPE_VALUE_TO_AXIS.get(lower_text)
+    if axis is not None:
+        return axis
+    raise ValueError(f"invalid frameType: {value}")
+
+
+def _normalize_frame_type_value(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    axis = _FRAME_TYPE_VALUE_TO_AXIS.get(text)
+    if axis is None:
+        axis = _FRAME_TYPE_VALUE_TO_AXIS.get(text.lower())
+    if axis is not None:
+        return _AXIS_VALUE_TO_FRAME_TYPE.get(axis.value, text)
+    return text
 
 
 def _parse_rotate_direction(value):
     if value is None:
         return None
     return RotateDirection(int(value))
-
-
-def _parse_rotate_target_mode(value):
-    if value is None:
-        return RotateTargetMode.ABSOLUTE
-    return RotateTargetMode(int(value))
 
 
 def _parse_loc_mode(value):
@@ -146,46 +151,113 @@ def _normalize_motion_status(status):
 
 
 def _normalize_legacy_task_args(task_args: dict) -> dict:
-    """将旧版下发字段轻量映射到当前脚本字段。"""
-    normalized = dict(task_args or {})
+    """将旧版 operation / 字段映射到当前脚本协议。"""
+    raw = dict(task_args or {})
+    normalized = dict(raw)
     updates = {}
-    is_legacy_debug_rotate = False
+    operation = raw.get("operation")
 
-    if "robotRotateAngle" in normalized:
-        legacy_angle = normalized.get("robotRotateAngle")
-        if legacy_angle is not None:
-            rotate_target_mode = normalized.get("rotateTargetMode")
-            if rotate_target_mode is None and bool(normalized.get("isDebug")) == True:
-                # 地图调试窗口旧协议：isDebug 固定为 True，表示底盘增量旋转。
-                rotate_target_mode = RotateTargetMode.INCREMENTAL
-                updates["rotateTargetMode"] = int(rotate_target_mode)
+    if raw.get("frameType") is not None:
+        updates["frameType"] = _normalize_frame_type_value(raw.get("frameType"))
+    elif raw.get("coordinateAxis") is not None:
+        updates["frameType"] = _normalize_frame_type_value(raw.get("coordinateAxis"))
+
+    frame_type = updates.get("frameType", raw.get("frameType"))
+
+    if operation == "line":
+        updates["operation"] = "robotLine"
+    elif operation == "arc":
+        updates["operation"] = "robotArc"
+    elif operation == "rotate":
+        robot_rotate_angle = raw.get("robotRotateAngle")
+        robot_target_angle = raw.get("robotTargetAngle")
+        robot_delta_angle = raw.get("robotDeltaAngle")
+        rotate_target_mode = raw.get("rotateTargetMode")
+        legacy_incremental_rotate = bool(raw.get("isDebug")) == True
+        shelf_rotate_angle = raw.get("shelfRotateAngle")
+        has_lift = raw.get("liftHeight") is not None
+
+        if robot_rotate_angle is None and robot_target_angle is not None:
+            updates["robotRotateAngle"] = robot_target_angle
+            robot_rotate_angle = robot_target_angle
+
+        is_incremental_rotate = (
+            robot_delta_angle is not None
+            or rotate_target_mode == 1
+            or (rotate_target_mode is not None and int(rotate_target_mode) == 1)
+            # legacy `isDebug=true + robotRotateAngle` 本质是“机器人增量旋转”入口
+            or (legacy_incremental_rotate and robot_rotate_angle is not None)
+        )
+
+        if is_incremental_rotate:
+            angle_value = robot_delta_angle if robot_delta_angle is not None else robot_rotate_angle
+            if frame_type == "world":
+                updates["operation"] = "rotate"
+                if robot_rotate_angle is None and angle_value is not None:
+                    updates["robotRotateAngle"] = angle_value
             else:
-                rotate_target_mode = _parse_rotate_target_mode(rotate_target_mode)
-
-            if rotate_target_mode == RotateTargetMode.ABSOLUTE and "robotTargetAngle" not in normalized:
-                updates["robotTargetAngle"] = legacy_angle
-            if rotate_target_mode == RotateTargetMode.INCREMENTAL and "robotDeltaAngle" not in normalized:
-                updates["robotDeltaAngle"] = legacy_angle
-                if (
-                    bool(normalized.get("isDebug")) == True
-                    and normalized.get("operation") == "rotate"
-                    and "robotRotateDirection" not in normalized
-                ):
-                    is_legacy_debug_rotate = True
-
-    if "isDebug" in normalized and "robotRotateDirection" not in normalized:
-        legacy_speed = normalized.get("robotRotateSpeed")
-        if legacy_speed is not None:
-            if float(legacy_speed) > 0:
-                updates["robotRotateDirection"] = int(RotateDirection.COUNTERCLOCKWISE)
-            elif float(legacy_speed) < 0:
-                updates["robotRotateDirection"] = int(RotateDirection.CLOCKWISE)
+                updates["operation"] = "robotRotate"
+                if angle_value is not None:
+                    updates["angle"] = abs(float(angle_value))
+                if raw.get("robotRotateDirection") is not None:
+                    updates["direction"] = raw.get("robotRotateDirection")
+                if raw.get("robotRotateSpeed") is not None:
+                    updates["vw"] = raw.get("robotRotateSpeed")
+                if frame_type is None:
+                    updates["frameType"] = "robot"
+                    frame_type = "robot"
+                if frame_type not in (None, "robot"):
+                    updates["_compatErrorKey"] = "robotRotateFrameTypeUnsupported"
+                    updates["_compatErrorDesc"] = "robotRotate only supports frameType=robot; use rotate for frameType=world"
+                elif shelf_rotate_angle is not None:
+                    updates["_compatErrorKey"] = "shelfRotateNotAllowedInDebug"
+                    updates["_compatErrorDesc"] = (
+                        "robotRotateAngle + isDebug=true is legacy chassis incremental rotation; "
+                        "shelfRotateAngle must be omitted in this combination"
+                    )
+        elif robot_rotate_angle is None and shelf_rotate_angle is not None and not has_lift:
+            updates["operation"] = "spinRotate"
+            updates["angle"] = shelf_rotate_angle
+            if raw.get("shelfRotateDirection") is not None:
+                updates["direction"] = raw.get("shelfRotateDirection")
+        else:
+            updates["operation"] = "rotate"
+    elif operation == "robotRotate":
+        if raw.get("angle") is None and raw.get("robotRotateAngle") is not None:
+            updates["angle"] = raw.get("robotRotateAngle")
+        if raw.get("direction") is None and raw.get("robotRotateDirection") is not None:
+            updates["direction"] = raw.get("robotRotateDirection")
+        if raw.get("vw") is None and raw.get("robotRotateSpeed") is not None:
+            updates["vw"] = raw.get("robotRotateSpeed")
+        frame_type = updates.get("frameType", raw.get("frameType"))
+        angle_value = updates.get("angle", raw.get("angle"))
+        direction_value = updates.get("direction", raw.get("direction"))
+        speed_value = updates.get("vw", raw.get("vw"))
+        if frame_type == "world":
+            normalized.pop("angle", None)
+            normalized.pop("direction", None)
+            normalized.pop("vw", None)
+            normalized.pop("mode", None)
+            updates.pop("angle", None)
+            updates.pop("direction", None)
+            updates.pop("vw", None)
+            updates.pop("mode", None)
+            updates["operation"] = "rotate"
+            if angle_value is not None:
+                updates["robotRotateAngle"] = angle_value
+            if direction_value is not None:
+                updates["robotRotateDirection"] = direction_value
+            if speed_value is not None:
+                updates["robotRotateSpeed"] = speed_value
+    elif operation == "spinRotate":
+        if raw.get("angle") is None and raw.get("shelfRotateAngle") is not None:
+            updates["angle"] = raw.get("shelfRotateAngle")
+        if raw.get("direction") is None and raw.get("shelfRotateDirection") is not None:
+            updates["direction"] = raw.get("shelfRotateDirection")
 
     if updates:
         normalized.update(updates)
-    if is_legacy_debug_rotate:
-        normalized["_legacyDebugRotate"] = True
-    if updates or is_legacy_debug_rotate:
+    if updates:
         _trace_dict(
             {
                 "event": "legacyArgsNormalized",
@@ -197,31 +269,30 @@ def _normalize_legacy_task_args(task_args: dict) -> dict:
     return normalized
 
 
-def _is_legacy_debug_rotate(task_args: dict) -> bool:
-    return bool(task_args.get("_legacyDebugRotate"))
-
-
-def _get_rotate_nav_defaults() -> dict:
+def _get_nav_defaults(keys: list[str], log_name: str) -> dict:
     has_goods = bool(Navigation.hasGoods())
     state_key = "load" if has_goods else "unload"
-    path_map = {
-        "maxSpeed": [f"basic.{state_key}.maxSpeed"],
-        "maxRot": [f"basic.{state_key}.maxRot"],
-    }
+    path_map = {}
+    for key in keys:
+        path_map[key] = [f"basic.{state_key}.{key}"]
     if has_goods:
         path_map["maxSpeed"].append("basic.load.loadMaxSpeed")
+    if "maxRot" in path_map:
         path_map["maxRot"].append("basic.load.loadMaxRot")
 
     params = {}
     for key, paths in path_map.items():
         for path in paths:
             value = RobotParam.getConfig("navigation", path, default=None)
-            value = _deg_to_rad_or_none(value) if key == "maxRot" else float(value) if value is not None else None
-            if value is not None:
-                params[key] = value
-                break
+            if value is None:
+                continue
+            if key == "maxRot":
+                params[key] = _deg_to_rad_or_none(value)
+            else:
+                params[key] = float(value)
+            break
     _trace_log(
-        f"rotate nav defaults ({state_key}): {params}",
+        f"{log_name} nav defaults ({state_key}): {params}",
         name=f"{LOG_NAME}.cfg",
     )
     return params
@@ -286,117 +357,145 @@ class InputParams:
     builder = ParamBuilder(__file__, desc="Input Params Config")
 
     with builder.GROUPS():
-        with builder.GROUP(key="operation", name="运动行为",desc="选择机器人的运动行为"):
+        with builder.GROUP(key="operation", name="运动行为", desc="选择机器人的运动行为"):
             builder.TYPE(ParamType.COMBO_BOX)
             builder.REQUIRED(True)
             with builder.CHILDREN():
-                with builder.CHILD(key="rotate", name="旋转", desc="选择机器人旋转"):
+                with builder.CHILD(key="robotLine", name="平动", desc="机器人平动"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        # 底盘旋转角度
-                        with builder.CHILD(key="robotTargetAngle", name="Robot Target Angle",
-                                        desc="底盘绝对目标角，机器人在世界坐标系下的目标角度，单位°"):
+                        with builder.CHILD(key="dist", name="直线运动距离",
+                                           desc="直线运动距离，绝对值，单位 m"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(True)
+                            builder.UNIT("m")
+                        with builder.CHILD(key="vx", name="X 方向运动速度",
+                                           desc="机器人坐标系下 X 方向运动的速度，正为向前，负为向后，单位 m/s"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(False)
-                            builder.UNIT("°")
-                            builder.SINGLESTEP(1)
-
-                        with builder.CHILD(key="robotDeltaAngle", name="Robot Delta Angle",
-                                        desc="底盘增量角，基于当前底盘角度增量旋转，单位°，正数逆时针，负数顺时针"):
+                            builder.UNIT("m/s")
+                        with builder.CHILD(key="vy", name="Y 方向运动速度",
+                                           desc="机器人坐标系下 Y 方向运动的速度，正为向左，负为向右，单位 m/s"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(False)
-                            builder.UNIT("°")
-                            builder.SINGLESTEP(1)
-
-                        # 底盘旋转角速度
-                        with builder.CHILD(key="robotRotateSpeed", name="Robot Rotate Speed",
-                                        desc="底盘旋转的速度，单位°/s"):
-                            builder.TYPE(ParamType.FLOAT)
-                            builder.REQUIRED(False)
-                        
-                        with builder.CHILD(key='robotRotateDirection', name='Robot Rotate Direction',
-                                        desc='底盘旋转方向：-1 顺时针 0 自主选择 1 逆时针；不填时根据角速度正负自动推导'):
+                            builder.UNIT("m/s")
+                        with builder.CHILD(key="mode", name="模式选择",
+                                           desc="运动模式：0 = 里程模式, 1 = 定位模式"):
                             builder.TYPE(ParamType.INT)
                             builder.REQUIRED(False)
-                            builder.DEFAULTVALUE(0)
-
-                        # 升降高度
+                with builder.CHILD(key="robotRotate", name="机器人转动", desc="机器人增量转动"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="angle", name="转动角度",
+                                           desc="机器人坐标系下的增量转动角度，单位度"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(True)
+                            builder.UNIT("°")
+                        with builder.CHILD(key="vw", name="转动角速度",
+                                           desc="机器人转动角速度，单位度每秒；正为逆时针，负为顺时针"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(False)
+                            builder.UNIT("°/s")
+                        with builder.CHILD(key="direction", name="转动方向",
+                                           desc="机器人转动方向：-1 顺时针 0 自主选择 1 逆时针"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
+                        with builder.CHILD(key="frameType", name="坐标系",
+                                           desc="机器人角度坐标系：robot = 机器人坐标系增量角，world = 世界坐标系目标角（内部走 rotate 分支）"):
+                            builder.TYPE(ParamType.STRING_COMBO_LIST)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE("robot")
+                            with builder.CHILDREN():
+                                with builder.CHILD(key="robot", name="robot",
+                                                   desc="机器人坐标系增量角"):
+                                    builder.TYPE(ParamType.STRING)
+                                with builder.CHILD(key="world", name="world",
+                                                   desc="世界坐标系目标角，内部走 rotate 分支"):
+                                    builder.TYPE(ParamType.STRING)
+                        with builder.CHILD(key="mode", name="模式选择",
+                                           desc="运动模式：0 = 里程模式, 1 = 定位模式"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
+                with builder.CHILD(key="spinRotate", name="托盘转动", desc="托盘独立转动"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="angle", name="托盘旋转角度",
+                                           desc="托盘旋转角度，单位度"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(True)
+                            builder.UNIT("°")
+                        with builder.CHILD(key="direction", name="托盘旋转方向",
+                                           desc="托盘旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
+                        with builder.CHILD(key="frameType", name="坐标系",
+                                           desc="托盘角度坐标系：robot = 机器人坐标系绝对角，world = 世界坐标系绝对角，spin = 相对当前托盘角的增量"):
+                            builder.TYPE(ParamType.STRING_COMBO_LIST)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE("robot")
+                            with builder.CHILDREN():
+                                with builder.CHILD(key="robot", name="robot",
+                                                   desc="机器人坐标系绝对角"):
+                                    builder.TYPE(ParamType.STRING)
+                                with builder.CHILD(key="world", name="world",
+                                                   desc="世界坐标系绝对角"):
+                                    builder.TYPE(ParamType.STRING)
+                                with builder.CHILD(key="spin", name="spin",
+                                                   desc="相对当前托盘角的增量"):
+                                    builder.TYPE(ParamType.STRING)
+                with builder.CHILD(key="rotate", name="组合旋转", desc="机器人绝对旋转或机器人与托盘同时旋转"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="robotRotateAngle", name="Robot Rotate Angle",
+                                           desc="机器人在世界坐标系下的目标角度，单位度"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(False)
+                            builder.UNIT("°")
+                        with builder.CHILD(key="robotRotateDirection", name="Robot Rotate Direction",
+                                           desc="机器人旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
+                        with builder.CHILD(key="robotRotateSpeed", name="Robot Rotate Speed",
+                                           desc="机器人旋转角速度，单位度每秒"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(False)
+                            builder.UNIT("°/s")
+                        with builder.CHILD(key="shelfRotateAngle", name="Shelf Rotate Angle",
+                                           desc="托盘旋转角度；组合旋转时仅支持机器人坐标系绝对角，单位度"):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.REQUIRED(False)
+                            builder.UNIT("°")
+                        with builder.CHILD(key="shelfRotateDirection", name="Shelf Rotate Direction",
+                                           desc="托盘旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
+                            builder.TYPE(ParamType.INT)
+                            builder.REQUIRED(False)
+                        with builder.CHILD(key="frameType", name="坐标系",
+                                           desc="托盘角度坐标系；组合旋转时仅支持 robot"):
+                            builder.TYPE(ParamType.STRING_COMBO_LIST)
+                            builder.REQUIRED(False)
+                            builder.DEFAULTVALUE("robot")
+                            with builder.CHILDREN():
+                                with builder.CHILD(key="robot", name="robot",
+                                                   desc="机器人坐标系绝对角"):
+                                    builder.TYPE(ParamType.STRING)
+                                with builder.CHILD(key="world", name="world",
+                                                   desc="世界坐标系绝对角"):
+                                    builder.TYPE(ParamType.STRING)
+                                with builder.CHILD(key="spin", name="spin",
+                                                   desc="相对当前托盘角的增量"):
+                                    builder.TYPE(ParamType.STRING)
                         with builder.CHILD(key="liftHeight", name="Lift Height",
-                                        desc="升降高度，模型文件中的第一个线性电机"):
+                                           desc="升降高度，模型文件中的第一个线性电机"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(False)
                             builder.UNIT("m")
                             builder.SINGLESTEP(0.01)
-
-                        # 托盘旋转角度
-                        with builder.CHILD(key="shelfRotateAngle", name="Shelf Rotate Angle",
-                                        desc="托盘旋转角度，coordinateAxis 为空或 ROBOT 时表示机器人坐标系目标角，WORLD 时表示世界坐标系目标角，INCREMENTAL 时表示相对当前托盘角的增量，单位°"):
-                            builder.TYPE(ParamType.FLOAT)
-                            builder.MIN_VALUE(-180)
-                            builder.MAX_VALUE(180)
-                            builder.REQUIRED(False)
-                            builder.UNIT("°")
-                            builder.SINGLESTEP(1)
-
-                        # 托盘旋转方向
-                        with builder.CHILD(key="shelfRotateDirection", name="Shelf Rotate Direction",
-                                        desc="托盘旋转方向：-1 顺时针 0 自主选择 1 逆时针"):
-                            builder.TYPE(ParamType.INT)
-                            builder.REQUIRED(False)
-                            builder.DEFAULTVALUE(1)
-
-                        #基于哪个坐标系旋转
-                        with builder.CHILD(key="coordinateAxis", name="coordinateAxis",
-                                        desc="托盘角度的解释方式：空或 ROBOT = 机器人坐标系绝对角，WORLD = 世界坐标系绝对角，INCREMENTAL = 相对当前托盘角的增量"):
-                            builder.TYPE(ParamType.COMBO_BOX)
-                            builder.REQUIRED(False)
-                            with builder.CHILDREN():
-                                builder.CHILD(key=ShelfCoordinateAxis.INCREMENTAL.value, name="INCREMENTAL",desc="在当前托盘角度基础上增加一个角度, 角度为正数则逆时针旋转, 为负数顺时针旋转")
-                                builder.CHILD(key=ShelfCoordinateAxis.ROBOT.value, name="ROBOT",desc="将托盘的角度转到机器人坐标系下的一个角度。spinDirection为0, 则就近转过去; spinDirection为1, 则逆时针转过去; spinDirection为-1, 则顺时针转过去")
-                                builder.CHILD(key=ShelfCoordinateAxis.WORLD.value, name="WORLD",desc="将托盘的角度转到世界坐标系下的一个角度。spinDirection为0, 则就近转过去; spinDirection为1, 则逆时针转过去; spinDirection为-1, 则顺时针转过去")
-
-                        with builder.CHILD(key="rotateTargetMode", name="Rotate Target Mode",
-                                        desc="仅作用于底盘角度字段：0 = 使用 robotTargetAngle 作为世界坐标系绝对角，1 = 使用 robotDeltaAngle 作为相对当前底盘角的增量角"):
-                            builder.TYPE(ParamType.INT)
-                            builder.REQUIRED(False)
-                            builder.DEFAULTVALUE(int(RotateTargetMode.ABSOLUTE))
-
-                        # 货物模型文件
                         with builder.CHILD(key="recFile", name="Rec File",
-                                        desc="货物模型文件"):
+                                           desc="货物模型文件"):
                             builder.TYPE(ParamType.STRING)
                             builder.REQUIRED(False)
                             builder.DEFAULTVALUE("default.srec")
-                        with builder.CHILD(key="mode", name="模式选择",
-                                        desc="locMode，仅用于 runOdoMove 路径：0 = 里程模式, 1 = 定位模式"):
-                            builder.TYPE(ParamType.INT)
-                            builder.REQUIRED(False)
-
-            with builder.CHILDREN():
-                with builder.CHILD(key="line", name="直线运动", desc="选择机器人直线运动"):
-                    builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILDREN():
-                        with builder.CHILD(key="dist", name="直线运动距离",
-                                        desc="直线运动的目标距离"):
-                            builder.TYPE(ParamType.FLOAT)
-                            builder.REQUIRED(True)
-                            builder.UNIT("m")
-                        with builder.CHILD(key="vx", name="X 方向运动的速度",
-                                        desc="机器人坐标系下 X 方向运动的速度, 正为向前, 负为向后, 单位: m/s"):
-                            builder.TYPE(ParamType.FLOAT)
-                            builder.REQUIRED(False)
-                            builder.UNIT("m/s")
-                        with builder.CHILD(key="vy", name="Y 方向运动的速度",
-                                        desc="机器人坐标系下 Y 方向运动的速度, 正为向右, 负为向左, 单位: m/s"):
-                            builder.TYPE(ParamType.FLOAT)
-                            builder.REQUIRED(False)
-                            builder.UNIT("m/s")
-                        with builder.CHILD(key="mode", name="模式选择",
-                                        desc="定位模式：0 = 里程模式, 1 = 定位模式"):
-                            builder.TYPE(ParamType.INT)
-                            builder.REQUIRED(False)
-            with builder.CHILDREN():
-                with builder.CHILD(key="arc", name="圆弧运动", desc="选择机器人圆弧运动"):
+                with builder.CHILD(key="robotArc", name="圆弧运动", desc="选择机器人圆弧运动"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         with builder.CHILD(key="rotRadius", name="圆弧运动半径",
@@ -410,7 +509,7 @@ class InputParams:
                             builder.REQUIRED(True)
                             builder.UNIT("°")
                         with builder.CHILD(key="rotSpeed", name="圆弧运动速度",
-                                        desc="圆弧运动的速度"):
+                                        desc="圆弧运动的导航速度"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(False)
                             builder.UNIT("rad/s")
@@ -432,15 +531,23 @@ class ActionPlanner:
     def build(self):
         if self._check_device_prerequisites():
             return []
+        compat_error_key = self.task_args.get("_compatErrorKey")
+        compat_error_desc = self.task_args.get("_compatErrorDesc")
+        if compat_error_key and compat_error_desc:
+            raise ActionBuildError(compat_error_key, compat_error_desc)
 
         operation = self.task_args.get("operation")
         _trace_log(f"normalized operation: {operation or 'unknown'}", name=f"{LOG_NAME}.task")
 
-        if operation == "line":
-            return self._build_line_actions()
+        if operation == "robotLine":
+            return self._build_robot_line_actions()
+        if operation == "robotRotate":
+            return self._build_robot_rotate_actions()
+        if operation == "spinRotate":
+            return self._build_spin_rotate_actions()
         if operation == "rotate":
             return self._build_rotate_actions()
-        if operation == "arc":
+        if operation == "robotArc":
             return self._build_arc_actions()
 
         self._fail(
@@ -450,7 +557,11 @@ class ActionPlanner:
         return []
 
     def _check_device_prerequisites(self) -> bool:
-        if config_params.spin_motor_name is None and self.task_args.get("shelfRotateAngle") is not None:
+        spin_requested = (
+            self.task_args.get("operation") == "spinRotate"
+            or self.task_args.get("shelfRotateAngle") is not None
+        )
+        if config_params.spin_motor_name is None and spin_requested:
             _trace_log(
                 "spinMotorLost: shelf rotation requested but spin motor is not configured",
                 name=f"{LOG_NAME}.err",
@@ -475,8 +586,14 @@ class ActionPlanner:
             return True
         return False
 
-    def _build_line_actions(self):
-        return [LineActionBuilder(self.task_args).build()]
+    def _build_robot_line_actions(self):
+        return [RobotLineActionBuilder(self.task_args).build()]
+
+    def _build_robot_rotate_actions(self):
+        return [RobotRotateActionBuilder(self.task_args).build()]
+
+    def _build_spin_rotate_actions(self):
+        return [SpinRotateActionBuilder(self.task_args).build()]
 
     def _build_rotate_actions(self):
         return RotateActionBuilder(self.task_args, self.lift_stop_di).build()
@@ -490,81 +607,158 @@ class ActionPlanner:
         _trace_log(f"{key}: {desc}", name=f"{LOG_NAME}.err")
 
 
-class LineActionBuilder:
-    """构建直线/平移动作。"""
+class RobotLineActionBuilder:
+    """构建 robotLine 动作。"""
 
     def __init__(self, task_args: dict):
         self.task_args = task_args
 
     def build(self):
         dist = self.task_args.get("dist", None)
+        if dist is None:
+            raise ActionBuildError(
+                "missingLineDist",
+                "robotLine requires dist",
+            )
+        move_dist = abs(float(dist))
+        if move_dist <= MOTION_EPS:
+            raise ActionBuildError(
+                "lineDistInvalid",
+                "robotLine requires dist to be non-zero",
+            )
+
         vx = self.task_args.get("vx", None)
         vy = self.task_args.get("vy", None)
         mode = _parse_loc_mode(self.task_args.get("mode", None))
 
-        vx_value = 0.0 if vx is None else float(vx)
-        vy_value = 0.0 if vy is None else float(vy)
-        speed = math.hypot(vx_value, vy_value)
-        if speed <= 1e-6:
+        speed_x = None if vx is None else float(vx)
+        speed_y = None if vy is None else float(vy)
+        if config_params.chassis_type not in OMNI_CHASSIS_TYPES:
+            abs_vx = 0.0 if vx is None else abs(float(vx))
+            abs_vy = 0.0 if vy is None else abs(float(vy))
+            if abs_vy > MOTION_EPS and abs_vx <= MOTION_EPS:
+                raise ActionBuildError(
+                    "lateralMoveUnsupported",
+                    f"chassisType {config_params.chassis_type} does not support lateral motion",
+                )
+
+        if speed_x is None and speed_y is None:
+            line_defaults = _get_nav_defaults(["maxSpeed"], "line")
+            speed_x = line_defaults.get("maxSpeed")
+
+        vx_value = 0.0 if speed_x is None else float(speed_x)
+        vy_value = 0.0 if speed_y is None else float(speed_y)
+        if abs(vx_value) <= MOTION_EPS and abs(vy_value) <= MOTION_EPS:
             raise ActionBuildError(
                 "lineSpeedInvalid",
-                "Line motion requires vx or vy to be non-zero",
-            )
-        if abs(vy_value) > 1e-6 and config_params.chassis_type not in OMNI_CHASSIS_TYPES:
-            raise ActionBuildError(
-                "lateralMoveUnsupported",
-                f"chassisType {config_params.chassis_type} does not support lateral motion",
+                "robotLine requires vx or vy to be non-zero",
             )
 
         return GoLineByOdo(
-            move_dist=abs(float(dist)),
-            speed_x=None if vx is None else float(vx),
-            speed_y=None if vy is None else float(vy),
+            move_dist=move_dist,
+            speed_x=speed_x,
+            speed_y=speed_y,
             mode=mode,
         )
 
 
+class RobotRotateActionBuilder:
+    """构建 robotRotate 动作。"""
+
+    def __init__(self, task_args: dict):
+        self.task_args = task_args
+
+    def build(self):
+        angle = self.task_args.get("angle", None)
+        if angle is None:
+            raise ActionBuildError(
+                "missingRobotRotateAngle",
+                "robotRotate requires angle",
+            )
+        angle_deg = float(angle)
+        if abs(angle_deg) <= MOTION_EPS:
+            raise ActionBuildError(
+                "robotRotateAngleInvalid",
+                "robotRotate requires angle to be non-zero",
+            )
+
+        direction = _parse_rotate_direction(self.task_args.get("direction", None))
+        vw = self.task_args.get("vw", None)
+        speed_w_deg = None if vw is None else float(vw)
+        frame_type = _normalize_frame_type_value(self.task_args.get("frameType", None))
+
+        if frame_type not in (None, "robot"):
+            raise ActionBuildError(
+                "robotRotateFrameTypeUnsupported",
+                "robotRotate only supports frameType=robot; use rotate for frameType=world",
+            )
+
+        if direction is None:
+            if speed_w_deg is None:
+                raise ActionBuildError(
+                    "robotRotateDirectionRequired",
+                    "robotRotate requires direction or vw",
+                )
+            if abs(speed_w_deg) <= MOTION_EPS:
+                raise ActionBuildError(
+                    "robotRotateDirectionRequired",
+                    "robotRotate requires direction when vw is zero",
+                )
+            direction = (
+                RotateDirection.COUNTERCLOCKWISE
+                if speed_w_deg > 0
+                else RotateDirection.CLOCKWISE
+            )
+
+        return GoRobotRotateByOdo(
+            angle_deg=angle_deg,
+            direction=direction,
+            speed_w_deg=speed_w_deg,
+            mode=_parse_loc_mode(self.task_args.get("mode", None)),
+        )
+
+
+class SpinRotateActionBuilder:
+    """构建 spinRotate 动作。"""
+
+    def __init__(self, task_args: dict):
+        self.task_args = task_args
+
+    def build(self):
+        angle = self.task_args.get("angle", None)
+        if angle is None:
+            raise ActionBuildError(
+                "missingShelfRotateAngle",
+                "spinRotate requires angle",
+            )
+
+        direction = _parse_rotate_direction(
+            self.task_args.get("direction", RotateDirection.NEARBY)
+        )
+        frame_type = _parse_frame_type(self.task_args.get("frameType", None))
+        return SpinRotateAction(
+            angle_deg=float(angle),
+            direction=direction,
+            frame_type=frame_type,
+        )
+
+
 class RotateActionBuilder:
-    """构建底盘旋转、托盘旋转和顶升动作。"""
+    """构建 rotate 动作。"""
 
     def __init__(self, task_args: dict, lift_stop_di: int):
         self.task_args = task_args
         self.lift_stop_di = lift_stop_di
 
     def build(self):
-        mode = _parse_loc_mode(self.task_args.get("mode", 0))
-        rotate_target_mode = _parse_rotate_target_mode(self.task_args.get("rotateTargetMode", None))
-        _trace_log(
-            f"mode is {mode}, rotateTargetMode is {rotate_target_mode}",
-            name=f"{LOG_NAME}.task",
-        )
-
-        robot_target_angle = self.task_args.get("robotTargetAngle")
-        robot_delta_angle = self.task_args.get("robotDeltaAngle")
-        if robot_target_angle is not None and robot_delta_angle is not None:
-            # 外部协议字段是 robotRotateAngle + (isDebug | rotateTargetMode)，
-            # 在 _normalize_legacy_task_args 中映射为 robotTargetAngle / robotDeltaAngle。
-            # 同一次下发不应同时落到两个目标字段。
-            raise ActionBuildError(
-                "robotRotateAngleConflict",
-                "robotTargetAngle and robotDeltaAngle cannot both be set "
-                "(legacy robotRotateAngle is normalized to one of them based on isDebug/rotateTargetMode)",
-            )
-
-        robot_rotate_angle = (
-            robot_target_angle
-            if rotate_target_mode == RotateTargetMode.ABSOLUTE
-            else robot_delta_angle
-        )
+        robot_rotate_angle = self.task_args.get("robotRotateAngle", None)
         robot_rotate_speed = self.task_args.get("robotRotateSpeed", None)
-        robot_rotate_speed_rad = _deg_to_rad_or_none(robot_rotate_speed)
         robot_rotate_direction = self._resolve_robot_direction(robot_rotate_speed)
-        disable_nearby_for_incremental = _is_legacy_debug_rotate(self.task_args)
         shelf_rotate_angle = self.task_args.get("shelfRotateAngle", None)
         shelf_rotate_direction = _parse_rotate_direction(
             self.task_args.get("shelfRotateDirection", RotateDirection.NEARBY)
         )
-        coordinate_axis = _parse_coordinate_axis(self.task_args.get("coordinateAxis", None))
+        frame_type = _parse_frame_type(self.task_args.get("frameType", None))
         lift_height = self.task_args.get("liftHeight", None)
         lift_speed = self.task_args.get("lift_speed", None)
         rec_file = self.task_args.get("recFile", None)
@@ -576,30 +770,25 @@ class RotateActionBuilder:
             )
 
         actions = []
-        if rotate_target_mode == RotateTargetMode.ABSOLUTE:
-            actions.extend(
-                AbsoluteRotateBuilder(
-                    mode=mode,
-                    robot_target_angle=robot_rotate_angle,
+        if robot_rotate_angle is not None:
+            if shelf_rotate_angle is not None and frame_type not in (None, ShelfCoordinateAxis.ROBOT):
+                raise ActionBuildError(
+                    "rotateCoordinateUnsupported",
+                    "rotate with robotRotateAngle and shelfRotateAngle only supports frameType=robot",
+                )
+            actions.append(
+                RunRotateMoveAction(
+                    robot_rotate_angle=robot_rotate_angle,
                     robot_direction=robot_rotate_direction,
-                    robot_rotate_speed_rad=robot_rotate_speed_rad,
+                    robot_rotate_speed_deg=robot_rotate_speed,
                     shelf_angle=shelf_rotate_angle,
                     shelf_direction=shelf_rotate_direction,
-                    coordinate_axis=coordinate_axis,
-                ).build()
+                )
             )
-        else:
-            actions.extend(
-                IncrementalRotateBuilder(
-                    mode=mode,
-                    robot_delta_angle=robot_rotate_angle,
-                    robot_direction=robot_rotate_direction,
-                    robot_rotate_speed_rad=robot_rotate_speed_rad,
-                    shelf_angle=shelf_rotate_angle,
-                    shelf_direction=shelf_rotate_direction,
-                    coordinate_axis=coordinate_axis,
-                    disable_nearby_for_incremental=disable_nearby_for_incremental,
-                ).build()
+        elif shelf_rotate_angle is not None:
+            raise ActionBuildError(
+                "rotateShelfOnlyUnsupported",
+                "rotate does not support shelf-only rotation; use spinRotate instead",
             )
 
         if lift_height is not None:
@@ -618,114 +807,17 @@ class RotateActionBuilder:
         robot_rotate_direction = _parse_rotate_direction(
             self.task_args.get("robotRotateDirection", None)
         )
-        robot_target_angle = self.task_args.get("robotTargetAngle")
-        robot_delta_angle = self.task_args.get("robotDeltaAngle")
-        if robot_target_angle is None and robot_delta_angle is None:
+        if self.task_args.get("robotRotateAngle") is None:
             return robot_rotate_direction
         if robot_rotate_direction is not None:
             return robot_rotate_direction
         if robot_rotate_speed is None:
             return RotateDirection.NEARBY
-        if robot_rotate_speed > 0:
+        if float(robot_rotate_speed) > 0:
             return RotateDirection.COUNTERCLOCKWISE
-        if robot_rotate_speed < 0:
+        if float(robot_rotate_speed) < 0:
             return RotateDirection.CLOCKWISE
         return RotateDirection.NEARBY
-
-
-class AbsoluteRotateBuilder:
-    """构建绝对角旋转动作。"""
-
-    def __init__(self, mode, robot_target_angle, robot_direction, robot_rotate_speed_rad,
-                 shelf_angle, shelf_direction, coordinate_axis):
-        self.mode = mode
-        self.robot_target_angle = robot_target_angle
-        self.robot_direction = robot_direction
-        self.robot_rotate_speed_rad = robot_rotate_speed_rad
-        self.shelf_angle = shelf_angle
-        self.shelf_direction = shelf_direction
-        self.coordinate_axis = coordinate_axis
-
-    def build(self):
-        if self.robot_target_angle is not None and self.shelf_angle is not None:
-            return [
-                AbsoluteRobotAndShelfRotate(
-                    robot_target_angle=self.robot_target_angle,
-                    robot_direction=self.robot_direction,
-                    speed_w_robot=self.robot_rotate_speed_rad,
-                    shelf_angle=self.shelf_angle,
-                    shelf_direction=self.shelf_direction,
-                )
-            ]
-        if self.robot_target_angle is not None:
-            return [
-                AbsoluteRobotRotate(
-                    robot_target_angle=self.robot_target_angle,
-                    robot_direction=self.robot_direction,
-                    speed_w_robot=self.robot_rotate_speed_rad,
-                    mode=self.mode,
-                )
-            ]
-        if self.shelf_angle is not None:
-            return [
-                AbsoluteShelfRotate(
-                    shelf_angle=self.shelf_angle,
-                    shelf_direction=self.shelf_direction,
-                    coordinate_axis=self.coordinate_axis,
-                )
-            ]
-        return []
-
-
-class IncrementalRotateBuilder:
-    """构建增量旋转动作。"""
-
-    def __init__(self, mode, robot_delta_angle, robot_direction, robot_rotate_speed_rad,
-                 shelf_angle, shelf_direction, coordinate_axis, disable_nearby_for_incremental=False):
-        self.mode = mode
-        self.robot_delta_angle = robot_delta_angle
-        self.robot_direction = robot_direction
-        self.robot_rotate_speed_rad = robot_rotate_speed_rad
-        self.shelf_angle = shelf_angle
-        self.shelf_direction = shelf_direction
-        self.coordinate_axis = coordinate_axis
-        self.disable_nearby_for_incremental = disable_nearby_for_incremental
-
-    def build(self):
-        # 协议约束：robotRotateAngle + isDebug=true 触发底盘增量调试模式（脚本内部归一为
-        # robotDeltaAngle / INCREMENTAL），此时不允许再叠加托盘随动。
-        # 仅传托盘字段 + isDebug=true 不会进入该分支，按托盘动作正常执行。
-        if self.robot_delta_angle is not None and (
-            self.shelf_angle is not None or self.coordinate_axis is not None
-        ):
-            raise ActionBuildError(
-                "shelfRotateNotAllowedInDebug",
-                "robotRotateAngle + isDebug=true is chassis-only debug rotation; "
-                "shelfRotateAngle / coordinateAxis must be omitted in this combination "
-                "(internally normalized to robotDeltaAngle in INCREMENTAL mode)",
-            )
-
-        actions = []
-        if self.robot_delta_angle is not None:
-            actions.append(
-                RobotIncrementalRotate(
-                    robot_delta_angle=self.robot_delta_angle,
-                    robot_direction=self.robot_direction,
-                    speed_w_robot=self.robot_rotate_speed_rad,
-                    mode=self.mode,
-                    disable_nearby=self.disable_nearby_for_incremental,
-                )
-            )
-        elif self.coordinate_axis is not None or self.shelf_angle is not None:
-            actions.append(
-                ShelfCoordinateRotate(
-                    shelf_angle=self.shelf_angle,
-                    shelf_direction=self.shelf_direction,
-                    coordinate_axis=self.coordinate_axis,
-                )
-            )
-        return actions
-
 
 class ArcActionBuilder:
     """构建圆弧动作。"""
@@ -734,10 +826,13 @@ class ArcActionBuilder:
         self.task_args = task_args
 
     def build(self):
+        radius = self.task_args.get("rotRadius", None)
+        angle = self.task_args.get("rotDegree", None)
+        speed = self.task_args.get("rotSpeed", None)
         return GoArc(
-            self.task_args.get("rotRadius", None),
-            self.task_args.get("rotDegree", None),
-            self.task_args.get("rotSpeed", None),
+            radius,
+            angle,
+            speed,
             _parse_loc_mode(self.task_args.get("mode", None)),
         )
 
@@ -897,78 +992,17 @@ class Jack(ActionBase):
         return self.action_status
 
 
-class AbsoluteRobotRotate(ActionBase):
-    """底盘绝对角旋转动作。
+class RunRotateMoveAction(ActionBase):
+    """使用 runRotateMove 执行机器人绝对旋转或机器人与托盘组合旋转。"""
 
-    坐标系对应关系:
-    `robotTargetAngle` 表示世界坐标系下的底盘目标朝向。
-    """
-
-    def __init__(self, robot_target_angle=None, robot_direction=RotateDirection.NEARBY,
-                 speed_w_robot=None, mode=LocMode.ODO):
-        super().__init__("AbsoluteRobotRotate")
-        self.mode = mode
-        self.robot_direction = robot_direction
-        self.speed_w_robot = float(speed_w_robot) if speed_w_robot is not None else None
-        self.robot_target_angle = None
-        if robot_target_angle is not None:
-            self.robot_target_angle = math.radians(robot_target_angle)
-        self.rparams = None
-
-    def reset(self):
-        super().reset()
-        Navigation.resetRotateMove()
-        self.rparams = None
-        if self.robot_target_angle is None:
-            self.action_status = ActionStatus.FAILED
-            Navigation.setTaskError(
-                "missingRobotTargetAngle",
-                "Absolute robot rotation requires robotTargetAngle",
-            )
-            return
-        self.robot_target_angle = _normalize_angle_rad(self.robot_target_angle)
-        self.rparams = {}
-        self.rparams.update(_get_rotate_nav_defaults())
-        self.rparams["moveAngle"] = self.robot_target_angle
-        self.rparams["dir"] = self.robot_direction.value
-        if self.speed_w_robot is not None:
-            self.rparams["speedW"] = math.fabs(self.speed_w_robot)
-        else:
-            _set_if_not_none(self.rparams, "speedW", self.rparams.get("maxRot"), math.fabs)
-        _trace_log(f"rparams: {self.rparams}", name=f"{LOG_NAME}.task")
-
-    def cancel(self):
-        Navigation.resetRotateMove()
-        super().cancel()
-
-    def run(self, a: Actions):
-        if self.action_status != ActionStatus.RUNNING:
-            return self.action_status
-        self.action_status = _normalize_motion_status(Navigation.runRotateMove(
-            robot_params=self.rparams if self.rparams else None,
-            shelf_params=None,
-        ))
-        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
-            Navigation.resetRotateMove()
-        return self.action_status
-
-
-class AbsoluteRobotAndShelfRotate(ActionBase):
-    """底盘与托盘同时执行绝对角旋转。
-
-    坐标系对应关系:
-    `robotTargetAngle` 表示世界坐标系下的底盘目标朝向。
-    `shelfRotateAngle` 表示机器人坐标系下的托盘目标角。
-    """
-
-    def __init__(self, robot_target_angle=None, robot_direction=RotateDirection.NEARBY,
-                 speed_w_robot=None, shelf_angle=None, shelf_direction=RotateDirection.NEARBY):
-        super().__init__("AbsoluteRobotAndShelfRotate")
+    def __init__(self, robot_rotate_angle, robot_direction=RotateDirection.NEARBY,
+                 robot_rotate_speed_deg=None, shelf_angle=None, shelf_direction=RotateDirection.NEARBY):
+        super().__init__("RunRotateMoveAction")
         self.robot_direction = robot_direction
         self.shelf_direction = shelf_direction
-        self.speed_w_robot = float(speed_w_robot) if speed_w_robot is not None else None
-        self.robot_target_angle = None if robot_target_angle is None else math.radians(robot_target_angle)
-        self.shelf_angle = None if shelf_angle is None else math.radians(shelf_angle)
+        self.robot_rotate_speed_deg = None if robot_rotate_speed_deg is None else float(robot_rotate_speed_deg)
+        self.robot_rotate_angle_rad = None if robot_rotate_angle is None else math.radians(float(robot_rotate_angle))
+        self.shelf_angle_rad = None if shelf_angle is None else math.radians(float(shelf_angle))
         self.rparams = None
         self.sparams = None
 
@@ -977,27 +1011,28 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
         Navigation.resetRotateMove()
         self.rparams = None
         self.sparams = None
-        if self.robot_target_angle is None or self.shelf_angle is None:
+        if self.robot_rotate_angle_rad is None:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
-                "missingCombinedRotateAngle",
-                "Combined absolute rotation requires robotTargetAngle and shelfRotateAngle",
+                "missingRobotRotateAngle",
+                "rotate requires robotRotateAngle",
             )
             return
-        self.robot_target_angle = _normalize_angle_rad(self.robot_target_angle)
+
         self.rparams = {}
-        self.rparams.update(_get_rotate_nav_defaults())
-        self.rparams["moveAngle"] = self.robot_target_angle
+        self.rparams.update(_get_nav_defaults(["maxSpeed", "maxRot"], "rotate"))
+        self.rparams["moveAngle"] = _normalize_angle_rad(self.robot_rotate_angle_rad)
         self.rparams["dir"] = self.robot_direction.value
-        if self.speed_w_robot is not None:
-            self.rparams["speedW"] = math.fabs(self.speed_w_robot)
+        if self.robot_rotate_speed_deg is not None:
+            self.rparams["speedW"] = abs(math.radians(self.robot_rotate_speed_deg))
         else:
             _set_if_not_none(self.rparams, "speedW", self.rparams.get("maxRot"), math.fabs)
 
-        self.sparams = {
-            "angle": self.shelf_angle,
-            "dir": self.shelf_direction.value,
-        }
+        if self.shelf_angle_rad is not None:
+            self.sparams = {
+                "angle": self.shelf_angle_rad,
+                "dir": self.shelf_direction.value,
+            }
         _trace_log(f"rparams: {self.rparams}, sparams: {self.sparams}", name=f"{LOG_NAME}.task")
 
     def cancel(self):
@@ -1016,165 +1051,35 @@ class AbsoluteRobotAndShelfRotate(ActionBase):
         return self.action_status
 
 
-class AbsoluteShelfRotate(ActionBase):
-    """托盘绝对角旋转动作。
+class SpinRotateAction(ActionBase):
+    """使用 set*SpinAngle 执行托盘旋转。"""
 
-    坐标系对应关系:
-    `coordinateAxis == ShelfCoordinateAxis.WORLD` 时，`shelfRotateAngle` 表示世界坐标系下的托盘目标角。
-    `coordinateAxis == ShelfCoordinateAxis.ROBOT` 或不带 `coordinateAxis` 时，`shelfRotateAngle` 表示机器人坐标系下的托盘目标角。
-    """
-
-    def __init__(self, shelf_angle=None, shelf_direction=RotateDirection.NEARBY, coordinate_axis=None):
-        super().__init__("AbsoluteShelfRotate")
-        if coordinate_axis is None:
-            coordinate_axis = ShelfCoordinateAxis.ROBOT
-        self.shelf_direction = shelf_direction
-        self.coordinate_axis = coordinate_axis
-        self.shelf_angle = None
-        if shelf_angle is not None:
-            self.shelf_angle = math.radians(shelf_angle)
+    def __init__(self, angle_deg=None, direction=RotateDirection.NEARBY, frame_type=None):
+        super().__init__("SpinRotateAction")
+        self.direction = direction
+        self.frame_type = frame_type if frame_type is not None else ShelfCoordinateAxis.ROBOT
+        self.angle_rad = None if angle_deg is None else math.radians(float(angle_deg))
 
     def reset(self):
         super().reset()
-        if self.shelf_angle is None:
+        if self.angle_rad is None:
             self.action_status = ActionStatus.FAILED
             Navigation.setTaskError(
                 "missingShelfRotateAngle",
-                "Absolute shelf rotation requires shelfRotateAngle",
+                "spinRotate requires angle",
             )
             return
-
-        if self.coordinate_axis == ShelfCoordinateAxis.ROBOT:
+        if self.frame_type == ShelfCoordinateAxis.ROBOT:
             _trace_log("setRobotSpinAngle", name=f"{LOG_NAME}.task")
-            Navigation.setRobotSpinAngle(self.shelf_angle, self.shelf_direction.value)
-        elif self.coordinate_axis == ShelfCoordinateAxis.WORLD:
+            Navigation.setRobotSpinAngle(self.angle_rad, self.direction.value)
+        elif self.frame_type == ShelfCoordinateAxis.WORLD:
             _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
-            Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction.value)
-        else:  # ShelfCoordinateAxis.INCREMENTAL
+            Navigation.setGlobalSpinAngle(self.angle_rad, self.direction.value)
+        else:
             _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
-            Navigation.setIncreaseSpinAngle(self.shelf_angle)
+            Navigation.setIncreaseSpinAngle(self.angle_rad)
 
     def run(self, a: Actions):
-        if self.action_status != ActionStatus.RUNNING:
-            return self.action_status
-        if Navigation.spinRun():
-            self.action_status = ActionStatus.FINISHED
-        return self.action_status
-
-
-class RobotIncrementalRotate(ActionBase):
-    """底盘增量旋转动作。
-
-    坐标系对应关系:
-    `robotDeltaAngle`: 相对当前底盘朝向的增量角。
-    该动作只处理底盘，不处理托盘坐标系旋转。
-    """
-
-    def __init__(self, robot_delta_angle=None, robot_direction=RotateDirection.NEARBY,
-                 speed_w_robot=None, mode=LocMode.ODO, disable_nearby=False):
-        super().__init__("RobotIncrementalRotate")
-        self.mode = mode
-        self.robot_direction = robot_direction
-        self.speed_w_robot = float(speed_w_robot) if speed_w_robot is not None else None
-        self.disable_nearby = disable_nearby
-        self.rparams = None
-
-        self.robot_delta_angle_deg = None
-        if robot_delta_angle is not None:
-            self.robot_delta_angle_deg = float(robot_delta_angle)
-
-    def reset(self):
-        super().reset()
-        Navigation.resetOdoMove()
-        self.rparams = {}
-        if self.robot_delta_angle_deg is None:
-            self.action_status = ActionStatus.FAILED
-            Navigation.setTaskError(
-                "missingRobotDeltaAngle",
-                "Incremental robot rotation requires robotDeltaAngle",
-            )
-            return
-        if self.disable_nearby:
-            move_angle_deg = float(self.robot_delta_angle_deg)
-        else:
-            move_angle_deg = _normalize_increment_angle_deg(self.robot_delta_angle_deg)
-        self.rparams["moveAngle"] = math.radians(abs(move_angle_deg))
-        self.rparams["locMode"] = self.mode.value
-        self.rparams["actionName"] = self.action_name
-        speed_w = abs(self.speed_w_robot) if self.speed_w_robot is not None else None
-        if speed_w is None:
-            rotate_defaults = _get_rotate_nav_defaults()
-            default_rot_speed = rotate_defaults.get("maxRot")
-            if default_rot_speed is not None:
-                speed_w = abs(default_rot_speed)
-        if speed_w is not None:
-            if self.disable_nearby:
-                if self.robot_direction == RotateDirection.CLOCKWISE:
-                    speed_w = -speed_w
-                elif self.robot_direction == RotateDirection.NEARBY and move_angle_deg < 0:
-                    speed_w = -speed_w
-            elif self.robot_direction == RotateDirection.NEARBY:
-                if move_angle_deg < 0:
-                    speed_w = -speed_w
-            elif self.robot_direction == RotateDirection.CLOCKWISE:
-                speed_w = -speed_w
-            self.rparams["speedW"] = speed_w
-        _trace_log(f"rparams: {self.rparams}", name=f"{LOG_NAME}.task")
-
-    def cancel(self):
-        Navigation.resetOdoMove()
-        super().cancel()
-
-    def run(self, j: Actions):
-        if self.action_status != ActionStatus.RUNNING:
-            return self.action_status
-        self.action_status = _normalize_motion_status(Navigation.runOdoMove(
-            self.rparams if self.rparams else None
-        ))
-        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
-            Navigation.resetOdoMove()
-        return self.action_status
-
-
-class ShelfCoordinateRotate(ActionBase):
-    """托盘坐标系旋转动作。
-
-    坐标系对应关系:
-    `coordinateAxis == ShelfCoordinateAxis.ROBOT` 时，`shelfRotateAngle` 表示机器人坐标系下的托盘目标角。
-    `coordinateAxis == ShelfCoordinateAxis.WORLD` 时，`shelfRotateAngle` 表示世界坐标系下的托盘目标角。
-    `coordinateAxis == ShelfCoordinateAxis.INCREMENTAL` 时，`shelfRotateAngle` 表示相对当前托盘角的增量角。
-    """
-
-    def __init__(self, shelf_angle=None, shelf_direction=RotateDirection.NEARBY, coordinate_axis=None):
-        super().__init__("ShelfCoordinateRotate")
-        self.shelf_direction = shelf_direction
-        # coordinateAxis 协议定义：缺省按机器人坐标系处理
-        self.coordinate_axis = coordinate_axis if coordinate_axis is not None else ShelfCoordinateAxis.ROBOT
-
-        self.shelf_angle = None
-        if shelf_angle is not None:
-            self.shelf_angle = math.radians(shelf_angle)
-
-    def reset(self):
-        super().reset()
-        if self.shelf_angle is None:
-            self.action_status = ActionStatus.FAILED
-            Navigation.setTaskError(
-                "missingShelfRotateAngle",
-                "Shelf coordinate rotation requires shelfRotateAngle",
-            )
-            return
-        if self.coordinate_axis == ShelfCoordinateAxis.ROBOT:
-            _trace_log("setRobotSpinAngle", name=f"{LOG_NAME}.task")
-            Navigation.setRobotSpinAngle(self.shelf_angle, self.shelf_direction.value)
-        elif self.coordinate_axis == ShelfCoordinateAxis.WORLD:
-            _trace_log("setGlobalSpinAngle", name=f"{LOG_NAME}.task")
-            Navigation.setGlobalSpinAngle(self.shelf_angle, self.shelf_direction.value)
-        else:  # ShelfCoordinateAxis.INCREMENTAL
-            _trace_log("setIncreaseSpinAngle", name=f"{LOG_NAME}.task")
-            Navigation.setIncreaseSpinAngle(self.shelf_angle)
-
-    def run(self, j: Actions):
         if self.action_status != ActionStatus.RUNNING:
             return self.action_status
         if Navigation.spinRun():
@@ -1219,14 +1124,71 @@ class GoLineByOdo(ActionBase):
         return self.action_status
 
 
+class GoRobotRotateByOdo(ActionBase):
+    """使用 runOdoMove 执行机器人增量转动。"""
+
+    def __init__(self, angle_deg, direction=RotateDirection.NEARBY, speed_w_deg=None, mode=LocMode.ODO):
+        super().__init__("GoRobotRotateByOdo")
+        self.angle_deg = float(angle_deg)
+        self.direction = direction
+        self.speed_w_deg = None if speed_w_deg is None else float(speed_w_deg)
+        self.mode = mode
+        self.params = None
+
+    def reset(self):
+        super().reset()
+        Navigation.resetOdoMove()
+        if abs(self.angle_deg) <= MOTION_EPS:
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(
+                "robotRotateAngleInvalid",
+                "robotRotate requires angle to be non-zero",
+            )
+            return
+
+        self.params = {
+            "moveAngle": math.radians(abs(self.angle_deg)),
+            "locMode": self.mode.value,
+            "actionName": self.action_name,
+        }
+        rotate_defaults = _get_nav_defaults(["maxSpeed", "maxRot"], "robotRotate")
+        speed_w = None
+        if self.speed_w_deg is not None:
+            speed_w = abs(math.radians(self.speed_w_deg))
+        else:
+            default_rot = rotate_defaults.get("maxRot")
+            if default_rot is not None:
+                speed_w = abs(default_rot)
+
+        if speed_w is not None:
+            if self.direction == RotateDirection.CLOCKWISE:
+                speed_w = -speed_w
+            elif self.direction == RotateDirection.NEARBY and self.angle_deg < 0:
+                speed_w = -speed_w
+            self.params["speedW"] = speed_w
+        _trace_log(f"odo move start params={self.params}", name=f"{LOG_NAME}.nav")
+
+    def cancel(self):
+        Navigation.resetOdoMove()
+        super().cancel()
+
+    def run(self, a: Actions):
+        if self.action_status != ActionStatus.RUNNING:
+            return self.action_status
+        self.action_status = _normalize_motion_status(Navigation.runOdoMove(self.params))
+        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            Navigation.resetOdoMove()
+        return self.action_status
+
+
 class GoArc(ActionBase):
     """圆弧走到指定点"""
     
-    def __init__(self, rot_radius, rot_degree, rot_speed, mode=LocMode.ODO):
+    def __init__(self, radius, angle, speed, mode=LocMode.ODO):
         super().__init__("GoArc")
-        self.rot_radius = rot_radius
-        self.rot_degree = rot_degree
-        self.rot_speed = rot_speed
+        self.radius = radius
+        self.angle = angle
+        self.speed = speed
         self.mode = mode
         self.params = None
 
@@ -1235,11 +1197,11 @@ class GoArc(ActionBase):
         Navigation.resetOdoMove()
         self.params = {
             "locMode": self.mode.value,
-            "rotDegree": float(self.rot_degree),
-            "rotRadius": float(self.rot_radius),
+            "rotDegree": float(self.angle),
+            "rotRadius": float(self.radius),
             "actionName": self.action_name,
         }
-        _set_if_not_none(self.params, "rotSpeed", self.rot_speed, float)
+        _set_if_not_none(self.params, "rotSpeed", self.speed, float)
         _trace_log(f"arc move start params={self.params}", name=f"{LOG_NAME}.nav")
 
     def cancel(self):
@@ -1270,8 +1232,10 @@ def main():
             input_params = Module.getTaskArgs()
             if input_params:
                 try:
-                    validated_params = param_loader.loadInput(input_params)
-                    validated_params = _normalize_legacy_task_args(validated_params)
+                    normalized_params = _normalize_legacy_task_args(input_params)
+                    validated_params = param_loader.loadInput(normalized_params)
+                    for key, value in normalized_params.items():
+                        validated_params.setdefault(key, value)
                     a.init_task(validated_params)
                 except ValueError as e:
                     _trace_log(f"check error: {e}", name=f"{LOG_NAME}.err")
