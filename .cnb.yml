@@ -1,20 +1,35 @@
 include:
   - https://cnb.cool/seer-robotics/IT/plugins-sbs360-lpm/-/blob/main/.cnb.yml
+  - https://cnb.cool/seer-robotics/tools/protected/-/blob/main/.cnb.yml
 
-$:
+x-pr-env: &pr_env
+  PR_REVIEWERS: chenhongli,chenhl@seer-robotics.ai
+
+(**):
   pull_request.target:
-    - stages:
-        - name: 添加评审人
-          type: git:reviewer
-          options:
-            type: add-reviewer
-            reviewers: chenhongli
-            exclude: ${CNB_BUILD_USER}
+    - name: review-and-notify
+      env: *pr_env
 
-        - name: AI 评审
-          allowFailure: true  # 失败不影响流水线状态
-          image: cnbcool/code-review:latest
-          settings:
-            comment: true
-            max_comments: 10
-            fail_on_critical: true
+    - name: AI 评审
+      allowFailure: true
+      image: cnbcool/code-review:latest
+      settings:
+        comment: true
+        max_comments: 10
+        fail_on_critical: true
+
+  pull_request.approved:
+    notify-pr-approved:
+      env: *pr_env
+
+  pull_request.changes_requested:
+    notify-pr-changes-requested:
+      env: *pr_env
+
+  pull_request.comment:
+    notify-pr-comment:
+      env: *pr_env
+
+  pull_request.merged:
+    notify-pr-merged:
+      env: *pr_env
