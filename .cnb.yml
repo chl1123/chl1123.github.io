@@ -6,10 +6,8 @@ x-pr-env: &pr_env
   PR_REVIEWERS: chenhongli,chenhl@seer-robotics.ai
 
 (**):
-  pull_request.target:
-    - name: review-and-notify
-      env: *pr_env
-
+  # ✅ AI 评审：PR 创建和每次更新都会触发
+  pull_request:
     - name: AI 评审
       allowFailure: true
       image: cnbcool/code-review:latest
@@ -17,6 +15,11 @@ x-pr-env: &pr_env
         comment: true
         max_comments: 10
         fail_on_critical: true
+
+  # ✅ 以下保持原样
+  pull_request.target:
+    review-and-notify:
+      env: *pr_env
 
   pull_request.approved:
     notify-pr-approved:
