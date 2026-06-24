@@ -16,7 +16,7 @@ import struct
 from enum import IntEnum
 from typing import Optional, List, Dict, Any
 from syspy import (Module, Di, Do, Motor, Navigation, Loc, Recognize, ScriptStatus, Laser, NetProtocol,
-                   Trace, NavSpeed, Controller, NavStatus, Container)
+                   Trace, NavSpeed, Controller, NavStatus, Container, _TR)
 from syspy.utils import Coordinate
 from syspy.utils.time import Timer
 from syspy.script_data import ScriptData
@@ -345,13 +345,24 @@ class ConfigParams:
     def _module_motor_position_enabled(cls, motor_type, motor_name, default=True):
         if not motor_name:
             return default
+
+        module_cfg = cls.config.get("moduleMotor", {})
+        if not isinstance(module_cfg, dict):
+            return default
+
         keys = [
             f"left-{motor_name}",
             f"right-{motor_name}",
             f"{motor_type}-{motor_name}",
+            f"{motor_type}",
         ]
-        value = cls._find_config_value(keys)
-        return cls._is_position_control_on(value, default)
+
+        for key in keys:
+            value = module_cfg.get(key)
+            if value is not None:
+                return cls._is_position_control_on(value, default)
+
+        return default
 
     @classmethod
     def _build_expand_motor_items(cls, motor_names):
@@ -439,10 +450,10 @@ class ConfigParams:
     @classmethod
     def _build_fork_area(cls):
         # 货叉往后7cm，车宽多个3cm
-        cls.fork_area = [{"x": cls.module_x - 0.07, "y": cls.width / 2 + 0.03},
+        cls.fork_area = [{"x": cls.module_x, "y": cls.width / 2 + 0.03},
                          {"x": -cls.tail - 0.07, "y": cls.width / 2 + 0.03},
                          {"x": -cls.tail - 0.07, "y": -cls.width / 2 - 0.03},
-                         {"x": cls.module_x - 0.07, "y": -cls.width / 2 - 0.03}]
+                         {"x": cls.module_x, "y": -cls.width / 2 - 0.03}]
 
         cls.chassis_area = [{"x": cls.head, "y": cls.width / 2},
                             {"x": -cls.tail, "y": cls.width / 2},
@@ -504,16 +515,16 @@ class ConfigParams:
 
     @staticmethod
     def _build_position_control_config(builder, key, name):
-        with builder.CHILD(key=key, name=name, desc="Position Control"):
+        with builder.CHILD(key=key, name=name, desc=_TR("Position Control")):
             builder.TYPE(ParamType.ARRAY)
             with builder.CHILDREN():
-                with builder.CHILD(key="positionControl", name="Position Control", desc="Position Control"):
+                with builder.CHILD(key="positionControl", name=_TR("Position Control"), desc=_TR("Position Control")):
                     builder.TYPE(ParamType.COMBO_BOX_BOOL)
                     builder.DEFAULTVALUE("on")
                     with builder.CHILDREN():
-                        with builder.CHILD(key="on", name="On", desc="Enable position control"):
+                        with builder.CHILD(key="on", name=_TR("On"), desc=_TR("Enable position control")):
                             builder.TYPE(ParamType.ARRAY)
-                        with builder.CHILD(key="off", name="Off", desc="Disable position control"):
+                        with builder.CHILD(key="off", name=_TR("Off"), desc=_TR("Disable position control")):
                             builder.TYPE(ParamType.ARRAY)
 
     def get_app_rec_param(cls):
@@ -526,245 +537,245 @@ class ConfigParams:
 
         with builder.GROUPS():
             # ===== 脚本相关 =====
-            with builder.GROUP(key="script", name="Script Settings", desc="脚本相关配置"):
+            with builder.GROUP(key="script", name=_TR("Script Settings"), desc=_TR("Script configuration")):
                 builder.TYPE(ParamType.ARRAY)
-                with builder.CHILD(key="timeout", name="Timeout", desc="脚本超时时间"):
+                with builder.CHILD(key="timeout", name=_TR("Timeout"), desc=_TR("Script timeout")):
                     builder.TYPE(ParamType.FLOAT)
                     builder.DEFAULTVALUE(200)
                     builder.UNIT("s")
 
-                with builder.CHILD(key="scriptDebug", name="Script Debug", desc="是否打印调试信息"):
+                with builder.CHILD(key="scriptDebug", name=_TR("Script Debug"), desc=_TR("Enable script debug logs")):
                     builder.TYPE(ParamType.BOOL)
                     builder.DEFAULTVALUE(False)
 
             # ===== fork 相关 =====
-            with builder.GROUP(key="fork", name="Fork Settings", desc="货叉相关配置"):
+            with builder.GROUP(key="fork", name=_TR("Fork Settings"), desc=_TR("Fork configuration")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="loadAndUnloadCheck", name="Load And Unload Check",
-                                       desc="取放货是否根据载货状态报错"):
+                    with builder.CHILD(key="loadAndUnloadCheck", name=_TR("Load And Unload Check"),
+                                       desc=_TR("Load and unload status check")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="upMaxSpeedWithGoods", name="Up Max Speed With Goods",
-                                       desc="载货时的货叉上升最大速度"):
+                    with builder.CHILD(key="upMaxSpeedWithGoods", name=_TR("Up Max Speed With Goods"),
+                                       desc=_TR("Max lift speed with goods")):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.5)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
                         builder.UNIT("m/s")
-                    with builder.CHILD(key="downMaxSpeedWithGoods", name="Down Max Speed With Goods",
-                                       desc="载货时的货叉下降最大速度"):
+                    with builder.CHILD(key="downMaxSpeedWithGoods", name=_TR("Down Max Speed With Goods"),
+                                       desc=_TR("Max lower speed with goods")):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.06, min_value=0, max_value=0.5)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
                         builder.UNIT("m/s")
-                    with builder.CHILD(key="backLaserEnableHeight", name="Back Laser Enable Height",
-                                       desc="后置激光避障生效时的货叉高度"):
+                    with builder.CHILD(key="backLaserEnableHeight", name=_TR("Back Laser Enable Height"),
+                                       desc=_TR("Back laser enable height")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3, min_value=0, max_value=2)
                         builder.UNIT("m")
-                    with builder.CHILD(key="checkGoodsWhileLoad", name="Check Goods While Load",
-                                       desc="载货时检测到位 di"):
+                    with builder.CHILD(key="checkGoodsWhileLoad", name=_TR("Check Goods While Load"),
+                                       desc=_TR("Check goods DI while load")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="loadTime", name="Load Time",
-                                       desc="货叉上升超时时间"):
+                    with builder.CHILD(key="loadTime", name=_TR("Load Time"),
+                                       desc=_TR("Fork lift timeout")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(-1, min_value=-1, max_value=300)
                         builder.UNIT("s")
-                    with builder.CHILD(key="unloadTime", name="Unload Time",
-                                       desc="货叉下降超时时间"):
+                    with builder.CHILD(key="unloadTime", name=_TR("Unload Time"),
+                                       desc=_TR("Fork lower timeout")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(-1.0, min_value=-1, max_value=300)
                         builder.UNIT("s")
-                    with builder.CHILD(key="upDo", name="UP DO", desc="升货叉时的 do"):
+                    with builder.CHILD(key="upDo", name=_TR("UP DO"), desc=_TR("Fork lift DO")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.Device.DO)
-                    with builder.CHILD(key="upDoStatus", name="Up Do Status", desc="升货叉时的 do 状态"):
+                    with builder.CHILD(key="upDoStatus", name=_TR("Up Do Status"), desc=_TR("Fork lift DO status")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="downDo", name="Down DO", desc="降货叉时的 do"):
+                    with builder.CHILD(key="downDo", name=_TR("Down DO"), desc=_TR("Fork lower DO")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.Device.DO)
-                    with builder.CHILD(key="downDoStatus", name="Down Do Status", desc="降货叉时的 do 状态"):
+                    with builder.CHILD(key="downDoStatus", name=_TR("Down Do Status"), desc=_TR("Fork lower DO status")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
             # ===== 取放货 =====
-            with builder.GROUP(key="loadUnload", name="Load & Unload", desc="取放货相关配置"):
+            with builder.GROUP(key="loadUnload", name=_TR("Load & Unload"), desc=_TR("Load and unload configuration")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="pathAdjustMode", name="Path Adjust Mode", desc="调整是否走直线曲线"):
+                    with builder.CHILD(key="pathAdjustMode", name=_TR("Path Adjust Mode"), desc=_TR("Path adjustment mode")):
                         builder.TYPE(ParamType.COMBO_BOX)
                         builder.DEFAULTVALUE("bezier")
 
                         with builder.CHILDREN():
-                            with builder.CHILD(key="bezier", name="Bezier", desc="贝塞尔曲线"):
+                            with builder.CHILD(key="bezier", name=_TR("Bezier"), desc=_TR("Bezier path adjustment")):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
-                                    with builder.CHILD(key="maxCurve", name="Max Curve",
-                                                       desc="贝塞尔曲线的最大曲率"):
+                                    with builder.CHILD(key="maxCurve", name=_TR("Max Curve"),
+                                                       desc=_TR("Max curve for Bezier path")):
                                         builder.TYPE(ParamType.FLOAT)
                                         builder.DEFAULTVALUE(3)
                                         builder.UNIT("m")
 
-                            with builder.CHILD(key="straightLine", name="Straight Line", desc="直线调整"):
+                            with builder.CHILD(key="straightLine", name=_TR("Straight Line"), desc=_TR("Straight line adjustment")):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
-                                    with builder.CHILD(key="maxAngle", name="Max Angle",
-                                                       desc="两段线调整的最大夹角"):
+                                    with builder.CHILD(key="maxAngle", name=_TR("Max Angle"),
+                                                       desc=_TR("Max angle for straight path")):
                                         builder.TYPE(ParamType.FLOAT)
                                         builder.DEFAULTVALUE(10)
                                         builder.UNIT("deg")
 
-                    with builder.CHILD(key="returnOnSamePath", name="Return On Same Path",
-                                       desc="识别调整后退出是否按原路返回"):
+                    with builder.CHILD(key="returnOnSamePath", name=_TR("Return On Same Path"),
+                                       desc=_TR("Return on same path after adjust")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
 
-                    with builder.CHILD(key="forkDiDist", name="Fork DI Dist", desc="盲插到位后后退距离"):
+                    with builder.CHILD(key="forkDiDist", name=_TR("Fork DI Dist"), desc=_TR("Fork DI back distance")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.1, min_value=-2, max_value=2)
                         builder.UNIT("m")
                     if ConfigParams.fork_tip_2D_lasers:
-                        with builder.CHILD(key="laserDetectionWidth", name="Load Laser Detection Width",
-                                           desc="进叉时的激光宽度"):
+                        with builder.CHILD(key="laserDetectionWidth", name=_TR("Load Laser Detection Width"),
+                                           desc=_TR("Fork insertion laser width")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.DEFAULTVALUE(0.05, min_value=0, max_value=2)
                             builder.UNIT("m")
-                    with builder.CHILD(key="loadObsStopDist", name="Load Obstacle Stop Distance",
-                                       desc="取货时后退的避障距离"):
+                    with builder.CHILD(key="loadObsStopDist", name=_TR("Load Obstacle Stop Distance"),
+                                       desc=_TR("Load obstacle stop distance")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05, min_value=0, max_value=2)
                         builder.UNIT("m")
-                    with builder.CHILD(key="checkAllContactDi", name="Check All Contact DI",
-                                       desc="需要先启用 di 检测，检测所有到位di"):
+                    with builder.CHILD(key="checkAllContactDi", name=_TR("Check All Contact DI"),
+                                       desc=_TR("Check all contact DIs")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
                     if ConfigParams.fork_tip_di_sensors:
-                        with builder.CHILD(key="forkDiEnableAtLoad", name="Fork Di Enable At Load",
-                                           desc="取货时是否启用叉尖 di sensor，false 为屏蔽防止阻挡"):
+                        with builder.CHILD(key="forkDiEnableAtLoad", name=_TR("Fork Di Enable At Load"),
+                                           desc=_TR("Fork tip DI for load")):
                             builder.TYPE(ParamType.BOOL)
                             builder.DEFAULTVALUE(False)
 
-                        with builder.CHILD(key="forkDiEnableAtUnload", name="Fork Di Enable At Unload",
-                                           desc="放货时是否启用叉尖 di sensor"):
+                        with builder.CHILD(key="forkDiEnableAtUnload", name=_TR("Fork Di Enable At Unload"),
+                                           desc=_TR("Fork tip DI for unload")):
                             builder.TYPE(ParamType.COMBO_BOX_BOOL)
                             builder.DEFAULTVALUE("on")
                             with builder.CHILDREN():
                                 # on选项
-                                with builder.CHILD(key="on", name="Fork Di Enable At Unload",
-                                                   desc="forkDiEnableAtUnload"):
+                                with builder.CHILD(key="on", name=_TR("Fork Di Enable At Unload"),
+                                                   desc=_TR("forkDiEnableAtUnload")):
                                     builder.TYPE(ParamType.ARRAY)
-                                    with builder.CHILD(key="diTriggerMeasureUnload", name="Di Trigger Measure Unload",
-                                                       desc="放货时di触发时的机器人的方式"):
+                                    with builder.CHILD(key="diTriggerMeasureUnload", name=_TR("Di Trigger Measure Unload"),
+                                                       desc=_TR("Unload DI trigger action")):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                                         builder.DEFAULTVALUE("collision")
                                         with builder.CHILDREN():
-                                            with builder.CHILD("collision", "Collision", "报阻挡"):
+                                            with builder.CHILD("collision", _TR("Collision"), _TR("Report collision")):
                                                 builder.TYPE(ParamType.STRING)
-                                            with builder.CHILD("autoClearError", "Auto Clear Error",
-                                                               "触发时报错有货，不触发时继续任务"):
+                                            with builder.CHILD("autoClearError", _TR("Auto Clear Error"),
+                                                               _TR("Auto clear goods error")):
                                                 builder.TYPE(ParamType.STRING)
-                                            with builder.CHILD("failTask", "Fail Task", "触发结束任务"):
+                                            with builder.CHILD("failTask", _TR("Fail Task"), _TR("Fail task on trigger")):
                                                 builder.TYPE(ParamType.STRING)
 
                                 # off选项
-                                with builder.CHILD(key="off", name="Fork Di Disable At Unload",
-                                                   desc="fork Di Disable At Unload"):
+                                with builder.CHILD(key="off", name=_TR("Fork Di Disable At Unload"),
+                                                   desc=_TR("fork Di Disable At Unload")):
                                     builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="recLoad", name="Recognition Load",
-                                       desc="识别取货"):
+                    with builder.CHILD(key="recLoad", name=_TR("Recognition Load"),
+                                       desc=_TR("Recognition load configuration")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
                             # 需要移到 bintask
-                            with builder.CHILD(key="zMax", name="sort the rec results by height",
-                                               desc="根据识别结果的高度由大到小进行排序"):
+                            with builder.CHILD(key="zMax", name=_TR("sort the rec results by height"),
+                                               desc=_TR("Sort recognition results by height")):
                                 builder.TYPE(ParamType.BOOL)
                                 builder.DEFAULTVALUE(False)
-                            with builder.CHILD(key="errorRecY", name="Error Rec Y",
-                                               desc="识别结果相对AP点报错的y偏移，-1不启用"):
+                            with builder.CHILD(key="errorRecY", name=_TR("Error Rec Y"),
+                                               desc=_TR("Recognition Y error threshold")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(0.1)
                                 builder.UNIT("m")
-                            with builder.CHILD(key="errorRecAngle", name="Error Rec Angle",
-                                               desc="识别结果相对AP点报错的yaw偏移，-1不启用"):
+                            with builder.CHILD(key="errorRecAngle", name=_TR("Error Rec Angle"),
+                                               desc=_TR("Recognition yaw error threshold")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(15)
                                 builder.UNIT("°")
-                            with builder.CHILD(key="enableTcp", name="Enable TCP", desc="识别取货是否启用 tcp"):
+                            with builder.CHILD(key="enableTcp", name=_TR("Enable TCP"), desc=_TR("Enable TCP for recognition load")):
                                 builder.TYPE(ParamType.BOOL)
                                 builder.DEFAULTVALUE(False)
-                            with builder.CHILD(key="aheadDist", name="Ahead Dist", desc="识别取货的前置距离"):
+                            with builder.CHILD(key="aheadDist", name=_TR("Ahead Dist"), desc=_TR("Recognition load ahead distance")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(0.8, min_value=0, max_value=2)
                                 builder.UNIT("m")
-                            with builder.CHILD(key="minAheadDist", name="Min Ahead Dist",
-                                               desc="识别取货的最小直线距离"):
+                            with builder.CHILD(key="minAheadDist", name=_TR("Min Ahead Dist"),
+                                               desc=_TR("Recognition load min ahead distance")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(ConfigParams.tail + 0.1, min_value=-2, max_value=2)
                                 builder.UNIT("m")
-                            with builder.CHILD(key="recCenterX", name="Rec Center X",
-                                               desc="不指定AP点时，机器人坐标系下识别区域中心X坐标"):
+                            with builder.CHILD(key="recCenterX", name=_TR("Rec Center X"),
+                                               desc=_TR("Recognition center X without AP")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(-(ConfigParams.tail + 0.3), min_value=-5, max_value=5)
                                 builder.UNIT("m")
-                            with builder.CHILD(key="recCenterY", name="Rec Center Y",
-                                               desc="不指定AP点时，机器人坐标系下识别区域中心Y坐标"):
+                            with builder.CHILD(key="recCenterY", name=_TR("Rec Center Y"),
+                                               desc=_TR("Recognition center Y without AP")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(0.0, min_value=-5, max_value=5)
                                 builder.UNIT("m")
-                            with builder.CHILD(key="recRadius", name="Rec Radius",
-                                               desc="识别半径"):
+                            with builder.CHILD(key="recRadius", name=_TR("Rec Radius"),
+                                               desc=_TR("Recognition radius")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(0.7, min_value=0.1, max_value=5)
                                 builder.UNIT("m")
-                    with builder.CHILD(key="noRecLoad", name="Load By Landmark",
-                                       desc="根据站点位置取货"):
+                    with builder.CHILD(key="noRecLoad", name=_TR("Load By Landmark"),
+                                       desc=_TR("Load by landmark configuration")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
-                            with builder.CHILD(key="enableContactDiNoRec", name="Enable Contact DI (No Rec)",
-                                               desc="盲叉取货是否启用到位di"):
+                            with builder.CHILD(key="enableContactDiNoRec", name=_TR("Enable Contact DI (No Rec)"),
+                                               desc=_TR("Contact DI for no-rec load")):
                                 builder.TYPE(ParamType.BOOL)
                                 builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="useForPalletFallProtection", name="Use For Pallet Fall Protection",
-                                       desc="取放货时是否启用货物脱离检测"):
+                    with builder.CHILD(key="useForPalletFallProtection", name=_TR("Use For Pallet Fall Protection"),
+                                       desc=_TR("Pallet fall protection switch")):
                         builder.TYPE(ParamType.COMBO_BOX_BOOL)
                         builder.DEFAULTVALUE("off")
                         with builder.CHILDREN():
                             # off选项
-                            with builder.CHILD(key="off", name="Disable Pallet Fall Protection",
-                                               desc="Disable Pallet Fall Protection"):
+                            with builder.CHILD(key="off", name=_TR("Disable Pallet Fall Protection"),
+                                               desc=_TR("Disable Pallet Fall Protection")):
                                 builder.TYPE(ParamType.ARRAY)
 
                             # on选项
-                            with builder.CHILD(key="on", name="Enable Pallet Fall Protection",
-                                               desc="using extern IMU"):
+                            with builder.CHILD(key="on", name=_TR("Enable Pallet Fall Protection"),
+                                               desc=_TR("Enable pallet fall protection")):
                                 builder.TYPE(ParamType.ARRAY)
 
                                 with builder.CHILDREN():
-                                    with builder.CHILD(key="setRoiX", name="Set Roi X",
+                                    with builder.CHILD(key="setRoiX", name=_TR("Set Roi X"),
                                                        desc=""):
                                         builder.TYPE(ParamType.FLOAT)
                                         builder.REQUIRED(True)
                                         builder.DEFAULTVALUE(2.0)
-                                with builder.CHILD(key="setRoiMaxY", name="Set Roi Max Y",
+                                with builder.CHILD(key="setRoiMaxY", name=_TR("Set Roi Max Y"),
                                                    desc=""):
                                     builder.TYPE(ParamType.FLOAT)
                                     builder.REQUIRED(True)
                                     builder.DEFAULTVALUE(2.0)
-                                with builder.CHILD(key="setRoiMinY", name="Set Roi Min Y",
+                                with builder.CHILD(key="setRoiMinY", name=_TR("Set Roi Min Y"),
                                                    desc=""):
                                     builder.TYPE(ParamType.FLOAT)
                                     builder.REQUIRED(True)
                                     builder.DEFAULTVALUE(2.0)
-                                with builder.CHILD(key="setRoiZ", name="Set Roi Z",
+                                with builder.CHILD(key="setRoiZ", name=_TR("Set Roi Z"),
                                                    desc=""):
                                     builder.TYPE(ParamType.FLOAT)
                                     builder.REQUIRED(True)
                                     builder.DEFAULTVALUE(2.0)
 
             # ===== moduleMotor =====
-            with builder.GROUP(key="moduleMotor", name="Module Motor Settings", desc="module motor settings"):
+            with builder.GROUP(key="moduleMotor", name=_TR("Module Motor Settings"), desc=_TR("module motor settings")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     if ConfigParams.shiftMotor:
@@ -784,7 +795,7 @@ class ConfigParams:
                         side = item.get("side", "")
                         if side:
                             with builder.CHILD(key=f"expandMotor-{motor_name}", name=f"expandMotor-{motor_name}",
-                                               desc="Expand Motor"):
+                                               desc=_TR("Expand Motor")):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
                                     ConfigParams._build_position_control_config(
@@ -795,18 +806,18 @@ class ConfigParams:
                                 builder, f"expandMotor-{motor_name}", f"expandMotor-{motor_name}"
                             )
             # ===== 线性堆栈 =====
-            with builder.GROUP(key="linearUnload", name="Linear Unload", desc="线性堆栈相关配置"):
+            with builder.GROUP(key="linearUnload", name=_TR("Linear Unload"), desc=_TR("Linear unload configuration")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="laserWidth", name="Laser Width", desc="线性堆栈激光宽度"):
+                    with builder.CHILD(key="laserWidth", name=_TR("Laser Width"), desc=_TR("Linear unload laser width")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.1, min_value=0, max_value=1)
                         builder.UNIT("m")
-                    with builder.CHILD(key="obsDist", name="Obs Dist", desc="线性堆栈的避障距离"):
+                    with builder.CHILD(key="obsDist", name=_TR("Obs Dist"), desc=_TR("Linear unload obstacle distance")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5, min_value=0, max_value=1)
                         builder.UNIT("m")
-                    with builder.CHILD(key="loadObsDist", name="Load Obs Dist", desc="取货进叉时的避障距离"):
+                    with builder.CHILD(key="loadObsDist", name=_TR("Load Obs Dist"), desc=_TR("Load fork obstacle distance")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.1, min_value=0, max_value=11)
                         builder.UNIT("m")
@@ -848,8 +859,8 @@ ConfigParams.init()
 
 def create_fork_height_param(builder: ParamBuilder, min_height: float, max_height: float):
     """创建顶升高度参数（可复用）"""
-    with builder.CHILD(key="height", name="Fork Height",
-                       desc="The height for lift operations"):
+    with builder.CHILD(key="height", name=_TR("Fork Height"),
+                       desc=_TR("The height for lift operations")):
         builder.TYPE(ParamType.FLOAT)
         builder.REQUIRED(True)
         # builder.MIN_VALUE(min_height)
@@ -860,8 +871,8 @@ def create_fork_height_param(builder: ParamBuilder, min_height: float, max_heigh
 
 
 def create_end_height_param(builder: ParamBuilder, min_height: float, max_height: float):
-    with builder.CHILD(key="endHeight", name="End Height",
-                       desc="The fork height after load"):
+    with builder.CHILD(key="endHeight", name=_TR("End Height"),
+                       desc=_TR("The fork height after load")):
         builder.TYPE(ParamType.FLOAT)
         # builder.REQUIRED(True)
         # builder.MIN_VALUE(min_height)
@@ -872,8 +883,8 @@ def create_end_height_param(builder: ParamBuilder, min_height: float, max_height
 
 
 def create_start_height_param(builder: ParamBuilder, min_height: float, max_height: float):
-    with builder.CHILD(key="startHeight", name="Start Height",
-                       desc="The fork height before load"):
+    with builder.CHILD(key="startHeight", name=_TR("Start Height"),
+                       desc=_TR("The fork height before load")):
         builder.TYPE(ParamType.FLOAT)
         # builder.REQUIRED(True)
         # builder.MIN_VALUE(min_height)
@@ -885,34 +896,34 @@ def create_start_height_param(builder: ParamBuilder, min_height: float, max_heig
 
 def create_rec_param(builder: ParamBuilder):
     # 识别参数
-    with builder.CHILD(key="recognize", name="Recognition",
-                       desc="Enable pallet recognition"):
+    with builder.CHILD(key="recognize", name=_TR("Recognition"),
+                       desc=_TR("Enable pallet recognition")):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
         builder.DEFAULTVALUE("off")
 
         with builder.CHILDREN():
             # off 选项，不需要填识别文件
-            with builder.CHILD(key="off", name="Recognize",
-                               desc="Load Without Recognition"):
+            with builder.CHILD(key="off", name=_TR("Recognize"),
+                               desc=_TR("Load Without Recognition")):
                 builder.TYPE(ParamType.ARRAY)
 
             # on 也就是勾选需要识别后才会需要填写识别文件
-            with builder.CHILD(key="on", name="Recognize",
-                               desc="Load With Recognition"):
+            with builder.CHILD(key="on", name=_TR("Recognize"),
+                               desc=_TR("Load With Recognition")):
                 builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="recfile", name="Recfile",
-                                   desc="Recognition file name"):
+                with builder.CHILD(key="recfile", name=_TR("Recfile"),
+                                   desc=_TR("Recognition file name")):
                     builder.TYPE(ParamType.STRING)
                     builder.DEFAULTVALUE("default.srec")
 
-                with builder.CHILD(key="recSide", name="Rec Side",
-                                   desc="Rec Side"):
+                with builder.CHILD(key="recSide", name=_TR("Rec Side"),
+                                   desc=_TR("Rec Side")):
                     builder.TYPE(ParamType.STRING)
                     builder.DEFAULTVALUE("A")
 
-                with builder.CHILD(key="recHeight", name="Rec Height",
-                                   desc="The fork height before load after rec"):
+                with builder.CHILD(key="recHeight", name=_TR("Rec Height"),
+                                   desc=_TR("The fork height before load after rec")):
                     builder.TYPE(ParamType.FLOAT)
                     # builder.REQUIRED(True)
                     # builder.MIN_VALUE(min_height)
@@ -923,7 +934,7 @@ def create_rec_param(builder: ParamBuilder):
 
 
 class InputParams:
-    builder = ParamBuilder(__file__, desc="Input Params Config")
+    builder = ParamBuilder(__file__, desc=_TR("Input Params Config"))
 
     @classmethod
     def init(cls):
@@ -938,12 +949,12 @@ class InputParams:
             #     builder.DEFAULTVALUE(False)
 
             # 操作组合框
-            with cls.builder.GROUP(key="operation", name="Operations", desc="Task script input parameters"):
+            with cls.builder.GROUP(key="operation", name=_TR("Operations"), desc=_TR("Task script input parameters")):
                 cls.builder.TYPE(ParamType.COMBO_BOX)
 
                 with cls.builder.CHILDREN():
                     # 取货操作
-                    with cls.builder.CHILD(key="load", name="Fork Load", desc="load the pallet"):
+                    with cls.builder.CHILD(key="load", name=_TR("Fork Load"), desc=_TR("load the pallet")):
                         cls.builder.TYPE(ParamType.ARRAY)
 
                         with cls.builder.CHILDREN():
@@ -957,8 +968,8 @@ class InputParams:
                             create_rec_param(cls.builder)
 
                             # 如果需要脱离库位，则多一个参数
-                            with cls.builder.CHILD(key="leaveLocHeight", name="Leave Loc Height",
-                                                   desc="The fork height after leave loc"):
+                            with cls.builder.CHILD(key="leaveLocHeight", name=_TR("Leave Loc Height"),
+                                                   desc=_TR("The fork height after leave loc")):
                                 cls.builder.TYPE(ParamType.FLOAT)
                                 # builder.REQUIRED(True)
                                 # builder.MIN_VALUE(min_height)
@@ -968,8 +979,8 @@ class InputParams:
                                 cls.builder.DEFAULTVALUE(-1)
 
                     # 放货操作
-                    with cls.builder.CHILD(key="unload", name="Fork Unload",
-                                           desc="unload the pallet"):
+                    with cls.builder.CHILD(key="unload", name=_TR("Fork Unload"),
+                                           desc=_TR("unload the pallet")):
                         cls.builder.TYPE(ParamType.ARRAY)
 
                         with cls.builder.CHILDREN():
@@ -980,8 +991,8 @@ class InputParams:
                             create_end_height_param(cls.builder, min_height, max_height)
 
                             # 如果需要脱离库位，则多一个参数
-                            with cls.builder.CHILD(key="leaveLocHeight", name="Leave Loc Height",
-                                                   desc="The fork height after leave loc"):
+                            with cls.builder.CHILD(key="leaveLocHeight", name=_TR("Leave Loc Height"),
+                                                   desc=_TR("The fork height after leave loc")):
                                 cls.builder.TYPE(ParamType.FLOAT)
                                 # builder.REQUIRED(True)
                                 # builder.MIN_VALUE(min_height)
@@ -991,101 +1002,101 @@ class InputParams:
                                 cls.builder.DEFAULTVALUE(-1)
 
                     # ForkHeight 操作
-                    with cls.builder.CHILD(key="forkHeight", name="Fork Height",
-                                           desc="Lift the fork"):
+                    with cls.builder.CHILD(key="forkHeight", name=_TR("Fork Height"),
+                                           desc=_TR("Lift the fork")):
                         cls.builder.TYPE(ParamType.ARRAY)
                         create_fork_height_param(cls.builder, min_height, max_height)
 
-                        with cls.builder.CHILD(key="forkSpeed", name="Fork Speed", desc="fork lift speed"):
+                        with cls.builder.CHILD(key="forkSpeed", name=_TR("Fork Speed"), desc=_TR("fork lift speed")):
                             cls.builder.TYPE(ParamType.FLOAT)
                             cls.builder.SINGLESTEP(0.01)
                             # builder.REQUIRED(True)
                             cls.builder.DEFAULTVALUE(ConfigParams.fork_max_speed)
 
                     # 电机点动/长按操作
-                    with cls.builder.CHILD(key="lift", name="Lift Motor", desc="Lift motor jog or move"):
+                    with cls.builder.CHILD(key="lift", name=_TR("Lift Motor"), desc=_TR("Lift motor jog or move")):
                         cls.builder.TYPE(ParamType.ARRAY)
                         with cls.builder.CHILDREN():
-                            with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for lift motor"):
+                            with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for lift motor")):
                                 cls.builder.TYPE(ParamType.FLOAT)
                                 cls.builder.UNIT("m")
                                 cls.builder.SINGLESTEP(0.01)
                                 cls.builder.DEFAULTVALUE(0.1)
-                            with cls.builder.CHILD(key="position", name="Position",
-                                                   desc="Target position for lift motor"):
+                            with cls.builder.CHILD(key="position", name=_TR("Position"),
+                                                   desc=_TR("Target position for lift motor")):
                                 cls.builder.TYPE(ParamType.FLOAT)
                                 cls.builder.UNIT("m")
                                 cls.builder.SINGLESTEP(0.01)
                                 cls.builder.DEFAULTVALUE(-1)
 
                     if ConfigParams.shiftMotor:
-                        with cls.builder.CHILD(key="shift", name="Shift Motor", desc="Shift motor jog or move"):
+                        with cls.builder.CHILD(key="shift", name=_TR("Shift Motor"), desc=_TR("Shift motor jog or move")):
                             cls.builder.TYPE(ParamType.ARRAY)
                             with cls.builder.CHILDREN():
-                                with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for shift motor"):
+                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for shift motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
                                     cls.builder.DEFAULTVALUE(0.1)
-                                with cls.builder.CHILD(key="position", name="Position",
-                                                       desc="Target position for shift motor"):
+                                with cls.builder.CHILD(key="position", name=_TR("Position"),
+                                                       desc=_TR("Target position for shift motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
                                     cls.builder.DEFAULTVALUE(-1)
 
                     if ConfigParams.pitch_motor_name:
-                        with cls.builder.CHILD(key="pitch", name="Pitch Motor", desc="Pitch motor jog or move"):
+                        with cls.builder.CHILD(key="pitch", name=_TR("Pitch Motor"), desc=_TR("Pitch motor jog or move")):
                             cls.builder.TYPE(ParamType.ARRAY)
                             with cls.builder.CHILDREN():
-                                with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for pitch motor"):
+                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for pitch motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
                                     cls.builder.DEFAULTVALUE(0.1)
-                                with cls.builder.CHILD(key="position", name="Position",
-                                                       desc="Target position for pitch motor"):
+                                with cls.builder.CHILD(key="position", name=_TR("Position"),
+                                                       desc=_TR("Target position for pitch motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
                                     cls.builder.DEFAULTVALUE(-1)
 
                     if ConfigParams.reach_motor_name:
-                        with cls.builder.CHILD(key="reach", name="Reach Motor", desc="Reach motor jog or move"):
+                        with cls.builder.CHILD(key="reach", name=_TR("Reach Motor"), desc=_TR("Reach motor jog or move")):
                             cls.builder.TYPE(ParamType.ARRAY)
                             with cls.builder.CHILDREN():
-                                with cls.builder.CHILD(key="jogStep", name="Jog Step", desc="Jog step for reach motor"):
+                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for reach motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
                                     cls.builder.DEFAULTVALUE(0.1)
-                                with cls.builder.CHILD(key="position", name="Position",
-                                                       desc="Target position for reach motor"):
+                                with cls.builder.CHILD(key="position", name=_TR("Position"),
+                                                       desc=_TR("Target position for reach motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
                                     cls.builder.DEFAULTVALUE(-1)
 
                     if ConfigParams.expand_motor_name:
-                        with cls.builder.CHILD(key="expand", name="Expand Motor", desc="Expand motor jog or move"):
+                        with cls.builder.CHILD(key="expand", name=_TR("Expand Motor"), desc=_TR("Expand motor jog or move")):
                             cls.builder.TYPE(ParamType.ARRAY)
                             with cls.builder.CHILDREN():
-                                with cls.builder.CHILD(key="jogStep", name="Jog Step",
-                                                       desc="Jog step for expand motor"):
+                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"),
+                                                       desc=_TR("Jog step for expand motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
                                     cls.builder.DEFAULTVALUE(0.1)
-                                with cls.builder.CHILD(key="position", name="Position",
-                                                       desc="Target position for expand motor"):
+                                with cls.builder.CHILD(key="position", name=_TR("Position"),
+                                                       desc=_TR("Target position for expand motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
                                     cls.builder.DEFAULTVALUE(-1)
 
                     # 脱离库位操作
-                    with cls.builder.CHILD(key="leaveLoc", name="Leave Loc",
-                                           desc="Leave loc after load"):
+                    with cls.builder.CHILD(key="leaveLoc", name=_TR("Leave Loc"),
+                                           desc=_TR("Leave loc after load")):
                         cls.builder.TYPE(ParamType.ARRAY)
 
                         with cls.builder.CHILDREN():
@@ -1093,7 +1104,7 @@ class InputParams:
 
                     with cls.builder.CHILDREN():
                         # 料笼堆叠
-                        with cls.builder.CHILD(key="cageStack", name="Cage Stack", desc="stack the cage"):
+                        with cls.builder.CHILD(key="cageStack", name=_TR("Cage Stack"), desc=_TR("stack the cage")):
                             cls.builder.TYPE(ParamType.ARRAY)
 
                             with cls.builder.CHILDREN():
@@ -1107,20 +1118,20 @@ class InputParams:
                                 create_rec_param(cls.builder)
 
                     if ConfigParams.scriptDebug:
-                        with cls.builder.CHILD(key="rec", name="Rec", desc="Rec the pallet"):
+                        with cls.builder.CHILD(key="rec", name=_TR("Rec"), desc=_TR("Rec the pallet")):
                             cls.builder.TYPE(ParamType.ARRAY)
 
-                            with cls.builder.CHILD(key="recfile", name="Recognition File Name",
-                                                   desc="Recognition file name"):
+                            with cls.builder.CHILD(key="recfile", name=_TR("Recognition File Name"),
+                                                   desc=_TR("Recognition file name")):
                                 cls.builder.TYPE(ParamType.STRING)
                                 cls.builder.DEFAULTVALUE("default.srec")
 
-                        with cls.builder.CHILD(key="deleteClearRegion", name="Delete Clear Region",
-                                               desc="Delete Clear Region"):
+                        with cls.builder.CHILD(key="deleteClearRegion", name=_TR("Delete Clear Region"),
+                                               desc=_TR("Delete Clear Region")):
                             cls.builder.TYPE(ParamType.ARRAY)
 
-                        with cls.builder.CHILD(key="test", name="Test",
-                                               desc="test"):
+                        with cls.builder.CHILD(key="test", name=_TR("Test"),
+                                               desc=_TR("test")):
                             cls.builder.TYPE(ParamType.ARRAY)
 
                             cls.builder.TYPE(ParamType.ARRAY)
@@ -1136,7 +1147,7 @@ class InputParams:
                                 create_rec_param(cls.builder)
 
             if ConfigParams.scriptDebug:
-                with cls.builder.CHILD(key="targetName", name="Target Name", desc="Target ID Name"):
+                with cls.builder.CHILD(key="targetName", name=_TR("Target Name"), desc=_TR("Target ID Name")):
                     cls.builder.TYPE(ParamType.STRING)
                     cls.builder.DEFAULTVALUE("AP1")
 
@@ -1514,6 +1525,8 @@ class Fork(ModuleBase):
 
         # 栈板扣除区域 还是以前表面为中心点
         self.rec_pallet_handled = False
+        self.rec_cage_handled = False
+        self.rec_count = 0
         self.leave_loc_height = -1
         self.rec_height = -1
         self.cage_count = 0
@@ -1818,9 +1831,10 @@ class Fork(ModuleBase):
                 self.back_dist = self.rec_info.get("backDistance")
 
             self.action_list = [
-                RunMotorByPosition(ConfigParams.fork_motor_name,self.start_height),
-                GoLiveRec(self.recfile,self.back_dist,rec_x = rec_center2robot[0], rec_y = rec_center2robot[1], rec_radius=ConfigParams.recRadius),
-                RunMotorByPosition(ConfigParams.fork_motor_name,self.endHeight)]
+                RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
+                GoLiveRec(self.recfile, self.back_dist, rec_x=rec_center2robot[0], rec_y=rec_center2robot[1],
+                          rec_radius=ConfigParams.recRadius),
+                RunMotorByPosition(ConfigParams.fork_motor_name, self.endHeight)]
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
 
@@ -1892,7 +1906,7 @@ class Fork(ModuleBase):
             if not self.recognize:
                 self.check_di = ConfigParams.enableContactDiNoRec
 
-                if not self.target_pos or self.target_pos[3] == -1:
+                if not self.target_pos or self.target_pos[3] == -1 or self.move_task.get("skillName", "") == "Action":
                     self.action_list = [
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, ConfigParams.fork_max_speed,
                                            "upFork")
@@ -1929,7 +1943,8 @@ class Fork(ModuleBase):
                     self.action_list.append(
                         GoPathWithContactDi(ConfigParams.contact_ids, target_pos, ConfigParams.loadObsStopDist,
                                             method, args, self.check_di, "load"))
-                    self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height))
+                    self.action_list.append(RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,
+                                                               ConfigParams.fork_max_speed, "upFork"))
 
                     if self.leave_loc_height >= 0:
                         args = {
@@ -1953,7 +1968,7 @@ class Fork(ModuleBase):
             # 如果需要识别后再取货
             else:
                 # 计算圆心
-                if self.target_pos[3] == -1:
+                if not self.target_pos or self.target_pos[3] == -1 or self.move_task.get("skillName", "") == "Action":
                     rec_center2robot = [ConfigParams.recCenterX, ConfigParams.recCenterY]
                 else:
                     target2robot = pos2Base(self.target_pos, r_loc)
@@ -2178,7 +2193,7 @@ class Fork(ModuleBase):
                 return
             target_pos, tcp_name = self.get_station_pos("targetName")
             Trace.log(f"target_pos: {target_pos}", name="fork.task")
-            if not target_pos or target_pos[3] == -1:
+            if not self.target_pos or self.target_pos[3] == -1 or self.move_task.get("skillName", "") == "Action":
                 self.action_list = [
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,
                                        ConfigParams.downMaxSpeedWithGoods, "downFork")
@@ -2495,7 +2510,7 @@ class Fork(ModuleBase):
             },
             output_console=False,
             name=f"{MOD}.task",
-            
+
         )
         Trace.log(
             {
@@ -2508,7 +2523,7 @@ class Fork(ModuleBase):
             },
             output_console=False,
             name=f"{MOD}.motor",
-            
+
         )
 
         # 根据变动量记录货叉的里程数据
@@ -2661,7 +2676,8 @@ class Fork(ModuleBase):
                 self.back_dist = self.rec_info.get("backDistance")
 
             self.action_list = [RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
-                                Rec(self.recfile, rec_center2robot[0], rec_center2robot[1], ConfigParams.recRadius,action_name="RecPallet")]
+                                Rec(self.recfile, rec_center2robot[0], rec_center2robot[1], ConfigParams.recRadius,
+                                    action_name="RecPallet")]
 
             #     if tcp_name:
             #         ap_world_pos_tcp = Navigation.calTCPTrans(self.target_pos[0], self.target_pos[1],
@@ -2700,9 +2716,9 @@ class Fork(ModuleBase):
             # 先识别到目标点
         # 识别栈板结束后动态加调整的类
         if (self.action_id < len(self.action_list)
-                and isinstance(self.current_action, Rec)
-                and self.current_action.action_name == "RecPallet"
-                and self.current_action.action_status == ActionStatus.FINISHED)\
+            and isinstance(self.current_action, Rec)
+            and self.current_action.action_name == "RecPallet"
+            and self.current_action.action_status == ActionStatus.FINISHED) \
                 and not self.rec_pallet_handled:
             self.rec_pallet_handled = True
 
@@ -2753,7 +2769,7 @@ class Fork(ModuleBase):
 
             # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
             args = {
-                "back_dist":-0.15,
+                "back_dist": -0.15,
                 "min_ahead_dist": ConfigParams.minAheadDist,
                 "adjust_dist": ConfigParams.aheadDist,
             }
@@ -2867,11 +2883,11 @@ class Fork(ModuleBase):
         Trace.log(f"bottom_cages: {bottom_cages},top_cages: {top_cages}", True, True)
 
         if len(bottom_cages) < 2:
-            Navigation.setTaskError("Wrong bottom num", "")
+            Navigation.setTaskError("wrongBottomCageNum", f"Wrong bottom num,{len(bottom_cages)} get")
             return [999, 999, 999]
 
         if len(top_cages) < 2:
-            Navigation.setTaskError("Wrong top num", "")
+            Navigation.setTaskError("wrongTopCageNum", f"Wrong top num,,{len(top_cages)} get")
             return [999, 999, 999]
 
         # 按 x 从大到小排序，取离车体最近的两个
@@ -2962,32 +2978,6 @@ class BaseAction:
         self.action_status = ActionStatus.FAILED
 
 
-# class GoBezier(BaseAction):
-#     def __init__(self, goal, back_dist, ahead_dist, min_ahead_dist):
-#         super().__init__()
-#         self.action_status = ActionStatus.INIT
-#         self.goal = goal
-#         self.init = False
-#         self.back_dist = back_dist
-#         self.ahead_dist = ahead_dist
-#         self.min_ahead_dist = min_ahead_dist
-#         self.start_time = 0.0
-#
-#     def run(self):
-#         if not self.init:
-#             self.init = True
-#             self.action_status = ActionStatus.RUNNING
-#             Navigation.resetGoForkPath(self.goal[0], self.goal[1], self.goal[2], self.back_dist,
-#                                        self.min_ahead_dist, self.ahead_dist)
-#             if ConfigParams.pathAdjustMode == "straightLine":
-#                 Navigation.goForkUseStraightLine()  # 走折线
-#         self.action_status = Navigation.goForkPath()
-#
-#     def reset(self):
-#         self.action_status = ActionStatus.RUNNING
-#         self.init = False
-
-
 # 用于识别栈板并获取识别的栈板坐标
 class Rec(BaseAction):
     def __init__(self, pallet_file, rec_center_x=-1.0, rec_center_y=0.0, rec_radius=0.7, action_name="RecPallet"):
@@ -3063,7 +3053,8 @@ class Rec(BaseAction):
                     error_msg = results["logMsg"]
                     Trace.log(f"error_type: {error_type}", name="fork.err")
                     self.action_status = ActionStatus.FAILED
-                    Navigation.setTaskError("RecFailed", f"Recognition failed, the maximum number of retries exceeded,error_type: {error_type}, error_msg: {error_msg}")
+                    Navigation.setTaskError("RecFailed",
+                                            f"Recognition failed, the maximum number of retries exceeded,error_type: {error_type}, error_msg: {error_msg}")
                 else:
                     Recognize.resetRec()
         else:
@@ -3789,14 +3780,17 @@ class RunModuleMotorByPosition(BaseAction):
         self.action_status = ActionStatus.INIT
         self.cur_position = Motor.getMotorPos(self.motor_name)
         self.cur_position_at_init = self.cur_position
+        Trace.log(f"module motor init,position:{position}")
 
     def _start_motor(self):
         min_length, max_length = ConfigParams._get_motor_limits(self.motor_name)
         self.position = clamp(self.position, min_length, max_length)
+        Trace.log(f"Motor {self.motor_name} to {self.position}")
         self.cur_position = Motor.getMotorPos(self.motor_name)
         delta = self.position - self.cur_position
         if abs(delta) <= 0.005:
             self.action_status = ActionStatus.FINISHED
+            Trace.log(f"no need move?{delta}")
             return
         if self.motor_name.startswith("DOMotor"):
             speed = self.max_speed if delta > 0 else -self.max_speed
@@ -4131,7 +4125,7 @@ class MoveChassisByY(BaseAction):
             self.yaw_move = GoPath(chassis_yaw_args)
             cur_position = Motor.getMotorPos(self.shiftMotor)
             self.shift = RunModuleMotorByPosition(self.shiftMotor, (cur_position + self.y), 0.1)
-            Trace.log(f"cur pos shift:{cur_position},target:{(cur_position + self.y)}",True,True,"fork.task",True)
+            Trace.log(f"cur pos shift:{cur_position},target:{(cur_position + self.y)}", True, True, "fork.task", True)
             chassis_x_args = {
                 "x": self.x,
                 "y": 0,
@@ -4387,11 +4381,11 @@ class GoTwoStraightLine(BaseAction):
             if angle <= max_angle:
                 # self.first_point = temp_start
                 Trace.log(f"满足角度要求，当前角度：{angle:.2f}°，使用第 {n} 次调整", name=f"{MOD}.nav")
-                return anglart  # 成功，返回当前角度
+                return angle, temp_start  # 成功，返回当前角度
 
         angle = abs(self.cal_angle(temp_start, self.second_point))
         Trace.log(f"未满足角度要求，当前角度：{angle:.2f}°", name=f"{MOD}.nav")
-        return p_start
+        return angle, temp_start
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
@@ -4410,10 +4404,11 @@ class GoTwoStraightLine(BaseAction):
 
 class GoLiveRec(BaseAction):
     def __init__(self, recfile="default.srec", action_name="GoLiveRec", back_dist=-1.7,
-                 ahead_dist=ConfigParams.aheadDist, min_ahead_dist=ConfigParams.minAheadDist,rec_x=ConfigParams.recCenterX, rec_y=ConfigParams.recCenterY, rec_radius=ConfigParams.recRadius):
+                 ahead_dist=ConfigParams.aheadDist, min_ahead_dist=ConfigParams.minAheadDist,
+                 rec_x=ConfigParams.recCenterX, rec_y=ConfigParams.recCenterY, rec_radius=ConfigParams.recRadius):
         super().__init__(action_name)
 
-        self.target_world = [0,0,0,-1]
+        self.target_world = [0, 0, 0, -1]
         self.back_dist = back_dist
         self.ahead_dist = ahead_dist
         self.min_ahead_dist = min_ahead_dist
@@ -4457,7 +4452,8 @@ class GoLiveRec(BaseAction):
                 self.doing_rec = False
                 self.rec_result = self.rec.result
                 Trace.log(f"rec result:{self.rec_result}")
-                self.target_world = [self.rec_result["worldResult"]["x"],self.rec_result["worldResult"]["y"],self.rec_result["worldResult"]["yaw"],]
+                self.target_world = [self.rec_result["worldResult"]["x"], self.rec_result["worldResult"]["y"],
+                                     self.rec_result["worldResult"]["yaw"], ]
             return self.action_status
 
         # Perform path planning if needed
