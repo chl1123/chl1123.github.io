@@ -498,17 +498,17 @@ class InputParams:
                 with builder.CHILD(key="robotArc", name="圆弧运动", desc="选择机器人圆弧运动"):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        with builder.CHILD(key="rotRadius", name="圆弧运动半径",
+                        with builder.CHILD(key="radius", name="圆弧运动半径",
                                         desc="圆弧运动的半径"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("m")
-                        with builder.CHILD(key="rotDegree", name="圆弧运动角度",
+                        with builder.CHILD(key="angle", name="圆弧运动角度",
                                         desc="圆弧运动的角度"):
                             builder.TYPE(ParamType.INT)
                             builder.REQUIRED(True)
                             builder.UNIT("°")
-                        with builder.CHILD(key="rotSpeed", name="圆弧运动速度",
+                        with builder.CHILD(key="speed", name="圆弧运动速度",
                                         desc="圆弧运动的导航速度"):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(False)
@@ -826,9 +826,9 @@ class ArcActionBuilder:
         self.task_args = task_args
 
     def build(self):
-        radius = self.task_args.get("rotRadius", None)
-        angle = self.task_args.get("rotDegree", None)
-        speed = self.task_args.get("rotSpeed", None)
+        radius = self.task_args.get("radius", None)
+        angle = self.task_args.get("angle", None)
+        speed = self.task_args.get("speed", None)
         return GoArc(
             radius,
             angle,
