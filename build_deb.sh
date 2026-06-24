@@ -6,16 +6,21 @@ DEFAULT_CONFIG="$SCRIPT_DIR/build_deb.yml"
 DEFAULT_NODE="master"
 DEFAULT_ARCH="arm64"
 DEFAULT_OUTPUT_ROOT="$SCRIPT_DIR"
-RMS_TOOL_DIR="/tmp/rms-plugin-zip"
-RMS_TOOL_REPO="https://cnb.cool/seer-robotics/src/tools/rms-plugin-zip.git"
+DEFAULT_MANIFEST_VERSION="2.0"
+RMS_TOOL_DIR="/tmp/rms-controller-packaging-tool"
+RMS_TOOL_REPO="https://cnb.cool/seer-robotics/EIC/RMS/rms-controller-packaging-tool.git"
+RMS_TOOL_ENTRY="build-manifest-package.py"
 SCRIPT_TARGET_PREFIX=".data/rbk/resources/scripts"
 LIB_TARGET_PREFIX="data/rbk"
+PAYLOAD_TARGET_PREFIX="/opt"
 
 PACKAGE_ID=""
 VERSION=""
 DESCRIPTION=""
 NODE="$DEFAULT_NODE"
 OUTPUT_ROOT="$DEFAULT_OUTPUT_ROOT"
+MANIFEST_VERSION="$DEFAULT_MANIFEST_VERSION"
+DEBUG_OUTPUT=0
 
 declare -a ARCHITECTURES=()
 declare -a FILE_TYPES=()
@@ -25,7 +30,7 @@ declare -a FILE_TARGETS=()
 usage() {
   cat <<'EOF'
 Usage:
-  ./build_deb.sh [build_deb.yml]
+  ./build_deb.sh [--debug] [build_deb.yml]
 EOF
 }
 
@@ -76,11 +81,15 @@ require_cmd() {
 }
 
 ensure_rms_tool() {
-  if [[ -x "$RMS_TOOL_DIR/build_package.sh" ]]; then
+  if [[ -f "$RMS_TOOL_DIR/$RMS_TOOL_ENTRY" ]]; then
     return
+  fi
+  if [[ -e "$RMS_TOOL_DIR" ]]; then
+    fail "manifest tool dir exists but $RMS_TOOL_ENTRY not found: $RMS_TOOL_DIR"
   fi
   require_cmd git
   git clone --depth 1 "$RMS_TOOL_REPO" "$RMS_TOOL_DIR"
+  [[ -f "$RMS_TOOL_DIR/$RMS_TOOL_ENTRY" ]] || fail "manifest tool clone succeeded but $RMS_TOOL_ENTRY is missing"
 }
 
 validate_arch() {
@@ -94,12 +103,72 @@ validate_arch() {
   esac
 }
 
+validate_manifest_version() {
+  local version="$1"
+  case "$version" in
+    1.0|2.0)
+      ;;
+    *)
+      fail "unsupported manifest version: $version"
+      ;;
+  esac
+}
+
 add_arch() {
   local arch
   arch="$(strip_quotes "$1")"
   arch="$(trim "$arch")"
   [[ -n "$arch" ]] || return
+  validate_arch "$arch"
   ARCHITECTURES+=("$arch")
+}
+
+array_contains() {
+  local needle="$1"
+  shift
+  local item=""
+
+  for item in "$@"; do
+    [[ "$item" == "$needle" ]] && return 0
+  done
+  return 1
+}
+
+expand_architectures() {
+  local resolved_architectures=()
+  local arch=""
+  local expanded_arch=""
+
+  for arch in "${ARCHITECTURES[@]}"; do
+    if [[ "$arch" == "all" ]]; then
+      for expanded_arch in arm64 amd64; do
+        if ! array_contains "$expanded_arch" "${resolved_architectures[@]}"; then
+          resolved_architectures+=("$expanded_arch")
+        fi
+      done
+      continue
+    fi
+
+    if ! array_contains "$arch" "${resolved_architectures[@]}"; then
+      resolved_architectures+=("$arch")
+    fi
+  done
+
+  ARCHITECTURES=("${resolved_architectures[@]}")
+}
+
+ensure_arch_all_supported() {
+  local file_type=""
+
+  if ! array_contains "all" "${ARCHITECTURES[@]}"; then
+    return
+  fi
+
+  for file_type in "${FILE_TYPES[@]}"; do
+    if [[ "$(normalize_file_type "$file_type")" != "script" ]]; then
+      fail "arch 'all' only supports script files; binary/plugin files must declare concrete architectures"
+    fi
+  done
 }
 
 parse_inline_arch_list() {
@@ -206,6 +275,9 @@ load_config() {
         outputDir)
           OUTPUT_ROOT="$(strip_quotes "$value")"
           ;;
+        manifestVersion|manifest-version)
+          MANIFEST_VERSION="$(strip_quotes "$value")"
+          ;;
         arch)
           value="$(strip_quotes "$value")"
           if [[ -z "$value" ]]; then
@@ -271,6 +343,32 @@ ensure_safe_target_rel() {
   [[ "$target" != *".."* ]] || fail "target cannot contain '..': $target"
 }
 
+infer_script_target_from_source() {
+  local source_path="$1"
+  local target=""
+
+  [[ "$source_path" == "$SCRIPT_DIR/"* ]] || fail "script target is empty and source is outside repo: $source_path"
+  target="${source_path#"$SCRIPT_DIR"/}"
+  target="$(normalize_rel_path "$target")"
+
+  case "$target" in
+    tasks/v3/*)
+      target="tasks/${target#tasks/v3/}"
+      ;;
+    tasks/v4/*)
+      target="tasks/${target#tasks/v4/}"
+      ;;
+    generic/v3/*)
+      target="generic/${target#generic/v3/}"
+      ;;
+    generic/v4/*)
+      target="generic/${target#generic/v4/}"
+      ;;
+  esac
+
+  printf '%s' "$target"
+}
+
 normalize_script_target() {
   local target="$1"
   local source_path="$2"
@@ -278,30 +376,13 @@ normalize_script_target() {
   target="$(trim "$target")"
 
   if [[ -z "$target" ]]; then
-    [[ "$source_path" == "$SCRIPT_DIR/"* ]] || fail "script target is empty and source is outside repo: $source_path"
-    target="${source_path#"$SCRIPT_DIR"/}"
-    target="$(normalize_rel_path "$target")"
-    case "$target" in
-      tasks/v3/*)
-        target="tasks/${target#tasks/v3/}"
-        ;;
-      tasks/v4/*)
-        target="tasks/${target#tasks/v4/}"
-        ;;
-      generic/v3/*)
-        target="generic/${target#generic/v3/}"
-        ;;
-      generic/v4/*)
-        target="generic/${target#generic/v4/}"
-        ;;
-    esac
-  else
-    target="${target#/opt/.data/rbk/resources/scripts/}"
-    target="${target#/.data/rbk/resources/scripts/}"
-    target="${target#${SCRIPT_TARGET_PREFIX}/}"
-    target="$(normalize_rel_path "$target")"
+    target="$(infer_script_target_from_source "$source_path")"
   fi
 
+  target="${target#/opt/.data/rbk/resources/scripts/}"
+  target="${target#/.data/rbk/resources/scripts/}"
+  target="${target#${SCRIPT_TARGET_PREFIX}/}"
+  target="$(normalize_rel_path "$target")"
   ensure_safe_target_rel "$target"
   printf '%s/%s' "$SCRIPT_TARGET_PREFIX" "$target"
 }
@@ -405,10 +486,16 @@ build_for_arch() {
   local timestamp=""
   local version_value=""
   local description_slug=""
+  local package_slug=""
+  local output_root=""
+  local output_name=""
   local output_dir=""
   local work_dir=""
   local payload_dir=""
   local inner_zip=""
+  local resource_zip=""
+  local final_package_zip=""
+  local -a tool_args=()
 
   validate_arch "$arch"
 
@@ -416,7 +503,10 @@ build_for_arch() {
   version_value="$VERSION"
   [[ -n "$version_value" ]] || version_value="$(date +%Y.%m.%d.%H%M%S)"
   description_slug="$(sanitize_zip_token "${DESCRIPTION:-package}")"
-  output_dir="$(resolve_output_root "$OUTPUT_ROOT")/dist_rms_${arch}_${timestamp}"
+  package_slug="$(sanitize_zip_token "$PACKAGE_ID")"
+  output_root="$(resolve_output_root "$OUTPUT_ROOT")"
+  output_name="${package_slug}-manifest-${version_value}-${arch}"
+  output_dir="$output_root/$output_name"
 
   work_dir="$(mktemp -d)"
   payload_dir="$work_dir/payload"
@@ -430,35 +520,79 @@ build_for_arch() {
     zip -qr "$inner_zip" .
   )
 
-  mkdir -p "$output_dir"
-  (
-    cd "$output_dir"
-    printf '%s\n' \
-      "$PACKAGE_ID" \
-      "$version_value" \
-      "$arch" \
-      "${NODE:-$DEFAULT_NODE}" \
-      "plugin" \
-      "$DESCRIPTION" \
-      "/opt" | \
-      bash "$RMS_TOOL_DIR/build_package.sh" "$inner_zip"
+  mkdir -p "$output_root"
+  tool_args=(
+    zip
+    --zip "$inner_zip"
+    --target-path "$PAYLOAD_TARGET_PREFIX"
+    --manifest-version "$MANIFEST_VERSION"
+    --output-name "$output_name"
+    --output-root "$output_root"
+    --resource-name "$PACKAGE_ID"
+    --package-id "$PACKAGE_ID"
+    --package-type "plugin"
+    --package-version "$version_value"
+    --arch "$arch"
+    --force
   )
+  if [[ -n "$NODE" ]]; then
+    tool_args+=(--node "$NODE")
+  fi
+  if [[ -n "$DESCRIPTION" ]]; then
+    tool_args+=(--description "$DESCRIPTION")
+  fi
+
+  python3 "$RMS_TOOL_DIR/$RMS_TOOL_ENTRY" "${tool_args[@]}"
+
+  resource_zip="$output_dir/$(basename "$inner_zip")"
+  final_package_zip="$output_root/$output_name.zip"
+
+  [[ -f "$final_package_zip" ]] || fail "final manifest package zip not found: $final_package_zip"
+  if (( DEBUG_OUTPUT )); then
+    rm -f "$resource_zip"
+  else
+    rm -rf "$output_dir"
+  fi
 
   rm -rf "$work_dir"
-  echo "generated package dir: $output_dir"
-  ls -la "$output_dir"
+  if (( DEBUG_OUTPUT )); then
+    echo "debug manifest dir: $output_dir"
+    ls -la "$output_dir"
+  fi
+  echo "final manifest package zip: $final_package_zip"
 }
 
 main() {
-  local config_path=""
+  local config_path="$DEFAULT_CONFIG"
+  local config_explicit=0
   local arch=""
+  local arg=""
 
-  if [[ $# -gt 1 ]]; then
-    usage
-    exit 1
-  fi
+  while [[ $# -gt 0 ]]; do
+    arg="$1"
+    shift
 
-  config_path="${1:-$DEFAULT_CONFIG}"
+    case "$arg" in
+      --debug)
+        DEBUG_OUTPUT=1
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      -*)
+        fail "unknown option: $arg"
+        ;;
+      *)
+        if (( config_explicit )); then
+          fail "only one config file can be specified"
+        fi
+        config_path="$arg"
+        config_explicit=1
+        ;;
+    esac
+  done
+
   if [[ "$config_path" != /* ]]; then
     config_path="$SCRIPT_DIR/$(normalize_rel_path "$config_path")"
   fi
@@ -469,14 +603,18 @@ main() {
   require_cmd mktemp
   require_cmd cp
   require_cmd file
+  require_cmd python3
   ensure_rms_tool
 
   load_config "$config_path"
+  validate_manifest_version "$MANIFEST_VERSION"
 
   [[ -n "$PACKAGE_ID" ]] || fail "PackageID is required"
   if [[ ${#ARCHITECTURES[@]} -eq 0 ]]; then
     ARCHITECTURES=("$DEFAULT_ARCH")
   fi
+  ensure_arch_all_supported
+  expand_architectures
   [[ ${#FILE_TYPES[@]} -gt 0 ]] || fail "files must contain at least one item"
 
   for arch in "${ARCHITECTURES[@]}"; do
