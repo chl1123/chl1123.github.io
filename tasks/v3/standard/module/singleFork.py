@@ -164,7 +164,7 @@ class ConfigParams:
     pumpDo: str = ""
     # —— 取放货
     laserDetectionWidth: float = 0.05
-    loadUnloadCheck: bool = False
+    loadAndUnloadCheck: bool = False
     aheadDist: float = 0.8
     minAheadDist: float = 1.0
     forkDiEnableAtLoad: bool = False
@@ -1897,7 +1897,7 @@ class Fork(ModuleBase):
             self.target_pos, tcp_name = self.get_station_pos("targetName")
 
             # 如果有货,脚本无法取货并报错
-            if Navigation.hasGoods() and ConfigParams.loadUnloadCheck:
+            if Navigation.hasGoods() and ConfigParams.loadAndUnloadCheck:
                 Navigation.setTaskError("ForkHasGoods", f"fork has goods, cannot load, script failed")
                 self.script_status = ScriptStatus.FAILED
                 return
@@ -2187,7 +2187,7 @@ class Fork(ModuleBase):
             source_pos = self.get_station_pos("sourceName")[0]
             self.start_loc = r_loc if source_pos[3] == -1 else source_pos
 
-            if not Navigation.hasGoods() and ConfigParams.loadUnloadCheck:
+            if not Navigation.hasGoods() and ConfigParams.loadAndUnloadCheck:
                 Navigation.setTaskError("ForkNoGoods", f"fork has no goods, cannot unload, script failed")
                 self.script_status = ScriptStatus.FAILED
                 return
