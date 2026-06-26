@@ -15,6 +15,7 @@ from syspy.utils.param_server import ParamBuilder, ParamType, ScriptParam
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot import RobotParam
 from syspy.utils import ScriptType
+from typing import List, Dict
 
 
 LOG_NAME = "actions"
@@ -269,7 +270,7 @@ def _normalize_legacy_task_args(task_args: dict) -> dict:
     return normalized
 
 
-def _get_nav_defaults(keys: list[str], log_name: str) -> dict:
+def _get_nav_defaults(keys: List[str], log_name: str) -> Dict[str, float]:
     has_goods = bool(Navigation.hasGoods())
     state_key = "load" if has_goods else "unload"
     path_map = {}
