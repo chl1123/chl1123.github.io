@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/6/15
+# @Date: 2026/6/27
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: fix: 1. 修改部分setDeviceError为setTaskError 2.修复def cancel下电机未停止 feat:优化常用参数模板ui显示
+# @Update: fix: 自动识别计算伸出长度不伸出货叉的bug：https://project.feishu.cn/seer_rd_center/issue/detail/7029921213
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -895,13 +895,19 @@ class RotateAction(BaseAction):
 
 
 class StretchAction(BaseAction):
-    def __init__(self, agv, length, action_name="Stretch"):
+    def __init__(self, agv, length, action_name="Stretch", dynamic=False):
         super().__init__(action_name)
         self.agv = agv
         self.length = length
+        # dynamic=True: 运行时(而非构建时)从 agv.stretch_length 取长度。
+        # 取/放货伸出长度由 RecAdjust 在运行时算出并写到 agv.stretch_length，
+        # 而整个 action 队列是提前构建的，构建时该值还是 0，必须延迟到运行时再读。
+        self.dynamic = dynamic
 
     def run(self, m):
         super().run(m)
+        if self.dynamic:
+            self.length = self.agv.stretch_length
         temp_motor_speed = ConfigParams.stretch_motor_speed
         if ConfigParams.max_stretch_length < self.length < ConfigParams.max_stretch_length + 0.1:
             Navigation.setTaskError("StretchLengthExceeded", f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！")
@@ -1658,7 +1664,7 @@ class ContainerRobot(ModuleBase):
             actions.append(RecAdjustAction(self, "load_rec_adjust"))
         actions.append(LiftAction(self, self.lift_height + self.load_height, "load_lift_pick"))
         actions.append(CheckFingerOpenAction(self, "load_check_finger"))
-        actions.append(StretchAction(self, self.stretch_length, "load_stretch_out"))
+        actions.append(StretchAction(self, self.stretch_length, "load_stretch_out", dynamic=self.is_auto_stretch))
         actions.append(FingerAction(self, 0, "load_finger_close"))
         actions.append(StretchAction(self, 0, "load_stretch_retract"))
         actions.append(CheckGoodsDiAction(self, "load_check_goods"))
@@ -1753,7 +1759,7 @@ class ContainerRobot(ModuleBase):
             actions.append(RecAdjustAction(self, "ex_take_rec_adjust"))
         actions.append(LiftAction(self, self.lift_height + self.load_height, "ex_take_lift_pick"))
         actions.append(FingerAction(self, 1, "ex_take_finger_open"))
-        actions.append(StretchAction(self, self.stretch_length, "ex_take_stretch_out"))
+        actions.append(StretchAction(self, self.stretch_length, "ex_take_stretch_out", dynamic=self.is_auto_stretch))
         actions.append(FingerAction(self, 0, "ex_take_finger_close"))
         actions.append(StretchAction(self, 0, "ex_take_stretch_retract"))
         actions.append(BindContainerAction("999", self.goods_id, "", "ex_take_bind"))
@@ -1781,7 +1787,7 @@ class ContainerRobot(ModuleBase):
         if self.rec_adjust is not None:
             actions.append(RecAdjustAction(self, "ex_put_rec_adjust"))
         actions.append(LiftAction(self, self.lift_height + self.unload_height, "ex_put_lift_place"))
-        actions.append(StretchAction(self, self.stretch_length, "ex_put_stretch_out"))
+        actions.append(StretchAction(self, self.stretch_length, "ex_put_stretch_out", dynamic=self.is_auto_stretch))
         actions.append(FingerAction(self, 1, "ex_put_finger_open"))
         actions.append(StretchAction(self, 0, "ex_put_stretch_retract"))
         actions.append(ParallelAction([
@@ -1860,10 +1866,10 @@ class ContainerRobot(ModuleBase):
         if self.pre_finger is not None:
             actions.append(ParallelAction([
                 FingerAction(self, self.pre_finger, "unload_pre_finger"),
-                StretchAction(self, self.stretch_length, "unload_stretch_out"),
+                StretchAction(self, self.stretch_length, "unload_stretch_out", dynamic=self.is_auto_stretch),
             ], "unload_parallel_stretch_finger"))
         else:
-            actions.append(StretchAction(self, self.stretch_length, "unload_stretch_out"))
+            actions.append(StretchAction(self, self.stretch_length, "unload_stretch_out", dynamic=self.is_auto_stretch))
         actions.append(FingerAction(self, 1, "unload_finger_open"))
         actions.append(StretchAction(self, 0, "unload_stretch_retract"))
         actions.append(ParallelAction([
