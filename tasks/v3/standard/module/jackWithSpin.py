@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/6/12
+# @Date : 2026/6/27
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add：读取地图线路属性决定正倒走
+# @Update : add：1. 优化识别前置后退功能：https://project.feishu.cn/seer_rd_center/rd_request_new/detail/7026743799
+#                2. 新增扣除区域基于料架识别面设置朝向 https://project.feishu.cn/seer_rd_center/rd_request_new/detail/7028963549
+#           fix：PGV二次调整返回值导致不结束的BUG
 
 import json
 import math
@@ -1428,6 +1430,8 @@ class Jack(ModuleBase):
         self._first_rec_extended = False
         self._second_rec_extended = False
         self._bezier_rec_extended = False
+        # 第一次无识别结果时, 前进 recDist 再识别的已重试次数
+        self._rec_retry_count = 0
         # 识别文件
         self.laser_area_deduct_info = None
         # 定义动作相关的变量
@@ -1533,6 +1537,31 @@ class Jack(ModuleBase):
             return "B"  # B 边朝车头
         else:  # 225° ~ 315°
             return "C"  # C 边朝车头
+
+    # 货物模型基准是 A 面(_rotate_pt 中 A=identity)，激光扣除区配置基准是 B 面，二者差 90°。
+    # 现场实测若发现整体镜像(差一个符号)，把此偏移由 90 改 -90 即可。
+    DEDUCT_BASELINE_OFFSET_DEG = 90
+
+    def _deduct_orientation_angle(self):
+        """扣除区相对其配置基准(B面)应旋转的弧度，跟随识别面。
+
+        与 bindContainer 一致的方向源：有二次调整且已读到上视 PGV 角 → 跟连续角；
+        否则按 insert_dir(A/B/C/D) 离散。theta = R_goods + 基准偏移(90°)，使 B/D→0/180、
+        A/C→90/270(对称足迹下等效)，B/D 保持现状、只补窄边。
+        """
+        if self.is_secondary_adjust and self.pgv_goods_angle_robot is not None:
+            r_goods = self.pgv_goods_angle_robot
+            src = f"pgv={math.degrees(r_goods):.1f}"
+        else:
+            dir_ = self.insert_shelf_dir
+            if self.is_backwards:  # 与 bindContainer 一致：倒走面取反(对称足迹下等效)
+                dir_ = {'A': 'C', 'B': 'D', 'C': 'A', 'D': 'B'}.get(dir_, dir_)
+            r_goods = {'A': 0.0, 'B': -math.pi / 2, 'C': math.pi, 'D': math.pi / 2}.get(dir_, 0.0)
+            src = f"dir={dir_}"
+        theta = r_goods + math.radians(self.DEDUCT_BASELINE_OFFSET_DEG)
+        debug_trace(f"deduct orient {src} theta={math.degrees(theta):.1f}deg", name=f"{MOD}.motor")
+        return theta
+
 
     # ============================================================================
     # 空载启动对齐
@@ -1732,6 +1761,9 @@ class Jack(ModuleBase):
             self.is_recognize = bool(_rec_raw)
         self.recfile = self.task_args.get("recFile", None)
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "B")
+        # 第一次无识别结果时, 向前进 recDist(m) 再识别(仅当任务参数传入 recDist 时启用; 不传=按原逻辑直接报错)
+        self.rec_dist = self.task_args.get("recDist", 0.0)
+        self.rec_retry_max = int(self.task_args.get("recRetryMax", 3))
         self.at_site = (self._get_script_stage() != 3) and (not self.is_recognize)
 
         # spin,rotate相关
@@ -1795,6 +1827,20 @@ class Jack(ModuleBase):
             self.curvature_limit = config_params.polyline_max_angle
             self.path_dist_accuracy = config_params.polyline_path_dist_accuracy
             self.path_angle_accuracy = config_params.polyline_path_angle_accuracy
+
+        # 按当前线路 direction 决定正走/倒走（Forward=正走, Backward=倒走）
+        # 仅当 direction 明确为 Forward/Backward 时生效，其他值（含读取失败/空）保留 isBackwards 兜底
+        try:
+            path_prop = Navigation.getCurrentPathProperty()
+            direction = path_prop.get("direction") if path_prop else None
+            if direction == "Forward":
+                self.is_backwards = False
+            elif direction == "Backward":
+                self.is_backwards = True
+            debug_trace(f"direction={direction} -> is_backwards={self.is_backwards}", name=f"{MOD}.nav")
+        except Exception as e:
+            debug_trace(f"getCurrentPathProperty failed, keep is_backwards={self.is_backwards} error={e}",
+                        name=f"{MOD}.err")
 
         # goPath相关
         self.goPath_x = self.task_args.get("goPathX", None)
@@ -1887,6 +1933,9 @@ class Jack(ModuleBase):
             # 方案A: 队列终结后再调度一次, 给识别类动态 extend 补追加后续动作的机会
             self._dispatch_builder()
             self._sync_task()
+            # builder 在补调度中自行置终态(如识别重试耗尽置 FAILED) → 尊重之, 勿被下方队列状态覆盖
+            if self.status in (ScriptStatus.FINISHED, ScriptStatus.FAILED):
+                return
             if not self.action_task.is_done:
                 return
             if self.action_task.status == ActionStatus.FAILED:
@@ -2426,7 +2475,8 @@ class Jack(ModuleBase):
                         self.status = ScriptStatus.FAILED
                         return
                     self.action_list.append(
-                        RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
+                        RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir,
+                                 is_backwards=self.is_backwards, allow_empty=bool(self.rec_dist)))
                 else:
                     # 不识别时，直接在初始化阶段添加导航、二次调整、顶升等动作
                     self._append_load_actions(self.ap_world_pos)
@@ -2435,12 +2485,36 @@ class Jack(ModuleBase):
         if not self._first_rec_extended and self._action_finished("FirstRec"):
             self._first_rec_extended = True
             result_world = self.rec_result
+
+            # 第一次/本轮无识别结果 → 往外(远离货架)退一段再识别（可重试多次, 超 recRetryMax 才报错）
+            # 方向与行驶方向相反(back out): 正走往车尾后退(-x,back_mode=True), 倒走往车头前进(+x,back_mode=False)
+            if not result_world:
+                if self.rec_dist and self._rec_retry_count < self.rec_retry_max:
+                    self._rec_retry_count += 1
+                    # 识别不到时往外退, 给识别留出视野; back_mode 取 not is_backwards, step 同步取反, 二者一致不会原地掉头。
+                    # 用 abs() 取 recDist 幅值, 只决定距离, 方向由 is_backwards 决定。
+                    step = abs(self.rec_dist) if self.is_backwards else -abs(self.rec_dist)
+                    debug_trace(f"jack_load: FirstRec no result, move {step}m (is_backwards={self.is_backwards}) "
+                                f"and retry ({self._rec_retry_count}/{self.rec_retry_max})", name=f"{MOD}.rec")
+                    self.action_list.append(GoPath([step, 0, 0], "robot", not self.is_backwards))
+                    self.action_list.append(
+                        RecShelf(self.recfile, "FirstRec", side=self.insert_shelf_dir,
+                                 is_backwards=self.is_backwards, allow_empty=True))
+                    self._first_rec_extended = False  # 重新武装, 等新 FirstRec 完成后再次进入本分支
+                else:
+                    Navigation.setTaskError("RecFailed",
+                                            "Recognition failed: still no result after moving retries")
+                    self.status = ScriptStatus.FAILED
+                return
+
             robot_pos = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             result_robot = pos2Base(result_world, robot_pos)
 
             # 识别结果在机器人坐标系下 x < 1m → 太近，先后退再二次识别
+            # 后退方向跟随 is_backwards: 正走后退(-x,back_mode=True), 倒走后退(+x,back_mode=False)
             if result_robot[0] < 1:
-                self.action_list.append(GoPath([-0.3, 0, 0], "robot", True))
+                back_step = 0.3 if self.is_backwards else -0.3
+                self.action_list.append(GoPath([back_step, 0, 0], "robot", not self.is_backwards))
                 self.action_list.append(
                     RecShelf(self.recfile, "SecondRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
             else:
@@ -3164,7 +3238,12 @@ class SetLaserDeductArea(ActionBase):
                 devices = self.deduct_info.get("deductDevice", [])
                 areas = self.deduct_info.get("area", [])
 
-                debug_trace(f"SetLaserDeductArea: setting {len(areas)} areas devices={devices}", name=MOD)
+                # 跟随识别面旋转扣除区(绕机器人原点)，使其与实际料架腿对齐；B/D theta≈0 即恒等，行为同现状
+                theta = j._deduct_orientation_angle()
+                cos_a, sin_a = math.cos(theta), math.sin(theta)
+
+                debug_trace(f"SetLaserDeductArea: setting {len(areas)} areas devices={devices} "
+                            f"theta={math.degrees(theta):.1f}deg", name=MOD)
 
                 for idx, area in enumerate(areas, start=1):
                     x_list = area.get("xList", area.get("x_list", []))
@@ -3174,8 +3253,11 @@ class SetLaserDeductArea(ActionBase):
                         debug_trace(f"SetLaserDeductArea: skip invalid area idx={idx}", name=f"{MOD}.err")
                         continue
 
+                    rx = [x * cos_a - y * sin_a for x, y in zip(x_list, y_list)]
+                    ry = [x * sin_a + y * cos_a for x, y in zip(x_list, y_list)]
+
                     region_name = f"{self.prefix}{idx}"
-                    Navigation.setClearRegion(region_name, x_list, y_list, devices, self.coordinate)
+                    Navigation.setClearRegion(region_name, rx, ry, devices, self.coordinate)
                     debug_trace(f"SetLaserDeductArea: created {region_name}", name=MOD)
 
                 self.action_status = ActionStatus.FINISHED
@@ -3919,7 +4001,8 @@ class GoBezierReturn(ActionBase):
 class RecShelf(ActionBase):
     """识别货架"""
 
-    def __init__(self, shelf_file, action_name="RecShelf", recognition_region=None, side="A", is_backwards=False):
+    def __init__(self, shelf_file, action_name="RecShelf", recognition_region=None, side="A", is_backwards=False,
+                 allow_empty=False):
         super().__init__(action_name)
 
         kwargs = locals()
@@ -3934,6 +4017,7 @@ class RecShelf(ActionBase):
         self.do_rec = False
         self.side = side
         self.is_backwards = is_backwards
+        self.allow_empty = allow_empty  # True: 重试超限不报错, 置空结果并FINISHED, 交上层决策(前进重识别)
         Recognize.resetRec()
         # 识别区域：优先使用传入参数，否则根据车头/车尾选择默认值
         default_region_front = {
@@ -3982,9 +4066,16 @@ class RecShelf(ActionBase):
                 self.attempts += 1
 
                 if self.attempts > self.max_attempts:
-                    self.action_status = ActionStatus.FAILED
-                    Navigation.setTaskError("RecFailed",
-                                            "Recognition retries exceeded. Check recognition distance or sensor")
+                    if self.allow_empty:
+                        # 无结果但允许空: 置空结果交上层(jack_load)决策是否前进重识别
+                        j.rec_result = []
+                        self.action_status = ActionStatus.FINISHED
+                        Trace.log("RecShelf no result after retries, allow_empty → return empty",
+                                  name=f"{MOD}.rec")
+                    else:
+                        self.action_status = ActionStatus.FAILED
+                        Navigation.setTaskError("RecFailed",
+                                                "Recognition retries exceeded. Check recognition distance or sensor")
                 else:
                     Recognize.resetRec()
                     self.do_rec = False
@@ -4270,10 +4361,18 @@ class PGVSecondaryAdjust(ActionBase):
     def run(self, j: Jack):
         if self.init:
             self.init = False
-            self.reset()
+            # reset() 已由 ActionTask.step() 在 INIT->RUNNING 转移时调用过一次,
+            # 此处不再重复调用, 避免 Navigation.resetGoPGV() 被二次触发
             self._build_static_params(j)
 
-        self.action_status = Navigation.goPGVRun(self.adjust_param)
+        # 底层 goPGVRun 的返回值仅在 FINISHED/FAILED 时原样传出;
+        # 其他中间态(含 INIT=0)统一归为 RUNNING, 防止 ActionTask.step() 把动作
+        # 误判为 pending 再次调用 reset() -> 循环 resetGoPGV() -> 二次调整永不收敛
+        status = Navigation.goPGVRun(self.adjust_param)
+        if status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            self.action_status = status
+        else:
+            self.action_status = ActionStatus.RUNNING
 
         j.report_info["PGVSecondaryAdjust"] = {
             "actionStatus": self.action_status,
@@ -4446,7 +4545,7 @@ class PGVCodeStripAdjust(ActionBase):
     def run(self, j: Jack):
         if self.init:
             self.init = False
-            self.reset()
+            # reset() 已由 ActionTask 在 INIT->RUNNING 转移时调过一次, 此处不再重复
             self._parse_angle_adjust_type()
 
         # 获取当前偏差值（从PGV读码获取）
@@ -4474,7 +4573,13 @@ class PGVCodeStripAdjust(ActionBase):
         # 数值偏差通过 reportInfo 上报，不在每 tick 写 Trace.log
 
         # 调用底层接口
-        self.action_status = Navigation.goPGVRun(self.adjust_param)
+        # 同 PGVSecondaryAdjust: 仅 FINISHED/FAILED 透传, 其他归为 RUNNING,
+        # 避免 ActionTask 二次 reset 导致 resetGoPGV() 循环
+        status = Navigation.goPGVRun(self.adjust_param)
+        if status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            self.action_status = status
+        else:
+            self.action_status = ActionStatus.RUNNING
 
         # 上报信息
         j.report_info["PGVCodeStripAdjust"] = {
@@ -4688,6 +4793,7 @@ def main():
             j._first_rec_extended = False
             j._second_rec_extended = False
             j._bezier_rec_extended = False
+            j._rec_retry_count = 0
             j.result = None  # 清空 result 防止完成后重复触发
             # 重置空载对齐状态（下次空载时重新检查）
             j._idle_align_done = False
