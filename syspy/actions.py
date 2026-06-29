@@ -199,7 +199,7 @@ def _normalize_legacy_task_args(task_args: dict) -> dict:
             else:
                 updates["operation"] = "robotRotate"
                 if angle_value is not None:
-                    updates["angle"] = abs(float(angle_value))
+                    updates["angle"] = float(angle_value)
                 if raw.get("robotRotateDirection") is not None:
                     updates["direction"] = raw.get("robotRotateDirection")
                 if raw.get("robotRotateSpeed") is not None:
@@ -710,7 +710,6 @@ class RobotRotateActionBuilder:
                 if speed_w_deg > 0
                 else RotateDirection.CLOCKWISE
             )
-
         return GoRobotRotateByOdo(
             angle_deg=angle_deg,
             direction=direction,
