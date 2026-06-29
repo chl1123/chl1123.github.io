@@ -441,7 +441,7 @@ class ConfigParams:
             cls.up_di = RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI")
             cls.down_di = RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI")
             cls.fork_max_speed = float(
-                RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed") or 0)
+                RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed") or 0.0)
             cls.reach_up_dist = float(
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachUpDist") or 0)
             cls.reach_down_dist = float(
@@ -3600,6 +3600,23 @@ class RunMotorByPosition(BaseAction):
                     Trace.log(f"fork moving down, set downDo:{ConfigParams.downDo} to {ConfigParams.downDoStatus}",
                               name="fork.task")
 
+            if ConfigParams.module_type not in ["liftFork", "singleFork", "pickFork"]:
+                # 目标位置比初始位置差得不大就不要执行动作了
+                if abs(self.delta) <= max(ConfigParams.reach_up_dist, ConfigParams.reach_down_dist, 0.01):
+                    self.action_status = ActionStatus.FINISHED
+                    Trace.log(f"fork motor do not need move, delta:{self.delta}", name="fork.task")
+
+                if ConfigParams.fork_root_2D_lasers:
+                    if self.delta < -EPS:
+                        if 0 < self.min_safe_height <= self.cur_fork_height:
+                            # 只在状态首次变化时打 log
+                            Trace.log(
+                                f"fork moving, height:{self.cur_fork_height} >= min_safe_height:{self.min_safe_height}, "
+                                f"skip back laser collision detection",
+                                name="fork.task")
+                        else:
+                            Navigation.collisionDetection(self.collision_device, self.x_list, self.y_list)
+
             # 搬运车分DOMotor和协议电机，分别处理发速度和目标高度
             if ConfigParams.module_type == "liftFork":
                 if ConfigParams.DOMotor:
@@ -3619,7 +3636,7 @@ class RunMotorByPosition(BaseAction):
                         self.position = ConfigParams.max_height
                     Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
 
-            if ConfigParams.module_type in ["singleFork", "pickFork"]:
+            if ConfigParams.module_type not in ["liftFork", "singleFork", "pickFork"]:
                 # 从输入参数和设备配置参数里选出最小速度
                 max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
 
@@ -3627,46 +3644,17 @@ class RunMotorByPosition(BaseAction):
                 if Navigation.hasGoods():
                     # 取最大速度
                     if self.delta > 0:
-                        max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
+                        if ConfigParams.upMaxSpeedWithGoods != -1:
+                            max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
                     else:
-                        max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
+                        if ConfigParams.downMaxSpeedWithGoods != -1:
+                            max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
 
                 self.max_speed = max_speed
 
                 Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
 
-            if ConfigParams.module_type not in ["liftFork", "singleFork", "pickFork"]:
-                # 目标位置比初始位置差得不大就不要执行动作了
-                if abs(self.delta) <= max(ConfigParams.reach_up_dist, ConfigParams.reach_down_dist, 0.01):
-                    self.action_status = ActionStatus.FINISHED
-                    Trace.log(f"fork motor do not need move, delta:{self.delta}", name="fork.task")
-
-                if ConfigParams.fork_root_2D_lasers:
-                    if self.delta < -EPS:
-                        if 0 < self.min_safe_height <= self.cur_fork_height:
-                            # 只在状态首次变化时打 log
-                            Trace.log(
-                                f"fork moving, height:{self.cur_fork_height} >= min_safe_height:{self.min_safe_height}, "
-                                f"skip back laser collision detection",
-                                name="fork.task")
-                        else:
-                            Navigation.collisionDetection(self.collision_device, self.x_list, self.y_list)
-
-                max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
-
-                # 考虑载货时的货叉升降速度
-                if Navigation.hasGoods():
-                    # 取最大速度
-                    if self.delta > 0:
-                        max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
-                    else:
-                        max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
-
-                self.max_speed = max_speed
-
-                Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
-
-            Trace.log(f"position:{self.position}", name="fork.task")
+            Trace.log(f"position:{self.position}, max speed :{self.max_speed}", name="fork.task")
 
         # 检查超时（仅对fork_motor_name）
         if self.motor_name == ConfigParams.fork_motor_name:
