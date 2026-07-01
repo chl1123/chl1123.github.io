@@ -2195,8 +2195,7 @@ class Fork(ModuleBase):
             Trace.log(f"target_pos: {target_pos}", name="fork.task")
             if not self.target_pos or self.target_pos[3] == -1 or self.move_task.get("skillName", "") == "Action":
                 self.action_list = [
-                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,
-                                       ConfigParams.downMaxSpeedWithGoods, "downFork")
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,action_name="downFork")
                 ]
             else:
 
@@ -2229,8 +2228,7 @@ class Fork(ModuleBase):
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                     GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
                                         False, "unload"),
-                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,
-                                       ConfigParams.downMaxSpeedWithGoods, "downFork")
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,action_name="downFork")
                 ]
 
                 if self.leave_loc_height >= 0:
