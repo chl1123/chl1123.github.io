@@ -70,7 +70,7 @@ class CalibMove:
             self.move_action = MoveAction.GoStraightForWard
             self.move_dist = Module.getTaskArgs("L", 2.0)
             self.speed_x = Module.getTaskArgs("V", 0.5)
-            self.speed_w = Module.getTaskArgs("W", 30 * math.pi / 180)
+            self.speed_w = Module.getTaskArgs("W", 30) * math.pi / 180
             self.cancel = False
             # 定位策略切换
             self.locType = Module.getTaskArgs("locType", "")
