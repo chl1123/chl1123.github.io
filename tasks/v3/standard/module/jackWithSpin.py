@@ -1,22 +1,28 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/6/27
+# @Date : 2026/7/3
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : add：1. 优化识别前置后退功能：https://project.feishu.cn/seer_rd_center/rd_request_new/detail/7026743799
-#                2. 新增扣除区域基于料架识别面设置朝向 https://project.feishu.cn/seer_rd_center/rd_request_new/detail/7028963549
-#           fix：PGV二次调整返回值导致不结束的BUG
+# @Update : m-7028565334 fix:脚本适配识别参数路径
+# m-7028963549 add: 扣除区域随托盘旋转的实时更新
+# m-7026743799 add：优化识别Dist功能
+# m-6617554096 feat：错误描述增加_TR翻译
+# m-7020616746 feat：适配Modbus TCP功能实现
+# m-6977954505 feat：适配最新的3.5机构脚本日志记录统一格式
 
 import json
 import math
+import struct
 import time
 from enum import IntEnum
 from syspy.utils.time import Timer
 
 from datetime import datetime
 
+
 from syspy import (Module, Motor, Navigation, Loc, Recognize,
                    CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer,
-                   is_simulation,_TR)
+                   NetProtocol, is_simulation, _TR)
+from syspy.lib.net_protocol import parseModbus
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from syspy.lib.action_task import ActionBase, ActionStatus, ActionTask
 from standard import goPath, goBezier
@@ -56,6 +62,16 @@ def debug_trace(msg: str, *, name: str):
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
+
+
+def float_to_modbus_poll_regs(value: float):
+    """将 float 数值转换为两个 uint16 的 Modbus Poll 寄存器值（小端: reg1=B1B0, reg2=B3B2）"""
+    value = struct.unpack('<f', struct.pack('<f', value))[0]
+    packed = struct.pack('<f', value)
+    b0, b1, b2, b3 = packed
+    reg1 = (b1 << 8) + b0
+    reg2 = (b3 << 8) + b2
+    return [reg1, reg2]
 
 class _SingletonDBManager:
     _instance = None
@@ -1009,6 +1025,27 @@ def create_jack_load(builder: ParamBuilder):
                         builder.UNIT("deg")
                         builder.SINGLESTEP(1.0)
 
+    with builder.CHILD(key="rotateBeforeJack", name=_TR("Rotate Before Jack"),
+                       desc=_TR("After entering the shelf and before jacking, rotate the robot body in place by a specified angle (robot frame; jack plate follows to keep its orientation)")):
+        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+        builder.DEFAULTVALUE("off")
+        with builder.CHILDREN():
+            with builder.CHILD(key="off", name=_TR("OFF"),
+                               desc=_TR("Do not rotate the body before jacking")):
+                builder.TYPE(ParamType.ARRAY)
+            with builder.CHILD(key="on", name=_TR("ON"),
+                               desc=_TR("Rotate the body by a specified angle before jacking")):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="rotateAngle", name=_TR("Rotate Angle (deg)"),
+                                       desc=_TR("Angle to rotate the robot body in place, robot frame, in degrees (positive = counterclockwise)")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("deg")
+                        builder.SINGLESTEP(1.0)
+                        builder.MIN_VALUE(-360)
+                        builder.MAX_VALUE(360)
+
     create_secondary_adjust(builder)
 
 
@@ -1406,12 +1443,12 @@ class Jack(ModuleBase):
         # Error53301: 检查顶升电机配置
         # ============================================
         if not config_params.jack_motor_name:
-            Navigation.setDeviceError("NoJackMotor", "Jack motor not found in model file. Check jack device configuration")
+            Navigation.setDeviceError("NoJackMotor", _TR("Jack motor not found in model file. Check jack device configuration"))
         # ============================================
         # Error53302: 检查旋转电机配置
         # ============================================
         if not config_params.spin_motor_name:
-            Navigation.setDeviceError("NoSpinMotor", "Spin motor not configured. Check spin motor configuration in model file")
+            Navigation.setDeviceError("NoSpinMotor", _TR("Spin motor not configured. Check spin motor configuration in model file"))
         # 脚本任务管理
         # tick_report 数据打印
         self.info_count = 0
@@ -1490,6 +1527,13 @@ class Jack(ModuleBase):
         self.result = None  # 边走边动结果参数
         self.jack_calib_step = [False, False, False,
                                 False]  # [0]=motorCalib指令已下发  [1]=标零已确认完成 [2]=旋转motorCalib已下发  [3]=旋转标零已完成
+
+        # ========== 扣除区域实时更新相关状态 ==========
+        self._last_spin_angle = None  # 上次记录的托盘电机角度
+        self._deduct_area_info = None  # 扣除区域原始信息 {"deductDevice": [...], "area": [...]}
+        # 实时跟随：只要托盘角度有变化就更新扣除区域。此处仅为噪声下限，
+        # 用于过滤电机静止/编码器抖动，避免无意义地重建扣除区域。
+        self._deduct_angle_threshold = math.radians(0.1)
 
     # ============================================================================
     # 角度工具方法
@@ -1594,6 +1638,88 @@ class Jack(ModuleBase):
                   name=f"{MOD}.motor")
         self.action_list = [Spin(target, "robot")]
         self._idle_align_pending = True
+
+    # ============================================================================
+    # 扣除区域实时更新
+    # ============================================================================
+
+    def monitor_and_update_deduct_area(self):
+        """主循环中监控托盘电机角度变化，实时更新扣除区域位置
+
+        调用时机：main() 主循环每个周期
+        触发条件：
+          1. 有货物（扣除区域已创建）
+          2. 托盘角度相比上次更新有变化（实时跟随，仅过滤噪声下限）
+        """
+        # 跳过条件：无货物或无扣除区域信息
+        if not Navigation.hasGoods() or self._deduct_area_info is None:
+            return
+
+        # 读取当前托盘角度
+        if not config_params.spin_motor_name:
+            return
+
+        current_angle = Motor.getMotorPos(config_params.spin_motor_name)
+        if current_angle is None:
+            return
+
+        # 初始化：第一次记录角度
+        if self._last_spin_angle is None:
+            self._last_spin_angle = current_angle
+            debug_trace(f"deduct area monitor init angle={math.degrees(current_angle):.1f}deg", name=f"{MOD}.motor")
+            return
+
+        # 计算角度变化量
+        delta_angle = self._normalize_angle(current_angle - self._last_spin_angle)
+
+        # 角度变化在噪声下限内（视为未移动），不更新
+        if abs(delta_angle) < self._deduct_angle_threshold:
+            return
+
+        # 更新扣除区域
+        try:
+            cos_a = math.cos(delta_angle)
+            sin_a = math.sin(delta_angle)
+
+            devices = self._deduct_area_info.get("deductDevice", [])
+            areas = self._deduct_area_info.get("area", [])
+
+            debug_trace(f"deduct area updating delta={math.degrees(delta_angle):.1f}deg areas={len(areas)}",
+                       name=f"{MOD}.motor")
+
+            for idx, area in enumerate(areas, start=1):
+                x_list = area.get("xList", area.get("x_list", []))
+                y_list = area.get("yList", area.get("y_list", []))
+
+                if len(x_list) < 3 or len(x_list) != len(y_list):
+                    continue
+
+                # 对每个点进行二维旋转变换：x' = x*cos - y*sin, y' = x*sin + y*cos
+                rotated_x = [x * cos_a - y * sin_a for x, y in zip(x_list, y_list)]
+                rotated_y = [x * sin_a + y * cos_a for x, y in zip(x_list, y_list)]
+
+                # 更新该区域的坐标（用于下次增量旋转）
+                area["xList"] = rotated_x
+                area["yList"] = rotated_y
+
+                region_name = f"ShelfDeductArea{idx}"
+
+                # 删除旧区域
+                try:
+                    Navigation.deleteClearRegion(region_name, Coordinate.ROBOT)
+                except Exception:
+                    pass
+
+                # 创建新区域
+                Navigation.setClearRegion(region_name, rotated_x, rotated_y, devices, Coordinate.ROBOT)
+
+            # 更新记录的角度
+            self._last_spin_angle = current_angle
+            debug_trace(f"deduct area updated new_angle={math.degrees(current_angle):.1f}deg",
+                       name=f"{MOD}.motor")
+
+        except Exception as e:
+            Trace.log(f"monitor deduct area update failed error={e}", name=f"{MOD}.err")
 
     # ============================================================================
     # 料架下旋转判断
@@ -1795,6 +1921,15 @@ class Jack(ModuleBase):
         self.jack_spin_angle_rad = (_rad + math.pi) % (2 * math.pi) - math.pi
 
         # ============================================
+        # jackLoad 顶升前按指定角度原地转车体参数
+        # ============================================
+        # rotateBeforeJack=on/off -> jack_rotate_body_enable
+        _rot_val = self.task_args.get("rotateBeforeJack", None)
+        self.jack_rotate_body_enable = (_rot_val == "on" or _rot_val is True)
+        # rotateAngle: deg (机器人坐标系相对旋转量) -> 弧度
+        self.jack_rotate_body_rad = math.radians(float(self.task_args.get("rotateAngle", 0.0)))
+
+        # ============================================
         # 导航参数：从脚本配置读取（现场实施后基本不变）
         # ============================================
         # Bezier导航参数
@@ -1940,7 +2075,7 @@ class Jack(ModuleBase):
                 return
             if self.action_task.status == ActionStatus.FAILED:
                 Navigation.setTaskError(
-                    "ExecuteActionError", "Action execution failed. Check action configuration")
+                    "ExecuteActionError", _TR("Action execution failed. Check action configuration"))
                 self.status = ScriptStatus.FAILED
             else:
                 self.status = ScriptStatus.FINISHED
@@ -1999,7 +2134,7 @@ class Jack(ModuleBase):
             pass
         else:
             # Error53301: 不支持的任务指令
-            Navigation.setTaskError("WrongOperation", f"Unsupported task operation: {self.opt}")
+            Navigation.setTaskError("WrongOperation", _TR(f"Unsupported task operation: {self.opt}"))
             self.status = ScriptStatus.FAILED
 
     def _sync_task(self):
@@ -2135,7 +2270,7 @@ class Jack(ModuleBase):
             return None
 
         try:
-            recognition_obstacle_deduction_path = f"recognitionObject.{object_key}.obstacleDeduction"
+            recognition_obstacle_deduction_path = f"recognitionObject.{object_key}.deductModel"
 
             # 1) 获取数组大小
             size = RobotParam.getConfigCloneSize("recognition", recognition_obstacle_deduction_path, recfile)
@@ -2254,7 +2389,7 @@ class Jack(ModuleBase):
 
         if target_idx is None:
             Navigation.setTaskError("RecSideError",
-                                    f"Direction not found in recognition file. Check recognition config,{side_name}'，object={object_key}")
+                                    _TR(f"Direction not found in recognition file. Check recognition config,{side_name}'，object={object_key}"))
             self.status = ScriptStatus.FAILED
             return {"side": side_name, "enableBackDistance": None, "backDistance": None}
 
@@ -2373,12 +2508,17 @@ class Jack(ModuleBase):
         if self.jack_spin_enable and self.jack_spin_phase == "beforeJack":
             Trace.log(f"jack_load beforeJack spin angle={math.degrees(self.jack_spin_angle_rad):.1f}deg",
                       name=f"{MOD}.motor")
-            self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None,
-                                         deduct_info=self.laser_area_deduct_info))
+            self.action_list.append(Spin(self.jack_spin_angle_rad, "robot", None))
         elif self._should_auto_spin_for_wide_side():
             Trace.log("jack_load wide-side(B/D) auto spin 90deg", name=f"{MOD}.motor")
-            self.action_list.append(Spin(math.radians(90), "robot", None,
-                                         deduct_info=self.laser_area_deduct_info))
+            self.action_list.append(Spin(math.radians(90), "robot", None))
+
+
+        # --- 顶升前：按指定角度原地转车体（机器人系相对旋转, 顶升盘随动保持朝向）---
+        if self.jack_rotate_body_enable and abs(self.jack_rotate_body_rad) > 1e-6:
+            Trace.log(f"jack_load rotateBeforeJack angle={math.degrees(self.jack_rotate_body_rad):.1f}deg",
+                      name=f"{MOD}.motor")
+            self.action_list.append(RobotRotate(self.jack_rotate_body_rad, Coordinate.ROBOT, True))
 
         # 顶升
         self.action_list.append(
@@ -2407,7 +2547,7 @@ class Jack(ModuleBase):
             # ============================================
             if config_params.load_again_error and Navigation.hasGoods():
                 Navigation.setTaskError("JackHasGoods",
-                                        "Robot already has goods, cannot load again. Disable LoadAgainError or execute JackUnload first")
+                                        _TR("Robot already has goods, cannot load again. Disable LoadAgainError or execute JackUnload first"))
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -2471,7 +2611,7 @@ class Jack(ModuleBase):
                 if self.is_recognize:
                     if not self.recfile:
                         Navigation.setTaskError("NoRecFile",
-                                                "Recognition enabled but no recognition file configured. Set recFile in task parameters")
+                                                _TR("Recognition enabled but no recognition file configured. Set recFile in task parameters"))
                         self.status = ScriptStatus.FAILED
                         return
                     self.action_list.append(
@@ -2503,7 +2643,7 @@ class Jack(ModuleBase):
                     self._first_rec_extended = False  # 重新武装, 等新 FirstRec 完成后再次进入本分支
                 else:
                     Navigation.setTaskError("RecFailed",
-                                            "Recognition failed: still no result after moving retries")
+                                            _TR("Recognition failed: still no result after moving retries"))
                     self.status = ScriptStatus.FAILED
                 return
 
@@ -2748,7 +2888,7 @@ class Jack(ModuleBase):
 
             if not motor_info:
                 Navigation.setDeviceError("MotorTypeError",
-                                          f"motor type {motor_type} not found, check moduleMotor config, check the device, motor_jog_or_move")
+                                          _TR(f"motor type {motor_type} not found, check moduleMotor config, check the device, motor_jog_or_move"))
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -2769,7 +2909,7 @@ class Jack(ModuleBase):
                 self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
             else:
                 Navigation.setTaskError("InputParamError",
-                                        "jogStep or position not provided, check the input param, provide jogStep or position, motor_jog_or_move")
+                                        _TR("jogStep or position not provided, check the input param, provide jogStep or position, motor_jog_or_move"))
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -2903,6 +3043,7 @@ class Jack(ModuleBase):
             except Exception as e:
                 Trace.log(f"get motor pos failed motor={motor['motorKey']} error={e}", name=f"{MOD}.err")
 
+        cur_action = self.action_task.current
         self.report_info.update({
             "jackMode": True,
             "jackEnable": True,
@@ -2913,7 +3054,10 @@ class Jack(ModuleBase):
             "jackSpin": spin_angle_rad,
             "containers": Container.getContainers(),
             "moduleMotor": config_params.moduleMotor,
-            "moduleScript": config_params.scriptName
+            "moduleScript": config_params.scriptName,
+            "action": cur_action.action_type if cur_action else "",
+            "actionId": cur_action.action_id if cur_action else "",
+            "actionTotal": int(self.action_task.total),
         })
 
         Module.reportInfo(self.report_info)
@@ -2922,16 +3066,15 @@ class Jack(ModuleBase):
         # === Trace.log: 主循环末尾集中上报（§3 规范） ===
         # jack.task: 任务级状态(读框架 action_task)
         counts = self.action_task.status_counts()
-        cur_action = self.action_task.current
         Trace.log(
             {
                 "scriptStatus": int(self.status),
-                "actionTotal": int(self.action_task.total),
+                "total": int(self.action_task.total),
                 "runningCount": int(counts["running"]),
                 "waitingCount": int(counts["init"]),
                 "finishedCount": int(counts["finished"]),
                 "failedCount": int(counts["failed"]),
-                "curActionState": int(cur_action.action_status) if cur_action else 0,
+                "suspendedCount": int(counts["suspended"]),
             },
             False,
             name=f"{MOD}.task",
@@ -2952,6 +3095,67 @@ class Jack(ModuleBase):
             False,
             name=f"{MOD}.motor",
         )
+
+        # ============================================
+        # Modbus 状态量上报（1x）
+        #   00011 顶升机构是否启用 (恒为 1)
+        #   00012 顶升机构是否急停
+        #   00013 顶升机构是否有料
+        # ============================================
+        try:
+            NetProtocol.setModbusData("1x", 11, [1])
+            NetProtocol.setModbusData("1x", 12, [1 if self.jack_emc else 0])
+            NetProtocol.setModbusData("1x", 13, [1 if self.jack_isFull else 0])
+        except Exception as e:
+            Trace.log(f"setModbusData 1x failed error={e}", name=f"{MOD}.err")
+
+    def modbus(self):
+        """Modbus 指令解析（参考 counterBalanceFork.py）。
+
+        读取可写寄存器(4x)按钮位并下发对应任务：
+          00050 顶升机构上升 -> jackHeight 到 jack_max_height
+          00051 顶升机构下降 -> jackHeight 到 jack_min_height
+          00052 顶升机构停止 -> stopMotor
+          00053 顶升机构定高 -> jackHeight 到 4x 201-202 的 float 目标高度
+        """
+        args = None
+        try:
+            # 00053 定高：触发位 + 高度值（沿用 counterBalanceFork 的 201-202 float 槽位）
+            fix_trigger = NetProtocol.getModbusData("4x", 53, 1)
+            if fix_trigger and fix_trigger[0]:
+                height_data = NetProtocol.getModbusData("4x", 201, 2)
+                target_height = parseModbus(height_data, "float")
+                if target_height is not None:
+                    target_height = clamp(float(target_height),
+                                          config_params.jack_min_height,
+                                          config_params.jack_max_height)
+                    args = {"operation": "jackHeight", "endHeight": target_height}
+                    Trace.log(f"modbus fix height -> {target_height}", name=MOD)
+
+            if args is None:
+                up = NetProtocol.getModbusData("4x", 50, 1)
+                if up and up[0]:
+                    args = {"operation": "jackHeight",
+                            "endHeight": config_params.jack_max_height}
+                    Trace.log("modbus jack up", name=MOD)
+
+            if args is None:
+                down = NetProtocol.getModbusData("4x", 51, 1)
+                if down and down[0]:
+                    args = {"operation": "jackHeight",
+                            "endHeight": config_params.jack_min_height}
+                    Trace.log("modbus jack down", name=MOD)
+
+            if args is None:
+                stop = NetProtocol.getModbusData("4x", 52, 1)
+                if stop and stop[0]:
+                    args = {"operation": "stopMotor"}
+                    Trace.log("modbus jack stop", name=MOD)
+        except Exception as e:
+            Trace.log(f"modbus parse failed error={e}", name=f"{MOD}.err")
+
+        self.event_modbus = False
+        return args
 
     def update_move_task_params(self):
         """
@@ -3245,6 +3449,9 @@ class SetLaserDeductArea(ActionBase):
                 debug_trace(f"SetLaserDeductArea: setting {len(areas)} areas devices={devices} "
                             f"theta={math.degrees(theta):.1f}deg", name=MOD)
 
+                # 保存旋转后的扣除区域信息，用于主循环实时更新
+                rotated_areas = []
+
                 for idx, area in enumerate(areas, start=1):
                     x_list = area.get("xList", area.get("x_list", []))
                     y_list = area.get("yList", area.get("y_list", []))
@@ -3259,6 +3466,20 @@ class SetLaserDeductArea(ActionBase):
                     region_name = f"{self.prefix}{idx}"
                     Navigation.setClearRegion(region_name, rx, ry, devices, self.coordinate)
                     debug_trace(f"SetLaserDeductArea: created {region_name}", name=MOD)
+
+                    # 保存旋转后的坐标用于后续更新
+                    rotated_areas.append({"xList": rx, "yList": ry})
+
+                # 保存扣除区域信息到 Jack 实例，供主循环监控使用
+                j._deduct_area_info = {
+                    "deductDevice": devices,
+                    "area": rotated_areas
+                }
+                # 初始化托盘角度记录
+                if config_params.spin_motor_name:
+                    j._last_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
+                    debug_trace(f"SetLaserDeductArea: init monitor angle={math.degrees(j._last_spin_angle or 0):.1f}deg",
+                               name=f"{MOD}.motor")
 
                 self.action_status = ActionStatus.FINISHED
 
@@ -3303,6 +3524,12 @@ class DeleteLaserDeductArea(ActionBase):
                             deleted_count += 1
 
                 debug_trace(f"DeleteLaserDeductArea: deleted {deleted_count} regions", name=MOD)
+
+                # 清空扣除区域监控状态
+                j._deduct_area_info = None
+                j._last_spin_angle = None
+                debug_trace("DeleteLaserDeductArea: cleared monitor state", name=f"{MOD}.motor")
+
                 self.action_status = ActionStatus.FINISHED
 
             except Exception as e:
@@ -3339,7 +3566,7 @@ class GetGoodsDirFromPGV(ActionBase):
 
 
 class Spin(ActionBase):
-    def __init__(self, angle, spin_mode="world", direction=None, deduct_info=None):
+    def __init__(self, angle, spin_mode="world", direction=None):
         super().__init__("Spin")
         kwargs = locals()
         del kwargs['self']
@@ -3351,11 +3578,9 @@ class Spin(ActionBase):
         self.angle = angle
         self.dir = direction
         self.coordinate_system = spin_mode
-        self.deduct_info = deduct_info
-        self._initial_spin_angle = None
 
     def args_summary(self) -> dict:
-        # §4.5: 排除大对象(deduct_info), 枚举/方向转标量
+        # §4.5: 枚举/方向转标量
         s = {
             "angle": float(self.angle),
             "spinMode": str(self.coordinate_system),
@@ -3370,13 +3595,11 @@ class Spin(ActionBase):
             self.action_status = ActionStatus.RUNNING
             if not config_params.spin_motor_name:
                 Navigation.setDeviceError("NoSpinMotor",
-                                          "旋转电机未配置，无法执行 Spin 动作，请检查模型文件中的旋转电机配置")
+                                          _TR("Spin motor not configured, cannot execute Spin action. Check spin motor configuration in model file"))
                 self.action_status = ActionStatus.FAILED
                 return
             # ✅ 在发指令前同周期内 reset，确保 Navigation 内部状态干净
             Motor.resetMotor(config_params.spin_motor_name)
-            # 记录 spin 开始时的电机角度，作为旋转基准
-            self._initial_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
             spin_dir = self.dir if self.dir is not None else 0
             if self.coordinate_system == "robot":
                 Trace.log(f"spin start mode=robot angle={self.angle}", name=f"{MOD}.motor")
@@ -3388,15 +3611,11 @@ class Spin(ActionBase):
                 Trace.log(f"spin start mode=increase angle={self.angle}", name=f"{MOD}.motor")
                 Navigation.setIncreaseSpinAngle(self.angle)
 
-        # === 实时更新扣除区域（每个周期都根据当前spin角度更新） ===
-        if self.deduct_info:
-            self._update_deduct_area_by_spin()
+        # 注意：扣除区域随托盘旋转的实时更新由 Jack.monitor_and_update_deduct_area()
+        # 在主循环中统一处理，Spin 动作不再内嵌该逻辑。
 
         if Navigation.spinRun():
             self.action_status = ActionStatus.FINISHED
-            # spin完成后最后更新一次确保最终位置准确
-            if self.deduct_info:
-                self._update_deduct_area_by_spin()
 
         j.report_info["Spin"] = {
             "actionStatus": self.action_status,
@@ -3404,41 +3623,6 @@ class Spin(ActionBase):
             "spinMode": self.coordinate_system,
             "direction": self.dir
         }
-
-    def _update_deduct_area_by_spin(self):
-        """根据当前spin电机角度，旋转扣除区域坐标并重新设置"""
-        try:
-            current_spin_angle = Motor.getMotorPos(config_params.spin_motor_name)
-            # 计算相对于初始位置的旋转增量
-            delta_angle = current_spin_angle - (self._initial_spin_angle or 0)
-
-            cos_a = math.cos(delta_angle)
-            sin_a = math.sin(delta_angle)
-
-            devices = self.deduct_info.get("deductDevice", [])
-            areas = self.deduct_info.get("area", [])
-
-            for idx, area in enumerate(areas, start=1):
-                x_list = area.get("xList", area.get("x_list", []))
-                y_list = area.get("yList", area.get("y_list", []))
-                if len(x_list) < 3 or len(x_list) != len(y_list):
-                    continue
-
-                # 对每个点做二维旋转: x'=x*cos-y*sin, y'=x*sin+y*cos
-                rotated_x = [x * cos_a - y * sin_a for x, y in zip(x_list, y_list)]
-                rotated_y = [x * sin_a + y * cos_a for x, y in zip(x_list, y_list)]
-
-                region_name = f"ShelfDeductArea{idx}"
-                # 先删除旧区域再设置新区域
-                try:
-                    Navigation.deleteClearRegion(region_name, Coordinate.ROBOT)
-                except Exception:
-                    pass
-                Navigation.setClearRegion(region_name, rotated_x, rotated_y, devices, Coordinate.ROBOT)
-
-            debug_trace(f"spin deduct area updated delta_angle={math.degrees(delta_angle):.1f}deg", name=f"{MOD}.motor")
-        except Exception as e:
-            Trace.log(f"spin deduct area update failed error={e}", name=f"{MOD}.err")
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
@@ -3618,7 +3802,7 @@ class JackHeight(ActionBase):
                             f"jack up DI({config_params.jack_up_di}) already triggered before lift, check DI config",
                             name=f"{MOD}.err")
                         Navigation.setDeviceError("JackUpDiError",
-                                                  f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed")
+                                                  _TR(f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed"))
                         self.action_status = ActionStatus.FAILED
                         return
                 if config_params.jack_up_di:
@@ -3634,7 +3818,7 @@ class JackHeight(ActionBase):
                             f"jack down DI({config_params.jack_zero_di}) already triggered before lower, check DI config",
                             name=f"{MOD}.err")
                         Navigation.setDeviceError("JackDownDiError",
-                                                  f"Jack-down DI({config_params.jack_zero_di}) already triggered before lowering. DI config error or mechanism jammed")
+                                                  _TR(f"Jack-down DI({config_params.jack_zero_di}) already triggered before lowering. DI config error or mechanism jammed"))
                         self.action_status = ActionStatus.FAILED
                         return
                 if config_params.jack_zero_di:
@@ -3659,7 +3843,7 @@ class JackHeight(ActionBase):
                 Trace.log(f"jack up timeout {elapsed:.1f}s > {config_params.jack_load_time}s pos={current_pos:.4f}m",
                           name=f"{MOD}.err")
                 Navigation.setTaskError("JackUpTimeout",
-                                        f"Jack-up timeout({config_params.jack_load_time}s), motor not reached target position. Check motor and encoder status")
+                                        _TR(f"Jack-up timeout({config_params.jack_load_time}s), motor not reached target position. Check motor and encoder status"))
                 self.action_status = ActionStatus.FAILED
                 return
             # 顶升动作：到位判断统一使用 isMotorReached
@@ -3687,7 +3871,7 @@ class JackHeight(ActionBase):
                     f"jack down timeout {elapsed:.1f}s > {config_params.jack_unload_time}s pos={current_pos:.4f}m",
                     name=f"{MOD}.err")
                 Navigation.setTaskError("JackDownTimeout",
-                                        f"Jack-down timeout({config_params.jack_unload_time}s), motor not reached target position. Check motor and encoder status")
+                                        _TR(f"Jack-down timeout({config_params.jack_unload_time}s), motor not reached target position. Check motor and encoder status"))
                 self.action_status = ActionStatus.FAILED
                 return
             # 下降动作：到位判断统一使用 isMotorReached
@@ -4075,7 +4259,7 @@ class RecShelf(ActionBase):
                     else:
                         self.action_status = ActionStatus.FAILED
                         Navigation.setTaskError("RecFailed",
-                                                "Recognition retries exceeded. Check recognition distance or sensor")
+                                                _TR("Recognition retries exceeded. Check recognition distance or sensor"))
                 else:
                     Recognize.resetRec()
                     self.do_rec = False
@@ -4141,7 +4325,7 @@ class GetApPosAdjustedViaPgv(ActionBase):
             if abs(self.pgv_info[0]) > 0.02 and abs(self.pgv_info[1]) > 0.02:
                 self.action_status = ActionStatus.FAILED
                 Navigation.setTaskError("PgvOffsetError",
-                                        "PGV offset exceeds limit (>0.02m). Check goods QR code offset or adjust AP point")
+                                        _TR("PGV offset exceeds limit (>0.02m). Check goods QR code offset or adjust AP point"))
 
             else:
                 # 将车体终点位置，加入二维码的偏差补偿
@@ -4240,7 +4424,7 @@ class GetPGVData(ActionBase):
             self.count += 1
             if self.count >= self.max_rec_num:
                 Navigation.setTaskError("PgvRecExceeded",
-                                        f"PGV secondary adjustment recognition exceeded. Check PGV camera or QR code position")
+                                        _TR(f"PGV secondary adjustment recognition exceeded. Check PGV camera or QR code position"))
 
         # 上报
         j.report_info["GetPGVData"] = {
@@ -4719,6 +4903,8 @@ def main():
     if config_params.auto_calib_enable:
         jack_calib_manager.set_calib_done(False)
 
+    modbus_args = None
+
     while True:
         # ========== 边走边动：更新moveTask参数 ==========
         j.update_move_task_params()
@@ -4728,9 +4914,16 @@ def main():
         # 打印数据
         j.tick_report()
 
+        # ========== 实时监控托盘角度并更新扣除区域 ==========
+        j.monitor_and_update_deduct_area()
+
         # 脚本任务状态管理
         if j.event_safe_move_check:
             j.safe_move_check()
+
+        # ========== Modbus TCP 指令处理 ==========
+        if j.event_modbus:
+            modbus_args = j.modbus()
 
         # 启动自动标零（DB=False 时每周期轮询，完成后自动停止）
         if config_params.auto_calib_enable and not jack_calib_manager.is_calib_done():
@@ -4759,8 +4952,8 @@ def main():
                 # 预动作模式下不处理其他任务，但保持NONE状态让导航继续
             # ========== 常规流程 ==========
             else:
-                # 优先使用边走边动结果参数，否则使用Module.getTaskArgs()
-                input_params = j.result or Module.getTaskArgs()
+                # 优先级：modbus 指令 > 边走边动结果 > Module.getTaskArgs()
+                input_params = modbus_args or j.result or Module.getTaskArgs()
                 if input_params:
                     try:
                         if "script" in input_params and "args" in input_params["script"]:
@@ -4776,10 +4969,12 @@ def main():
                         debug_trace("task input params validated", name=MOD)
 
                         j.init_args(validated_params)
+                        modbus_args = None
                     except ValueError as e:
                         Trace.log(f"input params validate failed error={e}", name=f"{MOD}.err")
                         Navigation.setTaskError("InputParamError",
-                                                f"Input parameter validation failed. Check the input parameters")
+                                                _TR("Input parameter validation failed. Check the input parameters"))
+                        modbus_args = None
 
         elif status == ScriptStatus.RUNNING:
             j.run()
