@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/6/27
+# @Date: 2026/7/3
 # @Author: zhaopengfei
 # @Version: v1.1
 # @Project: SPK-MJ50-HL
-# @Update: fix: 自动识别计算伸出长度不伸出货叉的bug：https://project.feishu.cn/seer_rd_center/issue/detail/7029921213
+# @Update: fix: m-7031551116 修复取货卡手指下发zero电机无法动作
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -425,6 +425,10 @@ DEBUG_ONLY_TASKS = [
     "takePhoto",
 ]
 
+# 恢复类操作(归零/标定):不做“货叉有货但数据为空”的一致性拦截。
+# 这些操作用于异常后把机构收回原点,必须始终可执行,否则货叉卡货时会与拦截互相死锁,无法归零。
+RECOVERY_OPERATIONS = {"zero", "zeroWithLift", "calib"}
+
 
 def check_debug_task(operation: str) -> bool:
     if operation in DEBUG_ONLY_TASKS:
@@ -832,11 +836,11 @@ class LiftAction(BaseAction):
         if self.height < ConfigParams.min_lift_height:
             self.height = ConfigParams.min_lift_height
         if self.height > ConfigParams.max_lift_height:
-            Navigation.setTaskError("LiftHeightExceeded", f"Lift height exceeds upper limit, max: {ConfigParams.max_lift_height}, commanded: {self.height}")
+            Navigation.setTaskError("LiftHeightExceeded", _TR(f"Lift height exceeds upper limit, max: {ConfigParams.max_lift_height}, commanded: {self.height}"))
             self.action_status = ActionStatus.FAILED
             return
         if self.agv.stretch_real_pos > ConfigParams.safe_stretch_length:
-            Navigation.setTaskError("StretchNotZeroed", f"Stretch mechanism not zeroed, cannot perform lift/rotate. Please zero first")
+            Navigation.setTaskError("StretchNotZeroed", _TR(f"Stretch mechanism not zeroed, cannot perform lift/rotate. Please zero first"))
             self.action_status = ActionStatus.FAILED
             return
         if self.agv.container_robot.lift(self.agv.lift_motor, self.height, ConfigParams.lift_motor_speed):
@@ -878,11 +882,11 @@ class RotateAction(BaseAction):
     def run(self, m):
         super().run(m)
         if abs(self.pos) > abs(ConfigParams.max_rotate_angle / 180 * math.pi):
-            Navigation.setTaskError("RotateAngleExceeded", f"Rotate angle {self.pos / math.pi * 180} exceeds upper limit {ConfigParams.max_rotate_angle}. Check if box is tilted or QR code is damaged")
+            Navigation.setTaskError("RotateAngleExceeded", _TR(f"Rotate angle {self.pos / math.pi * 180} exceeds upper limit {ConfigParams.max_rotate_angle}. Check if box is tilted or QR code is damaged"))
             self.action_status = ActionStatus.FAILED
             return
         if self.agv.stretch_real_pos > ConfigParams.safe_stretch_length:
-            Navigation.setTaskError("StretchNotZeroed",f"Stretch mechanism not zeroed, cannot perform lift/rotate. Please zero first")
+            Navigation.setTaskError("StretchNotZeroed",_TR(f"Stretch mechanism not zeroed, cannot perform lift/rotate. Please zero first"))
             self.action_status = ActionStatus.FAILED
             return
         speed = self.max_speed if self.max_speed is not None else ConfigParams.rotate_motor_speed
@@ -910,10 +914,10 @@ class StretchAction(BaseAction):
             self.length = self.agv.stretch_length
         temp_motor_speed = ConfigParams.stretch_motor_speed
         if ConfigParams.max_stretch_length < self.length < ConfigParams.max_stretch_length + 0.1:
-            Navigation.setTaskError("StretchLengthExceeded", f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！")
+            Navigation.setTaskError("StretchLengthExceeded", _TR(f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！"))
             self.length = ConfigParams.max_stretch_length
         elif self.length > ConfigParams.max_stretch_length + 0.1:
-            Navigation.setTaskError("StretchLengthExceeded", f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！！！")
+            Navigation.setTaskError("StretchLengthExceeded", _TR(f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！！！"))
             self.action_status = ActionStatus.FAILED
             return
         if self.length > 0.1 and self.agv.stretch_real_pos > self.length * 0.6:
@@ -937,12 +941,12 @@ class FingerAction(BaseAction):
         super().run(m)
         if not ConfigParams.has_finger_motor:
             Navigation.setDeviceError("FingerMotorNotConfig",
-                f"fingerMotor not configured in device model. "
-                f"Please add two fingerMotor entries under Model-000.moduleType.cartonTransferUnit.fingerMotor")
+                _TR(f"fingerMotor not configured in device model. "
+                f"Please add two fingerMotor entries under Model-000.moduleType.cartonTransferUnit.fingerMotor"))
             self.action_status = ActionStatus.FAILED
             return
         if time.time() - self.start_time > 3:
-            Navigation.setTaskError("FingerTimeout", f"Finger control timeout. Check if finger is stuck or photoelectric sensor works")
+            Navigation.setTaskError("FingerTimeout", _TR(f"Finger control timeout. Check if finger is stuck or photoelectric sensor works"))
             self._stop_finger()
             self.action_status = ActionStatus.FAILED
             return
@@ -960,7 +964,7 @@ class FingerAction(BaseAction):
             else:
                 # 关闭手指：反转，到 downReachDI 停止
                 if Di.getDi(ConfigParams.overlimit_detect_di):
-                    Navigation.setTaskError("StretchObstacle", f"Fork overlimit photoelectric sensor detected obstacle. Increase stretch compensation")
+                    Navigation.setTaskError("StretchObstacle", _TR(f"Fork overlimit photoelectric sensor detected obstacle. Increase stretch compensation"))
                     self.action_status = ActionStatus.FAILED
                     return
                 Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, -1.0,
@@ -1002,7 +1006,7 @@ class CheckFingerOpenAction(BaseAction):
         if Di.getDi(ConfigParams.left_finger_up_di) and Di.getDi(ConfigParams.right_finger_up_di):
             self.action_status = ActionStatus.FINISHED
         else:
-            Navigation.setTaskError("FingerNotOpen", f"Finger not open, stretch cancelled. Check finger and photoelectric sensor")
+            Navigation.setTaskError("FingerNotOpen", _TR(f"Finger not open, stretch cancelled. Check finger and photoelectric sensor"))
             self.action_status = ActionStatus.FAILED
 
     def reset(self):
@@ -1024,10 +1028,10 @@ class RecAdjustAction(BaseAction):
             return
         if time.time() - self.start_time < ConfigParams.light_delay_time:
             return
-        if self.agv.rec_adjust.status is ScriptStatus.FINISHED:
+        if self.agv.rec_adjust.action_status is ActionStatus.FINISHED:
             Do.setDo(self.agv.fill_light_do, False)
             self.action_status = ActionStatus.FINISHED
-        elif self.agv.rec_adjust.status is ScriptStatus.FAILED:
+        elif self.agv.rec_adjust.action_status is ActionStatus.FAILED:
             self.action_status = ActionStatus.FAILED
         else:
             self.agv.rec_adjust.run(self.agv)
@@ -1055,7 +1059,7 @@ class RecBarcodeAction(BaseAction):
             if self.agv.rec_res and self.agv.rec_res.get("status", 1) == 0:
                 Do.setDo(self.agv.fill_light_do, False)
                 if self.agv.rec_res['barCode'] != self.agv.goods_id:
-                    Navigation.setTaskError("GoodsIdMismatch", f"Goods ID mismatch between task command  {self.agv.goods_id} and recognition result {self.agv.rec_res['barCode']}")
+                    Navigation.setTaskError("GoodsIdMismatch", _TR(f"Goods ID mismatch between task command  {self.agv.goods_id} and recognition result {self.agv.rec_res['barCode']}"))
                     self.action_status = ActionStatus.FAILED
                 else:
                     self.agv.report_info["barCode"] = self.agv.rec_res['barCode']
@@ -1068,6 +1072,7 @@ class RecBarcodeAction(BaseAction):
     def reset(self):
         super().reset()
         self.light_on = False
+
 
 
 class BindContainerAction(BaseAction):
@@ -1131,7 +1136,7 @@ class CheckGoodsDiUnloadTakeAction(BaseAction):
             Container.bindContainer("999", goods_id, "")
             Container.unbindContainer(self.agv.cur_c)
         else:
-            Navigation.setTaskError("BackpackPickFailed", "Failed to pick from backpack, fork photoelectric did not detect goods")
+            Navigation.setTaskError("BackpackPickFailed", _TR("Failed to pick from backpack, fork photoelectric did not detect goods"))
             self.action_status = ActionStatus.FAILED
             return
         self.action_status = ActionStatus.FINISHED
@@ -1151,7 +1156,7 @@ class RecBoxCheckAction(BaseAction):
     def run(self, m):
         super().run(m)
         if not self.light_started:
-            self.agv.rec_box.status = ScriptStatus.RUNNING
+            self.agv.rec_box.action_status = ActionStatus.RUNNING
             self.agv.rec_box.is_error = True
             Do.setDo(self.agv.fill_light_do, True)
             self.light_started = True
@@ -1160,16 +1165,16 @@ class RecBoxCheckAction(BaseAction):
                 if Timer.delay(ConfigParams.light_delay_time):
                     self.light_ready = True
             return
-        if self.agv.rec_box.status is ScriptStatus.FINISHED:
+        if self.agv.rec_box.action_status is ActionStatus.FINISHED:
             self.agv.rec_box.reset()
             self.agv.rec_box.is_error = None
             Do.setDo(self.agv.fill_light_do, False)
             if self.agv.rec_box.hasGoods and not self.agv.rec_box.goods_out_dist:
-                Navigation.setTaskError("ShelfHasGoods", f"Goods detected on shelf, unload cancelled. Verify shelf and task data manually")
+                Navigation.setTaskError("ShelfHasGoods", _TR(f"Goods detected on shelf, unload cancelled. Verify shelf and task data manually"))
                 self.action_status = ActionStatus.FAILED
             else:
                 self.action_status = ActionStatus.FINISHED
-        elif self.agv.rec_box.status is ScriptStatus.FAILED:
+        elif self.agv.rec_box.action_status is ActionStatus.FAILED:
             Do.setDo(self.agv.fill_light_do, False)
             self.action_status = ActionStatus.FINISHED
         else:
@@ -1210,10 +1215,10 @@ class RecQrcodeAction(BaseAction):
     def run(self, m):
         super().run(m)
         if time.time() - self.start_time > 20:
-            Navigation.setTaskError("RecFailed",f"Recognition failed after max retries{self.max_rec_times}. Check if QR code is damaged or camera is clear")
+            Navigation.setTaskError("RecFailed",_TR(f"Recognition failed after max retries{self.max_rec_times}. Check if QR code is damaged or camera is clear"))
             self.action_status = ActionStatus.FAILED
             return
-        if self.agv.rec.status == ScriptStatus.FINISHED:
+        if self.agv.rec.action_status == ActionStatus.FINISHED:
             data = {
                 "containerRobot": {
                     "locName": self.agv.script_args.get("locName", ""),
@@ -1412,13 +1417,14 @@ class ContainerRobot(ModuleBase):
 
             if ConfigParams.goods_check_di != "":
                 if self.stretch_real_pos < 0.05:
-                    if Di.getDi(ConfigParams.goods_check_di) and not Container.hasGoods("999"):
-                        Navigation.setTaskError("ForkHasGoods", f"Fork (slot 999) already has goods, cannot execute current task. Verify data")
+                    if (Di.getDi(ConfigParams.goods_check_di) and not Container.hasGoods("999")
+                            and self.operation not in RECOVERY_OPERATIONS):
+                        Navigation.setTaskError("ForkHasGoods", _TR(f"Fork (slot 999) already has goods, cannot execute current task. Verify data"))
                         self.status = ScriptStatus.FAILED
                     elif not Di.getDi(ConfigParams.goods_check_di):
                         Container.unbindContainer("999")
             else:
-                Navigation.setTaskError("GoodsCheckDiError", f"goodsCheckDi not configured properly in script parameters！")
+                Navigation.setTaskError("GoodsCheckDiError", _TR(f"goodsCheckDi not configured properly in script parameters！"))
                 Trace.log(f"请在脚本参数中正确配置 goodsCheckDi 参数！", name=f"{MOD}.err")
                 self.status = ScriptStatus.FINISHED
 
@@ -1431,12 +1437,32 @@ class ContainerRobot(ModuleBase):
         self.counter += 1
         self.update_report_info()
         self.report_info["getCountRun"] = self.counter
+
+        # 根据货叉货物检测光电更新货叉有无货信息
+        if ConfigParams.goods_check_di != "":
+            if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
+                # 队列执行途中(取/放货)999 的绑定由动作队列负责,此时“有货但数据为空”是
+                # 收叉与绑定之间的正常瞬态,不应拦截;仅在空闲/任务起始态才判为数据异常。
+                queue_running = self.action_task.status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED)
+                if (Di.getDi(ConfigParams.goods_check_di) and not Container.hasGoods("999")
+                        and self.operation not in RECOVERY_OPERATIONS and not queue_running):
+                    Navigation.setTaskError("ForkHasGoods",
+                        _TR(f"Fork photoelectric detected goods on fork, but data shows no goods, manual verification required"))
+                    self.status = ScriptStatus.FAILED
+                elif not Di.getDi(ConfigParams.goods_check_di):
+                    Container.unbindContainer("999")
+                    self.containers = Container.getContainers()
+        else:
+            Navigation.setTaskError("GoodsCheckDiError",
+                _TR(f"Please configure goods_check_di parameter properly in script parameters!"))
+            self.status = ScriptStatus.FINISHED
+
         self.check_motor_emc()
         if self.enable_motor and not self.motor_calib_state:
             self.motor_calib()
 
         if time.time() - self.start_time > ConfigParams.timeout:
-            Navigation.setTaskError("ScriptTimeout", f"Script task execution timeout. Please re-issue the task！")
+            Navigation.setTaskError("ScriptTimeout", _TR(f"Script task execution timeout. Please re-issue the task！"))
             self.status = ScriptStatus.FAILED
 
         if self.motor_calib_state:
@@ -1470,7 +1496,7 @@ class ContainerRobot(ModuleBase):
                 elif self.operation == "exPut":
                     self._build_ex_put_actions()
                 else:
-                    Navigation.setTaskError("InputParamError", f"Invalid script input parameters")
+                    Navigation.setTaskError("InputParamError", _TR(f"Invalid script input parameters"))
                     self.status = ScriptStatus.FAILED
 
                 self._drive_queue()
@@ -1611,12 +1637,12 @@ class ContainerRobot(ModuleBase):
         if not self.cur_c:
             if (self.goods_id and Container.goodsExist(self.goods_id) and
                     Container.getContainerByGoods(self.goods_id) != "999"):
-                Navigation.setTaskError("GoodsAlreadyExists", f"Goods {self.goods_id} already exist. Check for duplicate task")
+                Navigation.setTaskError("GoodsAlreadyExists", _TR(f"Goods {self.goods_id} already exist. Check for duplicate task"))
                 self.status = ScriptStatus.FAILED
                 return
             if self.self_position:
                 if Container.hasGoods(self.self_position):
-                    Navigation.setTaskError("BackpackSlotFull", f"Backpack slot {int(self.self_position) + 1} (No.{self.self_position}) already has goods, cannot continue loading. Please verify task data and backpack data！")
+                    Navigation.setTaskError("BackpackSlotFull", _TR(f"Backpack slot {int(self.self_position) + 1} (No.{self.self_position}) already has goods, cannot continue loading. Please verify task data and backpack data！"))
                     self.status = ScriptStatus.FAILED
                     return
                 self.cur_c = self.self_position
@@ -1624,7 +1650,7 @@ class ContainerRobot(ModuleBase):
                 self.cur_c = self.search_operable_container('load')
             Trace.log(f"load begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
             if self.cur_c is None:
-                Navigation.setTaskError("AllBackpackFull", f"All backpack slots are full, cannot load more goods！")
+                Navigation.setTaskError("AllBackpackFull", _TR(f"All backpack slots are full, cannot load more goods！"))
                 self.status = ScriptStatus.FAILED
                 return
             if Container.hasGoods("999") and Container.getGoodsByContainer("999") == self.goods_id:
@@ -1647,7 +1673,7 @@ class ContainerRobot(ModuleBase):
                 self.action_list = actions
                 return
             elif Container.hasGoods("999"):
-                Navigation.setTaskError("ForkHasGoods", f"Fork (slot 999) already has goods, cannot execute current task. Verify data")
+                Navigation.setTaskError("ForkHasGoods", _TR(f"Fork (slot 999) already has goods, cannot execute current task. Verify data"))
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -1738,7 +1764,7 @@ class ContainerRobot(ModuleBase):
             return
         self.operation_init = True
         if Container.hasGoods("999"):
-            Navigation.setTaskError("ForkHasGoods", f"Fork (slot 999) already has goods, cannot execute current task. Verify data")
+            Navigation.setTaskError("ForkHasGoods", _TR(f"Fork (slot 999) already has goods, cannot execute current task. Verify data"))
             self.status = ScriptStatus.FAILED
             return
         Trace.log(f"----- building ex_take actions ------", name=f"{MOD}.action")
@@ -1807,15 +1833,15 @@ class ContainerRobot(ModuleBase):
         if not self.cur_c:
             if self.self_position:
                 if Container.getGoodsByContainer(self.self_position) != self.goods_id:
-                    Navigation.setTaskError("GoodsIdMismatch", f"Goods ID in backpack slot {int(self.self_position) + 1} ({self.self_position}) doesn't match task goods ID ({self.goods_id})! Verify task and backpack data!")
+                    Navigation.setTaskError("GoodsIdMismatch", _TR(f"Goods ID in backpack slot {int(self.self_position) + 1} ({self.self_position}) doesn't match task goods ID ({self.goods_id})! Verify task and backpack data!"))
                     self.status = ScriptStatus.FAILED
                     return
                 if not Container.hasGoods(self.self_position):
-                    Navigation.setTaskError("BackpackSlotEmpty", f"Backpack slot {int(self.self_position) + 1} ({self.self_position}) is empty, cannot unload! Verify task and backpack data!")
+                    Navigation.setTaskError("BackpackSlotEmpty", _TR(f"Backpack slot {int(self.self_position) + 1} ({self.self_position}) is empty, cannot unload! Verify task and backpack data!"))
                     self.status = ScriptStatus.FAILED
                     return
                 if self.self_position != "999" and Container.hasGoods("999"):
-                    Navigation.setTaskError("ForkHasGoods", f"Fork (slot 999) already has goods, cannot execute current task. Verify data")
+                    Navigation.setTaskError("ForkHasGoods", _TR(f"Fork (slot 999) already has goods, cannot execute current task. Verify data"))
                     self.status = ScriptStatus.FAILED
                     return
                 self.cur_c = self.self_position
@@ -1823,13 +1849,13 @@ class ContainerRobot(ModuleBase):
                 if Container.hasGoods("999"):
                     self.cur_c = "999"
                     if Container.getGoodsByContainer("999") != self.goods_id:
-                        Navigation.setTaskError("ForkHasGoods", f"Fork (slot 999) already has goods, cannot execute current task. Verify data")
+                        Navigation.setTaskError("ForkHasGoods", _TR(f"Fork (slot 999) already has goods, cannot execute current task. Verify data"))
                         self.status = ScriptStatus.FAILED
                         return
                 else:
                     self.cur_c = Container.getContainerByGoods(self.goods_id)
             if not self.cur_c:
-                Navigation.setTaskError("GoodsNotFound", f"Goods {self.goods_id} not found in backpack, cannot unload! Verify task and backpack data!")
+                Navigation.setTaskError("GoodsNotFound", _TR(f"Goods {self.goods_id} not found in backpack, cannot unload! Verify task and backpack data!"))
                 self.status = ScriptStatus.FAILED
                 return
             Trace.log(f"unload begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
@@ -1921,7 +1947,7 @@ class ContainerRobot(ModuleBase):
     def get_motor_info(motor_name: str):
         motor_data = Odometer.getData().get("motorInfo", [])
         for _motor in motor_data:
-            if _motor.get('motorName') == motor_name:
+            if _motor.get('key') == motor_name:
                 return _motor
         return {}
 
@@ -1938,6 +1964,7 @@ class ContainerRobot(ModuleBase):
         self.motor_calib_info["rotateMotorEmc"] = rotate_motor_emc
         self.motor_calib_info["controllerEmc"] = controller_emc
         self.enable_motor = not lift_motor_emc and not rotate_motor_emc and not stretch_motor_emc
+
         if not controller_emc and time.time() - self.enable_motor_time > 0.5:
             self.enable_motor_time = time.time()
             if lift_motor_info and lift_motor_emc:
@@ -1949,6 +1976,8 @@ class ContainerRobot(ModuleBase):
             if rotate_motor_info and rotate_motor_emc:
                 Motor.enableMotor(ConfigParams.rotate_motor_name)
                 self.report_info['rotateMotorInfo'] = rotate_motor_info
+
+
 
     def motor_calib(self):
         self.get_motor_calib_state()
@@ -2067,11 +2096,11 @@ class ContainerRobot(ModuleBase):
     def rotate(self, pos, max_speed=None):
         Trace.log(f"----- running rotate ------", name=f"{MOD}.motor")
         if abs(pos) > abs(ConfigParams.max_rotate_angle / 180 * math.pi):
-            Navigation.setTaskError("RotateAngleExceeded",f"Rotate angle {self.pos / math.pi * 180} exceeds upper limit {ConfigParams.max_rotate_angle}. Check if box is tilted or QR code is damaged")
+            Navigation.setTaskError("RotateAngleExceeded",_TR(f"Rotate angle {self.pos / math.pi * 180} exceeds upper limit {ConfigParams.max_rotate_angle}. Check if box is tilted or QR code is damaged"))
             self.status = ScriptStatus.FAILED
             return False
         if self.stretch_real_pos > ConfigParams.safe_stretch_length:
-            Navigation.setTaskError("StretchNotZeroed", f"Stretch mechanism not zeroed, cannot perform lift/rotate. Please zero first")
+            Navigation.setTaskError("StretchNotZeroed", _TR(f"Stretch mechanism not zeroed, cannot perform lift/rotate. Please zero first"))
             self.status = ScriptStatus.FAILED
             return False
         if max_speed is not None:
@@ -2107,7 +2136,8 @@ class ContainerRobot(ModuleBase):
         # 调度/Roboshop 上报(合并一次; containers 必带)
         self.report_info.update({
             "status": self.status,
-            "action": cur.action_name if cur else "",
+            "action": cur.action_type if cur else "",
+            "actionId": cur.action_id if cur else "",
             "actionTotal": self.action_task.total,
             "containers": containers,
         })
@@ -2161,30 +2191,30 @@ class ContainerRobot(ModuleBase):
 
     def check_put(self):
         if not Container.hasGoods("999"):
-            Navigation.setTaskError("ForkNoGoods", f"Fork (slot 999) has no goods, internal put not needed！")
+            Navigation.setTaskError("ForkNoGoods", _TR(f"Fork (slot 999) has no goods, internal put not needed！"))
             self.status = ScriptStatus.FINISHED
             return
         if self.goods_id and Container.goodsExist(self.goods_id):
-            Navigation.setTaskError("GoodsAlreadyExists", f"Goods {self.goods_id} already exist. Check for duplicate task")
+            Navigation.setTaskError("GoodsAlreadyExists", _TR(f"Goods {self.goods_id} already exist. Check for duplicate task"))
             self.status = ScriptStatus.FINISHED
             return
         if self.self_position:
             if Container.hasGoods(self.self_position):
-                Navigation.setTaskError("GoodsInBackpack", f"Goods already in backpack")
+                Navigation.setTaskError("GoodsInBackpack", _TR(f"Goods already in backpack"))
                 self.status = ScriptStatus.FAILED
                 return
             self.cur_c = self.self_position
         else:
             self.cur_c = self.search_operable_container('load')
         if self.cur_c is None:
-            Navigation.setTaskError("AllBackpackFull", f"All backpack slots are full, cannot load more goods")
+            Navigation.setTaskError("AllBackpackFull", _TR(f"All backpack slots are full, cannot load more goods"))
             self.status = ScriptStatus.FINISHED
             return
 
     def check_take(self):
         if self.self_position:
             if not Container.hasGoods(self.self_position):
-                Navigation.setTaskError("BackpackSlotEmpty", f"Backpack slot {int(self.self_position) + 1} ({self.self_position}) is empty, cannot execute internal pick!")
+                Navigation.setTaskError("BackpackSlotEmpty", _TR(f"Backpack slot {int(self.self_position) + 1} ({self.self_position}) is empty, cannot execute internal pick!"))
                 self.status = ScriptStatus.FAILED
             self.cur_c = self.self_position
         else:
@@ -2192,7 +2222,7 @@ class ContainerRobot(ModuleBase):
         if Container.hasGoods("999"):
             self.cur_c = "999"
         if not self.cur_c:
-            Navigation.setTaskError("GoodsNotFound", f"Specified goods {self.goods_id} not found in backpack. Verify goods ID and container data！")
+            Navigation.setTaskError("GoodsNotFound", _TR(f"Specified goods {self.goods_id} not found in backpack. Verify goods ID and container data！"))
             self.status = ScriptStatus.FAILED
             return
 
@@ -2268,9 +2298,9 @@ class ContainerRobot(ModuleBase):
 # ============================================================================
 # 识别辅助类
 # ============================================================================
-class Rec:
-    def __init__(self, filename, is_error=None, max_rec_times=10):
-        self.status = ScriptStatus.NONE
+class Rec(BaseAction):
+    def __init__(self, filename, is_error=None, max_rec_times=10, action_name="Rec"):
+        super().__init__(action_name)
         self.is_error = is_error
         self.filename = filename
         self.rec_times = 0
@@ -2282,8 +2312,10 @@ class Rec:
         Recognize.resetRec()
         Recognize.doRec(self.filename, "", "")
 
-    def run(self, agv):
-        self.status = ScriptStatus.RUNNING
+    def run(self, m):
+        super().run(m)
+        agv = m
+        self.action_status = ActionStatus.RUNNING
         rec_status = Recognize.getRecStatus()
         if rec_status == 3 or rec_status == -1:
             Trace.log("rec failed:{}".format(self.result), name=f"{MOD}.rec")
@@ -2291,10 +2323,10 @@ class Rec:
                 self.rec_times = self.rec_times + 1
                 if self.rec_times > self.max_rec_times:
                     if not self.is_error:
-                        Navigation.setTaskError("RecFailed", f"Recognition failed after max retries{self.max_rec_times}. Check if QR code is damaged or camera is clear")
-                        self.status = ScriptStatus.FAILED
+                        Navigation.setTaskError("RecFailed", _TR(f"Recognition failed after max retries{self.max_rec_times}. Check if QR code is damaged or camera is clear"))
+                        self.action_status = ActionStatus.FAILED
                     else:
-                        self.status = ScriptStatus.FINISHED
+                        self.action_status = ActionStatus.FINISHED
                 else:
                     Recognize.resetRec()
                     Recognize.doRec(self.filename, "", "")
@@ -2313,28 +2345,28 @@ class Rec:
             self.hasGoods = True
             if self.result.get("x", 0) > self.max_goods_dist:
                 self.goods_out_dist = True
-            self.status = ScriptStatus.FINISHED
-        Trace.log(f"rec success: {self.status.name} {self.result}", name=f"{MOD}.rec")
+            self.action_status = ActionStatus.FINISHED
+        Trace.log(f"rec success: {self.action_status.name} {self.result}", name=f"{MOD}.rec")
 
         cur_state = dict()
         cur_state['recResult'] = self.result
         cur_state['recCount'] = self.rec_times
-        cur_state['recTaskStatus'] = self.status
+        cur_state['recTaskStatus'] = self.action_status
         cur_state['recStatus'] = rec_status
         cur_state['file'] = self.filename
         agv.report_info['recInfo'] = cur_state
 
     def reset(self):
+        super().reset()
         Recognize.resetRec()
         Recognize.doRec(self.filename, "", "")
-        self.status = ScriptStatus.RUNNING
 
 
-class RecAdjust:
-    def __init__(self, filename):
+class RecAdjust(BaseAction):
+    def __init__(self, filename, action_name="RecAdjust"):
+        super().__init__(action_name)
         self.rotate_step = None
         self.lift_step = None
-        self.status = ScriptStatus.NONE
         self.rec = Rec(filename)
         self.result = []
         self.max_rec_fail_times = 10
@@ -2365,14 +2397,15 @@ class RecAdjust:
                 return dy - dx * math.tan(math.pi + yaw) + offset_x
 
     def run(self, agv: ContainerRobot):
+        super().run(agv)
         cur_state = dict()
-        self.status = ScriptStatus.RUNNING
+        self.action_status = ActionStatus.RUNNING
         if self.plan_status is not ScriptStatus.FINISHED:
             self.plan_status = ScriptStatus.RUNNING
-            if self.rec.status is ScriptStatus.RUNNING or self.rec.status is ScriptStatus.NONE:
-                Trace.log(f"----- rec to adjust {self.rec.status.name}------", name=f"{MOD}.rec")
+            if self.rec.action_status is ActionStatus.RUNNING or self.rec.action_status is ActionStatus.INIT:
+                Trace.log(f"----- rec to adjust {self.rec.action_status.name}------", name=f"{MOD}.rec")
                 self.rec.run(agv)
-            elif self.rec.status is ScriptStatus.FAILED:
+            elif self.rec.action_status is ActionStatus.FAILED:
                 self.rec_fail_time = self.rec_fail_time + 1
                 random_dist = random.choice([1, -1]) * (1 / 180 * math.pi)
                 agv.rotate(agv.rotate_real_pos + random_dist, max_speed=0.3)
@@ -2380,9 +2413,9 @@ class RecAdjust:
                     self.rec.reset()
                     self.rec.run(agv)
                 else:
-                    self.status = ScriptStatus.FAILED
+                    self.action_status = ActionStatus.FAILED
                 Trace.log("rec fail!!! {}".format(self.rec_fail_time), name=f"{MOD}.rec")
-            elif self.rec.status is ScriptStatus.FINISHED:
+            elif self.rec.action_status is ActionStatus.FINISHED:
                 Trace.log(f"------------------ move to adjust -----------------", name=f"{MOD}.rec")
                 self.rec_fail_time = 0
 
@@ -2427,26 +2460,26 @@ class RecAdjust:
                     self.go_args["backMode"] = 0
 
                 if abs(agv.yaw_adjust) > ConfigParams.max_yaw_bias / 180 * math.pi:
-                    self.status = ScriptStatus.FAILED
-                    Navigation.setTaskError("RecYawExceeded", f"Recognition yaw deviation{agv.yaw_adjust / math.pi * 180:.2f}° exceeds limit{ConfigParams.max_yaw_bias}°. Check if box is aligned and QR code intact")
+                    self.action_status = ActionStatus.FAILED
+                    Navigation.setTaskError("RecYawExceeded", _TR(f"Recognition yaw deviation{agv.yaw_adjust / math.pi * 180:.2f}° exceeds limit{ConfigParams.max_yaw_bias}°. Check if box is aligned and QR code intact"))
                 else:
                     if self.adjust_count >= (self.max_adjust_time - 3):
                         agv.ok_x = 0.01
                         agv.ok_yaw = 1.15 / 180 * math.pi
                     if not ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x:
                         Trace.log(f"adjust finished, adjust count: {self.adjust_count}", name=f"{MOD}.rec")
-                        self.status = ScriptStatus.FINISHED
+                        self.action_status = ActionStatus.FINISHED
                     elif ConfigParams.auto_adjust_rotate and abs(self.rec.result['y']) < agv.ok_x and abs(
                             agv.yaw_adjust) <= agv.ok_yaw:
                         Trace.log(f"adjust finished, adjust count: {self.adjust_count}", name=f"{MOD}.rec")
-                        self.status = ScriptStatus.FINISHED
+                        self.action_status = ActionStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
-                            self.status = ScriptStatus.FAILED
-                            Navigation.setTaskError("RecAdjustExceeded", f"Recognition adjustment {self.adjust_count} retries exceeded. Check QR code, camera, accuracy parameters")
+                            self.action_status = ActionStatus.FAILED
+                            Navigation.setTaskError("RecAdjustExceeded", _TR(f"Recognition adjustment {self.adjust_count} retries exceeded. Check QR code, camera, accuracy parameters"))
                 self.plan_status = ScriptStatus.FINISHED
                 self.rec.reset()
-        elif self.status is not ScriptStatus.FINISHED and self.status is not ScriptStatus.FAILED:
+        elif self.action_status is not ActionStatus.FINISHED and self.action_status is not ActionStatus.FAILED:
             if self.goPath.status != ScriptStatus.FINISHED and self.goPath.status != ScriptStatus.FAILED:
                 if abs(self.go_args['x']) < 0.003:
                     self.goPath.status = ScriptStatus.FINISHED
@@ -2461,7 +2494,7 @@ class RecAdjust:
                 else:
                     self.rotate_step = True
             elif self.goPath.status == ScriptStatus.FAILED:
-                self.status = ScriptStatus.FAILED
+                self.action_status = ActionStatus.FAILED
             elif self.goPath.status == ScriptStatus.FINISHED and self.rotate_step:
                 self.reset()
                 self.adjust_count += 1
@@ -2477,7 +2510,7 @@ class RecAdjust:
         cur_state["curRotate"] = agv.rotate_real_pos / math.pi * 180
         cur_state["curLift"] = agv.lift_real_pos
         cur_state["curStretch"] = agv.stretch_real_pos
-        cur_state["status"] = self.status
+        cur_state["status"] = self.action_status
         cur_state["agvYawAdjust"] = agv.yaw_adjust / math.pi * 180
         cur_state["lastYawAdjust"] = self.last_yaw_adjust / math.pi * 180
         cur_state["nextRotatePos"] = self.next_rotate_pos / math.pi * 180
@@ -2488,8 +2521,8 @@ class RecAdjust:
                   f"{self.rec_fail_time}|{self.adjust_count}|{self.rec.rec_times}|{self.go_args.get('x', 0)}|", name=f"{MOD}.rec", debug=True)
 
     def reset(self):
+        super().reset()
         self.rec.reset()
-        self.status = ScriptStatus.RUNNING
         self.rec_fail_time = 0
         self.goPath.reset()
 
