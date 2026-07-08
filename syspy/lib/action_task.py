@@ -328,7 +328,7 @@ class ActionTask:
                 "actions": [self._descriptor(a) for a in self.action_list],
             },
             output_time=True,
-            name=f"{self.mod}.action",
+            name=f"{self.mod}.taskBuild",
         )
 
     def extend(
@@ -360,7 +360,7 @@ class ActionTask:
                 "total": len(self.action_list),
             },
             output_time=True,
-            name=f"{self.mod}.action",
+            name=f"{self.mod}.taskExtend",
         )
 
     # -------- 状态转移事件 --------
@@ -392,7 +392,7 @@ class ActionTask:
                 payload["errorCode"] = a.error_code
         if new_status == ActionStatus.SUSPENDED and a.fail_reason:
             payload["reason"] = a.fail_reason
-        Trace.log(payload, output_time=True, name=f"{self.mod}.action")
+        Trace.log(payload, output_time=True, name=f"{self.mod}.actionStateChanged")
         self._last_status[a.action_id] = new_status
 
     # -------- 调度推进 --------
@@ -524,7 +524,7 @@ class ActionTask:
                 "elapsedMs": int((time.time() - self.queue_start_ts) * 1000),
             },
             output_time=True,
-            name=f"{self.mod}.action",
+            name=f"{self.mod}.taskFinished",
         )
         self._task_done_logged = True
         self._status = ActionStatus.FINISHED
@@ -543,6 +543,6 @@ class ActionTask:
             payload["failedAt"] = self._failed_at
         if reason:
             payload["reason"] = reason
-        Trace.log(payload, output_time=True, name=f"{self.mod}.action")
+        Trace.log(payload, output_time=True, name=f"{self.mod}.taskFailed")
         self._task_done_logged = True
         self._status = ActionStatus.FAILED
