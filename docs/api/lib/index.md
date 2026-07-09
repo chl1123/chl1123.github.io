@@ -11,6 +11,5 @@
 - [pass_through](pass_through.md)
 - [plyvel_db](plyvel_db.md)
 - [robot](robot.md)
-- [robot_param](robot_param.md)
 - [trace](trace.md)
 - [udp_debug](udp_debug.md)

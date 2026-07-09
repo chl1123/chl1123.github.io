@@ -23,6 +23,7 @@ tasks/v3/standard/example/template.py
 RBK 任务脚本是运行在 PyIDE 管理下的 Python 进程。调度侧下发脚本任务后，PyIDE 会启动脚本，或向已经驻留的任务脚本下发新任务。脚本本身负责解析任务参数、执行业务、调用 RBK 能力接口、上报状态、上报实时信息和异常。
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"actorBkg": "#EFF6FF", "actorBorder": "#2563EB", "actorTextColor": "#0F172A", "activationBkgColor": "#DBEAFE", "activationBorderColor": "#1D4ED8", "sequenceNumberColor": "#475569", "signalColor": "#334155", "signalTextColor": "#334155", "loopTextColor": "#334155"}}}%%
 sequenceDiagram
     autonumber
     participant Task as RBK任务侧
@@ -30,15 +31,25 @@ sequenceDiagram
     participant Script as Python任务脚本
     participant Module as syspy Module
 
+    rect rgb(239, 246, 255)
     Task->>PyIDE: scriptExecute(scriptName, scriptArgs)
     PyIDE->>Script: 启动脚本或调用 update_cmd
+    end
+    rect rgb(245, 243, 255)
     Script->>Module: Module.init()
     Module->>Module: 保存 taskId / args / config
+    end
+    rect rgb(254, 249, 195)
     Script->>Script: 校验输入参数并装配动作
+    end
+    rect rgb(219, 234, 254)
     Script->>Script: 推进业务状态机或 ActionTask
+    end
+    rect rgb(220, 252, 231)
     Script->>Module: Module.setStatus(...)
     Script->>Module: Module.reportInfo(...)
     Module-->>Task: 回传状态和实时信息
+    end
 ```
 
 脚本不是普通的一次性函数。标准任务脚本通常长期驻留：空闲时等待新任务，执行中持续推进状态机，结束后清理本地状态并回到空闲。
@@ -161,6 +172,17 @@ stateDiagram-v2
     SUSPENDED --> FAILED: cancel
     FINISHED --> NONE: 清理本地状态
     FAILED --> NONE: 清理本地状态
+
+    classDef idle fill:#F1F5F9,stroke:#64748B,color:#0F172A
+    classDef running fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A
+    classDef finished fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    classDef failed fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
+    classDef suspended fill:#FEF3C7,stroke:#D97706,color:#78350F
+    class NONE idle
+    class RUNNING running
+    class FINISHED finished
+    class FAILED failed
+    class SUSPENDED suspended
 ```
 
 主循环里只有 `NONE` 状态应该接收新任务。任务执行完成后，要重置动作队列、本地参数和实时信息，再回到 `NONE`。
@@ -454,6 +476,19 @@ flowchart LR
     F --> H
     G --> H
     H --> A
+
+    classDef script fill:#EFF6FF,stroke:#2563EB,color:#1E3A8A
+    classDef api fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
+    classDef service fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95
+    classDef message fill:#CCFBF1,stroke:#0D9488,color:#134E4A
+    classDef rbk fill:#FAE8FF,stroke:#C026D3,color:#701A75
+    classDef result fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    class A script
+    class B api
+    class C service
+    class D,G message
+    class E,F rbk
+    class H result
 ```
 
 新增插件接口时，不建议在业务脚本中到处写裸 `call_service`。应按 [RBK 插件接口接入规范](spec/plugin_interface.md) 补 Python 抽象层和 v3/v4 实现层。
@@ -674,6 +709,21 @@ flowchart TD
     H --> I{"队列终态"}
     I -->|成功| J["FINISHED"]
     I -->|失败| K["FAILED"]
+
+    classDef entry fill:#EFF6FF,stroke:#2563EB,color:#1E3A8A
+    classDef branch fill:#FEF3C7,stroke:#D97706,color:#78350F
+    classDef action fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
+    classDef build fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95
+    classDef running fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A
+    classDef finished fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    classDef failed fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
+    class A entry
+    class B,I branch
+    class C,D,E action
+    class F build
+    class G,H running
+    class J finished
+    class K failed
 ```
 
 业务脚本不要手写队列结构化事件，`ActionTask` 会统一落盘。事件字段、通道名、数值时序和反模式以 [日志记录规范](spec/logging.md) 的 Action 队列章节为准。
@@ -765,6 +815,19 @@ flowchart TD
     F --> G["主循环推进状态机"]
     G --> H["Trace / reportInfo / Error 上报"]
     H --> I["实机联调和打包"]
+
+    classDef template fill:#F1F5F9,stroke:#64748B,color:#0F172A
+    classDef params fill:#FEF3C7,stroke:#D97706,color:#78350F
+    classDef action fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
+    classDef running fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A
+    classDef observe fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95
+    classDef finished fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    class A template
+    class B,C params
+    class D,E,F action
+    class G running
+    class H observe
+    class I finished
 ```
 
 ### 运行和调试

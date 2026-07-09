@@ -1,7 +1,7 @@
 INHERIT: ./docs/en/mkdocs.maybe-insiders.yml
-site_name: Syspy | SEER # 设置文档名称
+site_name: SRC Script # 设置文档名称
 site_description: Syspy是仙工智能提供的一套基于Python的机器人SDK
-site_url: https://cn.seer-group.com/
+site_url: https://chl1123.github.io/
 use_directory_urls: true  # 本地文件系统直接访问
 theme:
   name: material
@@ -54,7 +54,7 @@ theme:
   favicon: assets/img/icon-blue-seer-en-cn.png
   language: zh
 repo_name: robokit/scripts
-repo_url: https://seer-group.coding.net/p/robokit/d/scripts/git/tree/3.5
+repo_url: https://cnb.cool/seer-robotics/robokit/rbk3/scripts/-/tree/release
 plugins:
   offline: # 离线本地搜索，和navigation.instant不能同时启用
   privacy: # 自动识别并下载外部资源
