@@ -1186,11 +1186,6 @@ class InputParams:
                                 # 识别参数
                                 create_rec_param(cls.builder)
 
-            if ConfigParams.scriptDebug:
-                with cls.builder.CHILD(key="targetName", name="Target Name", desc="Target ID Name"):
-                    cls.builder.TYPE(ParamType.STRING)
-                    cls.builder.DEFAULTVALUE("AP1")
-
         cls.builder.save_to_file()
 
 
@@ -1814,11 +1809,11 @@ class Fork(ModuleBase):
             Trace.log("Less than 2 expand motors, skip expand motor control", name="fork.task")
             return None
 
-        # 按 holeY 分别找左孔（holeY < 0）和右孔（holeY >= 0）
+        # 按孔位 y 分别找左孔（y > 0）和右孔（y < 0）
         expand_motor_left_offset = None
         expand_motor_right_offset = None
         for hole in rec_action.hole_positions:
-            hole_y = hole["holeY"]
+            hole_y = hole["y"]
             if hole_y > 0 and expand_motor_left_offset is None:
                 expand_motor_left_offset = hole_y
             elif hole_y < 0 and expand_motor_right_offset is None:
@@ -2945,63 +2940,80 @@ class Rec(BaseAction):
         else:
             results_list = self.results_dict.get("recoList", [])
             self.obstacle_polygon = self.results_dict.get("obstaclePolygon", [])
-            # 处理识别结果，并按降序排序，z值最大的结果在前
-            if ConfigParams.zMax:
+            # 处理孔坐标转换
+            self._process_hole_positions(results_list)
 
-                results_list.sort(key=lambda x: x["robotResult"]["z"], reverse=True)
-                results_list.sort(key=lambda x: x["worldResult"]["z"], reverse=True)
-            # z值最小的结果在前
-            else:
-                results_list.sort(key=lambda x: x["robotResult"]["z"])
-                results_list.sort(key=lambda x: x["worldResult"]["z"])
+            # 处理识别结果，并按降序排序，z值最大的结果在前
+            def result_z(result):
+                return result.get("robotResult", {}).get("z", 0)
 
             self.results_list = results_list
-            self.result = self.results_list[0]
+            if ConfigParams.zMax:
 
-            # 处理孔坐标转换
-            self._process_hole_positions()
+                self.results_list.sort(key=result_z, reverse=True)
+            # z值最小的结果在前
+            else:
+                self.results_list.sort(key=result_z)
+
+            self.result = self.results_list[0]
+            self.hole_positions = self.result.get("holeInfo", [])
 
             Trace.log(f"rec_result_list: {self.results_list}", name="fork.cfg")
 
             self.action_status = ActionStatus.FINISHED
 
-    def _process_hole_positions(self):
+    def _process_hole_positions(self, results_list):
         """处理孔坐标转换到栈板坐标系"""
-        if not self.result:
+        if not results_list:
             return
-
-        info_str = self.result.get("info", "[]")
-        try:
-            info_list = json.loads(info_str) if isinstance(info_str, str) else info_str
-        except json.JSONDecodeError:
-            Trace.log(f"Failed to parse info: {info_str}", name="fork.err")
-            return
-
-        robot_result = self.result.get("robotResult", {})
-        pallet_pos = [robot_result.get("x", 0), robot_result.get("y", 0), robot_result.get("yaw", 0)]
 
         self.hole_positions = []
-        for idx, hole_info in enumerate(info_list):
-            robot_result_x = hole_info.get("robotResultX", 0)
-            robot_result_y = hole_info.get("robotResultY", 0)
+        for result_idx, result in enumerate(results_list):
+            info_str = result.get("info", "[]")
+            try:
+                info_list = json.loads(info_str) if isinstance(info_str, str) else info_str
+            except json.JSONDecodeError:
+                Trace.log(f"Failed to parse info: {info_str}", name="fork.err")
+                info_list = []
+            if not isinstance(info_list, list):
+                info_list = []
 
-            # 把孔坐标从机器人坐标系转到栈板坐标系
-            hole_in_pallet = pos2Base([robot_result_x, robot_result_y, 0], pallet_pos)
-            hole_y = hole_in_pallet[1]
+            robot_result = result.get("robotResult", {})
+            world_result = result.get("worldResult", {})
+            pallet_pos = [robot_result.get("x", 0), robot_result.get("y", 0), robot_result.get("yaw", 0)]
 
-            self.hole_positions.append({
-                "index": idx,
-                "robotResultX": robot_result_x,
-                "robotResultY": robot_result_y,
-                "holeY": hole_y,
-                "holeX": hole_in_pallet[0]
-            })
+            result_hole_info = []
+            result_angle = 0
+            for idx, hole_info in enumerate(info_list):
+                robot_result_x = hole_info.get("robotResultX", 0)
+                robot_result_y = hole_info.get("robotResultY", 0)
+                hole_z = hole_info.get("z", hole_info.get("robotResultZ", 0))
+                hole_width = hole_info.get("width", 0)
+                if idx == 0:
+                    result_angle = hole_info.get("angle", 0)
 
-            Trace.log(
-                f"Hole {idx}: robotResult=[{robot_result_x:.4f}, {robot_result_y:.4f}], "
-                f"palletCoord=[{hole_in_pallet[0]:.4f}, {hole_y:.4f}]",
-                name="fork.task"
-            )
+                # 把孔坐标从机器人坐标系转到外层 robotResult 坐标系
+                hole_in_pallet = pos2Base([robot_result_x, robot_result_y, 0], pallet_pos)
+                processed_hole = {
+                    "x": hole_in_pallet[0],
+                    "y": hole_in_pallet[1],
+                    "z": hole_z,
+                    "width": hole_width
+                }
+                result_hole_info.append(processed_hole)
+
+                Trace.log(
+                    f"Result {result_idx} hole {idx}: robotResult=[{robot_result_x:.4f}, {robot_result_y:.4f}], "
+                    f"palletCoord=[{hole_in_pallet[0]:.4f}, {hole_in_pallet[1]:.4f}], angle={result_angle:.4f}",
+                    name="fork.task"
+                )
+
+            result["holeInfo"] = result_hole_info
+            result["angle"] = result_angle
+            result["robotResult"] = robot_result
+            result["worldResult"] = world_result
+            if result_idx == 0:
+                self.hole_positions = result_hole_info
 
     def reset(self):
         Recognize.resetRec()

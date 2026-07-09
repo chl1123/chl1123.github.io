@@ -198,6 +198,7 @@ class ConfigParams:
     deviceName: str = ""
     errorRecY: float = 0.1
     errorRecAngle: float = 15.0
+    errorRecTiltAngle: float = -1.0
     zMax: bool = True
 
     # 上报信息
@@ -258,6 +259,7 @@ class ConfigParams:
         cls.loadObsStopDist = cfg.get("loadObsStopDist")
         cls.errorRecY = cfg.get("errorRecY")
         cls.errorRecAngle = cfg.get("errorRecAngle")
+        cls.errorRecTiltAngle = cls._safe_float(cfg.get("errorRecTiltAngle"), -1.0)
         cls.zMax = cfg.get("zMax")
         cls.recCenterX = cfg.get("recCenterX", 0.0)
         cls.recCenterY = cfg.get("recCenterY", 0.0)
@@ -594,7 +596,8 @@ class ConfigParams:
                     with builder.CHILD(key="downDo", name=_TR("Down DO"), desc=_TR("Fork lower DO")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.Device.DO)
-                    with builder.CHILD(key="downDoStatus", name=_TR("Down Do Status"), desc=_TR("Fork lower DO status")):
+                    with builder.CHILD(key="downDoStatus", name=_TR("Down Do Status"),
+                                       desc=_TR("Fork lower DO status")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
@@ -602,7 +605,8 @@ class ConfigParams:
             with builder.GROUP(key="loadUnload", name=_TR("Load & Unload"), desc=_TR("Load and unload configuration")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="pathAdjustMode", name=_TR("Path Adjust Mode"), desc=_TR("Path adjustment mode")):
+                    with builder.CHILD(key="pathAdjustMode", name=_TR("Path Adjust Mode"),
+                                       desc=_TR("Path adjustment mode")):
                         builder.TYPE(ParamType.COMBO_BOX)
                         builder.DEFAULTVALUE("bezier")
 
@@ -616,7 +620,8 @@ class ConfigParams:
                                         builder.DEFAULTVALUE(3)
                                         builder.UNIT("m")
 
-                            with builder.CHILD(key="straightLine", name=_TR("Straight Line"), desc=_TR("Straight line adjustment")):
+                            with builder.CHILD(key="straightLine", name=_TR("Straight Line"),
+                                               desc=_TR("Straight line adjustment")):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
                                     with builder.CHILD(key="maxAngle", name=_TR("Max Angle"),
@@ -643,7 +648,7 @@ class ConfigParams:
                     with builder.CHILD(key="loadObsStopDist", name=_TR("Load Obstacle Stop Distance"),
                                        desc=_TR("Load obstacle stop distance")):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.05, min_value=0, max_value=2)
+                        builder.DEFAULTVALUE(0.2, min_value=0, max_value=2)
                         builder.UNIT("m")
                     with builder.CHILD(key="checkAllContactDi", name=_TR("Check All Contact DI"),
                                        desc=_TR("Check all contact DIs")):
@@ -665,7 +670,8 @@ class ConfigParams:
                                 with builder.CHILD(key="on", name=_TR("Fork Di Enable At Unload"),
                                                    desc=_TR("forkDiEnableAtUnload")):
                                     builder.TYPE(ParamType.ARRAY)
-                                    with builder.CHILD(key="diTriggerMeasureUnload", name=_TR("Di Trigger Measure Unload"),
+                                    with builder.CHILD(key="diTriggerMeasureUnload",
+                                                       name=_TR("Di Trigger Measure Unload"),
                                                        desc=_TR("Unload DI trigger action")):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                                         builder.DEFAULTVALUE("collision")
@@ -675,7 +681,8 @@ class ConfigParams:
                                             with builder.CHILD("autoClearError", _TR("Auto Clear Error"),
                                                                _TR("Auto clear goods error")):
                                                 builder.TYPE(ParamType.STRING)
-                                            with builder.CHILD("failTask", _TR("Fail Task"), _TR("Fail task on trigger")):
+                                            with builder.CHILD("failTask", _TR("Fail Task"),
+                                                               _TR("Fail task on trigger")):
                                                 builder.TYPE(ParamType.STRING)
 
                                 # off选项
@@ -701,11 +708,18 @@ class ConfigParams:
                                                desc=_TR("Recognition yaw error threshold")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(15)
-                                builder.UNIT("°")
-                            with builder.CHILD(key="enableTcp", name=_TR("Enable TCP"), desc=_TR("Enable TCP for recognition load")):
+                                builder.UNIT("deg")
+                            with builder.CHILD(key="errorRecTiltAngle", name=_TR("Error Rec Tilt Angle"),
+                                               desc=_TR("Recognition tilt angle threshold, -1 means disabled")):
+                                builder.TYPE(ParamType.FLOAT)
+                                builder.DEFAULTVALUE(2)
+                                builder.UNIT("deg")
+                            with builder.CHILD(key="enableTcp", name=_TR("Enable TCP"),
+                                               desc=_TR("Enable TCP for recognition load")):
                                 builder.TYPE(ParamType.BOOL)
                                 builder.DEFAULTVALUE(False)
-                            with builder.CHILD(key="aheadDist", name=_TR("Ahead Dist"), desc=_TR("Recognition load ahead distance")):
+                            with builder.CHILD(key="aheadDist", name=_TR("Ahead Dist"),
+                                               desc=_TR("Recognition load ahead distance")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(0.8, min_value=0, max_value=2)
                                 builder.UNIT("m")
@@ -809,15 +823,18 @@ class ConfigParams:
             with builder.GROUP(key="linearUnload", name=_TR("Linear Unload"), desc=_TR("Linear unload configuration")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="laserWidth", name=_TR("Laser Width"), desc=_TR("Linear unload laser width")):
+                    with builder.CHILD(key="laserWidth", name=_TR("Laser Width"),
+                                       desc=_TR("Linear unload laser width")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.1, min_value=0, max_value=1)
                         builder.UNIT("m")
-                    with builder.CHILD(key="obsDist", name=_TR("Obs Dist"), desc=_TR("Linear unload obstacle distance")):
+                    with builder.CHILD(key="obsDist", name=_TR("Obs Dist"),
+                                       desc=_TR("Linear unload obstacle distance")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5, min_value=0, max_value=1)
                         builder.UNIT("m")
-                    with builder.CHILD(key="loadObsDist", name=_TR("Load Obs Dist"), desc=_TR("Load fork obstacle distance")):
+                    with builder.CHILD(key="loadObsDist", name=_TR("Load Obs Dist"),
+                                       desc=_TR("Load fork obstacle distance")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.1, min_value=0, max_value=11)
                         builder.UNIT("m")
@@ -912,16 +929,6 @@ def create_rec_param(builder: ParamBuilder):
                                desc=_TR("Load With Recognition")):
                 builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="recfile", name=_TR("Recfile"),
-                                   desc=_TR("Recognition file name")):
-                    builder.TYPE(ParamType.STRING)
-                    builder.DEFAULTVALUE("default.srec")
-
-                with builder.CHILD(key="recSide", name=_TR("Rec Side"),
-                                   desc=_TR("Rec Side")):
-                    builder.TYPE(ParamType.STRING)
-                    builder.DEFAULTVALUE("A")
-
                 with builder.CHILD(key="recHeight", name=_TR("Rec Height"),
                                    desc=_TR("The fork height before load after rec")):
                     builder.TYPE(ParamType.FLOAT)
@@ -942,11 +949,6 @@ class InputParams:
         max_height = ConfigParams.max_height
 
         with cls.builder.GROUPS():
-            # 公共参数:
-            # 使用PGV参数
-            # with builder.CHILD(key="use_pgv", name="Use PGV", desc="Use PGV for position adjustment"):
-            #     builder.TYPE(ParamType.BOOL)
-            #     builder.DEFAULTVALUE(False)
 
             # 操作组合框
             with cls.builder.GROUP(key="operation", name=_TR("Operations"), desc=_TR("Task script input parameters")):
@@ -966,6 +968,16 @@ class InputParams:
 
                             # 识别参数
                             create_rec_param(cls.builder)
+
+                            with cls.builder.CHILD(key="recfile", name=_TR("Recfile"),
+                                                   desc=_TR("Recognition file name")):
+                                cls.builder.TYPE(ParamType.STRING)
+                                cls.builder.DEFAULTVALUE("default.srec")
+
+                            with cls.builder.CHILD(key="recSide", name=_TR("Rec Side"),
+                                                   desc=_TR("Rec Side")):
+                                cls.builder.TYPE(ParamType.STRING)
+                                cls.builder.DEFAULTVALUE("A")
 
                             # 如果需要脱离库位，则多一个参数
                             with cls.builder.CHILD(key="leaveLocHeight", name=_TR("Leave Loc Height"),
@@ -1017,7 +1029,8 @@ class InputParams:
                     with cls.builder.CHILD(key="lift", name=_TR("Lift Motor"), desc=_TR("Lift motor jog or move")):
                         cls.builder.TYPE(ParamType.ARRAY)
                         with cls.builder.CHILDREN():
-                            with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for lift motor")):
+                            with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"),
+                                                   desc=_TR("Jog step for lift motor")):
                                 cls.builder.TYPE(ParamType.FLOAT)
                                 cls.builder.UNIT("m")
                                 cls.builder.SINGLESTEP(0.01)
@@ -1030,10 +1043,12 @@ class InputParams:
                                 cls.builder.DEFAULTVALUE(-1)
 
                     if ConfigParams.shiftMotor:
-                        with cls.builder.CHILD(key="shift", name=_TR("Shift Motor"), desc=_TR("Shift motor jog or move")):
+                        with cls.builder.CHILD(key="shift", name=_TR("Shift Motor"),
+                                               desc=_TR("Shift motor jog or move")):
                             cls.builder.TYPE(ParamType.ARRAY)
                             with cls.builder.CHILDREN():
-                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for shift motor")):
+                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"),
+                                                       desc=_TR("Jog step for shift motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
@@ -1046,10 +1061,12 @@ class InputParams:
                                     cls.builder.DEFAULTVALUE(-1)
 
                     if ConfigParams.pitch_motor_name:
-                        with cls.builder.CHILD(key="pitch", name=_TR("Pitch Motor"), desc=_TR("Pitch motor jog or move")):
+                        with cls.builder.CHILD(key="pitch", name=_TR("Pitch Motor"),
+                                               desc=_TR("Pitch motor jog or move")):
                             cls.builder.TYPE(ParamType.ARRAY)
                             with cls.builder.CHILDREN():
-                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for pitch motor")):
+                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"),
+                                                       desc=_TR("Jog step for pitch motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
@@ -1062,10 +1079,12 @@ class InputParams:
                                     cls.builder.DEFAULTVALUE(-1)
 
                     if ConfigParams.reach_motor_name:
-                        with cls.builder.CHILD(key="reach", name=_TR("Reach Motor"), desc=_TR("Reach motor jog or move")):
+                        with cls.builder.CHILD(key="reach", name=_TR("Reach Motor"),
+                                               desc=_TR("Reach motor jog or move")):
                             cls.builder.TYPE(ParamType.ARRAY)
                             with cls.builder.CHILDREN():
-                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for reach motor")):
+                                with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"),
+                                                       desc=_TR("Jog step for reach motor")):
                                     cls.builder.TYPE(ParamType.FLOAT)
                                     cls.builder.UNIT("m")
                                     cls.builder.SINGLESTEP(0.01)
@@ -1078,7 +1097,8 @@ class InputParams:
                                     cls.builder.DEFAULTVALUE(-1)
 
                     if ConfigParams.expand_motor_name:
-                        with cls.builder.CHILD(key="expand", name=_TR("Expand Motor"), desc=_TR("Expand motor jog or move")):
+                        with cls.builder.CHILD(key="expand", name=_TR("Expand Motor"),
+                                               desc=_TR("Expand motor jog or move")):
                             cls.builder.TYPE(ParamType.ARRAY)
                             with cls.builder.CHILDREN():
                                 with cls.builder.CHILD(key="jogStep", name=_TR("Jog Step"),
@@ -1146,10 +1166,10 @@ class InputParams:
                                 # 识别参数
                                 create_rec_param(cls.builder)
 
-            if ConfigParams.scriptDebug:
-                with cls.builder.CHILD(key="targetName", name=_TR("Target Name"), desc=_TR("Target ID Name")):
-                    cls.builder.TYPE(ParamType.STRING)
-                    cls.builder.DEFAULTVALUE("AP1")
+            # if ConfigParams.scriptDebug:
+            #     with cls.builder.CHILD(key="targetName", name=_TR("Target Name"), desc=_TR("Target ID Name")):
+            #         cls.builder.TYPE(ParamType.STRING)
+            #         cls.builder.DEFAULTVALUE("AP1")
 
         cls.builder.save_to_file()
 
@@ -1165,6 +1185,8 @@ param_loader.addAction(
         "operation.load.endHeight": 0.1,
         "operation.load.recognize": 0,
         "operation.load.leaveLocHeight": -1,
+        "operation.load.recfile": "default.srec",
+        "operation.load.recSide": "A"
     },
     config={},
     stage=3
@@ -1643,7 +1665,7 @@ class Fork(ModuleBase):
             self.task_args = args
             self.action_id = 0
             self.action_list = []
-            NavStatus.clearBlock()
+            # NavStatus.clearBlock()
             self.min_safe_height = 0.0  # 每次新任务复位，_init_args 会重新解析
             Trace.log(f"script args:{self.task_args}", name="fork.task")
             self._init_args()
@@ -2043,10 +2065,18 @@ class Fork(ModuleBase):
                               name="fork.task")
                     rec_world_pos = rec_world_pos_tcp_list
 
+                tilt_angle = ConfigParams._safe_float(rec_result_dict.get("angle", 0))
+                if abs(tilt_angle) > ConfigParams.errorRecTiltAngle != -1:
+                    Navigation.setTaskError("RecTiltAngleError",
+                                            f"rec result tilt angle too large:{tilt_angle}deg")
+                    self.script_status = ScriptStatus.FAILED
+                    return
+
                 # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
                 if self.target_pos and self.target_pos[3] != -1:
                     rec2ap_pos = pos2Base(rec_world_pos, self.target_pos)
                     angle = math.degrees(rec2ap_pos[2])
+
                     Trace.log(
                         f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{self.target_pos},angle2ap:{angle}",
                         output_console=True, output_time=True, name="fork.task")
@@ -2195,7 +2225,7 @@ class Fork(ModuleBase):
             Trace.log(f"target_pos: {target_pos}", name="fork.task")
             if not self.target_pos or self.target_pos[3] == -1 or self.move_task.get("skillName", "") == "Action":
                 self.action_list = [
-                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,action_name="downFork")
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, action_name="downFork")
                 ]
             else:
 
@@ -2228,7 +2258,7 @@ class Fork(ModuleBase):
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
                     GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
                                         False, "unload"),
-                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height,action_name="downFork")
+                    RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, action_name="downFork")
                 ]
 
                 if self.leave_loc_height >= 0:
@@ -2388,20 +2418,33 @@ class Fork(ModuleBase):
     def _init_args(self):
 
         # 解析任务参数，script_args 里的参数
-        self.recfile = self.task_args.get("recfile", "")
         self.opt = self.task_args.get("operation", "")
+        operation_prefix = f"operation.{self.opt}." if self.opt else ""
+
+        def get_task_arg(key, default=None, legacy_recognize_on=False):
+            if key in self.task_args:
+                return self.task_args.get(key)
+            if operation_prefix and legacy_recognize_on:
+                legacy_key = f"{operation_prefix}recognize.on.{key}"
+                if legacy_key in self.task_args:
+                    return self.task_args.get(legacy_key)
+            return default
+
+        self.recfile = get_task_arg("recfile", "", legacy_recognize_on=True)
         self.start_height = self.task_args.get("startHeight", 0.09)
-        self.rec_height = self.task_args.get("recHeight", -1)
+        self.rec_height = get_task_arg("recHeight", -1, legacy_recognize_on=True)
         self.end_height = self.task_args.get("endHeight", 0.2)
         self.leave_loc_height = self.task_args.get("leaveLocHeight", -1)
         self.forkHeight = self.task_args.get("height")
         self.forkSpeed = self.task_args.get("forkSpeed", ConfigParams.fork_max_speed)
-        self.recSide = self.task_args.get("recSide", None)
+        self.recSide = get_task_arg("recSide", None, legacy_recognize_on=True)
         self.jog_step = self.task_args.get("jogStep", None)
         self.target_position = self.task_args.get("position", None)
         self.motor_max_speed = self.task_args.get("max_speed", self.task_args.get("maxSpeed", 0.01))
         self.motor_stop_di = self.task_args.get("stop_di", self.task_args.get("stopDi", ""))
         input_recognize = self.task_args.get("recognize", False)
+
+        Trace.log(f"{self.rec_height},{self.recSide},{self.recfile}")
 
         # 解析任务下发的参数，不含在 script_args 里的参数
         self.move_task = Navigation.moveTask()
@@ -2747,6 +2790,13 @@ class Fork(ModuleBase):
                           name="fork.task")
                 rec_world_pos = rec_world_pos_tcp_list
 
+            tilt_angle = ConfigParams._safe_float(rec_result_dict.get("angle", 0))
+            if abs(tilt_angle) > ConfigParams.errorRecTiltAngle != -1:
+                Navigation.setTaskError("RecTiltAngleError",
+                                        f"rec result tilt angle too large:{tilt_angle}deg")
+                self.script_status = ScriptStatus.FAILED
+                return
+
             # 根据AP点，异常识别结果报警，如果 AP 点没有角度怎么办
             if self.target_pos and self.target_pos[3] != -1:
                 rec2ap_pos = pos2Base(rec_world_pos, self.target_pos)
@@ -2976,7 +3026,6 @@ class BaseAction:
         self.action_status = ActionStatus.FAILED
 
 
-# 用于识别栈板并获取识别的栈板坐标
 class Rec(BaseAction):
     def __init__(self, pallet_file, rec_center_x=-1.0, rec_center_y=0.0, rec_radius=0.7, action_name="RecPallet"):
         super().__init__(action_name)
@@ -2999,6 +3048,8 @@ class Rec(BaseAction):
             "radius": self.rec_radius,
             "shape": "circle"
         }
+        # 孔坐标转换结果
+        self.hole_positions = []
         Trace.log(f"region: {self.region}", name="fork.task")
 
     def run(self):
@@ -3013,27 +3064,83 @@ class Rec(BaseAction):
         else:
             results_list = self.results_dict.get("recoList", [])
             self.obstacle_polygon = self.results_dict.get("obstaclePolygon", [])
-            # 处理识别结果，并按降序排序，z值最大的结果在前
-            if ConfigParams.zMax:
+            # 处理孔坐标转换
+            self._process_hole_positions(results_list)
 
-                results_list.sort(key=lambda x: x["robotResult"]["z"], reverse=True)
-                results_list.sort(key=lambda x: x["worldResult"]["z"], reverse=True)
-            # z值最小的结果在前
-            else:
-                results_list.sort(key=lambda x: x["robotResult"]["z"])
-                results_list.sort(key=lambda x: x["worldResult"]["z"])
+            # 处理识别结果，并按降序排序，z值最大的结果在前
+            def result_z(result):
+                return result.get("robotResult", {}).get("z", 0)
 
             self.results_list = results_list
+            if ConfigParams.zMax:
+                self.results_list.sort(key=result_z, reverse=True)
+            # z值最小的结果在前
+            else:
+                self.results_list.sort(key=result_z)
+
             self.result = self.results_list[0]
+            self.hole_positions = self.result.get("holeInfo", [])
 
             Trace.log(f"rec_result_list: {self.results_list}", name="fork.cfg")
 
             self.action_status = ActionStatus.FINISHED
 
+    def _process_hole_positions(self, results_list):
+        """处理孔坐标转换到栈板坐标系"""
+        if not results_list:
+            return
+
+        self.hole_positions = []
+        for result_idx, result in enumerate(results_list):
+            info_str = result.get("info", "[]")
+            try:
+                info_list = json.loads(info_str) if isinstance(info_str, str) else info_str
+            except json.JSONDecodeError:
+                Trace.log(f"Failed to parse info: {info_str}", name="fork.err")
+                info_list = []
+            if not isinstance(info_list, list):
+                info_list = []
+
+            robot_result = result.get("robotResult", {})
+            world_result = result.get("worldResult", {})
+            pallet_pos = [robot_result.get("x", 0), robot_result.get("y", 0), robot_result.get("yaw", 0)]
+
+            result_hole_info = []
+            result_angle = 0
+            for idx, hole_info in enumerate(info_list):
+                robot_result_x = hole_info.get("robotResultX", 0)
+                robot_result_y = hole_info.get("robotResultY", 0)
+                hole_z = hole_info.get("z", hole_info.get("robotResultZ", 0))
+                hole_width = hole_info.get("width", 0)
+                if idx == 0:
+                    result_angle = hole_info.get("angle", 0)
+
+                # 把孔坐标从机器人坐标系转到外层 robotResult 坐标系
+                hole_in_pallet = pos2Base([robot_result_x, robot_result_y, 0], pallet_pos)
+                processed_hole = {
+                    "x": hole_in_pallet[0],
+                    "y": hole_in_pallet[1],
+                    "z": hole_z,
+                    "width": hole_width
+                }
+                result_hole_info.append(processed_hole)
+
+                Trace.log(
+                    f"Result {result_idx} hole {idx}: robotResult=[{robot_result_x:.4f}, {robot_result_y:.4f}], "
+                    f"palletCoord=[{hole_in_pallet[0]:.4f}, {hole_in_pallet[1]:.4f}], angle={result_angle:.4f}",
+                    name="fork.task"
+                )
+
+            result["holeInfo"] = result_hole_info
+            result["angle"] = result_angle
+            result["robotResult"] = robot_result
+            result["worldResult"] = world_result
+            if result_idx == 0:
+                self.hole_positions = result_hole_info
+
     def reset(self):
         Recognize.resetRec()
         self.action_status = ActionStatus.RUNNING
-        self.init = False
 
     def rec(self, recfile):
         rec_status = Recognize.getRecStatus()
@@ -3052,7 +3159,7 @@ class Rec(BaseAction):
                     Trace.log(f"error_type: {error_type}", name="fork.err")
                     self.action_status = ActionStatus.FAILED
                     Navigation.setTaskError("RecFailed",
-                                            f"Recognition failed, the maximum number of retries exceeded,error_type: {error_type}, error_msg: {error_msg}")
+                                            f"Recognition failed:{error_msg}, the maximum number of retries exceeded")
                 else:
                     Recognize.resetRec()
         else:
@@ -3340,14 +3447,15 @@ class GoPathWithContactDi(BaseAction):
             r_loc = get_r_loc()
 
             dist2target = pos2Base(r_loc, self.final_target)
-            # Trace.log(f"r_loc:{r_loc},final target :{self.final_target}")
+            # Trace.log(f"r_loc:{r_loc},final target :{self.final_target},dist2target:{dist2target}")
 
             # 如果不需要检查所有的到位 di，一个到位任务结束
             if not self.check_all_contact_di:
 
-                if dist2target[0] > 0.2 and any(self.di_status):
+                if abs(dist2target[0]) > 0.2 and any(self.di_status):
                     Navigation.setTaskError("NotReachGoal", f"reach di not reach goal, still {dist2target[0]}m left, ")
-                    RobotError.setSystemError("NoContactDiTriger", f"not trigger di but robot reach goal", True)
+                    RobotError.setSystemError("NotReachGoal", f"reach di not reach goal, still {dist2target[0]}m left",
+                                              True)
                     self.action_status = ActionStatus.FAILED
                     return
 
@@ -3367,7 +3475,7 @@ class GoPathWithContactDi(BaseAction):
                 # 仅检查所有到位 di 的情况
             else:
 
-                if dist2target[0] > 0.2 and all(self.di_status):
+                if abs(dist2target[0]) > 0.2 and all(self.di_status):
                     Navigation.setTaskError("NotReachGoal",
                                             f"reach di not reach goal, still {dist2target[0]:.2f}m left, ")
                     RobotError.setSystemError("NotReachGoal",
@@ -3615,6 +3723,22 @@ class RunMotorByPosition(BaseAction):
                         else:
                             Navigation.collisionDetection(self.collision_device, self.x_list, self.y_list)
 
+                max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
+
+                # 考虑载货时的货叉升降速度
+                if Navigation.hasGoods():
+                    # 取最大速度
+                    if self.delta > 0:
+                        if ConfigParams.upMaxSpeedWithGoods != -1:
+                            max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
+                    else:
+                        if ConfigParams.downMaxSpeedWithGoods != -1:
+                            max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
+
+                self.max_speed = max_speed
+
+                Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
+
             # 搬运车分DOMotor和协议电机，分别处理发速度和目标高度
             if ConfigParams.module_type == "liftFork":
                 if ConfigParams.DOMotor:
@@ -3634,20 +3758,9 @@ class RunMotorByPosition(BaseAction):
                         self.position = ConfigParams.max_height
                     Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
 
-            if ConfigParams.module_type not in ["liftFork", "singleFork", "pickFork"]:
+            if ConfigParams.module_type in ["singleFork", "pickFork"]:
                 # 从输入参数和设备配置参数里选出最小速度
                 max_speed = min(ConfigParams.fork_max_speed, self.max_speed)
-
-                # 考虑载货时的货叉升降速度
-                if Navigation.hasGoods():
-                    # 取最大速度
-                    if self.delta > 0:
-                        if ConfigParams.upMaxSpeedWithGoods != -1:
-                            max_speed = min(max_speed, ConfigParams.upMaxSpeedWithGoods)
-                    else:
-                        if ConfigParams.downMaxSpeedWithGoods != -1:
-                            max_speed = min(max_speed, ConfigParams.downMaxSpeedWithGoods)
-
                 self.max_speed = max_speed
 
                 Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
