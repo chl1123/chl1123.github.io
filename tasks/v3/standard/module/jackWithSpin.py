@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/7/3
+# @Date : 2026/7/9
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update : m-7028565334 fix:脚本适配识别参数路径
-# m-7028963549 add: 扣除区域随托盘旋转的实时更新
-# m-7026743799 add：优化识别Dist功能
-# m-6617554096 feat：错误描述增加_TR翻译
-# m-7020616746 feat：适配Modbus TCP功能实现
-# m-6977954505 feat：适配最新的3.5机构脚本日志记录统一格式
+# @Update :fix: m-7042225606 修复不识别时钻入深度默认值不生效问题。
+# feat: m-7020616746 适配实现ModbusTCP API
+# add:m-7037482506 货架角度偏差处理（暂时方案，完整后续更新）
 
 import json
 import math
@@ -1546,11 +1543,12 @@ class Jack(ModuleBase):
 
     @staticmethod
     def _calc_align_target(cur_angle):
-        """计算就近对齐目标：0° 或 180°（文档定义的'对齐'）
+        """计算就近对齐目标：0° 或 180°
         返回目标弧度值（0 或 π）"""
         diff_to_0 = abs(Jack._normalize_angle(cur_angle))
-        diff_to_pi = abs(Jack._normalize_angle(cur_angle - math.pi))
-        return 0.0 if diff_to_0 <= diff_to_pi else math.pi
+        # diff_to_pi = abs(Jack._normalize_angle(cur_angle - math.pi))
+        # return 0.0 if diff_to_0 <= diff_to_pi else math.pi
+        return 0.0
 
     def _get_actual_insert_dir_from_pgv(self) -> str:
         """根据 PGV 角度计算实际的进入方向（A/B/C/D）
@@ -1602,7 +1600,8 @@ class Jack(ModuleBase):
                 dir_ = {'A': 'C', 'B': 'D', 'C': 'A', 'D': 'B'}.get(dir_, dir_)
             r_goods = {'A': 0.0, 'B': -math.pi / 2, 'C': math.pi, 'D': math.pi / 2}.get(dir_, 0.0)
             src = f"dir={dir_}"
-        theta = r_goods + math.radians(self.DEDUCT_BASELINE_OFFSET_DEG)
+        deduct_rad = self.DEDUCT_BASELINE_OFFSET_DEG + math.degrees(self.jack_rotate_body_rad)
+        theta = r_goods + math.radians(deduct_rad)
         debug_trace(f"deduct orient {src} theta={math.degrees(theta):.1f}deg", name=f"{MOD}.motor")
         return theta
 
@@ -1849,13 +1848,13 @@ class Jack(ModuleBase):
             # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
             def _rotate_pt(pt, dir_):
                 if dir_ == "A":  # 0°: (x, y) -> (x, y)
-                    if isinstance(pt, dict):  return {"x": pt["y"], "y": -pt["x"]}
+                    if isinstance(pt, dict):  return {"x": pt["x"], "y": pt["y"]}
                     return [pt[0], pt[1]]
                 elif dir_ == "B":  # 顺时针90°: (x, y) -> (y, -x)
                     if isinstance(pt, dict):  return {"x": pt["x"], "y": pt["y"]}
                     return [pt[1], -pt[0]]
                 elif dir_ == "C":  # 180°: (x, y) -> (-x, -y)
-                    if isinstance(pt, dict):  return {"x": -pt["y"], "y": pt["x"]}
+                    if isinstance(pt, dict):  return {"x": -pt["x"], "y": -pt["y"]}
                     return [-pt[0], -pt[1]]
                 else:  # D: 逆时针90°: (x, y) -> (-y, x)
                     if isinstance(pt, dict):  return {"x": -pt["x"], "y": -pt["y"]}
@@ -2468,8 +2467,11 @@ class Jack(ModuleBase):
                     GoPath(straight_target, "world", self.is_backwards, self.is_hold_dir,
                            self.max_speed, self.max_rot, self.path_dist_accuracy, self.path_angle_accuracy))
             elif self.how_go_site == "bezier":
-                recfile_back_dist = self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
                 if not self.back_dist:
+                    # 仅在有识别文件时才查其钻入深度；无 recfile(如未识别直接顶升)时用默认值，
+                    # 避免以 file_name=None 调用 getParam 触发 RPC 报错
+                    recfile_back_dist = (self.get_back_distance_info(self.recfile, "shelf", self.insert_shelf_dir)
+                                         if self.recfile else {})
                     if recfile_back_dist.get("enableBackDistance") == "on":
                         self.back_dist = recfile_back_dist.get("backDistance") or 0.24
                     else:
@@ -2518,7 +2520,7 @@ class Jack(ModuleBase):
         if self.jack_rotate_body_enable and abs(self.jack_rotate_body_rad) > 1e-6:
             Trace.log(f"jack_load rotateBeforeJack angle={math.degrees(self.jack_rotate_body_rad):.1f}deg",
                       name=f"{MOD}.motor")
-            self.action_list.append(RobotRotate(self.jack_rotate_body_rad, Coordinate.ROBOT, True))
+            self.action_list.append(RobotRotate(self.jack_rotate_body_rad, Coordinate.WORLD, False))
 
         # 顶升
         self.action_list.append(
@@ -3103,54 +3105,90 @@ class Jack(ModuleBase):
         #   00013 顶升机构是否有料
         # ============================================
         try:
-            NetProtocol.setModbusData("1x", 11, [1])
+            NetProtocol.setModbusData("1x", 11, [1 if config_params.jack_motor_name else 0])
             NetProtocol.setModbusData("1x", 12, [1 if self.jack_emc else 0])
             NetProtocol.setModbusData("1x", 13, [1 if self.jack_isFull else 0])
         except Exception as e:
             Trace.log(f"setModbusData 1x failed error={e}", name=f"{MOD}.err")
 
-    def modbus(self):
-        """Modbus 指令解析（参考 counterBalanceFork.py）。
+        # ============================================
+        # Modbus 只读寄存器上报（3x）
+        #   00061 顶升机构状态
+        #     0x00 = 上升中, 0x01 = 上升到位, 0x02 = 下降中, 0x03 = 下降到位, 0x04 = 停止, 0xFF = 执行失败
+        #   00064 顶升机构实时高度 (uint16, 单位: 毫米)
+        # ============================================
+        try:
+            # 00061: 顶升机构状态
+            jack_status = 0x04  # 默认停止
 
-        读取可写寄存器(4x)按钮位并下发对应任务：
-          00050 顶升机构上升 -> jackHeight 到 jack_max_height
-          00051 顶升机构下降 -> jackHeight 到 jack_min_height
-          00052 顶升机构停止 -> stopMotor
-          00053 顶升机构定高 -> jackHeight 到 4x 201-202 的 float 目标高度
+            # 判断是否失败
+            if self.status == ScriptStatus.FAILED:
+                jack_status = 0xFF
+            # 判断是否有顶升动作正在执行
+            elif cur_action and isinstance(cur_action, JackHeight):
+                current_pos = self.jack_height or 0.0
+                target_height = getattr(cur_action, 'target_height', 0.0)
+                is_motor_reached = Motor.isMotorReached(config_params.jack_motor_name)
+
+                if target_height > current_pos + 0.001:  # 上升
+                    if is_motor_reached:
+                        jack_status = 0x01  # 上升到位
+                    else:
+                        jack_status = 0x00  # 上升中
+                elif target_height < current_pos - 0.001:  # 下降
+                    if is_motor_reached:
+                        jack_status = 0x03  # 下降到位
+                    else:
+                        jack_status = 0x02  # 下降中
+                else:
+                    jack_status = 0x04  # 停止
+
+            NetProtocol.setModbusData("3x", 61, [jack_status])
+
+            # 00064: 顶升机构实时高度 (转换为毫米, uint16)
+            jack_height_mm = int((self.jack_height or 0.0) * 1000)
+            jack_height_mm = max(0, min(65535, jack_height_mm))  # 限制在 uint16 范围
+            NetProtocol.setModbusData("3x", 64, [jack_height_mm])
+        except Exception as e:
+            Trace.log(f"setModbusData 3x failed error={e}", name=f"{MOD}.err")
+
+    def modbus(self):
+        """Modbus 指令解析。
+
+        00200 调用脚本触发位：写 1 执行，框架收到后复位为 0，
+        脚本读取解析 00201-00230 参数并执行动作（含义由脚本定义）：
+          00203       停止位(uint16)：非 0 表示急停 -> stopMotor（优先级最高）
+          00204       上升位(uint16)：非 0 -> jackHeight 到 jack_max_height
+          00205       下降位(uint16)：非 0 -> jackHeight 到 jack_min_height
+          00201-00202 float 目标高度 -> jackHeight（定高，前述位均为 0 时使用）
         """
         args = None
         try:
-            # 00053 定高：触发位 + 高度值（沿用 counterBalanceFork 的 201-202 float 槽位）
-            fix_trigger = NetProtocol.getModbusData("4x", 53, 1)
-            if fix_trigger and fix_trigger[0]:
-                height_data = NetProtocol.getModbusData("4x", 201, 2)
-                target_height = parseModbus(height_data, "float")
-                if target_height is not None:
-                    target_height = clamp(float(target_height),
-                                          config_params.jack_min_height,
-                                          config_params.jack_max_height)
-                    args = {"operation": "jackHeight", "endHeight": target_height}
-                    Trace.log(f"modbus fix height -> {target_height}", name=MOD)
-
-            if args is None:
-                up = NetProtocol.getModbusData("4x", 50, 1)
-                if up and up[0]:
-                    args = {"operation": "jackHeight",
-                            "endHeight": config_params.jack_max_height}
-                    Trace.log("modbus jack up", name=MOD)
-
-            if args is None:
-                down = NetProtocol.getModbusData("4x", 51, 1)
-                if down and down[0]:
-                    args = {"operation": "jackHeight",
-                            "endHeight": config_params.jack_min_height}
-                    Trace.log("modbus jack down", name=MOD)
-
-            if args is None:
-                stop = NetProtocol.getModbusData("4x", 52, 1)
+            trigger = NetProtocol.getModbusData("4x", 200, 1)
+            if trigger and trigger[0]:
+                stop = NetProtocol.getModbusData("4x", 203, 1)
+                up = NetProtocol.getModbusData("4x", 204, 1)
+                down = NetProtocol.getModbusData("4x", 205, 1)
                 if stop and stop[0]:
                     args = {"operation": "stopMotor"}
                     Trace.log("modbus jack stop", name=MOD)
+                elif up and up[0]:
+                    args = {"operation": "jackHeight",
+                            "endHeight": config_params.jack_max_height}
+                    Trace.log("modbus jack up", name=MOD)
+                elif down and down[0]:
+                    args = {"operation": "jackHeight",
+                            "endHeight": config_params.jack_min_height}
+                    Trace.log("modbus jack down", name=MOD)
+                else:
+                    height_data = NetProtocol.getModbusData("4x", 201, 2)
+                    target_height = parseModbus(height_data, "float")
+                    if target_height is not None:
+                        target_height = clamp(float(target_height),
+                                              config_params.jack_min_height,
+                                              config_params.jack_max_height)
+                        args = {"operation": "jackHeight", "endHeight": target_height}
+                        Trace.log(f"modbus jack height -> {target_height}", name=MOD)
         except Exception as e:
             Trace.log(f"modbus parse failed error={e}", name=f"{MOD}.err")
 
