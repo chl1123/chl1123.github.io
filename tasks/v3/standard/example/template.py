@@ -265,7 +265,7 @@ class ModuleXXX(ModuleBase):
         self._safe_count = 0
 
         # 初始化单容器位（按车型调整：背篓多容器请按位递增）
-        Container.initContainer(1)
+        Container.initContainer(0)
 
     # ----------------------------------------------------------------
     # 参数初始化 & 队列装配
