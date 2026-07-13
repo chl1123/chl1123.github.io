@@ -428,8 +428,8 @@ class GoBezierWorld:
             self.init = False
             # 规划第一段倒退路线参数
             Navigation.resetPath()
-            Navigation.setPathReachAngle(math.radians(self.path_angle_accuracy))  # 到位精度
-            Navigation.setPathReachDist(self.path_dist_accuracy)
+            Navigation.setPathReachAngle(math.radians(1))  # 到位精度
+            Navigation.setPathReachDist(0.01)
             Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
             if self.is_hold_dir:
                 Navigation.setPathHoldDir(self.is_hold_dir)  # 用于全向车
