@@ -3040,16 +3040,11 @@ class Rec(BaseAction):
         self.results_list = []
         self.obstacle_polygon = []
         # 识别区域参数
-        self.rec_center_x = rec_center_x
-        self.rec_center_y = rec_center_y
-        self.rec_radius = rec_radius
         self.region = {
-            "point": {"x": self.rec_center_x, "y": self.rec_center_y},
-            "radius": self.rec_radius,
+            "point": {"x": rec_center_x, "y": rec_center_y},
+            "radius": rec_radius,
             "shape": "circle"
         }
-        # 孔坐标转换结果
-        self.hole_positions = []
         Trace.log(f"region: {self.region}", name="fork.task")
 
     def run(self):
@@ -3079,7 +3074,6 @@ class Rec(BaseAction):
                 self.results_list.sort(key=result_z)
 
             self.result = self.results_list[0]
-            self.hole_positions = self.result.get("holeInfo", [])
 
             Trace.log(f"rec_result_list: {self.results_list}", name="fork.cfg")
 
@@ -3090,30 +3084,41 @@ class Rec(BaseAction):
         if not results_list:
             return
 
-        self.hole_positions = []
-        for result_idx, result in enumerate(results_list):
+        for result in results_list:
             info_str = result.get("info", "[]")
             try:
-                info_list = json.loads(info_str) if isinstance(info_str, str) else info_str
+                info_data = json.loads(info_str) if isinstance(info_str, str) else info_str
             except json.JSONDecodeError:
                 Trace.log(f"Failed to parse info: {info_str}", name="fork.err")
-                info_list = []
+                info_data = {}
+
+            result_angle = 0
+            if isinstance(info_data, dict):
+                result_angle = info_data.get("angle", 0)
+                hole_info_data = info_data.get("hole_info", [])
+                try:
+                    info_list = json.loads(hole_info_data) if isinstance(hole_info_data, str) else hole_info_data
+                except json.JSONDecodeError:
+                    Trace.log(f"Failed to parse hole_info: {hole_info_data}", name="fork.err")
+                    info_list = []
+            else:
+                info_list = info_data
+
             if not isinstance(info_list, list):
                 info_list = []
+            elif not isinstance(info_data, dict) and info_list:
+                result_angle = info_list[0].get("angle", 0)
 
             robot_result = result.get("robotResult", {})
             world_result = result.get("worldResult", {})
             pallet_pos = [robot_result.get("x", 0), robot_result.get("y", 0), robot_result.get("yaw", 0)]
 
             result_hole_info = []
-            result_angle = 0
-            for idx, hole_info in enumerate(info_list):
+            for hole_info in info_list:
                 robot_result_x = hole_info.get("robotResultX", 0)
                 robot_result_y = hole_info.get("robotResultY", 0)
                 hole_z = hole_info.get("z", hole_info.get("robotResultZ", 0))
-                hole_width = hole_info.get("width", 0)
-                if idx == 0:
-                    result_angle = hole_info.get("angle", 0)
+                hole_width = hole_info.get("width", hole_info.get("holeWidth", 0))
 
                 # 把孔坐标从机器人坐标系转到外层 robotResult 坐标系
                 hole_in_pallet = pos2Base([robot_result_x, robot_result_y, 0], pallet_pos)
@@ -3126,7 +3131,7 @@ class Rec(BaseAction):
                 result_hole_info.append(processed_hole)
 
                 Trace.log(
-                    f"Result {result_idx} hole {idx}: robotResult=[{robot_result_x:.4f}, {robot_result_y:.4f}], "
+                    f"hole robotResult=[{robot_result_x:.4f}, {robot_result_y:.4f}], "
                     f"palletCoord=[{hole_in_pallet[0]:.4f}, {hole_in_pallet[1]:.4f}], angle={result_angle:.4f}",
                     name="fork.task"
                 )
@@ -3135,8 +3140,6 @@ class Rec(BaseAction):
             result["angle"] = result_angle
             result["robotResult"] = robot_result
             result["worldResult"] = world_result
-            if result_idx == 0:
-                self.hole_positions = result_hole_info
 
     def reset(self):
         Recognize.resetRec()
