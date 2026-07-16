@@ -5,7 +5,7 @@
 # @Project: SPK-MJ50-HL
 # @Update: feat：m-7048149595 料箱车脚本优化 1.识别前等机构停稳(motorSettleDelay)防抖动污染识别，作用于识别料架/识别箱码 2.货叉超限光电触发由硬失败改为可恢复告警，障碍推离后自动清错继续动作 3.放货防呆检测到货架已有货时异常恢复，重建动作队列把料箱放回背篓并报错 4.一维码识别对齐二维码识别逻辑：识别中不计数、连续失败超限才报错 5.check_put方法排除999货叉，适配调试场景
 # add：1.增加DM14三联码校验功能check_goods_code_enable 2.增加取货为空报错的正向校验
-# fix：修复取货检测手指下到位DI后再缩回失效的bug
+# fix：1.修复取货检测手指下到位DI后再缩回失效的BUG 2. 修复根据状态机status下发doRec失效的BUG
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -2518,15 +2518,19 @@ class Rec(BaseAction):
         self.hasGoods = None
         self.goods_out_dist = None
         self.max_goods_dist = 0.8
+        # 构造时只清残留识别请求, 不发起识别。识别请求由 run() 在识别器空闲(status==0)时触发,
+        # 与 jackWithSpin.RecShelf 一致: 1) Rec 在任务 init 时就被构造, 此时机构未到位/灯未开,
+        # 构造即 doRec 会拍到过期图像被当作有效结果; 2) resetRec 与 doRec 不在同一 tick, 避免时序竞争
         Recognize.resetRec()
-        Recognize.doRec(self.filename, "", "")
 
     def run(self, m):
         super().run(m)
         agv = m
         self.action_status = ActionStatus.RUNNING
         rec_status = Recognize.getRecStatus()
-        if rec_status == 3 or rec_status == -1:
+        if rec_status == 0:  # 识别器空闲: 发起识别, 下一 tick 再查询结果
+            Recognize.doRec(self.filename, "", "")
+        elif rec_status == 3 or rec_status == -1:
             Trace.log("rec failed:{}".format(self.result), name=f"{MOD}.rec")
             if Timer.delay(0.05):
                 self.rec_times = self.rec_times + 1
@@ -2537,8 +2541,7 @@ class Rec(BaseAction):
                     else:
                         self.action_status = ActionStatus.FINISHED
                 else:
-                    Recognize.resetRec()
-                    Recognize.doRec(self.filename, "", "")
+                    Recognize.resetRec()  # 只清状态, 下一 tick status==0 时重新 doRec
         elif rec_status == 2:
             rec_results = Recognize.getRecResults()
             if "recoList" in rec_results:
@@ -2546,8 +2549,7 @@ class Rec(BaseAction):
                     reco = rec_results["recoList"][0]
                     if not reco.get('valid', False):
                         Trace.log("Rec: recognition result is invalid (valid=False), retrying", name=f"{MOD}.rec")
-                        Recognize.resetRec()
-                        Recognize.doRec(self.filename, "", "")
+                        Recognize.resetRec()  # 只清状态, 下一 tick status==0 时重新 doRec
                         return
                     self.result = reco.get('robotResult', {})
             Recognize.resetRec()
@@ -2567,8 +2569,8 @@ class Rec(BaseAction):
 
     def reset(self):
         super().reset()
+        # 只清残留请求；下一次 run() tick 发现识别器空闲(status==0)时再触发识别
         Recognize.resetRec()
-        Recognize.doRec(self.filename, "", "")
 
 
 class RecAdjust(BaseAction):
