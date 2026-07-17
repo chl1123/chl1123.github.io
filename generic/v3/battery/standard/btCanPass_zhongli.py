@@ -57,7 +57,8 @@ class ZLCanBattery(cb.CanBase):  # 创建中立电池类，继承电池基类
             tem = canframe.data.hex()  
             voltage = round(int(tem[0:2] + tem[2:4], 16) * 0.1, 2)  # 解析电压 保留2位
             current = round(self.zl_hexStr_to_int(tem[4:6] + tem[6:8], 16) * 0.1, 2)  # 解析电流
-            percentage = round(int(tem[12:14], 16) * 0.01, 2)  # 解析电池电量百分比
+            # percentage = round(int(tem[12:14], 16) * 0.01, 2)  # 解析电池电量百分比
+            percentage = round((25 / 22 * int(tem[12:14], 16) - 150 / 11 ) * 0.01, 2) #补偿12%电量时电池自动关闭
             self.battery_info.percentage = percentage  # 传入电池电量百分比
             self.battery_info.chargeVoltage = voltage  # 传入电池电压
             self.battery_info.chargeCurrent = current  # 传入电池电流
