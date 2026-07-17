@@ -3165,10 +3165,12 @@ class Rec(BaseAction):
                                             f"Recognition failed:{error_msg}, the maximum number of retries exceeded")
                 else:
                     Recognize.resetRec()
-        else:
+        elif rec_status == 0:
             Trace.log(f"recfile:{recfile}", name="fork.task")
             Recognize.doRec(recfile, json.dumps(self.region))
 
+            Timer.delay(0.05)
+        else:
             Timer.delay(0.05)
         return False, rec_status, list
 
@@ -4539,7 +4541,8 @@ class GoLiveRec(BaseAction):
             self.init = True
             self.doing_rec = True
             self.doing_path = True
-            Recognize.resetRec()
+            self.rec.reset()
+            return self.action_status
 
         # Log current recognition and path planning status
         Trace.log(f"[liveRecScript][{self.doing_rec}|{self.doing_path}]", True, True)
