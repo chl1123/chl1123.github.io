@@ -7,13 +7,27 @@ import can
 import serial
 from google.protobuf.json_format import MessageToJson
 from syspy import Trace
-from syspy import Led, RBK_VERSION
+from syspy import RBK_VERSION
+from syspy.led import _send_arm_dmx_info, _send_sim_dmx512_payload
+from syspy.sim import sim_only
 if RBK_VERSION == 3:
     from syspy.v3.protobuf.message import message_dmx512_pb2
 if RBK_VERSION == 4:
     from syspy.v4.protobuf.message import messageV4_dmx512_pb2 as message_dmx512_pb2
 
 log = logging.getLogger("rbk.script")
+
+
+def _mock_send_dmx512(_self, dmx512_info):
+    type_exm = message_dmx512_pb2.msgDmx512()
+    if not isinstance(dmx512_info, type(type_exm)):
+        return
+
+    payload = (MessageToJson(dmx512_info, preserving_proto_field_name=False) + "\n").encode("utf-8")
+    if _send_sim_dmx512_payload(payload):
+        Trace.log("mock send dmx512 to simulator", name="DMX512.sim")
+    else:
+        Trace.log("mock send dmx512 failed: no simulator port", name="DMX512.sim")
 
 
 class dmx512NativeLib:
@@ -34,11 +48,12 @@ class dmx512NativeLib:
             self.__callback = handleData
 
     # LED
+    @sim_only(on_sim=_mock_send_dmx512)
     def sendDmx512(self, dmx512_info):
         type_exm = message_dmx512_pb2.msgDmx512()
         if isinstance(dmx512_info, type(type_exm)):
             msg = MessageToJson(dmx512_info)
-            Led.sendArmDmxInfo(msg)
+            _send_arm_dmx_info(msg)
 
     # Serial
     def createSerial(self, name, baudrate):

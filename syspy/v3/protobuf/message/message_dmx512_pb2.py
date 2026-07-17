@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x14message_dmx512.proto\x12\x0crbk.protocol\"\x90\x01\n\tmsgDmx512\x12\x0c\n\x04type\x18\x01 \x01(\r\x12\x0f\n\x07\x62\x61ttery\x18\x02 \x01(\r\x12\x10\n\x08\x63olorRed\x18\x03 \x01(\r\x12\x12\n\ncolorGreen\x18\x04 \x01(\r\x12\x11\n\tcolorBlue\x18\x05 \x01(\r\x12\x12\n\ncolorWhite\x18\x06 \x01(\r\x12\x17\n\x0fturnLeftOrRight\x18\x07 \x01(\rb\x06proto3')
+  serialized_pb=_b('\n\x14message_dmx512.proto\x12\x0crbk.protocol\"\xb4\x01\n\tmsgDmx512\x12\x0c\n\x04type\x18\x01 \x01(\r\x12\x0f\n\x07\x62\x61ttery\x18\x02 \x01(\r\x12\x10\n\x08\x63olorRed\x18\x03 \x01(\r\x12\x12\n\ncolorGreen\x18\x04 \x01(\r\x12\x11\n\tcolorBlue\x18\x05 \x01(\r\x12\x12\n\ncolorWhite\x18\x06 \x01(\r\x12\x17\n\x0fturnLeftOrRight\x18\x07 \x01(\r\x12\x0e\n\x06period\x18\x08 \x01(\r\x12\x12\n\nledIdxMask\x18\t \x01(\x04\x62\x06proto3')
 )
 
 
@@ -81,6 +81,20 @@ _MSGDMX512 = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='period', full_name='rbk.protocol.msgDmx512.period', index=7,
+      number=8, type=13, cpp_type=3, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='ledIdxMask', full_name='rbk.protocol.msgDmx512.ledIdxMask', index=8,
+      number=9, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -94,7 +108,7 @@ _MSGDMX512 = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=39,
-  serialized_end=183,
+  serialized_end=219,
 )
 
 DESCRIPTOR.message_types_by_name['msgDmx512'] = _MSGDMX512

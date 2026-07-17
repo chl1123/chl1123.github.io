@@ -21,6 +21,7 @@ class LightType(Enum):
     MutableHorseRace = 0x06
     FlowCalculator = 0x07
     Rainbow = 0x08
+    Blink = 0x0A
 
 
 class dmx512Base:

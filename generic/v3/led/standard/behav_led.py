@@ -3,31 +3,37 @@
 """DMX512 灯光逻辑（BehavFactory 新接口版）。
 
 接口约束（与 BehavFactory.cpp 对齐）：
-- light_type: ConstantLight/Steady/MutableBreath/MutableHorseRace/Flow/Rainbow/Blink/Uint/Off
-- rgbw: Red/RedDark/PinkPurple/Green/Blue/BlueCobalt/Yellow/ChargeYellow/White/Off
-todo: 增加灯效定制文档，说明各灯效类型和颜色的视觉效果，以及参数配置方式，包括src2000平台的兼容说明
+- light_type: ConstantLight/MutableBreath/MutableHorseRace/Flow/Rainbow/Blink/Off
+- rgbw: Red/RedDark/PinkPurple/Green/Blue/BlueCobalt/Yellow/ChargeYellow/White/Black
+
 状态优先级（从高到低）：
 1) 报警：`MutableBreath + Red`
-2) 急停：`Flow + RedDark` (内置灯效，无法通过脚本调整)
-3) 阻挡：`MutableHorseRace + PinkPurple`(内置灯效，无法通过脚本调整)
-4) 运动：
+2) 任务失败：`Blink + Yellow`，500ms 周期
+3) 急停：`Flow + RedDark` (内置灯效，无法通过脚本调整, 固定625ms周期)
+4) 阻挡：`MutableHorseRace + PinkPurple`(内置灯效，无法通过脚本调整，固定 1000ms 翻转间隔)
+5) 运动：
    - 无转向：`MutableBreath + BlueCobalt`（后退且 `is_back_breath=True` 时用 `White`）
    - 转向：`Blink + Yellow`，并按 `turn_pos/turn_num` 生成 `led_idx`
-5) 静止且有电池：
+6) 静止且有电池：
    - 充电：`MutableBreath + ChargeYellow`
    - 低于关机阈值：`MutableBreath + Red`
    - 低于低电阈值：`MutableHorseRace + RedDark`
    - 正常电量显示：`ConstantLight + (Green/Yellow/ChargeYellow/RedDark)`
-6) 无电池：`Rainbow + Off`
+7) 无电池/电池错误：`Rainbow + Black`（`Black` 仅作接口占位，彩虹灯不依赖颜色）
 
 日志策略：
-- 仅在状态变化时打印 `robot_status`；
-- 仅在灯效命令变化时打印结构化下发日志（含 `light_type/rgbw/period/led_idx` 与 `reason/context`）。
+- 仅在灯效命令变化时打印结构化下发日志（含 `light_type/rgbw/period/led_idx` 与 `reason`）。
+
+周期语义：
+- `MutableBreath` / `Blink`：`period` 表示完整周期时长（ms）
+- `MutableHorseRace`：`period` 表示翻转间隔（ms）
+- `Flow`：`period` 表示完整流水周期（ms）；急停由 C++ 内置为 25 个虚拟槽位、625ms 一轮
+- `Rainbow`：当前速度由 C++ 内部实现决定，脚本侧不依赖 `period`
 """
 
-import json
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from syspy import (
     Battery,
@@ -42,11 +48,34 @@ from syspy import (
     sim_only,
     _TR
 )
-from syspy.dmx512.dmx512_base import LightType, dmx512Base
+from syspy.led import LegacyDmxOutput
 from syspy.utils.param_server import ParamType
 
 script_param = ScriptParam(__file__) # 以脚本文件名为命名空间加载配置参数，文件路径见 /opt/.data/rbk/resources/scripts/params/tasks/v3/standard/
 LOG_MODULE = "LED"
+
+
+class LedLightType(str, Enum):
+    ConstantLight = "ConstantLight"
+    MutableBreath = "MutableBreath"
+    MutableHorseRace = "MutableHorseRace"
+    Flow = "Flow"
+    Rainbow = "Rainbow"
+    Blink = "Blink"
+    Off = "Off" # 清空DMX数据并不再更新
+
+
+class LedColor(str, Enum):
+    Red = "Red"
+    RedDark = "RedDark"
+    PinkPurple = "PinkPurple"
+    Green = "Green"
+    Blue = "Blue"
+    BlueCobalt = "BlueCobalt"
+    Yellow = "Yellow"
+    ChargeYellow = "ChargeYellow"
+    White = "White"
+    Black = "Black"
 
 
 def _trace_log(text: str, name: str) -> None:
@@ -66,79 +95,17 @@ def _is_src2000_platform() -> bool:
 IS_SRC2000_PLATFORM = _is_src2000_platform()
 
 if IS_SRC2000_PLATFORM:
-    _core = None
-    led = None
+    ecal_rpc = None
+    Led = None
 else:
-    from syspy.behavs import _core
-    from syspy.behavs.led import led
+    from syspy.behavs import ecal_rpc
+    from syspy.led import Led
 
 
-def _rgbw_name_to_values(rgbw_name: str) -> Tuple[int, int, int, int]:
-    table = {
-        "Red": (255, 0, 0, 0),
-        "RedDark": (170, 20, 0, 0),
-        "PinkPurple": (30, 0, 30, 0),
-        "Green": (0, 255, 0, 0),
-        "Blue": (0, 0, 255, 0),
-        "BlueCobalt": (0, 80, 164, 0),
-        "Yellow": (255, 180, 0, 0),
-        "ChargeYellow": (255, 120, 0, 0),
-        "White": (255, 250, 250, 0),
-        "Off": (0, 0, 0, 0),
-    }
-    return table.get(str(rgbw_name), (0, 0, 0, 0))
-
-
-class LegacyDmxOutput:
-    """复用 dmx512_pass 旧消息机制，兼容 SRC2000 平台。"""
-
-    def __init__(self) -> None:
-        self._dmx = dmx512Base()
-
-    def send(
-        self,
-        light_type: str,
-        rgbw: str,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        msg = self._dmx.createDmx512Message()
-        context = context or {}
-
-        battery_pct = float(context.get("battery_pct", 100.0))
-        msg.battery = int(max(0.0, min(100.0, battery_pct)))
-
-        # 旧消息机制中，电量显示优先使用 Battery 类型。
-        reason = str(context.get("reason", ""))
-        if reason == "battery_display":
-            msg.type = LightType.Battery.value
-            self._dmx.sendDmx512(msg)
-            return
-
-        type_map = {
-            "ConstantLight": LightType.ConstantLight.value,
-            "Steady": LightType.ConstantLight.value,
-            "MutableBreath": LightType.MutableBreath.value,
-            "MutableHorseRace": LightType.MutableHorseRace.value,
-            "Flow": LightType.FlowCalculator.value,
-            "Rainbow": LightType.Rainbow.value,
-            "Blink": LightType.MutableBreath.value,
-            "Uint": LightType.ConstantLight.value,
-            "Off": LightType.ConstantLight.value,
-        }
-        msg.type = type_map.get(light_type, LightType.ConstantLight.value)
-
-        if light_type == "MutableBreath" and rgbw == "ChargeYellow":
-            msg.type = LightType.Charging.value
-
-        turn = int(context.get("turn", 0))
-        msg.turnLeftOrRight = turn if turn in (0, 1, 2, 3) else 0
-
-        red, green, blue, white = _rgbw_name_to_values(rgbw)
-        msg.colorRed = int(red)
-        msg.colorGreen = int(green)
-        msg.colorBlue = int(blue)
-        msg.colorWhite = int(white)
-        self._dmx.sendDmx512(msg)
+def _get_ecal_rpc():
+    if ecal_rpc is None:
+        raise RuntimeError("BehavFactory eCAL RPC is unavailable in SRC2000")
+    return ecal_rpc.get_ecal_rpc()
 
 
 class ConfigParams:
@@ -215,6 +182,55 @@ class ConfigParams:
         cls.reload()
 
     @classmethod
+    def _load_src2000_turn_params(cls) -> bool:
+        """SRC2000 从 LED 设备模型读取转向灯位置和数量：
+            LED.<device_key>.deviceBrand.WST_SM16512PS_DMX512.turnLeftFrontPos 等
+        （device_key 通过 RobotParam.getDeviceList("LED") 获取，一般为 LED-000）。
+        """
+        try:
+            device_keys = RobotParam.getDeviceList("LED")
+        except Exception as exc:
+            _trace_log(
+                f"src2000 turn params: getDeviceList('LED') failed err={exc}",
+                name=f"{LOG_MODULE}.err",
+            )
+            return False
+        if not device_keys:
+            _trace_log("src2000 turn params: no LED device found", name=f"{LOG_MODULE}.err")
+            return False
+
+        device_key = device_keys[0]
+        base = "deviceBrand.WST_SM16512PS_DMX512"
+
+        def _read_int(name: str, default: int) -> int:
+            try:
+                return int(RobotParam.getDevice(device_key, f"{base}.{name}", default))
+            except Exception:
+                return default
+
+        # 参数顺序与 turn_pos/turn_num 一致：左前/左后/右前/右后
+        cls.turn_pos = [
+            _read_int("turnLeftFrontPos", cls.turn_pos[0]),
+            _read_int("turnLeftRearPos", cls.turn_pos[1]),
+            _read_int("turnRightFrontPos", cls.turn_pos[2]),
+            _read_int("turnRightRearPos", cls.turn_pos[3]),
+        ]
+        cls.turn_num = [
+            _read_int("turnLeftFrontNum", cls.turn_num[0]),
+            _read_int("turnLeftRearNum", cls.turn_num[1]),
+            _read_int("turnRightFrontNum", cls.turn_num[2]),
+            _read_int("turnRightRearNum", cls.turn_num[3]),
+        ]
+        cls.light_total_num = max(1, _read_int("lightTotalNum", cls.light_total_num))
+        _trace_log(
+            f"src2000 turn params loaded device={device_key} "
+            f"turn_pos={cls.turn_pos} turn_num={cls.turn_num} "
+            f"light_total_num={cls.light_total_num}",
+            name=f"{LOG_MODULE}.cfg",
+        )
+        return True
+
+    @classmethod
     def reload(cls) -> None:
         cfg = script_param.loadConfig()
         cls.resend_interval_sec = max(0.0, float(cfg.get("resendIntervalSec", 2.0)))
@@ -238,6 +254,8 @@ class ConfigParams:
                 int(cfg.get("turnNumRightRear", 1)),
             ]
             cls.light_total_num = max(1, int(cfg.get("lightTotalNum", 4)))
+        else:
+            cls._load_src2000_turn_params()
 
         _trace_log(
             "config reload "
@@ -315,42 +333,37 @@ def robot_config_change_callback(diff_map: Dict[str, Any]) -> None:
 
 def script_config_callback() -> None:
     ConfigParams.reload()
-    apply_runtime_config()
+    apply_ecal_rpc_config()
 
-def apply_runtime_config(rpc=None) -> bool:
+def apply_ecal_rpc_config(rpc=None) -> bool:
     if IS_SRC2000_PLATFORM:
-        _trace_log("runtime config skipped mode=legacy_message", name=f"{LOG_MODULE}.cfg")
+        _trace_log("ecal rpc config skipped mode=legacy_message", name=f"{LOG_MODULE}.cfg")
         return True
     if rpc is None:
-        rpc = _core.get_rpc()
+        rpc = _get_ecal_rpc()
 
     light_total_ok = rpc.call("setLightTotalNum", int(ConfigParams.light_total_num))
     dmx_enabled_ok = rpc.call("setLedDmxEnabled", True)
     ok = light_total_ok and dmx_enabled_ok
     _trace_log(
-        "runtime config applied "
+        "ecal rpc config applied "
         f"light_total_num={ConfigParams.light_total_num} "
         f"total_ok={light_total_ok} enable_ok={dmx_enabled_ok}",
         name=f"{LOG_MODULE}.cfg",
     )
     return ok
 
-
 class Dmx512NativeBehav:
     STARTUP_CONFIG_RETRY_MAX = 10
     STARTUP_CONFIG_RETRY_INTERVAL_SEC = 0.2
 
     def __init__(self) -> None:
-        self.robot_status = ""
-        self.pre_robot_status = ""
         self._use_legacy_dmx = IS_SRC2000_PLATFORM
-        self._rpc = None if self._use_legacy_dmx else _core.get_rpc()
+        self._rpc = None if self._use_legacy_dmx else _get_ecal_rpc()
         self._legacy_dmx = LegacyDmxOutput() if self._use_legacy_dmx else None
         self._last_payload = ""
         self._last_send_time = 0.0
         self._last_log_signature = ""
-        self._last_turn = 0
-        self._last_led_idx: List[int] = []
         self._chassis_stop_rpc_warned = False
         _trace_log(
             f"dmx output mode={('legacy_message' if self._use_legacy_dmx else 'behav_factory')}",
@@ -359,23 +372,20 @@ class Dmx512NativeBehav:
 
     def _send_led(
         self,
-        light_type: str,
-        rgbw: str,
+        light_type: LedLightType,
+        rgbw: LedColor,
         period: int = 1000,
         led_idx: Optional[List[int]] = None,
         reason: str = "",
-        context: Optional[Dict[str, Any]] = None,
     ) -> None:
-        payload = {"light_type": light_type, "rgbw": rgbw, "period": int(period)}
-        if self._use_legacy_dmx and context and "turn" in context:
-            payload["turn"] = int(context.get("turn", 0))
+        payload = {"light_type": light_type.value, "rgbw": rgbw.value, "period": int(period)}
         idx: List[int] = []
         if led_idx:
             idx = [int(v) for v in led_idx if int(v) > 0]
             if idx:
                 payload["led_idx"] = idx
 
-        payload_text = json.dumps(payload, sort_keys=True)
+        payload_text = str(sorted(payload.items()))
         now = time.time()
         if payload_text == self._last_payload and ConfigParams.resend_interval_sec > 0:
             if now - self._last_send_time < ConfigParams.resend_interval_sec:
@@ -384,28 +394,42 @@ class Dmx512NativeBehav:
         self._last_payload = payload_text
         self._last_send_time = now
 
-        context_send = dict(context or {})
-        context_send["reason"] = reason
         if self._use_legacy_dmx and self._legacy_dmx is not None:
-            self._legacy_dmx.send(light_type, rgbw, context=context_send)
+            self._legacy_dmx.send(light_type, rgbw, period=int(period), led_idx=idx)
         else:
-            led.trySet(light_type, rgbw, int(period), idx)
+            Led.trySet(light_type.value, rgbw.value, int(period), idx)
 
         log_signature = f"{reason}|{payload_text}"
         if log_signature != self._last_log_signature:
             self._last_log_signature = log_signature
             led_idx_text = payload.get("led_idx", "ALL")
-            context_text = json.dumps(context or {}, ensure_ascii=False, sort_keys=True)
             _trace_log(
                 "led command "
                 f"reason={reason} "
-                f"light_type={light_type} rgbw={rgbw} period={int(period)} "
-                f"led_idx={led_idx_text} context={context_text}",
+                f"light_type={light_type.value} rgbw={rgbw.value} period={int(period)} "
+                f"led_idx={led_idx_text}",
                 name=f"{LOG_MODULE}.action",
             )
 
     def is_alarm(self) -> bool:
         return RobotError.existSystemError()
+
+    def is_task_failed(self) -> bool:
+        try:
+            task_status = NavStatus.getTaskStatus()
+        except Exception:
+            return False
+        if task_status is None:
+            return False
+        status_name = getattr(task_status, "name", "")
+        if status_name:
+            return str(status_name).lower() == "failed"
+        if str(task_status).lower() == "failed":
+            return True
+        try:
+            return int(task_status) == 5
+        except Exception:
+            return False
 
     @staticmethod
     def _mock_battery_percentage() -> float:
@@ -452,41 +476,40 @@ class Dmx512NativeBehav:
             return False
 
     @staticmethod
-    def _battery_to_rgbw_name(percentage: float) -> str:
+    def _battery_to_rgbw_name(percentage: float) -> LedColor:
         if percentage >= 0.70:
-            return "Green"
+            return LedColor.Green
         if percentage >= 0.40:
-            return "Yellow"
+            return LedColor.Yellow
         if percentage >= 0.20:
-            return "ChargeYellow"
-        return "RedDark"
+            return LedColor.ChargeYellow
+        return LedColor.RedDark
 
     @staticmethod
     def _turn_to_led_idx(turn_left_or_right: int) -> List[int]:
-        all_idx: List[int] = []
+        """按物理方向显式分组：d<2 为左侧(左前+左后)，d>=2 为右侧(右前+右后)。
+        左右数量不一时也能正确分离。未知方向返回空列表(不闪)，
+        避免错误地闪两侧。
+        """
+        left_idx: List[int] = []
+        right_idx: List[int] = []
         max_idx = int(ConfigParams.light_total_num)
-        for pos, num in zip(ConfigParams.turn_pos, ConfigParams.turn_num):
+        for d, (pos, num) in enumerate(zip(ConfigParams.turn_pos, ConfigParams.turn_num)):
             pos_i = int(pos)
             num_i = int(num)
             if pos_i <= 0 or num_i <= 0:
                 continue
-            all_idx.extend(i for i in range(pos_i, pos_i + num_i) if i <= max_idx)
+            idxs = [i for i in range(pos_i, pos_i + num_i) if i <= max_idx]
+            if d < 2:
+                left_idx.extend(idxs)
+            else:
+                right_idx.extend(idxs)
 
-        half = len(all_idx) // 2
         if turn_left_or_right == 1:
-            return all_idx[:half]
+            return left_idx
         if turn_left_or_right == 2:
-            return all_idx[half:]
-        return all_idx
-
-    def _set_status(self, status: str) -> None:
-        self.robot_status = status
-        if self.robot_status != self.pre_robot_status:
-            _trace_log(
-                f"status {self.pre_robot_status or 'INIT'} -> {self.robot_status}",
-                name=LOG_MODULE,
-            )
-            self.pre_robot_status = self.robot_status
+            return right_idx
+        return []
 
     def handle_movement_effect(self, percentage: float) -> None:
         """处理运动状态的灯效。"""
@@ -496,67 +519,52 @@ class Dmx512NativeBehav:
         vx, _, vw = speeds
         turn = NavStatus.getTurn(vx, vw)
         if turn == 0:
-            self._set_status("MovingRotation")
             if ConfigParams.is_back_breath and vx < 0:
                 self._send_led(
-                    "MutableBreath",
-                    "White",
+                    LedLightType.MutableBreath,
+                    LedColor.White,
                     period=3200,
                     reason="moving_rotation_back",
-                    context={
-                        "status": self.robot_status,
-                        "battery_pct": round(percentage * 100.0, 1),
-                        "vx": round(vx, 3),
-                        "vw": round(vw, 3),
-                        "turn": turn,
-                    },
                 )
             else:
                 self._send_led(
-                    "MutableBreath",
-                    "BlueCobalt",
+                    LedLightType.MutableBreath,
+                    LedColor.BlueCobalt,
                     period=3200,
                     reason="moving_rotation",
-                    context={
-                        "status": self.robot_status,
-                        "battery_pct": round(percentage * 100.0, 1),
-                        "vx": round(vx, 3),
-                        "vw": round(vw, 3),
-                        "turn": turn,
-                    },
                 )
             return
 
-        self._set_status("MovingTurn")
-        if turn != self._last_turn:
-            self._last_turn = turn
-            self._last_led_idx = self._turn_to_led_idx(turn)
-        led_idx = self._last_led_idx if self._last_led_idx else None
+        if turn == 3:
+            # 原地自转(左/右旋且无平移)：全部 LED 闪烁
+            self._send_led(
+                LedLightType.Blink,
+                LedColor.Yellow,
+                period=1000,
+                reason="moving_spin_all",
+            )
+            return
+
+        led_idx = self._turn_to_led_idx(turn)
+        # 该侧未配置灯时不发送转向闪烁
+        if not led_idx:
+            return
         self._send_led(
-            "Blink",
-            "Yellow",
+            LedLightType.Blink,
+            LedColor.Yellow,
             period=1000,
             led_idx=led_idx,
             reason="moving_turn",
-            context={
-                "status": self.robot_status,
-                "battery_pct": round(percentage * 100.0, 1),
-                "vx": round(vx, 3),
-                "vw": round(vw, 3),
-                "turn": turn,
-            },
         )
 
     def handle_battery_effects(self, percentage: float) -> None:
         """处理静止状态的电池相关灯效。"""
         if ConfigParams.show_charging and Battery.getIsCharging():
-            self._set_status("Charging")
             self._send_led(
-                "MutableBreath",
-                "ChargeYellow",
+                LedLightType.MutableBreath,
+                LedColor.ChargeYellow,
                 period=3200,
                 reason="charging",
-                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
             )
             return
 
@@ -565,17 +573,11 @@ class Dmx512NativeBehav:
             and RobotConfig.shutdown_percentage >= 0
             and percentage * 100.0 <= RobotConfig.shutdown_percentage
         ):
-            self._set_status("Alarm")
             self._send_led(
-                "MutableBreath",
-                "Red",
+                LedLightType.MutableBreath,
+                LedColor.Red,
                 period=3200,
                 reason="shutdown_threshold",
-                context={
-                    "status": self.robot_status,
-                    "battery_pct": round(percentage * 100.0, 1),
-                    "shutdown_pct": RobotConfig.shutdown_percentage,
-                },
             )
             return
 
@@ -584,39 +586,29 @@ class Dmx512NativeBehav:
             and RobotConfig.warning_percentage >= 0
             and percentage * 100.0 <= RobotConfig.warning_percentage
         ):
-            self._set_status("LowBattery")
             self._send_led(
-                "MutableHorseRace",
-                "RedDark",
+                LedLightType.MutableHorseRace,
+                LedColor.RedDark,
                 period=2000,
                 reason="low_battery",
-                context={
-                    "status": self.robot_status,
-                    "battery_pct": round(percentage * 100.0, 1),
-                    "warning_pct": RobotConfig.warning_percentage,
-                },
             )
             return
 
         if ConfigParams.show_battery:
-            self._set_status("Battery")
             rgbw = self._battery_to_rgbw_name(percentage)
             self._send_led(
-                "ConstantLight",
+                LedLightType.ConstantLight,
                 rgbw,
                 period=1000,
                 reason="battery_display",
-                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
             )
             return
 
-        self._set_status("Normal")
         self._send_led(
-            "ConstantLight",
-            "BlueCobalt",
+            LedLightType.ConstantLight,
+            LedColor.BlueCobalt,
             period=1000,
             reason="normal_idle",
-            context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
         )
 
     def tick(self) -> None:
@@ -625,35 +617,29 @@ class Dmx512NativeBehav:
         battery_exist = self._battery_exists(percentage)
 
         if self.is_alarm():
-            self._set_status("Alarm")
             self._send_led(
-                "MutableBreath",
-                "Red",
-                period=3200,
+                LedLightType.Flow,
+                LedColor.Red,
+                period=625,
                 reason="alarm",
-                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
             )
             return
 
         elif IS_SRC2000_PLATFORM and Controller.getEmc():
-            self._set_status("EStop")
             self._send_led(
-                "Flow",
-                "RedDark",
+                LedLightType.Flow,
+                LedColor.RedDark,
                 period=10,
                 reason="emc",
-                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
             )
             return
 
         elif IS_SRC2000_PLATFORM and NavStatus.getBlock():
-            self._set_status("Blocked")
             self._send_led(
-                "MutableHorseRace",
-                "PinkPurple",
+                LedLightType.MutableHorseRace,
+                LedColor.PinkPurple,
                 period=1000,
                 reason="blocked",
-                context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
             )
             return
 
@@ -674,13 +660,11 @@ class Dmx512NativeBehav:
 
         if not chassis_stop:
             if sum(ConfigParams.turn_num) <= 0:
-                self._set_status("Moving")
                 self._send_led(
-                    "MutableBreath",
-                    "BlueCobalt",
+                    LedLightType.MutableBreath,
+                    LedColor.BlueCobalt,
                     period=3200,
                     reason="moving_no_turn_cfg",
-                    context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
                 )
             else:
                 self.handle_movement_effect(percentage)
@@ -690,13 +674,11 @@ class Dmx512NativeBehav:
             self.handle_battery_effects(percentage)
             return
 
-        self._set_status("NoBattery")
         self._send_led(
-            "Rainbow",
-            "Off",
+            LedLightType.Rainbow,
+            LedColor.Black,
             period=1000,
-            reason="no_battery",
-            context={"status": self.robot_status, "battery_pct": round(percentage * 100.0, 1)},
+            reason="battery_error",
         )
 
     def run(self) -> None:
@@ -704,10 +686,10 @@ class Dmx512NativeBehav:
         if not self._use_legacy_dmx:
             for attempt in range(1, self.STARTUP_CONFIG_RETRY_MAX + 1):
                 connected = bool(rpc.is_connected()) if rpc is not None else False
-                runtime_config_ok = apply_runtime_config(rpc=rpc)
-                if connected and runtime_config_ok:
+                ecal_rpc_config_ok = apply_ecal_rpc_config(rpc=rpc)
+                if connected and ecal_rpc_config_ok:
                     _trace_log(
-                        f"startup runtime config ready attempt={attempt}",
+                        f"startup ecal rpc config ready attempt={attempt}",
                         name=f"{LOG_MODULE}.cfg",
                     )
                     break
@@ -715,7 +697,7 @@ class Dmx512NativeBehav:
                     time.sleep(self.STARTUP_CONFIG_RETRY_INTERVAL_SEC)
             else:
                 _trace_log(
-                    "startup runtime config not fully ready after retries",
+                    "startup ecal rpc config not fully ready after retries",
                     name=f"{LOG_MODULE}.err",
                 )
         _trace_log("task start script=behav_led", name=LOG_MODULE)
