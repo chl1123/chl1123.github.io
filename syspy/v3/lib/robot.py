@@ -29,6 +29,10 @@ class RobotParamV3(RobotParamInterface):
         return value
 
     @classmethod
+    def getDeviceKeyByName(cls, name: str) -> str:
+        return cls.client().call_service("NetProtocol", "getDeviceKeyByName", name)
+
+    @classmethod
     def getDeviceList(cls, device_key: str) -> List[str]:
         return cls.client().call_service("Robot", "getDeviceList", device_key)
 

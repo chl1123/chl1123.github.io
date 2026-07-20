@@ -48,6 +48,18 @@ class RobotParamInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
+    def getDeviceKeyByName(cls, name: str) -> str:
+        """通过设备名称获取设备 key
+
+        Args:
+            name (str): 设备名称
+
+        Returns:
+            (str): 设备 key，未找到时返回空字符串
+        """
+        raise RBKVersionError()
+
+    @classmethod
     def getDeviceList(cls, device_key: str) -> List[str]:
         """获取启用的设备列表
 
