@@ -1028,12 +1028,3 @@ class NavSpeedInterface(ABC, Message):
             (Optional[RepeatedCompositeFieldContainer[msgMotorCmd]]): 返回电机指令列表
         """
         raise RBKVersionError()
-
-    @classmethod
-    def getIs2Move(cls) -> bool:
-        """获取是否准备移动的标志位
-
-        Returns:
-            (bool): True表示准备移动，False表示未准备移动
-        """
-        raise RBKVersionError()

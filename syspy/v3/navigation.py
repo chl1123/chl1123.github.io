@@ -553,7 +553,3 @@ class NavSpeedV3(NavSpeedInterface):
     def getMotorCmd(self) -> Optional[RepeatedCompositeFieldContainer["msgMotorCmd"]]:
         if self.update():
             return self.data.motorCmd
-
-    def getIs2Move(self) -> Optional[bool]:
-        if self.update():
-            return self.data.isToMove

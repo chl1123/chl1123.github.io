@@ -419,6 +419,3 @@ class NavSpeedV4(NavSpeedInterface):
     def getMotorCmd(self) -> Optional[RepeatedCompositeFieldContainer["MessageV4_MotorCmd"]]:
         if self.update():
             return self.data.motor_cmd
-
-    def getIs2Move(self) -> bool:
-        raise RBKVersionError()
