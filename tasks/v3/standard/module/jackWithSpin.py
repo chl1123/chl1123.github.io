@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/7/9
+# @Date : 2026/7/21
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update :fix: m-7042225606 修复不识别时钻入深度默认值不生效问题。
-# feat: m-7020616746 适配实现ModbusTCP API
-# add:m-7037482506 货架角度偏差处理（暂时方案，完整后续更新）
+# @Update :m-7037482506 feat: 1.适配新setGoodsPolyShape接口改动 2.修改JackLoad和jackLoad为load和unload
 
 import json
 import math
@@ -14,7 +12,6 @@ from enum import IntEnum
 from syspy.utils.time import Timer
 
 from datetime import datetime
-
 
 from syspy import (Module, Motor, Navigation, Loc, Recognize,
                    CodeScanner, ScriptStatus, Trace, NavSpeed, Controller, LevelDB, Di, Container, Odometer,
@@ -347,13 +344,13 @@ class ConfigParams:
                         builder.DEFAULTVALUE(default_max_length)
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
-                    with builder.CHILD(key="jackLoadTime", name=_TR("Jack Load Timeout"),
+                    with builder.CHILD(key="loadTime", name=_TR("Jack Load Timeout"),
                                        desc=_TR("Timeout for jack lifting up (DI not triggered)")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(30.0, min_value=1.0, max_value=120.0)
                         builder.UNIT("s")
                         builder.SINGLESTEP(1.0)
-                    with builder.CHILD(key="jackUnloadTime", name=_TR("Jack Unload Timeout"),
+                    with builder.CHILD(key="unloadTime", name=_TR("Jack Unload Timeout"),
                                        desc=_TR("Timeout for jack lowering down (DI not triggered)")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(30.0, min_value=1.0, max_value=120.0)
@@ -655,8 +652,8 @@ class ConfigParams:
         cls.jack_motor_speed = cls.config.get("jackMotorSpeed") or _default_max_speed
         cls.jack_min_height = cls.config.get("jackMinHeight", 0)
         cls.jack_max_height = cls.config.get("jackMaxHeight", 0.06)
-        cls.jack_load_time = cls.config.get("jackLoadTime", 30.0)
-        cls.jack_unload_time = cls.config.get("jackUnloadTime", 30.0)
+        cls.jack_load_time = cls.config.get("loadTime", 30.0)
+        cls.jack_unload_time = cls.config.get("unloadTime", 30.0)
 
         # 顶升盘旋转配置
         cls.jack_adjust_precision = math.radians(cls.config.get("jackAdjustPrecision", 1.0))
@@ -1056,7 +1053,7 @@ class InputParams:
     3. 调试任务：开启debugMode后才显示的低频任务
 
     任务分类：
-    - 常用任务（始终显示）：jackLoad, jackUnload, jackUp, jackDown
+    - 常用任务（始终显示）：load, unload, jackUp, jackDown
     - 调试任务（debugMode=true时显示）：jackHeight, goBezier, spinTray, rotateHoldSpin等
     """
     builder = ParamBuilder(__file__, desc=_TR("Input Params Config"))
@@ -1072,13 +1069,13 @@ class InputParams:
                 # ============================================
 
                 # 取货
-                with builder.CHILD(key="jackLoad", name=_TR("Jack Load"), desc=_TR("recognize and load the shelf")):
+                with builder.CHILD(key="load", name=_TR("Jack Load"), desc=_TR("recognize and load the shelf")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_jack_load(builder)
 
                 # 放货
-                with builder.CHILD(key="jackUnload", name=_TR("Jack Unload"), desc=_TR("recognize and unload the shelf")):
+                with builder.CHILD(key="unload", name=_TR("Jack Unload"), desc=_TR("recognize and unload the shelf")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_jack_unload(builder)
@@ -1828,6 +1825,7 @@ class Jack(ModuleBase):
 
         if goods_angle is not None:
             # 3a. 使用上视PGV角度旋转货物模型
+            goods_angle_robot = goods_angle  # 货物在机器人坐标系下的角度（弧度）
             cos_a = math.cos(goods_angle)
             sin_a = math.sin(goods_angle)
 
@@ -1846,6 +1844,9 @@ class Jack(ModuleBase):
         else:
             # 3b. 根据插入方向旋转货物模型（固定方向）
             # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
+            # 货物在机器人坐标系下的角度（已确认约定）：
+            # 0°=车头朝D边(料架头/X正方向)=从B边进入; 90°=从A边进入; 180°=从D边进入; -90°=从C边进入
+            goods_angle_robot = {'B': 0.0, 'A': math.pi / 2, 'D': math.pi, 'C': -math.pi / 2}.get(insert_dir, 0.0)
             def _rotate_pt(pt, dir_):
                 if dir_ == "A":  # 0°: (x, y) -> (x, y)
                     if isinstance(pt, dict):  return {"x": pt["x"], "y": pt["y"]}
@@ -1864,7 +1865,22 @@ class Jack(ModuleBase):
             Trace.log(f"bindContainer ok dir={insert_dir} container={container_id} goods={goods_name} "
                       f"shape_points={len(shape)} recfile={self.recfile}", name=MOD)
 
-        Navigation.setGoodsPolyShape(shape, goods_name)
+        # 4. 计算货物相对托盘(spin)的角度 goodsAngleInSpin（单位: 度）
+        #    货物角(机器人系) - 托盘角(机器人系)，归一化后转为度
+        spin_angle_rad = 0.0
+        if config_params.spin_motor_name:
+            spin_angle_rad = Motor.getMotorPos(config_params.spin_motor_name) or 0.0
+        goods_angle_in_spin = math.degrees(self._normalize_angle(goods_angle_robot - spin_angle_rad))
+        Trace.log(f"bindContainer goodsAngleInSpin={goods_angle_in_spin:.1f}deg "
+                  f"(goods={math.degrees(goods_angle_robot):.1f}deg spin={math.degrees(spin_angle_rad):.1f}deg)",
+                  name=MOD)
+
+        # 5. 设置货物多边形形状，传入 goodsAngleInSpin 参数（单位: 度）
+        recfile_name = self.recfile or "default.srec"
+        Navigation.setGoodsPolyShape(shape, recfile_name, goods_angle_in_spin)
+
+        Trace.log(f"bindContainer setGoodsPolyShape ok recfile={recfile_name} "
+                  f"goodsAngleInSpin={goods_angle_in_spin:.1f}deg", name=MOD)
         return True
 
     def init_args(self, args):
@@ -1903,11 +1919,11 @@ class Jack(ModuleBase):
         self.coordinate = self.task_args.get("coordinate", "world")
         self.spin_mode = self.task_args.get("spinMode", "increase")
         self.is_spin_follow = self.task_args.get("isSpinFollow", False)
-        # jackLoad/jackUnload
+        # load/unload
         self.how_go_site = self.task_args.get("howGoSite", "bezier")
 
         # ============================================
-        # jackLoad 顶升盘旋转参数
+        # load 顶升盘旋转参数
         # ============================================
         # spinTray=on/off -> jack_spin_enable
         _spin_tray_val = self.task_args.get("spinTray", None)
@@ -1920,7 +1936,7 @@ class Jack(ModuleBase):
         self.jack_spin_angle_rad = (_rad + math.pi) % (2 * math.pi) - math.pi
 
         # ============================================
-        # jackLoad 顶升前按指定角度原地转车体参数
+        # load 顶升前按指定角度原地转车体参数
         # ============================================
         # rotateBeforeJack=on/off -> jack_rotate_body_enable
         _rot_val = self.task_args.get("rotateBeforeJack", None)
@@ -2081,9 +2097,9 @@ class Jack(ModuleBase):
 
     def _dispatch_builder(self):
         """按 opt 分发到对应 builder(每 tick 调用, 兼任动态 extend 判定)。"""
-        if self.opt == "jackLoad":  # 识别/非识别取货
+        if self.opt == "load":  # 识别/非识别取货
             self.jack_load()
-        elif self.opt == "jackUnload":  # 识别/非识别放货
+        elif self.opt == "unload":  # 识别/非识别放货
             self.jack_unload()
         elif self.opt == "getLM":
             self.get_lm()
@@ -2542,14 +2558,14 @@ class Jack(ModuleBase):
         """
         if not self.operation_init:
             self.operation_init = True
-            debug_trace("jackLoad starting", name=MOD)
+            debug_trace("load starting", name=MOD)
 
             # ============================================
             # Error53351: 重复取货保护 - 检查车上是否已有货物
             # ============================================
             if config_params.load_again_error and Navigation.hasGoods():
                 Navigation.setTaskError("JackHasGoods",
-                                        _TR("Robot already has goods, cannot load again. Disable LoadAgainError or execute JackUnload first"))
+                                        _TR("Robot already has goods, cannot load again. Disable LoadAgainError or execute unload first"))
                 self.status = ScriptStatus.FAILED
                 return
 
@@ -2707,7 +2723,7 @@ class Jack(ModuleBase):
         """
         if not self.operation_init:
             self.operation_init = True
-            debug_trace("jackUnload starting", name=MOD)
+            debug_trace("unload starting", name=MOD)
 
             # 二次调整
             if self.is_secondary_adjust:
@@ -2738,7 +2754,7 @@ class Jack(ModuleBase):
             current_height = Motor.getMotorPos(config_params.jack_motor_name)
             if self.pre_action_completed and current_height <= 0.005:
                 # 边走边动模式下顶升已经下降完成，跳过下降步骤，但仍需清除货物模型
-                debug_trace(f"jackUnload: pre-action done height={current_height:.4f}m, skip lower", name=MOD)
+                debug_trace(f"unload: pre-action done height={current_height:.4f}m, skip lower", name=MOD)
                 self.action_list.append(UnbindContainer("0"))
             else:
                 # 正常模式或边走边动未完成，执行下降顶升盘
@@ -3198,7 +3214,7 @@ class Jack(ModuleBase):
     def update_move_task_params(self):
         """
         获取moveTask参数，支持边走边动模式
-        监听#finalBinTask和#finalLoc参数，当检测到jackUnload任务时进入预动作模式
+        监听#finalBinTask和#finalLoc参数，当检测到unload任务时进入预动作模式
 
         支持两种格式：
         1. realTimeMoveTask().params[] 格式 (key/stringValue)
@@ -3266,20 +3282,20 @@ class Jack(ModuleBase):
                     operation = full_args.get('operation', '')
                 else:
                     # 如果getBinTask没有返回结果，直接使用finalBinTask作为operation判断
-                    # unload -> jackUnload
-                    self.full_action_args = {'operation': 'jackUnload'}
-                    operation = 'jackUnload' if new_final_bin_task == 'unload' else new_final_bin_task
+                    # unload -> unload
+                    self.full_action_args = {'operation': 'unload'}
+                    operation = 'unload' if new_final_bin_task == 'unload' else new_final_bin_task
                     debug_trace(f"pre-action infer operation={operation}", name=MOD)
 
-                # jackUnload时启用边走边动：在导航过程中慢慢降下顶升
-                if operation == 'jackUnload' or new_final_bin_task == 'unload':
+                # unload时启用边走边动：在导航过程中慢慢降下顶升
+                if operation == 'unload' or new_final_bin_task == 'unload':
                     self.pre_action_mode = True
                     self.pre_action_completed = False
                     self.pre_action_step = [False] * 5
 
                     self.pre_action_args = {
-                        'operation': 'jackUnload',
-                        'target_height': 0,  # jackUnload目标高度为0（下降到底）
+                        'operation': 'unload',
+                        'target_height': 0,  # unload目标高度为0（下降到底）
                     }
                     debug_trace(f"pre-action mode start operation={operation}", name=MOD)
                 else:
@@ -3350,7 +3366,7 @@ class Jack(ModuleBase):
 
     def pre_unload_action(self):
         """
-        jackUnload预动作：在导航过程中慢慢把顶升电机降下来
+        unload预动作：在导航过程中慢慢把顶升电机降下来
         """
         debug_trace("pre_unload_action running", name=f"{MOD}.motor")
 
@@ -3393,14 +3409,14 @@ class Jack(ModuleBase):
 
         if self.pre_action_step[0]:
             self.pre_action_completed = True
-            debug_trace("pre-action jackUnload done (jack lowered)", name=MOD)
+            debug_trace("pre-action unload done (jack lowered)", name=MOD)
             return True
         return False
 
     def execute_pre_action(self):
         """根据操作类型执行预动作"""
         operation = self.pre_action_args.get('operation', '')
-        if operation == 'jackUnload':
+        if operation == 'unload':
             return self.pre_unload_action()
         return True
 
@@ -3430,9 +3446,9 @@ class Jack(ModuleBase):
         if self.full_action_args:
             operation = self.full_action_args.get('operation', '')
 
-            if operation == 'jackUnload':
+            if operation == 'unload':
                 # 顶升已经在预动作中下降完成，直接标记完成或执行剩余动作
-                debug_trace("pre-action jackUnload switch to full action", name=MOD)
+                debug_trace("pre-action unload switch to full action", name=MOD)
 
             self.pre_action_mode = False
             self.status = ScriptStatus.NONE
@@ -4866,29 +4882,29 @@ class RotateDirection(IntEnum):
 # 脚本内置动作模板定义
 # ============================================================================
 
-# 添加 "jackLoad" 动作模板
+# 添加 "load" 动作模板
 script_param.addAction(
-    action_name="jackLoad",
+    action_name="load",
     policy=None,
     args={
-        "operation": "jackLoad",
-        "operation.jackLoad.endHeight": config_params.jack_max_height,
-        "operation.jackLoad.recFile": "",
-        "operation.jackLoad.recognize": "off",
-        "operation.jackLoad.recognize.on.insertShelfDir": "A",
-        "operation.jackLoad.howGoSite": "bezier",
-        "operation.jackLoad.isSecondaryAdjust": "off",
+        "operation": "load",
+        "operation.load.endHeight": config_params.jack_max_height,
+        "operation.load.recFile": "",
+        "operation.load.recognize": "off",
+        "operation.load.recognize.on.insertShelfDir": "A",
+        "operation.load.howGoSite": "bezier",
+        "operation.load.isSecondaryAdjust": "off",
     },
     config={}
 )
 
-# 添加 "jackUnload" 动作模板
+# 添加 "unload" 动作模板
 script_param.addAction(
-    action_name="jackUnload",
+    action_name="unload",
     policy=None,
     args={
-        "operation": "jackUnload",
-        "operation.jackUnload.isSecondaryAdjust": "off",
+        "operation": "unload",
+        "operation.unload.isSecondaryAdjust": "off",
     },
     config={}
 )
