@@ -2221,8 +2221,8 @@ class Fork(ModuleBase):
                 Navigation.setTaskError("ForkNoGoods", f"fork has no goods, cannot unload, script failed")
                 self.script_status = ScriptStatus.FAILED
                 return
-            target_pos, tcp_name = self.get_station_pos("targetName")
-            Trace.log(f"target_pos: {target_pos}", name="fork.task")
+            self.target_pos, tcp_name = self.get_station_pos("targetName")
+            Trace.log(f"target_pos: {self.target_pos}", name="fork.task")
             if not self.target_pos or self.target_pos[3] == -1 or self.move_task.get("skillName", "") == "Action":
                 self.action_list = [
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, action_name="downFork")
@@ -2232,10 +2232,10 @@ class Fork(ModuleBase):
                 # AP 点是否绑定了 tcp
                 if tcp_name:
 
-                    ap_world_pos_tcp = Navigation.calTCPTrans(target_pos[0], target_pos[1], target_pos[2],
+                    ap_world_pos_tcp = Navigation.calTCPTrans(self.target_pos[0], self.target_pos[1], self.target_pos[2],
                                                               tcp_name)
                     ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"], ap_world_pos_tcp["theta"]]
-                    target_pos = ap_world_pos_tcp_list
+                    self.target_pos = ap_world_pos_tcp_list
                     Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}", name="fork.task")
 
                     # 根据参数配置是否走贝塞尔曲线、直线选择调整办法
@@ -2253,10 +2253,10 @@ class Fork(ModuleBase):
                     method = "goPath"
                     args = {}
                 if ConfigParams.base_shift and (ConfigParams.max_height - self.fork_height) < EPS:
-                    target_pos = pos2World([-ConfigParams.base_shift_length, 0, 0], target_pos)
+                    self.target_pos = pos2World([-ConfigParams.base_shift_length, 0, 0], self.target_pos)
                 self.action_list = [
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
-                    GoPathWithContactDi(ConfigParams.contact_ids, target_pos, None, method, args,
+                    GoPathWithContactDi(ConfigParams.contact_ids, self.target_pos, None, method, args,
                                         False, "unload"),
                     RunMotorByPosition(ConfigParams.fork_motor_name, self.end_height, action_name="downFork")
                 ]
