@@ -6,14 +6,14 @@ from syspy.sound import SoundInterface
 if TYPE_CHECKING:
     from .protobuf.message.message_sound_pb2 import msgSound
 
-@default_plugin("MoveFactory")
+@default_plugin("BehavFactory")
 class SoundV3(SoundInterface):
     """音频"""
 
     data: msgSound = None
 
     _TOPIC = "rbk.protocol.msgSound"
-    _PLUGIN = "SoundPlayer"
+    _PLUGIN = "BehavFactory"
     _MODEL_CLASS = None
 
     @classmethod

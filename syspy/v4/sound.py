@@ -3,7 +3,7 @@ from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.sound import SoundInterface
 
 
-@default_plugin("MoveFactory")  # todo RBK4
+@default_plugin("BehavFactory")  # todo RBK4
 class SoundV4(SoundInterface):
     """音频"""
 
