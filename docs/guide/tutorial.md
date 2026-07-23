@@ -12,7 +12,7 @@ tasks/v3/standard/example/template.py
 
 - `README.md`：脚本仓库上手说明
 - `docs/guide/spec/logging.md`：日志和 `reportInfo` 规范
-- `docs/guide/spec/plugin_interface.md`：RBK 插件接口接入规范
+- `docs/guide/spec/rbk2py.md`：RBK 插件 RPC 接口接入规范
 - `tasks/v3/standard/example/template.py`：标准任务脚本空模板
 - `tasks/v3/standard/module/`：复杂业务脚本参考
 
@@ -491,7 +491,7 @@ flowchart LR
     class H result
 ```
 
-新增插件接口时，不建议在业务脚本中到处写裸 `call_service`。应按 [RBK 插件接口接入规范](spec/plugin_interface.md) 补 Python 抽象层和 v3/v4 实现层。
+新增插件接口时，不建议在业务脚本中到处写裸 `call_service`。应按 [RBK 插件 RPC 接口接入规范](spec/rbk2py.md) 补 Python 抽象层和 v3/v4 实现层。
 
 ### 错误机制
 
@@ -893,4 +893,4 @@ tasks/v3/standard/example/my_task.py
 - [ ] 任务错误用 `Navigation.setTaskError()`，设备错误用 `Navigation.setDeviceError()`，机器人错误（系统错误）用 `RobotError.setSystemError()`。
 - [ ] 可恢复错误在恢复后显式清除。
 - [ ] 面向用户的参数名、参数描述和错误描述使用 `_TR()`。
-- [ ] 新增 RBK 或插件服务接口时，按 [RBK 插件接口接入规范](spec/plugin_interface.md) 补齐 Python 封装。
+- [ ] 新增 RBK 或插件服务接口时，按 [RBK 插件 RPC 接口接入规范](spec/rbk2py.md) 补齐 Python 封装。

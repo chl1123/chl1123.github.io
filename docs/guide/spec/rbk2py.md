@@ -1,4 +1,4 @@
-# RBK 插件接口接入规范
+# RBK 插件 RPC 接口接入规范
 
 > 适用范围：将 RBK（C++）插件方法开放给 Python 脚本调用，并在 `syspy` SDK 中新增对应接口。
 > 以 `DSPChassis::publishBattery`（发布电池数据）为例，贯穿全文。
@@ -27,7 +27,20 @@
 
 以 `DSPChassis::publishBattery` 为例，要将其开放给 Python 调用：
 
-被开放的方法本身：
+头文件 `DSPChassis.h` 中声明接口，并使用 Doxygen 文档注释说明接口用途、参数和返回值：
+
+```cpp
+/**
+ * @brief 发布由 protobuf 消息转换得到的 JSON 格式电池信息
+ *
+ * @param msg msgBattery 消息对应的 JSON 字符串
+ * @return 0 发布成功
+ * @return -1 JSON 解析失败或发布失败
+ */
+int publishBattery(std::string msg);
+```
+
+源文件 `DSPChassis.cpp` 中实现接口：
 
 ```cpp
 int DSPChassis::publishBattery(std::string msg){
@@ -72,7 +85,7 @@ target_link_libraries(${PROJECT_NAME}
 | 层 | 文件 | 类 | 基类 | 装饰器 | 方法体 |
 |----|------|----|------|--------|--------|
 | 抽象层 | `syspy/<mod>.py` | `XxxInterface` | `ABC, Service` | 无 | 完整 docstring + `raise RBKVersionError()` |
-| 实现层 | `syspy/v3/<mod>.py` | `XxxV3(XxxInterface)` | `XxxInterface` | `@default_plugin` / `@call_service` | `pass`（继承 docstring） |
+| 实现层 | `syspy/v3/<mod>.py` | `XxxV3(XxxInterface)` | `XxxInterface` | `@default_plugin` / `@call_service` | 不写 docstring；方法体为 `pass` 或版本实现 |
 | 实现层 | `syspy/v4/<mod>.py` | `XxxV4(XxxInterface)` | `XxxInterface` | 同上 | 同上 |
 
 为什么分两层：
@@ -176,7 +189,7 @@ Battery: BatteryInterface = BatteryInterface()
 两种模式取舍：
 
 - **继承式（4.1）**：默认选择。结构最简，docstring 单点维护，新模块一律用它。
-- **委托门面（4.2）**：仅当抽象层确有额外逻辑时使用；此时 docstring 在抽象层维护（实现层可省略或简写）。
+- **委托门面（4.2）**：仅当抽象层确有额外逻辑时使用；此时 docstring 只在抽象层维护，实现层不重复编写。
 
 ### 4.3 抽象层约定
 
@@ -188,7 +201,7 @@ Battery: BatteryInterface = BatteryInterface()
 
 ## 五、实现层接口（`syspy/v3/<mod>.py`、`syspy/v4/<mod>.py`）
 
-实现层是各 RBK 版本对插件方法的实际 RPC 调用。
+实现层是各 RBK 版本对插件方法的实际 RPC 调用。接口 docstring 统一写在抽象层，实现层不重复编写注释。
 
 ### 5.1 装饰器直通（常见情形）
 
@@ -202,8 +215,6 @@ from syspy.charger import ChargerInterface
 
 @default_plugin("ChargerAdapter")
 class ChargerV3(ChargerInterface):
-    """充电桩类"""
-
     @classmethod
     @call_service()
     def disconnectCharger(cls, name: str) -> bool:
@@ -229,17 +240,7 @@ from syspy.core.rbk_rpc import default_plugin, Message
 
 @default_plugin("DSPChassis")
 class BatteryV3(Message):
-    """RBK3电池实现"""
-
     def publish(self, battery_msg: "msgBattery", *, topic: str = "Battery-000") -> int:
-        """发布电池信息
-
-        Args:
-            battery_msg (msgBattery): msgBattery对象
-
-        Returns:
-            (int): -1: 发布失败; 0: 发布成功
-        """
         return self.client().call_service("DSPChassis", "publishBattery", MessageToJson(battery_msg))
 ```
 
@@ -269,13 +270,13 @@ def publish(self, battery_msg: "MessageV4_Battery", *, topic: str = "Battery-000
 
 ## 七、注释规范（Google 风格）
 
-注释须符合 Google 规范，便于自动生成接口文档与查看。**`Args:` 与 `Returns:` 前都要有空行。**
+Python 接口 docstring 只在抽象层编写，须符合 Google 规范，便于自动生成接口文档与查看。
+实现层保持相同的方法签名，但不重复编写 docstring。**`Args:` 与 `Returns:` 前都要有空行。**
 
-通用模板：
+抽象层通用模板：
 
 ```python
 @classmethod
-@call_service()
 def setXXX(cls, param1: str, param2: float) -> bool:
     """接口名XXX
 
@@ -286,7 +287,7 @@ def setXXX(cls, param1: str, param2: float) -> bool:
     Returns:
         (bool): 返回值解释XXX
     """
-    pass
+    raise RBKVersionError()
 ```
 
 四种签名形态：
@@ -295,45 +296,41 @@ def setXXX(cls, param1: str, param2: float) -> bool:
 
 ```python
 @classmethod
-@call_service()
 def resetPath(cls):
     """让agv沿着规划的线路行驶"""
-    pass
+    raise RBKVersionError()
 ```
 
 2) 有入参、无返回值：
 
 ```python
 @classmethod
-@call_service()
 def setIncreaseSpinAngle(cls, angle: float):
     """设置增量旋转角度
 
     Args:
         angle (float):
     """
-    pass
+    raise RBKVersionError()
 ```
 
 3) 无入参、有返回值：
 
 ```python
 @classmethod
-@call_service()
 def hasGoods(cls) -> bool:
     """获取身上是否有货物的状态
 
     Returns:
         (bool): 是否有货物
     """
-    pass
+    raise RBKVersionError()
 ```
 
 4) 有入参、有返回值：
 
 ```python
 @classmethod
-@call_service()
 def setMotorPosition(cls, motor_name: str, pos: float, maxVel: float, stopDI: int) -> bool:
     """控制线性电机到特定位置
 
@@ -346,6 +343,15 @@ def setMotorPosition(cls, motor_name: str, pos: float, maxVel: float, stopDI: in
     Returns:
         (bool): 如果不存在这个电机，则返回False
     """
+    raise RBKVersionError()
+```
+
+对应的实现层只保留装饰器、相同签名和实现逻辑，不写 docstring：
+
+```python
+@classmethod
+@call_service()
+def setXXX(cls, param1: str, param2: float) -> bool:
     pass
 ```
 
