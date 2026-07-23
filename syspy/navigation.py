@@ -684,17 +684,30 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_name: str) -> Dict:
-        """将目标点增加TCP坐标系补偿
+    def getLmTcpInfo(cls, lm_name: str) -> List[Dict]:
+        """获取指定站点的新结构 TCP 信息列表。
 
         Args:
-            x (float): 目标点的 x 坐标（单位: 米）
-            y (float): 目标点的 y 坐标（单位: 米）
-            theta (float): 目标点的角度（单位: 弧度）
-            tcp_name (str): TCP 名称，若不存在TCP 名称，则返回原始的目标点不进行TCP变换
+            lm_name (str): 站点名称，例如 "AP293"、"LM294"
 
         Returns:
-            (Dict): 包含转换后的目标点位置信息，格式为 {"x": double, "y": double, "theta": double}
+            (List[Dict]): TCP 信息列表，每项包含 usage 和 key；
+            站点不存在或未配置新结构 TCP 时返回空列表
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_key: str) -> Dict:
+        """根据当前车体 TCP 将传入的站点位姿转换为目标位姿。
+
+        Args:
+            x (float): 转换前目标位置 X，单位 m
+            y (float): 转换前目标位置 Y，单位 m
+            theta (float): 转换前目标角度，单位 rad
+            tcp_key (str): 历史参数名；新结构传入完整 TCP key，例如 "move/defaultTcp"
+
+        Returns:
+            (Dict): 转换后的目标位姿
         """
         raise RBKVersionError()
 

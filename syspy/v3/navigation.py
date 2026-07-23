@@ -317,7 +317,12 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     @call_service()
-    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_name: str) -> Dict:
+    def getLmTcpInfo(cls, lm_name: str) -> List[Dict]:
+        pass
+
+    @classmethod
+    @call_service()
+    def calTCPTrans(cls, x: float, y: float, theta: float, tcp_key: str) -> Dict:
         pass
 
     @classmethod
