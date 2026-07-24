@@ -12,7 +12,7 @@ class CanV3(CanInterface):
     @classmethod
     def initModelClass(cls):
         if cls._MODEL_CLASS is None:
-            from ..protobuf import CanFrame
+            from ..protobuf.message.CanFrame_pb2 import CanFrame
             cls._MODEL_CLASS = CanFrame
 
     @classmethod
