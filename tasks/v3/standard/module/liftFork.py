@@ -712,7 +712,7 @@ class ConfigParams:
                             with builder.CHILD(key="errorRecTiltAngle", name=_TR("Error Rec Tilt Angle"),
                                                desc=_TR("Recognition tilt angle threshold, -1 means disabled")):
                                 builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(2)
+                                builder.DEFAULTVALUE(-1)
                                 builder.UNIT("deg")
                             with builder.CHILD(key="enableTcp", name=_TR("Enable TCP"),
                                                desc=_TR("Enable TCP for recognition load")):
@@ -1330,7 +1330,7 @@ def get_deduct_area(recfile):
         ...
     ]
     """
-    recognition_obstacle_deduction_path = "recognitionObject.pallet.obstacleDeduction"
+    recognition_obstacle_deduction_path = "recognitionObject.pallet.deductModel"
     size = RobotParam.getConfigCloneSize("recognition", recognition_obstacle_deduction_path, recfile)
 
     result = []
