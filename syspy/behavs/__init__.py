@@ -1,9 +1,4 @@
-from .state import state
-from .tricolor import tricolor
-from .audio import audio
-from .trigger import trigger
-
-__all__ = ["state", "led", "tricolor", "audio", "trigger"]
+__all__ = ["led"]
 
 
 def __getattr__(name):

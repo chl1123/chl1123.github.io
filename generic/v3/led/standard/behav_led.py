@@ -12,7 +12,7 @@
 3) 急停：`Flow + RedDark` (内置灯效，无法通过脚本调整, 固定625ms周期)
 4) 阻挡：`MutableHorseRace + PinkPurple`(内置灯效，无法通过脚本调整，固定 1000ms 翻转间隔)
 5) 运动：
-   - 无转向：`MutableBreath + BlueCobalt`（后退且 `is_back_breath=True` 时用 `White`）
+   - 无转向：`MutableBreath + BlueCobalt`，1000ms 周期（后退且 `is_back_breath=True` 时用 `White`，3200ms 周期）
    - 转向：`Blink + Yellow`，并按 `turn_pos/turn_num` 生成 `led_idx`
 6) 静止且有电池：
    - 充电：`MutableBreath + ChargeYellow`
@@ -530,7 +530,7 @@ class Dmx512NativeBehav:
                 self._send_led(
                     LedLightType.MutableBreath,
                     LedColor.BlueCobalt,
-                    period=3200,
+                    period=1000,
                     reason="moving_rotation",
                 )
             return
@@ -618,18 +618,27 @@ class Dmx512NativeBehav:
 
         if self.is_alarm():
             self._send_led(
-                LedLightType.Flow,
+                LedLightType.MutableBreath,
                 LedColor.Red,
-                period=625,
+                period=3200,
                 reason="alarm",
             )
             return
 
-        elif IS_SRC2000_PLATFORM and Controller.getEmc():
+        elif self.is_task_failed():
+            self._send_led(
+                LedLightType.Blink,
+                LedColor.Yellow,
+                period=500,
+                reason="task_failed",
+            )
+            return
+
+        elif IS_SRC2000_PLATFORM and (Controller.getEmc() or Controller.getSoftEmc()):
             self._send_led(
                 LedLightType.Flow,
                 LedColor.RedDark,
-                period=10,
+                period=625,
                 reason="emc",
             )
             return
@@ -663,7 +672,7 @@ class Dmx512NativeBehav:
                 self._send_led(
                     LedLightType.MutableBreath,
                     LedColor.BlueCobalt,
-                    period=3200,
+                    period=1000,
                     reason="moving_no_turn_cfg",
                 )
             else:
