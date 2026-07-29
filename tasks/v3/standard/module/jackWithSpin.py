@@ -303,19 +303,19 @@ class ConfigParams:
             # 通用配置组（Debug + 标零 + 报错保护）
             # ============================================
             with builder.GROUP(key="generalConfig", name=_TR("General Configuration"),
-                               desc=_TR("General, calibration and error protection parameters")):
+                               desc=_TR("General, calibration and error protection parameters.")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     with builder.CHILD(key="debugMode", name=_TR("Debug Mode"),
-                                       desc=_TR("Enable debug mode to show debug tasks and low-frequency parameters")):
+                                       desc=_TR("Enable debug mode to show debug tasks and low-frequency parameters.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="autoCalibEnable", name=_TR("Auto Calib On Startup"),
-                                       desc=_TR("Enable automatic motor calibration (zero) on script startup")):
+                                       desc=_TR("Enable automatic motor calibration (zero) on script startup.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="loadAgainError", name=_TR("Load Again Error Protection"),
-                                       desc=_TR("Enable protection to prevent loading when goods already on robot ")):
+                                       desc=_TR("Enable protection to prevent loading when goods already on robot.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
 
@@ -323,35 +323,35 @@ class ConfigParams:
             # 电机与IO配置组（电机速度 + DI + DO + 延迟）
             # ============================================
             with builder.GROUP(key="motorIoConfig", name=_TR("Motor & IO Configuration"),
-                               desc=_TR("Motor speed, DI/DO and delay parameters")):
+                               desc=_TR("Motor speed, DI/DO and delay parameters.")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     with builder.CHILD(key="jackMotorSpeed", name=_TR("Jack Motor Speed"),
-                                       desc=_TR("Speed of the jack motor (default from model file maxSpeed)")):
+                                       desc=_TR("Speed of the jack motor (default from model file maxSpeed).")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(default_max_speed, min_value=0.001, max_value=0.1)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.001)
                     with builder.CHILD(key="jackMinHeight", name=_TR("Jack Min Height"),
-                                       desc=_TR("The min height of jack motor")):
+                                       desc=_TR("The min height of jack motor.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(default_min_length)
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
                     with builder.CHILD(key="jackMaxHeight", name=_TR("Jack Max Height"),
-                                       desc=_TR("The max height of jack motor")):
+                                       desc=_TR("The max height of jack motor.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(default_max_length)
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
                     with builder.CHILD(key="loadTime", name=_TR("Jack Load Timeout"),
-                                       desc=_TR("Timeout for jack lifting up (DI not triggered)")):
+                                       desc=_TR("Timeout for jack lifting up (DI not triggered).")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(30.0, min_value=1.0, max_value=120.0)
                         builder.UNIT("s")
                         builder.SINGLESTEP(1.0)
                     with builder.CHILD(key="unloadTime", name=_TR("Jack Unload Timeout"),
-                                       desc=_TR("Timeout for jack lowering down (DI not triggered)")):
+                                       desc=_TR("Timeout for jack lowering down (DI not triggered).")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(30.0, min_value=1.0, max_value=120.0)
                         builder.UNIT("s")
@@ -360,31 +360,31 @@ class ConfigParams:
             # ============================================
             # 顶升盘旋转配置组
             # ============================================
-            with builder.GROUP(key="jackRotationConfig", name=_TR("jackRotationConfig"),
-                               desc=_TR("Jack plate alignment and rotation parameters")):
+            with builder.GROUP(key="jackRotationConfig", name=_TR("Jack Rotation Config"),
+                               desc=_TR("Jack plate alignment and rotation parameters.")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
-                    with builder.CHILD(key="jackAdjustPrecision", name=_TR("jackAdjustPrecision"),
-                                       desc=_TR("Skip adjustment if the difference between the jack plate initial and target angle is below this value")):
+                    with builder.CHILD(key="jackAdjustPrecision", name=_TR("Jack Adjust Precision"),
+                                       desc=_TR("Skip adjustment if the difference between the jack plate initial and target angle is below this value.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("deg")
                         builder.SINGLESTEP(0.1)
-                    with builder.CHILD(key="noMovingJackParallel", name=_TR("noMovingJackParallel"),
-                                       desc=_TR("Circular or small jack plates do not need alignment")):
+                    with builder.CHILD(key="noMovingJackParallel", name=_TR("No Moving Jack Parallel"),
+                                       desc=_TR("Circular or small jack plates do not need alignment.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="jackPlateShape", name=_TR("jackPlateShape"),
-                                       desc=_TR("Circular jack plates do not need rotation alignment")):
+                    with builder.CHILD(key="jackPlateShape", name=_TR("Jack Plate Shape"),
+                                       desc=_TR("Circular jack plates do not need rotation alignment.")):
                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                         builder.DEFAULTVALUE("rectangle")
                         with builder.CHILDREN():
-                            with builder.CHILD("rectangle", _TR("rectangle"), _TR("Rectangular jack plate")):
+                            with builder.CHILD("rectangle", _TR("Rectangle"), _TR("Rectangular jack plate.")):
                                 builder.TYPE(ParamType.STRING)
-                            with builder.CHILD("circle", _TR("circle"), _TR("Circular jack plate")):
+                            with builder.CHILD("circle", _TR("Circle"), _TR("Circular jack plate.")):
                                 builder.TYPE(ParamType.STRING)
-                    with builder.CHILD(key="canRotateUnderShelf", name=_TR("canRotateUnderShelf"),
-                                       desc=_TR("If true, the jack vehicle can rotate freely under the container without hitting the shelf legs. Must be enabled to auto-rotate 90 degrees when entering from the wide side")):
+                    with builder.CHILD(key="canRotateUnderShelf", name=_TR("Can Rotate Under Shelf"),
+                                       desc=_TR("If true, the jack vehicle can rotate freely under the container without hitting the shelf legs. Must be enabled to auto-rotate 90 degrees when entering from the wide side.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
@@ -392,129 +392,129 @@ class ConfigParams:
             # 导航配置组（Bezier + Polyline）
             # ============================================
             with builder.GROUP(key="navigationConfig", name=_TR("Navigation Config"),
-                               desc=_TR("Bezier and Polyline navigation parameters (site-specific, rarely changed)")):
+                               desc=_TR("Bezier and Polyline navigation parameters (site-specific, rarely changed).")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     # --- Bezier ---
                     with builder.CHILD(key="bezierBackDist", name=_TR("[Bezier] Back Distance"),
-                                       desc=_TR("Back distance before starting bezier")):
+                                       desc=_TR("Back distance before starting bezier.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="bezierAdjustDist", name=_TR("[Bezier] Adjust Distance"),
-                                       desc=_TR("Adjust distance for decreasing curvature limit")):
+                                       desc=_TR("Adjust distance for decreasing curvature limit.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="bezierMinAheadDist", name=_TR("[Bezier] Min Ahead Distance"),
-                                       desc=_TR("Minimum ahead distance")):
+                                       desc=_TR("Minimum ahead distance.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="bezierIsBackwards", name=_TR("[Bezier] Is Backwards"),
-                                       desc=_TR("Enable backward mode")):
+                                       desc=_TR("Enable backward mode.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="bezierIsHoldDir", name=_TR("[Bezier] Hold Direction"),
-                                       desc=_TR("Whether to hold direction during navigation")):
+                                       desc=_TR("Whether to hold direction during navigation.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="bezierMaxSpeed", name=_TR("[Bezier] Max Speed"),
-                                       desc=_TR("Maximum speed for bezier navigation")):
+                                       desc=_TR("Maximum speed for bezier navigation.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="bezierMaxAccele", name=_TR("[Bezier] Max Acceleration"),
-                                       desc=_TR("Maximum acceleration")):
+                                       desc=_TR("Maximum acceleration.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3)
                         builder.UNIT("m/s²")
                     with builder.CHILD(key="bezierMaxDecele", name=_TR("[Bezier] Max Deceleration"),
-                                       desc=_TR("Maximum deceleration")):
+                                       desc=_TR("Maximum deceleration.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.2)
                         builder.UNIT("m/s²")
                     with builder.CHILD(key="bezierDeceleDist", name=_TR("[Bezier] Deceleration Distance"),
-                                       desc=_TR("Distance to start deceleration before target")):
+                                       desc=_TR("Distance to start deceleration before target.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="bezierCurvatureLimit", name=_TR("[Bezier] Curvature Limit"),
-                                       desc=_TR("Curvature limit for bezier path")):
+                                       desc=_TR("Curvature limit for bezier path.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.3)
                     with builder.CHILD(key="bezierPathDistAccuracy", name=_TR("[Bezier] Path Dist Accuracy"),
-                                       desc=_TR("Position accuracy for path following")):
+                                       desc=_TR("Position accuracy for path following.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.01)
                         builder.UNIT("m")
                     with builder.CHILD(key="bezierPathAngleAccuracy", name=_TR("[Bezier] Path Angle Accuracy"),
-                                       desc=_TR("Angle accuracy for path following")):
+                                       desc=_TR("Angle accuracy for path following.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
                         builder.UNIT("rad")
                     with builder.CHILD(key="bezierMinSpeed", name=_TR("[Bezier] Min Speed"),
-                                       desc=_TR("Minimum speed when decelerating near target")):
+                                       desc=_TR("Minimum speed when decelerating near target.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05, min_value=0.01, max_value=0.2)
                         builder.UNIT("m/s")
                         builder.SINGLESTEP(0.01)
                     # --- Polyline ---
                     with builder.CHILD(key="polylineBackDist", name=_TR("[Polyline] Back Distance"),
-                                       desc=_TR("Back distance before starting polyline")):
+                                       desc=_TR("Back distance before starting polyline.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="polylineAheadDist", name=_TR("[Polyline] Ahead Distance"),
-                                       desc=_TR("Ahead distance for line angle adjustment")):
+                                       desc=_TR("Ahead distance for line angle adjustment.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(2.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="polylineMinAheadDist", name=_TR("[Polyline] Min Ahead Distance"),
-                                       desc=_TR("Minimum ahead distance")):
+                                       desc=_TR("Minimum ahead distance.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="polylineIsBackwards", name=_TR("[Polyline] Is Backwards"),
-                                       desc=_TR("Enable backward mode")):
+                                       desc=_TR("Enable backward mode.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="polylineIsHoldDir", name=_TR("[Polyline] Hold Direction"),
-                                       desc=_TR("Whether to hold direction during navigation")):
+                                       desc=_TR("Whether to hold direction during navigation.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="polylineMaxSpeed", name=_TR("[Polyline] Max Speed"),
-                                       desc=_TR("Maximum speed for polyline navigation")):
+                                       desc=_TR("Maximum speed for polyline navigation.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="polylineMaxAccele", name=_TR("[Polyline] Max Acceleration"),
-                                       desc=_TR("Maximum acceleration")):
+                                       desc=_TR("Maximum acceleration.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3)
                         builder.UNIT("m/s²")
                     with builder.CHILD(key="polylineMaxDecele", name=_TR("[Polyline] Max Deceleration"),
-                                       desc=_TR("Maximum deceleration")):
+                                       desc=_TR("Maximum deceleration.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.2)
                         builder.UNIT("m/s²")
                     with builder.CHILD(key="polylineDeceleDist", name=_TR("[Polyline] Deceleration Distance"),
-                                       desc=_TR("Distance to start deceleration before target")):
+                                       desc=_TR("Distance to start deceleration before target.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m")
                     with builder.CHILD(key="polylineMaxAngle", name=_TR("[Polyline] Max Angle"),
-                                       desc=_TR("Maximum angle between two lines")):
+                                       desc=_TR("Maximum angle between two lines.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.3)
                         builder.UNIT("rad")
                     with builder.CHILD(key="polylinePathDistAccuracy", name=_TR("[Polyline] Path Dist Accuracy"),
-                                       desc=_TR("Position accuracy for path following")):
+                                       desc=_TR("Position accuracy for path following.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.01)
                         builder.UNIT("m")
                     with builder.CHILD(key="polylinePathAngleAccuracy", name=_TR("[Polyline] Path Angle Accuracy"),
-                                       desc=_TR("Angle accuracy for path following")):
+                                       desc=_TR("Angle accuracy for path following.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
                         builder.UNIT("rad")
@@ -523,111 +523,111 @@ class ConfigParams:
             # PGV二次调整配置组（不变）
             # ============================================
             with builder.GROUP(key="pgvConfig", name=_TR("PGV Secondary Adjust Config"),
-                               desc=_TR("PGV secondary adjustment parameters (site-specific, rarely changed)")):
+                               desc=_TR("PGV secondary adjustment parameters (site-specific, rarely changed).")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     with builder.CHILD(key="codeAdjustType", name=_TR("Code Adjust Type"),
-                                       desc=_TR("PGV adjustment working mode")):
+                                       desc=_TR("PGV adjustment working mode.")):
                         builder.TYPE(ParamType.COMBO_BOX)
                         builder.DEFAULTVALUE("singleCode")
                         with builder.CHILDREN():
                             with builder.CHILD(key="singleCode", name=_TR("Single Code"),
-                                               desc=_TR("Adjust to a single QR code")):
+                                               desc=_TR("Adjust to a single QR code.")):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
                                     with builder.CHILD(key="scanDevice", name=_TR("Scan Device"),
-                                                       desc=_TR("Select the PGV code scanner device")):
+                                                       desc=_TR("Select the PGV code scanner device.")):
                                         builder.TYPE(ParamType.BIND_TYPE)
                                         builder.BINDTYPE(BindType.Device.CODE_SCANNER)
                                     with builder.CHILD(key="codeNumber", name=_TR("Code Number"),
-                                                       desc=_TR("Target QR code number (pure digits, optional)")):
+                                                       desc=_TR("Target QR code number (pure digits, optional).")):
                                         builder.TYPE(ParamType.STRING)
                                         builder.REQUIRED(False)
                                         builder.DEFAULTVALUE("")
                                     with builder.CHILD(key="positionAdjustType", name=_TR("Position Adjust Type"),
-                                                       desc=_TR("Position adjustment strategy")):
+                                                       desc=_TR("Position adjustment strategy.")):
                                         builder.TYPE(ParamType.COMBO_BOX)
                                         builder.DEFAULTVALUE("frontAndBack")
                                         with builder.CHILDREN():
                                             with builder.CHILD(key="frontAndBack", name=_TR("Front And Back"),
-                                                               desc=_TR("Forward/backward adjustment along X axis")):
+                                                               desc=_TR("Forward/backward adjustment along X axis.")):
                                                 builder.TYPE(ParamType.ARRAY)
                                             with builder.CHILD(key="multiLine", name=_TR("Multi Line"),
-                                                               desc=_TR("Back-and-forth sweep adjustment in a region")):
+                                                               desc=_TR("Back-and-forth sweep adjustment in a region.")):
                                                 builder.TYPE(ParamType.ARRAY)
                                                 with builder.CHILDREN():
                                                     with builder.CHILD(key="adjustRegion",
                                                                        name=_TR("Adjust Region"),
-                                                                       desc=_TR("Rectangular adjustment region")):
+                                                                       desc=_TR("Rectangular adjustment region.")):
                                                         builder.TYPE(ParamType.BIND_TYPE)
                                                         builder.BINDTYPE(
                                                             BindItem(BindType.Shape.RECTANGLE, no_rotate=True))
                                                     with builder.CHILD(key="lineAngleThreshold",
                                                                        name=_TR("Line Angle Threshold"),
-                                                                       desc=_TR("Max rotation angle during sweep (deg)")):
+                                                                       desc=_TR("Max rotation angle during sweep (deg).")):
                                                         builder.TYPE(ParamType.FLOAT)
                                                         builder.DEFAULTVALUE(10.0)
                                                         builder.UNIT("deg")
                                                         builder.SINGLESTEP(1.0)
                                     with builder.CHILD(key="angleAdjustType", name=_TR("Angle Adjust Type"),
-                                                       desc=_TR("Robot orientation relative to QR code")):
+                                                       desc=_TR("Robot orientation relative to QR code.")):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                                         builder.DEFAULTVALUE("parallelToCode")
                                         with builder.CHILDREN():
                                             with builder.CHILD("parallelToCode", _TR("Parallel To Code"),
-                                                               _TR("Robot parallel to code → pgvAdjust180")):
+                                                               _TR("Robot parallel to code → pgvAdjust180.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("verticalToCode", _TR("Vertical To Code"),
-                                                               _TR("Robot perpendicular to code → pgvAdjust90")):
+                                                               _TR("Robot perpendicular to code → pgvAdjust90.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("verticalOrParallelToCode",
                                                                _TR("Vertical Or Parallel To Code"),
-                                                               _TR("90° or 0° whichever is smaller → pgvAdjust90")):
+                                                               _TR("90° or 0° whichever is smaller → pgvAdjust90.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("ignoreAngle", _TR("Ignore Angle"),
-                                                               _TR("XY adjust, ignore angle → pgvAdjustXY")):
+                                                               _TR("XY adjust, ignore angle → pgvAdjustXY.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("alignWithCode", _TR("Align With Code"),
-                                                               _TR("Align to code directly, no 180/90/XY constraint")):
+                                                               _TR("Align to code directly, no 180/90/XY constraint.")):
                                                 builder.TYPE(ParamType.STRING)
                             with builder.CHILD(key="codeNumber", name=_TR("Code Number Strip"),
-                                               desc=_TR("Adjust along a QR code strip → auto sets pgvCodeStrip=True")):
+                                               desc=_TR("Adjust along a QR code strip → auto sets pgvCodeStrip=True.")):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
                                     with builder.CHILD(key="scanDevice", name=_TR("Scan Device"),
-                                                       desc=_TR("Select the PGV code scanner device")):
+                                                       desc=_TR("Select the PGV code scanner device.")):
                                         builder.TYPE(ParamType.BIND_TYPE)
                                         builder.BINDTYPE(BindType.Device.CODE_SCANNER)
                                     with builder.CHILD(key="angleAdjustType", name=_TR("Angle Adjust Type"),
-                                                       desc=_TR("Robot orientation relative to code strip")):
+                                                       desc=_TR("Robot orientation relative to code strip.")):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                                         builder.DEFAULTVALUE("parallelToCode")
                                         with builder.CHILDREN():
                                             with builder.CHILD("parallelToCode", _TR("Parallel To Code"),
-                                                               _TR("pgvXAngleAdjust + pgvAdjust180")):
+                                                               _TR("pgvXAngleAdjust + pgvAdjust180.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("verticalToCode", _TR("Vertical To Code"),
-                                                               _TR("pgvXAngleAdjust + pgvAdjust90")):
+                                                               _TR("pgvXAngleAdjust + pgvAdjust90.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("verticalOrParallelToCode",
                                                                _TR("Vertical Or Parallel To Code"),
-                                                               _TR("pgvXAngleAdjust + pgvAdjust90")):
+                                                               _TR("pgvXAngleAdjust + pgvAdjust90.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("ignoreAngle", _TR("Ignore Angle"),
-                                                               _TR("pgvXAdjust only")):
+                                                               _TR("pgvXAdjust only.")):
                                                 builder.TYPE(ParamType.STRING)
                     with builder.CHILD(key="pgvSpin", name=_TR("Spin Hold During Adjust"),
-                                       desc=_TR("Hold fork direction during PGV secondary adjustment (spin vehicles)")):
+                                       desc=_TR("Hold fork direction during PGV secondary adjustment (spin vehicles).")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
                     with builder.CHILD(key="pgvReachDist", name=_TR("Reach Distance Accuracy"),
-                                       desc=_TR("PGV secondary adjustment distance accuracy")):
+                                       desc=_TR("PGV secondary adjustment distance accuracy.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.02)
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
                     with builder.CHILD(key="pgvReachAngle", name=_TR("Reach Angle Accuracy"),
-                                       desc=_TR("PGV secondary adjustment angle accuracy")):
+                                       desc=_TR("PGV secondary adjustment angle accuracy.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("deg")
@@ -810,7 +810,7 @@ def script_config_callback():
 
 def create_start_height(builder: ParamBuilder):
     with builder.CHILD(key="startHeight", name=_TR("Start Height"),
-                       desc=_TR("The start height for operations")):
+                       desc=_TR("The start height for operations.")):
         builder.TYPE(ParamType.FLOAT)
         builder.MIN_VALUE(config_params.jack_min_height)
         builder.MAX_VALUE(config_params.jack_max_height)
@@ -822,7 +822,7 @@ def create_start_height(builder: ParamBuilder):
 def create_end_height(builder: ParamBuilder):
     """创建顶可被引用参数"""
     with builder.CHILD(key="endHeight", name=_TR("End Height"),
-                       desc=_TR("The end height for operations")):
+                       desc=_TR("The end height for operations.")):
         builder.TYPE(ParamType.FLOAT)
         builder.UNIT("m")
         builder.SINGLESTEP(0.01)
@@ -830,121 +830,121 @@ def create_end_height(builder: ParamBuilder):
 
 
 def create_recfile(builder: ParamBuilder):
-    with builder.CHILD(key="insertShelfDir", name=_TR("Insert Shelf Direction"), desc=_TR("direction to go under the shelf")):
+    with builder.CHILD(key="insertShelfDir", name=_TR("Insert Shelf Direction"), desc=_TR("Direction to go under the shelf.")):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(False)
         builder.DEFAULTVALUE("A")
 
 
 def create_secondary_adjust(builder: ParamBuilder):
-    with builder.CHILD(key="isSecondaryAdjust", name=_TR("isSecondaryAdjust"),
-                       desc=_TR("Enable secondary adjust")):
+    with builder.CHILD(key="isSecondaryAdjust", name=_TR("Is Secondary Adjust"),
+                       desc=_TR("Enable secondary adjust.")):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
         builder.DEFAULTVALUE("off")
         with builder.CHILDREN():
             # OFF 选项，不需要填二次调整内容
             with builder.CHILD(key="off", name=_TR("OFF"),
-                               desc=_TR("Load Without secondary_adjust")):
+                               desc=_TR("Load Without secondary_adjust.")):
                 builder.TYPE(ParamType.ARRAY)
             # ON 也就是勾选需要二次调整后才会出现二次调整相关内容
             with builder.CHILD(key="on", name=_TR("ON"),
-                               desc=_TR("Load With secondary_adjust")):
+                               desc=_TR("Load With secondary_adjust.")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     # codeAdjustType 顶层模式（与 pgvConfig 保持一致，此处可按任务覆盖）
                     with builder.CHILD(key="codeAdjustType", name=_TR("Code Adjust Type"),
-                                       desc=_TR("Override PGV adjustment mode for this task")):
+                                       desc=_TR("Override PGV adjustment mode for this task.")):
                         builder.TYPE(ParamType.COMBO_BOX)
                         builder.DEFAULTVALUE("singleCode")
                         with builder.CHILDREN():
                             # singleCode 模式
                             with builder.CHILD(key="singleCode", name=_TR("Single Code"),
-                                               desc=_TR("Adjust to a single QR code")):
+                                               desc=_TR("Adjust to a single QR code.")):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
                                     with builder.CHILD(key="scanDevice", name=_TR("Scan Device"),
-                                                       desc=_TR("Select the PGV code scanner device")):
+                                                       desc=_TR("Select the PGV code scanner device.")):
                                         builder.TYPE(ParamType.BIND_TYPE)
                                         builder.BINDTYPE(BindType.Device.CODE_SCANNER)
 
                                     with builder.CHILD(key="codeNumber", name=_TR("Code Number"),
-                                                       desc=_TR("Target QR code number (optional, pure digits)")):
+                                                       desc=_TR("Target QR code number (optional, pure digits).")):
                                         builder.TYPE(ParamType.STRING)
                                         builder.REQUIRED(False)
                                         builder.DEFAULTVALUE("")
 
                                     with builder.CHILD(key="positionAdjustType", name=_TR("Position Adjust Type"),
-                                                       desc=_TR("Position adjustment strategy")):
+                                                       desc=_TR("Position adjustment strategy.")):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                                         builder.DEFAULTVALUE("frontAndBack")
                                         with builder.CHILDREN():
                                             with builder.CHILD(key="frontAndBack", name=_TR("Front And Back"),
-                                                               desc=_TR("Forward/backward adjustment along X axis")):
+                                                               desc=_TR("Forward/backward adjustment along X axis.")):
                                                 builder.TYPE(ParamType.ARRAY)
                                             with builder.CHILD(key="multiLine", name=_TR("Multi Line"),
-                                                               desc=_TR("Back-and-forth sweep adjustment in a region")):
+                                                               desc=_TR("Back-and-forth sweep adjustment in a region.")):
                                                 builder.TYPE(ParamType.ARRAY)
                                                 with builder.CHILDREN():
                                                     with builder.CHILD(key="adjustRegion",
                                                                        name=_TR("Adjust Region"),
-                                                                       desc=_TR("Rectangular adjustment region")):
+                                                                       desc=_TR("Rectangular adjustment region.")):
                                                         builder.TYPE(ParamType.BIND_TYPE)
                                                         builder.BINDTYPE(
                                                             BindItem(BindType.Shape.RECTANGLE, no_rotate=True))
                                                     with builder.CHILD(key="lineAngleThreshold",
                                                                        name=_TR("Line Angle Threshold"),
-                                                                       desc=_TR("Max rotation angle during sweep (deg)")):
+                                                                       desc=_TR("Max rotation angle during sweep (deg).")):
                                                         builder.TYPE(ParamType.FLOAT)
                                                         builder.DEFAULTVALUE(10.0)
                                                         builder.UNIT("deg")
                                                         builder.SINGLESTEP(1.0)
 
                                     with builder.CHILD(key="angleAdjustType", name=_TR("Angle Adjust Type"),
-                                                       desc=_TR("Robot orientation relative to QR code")):
+                                                       desc=_TR("Robot orientation relative to QR code.")):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                                         builder.DEFAULTVALUE("parallelToCode")
                                         with builder.CHILDREN():
                                             with builder.CHILD("parallelToCode", _TR("Parallel To Code"),
-                                                               _TR("pgvAdjust180")):
+                                                               _TR("Uses the pgvAdjust180 strategy to align the robot parallel to the code.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("verticalToCode", _TR("Vertical To Code"),
-                                                               _TR("pgvAdjust90")):
+                                                               _TR("Uses the pgvAdjust90 strategy to align the robot angle relative to the code.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("verticalOrParallelToCode",
                                                                _TR("Vertical Or Parallel"),
-                                                               _TR("pgvAdjust90")):
+                                                               _TR("Uses the pgvAdjust90 strategy to align the robot angle relative to the code.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("ignoreAngle", _TR("Ignore Angle"),
-                                                               _TR("pgvAdjustXY")):
+                                                               _TR("Uses the pgvAdjustXY strategy to adjust position without constraining the robot angle.")):
                                                 builder.TYPE(ParamType.STRING)
 
                             # codeNumber 码带模式
                             with builder.CHILD(key="codeNumber", name=_TR("Code Number Strip"),
-                                               desc=_TR("Code strip adjustment → pgvCodeStrip=True")):
+                                               desc=_TR("Code strip adjustment → pgvCodeStrip=True.")):
                                 builder.TYPE(ParamType.ARRAY)
                                 with builder.CHILDREN():
                                     with builder.CHILD(key="scanDevice", name=_TR("Scan Device"),
-                                                       desc=_TR("Select the PGV code scanner device")):
+                                                       desc=_TR("Select the PGV code scanner device.")):
                                         builder.TYPE(ParamType.BIND_TYPE)
                                         builder.BINDTYPE(BindType.Device.CODE_SCANNER)
 
                                     with builder.CHILD(key="angleAdjustType", name=_TR("Angle Adjust Type"),
-                                                       desc=_TR("Robot orientation relative to code strip")):
+                                                       desc=_TR("Robot orientation relative to code strip.")):
                                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                                         builder.DEFAULTVALUE("parallelToCode")
                                         with builder.CHILDREN():
                                             with builder.CHILD("parallelToCode", _TR("Parallel To Code"),
-                                                               _TR("pgvXAngleAdjust + pgvAdjust180")):
+                                                               _TR("pgvXAngleAdjust + pgvAdjust180.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("verticalToCode", _TR("Vertical To Code"),
-                                                               _TR("pgvXAngleAdjust + pgvAdjust90")):
+                                                               _TR("pgvXAngleAdjust + pgvAdjust90.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("verticalOrParallelToCode",
                                                                _TR("Vertical Or Parallel"),
-                                                               _TR("pgvXAngleAdjust + pgvAdjust90")):
+                                                               _TR("pgvXAngleAdjust + pgvAdjust90.")):
                                                 builder.TYPE(ParamType.STRING)
                                             with builder.CHILD("ignoreAngle", _TR("Ignore Angle"),
-                                                               _TR("pgvXAdjust only")):
+                                                               _TR("pgvXAdjust only.")):
                                                 builder.TYPE(ParamType.STRING)
 
 
@@ -955,84 +955,87 @@ def create_jack_unload(builder: ParamBuilder):
 def create_jack_load(builder: ParamBuilder):
     create_start_height(builder)
     create_end_height(builder)
-    with builder.CHILD(key="recognize", name=_TR("recognize"),
-                       desc=_TR("Enable recognition")):
+    with builder.CHILD(key="recognize", name=_TR("Recognize"),
+                       desc=_TR("Enable recognition.")):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
         builder.DEFAULTVALUE("off")
         with builder.CHILDREN():
             # OFF 选项，不需要填识别文件
             with builder.CHILD(key="off", name=_TR("OFF"),
-                               desc=_TR("Load Without Recognition")):
+                               desc=_TR("Load Without Recognition.")):
                 builder.TYPE(ParamType.ARRAY)
             # ON 也就是勾选需要识别后才会需要填写识别文件
             with builder.CHILD(key="on", name=_TR("ON"),
-                               desc=_TR("Load With Recognition")):
+                               desc=_TR("Load With Recognition.")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     create_recfile(builder)
-    with builder.CHILD(key="recFile", name=_TR("RecFile"), desc=_TR("file for recognizing")):
+    with builder.CHILD(key="recFile", name=_TR("Rec File"), desc=_TR("File for recognizing.")):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(False)
         builder.DEFAULTVALUE("default.srec")
 
-    with builder.CHILD(key="howGoSite", name=_TR("howGoSite"), desc=_TR("choose the way to the landmark")):
+    with builder.CHILD(key="howGoSite", name=_TR("How Go Site"), desc=_TR("Choose the way to the landmark.")):
         builder.TYPE(ParamType.COMBO_BOX)
         builder.DEFAULTVALUE("bezier")
         builder.REQUIRED(False)
         with builder.CHILDREN():
-            with builder.CHILD(key="bezier", name=_TR("bezier"), desc=_TR("bezier")):
+            with builder.CHILD(key="bezier", name=_TR("Bezier"),
+                               desc=_TR("Uses Bezier navigation to approach the target site.")):
                 builder.TYPE(ParamType.ARRAY)
 
-            with builder.CHILD(key="straight", name=_TR("straight"), desc=_TR("straight")):
+            with builder.CHILD(key="straight", name=_TR("Straight"),
+                               desc=_TR("Uses straight-line navigation to approach the target site.")):
                 builder.TYPE(ParamType.ARRAY)
 
-            with builder.CHILD(key="polyline", name=_TR("polyline"), desc=_TR("polyline")):
+            with builder.CHILD(key="polyline", name=_TR("Polyline"),
+                               desc=_TR("Uses polyline navigation to approach the target site.")):
                 builder.TYPE(ParamType.ARRAY)
 
     with builder.CHILD(key="spinTray", name=_TR("Spin Tray"),
-                       desc=_TR("Adjust the tray angle during the pickup flow (robot coordinate frame)")):
+                       desc=_TR("Adjust the tray angle during the pickup flow (robot coordinate frame).")):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
         builder.DEFAULTVALUE("off")
         with builder.CHILDREN():
             with builder.CHILD(key="off", name=_TR("OFF"),
-                               desc=_TR("Do not rotate the tray")):
+                               desc=_TR("Do not rotate the tray.")):
                 builder.TYPE(ParamType.ARRAY)
             with builder.CHILD(key="on", name=_TR("ON"),
-                               desc=_TR("Rotate the tray to a specified angle")):
+                               desc=_TR("Rotate the tray to a specified angle.")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     with builder.CHILD(key="spinPhase", name=_TR("Spin Phase"),
-                                       desc=_TR("Rotation phase: beforeStart = before start (before leaving the pre-point); beforeJack = before jacking (after entering the shelf)")):
+                                       desc=_TR("Rotation phase: beforeStart = before start (before leaving the pre-point); beforeJack = before jacking (after entering the shelf).")):
                         builder.TYPE(ParamType.STRING_COMBO_LIST)
                         builder.DEFAULTVALUE("beforeJack")
                         with builder.CHILDREN():
                             with builder.CHILD(key="beforeStart", name=_TR("Before Start"),
-                                               desc=_TR("Rotate the tray at the pre-point before aligning to the AP direction")):
+                                               desc=_TR("Rotate the tray at the pre-point before aligning to the AP direction.")):
                                 builder.TYPE(ParamType.STRING)
                             with builder.CHILD(key="beforeJack", name=_TR("Before Jack"),
-                                               desc=_TR("Rotate the tray after entering the shelf and completing secondary adjustment, before jacking")):
+                                               desc=_TR("Rotate the tray after entering the shelf and completing secondary adjustment, before jacking.")):
                                 builder.TYPE(ParamType.STRING)
                     with builder.CHILD(key="spinAngle", name=_TR("Spin Angle (deg)"),
-                                       desc=_TR("Target tray angle in the robot coordinate frame, in degrees. 0 = aligned with the vehicle body; 90 = wide-side entry alignment scenario")):
+                                       desc=_TR("Target tray angle in the robot coordinate frame, in degrees. 0 = aligned with the vehicle body; 90 = wide-side entry alignment scenario.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("deg")
                         builder.SINGLESTEP(1.0)
 
     with builder.CHILD(key="rotateBeforeJack", name=_TR("Rotate Before Jack"),
-                       desc=_TR("After entering the shelf and before jacking, rotate the robot body in place by a specified angle (robot frame; jack plate follows to keep its orientation)")):
+                       desc=_TR("After entering the shelf and before jacking, rotate the robot body in place by a specified angle (robot frame; jack plate follows to keep its orientation).")):
         builder.TYPE(ParamType.COMBO_BOX_BOOL)
         builder.DEFAULTVALUE("off")
         with builder.CHILDREN():
             with builder.CHILD(key="off", name=_TR("OFF"),
-                               desc=_TR("Do not rotate the body before jacking")):
+                               desc=_TR("Do not rotate the body before jacking.")):
                 builder.TYPE(ParamType.ARRAY)
             with builder.CHILD(key="on", name=_TR("ON"),
-                               desc=_TR("Rotate the body by a specified angle before jacking")):
+                               desc=_TR("Rotate the body by a specified angle before jacking.")):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     with builder.CHILD(key="rotateAngle", name=_TR("Rotate Angle (deg)"),
-                                       desc=_TR("Angle to rotate the robot body in place, robot frame, in degrees (positive = counterclockwise)")):
+                                       desc=_TR("Angle to rotate the robot body in place, robot frame, in degrees (positive = counterclockwise).")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
                         builder.UNIT("deg")
@@ -1060,7 +1063,7 @@ class InputParams:
 
     with builder.GROUPS():
         # 操作组合参数
-        with builder.GROUP(key="operation", name=_TR("Task Operation"), desc=_TR("Choose an operation for task")):
+        with builder.GROUP(key="operation", name=_TR("Task Operation"), desc=_TR("Choose an operation for task.")):
             builder.TYPE(ParamType.COMBO_BOX)
 
             with builder.CHILDREN():
@@ -1069,27 +1072,27 @@ class InputParams:
                 # ============================================
 
                 # 取货
-                with builder.CHILD(key="load", name=_TR("Jack Load"), desc=_TR("recognize and load the shelf")):
+                with builder.CHILD(key="load", name=_TR("Jack Load"), desc=_TR("Recognize and load the shelf.")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_jack_load(builder)
 
                 # 放货
-                with builder.CHILD(key="unload", name=_TR("Jack Unload"), desc=_TR("recognize and unload the shelf")):
+                with builder.CHILD(key="unload", name=_TR("Jack Unload"), desc=_TR("Recognize and unload the shelf.")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         create_jack_unload(builder)
 
                 # 屏幕接口：升降电机点动/长按
-                with builder.CHILD(key="lift", name=_TR("Lift Motor"), desc=_TR("Lift motor jog or move (screen interface)")):
+                with builder.CHILD(key="lift", name=_TR("Lift Motor"), desc=_TR("Lift motor jog or move (screen interface).")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        with builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for lift motor")):
+                        with builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for lift motor.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
                             builder.SINGLESTEP(0.01)
                             builder.DEFAULTVALUE(0.1)
-                        with builder.CHILD(key="position", name=_TR("Position"), desc=_TR("Target position for lift motor")):
+                        with builder.CHILD(key="position", name=_TR("Position"), desc=_TR("Target position for lift motor.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
                             builder.SINGLESTEP(0.01)
@@ -1101,68 +1104,68 @@ class InputParams:
                 if config_params.debug_mode:
                     # [DEBUG] 强制标零（外部指令触发，需开启 debugMode）
                     with builder.CHILD(key="calib", name=_TR("[Debug] Calib"),
-                                       desc=_TR("Force recalibrate jack motor zero position (debug only)")):
+                                       desc=_TR("Force recalibrate jack motor zero position (debug only).")):
                         builder.TYPE(ParamType.ARRAY)
                     # [DEBUG] 指定高度顶升
                     with builder.CHILD(key="jackHeight", name=_TR("[Debug] Jack Height"),
-                                       desc=_TR("lift to specified height (debug only)")):
+                                       desc=_TR("Lift to specified height (debug only).")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
                             create_end_height(builder)
 
                     # [DEBUG] 贝塞尔导航
-                    with builder.CHILD(key="goBezier", name=_TR("[Debug] goBezier"),
-                                       desc=_TR("go bezier line to target (debug only)")):
+                    with builder.CHILD(key="goBezier", name=_TR("[Debug] Go Bezier"),
+                                       desc=_TR("Go bezier line to target (debug only).")):
                         builder.TYPE(ParamType.ARRAY)
                     with builder.CHILD(key="PGVSecondaryAdjust", name=_TR("[Debug] PGV Secondary Adjust"),
-                                       desc=_TR("Perform PGV secondary adjustment")):
+                                       desc=_TR("Perform PGV secondary adjustment.")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
                             with builder.CHILD(key="codeAdjustType", name=_TR("Code Adjust Type"),
-                                               desc=_TR("PGV adjustment working mode")):
+                                               desc=_TR("PGV adjustment working mode.")):
                                 builder.TYPE(ParamType.COMBO_BOX)
                                 builder.DEFAULTVALUE("singleCode")
                                 with builder.CHILDREN():
                                     with builder.CHILD(key="singleCode", name=_TR("Single Code"),
-                                                       desc=_TR("Adjust to a single QR code")):
+                                                       desc=_TR("Adjust to a single QR code.")):
                                         builder.TYPE(ParamType.ARRAY)
                                         with builder.CHILDREN():
                                             with builder.CHILD(key="scanDevice", name=_TR("Scan Device"),
-                                                               desc=_TR("Select the PGV code scanner device")):
+                                                               desc=_TR("Select the PGV code scanner device.")):
                                                 builder.TYPE(ParamType.BIND_TYPE)
                                                 builder.BINDTYPE(BindType.Device.CODE_SCANNER)
 
                                             with builder.CHILD(key="codeNumber", name=_TR("Code Number"),
-                                                               desc=_TR("Target QR code number (optional)")):
+                                                               desc=_TR("Target QR code number (optional).")):
                                                 builder.TYPE(ParamType.STRING)
                                                 builder.REQUIRED(False)
                                                 builder.DEFAULTVALUE("")
 
                                             with builder.CHILD(key="positionAdjustType",
                                                                name=_TR("Position Adjust Type"),
-                                                               desc=_TR("Position adjustment strategy")):
+                                                               desc=_TR("Position adjustment strategy.")):
                                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
                                                 builder.DEFAULTVALUE(config_params.pgv_position_adjust_type)
                                                 with builder.CHILDREN():
                                                     with builder.CHILD(key="frontAndBack",
                                                                        name=_TR("Front And Back"),
-                                                                       desc=_TR("Forward/backward adjustment along X axis")):
+                                                                       desc=_TR("Forward/backward adjustment along X axis.")):
                                                         builder.TYPE(ParamType.ARRAY)
                                                     with builder.CHILD(key="multiLine",
                                                                        name=_TR("Multi Line"),
-                                                                       desc=_TR("Back-and-forth sweep adjustment in a region")):
+                                                                       desc=_TR("Back-and-forth sweep adjustment in a region.")):
                                                         builder.TYPE(ParamType.ARRAY)
                                                         with builder.CHILDREN():
                                                             with builder.CHILD(key="adjustRegion",
                                                                                name=_TR("Adjust Region"),
-                                                                               desc=_TR("Rectangular adjustment region")):
+                                                                               desc=_TR("Rectangular adjustment region.")):
                                                                 builder.TYPE(ParamType.BIND_TYPE)
                                                                 builder.BINDTYPE(
                                                                     BindItem(BindType.Shape.RECTANGLE,
                                                                              no_rotate=True))
                                                             with builder.CHILD(key="lineAngleThreshold",
                                                                                name=_TR("Line Angle Threshold"),
-                                                                               desc=_TR("Max rotation during sweep (deg)")):
+                                                                               desc=_TR("Max rotation during sweep (deg).")):
                                                                 builder.TYPE(ParamType.FLOAT)
                                                                 builder.DEFAULTVALUE(
                                                                     config_params.pgv_line_angle_threshold)
@@ -1171,77 +1174,77 @@ class InputParams:
 
                                             with builder.CHILD(key="angleAdjustType",
                                                                name=_TR("Angle Adjust Type"),
-                                                               desc=_TR("Robot orientation vs QR code")):
+                                                               desc=_TR("Robot orientation vs QR code.")):
                                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
                                                 builder.DEFAULTVALUE(config_params.pgv_angle_adjust_type)
                                                 with builder.CHILDREN():
                                                     with builder.CHILD("parallelToCode", _TR("Parallel To Code"),
-                                                                       _TR("pgvAdjust180")):
+                                                                       _TR("Uses the pgvAdjust180 strategy to align the robot parallel to the code.")):
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("verticalToCode", _TR("Vertical To Code"),
-                                                                       _TR("pgvAdjust90")):
+                                                                       _TR("Uses the pgvAdjust90 strategy to align the robot angle relative to the code.")):
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("verticalOrParallelToCode",
                                                                        _TR("Vertical Or Parallel"),
-                                                                       _TR("pgvAdjust90")):
+                                                                       _TR("Uses the pgvAdjust90 strategy to align the robot angle relative to the code.")):
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("ignoreAngle", _TR("Ignore Angle"),
-                                                                       _TR("pgvAdjustXY")):
+                                                                       _TR("Uses the pgvAdjustXY strategy to adjust position without constraining the robot angle.")):
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("alignWithCode", _TR("Align With Code"),
-                                                                       _TR("No 180/90/XY constraint")):
+                                                                       _TR("No 180/90/XY constraint.")):
                                                         builder.TYPE(ParamType.STRING)
 
                                     with builder.CHILD(key="codeNumber", name=_TR("Code Number Strip"),
-                                                       desc=_TR("Code strip mode → pgvCodeStrip=True")):
+                                                       desc=_TR("Code strip mode → pgvCodeStrip=True.")):
                                         builder.TYPE(ParamType.ARRAY)
                                         with builder.CHILDREN():
                                             with builder.CHILD(key="scanDevice", name=_TR("Scan Device"),
-                                                               desc=_TR("Select the PGV code scanner device")):
+                                                               desc=_TR("Select the PGV code scanner device.")):
                                                 builder.TYPE(ParamType.BIND_TYPE)
                                                 builder.BINDTYPE(BindType.Device.CODE_SCANNER)
 
                                             with builder.CHILD(key="angleAdjustType",
                                                                name=_TR("Angle Adjust Type"),
-                                                               desc=_TR("Robot orientation vs code strip")):
+                                                               desc=_TR("Robot orientation vs code strip.")):
                                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
                                                 builder.DEFAULTVALUE(config_params.pgv_angle_adjust_type)
                                                 with builder.CHILDREN():
                                                     with builder.CHILD("parallelToCode", _TR("Parallel"),
-                                                                       _TR("pgvXAngleAdjust + pgvAdjust180")):
+                                                                       _TR("pgvXAngleAdjust + pgvAdjust180.")):
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("verticalToCode", _TR("Vertical"),
-                                                                       _TR("pgvXAngleAdjust + pgvAdjust90")):
+                                                                       _TR("pgvXAngleAdjust + pgvAdjust90.")):
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("verticalOrParallelToCode",
                                                                        _TR("Vertical Or Parallel"),
-                                                                       _TR("pgvXAngleAdjust + pgvAdjust90")):
+                                                                       _TR("pgvXAngleAdjust + pgvAdjust90.")):
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("ignoreAngle", _TR("Ignore Angle"),
-                                                                       _TR("pgvXAdjust only")):
+                                                                       _TR("pgvXAdjust only.")):
                                                         builder.TYPE(ParamType.STRING)
                                                     with builder.CHILD("alignWithCode", _TR("Align With Code"),
-                                                                       _TR("No 180/90/XY constraint")):
+                                                                       _TR("No 180/90/XY constraint.")):
                                                         builder.TYPE(ParamType.STRING)
 
                             with builder.CHILD(key="pgvSpin", name=_TR("Spin Hold During Adjust"),
-                                               desc=_TR("Hold fork direction during PGV adjustment")):
+                                               desc=_TR("Hold fork direction during PGV adjustment.")):
                                 builder.TYPE(ParamType.BOOL)
                                 builder.DEFAULTVALUE(config_params.pgv_spin)
                             with builder.CHILD(key="pgvReachDist", name=_TR("Reach Distance Accuracy"),
-                                               desc=_TR("PGV secondary adjustment distance accuracy")):
+                                               desc=_TR("PGV secondary adjustment distance accuracy.")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(config_params.pgv_reach_dist)
                                 builder.UNIT("m")
                                 builder.SINGLESTEP(0.001)
                             with builder.CHILD(key="pgvReachAngle", name=_TR("Reach Angle Accuracy"),
-                                               desc=_TR("PGV secondary adjustment angle accuracy")):
+                                               desc=_TR("PGV secondary adjustment angle accuracy.")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(config_params.pgv_reach_angle)
                                 builder.UNIT("deg")
                                 builder.SINGLESTEP(0.1)
                             with builder.CHILD(key="pgvMaxSpeed", name=_TR("PGV Max Speed"),
-                                               desc=_TR("PGV secondary adjustment max linear speed")):
+                                               desc=_TR("PGV secondary adjustment max linear speed.")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(config_params.pgv_max_speed)
                                 builder.UNIT("m/s")
@@ -1249,7 +1252,7 @@ class InputParams:
                                 builder.MAX_VALUE(1.0)
                                 builder.SINGLESTEP(0.01)
                             with builder.CHILD(key="pgvMaxRotSpeed", name=_TR("PGV Max Rot Speed"),
-                                               desc=_TR("PGV secondary adjustment max rotation speed")):
+                                               desc=_TR("PGV secondary adjustment max rotation speed.")):
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.DEFAULTVALUE(config_params.pgv_max_rot_speed)
                                 builder.UNIT("deg/s")
@@ -1257,104 +1260,116 @@ class InputParams:
                                 builder.MAX_VALUE(180.0)
                                 builder.SINGLESTEP(0.1)
                     # [DEBUG] 托盘旋转
-                    with builder.CHILD(key="spinTray", name=_TR("[Debug] spinTray"), desc=_TR("Spin the tray (debug only)")):
+                    with builder.CHILD(key="spinTray", name=_TR("[Debug] Spin Tray"), desc=_TR("Spin the tray (debug only).")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
-                            with builder.CHILD(key="spinAngle", name=_TR("spin_angle"), desc=_TR("the angle that the tray spin")):
+                            with builder.CHILD(key="spinAngle", name=_TR("Spin Angle"), desc=_TR("The angle that the tray spin.")):
                                 builder.MIN_VALUE(-360)
                                 builder.MAX_VALUE(360)
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.UNIT("degree")
                                 builder.DEFAULTVALUE(0)
-                            with builder.CHILD(key="spinMode", name=_TR("spin_mode"),
-                                               desc=_TR("Spin mode(robot coordinate/world coordinate/increase)")):
+                            with builder.CHILD(key="spinMode", name=_TR("Spin Mode"),
+                                               desc=_TR("Spin mode(robot coordinate/world coordinate/increase).")):
                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
                                 builder.DEFAULTVALUE("robot")
                                 with builder.CHILDREN():
-                                    with builder.CHILD("robot", _TR("robot"), _TR("robot")):
+                                    with builder.CHILD("robot", _TR("Robot"),
+                                                       _TR("Uses the robot coordinate system.")):
                                         builder.TYPE(ParamType.STRING)
-                                    with builder.CHILD("world", _TR("world"), _TR("world")):
+                                    with builder.CHILD("world", _TR("World"),
+                                                       _TR("Uses the world coordinate system.")):
                                         builder.TYPE(ParamType.STRING)
-                                    with builder.CHILD("increase", _TR("increase"), _TR("increase")):
+                                    with builder.CHILD("increase", _TR("Increase"),
+                                                       _TR("Treats the configured angle as an incremental rotation.")):
                                         builder.TYPE(ParamType.STRING)
-                            with builder.CHILD(key="spinDir", name=_TR("spin_dir"),
-                                               desc=_TR("Spin direction(clockwise-1/counterclockwise1/shortest0)")):
+                            with builder.CHILD(key="spinDir", name=_TR("Spin Dir"),
+                                               desc=_TR("Spin direction(clockwise-1/counterclockwise1/shortest0).")):
                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
                                 builder.DEFAULTVALUE(0)
                                 with builder.CHILDREN():
-                                    with builder.CHILD(0, "shortest", "shortest"):
+                                    with builder.CHILD(0, _TR("Shortest"),
+                                                       _TR("Rotates in the direction that produces the shortest angular path.")):
                                         builder.TYPE(ParamType.STRING)
-                                    with builder.CHILD(-1, "clockwise", "clockwise"):
+                                    with builder.CHILD(-1, _TR("Clockwise"),
+                                                       _TR("Forces the tray to rotate clockwise.")):
                                         builder.TYPE(ParamType.STRING)
-                                    with builder.CHILD(1, "counterclockwise", "counterclockwise"):
+                                    with builder.CHILD(1, _TR("Counterclockwise"),
+                                                       _TR("Forces the tray to rotate counterclockwise.")):
                                         builder.TYPE(ParamType.STRING)
 
-                    with builder.CHILD(key="rotateHoldSpin", name=_TR("[Debug] rotateHoldSpin"),
-                                       desc=_TR("Rotate robot body with tray spin follow (debug only)")):
+                    with builder.CHILD(key="rotateHoldSpin", name=_TR("[Debug] Rotate Hold Spin"),
+                                       desc=_TR("Rotate robot body with tray spin follow (debug only).")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILDREN():
-                            with builder.CHILD(key="spinAngle", name=_TR("spin_angle"),
-                                               desc=_TR("the angle that the robot rotates")):
+                            with builder.CHILD(key="spinAngle", name=_TR("Spin Angle"),
+                                               desc=_TR("The angle that the robot rotates.")):
                                 builder.MIN_VALUE(-360)
                                 builder.MAX_VALUE(360)
                                 builder.TYPE(ParamType.FLOAT)
                                 builder.UNIT("degree")
                                 builder.DEFAULTVALUE(0)
-                            with builder.CHILD(key="coordinate", name=_TR("coordinate"),
-                                               desc=_TR("Coordinate system for rotation")):
+                            with builder.CHILD(key="coordinate", name=_TR("Coordinate"),
+                                               desc=_TR("Coordinate system for rotation.")):
                                 builder.TYPE(ParamType.STRING_COMBO_LIST)
                                 builder.DEFAULTVALUE("robot")
                                 with builder.CHILDREN():
-                                    with builder.CHILD("robot", _TR("robot"), _TR("robot")):
+                                    with builder.CHILD("robot", _TR("Robot"),
+                                                       _TR("Uses the robot coordinate system.")):
                                         builder.TYPE(ParamType.STRING)
-                                    with builder.CHILD("world", _TR("world"), _TR("world")):
+                                    with builder.CHILD("world", _TR("World"),
+                                                       _TR("Uses the world coordinate system.")):
                                         builder.TYPE(ParamType.STRING)
-                            with builder.CHILD(key="isSpinFollow", name=_TR("is_spin_follow"),
-                                               desc=_TR("Whether tray follows robot rotation")):
+                            with builder.CHILD(key="isSpinFollow", name=_TR("Is Spin Follow"),
+                                               desc=_TR("Whether tray follows robot rotation.")):
                                 builder.TYPE(ParamType.BOOL)
                                 builder.DEFAULTVALUE(False)
 
-                    with builder.CHILD(key="getLM", name=_TR("[Debug] getLM"),
-                                       desc=_TR("get the position of landmark")):
+                    with builder.CHILD(key="getLM", name=_TR("[Debug] Get LM"),
+                                       desc=_TR("Get the position of landmark.")):
                         builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="pressIoButton", name=_TR("[Debug] pressIoButton"),
-                                       desc=_TR("use the io button to control")):
+                    with builder.CHILD(key="pressIoButton", name=_TR("[Debug] Press IO Button"),
+                                       desc=_TR("Use the io button to control.")):
                         builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="laserAreaDeduction", name=_TR("[Debug] laserAreaDeduction"),
-                                       desc=_TR("laser area deduction")):
+                    with builder.CHILD(key="laserAreaDeduction", name=_TR("[Debug] Laser Area Deduction"),
+                                       desc=_TR("Laser area deduction.")):
                         builder.TYPE(ParamType.ARRAY)
 
-                        with builder.CHILD(key="coordinate", name=_TR("coordinate"), desc=_TR("Spin coordinate")):
+                        with builder.CHILD(key="coordinate", name=_TR("Coordinate"), desc=_TR("Spin coordinate.")):
                             builder.TYPE(ParamType.STRING_COMBO_LIST)
                             builder.DEFAULTVALUE("robot")
                             builder.REQUIRED(True)
                             with builder.CHILDREN():
-                                with builder.CHILD("robot", _TR("robot"), _TR("robot")):
+                                with builder.CHILD("robot", _TR("Robot"),
+                                                   _TR("Uses the robot coordinate system.")):
                                     builder.TYPE(ParamType.STRING)
-                                with builder.CHILD("world", _TR("world"), _TR("world")):
+                                with builder.CHILD("world", _TR("World"),
+                                                   _TR("Uses the world coordinate system.")):
                                     builder.TYPE(ParamType.STRING)
 
-                    with builder.CHILD(key="createOrDeleteDeductedArea", name=_TR("[Debug] create Or Delete Deducted Area"),
-                                       desc=_TR("create_or_delete_deducted_area")):
+                    with builder.CHILD(key="createOrDeleteDeductedArea", name=_TR("[Debug] Create Or Delete Deducted Area"),
+                                       desc=_TR("Creates or deletes a laser deducted area for debugging.")):
                         builder.TYPE(ParamType.COMBO_BOX)
                         # builder.DEFAULTVALUE("create")
                         builder.REQUIRED(False)
                         with builder.CHILDREN():
-                            with builder.CHILD(key="create", name=_TR("create"), desc=_TR("create")):
+                            with builder.CHILD(key="create", name=_TR("Create"),
+                                               desc=_TR("Creates a deducted area from the selected recognition file.")):
                                 builder.TYPE(ParamType.ARRAY)
 
-                                with builder.CHILD(key="recFile", name=_TR("recfile"), desc=_TR("file for recognize")):
+                                with builder.CHILD(key="recFile", name=_TR("Recfile"), desc=_TR("File for recognize.")):
                                     builder.TYPE(ParamType.STRING)
                                     builder.REQUIRED(False)
                                     builder.DEFAULTVALUE("default.srec")
 
-                            with builder.CHILD(key="delete", name=_TR("delete"), desc=_TR("delete")):
+                            with builder.CHILD(key="delete", name=_TR("Delete"),
+                                               desc=_TR("Deletes the existing deducted area.")):
                                 builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="jackBezierReturn", name=_TR("[Debug] jackBezierReturn"),
-                                       desc=_TR("recognize and go bezier to get the shelf and return")):
+                    with builder.CHILD(key="jackBezierReturn", name=_TR("[Debug] Jack Bezier Return"),
+                                       desc=_TR("Recognize and go bezier to get the shelf and return.")):
                         builder.TYPE(ParamType.ARRAY)
 
                         with builder.CHILDREN():
@@ -1362,68 +1377,71 @@ class InputParams:
                             create_end_height(builder)
                             create_recfile(builder)
 
-                    with builder.CHILD(key="goPolyline", name=_TR("[Debug] goPolyline"),
-                                       desc=_TR("go polyline line to target position")):
+                    with builder.CHILD(key="goPolyline", name=_TR("[Debug] Go Polyline"),
+                                       desc=_TR("Go polyline line to target position.")):
                         builder.TYPE(ParamType.ARRAY)
 
-                    with builder.CHILD(key="goDist", name=_TR("[Debug] goDist"), desc=_TR("go straight distance")):
+                    with builder.CHILD(key="goDist", name=_TR("[Debug] Go Dist"), desc=_TR("Go straight distance.")):
                         builder.TYPE(ParamType.ARRAY)
-                        with builder.CHILD(key="goPathX", name=_TR("goPath_x"),
-                                           desc=_TR("The dist of the target point to which robot will go in a straight line")):
+                        with builder.CHILD(key="goPathX", name=_TR("Go Path X"),
+                                           desc=_TR("The dist of the target point to which robot will go in a straight line.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(0)
 
-                    with builder.CHILD(key="goPath", name=_TR("[Debug] goPath"), desc=_TR("go straight to target position")):
+                    with builder.CHILD(key="goPath", name=_TR("[Debug] Go Path"), desc=_TR("Go straight to target position.")):
                         builder.TYPE(ParamType.ARRAY)
-                        with builder.CHILD(key="goPathX", name=_TR("goPath_x"),
-                                           desc=_TR("The coordinate x of the target point to which robot will go in a straight line")):
+                        with builder.CHILD(key="goPathX", name=_TR("Go Path X"),
+                                           desc=_TR("The coordinate x of the target point to which robot will go in a straight line.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(0)
-                        with builder.CHILD(key="goPathY", name=_TR("goPath_y"),
-                                           desc=_TR("The coordinate y of the target point to which robot will go in a straight line")):
+                        with builder.CHILD(key="goPathY", name=_TR("Go Path Y"),
+                                           desc=_TR("The coordinate y of the target point to which robot will go in a straight line.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(0)
-                        with builder.CHILD(key="goPathTheta", name=_TR("goPath_theta"),
-                                           desc=_TR("The theta of the target point to which robot will go in a straight line")):
+                        with builder.CHILD(key="goPathTheta", name=_TR("Go Path Theta"),
+                                           desc=_TR("The theta of the target point to which robot will go in a straight line.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("rad")
                             builder.DEFAULTVALUE(0)
-                        with builder.CHILD(key="coordinate", name=_TR("coordinate"), desc=_TR("Spin coordinate")):
+                        with builder.CHILD(key="coordinate", name=_TR("Coordinate"), desc=_TR("Spin coordinate.")):
                             builder.TYPE(ParamType.STRING_COMBO_LIST)
                             builder.DEFAULTVALUE("robot")
 
                             with builder.CHILDREN():
-                                with builder.CHILD("robot", _TR("robot"), _TR("robot")):
+                                with builder.CHILD("robot", _TR("Robot"),
+                                                   _TR("Uses the robot coordinate system.")):
                                     builder.TYPE(ParamType.STRING)
-                                with builder.CHILD("world", _TR("world"), _TR("world")):
+                                with builder.CHILD("world", _TR("World"),
+                                                   _TR("Uses the world coordinate system.")):
                                     builder.TYPE(ParamType.STRING)
 
-                    with builder.CHILD(key="recShelf", name=_TR("[Debug] recShelf"), desc=_TR("recognize the shelf")):
+                    with builder.CHILD(key="recShelf", name=_TR("[Debug] Rec Shelf"), desc=_TR("Recognize the shelf.")):
                         builder.TYPE(ParamType.ARRAY)
 
-                        with builder.CHILD(key="recFile", name=_TR("recfile"),
-                                           desc=_TR("the file for recognize")):
+                        with builder.CHILD(key="recFile", name=_TR("Recfile"),
+                                           desc=_TR("The file for recognize.")):
                             builder.TYPE(ParamType.STRING)
                             builder.REQUIRED(True)
                             builder.DEFAULTVALUE("default.srec")
 
-                    with builder.CHILD(key="getRecfile", name=_TR("[Debug] getRecfile"), desc=_TR("get Recfile")):
+                    with builder.CHILD(key="getRecfile", name=_TR("[Debug] Get Recfile"), desc=_TR("Get Recfile.")):
                         builder.TYPE(ParamType.ARRAY)
 
-                        with builder.CHILD(key="recFile", name=_TR("recfile"),
-                                           desc=_TR("the file for recognize")):
+                        with builder.CHILD(key="recFile", name=_TR("Recfile"),
+                                           desc=_TR("The file for recognize.")):
                             builder.TYPE(ParamType.STRING)
                             builder.REQUIRED(True)
                             builder.DEFAULTVALUE("default.srec")
 
-                    with builder.CHILD(key="recTargetObs", name=_TR("[Debug] recTargetObs"), desc=_TR("recTargetObs")):
+                    with builder.CHILD(key="recTargetObs", name=_TR("[Debug] Rec Target Obs"),
+                                       desc=_TR("Runs target-obstacle recognition for debugging.")):
                         builder.TYPE(ParamType.ARRAY)
 
     builder.save_to_file()
@@ -3181,6 +3199,7 @@ class Jack(ModuleBase):
         args = None
         try:
             trigger = NetProtocol.getModbusData("4x", 200, 1)
+            print(f"DEBUG: modbus trigger={trigger},trigger[0]={trigger[0]}")
             if trigger and trigger[0]:
                 stop = NetProtocol.getModbusData("4x", 203, 1)
                 up = NetProtocol.getModbusData("4x", 204, 1)
