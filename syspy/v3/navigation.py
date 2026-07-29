@@ -183,19 +183,19 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     @call_service()
-    def setGoodsShape(cls, head: float, tail: float, width: float):
+    def setGoodsShape(cls, head: float, tail: float, width: float, goodsAngleInSpin: Optional[float] = 0.0):
         pass
 
     @classmethod
     @call_service()
     def setGoodsShapeWithName(
-            cls, head: float, tail: float, width: float, recfile: str
+            cls, head: float, tail: float, width: float, recfile: str, goodsAngleInSpin: Optional[float] = 0.0
     ):
         pass
     @classmethod
     @call_service()
     def setGoodsPolyShape(
-            cls, shape, recfile: str
+            cls, shape: List[Dict[str, float]], recfile: str, goodsAngleInSpin: Optional[float] = 0.0
     ):
         pass
     @classmethod
@@ -490,6 +490,10 @@ class NavStatusV3(NavStatusInterface):
     def getBlock(self) -> Optional[bool]:
         if self.update():
             return self.data.blocked
+
+    def getBlockDevice(self) -> Optional[str]:
+        if self.update():
+            return self.data.blockDevice
 
     @classmethod
     def clearBlock(cls) -> None:

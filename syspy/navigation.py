@@ -318,7 +318,7 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def setGoodsShape(cls, head: float, tail: float, width: float):
+    def setGoodsShape(cls, head: float, tail: float, width: float, goodsAngleInSpin: Optional[float] = 0.0):
         """设置货物形状，并且告诉rbk车上装载有货物了。
            如果head,tail, width都小于等于0，则没有货物形状。
            货物的0，0点与小车的0，0点一样
@@ -327,12 +327,14 @@ class NavigationInterface(ABC, Service):
             head (float): 货物头部长度
             tail (float): 货物的尾部长度
             width (float): 货物的宽度
+            goodsAngleInSpin (Optional[float]): 载货时，表示货架/货物在机器人坐标系下的目标角；
+                                                无货时，等价于托盘/spin 电机目标角
         """
         raise RBKVersionError()
 
     @classmethod
     def setGoodsShapeWithName(
-            cls, head: float, tail: float, width: float, recfile: str
+            cls, head: float, tail: float, width: float, recfile: str, goodsAngleInSpin: Optional[float] = 0.0
     ):
         """设置货物形状时传入识别文件路径
 
@@ -341,12 +343,14 @@ class NavigationInterface(ABC, Service):
             tail (float): 货物的尾部长度
             width (float): 货物的宽度
             recfile (str): 识别文件
+            goodsAngleInSpin (Optional[float]): 载货时，表示货架/货物在机器人坐标系下的目标角；
+                                                无货时，等价于托盘/spin 电机目标角
         """
         raise RBKVersionError()
 
     @classmethod
     def setGoodsPolyShape(
-            cls, shape, recfile: str
+            cls, shape: List[Dict[str, float]], recfile: str, goodsAngleInSpin: Optional[float] = 0.0
     ):
         """设置货物形状时传入识别文件路径
             shape = [
@@ -356,8 +360,9 @@ class NavigationInterface(ABC, Service):
             {"x": 1.0, "y": 1.0}]
 
         Args:
-            shape (List[Dict[str, float]]):
-            recfile (str):
+            shape (List[Dict[str, float]]): 多边形形状点列表
+            recfile (str): 识别文件路径
+            goodsAngleInSpin (Optional[float]): 货物在旋转坐标系下的角度
         """
         raise RBKVersionError()
 
@@ -979,6 +984,11 @@ class NavStatusInterface(ABC, Message):
 
     @classmethod
     def getBlock(cls):
+        raise RBKVersionError()
+
+    @classmethod
+    def getBlockDevice(cls) -> Optional[str]:
+        """获取当前导航阻挡对应的设备 key"""
         raise RBKVersionError()
 
     @classmethod
