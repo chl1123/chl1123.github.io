@@ -3200,18 +3200,22 @@ class Jack(ModuleBase):
         try:
             trigger = NetProtocol.getModbusData("4x", 200, 1)
             print(f"DEBUG: modbus trigger={trigger},trigger[0]={trigger[0]}")
-            if trigger and trigger[0]:
+            if trigger:
                 stop = NetProtocol.getModbusData("4x", 203, 1)
                 up = NetProtocol.getModbusData("4x", 204, 1)
                 down = NetProtocol.getModbusData("4x", 205, 1)
-                if stop and stop[0]:
+                stopStatus = parseModbus(stop, "uint16")
+                upStatus = parseModbus(up, "uint16")
+                downStatus = parseModbus(down, "uint16")
+
+                if stop and stopStatus:
                     args = {"operation": "stopMotor"}
                     Trace.log("modbus jack stop", name=MOD)
-                elif up and up[0]:
+                elif up and upStatus:
                     args = {"operation": "jackHeight",
                             "endHeight": config_params.jack_max_height}
                     Trace.log("modbus jack up", name=MOD)
-                elif down and down[0]:
+                elif down and downStatus:
                     args = {"operation": "jackHeight",
                             "endHeight": config_params.jack_min_height}
                     Trace.log("modbus jack down", name=MOD)
