@@ -1303,6 +1303,7 @@ class Jack(ModuleBase):
         self.jack_isFull = None
         self.jack_speed = None
         self.jack_motors = None
+        self.jack_direction = None  # 记录最近一次顶升动作方向
         # 脚本运行相关变量
         self.task_args = None
         self.action_list = []
@@ -2519,6 +2520,7 @@ class Jack(ModuleBase):
             self.operation_init = True
             Motor.stopMotor()
             Motor.resetMotor(config_params.jack_motor_name)
+            self.jack_direction = None
 
     def suspend(self):
         if self.status == ScriptStatus.RUNNING:
@@ -2535,6 +2537,7 @@ class Jack(ModuleBase):
     def cancel(self):
         Motor.stopMotor()
         Motor.resetMotor(config_params.jack_motor_name)
+        self.jack_direction = None
         Navigation.resetGoMapPath()
         Navigation.resetGoPGV()
         self.action_task.cancel()
@@ -2630,10 +2633,11 @@ class Jack(ModuleBase):
         # ============================================
         try:
             # 00061: 顶升机构状态
-            jack_status = 0x04  # 默认停止
+            jack_status = {"up": 0x01, "down": 0x03}.get(self.jack_direction, 0x04)
 
             # 判断是否失败
             if self.status == ScriptStatus.FAILED:
+                self.jack_direction = None
                 jack_status = 0xFF
             # 判断是否有顶升动作正在执行
             elif cur_action and isinstance(cur_action, JackHeight):
@@ -2642,17 +2646,19 @@ class Jack(ModuleBase):
                 is_motor_reached = Motor.isMotorReached(config_params.jack_motor_name)
 
                 if target_height > current_pos + 0.001:  # 上升
+                    self.jack_direction = "up"
                     if is_motor_reached:
                         jack_status = 0x01  # 上升到位
                     else:
                         jack_status = 0x00  # 上升中
                 elif target_height < current_pos - 0.001:  # 下降
+                    self.jack_direction = "down"
                     if is_motor_reached:
                         jack_status = 0x03  # 下降到位
                     else:
                         jack_status = 0x02  # 下降中
                 else:
-                    jack_status = 0x04  # 停止
+                    jack_status = {"up": 0x01, "down": 0x03}.get(self.jack_direction, 0x04)
 
             NetProtocol.setModbusData("3x", 61, [jack_status])
 
@@ -2685,6 +2691,7 @@ class Jack(ModuleBase):
                 downStatus = parseModbus(down, "uint16")
 
                 if stop and stopStatus:
+                    self.jack_direction = None
                     args = {"operation": "stopMotor"}
                     Trace.log("modbus jack stop", name=MOD)
                 elif up and upStatus:
