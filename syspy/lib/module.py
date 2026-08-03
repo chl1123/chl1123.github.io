@@ -104,7 +104,7 @@ class Module:
     __lock = Lock()
     __run_status = ScriptStatus.NONE
     __rpc_client = None
-    __task_id = 0
+    __task_id: str = ""
     __task_params = {}
     __cancel_callback = None
     __suspend_callback = None
@@ -271,11 +271,11 @@ class Module:
             cls.__safe_move_check_callback()
 
     @classmethod
-    def __modbus(cls, task_id):
+    def __modbus(cls, task_id: str):
         """modbus 任务回调（NP -> MF调用）
 
         Args:
-            task_id (int): 任务ID
+            task_id (str): 任务ID
         """
         cls.__setTaskId(task_id)
         cls.setStatus(ScriptStatus.RUNNING)
@@ -319,7 +319,7 @@ class Module:
 
     @classmethod
     def __reportData(cls, status: Optional[ScriptStatus] = None):
-        if cls.__task_id == 0 or cls.__task_id is None:
+        if not cls.__task_id:
             return
         if status is None:
             status = cls.__run_status
@@ -335,9 +335,9 @@ class Module:
             cls.__rpc_client.report(cls.script_name, data)
 
     @classmethod
-    def __setTaskId(cls, task_id):
+    def __setTaskId(cls, task_id: Optional[Union[str, int]]):
         with cls.__lock:
-            cls.__task_id = task_id
+            cls.__task_id = "" if task_id is None else str(task_id)
 
     @classmethod
     def getTaskArgs(cls, name: str = "", default: Any = None) -> Any:
@@ -380,7 +380,7 @@ class Module:
             return task_config
 
     @classmethod
-    def getTaskId(cls):
+    def getTaskId(cls) -> str:
         with cls.__lock:
             return cls.__task_id
 
@@ -397,7 +397,7 @@ class Module:
             # 任务状态为终态时清空任务、task_id、任务中的配置参数
             if status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 cls.__task_params = {}
-                cls.__task_id = 0
+                cls.__task_id = ""
                 instance=ScriptParam.getInstance(cls.script_file)
                 if instance:
                     instance.clearTaskConfig()
