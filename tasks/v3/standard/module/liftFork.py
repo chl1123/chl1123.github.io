@@ -1595,6 +1595,7 @@ class Fork(ModuleBase):
         self.target_pos = [0, 0, 0, -1]
         self.rec_params = dict()
         self.start_time = None
+        self.suspended_at = None
         self.init_args = False
         self.action_id = 0
         self.action_list = list()
@@ -1699,23 +1700,41 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FAILED
 
     def suspend(self):
+        if self.script_status != ScriptStatus.RUNNING:
+            return
+        if 0 <= self.action_id < len(self.action_list):
+            self.action_list[self.action_id].suspend()
+        self.suspended_at = time.time()
         self.script_status = ScriptStatus.SUSPENDED
+        Module.setStatus(ScriptStatus.SUSPENDED)
         Trace.log("suspend", name="fork.task")
 
     def resume(self):
-        if self.script_status == ScriptStatus.SUSPENDED:
-            self.script_status = ScriptStatus.RUNNING
+        if self.script_status != ScriptStatus.SUSPENDED:
+            return
+        if self.suspended_at is not None and self.start_time is not None:
+            self.start_time += time.time() - self.suspended_at
+        self.suspended_at = None
+        if 0 <= self.action_id < len(self.action_list):
+            self.action_list[self.action_id].resume()
+        self.script_status = ScriptStatus.RUNNING
+        Module.setStatus(ScriptStatus.RUNNING)
         Trace.log("resume", name="fork.task")
 
     def cancel(self):
+        was_suspended = Module.getStatus() == ScriptStatus.SUSPENDED
         self.script_status = ScriptStatus.FAILED
-        self.action_list[self.action_id].cancel()
+        if 0 <= self.action_id < len(self.action_list):
+            self.action_list[self.action_id].cancel()
         self.reset()
+        if was_suspended:
+            Module.setStatus(ScriptStatus.RUNNING)
         Trace.log("cancel", name="fork.task")
         return
 
     def reset(self):
         self.start_time = time.time()
+        self.suspended_at = None
         # Motor.resetMotor(ConfigParams.fork_motor_name)
         # Navigation.clearGoodsShape()
 
@@ -3025,6 +3044,14 @@ class BaseAction:
     def cancel(self):
         self.action_status = ActionStatus.FAILED
 
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            self.action_status = ActionStatus.SUSPENDED
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            self.action_status = ActionStatus.RUNNING
+
 
 class Rec(BaseAction):
     def __init__(self, pallet_file, rec_center_x=-1.0, rec_center_y=0.0, rec_radius=0.7, action_name="RecPallet"):
@@ -3165,10 +3192,12 @@ class Rec(BaseAction):
                                             f"Recognition failed:{error_msg}, the maximum number of retries exceeded")
                 else:
                     Recognize.resetRec()
-        else:
+        elif rec_status == 0:
             Trace.log(f"recfile:{recfile}", name="fork.task")
             Recognize.doRec(recfile, json.dumps(self.region))
 
+            Timer.delay(0.05)
+        else:
             Timer.delay(0.05)
         return False, rec_status, list
 
@@ -3215,6 +3244,7 @@ class GoPathWithContactDi(BaseAction):
             self.action_status = ActionStatus.FAILED
         self.goal = [0, 0, 0]
         self.init = False
+        self.motion_started = False
         self.obs_dist = obs_dist
         self.start_loc = None
         self.method = method
@@ -3290,7 +3320,7 @@ class GoPathWithContactDi(BaseAction):
                 if self.obs_dist is not None and ConfigParams.fork_tip_2D_lasers:
                     for laser in ConfigParams.fork_tip_2D_lasers:
                         Trace.log(f"set2DLaserWidth:{laser}", name="fork.task")
-                        Laser.set2DLaserWidth(laser, 0.05)
+                        Laser.set2DLaserWidth(laser, ConfigParams.laserDetectionWidth)
 
                 # 根据操作类型决定是否屏蔽叉尖 di sensor（从碰撞检测设备列表中移除）
                 Trace.log(
@@ -3354,6 +3384,7 @@ class GoPathWithContactDi(BaseAction):
             if self.back_action.action_status not in [ScriptStatus.FAILED, ScriptStatus.FINISHED, ActionStatus.FAILED,
                                                       ActionStatus.FINISHED]:
                 self.back_action.run()
+                self.motion_started = True
 
             if self.back_action.action_status in [ScriptStatus.FAILED, ActionStatus.FAILED]:
                 self.action_status = ActionStatus.FAILED
@@ -3525,6 +3556,19 @@ class GoPathWithContactDi(BaseAction):
 
     def reset(self):
         self.action_status = ScriptStatus.RUNNING
+        self.motion_started = False
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            if self.motion_started:
+                Navigation.stopRobotNow()
+            super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            if self.motion_started:
+                Navigation.goPathParam(dict())
+            super().resume()
 
     def stop_robot(self):
         Navigation.stopRobotNow()
@@ -3532,6 +3576,7 @@ class GoPathWithContactDi(BaseAction):
         return True
 
     def cancel(self):
+        self.motion_started = False
         self.back_action.cancel()
         self.action_status = ActionStatus.FINISHED
 
@@ -3685,6 +3730,12 @@ class RunMotorByPosition(BaseAction):
             self.cur_fork_height_at_init = self.cur_fork_height
             self.delta = self.position - self.cur_fork_height
 
+            if not self.stop_di and self.motor_name == ConfigParams.fork_motor_name:
+                if self.delta > EPS:
+                    self.stop_di = ConfigParams.up_di or ""
+                elif self.delta < -EPS:
+                    self.stop_di = ConfigParams.down_di or ""
+
             # 把目标位置先夹到最大最小区间
             min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             self.position = clamp(self.position, min_h, max_h)
@@ -3791,8 +3842,11 @@ class RunMotorByPosition(BaseAction):
                         Navigation.collisionDetection(self.collision_device, self.x_list, self.y_list)
                         # print(f"collision:{collistion}")
 
-        # pos = Motor.get_motor_pos(self.motor_name)
-        self.is_reach = Motor.isMotorReached(self.motor_name)
+        # 速度型 DO 电机没有下发位置命令，不能调用 isMotorReached。
+        if ConfigParams.module_type == "liftFork" and ConfigParams.DOMotor:
+            self.is_reach = bool(self.stop_di and Di.getDi(self.stop_di))
+        else:
+            self.is_reach = Motor.isMotorReached(self.motor_name)
         if self.is_reach:
             # 货叉运动结束，关闭对应 DO
             self._close_fork_dos()
@@ -3842,6 +3896,17 @@ class RunMotorByPosition(BaseAction):
         self.fork_timestamps.clear()
         self.positions.clear()
         self.init = False
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            Motor.resetMotor(self.motor_name)
+            self._close_fork_dos()
+        super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            self.init = False
+        super().resume()
 
     def cancel(self):
         Motor.resetMotor(self.motor_name)
@@ -3915,7 +3980,10 @@ class RunModuleMotorByPosition(BaseAction):
             self.init = True
             self._start_motor()
 
-        self.is_reach = Motor.isMotorReached(self.motor_name)
+        if self.motor_name.startswith("DOMotor"):
+            self.is_reach = bool(self.stop_di and Di.getDi(self.stop_di))
+        else:
+            self.is_reach = Motor.isMotorReached(self.motor_name)
         if self.is_reach:
             self.action_status = ActionStatus.FINISHED
 
@@ -3953,6 +4021,16 @@ class RunModuleMotorByPosition(BaseAction):
         self.motor_timestamps.clear()
         self.positions.clear()
         self.init = False
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            Motor.resetMotor(self.motor_name)
+        super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            self.init = False
+        super().resume()
 
     def cancel(self):
         Motor.resetMotor(self.motor_name)
@@ -3992,8 +4070,18 @@ class RunMotorBySpeed(BaseAction):
             self.action_status = ActionStatus.RUNNING
             self.init = True
             Motor.setMotorSpeed(self.motor_name, self.max_speed, self.stop_di)
-        if Motor.isMotorReached(self.motor_name):
+        if self.stop_di and Di.getDi(self.stop_di):
             self.action_status = ActionStatus.FINISHED
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            Motor.resetMotor(self.motor_name)
+        super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            self.init = False
+        super().resume()
 
     def reset(self):
         self.action_status = ActionStatus.INIT
@@ -4086,6 +4174,17 @@ class RunMotorByDOInterlock(BaseAction):
         Do.setDo(self.leak_do, False)
         Do.setDo(self.pump_do, False)
 
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            Do.setDo(self.leak_do, False)
+            Do.setDo(self.pump_do, False)
+        super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            self.init = False
+        super().resume()
+
     def _trace_state(self) -> dict:
         return {
             "action_status": int(self.action_status),
@@ -4101,6 +4200,7 @@ class GoPath(BaseAction):
         self.init = False
         self.action_status = ActionStatus.INIT
         self.param = {}
+        self.path_started = False
         self.args = args if args else {}
         """ eg.
         args = {"x":0,
@@ -4170,7 +4270,9 @@ class GoPath(BaseAction):
             else:
                 Navigation.setTaskError("GoPathArgsWrong", f"args wrong")
                 self.action_status = ActionStatus.FAILED
-            Navigation.goPathParam(self.param)
+            if self.action_status != ActionStatus.FAILED:
+                Navigation.goPathParam(self.param)
+                self.path_started = True
 
         if self.action_status != ActionStatus.FAILED:
             Trace.log(f"is reach:{Navigation.isPathReached()}", True, True, name="fork.task")
@@ -4182,11 +4284,25 @@ class GoPath(BaseAction):
     def reset(self):
         Navigation.resetPath()
         Trace.log(f"reset path", name="fork.task")
+        self.path_started = False
         self.action_status = ActionStatus.RUNNING
 
     def cancel(self):
         Navigation.resetPath()
+        self.path_started = False
         self.action_status = ActionStatus.FAILED
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            if self.path_started:
+                Navigation.stopRobotNow()
+            super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            if self.path_started:
+                Navigation.goPathParam(self.param)
+            super().resume()
 
     def _trace_state(self) -> dict:
         return {
@@ -4298,6 +4414,31 @@ class MoveChassisByY(BaseAction):
         Navigation.resetPath()
         if self.shiftMotor:
             Motor.resetMotor(ConfigParams.shiftMotor)
+
+    def _current_action(self):
+        if self.shiftMotor == "":
+            return self.chassis_move
+        if not self.step[0]:
+            return self.yaw_move
+        if not self.step[1]:
+            return self.shift
+        if not self.step[2]:
+            return self.x_move
+        return None
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            current_action = self._current_action()
+            if current_action is not None:
+                current_action.suspend()
+            super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            current_action = self._current_action()
+            if current_action is not None:
+                current_action.resume()
+            super().resume()
 
     def _trace_state(self) -> dict:
         return {
@@ -4497,6 +4638,29 @@ class GoTwoStraightLine(BaseAction):
         Navigation.resetPath()
         self.action_status = ScriptStatus.FAILED
 
+    def _current_action(self):
+        if not self.go_step[0]:
+            return self.go1
+        if not self.go_step[1]:
+            return self.go2
+        if not self.go_step[2]:
+            return self.go3
+        return None
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            current_action = self._current_action()
+            if current_action is not None:
+                current_action.suspend()
+            super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            current_action = self._current_action()
+            if current_action is not None:
+                current_action.resume()
+            super().resume()
+
     def _trace_state(self) -> dict:
         return {
             "action_status": int(self.action_status),
@@ -4539,7 +4703,8 @@ class GoLiveRec(BaseAction):
             self.init = True
             self.doing_rec = True
             self.doing_path = True
-            Recognize.resetRec()
+            self.rec.reset()
+            return self.action_status
 
         # Log current recognition and path planning status
         Trace.log(f"[liveRecScript][{self.doing_rec}|{self.doing_path}]", True, True)
