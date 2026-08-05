@@ -13,7 +13,7 @@ usage() {
   ./submit_pr.sh --path submit_pr.sh --path build_deb.sh --path build_deb.yml --path README.md --source-branch mazj HEAD
   ./submit_pr.sh --submit-branch mazj-release-submit-v2 e047c541
   ./submit_pr.sh --title "fix: xxx" --body-file pr.md e047c541
-  ./submit_pr.sh --reuse-branch --update-pr 8 --submit-branch feature-fix-v2 --path syspy/actions.py --body-file pr.md HEAD
+  ./submit_pr.sh --update-pr 8 --path syspy/actions.py --body-file pr.md HEAD
   ./submit_pr.sh --yes --source-branch mazj HEAD
   ./submit_pr.sh --dry-run e047c541
 
@@ -26,7 +26,7 @@ usage() {
   - 默认会在 push / 创建 PR 前展示预览并等待用户确认
   - `--path` 模式下不会 cherry-pick commit, 而是把指定文件从源快照复制到 base 分支后生成一个新的提交
   - `--path` 模式当前只支持一个 commit/ref, 适合做“只提交 actions.py”或“只提交几个脚本/文档”的 PR
-  - 更新已有 PR 时, 用 `--reuse-branch --update-pr <编号>` 复用远端分支并 PATCH 标题/正文
+  - 更新已有 PR 时, `--update-pr <编号>` 会自动复用该 PR 当前的远端分支并 PATCH 标题/正文
 
 选项:
   --source-branch <branch>  指定源分支, 默认当前分支
@@ -36,7 +36,7 @@ usage() {
   --title <title>           手动覆盖 PR 标题
   --body-file <file>        从文件读取 PR 正文
   --reuse-branch            允许复用已存在的 submit 分支, push 时使用 --force-with-lease
-  --update-pr <number>      不新建 PR, 改为更新指定 PR 的标题/正文
+  --update-pr <number>      不新建 PR, 自动复用该 PR 的 head 分支并更新标题/正文
   --yes, -y                 跳过交互确认，直接 push / 创建 PR
   --dry-run                 只执行到本地 cherry-pick, 不 push 不开 PR
   -h, --help                查看帮助
@@ -65,9 +65,7 @@ usage() {
   4. 更新已有 PR:
      ./submit_pr.sh \
        --source-branch mazj \
-       --submit-branch mazj-actions-release-v2 \
        --path syspy/actions.py \
-       --reuse-branch \
        --update-pr 8 \
        --title "feat: m-6998182168 refactor actions rotate flow" \
        --body-file pr.md \
@@ -200,6 +198,39 @@ print(json.dumps({
     "body": body,
 }, ensure_ascii=False))
 PY
+}
+
+build_pr_update_payload() {
+  python3 - "$1" "$2" <<'PY'
+import json
+import sys
+
+title, body = sys.argv[1:3]
+print(json.dumps({
+    "title": title,
+    "body": body,
+}, ensure_ascii=False))
+PY
+}
+
+extract_pr_info() {
+  python3 -c '
+import json
+import sys
+
+data = json.load(sys.stdin)
+
+def branch_name(value):
+    if isinstance(value, dict):
+        value = value.get("ref", "")
+    prefix = "refs/heads/"
+    return value[len(prefix):] if value.startswith(prefix) else value
+
+head = data.get("head") or {}
+print(branch_name(head))
+print(branch_name(data.get("base") or {}))
+print((head.get("repo") or {}).get("path", ""))
+'
 }
 
 extract_pr_number() {
@@ -420,6 +451,43 @@ last_sha="${COMMIT_SHAS[$last_index]}"
 last_subject="${COMMIT_SUBJECTS[$last_index]}"
 SOURCE_SNAPSHOT="$last_sha"
 
+remote_url="$(git -C "$REPO_ROOT" remote get-url "$REMOTE")"
+mapfile -t remote_info < <(parse_remote_info "$remote_url")
+remote_host="${remote_info[0]}"
+repo_path="${remote_info[1]}"
+api_base="https://api.${remote_host}"
+token=""
+
+if [[ -n "$UPDATE_PR" ]]; then
+  token="$(get_credential_token "$remote_host")"
+  pr_response_file="$(mktemp)"
+  pr_http_code="$(
+    curl -sS -o "$pr_response_file" -w '%{http_code}' \
+      "${api_base}/${repo_path}/-/pulls/${UPDATE_PR}" \
+      -H 'Accept: application/vnd.cnb.api+json' \
+      -H "Authorization: Bearer ${token}"
+  )"
+  pr_response="$(cat "$pr_response_file")"
+  rm -f "$pr_response_file"
+
+  if [[ "$pr_http_code" != "200" ]]; then
+    die "PR 查询失败, HTTP ${pr_http_code}: ${pr_response}"
+  fi
+
+  mapfile -t pr_info < <(printf '%s' "$pr_response" | extract_pr_info)
+  pr_head_branch="${pr_info[0]:-}"
+  pr_base_branch="${pr_info[1]:-}"
+  pr_head_repo="${pr_info[2]:-}"
+  [[ -n "$pr_head_branch" ]] || die "PR #${UPDATE_PR} 响应中没有 head 分支"
+  [[ "$pr_head_repo" == "$repo_path" ]] || die "PR #${UPDATE_PR} 的 head 仓库不是当前仓库: ${pr_head_repo}"
+  [[ "$pr_base_branch" == "$BASE_BRANCH" ]] || die "PR #${UPDATE_PR} 的 base 是 ${pr_base_branch}, 与 --base ${BASE_BRANCH} 不一致"
+
+  if [[ -n "$SUBMIT_BRANCH" && "$SUBMIT_BRANCH" != "$pr_head_branch" ]]; then
+    die "--submit-branch ${SUBMIT_BRANCH} 与 PR #${UPDATE_PR} 的 head ${pr_head_branch} 不一致"
+  fi
+  SUBMIT_BRANCH="$pr_head_branch"
+fi
+
 if [[ -z "$SUBMIT_BRANCH" ]]; then
   branch_desc_source="$last_subject"
   if [[ -n "$TITLE_OVERRIDE" ]]; then
@@ -530,12 +598,9 @@ else
   git -C "$WORKTREE_DIR" push "$REMOTE" "${SUBMIT_BRANCH}:${SUBMIT_BRANCH}"
 fi
 
-remote_url="$(git -C "$REPO_ROOT" remote get-url "$REMOTE")"
-mapfile -t remote_info < <(parse_remote_info "$remote_url")
-remote_host="${remote_info[0]}"
-repo_path="${remote_info[1]}"
-api_base="https://api.${remote_host}"
-token="$(get_credential_token "$remote_host")"
+if [[ -z "$token" ]]; then
+  token="$(get_credential_token "$remote_host")"
+fi
 
 payload="$(build_pr_payload "$BASE_BRANCH" "$SUBMIT_BRANCH" "$repo_path" "$pr_title" "$pr_body")"
 response_file="$(mktemp)"
@@ -543,6 +608,7 @@ trap 'rm -f "$response_file"; cleanup' EXIT
 
 if [[ -n "$UPDATE_PR" ]]; then
   log "update PR #${UPDATE_PR}"
+  payload="$(build_pr_update_payload "$pr_title" "$pr_body")"
   http_code="$(
     curl -sS -o "$response_file" -w '%{http_code}' -X PATCH "${api_base}/${repo_path}/-/pulls/${UPDATE_PR}" \
       -H 'Accept: application/vnd.cnb.api+json' \
@@ -555,6 +621,11 @@ if [[ -n "$UPDATE_PR" ]]; then
   if [[ "$http_code" != "200" && "$http_code" != "201" ]]; then
     die "PR 更新失败, HTTP ${http_code}: ${response}"
   fi
+
+  mapfile -t updated_pr_info < <(printf '%s' "$response" | extract_pr_info)
+  updated_pr_head="${updated_pr_info[0]:-}"
+  [[ "$updated_pr_head" == "$SUBMIT_BRANCH" ]] || \
+    die "PR #${UPDATE_PR} 更新后仍指向 ${updated_pr_head}, 预期为 ${SUBMIT_BRANCH}"
 
   pr_number="$UPDATE_PR"
   KEEP_WORKTREE=0
