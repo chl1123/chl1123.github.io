@@ -3316,11 +3316,8 @@ class JackHeight(ActionBase):
                                                   _TR(f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed"))
                         self.action_status = ActionStatus.FAILED
                         return
-                if config_params.jack_up_di:
-                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
-                                           config_params.jack_up_di)
-                else:
-                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
+                # 协议电机的 upLimitDI 只保留限位语义，不能再作为 stopDI 传入。
+                Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
             else:
                 # 初始化前检查：下到位 DI 不应该已经触发
                 if not is_simulation():

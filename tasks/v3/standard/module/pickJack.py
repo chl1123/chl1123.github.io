@@ -3338,7 +3338,7 @@ class Jack(ModuleBase):
 class JackUpDown(ActionBase):
     """
     顶升/下降动作（推荐使用，不需要指定高度）
-    - direction="up": 顶升到顶，使用Motor.setMotorPosition + jack_up_di
+    - direction="up": 协议电机不传 stopDI，DOMotor 使用 upReachDI
     - direction="down": 下降到底，使用Motor.setMotorPosition + jack_zero_di
     """
 
@@ -3367,8 +3367,14 @@ class JackUpDown(ActionBase):
                 target_height = config_params.jack_max_height or 0.06
                 debug_trace(f"[JACK] ↑JackUpDown UP -> target={target_height}, "
                             f"speed={config_params.jack_motor_speed}", name=f"{MOD}.motor")
-                Motor.setMotorPosition(config_params.jack_motor_name, target_height,
-                                       config_params.jack_motor_speed, config_params.jack_up_di)
+                if config_params.DOMotor and config_params.jack_up_di:
+                    # DOMotor 的 upReachDI 仍作为正常到位停止信号。
+                    Motor.setMotorPosition(config_params.jack_motor_name, target_height,
+                                           config_params.jack_motor_speed, config_params.jack_up_di)
+                else:
+                    # 协议电机的 upLimitDI 只保留限位语义，不能作为 stopDI 传入。
+                    Motor.setMotorPosition(config_params.jack_motor_name, target_height,
+                                           config_params.jack_motor_speed)
 
                 # 设置货物形状（在init时）
                 shape = None
@@ -3753,11 +3759,8 @@ class JackHeight(ActionBase):
                                                   _TR(f"Jack-up DI({config_params.jack_up_di}) already triggered before lifting. DI config error or mechanism jammed"))
                         self.action_status = ActionStatus.FAILED
                         return
-                if config_params.jack_up_di:
-                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
-                                           config_params.jack_up_di)
-                else:
-                    Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
+                # 协议电机的 upLimitDI 只保留限位语义，不能再作为 stopDI 传入。
+                Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed)
             else:
                 # 初始化前检查：下到位 DI 不应该已经触发
                 if not is_simulation():
