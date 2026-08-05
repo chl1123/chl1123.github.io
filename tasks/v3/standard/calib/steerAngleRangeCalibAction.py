@@ -47,7 +47,7 @@ class CalibMove:
         self.d_steer = 0.0
 
     def reachLimit(self, dt = 3.0):
-        if abs(self.last_send_angle - self.send_angle) < 0.001:
+        if abs(self.last_send_angle - self.send_angle) < 0.015:
             if time.time() - self.steer_start_time > dt:
                 return True
         else:
