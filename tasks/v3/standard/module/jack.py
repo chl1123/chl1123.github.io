@@ -226,6 +226,9 @@ class ConfigParams:
     polyline_path_angle_accuracy = 0.05
 
     # PGV二次调整配置参数（policy 结构）
+    deduct_follow_orientation = True  # 扣除区是否跟随识别面旋转；False 则恒等按配置矩形下发(theta=0)
+    deduct_use_upside_pgv = False  # 扣除区朝向源：True 用上视PGV货物角(读失败回退dir)；False 默认走 insert_dir
+    deduct_pgv_retry_max = 5  # 上视PGV读角重试帧数(deduct_use_upside_pgv=True 时生效)，超时回退 dir
     pgv_code_adjust_type = "singleCode"  # "singleCode" | "codeNumber"
     pgv_scan_device = ""  # 绑定的扫码设备名称
     pgv_angle_adjust_type = "parallelToCode"  # 角度调整模式
@@ -656,6 +659,9 @@ class ConfigParams:
         cls.polyline_path_angle_accuracy = cls.config.get("polylinePathAngleAccuracy", 0.05)
 
         # PGV配置（policy 结构）
+        cls.deduct_follow_orientation = cls.config.get("deductFollowOrientation", True)
+        cls.deduct_use_upside_pgv = cls.config.get("deductUseUpsidePgv", False)
+        cls.deduct_pgv_retry_max = int(cls.config.get("deductPgvRetryMax", 5))
         cls.pgv_code_adjust_type = cls.config.get("codeAdjustType", "singleCode")
 
         # 读取 singleCode 子参数
@@ -1352,6 +1358,9 @@ class Jack(ModuleBase):
         # 初始化容器（单容器，id=0）
         Container.initContainer(0)
 
+        # 上视PGV读取的货架角度；未识别到时保持 None，并回退到钻入面
+        self.pgv_goods_angle_robot = None
+
         # ========== 边走边动相关状态 ==========
         self.pre_action_mode = False  # 是否处于预动作模式（边走边动）
         self.pre_action_completed = False  # 预动作是否完成
@@ -1422,8 +1431,13 @@ class Jack(ModuleBase):
         否则按 insert_dir(A/B/C/D) 离散。theta = R_goods + 基准偏移(90°)，使 B/D→0/180、
         A/C→90/270(对称足迹下等效)，B/D 保持现状、只补窄边。
         本模块无 spin 电机，扣除区一次性按识别面朝向设置，不随托盘角度实时更新。
+        跟随开关关闭时直接返回 0(恒等)，扣除区按配置矩形正对车体下发。
         """
-        if self.is_secondary_adjust and self.pgv_goods_angle_robot is not None:
+        if not self.deduct_follow_orientation:
+            debug_trace("deduct orient disabled -> theta=0.0deg", name=f"{MOD}.motor")
+            return 0.0
+        if (self.deduct_use_upside_pgv and self.is_secondary_adjust
+                and self.pgv_goods_angle_robot is not None):
             r_goods = self.pgv_goods_angle_robot
             src = f"pgv={math.degrees(r_goods):.1f}"
         else:
@@ -1553,6 +1567,8 @@ class Jack(ModuleBase):
 
     def init_args(self, args):
         self.task_args = args
+        # 每个任务重新读取，避免沿用上一任务的货架角度
+        self.pgv_goods_angle_robot = None
         # 获取任务参数
         self.opt = self.task_args.get("operation", None)
         self.ap_id = None  # targetName 从 Navigation.moveTask() 获取
@@ -1634,6 +1650,16 @@ class Jack(ModuleBase):
         # PGV二次调整参数：从任务参数或脚本配置读取
         # ============================================
         self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", False)
+
+        # 扣除区朝向跟随开关（任务参数优先，config 兜底）：False 时扣除区恒等按配置矩形下发
+        self.deduct_follow_orientation = self.task_args.get(
+            "deductFollowOrientation", config_params.deduct_follow_orientation)
+
+        # 扣除区朝向源开关：True 用上视PGV货物角(读失败按重试后回退dir)，False 默认走 insert_dir
+        self.deduct_use_upside_pgv = self.task_args.get(
+            "deductUseUpsidePgv", config_params.deduct_use_upside_pgv)
+        self.deduct_pgv_retry_max = int(self.task_args.get(
+            "deductPgvRetryMax", config_params.deduct_pgv_retry_max))
 
         # 顶层 codeAdjustType（任务参数可覆盖配置参数）
         self.pgv_code_adjust_type = self.task_args.get(
@@ -3083,8 +3109,12 @@ class GetGoodsDirFromPGV(ActionBase):
     def __init__(self):
         super().__init__("GetGoodsDirFromPGV")
         self.opt_info = "GetGoodsDirFromPGV"
+        self._try_count = 0
 
     def run(self, j: Jack):
+        self.action_status = ActionStatus.RUNNING
+        retry_max = max(1, getattr(j, "deduct_pgv_retry_max", 5))
+
         pgv_data = CodeScanner.getCodeScanners()
         for pgv in pgv_data:
             info = getattr(pgv, 'codeScannerInfo', None)
@@ -3094,12 +3124,19 @@ class GetGoodsDirFromPGV(ActionBase):
                 Trace.log(
                     f"getGoodsDirFro"
                     f"mPGV goods2robot={math.degrees(pgv.tagDiffAngle):.1f}deg "
-                    f"(raw={pgv.tagDiffAngle:.4f}rad)",
+                    f"(raw={pgv.tagDiffAngle:.4f}rad) try={self._try_count + 1}",
                     name=f"{MOD}.rec")
                 self.action_status = ActionStatus.FINISHED
                 return
-        Trace.log("getGoodsDirFromPGV: no upside PGV with DMT detected, fallback to insert_dir",
-                  name=f"{MOD}.err")
+
+        # 未读到上视码：重试若干帧，超时才回退 insert_dir（避免瞬时读码失败导致朝向随机）
+        self._try_count += 1
+        if self._try_count < retry_max:
+            debug_trace(f"getGoodsDirFromPGV: no upside PGV yet, retry ({self._try_count}/{retry_max})",
+                        name=f"{MOD}.rec")
+            return
+        Trace.log(f"getGoodsDirFromPGV: no upside PGV with DMT after {retry_max} tries, "
+                  f"fallback to insert_dir", name=f"{MOD}.err")
         self.action_status = ActionStatus.FINISHED
 
 class RobotRotate(ActionBase):

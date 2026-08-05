@@ -407,6 +407,9 @@ class ConfigParams:
     polyline_path_angle_accuracy = 0.05
 
     # PGV二次调整配置参数（policy 结构）
+    deduct_follow_orientation = True  # 扣除区是否按识别面设置初始朝向
+    deduct_use_upside_pgv = False  # True 使用上视PGV角度；False 使用钻入面
+    deduct_pgv_retry_max = 5  # 上视PGV读取角度的最大尝试次数
     pgv_code_adjust_type = "singleCode"  # "singleCode" | "codeNumber"
     pgv_scan_device = ""  # 绑定的扫码设备名称
     pgv_angle_adjust_type = "parallelToCode"  # 角度调整模式
@@ -871,6 +874,9 @@ class ConfigParams:
         cls.polyline_path_angle_accuracy = cls.config.get("polylinePathAngleAccuracy", 0.05)
 
         # PGV配置（policy 结构）
+        cls.deduct_follow_orientation = cls.config.get("deductFollowOrientation", True)
+        cls.deduct_use_upside_pgv = cls.config.get("deductUseUpsidePgv", False)
+        cls.deduct_pgv_retry_max = int(cls.config.get("deductPgvRetryMax", 5))
         cls.pgv_code_adjust_type = cls.config.get("codeAdjustType", "singleCode")
 
         # 读取 singleCode 子参数
@@ -1575,6 +1581,9 @@ class Jack(ModuleBase):
         # 数据打印
         self.report_info = {}
 
+        # 上视PGV读取的货架角度；未识别到时保持 None，并回退到钻入面
+        self.pgv_goods_angle_robot = None
+
         # robotParam
         self.lift_motor = None
         debug_trace(
@@ -1660,7 +1669,11 @@ class Jack(ModuleBase):
         A/C→90/270(对称足迹下等效)，B/D 保持现状、只补窄边。
         本模块无 spin 电机，扣除区一次性按识别面朝向设置，不随托盘角度实时更新。
         """
-        if self.is_secondary_adjust and self.pgv_goods_angle_robot is not None:
+        if not self.deduct_follow_orientation:
+            debug_trace("deduct orient disabled -> theta=0.0deg", name=f"{MOD}.motor")
+            return 0.0
+        if (self.deduct_use_upside_pgv and self.is_secondary_adjust
+                and self.pgv_goods_angle_robot is not None):
             r_goods = self.pgv_goods_angle_robot
             src = f"pgv={math.degrees(r_goods):.1f}"
         else:
@@ -1794,6 +1807,8 @@ class Jack(ModuleBase):
 
     def init_args(self, args):
         self.task_args = args
+        # 每个任务重新读取，避免沿用上一任务的货架角度
+        self.pgv_goods_angle_robot = None
         # 获取任务参数
         self.opt = self.task_args.get("operation", None)
         self.ap_id = None  # targetName 从 Navigation.moveTask() 获取
@@ -1883,6 +1898,14 @@ class Jack(ModuleBase):
         # PGV二次调整参数：从任务参数或脚本配置读取
         # ============================================
         self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", False)
+
+        # 扣除区朝向参数：任务参数优先，脚本配置兜底
+        self.deduct_follow_orientation = self.task_args.get(
+            "deductFollowOrientation", config_params.deduct_follow_orientation)
+        self.deduct_use_upside_pgv = self.task_args.get(
+            "deductUseUpsidePgv", config_params.deduct_use_upside_pgv)
+        self.deduct_pgv_retry_max = int(self.task_args.get(
+            "deductPgvRetryMax", config_params.deduct_pgv_retry_max))
 
         # 顶层 codeAdjustType（任务参数可覆盖配置参数）
         self.pgv_code_adjust_type = self.task_args.get(
@@ -2418,7 +2441,6 @@ class Jack(ModuleBase):
                 pgv_max_speed=self.pgv_max_speed,
                 pgv_max_rot_speed=self.pgv_max_rot_speed,
             ))
-            self.action_list.append(GetGoodsDirFromPGV())
             self.action_list.append(GetGoodsDirFromPGV())
 
         # ---- 顶升 ----
@@ -3504,8 +3526,12 @@ class GetGoodsDirFromPGV(ActionBase):
     def __init__(self):
         super().__init__("GetGoodsDirFromPGV")
         self.opt_info = "GetGoodsDirFromPGV"
+        self._try_count = 0
 
     def run(self, j: Jack):
+        self.action_status = ActionStatus.RUNNING
+        retry_max = max(1, getattr(j, "deduct_pgv_retry_max", 5))
+
         pgv_data = CodeScanner.getCodeScanners()
         for pgv in pgv_data:
             info = getattr(pgv, 'codeScannerInfo', None)
@@ -3515,12 +3541,19 @@ class GetGoodsDirFromPGV(ActionBase):
                 Trace.log(
                     f"getGoodsDirFro"
                     f"mPGV goods2robot={math.degrees(pgv.tagDiffAngle):.1f}deg "
-                    f"(raw={pgv.tagDiffAngle:.4f}rad)",
+                    f"(raw={pgv.tagDiffAngle:.4f}rad) try={self._try_count + 1}",
                     name=f"{MOD}.rec")
                 self.action_status = ActionStatus.FINISHED
                 return
-        Trace.log("getGoodsDirFromPGV: no upside PGV with DMT detected, fallback to insert_dir",
-                  name=f"{MOD}.err")
+
+        # 短暂未读到上视码时继续等待，超过次数后才回退到钻入面
+        self._try_count += 1
+        if self._try_count < retry_max:
+            debug_trace(f"getGoodsDirFromPGV: no upside PGV yet, retry ({self._try_count}/{retry_max})",
+                        name=f"{MOD}.rec")
+            return
+        Trace.log(f"getGoodsDirFromPGV: no upside PGV with DMT after {retry_max} tries, "
+                  f"fallback to insert_dir", name=f"{MOD}.err")
         self.action_status = ActionStatus.FINISHED
 
 class ClearPolicy(ActionBase):
