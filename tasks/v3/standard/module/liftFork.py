@@ -1783,27 +1783,29 @@ class Fork(ModuleBase):
 
     def get_station_pos(self, station_type):
         pos = [0, 0, 0, -1]
-        tcp_name = ""
+        tcp_key = ""
         station_id = self.move_task.get(station_type, "")  # int, 可能是 LM，可能是 AP
         Trace.log(f"target id:{station_id}", name="fork.task")
         if station_id == "" and station_type == "targetName":
             # task_args 里已经是带前缀的字符串
             target_id_str = self.task_args.get("targetName", "")
             pos = Navigation.getLM(target_id_str, True)
-            tcp_name = Navigation.getLmTcpName(target_id_str)
-            Trace.log(f"pos:{pos}, tcp name:{tcp_name}", name="fork.task")
+            tcp_info = Navigation.getLmTcpInfo(target_id_str)
+            tcp_key = next((tcp.get("key", "") for tcp in tcp_info if tcp.get("usage") == "move"), "")
+            Trace.log(f"pos:{pos}, tcp key:{tcp_key}", name="fork.task")
         elif station_id != "":
             # 尝试 AP 和 LM 两个前缀
 
             pos = Navigation.getLM(station_id, True)
-            tcp_name = Navigation.getLmTcpName(station_id)
+            tcp_info = Navigation.getLmTcpInfo(station_id)
+            tcp_key = next((tcp.get("key", "") for tcp in tcp_info if tcp.get("usage") == "move"), "")
             if pos[3] != -1:  # 找到有效结果
-                Trace.log(f"id_str:{station_id}, id:{station_id}, pos:{pos} tcp name:{tcp_name}", name="fork.task")
-                return pos, tcp_name  # 优先返回成功的结果
+                Trace.log(f"id_str:{station_id}, id:{station_id}, pos:{pos} tcp key:{tcp_key}", name="fork.task")
+                return pos, tcp_key  # 优先返回成功的结果
 
             # 如果走到这里，说明 AP 和 LM 都失败了
             Trace.log(f"{station_id} not found, return {pos}", name="fork.err")
-        return pos, tcp_name
+        return pos, tcp_key
 
     def test(self):
         if not self.operation_init:
@@ -1854,7 +1856,7 @@ class Fork(ModuleBase):
                     self.script_status = ScriptStatus.FAILED
 
             # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
-            self.target_pos, tcp_name = self.get_station_pos("targetName")
+            self.target_pos, tcp_key = self.get_station_pos("targetName")
 
             # 计算圆心
             if self.target_pos[3] == -1:
@@ -1935,7 +1937,7 @@ class Fork(ModuleBase):
                     self.script_status = ScriptStatus.FAILED
 
             # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
-            self.target_pos, tcp_name = self.get_station_pos("targetName")
+            self.target_pos, tcp_key = self.get_station_pos("targetName")
 
             # 如果有货,脚本无法取货并报错
             if Navigation.hasGoods() and ConfigParams.loadUnloadCheck:
@@ -1957,9 +1959,9 @@ class Fork(ModuleBase):
                         RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height)
                     ]
                     target_pos = self.target_pos
-                    if tcp_name:
+                    if tcp_key:
                         ap_world_pos_tcp = Navigation.calTCPTrans(target_pos[0], target_pos[1], target_pos[2],
-                                                                  tcp_name)
+                                                                  tcp_key)
                         ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"],
                                                  ap_world_pos_tcp["theta"]]
                         target_pos = ap_world_pos_tcp_list
@@ -2077,7 +2079,7 @@ class Fork(ModuleBase):
 
                 if ConfigParams.enableTcp:
                     rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0], rec_world_pos[1], rec_world_pos[2],
-                                                               "defaultTCP")
+                                                               "move/defaultTcp")
                     rec_world_pos_tcp_list = [rec_world_pos_tcp["x"], rec_world_pos_tcp["y"],
                                               rec_world_pos_tcp["theta"]]
                     Trace.log(f"after tcp:{rec_world_pos_tcp_list}", output_console=True, output_time=True,
@@ -2240,7 +2242,7 @@ class Fork(ModuleBase):
                 Navigation.setTaskError("ForkNoGoods", f"fork has no goods, cannot unload, script failed")
                 self.script_status = ScriptStatus.FAILED
                 return
-            self.target_pos, tcp_name = self.get_station_pos("targetName")
+            self.target_pos, tcp_key = self.get_station_pos("targetName")
             Trace.log(f"target_pos: {self.target_pos}", name="fork.task")
             if not self.target_pos or self.target_pos[3] == -1 or self.move_task.get("skillName", "") == "Action":
                 self.action_list = [
@@ -2249,10 +2251,10 @@ class Fork(ModuleBase):
             else:
 
                 # AP 点是否绑定了 tcp
-                if tcp_name:
+                if tcp_key:
 
                     ap_world_pos_tcp = Navigation.calTCPTrans(self.target_pos[0], self.target_pos[1], self.target_pos[2],
-                                                              tcp_name)
+                                                              tcp_key)
                     ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"], ap_world_pos_tcp["theta"]]
                     self.target_pos = ap_world_pos_tcp_list
                     Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}", name="fork.task")
@@ -2294,7 +2296,7 @@ class Fork(ModuleBase):
                         "reachAngle": math.radians(0.5),
                         "reachDist": 0.005
                     }
-                    if tcp_name:
+                    if tcp_key:
                         if ConfigParams.pathAdjustMode == "bezier" and ConfigParams.returnOnSamePath:
                             self.action_list.extend([
                                 GoBezier.GoBezierWorldReturn(False)
@@ -2669,7 +2671,7 @@ class Fork(ModuleBase):
             self.cage_count = 0
             self.start_loc = get_r_loc()
 
-            self.target_pos, tcp_name = self.get_station_pos("targetName")
+            self.target_pos, tcp_key = self.get_station_pos("targetName")
             Trace.log(f"target_pos: {self.target_pos}", output_console=True, output_time=True, name="fork.task")
 
             Navigation.appendCustomPolicy("policy", {"navigation.freeBypass": "off"})
@@ -2739,10 +2741,10 @@ class Fork(ModuleBase):
                                 Rec(self.recfile, rec_center2robot[0], rec_center2robot[1], ConfigParams.recRadius,
                                     action_name="RecPallet")]
 
-            #     if tcp_name:
+            #     if tcp_key:
             #         ap_world_pos_tcp = Navigation.calTCPTrans(self.target_pos[0], self.target_pos[1],
             #                                                   self.target_pos[2],
-            #                                                   tcp_name)
+            #                                                   tcp_key)
             #         ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"], ap_world_pos_tcp["theta"]]
             #         self.target_pos = ap_world_pos_tcp_list
             #         Trace.log(f"ap world tcp :{ap_world_pos_tcp_list}", output_console=True, output_time=True,
@@ -2802,7 +2804,7 @@ class Fork(ModuleBase):
 
             if ConfigParams.enableTcp:
                 rec_world_pos_tcp = Navigation.calTCPTrans(rec_world_pos[0], rec_world_pos[1], rec_world_pos[2],
-                                                           "defaultTCP")
+                                                           "move/defaultTcp")
                 rec_world_pos_tcp_list = [rec_world_pos_tcp["x"], rec_world_pos_tcp["y"],
                                           rec_world_pos_tcp["theta"]]
                 Trace.log(f"after tcp:{rec_world_pos_tcp_list}", output_console=True, output_time=True,
@@ -3372,6 +3374,15 @@ class GoPathWithContactDi(BaseAction):
                 Navigation.appendCustomPolicy("loadPolicy", self.policy)
                 time.sleep(0.5)
 
+                # 策略生效等待期间定位可能发生变化，执行路径前按最新位置重新判断前进/后退。
+                target2robot = pos2Base(self.final_target, get_r_loc())
+                back_mode = target2robot[0] <= 0
+                Navigation.setPathBackMode(back_mode)
+                Navigation.goPathParam({})
+                Trace.log(
+                    f"recheck path back mode, target2robot:{target2robot}, backMode:{int(back_mode)}",
+                    name="fork.task")
+
                 self.set_policy = True
                 current_collision_device_change = (RobotParam.getConfig("navigation",
                                                                         "collisionDetection.detectionDevice"))
@@ -3842,11 +3853,8 @@ class RunMotorByPosition(BaseAction):
                         Navigation.collisionDetection(self.collision_device, self.x_list, self.y_list)
                         # print(f"collision:{collistion}")
 
-        # 速度型 DO 电机没有下发位置命令，不能调用 isMotorReached。
-        if ConfigParams.module_type == "liftFork" and ConfigParams.DOMotor:
-            self.is_reach = bool(self.stop_di and Di.getDi(self.stop_di))
-        else:
-            self.is_reach = Motor.isMotorReached(self.motor_name)
+        # pos = Motor.get_motor_pos(self.motor_name)
+        self.is_reach = Motor.isMotorReached(self.motor_name)
         if self.is_reach:
             # 货叉运动结束，关闭对应 DO
             self._close_fork_dos()
@@ -3980,10 +3988,7 @@ class RunModuleMotorByPosition(BaseAction):
             self.init = True
             self._start_motor()
 
-        if self.motor_name.startswith("DOMotor"):
-            self.is_reach = bool(self.stop_di and Di.getDi(self.stop_di))
-        else:
-            self.is_reach = Motor.isMotorReached(self.motor_name)
+        self.is_reach = Motor.isMotorReached(self.motor_name)
         if self.is_reach:
             self.action_status = ActionStatus.FINISHED
 
@@ -4070,7 +4075,7 @@ class RunMotorBySpeed(BaseAction):
             self.action_status = ActionStatus.RUNNING
             self.init = True
             Motor.setMotorSpeed(self.motor_name, self.max_speed, self.stop_di)
-        if self.stop_di and Di.getDi(self.stop_di):
+        if Motor.isMotorReached(self.motor_name):
             self.action_status = ActionStatus.FINISHED
 
     def suspend(self):
