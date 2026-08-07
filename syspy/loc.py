@@ -37,10 +37,12 @@ class LocInterface(ABC, Message):
         Returns:
             (Optional[int]): 定位状态:
 
-                - 0 = 未初始化\n
-                - 1 = 重定位成功\n
-                - 2 = 重定位中\n
-                - 3 = 地图载入中\n
+                - 0 = 初始化中\n
+                - 1 = 加载地图中\n
+                - 2 = 加载地图失败\n
+                - 3 = 重定位中\n
+                - 4 = 定位有效\n
+                - 5 = 定位无效\n
         """
         raise RBKVersionError()
 
