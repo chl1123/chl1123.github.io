@@ -610,6 +610,7 @@ class GoBezierWorldReturn:
             self.param["maxAcc"] = float(self.max_accele)
             self.param["maxDec"] = float(self.max_decele)
             Navigation.goPathParam(self.param)
+        # Trace.log(f"is first path {self.is_first_path_reached}")
 
         if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:
             self.is_first_path_reached = Navigation.isPathReached()
@@ -621,7 +622,9 @@ class GoBezierWorldReturn:
                 if self.is_hold_dir:
                     Navigation.setPathHoldDir(self.is_hold_dir)  # 用于全向车
                 Navigation.setPathMaxSpeed(self.max_speed)
-                Navigation.setPathOnWorld([0, self.bezier_target_pos_return[0]], [0, self.bezier_target_pos_return[1]],
+                current_pose = Loc.getPose()
+                Navigation.setPathOnWorld([current_pose["x"], self.bezier_target_pos_return[0]],
+                                          [current_pose["y"], self.bezier_target_pos_return[1]],
                                           self.bezier_target_pos_return[2])
                 self.param["maxAcc"] = float(self.max_accele)
                 self.param["maxDec"] = float(self.max_decele)
@@ -629,6 +632,7 @@ class GoBezierWorldReturn:
 
         if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:
             is_reached = Navigation.isPathReached()
+            # Trace.log(f"Reached path: {is_reached}")
             if is_reached:
                 ScriptData.set("goBezier", {})
                 self.action_status = ScriptStatus.FINISHED
