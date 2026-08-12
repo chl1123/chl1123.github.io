@@ -1896,11 +1896,11 @@ class Jack(ModuleBase):
                       f"shape_points={len(shape)} recfile={self.recfile}", name=MOD)
 
         # 4. 计算货物相对托盘(spin)的角度 goodsAngleInSpin（单位: 度）
-        #    货物角(机器人系) - 托盘角(机器人系)，归一化后转为度
+        #    托盘角(机器人系) - 货物角(机器人系)，归一化后转为度
         spin_angle_rad = 0.0
         if config_params.spin_motor_name:
             spin_angle_rad = Motor.getMotorPos(config_params.spin_motor_name) or 0.0
-        goods_angle_in_spin = math.degrees(self._normalize_angle(goods_angle_robot - spin_angle_rad))
+        goods_angle_in_spin = math.degrees(self._normalize_angle(spin_angle_rad - goods_angle_robot))
         Trace.log(f"bindContainer goodsAngleInSpin={goods_angle_in_spin:.1f}deg "
                   f"(goods={math.degrees(goods_angle_robot):.1f}deg spin={math.degrees(spin_angle_rad):.1f}deg)",
                   name=MOD)
