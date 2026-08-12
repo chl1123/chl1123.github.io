@@ -4977,13 +4977,15 @@ script_param.addAction(
     config={}
 )
 
-# 添加 "lift" 动作模板（屏幕接口点动）
+# 添加 "spinTray" 调试动作模板
 script_param.addAction(
-    action_name="lift",
+    action_name="spinTray",
     policy={},
     args={
-        "operation": "lift",
-        "operation.lift.jogStep": 0.1,
+        "operation": "spinTray",
+        "operation.spinTray.spinAngle": 0.0,
+        "operation.spinTray.spinMode": "robot",
+        "operation.spinTray.spinDir": 0,
     },
     config={}
 )

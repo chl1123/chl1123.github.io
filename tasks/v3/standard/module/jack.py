@@ -4374,17 +4374,6 @@ script_param.addAction(
     config={}
 )
 
-# 添加 "lift" 动作模板（屏幕接口点动）
-script_param.addAction(
-    action_name="lift",
-    policy={},
-    args={
-        "operation": "lift",
-        "operation.lift.jogStep": 0.1,
-    },
-    config={}
-)
-
 # 添加 "PGVSecondaryAdjust" 动作模板
 script_param.addAction(
     action_name="PGVSecondaryAdjust",
