@@ -226,9 +226,9 @@ class CanBattery(cb.CanBase):
                     self.setTimeout()
                     raise BatteryTimeoutRestartError("greenway battery timeout")
             if self.reset_timeout_t.isTimeUp():
-                log.warning("No complete data received for an extended period, resetting CAN bus.")
+                log.warning("No complete data received for an extended period, retry.")
                 self.reset_timeout_t.reset()
-                self.resetBus()
+                # self.resetBus()
 
     def loop(self):
         mu.sleepS(1)

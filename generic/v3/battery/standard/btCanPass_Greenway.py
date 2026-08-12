@@ -197,9 +197,9 @@ class CanBattery(cb.CanBase):
                     # raise BatteryTimeoutRestartError("greenway battery timeout")
 
             if self.reset_timeout_t.isTimeUp():
-                Trace.log("No complete data received for an extended period, resetting CAN bus.")
+                Trace.log("No complete data received for an extended period, retry.")
                 self.reset_timeout_t.reset()
-                self.resetBus()
+                # self.resetBus()
         if self.isNeedCharge():
             self.sendCanframe(self.port, 0x0DA30DF4, 8, True, [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
 
