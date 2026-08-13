@@ -2274,7 +2274,7 @@ class ContainerRobot(ModuleBase):
         move_task = Navigation.moveTask()
         bin_task = ""
         for p in move_task['params']:
-            if p['key'] == 'goodsName':
+            if p['key'] == 'goodsName' or p['key'] == '#goodsName':
                 self.goods_id = p['stringValue']
             if p['key'] == '#containerId' and p['stringValue'] != "":
                 self.self_position = p['stringValue']
