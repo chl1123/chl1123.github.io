@@ -13,6 +13,7 @@ import json
 import math
 import time
 import struct
+import traceback
 from enum import IntEnum
 from typing import Optional, List, Dict, Any
 from syspy import (Module, Di, Do, Motor, Navigation, Loc, Recognize, ScriptStatus, Laser, NetProtocol,
@@ -4867,5 +4868,26 @@ def main():
         time.sleep(0.1)
 
 
+def _report_unhandled_exception(exc: Exception):
+    error_desc = f"{type(exc).__name__}: {exc}"
+    try:
+        Trace.log(f"unhandled script exception:\n{traceback.format_exc()}", name="fork.err")
+    except Exception:
+        pass
+    try:
+        Navigation.setTaskError("ScriptUnhandledException", error_desc)
+    except Exception:
+        pass
+    try:
+        Module.setStatus(ScriptStatus.FAILED)
+    except Exception:
+        pass
+
+
 if __name__ == '__main__':
-    main()
+    while True:
+        try:
+            main()
+        except Exception as exc:
+            _report_unhandled_exception(exc)
+            time.sleep(0.1)
