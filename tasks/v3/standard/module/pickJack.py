@@ -4537,8 +4537,7 @@ class PGVSecondaryAdjust(ActionBase):
                  pgv_reach_dist: float = 0.02,
                  pgv_reach_angle: float = 1.0,
                  pgv_max_speed: float = 0.5,
-                 pgv_max_rot_speed: float = 10.0,
-                 useTCP: bool = False):
+                 pgv_max_rot_speed: float = 10.0):
         super().__init__("PGVSecondaryAdjust")
         self.opt_info = (f"{self.__class__.__name__}{{"
                          f"code_adjust_type={code_adjust_type}, "
@@ -4561,7 +4560,6 @@ class PGVSecondaryAdjust(ActionBase):
         self.pgv_reach_angle = pgv_reach_angle
         self.pgv_max_speed = pgv_max_speed
         self.pgv_max_rot_speed = pgv_max_rot_speed
-        self.useTCP = useTCP
 
     def run(self, j: Jack):
         if self.init:
@@ -4594,9 +4592,6 @@ class PGVSecondaryAdjust(ActionBase):
 
         # ---- 随动锁叉 ----
         p['spin'] = self.pgv_spin
-
-        # ---- 是否使用TCP ----
-        p['useTCP'] = self.useTCP
 
         # ---- 精度 ----
         p['pgvReachDist'] = self.pgv_reach_dist
