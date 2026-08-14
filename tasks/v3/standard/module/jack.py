@@ -4358,26 +4358,26 @@ script_param.addAction(
     config={}
 )
 
-# 添加 "jackHeight" 动作模板
-script_param.addAction(
-    action_name="jackHeight",
-    policy={},
-    args={
-        "operation": "jackHeight",
-        "operation.jackHeight.endHeight": config_params.jack_max_height,
-    },
-    config={}
-)
+if config_params.debug_mode:
+    # 调试动作仅在输入参数中存在对应选项时注册
+    script_param.addAction(
+        action_name="jackHeight",
+        policy={},
+        args={
+            "operation": "jackHeight",
+            "operation.jackHeight.endHeight": config_params.jack_max_height,
+        },
+        config={}
+    )
 
-# 添加 "PGVSecondaryAdjust" 动作模板
-script_param.addAction(
-    action_name="PGVSecondaryAdjust",
-    policy=None,
-    args={
-        "operation": "PGVSecondaryAdjust",
-    },
-    config={}
-)
+    script_param.addAction(
+        action_name="PGVSecondaryAdjust",
+        policy=None,
+        args={
+            "operation": "PGVSecondaryAdjust",
+        },
+        config={}
+    )
 
 # 保存动作模板到文件
 script_param.saveAction()
