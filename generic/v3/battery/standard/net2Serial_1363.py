@@ -8,50 +8,6 @@ from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace, Module
 
 from syspy.battery_runner import run_battery_script
-param_loader = ScriptParam(__file__)
-class ConfigParams:
-    config = {}
-    """配置管理器，用于管理动态配置参数"""
-    devName = None
-    baudrate = None
-    timeoutThreshold = None
-    def __init__(self):
-        self._build_and_load_config()
-
-    @classmethod
-    def _build_and_load_config(cls):
-        """构建并加载配置参数"""
-        builder = param_loader.builderConfig()
-
-        with builder.GROUPS():
-            with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):
-                builder.TYPE(ParamType.STRING)
-                builder.DEFAULTVALUE("/dev/RS485_0")
-            with builder.GROUP(key="baudrate", name="Baudrate", desc="波特率"):
-                builder.TYPE(ParamType.UINT)
-                builder.DEFAULTVALUE(9600)
-            with builder.GROUP(key="timeoutThreshold", name="timeoutThreshold", desc="超时时间阈值(ms)"):
-                builder.TYPE(ParamType.UINT)
-                builder.DEFAULTVALUE(2000)
-        builder.save(merge=True)
-
-        cls.reload_config()
-
-    @classmethod
-    def reload_config(cls):
-        """重新加载配置参数"""
-        Trace.log("Reloading config parameters")
-        cls.config = param_loader.loadConfig()
-        Trace.log(f"Loaded config: {cls.config}")
-        cls.devName = cls.config.get("devName")
-        cls.baudrate = cls.config.get("baudrate")
-        cls.timeoutThreshold = cls.config.get("timeoutThreshold")
-
-        Trace.log(f"Updated config: {cls.config}")
-
-
-# 创建全局配置管理器实例
-config_params = ConfigParams()
 
 class Battery(bb.batteryBase):
     """
@@ -60,11 +16,14 @@ class Battery(bb.batteryBase):
     def __init__(self):
         #初始化基类,必须做
         super(Battery,self).__init__()
-        self.createSerial(config_params.devName, config_params.baudrate)
+        self.port = self.getBatterySerialPort()
+        self.baudrate = self.getBatterySerialBaudrate()
+        self.timeoutThreshold = 2000
+        self.createSerial(self.port, self.baudrate)
         Trace.log(f'Create Serial Finished')
         #创建一个超时定时器
-        self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
-        self.reset_timeout_t = mu.Timer(config_params.timeoutThreshold + 8000)
+        self.connect_timeout_t = mu.Timer(self.timeoutThreshold)
+        self.reset_timeout_t = mu.Timer(self.timeoutThreshold + 8000)
         #创建一个列表用来缓冲接收数据
         self.data_buff = []
         #用来表示数据是否已经正确接收
@@ -75,23 +34,49 @@ class Battery(bb.batteryBase):
         self._send_event.set()
         Trace.log(f'Class Init Finished')
 
+    FRAME_MIN = 30            # 响应帧最小长度(远小于真实帧,用于滤除短噪声)
+    REQ_ECHO_LEN = 20        # 回显的请求帧字节数(透传会把本机发出的请求也透传回来)
+    DEBUG = False
+
     def handleData(self, msg:list):
         if self._stop_event.is_set():
             return
 
+        if self.DEBUG:
+            raw = msg if isinstance(msg, bytes) else bytes(msg)
+            Trace.log(f"[dbg] recv len={len(raw)} hex={raw.hex()} buff={len(self.data_buff)}")
+
         self.data_buff.extend(msg)
-        while len(self.data_buff) >= 112:
+        while len(self.data_buff) >= self.REQ_ECHO_LEN:
             if self.data_buff[0] != 0x7E:
-                self.data_buff.clear()
-                Trace.log(f'send set 1')
+                if self.DEBUG:
+                    Trace.log(f"[dbg] skip byte=0x{self.data_buff[0]:02X} buff_first3={self.data_buff[:3]}")
+                self.data_buff.pop(0)
                 self._send_event.set()   # 解锁发送
-                return
+                continue
+            end = 1
+            while end < len(self.data_buff) and self.data_buff[end] != 0x0D:
+                end += 1
+            if end >= len(self.data_buff):
+                # 整帧尚未到齐,等待后续数据
+                break
+            frame_len = end + 1
+            frame = self.data_buff[:frame_len]
+            del self.data_buff[:frame_len]
+            if frame_len == self.REQ_ECHO_LEN:
+                if self.DEBUG:
+                    Trace.log(f"[dbg] drop cmd echo frame={bytes(frame).hex()}")
+                continue
+            if frame_len < self.FRAME_MIN:
+                if self.DEBUG:
+                    Trace.log(f"[dbg] short len={frame_len} hex={bytes(frame).hex()}")
+                continue
             try:
-                self.data_buff=self.data_buff[1:-1]
+                body = frame[1:-1]
                 result = []
-                for i in range(0, len(self.data_buff), 2):
-                    if i + 1 < len(self.data_buff):
-                        combined_value = int(chr(self.data_buff[i]) + chr(self.data_buff[i + 1]) ,16)
+                for i in range(0, len(body), 2):
+                    if i + 1 < len(body):
+                        combined_value = int(chr(body[i]) + chr(body[i + 1]) ,16)
                         result.append(combined_value)
                 cell_num=result[8]
                 temper_base=8+2*cell_num+1
@@ -126,16 +111,13 @@ class Battery(bb.batteryBase):
                 battery_info.SOH = int(100)
                 #发步电池数据给rbk
                 self.publish(battery_info)
+                self.clearTimeout()
+                self.msg_ok = True
                 Trace.log("Receive Success")
             except Exception as e:
-                    Trace.log(f"Error in handleData: {e}")
+                Trace.log(f"Error in handleData: {e}")
             finally:
-                Trace.log(f'send set 2')
                 self._send_event.set()
-
-                self.clearTimeout()
-                self.data_buff.clear()
-                self.msg_ok = True
 
     def judgeMsgok(self):
         if self.msg_ok:
@@ -171,4 +153,4 @@ class Battery(bb.batteryBase):
 
 
 if __name__ == '__main__':
-    run_battery_script(Battery, init_hook=Module.init)
+    run_battery_script(Battery)

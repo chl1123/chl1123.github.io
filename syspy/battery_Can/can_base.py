@@ -242,7 +242,12 @@ class CanBase:
             json.dump(data, json_file, indent=4)
 
         return selected_port
-
+    
+    def getBatteryCANBaudrate(self):
+        baudrate = Battery.getBaudrate()
+        Trace.log(f"{baudrate=}")
+        return baudrate
+    
     def publish(self, battery_msg: msgBattery) -> int:
         self._promote_status_for_data_publish()
         with self._status_lock:

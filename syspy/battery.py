@@ -140,6 +140,9 @@ class BatteryInterface:
             (int): CAN端口
         """
         return self.child.getCanPort(topic=topic)
+    
+    def getBaudrate(self, *, topic: str = "Battery-000") -> Optional[int]:
+        return self.child.getBaudrate(topic=topic) 
 
 
 Battery: BatteryInterface = BatteryInterface()

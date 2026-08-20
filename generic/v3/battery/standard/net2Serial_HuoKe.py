@@ -7,7 +7,6 @@ import syspy.battery_Serial.battery_base as bb
 import syspy.lib.char_utility as cu
 # 其他工具类,如定时器
 import syspy.lib.misc_utility as mu
-from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace
 
 from syspy.battery_runner import run_battery_script
@@ -17,43 +16,6 @@ from syspy.battery_runner import run_battery_script
 武汉彦阳物联科技 YY-BCU系列 MODBUS协议 V1
 """
 
-param_loader = ScriptParam(__file__)
-
-class ConfigParams:
-    config = {}
-    devName = None
-    baudrate = None
-    timeoutThreshold = None
-
-    def __init__(self):
-        self._build_and_load_config()
-
-    @classmethod
-    def _build_and_load_config(cls):
-        builder = param_loader.builderConfig()
-        with builder.GROUPS():
-            with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):
-                builder.TYPE(ParamType.STRING)
-                builder.DEFAULTVALUE("/dev/ttyS8")
-            with builder.GROUP(key="baudrate", name="Baudrate", desc="波特率"):
-                builder.TYPE(ParamType.UINT)
-                builder.DEFAULTVALUE(9600)
-            with builder.GROUP(key="timeoutThreshold", name="timeoutThreshold", desc="超时时间阈值(ms)"):
-                builder.TYPE(ParamType.UINT)
-                builder.DEFAULTVALUE(2000)
-        builder.save(merge=True)
-        cls.reload_config()
-
-    @classmethod
-    def reload_config(cls):
-        cls.config = param_loader.loadConfig()
-        cls.devName = cls.config.get("devName")
-        cls.baudrate = cls.config.get("baudrate")
-        cls.timeoutThreshold = cls.config.get("timeoutThreshold")
-
-config_params = ConfigParams()
-
-
 class BatteryHuoKeYy(bb.batteryBase):
     """
     继承电池基类
@@ -62,8 +24,11 @@ class BatteryHuoKeYy(bb.batteryBase):
     def __init__(self):
         # 初始化基类,必须做
         super(BatteryHuoKeYy, self).__init__()
-        self.createSerial(config_params.devName, config_params.baudrate)
-        self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
+        self.port = self.getBatterySerialPort()
+        self.baudrate = self.getBatterySerialBaudrate()
+        self.timeoutThreshold = 2000
+        self.createSerial(self.port, self.baudrate)
+        self.connect_timeout_t = mu.Timer(self.timeoutThreshold)
         # 创建一个列表用来缓冲接收数据
         self.data_buff = []
         # 用来表示数据是否已经正确接收

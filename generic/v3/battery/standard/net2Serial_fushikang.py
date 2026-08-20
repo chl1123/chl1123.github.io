@@ -5,53 +5,20 @@ import syspy.lib.char_utility as cu
 #其他工具类,如定时器
 import syspy.lib.misc_utility as mu
 
-from syspy.utils.param_server import ParamType, ScriptParam
 from syspy import Trace
 
 from syspy.battery_runner import run_battery_script
-param_loader = ScriptParam(__file__)
-
-class ConfigParams:
-    config = {}
-    devName = None
-    baudrate = None
-    timeoutThreshold = None
-
-    def __init__(self):
-        self._build_and_load_config()
-
-    @classmethod
-    def _build_and_load_config(cls):
-        builder = param_loader.builderConfig()
-        with builder.GROUPS():
-            with builder.GROUP(key="devName", name="Serial Port", desc="串行端口对应的设备名"):
-                builder.TYPE(ParamType.STRING)
-                builder.DEFAULTVALUE("/dev/ttyS8")
-            with builder.GROUP(key="baudrate", name="Baudrate", desc="波特率"):
-                builder.TYPE(ParamType.UINT)
-                builder.DEFAULTVALUE(9600)
-            with builder.GROUP(key="timeoutThreshold", name="timeoutThreshold", desc="超时时间阈值(ms)"):
-                builder.TYPE(ParamType.UINT)
-                builder.DEFAULTVALUE(6000)
-        builder.save(merge=True)
-        cls.reload_config()
-
-    @classmethod
-    def reload_config(cls):
-        cls.config = param_loader.loadConfig()
-        cls.devName = cls.config.get("devName")
-        cls.baudrate = cls.config.get("baudrate")
-        cls.timeoutThreshold = cls.config.get("timeoutThreshold")
-
-config_params = ConfigParams()
 
 class Battery(bb.batteryBase):
     def __init__(self):
         #初始化基类,必须做
         super(Battery,self).__init__()
-        self.createSerial(config_params.devName, config_params.baudrate)
+        self.port = self.getBatterySerialPort()
+        self.baudrate = self.getBatterySerialBaudrate()
+        self.timeoutThreshold = 6000
+        self.createSerial(self.port, self.baudrate)
         # 创建一个超时定时器
-        self.connect_timeout_t = mu.Timer(config_params.timeoutThreshold)
+        self.connect_timeout_t = mu.Timer(self.timeoutThreshold)
         # self.__debug_out = ud.udpDebug()
         # sys.stdout = self.__debug_out
         #创建一个列表用来缓冲接收数据

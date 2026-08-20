@@ -1,0 +1,84 @@
+PackageID: v3-battery-all
+version: 2026.08.14.000000 #可以不传，默认用当前时间戳
+description: 打包全部 v3 电池脚本及电池相关库文件 (btCanPass_*、net2Serial_*)
+node: master
+arch:
+  - arm64
+
+files:
+  # ---------------- CAN 电池目录 (btCanPass_*) ----------------
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_CDD16.py
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_CPD20_YF.py
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_CPD30_YF.py
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_CleanRobot.py
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_Greenway.py
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_YFQH.py
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_demo.py
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_huafu.py
+  - type: script
+    source: ./generic/v3/battery/standard/btCanPass_zhongli.py
+
+  # ---------------- 串口电池目录 (net2Serial_*) ----------------
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_1363.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_Bona_bms.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_ChaoSiWei.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_GreenEnergy_bms.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_HuoKe.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_TTIAN.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_ZhongTaiXing.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_demo.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_fushikang.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_jgne-bms.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_pace_bms.py
+  - type: script
+    source: ./generic/v3/battery/standard/net2Serial_udan-bms.py
+
+  # ---------------- 电池相关库文件 (syspy) ----------------
+  - type: script
+    source: ./syspy/battery_Can/can_base.py
+  - type: script
+    source: ./syspy/battery_Can/can_native.py
+  - type: script
+    source: ./syspy/battery_Can/can_pass.py
+  - type: script
+    source: ./syspy/battery_Serial/__init__.py
+  - type: script
+    source: ./syspy/battery_Serial/battery_base.py
+  - type: script
+    source: ./syspy/battery_Serial/serial_native.py
+  - type: script
+    source: ./syspy/battery_Serial/serial_pass.py
+  - type: script
+    source: ./syspy/battery.py
+  - type: script
+    source: ./syspy/battery_runner.py
+  - type: script
+    source: ./syspy/v3/battery.py
+
+  # target 可省略。generic 下会自动去掉 v3 这一层
+  # 上面的 source 最终会落到:
+  # /opt/.data/rbk/resources/scripts/generic/battery/standard/<对应文件名>
+  # syspy 库文件保持原相对路径:
+  # /opt/.data/rbk/resources/scripts/syspy/battery_Can/<对应文件名>
+  # /opt/.data/rbk/resources/scripts/syspy/battery_Serial/<对应文件名>
+  # /opt/.data/rbk/resources/scripts/syspy/battery.py
+  # /opt/.data/rbk/resources/scripts/syspy/battery_runner.py

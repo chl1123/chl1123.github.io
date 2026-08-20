@@ -74,3 +74,6 @@ class BatteryV3(Message):
 
     def getCanPort(self, *, topic: str = "Battery-000") -> str:
         return self.client().call_service("DSPChassis", "getBatteryCanPort")
+    
+    def getBaudrate(self, *, topic: str = "Battery-000") -> Optional[int]:
+        return self.client().call_service("DSPChassis", "getBatteryBaudrate")

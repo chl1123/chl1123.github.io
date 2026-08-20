@@ -124,6 +124,16 @@ class batteryBase:
         self.child.createSerial(name, baudrate)
     def closeSerial(self):
         self.child.closeSerial()
+        
+    def getBatterySerialPort(self):
+        port = Battery.getCanPort()
+        Trace.log(f"{port=}")
+        return port
+    
+    def getBatterySerialBaudrate(self):
+        baudrate = Battery.getBaudrate()
+        Trace.log(f"{baudrate=}")
+        return baudrate
 
     def send(self, msg: list):
         self.child.send(msg)
