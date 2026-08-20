@@ -20,6 +20,7 @@ class msgCalibStatus(_message.Message):
     none: msgCalibStatus.calibStatus
     running: msgCalibStatus.calibStatus
     status: msgCalibStatus.calibStatus
+    waiting: msgCalibStatus.calibStatus
     def __init__(self, status: Optional[Union[msgCalibStatus.calibStatus, str]] = ..., desc: Optional[str] = ..., calibTypeList: Optional[Iterable[Union[msgCalibType, Mapping]]] = ...) -> None: ...
 
 class msgCalibType(_message.Message):
@@ -32,6 +33,7 @@ class msgCalibType(_message.Message):
     HASPLOT_FIELD_NUMBER: ClassVar[int]
     ISAUTOCALIB_FIELD_NUMBER: ClassVar[int]
     STATUS_FIELD_NUMBER: ClassVar[int]
+    calibCpChanged: msgCalibType.calibTypeStatus
     calibModelChanged: msgCalibType.calibTypeStatus
     calibNoPass: msgCalibType.calibTypeStatus
     calibPass: msgCalibType.calibTypeStatus

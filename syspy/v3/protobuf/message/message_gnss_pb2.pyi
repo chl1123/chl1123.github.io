@@ -13,11 +13,12 @@ class msgAllGnss(_message.Message):
     def __init__(self, gnss: Optional[Iterable[Union[msgGnss, Mapping]]] = ...) -> None: ...
 
 class msgGnss(_message.Message):
-    __slots__ = ["altitude", "enuX", "enuY", "header", "heading", "installInfo", "latitude", "longitude", "refInfo", "status", "ubx2DAccH", "ubx2DAccV", "ubx3DAcc", "x", "y", "z"]
+    __slots__ = ["altitude", "enuX", "enuY", "header", "heading", "headingAcc", "installInfo", "latitude", "longitude", "refInfo", "status", "ubx2DAccH", "ubx2DAccV", "ubx3DAcc", "x", "y", "z"]
     ALTITUDE_FIELD_NUMBER: ClassVar[int]
     ENUX_FIELD_NUMBER: ClassVar[int]
     ENUY_FIELD_NUMBER: ClassVar[int]
     HEADER_FIELD_NUMBER: ClassVar[int]
+    HEADINGACC_FIELD_NUMBER: ClassVar[int]
     HEADING_FIELD_NUMBER: ClassVar[int]
     INSTALLINFO_FIELD_NUMBER: ClassVar[int]
     LATITUDE_FIELD_NUMBER: ClassVar[int]
@@ -35,6 +36,7 @@ class msgGnss(_message.Message):
     enuY: float
     header: _message_header_pb2.msgHeader
     heading: float
+    headingAcc: float
     installInfo: msgGnssInstallInfo
     latitude: float
     longitude: float
@@ -46,7 +48,7 @@ class msgGnss(_message.Message):
     x: float
     y: float
     z: float
-    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., status: Optional[int] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., ubx2DAccH: Optional[float] = ..., ubx2DAccV: Optional[float] = ..., ubx3DAcc: Optional[float] = ..., longitude: Optional[float] = ..., latitude: Optional[float] = ..., altitude: Optional[float] = ..., installInfo: Optional[Union[msgGnssInstallInfo, Mapping]] = ..., refInfo: Optional[Union[msgGnssRefInfo, Mapping]] = ..., enuX: Optional[float] = ..., enuY: Optional[float] = ..., heading: Optional[float] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., status: Optional[int] = ..., x: Optional[float] = ..., y: Optional[float] = ..., z: Optional[float] = ..., ubx2DAccH: Optional[float] = ..., ubx2DAccV: Optional[float] = ..., ubx3DAcc: Optional[float] = ..., longitude: Optional[float] = ..., latitude: Optional[float] = ..., altitude: Optional[float] = ..., installInfo: Optional[Union[msgGnssInstallInfo, Mapping]] = ..., refInfo: Optional[Union[msgGnssRefInfo, Mapping]] = ..., enuX: Optional[float] = ..., enuY: Optional[float] = ..., heading: Optional[float] = ..., headingAcc: Optional[float] = ...) -> None: ...
 
 class msgGnssInstallInfo(_message.Message):
     __slots__ = ["x", "y", "yaw", "z"]

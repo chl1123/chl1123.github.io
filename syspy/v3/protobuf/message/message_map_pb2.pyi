@@ -90,6 +90,34 @@ class msgAdvancedPoint(_message.Message):
     property: _containers.RepeatedCompositeFieldContainer[msgMapProperty]
     def __init__(self, className: Optional[str] = ..., instanceName: Optional[str] = ..., pos: Optional[Union[msgMapPos, Mapping]] = ..., dir: Optional[float] = ..., property: Optional[Iterable[Union[msgMapProperty, Mapping]]] = ..., ignoreDir: bool = ..., desc: Optional[bytes] = ..., attribute: Optional[Union[msgMapAttribute, Mapping]] = ...) -> None: ...
 
+class msgAutogate(_message.Message):
+    __slots__ = ["className", "desc", "dir", "height", "instanceName", "isEnabled", "jsonObject", "length", "pointNames", "width", "x", "y"]
+    CLASSNAME_FIELD_NUMBER: ClassVar[int]
+    DESC_FIELD_NUMBER: ClassVar[int]
+    DIR_FIELD_NUMBER: ClassVar[int]
+    HEIGHT_FIELD_NUMBER: ClassVar[int]
+    INSTANCENAME_FIELD_NUMBER: ClassVar[int]
+    ISENABLED_FIELD_NUMBER: ClassVar[int]
+    JSONOBJECT_FIELD_NUMBER: ClassVar[int]
+    LENGTH_FIELD_NUMBER: ClassVar[int]
+    POINTNAMES_FIELD_NUMBER: ClassVar[int]
+    WIDTH_FIELD_NUMBER: ClassVar[int]
+    X_FIELD_NUMBER: ClassVar[int]
+    Y_FIELD_NUMBER: ClassVar[int]
+    className: str
+    desc: bytes
+    dir: float
+    height: float
+    instanceName: str
+    isEnabled: bool
+    jsonObject: _struct_pb2.Struct
+    length: float
+    pointNames: _containers.RepeatedScalarFieldContainer[str]
+    width: float
+    x: float
+    y: float
+    def __init__(self, className: Optional[str] = ..., instanceName: Optional[str] = ..., pointNames: Optional[Iterable[str]] = ..., x: Optional[float] = ..., y: Optional[float] = ..., dir: Optional[float] = ..., width: Optional[float] = ..., length: Optional[float] = ..., height: Optional[float] = ..., isEnabled: bool = ..., desc: Optional[bytes] = ..., jsonObject: Optional[Union[_struct_pb2.Struct, Mapping]] = ...) -> None: ...
+
 class msgBinLocation(_message.Message):
     __slots__ = ["bindPoints", "className", "desc", "dir", "instanceName", "length", "recognitionFile", "width", "x", "y", "z"]
     BINDPOINTS_FIELD_NUMBER: ClassVar[int]
@@ -193,11 +221,12 @@ class msgLiveRefPos(_message.Message):
     def __init__(self, refPos: Optional[Iterable[Union[msgReflectorPos, Mapping]]] = ...) -> None: ...
 
 class msgMap(_message.Message):
-    __slots__ = ["advancedAreaList", "advancedCurveList", "advancedLineList", "advancedPointList", "bins", "chargerList", "externalDeviceList", "header", "reflectorPosList", "tagGroupList", "topoAreaList"]
+    __slots__ = ["advancedAreaList", "advancedCurveList", "advancedLineList", "advancedPointList", "autogateList", "bins", "chargerList", "externalDeviceList", "header", "reflectorPosList", "tagGroupList", "topoAreaList"]
     ADVANCEDAREALIST_FIELD_NUMBER: ClassVar[int]
     ADVANCEDCURVELIST_FIELD_NUMBER: ClassVar[int]
     ADVANCEDLINELIST_FIELD_NUMBER: ClassVar[int]
     ADVANCEDPOINTLIST_FIELD_NUMBER: ClassVar[int]
+    AUTOGATELIST_FIELD_NUMBER: ClassVar[int]
     BINS_FIELD_NUMBER: ClassVar[int]
     CHARGERLIST_FIELD_NUMBER: ClassVar[int]
     EXTERNALDEVICELIST_FIELD_NUMBER: ClassVar[int]
@@ -209,6 +238,7 @@ class msgMap(_message.Message):
     advancedCurveList: _containers.RepeatedCompositeFieldContainer[msgAdvancedCurve]
     advancedLineList: _containers.RepeatedCompositeFieldContainer[msgAdvancedLine]
     advancedPointList: _containers.RepeatedCompositeFieldContainer[msgAdvancedPoint]
+    autogateList: _containers.RepeatedCompositeFieldContainer[msgAutogate]
     bins: _containers.RepeatedCompositeFieldContainer[msgBinLocations]
     chargerList: _containers.RepeatedCompositeFieldContainer[msgCharger]
     externalDeviceList: _containers.RepeatedCompositeFieldContainer[msgExternalDevice]
@@ -216,7 +246,7 @@ class msgMap(_message.Message):
     reflectorPosList: _containers.RepeatedCompositeFieldContainer[msgReflectorPos]
     tagGroupList: _containers.RepeatedCompositeFieldContainer[msgTagGroup]
     topoAreaList: _containers.RepeatedCompositeFieldContainer[msgTopoArea]
-    def __init__(self, header: Optional[Union[msgMapHeader, Mapping]] = ..., advancedPointList: Optional[Iterable[Union[msgAdvancedPoint, Mapping]]] = ..., advancedLineList: Optional[Iterable[Union[msgAdvancedLine, Mapping]]] = ..., advancedCurveList: Optional[Iterable[Union[msgAdvancedCurve, Mapping]]] = ..., advancedAreaList: Optional[Iterable[Union[msgAdvancedArea, Mapping]]] = ..., reflectorPosList: Optional[Iterable[Union[msgReflectorPos, Mapping]]] = ..., tagGroupList: Optional[Iterable[Union[msgTagGroup, Mapping]]] = ..., externalDeviceList: Optional[Iterable[Union[msgExternalDevice, Mapping]]] = ..., bins: Optional[Iterable[Union[msgBinLocations, Mapping]]] = ..., topoAreaList: Optional[Iterable[Union[msgTopoArea, Mapping]]] = ..., chargerList: Optional[Iterable[Union[msgCharger, Mapping]]] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[msgMapHeader, Mapping]] = ..., advancedPointList: Optional[Iterable[Union[msgAdvancedPoint, Mapping]]] = ..., advancedLineList: Optional[Iterable[Union[msgAdvancedLine, Mapping]]] = ..., advancedCurveList: Optional[Iterable[Union[msgAdvancedCurve, Mapping]]] = ..., advancedAreaList: Optional[Iterable[Union[msgAdvancedArea, Mapping]]] = ..., reflectorPosList: Optional[Iterable[Union[msgReflectorPos, Mapping]]] = ..., tagGroupList: Optional[Iterable[Union[msgTagGroup, Mapping]]] = ..., externalDeviceList: Optional[Iterable[Union[msgExternalDevice, Mapping]]] = ..., bins: Optional[Iterable[Union[msgBinLocations, Mapping]]] = ..., topoAreaList: Optional[Iterable[Union[msgTopoArea, Mapping]]] = ..., chargerList: Optional[Iterable[Union[msgCharger, Mapping]]] = ..., autogateList: Optional[Iterable[Union[msgAutogate, Mapping]]] = ...) -> None: ...
 
 class msgMapAttribute(_message.Message):
     __slots__ = ["colorBrush", "colorFont", "colorPen", "description"]
@@ -327,28 +357,28 @@ class msgMapLogData(_message.Message):
     def __init__(self, robotOdoX: Optional[float] = ..., robotOdoY: Optional[float] = ..., robotOdoW: Optional[float] = ..., laserBeamDist: Optional[Iterable[float]] = ..., laserBeamAngle: Optional[Iterable[float]] = ..., rssi: Optional[Iterable[float]] = ..., header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ...) -> None: ...
 
 class msgMapLogData3D(_message.Message):
-    __slots__ = ["data", "firstAzimuth", "intensity", "ring", "secondAzimuth", "timeoffset", "timestamp", "x", "y", "z"]
+    __slots__ = ["data", "firstAzimuth", "header", "intensity", "ring", "secondAzimuth", "timeoffset", "x", "y", "z"]
     DATA_FIELD_NUMBER: ClassVar[int]
     FIRSTAZIMUTH_FIELD_NUMBER: ClassVar[int]
+    HEADER_FIELD_NUMBER: ClassVar[int]
     INTENSITY_FIELD_NUMBER: ClassVar[int]
     RING_FIELD_NUMBER: ClassVar[int]
     SECONDAZIMUTH_FIELD_NUMBER: ClassVar[int]
     TIMEOFFSET_FIELD_NUMBER: ClassVar[int]
-    TIMESTAMP_FIELD_NUMBER: ClassVar[int]
     X_FIELD_NUMBER: ClassVar[int]
     Y_FIELD_NUMBER: ClassVar[int]
     Z_FIELD_NUMBER: ClassVar[int]
     data: _containers.RepeatedScalarFieldContainer[bytes]
     firstAzimuth: _containers.RepeatedScalarFieldContainer[float]
+    header: _message_header_pb2.msgHeader
     intensity: _containers.RepeatedScalarFieldContainer[int]
     ring: _containers.RepeatedScalarFieldContainer[int]
     secondAzimuth: _containers.RepeatedScalarFieldContainer[float]
     timeoffset: _containers.RepeatedScalarFieldContainer[int]
-    timestamp: float
     x: _containers.RepeatedScalarFieldContainer[float]
     y: _containers.RepeatedScalarFieldContainer[float]
     z: _containers.RepeatedScalarFieldContainer[float]
-    def __init__(self, timestamp: Optional[float] = ..., x: Optional[Iterable[float]] = ..., y: Optional[Iterable[float]] = ..., z: Optional[Iterable[float]] = ..., intensity: Optional[Iterable[int]] = ..., timeoffset: Optional[Iterable[int]] = ..., ring: Optional[Iterable[int]] = ..., data: Optional[Iterable[bytes]] = ..., firstAzimuth: Optional[Iterable[float]] = ..., secondAzimuth: Optional[Iterable[float]] = ...) -> None: ...
+    def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., x: Optional[Iterable[float]] = ..., y: Optional[Iterable[float]] = ..., z: Optional[Iterable[float]] = ..., intensity: Optional[Iterable[int]] = ..., timeoffset: Optional[Iterable[int]] = ..., ring: Optional[Iterable[int]] = ..., data: Optional[Iterable[bytes]] = ..., firstAzimuth: Optional[Iterable[float]] = ..., secondAzimuth: Optional[Iterable[float]] = ...) -> None: ...
 
 class msgMapOdo(_message.Message):
     __slots__ = ["odoVw", "odoVx", "odoVy", "odoW", "odoX", "odoY", "timestamp"]
@@ -459,11 +489,12 @@ class msgTagPos(_message.Message):
     def __init__(self, tagValue: Optional[int] = ..., x: Optional[float] = ..., y: Optional[float] = ..., angle: Optional[float] = ..., advancedPointName: Optional[str] = ..., property: Optional[Iterable[Union[msgMapProperty, Mapping]]] = ...) -> None: ...
 
 class msgTopoArea(_message.Message):
-    __slots__ = ["advancedPointNames", "attribute", "className", "desc", "instanceName", "posGroup", "property"]
+    __slots__ = ["advancedPointNames", "attribute", "className", "desc", "entranceVertexes", "instanceName", "posGroup", "property"]
     ADVANCEDPOINTNAMES_FIELD_NUMBER: ClassVar[int]
     ATTRIBUTE_FIELD_NUMBER: ClassVar[int]
     CLASSNAME_FIELD_NUMBER: ClassVar[int]
     DESC_FIELD_NUMBER: ClassVar[int]
+    ENTRANCEVERTEXES_FIELD_NUMBER: ClassVar[int]
     INSTANCENAME_FIELD_NUMBER: ClassVar[int]
     POSGROUP_FIELD_NUMBER: ClassVar[int]
     PROPERTY_FIELD_NUMBER: ClassVar[int]
@@ -471,7 +502,8 @@ class msgTopoArea(_message.Message):
     attribute: msgMapAttribute
     className: str
     desc: bytes
+    entranceVertexes: _containers.RepeatedScalarFieldContainer[int]
     instanceName: str
     posGroup: _containers.RepeatedCompositeFieldContainer[msgMapPos]
     property: _containers.RepeatedCompositeFieldContainer[msgMapProperty]
-    def __init__(self, className: Optional[str] = ..., instanceName: Optional[str] = ..., advancedPointNames: Optional[Iterable[str]] = ..., posGroup: Optional[Iterable[Union[msgMapPos, Mapping]]] = ..., property: Optional[Iterable[Union[msgMapProperty, Mapping]]] = ..., desc: Optional[bytes] = ..., attribute: Optional[Union[msgMapAttribute, Mapping]] = ...) -> None: ...
+    def __init__(self, className: Optional[str] = ..., instanceName: Optional[str] = ..., advancedPointNames: Optional[Iterable[str]] = ..., posGroup: Optional[Iterable[Union[msgMapPos, Mapping]]] = ..., property: Optional[Iterable[Union[msgMapProperty, Mapping]]] = ..., desc: Optional[bytes] = ..., entranceVertexes: Optional[Iterable[int]] = ..., attribute: Optional[Union[msgMapAttribute, Mapping]] = ...) -> None: ...

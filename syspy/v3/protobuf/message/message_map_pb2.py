@@ -24,7 +24,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x11message_map.proto\x12\x0crbk.protocol\x1a\x1cgoogle/protobuf/struct.proto\x1a\x14message_header.proto\x1a\x11message_imu.proto\x1a\x12message_gnss.proto\x1a\x1amessage_localization.proto\"\xae\x01\n\rmsgMapLogData\x12\x11\n\trobotOdoX\x18\x01 \x01(\x01\x12\x11\n\trobotOdoY\x18\x02 \x01(\x01\x12\x11\n\trobotOdoW\x18\x03 \x01(\x01\x12\x15\n\rlaserBeamDist\x18\x04 \x03(\x01\x12\x16\n\x0elaserBeamAngle\x18\x05 \x03(\x01\x12\x0c\n\x04rssi\x18\x06 \x03(\x01\x12\'\n\x06header\x18\x07 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\"u\n\tmsgMapOdo\x12\x11\n\ttimestamp\x18\x01 \x01(\x01\x12\x0c\n\x04odoX\x18\x02 \x01(\x02\x12\x0c\n\x04odoY\x18\x03 \x01(\x02\x12\x0c\n\x04odoW\x18\x04 \x01(\x02\x12\r\n\x05odoVx\x18\x05 \x01(\x02\x12\r\n\x05odoVy\x18\x06 \x01(\x02\x12\r\n\x05odoVw\x18\x07 \x01(\x02\"\xb5\x01\n\x0fmsgMapLogData3D\x12\x11\n\ttimestamp\x18\x01 \x01(\x01\x12\t\n\x01x\x18\x02 \x03(\x02\x12\t\n\x01y\x18\x03 \x03(\x02\x12\t\n\x01z\x18\x04 \x03(\x02\x12\x11\n\tintensity\x18\x05 \x03(\r\x12\x12\n\ntimeoffset\x18\x06 \x03(\r\x12\x0c\n\x04ring\x18\x07 \x03(\r\x12\x0c\n\x04\x64\x61ta\x18\x08 \x03(\x0c\x12\x14\n\x0c\x66irstAzimuth\x18\t \x03(\x02\x12\x15\n\rsecondAzimuth\x18\n \x03(\x02\"\x88\x05\n\tmsgMapLog\x12\x11\n\tlaserPosX\x18\x01 \x01(\x01\x12\x11\n\tlaserPosY\x18\x02 \x01(\x01\x12\x11\n\tlaserPosZ\x18\x03 \x01(\x01\x12\x11\n\tlaserStep\x18\x04 \x01(\x01\x12\x15\n\rlaserRangeMax\x18\x05 \x01(\x01\x12,\n\x07logData\x18\x06 \x03(\x0b\x32\x1b.rbk.protocol.msgMapLogData\x12\x11\n\tlaserName\x18\x07 \x01(\t\x12\x1a\n\x12laserInstallHeight\x18\x08 \x01(\x01\x12)\n\x08odometer\x18\t \x03(\x0b\x32\x17.rbk.protocol.msgMapOdo\x12\x30\n\tlogData3D\x18\n \x03(\x0b\x32\x1d.rbk.protocol.msgMapLogData3D\x12\x17\n\x0flaserInstallYaw\x18\x0b \x01(\x01\x12\x19\n\x11laserInstallPitch\x18\x0c \x01(\x01\x12\x18\n\x10laserInstallRoll\x18\r \x01(\x01\x12%\n\x07imuData\x18\x0e \x03(\x0b\x32\x14.rbk.protocol.msgIMU\x12\'\n\x08gnssData\x18\x0f \x03(\x0b\x32\x15.rbk.protocol.msgGnss\x12\x11\n\tlaserType\x18\x10 \x01(\r\x12\x0e\n\x06\x66\x61\x63tor\x18\x11 \x01(\x02\x12\x19\n\x11\x61zimuthCorrection\x18\x12 \x03(\x02\x12\x1a\n\x12verticalCorrection\x18\x13 \x03(\x02\x12-\n\x0b\x61llGnssData\x18\x14 \x03(\x0b\x32\x18.rbk.protocol.msgAllGnss\x12\x37\n\x10localizationData\x18\x15 \x03(\x0b\x32\x1d.rbk.protocol.msgLocalization\"\x8f\x02\n\x0emsgMapProperty\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x15\n\x0bstringValue\x18\x04 \x01(\tH\x00\x12\x13\n\tboolValue\x18\x05 \x01(\x08H\x00\x12\x14\n\nint32Value\x18\x06 \x01(\x05H\x00\x12\x15\n\x0buint32Value\x18\x07 \x01(\rH\x00\x12\x14\n\nint64Value\x18\x08 \x01(\x03H\x00\x12\x15\n\x0buint64Value\x18\t \x01(\x04H\x00\x12\x14\n\nfloatValue\x18\n \x01(\x02H\x00\x12\x15\n\x0b\x64oubleValue\x18\x0b \x01(\x01H\x00\x12\x14\n\nbytesValue\x18\x0c \x01(\x0cH\x00\x12\x0b\n\x03tag\x18\r \x01(\tB\x0c\n\noneofValue\",\n\tmsgMapPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\"%\n\rmsgMapRssiPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"\\\n\x0fmsgReflectorPos\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05width\x18\x02 \x01(\x01\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\x16\n\x0e\x63reationMethod\x18\x05 \x01(\r\">\n\rmsgLiveRefPos\x12-\n\x06refPos\x18\x01 \x03(\x0b\x32\x1d.rbk.protocol.msgReflectorPos\"\x96\x01\n\x0bmsgTagGroup\x12\x0f\n\x07tagType\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12$\n\x03pos\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\r\n\x05\x61ngle\x18\x04 \x01(\x01\x12+\n\ntagPosList\x18\x05 \x03(\x0b\x32\x17.rbk.protocol.msgTagPos\"\x8d\x01\n\tmsgTagPos\x12\x10\n\x08tagValue\x18\x01 \x01(\r\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05\x61ngle\x18\x04 \x01(\x01\x12\x19\n\x11\x61\x64vancedPointName\x18\x05 \x01(\t\x12.\n\x08property\x18\x06 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\"`\n\nmsgMapLine\x12)\n\x08startPos\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\'\n\x06\x65ndPos\x18\x02 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\"\xa7\x01\n\x0cmsgMapHeader\x12\x0f\n\x07mapType\x18\x01 \x01(\t\x12\x0f\n\x07mapName\x18\x02 \x01(\t\x12\'\n\x06minPos\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\'\n\x06maxPos\x18\x04 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\x12\n\nresolution\x18\x05 \x01(\x01\x12\x0f\n\x07version\x18\x08 \x01(\t\"_\n\x0fmsgMapAttribute\x12\x13\n\x0b\x64\x65scription\x18\x01 \x01(\t\x12\x10\n\x08\x63olorPen\x18\x02 \x01(\r\x12\x12\n\ncolorBrush\x18\x03 \x01(\r\x12\x11\n\tcolorFont\x18\x04 \x01(\r\"\xf1\x01\n\x10msgAdvancedPoint\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12$\n\x03pos\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\x0b\n\x03\x64ir\x18\x04 \x01(\x01\x12.\n\x08property\x18\x05 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x11\n\tignoreDir\x18\x06 \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\x0c\x12\x30\n\tattribute\x18\n \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xd2\x01\n\x0fmsgAdvancedLine\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12&\n\x04line\x18\x03 \x01(\x0b\x32\x18.rbk.protocol.msgMapLine\x12.\n\x08property\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\x0c\x12\x30\n\tattribute\x18\n \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\x85\x03\n\x10msgAdvancedCurve\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x10\n\x08startPos\x18\x03 \x01(\t\x12\x0e\n\x06\x65ndPos\x18\x04 \x01(\t\x12,\n\x0b\x63ontrolPos1\x18\x05 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12,\n\x0b\x63ontrolPos2\x18\x06 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12.\n\x08property\x18\x07 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\x0c\x12,\n\x0b\x63ontrolPos3\x18\t \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12,\n\x0b\x63ontrolPos4\x18\n \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\x30\n\tattribute\x18\x0f \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xe2\x01\n\x0fmsgAdvancedArea\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12)\n\x08posGroup\x18\x03 \x03(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\x0b\n\x03\x64ir\x18\x04 \x01(\x01\x12.\n\x08property\x18\x05 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\x0c\x12\x30\n\tattribute\x18\x0f \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xed\x01\n\x0bmsgTopoArea\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x1a\n\x12\x61\x64vancedPointNames\x18\x03 \x03(\t\x12)\n\x08posGroup\x18\x04 \x03(\x0b\x32\x17.rbk.protocol.msgMapPos\x12.\n\x08property\x18\x05 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x06 \x01(\x0c\x12\x30\n\tattribute\x18\n \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xbf\x01\n\x11msgExternalDevice\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x11\n\tisEnabled\x18\x03 \x01(\x08\x12.\n\x08property\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x05 \x01(\x0c\x12\x30\n\tattribute\x18\x06 \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xde\x01\n\x0emsgBinLocation\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x17\n\x0frecognitionFile\x18\x03 \x01(\t\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\t\n\x01z\x18\x06 \x01(\x01\x12\x0b\n\x03\x64ir\x18\x07 \x01(\x01\x12\r\n\x05width\x18\x08 \x01(\x01\x12\x0e\n\x06length\x18\t \x01(\x01\x12/\n\nbindPoints\x18\n \x03(\x0b\x32\x1b.rbk.protocol.msgBindPoints\x12\x0c\n\x04\x64\x65sc\x18\x0b \x01(\x0c\"M\n\rmsgBindPoints\x12\x11\n\tpointName\x18\x01 \x01(\t\x12\x10\n\x08\x62inTasks\x18\x02 \x03(\t\x12\x17\n\x0frecognitionSide\x18\x03 \x01(\t\"<\n\x0fmsgBinLocations\x12)\n\x03\x62in\x18\x01 \x03(\x0b\x32\x1c.rbk.protocol.msgBinLocation\"\xd5\x01\n\nmsgCharger\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x11\n\tpointName\x18\x03 \x01(\t\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\x0b\n\x03\x64ir\x18\x07 \x01(\x01\x12\r\n\x05width\x18\x08 \x01(\x01\x12\x0e\n\x06length\x18\t \x01(\x01\x12\x0e\n\x06height\x18\n \x01(\x01\x12\x0c\n\x04\x64\x65sc\x18\x0b \x01(\x0c\x12+\n\njsonObject\x18\x0c \x01(\x0b\x32\x17.google.protobuf.Struct\"\xd0\x04\n\x06msgMap\x12*\n\x06header\x18\x02 \x01(\x0b\x32\x1a.rbk.protocol.msgMapHeader\x12\x39\n\x11\x61\x64vancedPointList\x18\x06 \x03(\x0b\x32\x1e.rbk.protocol.msgAdvancedPoint\x12\x37\n\x10\x61\x64vancedLineList\x18\x07 \x03(\x0b\x32\x1d.rbk.protocol.msgAdvancedLine\x12\x39\n\x11\x61\x64vancedCurveList\x18\x08 \x03(\x0b\x32\x1e.rbk.protocol.msgAdvancedCurve\x12\x37\n\x10\x61\x64vancedAreaList\x18\t \x03(\x0b\x32\x1d.rbk.protocol.msgAdvancedArea\x12\x37\n\x10reflectorPosList\x18\x0c \x03(\x0b\x32\x1d.rbk.protocol.msgReflectorPos\x12/\n\x0ctagGroupList\x18\r \x03(\x0b\x32\x19.rbk.protocol.msgTagGroup\x12;\n\x12\x65xternalDeviceList\x18\x0f \x03(\x0b\x32\x1f.rbk.protocol.msgExternalDevice\x12+\n\x04\x62ins\x18\x10 \x03(\x0b\x32\x1d.rbk.protocol.msgBinLocations\x12/\n\x0ctopoAreaList\x18\x11 \x03(\x0b\x32\x19.rbk.protocol.msgTopoArea\x12-\n\x0b\x63hargerList\x18\x12 \x03(\x0b\x32\x18.rbk.protocol.msgCharger\"2\n\rmsgMapFileMd5\x12\x14\n\x0crelativePath\x18\x01 \x01(\t\x12\x0b\n\x03md5\x18\x02 \x01(\t\"\x8e\x01\n\x11msgCurrentMapInfo\x12\x12\n\ncurrentMap\x18\x01 \x01(\t\x12\x36\n\x11\x63urrentMapEntries\x18\x02 \x03(\x0b\x32\x1b.rbk.protocol.msgMapFileMd5\x12\x15\n\rcurrentMapMd5\x18\x03 \x01(\t\x12\x16\n\x0e\x63urrentTopoMd5\x18\x04 \x01(\tb\x06proto3')
+  serialized_pb=_b('\n\x11message_map.proto\x12\x0crbk.protocol\x1a\x1cgoogle/protobuf/struct.proto\x1a\x14message_header.proto\x1a\x11message_imu.proto\x1a\x12message_gnss.proto\x1a\x1amessage_localization.proto\"\xae\x01\n\rmsgMapLogData\x12\x11\n\trobotOdoX\x18\x01 \x01(\x01\x12\x11\n\trobotOdoY\x18\x02 \x01(\x01\x12\x11\n\trobotOdoW\x18\x03 \x01(\x01\x12\x15\n\rlaserBeamDist\x18\x04 \x03(\x01\x12\x16\n\x0elaserBeamAngle\x18\x05 \x03(\x01\x12\x0c\n\x04rssi\x18\x06 \x03(\x01\x12\'\n\x06header\x18\x07 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\"u\n\tmsgMapOdo\x12\x11\n\ttimestamp\x18\x01 \x01(\x01\x12\x0c\n\x04odoX\x18\x02 \x01(\x02\x12\x0c\n\x04odoY\x18\x03 \x01(\x02\x12\x0c\n\x04odoW\x18\x04 \x01(\x02\x12\r\n\x05odoVx\x18\x05 \x01(\x02\x12\r\n\x05odoVy\x18\x06 \x01(\x02\x12\r\n\x05odoVw\x18\x07 \x01(\x02\"\xcb\x01\n\x0fmsgMapLogData3D\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\t\n\x01x\x18\x02 \x03(\x02\x12\t\n\x01y\x18\x03 \x03(\x02\x12\t\n\x01z\x18\x04 \x03(\x02\x12\x11\n\tintensity\x18\x05 \x03(\r\x12\x12\n\ntimeoffset\x18\x06 \x03(\r\x12\x0c\n\x04ring\x18\x07 \x03(\r\x12\x0c\n\x04\x64\x61ta\x18\x08 \x03(\x0c\x12\x14\n\x0c\x66irstAzimuth\x18\t \x03(\x02\x12\x15\n\rsecondAzimuth\x18\n \x03(\x02\"\x88\x05\n\tmsgMapLog\x12\x11\n\tlaserPosX\x18\x01 \x01(\x01\x12\x11\n\tlaserPosY\x18\x02 \x01(\x01\x12\x11\n\tlaserPosZ\x18\x03 \x01(\x01\x12\x11\n\tlaserStep\x18\x04 \x01(\x01\x12\x15\n\rlaserRangeMax\x18\x05 \x01(\x01\x12,\n\x07logData\x18\x06 \x03(\x0b\x32\x1b.rbk.protocol.msgMapLogData\x12\x11\n\tlaserName\x18\x07 \x01(\t\x12\x1a\n\x12laserInstallHeight\x18\x08 \x01(\x01\x12)\n\x08odometer\x18\t \x03(\x0b\x32\x17.rbk.protocol.msgMapOdo\x12\x30\n\tlogData3D\x18\n \x03(\x0b\x32\x1d.rbk.protocol.msgMapLogData3D\x12\x17\n\x0flaserInstallYaw\x18\x0b \x01(\x01\x12\x19\n\x11laserInstallPitch\x18\x0c \x01(\x01\x12\x18\n\x10laserInstallRoll\x18\r \x01(\x01\x12%\n\x07imuData\x18\x0e \x03(\x0b\x32\x14.rbk.protocol.msgIMU\x12\'\n\x08gnssData\x18\x0f \x03(\x0b\x32\x15.rbk.protocol.msgGnss\x12\x11\n\tlaserType\x18\x10 \x01(\r\x12\x0e\n\x06\x66\x61\x63tor\x18\x11 \x01(\x02\x12\x19\n\x11\x61zimuthCorrection\x18\x12 \x03(\x02\x12\x1a\n\x12verticalCorrection\x18\x13 \x03(\x02\x12-\n\x0b\x61llGnssData\x18\x14 \x03(\x0b\x32\x18.rbk.protocol.msgAllGnss\x12\x37\n\x10localizationData\x18\x15 \x03(\x0b\x32\x1d.rbk.protocol.msgLocalization\"\x8f\x02\n\x0emsgMapProperty\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x0c\n\x04type\x18\x02 \x01(\t\x12\x15\n\x0bstringValue\x18\x04 \x01(\tH\x00\x12\x13\n\tboolValue\x18\x05 \x01(\x08H\x00\x12\x14\n\nint32Value\x18\x06 \x01(\x05H\x00\x12\x15\n\x0buint32Value\x18\x07 \x01(\rH\x00\x12\x14\n\nint64Value\x18\x08 \x01(\x03H\x00\x12\x15\n\x0buint64Value\x18\t \x01(\x04H\x00\x12\x14\n\nfloatValue\x18\n \x01(\x02H\x00\x12\x15\n\x0b\x64oubleValue\x18\x0b \x01(\x01H\x00\x12\x14\n\nbytesValue\x18\x0c \x01(\x0cH\x00\x12\x0b\n\x03tag\x18\r \x01(\tB\x0c\n\noneofValue\",\n\tmsgMapPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\"%\n\rmsgMapRssiPos\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\"\\\n\x0fmsgReflectorPos\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\r\n\x05width\x18\x02 \x01(\x01\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\x16\n\x0e\x63reationMethod\x18\x05 \x01(\r\">\n\rmsgLiveRefPos\x12-\n\x06refPos\x18\x01 \x03(\x0b\x32\x1d.rbk.protocol.msgReflectorPos\"\x96\x01\n\x0bmsgTagGroup\x12\x0f\n\x07tagType\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12$\n\x03pos\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\r\n\x05\x61ngle\x18\x04 \x01(\x01\x12+\n\ntagPosList\x18\x05 \x03(\x0b\x32\x17.rbk.protocol.msgTagPos\"\x8d\x01\n\tmsgTagPos\x12\x10\n\x08tagValue\x18\x01 \x01(\r\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\r\n\x05\x61ngle\x18\x04 \x01(\x01\x12\x19\n\x11\x61\x64vancedPointName\x18\x05 \x01(\t\x12.\n\x08property\x18\x06 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\"`\n\nmsgMapLine\x12)\n\x08startPos\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\'\n\x06\x65ndPos\x18\x02 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\"\xa7\x01\n\x0cmsgMapHeader\x12\x0f\n\x07mapType\x18\x01 \x01(\t\x12\x0f\n\x07mapName\x18\x02 \x01(\t\x12\'\n\x06minPos\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\'\n\x06maxPos\x18\x04 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\x12\n\nresolution\x18\x05 \x01(\x01\x12\x0f\n\x07version\x18\x08 \x01(\t\"_\n\x0fmsgMapAttribute\x12\x13\n\x0b\x64\x65scription\x18\x01 \x01(\t\x12\x10\n\x08\x63olorPen\x18\x02 \x01(\r\x12\x12\n\ncolorBrush\x18\x03 \x01(\r\x12\x11\n\tcolorFont\x18\x04 \x01(\r\"\xf1\x01\n\x10msgAdvancedPoint\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12$\n\x03pos\x18\x03 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\x0b\n\x03\x64ir\x18\x04 \x01(\x01\x12.\n\x08property\x18\x05 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x11\n\tignoreDir\x18\x06 \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\x0c\x12\x30\n\tattribute\x18\n \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xd2\x01\n\x0fmsgAdvancedLine\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12&\n\x04line\x18\x03 \x01(\x0b\x32\x18.rbk.protocol.msgMapLine\x12.\n\x08property\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\x0c\x12\x30\n\tattribute\x18\n \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\x85\x03\n\x10msgAdvancedCurve\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x10\n\x08startPos\x18\x03 \x01(\t\x12\x0e\n\x06\x65ndPos\x18\x04 \x01(\t\x12,\n\x0b\x63ontrolPos1\x18\x05 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12,\n\x0b\x63ontrolPos2\x18\x06 \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12.\n\x08property\x18\x07 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\x0c\x12,\n\x0b\x63ontrolPos3\x18\t \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12,\n\x0b\x63ontrolPos4\x18\n \x01(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\x30\n\tattribute\x18\x0f \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xe2\x01\n\x0fmsgAdvancedArea\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12)\n\x08posGroup\x18\x03 \x03(\x0b\x32\x17.rbk.protocol.msgMapPos\x12\x0b\n\x03\x64ir\x18\x04 \x01(\x01\x12.\n\x08property\x18\x05 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\x0c\x12\x30\n\tattribute\x18\x0f \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\x87\x02\n\x0bmsgTopoArea\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x1a\n\x12\x61\x64vancedPointNames\x18\x03 \x03(\t\x12)\n\x08posGroup\x18\x04 \x03(\x0b\x32\x17.rbk.protocol.msgMapPos\x12.\n\x08property\x18\x05 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x06 \x01(\x0c\x12\x18\n\x10\x65ntranceVertexes\x18\x07 \x03(\x03\x12\x30\n\tattribute\x18\n \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xbf\x01\n\x11msgExternalDevice\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x11\n\tisEnabled\x18\x03 \x01(\x08\x12.\n\x08property\x18\x04 \x03(\x0b\x32\x1c.rbk.protocol.msgMapProperty\x12\x0c\n\x04\x64\x65sc\x18\x05 \x01(\x0c\x12\x30\n\tattribute\x18\x06 \x01(\x0b\x32\x1d.rbk.protocol.msgMapAttribute\"\xde\x01\n\x0emsgBinLocation\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x17\n\x0frecognitionFile\x18\x03 \x01(\t\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\t\n\x01z\x18\x06 \x01(\x01\x12\x0b\n\x03\x64ir\x18\x07 \x01(\x01\x12\r\n\x05width\x18\x08 \x01(\x01\x12\x0e\n\x06length\x18\t \x01(\x01\x12/\n\nbindPoints\x18\n \x03(\x0b\x32\x1b.rbk.protocol.msgBindPoints\x12\x0c\n\x04\x64\x65sc\x18\x0b \x01(\x0c\"M\n\rmsgBindPoints\x12\x11\n\tpointName\x18\x01 \x01(\t\x12\x10\n\x08\x62inTasks\x18\x02 \x03(\t\x12\x17\n\x0frecognitionSide\x18\x03 \x01(\t\"<\n\x0fmsgBinLocations\x12)\n\x03\x62in\x18\x01 \x03(\x0b\x32\x1c.rbk.protocol.msgBinLocation\"\xd5\x01\n\nmsgCharger\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x11\n\tpointName\x18\x03 \x01(\t\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\x0b\n\x03\x64ir\x18\x07 \x01(\x01\x12\r\n\x05width\x18\x08 \x01(\x01\x12\x0e\n\x06length\x18\t \x01(\x01\x12\x0e\n\x06height\x18\n \x01(\x01\x12\x0c\n\x04\x64\x65sc\x18\x0b \x01(\x0c\x12+\n\njsonObject\x18\x0c \x01(\x0b\x32\x17.google.protobuf.Struct\"\xea\x01\n\x0bmsgAutogate\x12\x11\n\tclassName\x18\x01 \x01(\t\x12\x14\n\x0cinstanceName\x18\x02 \x01(\t\x12\x12\n\npointNames\x18\x03 \x03(\t\x12\t\n\x01x\x18\x04 \x01(\x01\x12\t\n\x01y\x18\x05 \x01(\x01\x12\x0b\n\x03\x64ir\x18\x07 \x01(\x01\x12\r\n\x05width\x18\x08 \x01(\x01\x12\x0e\n\x06length\x18\t \x01(\x01\x12\x0e\n\x06height\x18\n \x01(\x01\x12\x11\n\tisEnabled\x18\x0b \x01(\x08\x12\x0c\n\x04\x64\x65sc\x18\x0c \x01(\x0c\x12+\n\njsonObject\x18\r \x01(\x0b\x32\x17.google.protobuf.Struct\"\x81\x05\n\x06msgMap\x12*\n\x06header\x18\x02 \x01(\x0b\x32\x1a.rbk.protocol.msgMapHeader\x12\x39\n\x11\x61\x64vancedPointList\x18\x06 \x03(\x0b\x32\x1e.rbk.protocol.msgAdvancedPoint\x12\x37\n\x10\x61\x64vancedLineList\x18\x07 \x03(\x0b\x32\x1d.rbk.protocol.msgAdvancedLine\x12\x39\n\x11\x61\x64vancedCurveList\x18\x08 \x03(\x0b\x32\x1e.rbk.protocol.msgAdvancedCurve\x12\x37\n\x10\x61\x64vancedAreaList\x18\t \x03(\x0b\x32\x1d.rbk.protocol.msgAdvancedArea\x12\x37\n\x10reflectorPosList\x18\x0c \x03(\x0b\x32\x1d.rbk.protocol.msgReflectorPos\x12/\n\x0ctagGroupList\x18\r \x03(\x0b\x32\x19.rbk.protocol.msgTagGroup\x12;\n\x12\x65xternalDeviceList\x18\x0f \x03(\x0b\x32\x1f.rbk.protocol.msgExternalDevice\x12+\n\x04\x62ins\x18\x10 \x03(\x0b\x32\x1d.rbk.protocol.msgBinLocations\x12/\n\x0ctopoAreaList\x18\x11 \x03(\x0b\x32\x19.rbk.protocol.msgTopoArea\x12-\n\x0b\x63hargerList\x18\x12 \x03(\x0b\x32\x18.rbk.protocol.msgCharger\x12/\n\x0c\x61utogateList\x18\x13 \x03(\x0b\x32\x19.rbk.protocol.msgAutogate\"2\n\rmsgMapFileMd5\x12\x14\n\x0crelativePath\x18\x01 \x01(\t\x12\x0b\n\x03md5\x18\x02 \x01(\t\"\x8e\x01\n\x11msgCurrentMapInfo\x12\x12\n\ncurrentMap\x18\x01 \x01(\t\x12\x36\n\x11\x63urrentMapEntries\x18\x02 \x03(\x0b\x32\x1b.rbk.protocol.msgMapFileMd5\x12\x15\n\rcurrentMapMd5\x18\x03 \x01(\t\x12\x16\n\x0e\x63urrentTopoMd5\x18\x04 \x01(\tb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_struct__pb2.DESCRIPTOR,message__header__pb2.DESCRIPTOR,message__imu__pb2.DESCRIPTOR,message__gnss__pb2.DESCRIPTOR,message__localization__pb2.DESCRIPTOR,])
 
@@ -185,9 +185,9 @@ _MSGMAPLOGDATA3D = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='timestamp', full_name='rbk.protocol.msgMapLogData3D.timestamp', index=0,
-      number=1, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=float(0),
+      name='header', full_name='rbk.protocol.msgMapLogData3D.header', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -267,7 +267,7 @@ _MSGMAPLOGDATA3D = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=451,
-  serialized_end=632,
+  serialized_end=654,
 )
 
 
@@ -437,8 +437,8 @@ _MSGMAPLOG = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=635,
-  serialized_end=1283,
+  serialized_start=657,
+  serialized_end=1305,
 )
 
 
@@ -548,8 +548,8 @@ _MSGMAPPROPERTY = _descriptor.Descriptor(
       name='oneofValue', full_name='rbk.protocol.msgMapProperty.oneofValue',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=1286,
-  serialized_end=1557,
+  serialized_start=1308,
+  serialized_end=1579,
 )
 
 
@@ -593,8 +593,8 @@ _MSGMAPPOS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1559,
-  serialized_end=1603,
+  serialized_start=1581,
+  serialized_end=1625,
 )
 
 
@@ -631,8 +631,8 @@ _MSGMAPRSSIPOS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1605,
-  serialized_end=1642,
+  serialized_start=1627,
+  serialized_end=1664,
 )
 
 
@@ -690,8 +690,8 @@ _MSGREFLECTORPOS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1644,
-  serialized_end=1736,
+  serialized_start=1666,
+  serialized_end=1758,
 )
 
 
@@ -721,8 +721,8 @@ _MSGLIVEREFPOS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1738,
-  serialized_end=1800,
+  serialized_start=1760,
+  serialized_end=1822,
 )
 
 
@@ -780,8 +780,8 @@ _MSGTAGGROUP = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1803,
-  serialized_end=1953,
+  serialized_start=1825,
+  serialized_end=1975,
 )
 
 
@@ -846,8 +846,8 @@ _MSGTAGPOS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1956,
-  serialized_end=2097,
+  serialized_start=1978,
+  serialized_end=2119,
 )
 
 
@@ -884,8 +884,8 @@ _MSGMAPLINE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2099,
-  serialized_end=2195,
+  serialized_start=2121,
+  serialized_end=2217,
 )
 
 
@@ -950,8 +950,8 @@ _MSGMAPHEADER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2198,
-  serialized_end=2365,
+  serialized_start=2220,
+  serialized_end=2387,
 )
 
 
@@ -1002,8 +1002,8 @@ _MSGMAPATTRIBUTE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2367,
-  serialized_end=2462,
+  serialized_start=2389,
+  serialized_end=2484,
 )
 
 
@@ -1082,8 +1082,8 @@ _MSGADVANCEDPOINT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2465,
-  serialized_end=2706,
+  serialized_start=2487,
+  serialized_end=2728,
 )
 
 
@@ -1148,8 +1148,8 @@ _MSGADVANCEDLINE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2709,
-  serialized_end=2919,
+  serialized_start=2731,
+  serialized_end=2941,
 )
 
 
@@ -1249,8 +1249,8 @@ _MSGADVANCEDCURVE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2922,
-  serialized_end=3311,
+  serialized_start=2944,
+  serialized_end=3333,
 )
 
 
@@ -1322,8 +1322,8 @@ _MSGADVANCEDAREA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3314,
-  serialized_end=3540,
+  serialized_start=3336,
+  serialized_end=3562,
 )
 
 
@@ -1377,7 +1377,14 @@ _MSGTOPOAREA = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='attribute', full_name='rbk.protocol.msgTopoArea.attribute', index=6,
+      name='entranceVertexes', full_name='rbk.protocol.msgTopoArea.entranceVertexes', index=6,
+      number=7, type=3, cpp_type=2, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='attribute', full_name='rbk.protocol.msgTopoArea.attribute', index=7,
       number=10, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -1395,8 +1402,8 @@ _MSGTOPOAREA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3543,
-  serialized_end=3780,
+  serialized_start=3565,
+  serialized_end=3828,
 )
 
 
@@ -1461,8 +1468,8 @@ _MSGEXTERNALDEVICE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3783,
-  serialized_end=3974,
+  serialized_start=3831,
+  serialized_end=4022,
 )
 
 
@@ -1562,8 +1569,8 @@ _MSGBINLOCATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3977,
-  serialized_end=4199,
+  serialized_start=4025,
+  serialized_end=4247,
 )
 
 
@@ -1607,8 +1614,8 @@ _MSGBINDPOINTS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4201,
-  serialized_end=4278,
+  serialized_start=4249,
+  serialized_end=4326,
 )
 
 
@@ -1638,8 +1645,8 @@ _MSGBINLOCATIONS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4280,
-  serialized_end=4340,
+  serialized_start=4328,
+  serialized_end=4388,
 )
 
 
@@ -1739,8 +1746,116 @@ _MSGCHARGER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4343,
-  serialized_end=4556,
+  serialized_start=4391,
+  serialized_end=4604,
+)
+
+
+_MSGAUTOGATE = _descriptor.Descriptor(
+  name='msgAutogate',
+  full_name='rbk.protocol.msgAutogate',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='className', full_name='rbk.protocol.msgAutogate.className', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='instanceName', full_name='rbk.protocol.msgAutogate.instanceName', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='pointNames', full_name='rbk.protocol.msgAutogate.pointNames', index=2,
+      number=3, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='x', full_name='rbk.protocol.msgAutogate.x', index=3,
+      number=4, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='rbk.protocol.msgAutogate.y', index=4,
+      number=5, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dir', full_name='rbk.protocol.msgAutogate.dir', index=5,
+      number=7, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='width', full_name='rbk.protocol.msgAutogate.width', index=6,
+      number=8, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='length', full_name='rbk.protocol.msgAutogate.length', index=7,
+      number=9, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='height', full_name='rbk.protocol.msgAutogate.height', index=8,
+      number=10, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='isEnabled', full_name='rbk.protocol.msgAutogate.isEnabled', index=9,
+      number=11, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='desc', full_name='rbk.protocol.msgAutogate.desc', index=10,
+      number=12, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='jsonObject', full_name='rbk.protocol.msgAutogate.jsonObject', index=11,
+      number=13, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=4607,
+  serialized_end=4841,
 )
 
 
@@ -1828,6 +1943,13 @@ _MSGMAP = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='autogateList', full_name='rbk.protocol.msgMap.autogateList', index=11,
+      number=19, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -1840,8 +1962,8 @@ _MSGMAP = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4559,
-  serialized_end=5151,
+  serialized_start=4844,
+  serialized_end=5485,
 )
 
 
@@ -1878,8 +2000,8 @@ _MSGMAPFILEMD5 = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5153,
-  serialized_end=5203,
+  serialized_start=5487,
+  serialized_end=5537,
 )
 
 
@@ -1930,11 +2052,12 @@ _MSGCURRENTMAPINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5206,
-  serialized_end=5348,
+  serialized_start=5540,
+  serialized_end=5682,
 )
 
 _MSGMAPLOGDATA.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
+_MSGMAPLOGDATA3D.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER
 _MSGMAPLOG.fields_by_name['logData'].message_type = _MSGMAPLOGDATA
 _MSGMAPLOG.fields_by_name['odometer'].message_type = _MSGMAPODO
 _MSGMAPLOG.fields_by_name['logData3D'].message_type = _MSGMAPLOGDATA3D
@@ -2000,6 +2123,7 @@ _MSGEXTERNALDEVICE.fields_by_name['attribute'].message_type = _MSGMAPATTRIBUTE
 _MSGBINLOCATION.fields_by_name['bindPoints'].message_type = _MSGBINDPOINTS
 _MSGBINLOCATIONS.fields_by_name['bin'].message_type = _MSGBINLOCATION
 _MSGCHARGER.fields_by_name['jsonObject'].message_type = google_dot_protobuf_dot_struct__pb2._STRUCT
+_MSGAUTOGATE.fields_by_name['jsonObject'].message_type = google_dot_protobuf_dot_struct__pb2._STRUCT
 _MSGMAP.fields_by_name['header'].message_type = _MSGMAPHEADER
 _MSGMAP.fields_by_name['advancedPointList'].message_type = _MSGADVANCEDPOINT
 _MSGMAP.fields_by_name['advancedLineList'].message_type = _MSGADVANCEDLINE
@@ -2011,6 +2135,7 @@ _MSGMAP.fields_by_name['externalDeviceList'].message_type = _MSGEXTERNALDEVICE
 _MSGMAP.fields_by_name['bins'].message_type = _MSGBINLOCATIONS
 _MSGMAP.fields_by_name['topoAreaList'].message_type = _MSGTOPOAREA
 _MSGMAP.fields_by_name['chargerList'].message_type = _MSGCHARGER
+_MSGMAP.fields_by_name['autogateList'].message_type = _MSGAUTOGATE
 _MSGCURRENTMAPINFO.fields_by_name['currentMapEntries'].message_type = _MSGMAPFILEMD5
 DESCRIPTOR.message_types_by_name['msgMapLogData'] = _MSGMAPLOGDATA
 DESCRIPTOR.message_types_by_name['msgMapOdo'] = _MSGMAPODO
@@ -2036,6 +2161,7 @@ DESCRIPTOR.message_types_by_name['msgBinLocation'] = _MSGBINLOCATION
 DESCRIPTOR.message_types_by_name['msgBindPoints'] = _MSGBINDPOINTS
 DESCRIPTOR.message_types_by_name['msgBinLocations'] = _MSGBINLOCATIONS
 DESCRIPTOR.message_types_by_name['msgCharger'] = _MSGCHARGER
+DESCRIPTOR.message_types_by_name['msgAutogate'] = _MSGAUTOGATE
 DESCRIPTOR.message_types_by_name['msgMap'] = _MSGMAP
 DESCRIPTOR.message_types_by_name['msgMapFileMd5'] = _MSGMAPFILEMD5
 DESCRIPTOR.message_types_by_name['msgCurrentMapInfo'] = _MSGCURRENTMAPINFO
@@ -2208,6 +2334,13 @@ msgCharger = _reflection.GeneratedProtocolMessageType('msgCharger', (_message.Me
   # @@protoc_insertion_point(class_scope:rbk.protocol.msgCharger)
   ))
 _sym_db.RegisterMessage(msgCharger)
+
+msgAutogate = _reflection.GeneratedProtocolMessageType('msgAutogate', (_message.Message,), dict(
+  DESCRIPTOR = _MSGAUTOGATE,
+  __module__ = 'message_map_pb2'
+  # @@protoc_insertion_point(class_scope:rbk.protocol.msgAutogate)
+  ))
+_sym_db.RegisterMessage(msgAutogate)
 
 msgMap = _reflection.GeneratedProtocolMessageType('msgMap', (_message.Message,), dict(
   DESCRIPTOR = _MSGMAP,

@@ -55,7 +55,7 @@ class msgRecognizeResult(_message.Message):
     def __init__(self, header: Optional[Union[_message_header_pb2.msgHeader, Mapping]] = ..., valid: bool = ..., type: Optional[str] = ..., resultImg: Optional[str] = ..., palletWidth: Optional[float] = ..., objectMessage: Optional[str] = ..., obstaclePolygon: Optional[Iterable[Union[_message_geometry_pb2.msgPolygon, Mapping]]] = ..., trackerId: Optional[str] = ..., info: Optional[str] = ..., robotResult: Optional[Union[msgRecognizeSpatialResult, Mapping]] = ..., worldResult: Optional[Union[msgRecognizeSpatialResult, Mapping]] = ..., **kwargs) -> None: ...
 
 class msgRecognizeResultList(_message.Message):
-    __slots__ = ["error", "img", "irImg", "logMsg", "pointCloud", "recoList", "recoStatus", "taskId"]
+    __slots__ = ["error", "img", "irImg", "logMsg", "pointCloud", "recoFileContentJson", "recoList", "recoStatus", "taskId"]
     class errorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     class status(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -65,6 +65,7 @@ class msgRecognizeResultList(_message.Message):
     IRIMG_FIELD_NUMBER: ClassVar[int]
     LOGMSG_FIELD_NUMBER: ClassVar[int]
     POINTCLOUD_FIELD_NUMBER: ClassVar[int]
+    RECOFILECONTENTJSON_FIELD_NUMBER: ClassVar[int]
     RECOLIST_FIELD_NUMBER: ClassVar[int]
     RECOSTATUS_FIELD_NUMBER: ClassVar[int]
     TASKID_FIELD_NUMBER: ClassVar[int]
@@ -80,13 +81,14 @@ class msgRecognizeResultList(_message.Message):
     other: msgRecognizeResultList.errorType
     pointCloud: msgPointCloud
     recFileEmpty: msgRecognizeResultList.errorType
+    recoFileContentJson: str
     recoList: _containers.RepeatedCompositeFieldContainer[msgRecognizeResult]
     recoStatus: msgRecognizeResultList.status
     resultEmpty: msgRecognizeResultList.errorType
     running: msgRecognizeResultList.status
     success: msgRecognizeResultList.status
     taskId: str
-    def __init__(self, recoList: Optional[Iterable[Union[msgRecognizeResult, Mapping]]] = ..., recoStatus: Optional[Union[msgRecognizeResultList.status, str]] = ..., taskId: Optional[str] = ..., img: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., irImg: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., pointCloud: Optional[Union[msgPointCloud, Mapping]] = ..., logMsg: Optional[str] = ..., error: Optional[Union[msgRecognizeResultList.errorType, str]] = ...) -> None: ...
+    def __init__(self, recoList: Optional[Iterable[Union[msgRecognizeResult, Mapping]]] = ..., recoStatus: Optional[Union[msgRecognizeResultList.status, str]] = ..., taskId: Optional[str] = ..., img: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., irImg: Optional[Union[_message_calibration_pb2.msgImage, Mapping]] = ..., pointCloud: Optional[Union[msgPointCloud, Mapping]] = ..., logMsg: Optional[str] = ..., error: Optional[Union[msgRecognizeResultList.errorType, str]] = ..., recoFileContentJson: Optional[str] = ...) -> None: ...
 
 class msgRecognizeSpatialResult(_message.Message):
     __slots__ = ["qx", "qy", "qz", "w", "x", "y", "yaw", "z"]

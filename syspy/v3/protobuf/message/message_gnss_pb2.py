@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x12message_gnss.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"B\n\x12msgGnssInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0b\n\x03yaw\x18\x04 \x01(\x01\"G\n\x0emsgGnssRefInfo\x12\x11\n\tlongitude\x18\x01 \x01(\x01\x12\x10\n\x08latitude\x18\x02 \x01(\x01\x12\x10\n\x08\x61ltitude\x18\x03 \x01(\x01\"\xe5\x02\n\x07msgGnss\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x0e\n\x06status\x18\x02 \x01(\x05\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x11\n\tubx2DAccH\x18\x07 \x01(\x01\x12\x11\n\tubx2DAccV\x18\x08 \x01(\x01\x12\x10\n\x08ubx3DAcc\x18\t \x01(\x01\x12\x11\n\tlongitude\x18\n \x01(\x01\x12\x10\n\x08latitude\x18\x0b \x01(\x01\x12\x10\n\x08\x61ltitude\x18\x0c \x01(\x01\x12\x35\n\x0binstallInfo\x18\r \x01(\x0b\x32 .rbk.protocol.msgGnssInstallInfo\x12-\n\x07refInfo\x18\x0e \x01(\x0b\x32\x1c.rbk.protocol.msgGnssRefInfo\x12\x0c\n\x04\x65nuX\x18\x0f \x01(\x01\x12\x0c\n\x04\x65nuY\x18\x10 \x01(\x01\x12\x0f\n\x07heading\x18\x11 \x01(\x01\"1\n\nmsgAllGnss\x12#\n\x04gnss\x18\x01 \x03(\x0b\x32\x15.rbk.protocol.msgGnssb\x06proto3')
+  serialized_pb=_b('\n\x12message_gnss.proto\x12\x0crbk.protocol\x1a\x14message_header.proto\"B\n\x12msgGnssInstallInfo\x12\t\n\x01x\x18\x01 \x01(\x01\x12\t\n\x01y\x18\x02 \x01(\x01\x12\t\n\x01z\x18\x03 \x01(\x01\x12\x0b\n\x03yaw\x18\x04 \x01(\x01\"G\n\x0emsgGnssRefInfo\x12\x11\n\tlongitude\x18\x01 \x01(\x01\x12\x10\n\x08latitude\x18\x02 \x01(\x01\x12\x10\n\x08\x61ltitude\x18\x03 \x01(\x01\"\xf9\x02\n\x07msgGnss\x12\'\n\x06header\x18\x01 \x01(\x0b\x32\x17.rbk.protocol.msgHeader\x12\x0e\n\x06status\x18\x02 \x01(\x05\x12\t\n\x01x\x18\x03 \x01(\x01\x12\t\n\x01y\x18\x04 \x01(\x01\x12\t\n\x01z\x18\x05 \x01(\x01\x12\x11\n\tubx2DAccH\x18\x07 \x01(\x01\x12\x11\n\tubx2DAccV\x18\x08 \x01(\x01\x12\x10\n\x08ubx3DAcc\x18\t \x01(\x01\x12\x11\n\tlongitude\x18\n \x01(\x01\x12\x10\n\x08latitude\x18\x0b \x01(\x01\x12\x10\n\x08\x61ltitude\x18\x0c \x01(\x01\x12\x35\n\x0binstallInfo\x18\r \x01(\x0b\x32 .rbk.protocol.msgGnssInstallInfo\x12-\n\x07refInfo\x18\x0e \x01(\x0b\x32\x1c.rbk.protocol.msgGnssRefInfo\x12\x0c\n\x04\x65nuX\x18\x0f \x01(\x01\x12\x0c\n\x04\x65nuY\x18\x10 \x01(\x01\x12\x0f\n\x07heading\x18\x11 \x01(\x01\x12\x12\n\nheadingAcc\x18\x12 \x01(\x01\"1\n\nmsgAllGnss\x12#\n\x04gnss\x18\x01 \x03(\x0b\x32\x15.rbk.protocol.msgGnssb\x06proto3')
   ,
   dependencies=[message__header__pb2.DESCRIPTOR,])
 
@@ -243,6 +243,13 @@ _MSGGNSS = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='headingAcc', full_name='rbk.protocol.msgGnss.headingAcc', index=16,
+      number=18, type=1, cpp_type=5, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -256,7 +263,7 @@ _MSGGNSS = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=200,
-  serialized_end=557,
+  serialized_end=577,
 )
 
 
@@ -286,8 +293,8 @@ _MSGALLGNSS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=559,
-  serialized_end=608,
+  serialized_start=579,
+  serialized_end=628,
 )
 
 _MSGGNSS.fields_by_name['header'].message_type = message__header__pb2._MSGHEADER

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='rbk.protocol',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x19message_calibstatus.proto\x12\x0crbk.protocol\"\x8f\x02\n\x0cmsgCalibType\x12\x11\n\tcalibType\x18\x08 \x01(\t\x12\x12\n\ndeviceType\x18\t \x01(\t\x12\x12\n\ndeviceName\x18\n \x01(\t\x12\x13\n\x0bisAutoCalib\x18\x0b \x01(\x08\x12\x0f\n\x07hasPlot\x18\x0c \x01(\x08\x12:\n\x06status\x18\r \x01(\x0e\x32*.rbk.protocol.msgCalibType.calibTypeStatus\"b\n\x0f\x63\x61libTypeStatus\x12\x0b\n\x07unKnown\x10\x00\x12\x0b\n\x07noCalib\x10\x01\x12\x0f\n\x0b\x63\x61libNoPass\x10\x02\x12\r\n\tcalibPass\x10\x03\x12\x15\n\x11\x63\x61libModelChanged\x10\x04\"\xcc\x01\n\x0emsgCalibStatus\x12\x38\n\x06status\x18\x07 \x01(\x0e\x32(.rbk.protocol.msgCalibStatus.calibStatus\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\t\x12\x31\n\rcalibTypeList\x18\t \x03(\x0b\x32\x1a.rbk.protocol.msgCalibType\"?\n\x0b\x63\x61libStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tcompleted\x10\x02\x12\n\n\x06\x66\x61iled\x10\x03\x62\x06proto3')
+  serialized_pb=_b('\n\x19message_calibstatus.proto\x12\x0crbk.protocol\"\xa3\x02\n\x0cmsgCalibType\x12\x11\n\tcalibType\x18\x08 \x01(\t\x12\x12\n\ndeviceType\x18\t \x01(\t\x12\x12\n\ndeviceName\x18\n \x01(\t\x12\x13\n\x0bisAutoCalib\x18\x0b \x01(\x08\x12\x0f\n\x07hasPlot\x18\x0c \x01(\x08\x12:\n\x06status\x18\r \x01(\x0e\x32*.rbk.protocol.msgCalibType.calibTypeStatus\"v\n\x0f\x63\x61libTypeStatus\x12\x0b\n\x07unKnown\x10\x00\x12\x0b\n\x07noCalib\x10\x01\x12\x0f\n\x0b\x63\x61libNoPass\x10\x02\x12\r\n\tcalibPass\x10\x03\x12\x15\n\x11\x63\x61libModelChanged\x10\x04\x12\x12\n\x0e\x63\x61libCpChanged\x10\x05\"\xd9\x01\n\x0emsgCalibStatus\x12\x38\n\x06status\x18\x07 \x01(\x0e\x32(.rbk.protocol.msgCalibStatus.calibStatus\x12\x0c\n\x04\x64\x65sc\x18\x08 \x01(\t\x12\x31\n\rcalibTypeList\x18\t \x03(\x0b\x32\x1a.rbk.protocol.msgCalibType\"L\n\x0b\x63\x61libStatus\x12\x08\n\x04none\x10\x00\x12\x0b\n\x07running\x10\x01\x12\r\n\tcompleted\x10\x02\x12\n\n\x06\x66\x61iled\x10\x03\x12\x0b\n\x07waiting\x10\x04\x62\x06proto3')
 )
 
 
@@ -50,11 +50,15 @@ _MSGCALIBTYPE_CALIBTYPESTATUS = _descriptor.EnumDescriptor(
       name='calibModelChanged', index=4, number=4,
       serialized_options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='calibCpChanged', index=5, number=5,
+      serialized_options=None,
+      type=None),
   ],
   containing_type=None,
   serialized_options=None,
   serialized_start=217,
-  serialized_end=315,
+  serialized_end=335,
 )
 _sym_db.RegisterEnumDescriptor(_MSGCALIBTYPE_CALIBTYPESTATUS)
 
@@ -80,11 +84,15 @@ _MSGCALIBSTATUS_CALIBSTATUS = _descriptor.EnumDescriptor(
       name='failed', index=3, number=3,
       serialized_options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='waiting', index=4, number=4,
+      serialized_options=None,
+      type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=459,
-  serialized_end=522,
+  serialized_start=479,
+  serialized_end=555,
 )
 _sym_db.RegisterEnumDescriptor(_MSGCALIBSTATUS_CALIBSTATUS)
 
@@ -152,7 +160,7 @@ _MSGCALIBTYPE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=44,
-  serialized_end=315,
+  serialized_end=335,
 )
 
 
@@ -197,8 +205,8 @@ _MSGCALIBSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=318,
-  serialized_end=522,
+  serialized_start=338,
+  serialized_end=555,
 )
 
 _MSGCALIBTYPE.fields_by_name['status'].enum_type = _MSGCALIBTYPE_CALIBTYPESTATUS
