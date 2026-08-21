@@ -431,7 +431,12 @@ class ConfigParams:
     scriptName: str = ""
 
     module_type = RobotParam.getDevice("Model-000", "moduleType")
-    jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
+    jack_motor_enabled = RobotParam.getDevice(
+        "Model-000", f"moduleType.{module_type}.jackMotor")
+    jack_motor_name = (
+            RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor.{jack_motor_enabled}.motor")
+            if jack_motor_enabled is True or str(jack_motor_enabled).lower() == "on" else ""
+        )
     DOMotor: bool = False
     motor_func = ""
     reset_by_speed = ""
@@ -444,7 +449,7 @@ class ConfigParams:
         DOMotor = True
         jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", "basic.upReachDI")
         jack_zero_di = RobotParam.getDevice(f"{jack_motor_name}", "basic.downReachDI")
-    else:
+    elif jack_motor_name:
         motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
         reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
         jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI")
@@ -457,7 +462,16 @@ class ConfigParams:
     def _build_and_load_config(cls):
         """构建并加载配置参数"""
         module_type = RobotParam.getDevice("Model-000", "moduleType")
-        jack_motor_name = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor")
+        jack_motor_enabled = RobotParam.getDevice(
+            "Model-000", f"moduleType.{module_type}.jackMotor")
+        jack_motor_name = (
+            RobotParam.getDevice(
+                "Model-000",
+                f"moduleType.{module_type}.jackMotor.{jack_motor_enabled}.motor",
+            )
+            if jack_motor_enabled is True or str(jack_motor_enabled).lower() == "on" else ""
+        )
+        cls.jack_motor_name = jack_motor_name or ""
         if jack_motor_name and jack_motor_name.startswith("DOMotor"):
             cls.DOMotor = True
             motor_func = ""
@@ -465,13 +479,22 @@ class ConfigParams:
             default_min_length = RobotParam.getDevice(f"{jack_motor_name}", "basic.minLength")
             default_max_length = RobotParam.getDevice(f"{jack_motor_name}", "basic.maxLength")
             default_max_speed = 0.015
-        else:
+        elif jack_motor_name:
             cls.DOMotor = False
             motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
             reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
             default_min_length = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.minLength")
             default_max_length = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.maxLength")
             default_max_speed = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.maxSpeed") or 0.015
+        else:
+            cls.DOMotor = False
+            motor_func = ""
+            reset_by_speed = ""
+            default_min_length = 0.0
+            default_max_length = 0.06
+            default_max_speed = 0.015
+        cls.motor_func = motor_func
+        cls.reset_by_speed = reset_by_speed
 
         builder = script_param.builderConfig()
 
@@ -837,7 +860,10 @@ class ConfigParams:
 
 
         # DI配置（从设备绑定读取）
-        if cls.DOMotor:
+        if not cls.jack_motor_name:
+            cls.jack_up_di = ""
+            cls.jack_zero_di = ""
+        elif cls.DOMotor:
             cls.jack_up_di = RobotParam.getDevice(f"{cls.jack_motor_name}", "basic.upReachDI")
             cls.jack_zero_di = RobotParam.getDevice(f"{cls.jack_motor_name}", "basic.downReachDI")
         else:
@@ -1529,12 +1555,6 @@ class InputParams:
 class Jack(ModuleBase):
     def __init__(self):
         super().__init__()
-
-        # ============================================
-        # Error53301: 检查顶升电机配置
-        # ============================================
-        if not config_params.jack_motor_name:
-            Navigation.setDeviceError("NoJackMotor", _TR("Jack motor not found in model file. Check jack device configuration"))
         # 脚本任务管理
         # tick_report 数据打印
         self.info_count = 0
@@ -1701,6 +1721,9 @@ class Jack(ModuleBase):
         顶升电机标零状态机（内部复用）。
         返回 True 表示全部标零完成，False 表示仍在进行中。
         """
+        if not config_params.jack_motor_name:
+            return True
+
         # ---- 第1步：顶升电机标零 ----
         if not self.jack_calib_step[0]:
             if not Motor.isMotorStop(config_params.jack_motor_name):
@@ -2057,6 +2080,9 @@ class Jack(ModuleBase):
     def press_button(self):
         if not self.operation_init:
             self.operation_init = True
+            if not config_params.jack_motor_name:
+                self.status = ScriptStatus.FINISHED
+                return
             jack_height = Motor.getMotorPos(config_params.jack_motor_name)
             debug_print(f"jack_height={jack_height}")
             debug_print(f"mid_height={0.5 * (config_params.jack_min_height + config_params.jack_max_height)}")
@@ -2450,7 +2476,7 @@ class Jack(ModuleBase):
 
         # 顶升完成后设置激光扣除区域
         if deduct_recfile:
-            deduct_info_lift = self.laser_area_deduct(deduct_recfile, "shelf", index=0)
+            deduct_info_lift = self.laser_area_deduct(deduct_recfile, "shelf")
             self.action_list.append(SetLaserDeductArea(deduct_info_lift, prefix="ShelfDeductArea"))
 
         # ---- 绑定容器（开启识别或有 recfile 时才加载货物模型）----
@@ -2624,7 +2650,8 @@ class Jack(ModuleBase):
                 ))
                 self.action_list.append(GetGoodsDirFromPGV())
             # 检查是否是边走边动模式下已经完成了顶升下降
-            current_height = Motor.getMotorPos(config_params.jack_motor_name)
+            current_height = (Motor.getMotorPos(config_params.jack_motor_name)
+                              if config_params.jack_motor_name else 0.0)
             if self.pre_action_completed and current_height <= 0.005:
                 # 边走边动模式下顶升已经下降完成，跳过下降步骤，但仍需清除货物模型
                 debug_trace(f"unload: pre-action done height={current_height:.4f}m, skip lower", name=MOD)
@@ -2884,7 +2911,8 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             Motor.stopMotor()
-            Motor.resetMotor(config_params.jack_motor_name)
+            if config_params.jack_motor_name:
+                Motor.resetMotor(config_params.jack_motor_name)
             self.jack_direction = None
 
     def suspend(self):
@@ -2901,7 +2929,8 @@ class Jack(ModuleBase):
 
     def cancel(self):
         Motor.stopMotor()
-        Motor.resetMotor(config_params.jack_motor_name)
+        if config_params.jack_motor_name:
+            Motor.resetMotor(config_params.jack_motor_name)
         self.jack_direction = None
         Navigation.resetGoMapPath()
         Navigation.resetGoPGV()
@@ -2918,17 +2947,19 @@ class Jack(ModuleBase):
 
     def tick_report(self):
         self.jack_motors = NavSpeed.getMotorCmd()
-        self.jack_speed = Motor.getMotorSpeed(config_params.jack_motor_name)
+        self.jack_speed = (Motor.getMotorSpeed(config_params.jack_motor_name)
+                           if config_params.jack_motor_name else 0.0)
         self.jack_isFull = Navigation.hasGoods()
         self.jack_emc = Controller.getEmc()
-        self.jack_height = Motor.getMotorPos(config_params.jack_motor_name)
+        self.jack_height = (Motor.getMotorPos(config_params.jack_motor_name)
+                            if config_params.jack_motor_name else 0.0)
 
 
 
         cur_action = self.action_task.current
         self.report_info.update({
             "jackMode": True,
-            "jackEnable": True,
+            "jackEnable": bool(config_params.jack_motor_name),
             "jackSpeed": self.jack_speed,
             "jackEmc": self.jack_emc,
             "jackIsFull": self.jack_isFull,
@@ -2964,7 +2995,8 @@ class Jack(ModuleBase):
         # jack.motor: 机构状态
         jack_in_place = False
         jack_target = 0.0
-        if cur_action and hasattr(cur_action, 'target_height'):
+        if (config_params.jack_motor_name
+                and cur_action and hasattr(cur_action, 'target_height')):
             jack_target = float(cur_action.target_height)
             jack_in_place = Motor.isMotorReached(config_params.jack_motor_name)
         Trace.log(
@@ -3005,7 +3037,8 @@ class Jack(ModuleBase):
                 self.jack_direction = None
                 jack_status = 0xFF
             # 判断是否有顶升动作正在执行
-            elif cur_action and isinstance(cur_action, JackHeight):
+            elif (config_params.jack_motor_name
+                  and cur_action and isinstance(cur_action, JackHeight)):
                 current_pos = self.jack_height or 0.0
                 target_height = getattr(cur_action, 'target_height', 0.0)
                 is_motor_reached = Motor.isMotorReached(config_params.jack_motor_name)
@@ -3241,6 +3274,11 @@ class Jack(ModuleBase):
         """
         debug_trace("pre_unload_action running", name=f"{MOD}.motor")
 
+        if not config_params.jack_motor_name:
+            self.pre_action_step[0] = True
+            self.pre_action_completed = True
+            return True
+
         target_height = self.pre_action_args.get('target_height', 0)
 
         # 获取当前顶升高度
@@ -3355,9 +3393,14 @@ class JackUpDown(ActionBase):
         self.object_key = object_key
         self.init = False
         self._count_recorded = False
-        Motor.resetMotor(config_params.jack_motor_name)
+        if config_params.jack_motor_name:
+            Motor.resetMotor(config_params.jack_motor_name)
 
     def run(self, j: Jack):
+        if not config_params.jack_motor_name:
+            self.action_status = ActionStatus.FINISHED
+            return
+
         if not self.init:
             self.init = True
             self.action_status = ActionStatus.RUNNING
@@ -3712,10 +3755,14 @@ class JackHeight(ActionBase):
         self._count_recorded = False  # 防止重复计数
         self._up_di_triggered_time = None  # 上到位 DI/isReached 触发时间戳（用于延迟）
         self._motor_moved = False  # 电机是否已开始运动
-        if not config_params.DOMotor:
+        if self.motor_name and not config_params.DOMotor:
             Motor.resetMotor(self.motor_name)
 
     def run(self, j: Jack):
+        if not self.motor_name:
+            self.action_status = ActionStatus.FINISHED
+            return
+
         if not self.init:
             self.init = True
             self.action_status = ActionStatus.RUNNING
@@ -4050,15 +4097,12 @@ class GoBezier(ActionBase):
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.1, curvature_limit=1.3,
                  path_dist_accuracy=0.01, path_angle_accuracy=0.05, min_speed=0.05):
         super().__init__()
-
         kwargs = locals()
         del kwargs['self']
         del kwargs['__class__']
         self.opt_info = f"{__class__.__name__}{kwargs}"
-
         self.init = True
         self.action_status = ActionStatus.INIT
-        self._last_status = None
         self.target_world = target_world
         self.go_bezier = goBezier.GoBezierWorld(target_world, back_dist, adjust_dist_for_curvature_limit,
                                                 min_ahead_dist,
@@ -4075,15 +4119,14 @@ class GoBezier(ActionBase):
                         name=f"{MOD}.nav")
 
         if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
+
             self.action_status = self.go_bezier.run()
 
         # 只在状态变化时输出
-        if self.action_status != self._last_status:
-            self._last_status = self.action_status
-            if self.action_status == ActionStatus.FINISHED:
-                debug_trace("bezier nav done", name=f"{MOD}.nav")
-            elif self.action_status == ActionStatus.FAILED:
-                debug_trace("bezier nav failed", name=f"{MOD}.nav")
+        if self.action_status == ActionStatus.FINISHED:
+            debug_trace("bezier nav done", name=f"{MOD}.nav")
+        elif self.action_status == ActionStatus.FAILED:
+            debug_trace("bezier nav failed", name=f"{MOD}.nav")
 
         time.sleep(0.1)
 
@@ -4905,7 +4948,7 @@ def main():
     Module.init()
     j = Jack()
     # 每次脚本启动都重置标零状态，确保开机标零一次
-    if config_params.auto_calib_enable:
+    if config_params.jack_motor_name and config_params.auto_calib_enable:
         jack_calib_manager.set_calib_done(False)
 
     modbus_args = None
@@ -4928,7 +4971,8 @@ def main():
             modbus_args = j.modbus()
 
         # 启动自动标零（DB=False 时每周期轮询，完成后自动停止）
-        if config_params.auto_calib_enable and not jack_calib_manager.is_calib_done():
+        if (config_params.jack_motor_name and config_params.auto_calib_enable
+                and not jack_calib_manager.is_calib_done()):
             j.run_startup_calib()
 
         if status == ScriptStatus.NONE:
