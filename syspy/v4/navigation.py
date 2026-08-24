@@ -176,12 +176,14 @@ class NavigationV4(NavigationInterface):
             cls, head: float, tail: float, width: float, recfile: str
     ):
         pass
+
     @classmethod
     @call_service()
     def setGoodsPolyShape(
             cls, shape, recfile: str
     ):
         pass
+
     @classmethod
     @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
@@ -300,14 +302,14 @@ class NavigationV4(NavigationInterface):
         pass
 
     @classmethod
-    def appendPolicy(cls, name: str):
+    def appendPolicy(cls, key: str):
         # todo RBK4
-        return cls.client().call_service("Navigation", "updatePolicy", [name])
+        return cls.client().call_service("Navigation", "updatePolicy", [key])
 
     @classmethod
-    def appendCustomPolicy(cls, name: str, params: dict):
+    def appendCustomPolicy(cls, key: str, params: dict):
         # todo RBK4
-        return cls.client().call_service("Navigation", "updatePolicy", [], [(name, params)])
+        return cls.client().call_service("Navigation", "updatePolicy", [], [(key, params)])
 
     @classmethod
     def clearPolicy(cls):
@@ -316,9 +318,11 @@ class NavigationV4(NavigationInterface):
     @classmethod
     def setClearRegion(cls, name: str, x: List[float], y: List[float], lasers_key: List[str], coordinate: Coordinate):
         if coordinate == Coordinate.ROBOT:
-            return cls.client().call_service("MoveFactory", "setClearRegionInRobotFrame", name=name, x=x, y=y, lasers_key=lasers_key)
+            return cls.client().call_service("MoveFactory", "setClearRegionInRobotFrame", name=name, x=x, y=y,
+                                             lasers_key=lasers_key)
         elif coordinate == Coordinate.WORLD:
-            return cls.client().call_service("MoveFactory", "setClearRegionInMapFrame", name=name, x=x, y=y, lasers_key=lasers_key)
+            return cls.client().call_service("MoveFactory", "setClearRegionInMapFrame", name=name, x=x, y=y,
+                                             lasers_key=lasers_key)
 
     @classmethod
     def deleteClearRegion(cls, name: str, coordinate: Coordinate):
@@ -364,7 +368,7 @@ class NavStatusV4(NavStatusInterface):
         # todo RBK4
         return cls.client().call_service("DSPChassis", "isChassisStop", True)
 
-    def getBlock(self)-> Optional[bool]:
+    def getBlock(self) -> Optional[bool]:
         if self.update():
             return self.data.blocked
 

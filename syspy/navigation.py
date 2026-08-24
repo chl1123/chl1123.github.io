@@ -595,11 +595,11 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def appendPolicy(cls, name: str):
+    def appendPolicy(cls, key: str):
         """增加策略
 
         Args:
-            name (str): 策略名
+            key (str): 策略的 key, 对应 0.smap 中的 policies[].key 字段
 
         Examples:
             >>> Navigation.appendPolicy("policy1")  # 切换到"policy1"策略
@@ -607,11 +607,11 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def appendCustomPolicy(cls, name: str, params: dict):
+    def appendCustomPolicy(cls, key: str, params: dict):
         """增加策略参数
 
         Args:
-            name (str): 策略名
+            key (str): 策略的 key
             params (dict): 待增加的策略参数，没有指定的参数保留旧值
 
         Examples:

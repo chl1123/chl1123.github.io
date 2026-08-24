@@ -192,12 +192,14 @@ class NavigationV3(NavigationInterface):
             cls, head: float, tail: float, width: float, recfile: str, goodsAngleInSpin: Optional[float] = 0.0
     ):
         pass
+
     @classmethod
     @call_service()
     def setGoodsPolyShape(
             cls, shape: List[Dict[str, float]], recfile: str, goodsAngleInSpin: Optional[float] = 0.0
     ):
         pass
+
     @classmethod
     @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
@@ -354,13 +356,12 @@ class NavigationV3(NavigationInterface):
         pass
 
     @classmethod
-    def appendPolicy(cls, name: str):
-        return cls.client().call_service("MoveFactory", "updatePolicy", [name])
+    def appendPolicy(cls, key: str):
+        return cls.client().call_service("MoveFactory", "updatePolicy", [key])
 
     @classmethod
-    def appendCustomPolicy(cls, name: str, params: dict):
-        return cls.client().call_service("MoveFactory", "updatePolicy", [], [(name, params)])
-
+    def appendCustomPolicy(cls, key: str, params: dict):
+        return cls.client().call_service("MoveFactory", "updatePolicy", [], [(key, params)])
 
     @classmethod
     def clearPolicy(cls):
@@ -380,7 +381,6 @@ class NavigationV3(NavigationInterface):
             cls.client().call_service("MoveFactory", "deleteClearRegionInRobotFrame", name)
         elif coordinate == Coordinate.WORLD:
             cls.client().call_service("MoveFactory", "deleteClearRegionInMapFrame", name)
-
 
     @classmethod
     def getClearRegion(cls, coordinate: Coordinate) -> List[str]:
@@ -434,7 +434,6 @@ class NavigationV3(NavigationInterface):
     @call_service()
     def getLmTcpName(cls, lm_name: str) -> str:
         pass
-
 
     @classmethod
     @call_service()
