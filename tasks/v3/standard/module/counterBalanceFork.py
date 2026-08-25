@@ -1014,7 +1014,7 @@ class InputParams:
                                 cls.builder.DEFAULTVALUE(-1)
 
                     # ForkHeight 操作
-                    with cls.builder.CHILD(key="forkHeight", name=_TR("Fork Height"),
+                    with cls.builder.CHILD(key="forkHeight", name=_TR("Fork Hqeight"),
                                            desc=_TR("Lift the fork")):
                         cls.builder.TYPE(ParamType.ARRAY)
                         create_fork_height_param(cls.builder, min_height, max_height)
@@ -1166,21 +1166,6 @@ class InputParams:
                                 # 识别参数
                                 create_rec_param(cls.builder)
 
-                        with cls.builder.CHILD(key="test", name=_TR("Test"),
-                                               desc=_TR("test")):
-                            cls.builder.TYPE(ParamType.ARRAY)
-
-                            cls.builder.TYPE(ParamType.ARRAY)
-
-                            with cls.builder.CHILDREN():
-                                # 取货路径导航前的货叉高度
-                                create_start_height_param(cls.builder, min_height, max_height)
-
-                                # 取完后的货叉高度
-                                create_end_height_param(cls.builder, min_height, max_height)
-
-                                # 识别参数
-                                create_rec_param(cls.builder)
             # if ConfigParams.scriptDebug:
             #     with cls.builder.CHILD(key="targetName", name=_TR("Target Name"), desc=_TR("Target ID Name")):
             #         cls.builder.TYPE(ParamType.STRING)
