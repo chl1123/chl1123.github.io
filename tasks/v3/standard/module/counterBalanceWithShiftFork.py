@@ -1166,6 +1166,21 @@ class InputParams:
                                 # 识别参数
                                 create_rec_param(cls.builder)
 
+                        with cls.builder.CHILD(key="test", name=_TR("Test"),
+                                               desc=_TR("test")):
+                            cls.builder.TYPE(ParamType.ARRAY)
+
+                            cls.builder.TYPE(ParamType.ARRAY)
+
+                            with cls.builder.CHILDREN():
+                                # 取货路径导航前的货叉高度
+                                create_start_height_param(cls.builder, min_height, max_height)
+
+                                # 取完后的货叉高度
+                                create_end_height_param(cls.builder, min_height, max_height)
+
+                                # 识别参数
+                                create_rec_param(cls.builder)
             # if ConfigParams.scriptDebug:
             #     with cls.builder.CHILD(key="targetName", name=_TR("Target Name"), desc=_TR("Target ID Name")):
             #         cls.builder.TYPE(ParamType.STRING)
@@ -1757,6 +1772,11 @@ class Fork(ModuleBase):
         Navigation.setGoodsPolyShape(goods_point2robot, goods_name)
         return True
 
+    def unbindContainer(self, container_id: str = "", goods_name: str = "") -> bool:
+        # 货物模型关联的扣除区域建立在机器人坐标系，清货时同步删除
+        delete_deduct_area("PalletRobotDeductArea", Coordinate.ROBOT)
+        return super().unbindContainer(container_id, goods_name)
+
     def delete_clear_region(self):
         delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
         delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
@@ -1858,8 +1878,9 @@ class Fork(ModuleBase):
             # 从任务参数 或者从 脚本任务参数里获取到AP点及其坐标
             self.target_pos, tcp_key = self.get_station_pos("targetName")
 
-            # 计算圆心
-            if self.target_pos[3] == -1:
+            # 原地动作按配置计算圆心，导航动作按目标点计算圆心
+            if (not self.target_pos or self.target_pos[3] == -1
+                    or self.move_task.get("skillName", "") == "Action"):
                 rec_center2robot = [ConfigParams.recCenterX, ConfigParams.recCenterY]
             else:
                 target2robot = pos2Base(self.target_pos, r_loc)
@@ -1874,10 +1895,10 @@ class Fork(ModuleBase):
                 self.back_dist = self.rec_info.get("backDistance")
 
             self.action_list = [
-                RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
-                GoLiveRec(self.recfile, self.back_dist, rec_x=rec_center2robot[0], rec_y=rec_center2robot[1],
-                          rec_radius=ConfigParams.recRadius),
-                RunMotorByPosition(ConfigParams.fork_motor_name, self.endHeight)]
+                # RunMotorByPosition(ConfigParams.fork_motor_name, self.start_height),
+                GoLiveRec("default.srec", self.back_dist, rec_x=rec_center2robot[0], rec_y=rec_center2robot[1],
+                          rec_radius=ConfigParams.recRadius), ]
+            # RunMotorByPosition(ConfigParams.fork_motor_name, self.endHeight)
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
             self.script_status = ScriptStatus.FINISHED
 
@@ -2177,7 +2198,7 @@ class Fork(ModuleBase):
                                          [ConfigParams.module_x - self.carrier_length / 2, 0, 0])
                     goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
                 # 设置货物形状
-                goods_name = self.recfile
+                goods_name = self.recfile or "pallet"
                 # 设置扣除区域
                 if self.pallet_deduct_infos:
                     set_deduct_area(self.pallet_deduct_infos,
@@ -2185,6 +2206,7 @@ class Fork(ModuleBase):
                                     "PalletRobotDeductArea",
                                     Coordinate.ROBOT)
 
+                Container.bindContainer("0", goods_name, "")
                 Navigation.setGoodsPolyShape(goods_point2robot, goods_name)
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
@@ -2253,7 +2275,8 @@ class Fork(ModuleBase):
                 # AP 点是否绑定了 tcp
                 if tcp_key:
 
-                    ap_world_pos_tcp = Navigation.calTCPTrans(self.target_pos[0], self.target_pos[1], self.target_pos[2],
+                    ap_world_pos_tcp = Navigation.calTCPTrans(self.target_pos[0], self.target_pos[1],
+                                                              self.target_pos[2],
                                                               tcp_key)
                     ap_world_pos_tcp_list = [ap_world_pos_tcp["x"], ap_world_pos_tcp["y"], ap_world_pos_tcp["theta"]]
                     self.target_pos = ap_world_pos_tcp_list
@@ -2324,7 +2347,7 @@ class Fork(ModuleBase):
             if (isinstance(self.action_list[self.action_id], RunMotorByPosition)
                     and self.action_list[self.action_id].action_name == "downFork"
                     and self.action_list[self.action_id].action_status == ActionStatus.FINISHED):
-                Navigation.clearGoodsShape()
+                self.unbindContainer("0")
 
         if self.action_id >= len(self.action_list) and self.action_status == ActionStatus.FINISHED:
             delete_deduct_area(["no_rec_deduct_pallet_area", "PalletRobotRegionByHeight"], Coordinate.ROBOT)
@@ -3074,7 +3097,7 @@ class Rec(BaseAction):
             "radius": rec_radius,
             "shape": "circle"
         }
-        Trace.log(f"region: {self.region}", name="fork.task")
+        Trace.log(f"recfile:{pallet_file}, region: {self.region}", name="fork.task")
 
     def run(self):
         if not self.init:
@@ -4674,7 +4697,7 @@ class GoTwoStraightLine(BaseAction):
 
 
 class GoLiveRec(BaseAction):
-    def __init__(self, recfile="default.srec", action_name="GoLiveRec", back_dist=-1.7,
+    def __init__(self, recfile="default.srec", action_name="GoLiveRec", back_dist=0,
                  ahead_dist=ConfigParams.aheadDist, min_ahead_dist=ConfigParams.minAheadDist,
                  rec_x=ConfigParams.recCenterX, rec_y=ConfigParams.recCenterY, rec_radius=ConfigParams.recRadius):
         super().__init__(action_name)
