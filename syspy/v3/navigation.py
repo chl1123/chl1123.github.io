@@ -437,7 +437,7 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     @call_service()
-    def runRotateMove(cls, robot_params: dict, shelf_params: dict) -> int:
+    def runRotateMove(cls, robot_params: dict, shelf_params: dict, apply_space=False) -> int:   
         pass
 
     @classmethod

@@ -880,7 +880,7 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def runRotateMove(cls, robot_params: dict, shelf_params: dict) -> int:
+    def runRotateMove(cls, robot_params: dict, shelf_params: dict, apply_space=False) -> int:   
         """执行基于里程计的运动控制
         RBK-MF 插件自动处理托盘旋转速度问题。特别是托盘在世界坐标系下的目标角度没有变化时，需要自动规划为随动（holdOnWorld）的效果。
         Args:
@@ -891,7 +891,7 @@ class NavigationInterface(ABC, Service):
             shelf_params (dict): 托盘旋转控制参数字典，支持以下参数（所有参数均为可选）：
                 - angle (float): 机器人坐标系下托盘旋转的目标角度（rad），只支持正数
                 - dir (int): 机器人坐标系下托盘旋转的方向, dir 0 自主决策 1逆时针  -1顺时针
-
+            apply_space(bool)：调度控制机器人时，机器人通过此接口原地旋转时是否向调度申请空间资源，默认为false，即不申请
         Returns:
             int: 运动状态，"MoveStatus"类型的int值
 
