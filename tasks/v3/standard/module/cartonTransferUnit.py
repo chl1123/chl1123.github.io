@@ -24,7 +24,7 @@ from syspy.lib.net_protocol import parseModbus, NetProtocol
 from syspy.bin import Container
 from syspy.lib.module import SafeMoveStatus, ModuleBase
 from syspy.lib.action_task import ActionBase, ActionStatus, ActionTask
-from syspy.utils.param_server import ParamBuilder, ParamType, ScriptParam
+from syspy.utils.param_server import ParamBuilder, ParamType, ScriptParam, BindType
 from standard.goPath import GoPath
 
 log = Logger("ContainerRobot")
@@ -204,15 +204,15 @@ class ConfigParams:
                         builder.UNIT("m")
                         builder.DEFAULTVALUE(0.030)
                     with builder.CHILD(key="boxCodeFile", name=_TR("Box Code File"), desc=_TR("Box Code Recognition Config")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("default.srec")
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.App.RECOGNITION)
                     with builder.CHILD(key="shelfCodeFile", name=_TR("Shelf Code File"),
                                        desc=_TR("Shelf Code Recognition Config")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("default1.srec")
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.App.RECOGNITION)
                     with builder.CHILD(key="barcodeFile", name=_TR("Barcode File"), desc=_TR("Barcode Recognition Config")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("default2.srec")
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.App.RECOGNITION)
                     with builder.CHILD(key="offsetX", name=_TR("Offset X"), desc=_TR("Walking Direction Offset")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
@@ -336,13 +336,13 @@ class ConfigParams:
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(120, min_value=0, max_value=300)
                     with builder.CHILD(key="goodsCheckDi", name=_TR("Goods Check Di"), desc=_TR("Fork Midpoint Detection DI")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DI-008")
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.Device.DI)
                         builder.REQUIRED(True)
                     with builder.CHILD(key="overlimitDetectDi", name=_TR("Overlimit Detect Di"),
                                        desc=_TR("Fork Safe Travel Limit")):
-                        builder.TYPE(ParamType.STRING)
-                        builder.DEFAULTVALUE("DI-009")
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.Device.DI)
                         builder.REQUIRED(True)
                     with builder.CHILD(key="lightDelayTime", name=_TR("Light Delay Time"), desc=_TR("time for light")):
                         builder.TYPE(ParamType.FLOAT)
@@ -356,6 +356,13 @@ class ConfigParams:
 
         builder.save(merge=True)
         cls.load_config()
+
+    @staticmethod
+    def _strip_rec_prefix(value):
+        _rec_prefix = "recognition/"
+        if isinstance(value, str) and value.startswith(_rec_prefix):
+            return value[len(_rec_prefix):]
+        return value
 
     @classmethod
     def load_config(cls):
@@ -374,9 +381,9 @@ class ConfigParams:
 
         cls.rec_offz_box = cls.config.get("recOffzBox")
         cls.rec_offz_shelf = cls.config.get("recOffzShelf")
-        cls.box_code_file = cls.config.get("boxCodeFile")
-        cls.shelf_code_file = cls.config.get("shelfCodeFile")
-        cls.barcode_file = cls.config.get("barcodeFile")
+        cls.box_code_file = cls._strip_rec_prefix(cls.config.get("boxCodeFile"))
+        cls.shelf_code_file = cls._strip_rec_prefix(cls.config.get("shelfCodeFile"))
+        cls.barcode_file = cls._strip_rec_prefix(cls.config.get("barcodeFile"))
         cls.offset_x = cls.config.get("offsetX")
         cls.load_rec_lift_diff = cls.config.get("loadRecLiftDiff")
         cls.rec_box_extra_height = cls.config.get("recBoxExtraHeight")
@@ -542,6 +549,10 @@ class InputParams:
                 with builder.CHILD(key="load", name=_TR("Load"), desc=_TR("Pick up goods")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
+                        with builder.CHILD(key="recfile", name=_TR("Recognition File"), desc=_TR("Recognition file for loading")):
+                            builder.TYPE(ParamType.BIND_TYPE)
+                            builder.BINDTYPE(BindType.App.RECOGNITION)
+                            builder.REQUIRED(False)
                         create_vision_type_param(builder, _TR("Vision type: 'box' or 'shelf', optional"))
                         create_lift_param(builder, _TR("Fork height for recognition before picking"))
                         create_rotate_param(builder, _TR("Fork angle before picking"))
