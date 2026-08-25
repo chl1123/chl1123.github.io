@@ -1014,7 +1014,7 @@ class InputParams:
                                 cls.builder.DEFAULTVALUE(-1)
 
                     # ForkHeight 操作
-                    with cls.builder.CHILD(key="forkHeight", name=_TR("Fork Hqeight"),
+                    with cls.builder.CHILD(key="forkHeight", name=_TR("Fork Height"),
                                            desc=_TR("Lift the fork")):
                         cls.builder.TYPE(ParamType.ARRAY)
                         create_fork_height_param(cls.builder, min_height, max_height)
