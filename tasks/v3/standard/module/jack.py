@@ -932,9 +932,9 @@ def create_jack_load(builder: ParamBuilder):
                 with builder.CHILDREN():
                     create_recfile(builder)
     with builder.CHILD(key="recFile", name=_TR("Rec File"), desc=_TR("File for recognizing.")):
-        builder.TYPE(ParamType.STRING)
+        builder.TYPE(ParamType.BIND_TYPE)
+        builder.BINDTYPE(BindType.App.RECOGNITION)
         builder.REQUIRED(False)
-        builder.DEFAULTVALUE("default.srec")
 
     with builder.CHILD(key="howGoSite", name=_TR("How Go Site"), desc=_TR("Choose the way to the landmark.")):
         builder.TYPE(ParamType.COMBO_BOX)
@@ -1585,6 +1585,8 @@ class Jack(ModuleBase):
         else:
             self.is_recognize = bool(_rec_raw)
         self.recfile = self.task_args.get("recFile", None)
+        if isinstance(self.recfile, str) and self.recfile.startswith("recognition/"):
+            self.recfile = self.recfile[len("recognition/"):]
         self.insert_shelf_dir = self.task_args.get("insertShelfDir", "B")
         # 第一次无识别结果时, 向前进 recDist(m) 再识别(仅当任务参数传入 recDist 时启用; 不传=按原逻辑直接报错)
         self.rec_dist = self.task_args.get("recDist", 0.0)
