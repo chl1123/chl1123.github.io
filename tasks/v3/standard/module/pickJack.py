@@ -30,6 +30,22 @@ from syspy.lib.robot import RobotParam
 from syspy.utils import Coordinate
 
 
+def delete_deduct_area(names, coordinate):
+    """按前缀删除扣除区域；names 为空则删除全部（同 counterBalanceFork）"""
+    if not names:  # names 为空 → 删除全部
+        deduct_area_list = Navigation.getClearRegion(coordinate)
+    else:
+        if isinstance(names, str):
+            names = [names]
+        deduct_area_list = [
+            s for s in Navigation.getClearRegion(coordinate)
+            if s.startswith(tuple(names))
+        ]
+
+    for region in deduct_area_list:
+        Navigation.deleteClearRegion(region, coordinate)
+
+
 # ============================================================================
 # Debug 日志辅助
 # ============================================================================
@@ -1827,6 +1843,11 @@ class Jack(ModuleBase):
         recfile_name = self.recfile or "default.srec"
         Navigation.setGoodsPolyShape(shape, recfile_name, 0.0)
         return True
+
+    def unbindContainer(self, container_id: str = "", goods_name: str = "") -> bool:
+        # 货物模型关联的扣除区域建立在机器人坐标系，清货时同步删除（同 counterBalanceFork）
+        delete_deduct_area("ShelfDeductArea", Coordinate.ROBOT)
+        return super().unbindContainer(container_id, goods_name)
 
     def init_args(self, args):
         self.task_args = args
