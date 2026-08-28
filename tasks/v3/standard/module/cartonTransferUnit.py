@@ -91,6 +91,7 @@ class ConfigParams:
         module_type = RobotParam.getDevice("Model-000", "moduleType")
         if not module_type:
             raise ValueError("读取设备模型失败: Model-000.moduleType 为空，请检查设备模型配置！")
+        # .id 是背篓个数（id=2 → 背篓0和1，共2个），个数必须>0。
         container_num = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.id")
         if not isinstance(container_num, int) or container_num <= 0:
             raise ValueError(
@@ -1538,7 +1539,7 @@ class ContainerRobot(ModuleBase):
             self.skip_safe_height = "skipSafeHeight" in self.script_args and self.script_args.get("skipSafeHeight")
             container_num = ConfigParams.get_container_count()
             if isinstance(container_num, int) and container_num > 0:
-                Container.initContainer(container_num, "999")
+                Container.initContainer(container_num - 1, "999")
             self.containers = Container.getContainers()
             self.rec_id = uuid.uuid4().hex
             self.box_code_file = self.script_args.get("codeFile", ConfigParams.box_code_file)
@@ -2797,7 +2798,7 @@ def main():
     modbus_args = None
     container_num = ConfigParams.get_container_count()
     if isinstance(container_num, int) and container_num > 0:
-        Container.initContainer(container_num, "999")
+        Container.initContainer(container_num - 1, "999")
 
     while True:
         # 脚本任务状态管理
