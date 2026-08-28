@@ -253,8 +253,8 @@ class ConfigParams:
     pgv_line_angle_threshold = 10.0  # multiLine 模式最大旋转角范围（deg）
     pgv_adjust_region = ""  # multiLine 模式调整区域 JSON 字符串
     pgv_spin = True  # 随动状态下货叉朝向不动
-    pgv_reach_dist = 0.02  # 到点距离精度（m）
-    pgv_reach_angle = 1.0  # 到点角度精度（deg）
+    pgv_reach_dist = 0.005  # 到点距离精度（m），与叉车路径调整一致
+    pgv_reach_angle = 0.5  # 到点角度精度（deg），与叉车路径调整一致
     pgv_max_speed = 0.5  # PGV调整最大线速度（m/s）
     pgv_max_rot_speed = 10.0  # PGV调整最大角速度（deg/s）
 
@@ -522,12 +522,12 @@ class ConfigParams:
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineMaxAngle", name=_TR("[Polyline] Max Angle"),
+                    with builder.CHILD(key="polylineMaxAngle", name=_TR("Max Angle Of Polyline"),
                                        desc=_TR("Maximum angle between two lines.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.3)
                         builder.UNIT("rad")
-                    with builder.CHILD(key="polylinePathDistAccuracy", name=_TR("[Polyline] Path Dist Accuracy"),
+                    with builder.CHILD(key="polylinePathDistAccuracy", name=_TR("Path Dist Accuracy Of Polyline"),
                                        desc=_TR("Position accuracy for path following.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.01)
@@ -642,13 +642,13 @@ class ConfigParams:
                     with builder.CHILD(key="pgvReachDist", name=_TR("Reach Distance Accuracy"),
                                        desc=_TR("PGV secondary adjustment distance accuracy.")):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.02)
+                        builder.DEFAULTVALUE(0.005)
                         builder.UNIT("m")
                         builder.SINGLESTEP(0.001)
                     with builder.CHILD(key="pgvReachAngle", name=_TR("Reach Angle Accuracy"),
                                        desc=_TR("PGV secondary adjustment angle accuracy.")):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(1.0)
+                        builder.DEFAULTVALUE(0.5)
                         builder.UNIT("deg")
                         builder.SINGLESTEP(0.1)
 
@@ -733,8 +733,8 @@ class ConfigParams:
 
         # 通用精度参数
         cls.pgv_spin = cls.config.get("pgvSpin", True)
-        cls.pgv_reach_dist = cls.config.get("pgvReachDist", 0.02)
-        cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 1.0)
+        cls.pgv_reach_dist = cls.config.get("pgvReachDist", 0.005)
+        cls.pgv_reach_angle = cls.config.get("pgvReachAngle", 0.5)
         cls.pgv_max_speed = cls.config.get("pgvMaxSpeed", 0.5)
         cls.pgv_max_rot_speed = cls.config.get("pgvMaxRotSpeed", 10.0)
 
@@ -4650,8 +4650,8 @@ class PGVSecondaryAdjust(ActionBase):
                  line_angle_threshold: float = 0.1,
                  adjust_region: str = "",
                  pgv_spin: bool = True,
-                 pgv_reach_dist: float = 0.02,
-                 pgv_reach_angle: float = 1.0,
+                 pgv_reach_dist: float = 0.005,
+                 pgv_reach_angle: float = 0.5,
                  pgv_max_speed: float = 0.5,
                  pgv_max_rot_speed: float = 10.0):
         super().__init__("PGVSecondaryAdjust")
@@ -4839,7 +4839,7 @@ class PGVCodeStripAdjust(ActionBase):
     """
 
     def __init__(self, angle_adjust_type: str = "parallelToCode",
-                 pgv_reach_dist: float = 0.02, pgv_reach_angle: float = 1.0,
+                 pgv_reach_dist: float = 0.005, pgv_reach_angle: float = 0.5,
                  use_target_position: bool = False,
                  r2ad_x: float = 0.0, r2ad_y: float = 0.0, r2ad_theta: float = 0.0):
         super().__init__("PGVCodeStripAdjust")

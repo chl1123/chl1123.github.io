@@ -484,12 +484,12 @@ class ConfigParams:
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("m")
-                    with builder.CHILD(key="polylineMaxAngle", name=_TR("[Polyline] Max Angle"),
+                    with builder.CHILD(key="polylineMaxAngle", name=_TR("Max Angle Of Polyline"),
                                        desc=_TR("Maximum angle between two lines.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.3)
                         builder.UNIT("rad")
-                    with builder.CHILD(key="polylinePathDistAccuracy", name=_TR("[Polyline] Path Dist Accuracy"),
+                    with builder.CHILD(key="polylinePathDistAccuracy", name=_TR("Path Dist Accuracy Of Polyline"),
                                        desc=_TR("Position accuracy for path following.")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.01)
