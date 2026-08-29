@@ -1731,6 +1731,7 @@ class CleanRobotManage:
         self.priority_exit_required = False
         self.clean_area_pairs: List[Tuple[str, str]] = []
         self.clean_area_index = 0
+        self.failed_clean_area_index: Optional[int] = None
         self.simulation_clean_area_count = 0
         self.simulation_charge_started_at = None
         self.simulation_charge_arrived_at = None
@@ -1993,6 +1994,7 @@ class CleanRobotManage:
                      if isinstance(location, str) and location.startswith("AP")]
         self.clean_area_pairs = list(zip(ap_points[::2], ap_points[1::2]))
         self.clean_area_index = 0
+        self.failed_clean_area_index = None
 
     def _mark_clean_area_finished(self):
         """仅在弓字形清扫完成后推进清扫区域索引。"""
@@ -2000,6 +2002,7 @@ class CleanRobotManage:
             return
         current_pair = (self.current_entrance, self.current_exit)
         if current_pair == self.clean_area_pairs[self.clean_area_index]:
+            self.failed_clean_area_index = None
             self.clean_area_index += 1
             Trace.log(f"[cleanRobotManage] Clean area finished: {current_pair}, "
                       f"next_index={self.clean_area_index}")
@@ -2442,6 +2445,18 @@ class CleanRobotManage:
             self.clean_area_index < len(self.clean_area_pairs) and
             (source, target) == self.clean_area_pairs[self.clean_area_index]
         )
+        if (not target_is_next and
+                self.failed_clean_area_index == self.clean_area_index and
+                self.clean_area_index + 1 < len(self.clean_area_pairs) and
+                (source, target) == self.clean_area_pairs[self.clean_area_index + 1]):
+            self.clean_area_index += 1
+            self.failed_clean_area_index = None
+            self._save_order_state()
+            target_is_next = True
+            Trace.log(
+                f"[cleanRobotManage] Skipping failed clean area, "
+                f"resume_index={self.clean_area_index}, target={source}->{target}"
+            )
 
         if self.current_entrance != source or self.current_exit != target:
             self.current_entrance = source
@@ -2512,6 +2527,9 @@ class CleanRobotManage:
     #暂停清扫任务
     def _handle_cancel_clean_path(self,reason:str=""):
         if self.priority_task_phase:
+            return
+        if (self.clean_close_pending and
+                self.boustrophedon_path_state == BoustrophedonPathState.FINISHED):
             return
 
         path_active = self.boustrophedon_path_state in (
@@ -2942,6 +2960,7 @@ class CleanRobotManage:
             return
 
         if self.boustrophedon_path_state == BoustrophedonPathState.FAILED:
+            self.failed_clean_area_index = self.clean_area_index
             Trace.log(f"[cleanRobotManage] goBoustrophedonPath failed for area which exit {self.current_exit}")
             # self.call_mech("WashEnd")
             self.vehicle_state = VehicleState.IDLE
@@ -3030,6 +3049,7 @@ class CleanRobotManage:
             return
 
         if self.boustrophedon_path_state == BoustrophedonPathState.FAILED:
+            self.failed_clean_area_index = self.clean_area_index
             Trace.log(f"[cleanRobotManage] goBoustrophedonPath failed for area  which entr {self.current_entrance}")
             self.erp_state = ERPState.ERROR
             if not config_params.isTrue:
@@ -3222,6 +3242,7 @@ class CleanRobotManage:
 
         if self.boustrophedon_path_state == BoustrophedonPathState.FAILED:
             Trace.log(f"[cleanRobotManage] goRemainingPath failed for area which exit {self.current_exit}")
+            self.failed_clean_area_index = self.clean_area_index
             # self.call_mech("WashEnd")
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
