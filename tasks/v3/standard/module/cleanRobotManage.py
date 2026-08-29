@@ -822,6 +822,8 @@ class CleanRobotMech:
         self.task_update_start = time.time()
         self.period_run_counter = 0
         self.drive_speed = 0.0
+        self.startup_lift_reset_start = None
+        self.startup_lift_reset_done = False
 
 
         self.hardware = CleanRobotHardware(self)
@@ -831,6 +833,16 @@ class CleanRobotMech:
     def period_run(self):
         """周期性运行函数"""
         self.period_run_counter += 1
+        if not self.startup_lift_reset_done:
+            Trace.debug("[cleanRobotManage] Startup lift reset in progress")
+            if self.startup_lift_reset_start is None:
+                self.startup_lift_reset_start = time.time()
+            if time.time() - self.startup_lift_reset_start < 10.0:
+                self.hardware.ctrl_brush_lift(MechWorkState.CLOSE)
+                self.hardware.ctrl_mop_lift(MechWorkState.CLOSE)
+            else:
+                self.startup_lift_reset_done = True
+                Trace.log("[cleanRobotManage] Startup lift reset completed")
         if self.period_run_counter < 100:
             return True
         if self.period_run_counter == 100:
@@ -1748,9 +1760,6 @@ class CleanRobotManage:
         # call_mech 原始参数
         self.pre_arg=None
 
-        self.firstRun = True
-        self.firstOpen = True
-
         Trace.log("[cleanRobotManage] Initialized")
 
     # ============================================================
@@ -2354,6 +2363,9 @@ class CleanRobotManage:
         self.clean_close_pending = False
 
     def run(self, args: Dict[str, Any], isFirstRun: bool = False):
+        if not config_params.isTrue and not self.mech.startup_lift_reset_done:
+            return
+
         op = args.get("operation")
         if not op:
             Trace.log(f"[cleanRobotManage] run() called with operation=None, args={args}")
@@ -2363,19 +2375,7 @@ class CleanRobotManage:
         if op == "RunCleanPathAndWashStart":
             if isFirstRun:
                 Trace.log(f"[cleanRobotManage] First go clean path and wash start, validated_params={args}")
-            if config_params.isTrue:
-                self._handle_run_clean_path_and_wash(args, is_wash=True)
-            elif self.firstRun:
-                if self.firstOpen:
-                    tem_statu = self.call_mech("MechanismOpen")
-                    if tem_statu in (ScriptStatus.FINISHED, ScriptStatus.FAILED):
-                        self.firstOpen = False
-                else:
-                    tem_statu2=self.call_mech("MechanismClose")
-                    if tem_statu2 in (ScriptStatus.FINISHED, ScriptStatus.FAILED):
-                        self.firstRun = False
-            else:
-                self._handle_run_clean_path_and_wash(args, is_wash=True)
+            self._handle_run_clean_path_and_wash(args, is_wash=True)
         elif op == "RunCleanPath":
             if isFirstRun:
                 Trace.log(f"[cleanRobotManage] First go clean path, validated_params={args}")
