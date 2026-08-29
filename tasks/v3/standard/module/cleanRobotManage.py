@@ -60,11 +60,35 @@ from syspy.utils.param_server import ParamBuilder, ParamType, ParamValidator, Sc
 class Trace:
     """为本脚本日志按配置统一添加时间。"""
 
+    LOG_FILE = f"/home/cleanRobotManage_{time.strftime('%Y%m%d_%H%M%S')}.log"
+    file_error_logged = False
+
     @staticmethod
     def log(message):
         if getattr(globals().get("ConfigParams"), "addTime", False):
             message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}"
         RbkTrace.log(message)
+        Trace._write_file(message)
+
+    @staticmethod
+    def debug(message):
+        """仅在开启日志落盘时记录高频调试信息，避免刷屏。"""
+        if not getattr(globals().get("ConfigParams"), "logWrite", False):
+            return
+        if getattr(globals().get("ConfigParams"), "addTime", False):
+            message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}"
+        Trace._write_file(message)
+
+    @staticmethod
+    def _write_file(message):
+        if getattr(globals().get("ConfigParams"), "logWrite", False):
+            try:
+                with open(Trace.LOG_FILE, "a", encoding="utf-8") as log_file:
+                    log_file.write(f"{message}\n")
+            except Exception as exc:
+                if not Trace.file_error_logged:
+                    RbkTrace.log(f"Failed to write log file {Trace.LOG_FILE}: {exc}")
+                    Trace.file_error_logged = True
 
 
 # 本脚本自己的 param loader
@@ -100,6 +124,7 @@ class ConfigParams:
 
     config: Dict[str, Any] = {}
     addTime = False
+    logWrite = False
 
     def __init__(self):
         self.build_and_load_config()
@@ -160,6 +185,14 @@ class ConfigParams:
                             key="addTime",
                             name="addTime",
                             desc="日志是否添加年月日时分秒",
+                    ):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
+
+                    with builder.CHILD(
+                            key="logWrite",
+                            name="logWrite",
+                            desc="是否将日志写入/home文件",
                     ):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
@@ -462,6 +495,7 @@ class ConfigParams:
     def reload_config(cls):
         cls.config = param_loader.loadConfig()
         cls.addTime = cls.config.get("addTime", False)
+        cls.logWrite = cls.config.get("logWrite", False)
         Trace.log("Reloading cleanRobotManage config parameters")
         cls.timeout = cls.config.get("timeout")
         cls.scene_id = cls.config.get("scene_id", "690843857C47EE4EE84D5AB7")
@@ -661,36 +695,44 @@ class CleanRobotHardware:
 
     def ctrl_suck(self, power=0):
         cmd = MechCmd.SUCK[:12] + hex(power)[2:].zfill(2) + MechCmd.SUCK[14:]
+        Trace.debug(f"[cleanRobotManage] Sending suck cmd:  {cmd}  吸风电机功率: {power}")
         self.send_cmd(cmd)
 
     def ctrl_brush(self, power=0):
         cmd = MechCmd.BRUSH[:12] + hex(power)[2:].zfill(2) + MechCmd.BRUSH[14:]
+        Trace.debug(f"[cleanRobotManage] Sending brush cmd:  {cmd}  滚刷电机功率: {power}")
         self.send_cmd(cmd)
 
     def ctrl_jet_pump(self, power=0):
         cmd = MechCmd.JET_PUMP[:12] + hex(power)[2:].zfill(2) + MechCmd.JET_PUMP[14:]
+        Trace.debug(f"[cleanRobotManage] Sending jet pump cmd:  {cmd}  喷水电机功率: {power}")
         self.send_cmd(cmd)
 
     def ctrl_pod_length(self, power=0):
         cmd = MechCmd.BRUSH_POD_DOWN[:12] + hex(power)[2:].zfill(2) + MechCmd.BRUSH_POD_DOWN[14:]
+        Trace.debug(f"[cleanRobotManage] Sending pod length cmd:  {cmd}  推轮电机功率: {power}")
         self.send_cmd(cmd)
 
     def ctrl_brush_lift(self, state):
         cmd = MechCmd.BRUSH_LIFT_DOWN if state == MechWorkState.OPEN else MechCmd.BRUSH_LIFT_UP
+        Trace.debug(f"[cleanRobotManage] Sending brush lift cmd:  {cmd}  滚刷升降杆状态: {state}")
         self.send_cmd(cmd)
 
     def ctrl_mop_lift(self, state):
         cmd = MechCmd.MOP_LIFT_DOWN if state == MechWorkState.OPEN else MechCmd.MOP_LIFT_UP
+        Trace.debug(f"[cleanRobotManage] Sending mop lift cmd:  {cmd}  水趴升降杆状态: {state}")
         self.send_cmd(cmd)
 
     def ctrl_clean_valve(self, state):
         """控制清水阀，OPEN表示打开，其他状态表示关闭"""
         cmd = MechCmd.WATER_VALVE_OPEN if state == MechWorkState.OPEN else MechCmd.WATER_VALVE_CLOSE
+        Trace.debug(f"[cleanRobotManage] Sending clean valve cmd:  {cmd}  清水阀状态: {state}")
         self.send_cmd(cmd)
 
     def ctrl_waste_valve(self, state):
         """控制污水排放球阀，OPEN表示打开，其他状态表示关闭"""
         cmd = MechCmd.BRAIN_BALL_VALVE_OPEN if state == MechWorkState.OPEN else MechCmd.BRAIN_BALL_VALVE_CLOSE
+        Trace.debug(f"[cleanRobotManage] Sending waste valve cmd:  {cmd}  污水排放球阀状态: {state}")
         self.send_cmd(cmd)
 
     def ctrl_open_all(self, mode):
@@ -863,12 +905,16 @@ class CleanRobotMech:
             if self.operation == "WashStart":
                 self.update_power_by_speed()
         elif task_status == 3:
+            Trace.log("[cleanRobotManage] Task status 3: Suspend")
             self.wash_suspend()
         elif task_status == 5:
+            Trace.log("[cleanRobotManage] Task status 5: End")
             self.wash_end()
         elif task_status == 6:
+            Trace.log("[cleanRobotManage] Task status 6: End")
             self.wash_end()
         if Controller.getEmc():
+            Trace.log("[cleanRobotManage] EMC signal: End")
             self.wash_end()
         loc_state = Loc.getLocState()
         if self.filter_waste_water_level() > config_params.max_waste_water_level:
@@ -1211,7 +1257,13 @@ class CleanRobotMech:
             self.push_rod_status = int(recv_data[14:16], 16)
             self.jet_status = MechWorkingStatus(int(state[1:2]))
             self.brush_status = MechWorkingStatus(int(state[2:3]))
+            previous_suck_status = self.suck_status
             self.suck_status = MechWorkingStatus(int(state[3:4]))
+            if previous_suck_status != self.suck_status:
+                Trace.debug(
+                    f"[cleanRobotManage] Suck status changed: "
+                    f"{previous_suck_status} -> {self.suck_status}"
+                )
             self.waste_valve_status = MechWorkingStatus(int(state[4:5]))
             self.clean_valve_status = MechWorkingStatus(int(state[5:6]))
             self.mop_lift_status = MechWorkingStatus(int(state[6:7]))
@@ -3650,7 +3702,7 @@ def main():
         # - Module.reportInfo() 将状态信息上报给系统
         # - 上报的信息包括：状态机状态、电池水位、任务进度、断点信息等
         mgr.update_report_info()
-        time.sleep(0.1)
+        # time.sleep(0.1)
         Module.reportInfo(mgr.report_info)
         time.sleep(0.1)
         # move_task = Navigation.moveTask()
