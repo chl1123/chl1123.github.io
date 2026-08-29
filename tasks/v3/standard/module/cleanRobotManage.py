@@ -664,10 +664,15 @@ class CleanRobotHardware:
         self.default_data = '0' * 16
         self.query_all_cmd_status = MechWorkingStatus.INIT
         self._can_data_lock = threading.Lock()
+        self._can_send_lock = threading.Lock()
         self._latest_can_data = {}
         self._can_reader_stop = threading.Event()
         self._can_reader_error_logged = False
         self._can_reader_thread = None
+        self._can_query_thread = None
+        self._can_query_error_logged = False
+        self._last_query_all_data = None
+        self._unchanged_query_all_count = 0
         if not config_params.isTrue:
             self._can_reader_thread = threading.Thread(
                 target=self._read_can_data,
@@ -675,6 +680,12 @@ class CleanRobotHardware:
                 daemon=True,
             )
             self._can_reader_thread.start()
+            self._can_query_thread = threading.Thread(
+                target=self._query_can_data,
+                name="clean_robot_can_query",
+                daemon=True,
+            )
+            self._can_query_thread.start()
 
     def _read_can_data(self):
         """后台读取CAN报文，避免阻塞机构周期线程。"""
@@ -682,8 +693,16 @@ class CleanRobotHardware:
             try:
                 data = Can.getData()
                 if isinstance(data, dict) and data:
-                    with self._can_data_lock:
-                        self._latest_can_data = data.copy()
+                    try:
+                        recv_data = base64.b64decode(data.get('data', '')).hex().upper()
+                        can_id = int(data.get('id', 0))
+                    except (TypeError, ValueError, base64.binascii.Error):
+                        recv_data = ""
+                        can_id = 0
+                    # 只缓存机构状态应答，避免其他CAN报文覆盖最新状态。
+                    if can_id + 128 == self.can_id and recv_data[:8] == "43034000":
+                        with self._can_data_lock:
+                            self._latest_can_data = data.copy()
                 self._can_reader_error_logged = False
             except Exception as exc:
                 if not self._can_reader_error_logged:
@@ -692,6 +711,19 @@ class CleanRobotHardware:
                 self._can_reader_stop.wait(0.1)
                 continue
             self._can_reader_stop.wait(0.01)
+
+    def _query_can_data(self):
+        """后台周期发送状态查询，避免查询发送阻塞主循环。"""
+        while not self._can_reader_stop.is_set():
+            try:
+                Trace.debug(f"[cleanRobotManage] Sending query all cmd: {MechCmd.QUERY_ALL_INFO}")
+                self.send_cmd(MechCmd.QUERY_ALL_INFO)
+                self._can_query_error_logged = False
+            except Exception as exc:
+                if not self._can_query_error_logged:
+                    Trace.log(f"[cleanRobotManage] CAN query failed: {exc}")
+                    self._can_query_error_logged = True
+            self._can_reader_stop.wait(0.1)
 
     def ctrl_suck(self, power=0):
         cmd = MechCmd.SUCK[:12] + hex(power)[2:].zfill(2) + MechCmd.SUCK[14:]
@@ -750,14 +782,45 @@ class CleanRobotHardware:
 
     def query_all_info(self):
         self.query_all_cmd_status = MechWorkingStatus.RUNNING
-        recv_data = self.send_cmd(MechCmd.QUERY_ALL_INFO)
+        with self._can_data_lock:
+            data = self._latest_can_data.copy()
+        b64_str = data.get('data', '')
+        can_id = data.get('id', 0)
+        try:
+            recv_data = base64.b64decode(b64_str).hex().upper()
+        except Exception:
+            recv_data = self.default_data
+        if can_id + 128 != self.can_id:
+            recv_data = self.default_data
         if recv_data[:8] == "43034000":
+            if recv_data != self._last_query_all_data:
+                Trace.debug(
+                    f"[cleanRobotManage] CAN status response changed: "
+                    f"{self._last_query_all_data} -> {recv_data}"
+                )
+                self._last_query_all_data = recv_data
+                self._unchanged_query_all_count = 0
+            else:
+                self._unchanged_query_all_count += 1
+                if self._unchanged_query_all_count >= 50:
+                    Trace.debug(
+                        f"[cleanRobotManage] CAN status response unchanged "
+                        f"for 100 queries: {recv_data}"
+                    )
+                    self._unchanged_query_all_count = 0
             self.query_all_cmd_status = MechWorkingStatus.FINISHED
             return recv_data
+        self.query_all_cmd_status = MechWorkingStatus.INIT
         return self.default_data
 
     def send_cmd(self, cmd):
-        Can.sendCanFrame(self.chanel, self.can_id, self.dlc, self.extend, cmd)
+        send_start = time.monotonic()
+        with self._can_send_lock:
+            send_result = Can.sendCanFrame(self.chanel, self.can_id, self.dlc, self.extend, cmd)
+        Trace.debug(
+            f"[cleanRobotManage] Can.sendCanFrame returned: cmd={cmd}, "
+            f"result={send_result}, elapsed={time.monotonic() - send_start:.3f}s"
+        )
         with self._can_data_lock:
             data = self._latest_can_data.copy()
         b64_str = data.get('data', '')
