@@ -1091,7 +1091,11 @@ class CleanRobotMech:
         self.operation = "WashStopWater"
         self.water_stopped_for_path_end = True
         self.jet_starting = True
-        self.set_jet_power(0)
+        self.hardware.ctrl_jet_pump(0)
+        if self.clean_valve_status == MechWorkingStatus.RUNNING:
+            self.hardware.ctrl_clean_valve(MechWorkState.CLOSE)
+        if not self.close_jet_pump_start:
+            self.close_jet_pump_start = time.time()
         self.hardware.ctrl_brush_lift(MechWorkState.CLOSE)
 
 
