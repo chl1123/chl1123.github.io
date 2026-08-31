@@ -969,6 +969,25 @@ class NavigationInterface(ABC, Service):
         """
         raise RBKVersionError()
 
+    @classmethod
+    def disableCancel(cls):
+        """在当前任务执行期间，禁止 smartCancel 取消任务。
+
+        调用该方法后，针对 smartCancel 取消任务时，不会再调用 ModuleBase 子类的 cancel 方法
+        任务进入终态时自动恢复取消能力，也可以显式调用 enableCancel() 恢复。
+        该接口不影响普通 cancelTask()。
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def enableCancel(cls):
+        """恢复 smartCancel 取消任务能力。
+
+        调用该方法后，取消任务时，都会触发 ModuleBase 子类的 cancel 方法
+        该接口不影响普通 cancelTask()。
+        """
+        raise RBKVersionError()
+
 
 class NavStatusInterface(ABC, Message):
     """导航状态类"""

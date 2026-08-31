@@ -465,6 +465,16 @@ class NavigationV3(NavigationInterface):
     def errorExists(cls, key: str) -> bool:
         return cls.client().call_service("MoveFactory", "errorExists", "py@" + key)
 
+    @classmethod
+    @call_service()
+    def disableCancel(cls):
+        pass
+
+    @classmethod
+    @call_service()
+    def enableCancel(cls):
+        pass
+
 
 @default_plugin("MoveFactory")
 class NavStatusV3(NavStatusInterface):
