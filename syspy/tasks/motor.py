@@ -16,6 +16,7 @@ from syspy import (
     Motor,
     Navigation,
     Odometer,
+    Di,
     ParamType,
     RobotParam,
     ScriptParam,
@@ -27,6 +28,7 @@ from syspy.utils import ScriptType
 
 
 MOD = "motor"
+MOTOR_ACTION_ERROR_KEY = "ms@MotorAction"
 start_time = time.time()
 script_param = ScriptParam(__file__)
 
@@ -41,6 +43,20 @@ def required(req: Dict[str, Any], param_name: str) -> Any:
     if param_name not in req:
         raise ParamError(f"Missing required parameter: {param_name}")
     return req[param_name]
+
+
+def _motor_limit_di(motor_name: str, direction: str) -> str:
+    """读取线性电机模型中的上下限位 DI。"""
+    motor_func = RobotParam.getDevice(motor_name, "func") or ""
+    if not motor_func:
+        return ""
+    names = ("upLimitDI", "upLimitDi", "UpLimitDI") if direction == "up" else (
+        "DownLimitDI", "downLimitDI", "downLimitDi", "DownLimitDi")
+    for name in names:
+        value = RobotParam.getDevice(motor_name, f"func.{motor_func}.{name}")
+        if value:
+            return str(value)
+    return ""
 
 
 class MotorControlAction(ActionBase):
@@ -69,6 +85,9 @@ class MotorControlAction(ActionBase):
         self._max_angle = 0.0
         self._last_motor_pos = None
         self._position_stable_since = None
+        self._motion_direction = ""
+        self._up_limit_di = ""
+        self._down_limit_di = ""
 
     def args_summary(self) -> dict:
         return {
@@ -83,6 +102,7 @@ class MotorControlAction(ActionBase):
         self._started = False
         self._last_motor_pos = None
         self._position_stable_since = None
+        self._motion_direction = ""
 
     def _resolve_key(self) -> str:
         key = self.args.get("key")
@@ -178,6 +198,55 @@ class MotorControlAction(ActionBase):
         self.fail_reason = str(exc)
         self.action_status = ActionStatus.FAILED
         Trace.log(f"motor control failed error={exc}", name=f"{MOD}.err")
+
+    def _check_linear_motor_error(self) -> bool:
+        """检查线性电机限位错误；仅允许反向动作清除后继续。"""
+        if self.operation != "motorControl" or self.motor_type != "linear":
+            return False
+        try:
+            exists = Service.client().call_service(
+                "Error", "existSystemError", MOTOR_ACTION_ERROR_KEY)
+        except Exception as exc:
+            Trace.log(f"failed to query linear motor action error: {exc}", name=f"{MOD}.err")
+            return False
+        if not exists:
+            return False
+
+        triggered = []
+        for direction, di in (("up", self._up_limit_di), ("down", self._down_limit_di)):
+            if di and Di.getDi(di):
+                triggered.append((direction, di))
+        details = ", ".join(
+            f"电机={self.key}, {direction}限位DI={di}" for direction, di in triggered
+        ) or f"电机={self.key}, 未检测到已配置限位DI"
+        Trace.log(
+            f"MF motor action error detected: key={MOTOR_ACTION_ERROR_KEY}, "
+            f"direction={self._motion_direction or 'unknown'}, {details}",
+            name=f"{MOD}.err",
+        )
+
+        if (triggered and self._motion_direction and
+                all(direction != self._motion_direction for direction, _ in triggered)):
+            try:
+                result = Service.client().call_service(
+                    "Error", "clearSystemError", MOTOR_ACTION_ERROR_KEY)
+                Trace.log(
+                    f"linear motor reverse action; MF error cleared: motor={self.key}, "
+                    f"return={result}, {details}",
+                    name=f"{MOD}.motor",
+                )
+                return False
+            except Exception as exc:
+                Trace.log(f"failed to clear MF motor action error: {exc}", name=f"{MOD}.err")
+
+        error_desc = (
+            f"MF {MOTOR_ACTION_ERROR_KEY}：电机={self.key}，"
+            f"动作方向={self._motion_direction or 'unknown'}，{details}"
+        )
+        Navigation.setTaskError("MotorActionLimitError", error_desc)
+        self.action_status = ActionStatus.FAILED
+        Trace.log(f"MF error cannot be cleared; stopping linear motor action: {error_desc}", name=f"{MOD}.err")
+        return True
 
     def _start(self):
         self._started = True
@@ -306,6 +375,14 @@ class MotorControlAction(ActionBase):
         operation_time = float(required(self.args, "operationTime"))
         self._max_length = float(RobotParam.getDevice(self.key, "func.linear.maxLength"))
         self._min_length = float(RobotParam.getDevice(self.key, "func.linear.minLength"))
+        self._up_limit_di = _motor_limit_di(self.key, "up")
+        self._down_limit_di = _motor_limit_di(self.key, "down")
+        Trace.log(
+            f"linear motor limit configuration: motor={self.key}, "
+            f"upLimitDI={self._up_limit_di or 'not configured'}, "
+            f"downLimitDI={self._down_limit_di or 'not configured'}",
+            name=f"{MOD}.cfg",
+        )
 
         if pos is None and speed is None:
             raise ParamError("'pos' and 'speed' are both None for linear motor")
@@ -331,11 +408,23 @@ class MotorControlAction(ActionBase):
                     self._pos,
                     current_pos + operation_time * self._max_speed,
                 )
+            self._motion_direction = (
+                "up" if self._pos > current_pos else
+                "down" if self._pos < current_pos else ""
+            )
+            if self._check_linear_motor_error():
+                return
             Motor.setMotorPosition(
                 self.key, self._pos, self._max_speed, self._stop_di
             )
         else:
             self._speed = float(speed)
+            self._motion_direction = (
+                "up" if self._speed > 0 else
+                "down" if self._speed < 0 else ""
+            )
+            if self._check_linear_motor_error():
+                return
 
     def _step(self):
         if self.operation == "setHoming":
@@ -413,8 +502,12 @@ class MotorControlAction(ActionBase):
         if self.action_status != ActionStatus.RUNNING:
             return
         try:
-            if not self._started:
+            was_started = self._started
+            if not was_started:
                 self._start()
+            if self.action_status == ActionStatus.RUNNING and was_started:
+                if self._check_linear_motor_error():
+                    return
             if self.action_status == ActionStatus.RUNNING:
                 self._step()
         except Exception as exc:
