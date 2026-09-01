@@ -1,3 +1,4 @@
+      
 # -*- coding: utf-8 -*-
 # @Date : 2026/7/21
 # @Author : zhaopengfei
@@ -6,6 +7,7 @@
 
 import json
 import math
+import os
 import struct
 import time
 from enum import IntEnum
@@ -212,7 +214,7 @@ class RackSizeManager:
     - LastUsedAt 仅在取放货任务**成功完成**后写入（非仅识别成功）
     - 货架尺寸参数修改（实质变更）后，清空对应的 LastUsedAt，更新 UpdatedAt
     - 识别全部失败时，上报 RACK_NOT_MATCHED，不写入任何 LastUsedAt
-    - 最多支持 5 个货架尺寸（由 ConfigParams.rack_size_files 控制）
+    - 自动使用识别目录下的所有 .srec 文件
     """
 
     KEY_RACK_METADATA = "rackSizeMetadata"  # LevelDB 中存储元数据的键
@@ -381,6 +383,7 @@ rack_size_manager = RackSizeManager()
 # --- ConfigParams 类（放在前面） ---
 class ConfigParams:
     """配置管理器，用于管理动态配置参数"""
+    recognition_dir = "/opt/.data/rbk/resources/apps/recognition"
     config = {}
     timeout = None
     jack_motor_speed = None
@@ -388,6 +391,8 @@ class ConfigParams:
     jack_max_height = None
     jack_load_time = 30.0  # 顶升到位超时（秒）
     jack_unload_time = 30.0  # 下降到位超时（秒）
+    rack_width_diff_min = 0.1  # 多货架最小宽度差（米）
+    rack_width_config_error = ""
 
     # Debug开关
     debug_mode = False
@@ -530,10 +535,20 @@ class ConfigParams:
                                        desc=_TR("Enable automatic motor calibration (zero) on script startup.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="refreshRecFiles",
+                                       name=_TR("Refresh Recognition Files"),
+                                       desc=_TR("Toggle this parameter to trigger a recognition directory rescan.")):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
                     with builder.CHILD(key="loadAgainError", name=_TR("Load Again Error Protection"),
                                        desc=_TR("Enable protection to prevent loading when goods already on robot.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
+                    with builder.CHILD(key="rackWidthDiffMin", name=_TR("Rack Width Minimum Difference"),
+                                       desc=_TR("Minimum width difference between recognition files.")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.1, min_value=0.0, max_value=3.0)
+                        builder.UNIT("m")
 
             # ============================================
             # 电机与IO配置组（电机速度 + DI + DO + 延迟）
@@ -818,40 +833,6 @@ class ConfigParams:
                         builder.UNIT("deg")
                         builder.SINGLESTEP(0.1)
 
-            # ============================================
-            # 货架尺寸识别文件配置组（最多5个）
-            # ============================================
-            with builder.GROUP(key="rackSizeConfig", name=_TR("Rack Size Config"),
-                               desc=_TR("Multiple rack size recognition files (max 5). "
-                                        "Tried in priority order during recognition.")):
-                builder.TYPE(ParamType.ARRAY)
-                with builder.CHILDREN():
-                    with builder.CHILD(key="recFile1", name=_TR("Rack Size 1"),
-                                       desc=_TR("Recognition file for rack size 1.")):
-                        builder.TYPE(ParamType.BIND_TYPE)
-                        builder.BINDTYPE(BindType.App.RECOGNITION)
-                        builder.REQUIRED(False)
-                    with builder.CHILD(key="recFile2", name=_TR("Rack Size 2"),
-                                       desc=_TR("Recognition file for rack size 2.")):
-                        builder.TYPE(ParamType.BIND_TYPE)
-                        builder.BINDTYPE(BindType.App.RECOGNITION)
-                        builder.REQUIRED(False)
-                    with builder.CHILD(key="recFile3", name=_TR("Rack Size 3"),
-                                       desc=_TR("Recognition file for rack size 3.")):
-                        builder.TYPE(ParamType.BIND_TYPE)
-                        builder.BINDTYPE(BindType.App.RECOGNITION)
-                        builder.REQUIRED(False)
-                    with builder.CHILD(key="recFile4", name=_TR("Rack Size 4"),
-                                       desc=_TR("Recognition file for rack size 4.")):
-                        builder.TYPE(ParamType.BIND_TYPE)
-                        builder.BINDTYPE(BindType.App.RECOGNITION)
-                        builder.REQUIRED(False)
-                    with builder.CHILD(key="recFile5", name=_TR("Rack Size 5"),
-                                       desc=_TR("Recognition file for rack size 5.")):
-                        builder.TYPE(ParamType.BIND_TYPE)
-                        builder.BINDTYPE(BindType.App.RECOGNITION)
-                        builder.REQUIRED(False)
-
         builder.save(merge=True)
         cls.reload_config()
 
@@ -873,6 +854,7 @@ class ConfigParams:
         cls.jack_max_height = cls.config.get("jackMaxHeight", 0.06)
         cls.jack_load_time = cls.config.get("loadTime", 30.0)
         cls.jack_unload_time = cls.config.get("unloadTime", 30.0)
+        cls.rack_width_diff_min = float(cls.config.get("rackWidthDiffMin", 0.1) or 0.0)
 
 
         # DI配置（从设备绑定读取）
@@ -942,24 +924,64 @@ class ConfigParams:
         cls.scriptName = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.moduleScript") or ""
         cls._build_module_motor()
 
-        # 货架尺寸识别文件列表（5个单绑定项，过滤空值）
-        # BindType.App.RECOGNITION 绑定值带 "recognition/" 前缀，而 doRec/getConfig
-        # 期望纯文件名（如 default.srec），需剔除该前缀，否则识别按错误路径查找失败。
-        _rec_prefix = "recognition/"
-        cls.rack_size_files = [
-            f[len(_rec_prefix):] if f.startswith(_rec_prefix) else f
-            for f in [
-                cls.config.get("recFile1", ""),
-                cls.config.get("recFile2", ""),
-                cls.config.get("recFile3", ""),
-                cls.config.get("recFile4", ""),
-                cls.config.get("recFile5", ""),
-            ] if f
-        ]
-        # 注册到管理器（新文件写入 CreatedAt，已有文件保留元数据）
+        # 启动或配置回调时建立识别文件列表；任务执行过程中不刷新。
+        cls.refresh_recfiles()
+
+    @classmethod
+    def _discover_recfiles(cls) -> list:
+        """扫描识别目录，返回目录下所有识别文件名。"""
+        try:
+            files = [
+                name for name in os.listdir(cls.recognition_dir)
+                if name.lower().endswith(".srec")
+                and os.path.isfile(os.path.join(cls.recognition_dir, name))
+            ]
+            files.sort()
+            debug_trace(
+                f"RackSizeConfig: 自动发现 {len(files)} 个识别文件: {files}",
+                name=f"{MOD}.cfg",
+            )
+            return files
+        except OSError as exc:
+            Trace.log(
+                f"RackSizeConfig: 扫描识别目录失败 path={cls.recognition_dir} error={exc}",
+                name=f"{MOD}.err",
+            )
+            return []
+
+    @classmethod
+    def refresh_recfiles(cls) -> list:
+        """刷新识别文件列表，并为新文件建立优先级元数据。"""
+        cls.rack_size_files = cls._discover_recfiles()
+        cls.rack_width_config_error = ""
+        widths = []
+        for recfile in cls.rack_size_files:
+            try:
+                width = RobotParam.getConfig(
+                    "recognition",
+                    "recognitionObject.shelf.carrierParameter.carrierWidth",
+                    recfile,
+                )
+                if width is not None:
+                    widths.append((recfile, float(width)))
+            except (TypeError, ValueError):
+                continue
+        for i, (file_a, width_a) in enumerate(widths):
+            for file_b, width_b in widths[i + 1:]:
+                if abs(width_a - width_b) < cls.rack_width_diff_min:
+                    cls.rack_width_config_error = (
+                        f"rack width difference too small: {file_a}={width_a:.3f}m, "
+                        f"{file_b}={width_b:.3f}m, min={cls.rack_width_diff_min:.3f}m"
+                    )
+                    Trace.log(cls.rack_width_config_error, name=f"{MOD}.err")
+                    return cls.rack_size_files
         if cls.rack_size_files:
             rack_size_manager.register_recfiles(cls.rack_size_files)
-            debug_trace(f"RackSizeConfig: 共 {len(cls.rack_size_files)}/5 个文件: {cls.rack_size_files}", name=f"{MOD}.cfg")
+        debug_trace(
+            f"RackSizeConfig: 当前候选文件 {len(cls.rack_size_files)} 个: {cls.rack_size_files}",
+            name=f"{MOD}.cfg",
+        )
+        return cls.rack_size_files
 
     @classmethod
     def _build_module_motor(cls):
@@ -1868,10 +1890,17 @@ class Jack(ModuleBase):
             self.is_recognize = _rec_raw.strip().lower() == "on"
         else:
             self.is_recognize = bool(_rec_raw)
+        if self.is_recognize and config_params.rack_width_config_error:
+            Navigation.setTaskError(
+                "RackWidthConfigError",
+                _TR(config_params.rack_width_config_error),
+            )
+            self.status = ScriptStatus.FAILED
+            return
         self.recfile = self.task_args.get("recFile", None)
         if isinstance(self.recfile, str) and self.recfile.startswith("recognition/"):
             self.recfile = self.recfile[len("recognition/"):]
-        self.insert_shelf_dir = self.task_args.get("insertShelfDir", "B")
+        self.insert_shelf_dir = self.task_args.get("insertShelfDir", "A")
         # 第一次无识别结果时, 向前进 recDist(m) 再识别(仅当任务参数传入 recDist 时启用; 不传=按原逻辑直接报错)
         self.rec_dist = self.task_args.get("recDist", 0.0)
         self.rec_retry_max = int(self.task_args.get("recRetryMax", 3))
@@ -2619,7 +2648,7 @@ class Jack(ModuleBase):
                         target_angle = ap_to_robot_angle
                     self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
 
-                # 启用识别：pickJack.py 非标 - 传入按优先级排序后的文件列表（多货架尺寸回退）
+                # 启用识别：传入按优先级排序后的文件列表，并执行全部候选文件
                 if self.is_recognize:
                     rec_files_to_use = self.recfiles if self.recfiles else (
                         [self.recfile] if self.recfile else [])
@@ -2738,7 +2767,15 @@ class Jack(ModuleBase):
         if not self.operation_init:
             self.operation_init = True
             debug_trace("jackBezierReturn starting", name=MOD)
-            self._resolve_insert_dir(self.recfile)  # 钻入方向：输入 > 识别文件 > "A"
+            rec_files_to_use = self.recfiles
+            if not rec_files_to_use:
+                Navigation.setTaskError(
+                    "NoRecFile",
+                    _TR("Recognition enabled but no recognition file found in the controller directory"),
+                )
+                self.status = ScriptStatus.FAILED
+                return
+            rec_side = self._resolve_insert_dir(rec_files_to_use[0])
 
             # 记录起始位置（用于返回）
             robot_loc = Loc.getPose()
@@ -2773,10 +2810,11 @@ class Jack(ModuleBase):
                     target_angle = ap_to_robot_angle
                 self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
 
-            # 识别货架
-            if self.recfile:
-                self.action_list.append(RecShelf(self.recfile, "BezierReturnRec", side=self.insert_shelf_dir,
-                                                 is_backwards=self.is_backwards))
+            # 识别货架：按优先级遍历目录中的全部识别文件
+            self.action_list.append(
+                RecShelf(rec_files_to_use, "BezierReturnRec", side=rec_side,
+                         is_backwards=self.is_backwards)
+            )
 
         # 识别完成后动态追加后续动作(只追加一次; 方案A: 由 run() 终结后再调度触发)
         if not self._bezier_rec_extended and self._action_finished("BezierReturnRec"):
@@ -2785,7 +2823,15 @@ class Jack(ModuleBase):
 
             # bezier 进入货架
             # back_dist 优先级：识别文件(enableBackDistance=on) > 脚本配置 > 0.24
-            self.back_dist = self._resolve_back_dist(self.recfile)
+            matched_recfile = self.matched_recfile or self.recfile
+            if not matched_recfile:
+                Navigation.setTaskError(
+                    "NoRecFile",
+                    _TR("Recognition completed without a matched recognition file"),
+                )
+                self.status = ScriptStatus.FAILED
+                return
+            self.back_dist = self._resolve_back_dist(matched_recfile)
             self.action_list.append(
                 GoBezier(result_world, self.back_dist, self.adjust_dist_for_curvature_limit,
                          self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
@@ -2796,7 +2842,7 @@ class Jack(ModuleBase):
             # 顶升
             self.action_list.append(
                 JackHeight(config_params.jack_motor_name, self.end_height, config_params.jack_motor_speed))
-            self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
+            self.action_list.append(BindContainer("0", "shelf", matched_recfile, self.insert_shelf_dir,
                                                   is_backwards=self.is_backwards))
             # bezier 退回起始位置
             self.action_list.append(
@@ -2890,8 +2936,18 @@ class Jack(ModuleBase):
         """识别货架"""
         if not self.operation_init:
             self.operation_init = True
-            self._resolve_insert_dir(self.recfile)  # 钻入方向：输入 > 识别文件 > "A"
-            self.action_list.append(RecShelf(self.recfile, side=self.insert_shelf_dir, is_backwards=self.is_backwards))
+            rec_files_to_use = self.recfiles
+            if not rec_files_to_use:
+                Navigation.setTaskError(
+                    "NoRecFile",
+                    _TR("Recognition enabled but no recognition file found in the controller directory"),
+                )
+                self.status = ScriptStatus.FAILED
+                return
+            rec_side = self._resolve_insert_dir(rec_files_to_use[0])
+            self.action_list.append(
+                RecShelf(rec_files_to_use, side=rec_side, is_backwards=self.is_backwards)
+            )
 
     def pgv_adjust(self):
         """二次调整"""
@@ -4201,14 +4257,14 @@ class GoBezierReturn(ActionBase):
 
 class RecShelf(ActionBase):
     """
-    识别货架，支持多个识别文件按优先级顺序依次尝试。
+    识别货架，依次执行全部候选识别文件并统一判定结果。
 
-    - 当前文件成功 → 记录 j.matched_recfile，动作完成
-    - 当前文件超限 → 切换下一个文件继续尝试
-    - 所有文件均失败 → 上报 RACK_NOT_MATCHED，动作失败，不写入任何 LastUsedAt
+    - 唯一文件成功 → 记录 j.matched_recfile，动作完成
+    - 多个文件成功 → 上报识别歧义，动作失败
+    - 所有文件均失败 → 上报 RACK_NOT_MATCHED，动作失败
 
     参数：
-      shelf_files        : list[str] | str  识别文件名（list 时按优先级回退，pickJack.py 非标）
+      shelf_files        : list[str] | str  识别文件名（list 时执行全部候选文件）
       action_name        : str              动作名（用于 _action_finished 检测，默认 "RecShelf"）
       recognition_region : dict | None      识别 ROI；None → 按 is_backwards 选默认车头/车尾区
       side               : str              recognitionSide 名称（A/B/C/D），默认 "A"
@@ -4233,6 +4289,7 @@ class RecShelf(ActionBase):
         self.action_status = ActionStatus.INIT
         self.attempts = 0
         self.max_attempts = 10
+        self.successful_results = []
         self.do_rec = False
         self.side = side
         self.is_backwards = is_backwards
@@ -4267,6 +4324,35 @@ class RecShelf(ActionBase):
             return True
         return False
 
+    def _finish_recognition(self, j: Jack):
+        """全部候选文件执行完成后，统一判定识别结果。"""
+        if len(self.successful_results) == 1:
+            matched = self.successful_results[0]
+            j.matched_recfile = matched["recfile"]
+            j.rec_result = matched["result"]
+            self.action_status = ActionStatus.FINISHED
+            Trace.log(f"[RACK] 唯一识别成功，匹配文件: {j.matched_recfile}")
+            return
+
+        self.action_status = ActionStatus.FAILED
+        if self.successful_results:
+            matched_files = [item["recfile"] for item in self.successful_results]
+            Trace.log(f"[RACK] 识别结果歧义，多个文件同时匹配: {matched_files}")
+            Navigation.setTaskError(
+                "RecAmbiguous",
+                _TR(f"Recognition is ambiguous: multiple recognition files matched: {matched_files}."),
+            )
+        else:
+            Trace.log(f"[RACK] RACK_NOT_MATCHED: 所有 {len(self.shelf_files)} 个文件均未匹配")
+            Navigation.setTaskError(
+                "RecFailed",
+                _TR(
+                    f"Recognition failed: none of the {len(self.shelf_files)} shelf size "
+                    "recognition files matched. Check the recognition distance, sensor status, "
+                    "and shelf configuration."
+                ),
+            )
+
     def run(self, j: Jack):
         self.action_status = ActionStatus.RUNNING
         debug_trace(f"RecShelf: [{self.current_file_idx + 1}/{len(self.shelf_files)}] file={self.recfile}", name=f"{MOD}.rec")
@@ -4291,11 +4377,12 @@ class RecShelf(ActionBase):
             rec_y = world_result['y']
             rec_yaw = world_result['yaw']
             rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
-            j.rec_result = [rec_x, rec_y, rec_yaw]
-            j.matched_recfile = self.recfile
-            debug_trace(f"RecShelf: 识别成功，匹配文件: {self.recfile}, 结果: {j.rec_result}", name=f"{MOD}.rec")
-            Trace.log(f"[RACK] 识别成功，匹配文件: {self.recfile}")
-            self.action_status = ActionStatus.FINISHED
+            result = [rec_x, rec_y, rec_yaw]
+            self.successful_results.append({"recfile": self.recfile, "result": result})
+            debug_trace(f"RecShelf: 当前文件识别成功: {self.recfile}, 结果: {result}", name=f"{MOD}.rec")
+            Trace.log(f"[RACK] 当前文件识别成功，继续检查其他文件: {self.recfile}")
+            if not self._try_next_file():
+                self._finish_recognition(j)
 
         elif rec_status in (3, -1):
             if Timer.delay(0.05):
@@ -4303,17 +4390,7 @@ class RecShelf(ActionBase):
                 debug_trace(f"RecShelf: {self.recfile} 失败 ({self.attempts}/{self.max_attempts})", name=f"{MOD}.rec")
                 if self.attempts > self.max_attempts:
                     if not self._try_next_file():
-                        # 所有文件均失败
-                        self.action_status = ActionStatus.FAILED
-                        Trace.log(f"[RACK] RACK_NOT_MATCHED: 所有 {len(self.shelf_files)} 个文件均未匹配")
-                        Navigation.setTaskError(
-                            "RecFailed",
-                            _TR(
-                                f"Recognition failed: none of the {len(self.shelf_files)} shelf size "
-                                "recognition files matched. Check the recognition distance, sensor status, "
-                                "and shelf configuration."
-                            ),
-                        )
+                        self._finish_recognition(j)
                 else:
                     Recognize.resetRec()
                     self.do_rec = False
@@ -4329,6 +4406,7 @@ class RecShelf(ActionBase):
             "recStatus": rec_status,
             "recAttempts": self.attempts,
             "recResult": j.rec_result,
+            "matchedRecFiles": [item["recfile"] for item in self.successful_results],
         }
         Module.reportInfo(j.report_info)
 
@@ -5060,3 +5138,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+    
+    
