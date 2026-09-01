@@ -336,6 +336,15 @@ class ConfigParams:
                         builder.SINGLESTEP(1)
 
                     with builder.CHILD(
+                            key="elevator_before_jet_power",
+                            name="elevator_before_jet_power",
+                            desc="电梯前一个清洁区域的最大喷水功率，最大为5",
+                    ):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(5)
+                        builder.SINGLESTEP(1)
+
+                    with builder.CHILD(
                             key="auto_adjust_power",
                             name="auto_adjust_power",
                             desc="是否启动电机功率自动调节模式, 1: 启动， 0: 不启动",
@@ -356,6 +365,23 @@ class ConfigParams:
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5.0)
+                        builder.SINGLESTEP(1.0)
+
+                    with builder.CHILD(
+                            key="mop_lift_areas",
+                            name="mop_lift_areas",
+                            desc="清扫结束后需要升吸趴的区域，格式：[[入口1,出口1],[入口2,出口2]]",
+                    ):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("[]")
+
+                    with builder.CHILD(
+                            key="mechanism_close_delay_time",
+                            name="mechanism_close_delay_time",
+                            desc="非电梯区域清扫结束后机构关闭延时时间，0表示按原逻辑关闭",
+                    ):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
                         builder.SINGLESTEP(1.0)
 
             with builder.GROUP(
@@ -513,9 +539,24 @@ class ConfigParams:
         cls.brush_power = cls.config.get("brush_power")
         cls.suck_power = cls.config.get("suck_power")
         cls.jet_power = cls.config.get("jet_power")
+        cls.elevator_before_jet_power = min(
+            5, max(0, int(cls.config.get("elevator_before_jet_power", 5)))
+        )
         cls.auto_adjust_power = cls.config.get("auto_adjust_power")
         cls.add_water_delay_time = cls.config.get("add_water_delay_time")
         cls.close_jet_delay_time = cls.config.get("close_jet_delay_time")
+        cls.mechanism_close_delay_time = cls.config.get("mechanism_close_delay_time", 0.0)
+        try:
+            mop_lift_areas = json.loads(cls.config.get("mop_lift_areas", "[]"))
+            if (not isinstance(mop_lift_areas, list) or
+                    not all(isinstance(area, list) and len(area) == 2 and
+                            all(isinstance(point, str) for point in area)
+                            for area in mop_lift_areas)):
+                raise ValueError("must be a list of [entrance, exit] pairs")
+            cls.mop_lift_areas = [tuple(area) for area in mop_lift_areas]
+        except (TypeError, json.JSONDecodeError, ValueError) as exc:
+            cls.mop_lift_areas = []
+            Trace.log(f"Invalid mop_lift_areas config: {exc}; no area will lift the mop")
         cls.high_mode_x_speed = cls.config.get("high_mode_x_speed")
         cls.std_mode_x_speed = cls.config.get("std_mode_x_speed")
         cls.stop_x_speed = cls.config.get("stop_x_speed")
@@ -876,6 +917,12 @@ class CleanRobotMech:
         self.water_stopped_for_path_end = False
 
         self.operation = None
+        self.is_elevator_area = True
+        self.delay_close_mechanisms = False
+        self.delay_close_mop_lift = False
+        self.delay_close_brush_sent = False
+        self.mop_lift_close_sent_at = None
+        self.mop_lift_close_wait_logged = False
         self.init = False
         self.action_status = ScriptStatus.NONE
         self.last_unready_mechanisms = None
@@ -912,6 +959,7 @@ class CleanRobotMech:
             self.reset()
 
         self.update_all_info()
+        self._process_delayed_mechanism_close()
 
         if not self.is_connected:
             self.connect()
@@ -923,6 +971,25 @@ class CleanRobotMech:
 
         return True
 
+    def _process_delayed_mechanism_close(self):
+        if not self.delay_close_mechanisms or not self.close_jet_pump_start:
+            return
+        delay = float(config_params.mechanism_close_delay_time or 0)
+        elapsed = time.time() - self.close_jet_pump_start
+        if not self.delay_close_brush_sent and elapsed >= delay * 2 / 3:
+            self.hardware.ctrl_brush(0)
+            self.hardware.ctrl_brush_lift(MechWorkState.CLOSE)
+            self.delay_close_brush_sent = True
+        if elapsed >= delay:
+            if self.delay_close_mop_lift:
+                self.hardware.ctrl_mop_lift(MechWorkState.CLOSE)
+                self.mop_lift_close_sent_at = time.time()
+                self.mop_lift_close_wait_logged = False
+            self.hardware.ctrl_suck(0)
+            self.delay_close_mechanisms = False
+            self.delay_close_mop_lift = False
+            self.close_jet_pump_start = None
+
     def run(self, args: dict):
         """主运行函数"""
         self.action_status = ScriptStatus.RUNNING
@@ -931,6 +998,7 @@ class CleanRobotMech:
             self.init = True
             self.update_all_info()
             self.operation = args.get("operation", None)
+            self.is_elevator_area = bool(args.get("is_elevator_area", True))
             self.auto_adjust_power = args.get("auto_adjust_power", config_params.auto_adjust_power)
             self.jet_power = int(args.get("jet_power", config_params.jet_power))
             self.brush_power = int(args.get("brush_power", config_params.brush_power))
@@ -940,11 +1008,16 @@ class CleanRobotMech:
                 self.jet_starting = True
                 self.jet_command_power = 0
                 self.water_stopped_for_path_end = False
+                self.delay_close_mechanisms = False
+                self.delay_close_mop_lift = False
+                self.delay_close_brush_sent = False
 
         if self.operation == "WashStart":
             self.wash_start()
         elif self.operation == "WashEnd":
-            self.wash_end()
+            self.wash_end(
+                is_elevator_area=args.get("is_elevator_area", True),
+            )
         elif self.operation == "MechanismOpen":
             self.wash_start(operation="MechanismOpen")
         elif self.operation == "MechanismClose":
@@ -984,10 +1057,14 @@ class CleanRobotMech:
             self.wash_suspend()
         elif task_status == 5:
             Trace.log("[cleanRobotManage] Task status 5: End")
-            self.wash_end()
+            self.wash_end(
+                is_elevator_area=self.is_elevator_area,
+            )
         elif task_status == 6:
             Trace.log("[cleanRobotManage] Task status 6: End")
-            self.wash_end()
+            self.wash_end(
+                is_elevator_area=self.is_elevator_area,
+            )
         if Controller.getEmc():
             Trace.log("[cleanRobotManage] EMC signal: End")
             self.wash_end()
@@ -1000,7 +1077,7 @@ class CleanRobotMech:
                 )
             self.water_level_warning = "waste_full"
             if self.operation != "AddWater" and loc_state == 1:
-                self.wash_end()
+                self.wash_end(is_elevator_area=self.is_elevator_area)
         elif self.filter_clean_water_level() < config_params.min_clean_water_level and self.filter_clean_water_level() != -1:
             if self.water_level_warning != "clean_empty":
                 Trace.log(
@@ -1009,7 +1086,7 @@ class CleanRobotMech:
                 )
             self.water_level_warning = "clean_empty"
             if self.operation != "AddWater" and loc_state == 1:
-                self.wash_end()
+                self.wash_end(is_elevator_area=self.is_elevator_area)
         else:
             self.water_level_warning = None
 
@@ -1051,6 +1128,8 @@ class CleanRobotMech:
             self.work_mode = MechWorkMode.STOP
 
         target_jet_power = self.jet_power_by_speed(drive_speed)
+        if self.is_elevator_area:
+            target_jet_power = min(target_jet_power, config_params.elevator_before_jet_power)
         if not other_mechanisms_working:
             target_jet_power = 0
         self.set_jet_power(target_jet_power)
@@ -1137,6 +1216,20 @@ class CleanRobotMech:
     def wash_start(self, operation: str = "WashStart"):
         """开始清洗"""
         self.operation = operation
+        if self.mop_lift_close_sent_at is not None:
+            if self.mop_lift_status == MechWorkingStatus.INIT:
+                Trace.log("[cleanRobotManage] Mop lift close confirmed before WashStart")
+                self.mop_lift_close_sent_at = None
+                self.mop_lift_close_wait_logged = False
+            elif time.time() - self.mop_lift_close_sent_at < 10.0:
+                if not self.mop_lift_close_wait_logged:
+                    Trace.log("[cleanRobotManage] WashStart waiting for mop lift close")
+                    self.mop_lift_close_wait_logged = True
+                return False
+            else:
+                Trace.log("[cleanRobotManage] Mop lift close timeout after 10s, continue WashStart")
+                self.mop_lift_close_sent_at = None
+                self.mop_lift_close_wait_logged = False
         self.wash_open()
         unready_mechanisms = [name for name in ("brush", "suck", "mop_lift")
                               if getattr(self, f"{name}_status") != MechWorkingStatus.RUNNING]
@@ -1166,12 +1259,12 @@ class CleanRobotMech:
         self.operation = "WashStopWater"
         self.water_stopped_for_path_end = True
         self.jet_starting = True
+        # self.set_jet_power(0)
         self.hardware.ctrl_jet_pump(0)
         if self.clean_valve_status == MechWorkingStatus.RUNNING:
             self.hardware.ctrl_clean_valve(MechWorkState.CLOSE)
         if not self.close_jet_pump_start:
             self.close_jet_pump_start = time.time()
-        self.hardware.ctrl_brush_lift(MechWorkState.CLOSE)
 
 
     def wash_water(self):
@@ -1182,14 +1275,35 @@ class CleanRobotMech:
             if self.clean_valve_status != MechWorkingStatus.RUNNING:
                 self.hardware.ctrl_clean_valve(MechWorkState.OPEN)
 
-    def wash_end(self, control_water: bool = True, operation: str = "WashEnd"):
+    def wash_end(self, control_water: bool = True, operation: str = "WashEnd",
+                 is_elevator_area: bool = True):
         """结束清洗；control_water=False时只关闭清洁机构。"""
         self.operation = operation
+        delay_enabled = (not is_elevator_area and
+                         float(config_params.mechanism_close_delay_time or 0) > 0)
+        if delay_enabled:
+            if not self.delay_close_mechanisms:
+                self.delay_close_brush_sent = False
+            self.delay_close_mechanisms = True
+            self.delay_close_mop_lift = True
+        else:
+            self.delay_close_mechanisms = False
+            self.delay_close_mop_lift = False
+            self.delay_close_brush_sent = False
+        if not delay_enabled and self.brush_status == MechWorkingStatus.RUNNING:
+            self.hardware.ctrl_brush(0)
         if control_water:
             Do.setDo(config_params.add_water_do, False)
 
             if self.waste_valve_status == MechWorkingStatus.RUNNING:
                 self.hardware.ctrl_waste_valve(MechWorkState.CLOSE)
+
+        if delay_enabled and control_water and not self.water_stopped_for_path_end:
+            self.water_stopped_for_path_end = True
+            self.jet_starting = True
+            self.hardware.ctrl_jet_pump(0)
+            if self.clean_valve_status == MechWorkingStatus.RUNNING:
+                self.hardware.ctrl_clean_valve(MechWorkState.CLOSE)
 
         if not self.close_jet_pump_start:
             self.close_jet_pump_start = time.time()
@@ -1199,7 +1313,8 @@ class CleanRobotMech:
             if self.close_jet_pump_start and time.time() - self.close_jet_pump_start < 3:
                 self.wash_water()
 
-        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > config_params.close_jet_delay_time * 0.7:
+        if (not delay_enabled and self.close_jet_pump_start and
+                time.time() - self.close_jet_pump_start > config_params.close_jet_delay_time * 0.7):
             if self.brush_status == MechWorkingStatus.RUNNING:
                 self.hardware.ctrl_brush(0)
             if control_water and self.jet_status == MechWorkingStatus.RUNNING:
@@ -1209,27 +1324,31 @@ class CleanRobotMech:
             # if self.brush_lift_status != MechWorkingStatus.INIT:
             self.hardware.ctrl_brush_lift(MechWorkState.CLOSE)
 
-        if self.close_jet_pump_start and time.time() - self.close_jet_pump_start > config_params.close_jet_delay_time:
+        if (not delay_enabled and self.close_jet_pump_start and
+                time.time() - self.close_jet_pump_start > config_params.close_jet_delay_time):
             if self.mop_lift_status != MechWorkingStatus.INIT:
                 self.hardware.ctrl_mop_lift(MechWorkState.CLOSE)
             if self.suck_status == MechWorkingStatus.RUNNING:
                 self.hardware.ctrl_suck(0)
 
-        mechanisms_closed = (
-            self.clean_robot_closed if control_water else
-            not bool(max([
-                self.brush_status,
-                self.suck_status,
-                self.mop_lift_status,
-                self.brush_lift_status,
-            ]))
+        closing_statuses = [self.brush_status, self.suck_status, self.brush_lift_status]
+        if not delay_enabled:
+            closing_statuses.append(self.mop_lift_status)
+        if delay_enabled:
+            closing_statuses = []
+        if control_water and not delay_enabled:
+            closing_statuses.extend([self.jet_status, self.clean_valve_status])
+        mechanisms_closed = not any(
+            status == MechWorkingStatus.RUNNING for status in closing_statuses
         )
         if mechanisms_closed:
-            self.close_jet_pump_start = None
+            if not delay_enabled:
+                self.close_jet_pump_start = None
             if control_water:
                 self.jet_starting = True
                 self.jet_command_power = 0
-                self.water_stopped_for_path_end = False
+                if not delay_enabled:
+                    self.water_stopped_for_path_end = False
             self.action_status = ScriptStatus.FINISHED
             return True
         else:
@@ -2241,6 +2360,10 @@ class CleanRobotManage:
 
         Trace.log(f"[cleanRobotManage] Interrupting clean task for {interrupt_reason}")
 
+        if not config_params.isTrue:
+            self.mech.close_jet_pump_start = None
+            self.mech.wash_stop_water()
+
         try:
             step_locations = self.current_task.get("step_locations", [])
         except Exception:
@@ -2491,8 +2614,13 @@ class CleanRobotManage:
             return
 
         if self.clean_close_pending:
+            mop_lift_area = (self.current_entrance, self.current_exit) in config_params.mop_lift_areas
             if (config_params.isTrue or
-                    self.call_mech("WashEnd") == ScriptStatus.FINISHED):
+                    self.call_mech(
+                        "WashEnd",
+                        is_elevator_area=(self.boustrophedon_path_state == BoustrophedonPathState.FAILED or
+                                          mop_lift_area),
+                    ) == ScriptStatus.FINISHED):
                 terminal_status = (
                     ScriptStatus.FAILED
                     if self.boustrophedon_path_state == BoustrophedonPathState.FAILED
@@ -2575,6 +2703,7 @@ class CleanRobotManage:
                         suck_power=args.get("suck_power"),
                         jet_power=args.get("jet_power"),
                         auto_adjust_power=args.get("auto_adjust_power"),
+                        is_elevator_area=(self.current_entrance, self.current_exit) in config_params.mop_lift_areas,
                     )
                     if mech_status != ScriptStatus.FINISHED:
                         return
@@ -2625,8 +2754,15 @@ class CleanRobotManage:
             return
 
         if self.priority_task_phase == "CLOSING":
+            is_elevator_area = (
+                not self.priority_exit_required or
+                (self.current_entrance, self.current_exit) in config_params.mop_lift_areas
+            )
             mech_status = (ScriptStatus.FINISHED if config_params.isTrue
-                           else self.call_mech("WashEnd"))
+                           else self.call_mech(
+                               "WashEnd",
+                               is_elevator_area=is_elevator_area,
+                           ))
             if mech_status == ScriptStatus.FAILED:
                 self.priority_task_phase = None
                 self.priority_task_reason = None
@@ -2637,6 +2773,10 @@ class CleanRobotManage:
             if mech_status != ScriptStatus.FINISHED:
                 return
 
+            if (not is_elevator_area and
+                    float(config_params.mechanism_close_delay_time or 0) > 0):
+                self.mech.close_jet_pump_start = None
+
             self.priority_task_phase = "EXITING" if self.priority_exit_required else "SENDING"
             Trace.log(f"[cleanRobotManage] Priority task transition phase={self.priority_task_phase}")
             return
@@ -2645,6 +2785,10 @@ class CleanRobotManage:
             self.vehicle_state = VehicleState.NAVIGATING
             self.run_exit_path(report_status=True)
             if self.boustrophedon_path_state == BoustrophedonPathState.FINISHED:
+                if (self.priority_exit_required and
+                        (self.current_entrance, self.current_exit) not in config_params.mop_lift_areas and
+                        float(config_params.mechanism_close_delay_time or 0) > 0):
+                    self.mech.close_jet_pump_start = time.time()
                 self.priority_task_phase = "SENDING"
                 Trace.log("[cleanRobotManage] Priority task transition phase=SENDING")
             elif self.boustrophedon_path_state == BoustrophedonPathState.FAILED:
@@ -2919,6 +3063,7 @@ class CleanRobotManage:
             jet_power: Optional[int] = None,
             auto_adjust_power: Optional[int] = None,
             push_rod_length: Optional[int] = None,
+            is_elevator_area: bool = True,
     ):
         """
         调用机构控制
@@ -2942,6 +3087,12 @@ class CleanRobotManage:
         if push_rod_length is None:
             push_rod_length = config_params.push_rod_length
 
+        if operation == "WashStart" and self.mech.delay_close_mechanisms:
+            self.mech.delay_close_mechanisms = False
+            self.mech.delay_close_mop_lift = False
+            self.mech.delay_close_brush_sent = False
+            self.mech.close_jet_pump_start = None
+
         args = {
             "operation": operation,
             "brush_power": self.mech.brush_power,
@@ -2949,6 +3100,7 @@ class CleanRobotManage:
             "jet_power": self.mech.jet_power,
             "auto_adjust_power": auto_adjust_power,
             "push_rod_length": push_rod_length,
+            "is_elevator_area": is_elevator_area,
         }
         if self.pre_arg != args:
             Trace.log(f"[cleanRobotManage] New args: {self.pre_arg} -> {args}")
@@ -3063,6 +3215,7 @@ class CleanRobotManage:
                 suck_power=args.get("suck_power"),
                 jet_power=args.get("jet_power"),
                 auto_adjust_power=args.get("auto_adjust_power"),
+                is_elevator_area=(self.current_entrance, self.current_exit) in config_params.mop_lift_areas,
             )
             if mech_status != ScriptStatus.FINISHED:
                 return
@@ -3109,10 +3262,15 @@ class CleanRobotManage:
             Trace.log(f"[cleanRobotManage] goBoustrophedonPath finished for area  which entr {self.current_entrance}")
             self._mark_clean_area_finished()
             if not config_params.isTrue:
+                if ((self.current_entrance, self.current_exit) not in config_params.mop_lift_areas and
+                        float(config_params.mechanism_close_delay_time or 0) > 0):
+                    self.mech.close_jet_pump_start = time.time()
                 self.mech.wash_stop_water()
             self.clean_close_pending = True
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
+            # Navigation.resetBoustrophedonPath()
+
             return
 
         if self.boustrophedon_path_state == BoustrophedonPathState.FAILED:
@@ -3124,6 +3282,8 @@ class CleanRobotManage:
             self.clean_close_pending = True
             self.vehicle_state = VehicleState.IDLE
             self.current_task_type = TaskType.NONE
+            # Navigation.resetBoustrophedonPath()
+
             return
 
         if self.boustrophedon_path_state == BoustrophedonPathState.SUSPENDED:
@@ -3790,7 +3950,6 @@ def main():
         # - Module.reportInfo() 将状态信息上报给系统
         # - 上报的信息包括：状态机状态、电池水位、任务进度、断点信息等
         mgr.update_report_info()
-        # time.sleep(0.1)
         Module.reportInfo(mgr.report_info)
         time.sleep(0.1)
         # move_task = Navigation.moveTask()
