@@ -62,7 +62,7 @@ class ConfigParams:
     check_goods_code_enable = False
     max_code_check_fail = 3
     # 识别前等待机构机械停稳的延时(秒), 防止抖动污染识别
-    motor_settle_delay = 0.5
+    motor_settle_delay = 0
 
     # 手指 DoMotor（从设备模型 fingerMotor 克隆读取，._0=左手指, ._1=右手指）
     has_finger_motor: bool = False
@@ -352,7 +352,7 @@ class ConfigParams:
                     with builder.CHILD(key="motorSettleDelay", name=_TR("Motor Settle Delay"),
                                        desc=_TR("Wait for lift/rotate/stretch to mechanically settle before recognition, avoids vibration polluting recognition")):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.5, min_value=0, max_value=100)
+                        builder.DEFAULTVALUE(0, min_value=0, max_value=100)
                         builder.REQUIRED(True)
 
         builder.save(merge=True)
@@ -425,7 +425,7 @@ class ConfigParams:
         cls.goods_check_di = cls.config.get("goodsCheckDi")
         cls.overlimit_detect_di = cls.config.get("overlimitDetectDi")
         cls.light_delay_time = cls.config.get("lightDelayTime")
-        cls.motor_settle_delay = cls.config.get("motorSettleDelay", 0.5)
+        cls.motor_settle_delay = cls.config.get("motorSettleDelay", 0)
 
 
 '''参数创建必须在全局作用域中'''
@@ -1080,16 +1080,27 @@ class RecAdjustAction(BaseAction):
 
     def run(self, m):
         super().run(m)
-        if not self.light_started:
-            # 识别前先等机构停稳, 再开补光灯, 防止抖动污染识别
-            if not self.agv.wait_motors_settled():
+        retry_target = getattr(self.agv.rec_adjust, "retry_rotate_target", None)
+        if retry_target is not None:
+            if not self.agv.rotate(retry_target, max_speed=0.3):
                 return
+            self.agv.rec_adjust.retry_rotate_target = None
+            self.agv.rec_adjust.action_status = ActionStatus.RUNNING
             self.agv.reset_motor_settle()
-            Do.setDo(self.agv.fill_light_do, True)
-            self.light_started = True
-            self.start_time = time.time()  # 从开灯时刻起算补光延时
-            return
-        if time.time() - self.start_time < ConfigParams.light_delay_time:
+        if getattr(self.agv.rec_adjust, "prepare_recognition", False):
+            # 每次识别前确认机构停稳；补光灯只在本次动作首次识别前开启。
+            if not self.agv.wait_motors_settled(tag=f"rec_adjust round {self.agv.rec_adjust.adjust_count}"):
+                return
+            if not self.light_started:
+                self.agv.reset_motor_settle()
+                Do.setDo(self.agv.fill_light_do, True)
+                self.light_started = True
+                self.start_time = time.time()  # 首次开灯时起算补光延时
+                self.agv.rec_adjust.prepare_recognition = False
+                return
+            self.agv.rec_adjust.prepare_recognition = False
+        if (self.light_started
+                and time.time() - self.start_time < ConfigParams.light_delay_time):
             return
         if self.agv.rec_adjust.action_status is ActionStatus.FINISHED:
             Do.setDo(self.agv.fill_light_do, False)
@@ -1280,7 +1291,7 @@ class RecBoxCheckAction(BaseAction):
         super().run(m)
         if not self.light_started:
             # 识别前先等机构停稳, 再开补光灯, 防止抖动污染识别
-            if not self.agv.wait_motors_settled():
+            if not self.agv.wait_motors_settled(tag="rec_box_check"):
                 return
             self.agv.reset_motor_settle()
             self.agv.rec_box.action_status = ActionStatus.RUNNING
@@ -1469,6 +1480,8 @@ class ContainerRobot(ModuleBase):
         self.pre_finger = None
         # 识别前等机构停稳的计时起点(None=未开始/被打断)
         self.motor_settle_start = None
+        # 停稳判断的上次打印状态(避免每帧刷屏)
+        self._settle_print_state = None
         # 货架有货异常恢复状态
         self.shelf_occupied = False   # rec_box 识别到货架已有货物
         self.recovery_built = False   # 恢复队列是否已构建, 防止重复构建
@@ -2141,9 +2154,10 @@ class ContainerRobot(ModuleBase):
                 return _motor
         return {}
 
-    def wait_motors_settled(self):
+    def wait_motors_settled(self, tag=""):
         """识别前等待机构机械停稳: 升降/旋转/伸缩三轴 stop 标志为真, 且累计经过
         motor_settle_delay 秒。调用方在到达识别触发点后每帧调用直到返回 True, 再开补光灯。
+        @param tag: 识别来源说明(如 "load_rec_adjust round N"), 仅用于日志便于定位重识别轮次
         @return: True 表示已停稳满 motor_settle_delay 秒, False 表示尚需等待"""
         lift_info = self.get_motor_info(ConfigParams.lift_motor_name)
         rotate_info = self.get_motor_info(ConfigParams.rotate_motor_name)
@@ -2151,14 +2165,24 @@ class ContainerRobot(ModuleBase):
         all_stop = bool(lift_info.get("stop", False)
                         and rotate_info.get("stop", False)
                         and stretch_info.get("stop", False))
+        tag = tag or ""
+        # 只在跳变时打印, 避免每帧刷屏
+        if self._settle_print_state != all_stop:
+            self._settle_print_state = all_stop
+            print(f"[DIAG][{tag}] motors all_stop={all_stop} "
+                  f"(lift={lift_info.get('stop')} rotate={rotate_info.get('stop')} stretch={stretch_info.get('stop')})")
         if not all_stop:
             # 任一轴还在动, 复位计时, 等下次稳定后重新计时
             self.motor_settle_start = None
             return False
         if self.motor_settle_start is None:
             self.motor_settle_start = time.time()
+            print(f"[DIAG][{tag}] motors stopped, start settle timer @ {time.time():.3f}")
             return False
-        return time.time() - self.motor_settle_start >= ConfigParams.motor_settle_delay
+        elapsed = time.time() - self.motor_settle_start
+        if elapsed >= ConfigParams.motor_settle_delay:
+            print(f"[DIAG][{tag}] settled after {elapsed:.3f}s (>= {ConfigParams.motor_settle_delay}s) -> proceed to recognize")
+        return elapsed >= ConfigParams.motor_settle_delay
 
     def reset_motor_settle(self):
         """识别完成/失败后重置停稳计时, 供下一次识别使用"""
@@ -2606,6 +2630,8 @@ class RecAdjust(BaseAction):
         self.plan_status = ScriptStatus.NONE
         self.goPath = GoPath()
         self.code2robot = -1
+        self.prepare_recognition = True
+        self.retry_rotate_target = None
 
     @staticmethod
     def move_x(dx, dy, yaw, rotate_pos, offset_x=0):
@@ -2632,10 +2658,10 @@ class RecAdjust(BaseAction):
             elif self.rec.action_status is ActionStatus.FAILED:
                 self.rec_fail_time = self.rec_fail_time + 1
                 random_dist = random.choice([1, -1]) * (1 / 180 * math.pi)
-                agv.rotate(agv.rotate_real_pos + random_dist, max_speed=0.3)
                 if self.rec_fail_time < self.max_rec_fail_times:
+                    self.retry_rotate_target = agv.rotate_real_pos + random_dist
+                    self.prepare_recognition = True
                     self.rec.reset()
-                    self.rec.run(agv)
                 else:
                     self.action_status = ActionStatus.FAILED
                 Trace.log("rec fail!!! {}".format(self.rec_fail_time), name=f"{MOD}.rec")
@@ -2783,6 +2809,8 @@ class RecAdjust(BaseAction):
         self.rec.reset()
         self.rec_fail_time = 0
         self.goPath.reset()
+        self.prepare_recognition = True
+        self.retry_rotate_target = None
 
 
 def main():
@@ -2843,6 +2871,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
