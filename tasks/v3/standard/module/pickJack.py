@@ -1905,6 +1905,8 @@ class Jack(ModuleBase):
         self.rec_dist = self.task_args.get("recDist", 0.0)
         self.rec_retry_max = int(self.task_args.get("recRetryMax", 3))
         self.at_site = (self._get_script_stage() != 3) and (not self.is_recognize)
+        # skill_name=action（id=self_position）：原地任务，直接顶升，忽略 recognize
+        self.is_action = self._is_action_task()
 
         # 多货架尺寸：优先使用 ConfigParams 中的文件列表，降级到单文件
         if config_params.rack_size_files:
@@ -2460,6 +2462,15 @@ class Jack(ModuleBase):
                 return p.get("int32Value", 2)
         return 2
 
+    def _is_action_task(self):
+        """是否为 skill_name=action 的原地任务（id=self_position）。
+
+        读取 moveTask 顶层 skillName（与 pickFork.py 的 Action 判据一致），
+        而非 params 里的 scriptStage。
+        """
+        move_task = Navigation.moveTask()
+        return move_task.get("skillName", "") == "Action"
+
     def _append_load_actions(self, target_pos):
         """
         将"导航 + 二次调整 + 顶升 + 设置激光扣除区 + 绑定容器 + 清策略 + 写LastUsedAt"
@@ -2619,9 +2630,9 @@ class Jack(ModuleBase):
             debug_trace(f"policy_obstacle_protect appended: {obstacle_protect_policy} "
                         f"(orig detectionDevice={collision_device_str!r})", name=f"{MOD}.nav")
 
-            # atSite=True: 已到点，跳过旋转/识别/导航，直接二次调整 + 顶升
-            if self.at_site:
-                debug_trace("jack_load: atSite=True, skip nav, direct adjust+jack", name=MOD)
+            # atSite=True 或 skill_name=action：原地，跳过旋转/识别/导航，直接二次调整 + 顶升
+            if self.at_site or self.is_action:
+                debug_trace(f"jack_load: in-place (at_site={self.at_site}, is_action={self.is_action}), skip nav, direct adjust+jack", name=MOD)
                 self._append_load_actions(None)
             else:
                 # 获取AP点

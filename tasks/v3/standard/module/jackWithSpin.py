@@ -2085,6 +2085,8 @@ class Jack(ModuleBase):
         self.rec_dist = self.task_args.get("recDist", 0.0)
         self.rec_retry_max = int(self.task_args.get("recRetryMax", 3))
         self.at_site = (self._get_script_stage() != 3) and (not self.is_recognize)
+        # skill_name=action（id=self_position）：原地任务，直接顶升，忽略 recognize
+        self.is_action = self._is_action_task()
 
         # spin,rotate相关
         self.spin_angle = self.task_args.get("spinAngle", 0)  # 角度
@@ -2661,6 +2663,15 @@ class Jack(ModuleBase):
                 return p.get("int32Value", 2)
         return 2
 
+    def _is_action_task(self):
+        """是否为 skill_name=action 的原地任务（id=self_position）。
+
+        读取 moveTask 顶层 skillName（与 pickFork.py 的 Action 判据一致），
+        而非 params 里的 scriptStage。
+        """
+        move_task = Navigation.moveTask()
+        return move_task.get("skillName", "") == "Action"
+
     def _append_load_actions(self, target_pos):
         """将导航、二次调整、旋转、顶升、绑定容器等动作添加到 action_list"""
         # 导航方式（无AP点原地执行时 target_pos 为 None，跳过导航）
@@ -2782,9 +2793,9 @@ class Jack(ModuleBase):
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed))
 
-            # atSite=True: 已到点，跳过旋转/识别/导航，直接二次调整+顶升
-            if self.at_site:
-                debug_trace("jack_load: atSite=True, skip nav, direct adjust+jack", name=MOD)
+            # atSite=True 或 skill_name=action：原地，跳过旋转/识别/导航，直接二次调整+顶升
+            if self.at_site or self.is_action:
+                debug_trace(f"jack_load: in-place (at_site={self.at_site}, is_action={self.is_action}), skip nav, direct adjust+jack", name=MOD)
                 self._append_load_actions(None)
             else:
                 # 获取AP点
