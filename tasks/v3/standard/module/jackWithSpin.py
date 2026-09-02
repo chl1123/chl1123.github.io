@@ -19,6 +19,7 @@ from syspy import (Module, Motor, Navigation, Loc, Recognize,
 from syspy.lib.net_protocol import parseModbus
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from syspy.lib.action_task import ActionBase, ActionStatus, ActionTask
+from syspy.core.rbk_rpc import Service
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ScriptParam, BindType, BindItem
 
@@ -26,6 +27,8 @@ script_param = ScriptParam(__file__)
 
 # 业务通道名前缀（日志规范 <MOD>[.xxx]）
 MOD = "jack"
+MOTOR_ACTION_ERROR_KEY = "ms@MotorAction"
+MOTOR_LIMIT_OPERATIONS = {"lift", "jackHeight"}
 from syspy.lib.robot import RobotParam
 from syspy.utils import Coordinate
 
@@ -72,6 +75,118 @@ def debug_trace(msg: str, *, name: str):
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
+
+
+def _motor_limit_di(motor_name, direction):
+    """读取电机上下限位 DI，兼容模型字段大小写差异。"""
+    if not motor_name or motor_name.startswith("DOMotor"):
+        return ""
+    motor_func = RobotParam.getDevice(motor_name, "func") or ""
+    if not motor_func:
+        return ""
+    names = ("upLimitDI", "upLimitDi", "UpLimitDI") if direction == "up" else (
+        "DownLimitDI", "downLimitDI", "downLimitDi", "DownLimitDi")
+    for name in names:
+        value = RobotParam.getDevice(motor_name, f"func.{motor_func}.{name}")
+        if value:
+            return str(value)
+    return ""
+
+
+def _motor_action_error():
+    """返回 MF 电机动作错误及当前触发的限位 DI。"""
+    try:
+        error_exists = Service.client().call_service(
+            "Error", "existSystemError", MOTOR_ACTION_ERROR_KEY)
+    except Exception as exc:
+        Trace.log(
+            f"查询MF系统错误失败：接口=Error::existSystemError，"
+            f"key={MOTOR_ACTION_ERROR_KEY}，error={exc}",
+            name=f"{MOD}.err",
+        )
+        return None
+
+    # 诊断 Error 服务实际返回值，状态不变时不重复打印。
+    if error_exists != getattr(_motor_action_error, "_last_error_exists", None):
+        _motor_action_error._last_error_exists = error_exists
+        Trace.log(
+            f"MF错误查询：接口=Error::existSystemError，"
+            f"key={MOTOR_ACTION_ERROR_KEY}，返回值={error_exists}",
+            name=f"{MOD}.err",
+        )
+    if not error_exists:
+        return None
+
+    Trace.log(
+        f"检测到MF电机动作错误，错误key={MOTOR_ACTION_ERROR_KEY}",
+        name=f"{MOD}.err",
+    )
+    triggered = []
+    for motor in ConfigParams.moduleMotor:
+        motor_key = motor.get("motorKey", "")
+        for direction in ("up", "down"):
+            di = motor.get(f"{direction}LimitDi", "")
+            if di:
+                try:
+                    if Di.getDi(di):
+                        triggered.append((motor_key, direction, di))
+                except Exception as exc:
+                    Trace.log(f"read limit DI failed motor={motor_key}, di={di}: {exc}", name=f"{MOD}.err")
+    if triggered:
+        Trace.log(
+            "当前触发的限位：" + ", ".join(
+                f"电机={motor_key}, {limit}限位DI={di}"
+                for motor_key, limit, di in triggered
+            ),
+            name=f"{MOD}.motor",
+        )
+    else:
+        Trace.log("检测到MF电机动作错误，但未检测到已配置的限位DI触发", name=f"{MOD}.err")
+    return {"error": {"key": MOTOR_ACTION_ERROR_KEY}, "triggered": triggered}
+
+
+def _check_motor_action_error(action, operation):
+    """仅允许单电机反向动作清除 MF 限位错误。"""
+    result = _motor_action_error()
+    if result is None:
+        return False
+
+    motor_key = getattr(action, "motor_name", "")
+    target_height = getattr(action, "target_height", None)
+    current_height = Motor.getMotorPos(motor_key) if motor_key and target_height is not None else None
+    direction = "up" if current_height is not None and target_height > current_height else (
+        "down" if current_height is not None and target_height < current_height else "")
+    matched = [item for item in result["triggered"] if item[0] == motor_key]
+    details = ", ".join(f"motor={key}, {limit}LimitDi={di}" for key, limit, di in matched)
+    Trace.log(
+        f"限位错误检查：operation={operation or 'unknown'}，电机={motor_key or 'unknown'}，"
+        f"当前位置={current_height}，目标位置={target_height}，动作方向={direction or 'unknown'}，"
+        f"匹配限位={details or '无'}",
+        name=f"{MOD}.motor",
+    )
+    if operation in MOTOR_LIMIT_OPERATIONS and matched and direction and all(
+            limit != direction for _, limit, _ in matched):
+        try:
+            clear_result = Service.client().call_service(
+                "Error", "clearSystemError", MOTOR_ACTION_ERROR_KEY)
+            Trace.log(
+                f"反向动作允许执行，已调用清除接口："
+                f"Error::clearSystemError({MOTOR_ACTION_ERROR_KEY})，返回值={clear_result}，{details}",
+                name=f"{MOD}.motor",
+            )
+            return False
+        except Exception as exc:
+            Trace.log(f"clear MF {MOTOR_ACTION_ERROR_KEY} failed: {exc}", name=f"{MOD}.err")
+
+    if not details:
+        details = f"error={result['error']}"
+    error_desc = (f"MF {MOTOR_ACTION_ERROR_KEY} in operation={operation or 'unknown'} "
+                  f"for motor={motor_key or 'unknown'}; {details}")
+    Trace.log(f"不允许清除MF错误，终止动作：{error_desc}", name=f"{MOD}.err")
+    Navigation.setTaskError("MotorActionLimitError", _TR(error_desc))
+    if action:
+        action.action_status = ActionStatus.FAILED
+    return True
 
 
 def float_to_modbus_poll_regs(value: float):
@@ -278,6 +393,7 @@ class ConfigParams:
     motor_func = ""
     reset_by_speed = ""
     jack_up_di = ""
+    jack_down_di = ""
     jack_zero_di = ""
     jack_up_do: str = ""
     jack_down_do: str = ""
@@ -285,11 +401,13 @@ class ConfigParams:
     if jack_motor_name and jack_motor_name.startswith("DOMotor"):
         DOMotor = True
         jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", "basic.upReachDI")
+        jack_down_di = RobotParam.getDevice(f"{jack_motor_name}", "basic.downReachDI")
         jack_zero_di = RobotParam.getDevice(f"{jack_motor_name}", "basic.downReachDI")
     else:
         motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
         reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
-        jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI")
+        jack_up_di = _motor_limit_di(jack_motor_name, "up")
+        jack_down_di = _motor_limit_di(jack_motor_name, "down")
         jack_zero_di = RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{reset_by_speed}.zeroDI")
 
     def __init__(self):
@@ -683,9 +801,11 @@ class ConfigParams:
         # DI配置（从设备绑定读取）
         if cls.DOMotor:
             cls.jack_up_di = RobotParam.getDevice(f"{cls.jack_motor_name}", "basic.upReachDI")
+            cls.jack_down_di = RobotParam.getDevice(f"{cls.jack_motor_name}", "basic.downReachDI")
             cls.jack_zero_di = RobotParam.getDevice(f"{cls.jack_motor_name}", "basic.downReachDI")
         else:
-            cls.jack_up_di = RobotParam.getDevice(f"{cls.jack_motor_name}", f"func.{cls.motor_func}.upLimitDI")
+            cls.jack_up_di = _motor_limit_di(cls.jack_motor_name, "up")
+            cls.jack_down_di = _motor_limit_di(cls.jack_motor_name, "down")
             cls.jack_zero_di = RobotParam.getDevice(f"{cls.jack_motor_name}", f"resetMode.{cls.reset_by_speed}.zeroDI")
 
         # Bezier导航配置
@@ -765,7 +885,9 @@ class ConfigParams:
                 "jogSupport": True,
                 "currentPosition": 0.0,
                 "maxLength": cls.jack_max_height or default_max,
-                "minLength": cls.jack_min_height or default_min
+                "minLength": cls.jack_min_height or default_min,
+                "upLimitDi": cls.jack_up_di or "",
+                "downLimitDi": cls.jack_down_di or ""
             }
             cls.moduleMotor.append(lift_motor)
 
@@ -1534,7 +1656,8 @@ class Jack(ModuleBase):
         debug_trace(
             f"Jack init motor={config_params.jack_motor_name} height=[{config_params.jack_min_height}~{config_params.jack_max_height}]m"
             f" DOMotor={config_params.DOMotor}"
-            f" upDI={config_params.jack_up_di!r} zeroDI={config_params.jack_zero_di!r}"
+            f" upDI={config_params.jack_up_di!r} downDI={config_params.jack_down_di!r}"
+            f" zeroDI={config_params.jack_zero_di!r}"
             f" enableDO={config_params.jack_up_do!r} reverseDO={config_params.jack_down_do!r}",
             name=f"{MOD}.cfg")
 
@@ -2135,6 +2258,10 @@ class Jack(ModuleBase):
         self.set_vda_param()
         self._dispatch_builder()
         self._sync_task()
+        current_action = self.action_task.current
+        if _check_motor_action_error(current_action, self.opt):
+            self.status = ScriptStatus.FAILED
+            return
         # builder 自行置终态(get_lm/do_force_calib 置 FINISHED; 不支持指令置 FAILED) → 尊重之
         if self.status in (ScriptStatus.FINISHED, ScriptStatus.FAILED):
             return
@@ -3898,6 +4025,7 @@ class JackHeight(ActionBase):
         self._count_recorded = False  # 防止重复计数
         self._up_di_triggered_time = None  # 上到位 DI/isReached 触发时间戳（用于延迟）
         self._motor_moved = False  # 电机是否已开始运动
+        self._last_limit_state = None  # 仅用于诊断限位 DI 状态变化
         if not config_params.DOMotor:
             Motor.resetMotor(self.motor_name)
 
@@ -3966,6 +4094,25 @@ class JackHeight(ActionBase):
 
         # 获取当前电机位置
         current_pos = Motor.getMotorPos(self.motor_name)
+
+        # 诊断限位 DI：只在状态变化时打印，避免循环刷屏
+        try:
+            limit_state = (
+                bool(config_params.jack_up_di and Di.getDi(config_params.jack_up_di)),
+                bool(config_params.jack_down_di and Di.getDi(config_params.jack_down_di)),
+                bool(config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di)),
+            )
+            if limit_state != self._last_limit_state:
+                self._last_limit_state = limit_state
+                Trace.log(
+                    f"jack limit state pos={current_pos:.4f}m "
+                    f"upDI={config_params.jack_up_di}:{limit_state[0]} "
+                    f"downDI={config_params.jack_down_di}:{limit_state[1]} "
+                    f"zeroDI={config_params.jack_zero_di}:{limit_state[2]}",
+                    name=f"{MOD}.motor",
+                )
+        except Exception as exc:
+            Trace.log(f"read jack limit DI failed: {exc}", name=f"{MOD}.err")
 
         # 检测电机是否已开始运动
         if not self._motor_moved and abs(current_pos - self.jack_start_height) > 0.001:
