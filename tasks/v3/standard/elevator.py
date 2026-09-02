@@ -786,9 +786,9 @@ class InputParams:
                                 builder.DEFAULTVALUE(
                                     "tasks/third/elevator_protocol/{}.py".format(protocol_name)
                                 )
-                            with builder.CHILD(key="args", name="Args", desc="Protocol parameters placeholder"):
+                            with builder.CHILD(key="config", name="Config", desc="Elevator protocol instance configuration"):
                                 builder.TYPE(ParamType.ARRAY)
-                                builder.REQUIRED(True)
+                                builder.REQUIRED(False)
                                 builder.DEFAULTVALUE({})
     builder.save()
 
