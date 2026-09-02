@@ -86,6 +86,12 @@ class ActionBase:
         self.error_code: str = ""
         # 阻塞类型默认 HARD；ActionTask 在装配时按队列约定改写
         self.blocking_type: str = "HARD"
+        self._step_started: bool = False
+        self._step_ended: bool = False
+        # 后台保活/监控动作不应阻塞同一队列中的 HARD 业务动作。
+        self.background: bool = False
+        # 队列因其他动作失败时，仍需执行该动作的待执行清理回调。
+        self.cleanup_on_failure: bool = False
 
     def args_summary(self) -> dict:
         """送入 taskBuild / taskExtend 的 actionParameters。
@@ -113,6 +119,14 @@ class ActionBase:
     def reset(self):
         """INIT -> RUNNING 时调用一次，子类可重置内部状态。"""
         self.action_status = ActionStatus.RUNNING
+
+    def on_step_start(self, ctx=None):
+        """动作成为当前 step 的执行对象前调用一次。默认无副作用。"""
+        return
+
+    def on_step_end(self, ctx=None):
+        """动作作为当前 step 的执行对象结束后调用一次。默认无副作用。"""
+        return
 
     def cancel(self):
         """主动取消（外部触发）：默认置 FAILED。子类可覆写释放资源。"""
@@ -154,8 +168,11 @@ class ActionTask:
             self.task.step(self)
     """
 
-    def __init__(self, mod: str):
+    def __init__(self, mod: str, *, on_change=None):
         self.mod = mod
+        # 可选观察者：每次队列 mutation（build/extend/step/suspend/resume/cancel/reset）后回调，
+        # 供上层同步派生状态（如 fork 的 action_status/current_action/action_id）。None 时零开销。
+        self.on_change = on_change
         self.action_list: List[ActionBase] = []
         # 每条 action 的进入 RUNNING 时间戳（用于 elapsedMs）
         self._action_start_ts: Dict[str, float] = {}
@@ -169,6 +186,11 @@ class ActionTask:
         self._failed_at: str = ""
         # 任务 id 快照（在 build() 时刻取一次，整队复用）
         self.task_id: str = ""
+
+    def _notify(self) -> None:
+        """通知观察者队列状态已变化（on_change 为 None 时空操作）。"""
+        if self.on_change is not None:
+            self.on_change()
 
     # -------- 工具 --------
     @staticmethod
@@ -224,6 +246,30 @@ class ActionTask:
         return len(self.action_list)
 
     @property
+    def first_action(self):
+        if not self.action_list:
+            return None
+        return self.action_list[0]
+
+    @property
+    def current_index(self) -> int:
+        current = self.current
+        if current is None:
+            return len(self.action_list) if self.status == ActionStatus.FINISHED else 0
+        try:
+            return self.action_list.index(current)
+        except ValueError:
+            return 0
+
+    @property
+    def is_empty(self) -> bool:
+        return self.total == 0
+
+    @property
+    def is_finished(self) -> bool:
+        return self.status == ActionStatus.FINISHED
+
+    @property
     def active(self) -> List[ActionBase]:
         """当前处于 RUNNING / SUSPENDED 的 action（已启动未终态）。"""
         return [
@@ -238,7 +284,11 @@ class ActionTask:
 
     @property
     def current(self):
-        """兼容旧接口：返回首个 active action（无则返回首个 pending）。"""
+        """返回首个业务 active action，后台动作仅作为兜底。"""
+        for a in self.action_list:
+            if (a.action_status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED)
+                    and not a.background):
+                return a
         for a in self.action_list:
             if a.action_status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED):
                 return a
@@ -253,6 +303,25 @@ class ActionTask:
         for a in self.action_list:
             counts[_STATUS_TO_WIRE[a.action_status]] += 1
         return counts
+
+    def estimateRemainingDuration(self, total_budget: float) -> float:
+        """按已流逝时间从保守预算中扣减，返回预动作队列尚未完成的保守时长。
+
+        遵循"不低估"原则：用真实流逝时间估算，结果偏大只会让上层更早决定
+        停车，偏小可能导致到减速点时预动作仍未完成，因此不使用经验值兜底。
+
+        Args:
+            total_budget: 外部传入的预动作队列保守总预算（秒），即
+                `AutoPreSequenceAction.required_time`。
+
+        Returns:
+            `max(0.0, total_budget - 已流逝秒数)`；队列尚未 `build()`（
+            `queue_start_ts` 为 0）时返回 `total_budget` 本身。
+        """
+        if not self.queue_start_ts:
+            return total_budget
+        elapsed = time.time() - self.queue_start_ts
+        return max(0.0, total_budget - elapsed)
 
     # -------- 队列装配 --------
     @staticmethod
@@ -330,6 +399,7 @@ class ActionTask:
             output_time=True,
             name=f"{self.mod}.taskActions",
         )
+        self._notify()
 
     def extend(
         self,
@@ -347,7 +417,7 @@ class ActionTask:
             return
         if self._status not in (ActionStatus.RUNNING, ActionStatus.SUSPENDED):
             self.build(new_actions, blocking_type=blocking_type)
-            return
+            return  # build() 已 _notify
         self._assign_ids(new_actions)
         self.action_list.extend(new_actions)
         for a in new_actions:
@@ -362,8 +432,26 @@ class ActionTask:
             output_time=True,
             name=f"{self.mod}.taskActions",
         )
+        self._notify()
 
     # -------- 状态转移事件 --------
+    def _fire_step_start(self, a: ActionBase, ctx) -> None:
+        """action 进入 RUNNING 前触发一次 on_step_start（once 守卫）。"""
+        if not a._step_started:
+            a._step_started = True
+            a._step_ended = False
+            a.on_step_start(ctx)
+
+    def _fire_step_end(self, a: ActionBase, ctx) -> None:
+        """action 进入终态后触发一次 on_step_end；FINISHED 再触发每实例 on_finished（均 once 守卫）。"""
+        if a._step_started and not a._step_ended:
+            a._step_ended = True
+            a.on_step_end(ctx)
+            if a.action_status == ActionStatus.FINISHED:
+                on_finished = getattr(a, "on_finished", None)
+                if callable(on_finished):
+                    on_finished(a)
+
     def _emit_state_changed(self, a: ActionBase, new_status: ActionStatus):
         """发一条 actionStateChanged，并维护 _action_start_ts / _last_status。"""
         payload = {
@@ -402,39 +490,51 @@ class ActionTask:
         Args:
             ctx: 透传给 action.run(ctx) 的上下文对象（一般是模块主类实例）。
         """
-        if self._status != ActionStatus.RUNNING:
+        if self._status not in (ActionStatus.RUNNING, ActionStatus.SUSPENDED):
+            self._notify()
             return
 
-        # 1) 启动 pending：按队列顺序遍历，按 blocking_type 决策
-        active_has_hard = any(a.blocking_type == "HARD" for a in self.active)
-        active_count = len(self.active)
-        for a in self.action_list:
-            if a.action_status != ActionStatus.INIT:
-                continue
-            if a.blocking_type == "HARD":
-                # HARD 必须 active 为空才能启动；启动后通过 break 挡住后续 pending
-                if active_count == 0:
-                    self._action_start_ts[a.action_id] = time.time()
-                    a.reset()  # INIT -> RUNNING
-                    self._emit_state_changed(a, ActionStatus.RUNNING)
-                break
-            else:
-                # SOFT / NONE：active 中没有 HARD 就能启动
-                if active_has_hard:
+        # 1) 启动 pending：按队列顺序遍历，按 blocking_type 决策。
+        # background 动作（例如梯控 keep-alive）不占用 HARD 动作的并发槽位。
+        if self._status == ActionStatus.RUNNING:
+            active = self.active
+            schedulable_active = [a for a in active if not a.background]
+            active_has_hard = any(a.blocking_type == "HARD" for a in schedulable_active)
+            active_count = len(schedulable_active)
+            for a in self.action_list:
+                if a.action_status != ActionStatus.INIT:
+                    continue
+                if a.blocking_type == "HARD":
+                    # HARD 必须 active 为空才能启动；启动后通过 break 挡住后续 pending
+                    if active_count == 0:
+                        self._action_start_ts[a.action_id] = time.time()
+                        self._fire_step_start(a, ctx)
+                        a.reset()  # INIT -> RUNNING
+                        self._emit_state_changed(a, ActionStatus.RUNNING)
                     break
-                self._action_start_ts[a.action_id] = time.time()
-                a.reset()
-                self._emit_state_changed(a, ActionStatus.RUNNING)
-                active_count += 1
-                # 继续尝试启动后续 SOFT/NONE
+                else:
+                    # SOFT / NONE：active 中没有 HARD 就能启动
+                    if active_has_hard:
+                        break
+                    self._action_start_ts[a.action_id] = time.time()
+                    self._fire_step_start(a, ctx)
+                    a.reset()
+                    self._emit_state_changed(a, ActionStatus.RUNNING)
+                    if not a.background:
+                        active_count += 1
+                    # 继续尝试启动后续 SOFT/NONE
 
         # 2) 推进 active 状态机；检测转移并发事件
         for a in list(self.action_list):
-            if a.action_status == ActionStatus.RUNNING:
+            if (a.action_status == ActionStatus.RUNNING
+                    and (self._status == ActionStatus.RUNNING or a.background)):
                 a.run(ctx)
             last = self._last_status.get(a.action_id, ActionStatus.INIT)
             if a.action_status != last:
                 self._emit_state_changed(a, a.action_status)
+            # 进入终态触发一次 on_step_end / on_finished（once 守卫，与 _emit 幂等）
+            if a.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+                self._fire_step_end(a, ctx)
 
         # 3) 任一 action 失败：取消其他 active，整队落 taskFailed
         failed = next((a for a in self.action_list if a.action_status == ActionStatus.FAILED), None)
@@ -443,20 +543,25 @@ class ActionTask:
             for other in self.action_list:
                 if other is failed:
                     continue
-                if other.action_status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED):
+                if (other.action_status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED)
+                        or (other.action_status == ActionStatus.INIT
+                            and other.cleanup_on_failure)):
                     other.cancel()
                     if other.action_status == ActionStatus.FAILED:
                         self._emit_state_changed(other, ActionStatus.FAILED)
             self._finalize_failed()
+            self._notify()
             return
 
         # 4) 全部进入 FINISHED：落 taskFinished
         if all(a.action_status == ActionStatus.FINISHED for a in self.action_list):
             self._finalize_finished()
+        self._notify()
 
     def cancel(self, reason: str = "cancelled"):
         """外部取消队列：把所有 active 推到 FAILED，整队落 taskFailed。"""
         if self.is_done:
+            self._notify()
             return
         for a in self.action_list:
             if a.action_status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED, ActionStatus.INIT):
@@ -467,14 +572,16 @@ class ActionTask:
                 if not self._failed_at:
                     self._failed_at = a.action_id
         self._finalize_failed(reason=reason)
+        self._notify()
 
     # -------- 暂停 / 恢复 --------
     def suspend(self):
-        """暂停队列：把所有 RUNNING action 切到 SUSPENDED。"""
+        """暂停业务动作；后台 keep-alive 保持 RUNNING。"""
         if self._status != ActionStatus.RUNNING:
+            self._notify()
             return
         for a in self.action_list:
-            if a.action_status == ActionStatus.RUNNING:
+            if a.action_status == ActionStatus.RUNNING and not a.background:
                 a.suspend()
                 if a.action_status == ActionStatus.SUSPENDED:
                     self._emit_state_changed(a, ActionStatus.SUSPENDED)
@@ -484,10 +591,12 @@ class ActionTask:
             output_time=True,
             name=self.mod,
         )
+        self._notify()
 
     def resume(self):
         """恢复队列：把所有 SUSPENDED action 切回 RUNNING。"""
         if self._status != ActionStatus.SUSPENDED:
+            self._notify()
             return
         for a in self.action_list:
             if a.action_status == ActionStatus.SUSPENDED:
@@ -500,6 +609,7 @@ class ActionTask:
             output_time=True,
             name=self.mod,
         )
+        self._notify()
 
     def reset(self):
         """清空队列状态（任务结束后调用）。"""
@@ -510,6 +620,7 @@ class ActionTask:
         self._status = ActionStatus.INIT
         self._failed_at = ""
         self.task_id = ""
+        self._notify()
 
     # -------- 内部：终态事件 --------
     def _finalize_finished(self):

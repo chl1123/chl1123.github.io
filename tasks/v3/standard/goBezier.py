@@ -4,12 +4,13 @@ import time
 
 from syspy.script_data import ScriptData
 from syspy import Navigation, Loc, Module, ScriptStatus, Trace
+from syspy.lib.action_task import ActionBase, ActionStatus
 from syspy.lib.module import pos2World, pos2Base
 
 log = logging.getLogger("rbk.script")
 
 
-class GoBezierWorld:
+class GoBezierWorld(ActionBase):
     """
         走贝塞尔曲线
     """
@@ -18,6 +19,7 @@ class GoBezierWorld:
                  is_backwards=False, is_hold_dir=None,
                  max_speed=0.3, max_accele=0.3, max_decele=0.2, decele_dist=0.4, curvature_limit=1.3,
                  path_dist_accuracy=0.005, path_angle_accuracy=0.5, alpha=0.25, min_speed=0.05):
+        super().__init__(self.__class__.__name__)
         self.y_end = None
         self.x_end = None
         self.p1 = None
@@ -25,7 +27,6 @@ class GoBezierWorld:
         self.px = None
         self.p0 = None
         del target_world[3:]
-        self.action_name = self.__class__.__name__
 
         self.target_world = target_world
         self.end_position_world = [0, 0, 0]
@@ -46,11 +47,11 @@ class GoBezierWorld:
         self.path_angle_accuracy = math.radians(path_angle_accuracy)
         self.min_speed = min_speed
 
-        self.action_status = ScriptStatus.NONE
         self.init = True
         self.target_robot = [0, 0, 0]
         self.control_point = None
         self.param = {}
+        self.path_started = False
         self.is_set_min_speed = False
 
         # bezier路径相关参数
@@ -121,6 +122,8 @@ class GoBezierWorld:
             Navigation.setTaskError("curvatureLimitExceeded",f"curvature limit exceeded. max_curvature={self.k_max},"
                                                              f"Adjust the robot's position before running this task")
             Module.setStatus(ScriptStatus.FAILED)
+            self.action_status = ActionStatus.FAILED
+            return
         # if not success or self.k_max >= 30:
         #     return
 
@@ -420,54 +423,65 @@ class GoBezierWorld:
         k_end = abs(dx * ddy - dy * ddx) / denom
         return k_end
 
-    def run(self):
-        self.action_status = ScriptStatus.RUNNING
+    def start_bezier_path(self):
+        Navigation.resetPath()
+        Navigation.setPathReachAngle(self.path_angle_accuracy)
+        Navigation.setPathReachDist(self.path_dist_accuracy)
+        Navigation.setPathBackMode(self.is_backwards)
+        if self.is_hold_dir:
+            Navigation.setPathHoldDir(self.is_hold_dir)
+        Navigation.setPathMaxSpeed(self.max_speed)
+        if not self.is_backwards:
+            self.end_position_world[2] += math.pi
+            self.end_position_world[2] = (
+                self.end_position_world[2] + math.pi
+            ) % (2 * math.pi) - math.pi
+        Navigation.setPathOnWorld(self.xs, self.ys, self.end_position_world[2])
+        Navigation.goPathParam(dict())
+        self.path_started = True
+
+    def run(self, ctx=None):
+        self.action_status = ActionStatus.RUNNING
         if self.init:
             self.get_path()
 
             self.init = False
-            # 规划第一段倒退路线参数
-            Navigation.resetPath()
-            Navigation.setPathReachAngle(math.radians(1))  # 到位精度
-            Navigation.setPathReachDist(0.01)
-            Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
-            if self.is_hold_dir:
-                Navigation.setPathHoldDir(self.is_hold_dir)  # 用于全向车
-            Navigation.setPathMaxSpeed(self.max_speed)
-            Navigation.setPathOnWorld([self.robot_loc[0], self.xs[0]],
-                                      [self.robot_loc[1], self.ys[0]],
-                                      self.robot_loc[2])
-            # self.param["maxAcc"] = float(self.max_accele)
-            # self.param["maxDec"] = float(self.max_decele)
-            Navigation.goPathParam(dict())
-
-        # 行走到第一个倒退点后规划贝塞尔路径参数
-        if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
-            self.is_first_path_reached = Navigation.isPathReached()
-            # Trace.log(f"self.is_first_path_reached={self.is_first_path_reached}")
+            if self.action_status == ActionStatus.FAILED:
+                return self.action_status
+            initial_dist = math.hypot(
+                self.robot_loc[0] - self.xs[0], self.robot_loc[1] - self.ys[0]
+            )
+            self.is_first_path_reached = initial_dist <= self.path_dist_accuracy
             if self.is_first_path_reached:
+                self.start_bezier_path()
+            else:
+                # 规划第一段倒退路线参数
                 Navigation.resetPath()
-                Navigation.setPathReachAngle(self.path_angle_accuracy)
+                Navigation.setPathReachAngle(math.radians(self.path_angle_accuracy))  # 到位精度
                 Navigation.setPathReachDist(self.path_dist_accuracy)
-                Navigation.setPathBackMode(self.is_backwards)  # 设置正走倒走
+                Navigation.setPathBackMode(not self.is_backwards)  # 设置正走倒走
                 if self.is_hold_dir:
                     Navigation.setPathHoldDir(self.is_hold_dir)  # 用于全向车
                 Navigation.setPathMaxSpeed(self.max_speed)
-                if not self.is_backwards:
-                    self.end_position_world[2] += math.pi
-                    self.end_position_world[2] = (self.end_position_world[2] + math.pi) % (2 * math.pi) - math.pi
-                Navigation.setPathOnWorld(self.xs, self.ys, self.end_position_world[2])
-                # self.param["maxAcc"] = float(self.max_accele)
-                # self.param["maxDec"] = float(self.max_decele)
-                # Navigation.goPathParam(self.param)
+                Navigation.setPathOnWorld([self.robot_loc[0], self.xs[0]],
+                                          [self.robot_loc[1], self.ys[0]],
+                                          self.robot_loc[2])
                 Navigation.goPathParam(dict())
+                self.path_started = True
+
+        # 行走到第一个倒退点后规划贝塞尔路径参数
+        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走第一段路线到曲率合适的贝塞尔起点
+            self.is_first_path_reached = Navigation.isPathReached()
+            # Trace.log(f"self.is_first_path_reached={self.is_first_path_reached}")
+            if self.is_first_path_reached:
+                self.start_bezier_path()
 
         # 行走第二段贝塞尔路径
-        if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:  # 走贝塞尔到终点
+        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED:  # 走贝塞尔到终点
             is_reached = Navigation.isPathReached()
             # 获取机器人位置（world系）
             if is_reached:
-                self.action_status = ScriptStatus.FINISHED
+                self.action_status = ActionStatus.FINISHED
 
             robot_current_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
             dist_cur_loc_end_loc = math.hypot(
@@ -482,12 +496,28 @@ class GoBezierWorld:
         return self.action_status
 
     def cancel(self):
+        super().cancel()
         Navigation.resetPath()
-        self.action_status = ScriptStatus.FAILED
+        self.path_started = False
+        self.action_status = ActionStatus.FAILED
 
     def reset(self):
+        super().reset()
         Navigation.resetPath()
-        self.action_status = ScriptStatus.RUNNING
+        self.path_started = False
+        self.action_status = ActionStatus.RUNNING
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            if self.path_started:
+                Navigation.stopRobotNow()
+            super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            if self.path_started:
+                Navigation.goPathParam(self.param)
+            super().resume()
 
 
 def vec_normal(v):
@@ -538,16 +568,16 @@ def quintic_transition(p0, v0, k0, p1, v1, steps=200):
     return xs, ys
 
 
-class GoBezierWorldReturn:
+class GoBezierWorldReturn(ActionBase):
     """
         走记录过的贝塞尔曲线返回的路径
     """
 
     def __init__(self, is_backwards=True, is_hold_dir=None, max_speed=0.3, max_accele=1, max_decele=0.7,
                  decele_dist=0.1):
+        super().__init__(self.__class__.__name__)
         self.end_position_world = [0, 0, 0]
         self.end_position_robot = [0, 0, 0]
-        self.action_name = self.__class__.__name__
 
         self.bezier_target_pos_return = None
         self.bezier_path_world_return = None
@@ -560,18 +590,18 @@ class GoBezierWorldReturn:
         self.max_decele = max_decele
         self.decele_dist = decele_dist
 
-        self.action_status = ScriptStatus.NONE
         self.init = True
         self.target_robot = [0, 0, 0]
         self.robot_loc = [0, 0, 0]
         self.control_point = None
         self.param = {}
+        self.path_started = False
         self.is_set_min_speed = False
         # 第一段线到位标识
         self.is_first_path_reached = False
 
-    def run(self):
-        self.action_status = ScriptStatus.RUNNING
+    def run(self, ctx=None):
+        self.action_status = ActionStatus.RUNNING
         if self.init:
             self.init = False
             go_bezier_data = ScriptData.get("goBezier")  # 后续在ScriptData.get格式改为dict后删除json.loads
@@ -579,13 +609,13 @@ class GoBezierWorldReturn:
                 self.bezier_target_pos_return = go_bezier_data.get("initial_point_world_return", None)
                 bezier_path_world_return = go_bezier_data.get("bezier_path_world_return", None)
                 if self.bezier_target_pos_return is None or bezier_path_world_return is None:
-                    self.action_status = ScriptStatus.FAILED
+                    self.action_status = ActionStatus.FAILED
                     Navigation.setTaskError(f"NoBezierRouteRecord",f"no bezier route record, script failed")
                     return
                 Trace.log(f"Bezier Path World Return: {bezier_path_world_return}", False)
             else:
                 Navigation.setTaskError(f"NoBezierRouteRecord", f"no bezier route record, script failed")
-                self.action_status = ScriptStatus.FAILED
+                self.action_status = ActionStatus.FAILED
                 return
             # go_bezier_final_pos = go_bezier_data.get("finalPos", [0, 0, 0])
             self.robot_loc = [Loc.getPose()["x"], Loc.getPose()["y"], math.radians(Loc.getPose()["yaw"])]
@@ -610,9 +640,9 @@ class GoBezierWorldReturn:
             self.param["maxAcc"] = float(self.max_accele)
             self.param["maxDec"] = float(self.max_decele)
             Navigation.goPathParam(self.param)
-        # Trace.log(f"is first path {self.is_first_path_reached}")
+            self.path_started = True
 
-        if not self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:
+        if not self.is_first_path_reached and self.action_status != ActionStatus.FAILED:
             self.is_first_path_reached = Navigation.isPathReached()
             if self.is_first_path_reached:
                 Navigation.resetPath()
@@ -622,32 +652,46 @@ class GoBezierWorldReturn:
                 if self.is_hold_dir:
                     Navigation.setPathHoldDir(self.is_hold_dir)  # 用于全向车
                 Navigation.setPathMaxSpeed(self.max_speed)
-                current_pose = Loc.getPose()
-                Navigation.setPathOnWorld([current_pose["x"], self.bezier_target_pos_return[0]],
-                                          [current_pose["y"], self.bezier_target_pos_return[1]],
+                Navigation.setPathOnWorld([0, self.bezier_target_pos_return[0]], [0, self.bezier_target_pos_return[1]],
                                           self.bezier_target_pos_return[2])
                 self.param["maxAcc"] = float(self.max_accele)
                 self.param["maxDec"] = float(self.max_decele)
                 Navigation.goPathParam(self.param)
+                self.path_started = True
 
-        if self.is_first_path_reached and self.action_status != ScriptStatus.FAILED:
+        if self.is_first_path_reached and self.action_status != ActionStatus.FAILED:
             is_reached = Navigation.isPathReached()
-            # Trace.log(f"Reached path: {is_reached}")
             if is_reached:
                 ScriptData.set("goBezier", {})
-                self.action_status = ScriptStatus.FINISHED
+                self.action_status = ActionStatus.FINISHED
             else:
-                self.action_status = ScriptStatus.RUNNING
+                self.action_status = ActionStatus.RUNNING
 
         return self.action_status
 
     def reset(self):
-        self.action_status = ScriptStatus.RUNNING
+        super().reset()
         Navigation.resetPath()
+        self.path_started = False
+        self.action_status = ActionStatus.RUNNING
 
     def cancel(self):
+        super().cancel()
         Navigation.resetPath()
-        self.action_status = ScriptStatus.FAILED
+        self.path_started = False
+        self.action_status = ActionStatus.FAILED
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            if self.path_started:
+                Navigation.stopRobotNow()
+            super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            if self.path_started:
+                Navigation.goPathParam(self.param)
+            super().resume()
 
 
 def main():

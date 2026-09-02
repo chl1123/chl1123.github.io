@@ -1,6 +1,7 @@
 from enum import Enum
 
-SCRIPTS_DIR = "/opt/.data/rbk/resources/scripts/"
+RESOURCES_DIR = "/opt/.data/rbk/resources/"
+SCRIPTS_DIR = RESOURCES_DIR + "scripts/"
 
 
 class ScriptType(str, Enum):

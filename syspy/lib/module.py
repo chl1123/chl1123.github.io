@@ -1,6 +1,7 @@
 import json
 import math
 import time
+from copy import deepcopy
 from enum import IntEnum
 from threading import Lock
 from typing import Union, Optional, Callable, Tuple, Any
@@ -119,7 +120,13 @@ class Module:
     __service = None
 
     @classmethod
-    def init(cls, name: str = "", *,  script_type: Optional[ScriptType] = None):
+    def init(
+            cls,
+            name: str = "",
+            *,
+            script_type: Optional[ScriptType] = None,
+            script_file: Optional[str] = None,
+    ):
         """脚本初始化
 
         Args:
@@ -134,8 +141,11 @@ class Module:
         Module.init(script_type=ScriptType.TASK)
         ```
         """
-        caller_frame = stack()[1]
-        caller_file = caller_frame.filename
+        if script_file:
+            caller_file = script_file
+        else:
+            caller_frame = stack()[1]
+            caller_file = caller_frame.filename
         cls.script_file = caller_file
         # 获取脚本相对路径
         cls.script_name = caller_file.split(SCRIPTS_DIR)[-1]
@@ -260,11 +270,11 @@ class Module:
                 cls.setStatus(ScriptStatus.RUNNING)
 
     @classmethod
-    def __safeMoveCheck(cls, task_id: int):
+    def __safeMoveCheck(cls, task_id: str):
         """移动安全检查（MF调用）
 
         Args:
-            task_id (int): 检查ID
+            task_id (str): 检查ID
         """
         if task_id != cls.__safe_move_check_id:
             cls.__safe_move_check_id = task_id
@@ -380,7 +390,28 @@ class Module:
             return task_config
 
     @classmethod
-    def getTaskId(cls) -> str:
+    def getTaskParams(cls, name: str = "", default: Any = None) -> Any:
+        """获取当前 TASK 的只读参数快照。
+
+        Args:
+            name (str): 顶层参数名。缺省返回完整 TASK 参数。
+            default (Any): 参数不存在时的缺省值。
+
+        Returns:
+            (Any): 参数值或完整参数的深拷贝。
+        """
+        with cls.__lock:
+            if name:
+                return deepcopy(cls.__task_params.get(name, default))
+            return deepcopy(cls.__task_params)
+
+    @classmethod
+    def getAutoPre(cls) -> bool:
+        """返回当前 TASK 是否启用 AutoPre。"""
+        return bool(cls.getTaskParams("autoPre", False))
+
+    @classmethod
+    def getTaskId(cls) -> str: 
         with cls.__lock:
             return cls.__task_id
 
