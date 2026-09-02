@@ -8,6 +8,8 @@ import importlib.util
 import os
 import json
 import sys
+import tempfile
+import stat
 from enum import Enum
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -35,6 +37,48 @@ def _get_prefix_dir(file):
         os.makedirs(config_dir)
     prefix_dir = config_dir + '/' + script_file_name.replace(PY_SUFFIX, '')
     return prefix_dir
+
+
+def _atomic_write_text(filename: str, content: str, encoding: str = "utf-8") -> None:
+    """Write a text file without exposing a partially-written target.
+
+    The temporary file is created next to the target so ``os.replace`` stays
+    on the same filesystem. Flushing both the file and its directory makes
+    the rename durable across a power loss on filesystems supporting fsync.
+    """
+    directory = os.path.dirname(os.path.abspath(filename)) or "."
+    target_mode = 0o644
+    try:
+        target_mode = stat.S_IMODE(os.stat(filename).st_mode)
+    except FileNotFoundError:
+        pass
+
+    fd, temporary = tempfile.mkstemp(
+        prefix=f".{os.path.basename(filename)}.", suffix=".tmp", dir=directory
+    )
+    try:
+        os.fchmod(fd, target_mode)
+        with os.fdopen(fd, "w", encoding=encoding) as stream:
+            fd = None
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, filename)
+        temporary = None
+
+        directory_fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if fd is not None:
+            os.close(fd)
+        if temporary is not None:
+            try:
+                os.unlink(temporary)
+            except FileNotFoundError:
+                pass
 
 
 class ParamServer:
@@ -104,8 +148,10 @@ class ParamServer:
                     update_file = True
                     self.data[name]["unit"] = kw["unit"]
                 if update_file:
-                    with open(self.file, 'w', encoding="utf-8") as f:
-                        json.dump(self.data, f, indent=4, ensure_ascii=False)
+                    _atomic_write_text(
+                        self.file,
+                        json.dumps(self.data, indent=4, ensure_ascii=False),
+                    )
                 return self.data[name]["value"]
             else:
                 raise ValueError("loadParam no 'default' key")
@@ -320,8 +366,10 @@ class ScriptParam:
 
         tasks_file_data["standard"] = self._actions
 
-        with open(self.action_file, 'w', encoding='utf-8') as f:
-            json.dump(tasks_file_data, f, indent=4, ensure_ascii=False)
+        _atomic_write_text(
+            self.action_file,
+            json.dumps(tasks_file_data, indent=4, ensure_ascii=False),
+        )
 
 
 # 参数类型常量
@@ -950,8 +998,7 @@ class ParamBuilder:
         """将配置保存到文件"""
         if filename is None:
             filename = prefix_dir + INPUT_SUFFIX
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(self.toJson(indent))
+        _atomic_write_text(filename, self.toJson(indent))
 
     def save(self, merge: bool = False) -> None:
         """将配置保存到文件
@@ -977,12 +1024,13 @@ class ParamBuilder:
             # 合并现有数据
             merged_data = self._merge_with_existing(existing_data)
             # 保存合并后的数据
-            with open(filename, "w", encoding="utf-8") as f:
-                json.dump(merged_data, f, ensure_ascii=False, indent=2)
+            _atomic_write_text(
+                filename,
+                json.dumps(merged_data, ensure_ascii=False, indent=2),
+            )
         else:
             # 直接保存新数据
-            with open(filename, "w", encoding="utf-8") as f:
-                f.write(self.toJson(2))
+            _atomic_write_text(filename, self.toJson(2))
 
     def _index_params(self, node: Dict[str, Any], index: Dict[str, Any], parent_path: str = "") -> None:
         """递归索引参数"""
