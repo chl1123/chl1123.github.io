@@ -1,6 +1,7 @@
 from __future__ import annotations
 import math
-from typing import Optional, Dict, TYPE_CHECKING
+import json
+from typing import Optional, Dict, List, TYPE_CHECKING
 
 from syspy.loc import LocInterface
 if TYPE_CHECKING:
@@ -43,3 +44,29 @@ class LocV3(LocInterface):
     def getLocMethod(self) -> Optional[int]:
         if self.update():
             return self.data.locMethod
+
+    @classmethod
+    def relocService(cls, center_x: float, center_y: float, length: float,
+                     initial_angle: float, angle_scatter: float) -> str:
+        params = {
+            "center_x": center_x,
+            "center_y": center_y,
+            "length": length,
+            "initial_angle": initial_angle,
+            "angle_scatter": angle_scatter,
+        }
+        return cls.client().call_service("MCLoc", "RelocServiceScript", json.dumps(params))
+
+    @classmethod
+    def relocServiceFromPose(cls, home_list: List[str]) -> str:
+        params = {"home_list": home_list}
+        return cls.client().call_service("MCLoc", "RelocServiceFromPoseScript", json.dumps(params))
+
+    @classmethod
+    def autoRelocService(cls, use_pos: bool, x: float, y: float) -> str:
+        params = {"use_pos": use_pos, "x": x, "y": y}
+        return cls.client().call_service("MCLoc", "AutoRelocServiceScript", json.dumps(params))
+
+    @classmethod
+    def cancelReloc(cls):
+        return cls.client().call_service("MCLoc", "CancelRelocScript")

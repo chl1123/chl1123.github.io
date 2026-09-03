@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from abc import ABC
 from syspy.core.rbk_rpc import Message, RBKVersionError
 
@@ -62,6 +62,58 @@ class LocInterface(ABC, Message):
                 - 6 = 特征定位\n
                 - 7 = 3D特征定位\n
                 - 8 = 3D KF定位\n
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def relocService(cls, center_x: float, center_y: float, length: float,
+                     initial_angle: float, angle_scatter: float) -> str:
+        """按中心点和搜索范围执行粒子滤波重定位。
+
+        Args:
+            center_x (float): 重定位中心 x 坐标，单位 m，无默认值，必须传入。
+            center_y (float): 重定位中心 y 坐标，单位 m，无默认值，必须传入。
+            length (float): 重定位搜索范围直径，单位 m，无默认值，必须传入；小于 0.1 时使用系统默认范围。
+            initial_angle (float): 重定位中心初始朝向，单位 degree，无默认值，必须传入。
+            angle_scatter (float): 朝向搜索散布范围，单位 degree，无默认值，必须传入。
+
+        Returns:
+            (str): JSON 对象字符串，成功时通常为 ``{"err_msg": ""}``。
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def relocServiceFromPose(cls, home_list: List[str]) -> str:
+        """按地图中的起点名称列表执行重定位。
+
+        Args:
+            home_list (list[str]): 地图 advancedpointlist 中的起点名称列表，无默认值，必须传入。
+
+        Returns:
+            (str): JSON 对象字符串，成功时通常为 ``{"err_msg": ""}``。
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def autoRelocService(cls, use_pos: bool, x: float, y: float) -> str:
+        """执行自动重定位，可指定初始位姿。
+
+        Args:
+            use_pos (bool): 是否使用指定的初始位置，无默认值，必须传入。
+            x (float): 初始位置 x 坐标，单位 m，无默认值，必须传入；``use_pos=False`` 时忽略。
+            y (float): 初始位置 y 坐标，单位 m，无默认值，必须传入；``use_pos=False`` 时忽略。
+
+        Returns:
+            (str): JSON 对象字符串，成功时通常为 ``{"err_msg": ""}``。
+        """
+        raise RBKVersionError()
+
+    @classmethod
+    def cancelReloc(cls):
+        """取消当前正在进行的重定位。
+
+        Returns:
+            None: RPC 服务无返回值，成功响应的 result 为 null。
         """
         raise RBKVersionError()
 
