@@ -116,12 +116,16 @@ from standard.fork_utils import (
     Rec,
     RunReachMotorsByPosition,
     RunMotorByPosition,
+    WeightCheckAction,
     _action_chart_dict,
     bind_runtime as bind_fork_utils_runtime,
     build_recognition_readjust_target,
     build_path_adjust_plan,
     build_return_path_action,
     apply_tcp_target,
+    add_weight_config,
+    add_weight_input,
+    build_weight_action,
     clamp,
     create_end_height_param,
     create_fork_height_param,
@@ -133,6 +137,7 @@ from standard.fork_utils import (
     float_to_modbus_poll_regs,
     format_action,
     get_r_loc,
+    get_motor_limit_di,
     has_valid_target_pos,
     is_do_motor_key,
     is_enabled,
@@ -149,6 +154,7 @@ from standard.fork_utils import (
     evaluate_recognition_readjust,
     extract_recognition_height_z,
     calculate_recognition_pick_height,
+    check_motor_action_error,
     load_pallet_z_offset,
     update_back_laser_clear_region_by_height,
     validate_goods_state_for_operation,
@@ -249,6 +255,11 @@ class ConfigParams:
     reach_up_dist: float = 0.001
     reach_down_dist: float = 0.001
     DOMotor: bool = False
+    weightCan: str = ""
+    weightNodeId: int = 0x0A
+    weightSampleCount: int = 3
+    weightSampleInterval: float = 0.1
+    maxWeight: float = 1000.0
 
     # --- 车体几何与传感器
     fork_tip_width: float = 0.0
@@ -341,6 +352,11 @@ class ConfigParams:
         cls.enableContactDiNoRec = cls._safe_bool(cfg.get("enableContactDiNoRec"), True)
         cls.enableTcp = cls._safe_bool(cfg.get("enableTcp"), False)
         cls.loadObsStopDist = cfg.get("loadObsStopDist")
+        cls.weightCan = cfg.get("weightCan", "")
+        cls.weightNodeId = cfg.get("weightNodeId", 0x0A)
+        cls.weightSampleCount = cfg.get("weightSampleCount", 3)
+        cls.weightSampleInterval = cfg.get("weightSampleInterval", 0.1)
+        cls.maxWeight = cfg.get("maxWeight", 1000.0)
         cls.useForPalletFallProtection = cls._safe_bool(cfg.get("useForPalletFallProtection"), False)
         cls.setRoiX = cfg.get("setRoiX", 2.0)
         cls.setRoiMaxY = cfg.get("setRoiMaxY", 2.0)
@@ -447,6 +463,10 @@ class ConfigParams:
             min_length = cls._safe_float(RobotParam.getDevice(motor_name, f"func.{motor_func}.minLength") or 0)
             max_length = cls._safe_float(RobotParam.getDevice(motor_name, f"func.{motor_func}.maxLength") or 0)
         return min_length, max_length
+
+    @classmethod
+    def _get_motor_limit_di(cls, motor_name, direction):
+        return get_motor_limit_di(motor_name, direction, cls.motor_func)
 
     @classmethod
     def _find_config_value(cls, keys, node=_CONFIG_ROOT, visited=None):
@@ -632,6 +652,8 @@ class ConfigParams:
                 "maxLength": cls.max_height,
                 "minLength": cls.min_height
             }
+            lift_motor["upLimitDi"] = cls._get_motor_limit_di(cls.fork_motor_name, "up") or cls.up_di or ""
+            lift_motor["downLimitDi"] = cls._get_motor_limit_di(cls.fork_motor_name, "down") or cls.down_di or ""
             cls.moduleMotor.append(lift_motor)
 
         # shift 电机
@@ -665,6 +687,8 @@ class ConfigParams:
             "maxLength": max_length,
             "minLength": min_length
         }
+        motor["upLimitDi"] = cls._get_motor_limit_di(motor_name, "up")
+        motor["downLimitDi"] = cls._get_motor_limit_di(motor_name, "down")
         if side:
             motor["side"] = side
         cls.moduleMotor.append(motor)
@@ -773,6 +797,8 @@ class ConfigParams:
                     with builder.CHILD(key="downDoStatus", name=_TR("Down Do Status"), desc=_TR("DO state used to lower the fork")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+
+            add_weight_config(builder)
 
             # ===== 取放货 =====
             with builder.GROUP(key="loadUnload", name=_TR("Load & Unload"), desc=_TR("Load and unload configuration")):
@@ -1273,6 +1299,8 @@ class InputParams:
                             # builder.REQUIRED(True)
                             cls.builder.DEFAULTVALUE(ConfigParams.fork_max_speed)
 
+                    add_weight_input(cls.builder)
+
                     # 电机点动/长按操作
                     with cls.builder.CHILD(key="lift", name=_TR("Lift Motor"), desc=_TR("Lift motor jog or move")):
                         cls.builder.TYPE(ParamType.ARRAY)
@@ -1415,6 +1443,7 @@ def _init_action_templates():
     add_template(_TR("Fork Load"), "load", stage=3)
     add_template(_TR("Fork UnLoad"), "unload", stage=3)
     add_template(_TR("Fork Height"), "forkHeight")
+    add_template(_TR("Goods Weight"), "weightGood")
     add_template(_TR("Leave Loc"), "leaveLoc", stage=3)
     for template in _collect_custom_action_templates():
         add_template(**template)
@@ -1921,6 +1950,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             "load": self.load,
             "unload": self.unload,
             "forkHeight": self.fork_move,
+            "weightGood": self.weight_good,
             "rec": self.rec,
             "leaveLoc": self.leave_loc,
             "test": self.test,
@@ -2829,6 +2859,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         prev_current = self.current_action
         prev_status = prev_current.action_status if prev_current else None
 
+        if prev_current is not None:
+            check_motor_action_error(prev_current, self.opt, ConfigParams.moduleMotor)
         self.action_task.step(self)
         self._sync_action_runtime()
 
@@ -2981,6 +3013,14 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             # if ConfigParams.fork_motor_name:
             self._set_actions([RunMotorByPosition(ConfigParams.fork_motor_name, self.forkHeight, self.forkSpeed)])
         # print("action_status:" + json.dumps(cur_status))
+
+    def weight_good(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self._set_actions([build_weight_action(ConfigParams)])
+        action = self.action_task.first_action
+        if isinstance(action, WeightCheckAction) and action.weight_result is not None:
+            self.report_info["weightResult"] = round(action.weight_result, 3)
 
     def _init_args(self):
 

@@ -23,6 +23,7 @@ import standard.goBezier as GoBezier
 from enum import IntEnum
 from syspy import LevelDB
 from standard.weighing_scale import CkyDgScale
+from standard.fork_utils import build_weight_action, check_motor_action_error, get_motor_limit_di
 
 
 db = LevelDB("run")
@@ -136,6 +137,7 @@ class ConfigParams:
     reach_up_dist: float = 0.001
     reach_down_dist: float = 0.001
     DOMotor: bool = False
+    moduleMotor: list = []
 
     # 参数配置文件的参数
     config = {}
@@ -227,6 +229,9 @@ class ConfigParams:
     weightMinInitial: float = 1.0
     weightEmptyThreshold: float = 300.0
     weightDropThreshold: float = 0.8
+    weightCan: str = ""
+    weightNodeId: int = 0x0A
+    maxWeight: float = 1000.0
     releaseSlowDownSpeed: float = 0.01
     releaseMaxExtraDownDist: float = 0.05
     laserLiftGateTimeout: float = 15.0
@@ -309,6 +314,9 @@ class ConfigParams:
         cls.weightMinInitial = cfg.get("weightMinInitial", 1.0)
         cls.weightEmptyThreshold = cfg.get("weightEmptyThreshold", 300.0)
         cls.weightDropThreshold = cfg.get("weightDropThreshold", 0.8)
+        cls.weightCan = cfg.get("weightCan", "")
+        cls.weightNodeId = cfg.get("weightNodeId", 0x0A)
+        cls.maxWeight = cfg.get("maxWeight", 1000.0)
         cls.releaseSlowDownSpeed = cfg.get("releaseSlowDownSpeed", 0.01)
         cls.releaseMaxExtraDownDist = cfg.get("releaseMaxExtraDownDist", 0.05)
         cls.laserLiftGateTimeout = cfg.get("laserLiftGateTimeout", 15.0)
@@ -384,14 +392,19 @@ class ConfigParams:
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.minLength") or 0)
             cls.max_height = float(
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxLength") or 0)
-            cls.up_di = RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI")
-            cls.down_di = RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI")
+            cls.up_di = get_motor_limit_di(cls.fork_motor_name, "up", cls.motor_func)
+            cls.down_di = get_motor_limit_di(cls.fork_motor_name, "down", cls.motor_func)
             cls.fork_max_speed = float(
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed") or 0)
             cls.reach_up_dist = float(
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachUpDist") or 0)
             cls.reach_down_dist = float(
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.reachDownDist") or 0)
+        cls.moduleMotor = [{
+            "motorKey": cls.fork_motor_name,
+            "upLimitDi": cls.up_di or "",
+            "downLimitDi": cls.down_di or "",
+        }]
 
     def get_app_rec_param(cls):
         pass
@@ -696,6 +709,16 @@ class ConfigParams:
             with builder.GROUP(key="weight", name="Weight", desc="称重参数"):
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
+                    with builder.CHILD(key="weightCan", name="Weight CAN", desc="CAN device connected to the weight scale"):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.Device.CAN)
+                    with builder.CHILD(key="weightNodeId", name="CAN Node ID", desc="CAN weight scale node ID"):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(0x0A)
+                    with builder.CHILD(key="maxWeight", name="Max Weight", desc="Maximum allowed goods weight"):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(1000.0)
+                        builder.UNIT("kg")
                     with builder.CHILD(key="weightPort", name="Weight Port", desc="称重串口"):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("/dev/ttyUSB0")
@@ -982,6 +1005,9 @@ class InputParams:
                             # builder.REQUIRED(True)
                             cls.builder.DEFAULTVALUE(ConfigParams.fork_max_speed)
 
+                    with cls.builder.CHILD(key="weightGood", name="Goods Weight", desc="Measure goods weight"):
+                        cls.builder.TYPE(ParamType.ARRAY)
+
                     # 脱离库位操作
                     with cls.builder.CHILD(key="leaveLoc", name="Leave Loc",
                                            desc="Leave loc after load"):
@@ -1086,6 +1112,13 @@ param_loader.addAction(
         "operation.forkHeight.height": 0.1,
         "operation.forkHeight.forkSpeed": ConfigParams.fork_max_speed,
     },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Goods Weight",
+    policy={},
+    args={"operation": "weightGood"},
     config={}
 )
 
@@ -1529,6 +1562,8 @@ class Fork(ModuleBase):
             self.unload()
         elif self.opt == "forkHeight":
             self.fork_move()
+        elif self.opt == "weightGood":
+            self.weight_good()
         elif self.opt == "rec":
             self.rec()
         elif self.opt == "leaveLoc":
@@ -2201,7 +2236,11 @@ class Fork(ModuleBase):
             elif self.current_action.action_status == ActionStatus.INIT:
                 self.current_action.reset()
             else:
-                self.current_action.run()
+                if not check_motor_action_error(self.current_action, self.opt, ConfigParams.moduleMotor):
+                    self.current_action.run()
+                if self.current_action.action_status == ActionStatus.FAILED:
+                    self.action_status = ActionStatus.FAILED
+                    self.script_status = ScriptStatus.FAILED
             self.trace_chart.update(
                 _flat_attrs(self.current_action, idx1=self.action_id)
             )
@@ -2233,6 +2272,17 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
             self.fork_height_in_place = True
         _trace_log(f"fork move action list:{self.action_list}")
+
+    def weight_good(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self.trace_chart.pop("weightResult", None)
+            self.action_list = [build_weight_action(ConfigParams)]
+        action = self.action_list[0]
+        if action.weight_result is not None:
+            self.trace_chart["weightResult"] = round(action.weight_result, 3)
+        if self.action_status == ActionStatus.FINISHED:
+            self.script_status = ScriptStatus.FINISHED
 
     def _init_args(self):
 
@@ -3688,6 +3738,7 @@ class RunMotorByPosition(BaseAction):
         self.action_status = ActionStatus.INIT
         self.timeout = None
         self.cur_fork_height_at_init = None
+        self.delta = self.position - Motor.getMotorPos(self.motor_name)
 
     def _close_fork_dos(self):
         """关闭货叉 DO（仅对 fork_motor_name 生效）"""
@@ -3719,6 +3770,7 @@ class RunMotorByPosition(BaseAction):
             # 把目标位置先夹到最大最小区间
             min_h, max_h = ConfigParams.min_height, ConfigParams.max_height
             self.position = clamp(self.position, min_h, max_h)
+            self.delta = self.position - cur_fork_height
             _trace_log(f"position:{self.position}")
 
             # 仅对fork_motor_name进行超时检查

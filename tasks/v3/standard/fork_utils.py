@@ -21,6 +21,8 @@ MOD = "fork"
 _CONFIG = None
 EPS = 1e-6
 ActionStatus = TaskActionStatus
+MOTOR_ACTION_ERROR_KEY = "ms@MotorAction"
+MOTOR_LIMIT_OPERATIONS = {"forkHeight", "lift", "shift", "pitch", "reach", "expand"}
 
 
 def bind_runtime(config_cls):
@@ -40,6 +42,105 @@ def _trace_log(text: str, *, name: str = f"{MOD}.task") -> None:
 
 def _trace_chart(msg: dict, *, name: str = f"{MOD}.action") -> None:
     Trace.log(msg, output_console=False, name=name)
+
+
+def get_motor_limit_di(motor_name, direction, fallback_motor_func=""):
+    if not motor_name or is_do_motor_key(motor_name):
+        return ""
+    motor_func = RobotParam.getDevice(motor_name, "func") or fallback_motor_func
+    if not motor_func:
+        return ""
+    names = ("upLimitDI", "upLimitDi", "UpLimitDI") if direction == "up" else (
+        "DownLimitDI", "downLimitDI", "downLimitDi", "DownLimitDi"
+    )
+    for name in names:
+        value = RobotParam.getDevice(motor_name, f"func.{motor_func}.{name}")
+        if value:
+            return str(value)
+    return ""
+
+
+def get_weight_can_config(can_device):
+    can_port = str(RobotParam.getDevice(can_device, "canPort") or "").lower()
+    channel = {"port1": "can0", "port2": "can1"}.get(can_port, "")
+    baudrate = str(RobotParam.getDevice(can_device, "baudrate") or "").upper()
+    return channel, int(baudrate[:-1]) * 1000 if baudrate.endswith("K") and baudrate[:-1].isdigit() else 0
+
+
+def check_motor_action_error(action, operation, module_motors) -> bool:
+    try:
+        exists = RobotError.existSystemError(MOTOR_ACTION_ERROR_KEY)
+    except Exception as exc:
+        Trace.log(f"read system error {MOTOR_ACTION_ERROR_KEY} failed: {exc}", name=f"{MOD}.err")
+        return False
+    if not exists:
+        return False
+    triggered = []
+    for motor in module_motors:
+        for direction in ("up", "down"):
+            di = motor.get(f"{direction}LimitDi", "")
+            if not di:
+                continue
+            try:
+                if Di.getDi(di):
+                    triggered.append((motor.get("motorKey", ""), direction, di))
+            except Exception as exc:
+                Trace.log(
+                    f"read limit DI failed motor={motor.get('motorKey', '')}, di={di}: {exc}",
+                    name=f"{MOD}.err",
+                )
+    motor_key = getattr(action, "motor_name", "")
+    delta = getattr(action, "delta", None)
+    action_direction = "up" if delta is not None and delta > EPS else "down" if delta is not None and delta < -EPS else ""
+    matched = [item for item in triggered if item[0] == motor_key]
+    details = ", ".join(f"motor={key}, {direction}LimitDi={di}" for key, direction, di in matched)
+    if operation in MOTOR_LIMIT_OPERATIONS and matched and action_direction and all(
+            direction != action_direction for _, direction, _ in matched):
+        try:
+            RobotError.clearSystemError(MOTOR_ACTION_ERROR_KEY)
+            Trace.log(f"clear MF {MOTOR_ACTION_ERROR_KEY} before reverse action: {details}", name=f"{MOD}.motor")
+            return False
+        except Exception as exc:
+            Trace.log(f"clear system error {MOTOR_ACTION_ERROR_KEY} failed: {exc}", name=f"{MOD}.err")
+    error_desc = f"MF {MOTOR_ACTION_ERROR_KEY} in operation={operation or 'unknown'} for motor={motor_key or 'unknown'}; {details or 'no active limit DI identified'}"
+    Trace.log(error_desc, name=f"{MOD}.err")
+    action.fail_reason = error_desc
+    action.action_status = ActionStatus.FAILED
+    return True
+
+
+def add_weight_config(builder):
+    with builder.GROUP(key="weight", name=_TR("Weight Settings"), desc=_TR("Goods weight configuration")):
+        builder.TYPE(ParamType.ARRAY)
+        with builder.CHILDREN():
+            with builder.CHILD(key="weightCan", name=_TR("Weight CAN"), desc=_TR("CAN device connected to the weight scale")):
+                builder.TYPE(ParamType.BIND_TYPE)
+                builder.BINDTYPE(BindType.Device.CAN)
+            for key, name, default, param_type in (
+                    ("weightNodeId", "CAN Node ID", 0x0A, ParamType.INT),
+                    ("weightSampleCount", "Sample Count", 3, ParamType.INT),
+                    ("weightSampleInterval", "Sample Interval", 0.1, ParamType.FLOAT),
+                    ("maxWeight", "Max Weight", 1000.0, ParamType.FLOAT)):
+                with builder.CHILD(key=key, name=_TR(name), desc=_TR(name)):
+                    builder.TYPE(param_type)
+                    builder.DEFAULTVALUE(default)
+
+
+def add_weight_input(builder):
+    with builder.CHILD(key="weightGood", name=_TR("Goods Weight"), desc=_TR("Measure goods weight")):
+        builder.TYPE(ParamType.ARRAY)
+
+
+def build_weight_action(config):
+    channel, bitrate = get_weight_can_config(getattr(config, "weightCan", ""))
+    return WeightCheckAction(
+        protocol="ruibot",
+        scale_options={"channel": channel, "bitrate": bitrate, "node_id": getattr(config, "weightNodeId", 0x0A)},
+        max_weight=getattr(config, "maxWeight", 1000.0),
+        sample_count=getattr(config, "weightSampleCount", 3),
+        sample_interval=getattr(config, "weightSampleInterval", 0.1),
+        action_name="weightGood",
+    )
 
 
 # ============================================================================
@@ -2810,6 +2911,7 @@ class RunMotorByPosition(ActionBase):
         self.action_status = ActionStatus.INIT
         self.cur_position = Motor.getMotorPos(self.motor_name)
         self.cur_position_at_init = self.cur_position
+        self.delta = self.position - self.cur_position
         self._motor_reset_done = False
 
     def _reset_motor_once(self):
@@ -2828,6 +2930,7 @@ class RunMotorByPosition(ActionBase):
         self.position = clamp(self.position, min_length, max_length)
         self.cur_position = Motor.getMotorPos(self.motor_name)
         delta = self.position - self.cur_position
+        self.delta = delta
         if abs(delta) <= self.position_tolerance:
             self.action_status = ActionStatus.FINISHED
             Trace.log(

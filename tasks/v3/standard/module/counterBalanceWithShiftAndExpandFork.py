@@ -23,6 +23,7 @@ from syspy.lib.net_protocol import parseModbus
 from syspy.lib.robot import RobotParam
 import standard.goBezier as GoBezier
 from syspy import LevelDB
+from standard.fork_utils import add_weight_config, add_weight_input, build_weight_action, check_motor_action_error, get_motor_limit_di
 from syspy import RobotError
 
 # from syspy.core.rbk_rpc import Service
@@ -264,6 +265,11 @@ class ConfigParams:
         cls.enableContactDiNoRec = cfg.get("enableContactDiNoRec")
         cls.enableTcp = cfg.get("enableTcp")
         cls.loadObsStopDist = cfg.get("loadObsStopDist")
+        cls.weightCan = cfg.get("weightCan", "")
+        cls.weightNodeId = cfg.get("weightNodeId", 0x0A)
+        cls.weightSampleCount = cfg.get("weightSampleCount", 3)
+        cls.weightSampleInterval = cfg.get("weightSampleInterval", 0.1)
+        cls.maxWeight = cfg.get("maxWeight", 1000.0)
         cls.errorRecY = cfg.get("errorRecY")
         cls.errorRecAngle = cfg.get("errorRecAngle")
         cls.zMax = cfg.get("zMax")
@@ -442,8 +448,8 @@ class ConfigParams:
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.minLength") or 0)
             cls.max_height = float(
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxLength") or 0)
-            cls.up_di = RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.upLimitDI")
-            cls.down_di = RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.DownLimitDI")
+            cls.up_di = get_motor_limit_di(cls.fork_motor_name, "up", cls.motor_func)
+            cls.down_di = get_motor_limit_di(cls.fork_motor_name, "down", cls.motor_func)
             cls.fork_max_speed = float(
                 RobotParam.getDevice(f"{cls.fork_motor_name}", f"func.{cls.motor_func}.maxSpeed") or 0)
             cls.reach_up_dist = float(
@@ -480,6 +486,8 @@ class ConfigParams:
                 "maxLength": cls.max_height,
                 "minLength": cls.min_height
             }
+            lift_motor["upLimitDi"] = cls.up_di or ""
+            lift_motor["downLimitDi"] = cls.down_di or ""
             cls.moduleMotor.append(lift_motor)
 
         # shift 电机
@@ -513,6 +521,8 @@ class ConfigParams:
             "maxLength": max_length,
             "minLength": min_length
         }
+        motor["upLimitDi"] = get_motor_limit_di(motor_name, "up", cls.motor_func)
+        motor["downLimitDi"] = get_motor_limit_di(motor_name, "down", cls.motor_func)
         if side:
             motor["side"] = side
         cls.moduleMotor.append(motor)
@@ -601,6 +611,8 @@ class ConfigParams:
                     with builder.CHILD(key="downDoStatus", name="Down Do Status", desc="降货叉时的 do 状态"):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+
+            add_weight_config(builder)
 
             # ===== 取放货 =====
             with builder.GROUP(key="loadUnload", name="Load & Unload", desc="取放货相关配置"):
@@ -1017,6 +1029,8 @@ class InputParams:
                             # builder.REQUIRED(True)
                             cls.builder.DEFAULTVALUE(ConfigParams.fork_max_speed)
 
+                    add_weight_input(cls.builder)
+
                     # 电机点动/长按操作
                     with cls.builder.CHILD(key="lift", name="Lift Motor", desc="Lift motor jog or move"):
                         cls.builder.TYPE(ParamType.ARRAY)
@@ -1226,6 +1240,13 @@ param_loader.addAction(
         "operation.forkHeight.height": 0.1,
         "operation.forkHeight.forkSpeed": ConfigParams.fork_max_speed,
     },
+    config={}
+)
+
+param_loader.addAction(
+    action_name="Goods Weight",
+    policy={},
+    args={"operation": "weightGood"},
     config={}
 )
 
@@ -1688,6 +1709,8 @@ class Fork(ModuleBase):
             self.unload()
         elif self.opt == "forkHeight":
             self.fork_move()
+        elif self.opt == "weightGood":
+            self.weight_good()
         elif self.opt == "rec":
             self.rec()
         elif self.opt == "leaveLoc":
@@ -2374,7 +2397,11 @@ class Fork(ModuleBase):
                           name="fork.action")
                 self.current_action.reset()
             else:
-                self.current_action.run()
+                if not check_motor_action_error(self.current_action, self.opt, ConfigParams.moduleMotor):
+                    self.current_action.run()
+                if self.current_action.action_status == ActionStatus.FAILED:
+                    self.action_status = ActionStatus.FAILED
+                    self.script_status = ScriptStatus.FAILED
             # action 状态推 chart（调用 _trace_state()）
             self.trace_chart.update(
                 _action_chart_dict(self.current_action, self.action_id)
@@ -2464,6 +2491,16 @@ class Fork(ModuleBase):
             self.script_status = ScriptStatus.FINISHED
             self.fork_height_in_place = True
         # print("action_status:" + json.dumps(cur_status))
+
+    def weight_good(self):
+        if not self.operation_init:
+            self.operation_init = True
+            self.action_list = [build_weight_action(ConfigParams)]
+        action = self.action_list[0]
+        if action.weight_result is not None:
+            self.trace_chart["weightResult"] = round(action.weight_result, 3)
+        if self.action_status == ActionStatus.FINISHED:
+            self.script_status = ScriptStatus.FINISHED
 
     def _init_args(self):
 
@@ -3836,12 +3873,14 @@ class RunModuleMotorByPosition(BaseAction):
         self.action_status = ActionStatus.INIT
         self.cur_position = Motor.getMotorPos(self.motor_name)
         self.cur_position_at_init = self.cur_position
+        self.delta = self.position - self.cur_position
 
     def _start_motor(self):
         min_length, max_length = ConfigParams._get_motor_limits(self.motor_name)
         self.position = clamp(self.position, min_length, max_length)
         self.cur_position = Motor.getMotorPos(self.motor_name)
         delta = self.position - self.cur_position
+        self.delta = delta
         try:
             if abs(delta) <= 0.005:
                 self.action_status = ActionStatus.FINISHED
