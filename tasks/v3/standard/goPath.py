@@ -4,6 +4,7 @@ import time
 from typing import Optional
 
 from syspy import Module, ScriptStatus, Navigation, Loc, Trace
+from syspy.lib.action_task import ActionBase, ActionStatus
 
 
 """
@@ -104,17 +105,29 @@ from syspy import Module, ScriptStatus, Navigation, Loc, Trace
 """
 
 
-class GoPath:
-    def __init__(self):
+class GoPath(ActionBase):
+    def __init__(self, args: Optional[dict] = None):
+        super().__init__("GoPath")
         self.goal = [0, 0, 0]
         self.init = False
-        self.status = ScriptStatus.NONE
+        self.action_status = ActionStatus.INIT
         self.param = {}
+        self.path_started = False
+        self.args = args
+        self.action_name = self.__class__.__name__
+        self.start_time = time.time()
+        self.action_state = {}
+        Trace.log(f"go path init, args:{args}", name="fork.task")
 
-    def run(self, args: Optional[dict] = None):
-        self.status = ScriptStatus.RUNNING
+    def run(self, ctx=None, args: Optional[dict] = None):
+        self.action_status = ActionStatus.RUNNING
         if args is None:
-            args = Module.getTaskArgs()
+            if isinstance(ctx, dict):
+                args = ctx
+            elif self.args is not None:
+                args = self.args
+            else:
+                args = Module.getTaskArgs()
         if not self.init:
             self.init = True
             Navigation.resetPath()
@@ -143,6 +156,8 @@ class GoPath:
                     Navigation.setPathMaxRot(float(args["maxRot"]))
                 if "holdDir" in args:
                     Navigation.setPathHoldDir(float(args["holdDir"]))
+                elif "hold_dir" in args and args["hold_dir"] not in (None, False):
+                    Navigation.setPathHoldDir(float(args["hold_dir"]))
                 if "maxAcc" in args:
                     self.param["maxAcc"] = float(args["maxAcc"])
                 if "maxDec" in args:
@@ -160,31 +175,68 @@ class GoPath:
                     Navigation.setPathOnWorld([x, self.goal[0]], [y, self.goal[1]], self.goal[2])
                 else:
                     coordinate = args["coordinate"]
-                    Trace.log(f"coordinate only support robot and world. Input is {coordinate}")
-                    self.status = ScriptStatus.FAILED
+                    Navigation.setTaskError("WrongCoordinate",
+                                            f"coordinate only support robot and world. Input is {coordinate}")
+                    self.action_status = ActionStatus.FAILED
             else:
-                Trace.log(f"args error: {json.dumps(args)}")
-                self.status = ScriptStatus.FAILED
-            Navigation.goPathParam(self.param)
+                Navigation.setTaskError("GoPathArgsWrong", f"args wrong: {json.dumps(args)}")
+                self.action_status = ActionStatus.FAILED
+            if self.action_status != ActionStatus.FAILED:
+                Navigation.goPathParam(self.param)
+                self.path_started = True
 
-        if self.status != ScriptStatus.FAILED:
+        if self.action_status != ActionStatus.FAILED:
             if Navigation.isPathReached():
-                self.status = ScriptStatus.FINISHED
+                self.action_status = ActionStatus.FINISHED
             else:
-                self.status = ScriptStatus.RUNNING
-        return self.status
+                self.action_status = ActionStatus.RUNNING
+        return self.action_status
 
     def reset(self):
-        self.status = ScriptStatus.NONE
+        self.action_status = ActionStatus.RUNNING
         self.init = False
         self.param = {}
+        self.path_started = False
         Navigation.resetPath()
+
+    def cancel(self):
+        Navigation.resetPath()
+        self.path_started = False
+        self.action_status = ActionStatus.FAILED
+
+    def suspend(self):
+        if self.action_status == ActionStatus.RUNNING:
+            if self.path_started:
+                Navigation.stopRobotNow()
+            super().suspend()
+
+    def resume(self):
+        if self.action_status == ActionStatus.SUSPENDED:
+            if self.path_started:
+                Navigation.goPathParam(self.param)
+            super().resume()
+
+    def _trace_state(self) -> dict:
+        return {
+            "action_status": int(self.action_status),
+            "goal": self.goal if isinstance(self.goal, list) else [],
+        }
 
     def print_info(self):
         # 打印当前任务队列、当前任务、当前任务id、当前任务状态
         Trace.log(f"{Module.getTaskArgs()=}")
         Trace.log(f"{Module.getTaskId()=}")
         Trace.log(f"{Module.getStatus()=}")
+
+
+def to_script_status(status):
+    if status == ActionStatus.FINISHED:
+        return ScriptStatus.FINISHED
+    if status == ActionStatus.FAILED:
+        return ScriptStatus.FAILED
+    if status == ActionStatus.RUNNING:
+        return ScriptStatus.RUNNING
+    return ScriptStatus.NONE
 
 
 def main():
@@ -196,7 +248,7 @@ def main():
         status = Module.getStatus()
         if status is ScriptStatus.RUNNING:
             status = go_path.run()
-            Module.setStatus(status)
+            Module.setStatus(to_script_status(status))
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             Module.setStatus(ScriptStatus.NONE)
             return

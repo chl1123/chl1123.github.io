@@ -2,6 +2,7 @@
 # @Date: 2026/02/04
 # @Project: 3.5版本电机控制任务脚本
 import json
+import math
 import time
 from typing import Union, Dict, Optional, Any, TYPE_CHECKING
 from abc import ABC
@@ -133,6 +134,71 @@ class MotorInterface(ABC,Message):
             Union[float, int]: 返回电机的当前速度，若电机不存在返回 -1
         """
         raise RBKVersionError()
+
+    @classmethod
+    def estimatePositionMoveDuration(cls, key: str, targetPos: float,
+                                     startPos: Optional[float] = None,
+                                     startSpeed: Optional[float] = None,
+                                     maxSpeed: Optional[float] = None) -> Optional[float]:
+        """Conservatively estimate a profile-position move without commanding the motor."""
+        try:
+            motor_func = RobotParam.getDevice(key, "func")
+            prefix = f"func.{motor_func}." if motor_func else "basic."
+            model_speed = float(RobotParam.getDevice(key, prefix + "maxSpeed"))
+            max_acc = float(RobotParam.getDevice(key, prefix + "maxAcc"))
+            max_dec = float(RobotParam.getDevice(key, prefix + "maxDec"))
+            max_jerk = float(RobotParam.getDevice(key, prefix + "maxJerk"))
+            position = float(cls.getMotorPos(key) if startPos is None else startPos)
+            speed = float(cls.getMotorSpeed(key) if startSpeed is None else startSpeed)
+            target = float(targetPos)
+            requested_speed = model_speed if maxSpeed is None else float(maxSpeed)
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+        values = (model_speed, max_acc, max_dec, max_jerk, position,
+                  speed, target, requested_speed)
+        if not all(math.isfinite(value) for value in values):
+            return None
+        velocity = min(abs(requested_speed), model_speed)
+        if min(model_speed, max_acc, max_dec, max_jerk, velocity) <= 0.0:
+            return None
+
+        distance = abs(target - position)
+        if distance <= 1e-9 and abs(speed) <= 1e-9:
+            return 0.0
+
+        direction = 1.0 if target >= position else -1.0
+        directed_speed = speed * direction
+        reverse_stop_time = 0.0
+        if directed_speed < 0.0:
+            reverse_stop_time = abs(directed_speed) / max_dec
+            distance += directed_speed * directed_speed / (2.0 * max_dec)
+            directed_speed = 0.0
+        directed_speed = min(directed_speed, velocity)
+
+        accel_time = max(0.0, (velocity - directed_speed) / max_acc)
+        accel_distance = (directed_speed + velocity) * accel_time / 2.0
+        dec_time = velocity / max_dec
+        dec_distance = velocity * dec_time / 2.0
+        if accel_distance + dec_distance <= distance:
+            cruise_time = (distance - accel_distance - dec_distance) / velocity
+            profile_time = accel_time + cruise_time + dec_time
+        else:
+            peak_sq = max(
+                0.0,
+                (2.0 * distance * max_acc * max_dec
+                 + directed_speed * directed_speed * max_dec)
+                / (max_acc + max_dec),
+            )
+            peak_speed = min(velocity, math.sqrt(peak_sq))
+            profile_time = (
+                max(0.0, (peak_speed - directed_speed) / max_acc)
+                + peak_speed / max_dec
+            )
+
+        # Account conservatively for S-curve acceleration ramps and mechanical settling.
+        jerk_time = max_acc / max_jerk + max_dec / max_jerk
+        return reverse_stop_time + profile_time + jerk_time + 0.1
 
     @classmethod
     def setMotorSpeed(cls, key: str, vel: float, stopDI: str = "") -> bool:
