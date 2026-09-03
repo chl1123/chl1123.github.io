@@ -9,17 +9,16 @@
 # @RBK Version: V3.5+
 import enum
 import uuid
-
+import math
 SCRIPT_VERSION = "20260615"
 import json
-import math
 import random
 import time
 from typing import List
 
 from syspy.utils.time import Timer
 from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Controller, Odometer, Recognize, \
-    RobotParam, Trace, _TR
+    RobotParam, Trace, AutoPreInterface, AutoPreSequenceAction, is_simulation, _TR
 from syspy.lib.net_protocol import parseModbus, NetProtocol
 from syspy.bin import Container
 from syspy.lib.module import SafeMoveStatus, ModuleBase
@@ -32,6 +31,45 @@ script_param = ScriptParam(__file__)
 
 # 业务通道名前缀（日志规范 <MOD>[.xxx]）
 MOD = "ctu"
+
+# AutoPre 本地预算。位置动作按距离/配置速度估算，并增加到位稳定余量；
+# 手指动作沿用 FingerAction 的 3 秒超时作为保守预算。
+AUTO_PRE_ADVANCE_TIME = 1.0
+AUTO_PRE_POSITION_SETTLE_TIME = 1.0
+AUTO_PRE_FINGER_BUDGET = 3.0
+AUTO_PRE_DI_BUDGET = 0.1
+
+# 取货结束后货物保留在 999；这里只跨任务保存重建延迟入背篓动作所需的最小数据。
+_pending_fork_store = None
+
+
+def _remember_pending_fork_store(goods_id, preferred_container, skip_safe_height=False):
+    global _pending_fork_store
+    _pending_fork_store = {
+        "goodsName": goods_id,
+        "preferredContainer": preferred_container,
+        "skipSafeHeight": bool(skip_safe_height),
+    }
+
+
+def _clear_pending_fork_store():
+    global _pending_fork_store
+    _pending_fork_store = None
+
+
+def _get_pending_fork_store():
+    global _pending_fork_store
+    if not Container.hasGoods("999"):
+        _pending_fork_store = None
+        return None
+    goods_id = Container.getGoodsByContainer("999")
+    if not _pending_fork_store or _pending_fork_store.get("goodsName") != goods_id:
+        _pending_fork_store = {
+            "goodsName": goods_id,
+            "preferredContainer": None,
+            "skipSafeHeight": False,
+        }
+    return dict(_pending_fork_store)
 
 # ============================================================================
 # Debug 日志辅助
@@ -91,7 +129,7 @@ class ConfigParams:
         module_type = RobotParam.getDevice("Model-000", "moduleType")
         if not module_type:
             raise ValueError("读取设备模型失败: Model-000.moduleType 为空，请检查设备模型配置！")
-        # .id 是背篓个数（id=2 → 背篓0和1，共2个），个数必须>0。
+        # .id 是背篓个数（id=2 表示背篓0和1，共2个），初始化时另减去货叉999。
         container_num = RobotParam.getDevice("Model-000", f"moduleType.{module_type}.id")
         if not isinstance(container_num, int) or container_num <= 0:
             raise ValueError(
@@ -688,7 +726,7 @@ script_param.addAction(
 
 script_param.addAction(
     action_name="load",
-    policy=None,
+    policy={"navigation.basic.autoPre": True},
     args={
         "operation": "load",
         "operation.load.visionType": "box",
@@ -704,7 +742,7 @@ script_param.addAction(
 
 script_param.addAction(
     action_name="unload",
-    policy=None,
+    policy={"navigation.basic.autoPre": True},
     args={
         "operation": "unload",
         "operation.unload.visionType": "shelf",
@@ -733,7 +771,10 @@ class BaseAction(ActionBase):
     def __init__(self, action_name: str = None):
         super().__init__(action_name)
         self.start_time = time.time()
+        self.suspend_start_time = None
         self.action_state = {}
+        self.auto_pre_timing_enabled = False
+        self.auto_pre_timing = None
 
     def run(self, m):
         self.action_state["action_runtime"] = time.time() - self.start_time
@@ -742,6 +783,42 @@ class BaseAction(ActionBase):
     def reset(self):
         super().reset()
         self.start_time = time.time()
+        self.suspend_start_time = None
+        self.auto_pre_timing = None
+        if self.auto_pre_timing_enabled:
+            self._prepare_auto_pre_timing()
+
+    def suspend(self):
+        if self.action_status != ActionStatus.RUNNING:
+            return
+        self.suspend_start_time = time.time()
+        self._suspend_hardware()
+        super().suspend()
+
+    def resume(self):
+        if self.action_status != ActionStatus.SUSPENDED:
+            return
+        if self.suspend_start_time is not None:
+            self.start_time += time.time() - self.suspend_start_time
+            self.suspend_start_time = None
+        super().resume()
+
+    def _suspend_hardware(self):
+        """机构 Action 按需覆写，暂停时撤销正在执行的硬件指令。"""
+
+    def _prepare_auto_pre_timing(self):
+        """仅由机构 Action 覆写；正式动作不会启用该计时标记。"""
+
+    def _set_auto_pre_timing(
+            self, mechanism, estimated_seconds, start_position, target_position, unit):
+        self.auto_pre_timing = {
+            "action": self.action_name,
+            "mechanism": mechanism,
+            "estimatedSeconds": estimated_seconds,
+            "startPosition": start_position,
+            "targetPosition": target_position,
+            "unit": unit,
+        }
 
 
 class ParallelAction(BaseAction):
@@ -774,6 +851,118 @@ class ParallelAction(BaseAction):
         super().cancel()
         for action in self.actions:
             action.cancel()
+
+    def suspend(self):
+        if self.action_status != ActionStatus.RUNNING:
+            return
+        for action in self.actions:
+            if action.action_status == ActionStatus.RUNNING:
+                action.suspend()
+        super().suspend()
+
+    def resume(self):
+        if self.action_status != ActionStatus.SUSPENDED:
+            return
+        for action in self.actions:
+            if action.action_status == ActionStatus.SUSPENDED:
+                action.resume()
+        super().resume()
+
+
+class CtuAutoPreSequenceAction(AutoPreSequenceAction):
+    """在预动作真正启动时开启 CTU 业务超时计时。"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.nav_start_time = None
+        self.nav_end_time = None
+        self.nav_estimated_time = None
+        self.timing_printed = False
+        self.timed_pre_actions = []
+        self._mark_timed_pre_actions(self.pre_actions)
+
+    def _mark_timed_pre_actions(self, actions):
+        for action in actions:
+            children = getattr(action, "actions", None)
+            if children is not None:
+                self._mark_timed_pre_actions(children)
+                continue
+            if isinstance(action, BaseAction):
+                action.auto_pre_timing_enabled = True
+                self.timed_pre_actions.append(action)
+
+    def reset(self):
+        super().reset()
+        self.nav_start_time = None
+        self.nav_end_time = None
+        self.nav_estimated_time = None
+        self.timing_printed = False
+        for action in self.timed_pre_actions:
+            action.auto_pre_timing = None
+
+    def _capture_action_timings(self):
+        for action in self.timed_pre_actions:
+            timing = action.auto_pre_timing
+            if timing is None or "actualSeconds" in timing:
+                continue
+            if action.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+                timing["actualSeconds"] = max(0.0, time.time() - action.start_time)
+                timing["status"] = action.action_status.name.lower()
+
+    @staticmethod
+    def _rounded_timing(timing):
+        result = dict(timing)
+        for key in ("estimatedSeconds", "actualSeconds", "startPosition", "targetPosition"):
+            value = result.get(key)
+            if isinstance(value, (int, float)) and math.isfinite(value):
+                result[key] = round(value, 3)
+        return result
+
+    def _log_timings(self):
+        nav_actual_time = None
+        if self.nav_start_time is not None:
+            nav_actual_time = (self.nav_end_time or time.time()) - self.nav_start_time
+        navigation = {
+            "estimatedSeconds": self.nav_estimated_time,
+            "actualSeconds": nav_actual_time,
+            "station": self.station,
+            "includeRotation": self.include_rotation,
+        }
+        Trace.log(
+            {
+                "event": "autoPreTiming",
+                "navigation": self._rounded_timing(navigation),
+                "mechanisms": [
+                    self._rounded_timing(action.auto_pre_timing)
+                    for action in self.timed_pre_actions
+                    if action.auto_pre_timing is not None
+                ],
+            },
+            output_time=True,
+            name=f"{MOD}.autoPreTiming",
+        )
+        self.timing_printed = True
+
+    def run(self, ctx):
+        remaining_time = AutoPreInterface.remainingTime(
+            self.station, self.include_rotation
+        )
+        if remaining_time is not None:
+            if self.nav_start_time is None:
+                self.nav_start_time = time.time()
+                self.nav_estimated_time = remaining_time
+            if remaining_time <= 0.0 and self.nav_end_time is None:
+                self.nav_end_time = time.time()
+
+        was_started = self.started
+        super().run(ctx)
+        if not was_started and self.started:
+            ctx.start_business_timeout()
+        self._capture_action_timings()
+
+        if (self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED)
+                and not self.timing_printed):
+            self._log_timings()
 
 
 # ============================================================================
@@ -816,8 +1005,7 @@ class MotorRun:
         self.status = ScriptStatus.RUNNING
 
     def stop(self):
-        Motor.isMotorStop(self.motor_name)
-        self.status = ScriptStatus.NONE
+        Motor.resetMotor(self.motor_name)
         self.state['motorStatus'] = self.status
 
 
@@ -896,6 +1084,17 @@ class LiftAction(BaseAction):
         super().reset()
         self.agv.lift_motor.reset()
 
+    def _suspend_hardware(self):
+        self.agv.lift_motor.stop()
+
+    def _prepare_auto_pre_timing(self):
+        start = self.agv.lift_real_pos
+        target = self.agv._effective_lift_target(self.height)
+        estimated = self.agv._estimate_auto_pre_position_time(
+            start, target, ConfigParams.lift_motor_speed, ConfigParams.lift_motor_name
+        )
+        self._set_auto_pre_timing("lift", estimated, start, target, "m")
+
 
 class LiftSafeAction(BaseAction):
     def __init__(self, agv, action_name="LiftSafe"):
@@ -916,6 +1115,17 @@ class LiftSafeAction(BaseAction):
             self.action_status = ActionStatus.FINISHED
         else:
             self.agv.lift_motor.reset()
+
+    def _suspend_hardware(self):
+        self.agv.lift_motor.stop()
+
+    def _prepare_auto_pre_timing(self):
+        start = self.agv.lift_real_pos
+        target = ConfigParams.safe_lift_height
+        estimated = self.agv._estimate_auto_pre_position_time(
+            start, target, ConfigParams.lift_motor_speed, ConfigParams.lift_motor_name
+        )
+        self._set_auto_pre_timing("lift", estimated, start, target, "m")
 
 
 class RotateAction(BaseAction):
@@ -942,6 +1152,17 @@ class RotateAction(BaseAction):
     def reset(self):
         super().reset()
         self.agv.rotate_motor.reset()
+
+    def _suspend_hardware(self):
+        self.agv.rotate_motor.stop()
+
+    def _prepare_auto_pre_timing(self):
+        start = self.agv.rotate_real_pos
+        speed = self.max_speed if self.max_speed is not None else ConfigParams.rotate_motor_speed
+        estimated = self.agv._estimate_auto_pre_position_time(
+            start, self.pos, speed, ConfigParams.rotate_motor_name
+        )
+        self._set_auto_pre_timing("rotate", estimated, start, self.pos, "rad")
 
 
 class StretchAction(BaseAction):
@@ -975,6 +1196,17 @@ class StretchAction(BaseAction):
         super().reset()
         self.agv.stretch_motor.reset()
 
+    def _suspend_hardware(self):
+        self.agv.stretch_motor.stop()
+
+    def _prepare_auto_pre_timing(self):
+        start = self.agv.stretch_real_pos
+        target = self.agv.stretch_length if self.dynamic else self.length
+        estimated = self.agv._estimate_auto_pre_position_time(
+            start, target, ConfigParams.stretch_motor_speed, ConfigParams.stretch_motor_name
+        )
+        self._set_auto_pre_timing("stretch", estimated, start, target, "m")
+
 
 class FingerAction(BaseAction):
     def __init__(self, agv, pos, action_name="Finger"):
@@ -986,6 +1218,11 @@ class FingerAction(BaseAction):
 
     def run(self, m):
         super().run(m)
+        if is_simulation():
+            self.agv.left_finger_real_pos = self.pos
+            self.agv.right_finger_real_pos = self.pos
+            self.action_status = ActionStatus.FINISHED
+            return
         if not ConfigParams.has_finger_motor:
             Navigation.setDeviceError("FingerMotorNotConfig",
                 _TR(f"fingerMotor not configured in device model. "
@@ -1047,10 +1284,22 @@ class FingerAction(BaseAction):
         Motor.resetMotor(ConfigParams.left_finger_motor_name)
         Motor.resetMotor(ConfigParams.right_finger_motor_name)
 
+    def _suspend_hardware(self):
+        if is_simulation() or not ConfigParams.has_finger_motor:
+            return
+        self._stop_finger()
+        self._motor_started = False
+
     def reset(self):
         super().reset()
         self._motor_started = False
         self.overlimit_alarm = False
+
+    def _prepare_auto_pre_timing(self):
+        start = [self.agv.left_finger_real_pos, self.agv.right_finger_real_pos]
+        self._set_auto_pre_timing(
+            "finger", AUTO_PRE_FINGER_BUDGET, start, self.pos, "position"
+        )
 
 
 class CheckFingerOpenAction(BaseAction):
@@ -1061,7 +1310,17 @@ class CheckFingerOpenAction(BaseAction):
 
     def run(self, m):
         super().run(m)
-        if Di.getDi(ConfigParams.left_finger_up_di) and Di.getDi(ConfigParams.right_finger_up_di):
+        if is_simulation():
+            finger_open = (
+                self.agv.left_finger_real_pos == 1
+                and self.agv.right_finger_real_pos == 1
+            )
+        else:
+            finger_open = (
+                Di.getDi(ConfigParams.left_finger_up_di)
+                and Di.getDi(ConfigParams.right_finger_up_di)
+            )
+        if finger_open:
             self.action_status = ActionStatus.FINISHED
         else:
             Navigation.setTaskError("FingerNotOpen", _TR(f"Finger not open, stretch cancelled. Check finger and photoelectric sensor"))
@@ -1080,6 +1339,27 @@ class RecAdjustAction(BaseAction):
 
     def run(self, m):
         super().run(m)
+        if is_simulation():
+            simulation_result = {
+                "x": 0.5,
+                "y": 0.0,
+                "z": 0.0,
+                "yaw": math.pi,
+                "objectMessage": self.agv.goods_id,
+            }
+            self.agv.rec_adjust.rec.result = simulation_result
+            self.agv.rec_adjust.rec.action_status = ActionStatus.FINISHED
+            self.agv.rec_adjust.run(self.agv)
+            if self.agv.rec_adjust.action_status is ActionStatus.FINISHED:
+                self.action_status = ActionStatus.FINISHED
+                Trace.log(
+                    f"Simulation RecAdjust finished with result={simulation_result}, "
+                    f"stretchLength={self.agv.stretch_length}",
+                    name=f"{MOD}.rec",
+                )
+            elif self.agv.rec_adjust.action_status is ActionStatus.FAILED:
+                self.action_status = ActionStatus.FAILED
+            return
         retry_target = getattr(self.agv.rec_adjust, "retry_rotate_target", None)
         if retry_target is not None:
             if not self.agv.rotate(retry_target, max_speed=0.3):
@@ -1135,6 +1415,14 @@ class RecBarcodeAction(BaseAction):
 
     def run(self, m):
         super().run(m)
+        if is_simulation():
+            self.agv.report_info["barCode"] = self.agv.goods_id
+            self.action_status = ActionStatus.FINISHED
+            Trace.log(
+                f"Simulation barcode recognition finished: {self.agv.goods_id}",
+                name=f"{MOD}.rec",
+            )
+            return
         if not self.light_on:
             Do.setDo(self.agv.fill_light_do, True)
             if Do.getDo(self.agv.fill_light_do):
@@ -1212,6 +1500,8 @@ class UnbindContainerAction(BaseAction):
     def run(self, m):
         super().run(m)
         Container.unbindContainer(self.container_id)
+        if self.container_id == "999":
+            _clear_pending_fork_store()
         self.action_status = ActionStatus.FINISHED
 
     def reset(self):
@@ -1244,13 +1534,23 @@ class CheckGoodsDiAction(BaseAction):
 
     def run(self, m):
         super().run(m)
-        if Di.getDi(ConfigParams.goods_check_di):
+        if is_simulation():
+            Container.bindContainer("999", self.agv.goods_id, "")
+            Trace.log(
+                f"Simulation goods detection: bind goods {self.agv.goods_id} to fork 999",
+                name=f"{MOD}.action",
+            )
+        elif Di.getDi(ConfigParams.goods_check_di):
             Container.bindContainer("999", self.agv.goods_id, "")
         else:
             Navigation.setTaskError("LoadPickFailed", _TR(
                 f"Fork retracted but goods photoelectric not triggered, goods {self.agv.goods_id} may not be picked. Manual check required"))
             self.action_status = ActionStatus.FAILED
             return
+        if self.agv.operation == "load":
+            _remember_pending_fork_store(
+                self.agv.goods_id, self.agv.cur_c, self.agv.skip_safe_height
+            )
         self.action_status = ActionStatus.FINISHED
 
     def reset(self):
@@ -1265,7 +1565,15 @@ class CheckGoodsDiUnloadTakeAction(BaseAction):
 
     def run(self, m):
         super().run(m)
-        if Di.getDi(ConfigParams.goods_check_di):
+        if is_simulation():
+            goods_id = Container.getGoodsByContainer(self.agv.cur_c)
+            Container.bindContainer("999", goods_id, "")
+            Container.unbindContainer(self.agv.cur_c)
+            Trace.log(
+                f"Simulation backpack pick: move goods {goods_id} from {self.agv.cur_c} to fork 999",
+                name=f"{MOD}.action",
+            )
+        elif Di.getDi(ConfigParams.goods_check_di):
             goods_id = Container.getGoodsByContainer(self.agv.cur_c)
             Container.bindContainer("999", goods_id, "")
             Container.unbindContainer(self.agv.cur_c)
@@ -1289,6 +1597,12 @@ class RecBoxCheckAction(BaseAction):
 
     def run(self, m):
         super().run(m)
+        if is_simulation():
+            self.agv.shelf_occupied = False
+            self.agv.report_info["recBoxSimulation"] = {"hasGoods": False}
+            self.action_status = ActionStatus.FINISHED
+            Trace.log("Simulation shelf check: target shelf is empty", name=f"{MOD}.rec")
+            return
         if not self.light_started:
             # 识别前先等机构停稳, 再开补光灯, 防止抖动污染识别
             if not self.agv.wait_motors_settled(tag="rec_box_check"):
@@ -1438,6 +1752,11 @@ class ContainerRobot(ModuleBase):
         self.status = ScriptStatus.NONE
         self.report_info = dict()
         self.start_time = time.time()
+        self.suspend_start_time = None
+        self._last_safe_move_log = None
+        self.business_timeout_started = False
+        self.auto_pre_enabled = False
+        self.auto_pre_stage = 2
         self.goods_id = ""
         self.lift_height = None
         self.stretch_length = None
@@ -1520,10 +1839,29 @@ class ContainerRobot(ModuleBase):
         """初始化任务参数"""
         self.script_args = args or Module.getTaskArgs()
         if args:
+            self.operation = self.script_args.get("operation", None)
+            self.auto_pre_enabled = Module.getAutoPre()
+            self.auto_pre_stage = Module.getTaskParams("stage", 2)
+            if self.auto_pre_enabled and self.operation not in ("load", "unload"):
+                Navigation.setTaskError(
+                    "AutoPreUnsupported",
+                    _TR(f"AutoPre only supports load/unload, operation: {self.operation}"),
+                )
+                self.status = ScriptStatus.FAILED
+                return
+            if self.auto_pre_enabled and self.auto_pre_stage != 2:
+                Navigation.setTaskError(
+                    "AutoPreStageUnsupported",
+                    _TR(f"CTU AutoPre only supports script stage 2, stage: {self.auto_pre_stage}"),
+                )
+                self.status = ScriptStatus.FAILED
+                return
             self.goods_id = self.script_args.get("goodsName", "")
             self.self_position = self.script_args.get("container", self.self_position)
             self.self_position = str(self.self_position) if self.self_position is not None else self.self_position
-            self.update_move_task_params()
+            # AutoPre TASK 已由 MF 提前下发，参数以 Module 当前 TASK 为准；此时没有可查询的导航 moveTask。
+            if not self.auto_pre_enabled:
+                self.update_move_task_params()
             # 重置识别前停稳计时 & 货架有货异常恢复状态
             self.motor_settle_start = None
             self.shelf_occupied = False
@@ -1546,7 +1884,6 @@ class ContainerRobot(ModuleBase):
             self.code_type = self.script_args.get("visionBinType", "code")
             self.target_type = self.script_args.get("visionType", None)
             self.barcode_height = self.script_args.get("barcodeHeight", None)
-            self.operation = self.script_args.get("operation", None)
             self.load_height = self.script_args.get("loadHeight", ConfigParams.rec_offz_box)
             self.unload_height = self.script_args.get("unloadHeight", ConfigParams.rec_offz_shelf)
             self.skip_safe_height = "skipSafeHeight" in self.script_args and self.script_args.get("skipSafeHeight")
@@ -1572,7 +1909,10 @@ class ContainerRobot(ModuleBase):
             elif self.target_type == "shelf" and self.code_type == "code":
                 self.rec = Rec(self.shelf_code_file)
 
-            if ConfigParams.goods_check_di != "":
+            if is_simulation():
+                # 仿真货物状态由取/放货 Action 维护，不使用物理 DI 校正。
+                pass
+            elif ConfigParams.goods_check_di != "":
                 if self.stretch_real_pos < 0.05:
                     if (Di.getDi(ConfigParams.goods_check_di) and not Container.hasGoods("999")
                             and self.operation not in RECOVERY_OPERATIONS):
@@ -1580,13 +1920,22 @@ class ContainerRobot(ModuleBase):
                         self.status = ScriptStatus.FAILED
                     elif not Di.getDi(ConfigParams.goods_check_di):
                         Container.unbindContainer("999")
+                        _clear_pending_fork_store()
             else:
                 Navigation.setTaskError("GoodsCheckDiError", _TR(f"goodsCheckDi not configured properly in script parameters！"))
                 Trace.log(f"请在脚本参数中正确配置 goodsCheckDi 参数！", name=f"{MOD}.err")
                 self.status = ScriptStatus.FINISHED
 
             self.start_time = time.time()
+            self.business_timeout_started = not self.auto_pre_enabled
             self.status = ScriptStatus.RUNNING
+
+    def start_business_timeout(self):
+        if self.business_timeout_started:
+            return
+        self.start_time = time.time()
+        self.business_timeout_started = True
+        Trace.log("AutoPre physical actions started; business timeout started", name=f"{MOD}.autoPre")
 
     def run(self):
         """分发、执行任务"""
@@ -1595,8 +1944,10 @@ class ContainerRobot(ModuleBase):
         self.update_report_info()
         self.report_info["getCountRun"] = self.counter
 
-        # 根据货叉货物检测光电更新货叉有无货信息
-        if ConfigParams.goods_check_di != "":
+        # 根据货叉货物检测光电更新货叉有无货信息；仿真由 Action 维护货物数据。
+        if is_simulation():
+            pass
+        elif ConfigParams.goods_check_di != "":
             if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
                 # 队列执行途中(取/放货)999 的绑定由动作队列负责,此时“有货但数据为空”是
                 # 收叉与绑定之间的正常瞬态,不应拦截;仅在空闲/任务起始态才判为数据异常。
@@ -1608,6 +1959,7 @@ class ContainerRobot(ModuleBase):
                     self.status = ScriptStatus.FAILED
                 elif not Di.getDi(ConfigParams.goods_check_di):
                     Container.unbindContainer("999")
+                    _clear_pending_fork_store()
                     self.containers = Container.getContainers()
         else:
             Navigation.setTaskError("GoodsCheckDiError",
@@ -1618,7 +1970,7 @@ class ContainerRobot(ModuleBase):
         if self.enable_motor and not self.motor_calib_state:
             self.motor_calib()
 
-        if time.time() - self.start_time > ConfigParams.timeout:
+        if self.business_timeout_started and time.time() - self.start_time > ConfigParams.timeout:
             Navigation.setTaskError("ScriptTimeout", _TR(f"Script task execution timeout. Please re-issue the task！"))
             self.status = ScriptStatus.FAILED
 
@@ -1739,7 +2091,20 @@ class ContainerRobot(ModuleBase):
         if self.status == ScriptStatus.FAILED or self.status == ScriptStatus.FINISHED:
             NetProtocol.release()
             Do.setDo(self.fill_light_do, False)
-            Trace.log(f"script finished: {json.dumps(self.report_info)}", name=MOD)
+            Trace.log(
+                {
+                    "event": "scriptFinished",
+                    "taskId": Module.getTaskId(),
+                    "status": self.status.name.lower(),
+                    "operation": self.operation,
+                    "goodsName": self.goods_id,
+                    "action": self.current_action.action_type if self.current_action else "",
+                    "runningSeconds": round(time.time() - self.start_time, 3),
+                    "position": self.report_info.get("currentPos", {}),
+                },
+                output_time=True,
+                name=MOD,
+            )
         return self.status
 
     def _sync_task(self):
@@ -1789,90 +2154,319 @@ class ContainerRobot(ModuleBase):
         self.operation_init = True
         self.action_list = self._make_zero_actions(zero_height)
 
+    @staticmethod
+    def _estimate_auto_pre_position_time(start_pos, target_pos, speed, motor_name=None):
+        values = (start_pos, target_pos, speed)
+        if not all(isinstance(value, (int, float)) and math.isfinite(value) for value in values):
+            return None
+        if speed <= 0:
+            return None
+        estimator = getattr(Motor, "estimatePositionMoveDuration", None)
+        if callable(estimator) and motor_name:
+            try:
+                duration = estimator(
+                    motor_name,
+                    target_pos,
+                    startPos=start_pos,
+                    maxSpeed=speed,
+                )
+                if duration is not None and math.isfinite(duration) and duration >= 0:
+                    return duration
+            except Exception as error:
+                Trace.log(
+                    f"Motor duration estimate failed for {motor_name}: {error}; use CTU estimate",
+                    name=f"{MOD}.autoPre",
+                )
+        return abs(target_pos - start_pos) / speed + AUTO_PRE_POSITION_SETTLE_TIME
+
+    @staticmethod
+    def _max_auto_pre_times(*durations):
+        if not durations or any(
+                duration is None or not math.isfinite(duration) for duration in durations):
+            return None
+        return max(durations)
+
+    @staticmethod
+    def _effective_lift_target(target):
+        return max(float(target), ConfigParams.min_lift_height)
+
+    def _validate_auto_pre_lift_targets(self, targets):
+        for action_name, target in targets:
+            try:
+                effective_target = self._effective_lift_target(target)
+            except (TypeError, ValueError):
+                effective_target = float("nan")
+            if not math.isfinite(effective_target):
+                Navigation.setTaskError(
+                    "AutoPreLiftHeightInvalid",
+                    _TR(f"AutoPre lift target is invalid: {action_name}={target}"),
+                )
+                self.status = ScriptStatus.FAILED
+                return False
+            if effective_target > ConfigParams.safe_lift_height:
+                Navigation.setTaskError(
+                    "AutoPreLiftHeightUnsafe",
+                    _TR(
+                        f"AutoPre lift target {action_name}={effective_target} exceeds "
+                        f"safeLiftHeight={ConfigParams.safe_lift_height}"
+                    ),
+                )
+                self.status = ScriptStatus.FAILED
+                return False
+        return True
+
+    def _make_auto_pre_sequence(self, pre_actions, required_time):
+        if required_time is None or not math.isfinite(required_time):
+            Navigation.setTaskError(
+                "AutoPreTimeEstimateFailed",
+                _TR("Unable to estimate CTU AutoPre action duration. Check motor speed configuration"),
+            )
+            self.status = ScriptStatus.FAILED
+            return None
+        Trace.log(
+            f"AutoPre build operation={self.operation}, requiredTime={required_time:.3f}s, "
+            f"preActions={len(pre_actions)}",
+            name=f"{MOD}.autoPre",
+        )
+        return CtuAutoPreSequenceAction(
+            pre_actions=pre_actions,
+            required_time=required_time,
+            advance_time=AUTO_PRE_ADVANCE_TIME,
+            station="targetStation",
+            include_rotation=True,
+            must_stop_at_pre_station=False,
+        )
+
+    def _select_pending_store_container(self, pending_store, excluded=()):
+        excluded = {str(container_id) for container_id in excluded if container_id is not None}
+        self.containers = Container.getContainers()
+        empty_containers = [
+            str(container["containerId"])
+            for container in self.containers
+            if str(container["containerId"]) != "999"
+            and str(container["containerId"]) not in excluded
+            and not container["hasGoods"]
+        ]
+        preferred = pending_store.get("preferredContainer")
+        preferred = str(preferred) if preferred is not None else None
+        if preferred in empty_containers:
+            return preferred
+        return empty_containers[0] if empty_containers else None
+
+    def _make_pending_store_actions(self, pending_store, container_id):
+        goods_id = pending_store["goodsName"]
+        actions = [
+            ParallelAction([
+                RotateAction(self, 0, action_name="deferred_store_rotate_zero"),
+                LiftAction(self, ConfigParams.high[int(container_id)], "deferred_store_lift_container"),
+            ], "deferred_store_parallel_to_container"),
+            StretchAction(self, ConfigParams.stretch_self_length, "deferred_store_stretch_self"),
+            FingerAction(self, 1, "deferred_store_finger_open"),
+            StretchAction(self, 0, "deferred_store_stretch_retract"),
+            FingerAction(self, 0, "deferred_store_finger_close"),
+        ]
+        if not pending_store.get("skipSafeHeight", False):
+            actions.append(LiftSafeAction(self, "deferred_store_lift_safe"))
+        actions.extend([
+            UnbindContainerAction("999", "deferred_store_unbind_999"),
+            BindContainerAction(container_id, goods_id, "", "deferred_store_bind_container"),
+        ])
+        Trace.log(
+            f"deferred store goods {goods_id} from fork 999 to container {container_id}",
+            name=f"{MOD}.autoPre",
+        )
+        return actions
+
+    def _estimate_pending_store_time(
+            self, pending_store, container_id, lift_start, rotate_start, stretch_start):
+        container_lift = self._effective_lift_target(ConfigParams.high[int(container_id)])
+        initial_budget = self._max_auto_pre_times(
+            self._estimate_auto_pre_position_time(
+                lift_start, container_lift, ConfigParams.lift_motor_speed,
+                ConfigParams.lift_motor_name,
+            ),
+            self._estimate_auto_pre_position_time(
+                rotate_start, 0.0, ConfigParams.rotate_motor_speed,
+                ConfigParams.rotate_motor_name,
+            ),
+        )
+        stretch_out_budget = self._estimate_auto_pre_position_time(
+            stretch_start, ConfigParams.stretch_self_length,
+            ConfigParams.stretch_motor_speed, ConfigParams.stretch_motor_name,
+        )
+        stretch_back_budget = self._estimate_auto_pre_position_time(
+            ConfigParams.stretch_self_length, 0.0,
+            ConfigParams.stretch_motor_speed, ConfigParams.stretch_motor_name,
+        )
+        safe_budget = 0.0
+        end_lift = container_lift
+        if (not pending_store.get("skipSafeHeight", False)
+                and container_lift > ConfigParams.safe_lift_height):
+            end_lift = ConfigParams.safe_lift_height
+            safe_budget = self._estimate_auto_pre_position_time(
+                container_lift, end_lift, ConfigParams.lift_motor_speed,
+                ConfigParams.lift_motor_name,
+            )
+        budgets = (initial_budget, stretch_out_budget, stretch_back_budget, safe_budget)
+        if any(budget is None for budget in budgets):
+            return None, end_lift
+        required_time = (
+            initial_budget + stretch_out_budget + AUTO_PRE_FINGER_BUDGET
+            + stretch_back_budget + AUTO_PRE_FINGER_BUDGET + safe_budget
+        )
+        return required_time, end_lift
+
     def _build_load_actions(self):
         if self.operation_init:
             return
         self.operation_init = True
         Trace.log(f"----- building load actions {self.goods_id} ------", name=f"{MOD}.action")
 
-        if not self.cur_c:
-            if (self.goods_id and Container.goodsExist(self.goods_id) and
-                    Container.getContainerByGoods(self.goods_id) != "999"):
-                Navigation.setTaskError("GoodsAlreadyExists", _TR(f"Goods {self.goods_id} already exist. Check for duplicate task"))
+        pending_store = _get_pending_fork_store()
+        if pending_store and pending_store["goodsName"] == self.goods_id:
+            if self.self_position is not None:
+                _remember_pending_fork_store(
+                    self.goods_id, self.self_position, self.skip_safe_height
+                )
+            Trace.log(
+                f"load goods {self.goods_id} already carried on fork 999; keep direct-carry state",
+                name=f"{MOD}.autoPre",
+            )
+            if self.auto_pre_enabled:
+                auto_pre_action = self._make_auto_pre_sequence([], 0.0)
+                if auto_pre_action is not None:
+                    self.action_list = [auto_pre_action]
+            else:
+                self.action_status = ActionStatus.FINISHED
+            return
+
+        if (self.goods_id and Container.goodsExist(self.goods_id) and
+                Container.getContainerByGoods(self.goods_id) != "999"):
+            Navigation.setTaskError("GoodsAlreadyExists", _TR(f"Goods {self.goods_id} already exist. Check for duplicate task"))
+            self.status = ScriptStatus.FAILED
+            return
+
+        pending_actions = []
+        pending_budget = 0.0
+        pending_container = None
+        pre_lift_start = self.lift_real_pos
+        pre_rotate_start = self.rotate_real_pos
+        if pending_store:
+            excluded = [self.self_position] if self.self_position is not None else []
+            pending_container = self._select_pending_store_container(
+                pending_store, excluded
+            )
+            if pending_container is None:
+                Navigation.setTaskError(
+                    "PendingStoreNoSlot",
+                    _TR(f"Fork carries goods {pending_store['goodsName']} and no empty backpack slot is available"),
+                )
                 self.status = ScriptStatus.FAILED
                 return
+            if self.auto_pre_enabled and not self._validate_auto_pre_lift_targets([
+                ("deferred_store_lift_container", ConfigParams.high[int(pending_container)])
+            ]):
+                return
+            pending_actions = self._make_pending_store_actions(
+                pending_store, pending_container
+            )
+            if self.auto_pre_enabled:
+                pending_budget, pre_lift_start = self._estimate_pending_store_time(
+                    pending_store, pending_container, self.lift_real_pos,
+                    self.rotate_real_pos, self.stretch_real_pos,
+                )
+                pre_rotate_start = 0.0
+
+        if not self.cur_c:
             if self.self_position:
-                if Container.hasGoods(self.self_position):
+                occupied_by_pending = self.self_position == "999" and pending_store
+                if Container.hasGoods(self.self_position) and not occupied_by_pending:
                     Navigation.setTaskError("BackpackSlotFull", _TR(f"Backpack slot {int(self.self_position) + 1} (No.{self.self_position}) already has goods, cannot continue loading. Please verify task data and backpack data！"))
                     self.status = ScriptStatus.FAILED
                     return
                 self.cur_c = self.self_position
             else:
-                self.cur_c = self.search_operable_container('load')
+                self.cur_c = self.search_operable_container(
+                    'load', excluded=[pending_container] if pending_container else []
+                )
             Trace.log(f"load begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
             if self.cur_c is None:
                 Navigation.setTaskError("AllBackpackFull", _TR(f"All backpack slots are full, cannot load more goods！"))
                 self.status = ScriptStatus.FAILED
                 return
-            if Container.hasGoods("999") and Container.getGoodsByContainer("999") == self.goods_id:
-                actions = []
-                if self.cur_c == "999":
-                    self.action_list = []
-                    self.action_status = ActionStatus.FINISHED
-                    return
-                actions.append(ParallelAction([
-                    RotateAction(self, 0, action_name="load_rotate_zero"),
-                    LiftAction(self, ConfigParams.high[int(self.cur_c)], "load_lift_to_container"),
-                ], "load_parallel_to_container"))
-                actions.append(StretchAction(self, ConfigParams.stretch_self_length, "load_stretch_self"))
-                actions.append(FingerAction(self, 1, "load_finger_open_put"))
-                actions.append(StretchAction(self, 0, "load_stretch_retract_put"))
-                actions.append(FingerAction(self, 0, "load_finger_close_final"))
-                if not self.skip_safe_height:
-                    actions.append(LiftSafeAction(self, "load_lift_safe"))
-                actions.append(UnbindContainerAction("999", "load_unbind_999"))
-                actions.append(BindContainerAction(self.cur_c, self.goods_id, "", "load_bind_container"))
-                self.action_list = actions
-                return
-            elif Container.hasGoods("999"):
-                Navigation.setTaskError("ForkHasGoods", _TR(f"Fork (slot 999) already has goods, cannot execute current task. Verify data"))
-                self.status = ScriptStatus.FAILED
-                return
 
-        actions = []
-        actions.append(ParallelAction([
+        pre_actions = list(pending_actions) if self.auto_pre_enabled else []
+        formal_actions = [] if self.auto_pre_enabled else list(pending_actions)
+        initial_action = ParallelAction([
             FingerAction(self, 1, "load_finger_open"),
             RotateAction(self, self.rotate_pos, action_name="load_rotate"),
             LiftAction(self, self.lift_height, "load_lift"),
-        ], "load_parallel_init"))
-        if self.barcode_height is not None:
-            actions.append(LiftAction(self, self.barcode_height, "load_lift_barcode"))
-            actions.append(RecBarcodeAction(self, "load_rec_barcode"))
-        if self.rec_adjust is not None:
-            actions.append(RecAdjustAction(self, "load_rec_adjust"))
-        actions.append(LiftAction(self, self.lift_height + self.load_height, "load_lift_pick"))
-        actions.append(CheckFingerOpenAction(self, "load_check_finger"))
-        actions.append(StretchAction(self, self.stretch_length, "load_stretch_out", dynamic=self.is_auto_stretch))
-        actions.append(FingerAction(self, 0, "load_finger_close"))
-        actions.append(StretchAction(self, 0, "load_stretch_retract"))
-        actions.append(CheckGoodsDiAction(self, "load_check_goods"))
-        if self.cur_c == "999":
-            actions.append(UnbindContainerAction("999", "load_unbind_999"))
-            actions.append(BindContainerAction(self.cur_c, self.goods_id, "", "load_bind_container"))
+        ], "load_parallel_init")
+        if self.auto_pre_enabled:
+            lift_targets = [("load_lift", self.lift_height)]
+            if self.barcode_height is not None:
+                lift_targets.append(("load_lift_barcode", self.barcode_height))
+            if not self._validate_auto_pre_lift_targets(lift_targets):
+                return
+            pre_actions.append(initial_action)
         else:
-            actions.append(ParallelAction([
-                RotateAction(self, 0, action_name="load_rotate_zero"),
-                LiftAction(self, ConfigParams.high[int(self.cur_c)], "load_lift_to_container"),
-            ], "load_parallel_to_container"))
-            actions.append(StretchAction(self, ConfigParams.stretch_self_length, "load_stretch_self"))
-            actions.append(FingerAction(self, 1, "load_finger_open_put"))
-            actions.append(StretchAction(self, 0, "load_stretch_retract_put"))
-            actions.append(FingerAction(self, 0, "load_finger_close_final"))
-            if not self.skip_safe_height:
-                actions.append(LiftSafeAction(self, "load_lift_safe"))
-            actions.append(UnbindContainerAction("999", "load_unbind_999"))
-            actions.append(BindContainerAction(self.cur_c, self.goods_id, "", "load_bind_container"))
-        self.action_list = actions
+            formal_actions.append(initial_action)
+
+        if self.barcode_height is not None:
+            barcode_lift = LiftAction(self, self.barcode_height, "load_lift_barcode")
+            if self.auto_pre_enabled:
+                pre_actions.append(barcode_lift)
+            else:
+                formal_actions.append(barcode_lift)
+            formal_actions.append(RecBarcodeAction(self, "load_rec_barcode"))
+        if self.rec_adjust is not None:
+            formal_actions.append(RecAdjustAction(self, "load_rec_adjust"))
+        formal_actions.append(LiftAction(self, self.lift_height + self.load_height, "load_lift_pick"))
+        formal_actions.append(CheckFingerOpenAction(self, "load_check_finger"))
+        formal_actions.append(StretchAction(self, self.stretch_length, "load_stretch_out", dynamic=self.is_auto_stretch))
+        formal_actions.append(FingerAction(self, 0, "load_finger_close"))
+        formal_actions.append(StretchAction(self, 0, "load_stretch_retract"))
+        formal_actions.append(CheckGoodsDiAction(self, "load_check_goods"))
+        transport_actions = [
+            RotateAction(self, 0, action_name="load_transport_rotate_zero")
+        ]
+        if not self.skip_safe_height:
+            transport_actions.append(LiftSafeAction(self, "load_transport_lift_safe"))
+        formal_actions.append(ParallelAction(
+            transport_actions, "load_parallel_transport_safe"
+        ))
+
+        if not self.auto_pre_enabled:
+            self.action_list = formal_actions
+            return
+
+        lift_target = self._effective_lift_target(self.lift_height)
+        initial_budget = self._max_auto_pre_times(
+            AUTO_PRE_FINGER_BUDGET,
+            self._estimate_auto_pre_position_time(
+                pre_rotate_start, self.rotate_pos, ConfigParams.rotate_motor_speed,
+                ConfigParams.rotate_motor_name,
+            ),
+            self._estimate_auto_pre_position_time(
+                pre_lift_start, lift_target, ConfigParams.lift_motor_speed,
+                ConfigParams.lift_motor_name,
+            ),
+        )
+        if pending_budget is None or initial_budget is None:
+            required_time = None
+        else:
+            required_time = pending_budget + initial_budget
+        if self.barcode_height is not None and required_time is not None:
+            barcode_budget = self._estimate_auto_pre_position_time(
+                lift_target,
+                self._effective_lift_target(self.barcode_height),
+                ConfigParams.lift_motor_speed,
+                ConfigParams.lift_motor_name,
+            )
+            required_time = None if barcode_budget is None else required_time + barcode_budget
+        auto_pre_action = self._make_auto_pre_sequence(pre_actions, required_time)
+        if auto_pre_action is not None:
+            self.action_list = [auto_pre_action] + formal_actions
 
     def _build_in_take_actions(self):
         if self.operation_init:
@@ -1995,8 +2589,15 @@ class ContainerRobot(ModuleBase):
         self.operation_init = True
         Trace.log(f"----- building unload actions ------", name=f"{MOD}.action")
 
+        pending_store = _get_pending_fork_store()
         if not self.cur_c:
-            if self.self_position:
+            if pending_store and pending_store["goodsName"] == self.goods_id:
+                self.cur_c = "999"
+                Trace.log(
+                    f"unload goods {self.goods_id} directly from fork 999; skip backpack transfer",
+                    name=f"{MOD}.autoPre",
+                )
+            elif self.self_position:
                 if Container.getGoodsByContainer(self.self_position) != self.goods_id:
                     Navigation.setTaskError("GoodsIdMismatch", _TR(f"Goods ID in backpack slot {int(self.self_position) + 1} ({self.self_position}) doesn't match task goods ID ({self.goods_id})! Verify task and backpack data!"))
                     self.status = ScriptStatus.FAILED
@@ -2005,73 +2606,165 @@ class ContainerRobot(ModuleBase):
                     Navigation.setTaskError("BackpackSlotEmpty", _TR(f"Backpack slot {int(self.self_position) + 1} ({self.self_position}) is empty, cannot unload! Verify task and backpack data!"))
                     self.status = ScriptStatus.FAILED
                     return
-                if self.self_position != "999" and Container.hasGoods("999"):
-                    Navigation.setTaskError("ForkHasGoods", _TR(f"Fork (slot 999) already has goods, cannot execute current task. Verify data"))
-                    self.status = ScriptStatus.FAILED
-                    return
                 self.cur_c = self.self_position
             else:
-                if Container.hasGoods("999"):
-                    self.cur_c = "999"
-                    if Container.getGoodsByContainer("999") != self.goods_id:
-                        Navigation.setTaskError("ForkHasGoods", _TR(f"Fork (slot 999) already has goods, cannot execute current task. Verify data"))
-                        self.status = ScriptStatus.FAILED
-                        return
-                else:
-                    self.cur_c = Container.getContainerByGoods(self.goods_id)
+                self.cur_c = Container.getContainerByGoods(self.goods_id)
             if not self.cur_c:
                 Navigation.setTaskError("GoodsNotFound", _TR(f"Goods {self.goods_id} not found in backpack, cannot unload! Verify task and backpack data!"))
                 self.status = ScriptStatus.FAILED
                 return
             Trace.log(f"unload begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
 
-        actions = []
+        pending_actions = []
+        pending_budget = 0.0
+        pending_container = None
+        pre_lift_start = self.lift_real_pos
+        pre_rotate_start = self.rotate_real_pos
+        pre_stretch_start = self.stretch_real_pos
+        if pending_store and self.cur_c != "999":
+            pending_container = self._select_pending_store_container(pending_store)
+            if pending_container is None:
+                Navigation.setTaskError(
+                    "PendingStoreNoSlot",
+                    _TR(f"Fork carries goods {pending_store['goodsName']} and no empty backpack slot is available"),
+                )
+                self.status = ScriptStatus.FAILED
+                return
+            pending_actions = self._make_pending_store_actions(
+                pending_store, pending_container
+            )
+            if self.auto_pre_enabled:
+                pending_budget, pre_lift_start = self._estimate_pending_store_time(
+                    pending_store, pending_container, self.lift_real_pos,
+                    self.rotate_real_pos, self.stretch_real_pos,
+                )
+                pre_rotate_start = 0.0
+                pre_stretch_start = 0.0
+
+        take_actions = []
         if self.cur_c != "999":
-            actions.append(ParallelAction([
+            take_actions.append(ParallelAction([
                 LiftAction(self, ConfigParams.low[int(self.cur_c)], "unload_lift_container"),
                 FingerAction(self, 1, "unload_finger_open_take"),
                 RotateAction(self, 0, action_name="unload_rotate_zero_take"),
             ], "unload_parallel_take_init"))
-            actions.append(StretchAction(self, ConfigParams.stretch_self_length, "unload_stretch_self"))
-            actions.append(FingerAction(self, 0, "unload_finger_close_take"))
-            actions.append(StretchAction(self, 0, "unload_stretch_retract_take"))
-            actions.append(CheckGoodsDiUnloadTakeAction(self, "unload_check_goods_take"))
+            take_actions.append(StretchAction(self, ConfigParams.stretch_self_length, "unload_stretch_self"))
+            take_actions.append(FingerAction(self, 0, "unload_finger_close_take"))
+            take_actions.append(StretchAction(self, 0, "unload_stretch_retract_take"))
+            take_actions.append(CheckGoodsDiUnloadTakeAction(self, "unload_check_goods_take"))
 
+        target_pose_actions = []
+        formal_actions = []
         if self.rec_box_lift:
-            actions.append(ParallelAction([
+            target_pose_actions.append(ParallelAction([
                 RotateAction(self, self.rotate_pos, action_name="unload_rotate_rec"),
                 LiftAction(self, self.rec_box_lift, "unload_lift_rec_box"),
             ], "unload_parallel_rec_box_pos"))
             if self.rec_box is not None:
-                actions.append(RecBoxCheckAction(self, "unload_rec_box_check"))
-            actions.append(LiftAction(self, self.lift_height, "unload_lift_after_rec"))
+                formal_actions.append(RecBoxCheckAction(self, "unload_rec_box_check"))
+            formal_actions.append(LiftAction(self, self.lift_height, "unload_lift_after_rec"))
         else:
-            actions.append(ParallelAction([
+            target_pose_actions.append(ParallelAction([
                 LiftAction(self, self.lift_height, "unload_lift_target"),
                 RotateAction(self, self.rotate_pos, action_name="unload_rotate_target"),
             ], "unload_parallel_target"))
 
         if self.rec_adjust is not None:
-            actions.append(RecAdjustAction(self, "unload_rec_adjust"))
-        actions.append(LiftAction(self, self.lift_height + self.unload_height, "unload_lift_place"))
+            formal_actions.append(RecAdjustAction(self, "unload_rec_adjust"))
+        formal_actions.append(LiftAction(self, self.lift_height + self.unload_height, "unload_lift_place"))
         if self.pre_finger is not None:
-            actions.append(ParallelAction([
+            formal_actions.append(ParallelAction([
                 FingerAction(self, self.pre_finger, "unload_pre_finger"),
                 StretchAction(self, self.stretch_length, "unload_stretch_out", dynamic=self.is_auto_stretch),
             ], "unload_parallel_stretch_finger"))
         else:
-            actions.append(StretchAction(self, self.stretch_length, "unload_stretch_out", dynamic=self.is_auto_stretch))
-        actions.append(FingerAction(self, 1, "unload_finger_open"))
-        actions.append(StretchAction(self, 0, "unload_stretch_retract"))
+            formal_actions.append(StretchAction(self, self.stretch_length, "unload_stretch_out", dynamic=self.is_auto_stretch))
+        formal_actions.append(FingerAction(self, 1, "unload_finger_open"))
+        formal_actions.append(StretchAction(self, 0, "unload_stretch_retract"))
         final_actions = [
             FingerAction(self, 0, "unload_finger_close"),
             RotateAction(self, 0, action_name="unload_rotate_zero"),
         ]
         if not self.skip_safe_height:
             final_actions.append(LiftSafeAction(self, "unload_lift_safe"))
-        actions.append(ParallelAction(final_actions, "unload_parallel_final"))
-        actions.append(UnbindContainerAction("999", "unload_unbind_999"))
-        self.action_list = actions
+        formal_actions.append(ParallelAction(final_actions, "unload_parallel_final"))
+        formal_actions.append(UnbindContainerAction("999", "unload_unbind_999"))
+
+        if not self.auto_pre_enabled:
+            self.action_list = pending_actions + take_actions + target_pose_actions + formal_actions
+            return
+
+        target_lift = self.rec_box_lift if self.rec_box_lift else self.lift_height
+        lift_targets = [("unload_lift_target", target_lift)]
+        if pending_container is not None:
+            lift_targets.insert(0, (
+                "deferred_store_lift_container",
+                ConfigParams.high[int(pending_container)],
+            ))
+        if self.cur_c != "999":
+            lift_targets.append(("unload_lift_container", ConfigParams.low[int(self.cur_c)]))
+        if not self._validate_auto_pre_lift_targets(lift_targets):
+            return
+
+        required_time = pending_budget
+        lift_start = pre_lift_start
+        rotate_start = pre_rotate_start
+        if self.cur_c != "999":
+            container_lift = self._effective_lift_target(ConfigParams.low[int(self.cur_c)])
+            initial_budget = self._max_auto_pre_times(
+                self._estimate_auto_pre_position_time(
+                    lift_start, container_lift, ConfigParams.lift_motor_speed,
+                    ConfigParams.lift_motor_name,
+                ),
+                AUTO_PRE_FINGER_BUDGET,
+                self._estimate_auto_pre_position_time(
+                    rotate_start, 0.0, ConfigParams.rotate_motor_speed,
+                    ConfigParams.rotate_motor_name,
+                ),
+            )
+            stretch_out_budget = self._estimate_auto_pre_position_time(
+                pre_stretch_start,
+                ConfigParams.stretch_self_length,
+                ConfigParams.stretch_motor_speed,
+                ConfigParams.stretch_motor_name,
+            )
+            stretch_back_budget = self._estimate_auto_pre_position_time(
+                ConfigParams.stretch_self_length, 0.0, ConfigParams.stretch_motor_speed,
+                ConfigParams.stretch_motor_name,
+            )
+            budgets = (initial_budget, stretch_out_budget, stretch_back_budget)
+            if required_time is None or any(budget is None for budget in budgets):
+                required_time = None
+            else:
+                required_time += (
+                    initial_budget + stretch_out_budget + AUTO_PRE_FINGER_BUDGET
+                    + stretch_back_budget + AUTO_PRE_DI_BUDGET
+                )
+            lift_start = container_lift
+            rotate_start = 0.0
+
+        pose_budget = self._max_auto_pre_times(
+            self._estimate_auto_pre_position_time(
+                lift_start,
+                self._effective_lift_target(target_lift),
+                ConfigParams.lift_motor_speed,
+                ConfigParams.lift_motor_name,
+            ),
+            self._estimate_auto_pre_position_time(
+                rotate_start, self.rotate_pos, ConfigParams.rotate_motor_speed,
+                ConfigParams.rotate_motor_name,
+            ),
+        )
+        if required_time is None or pose_budget is None:
+            required_time = None
+        else:
+            required_time += pose_budget
+
+        auto_pre_action = self._make_auto_pre_sequence(
+            pending_actions + take_actions + target_pose_actions, required_time
+        )
+        if auto_pre_action is not None:
+            self.action_list = [auto_pre_action] + formal_actions
 
     def _build_recovery_actions(self):
         """货架有货异常恢复: 把货叉(999)上的料箱放回背篓, 恢复数据后报错(FAILED)。
@@ -2279,19 +2972,57 @@ class ContainerRobot(ModuleBase):
         if self.set_force_calib and self.motor_calib_state:
             self.status = ScriptStatus.FINISHED
 
+    def _stop_mechanisms_for_suspend(self):
+        for motor in (self.lift_motor, self.stretch_motor, self.rotate_motor):
+            motor.stop()
+        if ConfigParams.has_finger_motor:
+            Motor.resetMotor(ConfigParams.left_finger_motor_name)
+            Motor.resetMotor(ConfigParams.right_finger_motor_name)
+
+    def _log_task_control(self, command, paused_seconds=None):
+        current = self.action_task.current
+        event = {
+            "event": "taskControl",
+            "command": command,
+            "taskId": Module.getTaskId(),
+            "operation": self.operation,
+            "scriptStatus": self.status.name.lower(),
+            "queueStatus": self.action_task.status.name.lower(),
+            "action": current.action_type if current else "",
+            "actionStatus": current.action_status.name.lower() if current else "",
+            "lift": round(self.lift_real_pos, 3),
+            "stretch": round(self.stretch_real_pos, 3),
+            "rotateDeg": round(self.rotate_real_pos * 180 / math.pi, 3),
+        }
+        if paused_seconds is not None:
+            event["pausedSeconds"] = round(paused_seconds, 3)
+        Trace.log(event, output_time=True, name=f"{MOD}.control")
+
     def suspend(self):
         """暂停任务方法（必须）"""
-        if Module.getStatus() == ScriptStatus.RUNNING:
+        if (Module.getStatus() == ScriptStatus.RUNNING
+                and self.status == ScriptStatus.RUNNING):
+            self.suspend_start_time = time.time()
             self.action_task.suspend()
+            self._stop_mechanisms_for_suspend()
             self.status = ScriptStatus.SUSPENDED
+            self._log_task_control("suspend")
 
     def resume(self):
         """恢复任务方法（必须）"""
-        if Module.getStatus() == ScriptStatus.SUSPENDED:
+        if (Module.getStatus() == ScriptStatus.SUSPENDED
+                and self.status == ScriptStatus.SUSPENDED):
+            paused_seconds = 0.0
+            if self.suspend_start_time is not None:
+                paused_seconds = time.time() - self.suspend_start_time
+                self.start_time += paused_seconds
+                self.suspend_start_time = None
             self.action_task.resume()
             self.status = ScriptStatus.RUNNING
+            self._log_task_control("resume", paused_seconds)
 
     def cancel(self):
+        self._log_task_control("cancel")
         Recognize.resetRec()
         motor_names = [self.lift_motor.motor_name, self.stretch_motor.motor_name,
                        self.rotate_motor.motor_name]
@@ -2304,7 +3035,6 @@ class ContainerRobot(ModuleBase):
         Do.setDo(self.fill_light_do, False)
         self.action_task.cancel()
         self.status = ScriptStatus.FAILED
-        Trace.log("carton cancel", name=MOD)
 
     def update_move_task_params(self):
         move_task = Navigation.moveTask()
@@ -2325,19 +3055,19 @@ class ContainerRobot(ModuleBase):
         Motor.resetMotor(ConfigParams.right_finger_motor_name)
 
     def update_finger_info(self):
-        if Di.getDi(ConfigParams.left_finger_down_di) and not Di.getDi(ConfigParams.left_finger_up_di):
-            self.left_finger_real_pos = 0
-        elif Di.getDi(ConfigParams.left_finger_up_di) and not Di.getDi(ConfigParams.left_finger_down_di):
-            self.left_finger_real_pos = 1
-        if Di.getDi(ConfigParams.right_finger_down_di) and not Di.getDi(ConfigParams.right_finger_up_di):
-            self.right_finger_real_pos = 0
-        elif Di.getDi(ConfigParams.right_finger_up_di) and not Di.getDi(ConfigParams.right_finger_down_di):
-            self.right_finger_real_pos = 1
+        if not is_simulation():
+            if Di.getDi(ConfigParams.left_finger_down_di) and not Di.getDi(ConfigParams.left_finger_up_di):
+                self.left_finger_real_pos = 0
+            elif Di.getDi(ConfigParams.left_finger_up_di) and not Di.getDi(ConfigParams.left_finger_down_di):
+                self.left_finger_real_pos = 1
+            if Di.getDi(ConfigParams.right_finger_down_di) and not Di.getDi(ConfigParams.right_finger_up_di):
+                self.right_finger_real_pos = 0
+            elif Di.getDi(ConfigParams.right_finger_up_di) and not Di.getDi(ConfigParams.right_finger_down_di):
+                self.right_finger_real_pos = 1
         self.finger_info["leftFinger"] = self.left_finger_real_pos
         self.finger_info["rightFinger"] = self.right_finger_real_pos
 
     def rotate(self, pos, max_speed=None):
-        Trace.log(f"----- running rotate ------", name=f"{MOD}.motor")
         if abs(pos) > abs(ConfigParams.max_rotate_angle / 180 * math.pi):
             Navigation.setTaskError("RotateAngleExceeded",_TR(f"Rotate angle {self.pos / math.pi * 180} exceeds upper limit {ConfigParams.max_rotate_angle}. Check if box is tilted or QR code is damaged"))
             self.status = ScriptStatus.FAILED
@@ -2419,11 +3149,12 @@ class ContainerRobot(ModuleBase):
                 return True
         return False
 
-    def search_operable_container(self, opt):
+    def search_operable_container(self, opt, excluded=()):
+        excluded = {str(container_id) for container_id in excluded}
         ct = None
         if opt == 'load':
             for c in self.containers:
-                if not c['hasGoods']:
+                if str(c['containerId']) not in excluded and not c['hasGoods']:
                     ct = c['containerId']
                     break
         elif opt == 'unload':
@@ -2473,11 +3204,34 @@ class ContainerRobot(ModuleBase):
 
     def safeMoveCheck(self):
         """底盘移动前安全检查（可选）"""
+        if is_simulation():
+            self.safe_zero_task.reset()
+            Navigation.clearTaskError("FingerTimeout")
+            Navigation.clearTaskError("StretchObstacle")
+            self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
+            self.event_safe_move_check = False
+            Trace.log("safe_move_check finished without mechanism actions in simulation", name=MOD)
+            return
+
+        if _get_pending_fork_store() is not None:
+            self.safe_zero_task.reset()
+            self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
+            self.event_safe_move_check = False
+            Trace.log("safe_move_check kept carried goods on fork 999", name=f"{MOD}.autoPre")
+            return
+
+        if self.auto_pre_enabled and self.operation in ("load", "unload"):
+            print("DEBUG:  存在autopre，跳过")
+            self.safe_zero_task.reset()
+            self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
+            self.event_safe_move_check = False
+            Trace.log("safe_move_check skipped while AutoPre owns CTU motors", name=f"{MOD}.autoPre")
+            return
+        status = SafeMoveStatus.RUNNING
+        self.setSafeMoveStatus(status)
         self.check_motor_emc()
         if self.enable_motor and not self.motor_calib_state:
             self.motor_calib()
-
-        debug_print(f"[safe_move_check] motor_calib 后: motor_calib_state={self.motor_calib_state}")
 
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:
@@ -2490,11 +3244,28 @@ class ContainerRobot(ModuleBase):
             elif self.safe_zero_task.status == ActionStatus.FAILED:
                 self.safe_zero_task.reset()
                 status = SafeMoveStatus.FAILED
-        else:
-            debug_print(f"[safe_move_check] motor 未标零，跳过 zero，等待下一帧")
 
         self.setSafeMoveStatus(status)
-        Trace.log(f"safe_move_check {Module.getSafeMoveCheck()}", name=MOD)
+        safe_move_status = Module.getSafeMoveCheck()
+        snapshot = (
+            str(safe_move_status),
+            int(status),
+            bool(self.motor_calib_state),
+            int(self.safe_zero_task.status),
+        )
+        if snapshot != self._last_safe_move_log:
+            Trace.log(
+                {
+                    "event": "safeMoveCheck",
+                    "status": status.name.lower(),
+                    "motorCalibrated": bool(self.motor_calib_state),
+                    "zeroQueueStatus": self.safe_zero_task.status.name.lower(),
+                    "rbkStatus": safe_move_status,
+                },
+                output_time=True,
+                name=f"{MOD}.safeMove",
+            )
+            self._last_safe_move_log = snapshot
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
             self.event_safe_move_check = False
 
@@ -2567,9 +3338,19 @@ class Rec(BaseAction):
         if rec_status == 0:  # 识别器空闲: 发起识别, 下一 tick 再查询结果
             Recognize.doRec(self.filename, "", "")
         elif rec_status == 3 or rec_status == -1:
-            Trace.log("rec failed:{}".format(self.result), name=f"{MOD}.rec")
             if Timer.delay(0.05):
                 self.rec_times = self.rec_times + 1
+                Trace.log(
+                    {
+                        "event": "recognitionRetry",
+                        "attempt": self.rec_times,
+                        "maxRetries": self.max_rec_times,
+                        "recognitionStatus": rec_status,
+                        "file": self.filename,
+                    },
+                    output_time=True,
+                    name=f"{MOD}.rec",
+                )
                 if self.rec_times > self.max_rec_times:
                     if not self.is_error:
                         Navigation.setTaskError("RecFailed", _TR(f"Recognition failed after max retries{self.max_rec_times}. Check if QR code is damaged or camera is clear"))
@@ -2584,7 +3365,15 @@ class Rec(BaseAction):
                 if len(rec_results["recoList"]) == 1:
                     reco = rec_results["recoList"][0]
                     if not reco.get('valid', False):
-                        Trace.log("Rec: recognition result is invalid (valid=False), retrying", name=f"{MOD}.rec")
+                        Trace.log(
+                            {
+                                "event": "recognitionRetry",
+                                "reason": "invalidResult",
+                                "file": self.filename,
+                            },
+                            output_time=True,
+                            name=f"{MOD}.rec",
+                        )
                         Recognize.resetRec()  # 只清状态, 下一 tick status==0 时重新 doRec
                         return
                     self.result = reco.get('robotResult', {})
@@ -2593,7 +3382,15 @@ class Rec(BaseAction):
             if self.result.get("x", 0) > self.max_goods_dist:
                 self.goods_out_dist = True
             self.action_status = ActionStatus.FINISHED
-        Trace.log(f"rec success: {self.action_status.name} {self.result}", name=f"{MOD}.rec")
+            Trace.log(
+                {
+                    "event": "recognitionFinished",
+                    "file": self.filename,
+                    "result": self.result,
+                },
+                output_time=True,
+                name=f"{MOD}.rec",
+            )
 
         cur_state = dict()
         cur_state['recResult'] = self.result
@@ -2653,7 +3450,6 @@ class RecAdjust(BaseAction):
         if self.plan_status is not ScriptStatus.FINISHED:
             self.plan_status = ScriptStatus.RUNNING
             if self.rec.action_status is ActionStatus.RUNNING or self.rec.action_status is ActionStatus.INIT:
-                Trace.log(f"----- rec to adjust {self.rec.action_status.name}------", name=f"{MOD}.rec")
                 self.rec.run(agv)
             elif self.rec.action_status is ActionStatus.FAILED:
                 self.rec_fail_time = self.rec_fail_time + 1
@@ -2664,9 +3460,17 @@ class RecAdjust(BaseAction):
                     self.rec.reset()
                 else:
                     self.action_status = ActionStatus.FAILED
-                Trace.log("rec fail!!! {}".format(self.rec_fail_time), name=f"{MOD}.rec")
+                Trace.log(
+                    {
+                        "event": "recognitionRoundFailed",
+                        "round": self.rec_fail_time,
+                        "maxRounds": self.max_rec_fail_times,
+                        "recoveryRotateDeg": round(random_dist * 180 / math.pi, 3),
+                    },
+                    output_time=True,
+                    name=f"{MOD}.rec",
+                )
             elif self.rec.action_status is ActionStatus.FINISHED:
-                Trace.log(f"------------------ move to adjust -----------------", name=f"{MOD}.rec")
                 self.rec_fail_time = 0
 
                 if agv.is_auto_stretch:
@@ -2767,10 +3571,6 @@ class RecAdjust(BaseAction):
         cur_state["lastYawAdjust"] = self.last_yaw_adjust / math.pi * 180
         cur_state["nextRotatePos"] = self.next_rotate_pos / math.pi * 180
         agv.report_info["recAdjust"] = cur_state
-        Trace.log(f"[ContainerRobot][{agv.lift_real_pos}|{agv.stretch_real_pos}|{agv.rotate_real_pos / math.pi * 180}|"
-                  f"{self.rec.result.get('x', 0)}|{self.rec.result.get('y', 0)}|{self.rec.result.get('z', 0)}|{self.rec.result.get('yaw', 0)}|"
-                  f"{agv.yaw_adjust / math.pi * 180}|{self.last_yaw_adjust / math.pi * 180}|{self.next_rotate_pos / math.pi * 180}|"
-                  f"{self.rec_fail_time}|{self.adjust_count}|{self.rec.rec_times}|{self.go_args.get('x', 0)}|", name=f"{MOD}.rec", debug=True)
 
     def check_goods_code(self, agv):
         """
@@ -2839,6 +3639,7 @@ def main():
 
         # 触发安全检查事件
         if robot.event_safe_move_check:
+            print(f"DEBUG:检查")
             robot.safeMoveCheck()
         if robot.event_modbus:
             modbus_args = robot.modbus()
@@ -2864,6 +3665,7 @@ def main():
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             modbus_args = None
             robot.status = ScriptStatus.NONE
+            robot.auto_pre_enabled = False
 
         """需要增加sleep，如果时间太短控制器增加CPU占用"""
         time.sleep(0.1)
@@ -2871,5 +3673,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
