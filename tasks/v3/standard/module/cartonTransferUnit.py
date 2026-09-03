@@ -726,7 +726,7 @@ script_param.addAction(
 
 script_param.addAction(
     action_name="load",
-    policy={"navigation.basic.autoPre": True},
+    policy=None,
     args={
         "operation": "load",
         "operation.load.visionType": "box",
@@ -742,7 +742,7 @@ script_param.addAction(
 
 script_param.addAction(
     action_name="unload",
-    policy={"navigation.basic.autoPre": True},
+    policy=None,
     args={
         "operation": "unload",
         "operation.unload.visionType": "shelf",
