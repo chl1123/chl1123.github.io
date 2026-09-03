@@ -51,6 +51,7 @@ from .lib.module import ScriptStatus, Module, ModuleBase
 from .lib.net_protocol import NetProtocol
 from .lib.trace import Trace
 from .lib.action_task import ActionBase, ActionStatus, ActionTask
+from .auto_pre import AutoPreStatus, AutoPreInterface, AutoPreSequenceAction
 
 from .battery import Battery
 from .charger import Charger
