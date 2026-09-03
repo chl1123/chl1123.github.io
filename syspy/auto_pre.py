@@ -133,15 +133,8 @@ def _on_start_action(task_id: int) -> bool:
         True 表示已接受（本次或此前已锁存）；False 表示 task_id 不匹配。
     """
     if AutoPre._task_id is None or task_id != AutoPre._task_id:
-        Trace.log(
-            f"startAction task_id mismatch got={task_id} current={AutoPre._task_id}",
-            name="autoPre.err",
-        )
         return False
-    first_notification = not _start_action_latch.get(task_id, False)
     _start_action_latch[task_id] = True
-    if first_notification:
-        Trace.log(f"startAction latched task_id={task_id}", name="autoPre.startAction")
     return True
 
 
@@ -265,9 +258,10 @@ class AutoPreSequenceAction(ActionBase):
             if not self._report(AutoPreStatus.WAITING):
                 self._fail("auto-pre WAITING rejected", report=False)
                 return
-        elif not AutoPre.report_status(self.auto_pre_status):
-            self._fail("auto-pre heartbeat rejected", report=False)
-            return
+        elif self.auto_pre_status != AutoPreStatus.FINISHED:
+            if not AutoPre.report_status(self.auto_pre_status):
+                self._fail("auto-pre heartbeat rejected", report=False)
+                return
 
         if self.must_stop_at_pre_station and not self.stop_requested:
             if not AutoPre.stop_at_pre_station(True):

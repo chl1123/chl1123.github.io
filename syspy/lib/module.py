@@ -278,6 +278,7 @@ class Module:
         """
         if task_id != cls.__safe_move_check_id:
             cls.__safe_move_check_id = task_id
+            cls.__safe_move_check_status = SafeMoveStatus.RUNNING
             cls.__safe_move_check_callback()
 
     @classmethod
