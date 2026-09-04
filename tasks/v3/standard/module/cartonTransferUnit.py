@@ -245,13 +245,16 @@ class ConfigParams:
                     with builder.CHILD(key="boxCodeFile", name=_TR("Box Code File"), desc=_TR("Box Code Recognition Config")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.App.RECOGNITION)
+                        builder.DEFAULTVALUE("recognition/default.srec")
                     with builder.CHILD(key="shelfCodeFile", name=_TR("Shelf Code File"),
                                        desc=_TR("Shelf Code Recognition Config")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.App.RECOGNITION)
+                        builder.DEFAULTVALUE("recognition/default1.srec")
                     with builder.CHILD(key="barcodeFile", name=_TR("Barcode File"), desc=_TR("Barcode Recognition Config")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.App.RECOGNITION)
+                        builder.DEFAULTVALUE("recognition/default2.srec")
                     with builder.CHILD(key="offsetX", name=_TR("Offset X"), desc=_TR("Walking Direction Offset")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.UNIT("m")
@@ -377,11 +380,13 @@ class ConfigParams:
                     with builder.CHILD(key="goodsCheckDi", name=_TR("Goods Check Di"), desc=_TR("Fork Midpoint Detection DI")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.Device.DI)
+                        builder.DEFAULTVALUE("DI-008")
                         builder.REQUIRED(True)
                     with builder.CHILD(key="overlimitDetectDi", name=_TR("Overlimit Detect Di"),
                                        desc=_TR("Fork Safe Travel Limit")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.Device.DI)
+                        builder.DEFAULTVALUE("DI-009")
                         builder.REQUIRED(True)
                     with builder.CHILD(key="lightDelayTime", name=_TR("Light Delay Time"), desc=_TR("time for light")):
                         builder.TYPE(ParamType.FLOAT)
