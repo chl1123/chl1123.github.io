@@ -3597,8 +3597,9 @@ class Jack(ModuleBase):
             if not self.pre_action_step[0]:
                 if config_params.DOMotor:
                     Motor.resetMotor(config_params.jack_motor_name)
-                    Motor.setMotorSpeed(config_params.jack_motor_name, -0.01, config_params.jack_zero_di or "")
-                elif config_params.jack_zero_di:
+                    stop_di = "" if is_simulation() else (config_params.jack_zero_di or "")
+                    Motor.setMotorSpeed(config_params.jack_motor_name, -0.01, stop_di)
+                elif config_params.jack_zero_di and not is_simulation():
                     slow_speed = config_params.jack_motor_speed * 0.5
                     Motor.setMotorPosition(config_params.jack_motor_name, target_height, slow_speed,
                                            config_params.jack_zero_di)
@@ -4048,6 +4049,15 @@ class JackHeight(ActionBase):
             self._motor_moved = False
             self._init_time = time.time()
 
+            # 仿真时按线性电机模型的最小位置保护下降边界。
+            if is_simulation() and self.target_height < config_params.jack_min_height:
+                Trace.log(
+                    f"simulation jack target {self.target_height:.4f}m below min "
+                    f"{config_params.jack_min_height:.4f}m, clamp to min",
+                    name=f"{MOD}.motor",
+                )
+                self.target_height = config_params.jack_min_height
+
             # 只在初始化时输出一次关键信息
             direction = "↑Jack up" if self.target_height > self.jack_start_height else "↓Jack down"
             debug_trace(
@@ -4071,6 +4081,8 @@ class JackHeight(ActionBase):
                 else:
                     self.action_status = ActionStatus.FINISHED
                     return
+                if is_simulation():
+                    stop_di = ""
                 Motor.resetMotor(self.motor_name)
                 Motor.setMotorSpeed(self.motor_name, vel, stop_di)
             elif self.target_height > self.jack_start_height:
@@ -4097,7 +4109,7 @@ class JackHeight(ActionBase):
                                                   _TR(f"Jack-down DI({config_params.jack_zero_di}) already triggered before lowering. DI config error or mechanism jammed"))
                         self.action_status = ActionStatus.FAILED
                         return
-                if config_params.jack_zero_di:
+                if config_params.jack_zero_di and not is_simulation():
                     Motor.setMotorPosition(self.motor_name, self.target_height, self.jackMotorSpeed,
                                            config_params.jack_zero_di)
                 else:
@@ -4105,6 +4117,18 @@ class JackHeight(ActionBase):
 
         # 获取当前电机位置
         current_pos = Motor.getMotorPos(self.motor_name)
+
+        # 仿真位置出现越过模型下限时立即停止，并按到达下限完成动作。
+        if (is_simulation() and self.target_height <= self.jack_start_height and
+                current_pos < config_params.jack_min_height):
+            Motor.resetMotor(self.motor_name)
+            Trace.log(
+                f"simulation jack position {current_pos:.4f}m below min "
+                f"{config_params.jack_min_height:.4f}m, stop and finish",
+                name=f"{MOD}.motor",
+            )
+            self.action_status = ActionStatus.FINISHED
+            return
 
         # 诊断限位 DI：只在状态变化时打印，避免循环刷屏
         try:
