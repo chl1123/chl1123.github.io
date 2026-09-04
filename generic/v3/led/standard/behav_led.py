@@ -38,6 +38,7 @@ from typing import Any, Dict, List, Optional
 from syspy import (
     Battery,
     Module,
+    Navigation,
     NavSpeed,
     NavStatus,
     RobotParam,
@@ -53,6 +54,9 @@ from syspy.utils.param_server import ParamType
 
 script_param = ScriptParam(__file__) # 以脚本文件名为命名空间加载配置参数，文件路径见 /opt/.data/rbk/resources/scripts/params/tasks/v3/standard/
 LOG_MODULE = "LED"
+
+# 任务失败状态下需要忽略的正常结束异常。
+NORMAL_TASK_ERROR_KEYS = ["ms@TaskCanceled"]
 
 
 class LedLightType(str, Enum):
@@ -432,6 +436,22 @@ class Dmx512NativeBehav:
             return False
 
     @staticmethod
+    def _has_only_normal_task_errors() -> bool:
+        """仅存在正常结束类型的任务异常时，不显示任务失败灯效。"""
+        try:
+            task_errors = NavStatus.data.errors
+            error_keys = set(task_errors.keys())
+        except Exception:
+            return False
+        normal_error_keys = set(NORMAL_TASK_ERROR_KEYS)
+        if error_keys != normal_error_keys:
+            return False
+        try:
+            return all(Navigation.errorExists(error_key) for error_key in normal_error_keys)
+        except Exception:
+            return False
+
+    @staticmethod
     def _mock_battery_percentage() -> float:
         """
         仿真环境下模拟电量周期变化：
@@ -625,7 +645,7 @@ class Dmx512NativeBehav:
             )
             return
 
-        elif self.is_task_failed():
+        elif self.is_task_failed() and not self._has_only_normal_task_errors():
             self._send_led(
                 LedLightType.Blink,
                 LedColor.Yellow,

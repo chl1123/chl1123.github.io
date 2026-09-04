@@ -463,7 +463,9 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     def errorExists(cls, key: str) -> bool:
-        return cls.client().call_service("MoveFactory", "errorExists", "py@" + key)
+        if not key.startswith(("py@", "ms@")):
+            key = "py@" + key
+        return cls.client().call_service("MoveFactory", "errorExists", key)
 
     @classmethod
     @call_service()
