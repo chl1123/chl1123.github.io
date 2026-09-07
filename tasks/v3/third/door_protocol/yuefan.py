@@ -8,7 +8,7 @@ from dataclasses import asdict
 from syspy import Module, RobotParam, ScriptParam, ScriptStatus, Trace
 from syspy.script_data import ScriptData
 from syspy.comms.lora_comm import LoraFrame, LoraSerialTransport, LoraTransportError
-from syspy.utils.param_server import ParamType
+from syspy.utils.param_server import BindType, ParamType
 
 try:
     from .base import DoorProtocol, DoorProtocolResult, ProtocolRejected, ProtocolUnavailable
@@ -59,7 +59,7 @@ class ConfigParams:
             with builder.CHILDREN():
                 with builder.CHILD(key="port", name="Serial interface", desc="SerialInterface device binding"):
                     builder.TYPE(ParamType.BIND_TYPE)
-                    builder.ADD_FIELD("bind_type", "device:SerialInterface")
+                    builder.BINDTYPE(BindType.Device.SERIAL_INTERFACE)
                     builder.TAG("protocol:instance")
                     builder.REQUIRED(True)
                 with builder.CHILD(key="address", name="LoRa address", desc="Gate module address"):
@@ -163,17 +163,14 @@ def _protocol_args(config):
         raise ValueError("unsupported door communication protocol: {}".format(protocol_name))
     script_name = value(
         "communicationProtocol.yuefan.name",
-        "communicationProtocol.yuefan.script.name",
         default="",
     )
     if script_name and not str(script_name).replace("\\", "/").endswith("/yuefan.py"):
         raise ValueError("unsupported Yuefan door protocol script: {}".format(script_name))
-    prefix = "communicationProtocol.yuefan.args."
-    legacy_prefix = "communicationProtocol.yuefan.script.args."
-    address = value("address", prefix + "address", legacy_prefix + "address", "protocol.address")
-    channel = value("channel", prefix + "channel", legacy_prefix + "channel", "protocol.channel")
+    address = value("communicationProtocol.yuefan.config.protocol.address")
+    channel = value("communicationProtocol.yuefan.config.protocol.channel")
     serial_interface = value(
-        "port", prefix + "port", legacy_prefix + "port", "protocol.port",
+        "communicationProtocol.yuefan.config.protocol.port",
         default=DEFAULT_SERIAL_PORT,
     )
     if address is None or channel is None:
@@ -182,25 +179,25 @@ def _protocol_args(config):
 
 
 def _resolve_port(serial_interface):
-    port = str(serial_interface or "").strip()
+    port = str(serial_interface or "")
     if not port or port.startswith("/"):
         return port or DEFAULT_SERIAL_PORT
 
     def device_path(value):
-        value = str(value or "").strip()
+        value = str(value or "")
         return value if value.startswith("/") else "/dev/{}".format(value)
 
     try:
         resolved = str(RobotParam.getConfig(
             "SerialInterface", "{}.portName".format(port)
-        ) or "").strip()
+        ) or "")
     except Exception:
         resolved = ""
     if resolved:
         return device_path(resolved)
     for field in ("portName", "basic.portName", "devName", "basic.devName"):
         try:
-            resolved = str(RobotParam.getDevice(port, field) or "").strip()
+            resolved = str(RobotParam.getDevice(port, field) or "")
         except Exception:
             resolved = ""
         if resolved:
@@ -413,8 +410,7 @@ def _instance_config(args):
         data = _json_object(candidate)
         if data and (
                 "communicationProtocol" in data
-                or "address" in data
-                or "communicationProtocol.yuefan.args.address" in data):
+                or _lookup(data, "communicationProtocol.yuefan.config.protocol.address") is not None):
             return data
     return args
 
@@ -423,9 +419,7 @@ def _with_instance_fields(args):
     result = dict(args or {})
     data = _instance_config(result)
     for field in ("port", "address", "channel", "openDelayTime"):
-        value = _lookup(data, field)
-        if value in (None, ""):
-            value = _lookup(data, "communicationProtocol.yuefan.args." + field)
+        value = _lookup(data, "communicationProtocol.yuefan.config.protocol." + field)
         if value not in (None, ""):
             result.setdefault(field, value)
     return result
