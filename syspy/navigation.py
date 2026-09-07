@@ -89,12 +89,25 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def enableFallingDownDetect(cls) -> bool:
-        """启用取放货防倾倒检测。"""
+        """启用取放货防倾倒检测。
+
+        启用请求下发后，MoveFactory 会在重力基线样本可用时进入检测状态；
+        返回值不表示检测状态已经切换完成。
+
+        Returns:
+            bool: 启用请求是否被服务接受。
+        """
         raise RBKVersionError()
 
     @classmethod
     def disableFallingDownDetect(cls) -> bool:
-        """关闭取放货防倾倒检测。"""
+        """关闭取放货防倾倒检测。
+
+        返回值不表示内部状态已完成切换。
+
+        Returns:
+            bool: 关闭请求是否被服务接受。
+        """
         raise RBKVersionError()
 
     @classmethod
