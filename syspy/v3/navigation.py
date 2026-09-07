@@ -44,6 +44,16 @@ class NavigationV3(NavigationInterface):
         pass
 
     @classmethod
+    @call_service(plugin_name="MoveFactory")
+    def enableFallingDownDetect(cls) -> bool:
+        pass
+
+    @classmethod
+    @call_service(plugin_name="MoveFactory")
+    def disableFallingDownDetect(cls) -> bool:
+        pass
+
+    @classmethod
     @call_service()
     def getCurrentAdvancedArea(cls) -> dict:
         pass

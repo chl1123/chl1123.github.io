@@ -88,6 +88,16 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
+    def enableFallingDownDetect(cls) -> bool:
+        """启用取放货防倾倒检测。"""
+        raise RBKVersionError()
+
+    @classmethod
+    def disableFallingDownDetect(cls) -> bool:
+        """关闭取放货防倾倒检测。"""
+        raise RBKVersionError()
+
+    @classmethod
     def getCurrentAdvancedArea(cls) -> dict:
         """机器人运行时，当前所在高级区域的属性
 
