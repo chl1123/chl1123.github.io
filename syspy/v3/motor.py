@@ -15,7 +15,10 @@ class MotorV3(MotorInterface):
     @staticmethod
     def getMotorInfos() -> List["msgMotorInfo"]:
         from syspy import Odometer
-        return Odometer.data.motorInfo
+        motor_infos = []
+        if Odometer.update():
+            motor_infos = Odometer.data.motorInfo
+        return motor_infos
 
     @staticmethod
     def getMotorPos(key: str) -> Union[float, int]:
