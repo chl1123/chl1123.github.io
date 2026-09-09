@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 from google.protobuf.json_format import MessageToDict
 
 from syspy.core.rbk_rpc import Message, RBKVersionError
+from syspy.utils import Coordinate
 
 
 class MapSiteData(TypedDict, total=False):
@@ -20,6 +21,12 @@ class MapSiteData(TypedDict, total=False):
     height: float
     desc: str
     jsonObject: dict
+
+
+class MapPointData(TypedDict):
+    x: float
+    y: float
+    dir: Optional[float]
 
 
 MapData = Dict[str, Any]
@@ -113,6 +120,27 @@ class MapInterface(ABC, Message):
         """读取站点列表。"""
         raise RBKVersionError()
 
+    def getPoint(
+            self, point_name: str, coordinate: Coordinate = Coordinate.WORLD,
+            map_name: str = "",
+    ) -> Optional[MapPointData]:
+        """读取一个站点的地图坐标和可选朝向。
+
+        Args:
+            point_name (str): ``advancedPointList`` 中的站点实例名，或
+                ``LM``/``SM`` 点的编号后缀。例如 ``"LM123"``、``"SM123"``
+                和 ``"123"`` 均可查询编号为 123 的点。
+            coordinate (Coordinate): 返回坐标系，``"world"``（默认）或
+                ``"robot"``。机器人坐标系以调用时的机器人位姿为基准。
+            map_name (str): 地图名称；缺省时读取当前地图。
+
+        Returns:
+            (Optional[MapPointData]): 找到时返回 ``x``、``y``（单位 m）和
+            ``dir``（单位 degree）。站点未勾选朝向时 ``dir`` 为 ``None``；
+            站点不存在时返回 ``None``。
+        """
+        raise RBKVersionError()
+
     def getTopoAreaList(self, map_name: str = "") -> Optional[List[MapData]]:
         """读取拓扑区域列表。"""
         raise RBKVersionError()
@@ -175,6 +203,18 @@ class MapInterface(ABC, Message):
 
     def getCurrentWorkspace(self) -> str:
         """返回拓扑中与当前地图绑定的 workspace。"""
+        raise RBKVersionError()
+
+    def getWorkspaceList(self) -> List[MapData]:
+        """读取工作空间拓扑列表。
+
+        Returns:
+            (List[MapData]): ``workspace_topology.json`` 中的
+            ``workspaceList``，每项包含 ``workspace`` 和 ``map`` 等原始字段。
+
+        Raises:
+            ValueError: 拓扑文件不可读，或 ``workspaceList`` 不是数组。
+        """
         raise RBKVersionError()
 
     def getMapNameByWorkspace(self, workspace: str) -> str:

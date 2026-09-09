@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -6,6 +7,7 @@ from typing import Tuple
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.map import MapInterface
+from syspy.utils import Coordinate
 
 
 @dataclass(frozen=True)
@@ -114,6 +116,17 @@ class MapV3(MapInterface):
         values = [w for w, m in self._workspace_map().items() if m == name]
         return values[0] if len(values) == 1 else ""
 
+    def getWorkspaceList(self):
+        try:
+            with open(self._TOPOLOGY_PATH, encoding="utf-8") as stream:
+                data = json.load(stream)
+        except (OSError, TypeError, ValueError) as error:
+            raise ValueError(f"failed to load workspace topology: {error}")
+        values = data.get("workspaceList") if isinstance(data, dict) else None
+        if not isinstance(values, list):
+            raise ValueError("workspace_topology.json.workspaceList must be an array")
+        return values
+
     def getMapNameByWorkspace(self, workspace):
         return self._workspace_map().get(str(workspace), "")
 
@@ -203,6 +216,59 @@ class MapV3(MapInterface):
 
     def getAdvancedPointList(self, map_name=""):
         return self.getMapDataList("advancedPointList", map_name)
+
+    def getPoint(self, point_name, coordinate=Coordinate.WORLD, map_name=""):
+        try:
+            coordinate = Coordinate(coordinate)
+        except (TypeError, ValueError) as error:
+            raise ValueError("coordinate must be 'world' or 'robot'") from error
+        data = self._map_file_data(map_name)
+        points = data.get("advancedPointList")
+        if points is None:
+            return None
+        if not isinstance(points, list):
+            raise ValueError("0.smap.advancedPointList must be an array")
+        name = str(point_name)
+        matches = [
+            (index, point) for index, point in enumerate(points)
+            if isinstance(point, dict)
+            and str(point.get("instanceName", "")) == name
+        ]
+        if not matches:
+            matches = [
+                (index, point) for index, point in enumerate(points)
+                if isinstance(point, dict)
+                and str(point.get("instanceName", ""))[:2] in ("LM", "SM")
+                and str(point.get("instanceName", ""))[2:] == name
+            ]
+        if len(matches) != 1:
+            return None
+        index, raw_point = matches[0]
+        point = self._normalize_item("advancedPointList", index, raw_point)
+        result = {
+            "x": point["pos"]["x"],
+            "y": point["pos"]["y"],
+            "dir": None if raw_point.get("ignoreDir") or "dir" not in raw_point
+            else point["dir"],
+        }
+        if coordinate == Coordinate.ROBOT:
+            from syspy import Loc
+
+            pose = Loc.getPose()
+            if pose is None:
+                raise ValueError("robot pose is unavailable")
+            try:
+                yaw = float(pose["yaw"])
+                theta = math.radians(yaw)
+                x = result["x"] - float(pose["x"])
+                y = result["y"] - float(pose["y"])
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError("robot pose is invalid") from error
+            result["x"] = x * math.cos(theta) + y * math.sin(theta)
+            result["y"] = -x * math.sin(theta) + y * math.cos(theta)
+            if result["dir"] is not None:
+                result["dir"] = (result["dir"] - yaw + 180.0) % 360.0 - 180.0
+        return result
 
     def getTopoAreaList(self, map_name=""):
         return self.getMapDataList("topoAreaList", map_name)
