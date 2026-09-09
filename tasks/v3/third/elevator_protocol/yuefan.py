@@ -1,4 +1,3 @@
-import json
 import os
 import struct
 import sys
@@ -76,6 +75,21 @@ class ConfigParams:
                     builder.TYPE(ParamType.INT)
                     builder.TAG("protocol:instance")
                     builder.DEFAULTVALUE(3, min_value=1, max_value=10)
+                with builder.CHILD(key="activeTime", name="Control lease time", desc="Elevator control lease time"):
+                    builder.TYPE(ParamType.INT)
+                    builder.TAG("protocol:instance")
+                    builder.DEFAULTVALUE(30, min_value=2, max_value=255)
+                    builder.UNIT("s")
+                with builder.CHILD(key="arrivalTimeout", name="Arrival timeout", desc="Maximum time to wait for the target floor"):
+                    builder.TYPE(ParamType.FLOAT)
+                    builder.TAG("protocol:instance")
+                    builder.DEFAULTVALUE(120.0, min_value=1.0, max_value=3600.0)
+                    builder.UNIT("s")
+                with builder.CHILD(key="pollInterval", name="Status poll interval", desc="Interval between elevator keep-alive requests"):
+                    builder.TYPE(ParamType.FLOAT)
+                    builder.TAG("protocol:instance")
+                    builder.DEFAULTVALUE(1.0, min_value=0.1, max_value=120.0)
+                    builder.UNIT("s")
     builder.save(merge=True)
 
 
@@ -92,8 +106,6 @@ class InputParams:
                         key="queryStatus", name="Query current floor",
                         desc="Query the elevator status and publish it to ScriptData"):
                     builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILDREN():
-                        _add_debug_floor_fields(builder, required=False)
                 with builder.CHILD(
                         key="call", name="Call elevator",
                         desc="Send a floor-call request to the elevator"):
@@ -158,18 +170,27 @@ def _protocol_args(config):
     )
     if script_name and not str(script_name).replace("\\", "/").endswith("/yuefan.py"):
         raise ValueError("unsupported Yuefan elevator protocol script: {}".format(script_name))
-    address = value("communicationProtocol.yuefan.config.protocol.address")
-    channel = value("communicationProtocol.yuefan.config.protocol.channel")
+    address = value(
+        "communicationProtocol.yuefan.config.protocol.address",
+        "protocol.address",
+    )
+    channel = value(
+        "communicationProtocol.yuefan.config.protocol.channel",
+        "protocol.channel",
+    )
     serial_interface = value(
         "communicationProtocol.yuefan.config.protocol.port",
+        "protocol.port",
         default=DEFAULT_SERIAL_PORT,
     )
     timeout = float(value(
         "communicationProtocol.yuefan.config.protocol.timeout",
+        "protocol.timeout",
         default=2.0,
     ))
     retries = int(value(
         "communicationProtocol.yuefan.config.protocol.retries",
+        "protocol.retries",
         default=3,
     ))
     if address is None or channel is None:
@@ -331,8 +352,7 @@ class YuefanElevatorProtocol(ElevatorProtocol):
 script_param.addAction(
     action_name="Query elevator floor",
     policy={},
-    args={"operation": "queryStatus", "operation.queryStatus.floorNum": 1,
-          "operation.queryStatus.floorDirection": 0},
+    args={"operation": "queryStatus"},
     config={},
 )
 script_param.addAction(
@@ -343,51 +363,6 @@ script_param.addAction(
     config={},
 )
 script_param.saveAction()
-
-
-def _json_object(value):
-    if isinstance(value, str):
-        try:
-            value = json.loads(value)
-        except (TypeError, ValueError):
-            return {}
-    if not isinstance(value, dict):
-        return {}
-    nested = value.get("jsonObject")
-    return nested if isinstance(nested, dict) else value
-
-
-def _instance_config(args):
-    """Find the saved protocol instance without interpreting map topology."""
-    args = args if isinstance(args, dict) else {}
-    candidates = [
-        args.get("protocol.instance"),
-        args.get("protocolInstance"),
-        args.get("protocolSite"),
-        args.get("config"),
-    ]
-    try:
-        candidates.append(Module.getTaskConfig())
-    except Exception:
-        pass
-    for candidate in candidates:
-        data = _json_object(candidate)
-        if data and (
-                "communicationProtocol" in data
-                or _lookup(data, "communicationProtocol.yuefan.config.protocol.address") is not None):
-            return data
-    return args
-
-
-def _with_instance_fields(args):
-    """Make saved dotted instance JSON usable by the regular input validator."""
-    result = dict(args or {})
-    data = _instance_config(result)
-    for field in ("port", "address", "channel", "timeout", "retries"):
-        value = _lookup(data, "communicationProtocol.yuefan.config.protocol." + field)
-        if value not in (None, ""):
-            result.setdefault(field, value)
-    return result
 
 
 def _operation_value(args, operation, key, default=None):
@@ -406,21 +381,80 @@ def _publish_result(result, operation, requested_floor=None, floor_direction=Non
         "floor": int(result.floor),
         "currentFloor": int(result.floor),
     })
+    Trace.log(payload, name="elevator_protocol.result")
     ScriptData.set("elevatorState", payload)
 
 
+def _debug_timing(config):
+    config = config if isinstance(config, dict) else {}
+
+    def value(key, default):
+        value = _lookup(config, "protocol." + key, default)
+        return default if value in (None, "") else value
+
+    active_time = int(value("activeTime", 30))
+    arrival_timeout = float(value("arrivalTimeout", 120.0))
+    poll_interval = float(value("pollInterval", 1.0))
+    if not 2 <= active_time <= 255:
+        raise ValueError("protocol.activeTime must be in range 2..255")
+    if arrival_timeout <= 0:
+        raise ValueError("protocol.arrivalTimeout must be positive")
+    if not 0.1 <= poll_interval < active_time:
+        raise ValueError("protocol.pollInterval must be in range 0.1..<activeTime")
+    return active_time, arrival_timeout, poll_interval
+
+
+def _call_until_target(protocol, floor, direction, active_time, timeout, poll_interval):
+    deadline = time.monotonic() + timeout
+    result = protocol.call(floor, active_time)
+    _publish_result(result, "call", floor, direction)
+    while not protocol.is_target_ready(result, floor):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("elevator did not reach floor {}".format(floor))
+        time.sleep(min(poll_interval, remaining))
+        result = protocol.keep_alive(floor, active_time)
+        _publish_result(result, "call", floor, direction)
+    return result
+
+
 def _run_debug_operation(raw_args):
-    args = script_param.loadInput(_with_instance_fields(raw_args))
+    args = script_param.loadInput(raw_args)
     operation = str(args.get("operation", "")).strip()
     if operation not in ("queryStatus", "call"):
         raise ValueError("unsupported elevator debug operation: {}".format(operation))
-    protocol = create_protocol(_instance_config(args))
+    config = script_param.loadConfig()
+    protocol = create_protocol(config)
+    if operation == "queryStatus":
+        _publish_result(protocol.query_status(), operation)
+        return
     floor = int(_operation_value(args, operation, "floorNum", 1))
     direction = int(_operation_value(args, operation, "floorDirection", 0))
     if not 0 <= direction <= 2:
         raise ValueError("floorDirection must be in range 0..2")
-    result = protocol.query_status() if operation == "queryStatus" else protocol.call(floor, 30)
-    _publish_result(result, operation, floor, direction)
+
+    active_time, arrival_timeout, poll_interval = _debug_timing(config)
+    acquired = False
+    task_error = None
+    try:
+        acquired = True
+        _call_until_target(
+            protocol, floor, direction, active_time, arrival_timeout, poll_interval,
+        )
+    except Exception as error:
+        task_error = error
+        raise
+    finally:
+        if acquired:
+            try:
+                _publish_result(protocol.release(active_time), "release", floor, direction)
+            except Exception as release_error:
+                Trace.log({
+                    "event": "elevatorProtocolDebugReleaseFailed",
+                    "error": str(release_error),
+                }, name="elevator_protocol.err")
+                if task_error is None:
+                    raise
 
 
 def main():
@@ -433,6 +467,8 @@ def main():
                 raw_args = Module.getTaskArgs()
                 if raw_args:
                     try:
+                        # Command-line task startup sets the local state only; report it to MF.
+                        Module.setStatus(ScriptStatus.RUNNING)
                         _run_debug_operation(raw_args)
                         Module.setStatus(ScriptStatus.FINISHED)
                     except Exception as error:

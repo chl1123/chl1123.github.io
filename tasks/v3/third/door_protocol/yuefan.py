@@ -1,4 +1,3 @@
-import json
 import os
 import struct
 import sys
@@ -116,12 +115,12 @@ class InputParams:
                         key="queryStatus", name="Query door status",
                         desc="Query one door and publish the result to ScriptData"):
                     builder.TYPE(ParamType.ARRAY)
-                    with builder.CHILD(
-                            key="openClose", name="Open or close door",
-                            desc="Send an open or release command to one door"):
-                        builder.TYPE(ParamType.ARRAY)
-                        with builder.CHILDREN():
-                            _add_debug_door_controls(builder)
+                with builder.CHILD(
+                        key="openClose", name="Open or close door",
+                        desc="Send an open or release command to one door"):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        _add_debug_door_controls(builder)
     builder.save()
 
 
@@ -167,10 +166,17 @@ def _protocol_args(config):
     )
     if script_name and not str(script_name).replace("\\", "/").endswith("/yuefan.py"):
         raise ValueError("unsupported Yuefan door protocol script: {}".format(script_name))
-    address = value("communicationProtocol.yuefan.config.protocol.address")
-    channel = value("communicationProtocol.yuefan.config.protocol.channel")
+    address = value(
+        "communicationProtocol.yuefan.config.protocol.address",
+        "protocol.address",
+    )
+    channel = value(
+        "communicationProtocol.yuefan.config.protocol.channel",
+        "protocol.channel",
+    )
     serial_interface = value(
         "communicationProtocol.yuefan.config.protocol.port",
+        "protocol.port",
         default=DEFAULT_SERIAL_PORT,
     )
     if address is None or channel is None:
@@ -381,50 +387,6 @@ script_param.addAction(
 script_param.saveAction()
 
 
-def _json_object(value):
-    if isinstance(value, str):
-        try:
-            value = json.loads(value)
-        except (TypeError, ValueError):
-            return {}
-    if not isinstance(value, dict):
-        return {}
-    nested = value.get("jsonObject")
-    return nested if isinstance(nested, dict) else value
-
-
-def _instance_config(args):
-    """Find the saved protocol instance; topology is intentionally ignored."""
-    args = args if isinstance(args, dict) else {}
-    candidates = [
-        args.get("protocol.instance"),
-        args.get("protocolInstance"),
-        args.get("protocolSite"),
-        args.get("config"),
-    ]
-    try:
-        candidates.append(Module.getTaskConfig())
-    except Exception:
-        pass
-    for candidate in candidates:
-        data = _json_object(candidate)
-        if data and (
-                "communicationProtocol" in data
-                or _lookup(data, "communicationProtocol.yuefan.config.protocol.address") is not None):
-            return data
-    return args
-
-
-def _with_instance_fields(args):
-    result = dict(args or {})
-    data = _instance_config(result)
-    for field in ("port", "address", "channel", "openDelayTime"):
-        value = _lookup(data, "communicationProtocol.yuefan.config.protocol." + field)
-        if value not in (None, ""):
-            result.setdefault(field, value)
-    return result
-
-
 def _operation_value(args, key, default=None):
     value = _lookup(args, "operation.openClose." + key)
     if value is None and isinstance(args, dict):
@@ -439,15 +401,16 @@ def _publish_result(result, operation, action=None, source_side=None):
         "action": action or "query",
         "sourceSide": source_side or "",
     })
+    Trace.log(payload, name="door_protocol.result")
     ScriptData.set("doorState", payload)
 
 
 def _run_debug_operation(raw_args):
-    args = script_param.loadInput(_with_instance_fields(raw_args))
+    args = script_param.loadInput(raw_args)
     operation = str(args.get("operation", "")).strip()
     if operation not in ("queryStatus", "openClose"):
         raise ValueError("unsupported door debug operation: {}".format(operation))
-    instance = _instance_config(args)
+    instance = script_param.loadConfig()
     protocol = create_protocol(instance)
     if operation == "queryStatus":
         result = protocol.query_status()

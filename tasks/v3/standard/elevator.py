@@ -107,29 +107,13 @@ def _select_entry(elevator, workspace, station, station_field, role,
 
 
 def _load_map_point(map_name, point_name):
-    map_path = os.path.join(_MAPS_DIR, map_name, "0.smap")
     try:
-        with open(map_path, encoding="utf-8") as stream:
-            map_data = json.load(stream)
-    except (OSError, TypeError, ValueError) as error:
+        points = Map.getAdvancedPointList(map_name) or []
+    except ValueError as error:
         raise ValueError("failed to load map {}: {}".format(map_name, error))
-    if not isinstance(map_data, dict):
-        raise ValueError("map {} root must be an object".format(map_name))
-    points = map_data.get("advancedPointList", [])
-    if not isinstance(points, list):
-        raise ValueError("map {} advancedPointList must be an array".format(map_name))
-    coordinates = []
-    for point in points:
-        pos = point.get("pos", {}) if isinstance(point, dict) else {}
-        try:
-            coordinates.extend((abs(float(pos["x"])), abs(float(pos["y"]))))
-        except (KeyError, TypeError, ValueError):
-            continue
-    scale = 0.001 if coordinates and max(coordinates) >= 1000.0 else 1.0
     matches = [
         point for point in points
-        if isinstance(point, dict)
-        and point_name in (point.get("instanceName"), point.get("pointName"))
+        if point_name in (point.get("instanceName"), point.get("pointName"))
     ]
     if len(matches) != 1:
         raise ValueError(
@@ -137,18 +121,7 @@ def _load_map_point(map_name, point_name):
         )
     point = matches[0]
     pos = point.get("pos", {})
-    try:
-        return {
-            "x": float(pos["x"]) * scale,
-            "y": float(pos["y"]) * scale,
-            "dir": float(point["dir"]),
-        }
-    except (KeyError, TypeError, ValueError):
-        raise ValueError(
-            "point {} in map {} must contain numeric x, y and dir".format(
-                point_name, map_name
-            )
-        )
+    return {"x": pos["x"], "y": pos["y"], "dir": point["dir"]}
 
 
 def _resolve_ride_context(args):
@@ -543,7 +516,7 @@ class ConfigParams:
     exit_blocked_timeout = 30.0
     exit_retry_interval = 3.0
     entry_guide_distance = 0.5
-    release_control_on_pause = False
+    release_control_on_pause = True
     entryForward = True
     exitForward = None
     guidePathMode = "arc"
@@ -622,7 +595,7 @@ class ConfigParams:
                             name="Release control on pause",
                             desc="Release elevator control when the task is paused"):
                         builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(False)
+                        builder.DEFAULTVALUE(True)
             builder.save(merge=True)
         cls.load_config()
 
@@ -1093,7 +1066,7 @@ class SwitchMapAction(ActionBase):
         self.min_confidence = float(min_confidence)
         self.source_switch_dir = source_switch_dir
         self.target_switch_dir = target_switch_dir
-        self._switch_complete = False
+        self._switch_requested = False
         self._stable_since = None
         self._switch_heading = None
         self._confidence_wait_logged = False
@@ -1104,7 +1077,7 @@ class SwitchMapAction(ActionBase):
 
     def reset(self):
         super().reset()
-        self._switch_complete = False
+        self._switch_requested = False
         self._stable_since = None
         self._switch_heading = None
         self._confidence_wait_logged = False
@@ -1145,7 +1118,7 @@ class SwitchMapAction(ActionBase):
             self._on_started()
 
     def run(self, _ctx=None):
-        if not self._switch_complete:
+        if not self._switch_requested:
             if self.switch_pose and self._switch_heading is not None:
                 mode = "targetPose"
                 switch_args = [
@@ -1186,10 +1159,11 @@ class SwitchMapAction(ActionBase):
                     "result": result,
                 }, name="elevator.map")
                 self._last_switch_result = result
-            if result == 0:
-                self._switch_complete = True
-            elif result == 1:
-                return self.action_status
+            if result in (0, 1):
+                # ``1`` means the SDK has accepted the request and is still
+                # switching. Reissuing it on every ActionTask tick prevents
+                # the original switch from settling.
+                self._switch_requested = True
             else:
                 self.fail_reason = "Map.switchMap returned {}".format(result)
                 self.error_code = "ElevatorMapSwitchFailed"
@@ -1261,6 +1235,100 @@ class SwitchMapAction(ActionBase):
         else:
             self._stable_since = None
         return self.action_status
+
+
+class RelocAction(ActionBase):
+    """Relocalize on the target-floor SM point without switching maps."""
+
+    def __init__(self, switch_point, switch_pose=None, stable_time=2.0,
+                 min_confidence=0.65):
+        super().__init__(self.__class__.__name__)
+        self.switch_point = str(switch_point)
+        self.switch_pose = dict(switch_pose or {})
+        self.stable_time = float(stable_time)
+        self.min_confidence = float(min_confidence)
+        self._requested = False
+        self._stable_since = None
+        self._last_result = None
+
+    def reset(self):
+        super().reset()
+        self._requested = False
+        self._stable_since = None
+        self._last_result = None
+
+    @staticmethod
+    def _error_message(result):
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+            except (TypeError, ValueError):
+                return ""
+        if isinstance(result, dict):
+            return str(result.get("err_msg", result.get("errMsg", "")) or "")
+        return ""
+
+    def run(self, _ctx=None):
+        if not self._requested:
+            try:
+                result = Loc.relocServiceFromPose([self.switch_point])
+            except Exception as error:
+                self.fail_reason = str(error)
+                self.error_code = "ElevatorRelocFailed"
+                self.action_status = ActionStatus.FAILED
+                return self.action_status
+            self._requested = True
+            self._last_result = result
+            error_message = self._error_message(result)
+            Trace.log({
+                "event": "relocRequested",
+                "switchPoint": self.switch_point,
+                "pose": [self.switch_pose.get("x"), self.switch_pose.get("y")],
+                "result": result,
+            }, name="elevator.map")
+            if error_message:
+                self.fail_reason = error_message
+                self.error_code = "ElevatorRelocFailed"
+                self.action_status = ActionStatus.FAILED
+                return self.action_status
+
+        try:
+            loc_state = int(Loc.getLocState())
+        except Exception:
+            self._stable_since = None
+            return self.action_status
+        if loc_state == 4:
+            try:
+                confidence = Loc.getConfidence()
+                confidence = None if confidence is None else float(confidence)
+            except Exception:
+                confidence = None
+            if confidence is None or confidence < self.min_confidence:
+                self._stable_since = None
+                return self.action_status
+            now = time.monotonic()
+            if self._stable_since is None:
+                self._stable_since = now
+            if now - self._stable_since >= self.stable_time:
+                self.action_status = ActionStatus.FINISHED
+        elif loc_state in (2, 5):
+            self.fail_reason = "localization failed after relocation"
+            self.error_code = "ElevatorRelocFailed"
+            self.action_status = ActionStatus.FAILED
+        else:
+            self._stable_since = None
+        return self.action_status
+
+    def cancel(self):
+        if self._requested:
+            try:
+                Loc.cancelReloc()
+            except Exception as error:
+                Trace.log({
+                    "event": "relocCancelFailed",
+                    "error": str(error),
+                }, name="elevator.err")
+        super().cancel()
 
 
 class WaitTargetElevatorAction(ActionBase):
@@ -2542,7 +2610,8 @@ class ElevatorExitRecoveryAction(ActionBase):
     EXITING = "EXITING"
     WAITING_RETRY_INTERVAL = "WAITING_RETRY_INTERVAL"
     WAITING_TARGET = "WAITING_TARGET"
-    SWITCHING_MAP = "SWITCHING_MAP"
+    RELOCATING = "RELOCATING"
+    SWITCHING_MAP = RELOCATING  # backward-compatible phase alias
 
     def __init__(self, target, protocol, lease, target_floor, active_time,
                  target_map, switch_point, switch_pose=None,
@@ -2568,11 +2637,12 @@ class ElevatorExitRecoveryAction(ActionBase):
         self._on_finished = on_finished
         self.motion = None
         self.wait_target = None
-        self.switch_map = None
+        self.reloc = None
         self.phase = None
         self._blocked_since = None
         self._retry_count = 0
         self._retry_at = None
+        self._arrival_deadline = None
 
     def args_summary(self):
         return {
@@ -2612,16 +2682,27 @@ class ElevatorExitRecoveryAction(ActionBase):
         super().reset()
         self.motion = None
         self.wait_target = None
-        self.switch_map = None
+        self.reloc = None
         self.phase = None
         self._blocked_since = None
         self._retry_count = 0
         self._retry_at = None
+        # The recovery timeout starts when the first blocked-exit recovery is
+        # entered, not when the initial exit attempt begins.
+        self._arrival_deadline = None
         self._start_motion()
 
     def _start_recovery(self, now):
         if self.motion is not None:
             self.motion.cancel()
+        if self._arrival_deadline is None:
+            self._arrival_deadline = now + ConfigParams.elevator_arrival_timeout
+        if (self._arrival_deadline is not None
+                and now >= self._arrival_deadline):
+            self.fail_reason = "elevator exit recovery exceeded arrival timeout"
+            self.error_code = "ElevatorStateTimeout"
+            self.action_status = ActionStatus.FAILED
+            return
         try:
             self.lease.release_unconditionally("exit blocked timeout retry")
         except Exception as error:
@@ -2645,6 +2726,15 @@ class ElevatorExitRecoveryAction(ActionBase):
         }, name="elevator.exit")
 
     def _start_target_retry(self):
+        now = time.monotonic()
+        remaining_timeout = ConfigParams.elevator_arrival_timeout
+        if self._arrival_deadline is not None:
+            remaining_timeout = self._arrival_deadline - now
+            if remaining_timeout <= 0.0:
+                self.fail_reason = "elevator exit recovery exceeded arrival timeout"
+                self.error_code = "ElevatorStateTimeout"
+                self.action_status = ActionStatus.FAILED
+                return
         try:
             self.lease.call(self.target_floor)
         except Exception as error:
@@ -2660,7 +2750,7 @@ class ElevatorExitRecoveryAction(ActionBase):
         self.wait_target = WaitTargetElevatorAction(
             self.protocol,
             self.target_floor,
-            timeout=ConfigParams.elevator_arrival_timeout,
+            timeout=max(0.1, remaining_timeout),
             lease=self.lease,
         )
         self.wait_target.reset()
@@ -2670,29 +2760,35 @@ class ElevatorExitRecoveryAction(ActionBase):
             "event": "elevatorExitBlockedRetry",
             "retry": self._retry_count,
             "targetFloor": self.target_floor,
-            "remainingArrivalTimeout": ConfigParams.elevator_arrival_timeout,
+            "remainingArrivalTimeout": round(remaining_timeout, 3),
         }, name="elevator.exit")
 
     def _start_remap(self):
-        self.switch_map = SwitchMapAction(
-            self.target_map,
+        # The target map is already loaded.  Calling Map.switchMap with the
+        # same SM point can be short-circuited by MCLoc, so request an explicit
+        # relocalization at the target-floor SM point instead.
+        self.reloc = RelocAction(
             self.switch_point,
             self.switch_pose,
             self.stable_time,
             self.min_confidence,
-            # Recovery starts on the target-floor map already.  Reusing the
-            # original source-floor direction would apply a second, incorrect
-            # heading offset during same-map relocalization.
-            source_switch_dir=self.target_switch_dir,
-            target_switch_dir=self.target_switch_dir,
         )
-        self.switch_map.reset()
-        self.phase = self.SWITCHING_MAP
+        self.reloc.reset()
+        self.phase = self.RELOCATING
 
     def run(self, ctx=None):
         if self.action_status != ActionStatus.RUNNING:
             return self.action_status
         now = time.monotonic()
+        if (self._arrival_deadline is not None
+                and now >= self._arrival_deadline):
+            for child in (self.motion, self.wait_target, self.reloc):
+                if child is not None and child.action_status == ActionStatus.RUNNING:
+                    child.cancel()
+            self.fail_reason = "elevator exit recovery exceeded arrival timeout"
+            self.error_code = "ElevatorStateTimeout"
+            self.action_status = ActionStatus.FAILED
+            return self.action_status
         if self.phase == self.WAITING_RETRY_INTERVAL:
             if now < self._retry_at:
                 return self.action_status
@@ -2726,11 +2822,11 @@ class ElevatorExitRecoveryAction(ActionBase):
             elif self.wait_target.action_status == ActionStatus.FINISHED:
                 self._start_remap()
             return self.action_status
-        if self.phase == self.SWITCHING_MAP:
-            self.switch_map.run(ctx)
-            if self.switch_map.action_status == ActionStatus.FAILED:
-                self._fail_from(self.switch_map, "ElevatorMapSwitchFailed")
-            elif self.switch_map.action_status == ActionStatus.FINISHED:
+        if self.phase == self.RELOCATING:
+            self.reloc.run(ctx)
+            if self.reloc.action_status == ActionStatus.FAILED:
+                self._fail_from(self.reloc, "ElevatorRelocFailed")
+            elif self.reloc.action_status == ActionStatus.FINISHED:
                 self._start_motion()
             return self.action_status
         self.fail_reason = "invalid elevator exit recovery phase"
@@ -2743,8 +2839,8 @@ class ElevatorExitRecoveryAction(ActionBase):
             self.motion.cancel()
         if self.wait_target is not None:
             self.wait_target.cancel()
-        if self.switch_map is not None:
-            self.switch_map.cancel()
+        if self.reloc is not None:
+            self.reloc.cancel()
         super().cancel()
 
 
@@ -2904,7 +3000,7 @@ def build_actions(args, protocol, publisher=None):
             active_time,
             target_map,
             args["targetSwitchPoint"],
-            args.get("targetSwitchPose"),
+            target_switch_pose,
             ConfigParams.map_switch_stable_time,
             ConfigParams.map_switch_min_confidence,
             source_switch_dir=entry.get("dir"),
@@ -2960,6 +3056,26 @@ class ElevatorModule(ModuleBase):
             failed.error_code or "ElevatorActionFailed",
             failed.fail_reason or "elevator action failed",
         )
+        # Arrival timeout is the only non-user failure that terminates the
+        # elevator task.  Other failures pause the task so the protocol lease
+        # and robot position can be inspected or recovered by the operator.
+        if failed.error_code != "ElevatorStateTimeout":
+            for action in self.queue.action_list:
+                if getattr(action, "background", False):
+                    if action.action_status == ActionStatus.FAILED:
+                        action.action_status = ActionStatus.RUNNING
+                elif action.action_status in (
+                        ActionStatus.FAILED, ActionStatus.RUNNING,
+                        ActionStatus.SUSPENDED):
+                    action.action_status = ActionStatus.SUSPENDED
+            self.queue._status = ActionStatus.SUSPENDED
+            Trace.log({
+                "event": "elevatorTaskSuspendedAfterFailure",
+                "errorCode": failed.error_code or "ElevatorActionFailed",
+                "reason": failed.fail_reason or "elevator action failed",
+            }, name="elevator.err")
+            self.set_status(ScriptStatus.SUSPENDED)
+            return
         lease = _find_lease(self.queue)
         self.safety_holding = None
         if lease is not None:
@@ -3053,7 +3169,7 @@ class ElevatorModule(ModuleBase):
         if self.queue is None:
             return
         if self.queue.is_suspended:
-            self.queue.resume()
+            return
         self.queue.step(self)
         if self.queue.status == ActionStatus.FAILED:
             self._fail_queue()

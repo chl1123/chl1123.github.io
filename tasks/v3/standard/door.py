@@ -667,17 +667,13 @@ def _protocol_instance_args(args):
     data = protocol_site.get("jsonObject", protocol_site)
     data = data if isinstance(data, dict) else {}
     protocol_name = str(data.get("communicationProtocol", "") or "").strip()
-    prefix = "communicationProtocol.{}.args.".format(protocol_name)
+    config_path = "communicationProtocol.{}.config.protocol.".format(protocol_name)
     instance_args = {
-        str(key)[len(prefix):]: value
+        str(key)[len(config_path):]: value
         for key, value in data.items()
-        if protocol_name and str(key).startswith(prefix)
+        if protocol_name and str(key).startswith(config_path)
     }
     instance_args.update(dict(args.get("protocol.instanceArgs") or {}))
-    for key, value in args.items():
-        if key.startswith("protocol.") and key not in (
-                "protocol.port", "protocol.timeout", "protocol.retries"):
-            instance_args[key[len("protocol."):]] = value
     return instance_args
 
 
