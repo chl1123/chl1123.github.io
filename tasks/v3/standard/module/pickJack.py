@@ -854,8 +854,7 @@ class ConfigParams:
         cls.jack_max_height = cls.config.get("jackMaxHeight", 0.06)
         cls.jack_load_time = cls.config.get("loadTime", 30.0)
         cls.jack_unload_time = cls.config.get("unloadTime", 30.0)
-        cls.rack_width_diff_min = float(cls.config.get("rackWidthDiffMin", 0.1) or 0.0)
-
+        cls.rack_width_diff_min = float(cls.config.get("rackWidthDiffMin", 0.01) or 0.0)
 
         # DI配置（从设备绑定读取）
         if not cls.jack_motor_name:
@@ -872,7 +871,7 @@ class ConfigParams:
         cls.bezier_back_dist = cls.config.get("bezierBackDist", 0.0)
         cls.bezier_adjust_dist = cls.config.get("bezierAdjustDist", 2.0)
         cls.bezier_min_ahead_dist = cls.config.get("bezierMinAheadDist", 0)
-        cls.bezier_is_backwards = cls.config.get("bezierIsBackwards", False)
+        cls.bezier_is_backwards = cls.config.get("bezierIsBackwards", True)
         cls.bezier_is_hold_dir = cls.config.get("bezierIsHoldDir", False)
         cls.bezier_max_speed = cls.config.get("bezierMaxSpeed", 0.5)
         cls.bezier_max_accele = cls.config.get("bezierMaxAccele", 0.3)
@@ -882,6 +881,7 @@ class ConfigParams:
         cls.bezier_path_dist_accuracy = cls.config.get("bezierPathDistAccuracy", 0.01)
         cls.bezier_path_angle_accuracy = cls.config.get("bezierPathAngleAccuracy", 0.05)
         cls.bezier_min_speed = cls.config.get("bezierMinSpeed", 0.05)
+
 
         # Polyline导航配置
         cls.polyline_back_dist = cls.config.get("polylineBackDist", 0.55)
