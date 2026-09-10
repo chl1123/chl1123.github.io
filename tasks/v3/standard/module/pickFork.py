@@ -1675,6 +1675,7 @@ class Fork(ModuleBase):
         # 周期循环日志守卫状态
         self._last_fork_moving_state = None  # 记录上次 fork_is_moving 状态，变化时才打 log
         self._last_set_fork_region_state = None  # 记录上次 set_fork_region_by_height 状态
+        self._falling_down_detect_enabled = False
 
     def run(self, args):
 
@@ -1691,6 +1692,8 @@ class Fork(ModuleBase):
             self.min_safe_height = 0.0  # 每次新任务复位，_init_args 会重新解析
             Trace.log(f"script args:{self.task_args}", name="fork.task")
             self._init_args()
+            if not self._enable_falling_down_detect():
+                return
 
         self._check_timeout()
 
@@ -1749,6 +1752,7 @@ class Fork(ModuleBase):
         self.script_status = ScriptStatus.FAILED
         if 0 <= self.action_id < len(self.action_list):
             self.action_list[self.action_id].cancel()
+        self._disable_falling_down_detect()
         self.reset()
         if was_suspended:
             Module.setStatus(ScriptStatus.RUNNING)
@@ -1760,6 +1764,39 @@ class Fork(ModuleBase):
         self.suspended_at = None
         # Motor.resetMotor(ConfigParams.fork_motor_name)
         # Navigation.clearGoodsShape()
+
+    def _enable_falling_down_detect(self):
+        if (self.opt not in ("load", "unload")
+                or ConfigParams.module_type in ("pickFork", "liftFork", "singleFork")
+                or self._falling_down_detect_enabled):
+            return True
+
+        try:
+            enabled = bool(Navigation.enableFallingDownDetect())
+        except Exception as exc:
+            Trace.log(f"enable FallingDown detect failed: {exc}", name="fork.err")
+            enabled = False
+
+        if not enabled:
+            Navigation.setTaskError("FallingDownNotReady", "FallingDown detector is not ready")
+            self.script_status = ScriptStatus.FAILED
+            return False
+
+        self._falling_down_detect_enabled = True
+        Trace.log("FallingDown detect enabled", name="fork.task")
+        return True
+
+    def _disable_falling_down_detect(self):
+        if not self._falling_down_detect_enabled:
+            return
+
+        try:
+            if not Navigation.disableFallingDownDetect():
+                Trace.log("disable FallingDown detect returned false", name="fork.err")
+        except Exception as exc:
+            Trace.log(f"disable FallingDown detect failed: {exc}", name="fork.err")
+        finally:
+            self._falling_down_detect_enabled = False
 
     def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
         # 1. 绑定容器
@@ -4905,6 +4942,7 @@ def main():
                 delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
                 delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
                 Trace.log(f"script end, script_status: {f.script_status}", name="fork.task")
+                f._disable_falling_down_detect()
                 f.reset()
                 Module.setStatus(f.script_status)
                 continue
