@@ -786,7 +786,7 @@ class NavigationInterface(ABC, Service):
             ahead_dist (float): 前进距离（单位：米）
             back_mode (bool): 是否使用后退模式
             use_bezier (bool): 是否使用贝塞尔曲线路径
-            hold_dir (float): 保持方向角度（单位：弧度），若为999则不保持方向
+            hold_dir (float): 保持方向角度（单位：角度），若为999则不保持方向
             max_speed (float): 最大速度（单位：米/秒）
             slow_down_dist (float): 减速距离（单位：米）
             slow_down_speed (float): 减速速度（单位：米/秒）
