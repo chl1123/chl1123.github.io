@@ -19,6 +19,7 @@ from syspy import (Module, Motor, Navigation, Loc, Recognize,
 from syspy.lib.net_protocol import parseModbus
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
 from syspy.lib.action_task import ActionBase, ActionStatus, ActionTask
+from syspy.core.rbk_rpc import Service
 from standard import goPath, goBezier
 from syspy.utils.param_server import ParamBuilder, ParamType, ScriptParam, BindType, BindItem
 
@@ -26,6 +27,8 @@ script_param = ScriptParam(__file__)
 
 # 业务通道名前缀（日志规范 <MOD>[.xxx]）
 MOD = "jack"
+MOTOR_ACTION_ERROR_KEY = "ms@MotorAction"
+MOTOR_LIMIT_OPERATIONS = {"lift", "jackHeight"}
 from syspy.lib.robot import RobotParam
 from syspy.utils import Coordinate
 
@@ -72,6 +75,118 @@ def debug_trace(msg: str, *, name: str):
 
 def clamp(val, lo, hi):
     return max(lo, min(val, hi))
+
+
+def _motor_limit_di(motor_name, direction):
+    """读取电机上下限位 DI，兼容模型字段大小写差异。"""
+    if not motor_name or motor_name.startswith("DOMotor"):
+        return ""
+    motor_func = RobotParam.getDevice(motor_name, "func") or ""
+    if not motor_func:
+        return ""
+    names = ("upLimitDI", "upLimitDi", "UpLimitDI") if direction == "up" else (
+        "DownLimitDI", "downLimitDI", "downLimitDi", "DownLimitDi")
+    for name in names:
+        value = RobotParam.getDevice(motor_name, f"func.{motor_func}.{name}")
+        if value:
+            return str(value)
+    return ""
+
+
+def _motor_action_error():
+    """返回 MF 电机动作错误及当前触发的限位 DI。"""
+    try:
+        error_exists = Service.client().call_service(
+            "Error", "existSystemError", MOTOR_ACTION_ERROR_KEY)
+    except Exception as exc:
+        Trace.log(
+            f"查询MF系统错误失败：接口=Error::existSystemError，"
+            f"key={MOTOR_ACTION_ERROR_KEY}，error={exc}",
+            name=f"{MOD}.err",
+        )
+        return None
+
+    # 诊断 Error 服务实际返回值，状态不变时不重复打印。
+    if error_exists != getattr(_motor_action_error, "_last_error_exists", None):
+        _motor_action_error._last_error_exists = error_exists
+        Trace.log(
+            f"MF错误查询：接口=Error::existSystemError，"
+            f"key={MOTOR_ACTION_ERROR_KEY}，返回值={error_exists}",
+            name=f"{MOD}.err",
+        )
+    if not error_exists:
+        return None
+
+    Trace.log(
+        f"检测到MF电机动作错误，错误key={MOTOR_ACTION_ERROR_KEY}",
+        name=f"{MOD}.err",
+    )
+    triggered = []
+    for motor in ConfigParams.moduleMotor:
+        motor_key = motor.get("motorKey", "")
+        for direction in ("up", "down"):
+            di = motor.get(f"{direction}LimitDi", "")
+            if di:
+                try:
+                    if Di.getDi(di):
+                        triggered.append((motor_key, direction, di))
+                except Exception as exc:
+                    Trace.log(f"read limit DI failed motor={motor_key}, di={di}: {exc}", name=f"{MOD}.err")
+    if triggered:
+        Trace.log(
+            "当前触发的限位：" + ", ".join(
+                f"电机={motor_key}, {limit}限位DI={di}"
+                for motor_key, limit, di in triggered
+            ),
+            name=f"{MOD}.motor",
+        )
+    else:
+        Trace.log("检测到MF电机动作错误，但未检测到已配置的限位DI触发", name=f"{MOD}.err")
+    return {"error": {"key": MOTOR_ACTION_ERROR_KEY}, "triggered": triggered}
+
+
+def _check_motor_action_error(action, operation):
+    """仅允许单电机反向动作清除 MF 限位错误。"""
+    result = _motor_action_error()
+    if result is None:
+        return False
+
+    motor_key = getattr(action, "motor_name", "")
+    target_height = getattr(action, "target_height", None)
+    current_height = Motor.getMotorPos(motor_key) if motor_key and target_height is not None else None
+    direction = "up" if current_height is not None and target_height > current_height else (
+        "down" if current_height is not None and target_height < current_height else "")
+    matched = [item for item in result["triggered"] if item[0] == motor_key]
+    details = ", ".join(f"motor={key}, {limit}LimitDi={di}" for key, limit, di in matched)
+    Trace.log(
+        f"限位错误检查：operation={operation or 'unknown'}，电机={motor_key or 'unknown'}，"
+        f"当前位置={current_height}，目标位置={target_height}，动作方向={direction or 'unknown'}，"
+        f"匹配限位={details or '无'}",
+        name=f"{MOD}.motor",
+    )
+    if operation in MOTOR_LIMIT_OPERATIONS and matched and direction and all(
+            limit != direction for _, limit, _ in matched):
+        try:
+            clear_result = Service.client().call_service(
+                "Error", "clearSystemError", MOTOR_ACTION_ERROR_KEY)
+            Trace.log(
+                f"反向动作允许执行，已调用清除接口："
+                f"Error::clearSystemError({MOTOR_ACTION_ERROR_KEY})，返回值={clear_result}，{details}",
+                name=f"{MOD}.motor",
+            )
+            return False
+        except Exception as exc:
+            Trace.log(f"clear MF {MOTOR_ACTION_ERROR_KEY} failed: {exc}", name=f"{MOD}.err")
+
+    if not details:
+        details = f"error={result['error']}"
+    error_desc = (f"MF {MOTOR_ACTION_ERROR_KEY} in operation={operation or 'unknown'} "
+                  f"for motor={motor_key or 'unknown'}; {details}")
+    Trace.log(f"不允许清除MF错误，终止动作：{error_desc}", name=f"{MOD}.err")
+    Navigation.setTaskError("MotorActionLimitError", _TR(error_desc))
+    if action:
+        action.action_status = ActionStatus.FAILED
+    return True
 
 
 def float_to_modbus_poll_regs(value: float):
@@ -242,9 +357,9 @@ class ConfigParams:
     polyline_path_angle_accuracy = 0.05
 
     # PGV二次调整配置参数（policy 结构）
-    deduct_follow_orientation = True  # 扣除区是否跟随识别面旋转；False 则恒等按配置矩形下发(theta=0)
-    deduct_use_upside_pgv = False  # 扣除区朝向源：True 用上视PGV货物角(读失败回退dir)；False 默认走 insert_dir
-    deduct_pgv_retry_max = 5  # 上视PGV读角重试帧数(deduct_use_upside_pgv=True 时生效)，超时回退 dir
+    deduct_follow_orientation = True  # 扣除区是否按识别面设置初始朝向
+    deduct_use_upside_pgv = False  # True 使用上视PGV角度；False 使用钻入面
+    deduct_pgv_retry_max = 5  # 上视PGV读取角度的最大尝试次数
     pgv_code_adjust_type = "singleCode"  # "singleCode" | "codeNumber"
     pgv_scan_device = ""  # 绑定的扫码设备名称
     pgv_angle_adjust_type = "parallelToCode"  # 角度调整模式
@@ -271,6 +386,7 @@ class ConfigParams:
     motor_func = ""
     reset_by_speed = ""
     jack_up_di = ""
+    jack_down_di = ""
     jack_zero_di = ""
     jack_up_do: str = ""
     jack_down_do: str = ""
@@ -278,11 +394,13 @@ class ConfigParams:
     if jack_motor_name and jack_motor_name.startswith("DOMotor"):
         DOMotor = True
         jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", "basic.upReachDI")
+        jack_down_di = RobotParam.getDevice(f"{jack_motor_name}", "basic.downReachDI")
         jack_zero_di = RobotParam.getDevice(f"{jack_motor_name}", "basic.downReachDI")
     else:
         motor_func = RobotParam.getDevice(f"{jack_motor_name}", "func")
         reset_by_speed = RobotParam.getDevice(f"{jack_motor_name}", "resetMode")
-        jack_up_di = RobotParam.getDevice(f"{jack_motor_name}", f"func.{motor_func}.upLimitDI")
+        jack_up_di = _motor_limit_di(jack_motor_name, "up")
+        jack_down_di = _motor_limit_di(jack_motor_name, "down")
         jack_zero_di = RobotParam.getDevice(f"{jack_motor_name}", f"resetMode.{reset_by_speed}.zeroDI")
 
     def __init__(self):
@@ -640,9 +758,11 @@ class ConfigParams:
         # DI配置（从设备绑定读取）
         if cls.DOMotor:
             cls.jack_up_di = RobotParam.getDevice(f"{cls.jack_motor_name}", "basic.upReachDI")
+            cls.jack_down_di = RobotParam.getDevice(f"{cls.jack_motor_name}", "basic.downReachDI")
             cls.jack_zero_di = RobotParam.getDevice(f"{cls.jack_motor_name}", "basic.downReachDI")
         else:
-            cls.jack_up_di = RobotParam.getDevice(f"{cls.jack_motor_name}", f"func.{cls.motor_func}.upLimitDI")
+            cls.jack_up_di = _motor_limit_di(cls.jack_motor_name, "up")
+            cls.jack_down_di = _motor_limit_di(cls.jack_motor_name, "down")
             cls.jack_zero_di = RobotParam.getDevice(f"{cls.jack_motor_name}", f"resetMode.{cls.reset_by_speed}.zeroDI")
 
         # Bezier导航配置
@@ -722,7 +842,9 @@ class ConfigParams:
                 "jogSupport": True,
                 "currentPosition": 0.0,
                 "maxLength": cls.jack_max_height or default_max,
-                "minLength": cls.jack_min_height or default_min
+                "minLength": cls.jack_min_height or default_min,
+                "upLimitDi": cls.jack_up_di or "",
+                "downLimitDi": cls.jack_down_di or ""
             }
             cls.moduleMotor.append(lift_motor)
 
@@ -1365,7 +1487,8 @@ class Jack(ModuleBase):
         debug_trace(
             f"Jack init motor={config_params.jack_motor_name} height=[{config_params.jack_min_height}~{config_params.jack_max_height}]m"
             f" DOMotor={config_params.DOMotor}"
-            f" upDI={config_params.jack_up_di!r} zeroDI={config_params.jack_zero_di!r}"
+            f" upDI={config_params.jack_up_di!r} downDI={config_params.jack_down_di!r}"
+            f" zeroDI={config_params.jack_zero_di!r}"
             f" enableDO={config_params.jack_up_do!r} reverseDO={config_params.jack_down_do!r}",
             name=f"{MOD}.cfg")
 
@@ -1374,8 +1497,8 @@ class Jack(ModuleBase):
         # 初始化容器（单容器，id=0）
         Container.initContainer(0)
 
-        # 上视PGV读取的货架角度；未识别到时保持 None，并回退到钻入面
-        self.pgv_goods_angle_robot = None
+        # ========== 料架角度跟踪 ==========
+        self.pgv_goods_angle_robot = None  # 上视PGV读取的货架在机器人坐标系下的角度（弧度）
 
         # ========== 边走边动相关状态 ==========
         self.pre_action_mode = False  # 是否处于预动作模式（边走边动）
@@ -1403,8 +1526,9 @@ class Jack(ModuleBase):
         """计算就近对齐目标：0° 或 180°
         返回目标弧度值（0 或 π）"""
         diff_to_0 = abs(Jack._normalize_angle(cur_angle))
-        diff_to_pi = abs(Jack._normalize_angle(cur_angle - math.pi))
-        return 0.0 if diff_to_0 <= diff_to_pi else math.pi
+        # diff_to_pi = abs(Jack._normalize_angle(cur_angle - math.pi))
+        # return 0.0 if diff_to_0 <= diff_to_pi else math.pi
+        return 0.0
 
     def _get_actual_insert_dir_from_pgv(self) -> str:
         """根据 PGV 角度计算实际的进入方向（A/B/C/D）
@@ -1540,6 +1664,7 @@ class Jack(ModuleBase):
 
         if goods_angle is not None:
             # 3a. 使用上视PGV角度旋转货物模型
+            goods_angle_robot = goods_angle  # 货物在机器人坐标系下的角度（弧度）
             cos_a = math.cos(goods_angle)
             sin_a = math.sin(goods_angle)
 
@@ -1558,6 +1683,9 @@ class Jack(ModuleBase):
         else:
             # 3b. 根据插入方向旋转货物模型（固定方向）
             # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
+            # 货物在机器人坐标系下的角度（已确认约定）：
+            # 0°=车头朝D边(料架头/X正方向)=从B边进入; 90°=从A边进入; 180°=从D边进入; -90°=从C边进入
+            goods_angle_robot = {'B': 0.0, 'A': math.pi / 2, 'D': math.pi, 'C': -math.pi / 2}.get(insert_dir, 0.0)
             def _rotate_pt(pt, dir_):
                 if dir_ == "A":  # 0°: (x, y) -> (x, y)
                     if isinstance(pt, dict):  return {"x": pt["x"], "y": pt["y"]}
@@ -1584,12 +1712,13 @@ class Jack(ModuleBase):
     def unbindContainer(self, container_id: str = "", goods_name: str = "") -> bool:
         # 货物模型关联的扣除区域建立在机器人坐标系，清货时同步删除（同 counterBalanceFork）
         delete_deduct_area("ShelfDeductArea", Coordinate.ROBOT)
+        # 清空主循环监控状态，与 DeleteLaserDeductArea 保持一致
+        self._deduct_area_info = None
+        self._last_spin_angle = None
         return super().unbindContainer(container_id, goods_name)
 
     def init_args(self, args):
         self.task_args = args
-        # 每个任务重新读取，避免沿用上一任务的货架角度
-        self.pgv_goods_angle_robot = None
         # 获取任务参数
         self.opt = self.task_args.get("operation", None)
         self.ap_id = None  # targetName 从 Navigation.moveTask() 获取
@@ -1612,11 +1741,14 @@ class Jack(ModuleBase):
         # 第一次无识别结果时, 向前进 recDist(m) 再识别(仅当任务参数传入 recDist 时启用; 不传=按原逻辑直接报错)
         self.rec_dist = self.task_args.get("recDist", 0.0)
         self.rec_retry_max = int(self.task_args.get("recRetryMax", 3))
-        self.at_site = (self._get_script_stage() != 3) and (not self.is_recognize)
+        self.script_stage = self._get_script_stage()
+        self.at_site = (self.script_stage != 3) and (not self.is_recognize)
+        # skill_name=action（id=self_position）：原地任务。
+        # 仍取AP/识别/钻货架（bezier用识别结果, straight/polyline用AP点），仅 stage!=3 时跳过"车头对准AP"的 RobotRotate。
+        self.is_action = self._is_action_task()
+
         # load/unload
         self.how_go_site = self.task_args.get("howGoSite", "bezier")
-        # skill_name=action（id=self_position）：原地任务，直接顶升，忽略 recognize
-        self.is_action = self._is_action_task()
 
         # ============================================
         # 导航参数：从脚本配置读取（现场实施后基本不变）
@@ -1676,11 +1808,9 @@ class Jack(ModuleBase):
         # ============================================
         self.is_secondary_adjust = self.task_args.get("isSecondaryAdjust", False)
 
-        # 扣除区朝向跟随开关（任务参数优先，config 兜底）：False 时扣除区恒等按配置矩形下发
+        # 扣除区朝向参数：任务参数优先，脚本配置兜底
         self.deduct_follow_orientation = self.task_args.get(
             "deductFollowOrientation", config_params.deduct_follow_orientation)
-
-        # 扣除区朝向源开关：True 用上视PGV货物角(读失败按重试后回退dir)，False 默认走 insert_dir
         self.deduct_use_upside_pgv = self.task_args.get(
             "deductUseUpsidePgv", config_params.deduct_use_upside_pgv)
         self.deduct_pgv_retry_max = int(self.task_args.get(
@@ -1728,6 +1858,10 @@ class Jack(ModuleBase):
         self.set_vda_param()
         self._dispatch_builder()
         self._sync_task()
+        current_action = self.action_task.current
+        if _check_motor_action_error(current_action, self.opt):
+            self.status = ScriptStatus.FAILED
+            return
         # builder 自行置终态(get_lm/do_force_calib 置 FINISHED; 不支持指令置 FAILED) → 尊重之
         if self.status in (ScriptStatus.FINISHED, ScriptStatus.FAILED):
             return
@@ -2118,10 +2252,10 @@ class Jack(ModuleBase):
 
         读取 moveTask 顶层 skillName（与 pickFork.py 的 Action 判据一致），
         而非 params 里的 scriptStage。
+        原地任务只跳过导航（AP对准/去货架），识别仍按 is_recognize 执行。
         """
         move_task = Navigation.moveTask()
         return move_task.get("skillName", "") == "Action"
-
 
     def _append_load_actions(self, target_pos):
         """将导航、二次调整、旋转、顶升、绑定容器等动作添加到 action_list"""
@@ -2217,12 +2351,13 @@ class Jack(ModuleBase):
                 self.action_list.append(
                     JackHeight(config_params.jack_motor_name, self.start_height, config_params.jack_motor_speed))
 
-            # atSite=True 或 skill_name=action：原地，跳过旋转/识别/导航，直接二次调整+顶升
-            if self.at_site or self.is_action:
-                debug_trace(f"jack_load: in-place (at_site={self.at_site}, is_action={self.is_action}), skip nav, direct adjust+jack", name=MOD)
+            # atSite=True：非原地任务已到点且不识别，纯原地顶升
+            # is_action 原地任务不在 at_site 短路——它仍要取AP、识别、钻货架（仅按 stage 决定是否跳过对准 RobotRotate）
+            if self.at_site and not self.is_action:
+                debug_trace(f"jack_load: in-place (at_site={self.at_site}), skip nav, direct adjust+jack", name=MOD)
                 self._append_load_actions(None)
             else:
-                # 获取AP点
+                # 获取AP点（原地/普通任务都取，供 straight/polyline 钻货架）
                 self.ap_id = self.ap_id or self.get_ap()
                 if not self.ap_id:
                     # 原地动作：无AP点，跳过导航，直接执行取货
@@ -2242,7 +2377,11 @@ class Jack(ModuleBase):
                         target_angle = ap_to_robot_angle + math.pi
                     else:
                         target_angle = ap_to_robot_angle
-                    self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
+
+                    # 原地任务(skill_name=action)且 stage!=3：跳过"车头对准AP"这一步，其余全保留。
+                    # stage==3（不跳过任何功能）或普通任务：照常对准。
+                    if not (self.is_action and self.script_stage != 3):
+                        self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
 
                 # 启用识别
                 if self.is_recognize:
@@ -2295,11 +2434,13 @@ class Jack(ModuleBase):
                 self.action_list.append(
                     RecShelf(self.recfile, "SecondRec", side=self.insert_shelf_dir, is_backwards=self.is_backwards))
             else:
+                # 原地任务(skill_name=action)仍用识别结果钻货架(直线/贝塞尔)，不跳过导航
                 self._append_load_actions(result_world)
 
         if not self._second_rec_extended and self._action_finished("SecondRec"):
             self._second_rec_extended = True
             result_world = self.rec_result
+            # 原地任务(skill_name=action)仍用识别结果钻货架(直线/贝塞尔)，不跳过导航
             self._append_load_actions(result_world)
 
     def jack_unload(self):
@@ -2619,7 +2760,12 @@ class Jack(ModuleBase):
         self.jack_emc = Controller.getEmc()
         self.jack_height = Motor.getMotorPos(config_params.jack_motor_name)
 
-
+        # 更新 moduleMotor 的 currentPosition
+        for motor in config_params.moduleMotor:
+            try:
+                motor["currentPosition"] = round(Motor.getMotorPos(motor["motorKey"]), 3)
+            except Exception as e:
+                Trace.log(f"get motor pos failed motor={motor['motorKey']} error={e}", name=f"{MOD}.err")
 
         cur_action = self.action_task.current
         self.report_info.update({
@@ -2743,6 +2889,7 @@ class Jack(ModuleBase):
         args = None
         try:
             trigger = NetProtocol.getModbusData("4x", 200, 1)
+            print(f"DEBUG: modbus trigger={trigger},trigger[0]={trigger[0]}")
             if trigger:
                 stop = NetProtocol.getModbusData("4x", 203, 1)
                 up = NetProtocol.getModbusData("4x", 204, 1)
@@ -2951,8 +3098,9 @@ class Jack(ModuleBase):
             if not self.pre_action_step[0]:
                 if config_params.DOMotor:
                     Motor.resetMotor(config_params.jack_motor_name)
-                    Motor.setMotorSpeed(config_params.jack_motor_name, -0.01, config_params.jack_zero_di or "")
-                elif config_params.jack_zero_di:
+                    stop_di = "" if is_simulation() else (config_params.jack_zero_di or "")
+                    Motor.setMotorSpeed(config_params.jack_motor_name, -0.01, stop_di)
+                elif config_params.jack_zero_di and not is_simulation():
                     slow_speed = config_params.jack_motor_speed * 0.5
                     Motor.setMotorPosition(config_params.jack_motor_name, target_height, slow_speed,
                                            config_params.jack_zero_di)
@@ -3086,6 +3234,11 @@ class SetLaserDeductArea(ActionBase):
                     Navigation.setClearRegion(region_name, rx, ry, devices, self.coordinate)
                     debug_trace(f"SetLaserDeductArea: created {region_name}", name=MOD)
 
+                # 保存扣除区域信息到 Jack 实例，供主循环监控使用
+                j._deduct_area_info = {
+                    "deductDevice": devices
+                }
+
                 self.action_status = ActionStatus.FINISHED
 
             except Exception as e:
@@ -3129,6 +3282,11 @@ class DeleteLaserDeductArea(ActionBase):
                             deleted_count += 1
 
                 debug_trace(f"DeleteLaserDeductArea: deleted {deleted_count} regions", name=MOD)
+
+                # 清空扣除区域监控状态
+                j._deduct_area_info = None
+                debug_trace("DeleteLaserDeductArea: cleared monitor state", name=f"{MOD}.motor")
+
                 self.action_status = ActionStatus.FINISHED
 
             except Exception as e:
@@ -3164,7 +3322,7 @@ class GetGoodsDirFromPGV(ActionBase):
                 self.action_status = ActionStatus.FINISHED
                 return
 
-        # 未读到上视码：重试若干帧，超时才回退 insert_dir（避免瞬时读码失败导致朝向随机）
+        # 短暂未读到上视码时继续等待，超过次数后才回退到钻入面
         self._try_count += 1
         if self._try_count < retry_max:
             debug_trace(f"getGoodsDirFromPGV: no upside PGV yet, retry ({self._try_count}/{retry_max})",
@@ -3304,6 +3462,7 @@ class JackHeight(ActionBase):
         self._count_recorded = False  # 防止重复计数
         self._up_di_triggered_time = None  # 上到位 DI/isReached 触发时间戳（用于延迟）
         self._motor_moved = False  # 电机是否已开始运动
+        self._last_limit_state = None  # 仅用于诊断限位 DI 状态变化
         if not config_params.DOMotor:
             Motor.resetMotor(self.motor_name)
 
@@ -3314,6 +3473,15 @@ class JackHeight(ActionBase):
             self.jack_start_height = Motor.getMotorPos(config_params.jack_motor_name)
             self._motor_moved = False
             self._init_time = time.time()
+
+            # 仿真时按线性电机模型的最小位置保护下降边界。
+            if is_simulation() and self.target_height < config_params.jack_min_height:
+                Trace.log(
+                    f"simulation jack target {self.target_height:.4f}m below min "
+                    f"{config_params.jack_min_height:.4f}m, clamp to min",
+                    name=f"{MOD}.motor",
+                )
+                self.target_height = config_params.jack_min_height
 
             # 只在初始化时输出一次关键信息
             direction = "↑Jack up" if self.target_height > self.jack_start_height else "↓Jack down"
@@ -3386,6 +3554,25 @@ class JackHeight(ActionBase):
             )
             self.action_status = ActionStatus.FINISHED
             return
+
+        # 诊断限位 DI：只在状态变化时打印，避免循环刷屏
+        try:
+            limit_state = (
+                bool(config_params.jack_up_di and Di.getDi(config_params.jack_up_di)),
+                bool(config_params.jack_down_di and Di.getDi(config_params.jack_down_di)),
+                bool(config_params.jack_zero_di and Di.getDi(config_params.jack_zero_di)),
+            )
+            if limit_state != self._last_limit_state:
+                self._last_limit_state = limit_state
+                Trace.log(
+                    f"jack limit state pos={current_pos:.4f}m "
+                    f"upDI={config_params.jack_up_di}:{limit_state[0]} "
+                    f"downDI={config_params.jack_down_di}:{limit_state[1]} "
+                    f"zeroDI={config_params.jack_zero_di}:{limit_state[2]}",
+                    name=f"{MOD}.motor",
+                )
+        except Exception as exc:
+            Trace.log(f"read jack limit DI failed: {exc}", name=f"{MOD}.err")
 
         # 检测电机是否已开始运动
         if not self._motor_moved and abs(current_pos - self.jack_start_height) > 0.001:
