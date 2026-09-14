@@ -123,9 +123,6 @@ from standard.fork_utils import (
     build_path_adjust_plan,
     build_return_path_action,
     apply_tcp_target,
-    add_weight_config,
-    add_weight_input,
-    build_weight_action,
     clamp,
     create_end_height_param,
     create_fork_height_param,
@@ -134,10 +131,11 @@ from standard.fork_utils import (
     create_rec_param,
     create_start_height_param,
     delete_deduct_area,
+    disable_falling_down_detect,
+    enable_falling_down_detect,
     float_to_modbus_poll_regs,
     format_action,
     get_r_loc,
-    get_motor_limit_di,
     has_valid_target_pos,
     is_do_motor_key,
     is_enabled,
@@ -155,6 +153,9 @@ from standard.fork_utils import (
     extract_recognition_height_z,
     calculate_recognition_pick_height,
     check_motor_action_error,
+    add_weight_config,
+    add_weight_input,
+    build_weight_action,
     load_pallet_z_offset,
     update_back_laser_clear_region_by_height,
     validate_goods_state_for_operation,
@@ -236,9 +237,17 @@ class ConfigParams:
     cageRecfile: str = cageRecfileDefault
     adjustMethod: str = "pathFirst"
     autoPreAdvanceTime: float = 1.0
+    enableNavForkHeight: bool = False
+    navForkHeight: float = 0.3
+    allowForkMoveWhileNav: bool = False
+    enableLoadNavForkHeight: bool = False
+    loadNavForkHeight: float = 0.3
+    allowLoadForkMoveWhileNav: bool = False
     forkLeaveSafeHeight: float = 0.3
     reachMotorSyncTolerance: float = 0.02
     reachMotorMaxSpeed: float = 0.1
+    useForPalletFallProtection: bool = False
+    enableFallingDownDetect: bool = False
 
     motor_func: str = ""
     min_height: float = 0.0
@@ -314,7 +323,8 @@ class ConfigParams:
         cls.timeout = cfg.get("timeout", 120.0)
         cls.scriptDebug = cls._safe_bool(cfg.get("scriptDebug"), False)
         cls.autoPreAdvanceTime = max(0.0, cls._safe_float(cfg.get("autoPreAdvanceTime"), 1.0))
-        Trace.log(f"Loaded config: {cls.config}", name="fork.cfg")
+        if cls.scriptDebug:
+            Trace.log(f"Loaded config: {cls.config}", name="fork.cfg")
 
         # --- fork
         cls.upMaxSpeedWithGoods = cfg.get("upMaxSpeedWithGoods")
@@ -326,6 +336,12 @@ class ConfigParams:
         cls.upDoStatus = cls._safe_bool(cfg.get("upDoStatus"), False)
         cls.downDo = cfg.get("downDo", "")
         cls.downDoStatus = cls._safe_bool(cfg.get("downDoStatus"), False)
+        cls.enableNavForkHeight = cls._safe_bool(cfg.get("enableNavForkHeight"), False)
+        cls.navForkHeight = cls._safe_float(cfg.get("navForkHeight"), 0.3)
+        cls.allowForkMoveWhileNav = cls._safe_bool(cfg.get("allowForkMoveWhileNav"), False)
+        cls.enableLoadNavForkHeight = cls._safe_bool(cfg.get("enableLoadNavForkHeight"), False)
+        cls.loadNavForkHeight = cls._safe_float(cfg.get("loadNavForkHeight"), 0.3)
+        cls.allowLoadForkMoveWhileNav = cls._safe_bool(cfg.get("allowLoadForkMoveWhileNav"), False)
         load_time = cls._safe_float(cfg.get("loadTime", 30.0), 30.0)
         unload_time = cls._safe_float(cfg.get("UnloadTime", cfg.get("unloadTime", 30.0)), 30.0)
         cls.loadTime = load_time if cls._safe_bool(cfg.get("enableLoadTime"), True) else -1.0
@@ -358,6 +374,10 @@ class ConfigParams:
         cls.weightSampleInterval = cfg.get("weightSampleInterval", 0.1)
         cls.maxWeight = cfg.get("maxWeight", 1000.0)
         cls.useForPalletFallProtection = cls._safe_bool(cfg.get("useForPalletFallProtection"), False)
+        cls.enableFallingDownDetect = cls._safe_bool(
+            cfg.get("enableFallingDownDetect"),
+            bool(getattr(cls.active_fork_class, "falling_down_detect_default", False)),
+        )
         cls.setRoiX = cfg.get("setRoiX", 2.0)
         cls.setRoiMaxY = cfg.get("setRoiMaxY", 2.0)
         cls.setRoiMinY = cfg.get("setRoiMinY", 2.0)
@@ -466,7 +486,19 @@ class ConfigParams:
 
     @classmethod
     def _get_motor_limit_di(cls, motor_name, direction):
-        return get_motor_limit_di(motor_name, direction, cls.motor_func)
+        if not motor_name or is_do_motor_key(motor_name):
+            return ""
+        motor_func = RobotParam.getDevice(motor_name, "func") or cls.motor_func
+        if not motor_func:
+            return ""
+        names = ("upLimitDI", "upLimitDi", "UpLimitDI") if direction == "up" else (
+            "DownLimitDI", "downLimitDI", "downLimitDi", "DownLimitDi"
+        )
+        for name in names:
+            value = RobotParam.getDevice(motor_name, f"func.{motor_func}.{name}")
+            if value:
+                return str(value)
+        return ""
 
     @classmethod
     def _find_config_value(cls, keys, node=_CONFIG_ROOT, visited=None):
@@ -652,8 +684,12 @@ class ConfigParams:
                 "maxLength": cls.max_height,
                 "minLength": cls.min_height
             }
-            lift_motor["upLimitDi"] = cls._get_motor_limit_di(cls.fork_motor_name, "up") or cls.up_di or ""
-            lift_motor["downLimitDi"] = cls._get_motor_limit_di(cls.fork_motor_name, "down") or cls.down_di or ""
+            lift_motor["upLimitDi"] = (
+                cls._get_motor_limit_di(cls.fork_motor_name, "up") or cls.up_di or ""
+            )
+            lift_motor["downLimitDi"] = (
+                cls._get_motor_limit_di(cls.fork_motor_name, "down") or cls.down_di or ""
+            )
             cls.moduleMotor.append(lift_motor)
 
         # shift 电机
@@ -797,8 +833,54 @@ class ConfigParams:
                     with builder.CHILD(key="downDoStatus", name=_TR("Down Do Status"), desc=_TR("DO state used to lower the fork")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="enableNavForkHeight", name=_TR("Enable Nav Fork Height"),
+                                       desc=_TR("Enable the fork travel height without goods")):
+                        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+                        builder.DEFAULTVALUE("off")
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="off", name=_TR("Off"),
+                                               desc=_TR("Disable the fork travel height without goods")):
+                                builder.TYPE(ParamType.ARRAY)
+                            with builder.CHILD(key="on", name=_TR("On"),
+                                               desc=_TR("Enable the fork travel height without goods")):
+                                builder.TYPE(ParamType.ARRAY)
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="navForkHeight", name=_TR("Nav Fork Height"),
+                                                       desc=_TR("Fork travel height without goods")):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.DEFAULTVALUE(0.3, min_value=ConfigParams.min_height,
+                                                             max_value=ConfigParams.max_height)
+                                        builder.UNIT("m")
+                                    with builder.CHILD(key="allowForkMoveWhileNav",
+                                                       name=_TR("Allow Fork Move While Nav"),
+                                                       desc=_TR("Allow the fork to move during navigation")):
+                                        builder.TYPE(ParamType.BOOL)
+                                        builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="enableLoadNavForkHeight", name=_TR("Enable Load Nav Fork Height"),
+                                       desc=_TR("Enable the fork travel height with goods")):
+                        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+                        builder.DEFAULTVALUE("off")
+                        with builder.CHILDREN():
+                            with builder.CHILD(key="off", name=_TR("Off"),
+                                               desc=_TR("Disable the fork travel height with goods")):
+                                builder.TYPE(ParamType.ARRAY)
+                            with builder.CHILD(key="on", name=_TR("On"),
+                                               desc=_TR("Enable the fork travel height with goods")):
+                                builder.TYPE(ParamType.ARRAY)
+                                with builder.CHILDREN():
+                                    with builder.CHILD(key="loadNavForkHeight", name=_TR("Load Nav Fork Height"),
+                                                       desc=_TR("Fork travel height with goods")):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.DEFAULTVALUE(0.3, min_value=ConfigParams.min_height,
+                                                             max_value=ConfigParams.max_height)
+                                        builder.UNIT("m")
+                                    with builder.CHILD(key="allowLoadForkMoveWhileNav",
+                                                       name=_TR("Allow Load Fork Move While Nav"),
+                                                       desc=_TR("Allow the loaded fork to move during navigation")):
+                                        builder.TYPE(ParamType.BOOL)
+                                        builder.DEFAULTVALUE(False)
 
-            add_weight_config(builder)
+                    add_weight_config(builder)
 
             # ===== 取放货 =====
             with builder.GROUP(key="loadUnload", name=_TR("Load & Unload"), desc=_TR("Load and unload configuration")):
@@ -1116,21 +1198,30 @@ class ConfigParams:
                                         builder.TYPE(ParamType.FLOAT)
                                         builder.REQUIRED(True)
                                         builder.DEFAULTVALUE(2.0)
-                                with builder.CHILD(key="setRoiMaxY", name=_TR("Set Roi Max Y"),
-                                                   desc=""):
-                                    builder.TYPE(ParamType.FLOAT)
-                                    builder.REQUIRED(True)
-                                    builder.DEFAULTVALUE(2.0)
-                                with builder.CHILD(key="setRoiMinY", name=_TR("Set Roi Min Y"),
-                                                   desc=""):
-                                    builder.TYPE(ParamType.FLOAT)
-                                    builder.REQUIRED(True)
-                                    builder.DEFAULTVALUE(2.0)
-                                with builder.CHILD(key="setRoiZ", name=_TR("Set Roi Z"),
-                                                   desc=""):
-                                    builder.TYPE(ParamType.FLOAT)
-                                    builder.REQUIRED(True)
-                                    builder.DEFAULTVALUE(2.0)
+                                    with builder.CHILD(key="setRoiMaxY", name=_TR("Set Roi Max Y"),
+                                                       desc=""):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.REQUIRED(True)
+                                        builder.DEFAULTVALUE(2.0)
+                                    with builder.CHILD(key="setRoiMinY", name=_TR("Set Roi Min Y"),
+                                                       desc=""):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.REQUIRED(True)
+                                        builder.DEFAULTVALUE(2.0)
+                                    with builder.CHILD(key="setRoiZ", name=_TR("Set Roi Z"),
+                                                       desc=""):
+                                        builder.TYPE(ParamType.FLOAT)
+                                        builder.REQUIRED(True)
+                                        builder.DEFAULTVALUE(2.0)
+
+                    with builder.CHILD(key="enableFallingDownDetect", name=_TR("Enable Falling Down Detect"),
+                                       desc=_TR("Enable pallet fall detection during loading and unloading")):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(bool(getattr(
+                            ConfigParams.active_fork_class,
+                            "falling_down_detect_default",
+                            False,
+                        )))
 
             # ===== moduleMotor =====
             with builder.GROUP(key="moduleMotor", name=_TR("Module Motor Settings"), desc=_TR("Module motor settings")):
@@ -1508,6 +1599,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     supports_cam_lift_with_fork = False
     cam_lift_with_fork_default = False
     adaptive_pallet_stack_unstack_default = False
+    falling_down_detect_default = False
     supports_reach_motor = False
     # Ordinary fork types approach at the current fork height when startHeight
     # is omitted. Reach/softbag types require an explicit startHeight instead.
@@ -1650,6 +1742,11 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self.target_pos = [0, 0, 0, -1]
         self.hasReachDi = None
         self.fork_cur_height = None
+        self._nav_fork_height_action = None
+        self._nav_fork_height_task_id = ""
+        self._skip_next_nav_fork_height = False
+        self._nav_fork_height_read_error = False
+        self._falling_down_detect_enabled = False
 
     def _init_mileage_state(self):
         run_db = _get_run_db() if not type(self).fork_count_enabled else None
@@ -1882,6 +1979,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self._init_args()
         if self.script_status != ScriptStatus.RUNNING:
             return
+        if not self._enable_falling_down_detect():
+            return
         self._start_auto_pre_if_requested()
 
     def _start_auto_pre_if_requested(self):
@@ -1936,6 +2035,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
         delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
         Trace.log(f"script end, script_status: {final_status}", name="fork.task")
+        self._disable_falling_down_detect()
         Module.setStatus(final_status)
         self.reset_task_state()
 
@@ -1995,10 +2095,119 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         # else: 生成器已耗尽（含首批即结束 / 无 yield）-> 直接收尾，不看队列
         if self.opt == "forkHeight":
             self.fork_height_in_place = True
+        # The final sample completes the action during _execute_actions().
+        # Capture its result before the terminal task cycle clears report_info.
+        if self.opt == "weightGood":
+            self.weight_good()
         cleanup_operations = {"unload"} | set(self.custom_cleanup_operations() or set())
         if self.opt in cleanup_operations:
             delete_deduct_area(["no_rec_deduct_pallet_area", "PalletRobotRegionByHeight"], Coordinate.ROBOT)
+        if self.opt != "deleteClearRegion":
+            self._skip_next_nav_fork_height = True
         self.set_status(ScriptStatus.FINISHED)
+
+    @staticmethod
+    def _is_plain_navigation_task(move_task):
+        return (
+            isinstance(move_task, dict)
+            and bool(move_task.get("taskId"))
+            and move_task.get("skillName") != "Action"
+        )
+
+    @staticmethod
+    def _nav_fork_height_target():
+        if Container.hasGoods("0"):
+            if not (ConfigParams.enableLoadNavForkHeight and ConfigParams.allowLoadForkMoveWhileNav):
+                return None
+            return ConfigParams.loadNavForkHeight
+        if not (ConfigParams.enableNavForkHeight and ConfigParams.allowForkMoveWhileNav):
+            return None
+        return ConfigParams.navForkHeight
+
+    def _cancel_nav_fork_height_action(self):
+        if self._nav_fork_height_action is not None:
+            self._nav_fork_height_action.cancel()
+            self._nav_fork_height_action = None
+        self.fork_height_in_place = True
+
+    @staticmethod
+    def _nav_fork_height_enabled():
+        return (
+            (ConfigParams.enableNavForkHeight and ConfigParams.allowForkMoveWhileNav)
+            or (ConfigParams.enableLoadNavForkHeight and ConfigParams.allowLoadForkMoveWhileNav)
+        )
+
+    def _run_nav_fork_height(self, module_status):
+        """Move the fork to its configured travel height during a plain 3066 navigation."""
+        if module_status in (ScriptStatus.RUNNING, ScriptStatus.NEARTOGOAL, ScriptStatus.SUSPENDED):
+            self._cancel_nav_fork_height_action()
+            return
+
+        if not self._nav_fork_height_enabled():
+            self._cancel_nav_fork_height_action()
+            return
+
+        try:
+            move_task = Navigation.realTimeMoveTask() or {}
+            self._nav_fork_height_read_error = False
+        except Exception as exc:
+            self._cancel_nav_fork_height_action()
+            if not self._nav_fork_height_read_error:
+                Trace.log(f"read navigation task for fork travel height failed: {exc}", name="fork.err")
+                self._nav_fork_height_read_error = True
+            return
+
+        if not self._is_plain_navigation_task(move_task):
+            self._cancel_nav_fork_height_action()
+            self._nav_fork_height_task_id = ""
+            return
+
+        task_id = str(move_task["taskId"])
+        if task_id != self._nav_fork_height_task_id:
+            self._cancel_nav_fork_height_action()
+            self._nav_fork_height_task_id = task_id
+            if self._skip_next_nav_fork_height:
+                self._skip_next_nav_fork_height = False
+                Trace.log(
+                    f"skip fork travel height on first navigation after script action, task_id={task_id}",
+                    name="fork.task",
+                )
+                return
+
+            target = self._nav_fork_height_target()
+            if target is None:
+                return
+            current = Motor.getMotorPos(ConfigParams.fork_motor_name)
+            if abs(current - target) <= 0.02:
+                Trace.log(
+                    f"fork travel height already in place, current={current}, target={target}, task_id={task_id}",
+                    name="fork.task",
+                )
+                return
+            self.fork_height_in_place = False
+            self._nav_fork_height_action = RunMotorByPosition(
+                ConfigParams.fork_motor_name,
+                target,
+                ConfigParams.fork_max_speed,
+                action_name="NavForkHeight",
+            )
+            Trace.log(
+                f"start fork travel height while navigating, current={current}, target={target}, task_id={task_id}",
+                name="fork.task",
+            )
+
+        action = self._nav_fork_height_action
+        if action is None:
+            return
+        action.run(self)
+        if action.action_status == ActionStatus.FINISHED:
+            Trace.log(f"fork travel height finished, task_id={task_id}", name="fork.task")
+            self._nav_fork_height_action = None
+            self.fork_height_in_place = True
+        elif action.action_status == ActionStatus.FAILED:
+            Trace.log(f"fork travel height failed, task_id={task_id}", name="fork.err")
+            self._nav_fork_height_action = None
+            self.fork_height_in_place = True
 
     def _run_task_cycle(self):
         if self.script_status != ScriptStatus.RUNNING:
@@ -2075,6 +2284,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
 
             status = Module.getStatus()
 
+            self._run_nav_fork_height(status)
+
             if ConfigParams.scriptDebug:
                 pass
 
@@ -2115,6 +2326,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self.set_status(ScriptStatus.FAILED)
         self.action_task.cancel()
         self._sync_action_runtime()
+        self._disable_falling_down_detect()
         if was_suspended:
             Module.setStatus(ScriptStatus.RUNNING)
         Trace.log("cancel", name="fork.task")
@@ -2127,6 +2339,12 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self._sync_action_runtime()
         # Motor.resetMotor(ConfigParams.fork_motor_name)
         # Navigation.clearGoodsShape()
+
+    def _enable_falling_down_detect(self):
+        return enable_falling_down_detect(self)
+
+    def _disable_falling_down_detect(self):
+        disable_falling_down_detect(self)
 
     def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
         # 1. 绑定容器
@@ -2358,6 +2576,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 args,
                 self.check_di,
                 "load",
+                recfile=self.recfile,
             )
         )
         return actions
@@ -2456,6 +2675,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             {},
             False,
             "load",
+            recfile=self.recfile,
         )
 
     def _resolve_recognition_approach_plan(self, rec_world_pos, back_dist, method, args):
@@ -2539,6 +2759,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 args,
                 self.check_di,
                 "load",
+                recfile=self.recfile,
             )
         )
         return actions
@@ -2601,6 +2822,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 args,
                 False,
                 "unload",
+                recfile=self.recfile,
             )
         )
         return actions, bool(tcp_name)
@@ -2629,6 +2851,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 args,
                 False,
                 "unload",
+                recfile=self.recfile,
             ),
         ]
 
@@ -2686,11 +2909,11 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             yield load_guard
             self._skip_next_start_height_action = True
 
-        # loc_detect_action = self._build_loc_detect_action(expect_goods=True)
-        # if loc_detect_action is not None and (
-        #         self.recognize or self._has_usable_target_pos(self.target_pos)
-        # ):
-        #     yield [loc_detect_action]
+        loc_detect_action = self._build_loc_detect_action(expect_goods=True)
+        if loc_detect_action is not None and (
+                self.recognize or self._has_usable_target_pos(self.target_pos)
+        ):
+            yield [loc_detect_action]
 
         if not self.recognize:
             # 不需要根据识别结果通过盲走插货
@@ -2789,9 +3012,9 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             yield unload_guard
             self._skip_next_start_height_action = True
 
-        # loc_detect_action = self._build_loc_detect_action(expect_goods=False)
-        # if loc_detect_action is not None and self._has_usable_target_pos(target_pos):
-        #     yield [loc_detect_action]
+        loc_detect_action = self._build_loc_detect_action(expect_goods=False)
+        if loc_detect_action is not None and self._has_usable_target_pos(target_pos):
+            yield [loc_detect_action]
 
         if self.recognize:
             if not ensure_recfile(self):
@@ -3375,6 +3598,7 @@ class HeavyFork(Fork):
                 args,
                 False,
                 "load",
+                recfile=self.recfile,
             ),
             cage_rec,
         ])
@@ -3679,6 +3903,7 @@ class ReachFork(HeavyFork):
             check_di,
             operation_type,
             obs_dist_compensation=obs_dist_compensation,
+            recfile=self.recfile,
         )
 
     def _build_path_first_load_actions(self, rec_world_pos, method, args):
@@ -3713,6 +3938,7 @@ class ReachFork(HeavyFork):
                 align_args,
                 self.check_di,
                 "load",
+                recfile=self.recfile,
                 reach_phase_config={
                     "align_world_pos": align_world_pos,
                     "align_method": align_method,
@@ -3770,6 +3996,7 @@ class ReachFork(HeavyFork):
                 {},
                 False,
                 "load",
+                recfile=self.recfile,
             ))
         actions.extend([
             self._build_reach_action("max", action_name="extendReachMotors"),
@@ -3781,6 +4008,7 @@ class ReachFork(HeavyFork):
                 {},
                 self.check_di,
                 "load",
+                recfile=self.recfile,
             ),
         ])
         return actions

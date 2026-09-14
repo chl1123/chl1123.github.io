@@ -4,7 +4,7 @@ import json
 import math
 import struct
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from syspy import Container, Di, Do, Laser, Motor, Navigation, Loc, NavSpeed, Recognize, RobotError, RobotParam, ScriptStatus, Trace, _TR
 from syspy.utils import Coordinate
@@ -36,98 +36,55 @@ def _config():
     return _CONFIG
 
 
-def _trace_log(text: str, *, name: str = f"{MOD}.task") -> None:
+def _trace_log(text: str, *, name: str = f"{MOD}.action") -> None:
     Trace.log(str(text), name=name)
 
 
-def _trace_chart(msg: dict, *, name: str = f"{MOD}.action") -> None:
-    Trace.log(msg, output_console=False, name=name)
-
-
-def get_motor_limit_di(motor_name, direction, fallback_motor_func=""):
-    if not motor_name or is_do_motor_key(motor_name):
-        return ""
-    motor_func = RobotParam.getDevice(motor_name, "func") or fallback_motor_func
-    if not motor_func:
-        return ""
-    names = ("upLimitDI", "upLimitDi", "UpLimitDI") if direction == "up" else (
-        "DownLimitDI", "downLimitDI", "downLimitDi", "DownLimitDi"
-    )
-    for name in names:
-        value = RobotParam.getDevice(motor_name, f"func.{motor_func}.{name}")
-        if value:
-            return str(value)
-    return ""
-
-
 def get_weight_can_config(can_device):
+    """Resolve a configured CAN device to the channel/bitrate expected by the scale driver."""
     can_port = str(RobotParam.getDevice(can_device, "canPort") or "").lower()
     channel = {"port1": "can0", "port2": "can1"}.get(can_port, "")
     baudrate = str(RobotParam.getDevice(can_device, "baudrate") or "").upper()
-    return channel, int(baudrate[:-1]) * 1000 if baudrate.endswith("K") and baudrate[:-1].isdigit() else 0
-
-
-def check_motor_action_error(action, operation, module_motors) -> bool:
-    try:
-        exists = RobotError.existSystemError(MOTOR_ACTION_ERROR_KEY)
-    except Exception as exc:
-        Trace.log(f"read system error {MOTOR_ACTION_ERROR_KEY} failed: {exc}", name=f"{MOD}.err")
-        return False
-    if not exists:
-        return False
-    triggered = []
-    for motor in module_motors:
-        for direction in ("up", "down"):
-            di = motor.get(f"{direction}LimitDi", "")
-            if not di:
-                continue
-            try:
-                if Di.getDi(di):
-                    triggered.append((motor.get("motorKey", ""), direction, di))
-            except Exception as exc:
-                Trace.log(
-                    f"read limit DI failed motor={motor.get('motorKey', '')}, di={di}: {exc}",
-                    name=f"{MOD}.err",
-                )
-    motor_key = getattr(action, "motor_name", "")
-    delta = getattr(action, "delta", None)
-    action_direction = "up" if delta is not None and delta > EPS else "down" if delta is not None and delta < -EPS else ""
-    matched = [item for item in triggered if item[0] == motor_key]
-    details = ", ".join(f"motor={key}, {direction}LimitDi={di}" for key, direction, di in matched)
-    if operation in MOTOR_LIMIT_OPERATIONS and matched and action_direction and all(
-            direction != action_direction for _, direction, _ in matched):
-        try:
-            RobotError.clearSystemError(MOTOR_ACTION_ERROR_KEY)
-            Trace.log(f"clear MF {MOTOR_ACTION_ERROR_KEY} before reverse action: {details}", name=f"{MOD}.motor")
-            return False
-        except Exception as exc:
-            Trace.log(f"clear system error {MOTOR_ACTION_ERROR_KEY} failed: {exc}", name=f"{MOD}.err")
-    error_desc = f"MF {MOTOR_ACTION_ERROR_KEY} in operation={operation or 'unknown'} for motor={motor_key or 'unknown'}; {details or 'no active limit DI identified'}"
-    Trace.log(error_desc, name=f"{MOD}.err")
-    action.fail_reason = error_desc
-    action.action_status = ActionStatus.FAILED
-    return True
+    return (
+        channel,
+        int(baudrate[:-1]) * 1000
+        if baudrate.endswith("K") and baudrate[:-1].isdigit()
+        else 0
+    )
 
 
 def add_weight_config(builder):
-    with builder.GROUP(key="weight", name=_TR("Weight Settings"), desc=_TR("Goods weight configuration")):
+    with builder.GROUP(
+        key="weight",
+        name=_TR("Weight Settings"),
+        desc=_TR("Goods weight configuration"),
+    ):
         builder.TYPE(ParamType.ARRAY)
         with builder.CHILDREN():
-            with builder.CHILD(key="weightCan", name=_TR("Weight CAN"), desc=_TR("CAN device connected to the weight scale")):
+            with builder.CHILD(
+                key="weightCan",
+                name=_TR("Weight CAN"),
+                desc=_TR("CAN device connected to the weight scale"),
+            ):
                 builder.TYPE(ParamType.BIND_TYPE)
                 builder.BINDTYPE(BindType.Device.CAN)
             for key, name, default, param_type in (
-                    ("weightNodeId", "CAN Node ID", 0x0A, ParamType.INT),
-                    ("weightSampleCount", "Sample Count", 3, ParamType.INT),
-                    ("weightSampleInterval", "Sample Interval", 0.1, ParamType.FLOAT),
-                    ("maxWeight", "Max Weight", 1000.0, ParamType.FLOAT)):
+                ("weightNodeId", "CAN Node ID", 0x0A, ParamType.INT),
+                ("weightSampleCount", "Sample Count", 3, ParamType.INT),
+                ("weightSampleInterval", "Sample Interval", 0.1, ParamType.FLOAT),
+                ("maxWeight", "Max Weight", 1000.0, ParamType.FLOAT),
+            ):
                 with builder.CHILD(key=key, name=_TR(name), desc=_TR(name)):
                     builder.TYPE(param_type)
                     builder.DEFAULTVALUE(default)
 
 
 def add_weight_input(builder):
-    with builder.CHILD(key="weightGood", name=_TR("Goods Weight"), desc=_TR("Measure goods weight")):
+    with builder.CHILD(
+        key="weightGood",
+        name=_TR("Goods Weight"),
+        desc=_TR("Measure goods weight"),
+    ):
         builder.TYPE(ParamType.ARRAY)
 
 
@@ -135,12 +92,78 @@ def build_weight_action(config):
     channel, bitrate = get_weight_can_config(getattr(config, "weightCan", ""))
     return WeightCheckAction(
         protocol="ruibot",
-        scale_options={"channel": channel, "bitrate": bitrate, "node_id": getattr(config, "weightNodeId", 0x0A)},
+        scale_options={
+            "channel": channel,
+            "bitrate": bitrate,
+            "node_id": getattr(config, "weightNodeId", 0x0A),
+        },
         max_weight=getattr(config, "maxWeight", 1000.0),
         sample_count=getattr(config, "weightSampleCount", 3),
         sample_interval=getattr(config, "weightSampleInterval", 0.1),
         action_name="weightGood",
     )
+
+
+def check_motor_action_error(action, operation, module_motors) -> bool:
+    """仅允许单电机反向动作清除 MF 的限位错误。"""
+    try:
+        exists = RobotError.existSystemError(MOTOR_ACTION_ERROR_KEY)
+    except Exception as exc:
+        Trace.log(f"read system error {MOTOR_ACTION_ERROR_KEY} failed: {exc}", name=f"{MOD}.err")
+        return False
+    if not exists:
+        return False
+
+    triggered = []
+    for motor in module_motors:
+        motor_key = motor.get("motorKey", "")
+        for direction in ("up", "down"):
+            di = motor.get(f"{direction}LimitDi", "")
+            if not di:
+                continue
+            try:
+                if Di.getDi(di):
+                    triggered.append((motor_key, direction, di))
+            except Exception as exc:
+                Trace.log(
+                    f"read limit DI failed motor={motor_key}, di={di}: {exc}",
+                    name=f"{MOD}.err",
+                )
+
+    motor_key = getattr(action, "motor_name", "")
+    delta = getattr(action, "delta", None)
+    action_direction = "up" if delta is not None and delta > EPS else (
+        "down" if delta is not None and delta < -EPS else ""
+    )
+    matched = [item for item in triggered if not motor_key or item[0] == motor_key]
+    details = ", ".join(
+        f"motor={key}, {direction}LimitDi={di}" for key, direction, di in matched
+    )
+    if operation in MOTOR_LIMIT_OPERATIONS and matched and action_direction and all(
+            direction != action_direction for _, direction, _ in matched):
+        try:
+            RobotError.clearSystemError(MOTOR_ACTION_ERROR_KEY)
+            Trace.log(
+                f"clear MF {MOTOR_ACTION_ERROR_KEY} before reverse action: {details}",
+                name=f"{MOD}.motor",
+            )
+            return False
+        except Exception as exc:
+            Trace.log(f"clear MF {MOTOR_ACTION_ERROR_KEY} failed: {exc}", name=f"{MOD}.err")
+
+    if not details:
+        details = ", ".join(
+            f"unmatched motor={key}, {direction}LimitDi={di}"
+            for key, direction, di in triggered
+        ) or "no active limit DI identified"
+    error_desc = (
+        f"MF {MOTOR_ACTION_ERROR_KEY} in operation={operation or 'unknown'} "
+        f"for motor={motor_key or 'unknown'}; {details}"
+    )
+    Trace.log(error_desc, name=f"{MOD}.err")
+    action.fail_reason = error_desc
+    action.action_status = ActionStatus.FAILED
+    return True
 
 
 # ============================================================================
@@ -237,6 +260,45 @@ def resolve_back_dist(rec_info):
 
 def apply_default_navigation_policy():
     Navigation.appendCustomPolicy("policy", {"navigation.freeBypass": "off"})
+
+
+def enable_falling_down_detect(ctx) -> bool:
+    cfg = _config()
+    if (
+            ctx.opt not in ("load", "unload")
+            or not cfg.enableFallingDownDetect
+            or cfg.module_type in ("pickFork", "liftFork", "singleFork")
+            or getattr(ctx, "_falling_down_detect_enabled", False)
+    ):
+        return True
+
+    try:
+        enabled = bool(Navigation.enableFallingDownDetect())
+    except Exception as exc:
+        Trace.log(f"enable FallingDown detect failed: {exc}", name=f"{MOD}.err")
+        enabled = False
+
+    if not enabled:
+        Navigation.setTaskError("FallingDownNotReady", "FallingDown detector is not ready")
+        ctx.set_status(ScriptStatus.FAILED)
+        return False
+
+    ctx._falling_down_detect_enabled = True
+    Trace.log("FallingDown detect enabled", name=f"{MOD}.task")
+    return True
+
+
+def disable_falling_down_detect(ctx) -> None:
+    if not getattr(ctx, "_falling_down_detect_enabled", False):
+        return
+
+    try:
+        if not Navigation.disableFallingDownDetect():
+            Trace.log("disable FallingDown detect returned false", name=f"{MOD}.err")
+    except Exception as exc:
+        Trace.log(f"disable FallingDown detect failed: {exc}", name=f"{MOD}.err")
+    finally:
+        ctx._falling_down_detect_enabled = False
 
 
 def clear_goods_shape_when_lift_fork_low(ctx, fork_height, cfg):
@@ -1856,6 +1918,8 @@ class GoPathWithContactDi(ActionBase):
             operation_type="",
             reach_phase_config: Optional[Dict] = None,
             obs_dist_compensation: float = 0.0,
+            recfile: str = "",
+            initial_policy_name: str = "loadPolicy",
     ):
         super().__init__()
         _init_action_runtime(self)
@@ -1865,6 +1929,10 @@ class GoPathWithContactDi(ActionBase):
         self.check_di = check_di
         self.check_all_contact_di = _config().checkAllContactDis
         self.operation_type = operation_type
+        self.recfile = recfile or ""
+        self.initial_policy_name = initial_policy_name or "loadPolicy"
+        self.fork_root_collision_models: Optional[List[Dict[str, Any]]] = None
+        self.fork_root_collision_model_error = ""
         self.laser_id = []
         self.laser_width = None
         self.walk_dist = None
@@ -2188,9 +2256,14 @@ class GoPathWithContactDi(ActionBase):
             if device.strip()
         ]
 
-    def _apply_collision_device_shielding(self, should_shield_di: bool) -> None:
+    def _apply_collision_device_shielding(
+            self,
+            should_shield_di: bool,
+            *,
+            shield_fork_root: bool = True,
+    ) -> None:
         fork_root_laser_keys = self._get_fork_root_laser_keys()
-        if not fork_root_laser_keys and not should_shield_di:
+        if (not fork_root_laser_keys or not shield_fork_root) and not should_shield_di:
             return
 
         current_collision_device = self._load_collision_devices()
@@ -2199,9 +2272,10 @@ class GoPathWithContactDi(ActionBase):
 
         # 进入货物近场后，叉根激光和按配置关闭的叉尖 DI 不再参与全局碰撞检测；
         # 叉尖到位判断仍由本 action 独立处理，避免导航层与业务层重复抢停。
-        for laser_key in fork_root_laser_keys:
-            while laser_key in current_collision_device:
-                current_collision_device.remove(laser_key)
+        if shield_fork_root:
+            for laser_key in fork_root_laser_keys:
+                while laser_key in current_collision_device:
+                    current_collision_device.remove(laser_key)
         if should_shield_di:
             for di_sensor in _config().fork_tip_di_sensors:
                 while di_sensor in current_collision_device:
@@ -2216,6 +2290,48 @@ class GoPathWithContactDi(ActionBase):
             f"shielded collision devices, new collision device:{current_collision_device_str}",
             name="fork.task",
         )
+
+    def _load_fork_root_collision_models(self) -> Optional[List[Dict[str, Any]]]:
+        """Load the collision regions/devices explicitly configured by the recognition file."""
+        self.fork_root_collision_model_error = ""
+        if not self.recfile:
+            return []
+
+        recognition_collision_model_path = "recognitionObject.pallet.collisionModel"
+        try:
+            size = RobotParam.getConfigCloneSize(
+                "recognition", recognition_collision_model_path, self.recfile
+            )
+            matched_models = []
+            for idx in range(size):
+                collision_device = str(RobotParam.getConfig(
+                    "recognition",
+                    f"{recognition_collision_model_path}._{idx}.collisionDevice",
+                    self.recfile,
+                ) or "").strip()
+                if not collision_device:
+                    continue
+                collision_shape = RobotParam.getConfig(
+                    "recognition",
+                    f"{recognition_collision_model_path}._{idx}.collisionShape",
+                    self.recfile,
+                )
+                if not collision_shape:
+                    continue
+                matched_models.append({
+                    "collisionDevice": collision_device,
+                    "collisionShape": collision_shape,
+                })
+        except Exception as exc:
+            self.fork_root_collision_model_error = f"read collisionModel from recfile failed: {exc}"
+            return None
+
+        return matched_models
+
+    def _get_fork_root_collision_models(self) -> Optional[List[Dict[str, Any]]]:
+        if self.fork_root_collision_models is None:
+            self.fork_root_collision_models = self._load_fork_root_collision_models()
+        return self.fork_root_collision_models
 
     def _set_obs_stop_dist(self, stop_dist: float) -> None:
         self.policy["navigation.obstacleStop.obsStopUnload.obsStopDist"] = stop_dist
@@ -2232,14 +2348,40 @@ class GoPathWithContactDi(ActionBase):
         if reset_path:
             Navigation.goPathParam(dict())
 
-    def _configure_initial_policy(self) -> None:
+    def _configure_initial_policy(self) -> bool:
         # 近货阶段关闭自由绕行并使用取放货停车距离，防止局部规划绕开目标货物。
         should_shield_di = self._should_shield_fork_tip_di()
-        self._apply_collision_device_shielding(should_shield_di)
+        collision_models_enabled = self.operation_type in ("load", "unload")
+        fork_root_collision_models = []
+        if collision_models_enabled:
+            fork_root_collision_models = self._get_fork_root_collision_models()
+            if fork_root_collision_models is None:
+                err_msg = self.fork_root_collision_model_error or "fork root collision model is invalid"
+                Navigation.setTaskError("ForkRootCollisionModelInvalid", err_msg)
+                self.action_status = ActionStatus.FAILED
+                Trace.log(err_msg, name="fork.err")
+                return False
+            if fork_root_collision_models:
+                self.policy["navigation.collisionDetection.collisionModel"] = fork_root_collision_models
+                Trace.log(
+                    f"apply fork root collision model policy: models={fork_root_collision_models}",
+                    name="fork.task",
+                )
+            else:
+                Trace.log(
+                    "recognition file has no collision model; remove fork root lasers from collision devices",
+                    name="fork.task",
+                )
+
+        # 识别文件提供碰撞模型时保留其碰撞设备；没有碰撞模型时才移除叉根激光。
+        self._apply_collision_device_shielding(
+            should_shield_di,
+            shield_fork_root=not bool(fork_root_collision_models),
+        )
         self._set_obs_stop_dist_for_phase(self._should_use_obs_compensation_now())
         self.policy["navigation.obstacleStop.obsStopUnload.obsExpansion"] = 0.02
         self.policy["navigation.obstacleStop.obsStopLoad.loadObsExpansion"] = 0.01
-        self._apply_policy("loadPolicy", sleep_sec=0.5)
+        self._apply_policy(self.initial_policy_name, sleep_sec=0.5)
         self.set_policy = True
 
         current_collision_device_change = RobotParam.getConfig(
@@ -2250,6 +2392,7 @@ class GoPathWithContactDi(ActionBase):
             f"policy :{self.policy},current_collision_device_change:{current_collision_device_change}, cur_unload_stop_dist:{unload_stop_dist}",
             name="fork.task",
         )
+        return True
 
     def _initialize_motion(self) -> None:
         self.init = True
@@ -2265,7 +2408,10 @@ class GoPathWithContactDi(ActionBase):
             f"fork_tip_di_ids:{self.fork_tip_di_ids}, operation_type:{self.operation_type}",
             name="fork.task",
         )
-        self._configure_initial_policy()
+        if not self._configure_initial_policy():
+            back_action = getattr(self, "back_action", None)
+            if back_action is not None:
+                back_action.action_status = ActionStatus.FAILED
 
     def _advance_back_action(self) -> bool:
         if self.reach_phase_enabled and self.reach_phase == "reach":
@@ -2738,8 +2884,8 @@ class WeightCheckAction(ActionBase):
 class LocDetectGoods(ActionBase):
     MAX_ATTEMPTS = 10
 
-    def __init__(self, loc_name: str, expect_goods: bool):
-        super().__init__()
+    def __init__(self, loc_name: str, expect_goods: bool, action_name = "LocDetectGoods"):
+        super().__init__(action_name)
         _init_action_runtime(self)
         self.loc_name = loc_name
         self.expect_goods = bool(expect_goods)
@@ -2818,7 +2964,7 @@ class LocDetectGoods(ActionBase):
                 self._finish_detection(False)
             else:
                 Recognize.resetRec()
-
+        Trace.log("loc detect goods run")
         self.action_state.update({
             "locName": self.loc_name,
             "target": self.target,
@@ -3244,7 +3390,7 @@ class RunReachMotorsByPosition(ActionBase):
 def _init_fork_motor_action(action, min_safe_height=0.0):
     action.min_safe_height = min_safe_height
     action.timeout = None
-    action.delta = 0.0
+    action.delta = action.position - action.cur_position
     action.cur_fork_height = 0.0
     action.cur_fork_height_at_init = 0.0
     action._count_recorded = False
@@ -3365,7 +3511,8 @@ def _fork_after_reached(action):
 
 def _fork_reset_runtime(action):
     action.timeout = None
-    action.delta = 0.0
+    action.cur_fork_height = Motor.getMotorPos(action.motor_name)
+    action.delta = action.position - action.cur_fork_height
 
 
 def _fork_trace_state(action) -> dict:
