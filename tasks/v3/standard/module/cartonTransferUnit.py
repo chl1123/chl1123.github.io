@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/7/15
+# @Date: 2026/9/14
 # @Author: zhaopengfei
 # @Version: v1.2
 # @Project: SPK-MJ50-HL
-# @Update: feat：m-7048149595 料箱车脚本优化 1.识别前等机构停稳(motorSettleDelay)防抖动污染识别，作用于识别料架/识别箱码 2.货叉超限光电触发由硬失败改为可恢复告警，障碍推离后自动清错继续动作 3.放货防呆检测到货架已有货时异常恢复，重建动作队列把料箱放回背篓并报错 4.一维码识别对齐二维码识别逻辑：识别中不计数、连续失败超限才报错 5.check_put方法排除999货叉，适配调试场景
-# add：1.增加DM14三联码校验功能check_goods_code_enable 2.增加取货为空报错的正向校验
-# fix：1.修复取货检测手指下到位DI后再缩回失效的BUG 2. 修复根据状态机status下发doRec失效的BUG
+# @Update: fix: 适配重写后的goPath
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -3541,29 +3539,29 @@ class RecAdjust(BaseAction):
                 self.plan_status = ScriptStatus.FINISHED
                 self.rec.reset()
         elif self.action_status is not ActionStatus.FINISHED and self.action_status is not ActionStatus.FAILED:
-            if self.goPath.status != ScriptStatus.FINISHED and self.goPath.status != ScriptStatus.FAILED:
+            if self.goPath.action_status is not ActionStatus.FINISHED and self.goPath.action_status is not ActionStatus.FAILED:
                 if abs(self.go_args['x']) < 0.003:
-                    self.goPath.status = ScriptStatus.FINISHED
+                    self.goPath.action_status = ActionStatus.FINISHED
                 else:
-                    if self.goPath.status != ScriptStatus.FINISHED and self.goPath.status != ScriptStatus.FAILED:
+                    if self.goPath.action_status is not ActionStatus.FINISHED and self.goPath.action_status is not ActionStatus.FAILED:
                         self.goPath.run(self.go_args)
-            elif not self.rotate_step and self.goPath.status == ScriptStatus.FINISHED:
+            elif not self.rotate_step and self.goPath.action_status is ActionStatus.FINISHED:
                 if abs(agv.yaw_adjust) <= 0.01:
                     self.rotate_step = True
                 if not self.rotate_step and ConfigParams.auto_adjust_rotate:
                     self.rotate_step = agv.rotate(self.next_rotate_pos, max_speed=0.3)
                 else:
                     self.rotate_step = True
-            elif self.goPath.status == ScriptStatus.FAILED:
+            elif self.goPath.action_status is ActionStatus.FAILED:
                 self.action_status = ActionStatus.FAILED
-            elif self.goPath.status == ScriptStatus.FINISHED and self.rotate_step:
+            elif self.goPath.action_status is ActionStatus.FINISHED and self.rotate_step:
                 self.reset()
                 self.adjust_count += 1
                 self.last_yaw_adjust = agv.yaw_adjust
                 self.plan_status = ScriptStatus.NONE
                 self.rotate_step = False
         cur_state["autoStretchLength"] = agv.stretch_length
-        cur_state["goPathStatus"] = self.goPath.status
+        cur_state["goPathStatus"] = int(self.goPath.action_status)
         cur_state["goArgs"] = self.go_args
         cur_state["recResult"] = self.rec.result
         cur_state["recFailTime"] = self.rec_fail_time
