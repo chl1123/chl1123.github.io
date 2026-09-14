@@ -62,9 +62,23 @@ class EntryMotionPhase(str, Enum):
 
 @dataclass(frozen=True)
 class DoorPassContext:
+    """Resolved gate-pass state, kept out of the raw task input args.
+
+    ``device_id`` / ``source_station`` / ``target_station`` come from the task
+    input; the rest is derived from the gate map metadata and
+    ``workspace_topology.json``.
+    """
+
     device_id: str
     source_station: str
     target_station: str
+    source_side: str = ""
+    active_time: int = 30
+    instance_args: Optional[Dict[str, Any]] = None
+    protocol_site: Optional[Dict[str, Any]] = None
+    point_names: Optional[Any] = None
+    workspace: str = ""
+    legacy_open_mode: Optional[int] = None
 
     @classmethod
     def from_args(cls, args):
@@ -78,50 +92,50 @@ class DoorPassContext:
             ).strip(),
         )
 
-    def as_args(self):
+    def as_payload(self):
+        """Fields published to ScriptData for MF and the dashboard."""
         return {
             "deviceId": self.device_id,
             "sourceStation": self.source_station,
             "targetStation": self.target_station,
+            "sourceSide": self.source_side,
         }
 
 
 @dataclass(frozen=True)
 class ElevatorRideContext:
+    """Resolved ride state, kept out of the raw task input args.
+
+    ``device_id`` / ``target_workspace`` / ``target_station`` come from the task
+    input; everything else is derived from ``workspace_topology.json`` and the
+    target map.  Mixing the two into one dict made the input params and the
+    resolved context indistinguishable at the call sites.
+    """
+
+    device_id: str
+    target_workspace: str
     source_workspace: str
     source_station: str
     source_switch_point: str
     source_floor: int
-    target_workspace: str
     target_station: str
     target_floor: int
     target_map: str
     target_switch_point: str
-    target_switch_pose: Dict[str, float]
-    target_switch_dir: float
+    target_switch_pose: Optional[Dict[str, float]] = None
+    target_switch_dir: Optional[float] = None
     source_guide_point: Optional[Any] = None
     protocol_site: Optional[Dict[str, Any]] = None
 
-    def as_args(self):
-        data = asdict(self)
-        result = {
-            "sourceWorkspace": data["source_workspace"],
-            "sourceStation": data["source_station"],
-            "sourceSwitchPoint": data["source_switch_point"],
-            "sourceFloor": data["source_floor"],
-            "targetWorkspace": data["target_workspace"],
-            "targetStation": data["target_station"],
-            "targetFloor": data["target_floor"],
-            "targetMap": data["target_map"],
-            "targetSwitchPoint": data["target_switch_point"],
-            "targetSwitchPose": data["target_switch_pose"],
-            "targetSwitchDir": data["target_switch_dir"],
+    def as_payload(self):
+        """Fields published to ScriptData for MF and the dashboard."""
+        return {
+            "deviceId": self.device_id,
+            "sourceWorkspace": self.source_workspace,
+            "sourceStation": self.source_station,
+            "targetWorkspace": self.target_workspace,
+            "targetStation": self.target_station,
         }
-        if data["source_guide_point"] not in (None, "", {}):
-            result["sourceEntryPoint"] = data["source_guide_point"]
-        if data["protocol_site"]:
-            result["protocolSite"] = data["protocol_site"]
-        return result
 
 
 def enum_value(value):

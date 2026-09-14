@@ -2,6 +2,7 @@ import math
 import json
 import os
 import time
+from dataclasses import replace
 from functools import partial
 
 from syspy import Loc, Map, Module, ModuleBase, Navigation, RobotParam, ScriptStatus, ScriptParam, Trace
@@ -90,11 +91,6 @@ class GoBezierWorld(_BaseGoBezierWorld):
             path_heading = math.atan2(p3[1] - p0[1], p3[0] - p0[0])
         geometry_target = [p3[0], p3[1], path_heading + math.pi]
         return super().compute_bezier_controls_dir(p0, geometry_target, alpha)
-
-    def start_bezier_path(self):
-        if self._use_geometry_path and not self.is_backwards:
-            self.end_position_world[2] -= math.pi
-        return super().start_bezier_path()
 
 
 class ConfigParams:
@@ -603,8 +599,8 @@ class DoorKeepAliveAction(ActionBase):
 
 
 class DoorStatePublisher:
-    def __init__(self, args):
-        self.args = args
+    def __init__(self, context):
+        self.context = context
         self.phase = DoorPhase.VALIDATING
         self.lease = None
         self.last_error = None
@@ -613,18 +609,15 @@ class DoorStatePublisher:
         if phase is not None:
             self.phase = DoorPhase(phase)
         latest = getattr(self.lease, "latest", None)
-        payload = {
+        payload = dict(self.context.as_payload())
+        payload.update({
             "phase": self.phase.value,
-            "deviceId": str(self.args.get("deviceId", "")),
-            "sourceStation": str(self.args.get("sourceStation", "")),
-            "targetStation": str(self.args.get("targetStation", "")),
-            "sourceSide": str(self.args.get("sourceSide", "")),
             "controlState": getattr(latest, "control_state", "UNKNOWN"),
             "passageState": getattr(latest, "passage_state", "UNKNOWN"),
             "carPosition": getattr(
                 getattr(self.lease, "car_position", None), "value", "UNKNOWN"
             ),
-        }
+        })
         try:
             ScriptData.set("doorState", payload)
             self.last_error = None
@@ -641,29 +634,22 @@ class DoorStatePublisher:
             return False
 
 
-def _resolve_source_side(args):
-    explicit = args.get("sourceSide")
+def _resolve_source_side(source_station, point_names, explicit=None):
     if explicit in ("sideA", "sideB"):
         return explicit
-    point_names = args.get("pointNames")
     if point_names is not None:
         if not isinstance(point_names, (list, tuple)) or len(point_names) != 2:
             raise ValueError("pointNames must contain exactly two stations")
-        source_station = args.get("sourceStation")
         if source_station == point_names[0]:
             return "sideA"
         if source_station == point_names[1]:
             return "sideB"
         raise ValueError("sourceStation is not one of pointNames")
-    # Compatibility for the current simulator and old callers. Production MF
-    # calls should always provide pointNames or sourceSide.
-    if "openMode" in args and int(args["openMode"]) in (1, 2):
-        return "sideA" if int(args["openMode"]) == 1 else "sideB"
     raise ValueError("pointNames/sourceSide is required")
 
 
-def _protocol_instance_args(args):
-    protocol_site = args.get("protocolSite") or {}
+def _protocol_instance_args(protocol_site, extra=None):
+    protocol_site = protocol_site or {}
     data = protocol_site.get("jsonObject", protocol_site)
     data = data if isinstance(data, dict) else {}
     protocol_name = str(data.get("communicationProtocol", "") or "").strip()
@@ -673,31 +659,58 @@ def _protocol_instance_args(args):
         for key, value in data.items()
         if protocol_name and str(key).startswith(config_path)
     }
-    instance_args.update(dict(args.get("protocol.instanceArgs") or {}))
+    instance_args.update(dict(extra or {}))
     return instance_args
 
 
-def build_actions(args, protocol, publisher=None):
-    legacy_open_mode = args.get("openMode")
-    if legacy_open_mode is not None and int(legacy_open_mode) not in (0, 1, 2):
-        raise ValueError("openMode must be 0, 1, or 2")
+def _resolve_pass_context(args, protocol_data):
+    """Resolve the gate-pass state from the task input and gate metadata."""
+    pass_context = DoorPassContext.from_args(args)
+    source_side = _resolve_source_side(
+        pass_context.source_station,
+        _map_gate_point_names(protocol_data),
+        explicit=args.get("sourceSide"),
+    )
+    instance_args = _protocol_instance_args(
+        {"jsonObject": protocol_data},
+        extra=args.get("protocol.instanceArgs"),
+    )
     active_time = int(args.get("activeTime", 30))
     if not 2 <= active_time <= 0xFF:
         raise ValueError("activeTime must be in range 2..255")
     if ConfigParams.status_poll_interval >= active_time:
         raise ValueError("statusPollInterval must be less than activeTime")
-    source_side = _resolve_source_side(args)
-    instance_args = _protocol_instance_args(args)
     open_delay_time = float(instance_args.get("openDelayTime", 0.0) or 0.0)
     if not 0.0 <= open_delay_time <= 120.0:
         raise ValueError("openDelayTime must be in range 0..120")
-    args["sourceSide"] = source_side
+    legacy_open_mode = args.get("openMode")
+    legacy = None
+    if legacy_open_mode is not None:
+        if int(legacy_open_mode) not in (0, 1, 2):
+            raise ValueError("openMode must be 0, 1, or 2")
+        legacy = int(legacy_open_mode)
+    return replace(
+        pass_context,
+        source_side=source_side,
+        active_time=active_time,
+        instance_args=instance_args,
+        protocol_site=({"jsonObject": protocol_data} if protocol_data else None),
+        point_names=_map_gate_point_names(protocol_data),
+        workspace=str(args.get("workspace", "") or ""),
+        legacy_open_mode=legacy,
+    )
+
+
+def build_actions(context, protocol, publisher=None):
+    open_delay_time = float(
+        (context.instance_args or {}).get("openDelayTime", 0.0) or 0.0
+    )
     lease = DoorLease(
         protocol,
-        active_time,
-        source_side=source_side,
-        instance_args=instance_args,
-        legacy_open_mode=(int(legacy_open_mode) if legacy_open_mode is not None else None),
+        context.active_time,
+        source_side=context.source_side,
+        instance_args=dict(context.instance_args or {}),
+        legacy_open_mode=context.legacy_open_mode,
     )
     if publisher is not None:
         publisher.lease = lease
@@ -717,14 +730,14 @@ def build_actions(args, protocol, publisher=None):
             publisher.publish(DoorPhase.RELEASING)
 
     target = resolve_map_point(
-        args.get("target") or args.get("targetStation"),
-        "targetStation", args.get("workspace", ""),
+        context.target_station,
+        "targetStation", context.workspace,
     )
-    source_reference = args.get("source") or args.get("sourceStation")
+    source_reference = context.source_station
     source = None
-    if source_reference not in (None, "", {}):
+    if context.source_station not in (None, "", {}):
         source = resolve_map_point(
-            source_reference, "sourceStation", args.get("workspace", ""),
+            context.source_station, "sourceStation", context.workspace,
         )
 
     actions = []
@@ -821,6 +834,7 @@ class DoorModule(ModuleBase):
         super().__init__()
         self.status = ScriptStatus.NONE
         self.args = {}
+        self.context = None
         self.queue = None
         self.publisher = None
         self.protocol = None
@@ -839,25 +853,23 @@ class DoorModule(ModuleBase):
             self.set_status(ScriptStatus.FAILED)
             return
         try:
-            pass_context = DoorPassContext.from_args(self.args)
-            for key, value in pass_context.as_args().items():
-                self.args.setdefault(key, value)
             protocol_site = map_device_data(
-                self.args.get("deviceId"), self.args.get("workspace", "")
+                self.args.get("operation.pass.deviceId"),
+                self.args.get("workspace", ""),
             )
             protocol_data = protocol_site.get("jsonObject") or {}
             if not protocol_data:
                 protocol_data = topology_device_data(
-                    _TOPOLOGY_PATH, "doorList", self.args.get("deviceId")
+                    _TOPOLOGY_PATH, "doorList",
+                    self.args.get("operation.pass.deviceId"),
                 )
-                if protocol_data:
-                    protocol_site = {"jsonObject": protocol_data}
+            # ``args`` stays the parsed task input; the resolved pass state
+            # lives in DoorPassContext rather than being merged into it.
+            self.context = _resolve_pass_context(self.args, protocol_data)
+            protocol_args = dict(self.args)
             if protocol_data:
-                self.args["protocolSite"] = protocol_site
-            point_names = _map_gate_point_names(protocol_data)
-            if "pointNames" not in self.args and point_names is not None:
-                self.args["pointNames"] = point_names
-            self.protocol = create_protocol(self.args, "door")
+                protocol_args["protocolSite"] = {"jsonObject": protocol_data}
+            self.protocol = create_protocol(protocol_args, "door")
         except (KeyError, TypeError, ValueError) as error:
             Navigation.setTaskError("DoorInputParamError", str(error))
             Trace.log(str(error), name="door.err")
@@ -869,10 +881,10 @@ class DoorModule(ModuleBase):
             self.set_status(ScriptStatus.FAILED)
             return
         try:
-            self.publisher = DoorStatePublisher(self.args)
+            self.publisher = DoorStatePublisher(self.context)
             self.publisher.publish(DoorPhase.VALIDATING)
             self.queue = ActionTask(mod="door")
-            self.queue.build(build_actions(self.args, self.protocol, self.publisher))
+            self.queue.build(build_actions(self.context, self.protocol, self.publisher))
             self.set_status(ScriptStatus.RUNNING)
         except (KeyError, TypeError, ValueError) as error:
             Navigation.setTaskError("DoorConfigError", str(error))
@@ -969,6 +981,7 @@ class DoorModule(ModuleBase):
         self.publisher = None
         self.protocol = None
         self.args = {}
+        self.context = None
         self.set_status(ScriptStatus.NONE)
         return True
 

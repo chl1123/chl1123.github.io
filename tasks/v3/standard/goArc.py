@@ -48,6 +48,13 @@ class GoArcWorld(ActionBase):
 
         travel_yaw = yaw + (math.pi if self.is_backwards else 0.0)
         dx, dy = xt - x0, yt - y0
+        chord = math.hypot(dx, dy)
+        # Reaching a position target takes precedence over the requested
+        # travel direction.  Otherwise a co-located backwards target fails
+        # the ahead-of-travel check even though no arc is required.
+        if chord <= self.path_dist_accuracy:
+            self.action_status = ActionStatus.FINISHED
+            return
         local_x = math.cos(travel_yaw) * dx + math.sin(travel_yaw) * dy
         local_y = -math.sin(travel_yaw) * dx + math.cos(travel_yaw) * dy
         if local_x <= 0.0:
@@ -55,10 +62,6 @@ class GoArcWorld(ActionBase):
             self.action_status = ActionStatus.FAILED
             return
 
-        chord = math.hypot(local_x, local_y)
-        if chord <= self.path_dist_accuracy:
-            self.action_status = ActionStatus.FINISHED
-            return
         if abs(local_y) <= self._STRAIGHT_EPS:
             angle = 0.0
             radius = None
