@@ -10,6 +10,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 
+from syspy import Trace
 from syspy.comms.modbus import ModbusRtuProto
 
 
@@ -232,6 +233,10 @@ def _read_srcname() -> str:
         return ""
 
 
+def _can_data_hex(data) -> str:
+    return " ".join(f"{byte:02X}" for byte in bytes(data))
+
+
 class _CanFrame:
     """统一帧结构：id(int) + data(bytes)"""
 
@@ -342,7 +347,17 @@ class _PassThroughTransport(_CanTransport):
 
     def __init__(self, channel):
         super().__init__()
-        self.channel = int(channel)
+        channel_text = str(channel).strip().lower()
+        if channel_text.startswith("can"):
+            # SocketCAN names are zero-based, while SRC2000 pass-through
+            # channels use the physical port numbers 1, 2, ...
+            self.channel = int(channel_text[3:]) + 1
+        else:
+            self.channel = int(channel_text)
+        Trace.log(
+            f"SRC2000 pass-through channel source={channel!r}, physical={self.channel}",
+            name="scale.can",
+        )
         try:
             import syspy.lib.pass_through as pt
             from syspy.lib.can_frame import Can
@@ -359,12 +374,16 @@ class _PassThroughTransport(_CanTransport):
             cf = self._CanFrame_pb2.CanFrame()
             cf.ParseFromString(raw)
             self._dispatch(_CanFrame(cf.id, bytes(cf.data)))
-        except Exception:
-            pass
+        except Exception as exc:
+            Trace.log(f"pass-through frame parse failed: {exc}", name="scale.can.err")
 
     def open(self):
         self._pass = self._pt.passThrough("can")
         self._pass.canConnect(self.DEFAULT_PASS_ADDR, "RuibotScale_pass")
+        Trace.log(
+            f"open SRC2000 pass-through channel={self.channel}, address={self.DEFAULT_PASS_ADDR}",
+            name="scale.can",
+        )
         if self._callback:
             self._pass.setCallBack(self._on_pass)
 
@@ -373,11 +392,19 @@ class _PassThroughTransport(_CanTransport):
         id_nums = len(valid)
         padded = (valid[:5] + [0] * 5)[:5]
         self._Can.canPassThroughRxId(self.channel, id_nums, *padded)
+        Trace.log(
+            f"subscribe channel={self.channel}, ids={[f'0x{can_id:X}' for can_id in valid]}",
+            name="scale.can",
+        )
 
     def send(self, can_id: int, data):
         if isinstance(data, (bytes, bytearray)):
             data = list(data)
         s = " ".join("%02x" % b for b in data)
+        Trace.log(
+            f"tx channel={self.channel}, id=0x{can_id:X}, dlc={len(data)}, data={_can_data_hex(data)}",
+            name="scale.can",
+        )
         self._Can.sendPassThroughCanFrame(self.channel, can_id, len(data), False, s)
 
     def close(self):
@@ -387,6 +414,140 @@ class _PassThroughTransport(_CanTransport):
             except Exception:
                 pass
             self._pass = None
+
+
+class _PollingTransport(_CanTransport):
+    """SRC2000 CAN 轮询后端（不走 ipc:///tmp/CanPass_udp.ipc 回调）。
+
+    `ipc:///tmp/CanPass_udp.ipc` 目前是电池脚本独占的透传通道，称重脚本再连
+    上去也收不到帧（只能有一个消费者）。参照 `tasks/v3/standard/module/
+    cleanRobotManage.py` 的做法：用 `Can.getData()` 周期轮询 DSP 的最新 CAN
+    报文、在脚本侧按 id 过滤，接收不再依赖 IPC 回调。
+
+    注意：`Can.getData()` 是“最新一帧”快照而非队列，所以接收线程需要以较高
+    频率持续轮询并把感兴趣的 id 缓存下来，避免漏帧。
+    """
+
+    DEFAULT_POLL_INTERVAL = 0.005  # 5ms，贴近透传实时性
+
+    def __init__(self, channel, poll_interval: float = DEFAULT_POLL_INTERVAL):
+        super().__init__()
+        channel_text = str(channel).strip().lower()
+        if channel_text.startswith("can"):
+            # SocketCAN 名字是 0 基，DSP 透传通道是 1 基物理口
+            self.channel = int(channel_text[3:]) + 1
+        else:
+            self.channel = int(channel_text)
+        self.poll_interval = max(float(poll_interval), 0.001)
+        Trace.log(
+            f"SRC2000 poll channel source={channel!r}, physical={self.channel}",
+            name="scale.can",
+        )
+        try:
+            from syspy.lib.can_frame import Can
+        except Exception as e:
+            raise RuntimeError("poll CAN 依赖不可用: %s" % e)
+        self._Can = Can
+        self._stop = threading.Event()
+        self._thread = None
+        self._ids = set()
+        self._frames = []
+        self._latest_by_id = {}
+        self._poll_errors = 0
+        self._last_delivered = None
+
+    # -------------------- 生命周期 --------------------
+    def open(self):
+        Trace.log(
+            f"open SRC2000 poll channel={self.channel}, "
+            f"api=Can.getData, interval={self.poll_interval}s",
+            name="scale.can",
+        )
+
+    def attach(self, *ids):
+        valid = [int(i) for i in ids if i]
+        self._ids = set(valid)
+        # 订阅邮箱：poll 模式其实靠本地过滤，绑定失败也不影响。
+        padded = (valid[:5] + [0] * 5)[:5]
+        try:
+            self._Can.canPassThroughRxId(self.channel, len(valid), *padded)
+        except Exception as exc:
+            Trace.log(f"canPassThroughRxId failed (poll 模式忽略): {exc}", name="scale.can.err")
+        Trace.log(
+            f"poll subscribe channel={self.channel}, ids={[f'0x{can_id:X}' for can_id in valid]}",
+            name="scale.can",
+        )
+        self._start_polling()
+
+    def _start_polling(self):
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._run, name="scaleCanPoll", daemon=True)
+        self._thread.start()
+
+    def _run(self):
+        import base64
+
+        while not self._stop.is_set():
+            try:
+                data = self._Can.getData()
+                if isinstance(data, dict) and data:
+                    self._handle_snapshot(data, base64)
+                self._poll_errors = 0
+            except Exception as exc:
+                self._poll_errors += 1
+                if self._poll_errors == 1 or self._poll_errors % 200 == 0:
+                    Trace.log(f"poll Can.getData failed: {exc}", name="scale.can.err")
+            time.sleep(self.poll_interval)
+
+    def _handle_snapshot(self, data, base64_mod):
+        try:
+            can_id = int(data.get("id", 0))
+            channel = int(data.get("channel", 0) or 0)
+            raw = data.get("data", "") or b""
+            if isinstance(raw, (bytes, bytearray)):
+                payload = bytes(raw)
+            else:
+                payload = base64_mod.b64decode(raw)
+        except Exception as exc:
+            Trace.log(f"poll frame parse failed: {exc}", name="scale.can.err")
+            return
+        if channel and channel != self.channel:
+            return
+        if self._ids and can_id not in self._ids:
+            return
+        # getData 是快照，同一帧会重复返回；按 (id, data) 去重避免刷屏。
+        marker = (can_id, payload)
+        if marker == self._last_delivered:
+            return
+        self._last_delivered = marker
+        self._latest_by_id[can_id] = payload
+        self._frames.append((can_id, payload))
+        self._dispatch(_CanFrame(can_id, payload))
+
+    def frames(self):
+        return list(self._frames)
+
+    def latest(self):
+        return dict(self._latest_by_id)
+
+    def send(self, can_id: int, data):
+        if isinstance(data, (bytes, bytearray)):
+            data = list(data)
+        s = " ".join("%02x" % b for b in data)
+        Trace.log(
+            f"tx channel={self.channel}, id=0x{can_id:X}, dlc={len(data)}, data={_can_data_hex(data)}",
+            name="scale.can",
+        )
+        # 与 cleanRobotManage 一致：poll 模式用 sendCanFrame。
+        self._Can.sendCanFrame(self.channel, can_id, len(data), False, s)
+
+    def close(self):
+        self._stop.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=1.0)
+        self._thread = None
 
 
 class RuibotScale(ScaleProtocol):
@@ -442,16 +603,24 @@ class RuibotScale(ScaleProtocol):
             raise TypeError("invalid CAN transport object")
         if transport in ("socketcan", "can_comm"):
             return _SocketCanTransport(self.channel, self.bitrate)
+        if transport in ("poll", "polling"):
+            return _PollingTransport(self.channel)
         if transport in ("pass", "passthrough", "can_frame"):
             return _PassThroughTransport(self.channel)
-        # 自动判定：SRC2000 走脚本透传，其余走 socketcan
+        # 自动判定：SRC2000 默认走 Can.getData() 轮询（CanPass_udp.ipc 被电池脚本独占，
+        # 透传回调在称重脚本里收不到帧），其余走 socketcan。
         src = _read_srcname()
         if src and "SRC2000" in src:
-            return _PassThroughTransport(self.channel)
+            return _PollingTransport(self.channel)
         return _SocketCanTransport(self.channel, self.bitrate)
 
     # -------------------- ScaleProtocol --------------------
     def open(self):
+        Trace.log(
+            f"open scale channel={self.channel}, bitrate={self.bitrate}, node=0x{self.node_id:X}, "
+            f"cyclic=0x{self.cyclic_id:X}, ack=0x{self.ack_id:X}, transport={type(self._transport).__name__}",
+            name="scale.can",
+        )
         self._transport.set_callback(self._on_frame)
         self._transport.open()
         self._transport.attach(self.cyclic_id, self.ack_id)
@@ -465,13 +634,20 @@ class RuibotScale(ScaleProtocol):
                 self._closed = True
 
     def read_weight(self, timeout: float = 1.0) -> Dict:
+        Trace.log(
+            f"read weight waits for cyclic frame id=0x{self.cyclic_id:X}; no CAN frame is transmitted",
+            name="scale.can",
+        )
         deadline = time.time() + timeout
         while self._latest_weight is None and time.time() < deadline:
             time.sleep(0.01)
         with self._lock:
             if self._latest_weight is None:
+                Trace.log(f"read weight timeout id=0x{self.cyclic_id:X}", name="scale.can.err")
                 raise RuntimeError("未收到循环重量帧(0x%X)" % self.cyclic_id)
-            return dict(self._latest_weight)
+            measurement = dict(self._latest_weight)
+            Trace.log(f"read weight result={measurement}", name="scale.can")
+            return measurement
 
     def tare(self):
         raise NotImplementedError("瑞搏特 CAN 协议无去皮(tare)指令；可用 zero()/calibrate_*()")
@@ -506,8 +682,16 @@ class RuibotScale(ScaleProtocol):
         data = data + b"\x00" * (8 - len(data))
         self._ack_event.clear()
         self._ack_buf.pop(cmd, None)
+        Trace.log(
+            f"send scale command op=0x{op:X}, cmd=0x{cmd:X}, id=0x{self.cmd_id:X}, data={_can_data_hex(data)}",
+            name="scale.can",
+        )
         self._transport.send(self.cmd_id, data)
         if not self._ack_event.wait(timeout):
+            Trace.log(
+                f"command timeout cmd=0x{cmd:X}, expected_ack=0x{self.ack_id:X}",
+                name="scale.can.err",
+            )
             raise TimeoutError("瑞搏特称重仪表未应答命令 0x%X" % cmd)
         ack = self._ack_buf.get(cmd)
         if ack and len(ack) >= 1 and ack[0] == self.ACK_ERR:
@@ -515,6 +699,11 @@ class RuibotScale(ScaleProtocol):
         return ack
 
     def _on_frame(self, frame: _CanFrame):
+        frame_type = "cyclic" if frame.id == self.cyclic_id else ("ack" if frame.id == self.ack_id else "other")
+        Trace.log(
+            f"rx type={frame_type}, id=0x{frame.id:X}, dlc={len(frame.data)}, data={_can_data_hex(frame.data)}",
+            name="scale.can",
+        )
         if frame.id == self.cyclic_id:
             with self._lock:
                 self._latest_weight = self._parse_cyclic(frame.data)
