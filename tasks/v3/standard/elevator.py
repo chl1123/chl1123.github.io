@@ -511,6 +511,7 @@ class ConfigParams:
     exit_blocked_timeout = 30.0
     exit_retry_interval = 3.0
     entry_guide_distance = 0.5
+    target_door_open_delay = 2.0
     entryForward = True
     exitForward = None
     guidePathMode = "arc"
@@ -586,6 +587,7 @@ class ConfigParams:
                     cls._float_param(builder, "exitBlockedTimeout", "Exit blocked timeout", 30.0, 0.1, 3600.0, "s")
                     cls._float_param(builder, "exitRetryInterval", "Exit retry interval", 3.0, 0.0, 3600.0, "s")
                     cls._float_param(builder, "entryGuideDistance", "Entry guide distance", 0.5, 0.05, 10.0, "m")
+                    cls._float_param(builder, "targetDoorOpenDelay", "Target door open delay", 2.0, 0.0, 30.0, "s")
             builder.save(merge=True)
         cls.load_config()
 
@@ -676,6 +678,9 @@ class ConfigParams:
         cls.exit_blocked_timeout = float(config.get("exitBlockedTimeout", cls.exit_blocked_timeout))
         cls.exit_retry_interval = float(config.get("exitRetryInterval", cls.exit_retry_interval))
         cls.entry_guide_distance = float(config.get("entryGuideDistance", cls.entry_guide_distance))
+        cls.target_door_open_delay = float(
+            config.get("targetDoorOpenDelay", cls.target_door_open_delay)
+        )
         cls._validate_ranges()
 
     @classmethod
@@ -693,6 +698,7 @@ class ConfigParams:
             ("exitBlockedTimeout", cls.exit_blocked_timeout, 0.1, 3600.0),
             ("exitRetryInterval", cls.exit_retry_interval, 0.0, 3600.0),
             ("entryGuideDistance", cls.entry_guide_distance, 0.05, 10.0),
+            ("targetDoorOpenDelay", cls.target_door_open_delay, 0.0, 30.0),
         )
         for name, value, minimum, maximum in ranges:
             if not minimum <= value <= maximum:
@@ -1447,6 +1453,40 @@ class WaitSourceElevatorAction(WaitTargetElevatorAction):
         status = super().run(_ctx)
         if status == ActionStatus.FINISHED and getattr(self.result, "control_state", None) != "OWNED_BY_SELF":
             self.action_status = ActionStatus.RUNNING
+        return self.action_status
+
+
+class WaitDurationAction(ActionBase):
+    """Block for a fixed number of seconds before the next action runs.
+
+    Used to absorb the door-open lag of some elevator environments: even after
+    the protocol reports the car as ready, the physical door may take another
+    second or two, so the exit motion must not start immediately.
+    """
+
+    def __init__(self, duration, reason="wait"):
+        super().__init__(self.__class__.__name__)
+        self.duration = float(duration)
+        self.reason = reason
+        self._started_at = None
+
+    def args_summary(self):
+        return {"duration": self.duration, "reason": self.reason}
+
+    def reset(self):
+        super().reset()
+        self._started_at = time.monotonic()
+        Trace.log({
+            "event": "elevatorWaitStarted",
+            "reason": self.reason,
+            "duration": self.duration,
+        }, name="elevator.state")
+
+    def run(self, _ctx=None):
+        if self._started_at is None:
+            self._started_at = time.monotonic()
+        if time.monotonic() - self._started_at >= self.duration:
+            self.action_status = ActionStatus.FINISHED
         return self.action_status
 
 
@@ -3031,11 +3071,22 @@ def build_actions(context, protocol, publisher=None):
         timeout=ConfigParams.elevator_arrival_timeout,
         lease=lease,
     )
-    target_actions = (
+    target_actions = list(
         [switch_map, wait_target]
         if ConfigParams.switch_map_before_arrival
         else [wait_target, switch_map]
     )
+    if (ConfigParams.switch_map_before_arrival
+            and ConfigParams.target_door_open_delay > 0.0):
+        # The map is switched first, so wait_target returns as soon as the
+        # protocol reports the car as ready.  Some elevator environments still
+        # need a moment for the physical door to open, so hold before exiting.
+        target_actions.append(
+            WaitDurationAction(
+                ConfigParams.target_door_open_delay,
+                reason="targetDoorOpenDelay",
+            )
+        )
 
     return [
         ProtocolAction(
