@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/9/14
+# @Date: 2026/9/16
 # @Author: zhaopengfei
 # @Version: v1.2
 # @Project: SPK-MJ50-HL
-# @Update: fix: 适配重写后的goPath
+# @Update: fix: 修复inPut和inTake背篓绑定错误问题
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -2326,7 +2326,7 @@ class ContainerRobot(ModuleBase):
         Trace.log(f"----- building load actions {self.goods_id} ------", name=f"{MOD}.action")
 
         pending_store = _get_pending_fork_store()
-        if pending_store and pending_store["goodsName"] == self.goods_id:
+        if self.goods_id and pending_store and pending_store["goodsName"] == self.goods_id:
             if self.self_position is not None:
                 _remember_pending_fork_store(
                     self.goods_id, self.self_position, self.skip_safe_height
@@ -2483,6 +2483,7 @@ class ContainerRobot(ModuleBase):
             self.action_list = []
             self.action_status = ActionStatus.FINISHED
             return
+        goods_id = Container.getGoodsByContainer(self.cur_c) or self.goods_id
         actions = []
         actions.append(ParallelAction([
             FingerAction(self, 1, "in_take_finger_open"),
@@ -2497,6 +2498,7 @@ class ContainerRobot(ModuleBase):
             LiftAction(self, self.lift_height, "in_take_lift_target"),
         ], "in_take_parallel_final"))
         actions.append(UnbindContainerAction(self.cur_c, "in_take_unbind"))
+        actions.append(BindContainerAction("999", goods_id, "", "in_take_bind_999"))
         self.action_list = actions
 
     def _build_in_put_actions(self):
@@ -2507,6 +2509,7 @@ class ContainerRobot(ModuleBase):
             self.check_put()
             if self.status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
                 return
+        goods_id = Container.getGoodsByContainer("999") or self.goods_id
         actions = []
         actions.append(ParallelAction([
             LiftAction(self, ConfigParams.high[int(self.cur_c)], "in_put_lift"),
@@ -2518,6 +2521,8 @@ class ContainerRobot(ModuleBase):
         actions.append(FingerAction(self, 0, "in_put_finger_close"))
         if not self.skip_safe_height:
             actions.append(LiftSafeAction(self, "in_put_lift_safe"))
+        actions.append(UnbindContainerAction("999", "in_put_unbind_999"))
+        actions.append(BindContainerAction(self.cur_c, goods_id, "", "in_put_bind_container"))
         self.action_list = actions
 
     def _build_ex_take_actions(self):
