@@ -17,6 +17,7 @@ PAYLOAD_TARGET_PREFIX="/opt"
 PACKAGE_ID=""
 VERSION=""
 DESCRIPTION=""
+CONTROLLER=""
 NODE="$DEFAULT_NODE"
 OUTPUT_ROOT="$DEFAULT_OUTPUT_ROOT"
 MANIFEST_VERSION="$DEFAULT_MANIFEST_VERSION"
@@ -269,6 +270,9 @@ load_config() {
         description)
           DESCRIPTION="$(strip_quotes "$value")"
           ;;
+        controller)
+          CONTROLLER="$(strip_quotes "$value")"
+          ;;
         node)
           NODE="$(strip_quotes "$value")"
           ;;
@@ -468,6 +472,27 @@ stage_payload_files() {
   done
 }
 
+resolve_rbk_version() {
+  local version_file="/opt/data/rbk/product.version"
+  local header_file="/opt/data/rbk/product.version.h"
+  local rbk_version=""
+
+  if [[ -f "$version_file" ]]; then
+    rbk_version="$(strip_quotes "$(head -n 1 "$version_file")")"
+    rbk_version="$(trim "$rbk_version")"
+  fi
+
+  # Fallback: parse PRODUCT_FULL_VERSION from the C header when the plain
+  # product.version file is absent.
+  if [[ -z "$rbk_version" && -f "$header_file" ]]; then
+    rbk_version="$(sed -n 's/^[[:space:]]*#define[[:space:]]\+PRODUCT_FULL_VERSION[[:space:]]\+"\([^"]*\)".*/\1/p' "$header_file" | head -n 1)"
+    rbk_version="$(trim "$rbk_version")"
+  fi
+
+  [[ -n "$rbk_version" ]] || rbk_version="unknown"
+  printf '%s' "$rbk_version"
+}
+
 resolve_output_root() {
   local path="$1"
   path="$(strip_quotes "$path")"
@@ -485,7 +510,6 @@ build_for_arch() {
   local arch="$1"
   local timestamp=""
   local version_value=""
-  local description_slug=""
   local package_slug=""
   local output_root=""
   local output_name=""
@@ -499,18 +523,24 @@ build_for_arch() {
 
   validate_arch "$arch"
 
-  timestamp="$(date +%Y%m%d%H%M%S)"
+  timestamp="$(date +%Y%m%d%H%M)"
   version_value="$VERSION"
   [[ -n "$version_value" ]] || version_value="$(date +%Y.%m.%d.%H%M%S)"
-  description_slug="$(sanitize_zip_token "${DESCRIPTION:-package}")"
   package_slug="$(sanitize_zip_token "$PACKAGE_ID")"
   output_root="$(resolve_output_root "$OUTPUT_ROOT")"
-  output_name="${package_slug}-manifest-${version_value}-${arch}"
+  output_name="${package_slug}-$(resolve_rbk_version)"
+  if [[ -n "$CONTROLLER" ]]; then
+    # controller 非空时，文件名包含 controller 值，不包含 arch
+    output_name="${output_name}-$(sanitize_zip_token "$CONTROLLER")-${timestamp}"
+  else
+    # controller 为空时，文件名包含 arch
+    output_name="${output_name}-${arch}-${timestamp}"
+  fi
   output_dir="$output_root/$output_name"
 
   work_dir="$(mktemp -d)"
   payload_dir="$work_dir/payload"
-  inner_zip="$work_dir/${PACKAGE_ID}-${version_value}-${arch}-${description_slug}.zip"
+  inner_zip="$work_dir/${output_name}.zip"
 
   mkdir -p "$payload_dir"
   stage_payload_files "$payload_dir" "$arch"
@@ -535,6 +565,9 @@ build_for_arch() {
     --arch "$arch"
     --force
   )
+  if [[ -n "$CONTROLLER" ]]; then
+    tool_args+=(--controller "$CONTROLLER")
+  fi
   if [[ -n "$NODE" ]]; then
     tool_args+=(--node "$NODE")
   fi
