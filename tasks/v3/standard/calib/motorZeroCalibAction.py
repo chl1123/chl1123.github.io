@@ -58,6 +58,7 @@ def main():
             Motor.resetMotor(calib_move.motor_name)
             return
         if calib_move.cancel:
+            Module.setStatus(ScriptStatus.FAILED)
             Motor.resetMotor(calib_move.motor_name)
             return
 

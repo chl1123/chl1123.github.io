@@ -127,6 +127,7 @@ def main():
             Module.setStatus(ScriptStatus.FAILED)
             return
         if calib_move.cancel:
+            Module.setStatus(ScriptStatus.FAILED)
             return
 
 if __name__ == '__main__':

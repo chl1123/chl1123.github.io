@@ -23,6 +23,7 @@ def main():
         time.sleep(0.1)
         print("run noAction.py")
         if calib_move.cancel:
+            Module.setStatus(ScriptStatus.FAILED)
             return
 
 if __name__ == '__main__':
