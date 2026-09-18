@@ -67,6 +67,7 @@ class CalibMove:
             self.DOMotorWheelBase = Module.getTaskArgs("DOMotorWheelBase", False)
             self.pos = 0.0
             self.cancel = False
+            self.suspend = False
 
         self.pos = Motor.getMotorPos(self.wheelBaseMotorName)
         # 实时运行
@@ -134,12 +135,20 @@ class CalibMove:
         print("cancel!!!")
         self.cancel = True
 
+    def Suspend(self):
+        print("suspend!!!")
+        self.suspend = True
+
+    def Resume(self):
+        print("resume!!!")
+        self.suspend = False
+
 def main():
     calib_move = CalibMove()
     Module.init()
     Module.setCancelCallback(calib_move.Cancel)
-    Module.setSuspendCallback(calib_move.Cancel)
-    Module.setResumeCallback(calib_move.Cancel)
+    Module.setSuspendCallback(calib_move.Suspend)
+    Module.setResumeCallback(calib_move.Resume)
     while True:
         calib_move.run()
         calib_move.print()
@@ -152,6 +161,11 @@ def main():
             return
         if calib_move.cancel:
             return
+        if calib_move.suspend:
+            Module.setStatus(ScriptStatus.SUSPENDED)
+            while calib_move.suspend:
+                time.sleep(0.1)
+            Module.setStatus(ScriptStatus.RUNNING)
 
 if __name__ == '__main__':
     main()
