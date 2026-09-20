@@ -99,6 +99,7 @@ class ConfigParams:
     max_code_check_fail = 3
     # 识别前等待机构机械停稳的延时(秒), 防止抖动污染识别
     motor_settle_delay = 0
+    force_load_store_immediately = False
     rec_max_times = 10
     rec_box_max_times = 3
     persistent_recognition = False
@@ -211,6 +212,10 @@ class ConfigParams:
                 with builder.CHILDREN():
                     with builder.CHILD(key="debugMode", name=_TR("Debug Mode"),
                                        desc=_TR("Enable debug mode to show debug tasks and low-frequency parameters")):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="forceLoadStoreImmediately", name=_TR("Default Immediate Store After Load"),
+                                       desc=_TR("Default immediate-store mode used when the load task does not provide immediateStoreAfterLoad")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
@@ -457,6 +462,9 @@ class ConfigParams:
         Trace.log(f"Loaded config: {cls.config}", name=f"{MOD}.cfg")
 
         cls.debug_mode = cls.config.get("debugMode", False)
+        cls.force_load_store_immediately = cls.config.get(
+            "forceLoadStoreImmediately", False
+        )
         cls.low.clear()
         cls.high.clear()
         for i in range(cls.container_count):
@@ -625,6 +633,13 @@ def create_skip_safe_height_param(builder: ParamBuilder,
         builder.DEFAULTVALUE(False)
 
 
+def create_immediate_store_after_load_param(builder: ParamBuilder):
+    with builder.CHILD(key="immediateStoreAfterLoad", name=_TR("Immediate Store After Load"),
+                       desc=_TR("Override the configured default when provided; store immediately when true and keep on the fork when false")):
+        builder.TYPE(ParamType.BOOL)
+        builder.DEFAULTVALUE(False)
+
+
 '''参数创建必须在全局作用域中'''
 
 
@@ -653,6 +668,7 @@ class InputParams:
                         create_container_param(builder, _TR("Vehicle basket number; specifies the basket for internal put; if omitted, put in order from bottom to top"))
                         create_goods_id_param(builder, _TR("Set the goods number; empty string if omitted"))
                         create_skip_safe_height_param(builder)
+                        create_immediate_store_after_load_param(builder)
                 with builder.CHILD(key="unload", name=_TR("Unload"), desc=_TR("Put down goods")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
@@ -1907,6 +1923,7 @@ class ContainerRobot(ModuleBase):
         self.unload_height = 0
         self.rec_height_diff = 0
         self.skip_safe_height = False  # 动作完成后跳过下降到安全高度
+        self.immediate_store_after_load = False
 
         self.fill_light_do = "DO-004"
         self.target_type = None
@@ -1965,6 +1982,7 @@ class ContainerRobot(ModuleBase):
         self.action_task = ActionTask(mod=MOD)
         # safeMoveCheck 专用归零队列(与任务 action_task 隔离, 复用同一组归零动作定义)
         self.safe_zero_task = ActionTask(mod=MOD)
+        self.first_full = True
 
     def init_args(self, args):
         """初始化任务参数"""
@@ -2021,6 +2039,12 @@ class ContainerRobot(ModuleBase):
             self.load_height = self.script_args.get("loadHeight", ConfigParams.rec_offz_box)
             self.unload_height = self.script_args.get("unloadHeight", ConfigParams.rec_offz_shelf)
             self.skip_safe_height = "skipSafeHeight" in self.script_args and self.script_args.get("skipSafeHeight")
+            self.immediate_store_after_load = bool(
+                self.script_args.get(
+                    "immediateStoreAfterLoad",
+                    ConfigParams.force_load_store_immediately,
+                )
+            )
             container_num = ConfigParams.get_container_count()
             if isinstance(container_num, int) and container_num > 0:
                 Container.initContainer(container_num - 1, "999")
@@ -2387,25 +2411,25 @@ class ContainerRobot(ModuleBase):
             return preferred
         return empty_containers[0] if empty_containers else None
 
-    def _make_pending_store_actions(self, pending_store, container_id):
+    def _make_pending_store_actions(self, pending_store, container_id, action_prefix="deferred_store"):
         goods_id = pending_store["goodsName"]
         actions = [
             ParallelAction([
-                RotateAction(self, 0, action_name="deferred_store_rotate_zero"),
-                LiftAction(self, ConfigParams.high[int(container_id)], "deferred_store_lift_container"),
-            ], "deferred_store_parallel_to_container"),
-            StretchAction(self, ConfigParams.stretch_self_length, "deferred_store_stretch_self"),
-            FingerAction(self, 1, "deferred_store_finger_open"),
-            StretchAction(self, 0, "deferred_store_stretch_retract"),
+                RotateAction(self, 0, action_name=f"{action_prefix}_rotate_zero"),
+                LiftAction(self, ConfigParams.high[int(container_id)], f"{action_prefix}_lift_container"),
+            ], f"{action_prefix}_parallel_to_container"),
+            StretchAction(self, ConfigParams.stretch_self_length, f"{action_prefix}_stretch_self"),
+            FingerAction(self, 1, f"{action_prefix}_finger_open"),
+            StretchAction(self, 0, f"{action_prefix}_stretch_retract"),
         ]
         if not pending_store.get("skipSafeHeight", False):
-            actions.append(LiftSafeAction(self, "deferred_store_lift_safe"))
+            actions.append(LiftSafeAction(self, f"{action_prefix}_lift_safe"))
         actions.extend([
-            UnbindContainerAction("999", "deferred_store_unbind_999"),
-            BindContainerAction(container_id, goods_id, "", "deferred_store_bind_container"),
+            UnbindContainerAction("999", f"{action_prefix}_unbind_999"),
+            BindContainerAction(container_id, goods_id, "", f"{action_prefix}_bind_container"),
         ])
         Trace.log(
-            f"deferred store goods {goods_id} from fork 999 to container {container_id}",
+            f"{action_prefix} goods {goods_id} from fork 999 to container {container_id}",
             name=f"{MOD}.autoPre",
         )
         return actions
@@ -2524,9 +2548,15 @@ class ContainerRobot(ModuleBase):
                 )
             Trace.log(f"load begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
             if self.cur_c is None:
-                Navigation.setTaskError("AllBackpackFull", _TR(f"All backpack slots are full, cannot load more goods！"))
-                self.status = ScriptStatus.FAILED
-                return
+                if self.first_full:
+                    self.cur_c = "999"
+                    self.first_full = False
+                else:
+                    Navigation.setTaskError("AllBackpackFull", _TR(f"All backpack slots are full, cannot load more goods！"))
+                    self.status = ScriptStatus.FAILED
+                    return
+            else:
+                self.first_full = True
 
         pre_actions = list(pending_actions) if self.auto_pre_enabled else []
         formal_actions = [] if self.auto_pre_enabled else list(pending_actions)
@@ -2560,7 +2590,25 @@ class ContainerRobot(ModuleBase):
         formal_actions.append(FingerAction(self, 0, "load_finger_close"))
         formal_actions.append(StretchAction(self, 0, "load_stretch_retract"))
         formal_actions.append(CheckGoodsDiAction(self, "load_check_goods"))
-        if not self.skip_safe_height:
+        if self.immediate_store_after_load and str(self.cur_c) != "999":
+            try:
+                ConfigParams.high[int(self.cur_c)]
+            except (KeyError, TypeError, ValueError):
+                Navigation.setTaskError(
+                    "ImmediateStoreInvalidContainer",
+                    _TR(f"Immediate store requires a valid backpack container, got {self.cur_c}"),
+                )
+                self.status = ScriptStatus.FAILED
+                return
+            formal_actions.extend(self._make_pending_store_actions(
+                {
+                    "goodsName": self.goods_id,
+                    "skipSafeHeight": self.skip_safe_height,
+                },
+                self.cur_c,
+                action_prefix="load_store",
+            ))
+        elif not self.skip_safe_height:
             formal_actions.append(LiftSafeAction(self, "load_transport_lift_safe"))
 
         if not self.auto_pre_enabled:
