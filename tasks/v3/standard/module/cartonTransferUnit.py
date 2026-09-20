@@ -1,11 +1,10 @@
+      
 # -*- coding: utf-8 -*-
-# @Date: 2026/7/15
-# @Author: zhaopengfei
+# @Date: 2026/9/20
+# @Author: sunjingan
 # @Version: v1.2
 # @Project: SPK-MJ50-HL
-# @Update: feat：m-7048149595 料箱车脚本优化 1.识别前等机构停稳(motorSettleDelay)防抖动污染识别，作用于识别料架/识别箱码 2.货叉超限光电触发由硬失败改为可恢复告警，障碍推离后自动清错继续动作 3.放货防呆检测到货架已有货时异常恢复，重建动作队列把料箱放回背篓并报错 4.一维码识别对齐二维码识别逻辑：识别中不计数、连续失败超限才报错 5.check_put方法排除999货叉，适配调试场景
-# add：1.增加DM14三联码校验功能check_goods_code_enable 2.增加取货为空报错的正向校验
-# fix：1.修复取货检测手指下到位DI后再缩回失效的BUG 2. 修复根据状态机status下发doRec失效的BUG
+# @Update: feat：边走变动适配
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -1389,7 +1388,6 @@ class FingerAction(BaseAction):
         if left_reached and right_reached:
             Navigation.clearTaskError("FingerTimeout")
             Navigation.clearTaskError("StretchLengthExceeded")
-            print(f"DEBUG{ConfigParams.left_finger_up_di},{ConfigParams.right_finger_down_di},{ ConfigParams.left_finger_down_di},{ConfigParams.right_finger_down_di}")
             Trace.log(f"手指{'打开' if self.pos == 1 else '关闭'}成功", name=f"{MOD}.motor")
             self.action_status = ActionStatus.FINISHED
 
@@ -1401,7 +1399,6 @@ class FingerAction(BaseAction):
             #     ConfigParams.left_finger_up_di or "")
             # Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
             #     ConfigParams.right_finger_up_di or "")
-            print(f"DEBUG，触发{ConfigParams.left_finger_motor_name},{ConfigParams.right_finger_motor_name},Di:{ConfigParams.left_finger_up_di},{ConfigParams.right_finger_up_di}") 
             Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, 1.0,
                                     ConfigParams.left_finger_up_di or "")
             Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
@@ -1411,7 +1408,6 @@ class FingerAction(BaseAction):
             #     ConfigParams.left_finger_down_di or "")
             # Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, -1.0,
             #     ConfigParams.right_finger_down_di or "")
-            print(f"DEBUG，触发{ConfigParams.left_finger_motor_name},{ConfigParams.right_finger_motor_name}，Di:{ConfigParams.left_finger_down_di},{ConfigParams.right_finger_down_di}") 
 
 
             Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, -1.0,
@@ -1745,7 +1741,6 @@ class RecBoxCheckAction(BaseAction):
 
     def run(self, m):
         super().run(m)
-        print("进入检查货物是否在货箱")
         if is_simulation():
             self.agv.shelf_occupied = False
             self.agv.report_info["recBoxSimulation"] = {"hasGoods": False}
@@ -1772,7 +1767,6 @@ class RecBoxCheckAction(BaseAction):
         
         if self.agv.rec_box.action_status is ActionStatus.FINISHED:
             if self.agv.rec_box.hasGoods is None:
-                print("货架占位识别失败：未识别到货物")
             has_goods = bool(
                 self.agv.rec_box.hasGoods
                 and not self.agv.rec_box.goods_out_dist
@@ -3146,19 +3140,15 @@ class ContainerRobot(ModuleBase):
         # 只在跳变时打印, 避免每帧刷屏
         if self._settle_print_state != all_stop:
             self._settle_print_state = all_stop
-            print(f"[DIAG][{tag}] motors all_stop={all_stop} "
-                  f"(lift={lift_info.get('stop')} rotate={rotate_info.get('stop')} stretch={stretch_info.get('stop')})")
         if not all_stop:
             # 任一轴还在动, 复位计时, 等下次稳定后重新计时
             self.motor_settle_start = None
             return False
         if self.motor_settle_start is None:
             self.motor_settle_start = time.time()
-            print(f"[DIAG][{tag}] motors stopped, start settle timer @ {time.time():.3f}")
             return False
         elapsed = time.time() - self.motor_settle_start
         if elapsed >= ConfigParams.motor_settle_delay:
-            print(f"[DIAG][{tag}] settled after {elapsed:.3f}s (>= {ConfigParams.motor_settle_delay}s) -> proceed to recognize")
         return elapsed >= ConfigParams.motor_settle_delay
 
     def reset_motor_settle(self):
@@ -3203,17 +3193,14 @@ class ContainerRobot(ModuleBase):
             if not self.calib_step[0]:
                 if not self.set_stretch_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
                     Motor.motorCalib(ConfigParams.stretch_motor_name)
-                    print("DEBUG:伸缩电机标零开始")
                     self.set_stretch_motor_calib = True
             elif self.calib_step[0] and not self.calib_step[1]:
                 if not self.set_lift_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
                     Motor.motorCalib(ConfigParams.lift_motor_name)
-                    print("DEBUG:升降电机标零开始")
                     self.set_lift_motor_calib = True
             elif self.calib_step[1] and not self.calib_step[2]:
                 if not self.set_rotate_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
                     Motor.motorCalib(ConfigParams.rotate_motor_name)
-                    print("DEBUG:旋转电机标零开始")
                     self.set_rotate_motor_calib = True
 
             calib_retry = (
@@ -3328,12 +3315,10 @@ class ContainerRobot(ModuleBase):
 
     def update_move_task_params(self):
         move_task = Navigation.moveTaskList()
-        print(f"DEBUG:movetask的内容{move_task}")
         bin_task = ""
         for cur_movetask in move_task:
             for p in cur_movetask.get('params', []):
                 if p['key'] == 'goodsName' or p['key'] == '#goodsName':
-                    print(f"DEBUG:获取到货物名")
                     self.goods_id = p['stringValue']
                 if p['key'] == '#containerId' and p['stringValue'] != "":
                     self.self_position = p['stringValue']
@@ -3517,7 +3502,6 @@ class ContainerRobot(ModuleBase):
         else:
             auto_pre = Module.getAutoPre()
         if not self.startup_zero_pending and auto_pre and self.operation in ("load", "unload"):
-            print("DEBUG:  存在autopre，跳过")
             self.safe_zero_task.reset()
             self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
             self.event_safe_move_check = False
@@ -3532,14 +3516,12 @@ class ContainerRobot(ModuleBase):
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:
             if self.safe_zero_task.status == ActionStatus.INIT:
-                print(f"DEBUG:构建了移动安全检查的动作，此时:startup_zero_pending={self.startup_zero_pending}，auto_pre={auto_pre}，operation={self.operation}")
                 self.safe_zero_task.build(self._make_zero_actions(0.5))
             self.safe_zero_task.step(self)
             if self.safe_zero_task.status == ActionStatus.FINISHED:
                 self.safe_zero_task.reset()  # 复位以便下次移动重新归零
                 self.startup_zero_pending = False
                 ContainerRobot.startup_zero_done = True
-                print("DEBUG:表零已完成")
                 status = SafeMoveStatus.FINISHED
             elif self.safe_zero_task.status == ActionStatus.FAILED:
                 self.safe_zero_task.reset()
@@ -3761,7 +3743,6 @@ class RecAdjust(BaseAction):
 
     def run(self, agv: ContainerRobot):
         super().run(agv)
-        print("识别中")
         cur_state = dict()
         self.action_status = ActionStatus.RUNNING
         if self.plan_status is not ScriptStatus.FINISHED:
@@ -3868,12 +3849,10 @@ class RecAdjust(BaseAction):
             if (self.goPath.action_status != ActionStatus.FINISHED
                     and self.goPath.action_status != ActionStatus.FAILED):
                 if abs(self.go_args['x']) < 0.003:
-                    print("无需移动，位置正确")
                     self.goPath.action_status = ActionStatus.FINISHED
                 else:
                     if (self.goPath.action_status != ActionStatus.FINISHED
                             and self.goPath.action_status != ActionStatus.FAILED):
-                        print(f"识别到位置不对，移动{self.go_args['x']}m")
                         self.goPath.run(self.go_args)
             elif not self.rotate_step and self.goPath.action_status == ActionStatus.FINISHED:
                 if abs(agv.yaw_adjust) <= 0.01:
@@ -3995,7 +3974,6 @@ def main():
             modbus_args = robot.modbus()
             robot.event_modbus = False
         # move_task = Navigation.moveTask()
-        # print(f"DEBUG:导航数据{move_task}")
         if status == ScriptStatus.NONE:
             args = modbus_args or Module.getTaskArgs()
             if args:
