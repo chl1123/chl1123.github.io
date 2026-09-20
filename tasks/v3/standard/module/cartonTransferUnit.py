@@ -1766,7 +1766,6 @@ class RecBoxCheckAction(BaseAction):
             return
         
         if self.agv.rec_box.action_status is ActionStatus.FINISHED:
-            if self.agv.rec_box.hasGoods is None:
             has_goods = bool(
                 self.agv.rec_box.hasGoods
                 and not self.agv.rec_box.goods_out_dist
@@ -3148,7 +3147,6 @@ class ContainerRobot(ModuleBase):
             self.motor_settle_start = time.time()
             return False
         elapsed = time.time() - self.motor_settle_start
-        if elapsed >= ConfigParams.motor_settle_delay:
         return elapsed >= ConfigParams.motor_settle_delay
 
     def reset_motor_settle(self):
