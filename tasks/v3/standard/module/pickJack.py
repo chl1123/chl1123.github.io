@@ -391,8 +391,7 @@ class ConfigParams:
     jack_max_height = None
     jack_load_time = 30.0  # 顶升到位超时（秒）
     jack_unload_time = 30.0  # 下降到位超时（秒）
-    rack_width_diff_min = 0.1  # 多货架最小宽度差（米）
-    rack_width_config_error = ""
+    rack_size_files = []  # 每次多货架识别任务开始时刷新
 
     # Debug开关
     debug_mode = False
@@ -544,12 +543,6 @@ class ConfigParams:
                                        desc=_TR("Enable protection to prevent loading when goods already on robot.")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
-                    with builder.CHILD(key="rackWidthDiffMin", name=_TR("Rack Width Minimum Difference"),
-                                       desc=_TR("Minimum width difference between recognition files.")):
-                        builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.1, min_value=0.0, max_value=3.0)
-                        builder.UNIT("m")
-
             # ============================================
             # 电机与IO配置组（电机速度 + DI + DO + 延迟）
             # ============================================
@@ -854,8 +847,6 @@ class ConfigParams:
         cls.jack_max_height = cls.config.get("jackMaxHeight", 0.06)
         cls.jack_load_time = cls.config.get("loadTime", 30.0)
         cls.jack_unload_time = cls.config.get("unloadTime", 30.0)
-        cls.rack_width_diff_min = float(cls.config.get("rackWidthDiffMin", 0.01) or 0.0)
-
         # DI配置（从设备绑定读取）
         if not cls.jack_motor_name:
             cls.jack_up_di = ""
@@ -924,9 +915,6 @@ class ConfigParams:
         cls.scriptName = RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.moduleScript") or ""
         cls._build_module_motor()
 
-        # 启动或配置回调时建立识别文件列表；任务执行过程中不刷新。
-        cls.refresh_recfiles()
-
     @classmethod
     def _discover_recfiles(cls) -> list:
         """扫描识别目录，返回目录下所有识别文件名。"""
@@ -953,28 +941,6 @@ class ConfigParams:
     def refresh_recfiles(cls) -> list:
         """刷新识别文件列表，并为新文件建立优先级元数据。"""
         cls.rack_size_files = cls._discover_recfiles()
-        cls.rack_width_config_error = ""
-        widths = []
-        for recfile in cls.rack_size_files:
-            try:
-                width = RobotParam.getConfig(
-                    "recognition",
-                    "recognitionObject.shelf.carrierParameter.carrierWidth",
-                    recfile,
-                )
-                if width is not None:
-                    widths.append((recfile, float(width)))
-            except (TypeError, ValueError):
-                continue
-        for i, (file_a, width_a) in enumerate(widths):
-            for file_b, width_b in widths[i + 1:]:
-                if abs(width_a - width_b) < cls.rack_width_diff_min:
-                    cls.rack_width_config_error = (
-                        f"rack width difference too small: {file_a}={width_a:.3f}m, "
-                        f"{file_b}={width_b:.3f}m, min={cls.rack_width_diff_min:.3f}m"
-                    )
-                    Trace.log(cls.rack_width_config_error, name=f"{MOD}.err")
-                    return cls.rack_size_files
         if cls.rack_size_files:
             rack_size_manager.register_recfiles(cls.rack_size_files)
         debug_trace(
@@ -1842,28 +1808,27 @@ class Jack(ModuleBase):
                       f"shape_points={len(shape)} recfile={self.recfile}", name=MOD)
         else:
             # 3b. 根据插入方向旋转货物模型（固定方向）
-            # A: 0°不旋转  B: 顺时针90°  C: 180°  D: 逆时针90°（原默认）
+            # D: 0°不旋转  A: 顺时针90°  B: 180°  C: 逆时针90°
             def _rotate_pt(pt, dir_):
-                if dir_ == "A":  # 0°: (x, y) -> (x, y)
+                if dir_ == "D":  # 0°: (x, y) -> (x, y)
                     if isinstance(pt, dict):  return {"x": pt["x"], "y": pt["y"]}
                     return [pt[0], pt[1]]
-                elif dir_ == "B":  # 顺时针90°: (x, y) -> (y, -x)
-                    if isinstance(pt, dict):  return {"x": pt["x"], "y": pt["y"]}
+                elif dir_ == "A":  # 顺时针90°: (x, y) -> (y, -x)
+                    if isinstance(pt, dict):  return {"x": pt["y"], "y": -pt["x"]}
                     return [pt[1], -pt[0]]
-                elif dir_ == "C":  # 180°: (x, y) -> (-x, -y)
+                elif dir_ == "B":  # 180°: (x, y) -> (-x, -y)
                     if isinstance(pt, dict):  return {"x": -pt["x"], "y": -pt["y"]}
                     return [-pt[0], -pt[1]]
-                else:  # D: 逆时针90°: (x, y) -> (-y, x)
-                    if isinstance(pt, dict):  return {"x": -pt["x"], "y": -pt["y"]}
+                else:  # C: 逆时针90°: (x, y) -> (-y, x)
+                    if isinstance(pt, dict):  return {"x": -pt["y"], "y": pt["x"]}
                     return [-pt[1], pt[0]]
 
             shape = [_rotate_pt(pt, insert_dir) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
             Trace.log(f"bindContainer ok dir={insert_dir} container={container_id} goods={goods_name} "
                       f"shape_points={len(shape)} recfile={self.recfile}", name=MOD)
 
-        # pickJack 无 spin 电机，goodsAngleInSpin 使用默认值 0.0
-        recfile_name = self.recfile or "default.srec"
-        Navigation.setGoodsPolyShape(shape, recfile_name, 0.0)
+        # pickJack 无 spin 电机，goodsAngleInSpin 使用默认值 0.0。
+        Navigation.setGoodsPolyShape(shape, shape_recfile, 0.0)
         return True
 
     def unbindContainer(self, container_id: str = "", goods_name: str = "") -> bool:
@@ -1890,13 +1855,8 @@ class Jack(ModuleBase):
             self.is_recognize = _rec_raw.strip().lower() == "on"
         else:
             self.is_recognize = bool(_rec_raw)
-        if self.is_recognize and config_params.rack_width_config_error:
-            Navigation.setTaskError(
-                "RackWidthConfigError",
-                _TR(config_params.rack_width_config_error),
-            )
-            self.status = ScriptStatus.FAILED
-            return
+        if self.is_recognize:
+            config_params.refresh_recfiles()
         self.recfile = self.task_args.get("recFile", None)
         if isinstance(self.recfile, str) and self.recfile.startswith("recognition/"):
             self.recfile = self.recfile[len("recognition/"):]
@@ -4017,7 +3977,7 @@ class BindContainer(ActionBase):
         else:
             goods_angle = None
             insert_dir = self.insert_dir
-            # 倒走取货时，货物模型朝向需额外旋转 180°（未开启PGV朝向读取的前提下）
+            # 倒走取货时使用相反插入面换算机器人坐标系下的模型方向。
             if self.is_backwards:
                 _opposite = {'A': 'C', 'B': 'D', 'C': 'A', 'D': 'B'}
                 insert_dir = _opposite.get(insert_dir, insert_dir)
@@ -4285,7 +4245,7 @@ class RecShelf(ActionBase):
     识别货架，依次执行全部候选识别文件并统一判定结果。
 
     - 唯一文件成功 → 记录 j.matched_recfile，动作完成
-    - 多个文件成功 → 上报识别歧义，动作失败
+    - 多个文件成功 → 根据识别到的支腿尺寸选择最接近的文件
     - 所有文件均失败 → 上报 RACK_NOT_MATCHED，动作失败
 
     参数：
@@ -4349,6 +4309,52 @@ class RecShelf(ActionBase):
             return True
         return False
 
+    @staticmethod
+    def _get_leg_dimensions(reco, recfile):
+        """安全读取识别结果中的支腿尺寸；info 格式不符时返回 None。"""
+        try:
+            info = reco.get("info", "")
+            data = json.loads(info) if isinstance(info, str) else info
+            leg_width = float(data["legWidth"])
+            leg_outer_width = float(data["legOuterWidth"])
+            if not (math.isfinite(leg_width) and math.isfinite(leg_outer_width)
+                    and leg_width > 0 and leg_outer_width > 0):
+                raise ValueError("leg dimensions must be positive finite values")
+            return {"legWidth": leg_width, "legOuterWidth": leg_outer_width}
+        except Exception as exc:
+            Trace.log(
+                f"[RACK] 支腿尺寸读取失败 recfile={recfile} error={exc}",
+                name=f"{MOD}.err",
+            )
+            return None
+
+    def _get_config_leg_dimensions(self, recfile):
+        """读取识别文件当前识别方向下配置的支腿尺寸。"""
+        try:
+            recognition_side_key = "recognitionObject.shelf.recognitionSide"
+            side_count = RobotParam.getConfigCloneSize("recognition", recognition_side_key, recfile)
+            target_idx = None
+            for i in range(side_count):
+                cur_side = RobotParam.getConfig("recognition", f"{recognition_side_key}._{i}", recfile)
+                if cur_side == self.side:
+                    target_idx = i
+                    break
+            if target_idx is None:
+                raise ValueError(f"recognition side not found: {self.side}")
+            base = f"{recognition_side_key}._{target_idx}.{self.side}"
+            leg_width = float(RobotParam.getConfig("recognition", f"{base}.legWidth", recfile))
+            leg_outer_width = float(RobotParam.getConfig("recognition", f"{base}.legOuterWidth", recfile))
+            if not (math.isfinite(leg_width) and math.isfinite(leg_outer_width)
+                    and leg_width > 0 and leg_outer_width > 0):
+                raise ValueError("leg dimensions must be positive finite values")
+            return {"legWidth": leg_width, "legOuterWidth": leg_outer_width}
+        except Exception as exc:
+            Trace.log(
+                f"[RACK] 识别文件支腿尺寸读取失败 recfile={recfile} error={exc}",
+                name=f"{MOD}.err",
+            )
+            return None
+
     def _finish_recognition(self, j: Jack):
         """全部候选文件执行完成后，统一判定识别结果。"""
         if len(self.successful_results) == 1:
@@ -4359,13 +4365,38 @@ class RecShelf(ActionBase):
             Trace.log(f"[RACK] 唯一识别成功，匹配文件: {j.matched_recfile}")
             return
 
-        self.action_status = ActionStatus.FAILED
         if self.successful_results:
+            candidates = []
+            for item in self.successful_results:
+                actual = item.get("legDimensions")
+                configured = self._get_config_leg_dimensions(item["recfile"])
+                if actual is None or configured is None:
+                    continue
+                score = (abs(actual["legWidth"] - configured["legWidth"])
+                         + abs(actual["legOuterWidth"] - configured["legOuterWidth"]))
+                candidates.append((score, item, actual, configured))
+
+            if candidates:
+                score, matched, actual, configured = min(candidates, key=lambda item: item[0])
+                j.matched_recfile = matched["recfile"]
+                j.rec_result = matched["result"]
+                self.action_status = ActionStatus.FINISHED
+                Trace.log(
+                    f"[RACK] 多文件匹配，按支腿尺寸选择 {j.matched_recfile}: "
+                    f"score={score:.6f} actual={actual} configured={configured}"
+                )
+                return
+            # else:
+            #     j.matched_recfile = self.successful_results[0]["recfile"]
+            #     j.rec_result = self.successful_results[0]["result"]
+            #     self.action_status = ActionStatus.FINISHED
+            #     Trace.log(f"[RACK] 多文件匹配但未获取到可比较的支腿尺寸: 使用第一个{j.matched_recfile}, {j.rec_result}")
+            #     return
             matched_files = [item["recfile"] for item in self.successful_results]
-            Trace.log(f"[RACK] 识别结果歧义，多个文件同时匹配: {matched_files}")
+            Trace.log(f"[RACK] 多文件匹配但未获取到可比较的支腿尺寸: {matched_files}")
             Navigation.setTaskError(
-                "RecAmbiguous",
-                _TR(f"Recognition is ambiguous: multiple recognition files matched: {matched_files}."),
+                "RecLegDimensionsInvalid",
+                _TR(f"Recognition matched multiple files but leg dimensions are invalid: {matched_files}."),
             )
         else:
             Trace.log(f"[RACK] RACK_NOT_MATCHED: 所有 {len(self.shelf_files)} 个文件均未匹配")
@@ -4377,6 +4408,7 @@ class RecShelf(ActionBase):
                     "and shelf configuration."
                 ),
             )
+        self.action_status = ActionStatus.FAILED
 
     def run(self, j: Jack):
         self.action_status = ActionStatus.RUNNING
@@ -4403,7 +4435,11 @@ class RecShelf(ActionBase):
             rec_yaw = world_result['yaw']
             rec_yaw = (rec_yaw + math.pi) % (2 * math.pi) - math.pi
             result = [rec_x, rec_y, rec_yaw]
-            self.successful_results.append({"recfile": self.recfile, "result": result})
+            self.successful_results.append({
+                "recfile": self.recfile,
+                "result": result,
+                "legDimensions": self._get_leg_dimensions(reco, self.recfile),
+            })
             debug_trace(f"RecShelf: 当前文件识别成功: {self.recfile}, 结果: {result}", name=f"{MOD}.rec")
             Trace.log(f"[RACK] 当前文件识别成功，继续检查其他文件: {self.recfile}")
             if not self._try_next_file():
