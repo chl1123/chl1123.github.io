@@ -467,6 +467,16 @@ class ElevatorStatePublisher:
                 getattr(lease, "car_position", None), "value", "UNKNOWN"
             ),
         })
+        # Surface control-rights ownership alongside the phase so callers can
+        # tell "waiting for the target floor" apart from "lease already lost".
+        if lease is not None and hasattr(lease, "lease_state"):
+            lease_state = lease.lease_state()
+            payload.update({
+                "controlAcquired": lease_state["acquired"],
+                "controlReleased": lease_state["released"],
+                "controlFloor": lease_state["floor"],
+                "leaseGeneration": lease_state["generation"],
+            })
         try:
             ScriptData.set("elevatorState", payload)
             self.last_error = None
@@ -866,18 +876,89 @@ class ElevatorLease:
         self.car_position = ElevatorCarPosition.UNKNOWN
         self._released = False
         self._release_result = None
+        self._last_lease_log_key = None
+
+    # -- 控制权状态埋点 -------------------------------------------------
+    def lease_state(self):
+        """Snapshot of the control-rights state, safe for logging/publishing."""
+        latest = self.latest
+        return {
+            "acquired": bool(self.acquired),
+            "released": bool(self._released),
+            "generation": int(self.status_generation),
+            "floor": int(self.floor),
+            "activeTime": int(self.active_time),
+            "carPosition": self.car_position.value,
+            "controlState": getattr(latest, "control_state", "UNKNOWN"),
+            "moveState": getattr(latest, "move_state", None),
+            "doorState": getattr(latest, "door_state", None),
+            "accepted": getattr(latest, "accepted", None),
+            "protocolErrorCode": getattr(latest, "error_code", None),
+        }
+
+    def _trace_lease(self, event, force=False, **extra):
+        """Log the lease snapshot; keep-alive heartbeats are deduplicated."""
+        state = self.lease_state()
+        key = (
+            state["acquired"], state["released"], state["carPosition"],
+            state["controlState"], state["accepted"], state["moveState"],
+            state["doorState"], state["protocolErrorCode"],
+        )
+        unchanged = key == self._last_lease_log_key
+        if unchanged and not force:
+            # Heartbeat with an identical protocol payload: record only the
+            # generation so the keep-alive cadence stays provable without
+            # flooding the trace at every poll interval.
+            try:
+                Trace.log({
+                    "event": "leaseKeepAliveIdle",
+                    "generation": state["generation"],
+                    "floor": state["floor"],
+                    "carPosition": state["carPosition"],
+                    "controlState": state["controlState"],
+                }, name="elevator.lease")
+            except Exception as error:
+                Trace.log({"event": "leaseTraceFailed", "error": str(error)},
+                          name="elevator.err")
+            return
+        self._last_lease_log_key = key
+        payload = {"event": event}
+        payload.update(state)
+        payload.update(extra)
+        try:
+            Trace.log(payload, name="elevator.lease")
+        except Exception as error:
+            Trace.log({"event": "leaseTraceFailed", "error": str(error)},
+                      name="elevator.err")
+
+    def _log_car_position(self, event, previous):
+        self._trace_lease(
+            event, force=True, previousCarPosition=previous.value,
+        )
+
+    def trace_event(self, event, **extra):
+        """Public hook for lifecycle markers that must carry the lease state."""
+        self._trace_lease(event, force=True, **extra)
 
     def mark_entering(self):
+        previous = self.car_position
         self.car_position = ElevatorCarPosition.ENTERING
+        self._log_car_position("leaseCarPositionChanged", previous)
 
     def mark_inside(self):
+        previous = self.car_position
         self.car_position = ElevatorCarPosition.INSIDE
+        self._log_car_position("leaseCarPositionChanged", previous)
 
     def mark_exiting(self):
+        previous = self.car_position
         self.car_position = ElevatorCarPosition.EXITING
+        self._log_car_position("leaseCarPositionChanged", previous)
 
     def mark_outside(self):
+        previous = self.car_position
         self.car_position = ElevatorCarPosition.OUTSIDE
+        self._log_car_position("leaseCarPositionChanged", previous)
 
     def call(self, floor):
         was_acquired = self.acquired
@@ -891,6 +972,10 @@ class ElevatorLease:
         if not was_acquired:
             # 首次呼梯对应来源 callPoint；之后 select 目标层不得覆盖车内状态。
             self.car_position = ElevatorCarPosition.OUTSIDE
+        self._trace_lease(
+            "leaseAcquired" if not was_acquired else "leaseRecalled",
+            force=True, reacquired=was_acquired,
+        )
         return result
 
     def keep_alive(self):
@@ -899,6 +984,7 @@ class ElevatorLease:
         result = self.protocol.keep_alive(self.floor, self.active_time)
         self.latest = result
         self.status_generation += 1
+        self._trace_lease("leaseKeepAlive")
         return result
 
     def release(self):
@@ -912,6 +998,10 @@ class ElevatorLease:
                 "carPosition": self.car_position.value,
                 "reason": "release forbidden while robot is in elevator",
             }, name="elevator.err")
+            self._trace_lease(
+                "elevatorSafetyHolding", force=True,
+                reason="release forbidden while robot is in elevator",
+            )
             raise RuntimeError(
                 "cannot release elevator while car position is {}".format(
                     self.car_position.value
@@ -922,6 +1012,7 @@ class ElevatorLease:
         self._release_result = result
         self._released = True
         self.acquired = False
+        self._trace_lease("leaseReleased", force=True)
         return result
 
     def release_if_safe(self):
@@ -933,6 +1024,10 @@ class ElevatorLease:
             "carPosition": self.car_position.value,
             "reason": "defer release until robot exits elevator",
         }, name="elevator.err")
+        self._trace_lease(
+            "elevatorSafetyHolding", force=True,
+            reason="defer release until robot exits elevator",
+        )
         return None
 
     def release_unconditionally(self, reason):
@@ -946,6 +1041,9 @@ class ElevatorLease:
                 "reason": str(reason),
             }, name="elevator.err")
             self.car_position = ElevatorCarPosition.OUTSIDE
+        self._trace_lease(
+            "elevatorForcedRelease", force=True, reason=str(reason),
+        )
         return self.release()
 
 
@@ -1379,7 +1477,7 @@ class WaitTargetElevatorAction(ActionBase):
     def run(self, _ctx=None):
         now = time.monotonic()
         if now - self._started_at > self.timeout:
-            self.fail_reason = "elevator did not arrive at floor {} with door open".format(
+            self.fail_reason = "elevator did not arrive and stop at floor {}".format(
                 self.target_floor
             )
             self.error_code = "ElevatorStateTimeout"
@@ -1441,7 +1539,7 @@ class WaitTargetElevatorAction(ActionBase):
 
 
 class WaitSourceElevatorAction(WaitTargetElevatorAction):
-    """Wait until the source-floor car is stopped, open, and owned by this task."""
+    """Wait until the source-floor car is stopped and owned by this task."""
 
     def __init__(self, protocol, source_floor, active_time=None,
                  timeout=120.0, poll_interval=None, lease=None, on_started=None):
@@ -3017,6 +3115,13 @@ def build_actions(context, protocol, publisher=None):
     def mark_outside():
         lease.mark_outside()
         keep_alive.request_stop()
+        # The keep-alive stop is the moment the lease stops being renewed; log
+        # it explicitly so a later protocol-side expiry can be attributed.
+        lease.trace_event(
+            "leaseKeepAliveStopped",
+            reason="robot outside the car",
+            phase=ElevatorPhase.RELEASING.value,
+        )
         if publisher is not None:
             publisher.publish(ElevatorPhase.RELEASING)
 
@@ -3109,6 +3214,10 @@ def build_actions(context, protocol, publisher=None):
                 if publisher else None
             ),
         ),
+        # Yuefan marks doorState as deprecated.  Once moveState reports that
+        # the car has arrived, allow the physical door a fixed settling delay
+        # instead of making the entry decision from doorState.
+        WaitDurationAction(2.0, reason="sourceDoorOpenDelay"),
         ElevatorEntryHeadingAction(
             call_point_dir,
             forward=ConfigParams.entryForward,
@@ -3190,6 +3299,13 @@ class ElevatorModule(ModuleBase):
     def _fail_queue(self):
         if self._has_cancel_request():
             self.process_control_requests()
+            return
+        # 显式取消是终态意图：_apply_cancel() 先把队列推到 FAILED，模块状态随后
+        # 才置 FAILED，中间会被 run_suspended() 的 queue.status==FAILED 再调一次
+        # 到这里；此时控制请求已被消费（_has_cancel_request() 为 False），若不拦
+        # 就会把已取消的任务重新挂起，并把后台保活复活成 RUNNING。
+        if self._cancelled:
+            self._finish_failed(lease=_find_lease(self.queue))
             return
         failed = next(
             (action for action in self.queue.action_list
@@ -3554,6 +3670,7 @@ class ElevatorModule(ModuleBase):
         self._task_deadline = None
         with self._control_lock:
             self._control_request = None
+        self._cancelled = False
         self.args = {}
         self.context = None
         self.set_status(ScriptStatus.NONE)
