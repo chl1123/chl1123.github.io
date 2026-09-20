@@ -2000,6 +2000,9 @@ class ContainerRobot(ModuleBase):
         self.enable_motor = False
         self.enable_motor_time = time.time()
         self.set_force_calib = False
+        self.controller_emc = None
+        self.emc_recover_pending = False
+        self.emc_recover_last_command_time = 0.0
 
         self.box_code_file = None
         self.shelf_code_file = None
@@ -3173,7 +3176,12 @@ class ContainerRobot(ModuleBase):
         self.motor_calib_info["liftMotorEmc"] = lift_motor_emc
         self.motor_calib_info["stretchMotorEmc"] = stretch_motor_emc
         self.motor_calib_info["rotateMotorEmc"] = rotate_motor_emc
+        self.motor_calib_info["controllerEmc"] = controller_emc
         self.enable_motor = not lift_motor_emc and not rotate_motor_emc and not stretch_motor_emc
+        if bool(self.controller_emc) and not bool(controller_emc):
+            self.emc_recover_pending = True
+            self.emc_recover_last_command_time = 0.0
+        self.controller_emc = controller_emc
 
         if not controller_emc and time.time() - self.enable_motor_time > 0.5:
             self.enable_motor_time = time.time()
@@ -3971,6 +3979,16 @@ def main():
         # 每 tick 集中上报(reportInfo 含 containers + ctu.task/ctu.motor 数值时序)
         robot.tick_report()
         robot.check_motor_emc()
+        if (robot.emc_recover_pending
+                and not robot.motor_calib_info.get("controllerEmc", True)
+                and not robot.motor_calib_info.get("stretchMotorEmc", True)):
+            if abs(robot.stretch_real_pos) <= robot.container_robot.reach_dist:
+                robot.emc_recover_pending = False
+            elif time.time() - robot.emc_recover_last_command_time >= 0.5:
+                Motor.setMotorPosition(ConfigParams.stretch_motor_name, 0,
+                                       ConfigParams.stretch_motor_speed)
+                robot.emc_recover_last_command_time = time.time()
+                Trace.log("急停已解除，手指打开，伸缩电机归零", name=f"{MOD}.motor")
         if robot.startup_zero_pending or robot.event_safe_move_check:
             robot.safeMoveCheck()
         if robot.event_modbus:
