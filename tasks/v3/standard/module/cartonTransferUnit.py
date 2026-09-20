@@ -99,6 +99,14 @@ class ConfigParams:
     max_code_check_fail = 3
     # 识别前等待机构机械停稳的延时(秒), 防止抖动污染识别
     motor_settle_delay = 0
+    rec_max_times = 10
+    rec_box_max_times = 3
+    persistent_recognition = False
+    max_stretch_overrun_range = 0.1
+    finger_timeout = 5
+    finger_max_try = 2
+    overlimit_detect_time = 5
+    overlimit_detect_times = 2
 
     # 手指 DoMotor（从设备模型 fingerMotor 克隆读取，._0=左手指, ._1=右手指）
     has_finger_motor: bool = False
@@ -287,6 +295,18 @@ class ConfigParams:
                                        desc=_TR("Max goods code comparison failures before raising an error")):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(3, min_value=1, max_value=100)
+                    with builder.CHILD(key="recMaxTimes", name=_TR("Recognition Max Times"),
+                                       desc=_TR("Maximum recognition failures")):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(10, min_value=1, max_value=100)
+                    with builder.CHILD(key="recBoxMaxTimes", name=_TR("Shelf Occupancy Recognition Max Times"),
+                                       desc=_TR("Maximum recognition failures when checking whether the target shelf has goods")):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(3, min_value=1, max_value=100)
+                    with builder.CHILD(key="persistentRecognition", name=_TR("Persistent Recognition"),
+                                       desc=_TR("Keep recognizing after the limit and report a clearable error")):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
 
             # 电机组
             with builder.GROUP(key="motorConfig", name=_TR("Motor Configuration"),
@@ -367,6 +387,12 @@ class ConfigParams:
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.380)
                         builder.UNIT("m")
+                    with builder.CHILD(key="maxStretchOverrunRange", name=_TR("Max Stretch Overrun Range"),
+                                       desc=_TR("Allowed range above max stretch length; target is clamped below max in this range")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.100)
+                        builder.MIN_VALUE(0)
+                        builder.UNIT("m")
 
             # 其他组
             with builder.GROUP(key="otherConfig", name=_TR("Other Configuration"), desc=_TR("Other configuration parameters")):
@@ -386,6 +412,22 @@ class ConfigParams:
                         builder.BINDTYPE(BindType.Device.DI)
                         builder.DEFAULTVALUE("DI-009")
                         builder.REQUIRED(True)
+                    with builder.CHILD(key="fingerTimeout", name=_TR("Finger Timeout"),
+                                       desc=_TR("Finger movement timeout per attempt")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(5, min_value=0.1, max_value=300)
+                    with builder.CHILD(key="fingerMaxTry", name=_TR("Finger Max Try"),
+                                       desc=_TR("Maximum finger retries")):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(2, min_value=1, max_value=100)
+                    with builder.CHILD(key="overlimitDetectTime", name=_TR("Overlimit Detect Time"),
+                                       desc=_TR("Continuous overlimit detection time")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(5, min_value=0.1, max_value=300)
+                    with builder.CHILD(key="overlimitDetectTimes", name=_TR("Overlimit Detect Times"),
+                                       desc=_TR("Overlimit detection count before error")):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(2, min_value=1, max_value=100)
                     with builder.CHILD(key="lightDelayTime", name=_TR("Light Delay Time"), desc=_TR("time for light")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.3, min_value=0, max_value=100)
@@ -434,6 +476,9 @@ class ConfigParams:
         cls.max_yaw_bias = cls.config.get("maxYawBias")
         cls.check_goods_code_enable = cls.config.get("checkGoodsCodeEnable", False)
         cls.max_code_check_fail = cls.config.get("maxCodeCheckFail", 3)
+        cls.rec_max_times = cls.config.get("recMaxTimes", 10)
+        cls.rec_box_max_times = cls.config.get("recBoxMaxTimes", 3)
+        cls.persistent_recognition = cls.config.get("persistentRecognition", False)
 
         cls.lift_motor_speed = cls.config.get("liftMotorSpeed")
         cls.max_lift_height = cls.config.get("maxForkHeight")
@@ -450,6 +495,7 @@ class ConfigParams:
         cls.auto_load_stretch_dist = cls.config.get("autoLoadStretchDist")
         cls.auto_unload_stretch_dist = cls.config.get("autoUnloadStretchDist")
         cls.auto_stretch_odo_len = cls.config.get("autoStretchOdoLen")
+        cls.max_stretch_overrun_range = cls.config.get("maxStretchOverrunRange", 0.100)
 
         # 手指 DoMotor DI：直接从设备模型读取（如 DOMotor-XXX.basic.upReachDI）
         if cls.has_finger_motor and cls.left_finger_motor_name and cls.right_finger_motor_name:
@@ -465,6 +511,10 @@ class ConfigParams:
         cls.timeout = cls.config.get("timeout")
         cls.goods_check_di = cls.config.get("goodsCheckDi")
         cls.overlimit_detect_di = cls.config.get("overlimitDetectDi")
+        cls.finger_timeout = cls.config.get("fingerTimeout", 5)
+        cls.finger_max_try = cls.config.get("fingerMaxTry", 2)
+        cls.overlimit_detect_time = cls.config.get("overlimitDetectTime", 5)
+        cls.overlimit_detect_times = cls.config.get("overlimitDetectTimes", 2)
         cls.light_delay_time = cls.config.get("lightDelayTime")
         cls.motor_settle_delay = cls.config.get("motorSettleDelay", 0)
 
@@ -1183,10 +1233,11 @@ class StretchAction(BaseAction):
         if self.dynamic:
             self.length = self.agv.stretch_length
         temp_motor_speed = ConfigParams.stretch_motor_speed
-        if ConfigParams.max_stretch_length < self.length < ConfigParams.max_stretch_length + 0.1:
-            Navigation.setTaskError("StretchLengthExceeded", _TR(f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！"))
-            self.length = ConfigParams.max_stretch_length
-        elif self.length > ConfigParams.max_stretch_length + 0.1:
+        max_length = ConfigParams.max_stretch_length
+        overrun_range = ConfigParams.max_stretch_overrun_range
+        if max_length < self.length <= max_length + overrun_range:
+            self.length = max_length - 0.005
+        elif self.length > max_length + overrun_range:
             Navigation.setTaskError("StretchLengthExceeded", _TR(f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！！！"))
             self.action_status = ActionStatus.FAILED
             return
@@ -1218,6 +1269,9 @@ class FingerAction(BaseAction):
         self.pos = pos
         self._motor_started = False
         self.overlimit_alarm = False  # 超限光电报错标志，用于障碍物消除后自动清错
+        self.maxTry = ConfigParams.finger_max_try
+        self.count = 0
+        self.overlimit_count = 0
 
     def run(self, m):
         super().run(m)
@@ -1236,18 +1290,46 @@ class FingerAction(BaseAction):
         # 障碍物在位时持续告警并刷新防卡死计时，障碍消除后自动清错继续合指抓取。
         if self.pos == 0 and not self._motor_started:
             if Di.getDi(ConfigParams.overlimit_detect_di):
-                Navigation.setTaskError("StretchObstacle", _TR(
-                    f"Fork overlimit photoelectric sensor detected obstacle. Push the box manually to clear the overlimit, or increase stretch compensation"))
                 self.overlimit_alarm = True
-                # 刷新防卡死计时, 避免清障耗时超过 3s 被下方超时守卫误判为失败
-                self.start_time = time.time()
+                if time.time() - self.start_time >= ConfigParams.overlimit_detect_time:
+                    self.overlimit_count += 1
+                    self.start_time = time.time()
+                    if self.overlimit_count >= ConfigParams.overlimit_detect_times:
+                        Navigation.setTaskError("StretchObstacle", _TR(
+                            "Fork overlimit photoelectric sensor detected obstacle. "
+                            "Push the box manually to clear the overlimit, or increase stretch compensation"))
+                        self.overlimit_count = 0
+                        if not ConfigParams.persistent_recognition:
+                            self.action_status = ActionStatus.FAILED
                 return
             if self.overlimit_alarm:
                 Navigation.clearTaskError("StretchObstacle")
                 self.overlimit_alarm = False
+                self.overlimit_count = 0
                 Trace.log("超限光电障碍物已消除，自动清除告警，继续合指抓取", name=f"{MOD}.motor")
-        if time.time() - self.start_time > 3:
-            Navigation.setTaskError("FingerTimeout", _TR(f"Finger control timeout. Check if finger is stuck or photoelectric sensor works"))
+        if time.time() - self.start_time > ConfigParams.finger_timeout:
+            if self.count < self.maxTry:
+                Trace.log(f"第{self.count}次尝试{'打开' if self.pos == 1 else '关闭'}手指", name=f"{MOD}.motor")
+                self._stop_finger()
+                time.sleep(0.05)
+                self.start_time = time.time()
+                self.count += 1
+                Motor.resetMotor(ConfigParams.left_finger_motor_name)
+                Motor.resetMotor(ConfigParams.right_finger_motor_name)
+                self._begin_finger_zero('open' if self.pos == 1 else 'close')
+                return
+            if ConfigParams.persistent_recognition:
+                Navigation.setTaskError(
+                    "FingerTimeout",
+                    _TR("Finger control timeout; waiting for the finger limit sensor"),
+                )
+                self._stop_finger()
+                self.count = 0
+                self._motor_started = False
+                self.start_time = time.time()
+                return
+            Trace.log(f"第{self.count}次尝试{'打开' if self.pos == 1 else '关闭'}手指失败", name=f"{MOD}.motor")
+            Navigation.setTaskError("FingerTimeout", _TR("Finger control timeout. Check if finger is stuck or photoelectric sensor works"))
             self._stop_finger()
             self.action_status = ActionStatus.FAILED
             return
@@ -1258,19 +1340,17 @@ class FingerAction(BaseAction):
             Motor.resetMotor(ConfigParams.right_finger_motor_name)
             if self.pos == 1:
                 # 打开手指：正转，到 upReachDI 停止
-                Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, 1.0,
-                                    ConfigParams.left_finger_up_di or "")
-                Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
-                                    ConfigParams.right_finger_up_di or "")
+                self._begin_finger_zero('open')
             else:
                 # 关闭手指：反转，到 downReachDI 停止 (超限防呆已在上方处理)
-                Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, -1.0,
-                                    ConfigParams.left_finger_down_di or "")
-                Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, -1.0,
-                                    ConfigParams.right_finger_down_di or "")
+                self._begin_finger_zero('close')
 
-        left_reached = Motor.isMotorReached(ConfigParams.left_finger_motor_name)
-        right_reached = Motor.isMotorReached(ConfigParams.right_finger_motor_name)
+        if self.pos == 1:
+            left_reached = Di.getDi(ConfigParams.left_finger_up_di)
+            right_reached = Di.getDi(ConfigParams.right_finger_up_di)
+        else:
+            left_reached = Di.getDi(ConfigParams.left_finger_down_di)
+            right_reached = Di.getDi(ConfigParams.right_finger_down_di)
 
         if left_reached:
             self.agv.left_finger_real_pos = self.pos
@@ -1279,8 +1359,23 @@ class FingerAction(BaseAction):
             self.agv.right_finger_real_pos = self.pos
             Motor.resetMotor(ConfigParams.right_finger_motor_name)
         if left_reached and right_reached:
+            Navigation.clearTaskError("FingerTimeout")
+            Navigation.clearTaskError("StretchLengthExceeded")
             Trace.log(f"手指{'打开' if self.pos == 1 else '关闭'}成功", name=f"{MOD}.motor")
             self.action_status = ActionStatus.FINISHED
+
+    def _begin_finger_zero(self, reach):
+        time.sleep(0.1)
+        if reach == 'open':
+            Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, 1.0,
+                                ConfigParams.left_finger_up_di or "")
+            Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
+                                ConfigParams.right_finger_up_di or "")
+        elif reach == 'close':
+            Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, -1.0,
+                                ConfigParams.left_finger_down_di or "")
+            Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, -1.0,
+                                ConfigParams.right_finger_down_di or "")
 
     def _stop_finger(self):
         """停止手指电机"""
@@ -1297,6 +1392,7 @@ class FingerAction(BaseAction):
         super().reset()
         self._motor_started = False
         self.overlimit_alarm = False
+        self.overlimit_count = 0
 
     def _prepare_auto_pre_timing(self):
         start = [self.agv.left_finger_real_pos, self.agv.right_finger_real_pos]
@@ -1406,7 +1502,7 @@ class RecBarcodeAction(BaseAction):
         self.light_on = False
         self.rec_started = False
         self.rec_fail_times = 0       # 一维码连续识别失败计数
-        self.max_rec_fail_times = 10  # 一维码连续识别失败上限, 超过则报错
+        self.max_rec_fail_times = ConfigParams.rec_max_times  # 一维码连续识别失败上限, 超过则报错
 
     @staticmethod
     def _extract_barcode(reco):
@@ -1451,12 +1547,22 @@ class RecBarcodeAction(BaseAction):
                 Navigation.setTaskError("GoodsIdMismatch", _TR(f"Goods ID mismatch between task command  {self.agv.goods_id} and recognition result {bar_code}"))
                 self.action_status = ActionStatus.FAILED
             else:
+                Navigation.clearTaskError("RecBarcodeFailed")
                 self.agv.report_info["barCode"] = bar_code
                 self.action_status = ActionStatus.FINISHED
         elif rec_status == 3 or rec_status == -1:  # 识别失败, 计数并判断是否超限
             if Timer.delay(0.05):
                 self.rec_fail_times += 1
                 if self.rec_fail_times > self.max_rec_fail_times:
+                    if ConfigParams.persistent_recognition:
+                        Navigation.setTaskError(
+                            "RecBarcodeFailed",
+                            _TR(f"Barcode recognition failed {self.max_rec_fail_times} times; continuing recognition"),
+                        )
+                        self.rec_fail_times = 0
+                        Recognize.resetRec()
+                        Recognize.doRec(ConfigParams.barcode_file, "", "")
+                        return
                     Do.setDo(self.agv.fill_light_do, False)
                     Navigation.setTaskError("RecBarcodeFailed", _TR(
                         f"Barcode recognition failed {self.max_rec_fail_times} times in a row. Check if barcode is damaged, camera is aligned and recognition file ({ConfigParams.barcode_file}) is correct"))
@@ -1611,20 +1717,40 @@ class RecBoxCheckAction(BaseAction):
             if not self.agv.wait_motors_settled(tag="rec_box_check"):
                 return
             self.agv.reset_motor_settle()
-            self.agv.rec_box.action_status = ActionStatus.RUNNING
             self.agv.rec_box.is_error = True
             Do.setDo(self.agv.fill_light_do, True)
             self.light_started = True
         if not self.light_ready:
             if Do.getDo(self.agv.fill_light_do):
                 if Timer.delay(ConfigParams.light_delay_time):
+                    self.agv.rec_box.action_status = ActionStatus.RUNNING
                     self.light_ready = True
+            else:
+                Do.setDo(self.agv.fill_light_do, True)
             return
         if self.agv.rec_box.action_status is ActionStatus.FINISHED:
+            has_goods = bool(
+                self.agv.rec_box.hasGoods
+                and not self.agv.rec_box.goods_out_dist
+            )
+            if has_goods and ConfigParams.persistent_recognition:
+                self.agv.shelf_occupied = True
+                Navigation.setTaskError(
+                    "ShelfHasGoods",
+                    _TR("Goods detected on shelf, waiting for the target position to clear"),
+                )
+                Trace.log(
+                    "rec_box check: 检测到货架有货，持续识别等待目标位清空",
+                    name=f"{MOD}.action",
+                )
+                self.agv.rec_box.reset_for_retry()
+                self.agv.rec_box.is_error = True
+                return
+
             self.agv.rec_box.reset()
             self.agv.rec_box.is_error = None
             Do.setDo(self.agv.fill_light_do, False)
-            if self.agv.rec_box.hasGoods and not self.agv.rec_box.goods_out_dist:
+            if has_goods:
                 # 货架已有货: 触发异常恢复(把料箱放回背篓), 此处不直接报错,
                 # 由主流程 run() 检测 shelf_occupied 后构建恢复队列接管
                 self.agv.shelf_occupied = True
@@ -1632,6 +1758,8 @@ class RecBoxCheckAction(BaseAction):
                 Trace.log("rec_box check: 检测到货架已有货物，触发异常恢复", name=f"{MOD}.action")
                 self.action_status = ActionStatus.FAILED
             else:
+                self.agv.shelf_occupied = False
+                Navigation.clearTaskError("ShelfHasGoods")
                 self.action_status = ActionStatus.FINISHED
         elif self.agv.rec_box.action_status is ActionStatus.FAILED:
             Do.setDo(self.agv.fill_light_do, False)
@@ -1883,7 +2011,10 @@ class ContainerRobot(ModuleBase):
                 self.rec_box_lift = self.lift_height + ConfigParams.rec_box_extra_height
             self.rec_box_lift = self.script_args.get("recBoxLift", self.rec_box_lift)
             if self.rec_box_lift:
-                self.rec_box = Rec(ConfigParams.box_code_file, max_rec_times=1)
+                self.rec_box = Rec(
+                    ConfigParams.box_code_file,
+                    max_rec_times=ConfigParams.rec_box_max_times,
+                )
             self.code_type = self.script_args.get("visionBinType", "code")
             self.target_type = self.script_args.get("visionType", None)
             self.barcode_height = self.script_args.get("barcodeHeight", None)
@@ -3323,12 +3454,12 @@ class ContainerRobot(ModuleBase):
 # 识别辅助类
 # ============================================================================
 class Rec(BaseAction):
-    def __init__(self, filename, is_error=None, max_rec_times=10, action_name="Rec"):
+    def __init__(self, filename, is_error=None, max_rec_times=None, action_name="Rec"):
         super().__init__(action_name)
         self.is_error = is_error
         self.filename = filename
         self.rec_times = 0
-        self.max_rec_times = max_rec_times
+        self.max_rec_times = ConfigParams.rec_max_times if max_rec_times is None else max_rec_times
         self.result = dict()
         self.hasGoods = None
         self.goods_out_dist = None
@@ -3360,6 +3491,14 @@ class Rec(BaseAction):
                     name=f"{MOD}.rec",
                 )
                 if self.rec_times > self.max_rec_times:
+                    if ConfigParams.persistent_recognition and not self.is_error:
+                        Navigation.setTaskError(
+                            "RecFailed",
+                            _TR(f"Recognition failed after {self.max_rec_times} retries; continuing recognition"),
+                        )
+                        self.rec_times = 0
+                        Recognize.resetRec()
+                        return
                     if not self.is_error:
                         Navigation.setTaskError("RecFailed", _TR(f"Recognition failed after max retries{self.max_rec_times}. Check if QR code is damaged or camera is clear"))
                         self.action_status = ActionStatus.FAILED
@@ -3387,6 +3526,8 @@ class Rec(BaseAction):
                     self.result = reco.get('robotResult', {})
             Recognize.resetRec()
             self.hasGoods = True
+            if ConfigParams.persistent_recognition:
+                Navigation.clearTaskError("RecFailed")
             if self.result.get("x", 0) > self.max_goods_dist:
                 self.goods_out_dist = True
             self.action_status = ActionStatus.FINISHED
@@ -3413,6 +3554,14 @@ class Rec(BaseAction):
         # 只清残留请求；下一次 run() tick 发现识别器空闲(status==0)时再触发识别
         Recognize.resetRec()
 
+    def reset_for_retry(self):
+        """重置识别请求及本轮结果，避免上一次有货状态污染下一轮。"""
+        self.reset()
+        self.rec_times = 0
+        self.result = dict()
+        self.hasGoods = None
+        self.goods_out_dist = None
+
 
 class RecAdjust(BaseAction):
     def __init__(self, filename, action_name="RecAdjust"):
@@ -3421,7 +3570,7 @@ class RecAdjust(BaseAction):
         self.lift_step = None
         self.rec = Rec(filename)
         self.result = []
-        self.max_rec_fail_times = 10
+        self.max_rec_fail_times = ConfigParams.rec_max_times
         self.max_adjust_time = 30
         self.rec_fail_time = 0
         self.adjust_count = 0
@@ -3522,6 +3671,11 @@ class RecAdjust(BaseAction):
                     self.go_args["backMode"] = 0
 
                 if abs(agv.yaw_adjust) > ConfigParams.max_yaw_bias / 180 * math.pi:
+                    self.rec.rec_times += 1
+                    if self.rec.rec_times <= self.rec.max_rec_times:
+                        self.rec.reset()
+                        self.plan_status = ScriptStatus.NONE
+                        return
                     self.action_status = ActionStatus.FAILED
                     Navigation.setTaskError("RecYawExceeded", _TR(f"Recognition yaw deviation{agv.yaw_adjust / math.pi * 180:.2f}° exceeds limit{ConfigParams.max_yaw_bias}°. Check if box is aligned and QR code intact"))
                 else:
@@ -3539,8 +3693,17 @@ class RecAdjust(BaseAction):
                             self.action_status = ActionStatus.FINISHED
                     else:
                         if self.adjust_count >= self.max_adjust_time:
-                            self.action_status = ActionStatus.FAILED
-                            Navigation.setTaskError("RecAdjustExceeded", _TR(f"Recognition adjustment {self.adjust_count} retries exceeded. Check QR code, camera, accuracy parameters"))
+                            if ConfigParams.persistent_recognition:
+                                Navigation.setTaskError(
+                                    "RecAdjustExceeded",
+                                    _TR(f"Recognition adjustment exceeded {self.max_adjust_time} retries; continuing recognition"),
+                                )
+                                self.adjust_count = 0
+                                self.reset()
+                                self.plan_status = ScriptStatus.NONE
+                            else:
+                                self.action_status = ActionStatus.FAILED
+                                Navigation.setTaskError("RecAdjustExceeded", _TR(f"Recognition adjustment {self.adjust_count} retries exceeded. Check QR code, camera, accuracy parameters"))
                 self.plan_status = ScriptStatus.FINISHED
                 self.rec.reset()
         elif self.action_status is not ActionStatus.FINISHED and self.action_status is not ActionStatus.FAILED:
