@@ -130,6 +130,11 @@ class NavigationV3(NavigationInterface):
 
     @classmethod
     @call_service()
+    def moveTaskList(cls) ->list:
+        pass
+
+    @classmethod
+    @call_service()
     def realTimeMoveTask(cls) -> dict:
         pass
 

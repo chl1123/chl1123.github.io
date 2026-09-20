@@ -237,6 +237,15 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
+    def moveTaskList(cls) -> list:
+        """获得完整3066任务列表
+
+        Returns:
+            (list):返回一个列表包括每一段3066任务
+        """
+        raise RBKVersionError()
+
+    @classmethod
     def realTimeMoveTask(cls) -> dict:
         """获得任务信息以字典类型返回
 
