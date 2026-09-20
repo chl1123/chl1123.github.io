@@ -11,7 +11,7 @@ from typing import Optional, List, Dict, Any
 from syspy import (Module, Di, Motor, Navigation, ScriptStatus, NetProtocol,
                    Trace, Controller, NavStatus, Container, _TR,
                    AutoPreSequenceAction)
-from syspy.utils import Coordinate, SCRIPTS_DIR
+from syspy.utils import Coordinate, SCRIPTS_DIR, TaskStage, DEFAULT_TASK_STAGE
 from syspy.utils.time import Timer
 from syspy.utils.param_server import BindItem, ParamBuilder, ParamType, ParamValidator, BindType, ScriptParam
 from syspy.lib.module import pos2Base, pos2World, ModuleBase, SafeMoveStatus
@@ -105,6 +105,9 @@ def _call_fork_class_hook(name, *args):
 
 EPS = 1e-6  # 浮点比较公差
 _CONFIG_ROOT = object()
+
+
+SELF_POSITION_MARKER = "SELF_POSITION"
 
 
 from standard.fork_utils import (
@@ -1606,6 +1609,9 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     use_current_height_when_start_omitted = True
     requires_explicit_start_height = False
     lift_fork_model_limits = False
+    # PickFork overrides this to apply its recognition-file collision model
+    # during the initial load approach only.
+    use_recfile_collision_policy = False
     task_trace_channel = f"{MOD}.task"
     motor_trace_channel = f"{MOD}.motor"
     script_trace_channel = f"{MOD}.script"
@@ -1993,10 +1999,10 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             )
             self.set_status(ScriptStatus.FAILED)
             return
-        if Module.getTaskParams("stage") != 3:
+        if self._task_stage() != TaskStage.SCRIPT_DRIVEN:
             Navigation.setTaskError(
                 "autoPreNotSupported",
-                "fork auto-pre requires stage 3",
+                f"fork auto-pre requires stage {int(TaskStage.SCRIPT_DRIVEN)}",
             )
             self.set_status(ScriptStatus.FAILED)
             return
@@ -2460,7 +2466,35 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         return pos, tcp_key
 
     def _has_usable_target_pos(self, target_pos):
-        return has_valid_target_pos(target_pos) and self.move_task.get("skillName", "") != "Action"
+        """移动动作能否直接用这个目标点。
+
+        原地任务（SELF_POSITION，stage=2）没有真实目标点：即便参数里带了
+        AP/LM 名称解析出了坐标，也不允许据此下发路径，否则会在原地动作任务里
+        把车开走。
+        """
+        return has_valid_target_pos(target_pos) and not self._is_in_place_task()
+
+    def _task_stage(self):
+        """当前 TASK 的调度阶段；缺省用平台默认值。"""
+        try:
+            return TaskStage(Module.getTaskParams("stage", DEFAULT_TASK_STAGE))
+        except ValueError:
+            return DEFAULT_TASK_STAGE
+
+    def _is_in_place_task(self):
+        """原地动作任务：MF 用 SELF_POSITION 的 move task 下发的脚本任务。
+
+        只看 move task 标记（taskId/sourceId/id）。注意 ``stage`` 不能用来判定
+        这件事：stage 的语义是“前置点停不停 / 谁控制导航”（见 TaskStage），
+        与原地任务无关，默认值 2 也不是原地任务的标志。
+
+        原地任务并不等于“不需要 startHeight”：原地识别取货仍要先走到
+        startHeight，部分前移车型也需要原地先到位再伸叉，因此这里只用来阻断
+        路径动作，不参与参数校验。
+        """
+        move_task = self.move_task or {}
+        markers = (move_task.get("taskId"), move_task.get("sourceId"), move_task.get("id"))
+        return any(str(marker or "") == SELF_POSITION_MARKER for marker in markers)
 
     def _target_name(self):
         target_name = self.move_task.get("targetName", "")

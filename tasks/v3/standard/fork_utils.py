@@ -366,6 +366,14 @@ def load_recognition_assets(ctx, *, log_name="fork.task") -> bool:
     )
     ctx.goods_shape = parse_shapes(goods_shape)
 
+    if not ctx.recognize:
+        Trace.log(
+            f"load pallet assets for blind load: carrier_shape:{ctx.carrier_shape}, "
+            f"goods_shape:{ctx.goods_shape}, pallet_deduct_infos:{ctx.pallet_deduct_infos}",
+            name=log_name,
+        )
+        return True
+
     ctx.rec_info = get_rec_side_info(ctx.recfile, ctx.recSide)
     Trace.log(f"pallet info:{ctx.rec_info}", name=log_name)
     if ctx.rec_info is None:
@@ -882,11 +890,6 @@ def create_rec_param(builder: ParamBuilder, extra_on_params_hook=None, include_r
             with builder.CHILD(key="on", name=_TR("Recognize"), desc=_TR("Load With Recognition")):
                 builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="recfile", name=_TR("Recognition File"), desc=_TR("Recognition file name")):
-                    builder.TYPE(ParamType.BIND_TYPE)
-                    builder.BINDTYPE(BindType.App.RECOGNITION)
-                    builder.REQUIRED(False)
-
                 with builder.CHILD(key="recSide", name=_TR("Recognition Side"), desc=_TR("Recognition Side")):
                     builder.TYPE(ParamType.STRING_COMBO_LIST)
                     builder.DEFAULTVALUE("none")
@@ -906,6 +909,11 @@ def create_rec_param(builder: ParamBuilder, extra_on_params_hook=None, include_r
                         builder.DEFAULTVALUE(0.1)
                 if extra_on_params_hook is not None:
                     extra_on_params_hook(builder)
+
+    with builder.CHILD(key="recfile", name=_TR("Recognition File"), desc=_TR("Pallet asset file name")):
+        builder.TYPE(ParamType.BIND_TYPE)
+        builder.BINDTYPE(BindType.App.RECOGNITION)
+        builder.REQUIRED(False)
 
 
 
@@ -1931,8 +1939,15 @@ class GoPathWithContactDi(ActionBase):
         self.operation_type = operation_type
         self.recfile = recfile or ""
         self.initial_policy_name = initial_policy_name or "loadPolicy"
+        self.use_recfile_collision_policy = bool(getattr(
+            getattr(_config(), "active_fork_class", None),
+            "use_recfile_collision_policy",
+            False,
+        ))
         self.fork_root_collision_models: Optional[List[Dict[str, Any]]] = None
         self.fork_root_collision_model_error = ""
+        self.initial_motion_policy = None
+        self.near_motion_policy = None
         self.laser_id = []
         self.laser_width = None
         self.walk_dist = None
@@ -1945,6 +1960,8 @@ class GoPathWithContactDi(ActionBase):
         self.di_clear_start_time = None
         self.contact_di_finish_wait_start_time = None
         self.contact_di_partial_wait_start_time = None
+        self._last_contact_di_trace_state = None
+        self._last_contact_di_trace_time = None
 
         self.target_pos = world_pos
         if self.check_di and not self.contact_di:
@@ -2256,6 +2273,12 @@ class GoPathWithContactDi(ActionBase):
             if device.strip()
         ]
 
+    def _load_navigation_collision_devices(self) -> List[str]:
+        current_collision_device_str = RobotParam.getConfig(
+            "navigation", "collisionDetection.collisionDevice"
+        )
+        return split_device_keys(current_collision_device_str)
+
     def _apply_collision_device_shielding(
             self,
             should_shield_di: bool,
@@ -2288,6 +2311,24 @@ class GoPathWithContactDi(ActionBase):
         self.policy["navigation.collisionDetection.detectionDevice"] = current_collision_device_str
         Trace.log(
             f"shielded collision devices, new collision device:{current_collision_device_str}",
+            name="fork.task",
+        )
+
+    def _apply_navigation_collision_device_shielding(self, collision_devices: List[str]) -> None:
+        if not collision_devices:
+            return
+
+        current_collision_devices = self._load_navigation_collision_devices()
+        remaining_collision_devices = [
+            device for device in current_collision_devices if device not in collision_devices
+        ]
+        if remaining_collision_devices == current_collision_devices:
+            return
+
+        collision_device_str = ",".join(remaining_collision_devices)
+        self.policy["navigation.collisionDetection.collisionDevice"] = collision_device_str
+        Trace.log(
+            f"shielded navigation collision devices:{collision_devices}, remaining:{collision_device_str}",
             name="fork.task",
         )
 
@@ -2351,9 +2392,15 @@ class GoPathWithContactDi(ActionBase):
     def _configure_initial_policy(self) -> bool:
         # 近货阶段关闭自由绕行并使用取放货停车距离，防止局部规划绕开目标货物。
         should_shield_di = self._should_shield_fork_tip_di()
-        collision_models_enabled = self.operation_type in ("load", "unload")
+        collision_models_enabled = (
+            self.use_recfile_collision_policy
+            and self.operation_type == "load"
+        )
+        initial_navigation_collision_devices = []
         fork_root_collision_models = []
+        collision_model_devices = []
         if collision_models_enabled:
+            initial_navigation_collision_devices = self._load_navigation_collision_devices()
             fork_root_collision_models = self._get_fork_root_collision_models()
             if fork_root_collision_models is None:
                 err_msg = self.fork_root_collision_model_error or "fork root collision model is invalid"
@@ -2363,6 +2410,11 @@ class GoPathWithContactDi(ActionBase):
                 return False
             if fork_root_collision_models:
                 self.policy["navigation.collisionDetection.collisionModel"] = fork_root_collision_models
+                collision_model_devices = list(dict.fromkeys(
+                    device
+                    for model in fork_root_collision_models
+                    for device in split_device_keys(model["collisionDevice"])
+                ))
                 Trace.log(
                     f"apply fork root collision model policy: models={fork_root_collision_models}",
                     name="fork.task",
@@ -2373,14 +2425,22 @@ class GoPathWithContactDi(ActionBase):
                     name="fork.task",
                 )
 
-        # 识别文件提供碰撞模型时保留其碰撞设备；没有碰撞模型时才移除叉根激光。
+        # PickFork 的识别文件将碰撞设备单独列在 collisionDevice；初始化阶段从
+        # 导航 collisionDevice 中移除这些设备，近货阶段再恢复原始列表。
         self._apply_collision_device_shielding(
             should_shield_di,
-            shield_fork_root=not bool(fork_root_collision_models),
+            shield_fork_root=not bool(collision_model_devices),
         )
+        self._apply_navigation_collision_device_shielding(collision_model_devices)
         self._set_obs_stop_dist_for_phase(self._should_use_obs_compensation_now())
         self.policy["navigation.obstacleStop.obsStopUnload.obsExpansion"] = 0.02
         self.policy["navigation.obstacleStop.obsStopLoad.loadObsExpansion"] = 0.01
+        if collision_models_enabled:
+            self.initial_motion_policy = copy.deepcopy(self.policy)
+            self.near_motion_policy = copy.deepcopy(self.policy)
+            self.near_motion_policy[
+                "navigation.collisionDetection.collisionDevice"
+            ] = ",".join(initial_navigation_collision_devices)
         self._apply_policy(self.initial_policy_name, sleep_sec=0.5)
         self.set_policy = True
 
@@ -2440,14 +2500,18 @@ class GoPathWithContactDi(ActionBase):
         vx = NavSpeed.getSpeeds()[0]
         # 调整段出现前进速度时恢复默认停车距离；重新进入进叉方向后切回近货策略。
         if vx > 0.005 and not self.clear_policy:
-            self._set_obs_stop_dist_for_phase(self._should_use_obs_compensation_now())
+            self._set_default_obs_stop_dist()
             self._apply_policy("forwardPolicy")
             self.clear_policy = True
             self.set_policy = False
             Trace.log(f"vx:{vx},set forward policy:{self.policy}", name=f"{MOD}.nav")
             return
         if vx <= 0 and not self.set_policy:
-            self._set_obs_stop_dist_for_phase(self._should_use_obs_compensation_now())
+            near_motion_policy = getattr(self, "near_motion_policy", None)
+            if near_motion_policy is not None:
+                self.policy = copy.deepcopy(near_motion_policy)
+            else:
+                self._set_obs_stop_dist_for_phase(self._should_use_obs_compensation_now())
             self._apply_policy("policy", sleep_sec=0.2, reset_path=True)
             self.clear_policy = False
             self.set_policy = True
@@ -2609,16 +2673,29 @@ class GoPathWithContactDi(ActionBase):
                 if is_simulation():
                     dist2target = self._distance_to_final_target()
                     if sim_contact_di_triggered(dist2target):
-                        di_status = [True for _ in self.contact_di]
-                        _trace_log(
-                            f"contact_di_read: keys={self.contact_di}, status={di_status}, simulation=True"
-                        )
-                        return di_status
+                        return [True for _ in self.contact_di]
             except Exception:  # noqa: BLE001
                 pass
-        di_status = [Di.getDi(d) for d in self.contact_di]
-        _trace_log(f"contact_di_read: keys={self.contact_di}, status={di_status}")
-        return di_status
+        return [Di.getDi(d) for d in self.contact_di]
+
+    def _trace_contact_di_process(self, dist2target) -> None:
+        """Log DI processing on state changes, with a bounded idle heartbeat."""
+        back_action_status = self.back_action.action_status
+        trace_state = (
+            tuple(bool(status) for status in self.di_status),
+            getattr(back_action_status, "value", back_action_status),
+        )
+        now = time.monotonic()
+        unchanged = trace_state == self._last_contact_di_trace_state
+        if unchanged and self._last_contact_di_trace_time is not None and now - self._last_contact_di_trace_time < 1.0:
+            return
+
+        _trace_log(
+            f"contact_di_process: status={self.di_status}, back_action_status={back_action_status}, "
+            f"dist2target={dist2target}"
+        )
+        self._last_contact_di_trace_state = trace_state
+        self._last_contact_di_trace_time = now
 
     def _handle_contact_di_completion(self) -> None:
         if self.reach_phase_enabled and self.reach_phase != "final_path":
@@ -2631,10 +2708,7 @@ class GoPathWithContactDi(ActionBase):
         # 检查模式下，路径走完不等于成功，还需结合距目标距离和任意/全部 DI 规则判定。
         self.di_status = self._read_contact_di()
         dist2target = self._distance_to_final_target()
-        _trace_log(
-            f"contact_di_process: status={self.di_status}, back_action_status={self.back_action.action_status}, "
-            f"dist2target={dist2target}"
-        )
+        self._trace_contact_di_process(dist2target)
         if not self.check_all_contact_di:
             self._handle_any_contact_di(dist2target)
             return
