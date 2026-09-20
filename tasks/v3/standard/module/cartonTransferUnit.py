@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-# @Date: 2026/9/16
+# @Date: 2026/7/15
 # @Author: zhaopengfei
 # @Version: v1.2
 # @Project: SPK-MJ50-HL
-# @Update: fix: 修复inPut和inTake背篓绑定错误问题
+# @Update: feat：m-7048149595 料箱车脚本优化 1.识别前等机构停稳(motorSettleDelay)防抖动污染识别，作用于识别料架/识别箱码 2.货叉超限光电触发由硬失败改为可恢复告警，障碍推离后自动清错继续动作 3.放货防呆检测到货架已有货时异常恢复，重建动作队列把料箱放回背篓并报错 4.一维码识别对齐二维码识别逻辑：识别中不计数、连续失败超限才报错 5.check_put方法排除999货叉，适配调试场景
+# add：1.增加DM14三联码校验功能check_goods_code_enable 2.增加取货为空报错的正向校验
+# fix：1.修复取货检测手指下到位DI后再缩回失效的BUG 2. 修复根据状态机status下发doRec失效的BUG
 # @RBK Version: V3.5+
 import enum
 import uuid
@@ -32,15 +34,12 @@ MOD = "ctu"
 
 # AutoPre 本地预算。位置动作按距离/配置速度估算，并增加到位稳定余量；
 # 手指动作沿用 FingerAction 的 3 秒超时作为保守预算。
-AUTO_PRE_ADVANCE_TIME = 1.0
 AUTO_PRE_POSITION_SETTLE_TIME = 1.0
 AUTO_PRE_FINGER_BUDGET = 3.0
 AUTO_PRE_DI_BUDGET = 0.1
 
 # 取货结束后货物保留在 999；这里只跨任务保存重建延迟入背篓动作所需的最小数据。
 _pending_fork_store = None
-
-
 def _remember_pending_fork_store(goods_id, preferred_container, skip_safe_height=False):
     global _pending_fork_store
     _pending_fork_store = {
@@ -100,14 +99,15 @@ class ConfigParams:
     # 识别前等待机构机械停稳的延时(秒), 防止抖动污染识别
     motor_settle_delay = 0
     force_load_store_immediately = False
-    rec_max_times = 10
-    rec_box_max_times = 3
-    persistent_recognition = False
-    max_stretch_overrun_range = 0.1
+    auto_pre_advance_time = 1.0
+    fill_light_do = "DO-022"
     finger_timeout = 5
     finger_max_try = 2
     overlimit_detect_time = 5
     overlimit_detect_times = 2
+    rec_max_times = 10
+    rec_box_max_times = 3
+    persistent_recognition = False
 
     # 手指 DoMotor（从设备模型 fingerMotor 克隆读取，._0=左手指, ._1=右手指）
     has_finger_motor: bool = False
@@ -300,16 +300,13 @@ class ConfigParams:
                                        desc=_TR("Max goods code comparison failures before raising an error")):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(3, min_value=1, max_value=100)
-                    with builder.CHILD(key="recMaxTimes", name=_TR("Recognition Max Times"),
-                                       desc=_TR("Maximum recognition failures")):
+                    with builder.CHILD(key="recMaxTimes", name=_TR("Recognition Max Times"), desc=_TR("Maximum recognition failures")):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(10, min_value=1, max_value=100)
-                    with builder.CHILD(key="recBoxMaxTimes", name=_TR("Shelf Occupancy Recognition Max Times"),
-                                       desc=_TR("Maximum recognition failures when checking whether the target shelf has goods")):
+                    with builder.CHILD(key="recBoxMaxTimes", name=_TR("Shelf Occupancy Recognition Max Times"), desc=_TR("Maximum recognition failures when checking whether the target shelf has goods")):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(3, min_value=1, max_value=100)
-                    with builder.CHILD(key="persistentRecognition", name=_TR("Persistent Recognition"),
-                                       desc=_TR("Keep recognizing after the limit and report a clearable error")):
+                    with builder.CHILD(key="persistentRecognition", name=_TR("Persistent Recognition"), desc=_TR("Keep recognizing after the limit and report a clearable error")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
@@ -406,6 +403,11 @@ class ConfigParams:
                     with builder.CHILD(key="timeout", name=_TR("Timeout"), desc=_TR("Execution Timeout")):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(120, min_value=0, max_value=300)
+                    with builder.CHILD(key="autoPreAdvanceTime", name=_TR("AutoPre Advance Time"),
+                                       desc=_TR("Advance time used to start the AutoPre action")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(1.0, min_value=0)
+                        builder.UNIT("s")
                     with builder.CHILD(key="goodsCheckDi", name=_TR("Goods Check Di"), desc=_TR("Fork Midpoint Detection DI")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.Device.DI)
@@ -417,20 +419,20 @@ class ConfigParams:
                         builder.BINDTYPE(BindType.Device.DI)
                         builder.DEFAULTVALUE("DI-009")
                         builder.REQUIRED(True)
-                    with builder.CHILD(key="fingerTimeout", name=_TR("Finger Timeout"),
-                                       desc=_TR("Finger movement timeout per attempt")):
+                    with builder.CHILD(key="fillLightDo", name=_TR("Fill Light Do"), desc=_TR("Recognition fill light output")):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.Device.DO)
+                        builder.DEFAULTVALUE("DO-022")
+                    with builder.CHILD(key="fingerTimeout", name=_TR("Finger Timeout"), desc=_TR("Finger movement timeout per attempt")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5, min_value=0.1, max_value=300)
-                    with builder.CHILD(key="fingerMaxTry", name=_TR("Finger Max Try"),
-                                       desc=_TR("Maximum finger retries")):
+                    with builder.CHILD(key="fingerMaxTry", name=_TR("Finger Max Try"), desc=_TR("Maximum finger retries")):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(2, min_value=1, max_value=100)
-                    with builder.CHILD(key="overlimitDetectTime", name=_TR("Overlimit Detect Time"),
-                                       desc=_TR("Continuous overlimit detection time")):
+                    with builder.CHILD(key="overlimitDetectTime", name=_TR("Overlimit Detect Time"), desc=_TR("Continuous overlimit detection time")):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5, min_value=0.1, max_value=300)
-                    with builder.CHILD(key="overlimitDetectTimes", name=_TR("Overlimit Detect Times"),
-                                       desc=_TR("Overlimit detection count before error")):
+                    with builder.CHILD(key="overlimitDetectTimes", name=_TR("Overlimit Detect Times"), desc=_TR("Overlimit detection count before error")):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(2, min_value=1, max_value=100)
                     with builder.CHILD(key="lightDelayTime", name=_TR("Light Delay Time"), desc=_TR("time for light")):
@@ -519,12 +521,14 @@ class ConfigParams:
         cls.timeout = cls.config.get("timeout")
         cls.goods_check_di = cls.config.get("goodsCheckDi")
         cls.overlimit_detect_di = cls.config.get("overlimitDetectDi")
+        cls.fill_light_do = cls.config.get("fillLightDo", "DO-022")
         cls.finger_timeout = cls.config.get("fingerTimeout", 5)
         cls.finger_max_try = cls.config.get("fingerMaxTry", 2)
         cls.overlimit_detect_time = cls.config.get("overlimitDetectTime", 5)
         cls.overlimit_detect_times = cls.config.get("overlimitDetectTimes", 2)
         cls.light_delay_time = cls.config.get("lightDelayTime")
         cls.motor_settle_delay = cls.config.get("motorSettleDelay", 0)
+        cls.auto_pre_advance_time = cls.config.get("autoPreAdvanceTime", 1.0)
 
 
 '''参数创建必须在全局作用域中'''
@@ -1252,6 +1256,7 @@ class StretchAction(BaseAction):
         max_length = ConfigParams.max_stretch_length
         overrun_range = ConfigParams.max_stretch_overrun_range
         if max_length < self.length <= max_length + overrun_range:
+            # Navigation.setTaskError("StretchLengthExceeded", _TR(f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！"))
             self.length = max_length - 0.005
         elif self.length > max_length + overrun_range:
             Navigation.setTaskError("StretchLengthExceeded", _TR(f"Stretch length {self.length} exceeds upper limit{ConfigParams.max_stretch_length}. Check if goods are too far from robot！！！"))
@@ -1312,8 +1317,7 @@ class FingerAction(BaseAction):
                     self.start_time = time.time()
                     if self.overlimit_count >= ConfigParams.overlimit_detect_times:
                         Navigation.setTaskError("StretchObstacle", _TR(
-                            "Fork overlimit photoelectric sensor detected obstacle. "
-                            "Push the box manually to clear the overlimit, or increase stretch compensation"))
+                            f"Fork overlimit photoelectric sensor detected obstacle. Push the box manually to clear the overlimit, or increase stretch compensation"))
                         self.overlimit_count = 0
                         if not ConfigParams.persistent_recognition:
                             self.action_status = ActionStatus.FAILED
@@ -1324,31 +1328,33 @@ class FingerAction(BaseAction):
                 self.overlimit_count = 0
                 Trace.log("超限光电障碍物已消除，自动清除告警，继续合指抓取", name=f"{MOD}.motor")
         if time.time() - self.start_time > ConfigParams.finger_timeout:
-            if self.count < self.maxTry:
-                Trace.log(f"第{self.count}次尝试{'打开' if self.pos == 1 else '关闭'}手指", name=f"{MOD}.motor")
-                self._stop_finger()
-                time.sleep(0.05)
-                self.start_time = time.time()
-                self.count += 1
-                Motor.resetMotor(ConfigParams.left_finger_motor_name)
-                Motor.resetMotor(ConfigParams.right_finger_motor_name)
-                self._begin_finger_zero('open' if self.pos == 1 else 'close')
-                return
-            if ConfigParams.persistent_recognition:
-                Navigation.setTaskError(
-                    "FingerTimeout",
-                    _TR("Finger control timeout; waiting for the finger limit sensor"),
-                )
-                self._stop_finger()
-                self.count = 0
-                self._motor_started = False
-                self.start_time = time.time()
-                return
-            Trace.log(f"第{self.count}次尝试{'打开' if self.pos == 1 else '关闭'}手指失败", name=f"{MOD}.motor")
-            Navigation.setTaskError("FingerTimeout", _TR("Finger control timeout. Check if finger is stuck or photoelectric sensor works"))
-            self._stop_finger()
-            self.action_status = ActionStatus.FAILED
-            return
+            while True:
+                if self.count < self.maxTry:
+                    Trace.log(f"第{self.count}次尝试{'打开' if self.pos == 1 else '关闭'}手指", name=f"{MOD}.motor")
+                    self._stop_finger()
+                    time.sleep(0.05)
+                    self.start_time = time.time()
+                    self.count += 1
+                    Motor.resetMotor(ConfigParams.left_finger_motor_name)
+                    Motor.resetMotor(ConfigParams.right_finger_motor_name)
+                    if self.pos == 1:
+                        self._begin_finger_zero('open')  
+                    else:
+                        self._begin_finger_zero('close')  
+                    break
+                else:
+                    if ConfigParams.persistent_recognition:
+                        Navigation.setTaskError("FingerTimeout", _TR("Finger control timeout; waiting for the finger limit sensor"))
+                        self._stop_finger()
+                        self.count = 0
+                        self._motor_started = False
+                        self.start_time = time.time()
+                        return
+                    Trace.log(f"第{self.count}次尝试{'打开' if self.pos == 1 else '关闭'}手指失败", name=f"{MOD}.motor")
+                    Navigation.setTaskError("FingerTimeout", _TR(f"Finger control timeout. Check if finger is stuck or photoelectric sensor works"))
+                    self._stop_finger()
+                    self.action_status = ActionStatus.FAILED
+                    return
 
         if not self._motor_started:
             self._motor_started = True
@@ -1356,17 +1362,23 @@ class FingerAction(BaseAction):
             Motor.resetMotor(ConfigParams.right_finger_motor_name)
             if self.pos == 1:
                 # 打开手指：正转，到 upReachDI 停止
-                self._begin_finger_zero('open')
+                self._begin_finger_zero('open')  
             else:
                 # 关闭手指：反转，到 downReachDI 停止 (超限防呆已在上方处理)
                 self._begin_finger_zero('close')
+                # left_reached = Motor.isMotorPositionReached(key = ConfigParams.left_finger_motor_name,stopDi = ConfigParams.left_finger_down_di )
+                # right_reached= Motor.isMotorPositionReached(key = ConfigParams.right_finger_motor_name,stopDi =ConfigParams.right_finger_down_di )
 
-        if self.pos == 1:
-            left_reached = Di.getDi(ConfigParams.left_finger_up_di)
-            right_reached = Di.getDi(ConfigParams.right_finger_up_di)
+
+
+        if self.pos ==1:
+            left_reached =  Di.getDi(ConfigParams.left_finger_up_di)       
+            right_reached= Di.getDi(ConfigParams.right_finger_up_di)    
         else:
-            left_reached = Di.getDi(ConfigParams.left_finger_down_di)
-            right_reached = Di.getDi(ConfigParams.right_finger_down_di)
+            left_reached = Di.getDi(ConfigParams.left_finger_down_di)       
+            right_reached= Di.getDi(ConfigParams.right_finger_down_di)    
+        # left_reached = Motor.isMotorReached(ConfigParams.left_finger_motor_name)
+        # right_reached = Motor.isMotorReached(ConfigParams.right_finger_motor_name)
 
         if left_reached:
             self.agv.left_finger_real_pos = self.pos
@@ -1377,22 +1389,35 @@ class FingerAction(BaseAction):
         if left_reached and right_reached:
             Navigation.clearTaskError("FingerTimeout")
             Navigation.clearTaskError("StretchLengthExceeded")
+            print(f"DEBUG{ConfigParams.left_finger_up_di},{ConfigParams.right_finger_down_di},{ ConfigParams.left_finger_down_di},{ConfigParams.right_finger_down_di}")
             Trace.log(f"手指{'打开' if self.pos == 1 else '关闭'}成功", name=f"{MOD}.motor")
             self.action_status = ActionStatus.FINISHED
 
-    def _begin_finger_zero(self, reach):
+    def _begin_finger_zero(self,reach):
         time.sleep(0.1)
+        """finger_zero 标零:先确保两侧 down DO 关闭,再置位两侧 up DO 把手指驱回张开(home)位。"""
         if reach == 'open':
+            # Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, 1.0,
+            #     ConfigParams.left_finger_up_di or "")
+            # Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
+            #     ConfigParams.right_finger_up_di or "")
+            print(f"DEBUG，触发{ConfigParams.left_finger_motor_name},{ConfigParams.right_finger_motor_name},Di:{ConfigParams.left_finger_up_di},{ConfigParams.right_finger_up_di}") 
             Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, 1.0,
-                                ConfigParams.left_finger_up_di or "")
+                                    ConfigParams.left_finger_up_di or "")
             Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, 1.0,
-                                ConfigParams.right_finger_up_di or "")
+                                    ConfigParams.right_finger_up_di or "")  
         elif reach == 'close':
-            Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, -1.0,
-                                ConfigParams.left_finger_down_di or "")
-            Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, -1.0,
-                                ConfigParams.right_finger_down_di or "")
+            # Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, -1.0,
+            #     ConfigParams.left_finger_down_di or "")
+            # Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, -1.0,
+            #     ConfigParams.right_finger_down_di or "")
+            print(f"DEBUG，触发{ConfigParams.left_finger_motor_name},{ConfigParams.right_finger_motor_name}，Di:{ConfigParams.left_finger_down_di},{ConfigParams.right_finger_down_di}") 
 
+
+            Motor.setMotorSpeed(ConfigParams.left_finger_motor_name, -1.0,
+                                    ConfigParams.left_finger_down_di or "")
+            Motor.setMotorSpeed(ConfigParams.right_finger_motor_name, -1.0,
+                                    ConfigParams.right_finger_down_di or "")
     def _stop_finger(self):
         """停止手指电机"""
         Motor.resetMotor(ConfigParams.left_finger_motor_name)
@@ -1571,10 +1596,8 @@ class RecBarcodeAction(BaseAction):
                 self.rec_fail_times += 1
                 if self.rec_fail_times > self.max_rec_fail_times:
                     if ConfigParams.persistent_recognition:
-                        Navigation.setTaskError(
-                            "RecBarcodeFailed",
-                            _TR(f"Barcode recognition failed {self.max_rec_fail_times} times; continuing recognition"),
-                        )
+                        Navigation.setTaskError("RecBarcodeFailed", _TR(
+                            f"Barcode recognition failed {self.max_rec_fail_times} times; continuing recognition"))
                         self.rec_fail_times = 0
                         Recognize.resetRec()
                         Recognize.doRec(ConfigParams.barcode_file, "", "")
@@ -1722,6 +1745,7 @@ class RecBoxCheckAction(BaseAction):
 
     def run(self, m):
         super().run(m)
+        print("进入检查货物是否在货箱")
         if is_simulation():
             self.agv.shelf_occupied = False
             self.agv.report_info["recBoxSimulation"] = {"hasGoods": False}
@@ -1733,6 +1757,7 @@ class RecBoxCheckAction(BaseAction):
             if not self.agv.wait_motors_settled(tag="rec_box_check"):
                 return
             self.agv.reset_motor_settle()
+            # self.agv.rec_box.action_status = ActionStatus.RUNNING
             self.agv.rec_box.is_error = True
             Do.setDo(self.agv.fill_light_do, True)
             self.light_started = True
@@ -1744,12 +1769,17 @@ class RecBoxCheckAction(BaseAction):
             else:
                 Do.setDo(self.agv.fill_light_do, True)
             return
+        
         if self.agv.rec_box.action_status is ActionStatus.FINISHED:
+            if self.agv.rec_box.hasGoods is None:
+                print("货架占位识别失败：未识别到货物")
             has_goods = bool(
                 self.agv.rec_box.hasGoods
                 and not self.agv.rec_box.goods_out_dist
             )
             if has_goods and ConfigParams.persistent_recognition:
+                # 传送带上的货物可能尚未离开目标位。持续识别时保留货物在
+                # 货叉上，不进入恢复队列，直到后续一轮确认目标位为空。
                 self.agv.shelf_occupied = True
                 Navigation.setTaskError(
                     "ShelfHasGoods",
@@ -1761,14 +1791,15 @@ class RecBoxCheckAction(BaseAction):
                 )
                 self.agv.rec_box.reset_for_retry()
                 self.agv.rec_box.is_error = True
+                # 保持补光灯和当前动作运行，下一 tick 立即发起新一轮识别。
+                self.light_ready = True
                 return
 
             self.agv.rec_box.reset()
             self.agv.rec_box.is_error = None
             Do.setDo(self.agv.fill_light_do, False)
             if has_goods:
-                # 货架已有货: 触发异常恢复(把料箱放回背篓), 此处不直接报错,
-                # 由主流程 run() 检测 shelf_occupied 后构建恢复队列接管
+                # 关闭持续识别时保留原有异常恢复流程。
                 self.agv.shelf_occupied = True
                 self.fail_reason = "shelf occupied"
                 Trace.log("rec_box check: 检测到货架已有货物，触发异常恢复", name=f"{MOD}.action")
@@ -1880,6 +1911,9 @@ class TakePhotoAction(BaseAction):
 # 任务脚本主类
 # ============================================================================
 class ContainerRobot(ModuleBase):
+    # 进程级标记：ContainerRobot 常驻，开机归零只能执行一次。
+    startup_zero_done = False
+
     def __init__(self):
         super().__init__()
         self.check_safe_height = 0
@@ -1925,7 +1959,7 @@ class ContainerRobot(ModuleBase):
         self.skip_safe_height = False  # 动作完成后跳过下降到安全高度
         self.immediate_store_after_load = False
 
-        self.fill_light_do = "DO-004"
+        self.fill_light_do = ConfigParams.fill_light_do
         self.target_type = None
         self.code_type = None
         self.barcode_height = None
@@ -1982,6 +2016,71 @@ class ContainerRobot(ModuleBase):
         self.action_task = ActionTask(mod=MOD)
         # safeMoveCheck 专用归零队列(与任务 action_task 隔离, 复用同一组归零动作定义)
         self.safe_zero_task = ActionTask(mod=MOD)
+
+        self.first_full = True
+        self.startup_zero_pending = not ContainerRobot.startup_zero_done
+
+    def reset_for_new_task(self):
+        """复位任务级状态，保留 ModuleBase 回调和移动安全检查状态。"""
+        self.action_task.reset()
+        self.check_safe_height = 0
+        self.rec_box = None
+        self.zeroing = None
+        self.cur_c = None
+        self.ok_x = ConfigParams.ok_x
+        self.ok_yaw = ConfigParams.ok_yaw / 180 * math.pi
+        self.args_init = False
+        self.script_args = {}
+        self.status = ScriptStatus.NONE
+        self.report_info = {}
+        self.start_time = time.time()
+        self.suspend_start_time = None
+        self.business_timeout_started = False
+        self.auto_pre_enabled = False
+        self.auto_pre_stage = 2
+        self.goods_id = ""
+        self.lift_height = None
+        self.stretch_length = None
+        self.is_auto_stretch = None
+        self.rotate_pos = None
+        self.finger_pos = None
+        self.self_position = None
+        self.load_height = 0
+        self.unload_height = 0
+        self.rec_height_diff = 0
+        self.skip_safe_height = False
+        self.immediate_store_after_load = False
+        self.fill_light_do = ConfigParams.fill_light_do
+        self.target_type = None
+        self.code_type = None
+        self.barcode_height = None
+        self.rec = None
+        self.rec_adjust = None
+        self.operation = None
+        self.containers = None
+        self.container_robot = RobotRun()
+        self.lift_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.lift_motor_name, -1)
+        self.stretch_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.stretch_motor_name, -1)
+        self.rotate_motor = MotorRun(MotorType.LINEAR_MOTOR, ConfigParams.rotate_motor_name, -1)
+        self.yaw_adjust = 0
+        self.rec_res = None
+        self.rec_id = None
+        self.rec_box_lift = None
+        self.finger_open_start = False
+        self.pre_finger = None
+        self.motor_settle_start = None
+        self._settle_print_state = None
+        self.shelf_occupied = False
+        self.recovery_built = False
+        self.recovery_c = None
+        self.box_code_file = None
+        self.shelf_code_file = None
+        self.counter = 0
+        self.action_list = []
+        self.action_id = 0
+        self.action_status = ActionStatus.INIT
+        self.current_action = None
+        self.operation_init = False
         self.first_full = True
 
     def init_args(self, args):
@@ -2008,9 +2107,9 @@ class ContainerRobot(ModuleBase):
             self.goods_id = self.script_args.get("goodsName", "")
             self.self_position = self.script_args.get("container", self.self_position)
             self.self_position = str(self.self_position) if self.self_position is not None else self.self_position
-            # AutoPre TASK 已由 MF 提前下发，参数以 Module 当前 TASK 为准；此时没有可查询的导航 moveTask。
-            if not self.auto_pre_enabled:
-                self.update_move_task_params()
+            # AutoPre TASK 已由 MF 提前下发，参数以 Module 当前 TASK 为准。
+            # 仍读取 moveTask 的 goodsName/#containerId,以 M4 下发为准。
+            self.update_move_task_params()
             # 重置识别前停稳计时 & 货架有货异常恢复状态
             self.motor_settle_start = None
             self.shelf_occupied = False
@@ -2124,7 +2223,6 @@ class ContainerRobot(ModuleBase):
                 _TR(f"Please configure goods_check_di parameter properly in script parameters!"))
             self.status = ScriptStatus.FINISHED
 
-        self.check_motor_emc()
         if self.enable_motor and not self.motor_calib_state:
             self.motor_calib()
 
@@ -2389,7 +2487,7 @@ class ContainerRobot(ModuleBase):
         return CtuAutoPreSequenceAction(
             pre_actions=pre_actions,
             required_time=required_time,
-            advance_time=AUTO_PRE_ADVANCE_TIME,
+            advance_time=ConfigParams.auto_pre_advance_time,
             station="targetStation",
             include_rotation=True,
             must_stop_at_pre_station=False,
@@ -2421,6 +2519,7 @@ class ContainerRobot(ModuleBase):
             StretchAction(self, ConfigParams.stretch_self_length, f"{action_prefix}_stretch_self"),
             FingerAction(self, 1, f"{action_prefix}_finger_open"),
             StretchAction(self, 0, f"{action_prefix}_stretch_retract"),
+            # FingerAction(self, 0, f"{action_prefix}_finger_close"),
         ]
         if not pending_store.get("skipSafeHeight", False):
             actions.append(LiftSafeAction(self, f"{action_prefix}_lift_safe"))
@@ -2480,7 +2579,7 @@ class ContainerRobot(ModuleBase):
         Trace.log(f"----- building load actions {self.goods_id} ------", name=f"{MOD}.action")
 
         pending_store = _get_pending_fork_store()
-        if self.goods_id and pending_store and pending_store["goodsName"] == self.goods_id:
+        if pending_store and self.goods_id and pending_store["goodsName"] == self.goods_id:
             if self.self_position is not None:
                 _remember_pending_fork_store(
                     self.goods_id, self.self_position, self.skip_safe_height
@@ -2549,7 +2648,7 @@ class ContainerRobot(ModuleBase):
             Trace.log(f"load begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
             if self.cur_c is None:
                 if self.first_full:
-                    self.cur_c = "999"
+                    self.cur_c="999"
                     self.first_full = False
                 else:
                     Navigation.setTaskError("AllBackpackFull", _TR(f"All backpack slots are full, cannot load more goods！"))
@@ -2557,6 +2656,7 @@ class ContainerRobot(ModuleBase):
                     return
             else:
                 self.first_full = True
+
 
         pre_actions = list(pending_actions) if self.auto_pre_enabled else []
         formal_actions = [] if self.auto_pre_enabled else list(pending_actions)
@@ -2608,8 +2708,9 @@ class ContainerRobot(ModuleBase):
                 self.cur_c,
                 action_prefix="load_store",
             ))
-        elif not self.skip_safe_height:
-            formal_actions.append(LiftSafeAction(self, "load_transport_lift_safe"))
+        else:
+            if not self.skip_safe_height:
+                formal_actions.append(LiftSafeAction(self, "load_transport_lift_safe"))
 
         if not self.auto_pre_enabled:
             self.action_list = formal_actions
@@ -2690,6 +2791,7 @@ class ContainerRobot(ModuleBase):
         actions.append(StretchAction(self, ConfigParams.stretch_self_length, "in_put_stretch_out"))
         actions.append(FingerAction(self, 1, "in_put_finger_open"))
         actions.append(StretchAction(self, 0, "in_put_stretch_retract"))
+        # actions.append(FingerAction(self, 0, "in_put_finger_close"))
         if not self.skip_safe_height:
             actions.append(LiftSafeAction(self, "in_put_lift_safe"))
         actions.append(UnbindContainerAction("999", "in_put_unbind_999"))
@@ -2755,6 +2857,7 @@ class ContainerRobot(ModuleBase):
         actions.append(StretchAction(self, 0, "ex_put_stretch_retract"))
         actions.append(ParallelAction([
             RotateAction(self, 0, action_name="ex_put_rotate_zero"),
+            # FingerAction(self, 0, "ex_put_finger_close"),
         ], "ex_put_parallel_final"))
         if not self.skip_safe_height:
             actions.append(LiftSafeAction(self, "ex_put_lift_safe"))
@@ -2777,9 +2880,12 @@ class ContainerRobot(ModuleBase):
                 )
             elif self.self_position:
                 if Container.getGoodsByContainer(self.self_position) != self.goods_id:
-                    Navigation.setTaskError("GoodsIdMismatch", _TR(f"Goods ID in backpack slot {int(self.self_position) + 1} ({self.self_position}) doesn't match task goods ID ({self.goods_id})! Verify task and backpack data!"))
-                    self.status = ScriptStatus.FAILED
-                    return
+                    if  Container.getGoodsByContainer('999') != self.goods_id:
+                        Navigation.setTaskError("GoodsIdMismatch", _TR(f"Goods ID in backpack slot {int(self.self_position) + 1} ({self.self_position}) doesn't match task goods ID ({self.goods_id})! Verify task and backpack data!"))
+                        self.status = ScriptStatus.FAILED
+                        return
+                    else:
+                        self.self_position = '999'
                 if not Container.hasGoods(self.self_position):
                     Navigation.setTaskError("BackpackSlotEmpty", _TR(f"Backpack slot {int(self.self_position) + 1} ({self.self_position}) is empty, cannot unload! Verify task and backpack data!"))
                     self.status = ScriptStatus.FAILED
@@ -2938,6 +3044,8 @@ class ContainerRobot(ModuleBase):
         )
         if auto_pre_action is not None:
             self.action_list = [auto_pre_action] + formal_actions
+        self.first_full = True
+
 
     def _build_recovery_actions(self):
         """货架有货异常恢复: 把货叉(999)上的料箱放回背篓, 恢复数据后报错(FAILED)。
@@ -3065,7 +3173,6 @@ class ContainerRobot(ModuleBase):
         self.motor_calib_info["liftMotorEmc"] = lift_motor_emc
         self.motor_calib_info["stretchMotorEmc"] = stretch_motor_emc
         self.motor_calib_info["rotateMotorEmc"] = rotate_motor_emc
-        self.motor_calib_info["controllerEmc"] = controller_emc
         self.enable_motor = not lift_motor_emc and not rotate_motor_emc and not stretch_motor_emc
 
         if not controller_emc and time.time() - self.enable_motor_time > 0.5:
@@ -3088,14 +3195,17 @@ class ContainerRobot(ModuleBase):
             if not self.calib_step[0]:
                 if not self.set_stretch_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
                     Motor.motorCalib(ConfigParams.stretch_motor_name)
+                    print("DEBUG:伸缩电机标零开始")
                     self.set_stretch_motor_calib = True
             elif self.calib_step[0] and not self.calib_step[1]:
                 if not self.set_lift_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
                     Motor.motorCalib(ConfigParams.lift_motor_name)
+                    print("DEBUG:升降电机标零开始")
                     self.set_lift_motor_calib = True
             elif self.calib_step[1] and not self.calib_step[2]:
                 if not self.set_rotate_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
                     Motor.motorCalib(ConfigParams.rotate_motor_name)
+                    print("DEBUG:旋转电机标零开始")
                     self.set_rotate_motor_calib = True
 
             calib_retry = (
@@ -3115,7 +3225,6 @@ class ContainerRobot(ModuleBase):
                 self.calib_step[1] = True
             if self.rotate_motor_calib == 2:
                 self.calib_step[2] = True
-
     def get_motor_calib_state(self):
         odo_data = Odometer.getData()
         if odo_data.get("motorInfo", None):
@@ -3210,18 +3319,21 @@ class ContainerRobot(ModuleBase):
         self.status = ScriptStatus.FAILED
 
     def update_move_task_params(self):
-        move_task = Navigation.moveTask()
+        move_task = Navigation.moveTaskList()
+        print(f"DEBUG:movetask的内容{move_task}")
         bin_task = ""
-        for p in move_task['params']:
-            if p['key'] == 'goodsName' or p['key'] == '#goodsName':
-                self.goods_id = p['stringValue']
-            if p['key'] == '#containerId' and p['stringValue'] != "":
-                self.self_position = p['stringValue']
-            if p['key'] == 'binTask':
-                bin_task = p['stringValue']
-        # 库位任务为外部放货时，货物必然在货叉上，强制从999号取
-        if bin_task in ("ex_put", "exPut"):
-            self.self_position = "999"
+        for cur_movetask in move_task:
+            for p in cur_movetask.get('params', []):
+                if p['key'] == 'goodsName' or p['key'] == '#goodsName':
+                    print(f"DEBUG:获取到货物名")
+                    self.goods_id = p['stringValue']
+                if p['key'] == '#containerId' and p['stringValue'] != "":
+                    self.self_position = p['stringValue']
+                if p['key'] == 'binTask':
+                    bin_task = p['stringValue']
+            # 库位任务为外部放货时，货物必然在货叉上，强制从999号取
+            if bin_task in ("ex_put", "exPut"):
+                self.self_position = "999"
 
     def close_finger(self):
         Motor.resetMotor(ConfigParams.left_finger_motor_name)
@@ -3386,14 +3498,17 @@ class ContainerRobot(ModuleBase):
             Trace.log("safe_move_check finished without mechanism actions in simulation", name=MOD)
             return
 
-        if _get_pending_fork_store() is not None:
+        if not self.startup_zero_pending and _get_pending_fork_store() is not None:
             self.safe_zero_task.reset()
             self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
             self.event_safe_move_check = False
             Trace.log("safe_move_check kept carried goods on fork 999", name=f"{MOD}.autoPre")
             return
-
-        if self.auto_pre_enabled and self.operation in ("load", "unload"):
+        if self.auto_pre_enabled:
+            auto_pre = self.auto_pre_enabled
+        else:
+            auto_pre = Module.getAutoPre()
+        if not self.startup_zero_pending and auto_pre and self.operation in ("load", "unload"):
             print("DEBUG:  存在autopre，跳过")
             self.safe_zero_task.reset()
             self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
@@ -3402,17 +3517,21 @@ class ContainerRobot(ModuleBase):
             return
         status = SafeMoveStatus.RUNNING
         self.setSafeMoveStatus(status)
-        self.check_motor_emc()
+        # self.check_motor_emc()
         if self.enable_motor and not self.motor_calib_state:
             self.motor_calib()
 
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:
             if self.safe_zero_task.status == ActionStatus.INIT:
+                print(f"DEBUG:构建了移动安全检查的动作，此时:startup_zero_pending={self.startup_zero_pending}，auto_pre={auto_pre}，operation={self.operation}")
                 self.safe_zero_task.build(self._make_zero_actions(0.5))
             self.safe_zero_task.step(self)
             if self.safe_zero_task.status == ActionStatus.FINISHED:
                 self.safe_zero_task.reset()  # 复位以便下次移动重新归零
+                self.startup_zero_pending = False
+                ContainerRobot.startup_zero_done = True
+                print("DEBUG:表零已完成")
                 status = SafeMoveStatus.FINISHED
             elif self.safe_zero_task.status == ActionStatus.FAILED:
                 self.safe_zero_task.reset()
@@ -3526,10 +3645,8 @@ class Rec(BaseAction):
                 )
                 if self.rec_times > self.max_rec_times:
                     if ConfigParams.persistent_recognition and not self.is_error:
-                        Navigation.setTaskError(
-                            "RecFailed",
-                            _TR(f"Recognition failed after {self.max_rec_times} retries; continuing recognition"),
-                        )
+                        Navigation.setTaskError("RecFailed", _TR(
+                            f"Recognition failed after {self.max_rec_times} retries; continuing recognition"))
                         self.rec_times = 0
                         Recognize.resetRec()
                         return
@@ -3636,6 +3753,7 @@ class RecAdjust(BaseAction):
 
     def run(self, agv: ContainerRobot):
         super().run(agv)
+        print("识别中")
         cur_state = dict()
         self.action_status = ActionStatus.RUNNING
         if self.plan_status is not ScriptStatus.FINISHED:
@@ -3728,10 +3846,8 @@ class RecAdjust(BaseAction):
                     else:
                         if self.adjust_count >= self.max_adjust_time:
                             if ConfigParams.persistent_recognition:
-                                Navigation.setTaskError(
-                                    "RecAdjustExceeded",
-                                    _TR(f"Recognition adjustment exceeded {self.max_adjust_time} retries; continuing recognition"),
-                                )
+                                Navigation.setTaskError("RecAdjustExceeded", _TR(
+                                    f"Recognition adjustment exceeded {self.max_adjust_time} retries; continuing recognition"))
                                 self.adjust_count = 0
                                 self.reset()
                                 self.plan_status = ScriptStatus.NONE
@@ -3741,29 +3857,33 @@ class RecAdjust(BaseAction):
                 self.plan_status = ScriptStatus.FINISHED
                 self.rec.reset()
         elif self.action_status is not ActionStatus.FINISHED and self.action_status is not ActionStatus.FAILED:
-            if self.goPath.action_status is not ActionStatus.FINISHED and self.goPath.action_status is not ActionStatus.FAILED:
+            if (self.goPath.action_status != ActionStatus.FINISHED
+                    and self.goPath.action_status != ActionStatus.FAILED):
                 if abs(self.go_args['x']) < 0.003:
+                    print("无需移动，位置正确")
                     self.goPath.action_status = ActionStatus.FINISHED
                 else:
-                    if self.goPath.action_status is not ActionStatus.FINISHED and self.goPath.action_status is not ActionStatus.FAILED:
+                    if (self.goPath.action_status != ActionStatus.FINISHED
+                            and self.goPath.action_status != ActionStatus.FAILED):
+                        print(f"识别到位置不对，移动{self.go_args['x']}m")
                         self.goPath.run(self.go_args)
-            elif not self.rotate_step and self.goPath.action_status is ActionStatus.FINISHED:
+            elif not self.rotate_step and self.goPath.action_status == ActionStatus.FINISHED:
                 if abs(agv.yaw_adjust) <= 0.01:
                     self.rotate_step = True
                 if not self.rotate_step and ConfigParams.auto_adjust_rotate:
                     self.rotate_step = agv.rotate(self.next_rotate_pos, max_speed=0.3)
                 else:
                     self.rotate_step = True
-            elif self.goPath.action_status is ActionStatus.FAILED:
+            elif self.goPath.action_status == ActionStatus.FAILED:
                 self.action_status = ActionStatus.FAILED
-            elif self.goPath.action_status is ActionStatus.FINISHED and self.rotate_step:
+            elif self.goPath.action_status == ActionStatus.FINISHED and self.rotate_step:
                 self.reset()
                 self.adjust_count += 1
                 self.last_yaw_adjust = agv.yaw_adjust
                 self.plan_status = ScriptStatus.NONE
                 self.rotate_step = False
         cur_state["autoStretchLength"] = agv.stretch_length
-        cur_state["goPathStatus"] = int(self.goPath.action_status)
+        cur_state["goPathStatus"] = self.goPath.action_status
         cur_state["goArgs"] = self.go_args
         cur_state["recResult"] = self.rec.result
         cur_state["recFailTime"] = self.rec_fail_time
@@ -3836,33 +3956,44 @@ def main():
     while True:
         # 脚本任务状态管理
         status = robot.status
+        pending_task_args = modbus_args or Module.getTaskArgs()
+        defer_task_init = (
+            status == ScriptStatus.NONE
+            and bool(pending_task_args)
+            and (robot.startup_zero_pending or robot.event_safe_move_check)
+        )
         # 上报脚本任务状态
-        Module.setStatus(status)
+        # update_cmd 已将框架状态置为 RUNNING；任务等待安全归零时保留该状态，
+        # 使 cancel 仍能进入当前实例的回调，而不是被 NONE 忽略。
+        if not defer_task_init:
+            Module.setStatus(status)
 
         # 每 tick 集中上报(reportInfo 含 containers + ctu.task/ctu.motor 数值时序)
         robot.tick_report()
-
-        # 触发安全检查事件
-        if robot.event_safe_move_check:
-            print(f"DEBUG:检查")
+        robot.check_motor_emc()
+        if robot.startup_zero_pending or robot.event_safe_move_check:
             robot.safeMoveCheck()
         if robot.event_modbus:
             modbus_args = robot.modbus()
             robot.event_modbus = False
-
+        # move_task = Navigation.moveTask()
+        # print(f"DEBUG:导航数据{move_task}")
         if status == ScriptStatus.NONE:
             args = modbus_args or Module.getTaskArgs()
             if args:
-                try:
-                    debug_print("args", args)
-                    # 校验参数, 解析为不带.的参数
-                    args = script_param.loadInput(args)
-                    debug_print("check ok, args:", json.dumps(args, indent=2))
-                    # 初始化参数，成功时设置任务状态为RUNNING
-                    robot = ContainerRobot()
-                    robot.init_args(args)
-                except ValueError as e:
-                    Trace.log(f"check error: {e}", name=f"{MOD}.err")
+                # 安全归零队列属于当前实例；切换任务会替换 Module 的回调，
+                # 不能在归零过程中重建 robot，否则队列将失去后续 step 驱动。
+                if not (robot.startup_zero_pending or robot.event_safe_move_check):
+                    try:
+                        debug_print("args", args)
+                        # 校验参数, 解析为不带.的参数
+                        args = script_param.loadInput(args)
+                        debug_print("check ok, args:", json.dumps(args, indent=2))
+                        # 复位任务状态但保留安全检查回调及其运行中的队列。
+                        robot.reset_for_new_task()
+                        robot.init_args(args)
+                    except ValueError as e:
+                        Trace.log(f"check error: {e}", name=f"{MOD}.err")
         elif status == ScriptStatus.RUNNING:
             robot.run()
         elif status == ScriptStatus.SUSPENDED:
