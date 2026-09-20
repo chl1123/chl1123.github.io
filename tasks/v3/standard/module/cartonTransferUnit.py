@@ -2397,7 +2397,6 @@ class ContainerRobot(ModuleBase):
             StretchAction(self, ConfigParams.stretch_self_length, "deferred_store_stretch_self"),
             FingerAction(self, 1, "deferred_store_finger_open"),
             StretchAction(self, 0, "deferred_store_stretch_retract"),
-            FingerAction(self, 0, "deferred_store_finger_close"),
         ]
         if not pending_store.get("skipSafeHeight", False):
             actions.append(LiftSafeAction(self, "deferred_store_lift_safe"))
@@ -2561,14 +2560,8 @@ class ContainerRobot(ModuleBase):
         formal_actions.append(FingerAction(self, 0, "load_finger_close"))
         formal_actions.append(StretchAction(self, 0, "load_stretch_retract"))
         formal_actions.append(CheckGoodsDiAction(self, "load_check_goods"))
-        transport_actions = [
-            RotateAction(self, 0, action_name="load_transport_rotate_zero")
-        ]
         if not self.skip_safe_height:
-            transport_actions.append(LiftSafeAction(self, "load_transport_lift_safe"))
-        formal_actions.append(ParallelAction(
-            transport_actions, "load_parallel_transport_safe"
-        ))
+            formal_actions.append(LiftSafeAction(self, "load_transport_lift_safe"))
 
         if not self.auto_pre_enabled:
             self.action_list = formal_actions
@@ -2649,7 +2642,6 @@ class ContainerRobot(ModuleBase):
         actions.append(StretchAction(self, ConfigParams.stretch_self_length, "in_put_stretch_out"))
         actions.append(FingerAction(self, 1, "in_put_finger_open"))
         actions.append(StretchAction(self, 0, "in_put_stretch_retract"))
-        actions.append(FingerAction(self, 0, "in_put_finger_close"))
         if not self.skip_safe_height:
             actions.append(LiftSafeAction(self, "in_put_lift_safe"))
         actions.append(UnbindContainerAction("999", "in_put_unbind_999"))
@@ -2715,7 +2707,6 @@ class ContainerRobot(ModuleBase):
         actions.append(StretchAction(self, 0, "ex_put_stretch_retract"))
         actions.append(ParallelAction([
             RotateAction(self, 0, action_name="ex_put_rotate_zero"),
-            FingerAction(self, 0, "ex_put_finger_close"),
         ], "ex_put_parallel_final"))
         if not self.skip_safe_height:
             actions.append(LiftSafeAction(self, "ex_put_lift_safe"))
@@ -2820,13 +2811,8 @@ class ContainerRobot(ModuleBase):
             formal_actions.append(StretchAction(self, self.stretch_length, "unload_stretch_out", dynamic=self.is_auto_stretch))
         formal_actions.append(FingerAction(self, 1, "unload_finger_open"))
         formal_actions.append(StretchAction(self, 0, "unload_stretch_retract"))
-        final_actions = [
-            FingerAction(self, 0, "unload_finger_close"),
-            RotateAction(self, 0, action_name="unload_rotate_zero"),
-        ]
         if not self.skip_safe_height:
-            final_actions.append(LiftSafeAction(self, "unload_lift_safe"))
-        formal_actions.append(ParallelAction(final_actions, "unload_parallel_final"))
+            formal_actions.append(LiftSafeAction(self, "unload_lift_safe"))
         formal_actions.append(UnbindContainerAction("999", "unload_unbind_999"))
 
         if not self.auto_pre_enabled:
