@@ -138,6 +138,7 @@ from standard.fork_utils import (
     enable_falling_down_detect,
     float_to_modbus_poll_regs,
     format_action,
+    get_motor_limit_di,
     get_r_loc,
     has_valid_target_pos,
     is_do_motor_key,
@@ -488,22 +489,6 @@ class ConfigParams:
         return min_length, max_length
 
     @classmethod
-    def _get_motor_limit_di(cls, motor_name, direction):
-        if not motor_name or is_do_motor_key(motor_name):
-            return ""
-        motor_func = RobotParam.getDevice(motor_name, "func") or cls.motor_func
-        if not motor_func:
-            return ""
-        names = ("upLimitDI", "upLimitDi", "UpLimitDI") if direction == "up" else (
-            "DownLimitDI", "downLimitDI", "downLimitDi", "DownLimitDi"
-        )
-        for name in names:
-            value = RobotParam.getDevice(motor_name, f"func.{motor_func}.{name}")
-            if value:
-                return str(value)
-        return ""
-
-    @classmethod
     def _find_config_value(cls, keys, node=_CONFIG_ROOT, visited=None):
         if node is _CONFIG_ROOT:
             node = cls.config
@@ -688,10 +673,10 @@ class ConfigParams:
                 "minLength": cls.min_height
             }
             lift_motor["upLimitDi"] = (
-                cls._get_motor_limit_di(cls.fork_motor_name, "up") or cls.up_di or ""
+                get_motor_limit_di(cls.fork_motor_name, "up", cls.motor_func) or cls.up_di or ""
             )
             lift_motor["downLimitDi"] = (
-                cls._get_motor_limit_di(cls.fork_motor_name, "down") or cls.down_di or ""
+                get_motor_limit_di(cls.fork_motor_name, "down", cls.motor_func) or cls.down_di or ""
             )
             cls.moduleMotor.append(lift_motor)
 
@@ -726,8 +711,8 @@ class ConfigParams:
             "maxLength": max_length,
             "minLength": min_length
         }
-        motor["upLimitDi"] = cls._get_motor_limit_di(motor_name, "up")
-        motor["downLimitDi"] = cls._get_motor_limit_di(motor_name, "down")
+        motor["upLimitDi"] = get_motor_limit_di(motor_name, "up", cls.motor_func)
+        motor["downLimitDi"] = get_motor_limit_di(motor_name, "down", cls.motor_func)
         if side:
             motor["side"] = side
         cls.moduleMotor.append(motor)

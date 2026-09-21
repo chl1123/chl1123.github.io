@@ -199,6 +199,22 @@ def is_do_motor_key(motor_name) -> bool:
     return str(motor_name or "").lower().startswith("domotor")
 
 
+def get_motor_limit_di(motor_name, direction, fallback_motor_func=""):
+    if not motor_name or is_do_motor_key(motor_name):
+        return ""
+    motor_func = RobotParam.getDevice(motor_name, "func") or fallback_motor_func
+    if not motor_func:
+        return ""
+    names = ("upLimitDI", "upLimitDi", "UpLimitDI") if direction == "up" else (
+        "DownLimitDI", "downLimitDI", "downLimitDi", "DownLimitDi"
+    )
+    for name in names:
+        value = RobotParam.getDevice(motor_name, f"func.{motor_func}.{name}")
+        if value:
+            return str(value)
+    return ""
+
+
 def normalize_motor_operation(motor_type):
     if motor_type in ("expand_left", "expand_right"):
         return "expand", motor_type.split("_", 1)[1]
