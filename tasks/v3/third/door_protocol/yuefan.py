@@ -4,10 +4,15 @@ import sys
 import time
 from dataclasses import asdict
 
-from syspy import Module, RobotParam, ScriptParam, ScriptStatus, Trace
+from syspy import Module, ScriptParam, ScriptStatus, Trace
 from syspy.script_data import ScriptData
-from syspy.comms.lora_comm import LoraFrame, LoraSerialTransport, LoraTransportError
-from syspy.utils.param_server import BindType, ParamType
+from syspy.comms.lora_comm import (
+    LoraFrame,
+    LoraMatchSpec,
+    LoraRpcTransport,
+    LoraTransportError,
+)
+from syspy.utils.param_server import ParamType
 
 try:
     from .base import DoorProtocol, DoorProtocolResult, ProtocolRejected, ProtocolUnavailable
@@ -22,7 +27,7 @@ except (ImportError, ValueError):
     )
 
 
-DEFAULT_SERIAL_PORT = "/dev/RS485_3"
+DEFAULT_LORA_DEVICE = "Lora-000"
 
 script_param = ScriptParam(__file__)
 
@@ -56,11 +61,6 @@ class ConfigParams:
         with builder.GROUP(key="protocol", name="Protocol", desc="Yuefan door instance configuration"):
             builder.TYPE(ParamType.ARRAY)
             with builder.CHILDREN():
-                with builder.CHILD(key="port", name="Serial interface", desc="SerialInterface device binding"):
-                    builder.TYPE(ParamType.BIND_TYPE)
-                    builder.BINDTYPE(BindType.Device.SERIAL_INTERFACE)
-                    builder.TAG("protocol:instance")
-                    builder.REQUIRED(True)
                 with builder.CHILD(key="address", name="LoRa address", desc="Gate module address"):
                     builder.TYPE(ParamType.INT)
                     builder.TAG("protocol:instance")
@@ -174,41 +174,9 @@ def _protocol_args(config):
         "communicationProtocol.yuefan.config.protocol.channel",
         "protocol.channel",
     )
-    serial_interface = value(
-        "communicationProtocol.yuefan.config.protocol.port",
-        "protocol.port",
-        default=DEFAULT_SERIAL_PORT,
-    )
     if address is None or channel is None:
         raise ValueError("Yuefan door protocol requires address and channel")
-    return serial_interface, int(address), int(channel)
-
-
-def _resolve_port(serial_interface):
-    port = str(serial_interface or "")
-    if not port or port.startswith("/"):
-        return port or DEFAULT_SERIAL_PORT
-
-    def device_path(value):
-        value = str(value or "")
-        return value if value.startswith("/") else "/dev/{}".format(value)
-
-    try:
-        resolved = str(RobotParam.getConfig(
-            "SerialInterface", "{}.portName".format(port)
-        ) or "")
-    except Exception:
-        resolved = ""
-    if resolved:
-        return device_path(resolved)
-    for field in ("portName", "basic.portName", "devName", "basic.devName"):
-        try:
-            resolved = str(RobotParam.getDevice(port, field) or "")
-        except Exception:
-            resolved = ""
-        if resolved:
-            return device_path(resolved)
-    raise ValueError("Yuefan door SerialInterface {} has no portName".format(port))
+    return int(address), int(channel)
 
 
 def create_protocol(config, port=None, timeout=2.0, retries=3):
@@ -216,11 +184,12 @@ def create_protocol(config, port=None, timeout=2.0, retries=3):
     transport = None
     if hasattr(config, "transact") and isinstance(port, dict):
         # Compatibility form: create_protocol(transport, config).
-        transport, config, port = config, port, DEFAULT_SERIAL_PORT
-    serial_interface, address, channel = _protocol_args(config)
-    port = _resolve_port(port or serial_interface)
+        transport, config, port = config, port, None
+    address, channel = _protocol_args(config)
     if transport is None:
-        transport = LoraSerialTransport(port=port, timeout=timeout, retries=retries)
+        transport = LoraRpcTransport(
+            device=DEFAULT_LORA_DEVICE, timeout=timeout, retries=retries
+        )
     return YuefanDoorProtocol(transport, address, channel)
 
 
@@ -233,7 +202,7 @@ class YuefanDoorProtocol(DoorProtocol):
     CMD_CONTROL = 0x0942
     CMD_END = 0x0945
 
-    def __init__(self, transport: LoraSerialTransport, address: int, channel: int):
+    def __init__(self, transport, address: int, channel: int):
         if not 0 <= address <= 0xFFFF:
             raise ValueError("address must be in range 0..65535")
         if not 0 <= channel <= 0xFF:
@@ -294,7 +263,7 @@ class YuefanDoorProtocol(DoorProtocol):
         return int(open_mode)
 
     def _request(self, command: int, data: bytes, control_state: str,
-                 instance_args=None) -> DoorProtocolResult:
+                 instance_args=None, operation="CONTROL") -> DoorProtocolResult:
         address, channel = self._resolve_instance(instance_args)
         request = LoraFrame(
             command=command,
@@ -305,15 +274,14 @@ class YuefanDoorProtocol(DoorProtocol):
             data=data,
         )
 
-        def matches(frame: LoraFrame) -> bool:
-            return (
-                frame.command == command
-                and frame.destination == self.ROBOT_ADDRESS
-                and frame.source == self.MODULE_ADDRESS
-                and len(frame.data) >= 4
-                and struct.unpack("<H", frame.data[1:3])[0] == address
-                and frame.data[3] == channel
-            )
+        matches = LoraMatchSpec(
+            command=command,
+            destination=self.ROBOT_ADDRESS,
+            source=self.MODULE_ADDRESS,
+            address=address,
+            channel=channel,
+            operation=operation,
+        )
 
         try:
             response = self.transport.transact(request, matches)
@@ -333,7 +301,9 @@ class YuefanDoorProtocol(DoorProtocol):
         )
 
     def query_status(self) -> DoorProtocolResult:
-        return self._request(self.CMD_QUERY, self._common_data(), "UNKNOWN")
+        return self._request(
+            self.CMD_QUERY, self._common_data(), "UNKNOWN", operation="QUERY"
+        )
 
     def acquire_control(self, instance_args=None, active_time=30) -> DoorProtocolResult:
         if not 2 <= int(active_time) <= 0xFF:
@@ -344,30 +314,50 @@ class YuefanDoorProtocol(DoorProtocol):
             self.CMD_CONTROL, data, "OWNED_BY_SELF", instance_args
         )
 
-    def request_open(self, source_side=None, instance_args=None, active_time=None,
-                    **legacy_kwargs) -> DoorProtocolResult:
-        if source_side is None and "open_mode" in legacy_kwargs:
-            source_side = legacy_kwargs["open_mode"]
-        if active_time is None:
-            active_time = instance_args
-            instance_args = {}
+    def _request_open(self, source_side, instance_args, active_time, operation):
         open_mode = self._resolve_open_mode(source_side, instance_args)
         if not 2 <= active_time <= 0xFF:
             raise ValueError("active_time must be in range 2..255")
         address, channel = self._resolve_instance(instance_args)
         data = struct.pack("<BHBHB", self.PROTOCOL_VERSION, address, channel, 0, 0)
         data += struct.pack("<BBB", open_mode, 0, active_time)
-        return self._request(self.CMD_CONTROL, data, "OWNED_BY_SELF", instance_args)
+        return self._request(
+            self.CMD_CONTROL,
+            data,
+            "OWNED_BY_SELF",
+            instance_args,
+            operation=operation,
+        )
+
+    def request_open(self, source_side=None, instance_args=None, active_time=None,
+                     **legacy_kwargs) -> DoorProtocolResult:
+        if source_side is None and "open_mode" in legacy_kwargs:
+            source_side = legacy_kwargs["open_mode"]
+        if active_time is None:
+            active_time = instance_args
+            instance_args = {}
+        return self._request_open(
+            source_side, instance_args, active_time, "CONTROL"
+        )
 
     def keep_alive(self, source_side=None, instance_args=None, active_time=None,
                    **legacy_kwargs) -> DoorProtocolResult:
         if source_side is None and "open_mode" in legacy_kwargs:
             source_side = legacy_kwargs["open_mode"]
-        return self.request_open(source_side, instance_args, active_time)
+        if active_time is None:
+            active_time = instance_args
+            instance_args = {}
+        return self._request_open(
+            source_side, instance_args, active_time, "KEEP_ALIVE"
+        )
 
     def release(self, instance_args=None) -> DoorProtocolResult:
         return self._request(
-            self.CMD_END, self._common_data(instance_args), "FREE", instance_args
+            self.CMD_END,
+            self._common_data(instance_args),
+            "FREE",
+            instance_args,
+            operation="RELEASE",
         )
 
 

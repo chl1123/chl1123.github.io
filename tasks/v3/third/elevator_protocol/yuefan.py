@@ -4,10 +4,15 @@ import sys
 import time
 from dataclasses import asdict
 
-from syspy import Module, RobotParam, ScriptParam, ScriptStatus, Trace
+from syspy import Module, ScriptParam, ScriptStatus, Trace
 from syspy.script_data import ScriptData
-from syspy.comms.lora_comm import LoraFrame, LoraSerialTransport, LoraTransportError
-from syspy.utils.param_server import BindType, ParamType
+from syspy.comms.lora_comm import (
+    LoraFrame,
+    LoraMatchSpec,
+    LoraRpcTransport,
+    LoraTransportError,
+)
+from syspy.utils.param_server import ParamType
 
 try:
     from .base import ElevatorProtocol, ElevatorProtocolResult, ProtocolRejected, ProtocolUnavailable
@@ -22,7 +27,7 @@ except (ImportError, ValueError):
     )
 
 
-DEFAULT_SERIAL_PORT = "/dev/RS485_3"
+DEFAULT_LORA_DEVICE = "Lora-000"
 
 script_param = ScriptParam(__file__)
 
@@ -51,11 +56,6 @@ class ConfigParams:
         with builder.GROUP(key="protocol", name="Protocol", desc="Yuefan elevator instance configuration"):
             builder.TYPE(ParamType.ARRAY)
             with builder.CHILDREN():
-                with builder.CHILD(key="port", name="Serial interface", desc="SerialInterface device binding"):
-                    builder.TYPE(ParamType.BIND_TYPE)
-                    builder.BINDTYPE(BindType.Device.SERIAL_INTERFACE)
-                    builder.TAG("protocol:instance")
-                    builder.REQUIRED(True)
                 with builder.CHILD(key="address", name="LoRa address", desc="Elevator module address"):
                     builder.TYPE(ParamType.INT)
                     builder.TAG("protocol:instance")
@@ -178,11 +178,6 @@ def _protocol_args(config):
         "communicationProtocol.yuefan.config.protocol.channel",
         "protocol.channel",
     )
-    serial_interface = value(
-        "communicationProtocol.yuefan.config.protocol.port",
-        "protocol.port",
-        default=DEFAULT_SERIAL_PORT,
-    )
     timeout = float(value(
         "communicationProtocol.yuefan.config.protocol.timeout",
         "protocol.timeout",
@@ -199,34 +194,7 @@ def _protocol_args(config):
         raise ValueError("Yuefan elevator timeout must be in range 0.1..30")
     if not 1 <= retries <= 10:
         raise ValueError("Yuefan elevator retries must be in range 1..10")
-    return serial_interface, int(address), int(channel), timeout, retries
-
-
-def _resolve_port(serial_interface):
-    port = str(serial_interface or "")
-    if not port or port.startswith("/"):
-        return port or DEFAULT_SERIAL_PORT
-
-    def device_path(value):
-        value = str(value or "")
-        return value if value.startswith("/") else "/dev/{}".format(value)
-
-    try:
-        resolved = str(RobotParam.getConfig(
-            "SerialInterface", "{}.portName".format(port)
-        ) or "")
-    except Exception:
-        resolved = ""
-    if resolved:
-        return device_path(resolved)
-    for field in ("portName", "basic.portName", "devName", "basic.devName"):
-        try:
-            resolved = str(RobotParam.getDevice(port, field) or "")
-        except Exception:
-            resolved = ""
-        if resolved:
-            return device_path(resolved)
-    raise ValueError("Yuefan elevator SerialInterface {} has no portName".format(port))
+    return int(address), int(channel), timeout, retries
 
 
 def create_protocol(config, port=None, timeout=None, retries=None):
@@ -234,15 +202,16 @@ def create_protocol(config, port=None, timeout=None, retries=None):
     transport = None
     if hasattr(config, "transact") and isinstance(port, dict):
         # Compatibility form: create_protocol(transport, config).
-        transport, config, port = config, port, DEFAULT_SERIAL_PORT
-    serial_interface, address, channel, configured_timeout, configured_retries = (
+        transport, config, port = config, port, None
+    address, channel, configured_timeout, configured_retries = (
         _protocol_args(config)
     )
-    port = _resolve_port(port or serial_interface)
     timeout = configured_timeout if timeout is None else float(timeout)
     retries = configured_retries if retries is None else int(retries)
     if transport is None:
-        transport = LoraSerialTransport(port=port, timeout=timeout, retries=retries)
+        transport = LoraRpcTransport(
+            device=DEFAULT_LORA_DEVICE, timeout=timeout, retries=retries
+        )
     return YuefanElevatorProtocol(transport, address, channel)
 
 
@@ -258,7 +227,7 @@ class YuefanElevatorProtocol(ElevatorProtocol):
     # "car arrived; it is safe to enter".
     MOVE_STATE_ARRIVED = 5
 
-    def __init__(self, transport: LoraSerialTransport, address: int, channel: int):
+    def __init__(self, transport, address: int, channel: int):
         if not 0 <= address <= 0xFFFF:
             raise ValueError("address must be in range 0..65535")
         if not 0 <= channel <= 0xFF:
@@ -284,7 +253,13 @@ class YuefanElevatorProtocol(ElevatorProtocol):
             active_time,
         )
 
-    def _request(self, command: int, data: bytes, control_state: str) -> ElevatorProtocolResult:
+    def _request(
+        self,
+        command: int,
+        data: bytes,
+        control_state: str,
+        operation: str,
+    ) -> ElevatorProtocolResult:
         request = LoraFrame(
             command=command,
             destination=self.MODULE_ADDRESS,
@@ -294,15 +269,14 @@ class YuefanElevatorProtocol(ElevatorProtocol):
             data=data,
         )
 
-        def matches(frame: LoraFrame) -> bool:
-            return (
-                frame.command == command
-                and frame.destination == self.ROBOT_ADDRESS
-                and frame.source == self.MODULE_ADDRESS
-                and len(frame.data) >= 4
-                and struct.unpack("<H", frame.data[1:3])[0] == self.address
-                and frame.data[3] == self.channel
-            )
+        matches = LoraMatchSpec(
+            command=command,
+            destination=self.ROBOT_ADDRESS,
+            source=self.MODULE_ADDRESS,
+            address=self.address,
+            channel=self.channel,
+            operation=operation,
+        )
 
         try:
             response = self.transport.transact(request, matches)
@@ -325,7 +299,9 @@ class YuefanElevatorProtocol(ElevatorProtocol):
         )
 
     def query_status(self) -> ElevatorProtocolResult:
-        return self._request(self.CMD_QUERY, self._data(0, 0), "UNKNOWN")
+        return self._request(
+            self.CMD_QUERY, self._data(0, 0), "UNKNOWN", "QUERY"
+        )
 
     def call(self, floor: int, active_time: int) -> ElevatorProtocolResult:
         if active_time < 2:
@@ -334,13 +310,23 @@ class YuefanElevatorProtocol(ElevatorProtocol):
             self.CMD_CONTROL,
             self._data(floor, active_time),
             "OWNED_BY_SELF",
+            "CONTROL",
         )
 
     def keep_alive(self, floor: int, active_time: int) -> ElevatorProtocolResult:
-        return self.call(floor, active_time)
+        if active_time < 2:
+            raise ValueError("active_time must be at least 2 seconds")
+        return self._request(
+            self.CMD_CONTROL,
+            self._data(floor, active_time),
+            "OWNED_BY_SELF",
+            "KEEP_ALIVE",
+        )
 
     def release(self, active_time: int) -> ElevatorProtocolResult:
-        return self._request(self.CMD_END, self._data(0, active_time), "FREE")
+        return self._request(
+            self.CMD_END, self._data(0, active_time), "FREE", "RELEASE"
+        )
 
     def is_target_ready(self, result: ElevatorProtocolResult, target_floor: int) -> bool:
         return (

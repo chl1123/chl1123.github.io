@@ -266,81 +266,6 @@ class GoBezierWorld(_BaseGoBezierWorld):
         return super().compute_bezier_controls_dir(geometry_start, geometry_target, alpha)
 
 
-class GoRecordedPathWorld(ActionBase):
-    """Return from the current pose over an already travelled local path."""
-
-    def __init__(self, navigation, max_speed=0.2, path_dist_accuracy=0.05):
-        super().__init__(self.__class__.__name__)
-        self.source = navigation
-        self.max_speed = float(max_speed)
-        self.path_dist_accuracy = float(path_dist_accuracy)
-        self.is_backwards = not bool(getattr(navigation, "is_backwards", False))
-        self.target_world = None
-        self.path_started = False
-
-    def reset(self):
-        super().reset()
-        Navigation.resetPath()
-        xs = list(getattr(self.source, "xs", ()) or ())
-        ys = list(getattr(self.source, "ys", ()) or ())
-        pose = Loc.getPose() or {}
-        if len(xs) < 2 or len(xs) != len(ys):
-            self.fail_reason = "local path is unavailable for return"
-            self.action_status = ActionStatus.FAILED
-            return
-        try:
-            current_x, current_y = float(pose["x"]), float(pose["y"])
-            current_yaw = math.radians(float(pose["yaw"]))
-        except (KeyError, TypeError, ValueError) as error:
-            self.fail_reason = "invalid return pose: {}".format(error)
-            self.action_status = ActionStatus.FAILED
-            return
-        nearest = min(
-            range(len(xs)),
-            key=lambda index: math.hypot(xs[index] - current_x, ys[index] - current_y),
-        )
-        return_xs = [current_x] + list(reversed(xs[:nearest + 1]))
-        return_ys = [current_y] + list(reversed(ys[:nearest + 1]))
-        self.target_world = [return_xs[-1], return_ys[-1], current_yaw]
-        Navigation.setPathReachAngle(math.pi)
-        Navigation.setPathReachDist(self.path_dist_accuracy)
-        Navigation.setPathBackMode(self.is_backwards)
-        Navigation.setPathMaxSpeed(self.max_speed)
-        Navigation.setPathOnWorld(return_xs, return_ys, current_yaw)
-        Navigation.goPathParam({})
-        self.path_started = True
-        Trace.log({
-            "event": "recordedPathReturnStarted",
-            "backwards": self.is_backwards,
-            "sourcePoints": len(xs),
-            "nearestIndex": nearest,
-            "returnPoints": len(return_xs),
-            "target": self.target_world[:2],
-        }, name="elevator.entry")
-
-    def run(self, _ctx=None):
-        if self.action_status != ActionStatus.RUNNING:
-            return self.action_status
-        if Navigation.isPathReached():
-            self.action_status = ActionStatus.FINISHED
-        return self.action_status
-
-    def cancel(self):
-        Navigation.resetPath()
-        self.path_started = False
-        super().cancel()
-
-    def suspend(self):
-        if self.action_status == ActionStatus.RUNNING and self.path_started:
-            Navigation.stopRobotNow()
-        super().suspend()
-
-    def resume(self):
-        if self.action_status == ActionStatus.SUSPENDED and self.path_started:
-            Navigation.goPathParam({})
-        super().resume()
-
-
 class GoStraightPathWorld(ActionBase):
     """Drive directly from the current pose to a world position."""
 
@@ -517,11 +442,10 @@ class ConfigParams:
     entry_blocked_timeout = 3.0
     entry_retry_motion_timeout = 30.0
     max_entry_attempts = 3
-    max_entry_recall_cycles = 3
     exit_blocked_timeout = 30.0
     exit_retry_interval = 3.0
     entry_guide_distance = 0.5
-    target_door_open_delay = 2.0
+    door_open_delay = 2.0
     entryForward = True
     exitForward = None
     guidePathMode = "arc"
@@ -593,11 +517,10 @@ class ConfigParams:
                     cls._float_param(builder, "entryBlockedTimeout", "Entry blocked timeout", 3.0, 0.1, 3600.0, "s")
                     cls._float_param(builder, "entryRetryMotionTimeout", "Entry retry motion timeout", 30.0, 0.1, 3600.0, "s")
                     cls._int_param(builder, "maxEntryAttempts", "Maximum entry attempts", 3, 1, 100)
-                    cls._int_param(builder, "maxEntryRecallCycles", "Maximum entry recall cycles", 3, 0, 100)
                     cls._float_param(builder, "exitBlockedTimeout", "Exit blocked timeout", 30.0, 0.1, 3600.0, "s")
                     cls._float_param(builder, "exitRetryInterval", "Exit retry interval", 3.0, 0.0, 3600.0, "s")
                     cls._float_param(builder, "entryGuideDistance", "Entry guide distance", 0.5, 0.05, 10.0, "m")
-                    cls._float_param(builder, "targetDoorOpenDelay", "Target door open delay", 2.0, 0.0, 30.0, "s")
+                    cls._float_param(builder, "doorOpenDelay", "Door open delay", 2.0, 0.0, 30.0, "s")
             builder.save(merge=True)
         cls.load_config()
 
@@ -678,18 +601,11 @@ class ConfigParams:
         if not attempts.is_integer():
             raise ValueError("maxEntryAttempts must be an integer")
         cls.max_entry_attempts = int(attempts)
-        raw_recall_cycles = config.get(
-            "maxEntryRecallCycles", cls.max_entry_recall_cycles
-        )
-        recall_cycles = float(raw_recall_cycles)
-        if not recall_cycles.is_integer():
-            raise ValueError("maxEntryRecallCycles must be an integer")
-        cls.max_entry_recall_cycles = int(recall_cycles)
         cls.exit_blocked_timeout = float(config.get("exitBlockedTimeout", cls.exit_blocked_timeout))
         cls.exit_retry_interval = float(config.get("exitRetryInterval", cls.exit_retry_interval))
         cls.entry_guide_distance = float(config.get("entryGuideDistance", cls.entry_guide_distance))
-        cls.target_door_open_delay = float(
-            config.get("targetDoorOpenDelay", cls.target_door_open_delay)
+        cls.door_open_delay = float(
+            config.get("doorOpenDelay", cls.door_open_delay)
         )
         cls._validate_ranges()
 
@@ -708,7 +624,7 @@ class ConfigParams:
             ("exitBlockedTimeout", cls.exit_blocked_timeout, 0.1, 3600.0),
             ("exitRetryInterval", cls.exit_retry_interval, 0.0, 3600.0),
             ("entryGuideDistance", cls.entry_guide_distance, 0.05, 10.0),
-            ("targetDoorOpenDelay", cls.target_door_open_delay, 0.0, 30.0),
+            ("doorOpenDelay", cls.door_open_delay, 0.0, 30.0),
         )
         for name, value, minimum, maximum in ranges:
             if not minimum <= value <= maximum:
@@ -717,8 +633,6 @@ class ConfigParams:
                 )
         if not 1 <= cls.max_entry_attempts <= 100:
             raise ValueError("maxEntryAttempts must be in range 1..100")
-        if not 0 <= cls.max_entry_recall_cycles <= 100:
-            raise ValueError("maxEntryRecallCycles must be in range 0..100")
         if cls.guidePathMode not in ("bezier", "arc"):
             raise ValueError("guidePathMode must be bezier or arc")
 
@@ -917,9 +831,8 @@ class ElevatorLease:
                     "carPosition": state["carPosition"],
                     "controlState": state["controlState"],
                 }, name="elevator.lease")
-            except Exception as error:
-                Trace.log({"event": "leaseTraceFailed", "error": str(error)},
-                          name="elevator.err")
+            except Exception:
+                pass
             return
         self._last_lease_log_key = key
         payload = {"event": event}
@@ -927,9 +840,8 @@ class ElevatorLease:
         payload.update(extra)
         try:
             Trace.log(payload, name="elevator.lease")
-        except Exception as error:
-            Trace.log({"event": "leaseTraceFailed", "error": str(error)},
-                      name="elevator.err")
+        except Exception:
+            pass
 
     def _log_car_position(self, event, previous):
         self._trace_lease(
@@ -962,6 +874,7 @@ class ElevatorLease:
 
     def call(self, floor):
         was_acquired = self.acquired
+        position_was_known = self.car_position != ElevatorCarPosition.UNKNOWN
         result = self.protocol.call(int(floor), self.active_time)
         self.floor = int(floor)
         self.latest = result
@@ -969,12 +882,17 @@ class ElevatorLease:
         self.acquired = True
         self._released = False
         self._release_result = None
-        if not was_acquired:
+        if not was_acquired and self.car_position == ElevatorCarPosition.UNKNOWN:
             # 首次呼梯对应来源 callPoint；之后 select 目标层不得覆盖车内状态。
             self.car_position = ElevatorCarPosition.OUTSIDE
+        reacquired = not was_acquired and position_was_known
+        event = (
+            "leaseRecalled" if was_acquired
+            else "leaseReacquired" if reacquired
+            else "leaseAcquired"
+        )
         self._trace_lease(
-            "leaseAcquired" if not was_acquired else "leaseRecalled",
-            force=True, reacquired=was_acquired,
+            event, force=True, reacquired=reacquired,
         )
         return result
 
@@ -987,26 +905,11 @@ class ElevatorLease:
         self._trace_lease("leaseKeepAlive")
         return result
 
-    def release(self):
+    def _release_protocol(self):
         if self._released:
             return self._release_result
         if not self.acquired:
             return None
-        if self.car_position != ElevatorCarPosition.OUTSIDE:
-            Trace.log({
-                "event": "elevatorSafetyHolding",
-                "carPosition": self.car_position.value,
-                "reason": "release forbidden while robot is in elevator",
-            }, name="elevator.err")
-            self._trace_lease(
-                "elevatorSafetyHolding", force=True,
-                reason="release forbidden while robot is in elevator",
-            )
-            raise RuntimeError(
-                "cannot release elevator while car position is {}".format(
-                    self.car_position.value
-                )
-            )
         result = self.protocol.release(self.active_time)
         self.latest = result
         self._release_result = result
@@ -1015,36 +918,32 @@ class ElevatorLease:
         self._trace_lease("leaseReleased", force=True)
         return result
 
-    def release_if_safe(self):
-        """动作清理时延迟释放；模块终态收口负责强制释放。"""
-        if not self.acquired or self.car_position == ElevatorCarPosition.OUTSIDE:
-            return self.release()
-        Trace.log({
-            "event": "elevatorSafetyHolding",
-            "carPosition": self.car_position.value,
-            "reason": "defer release until robot exits elevator",
-        }, name="elevator.err")
-        self._trace_lease(
-            "elevatorSafetyHolding", force=True,
-            reason="defer release until robot exits elevator",
-        )
-        return None
+    def release(self):
+        if self._released:
+            return self._release_result
+        if not self.acquired:
+            return None
+        if self.car_position != ElevatorCarPosition.OUTSIDE:
+            self._trace_lease(
+                "elevatorReleaseRejected", force=True,
+                reason="release forbidden while robot is in elevator",
+            )
+            raise RuntimeError(
+                "cannot release elevator while car position is {}".format(
+                    self.car_position.value
+                )
+            )
+        return self._release_protocol()
 
     def release_unconditionally(self, reason):
         """终态失败或取消时立即释放控制权，不进入安全保持。"""
         if not self.acquired or self._released:
             return self._release_result
         if self.car_position != ElevatorCarPosition.OUTSIDE:
-            Trace.log({
-                "event": "elevatorForcedRelease",
-                "carPosition": self.car_position.value,
-                "reason": str(reason),
-            }, name="elevator.err")
-            self.car_position = ElevatorCarPosition.OUTSIDE
-        self._trace_lease(
-            "elevatorForcedRelease", force=True, reason=str(reason),
-        )
-        return self.release()
+            self._trace_lease(
+                "elevatorForcedRelease", force=True, reason=str(reason),
+            )
+        return self._release_protocol()
 
 
 class ElevatorKeepAliveAction(ActionBase):
@@ -1108,54 +1007,6 @@ class ElevatorKeepAliveAction(ActionBase):
     def cancel(self):
         self._release_safely()
         super().cancel()
-
-
-class ElevatorSafetyHolding:
-    """Deprecated: 保留供后续独立安全会话复用，当前业务入口已停用。"""
-
-    def __init__(self, lease, poll_interval=1.0, publisher=None):
-        self.lease = lease
-        self.poll_interval = float(poll_interval)
-        self._next_poll_at = time.monotonic()
-        self.resolved = False
-        self.publisher = publisher
-        if self.publisher is not None:
-            self.publisher.publish(ElevatorPhase.SAFETY_HOLDING)
-
-    def step(self):
-        if self.resolved:
-            return True
-        if self.lease.car_position == ElevatorCarPosition.OUTSIDE:
-            try:
-                self.lease.release()
-                self.resolved = True
-                Trace.log({"event": "safetyHoldingResolved",
-                           "carPosition": self.lease.car_position.value},
-                          name="elevator.safety")
-                return True
-            except Exception as error:
-                Trace.log({"event": "safetyHoldingReleaseFailed",
-                           "error": str(error)}, name="elevator.err")
-                return False
-
-        now = time.monotonic()
-        if now < self._next_poll_at:
-            return False
-        try:
-            self.lease.keep_alive()
-            if self.publisher is not None:
-                self.publisher.publish(ElevatorPhase.SAFETY_HOLDING)
-            Trace.log({"event": "safetyHoldingKeepAlive",
-                       "carPosition": self.lease.car_position.value},
-                      name="elevator.safety")
-        except Exception as error:
-            # 安全保持期间通信失败也不能退化为 release；下一周期继续尝试。
-            Trace.log({"event": "safetyHoldingKeepAliveFailed",
-                       "error": str(error),
-                       "carPosition": self.lease.car_position.value},
-                      name="elevator.err")
-        self._next_poll_at = now + self.poll_interval
-        return False
 
 
 class SwitchMapAction(ActionBase):
@@ -1436,8 +1287,8 @@ class RelocAction(ActionBase):
 
 
 class WaitTargetElevatorAction(ActionBase):
-    def __init__(self, protocol, target_floor, active_time=None,
-                 timeout=120.0, poll_interval=None, lease=None, on_started=None):
+    def __init__(self, protocol, target_floor, timeout=120.0,
+                 poll_interval=None, lease=None, on_started=None):
         super().__init__(self.__class__.__name__)
         self.protocol = protocol
         self.target_floor = int(target_floor)
@@ -1541,10 +1392,10 @@ class WaitTargetElevatorAction(ActionBase):
 class WaitSourceElevatorAction(WaitTargetElevatorAction):
     """Wait until the source-floor car is stopped and owned by this task."""
 
-    def __init__(self, protocol, source_floor, active_time=None,
-                 timeout=120.0, poll_interval=None, lease=None, on_started=None):
-        super().__init__(protocol, source_floor, active_time, timeout,
-                         poll_interval, lease, on_started)
+    def __init__(self, protocol, source_floor, timeout=120.0,
+                 poll_interval=None, lease=None, on_started=None):
+        super().__init__(protocol, source_floor, timeout, poll_interval,
+                         lease, on_started)
         self.action_type = self.__class__.__name__
 
     def run(self, _ctx=None):
@@ -1593,6 +1444,10 @@ def _normalize_heading(angle):
     return (float(angle) + 180.0) % 360.0 - 180.0
 
 
+def _local_move_retry_interval():
+    return max(0.1, min(1.0, ConfigParams.elevator_status_poll_interval))
+
+
 class ElevatorEntryHeadingAction(ActionBase):
     """Align the chassis with the elevator door before entering."""
 
@@ -1604,6 +1459,9 @@ class ElevatorEntryHeadingAction(ActionBase):
         self.forward = bool(forward)
         self.tolerance = ConfigParams.reachAngle if tolerance is None else float(tolerance)
         self.target_heading = None
+        self._started_at = None
+        self._retry_at = None
+        self._params = None
 
     def args_summary(self):
         return {
@@ -1614,6 +1472,11 @@ class ElevatorEntryHeadingAction(ActionBase):
 
     def reset(self):
         super().reset()
+        self._started_at = time.monotonic()
+        self._retry_at = None
+        self._start_alignment()
+
+    def _start_alignment(self):
         if self.call_point_dir is None:
             self.action_status = ActionStatus.FINISHED
             Trace.log({
@@ -1621,6 +1484,7 @@ class ElevatorEntryHeadingAction(ActionBase):
             }, name="elevator.entry")
             return
         Navigation.resetOdoMove()
+        self._params = None
         self.target_heading = _normalize_heading(
             self.call_point_dir + (0.0 if self.forward else 180.0)
         )
@@ -1655,23 +1519,55 @@ class ElevatorEntryHeadingAction(ActionBase):
                 "params": params,
             }, name="elevator.entry")
         except Exception as error:
-            self.fail_reason = str(error)
-            self.error_code = "ElevatorLocalMoveFailed"
-            self.action_status = ActionStatus.FAILED
+            self._schedule_retry(error)
+
+    def _schedule_retry(self, error):
+        now = time.monotonic()
+        Navigation.resetOdoMove()
+        if (self._started_at is not None
+                and now - self._started_at < ConfigParams.elevator_arrival_timeout):
+            self.fail_reason = ""
+            self.error_code = ""
+            self.action_status = ActionStatus.RUNNING
+            self._retry_at = now + _local_move_retry_interval()
+            Trace.log({
+                "event": "entryHeadingRetryScheduled",
+                "reason": str(error),
+                "retryAt": self._retry_at,
+            }, name="elevator.entry")
+            return
+        self.fail_reason = str(error)
+        self.error_code = "ElevatorLocalMoveFailed"
+        self.action_status = ActionStatus.FAILED
 
     def run(self, _ctx=None):
         if self.action_status != ActionStatus.RUNNING:
             return self.action_status
+        now = time.monotonic()
+        if (self._started_at is not None
+                and now - self._started_at >= ConfigParams.elevator_arrival_timeout):
+            Navigation.resetOdoMove()
+            self.fail_reason = "entry heading motion exceeded arrival timeout"
+            self.error_code = "ElevatorLocalMoveFailed"
+            self.action_status = ActionStatus.FAILED
+            return self.action_status
+        if self._retry_at is not None:
+            if now < self._retry_at:
+                return self.action_status
+            self._retry_at = None
+            self._start_alignment()
+            return self.action_status
         try:
-            self.action_status = _normalize_motion_status(
+            status = _normalize_motion_status(
                 Navigation.runOdoMove(self._params)
             )
         except Exception as error:
-            self.fail_reason = str(error)
-            self.error_code = "ElevatorLocalMoveFailed"
-            self.action_status = ActionStatus.FAILED
-        if self.action_status == ActionStatus.FAILED and not self.error_code:
-            self.error_code = "ElevatorLocalMoveFailed"
+            self._schedule_retry(error)
+            return self.action_status
+        if status == ActionStatus.FAILED:
+            self._schedule_retry("entry heading motion failed")
+            return self.action_status
+        self.action_status = status
         if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
             Navigation.resetOdoMove()
         return self.action_status
@@ -1700,7 +1596,7 @@ class ElevatorBezierAction(ActionBase):
                  geometry_path=None, avoid_initial_backoff=False,
                  curve_start_heading=None, curve_end_heading=None,
                  policy_start_ratio=1.0, position_only=False, workspace="",
-                 path_mode="bezier", recorded_navigation=None):
+                 path_mode="bezier"):
         super().__init__(self.__class__.__name__)
         self.target = target
         self.is_exit = is_exit
@@ -1717,7 +1613,6 @@ class ElevatorBezierAction(ActionBase):
         self.policy_start_ratio = max(0.0, min(1.0, float(policy_start_ratio)))
         self.position_only = bool(position_only)
         self.path_mode = str(path_mode)
-        self.recorded_navigation = recorded_navigation
         self._path_angle_accuracy = ConfigParams.reachAngle
         self._finish_notified = False
         self._policy_initialized = False
@@ -1839,13 +1734,7 @@ class ElevatorBezierAction(ActionBase):
                 "pathMode": self.path_mode,
             }, name="elevator.bezier")
             return
-        if self.path_mode == "recorded":
-            self.navigation = GoRecordedPathWorld(
-                self.recorded_navigation,
-                max_speed=ConfigParams.maxSpeed,
-                path_dist_accuracy=ConfigParams.reachDist,
-            )
-        elif self.path_mode == "line":
+        if self.path_mode == "line":
             self.navigation = GoStraightPathWorld(
                 target_world,
                 is_backwards=is_backwards,
@@ -2081,7 +1970,7 @@ class ElevatorEntryAction(ActionBase):
         EntryMotionPhase.BACKING_OFF_CALL_POINT_FINAL,
     ))
 
-    def __init__(self, entry, call_point, lease, protocol, source_floor, active_time=None,
+    def __init__(self, entry, call_point, lease, protocol, source_floor,
                  on_entering=None, on_inside=None, guide_point=None):
         super().__init__(self.__class__.__name__)
         self.entry = dict(entry)
@@ -2096,12 +1985,12 @@ class ElevatorEntryAction(ActionBase):
         self._phase = None
         self._blocked_since = None
         self._backoff_block_logged = False
-        self._backoff_waiting_for_clear = False
         self._retry_started = None
         self._attempt = 1
         self._recall_cycle = 0
         self._wait_source = None
         self._arrival_deadline = None
+        self._motion_retry_at = None
 
     def args_summary(self):
         summary = {
@@ -2150,13 +2039,6 @@ class ElevatorEntryAction(ActionBase):
         return result
 
     @staticmethod
-    def _has_recorded_path(motion):
-        navigation = getattr(motion, "navigation", None)
-        xs = getattr(navigation, "xs", None)
-        ys = getattr(navigation, "ys", None)
-        return bool(xs and ys and len(xs) == len(ys) and len(xs) >= 2)
-
-    @staticmethod
     def _target_errors(pose, target):
         distance = None
         heading_error = None
@@ -2176,7 +2058,7 @@ class ElevatorEntryAction(ActionBase):
     def _start_motion(self, target, phase, backwards=None):
         phase = EntryMotionPhase(phase)
         self._phase = phase
-        self._backoff_waiting_for_clear = False
+        self._motion_retry_at = None
         if backwards is None:
             backwards = not ConfigParams.entryForward
         motion_target = self._path_target(target, backwards)
@@ -2215,7 +2097,6 @@ class ElevatorEntryAction(ActionBase):
         else:
             policy_start_ratio = 1.0
             path_mode = "bezier"
-        recorded_navigation = None
         self._motion = ElevatorBezierAction(
             motion_target, is_exit=False, backwards=backwards, geometry_path=True,
             avoid_initial_backoff=True,
@@ -2231,7 +2112,6 @@ class ElevatorEntryAction(ActionBase):
             ) or phase in self._GUIDE_BACKOFF_PHASES
                 or phase in self._CALL_POINT_BACKOFF_PHASES),
             path_mode=path_mode,
-            recorded_navigation=recorded_navigation,
         )
         self._motion.reset()
         Trace.log({
@@ -2255,11 +2135,11 @@ class ElevatorEntryAction(ActionBase):
         now = time.monotonic()
         self._blocked_since = None
         self._backoff_block_logged = False
-        self._backoff_waiting_for_clear = False
         self._retry_started = None
         self._attempt = 1
         self._recall_cycle = 0
         self._wait_source = None
+        self._motion_retry_at = None
         self._arrival_deadline = now + ConfigParams.elevator_arrival_timeout
         guide = self._guide_point()
         guide_distance = math.hypot(
@@ -2303,21 +2183,6 @@ class ElevatorEntryAction(ActionBase):
         )
 
     def _start_source_retry(self, now):
-        if self._recall_cycle >= ConfigParams.max_entry_recall_cycles:
-            self.fail_reason = (
-                "elevator entry exhausted {} recall cycles".format(
-                    ConfigParams.max_entry_recall_cycles
-                )
-            )
-            self.error_code = "ElevatorEntryRecallExhausted"
-            self.action_status = ActionStatus.FAILED
-            Trace.log({
-                "event": "entryRecallExhausted",
-                "attempt": self._attempt,
-                "recallCycle": self._recall_cycle,
-                "maxRecallCycles": ConfigParams.max_entry_recall_cycles,
-            }, name="elevator.entry")
-            return self.action_status
         self._recall_cycle += 1
         try:
             self.lease.call(self.source_floor)
@@ -2598,115 +2463,56 @@ class ElevatorEntryAction(ActionBase):
         except Exception:
             pass
 
-    def _motion_failure_fallback(self):
-        if self._phase == EntryMotionPhase.GUIDE:
-            return EntryMotionPhase.BACKING_OFF_CALL_POINT_FIRST
-        if self._phase == EntryMotionPhase.ENTERING:
-            return (
-                EntryMotionPhase.BACKING_OFF_GUIDE_FINAL
-                if self._attempt >= ConfigParams.max_entry_attempts
-                else EntryMotionPhase.BACKING_OFF_GUIDE_RETRY
-            )
-        if self._phase in self._GUIDE_BACKOFF_PHASES:
-            return EntryMotionPhase.BACKING_OFF_CALL_POINT_FINAL
-        return None
-
     def _handle_motion_failure(self):
-        failed_phase = self._phase
-        failed_reason = self._motion.fail_reason
-        failed_error_code = self._motion.error_code
-        pose = Loc.getPose() or {}
-        if (failed_phase in self._GUIDE_BACKOFF_PHASES | self._CALL_POINT_BACKOFF_PHASES
-                and self._blocked()):
-            # A failed recovery path must not fail the elevator task while the
-            # chassis is still across the doorway.  Hold the lease and wait
-            # for the aggregate block flag to clear before recreating the same
-            # straight backoff from the current pose.
-            self._backoff_waiting_for_clear = True
+        fail_reason = self._motion.fail_reason or "elevator local motion failed"
+        error_code = self._motion.error_code or "ElevatorLocalMoveFailed"
+        now = time.monotonic()
+        if (self._phase in self._MOTION_PHASES
+                and error_code == "ElevatorLocalMoveFailed"
+                and self._arrival_deadline is not None
+                and now < self._arrival_deadline):
+            try:
+                self._motion.cancel()
+            except Exception:
+                Navigation.resetPath()
+            self._motion = None
+            self._motion_retry_at = now + _local_move_retry_interval()
             Trace.log({
-                "event": "entryBackoffMotionFailedWaiting",
-                "phase": enum_value(failed_phase),
+                "event": "entryMotionRetryScheduled",
                 "attempt": self._attempt,
-                "reason": failed_reason,
-                "errorCode": failed_error_code,
+                "phase": enum_value(self._phase),
+                "reason": fail_reason,
+                "retryAt": self._motion_retry_at,
+                "deadline": self._arrival_deadline,
             }, name="elevator.entry")
             return self.action_status
-        if (failed_phase in self._MOTION_PHASES
-                and self._on_guide_to_entry_path(pose)):
-            if failed_phase == EntryMotionPhase.ENTERING:
-                fallback_phase = (
-                    EntryMotionPhase.BACKING_OFF_GUIDE_FINAL
-                    if self._attempt >= ConfigParams.max_entry_attempts
-                    else EntryMotionPhase.BACKING_OFF_GUIDE_RETRY
-                )
-                fallback_target = self._guide_point()
-                fallback_backwards = ConfigParams.entryForward
-            elif failed_phase == EntryMotionPhase.BACKING_OFF_GUIDE_FINAL:
-                fallback_phase = EntryMotionPhase.BACKING_OFF_GUIDE_FINAL
-                fallback_target = self._guide_point()
-                fallback_backwards = ConfigParams.entryForward
-            elif failed_phase == EntryMotionPhase.BACKING_OFF_GUIDE_RETRY:
-                if self._attempt >= ConfigParams.max_entry_attempts:
-                    fallback_phase = EntryMotionPhase.BACKING_OFF_GUIDE_FINAL
-                    fallback_target = self._guide_point()
-                    fallback_backwards = ConfigParams.entryForward
-                else:
-                    fallback_phase = EntryMotionPhase.ENTERING
-                    fallback_target = self.entry
-                    fallback_backwards = None
-            elif failed_phase in self._CALL_POINT_BACKOFF_PHASES:
-                fallback_phase = failed_phase
-                fallback_target = self._call_point_target()
-                fallback_backwards = ConfigParams.entryForward
-            else:
-                fallback_phase = EntryMotionPhase.ENTERING
-                fallback_target = self.entry
-                fallback_backwards = None
-            self._start_motion(
-                fallback_target,
-                phase=fallback_phase,
-                backwards=fallback_backwards,
-            )
-            Trace.log({
-                "event": "entryRecoveryMotionFailedOnDoorPath",
-                "attempt": self._attempt,
-                "phase": enum_value(failed_phase),
-                "fallbackPhase": enum_value(fallback_phase),
-                "reason": failed_reason,
-                "errorCode": failed_error_code,
-            }, name="elevator.entry")
-            return self.action_status
-        fallback_phase = self._motion_failure_fallback()
-        if fallback_phase is None:
-            self.fail_reason = failed_reason
-            self.error_code = failed_error_code or "ElevatorLocalMoveFailed"
-            self.action_status = ActionStatus.FAILED
-            return self.action_status
-        fallback_target = (
-            self._call_point_target()
-            if fallback_phase in self._CALL_POINT_BACKOFF_PHASES
-            else self._guide_point()
-        )
-        if (fallback_phase == EntryMotionPhase.BACKING_OFF_CALL_POINT_FINAL
-                and (failed_phase == EntryMotionPhase.BACKING_OFF_GUIDE_FINAL
-                     or self._attempt >= ConfigParams.max_entry_attempts)):
-            if not self._start_final_call_point_backoff():
-                return self.action_status
-        else:
-            self._start_motion(
-                fallback_target,
-                phase=fallback_phase,
-                backwards=ConfigParams.entryForward,
-            )
+        self.fail_reason = fail_reason
+        self.error_code = error_code
+        self.action_status = ActionStatus.FAILED
         Trace.log({
-            "event": "entryRecoveryMotionFailed",
+            "event": "entryMotionFailed",
             "attempt": self._attempt,
-            "phase": enum_value(failed_phase),
-            "fallbackPhase": enum_value(fallback_phase),
-            "reason": failed_reason,
-            "errorCode": failed_error_code,
-        }, name="elevator.entry")
+            "phase": enum_value(self._phase),
+            "reason": self.fail_reason,
+            "errorCode": self.error_code,
+        }, name="elevator.err")
         return self.action_status
+
+    def _restart_current_motion(self):
+        phase = EntryMotionPhase(self._phase)
+        if phase == EntryMotionPhase.GUIDE:
+            target = self._guide_point()
+            backwards = None
+        elif phase == EntryMotionPhase.ENTERING:
+            target = self.entry
+            backwards = None
+        elif phase in self._GUIDE_BACKOFF_PHASES:
+            target = self._guide_point()
+            backwards = ConfigParams.entryForward
+        else:
+            target = self._call_point_target()
+            backwards = ConfigParams.entryForward
+        self._start_motion(target, phase, backwards=backwards)
 
     def _handle_motion_finished(self, now):
         if self._phase == EntryMotionPhase.GUIDE:
@@ -2751,22 +2557,10 @@ class ElevatorEntryAction(ActionBase):
             self.error_code = "ElevatorStateTimeout"
             self.action_status = ActionStatus.FAILED
             return self.action_status
-        if self._backoff_waiting_for_clear:
-            if self._blocked():
+        if self._motion_retry_at is not None:
+            if now < self._motion_retry_at:
                 return self.action_status
-            self._backoff_waiting_for_clear = False
-            self._blocked_since = None
-            self._backoff_block_logged = False
-            target = (
-                self._call_point_target()
-                if self._phase in self._CALL_POINT_BACKOFF_PHASES
-                else self._guide_point()
-            )
-            self._start_motion(
-                target,
-                phase=self._phase,
-                backwards=ConfigParams.entryForward,
-            )
+            self._restart_current_motion()
             return self.action_status
         if self._phase in self._MOTION_PHASES:
             # Advance motion before reading the block flag, which may still
@@ -2774,11 +2568,8 @@ class ElevatorEntryAction(ActionBase):
             try:
                 self._motion.run(ctx)
             except Exception as error:
-                # A local navigation exception must not unwind the script
-                # while the robot is on the guide-to-switchPoint door path.
-                # Convert it to the same recoverable motion-failure flow used
-                # for an explicit FAILED status; the arrival deadline remains
-                # the only terminal bound for this recovery loop.
+                # Normalize local-navigation exceptions into the documented
+                # FAILED + release lifecycle handled by the module.
                 self._motion.fail_reason = str(error)
                 self._motion.error_code = "ElevatorLocalMoveFailed"
                 self._motion.action_status = ActionStatus.FAILED
@@ -2832,7 +2623,7 @@ class ElevatorExitRecoveryAction(ActionBase):
     RELOCATING = "RELOCATING"
     SWITCHING_MAP = RELOCATING  # backward-compatible phase alias
 
-    def __init__(self, target, protocol, lease, target_floor, active_time,
+    def __init__(self, target, protocol, lease, target_floor,
                  target_map, switch_point, switch_pose=None,
                  stable_time=2.0, min_confidence=0.65,
                  target_switch_dir=None,
@@ -2843,7 +2634,6 @@ class ElevatorExitRecoveryAction(ActionBase):
         self.protocol = protocol
         self.lease = lease
         self.target_floor = int(target_floor)
-        self.active_time = int(active_time)
         self.target_map = str(target_map)
         self.switch_point = str(switch_point)
         self.switch_pose = switch_pose
@@ -2861,6 +2651,8 @@ class ElevatorExitRecoveryAction(ActionBase):
         self._retry_count = 0
         self._retry_at = None
         self._arrival_deadline = None
+        self._motion_deadline = None
+        self._motion_retry_at = None
 
     def args_summary(self):
         return {
@@ -2892,11 +2684,12 @@ class ElevatorExitRecoveryAction(ActionBase):
             switch_dir=self.target_switch_dir,
             workspace=self.workspace,
         )
+        self.phase = self.EXITING
+        self._motion_retry_at = None
         self.motion.reset()
         if self.motion.action_status == ActionStatus.FAILED:
-            self._fail_from(self.motion, "ElevatorLocalMoveFailed")
+            self._schedule_motion_retry(self.motion)
             return
-        self.phase = self.EXITING
         self._blocked_since = None
         if self.on_started is not None:
             self.on_started()
@@ -2915,6 +2708,10 @@ class ElevatorExitRecoveryAction(ActionBase):
         self._blocked_since = None
         self._retry_count = 0
         self._retry_at = None
+        self._motion_retry_at = None
+        self._motion_deadline = (
+            time.monotonic() + ConfigParams.elevator_arrival_timeout
+        )
         # The recovery timeout starts when the first blocked-exit recovery is
         # entered, not when the initial exit attempt begins.
         self._arrival_deadline = None
@@ -3004,6 +2801,40 @@ class ElevatorExitRecoveryAction(ActionBase):
         self.reloc.reset()
         self.phase = self.RELOCATING
 
+    def _schedule_motion_retry(self, failed_motion=None):
+        failed_motion = failed_motion or self.motion
+        fail_reason = (
+            getattr(failed_motion, "fail_reason", "")
+            or "elevator exit local motion failed"
+        )
+        error_code = (
+            getattr(failed_motion, "error_code", "")
+            or "ElevatorLocalMoveFailed"
+        )
+        now = time.monotonic()
+        if (error_code == "ElevatorLocalMoveFailed"
+                and self._motion_deadline is not None
+                and now < self._motion_deadline):
+            if failed_motion is not None:
+                try:
+                    failed_motion.cancel()
+                except Exception:
+                    Navigation.resetPath()
+            self.motion = None
+            self._motion_retry_at = now + _local_move_retry_interval()
+            self.action_status = ActionStatus.RUNNING
+            Trace.log({
+                "event": "exitDoorMotionRetryScheduled",
+                "retry": self._retry_count,
+                "reason": fail_reason,
+                "retryAt": self._motion_retry_at,
+                "deadline": self._motion_deadline,
+            }, name="elevator.exit")
+            return
+        self.fail_reason = fail_reason
+        self.error_code = error_code
+        self.action_status = ActionStatus.FAILED
+
     def run(self, ctx=None):
         if self.action_status != ActionStatus.RUNNING:
             return self.action_status
@@ -3017,15 +2848,34 @@ class ElevatorExitRecoveryAction(ActionBase):
             self.error_code = "ElevatorStateTimeout"
             self.action_status = ActionStatus.FAILED
             return self.action_status
+        if (self.phase == self.EXITING
+                and self._motion_deadline is not None
+                and now >= self._motion_deadline):
+            if self.motion is not None:
+                self.motion.cancel()
+            self.fail_reason = "elevator exit local motion exceeded arrival timeout"
+            self.error_code = "ElevatorLocalMoveFailed"
+            self.action_status = ActionStatus.FAILED
+            return self.action_status
+        if self._motion_retry_at is not None:
+            if now < self._motion_retry_at:
+                return self.action_status
+            self._start_motion()
+            return self.action_status
         if self.phase == self.WAITING_RETRY_INTERVAL:
             if now < self._retry_at:
                 return self.action_status
             self._start_target_retry()
             return self.action_status
         if self.phase == self.EXITING:
-            self.motion.run(ctx)
+            try:
+                self.motion.run(ctx)
+            except Exception as error:
+                self.motion.fail_reason = str(error)
+                self.motion.error_code = "ElevatorLocalMoveFailed"
+                self.motion.action_status = ActionStatus.FAILED
             if self.motion.action_status == ActionStatus.FAILED:
-                self._fail_from(self.motion, "ElevatorLocalMoveFailed")
+                self._schedule_motion_retry()
                 return self.action_status
             if self.motion.action_status == ActionStatus.FINISHED:
                 if self._on_finished is not None:
@@ -3055,6 +2905,9 @@ class ElevatorExitRecoveryAction(ActionBase):
             if self.reloc.action_status == ActionStatus.FAILED:
                 self._fail_from(self.reloc, "ElevatorRelocFailed")
             elif self.reloc.action_status == ActionStatus.FINISHED:
+                self._motion_deadline = (
+                    now + ConfigParams.elevator_arrival_timeout
+                )
                 self._start_motion()
             return self.action_status
         self.fail_reason = "invalid elevator exit recovery phase"
@@ -3181,15 +3034,20 @@ def build_actions(context, protocol, publisher=None):
         if ConfigParams.switch_map_before_arrival
         else [wait_target, switch_map]
     )
-    if (ConfigParams.switch_map_before_arrival
-            and ConfigParams.target_door_open_delay > 0.0):
-        # The map is switched first, so wait_target returns as soon as the
-        # protocol reports the car as ready.  Some elevator environments still
-        # need a moment for the physical door to open, so hold before exiting.
+    if ConfigParams.door_open_delay > 0.0:
         target_actions.append(
             WaitDurationAction(
-                ConfigParams.target_door_open_delay,
-                reason="targetDoorOpenDelay",
+                ConfigParams.door_open_delay,
+                reason="doorOpenDelayBeforeExit",
+            )
+        )
+
+    source_door_actions = []
+    if ConfigParams.door_open_delay > 0.0:
+        source_door_actions.append(
+            WaitDurationAction(
+                ConfigParams.door_open_delay,
+                reason="doorOpenDelayBeforeEntry",
             )
         )
 
@@ -3214,10 +3072,9 @@ def build_actions(context, protocol, publisher=None):
                 if publisher else None
             ),
         ),
-        # Yuefan marks doorState as deprecated.  Once moveState reports that
-        # the car has arrived, allow the physical door a fixed settling delay
-        # instead of making the entry decision from doorState.
-        WaitDurationAction(2.0, reason="sourceDoorOpenDelay"),
+        # Yuefan marks doorState as deprecated. Once moveState reports that
+        # the car has arrived, allow the physical door a settling delay.
+        *source_door_actions,
         ElevatorEntryHeadingAction(
             call_point_dir,
             forward=ConfigParams.entryForward,
@@ -3245,7 +3102,6 @@ def build_actions(context, protocol, publisher=None):
             protocol,
             lease,
             context.target_floor,
-            active_time,
             target_map,
             context.target_switch_point,
             target_switch_pose,
@@ -3285,10 +3141,10 @@ class ElevatorModule(ModuleBase):
         self.queue = None
         self.publisher = None
         self.protocol = None
-        self.safety_holding = None
         self._task_deadline = None
         self._control_lock = threading.Lock()
         self._control_request = None
+        self._cancelled = False
 
     def set_status(self, status):
         status = ScriptStatus(status)
@@ -3296,16 +3152,33 @@ class ElevatorModule(ModuleBase):
             Trace.log({"event": "moduleStateChanged", "status": status.name}, name="elevator")
         self.status = status
 
+    def _finish_failed(self, lease=None, reason="elevator task failed"):
+        if lease is not None:
+            try:
+                lease.release_unconditionally(reason)
+            except Exception as error:
+                Trace.log({
+                    "event": "elevatorFailureReleaseFailed",
+                    "reason": str(reason),
+                    "error": str(error),
+                }, name="elevator.err")
+        if self.publisher is not None:
+            try:
+                self.publisher.publish(ElevatorPhase.FAILED)
+            except Exception as error:
+                Trace.log({
+                    "event": "elevatorFailurePublishFailed",
+                    "error": str(error),
+                }, name="elevator.err")
+        self.set_status(ScriptStatus.FAILED)
+
     def _fail_queue(self):
         if self._has_cancel_request():
             self.process_control_requests()
             return
-        # 显式取消是终态意图：_apply_cancel() 先把队列推到 FAILED，模块状态随后
-        # 才置 FAILED，中间会被 run_suspended() 的 queue.status==FAILED 再调一次
-        # 到这里；此时控制请求已被消费（_has_cancel_request() 为 False），若不拦
-        # 就会把已取消的任务重新挂起，并把后台保活复活成 RUNNING。
+        lease = _find_lease(self.queue)
         if self._cancelled:
-            self._finish_failed(lease=_find_lease(self.queue))
+            self._finish_failed(lease, "explicit module cancellation")
             return
         failed = next(
             (action for action in self.queue.action_list
@@ -3322,66 +3195,9 @@ class ElevatorModule(ModuleBase):
             failed.error_code or "ElevatorActionFailed",
             failed.fail_reason or "elevator action failed",
         )
-        lease = _find_lease(self.queue)
-        robot_in_car = lease is not None and lease.car_position in (
-            ElevatorCarPosition.ENTERING,
-            ElevatorCarPosition.INSIDE,
-            ElevatorCarPosition.EXITING,
+        self._finish_failed(
+            lease, failed.error_code or failed.fail_reason or "elevator action failed"
         )
-        # Suspend-for-recovery only makes sense while the robot is physically
-        # committed to the car. A call/select-phase failure (e.g. LoRa timeout
-        # during CallSourceElevator) leaves the robot safely outside, so it must
-        # terminate the task rather than suspend it indefinitely -- no arrival
-        # deadline exists to convert that suspension back into a failure.
-        terminal_error = (
-            failed.error_code in (
-                "ElevatorStateTimeout",
-                "ElevatorTaskTimeout",
-                "ElevatorEntryRecallExhausted",
-            )
-            or str(failed.error_code).endswith("Timeout")
-        )
-        if not terminal_error and robot_in_car:
-            if lease is not None:
-                try:
-                    lease.release_unconditionally("task paused after failure")
-                except Exception as error:
-                    Trace.log({
-                        "event": "elevatorFailureReleaseFailed",
-                        "errorCode": failed.error_code,
-                        "error": str(error),
-                    }, name="elevator.err")
-            for action in self.queue.action_list:
-                if getattr(action, "background", False):
-                    if action.action_status == ActionStatus.FAILED:
-                        action.action_status = ActionStatus.RUNNING
-                elif action.action_status in (
-                        ActionStatus.FAILED, ActionStatus.RUNNING,
-                        ActionStatus.SUSPENDED):
-                    action.action_status = ActionStatus.SUSPENDED
-            self.queue._status = ActionStatus.SUSPENDED
-            Trace.log({
-                "event": "elevatorTaskSuspendedAfterFailure",
-                "errorCode": failed.error_code or "ElevatorActionFailed",
-                "reason": failed.fail_reason or "elevator action failed",
-            }, name="elevator.err")
-            self.set_status(ScriptStatus.SUSPENDED)
-            return
-        self.safety_holding = None
-        if lease is not None:
-            try:
-                lease.release_unconditionally(
-                    failed.error_code or "elevator action failed"
-                )
-            except Exception as error:
-                Trace.log({
-                    "event": "elevatorFailureReleaseFailed",
-                    "errorCode": failed.error_code,
-                    "error": str(error),
-                }, name="elevator.err")
-        if self.publisher is not None:
-            self.publisher.publish(ElevatorPhase.FAILED)
-        self.set_status(ScriptStatus.FAILED)
 
     @staticmethod
     def _arrival_deadline(action):
@@ -3602,6 +3418,11 @@ class ElevatorModule(ModuleBase):
 
     def _apply_suspend(self):
         if self.queue is not None and self.status == ScriptStatus.RUNNING:
+            if self.queue.status == ActionStatus.FAILED:
+                self._fail_queue()
+                return
+            if self.queue.status == ActionStatus.FINISHED:
+                return
             self.queue.suspend()
             lease = _find_lease(self.queue)
             if lease is not None:
@@ -3612,10 +3433,22 @@ class ElevatorModule(ModuleBase):
                         "carPosition": lease.car_position.value,
                     }, name="elevator")
                 except Exception as error:
+                    error_code = (
+                        "ElevatorProtocolRejected"
+                        if isinstance(error, ProtocolRejected)
+                        else "ElevatorProtocolUnavailable"
+                        if isinstance(error, ProtocolUnavailable)
+                        else "ElevatorReleaseFailed"
+                    )
+                    Navigation.setTaskError(error_code, str(error))
                     Trace.log({
                         "event": "elevatorPauseReleaseFailed",
+                        "errorCode": error_code,
                         "error": str(error),
                     }, name="elevator.err")
+                    self.queue.cancel("failed to release elevator on pause")
+                    self._finish_failed(lease, error_code)
+                    return
             self.set_status(ScriptStatus.SUSPENDED)
 
     def resume(self):
@@ -3623,6 +3456,9 @@ class ElevatorModule(ModuleBase):
 
     def _apply_resume(self):
         if self.queue is not None and self.status == ScriptStatus.SUSPENDED:
+            if self._task_timed_out():
+                self._fail_task_timeout()
+                return
             lease = _find_lease(self.queue)
             if lease is not None and not lease.acquired:
                 try:
@@ -3632,11 +3468,14 @@ class ElevatorModule(ModuleBase):
                         "floor": lease.floor,
                     }, name="elevator")
                 except Exception as error:
-                    Navigation.setTaskError(
-                        "ElevatorProtocolUnavailable", str(error)
+                    error_code = (
+                        "ElevatorProtocolRejected"
+                        if isinstance(error, ProtocolRejected)
+                        else "ElevatorProtocolUnavailable"
                     )
+                    Navigation.setTaskError(error_code, str(error))
                     self.queue.cancel("failed to reacquire elevator after pause")
-                    self.set_status(ScriptStatus.FAILED)
+                    self._finish_failed(lease, error_code)
                     return
             self.queue.resume()
             self.set_status(ScriptStatus.RUNNING)
@@ -3645,21 +3484,11 @@ class ElevatorModule(ModuleBase):
         self._request_control("cancel")
 
     def _apply_cancel(self):
+        self._cancelled = True
         lease = _find_lease(self.queue) if self.queue is not None else None
         if self.queue is not None and not self.queue.is_done:
             self.queue.cancel("module stopped")
-        # Explicit cancellation differs from an unexpected action failure:
-        # the caller asked to end the control session, so do not keep-alive.
-        self.safety_holding = None
-        if lease is not None:
-            try:
-                lease.release_unconditionally("explicit module cancellation")
-            except Exception as error:
-                Trace.log({
-                    "event": "elevatorCancellationReleaseFailed",
-                    "error": str(error),
-                }, name="elevator.err")
-        self.set_status(ScriptStatus.FAILED)
+        self._finish_failed(lease, "explicit module cancellation")
 
     def reset(self):
         if self.queue is not None:
@@ -3682,9 +3511,6 @@ def main():
     Module.init()
     module = ElevatorModule()
     while True:
-        # RPC callbacks only enqueue control intents; apply them on the same
-        # thread that advances ActionTask.
-        module.process_control_requests()
         Module.setStatus(module.status)
         status = module.status
         if status == ScriptStatus.NONE:
