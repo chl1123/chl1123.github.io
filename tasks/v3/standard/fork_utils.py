@@ -1994,8 +1994,12 @@ class GoPathWithContactDi(ActionBase):
         self.clear_policy = False
         self.policy = {}
         self.motion_target = [world_pos[0], world_pos[1], world_pos[2]]
-        self.policy_unloadobs_dist = RobotParam.getConfig("navigation", "obstacleStop.obsStopUnload.obsStopDist")
-        self.policy_loadobs_dist = RobotParam.getConfig("navigation", "obstacleStop.obsStopLoad.obsStopDist")
+        self.policy_unloaded_obs_dist = RobotParam.getConfig(
+            "navigation", "obstacleStop.obsStopUnload.obsStopDist"
+        )
+        self.policy_loaded_obs_dist = RobotParam.getConfig(
+            "navigation", "obstacleStop.obsStopLoad.loadObsStopDist"
+        )
         self.policy["navigation.freeBypass"] = "off"
         self.reach_phase_config = dict(reach_phase_config or {})
         self.reach_phase_enabled = bool(self.reach_phase_config)
@@ -2074,8 +2078,12 @@ class GoPathWithContactDi(ActionBase):
     def _load_fork_tip_di_ids(self) -> List[str]:
         di_ids = []
         for sensor_name in (_config().fork_tip_di_sensors or []):
-            di_id = RobotParam.getDevice(sensor_name, "basic.id")
-            if di_id:
+            # Most models bind a sensor object whose basic.id is the actual
+            # DI key.  Some models bind the DI device directly and therefore
+            # have no basic.id; in that case the configured key is already
+            # what Di.getDi expects.
+            di_id = RobotParam.getDevice(sensor_name, "basic.id") or sensor_name
+            if di_id and di_id not in di_ids:
                 di_ids.append(di_id)
         return di_ids
 
@@ -2133,7 +2141,7 @@ class GoPathWithContactDi(ActionBase):
         if self.obs_dist is None and self.obs_dist_compensation <= 0:
             return None
         if self.obs_dist is None:
-            base_dist = self.policy_unloadobs_dist if self.operation_type == "unload" else self.policy_loadobs_dist
+            base_dist = self._default_obs_stop_dist()
         else:
             base_dist = self.obs_dist
         try:
@@ -2276,8 +2284,41 @@ class GoPathWithContactDi(ActionBase):
         if self.operation_type == "load":
             return not _config().forkDiEnableAtLoad
         if self.operation_type == "unload":
-            return not _config().forkDiEnableAtUnload
+            # autoClearError/failTask are script-owned modes.  Leaving the DI
+            # in navigation collision detection lets the collision layer win
+            # the race, so neither scripted behavior can take effect.
+            return (
+                not _config().forkDiEnableAtUnload
+                or _config().diTriggerMeasureUnload != "collision"
+            )
         return True
+
+    def _ensure_unload_collision_devices(self) -> None:
+        """Make collision mode self-contained instead of relying on global config."""
+        if not (
+                self.operation_type == "unload"
+                and _config().forkDiEnableAtUnload
+                and _config().diTriggerMeasureUnload == "collision"
+        ):
+            return
+        policy_devices = self.policy.get("navigation.collisionDetection.detectionDevice")
+        current_collision_devices = (
+            split_device_keys(policy_devices)
+            if policy_devices is not None
+            else self._load_collision_devices()
+        )
+        changed = False
+        for sensor_name in (_config().fork_tip_di_sensors or []):
+            if sensor_name and sensor_name not in current_collision_devices:
+                current_collision_devices.append(sensor_name)
+                changed = True
+        if changed:
+            collision_device_str = ",".join(current_collision_devices)
+            self.policy["navigation.collisionDetection.detectionDevice"] = collision_device_str
+            Trace.log(
+                f"enabled unload fork-tip collision devices:{collision_device_str}",
+                name="fork.task",
+            )
 
     def _load_collision_devices(self) -> List[str]:
         current_collision_device_str = RobotParam.getConfig(
@@ -2391,12 +2432,23 @@ class GoPathWithContactDi(ActionBase):
         return self.fork_root_collision_models
 
     def _set_obs_stop_dist(self, stop_dist: float) -> None:
-        self.policy["navigation.obstacleStop.obsStopUnload.obsStopDist"] = stop_dist
-        self.policy["navigation.obstacleStop.obsStopLoad.loadObsStopDist"] = stop_dist
+        self.policy[self._active_obs_stop_dist_key()] = stop_dist
 
     def _set_default_obs_stop_dist(self) -> None:
-        self.policy["navigation.obstacleStop.obsStopUnload.obsStopDist"] = self.policy_unloadobs_dist
-        self.policy["navigation.obstacleStop.obsStopLoad.loadObsStopDist"] = self.policy_loadobs_dist
+        self.policy[self._active_obs_stop_dist_key()] = self._default_obs_stop_dist()
+
+    def _active_obs_stop_dist_key(self) -> str:
+        # 取货进叉期间尚未置为载货，生效的是空载停车距离；放货期间仍是
+        # 载货状态，生效的是载货停车距离。不要同时写两个字段，否则取货
+        # 调整阶段会把无关的载货配置（历史上甚至是 None）带入自定义策略。
+        if self.operation_type == "unload":
+            return "navigation.obstacleStop.obsStopLoad.loadObsStopDist"
+        return "navigation.obstacleStop.obsStopUnload.obsStopDist"
+
+    def _default_obs_stop_dist(self):
+        if self.operation_type == "unload":
+            return self.policy_loaded_obs_dist
+        return self.policy_unloaded_obs_dist
 
     def _apply_policy(self, policy_name: str, *, sleep_sec: float = 0.0, reset_path: bool = False) -> None:
         Navigation.appendCustomPolicy(policy_name, self.policy)
@@ -2447,6 +2499,7 @@ class GoPathWithContactDi(ActionBase):
             should_shield_di,
             shield_fork_root=not bool(collision_model_devices),
         )
+        self._ensure_unload_collision_devices()
         self._apply_navigation_collision_device_shielding(collision_model_devices)
         self._set_obs_stop_dist_for_phase(self._should_use_obs_compensation_now())
         self.policy["navigation.obstacleStop.obsStopUnload.obsExpansion"] = 0.02
@@ -3206,10 +3259,16 @@ class RunMotorByPosition(ActionBase):
 
     def on_step_end(self, ctx=None):
         self._reset_motor_once()
+        hook = getattr(self, "_step_end_hook", None)
+        if callable(hook):
+            hook(self)
 
     def suspend(self):
         if self.action_status == ActionStatus.RUNNING:
             self._reset_motor_once()
+            hook = getattr(self, "_suspend_hook", None)
+            if callable(hook):
+                hook(self)
         super().suspend()
 
     def resume(self):
@@ -3486,10 +3545,11 @@ def _init_fork_motor_action(action, min_safe_height=0.0):
     action._count_recorded = False
     action._no_move_error_key = "ForkNoMove"
     action._no_move_error_desc = "fork height not change"
-    action._after_start_motion_hook = _fork_after_start_motion
     action._before_reach_check_hook = _fork_before_reach_check
     action._after_reached_hook = _fork_after_reached
     action._cancel_hook = _fork_close_dos
+    action._suspend_hook = _fork_close_dos
+    action._step_end_hook = _fork_close_dos
     action._reset_hook = _fork_reset_runtime
     action._trace_state_builder = _fork_trace_state
     action._collision_device = []
@@ -3555,7 +3615,7 @@ def _fork_prepare_target_position(action):
             action.stop_di = _config().down_di or ""
 
 
-def _fork_after_start_motion(action):
+def _fork_configure_motion(action):
     if action.motor_name != _config().fork_motor_name:
         return
     if action.delta > EPS:
@@ -3632,17 +3692,29 @@ class LiftForkMotorByPosition(RunMotorByPosition):
         if _config().DOMotor:
             if self.position < mid_height:
                 vel = -0.01
+                self.position = _config().min_height
             elif self.position > mid_height:
                 vel = 0.01
+                self.position = _config().max_height
             else:
                 self.action_status = ActionStatus.FINISHED
                 return
+            self.delta = self.position - self.cur_fork_height
+            if abs(self.delta) <= self.position_tolerance:
+                self.action_status = ActionStatus.FINISHED
+                return
+            _fork_configure_motion(self)
             Motor.setMotorSpeed(self.motor_name, vel, self.stop_di)
         else:
             if self.position < mid_height:
                 self.position = _config().min_height
             elif self.position > mid_height:
                 self.position = _config().max_height
+            self.delta = self.position - self.cur_fork_height
+            if abs(self.delta) <= self.position_tolerance:
+                self.action_status = ActionStatus.FINISHED
+                return
+            _fork_configure_motion(self)
             Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         self._motor_reset_done = False
         Trace.log(f"position:{self.position}", name="fork.task")
@@ -3663,6 +3735,7 @@ class GoodsAwareForkMotorByPosition(RunMotorByPosition):
         self.cur_fork_height = _fork_current_position(self)
         _fork_prepare_target_position(self)
         _fork_apply_loaded_speed_limit(self)
+        _fork_configure_motion(self)
         Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         self._motor_reset_done = False
         Trace.log(f"position:{self.position}", name="fork.task")
@@ -3693,6 +3766,7 @@ class ReachAwareForkMotorByPosition(RunMotorByPosition):
             return
         _fork_check_back_laser_collision(self)
         _fork_apply_loaded_speed_limit(self)
+        _fork_configure_motion(self)
         Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         self._motor_reset_done = False
         Trace.log(f"position:{self.position}", name="fork.task")

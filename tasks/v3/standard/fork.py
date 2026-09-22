@@ -7,7 +7,7 @@ import math
 import time
 import inspect
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from syspy import (Module, Di, Motor, Navigation, ScriptStatus, NetProtocol,
                    Trace, Controller, NavStatus, Container, _TR,
                    AutoPreSequenceAction)
@@ -346,8 +346,12 @@ class ConfigParams:
         cls.enableLoadNavForkHeight = cls._safe_bool(cfg.get("enableLoadNavForkHeight"), False)
         cls.loadNavForkHeight = cls._safe_float(cfg.get("loadNavForkHeight"), 0.3)
         cls.allowLoadForkMoveWhileNav = cls._safe_bool(cfg.get("allowLoadForkMoveWhileNav"), False)
+        # ``-1`` is the historical and documented switch for disabling the
+        # per-move timeout.  Keep accepting the short-lived enable* fields so
+        # an existing task-level config does not break, but expose loadTime /
+        # unloadTime themselves as numeric fields again.
         load_time = cls._safe_float(cfg.get("loadTime", 30.0), 30.0)
-        unload_time = cls._safe_float(cfg.get("UnloadTime", cfg.get("unloadTime", 30.0)), 30.0)
+        unload_time = cls._safe_float(cfg.get("unloadTime", cfg.get("UnloadTime", 30.0)), 30.0)
         cls.loadTime = load_time if cls._safe_bool(cfg.get("enableLoadTime"), True) else -1.0
         cls.unloadTime = unload_time if cls._safe_bool(cfg.get("enableUnLoadTime"), True) else -1.0
 
@@ -789,26 +793,16 @@ class ConfigParams:
                                        desc=_TR("Check the goods DI during loading")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
-                    with builder.CHILD(key="enableLoadTime", name=_TR("Enable Load Time"),
-                                       desc=_TR("Enable the fork lift timeout")):
-                        builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(True)
-                        with builder.CHILDREN():
-                            with builder.CHILD(key="loadTime", name=_TR("Load Time"),
-                                               desc=_TR("Fork lift timeout")):
-                                builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(30, min_value=-1, max_value=300)
-                                builder.UNIT("s")
-                    with builder.CHILD(key="enableUnLoadTime", name=_TR("Enable Unload Time"),
-                                       desc=_TR("Enable the fork lower timeout")):
-                        builder.TYPE(ParamType.BOOL)
-                        builder.DEFAULTVALUE(True)
-                        with builder.CHILDREN():
-                            with builder.CHILD(key="UnloadTime", name=_TR("Unload Time"),
-                                               desc=_TR("Fork lower timeout")):
-                                builder.TYPE(ParamType.FLOAT)
-                                builder.DEFAULTVALUE(30, min_value=-1, max_value=300)
-                                builder.UNIT("s")
+                    with builder.CHILD(key="loadTime", name=_TR("Load Time"),
+                                       desc=_TR("Fork lift timeout; -1 disables the timeout")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(30, min_value=-1, max_value=300)
+                        builder.UNIT("s")
+                    with builder.CHILD(key="unloadTime", name=_TR("Unload Time"),
+                                       desc=_TR("Fork lower timeout; -1 disables the timeout")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(30, min_value=-1, max_value=300)
+                        builder.UNIT("s")
                     with builder.CHILD(key="upDo", name=_TR("UP DO"), desc=_TR("DO used to lift the fork")):
                         builder.TYPE(ParamType.BIND_TYPE)
                         builder.BINDTYPE(BindType.Device.DO)
@@ -1505,6 +1499,67 @@ class InputParams:
         cls.builder.save_to_file()
 
 
+def _build_operation_action_args(operation: str, input_definition: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Build action arguments and typed placeholders from one input operation branch."""
+    if input_definition is None:
+        input_definition = InputParams.builder.toDict()
+
+    operation_group = next(
+        (group for group in input_definition.get("groups", []) if group.get("key") == "operation"),
+        None,
+    )
+    if operation_group is None:
+        raise ValueError("input definition is missing the operation group")
+
+    operation_node = next(
+        (child for child in operation_group.get("children", []) if child.get("key") == operation),
+        None,
+    )
+    if operation_node is None:
+        raise ValueError(f"operation '{operation}' is missing from the input definition")
+
+    args = {"operation": operation}
+
+    def template_value(node: Dict[str, Any]):
+        if "defaultValue" in node:
+            return True, node["defaultValue"]
+        if "value" in node:
+            return True, node["value"]
+
+        param_type = node.get("type")
+        if param_type == ParamType.BIND_TYPE:
+            bind_type = str(node.get("bindType", ""))
+            return True, [] if "multiple" in bind_type else ""
+        if param_type in (ParamType.COMBO_BOX, ParamType.STRING_COMBO_LIST, ParamType.COMBO_BOX_BOOL):
+            choices = node.get("children", [])
+            if param_type == ParamType.COMBO_BOX_BOOL:
+                selected = next((child for child in choices if child.get("key") == "off"), None)
+                if selected is not None:
+                    return True, "off"
+            if choices:
+                return True, choices[0]["key"]
+        return False, None
+
+    def collect_fields(node: Dict[str, Any], path: str, *, is_choice=False):
+        has_value, value = template_value(node)
+        if has_value and not is_choice:
+            args[path] = value
+
+        child_is_choice = node.get("type") in (
+            ParamType.COMBO_BOX,
+            ParamType.STRING_COMBO_LIST,
+            ParamType.COMBO_BOX_BOOL,
+        )
+        for child in node.get("children", []):
+            child_path = f"{path}.{child['key']}"
+            collect_fields(child, child_path, is_choice=child_is_choice)
+
+    operation_path = f"operation.{operation}"
+    for child in operation_node.get("children", []):
+        collect_fields(child, f"{operation_path}.{child['key']}")
+    return args
+
+
 def _init_action_templates():
     loader = _require_param_loader()
 
@@ -1512,7 +1567,7 @@ def _init_action_templates():
         kwargs = {
             "action_name": action_name,
             "policy": {},
-            "args": {"operation": operation},
+            "args": _build_operation_action_args(operation),
             "config": {},
         }
         if stage is not None:
@@ -1872,6 +1927,67 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
 
     def _task_is_terminal(self) -> bool:
         return self.script_status in (ScriptStatus.FINISHED, ScriptStatus.FAILED)
+
+    # ------------------------------------------------------------------
+    # 智能取消（smart cancel）裁决
+    #
+    # 智能取消由 SDK 广播 cancel(smart=True) 时回调本脚本的 cancel()，由脚本自行
+    # 判断是否接受。判定口径见《智能取消阶段表》：
+    #
+    #   单插臂 singleFork / 配送车 pickFork / 搬运车 liftFork：
+    #     - 不识别取货：全程不可取消
+    #     - 识别取货：识别完成前可取消，开始按识别结果行走至目标点后不可取消
+    #     - 放货 / 货叉升降：全程不可取消
+    #   堆高车 / 平衡重系列 / 前移车系列（HeavyFork 一系，含 e 型车）：
+    #     - 全部功能（含识别取货）：全程不可取消
+    #
+    # 表格未提及的 operation（leaveLoc / deleteClearRegion 等）按可取消处理。
+    # 普通取消 cancel(smart=False) 不受本策略约束，永远放行。
+    # ------------------------------------------------------------------
+    # 该车型是否完全没有可取消阶段（重型系列为 True）
+    cancel_locked_from_start = False
+
+    # 需要"全程不可取消"的 operation（两组车型一致）
+    CANCEL_LOCKED_OPERATIONS = ("unload", "cageStack", "forkHeight")
+
+    def cancel_allowed(self, smart: bool) -> Tuple[bool, str]:
+        """智能取消裁决：返回 (allowed, reason)。
+
+        拒绝时任务保持 RUNNING/SUSPENDED 继续执行，不产生停止副作用，
+        仅落 Trace 供现场追溯。
+        """
+        if not smart:
+            return True, ""
+
+        # 1) 重型系列：任何功能全程不可取消
+        if type(self).cancel_locked_from_start:
+            return False, f"model locks smart cancel ({self.opt})"
+
+        # 2) 放货 / 料笼堆叠 / 货叉升降：全程不可取消
+        if self.opt in type(self).CANCEL_LOCKED_OPERATIONS:
+            return False, f"operation locked ({self.opt})"
+
+        # 3) 不识别取货：全程不可取消
+        if self.opt == "load" and not self.recognize:
+            return False, "blind load locked"
+
+        # 4) 识别取货：识别完成前可取消；一旦开始按识别结果行走至目标点即锁定。
+        #    识别与重识别回读结束后，进叉批次（GoPathWithContactDi）才入队。
+        if self.opt == "load" and self.recognize and self._load_approach_started():
+            return False, "load approach started"
+
+        return True, ""
+
+    def _load_approach_started(self) -> bool:
+        """识别取货是否已进入"按识别结果行走至目标点"阶段。
+
+        只读动作队列：进叉批次由 _build_load_approach_batch 生成，其中的
+        GoPathWithContactDi 入队即表示识别已完成、机器人开始向目标点行走。
+        """
+        for action in self.action_task.action_list:
+            if isinstance(action, GoPathWithContactDi):
+                return True
+        return False
 
     def set_status(self, new_status: ScriptStatus) -> None:
         if self.script_status == new_status:
@@ -2312,7 +2428,18 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         Module.setStatus(ScriptStatus.RUNNING)
         Trace.log("resume", name="fork.task")
 
-    def cancel(self):
+    def cancel(self, smart: bool = False) -> bool:
+        """取消任务（SDK 回调）。返回任务是否已取消。
+
+        smart=True 为智能取消：由本脚本自行裁决是否接受，拒绝时返回 False，
+        任务保持 RUNNING/SUSPENDED 继续执行，不产生任何停止副作用。
+        smart=False 为普通取消（缺省）：无条件接受。
+        """
+        allowed, reason = self.cancel_allowed(smart)
+        if not allowed:
+            Trace.log(f"smart cancel ignored ({reason})", output_console=True, name="fork.task")
+            return False
+
         was_suspended = Module.getStatus() == ScriptStatus.SUSPENDED
         self.set_status(ScriptStatus.FAILED)
         self.action_task.cancel()
@@ -2321,7 +2448,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         if was_suspended:
             Module.setStatus(ScriptStatus.RUNNING)
         Trace.log("cancel", name="fork.task")
-        return
+        return True
 
     def reset(self):
         self.start_time = time.time()
@@ -2469,7 +2596,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     def _is_in_place_task(self):
         """原地动作任务：MF 用 SELF_POSITION 的 move task 下发的脚本任务。
 
-        只看 move task 标记（taskId/sourceId/id）。注意 ``stage`` 不能用来判定
+        只看 move task 的目的地标记（id/targetName）。注意 ``stage`` 不能用来判定
         这件事：stage 的语义是“前置点停不停 / 谁控制导航”（见 TaskStage），
         与原地任务无关，默认值 2 也不是原地任务的标志。
 
@@ -2478,8 +2605,22 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         路径动作，不参与参数校验。
         """
         move_task = self.move_task or {}
-        markers = (move_task.get("taskId"), move_task.get("sourceId"), move_task.get("id"))
-        return any(str(marker or "") == SELF_POSITION_MARKER for marker in markers)
+        # sourceId=SELF_POSITION only means "start from the current pose" and
+        # is valid for a stage-3 task with a real target.  Treating it as an
+        # in-place action makes unload run at the pre-station before MF moves
+        # to the target.  Only the destination marker identifies a genuine
+        # SELF_POSITION action task.
+        destination_markers = (
+            move_task.get("id"),
+            move_task.get("targetName"),
+        )
+        if any(
+            str(marker or "") == SELF_POSITION_MARKER
+            for marker in destination_markers
+        ):
+            return True
+        has_real_destination = any(str(marker or "") for marker in destination_markers)
+        return move_task.get("skillName", "") == "Action" and not has_real_destination
 
     def _target_name(self):
         target_name = self.move_task.get("targetName", "")
@@ -3271,22 +3412,41 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self.rec_pallet_handled = False
         self.rec_cage_handled = False
         self.obstacle_polygon_by_rec = []
-        self.recfile = self.task_args.get("recfile", "") or ""
+        self.opt = self.task_args.get("operation", "")
+        operation_prefix = f"operation.{self.opt}." if self.opt else ""
+
+        def get_task_arg(key, default=None, *, recognize_on=False):
+            """Read both validated leaf args and the public full-path form."""
+            if key in self.task_args:
+                return self.task_args.get(key)
+            full_key = f"{operation_prefix}{key}" if operation_prefix else ""
+            if full_key and full_key in self.task_args:
+                return self.task_args.get(full_key)
+            if recognize_on and operation_prefix:
+                recognize_key = f"{operation_prefix}recognize.on.{key}"
+                if recognize_key in self.task_args:
+                    return self.task_args.get(recognize_key)
+            return default
+
+        self.recfile = get_task_arg("recfile", "", recognize_on=True) or ""
         if self.recfile.startswith("recognition/"):
             self.recfile = self.recfile[len("recognition/"):]
-        self.opt = self.task_args.get("operation", "")
-        self.start_height_provided = "startHeight" in self.task_args
-        self.start_height = self.task_args.get("startHeight", 0.09)
-        self.rec_height = self.task_args.get("recHeight", -1)
-        self.end_height = self.task_args.get("endHeight", 0.2)
-        self.loc_detect_height = self.task_args.get("locDetectHeight", -1)
-        self.loc_detect_layer = self.task_args.get("locDetectLayer", -1)
+        self.start_height_provided = any(
+            key in self.task_args
+            for key in ("startHeight", f"{operation_prefix}startHeight")
+        )
+        self.start_height = get_task_arg("startHeight", 0.09)
+        self.rec_height = get_task_arg("recHeight", -1, recognize_on=True)
+        self.end_height = get_task_arg("endHeight", 0.2)
+        self.loc_detect_height = get_task_arg("locDetectHeight", -1)
+        self.loc_detect_layer = get_task_arg("locDetectLayer", -1)
         self._skip_next_start_height_action = False
-        self.leave_loc_height = self.task_args.get("leaveLocHeight", -1)
+        self.leave_loc_height = get_task_arg("leaveLocHeight", -1)
         # New payloads use leaveLoc as the explicit switch. Keep legacy payloads
         # with a non-negative leaveLocHeight working until callers migrate.
+        leave_loc_value = get_task_arg("leaveLoc", None)
         self.leave_loc = is_enabled(
-            self.task_args.get("leaveLoc", self.leave_loc_height >= 0)
+            self.leave_loc_height >= 0 if leave_loc_value is None else leave_loc_value
         )
         if type(self).lift_fork_model_limits and self.opt in ("load", "unload"):
             # LiftFork is a two-position mechanism; ignore generic height
@@ -3298,20 +3458,20 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 ConfigParams.max_height if self.opt == "load" else ConfigParams.min_height
             )
             self.leave_loc_height = ConfigParams.min_height if self.leave_loc else -1
-        self.forkHeight = self.task_args.get("height")
-        self.forkSpeed = self.task_args.get("forkSpeed", ConfigParams.fork_max_speed)
-        self.recSide = self.task_args.get("recSide", None)
+        self.forkHeight = get_task_arg("height")
+        self.forkSpeed = get_task_arg("forkSpeed", ConfigParams.fork_max_speed)
+        self.recSide = get_task_arg("recSide", None, recognize_on=True)
         if self.recSide == "none":
             self.recSide = None
-        self.jog_step = self.task_args.get("jogStep", None)
-        self.target_position = self.task_args.get("position", None)
+        self.jog_step = get_task_arg("jogStep", None)
+        self.target_position = get_task_arg("position", None)
         default_motor_speed = 0.05 if self.opt == "reach" else 0.01
         self.motor_max_speed = self.task_args.get(
             "max_speed",
             self.task_args.get("maxSpeed", default_motor_speed),
         )
         self.motor_stop_di = self.task_args.get("stop_di", self.task_args.get("stopDi", ""))
-        input_recognize = is_enabled(self.task_args.get("recognize", False))
+        input_recognize = is_enabled(get_task_arg("recognize", False))
 
         # 解析任务下发的参数，不含在 script_args 里的参数
         self.move_task = Navigation.moveTask()
@@ -3570,6 +3730,10 @@ class HeavyFork(Fork):
     supports_cam_lift_with_fork = True
     # 后激光按高度屏蔽：所有重型车型通用，原在 counterBalance 系列逐字复制、straddle 同名实现
     period_run_hook = staticmethod(_heavy_period_run)
+
+    # 堆高车 / 平衡重系列 / 前移车系列（含 e 型车）：所有功能全程不可智能取消，
+    # 包括"识别取货"（与单插臂系的差异所在）。详见 cancel_allowed()。
+    cancel_locked_from_start = True
 
     # ------------------------------------------------------------------
     # cage_stack（料笼堆叠，标杆实现，源自 straddleLiftFork）
