@@ -643,6 +643,26 @@ def create_immediate_store_after_load_param(builder: ParamBuilder):
         builder.DEFAULTVALUE(False)
 
 
+def create_motor_jog_param(builder: ParamBuilder, key: str, name: str,
+                           desc: str, unit: str, single_step=0.01,
+                           default_jog_step=0.1):
+    with builder.CHILD(key=key, name=_TR(name), desc=_TR(desc)):
+        builder.TYPE(ParamType.ARRAY)
+        with builder.CHILDREN():
+            with builder.CHILD(key="jogStep", name=_TR("Jog Step"),
+                               desc=_TR(f"Jog step for {key} motor.")):
+                builder.TYPE(ParamType.FLOAT)
+                builder.UNIT(unit)
+                builder.SINGLESTEP(single_step)
+                builder.DEFAULTVALUE(default_jog_step)
+            with builder.CHILD(key="position", name=_TR("Position"),
+                               desc=_TR(f"Target position for {key} motor.")):
+                builder.TYPE(ParamType.FLOAT)
+                builder.UNIT(unit)
+                builder.SINGLESTEP(single_step)
+                builder.DEFAULTVALUE(-1)
+
+
 '''参数创建必须在全局作用域中'''
 
 
@@ -691,6 +711,18 @@ class InputParams:
                         create_container_param(builder, _TR("Vehicle basket number; specifies the basket for internal pick; if omitted, pick in order from bottom to top"))
                         create_goods_id_param(builder, _TR("Goods number; specifies the goods to pick; an error is raised if no such goodsName exists in the vehicle basket"))
                         create_skip_safe_height_param(builder)
+
+                # 屏幕接口：三轴电机点动/长按
+                create_motor_jog_param(
+                    builder, "lift", "Lift Motor",
+                    "Lift motor jog or move (screen interface).", "m")
+                create_motor_jog_param(
+                    builder, "stretch", "Stretch Motor",
+                    "Stretch motor jog or move (screen interface).", "m")
+                create_motor_jog_param(
+                    builder, "rotate", "Rotate Motor",
+                    "Rotate motor jog or move (screen interface).", "deg",
+                    single_step=1, default_jog_step=1)
 
                 # 调试/低频任务（需要开启 debugMode 才显示）
                 if ConfigParams.debug_mode:
@@ -2242,6 +2274,8 @@ class ContainerRobot(ModuleBase):
                     self._build_load_actions()
                 elif self.operation == "unload":
                     self._build_unload_actions()
+                elif self.operation in ("lift", "stretch", "rotate"):
+                    self._build_motor_jog_actions(self.operation)
                 elif self.operation == "recBoxBarcode":
                     self._build_rec_box_barcode_actions()
                 elif self.operation == "recQrcode":
@@ -2405,6 +2439,61 @@ class ContainerRobot(ModuleBase):
             return
         self.operation_init = True
         self.action_list = self._make_zero_actions(zero_height)
+
+    def _build_motor_jog_actions(self, motor_type):
+        """屏幕接口：三轴电机相对点动或移动到绝对位置。"""
+        if self.operation_init:
+            return
+        self.operation_init = True
+
+        motor_configs = {
+            "lift": (ConfigParams.lift_motor_name,
+                     ConfigParams.min_lift_height, ConfigParams.max_lift_height),
+            "stretch": (ConfigParams.stretch_motor_name,
+                        0.0, ConfigParams.max_stretch_length),
+            "rotate": (ConfigParams.rotate_motor_name,
+                       -ConfigParams.max_rotate_angle, ConfigParams.max_rotate_angle),
+        }
+        motor_name, min_position, max_position = motor_configs[motor_type]
+        if motor_type == "rotate":
+            motor_func = RobotParam.getDevice(motor_name, "func") or ""
+            prefix = "basic" if motor_name.startswith("DOMotor") else f"func.{motor_func}"
+            try:
+                min_position = float(RobotParam.getDevice(
+                    motor_name, f"{prefix}.minLength")) * 180 / math.pi
+                max_position = float(RobotParam.getDevice(
+                    motor_name, f"{prefix}.maxLength")) * 180 / math.pi
+            except (TypeError, ValueError):
+                pass
+
+        jog_step = self.script_args.get("jogStep", None)
+        target_position = self.script_args.get("position", None)
+        if jog_step is not None:
+            current_position = Motor.getMotorPos(motor_name)
+            if motor_type == "rotate":
+                current_position = current_position * 180 / math.pi
+            target = current_position + jog_step
+        elif target_position is not None:
+            target = target_position
+        else:
+            Navigation.setTaskError(
+                "InputParamError",
+                _TR("jogStep or position not provided, check the input param"),
+            )
+            self.status = ScriptStatus.FAILED
+            return
+
+        target = max(min_position, min(target, max_position))
+        if motor_type == "lift":
+            action = LiftAction(self, target, "lift_jog_or_move")
+        elif motor_type == "stretch":
+            action = StretchAction(self, target, "stretch_jog_or_move")
+        else:
+            action = RotateAction(
+                self, target / 180 * math.pi,
+                action_name="rotate_jog_or_move",
+            )
+        self.action_list = [action]
 
     @staticmethod
     def _estimate_auto_pre_position_time(start_pos, target_pos, speed, motor_name=None):
