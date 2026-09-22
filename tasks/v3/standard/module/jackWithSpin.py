@@ -891,6 +891,23 @@ class ConfigParams:
             }
             cls.moduleMotor.append(lift_motor)
 
+        # spin 电机（顶升盘旋转电机，屏幕接口位置单位为 deg）
+        if cls.spin_motor_name:
+            spin_func = RobotParam.getDevice(cls.spin_motor_name, "func") or ""
+            spin_min = RobotParam.getDevice(cls.spin_motor_name, f"func.{spin_func}.minValue")
+            spin_max = RobotParam.getDevice(cls.spin_motor_name, f"func.{spin_func}.maxValue")
+            spin_motor = {
+                "type": "spin",
+                "motorKey": cls.spin_motor_name,
+                "jogSupport": True,
+                "currentPosition": 0.0,
+                "maxLength": math.degrees(float(spin_max or 0)),
+                "minLength": math.degrees(float(spin_min or 0)),
+                "upLimitDi": _motor_limit_di(cls.spin_motor_name, "up"),
+                "downLimitDi": _motor_limit_di(cls.spin_motor_name, "down")
+            }
+            cls.moduleMotor.append(spin_motor)
+
 
 # 创建全局配置管理器实例
 config_params = ConfigParams()
@@ -1240,6 +1257,21 @@ class InputParams:
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
                             builder.SINGLESTEP(0.01)
+                            builder.DEFAULTVALUE(-1)
+
+                # 屏幕接口：旋转电机点动/长按
+                with builder.CHILD(key="spin", name=_TR("Spin Motor"), desc=_TR("Spin motor jog or move (screen interface).")):
+                    builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for spin motor.")):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.UNIT("deg")
+                            builder.SINGLESTEP(1.0)
+                            builder.DEFAULTVALUE(1.0)
+                        with builder.CHILD(key="position", name=_TR("Position"), desc=_TR("Target position for spin motor.")):
+                            builder.TYPE(ParamType.FLOAT)
+                            builder.UNIT("deg")
+                            builder.SINGLESTEP(1.0)
                             builder.DEFAULTVALUE(-1)
 
                 # ============================================
@@ -2336,6 +2368,8 @@ class Jack(ModuleBase):
             self.press_button()
         elif self.opt == "lift":  # 屏幕接口：升降电机点动/长按
             self.motor_jog_or_move("lift")
+        elif self.opt == "spin":  # 屏幕接口：旋转电机点动/长按
+            self.motor_jog_or_move("spin")
         elif self.opt == "calib":  # 外部指令强制标零（需 debugMode）
             self.do_force_calib()
         elif self.opt == "_idleAlign":  # 空载对齐（内部触发，action_list 已构建）
@@ -3119,14 +3153,22 @@ class Jack(ModuleBase):
             # 点动操作（屏幕按钮点击一下）
             if self.jog_step is not None:
                 current_pos = Motor.getMotorPos(motor_key)
+                if motor_type == "spin":
+                    current_pos = math.degrees(current_pos)
                 target_pos = current_pos + self.jog_step
                 # 边界检查
                 target_pos = clamp(target_pos, min_length, max_length)
-                self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
+                if motor_type == "spin":
+                    self.action_list = [Spin(math.radians(target_pos), "robot")]
+                else:
+                    self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
             # 长按操作（屏幕按钮长按，发送最大或最小位置）
             elif self.target_position is not None:
                 target_pos = clamp(self.target_position, min_length, max_length)
-                self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
+                if motor_type == "spin":
+                    self.action_list = [Spin(math.radians(target_pos), "robot")]
+                else:
+                    self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
             else:
                 Navigation.setTaskError("InputParamError",
                                         _TR("jogStep or position not provided, check the input param, provide jogStep or position, motor_jog_or_move"))
@@ -3261,7 +3303,10 @@ class Jack(ModuleBase):
         # 更新 moduleMotor 的 currentPosition
         for motor in config_params.moduleMotor:
             try:
-                motor["currentPosition"] = round(Motor.getMotorPos(motor["motorKey"]), 3)
+                current_position = Motor.getMotorPos(motor["motorKey"])
+                if motor["type"] == "spin":
+                    current_position = math.degrees(current_position)
+                motor["currentPosition"] = round(current_position, 3)
             except Exception as e:
                 Trace.log(f"get motor pos failed motor={motor['motorKey']} error={e}", name=f"{MOD}.err")
 
