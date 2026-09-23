@@ -91,7 +91,20 @@ if TYPE_CHECKING:
         from v4.protobuf.message.messageV4_movetask_pb2 import MessageV4_MInfo as msgMotorInfo
 
 class MotorInterface(ABC, Message):
-    """电机类"""
+    """电机类
+
+    单位约定：电机位置、速度、加/减速度、jerk 的量纲取决于电机 ``func``：
+
+    - 线性类（``walk``、``linear``、``jack``/货叉顶升、伸缩等）：位置为 m，速度为 m/s，
+      加/减速度为 m/s²，jerk 为 m/s³。
+    - 角度类（``steer`` 舵轮、``rotation`` 旋转、``spin`` 托盘）：位置为 **rad**，
+      速度为 **rad/s**，加/减速度为 **rad/s²**，jerk 为 **rad/s³**。
+
+    注意：模型/前端配置中角度相关参数以 **deg** 存储，MF 读入后在内部统一
+    换算为 rad，因此本接口（及 ``Navigation.setSteerAngle``、
+    ``Navigation.set*SpinAngle``）传入和返回的角度均为 **rad**。若业务参数
+    是 deg，调用前需自行用 ``math.radians()`` 转换。
+    """
 
     @staticmethod
     def getMotorInfos() -> List["msgMotorInfo"]:
@@ -99,10 +112,10 @@ class MotorInterface(ABC, Message):
 
         Returns:
             (List[msgMotorInfo]): 电机信息列表，列表内元素为 msgMotorInfo 对象。
-                每个元素主要字段的单位：
+                每个元素主要字段的单位（随电机 ``func`` 类型而定）：
 
-                - position (float): 电机位置，单位 m
-                - speed (float): 电机速度，单位 m/s
+                - position (float): 电机位置；线性类为 m，角度类为 rad
+                - speed (float): 电机速度；线性类为 m/s，角度类为 rad/s
                 - current (float): 电流，单位 A
                 - voltage (float): 电压，单位 V
 
@@ -125,7 +138,7 @@ class MotorInterface(ABC, Message):
             key (str): 电机设备的key。
 
         Returns:
-            (Union[float, int]): 电机的当前位置，单位 m（线性电机）或 °（旋转/舵轮电机）；若电机不存在返回 -1。
+            (Union[float, int]): 电机的当前位置：线性类单位为 m，角度类（舵轮/旋转/托盘）单位为 rad；若电机不存在返回 -1。
         """
         raise RBKVersionError()
 
@@ -137,7 +150,7 @@ class MotorInterface(ABC, Message):
             key (str): 电机设备的key。
 
         Returns:
-            (Union[float, int]): 电机的当前速度，单位 m/s；若电机不存在返回 -1。
+            (Union[float, int]): 电机的当前速度：线性类单位为 m/s，角度类（舵轮/旋转/托盘）单位为 rad/s；若电机不存在返回 -1。
         """
         raise RBKVersionError()
 
@@ -154,10 +167,10 @@ class MotorInterface(ABC, Message):
 
         Args:
             key (str): 电机设备的key，无默认值，必须传入。
-            targetPos (float): 目标位置，单位 m（线性电机）或 °（旋转/舵轮电机），无默认值，必须传入。
-            startPos (Optional[float]): 起始位置，单位同上；缺省时读取 ``getMotorPos`` 的当前值。
-            startSpeed (Optional[float]): 起始速度，单位 m/s；缺省时读取 ``getMotorSpeed`` 的当前值。
-            maxSpeed (Optional[float]): 本次运动允许的最大速度，单位 m/s；缺省时使用电机模型中的 ``maxSpeed``。
+            targetPos (float): 目标位置；线性类为 m、角度类为 rad。无默认值，必须传入。
+            startPos (Optional[float]): 起始位置，单位同 ``targetPos``；缺省时读取 ``getMotorPos`` 的当前值。
+            startSpeed (Optional[float]): 起始速度；线性类为 m/s、角度类为 rad/s。缺省时读取 ``getMotorSpeed`` 的当前值。
+            maxSpeed (Optional[float]): 本次运动允许的最大速度；线性类为 m/s、角度类为 rad/s。缺省时使用电机模型中的 ``maxSpeed``。
 
         Returns:
             (Optional[float]): 预估运动时长，单位 s；模型参数缺失或非法时返回 None。
@@ -227,7 +240,7 @@ class MotorInterface(ABC, Message):
 
         Args:
             key (str): 电机设备的key。
-            vel (float): 电机速度，单位 m/s。
+            vel (float): 电机速度；线性类为 m/s、角度类为 rad/s。
             stopDI (str): 到位DI。缺省或传 "" 表示没有。
 
         Returns:
@@ -237,12 +250,13 @@ class MotorInterface(ABC, Message):
 
     @classmethod
     def setMotorPosition(cls, key: str, pos: float, maxVel: float, stopDI: str = "") -> bool:
-        """控制线性电机到特定位置
+        """控制电机到特定位置（线性电机位置或旋转类电机角度）
 
         Args:
             key (str): 电机设备的key。
-            pos (float): 目标位置，单位 m（线性电机）或 °（旋转/舵轮电机）。
-            maxVel (float): 运行过程中的最大速度，不能超过模型文件中的最大速度。
+            pos (float): 目标位置；线性类为 m、角度类为 rad。
+            maxVel (float): 运行过程中的最大速度；线性类为 m/s、角度类为 rad/s。
+                不能超过模型文件中的最大速度（超出时按模型上限裁剪）。
             stopDI (str): 如果这个 StopDI 触发则表示运动到位。缺省或传 "" 表示没有。
 
         Returns:
@@ -253,15 +267,15 @@ class MotorInterface(ABC, Message):
     @classmethod
     def setMotorPositionAdv(cls, key: str, pos: float, maxSpeed: float = None, maxAcc: float = None,
                             maxDec: float = None, jerk: float = None, stopDI: str = "") -> bool:
-        """控制线性电机到特定位置（可控制加速度）
+        """控制电机到特定位置（可控制加速度）
 
         Args:
             key (str): 电机设备的key。
-            pos (float): 目标位置，单位 m（线性电机）或 °（旋转/舵轮电机）。
-            maxSpeed (float): 最大速度，单位 m/s。缺省为 None 表示使用模型默认值。
-            maxAcc (float): 最大加速度，单位 m/s²。缺省为 None 表示使用模型默认值。
-            maxDec (float): 最大减速度，单位 m/s²。缺省为 None 表示使用模型默认值。
-            jerk (float): 最大加加速度，单位 m/s³。缺省为 None 表示使用模型默认值。
+            pos (float): 目标位置；线性类为 m、角度类为 rad。
+            maxSpeed (float): 最大速度；线性类为 m/s、角度类为 rad/s。缺省为 None 表示使用模型默认值。
+            maxAcc (float): 最大加速度；线性类为 m/s²、角度类为 rad/s²。缺省为 None 表示使用模型默认值。
+            maxDec (float): 最大减速度；线性类为 m/s²、角度类为 rad/s²。缺省为 None 表示使用模型默认值。
+            jerk (float): 最大加加速度；线性类为 m/s³、角度类为 rad/s³。缺省为 None 表示使用模型默认值。
             stopDI (str): 停止DI的key。该DI触发则表示运动到位。缺省或传 "" 表示没有。
 
         Returns:
@@ -304,7 +318,7 @@ class MotorInterface(ABC, Message):
 
         Args:
             key (str): 电机设备的key。
-            pos (float): 位置，单位 m（线性电机）或 °（旋转/舵轮电机）。
+            pos (float): 位置；线性类为 m、角度类为 rad。
             stopDI (str): 到位DI。缺省或传 "" 表示没有。
 
         Returns:

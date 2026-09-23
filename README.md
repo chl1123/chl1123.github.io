@@ -332,6 +332,25 @@ if RobotError.existSystemError("LiftTimeout"):
 - 输入参数进入业务前先校验（`ParamValidator` 或 `loadInput`）
 - 配置参数支持热更新回调（`setConfigChangeCallBack` / `setDeviceChangeCallBack`）
 
+### 5.6 接口单位规范（角度/位置）
+
+调电机、旋转、舵角相关接口前，先分清“配置量纲”和“接口量纲”：
+
+| 场景 | 量纲 | 说明 |
+| --- | --- | --- |
+| 模型/前端配置里的角度 | deg | 如 `func.rotation.maxAngle`、`func.steer.maxAngle`、`max_rotate_angle` |
+| `Motor.*` 位置/速度/加速度 | 线性类 m、m/s、m/s²；角度类 rad、rad/s、rad/s² | 角度类即 `steer`/`rotation`/`spin`；线性类即 `walk`/`linear`/`jack`/伸缩等 |
+| `Motor.getMotorPos` / `getMotorSpeed` | 同上（线性 m、角度 rad） | 读回来的角度已经是 rad，不要再转 deg |
+| `Navigation.setSteerAngle` | rad | |
+| `Navigation.set{Robot,Global,Increase}SpinAngle` | rad | |
+| `Navigation.setGoForkForkPos(hold_dir)` / `setPathHoldDir` | deg | 这两个是例外，注意与上面的角度接口区分 |
+
+规范：
+
+- 业务/任务参数是 deg 时，调上述 rad 接口前先 `math.radians()`；从接口读到 rad 后如需展示，用 `math.degrees()`。
+- 新增接口必须在名称/注释/参数上明确单位，不要依赖隐式约定。
+- 参考实现：`tasks/v3/standard/example/motor.py`（`rotate` 用 `math.radians`、`linear` 直接用 m）、`tasks/v3/standard/calib/containCameraCalibAction.py`（`cur_angle/180*math.pi`）。
+
 ## 6. 新人上手建议路径
 
 1. 先读 `tasks/v3/standard/example/template.py`，理解标准生命周期。
