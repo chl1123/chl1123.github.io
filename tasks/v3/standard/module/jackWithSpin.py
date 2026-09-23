@@ -893,18 +893,11 @@ class ConfigParams:
 
         # spin 电机（顶升盘旋转电机，屏幕接口位置单位为 deg）
         if cls.spin_motor_name:
-            spin_func = RobotParam.getDevice(cls.spin_motor_name, "func") or ""
-            spin_min = RobotParam.getDevice(cls.spin_motor_name, f"func.{spin_func}.minValue")
-            spin_max = RobotParam.getDevice(cls.spin_motor_name, f"func.{spin_func}.maxValue")
             spin_motor = {
                 "type": "spin",
                 "motorKey": cls.spin_motor_name,
                 "jogSupport": True,
                 "currentPosition": 0.0,
-                "maxLength": math.degrees(float(spin_max or 0)),
-                "minLength": math.degrees(float(spin_min or 0)),
-                "upLimitDi": _motor_limit_di(cls.spin_motor_name, "up"),
-                "downLimitDi": _motor_limit_di(cls.spin_motor_name, "down")
             }
             cls.moduleMotor.append(spin_motor)
 
@@ -3147,24 +3140,23 @@ class Jack(ModuleBase):
                 return
 
             motor_key = motor_info["motorKey"]
-            min_length = motor_info["minLength"]
-            max_length = motor_info["maxLength"]
 
             # 点动操作（屏幕按钮点击一下）
             if self.jog_step is not None:
                 current_pos = Motor.getMotorPos(motor_key)
                 if motor_type == "spin":
                     current_pos = math.degrees(current_pos)
-                target_pos = current_pos + self.jog_step
-                # 边界检查
-                target_pos = clamp(target_pos, min_length, max_length)
-                if motor_type == "spin":
-                    self.action_list = [Spin(math.radians(target_pos), "robot")]
+                    target_pos = current_pos + self.jog_step
+                    jog_delta = target_pos - current_pos
+                    self.action_list = [Spin(math.radians(jog_delta), "increase")]
                 else:
+                    target_pos = current_pos + self.jog_step
                     self.action_list = [JackHeight(motor_key, target_pos, config_params.jack_motor_speed)]
             # 长按操作（屏幕按钮长按，发送最大或最小位置）
             elif self.target_position is not None:
-                target_pos = clamp(self.target_position, min_length, max_length)
+                target_pos = self.target_position
+                if motor_type == "spin":
+                    target_pos = target_pos % 360
                 if motor_type == "spin":
                     self.action_list = [Spin(math.radians(target_pos), "robot")]
                 else:
