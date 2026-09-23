@@ -69,8 +69,8 @@ class BatteryV3(Message):
         if self.update():
             return self.data.SOH
 
-    def publish(self, battery_msg: "msgBattery", *, topic: str = "Battery-000") -> int:
-        return self.client().call_service("DSPChassis", "publishBattery", MessageToJson(battery_msg))
+    def publish(self, battery_info: "msgBattery", *, topic: str = "Battery-000") -> int:
+        return self.client().call_service("DSPChassis", "publishBattery", MessageToJson(battery_info))
 
     def getCanPort(self, *, topic: str = "Battery-000") -> str:
         return self.client().call_service("DSPChassis", "getBatteryCanPort")

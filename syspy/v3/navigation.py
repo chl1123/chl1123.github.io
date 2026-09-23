@@ -526,8 +526,7 @@ class NavStatusV3(NavStatusInterface):
         """清除机器人的阻挡状态"""
         cls.client().call_service("MoveFactory", "clearBlockError")
 
-    @classmethod
-    def getTurn(cls, v_x, v_w):
+    def getTurn(self, v_x: float, v_w: float) -> int:
         turn = 0
         if v_w >= math.radians(1) * 3:
             '''机身左旋'''

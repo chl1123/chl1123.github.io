@@ -22,8 +22,8 @@ class DiInterface(ABC, Message):
         """设置DI是否生效
 
         Args:
-            key (str): DI key
-            status (bool): True表示生效，False表示不生效
+            key (str): DI key。
+            status (bool): True 表示生效，False 表示不生效。
         """
         raise RBKVersionError()
 
@@ -32,24 +32,23 @@ class DiInterface(ABC, Message):
         """设置虚拟DI状态
 
         Args:
-            key (str): 虚拟DI key
-            status (bool):虚拟DI状态
+            key (str): 虚拟DI key。
+            status (bool): 虚拟DI状态。
         """
         pass
 
-    @classmethod
-    def getDi(cls, key: str) -> bool:
+    def getDi(self, key: str) -> bool:
         """检测单个DI状态信息
+
         Args:
-            key (str): DI key
+            key (str): DI key。
 
         Returns:
-            (bool): 返回指定DI的状态，若DI不存在返回False
+            (bool): 指定DI的状态，若DI不存在返回False。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getDis(cls) -> Optional[RepeatedCompositeFieldContainer["msgDINode"]]:
+    def getDis(self) -> Optional[RepeatedCompositeFieldContainer["msgDINode"]]:
         """获取DI消息中的节点列表
 
         Returns:
@@ -65,12 +64,11 @@ class DiInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getMaxDi(cls) -> int:
+    def getMaxDi(self) -> Optional[int]:
         """获取DI消息中的最大节点数
 
         Returns:
-            (int): DI消息中的最大节点数
+            (Optional[int]): DI消息中的最大节点数。
         """
         raise RBKVersionError()
 
@@ -83,28 +81,26 @@ class DoInterface(ABC, Message):
         """控制DO的开关
 
         Args:
-            key (str): DO key
-            status (bool): 是否打开这个DO
+            key (str): DO key。
+            status (bool): 是否打开这个DO。
 
         Returns:
-            (bool): 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来
+            (bool): 如果不存在这个DO的id，返回False，而且会报错，agv也会停下来。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getDo(cls, key: str) -> bool:
+    def getDo(self, key: str) -> bool:
         """检测单个DO状态信息
 
         Args:
-            key (str): DO设备的key
+            key (str): DO设备的key。
 
         Returns:
-            (bool): 返回指定DO的状态，若DO不存在返回False
+            (bool): 指定DO的状态，若DO不存在返回False。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getDos(cls) -> Optional[RepeatedCompositeFieldContainer["msgDONode"]]:
+    def getDos(self) -> Optional[RepeatedCompositeFieldContainer["msgDONode"]]:
         """获取DO消息中的节点列表
 
         Returns:
@@ -121,12 +117,11 @@ class DoInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getMaxNode(cls) -> Optional[int]:
+    def getMaxNode(self) -> Optional[int]:
         """获取DO消息中的最大节点数
 
         Returns:
-            (Optional[int]): DO消息中的最大节点数
+            (Optional[int]): DO消息中的最大节点数。
         """
         raise RBKVersionError()
 

@@ -6,35 +6,31 @@ from syspy.core.rbk_rpc import Message, RBKVersionError
 class ControllerInterface(ABC, Message):
     """控制器类"""
 
-    @classmethod
-    def getTemperature(cls) -> Optional[float]:
+    def getTemperature(self) -> Optional[float]:
         """获取温度值
 
         Returns:
-            (Optional[float]): 温度数值
+            (Optional[float]): 控制器温度，单位 ℃。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getHumidity(cls) -> Optional[float]:
+    def getHumidity(self) -> Optional[float]:
         """获取湿度值
 
         Returns:
-            (Optional[float]): 湿度数值
+            (Optional[float]): 控制器湿度，单位 %。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getVoltage(cls) -> Optional[float]:
+    def getVoltage(self) -> Optional[float]:
         """获取电压值
 
         Returns:
-            (Optional[float]): 电压数值
+            (Optional[float]): 控制器电压，单位 V。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getEmc(cls) -> Optional[bool]:
+    def getEmc(self) -> Optional[bool]:
         """获取EMC状态
 
         Returns:
@@ -42,8 +38,7 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getBrake(cls) -> Optional[bool]:
+    def getBrake(self) -> Optional[bool]:
         """获取制动状态
 
         Returns:
@@ -51,8 +46,7 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getDriverEmc(cls) -> Optional[bool]:
+    def getDriverEmc(self) -> Optional[bool]:
         """获取驱动EMC状态
 
         Returns:
@@ -60,8 +54,7 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getManualCharge(cls) -> Optional[bool]:
+    def getManualCharge(self) -> Optional[bool]:
         """获取手动充电状态
 
         Returns:
@@ -69,8 +62,7 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getAutoCharge(cls) -> Optional[bool]:
+    def getAutoCharge(self) -> Optional[bool]:
         """获取自动充电状态
 
         Returns:
@@ -78,8 +70,7 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getElectric(cls) -> Optional[bool]:
+    def getElectric(self) -> Optional[bool]:
         """获取电动状态
 
         Returns:
@@ -87,8 +78,7 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getSoftEmc(cls) -> Optional[bool]:
+    def getSoftEmc(self) -> Optional[bool]:
         """获取软EMC状态
 
         Returns:
@@ -96,8 +86,7 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getIsExternalControl(cls) -> Optional[bool]:
+    def getIsExternalControl(self) -> Optional[bool]:
         """获取是否为外部控制状态
 
         Returns:
@@ -105,8 +94,7 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getIsImuCalibrating(cls) -> Optional[bool]:
+    def getIsImuCalibrating(self) -> Optional[bool]:
         """获取IMU是否正在校准状态
 
         Returns:
@@ -114,12 +102,11 @@ class ControllerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getAdcVoltage(cls) -> Optional[float]:
+    def getAdcVoltage(self) -> Optional[float]:
         """获取通过ADC检测到的外部电压值
 
         Returns:
-            (Optional[float]): 通过ADC检测到的外部电压数值
+            (Optional[float]): 通过 ADC 检测到的外部电压，单位 V。
         """
         raise RBKVersionError()
 

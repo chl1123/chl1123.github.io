@@ -6,62 +6,59 @@ from syspy.core.rbk_rpc import Message, RBKVersionError
 class LocInterface(ABC, Message):
     """定位类"""
 
-    @classmethod
-    def getPose(cls) -> Optional[Dict[str, float]]:
+    def getPose(self) -> Optional[Dict[str, float]]:
         """获取机器人位姿（位置和姿态）
 
         Returns:
             (Optional[Dict[str, float]]): 包含以下键值对的字典：
-                - x (float): x坐标
-                - y (float): y坐标
-                - z (float): z坐标
-                - yaw (float): 偏航角（角度制）
-                - roll (float): 翻滚角（角度制）
-                - pitch (float): 俯仰角（角度制）
+
+                - x (float): x 坐标，单位 m
+                - y (float): y 坐标，单位 m
+                - z (float): z 坐标，单位 m
+                - yaw (float): 偏航角，单位 °
+                - roll (float): 翻滚角，单位 °
+                - pitch (float): 俯仰角，单位 °
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getConfidence(cls) -> Optional[float]:
+    def getConfidence(self) -> Optional[float]:
         """获取定位置信度
 
         Returns:
-            (Optional[float]): 返回定位置信度数值
+            (Optional[float]): 定位置信度，取值 0.0 ~ 1.0。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getLocState(cls) -> Optional[int]:
+    def getLocState(self) -> Optional[int]:
         """获取定位状态
 
         Returns:
             (Optional[int]): 定位状态:
 
-                - 0 = 初始化中\n
-                - 1 = 加载地图中\n
-                - 2 = 加载地图失败\n
-                - 3 = 重定位中\n
-                - 4 = 定位有效\n
-                - 5 = 定位无效\n
+                - 0 = 初始化中
+                - 1 = 加载地图中
+                - 2 = 加载地图失败
+                - 3 = 重定位中
+                - 4 = 定位有效
+                - 5 = 定位无效
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getLocMethod(cls) -> Optional[int]:
+    def getLocMethod(self) -> Optional[int]:
         """获取定位方法
 
         Returns:
             (Optional[int]): 定位方法:
 
-                - 0 = 里程计模式\n
-                - 1 = 自然轮廓定位\n
-                - 2 = 反光柱定位\n
-                - 3 = 二维码定位\n
-                - 4 = 3D定位 (NDT)\n
-                - 5 = 天码定位\n
-                - 6 = 特征定位\n
-                - 7 = 3D特征定位\n
-                - 8 = 3D KF定位\n
+                - 0 = 里程计模式
+                - 1 = 自然轮廓定位
+                - 2 = 反光柱定位
+                - 3 = 二维码定位
+                - 4 = 3D定位 (NDT)
+                - 5 = 天码定位
+                - 6 = 特征定位
+                - 7 = 3D特征定位
+                - 8 = 3D KF定位
         """
         raise RBKVersionError()
 
@@ -74,8 +71,8 @@ class LocInterface(ABC, Message):
             center_x (float): 重定位中心 x 坐标，单位 m，无默认值，必须传入。
             center_y (float): 重定位中心 y 坐标，单位 m，无默认值，必须传入。
             length (float): 重定位搜索范围直径，单位 m，无默认值，必须传入；小于 0.1 时使用系统默认范围。
-            initial_angle (float): 重定位中心初始朝向，单位 degree，无默认值，必须传入。
-            angle_scatter (float): 朝向搜索散布范围，单位 degree，无默认值，必须传入。
+            initial_angle (float): 重定位中心初始朝向，单位 °，无默认值，必须传入。
+            angle_scatter (float): 朝向搜索散布范围，单位 °，无默认值，必须传入。
 
         Returns:
             (str): JSON 对象字符串，成功时通常为 ``{"err_msg": ""}``。
@@ -113,7 +110,7 @@ class LocInterface(ABC, Message):
         """取消当前正在进行的重定位。
 
         Returns:
-            None: RPC 服务无返回值，成功响应的 result 为 null。
+            (None): RPC 服务无返回值，成功响应的 result 为 null。
         """
         raise RBKVersionError()
 

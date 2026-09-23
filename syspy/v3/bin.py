@@ -90,7 +90,6 @@ class ContainerV3(ContainerInterface):
         if not container_id and not goods_name:
             for key in cls.containers:
                 cls.containers[key] = cls._emptyContainer()
-                # 对cls.containers每一个的value都转为str
                 str_containers = {key: str(cls.containers[key]) for key in cls.containers}
                 cls.db.puts(str_containers)
             result = True
@@ -105,7 +104,6 @@ class ContainerV3(ContainerInterface):
                     cls.containers[key] = cls._emptyContainer()
                     cls.db.put(key, str(cls._emptyContainer()))
                     result = True
-        # 如果所有容器都没有货物，则清除货物形状
         if all(not cls.containers[key]["hasGoods"] for key in cls.containers):
             NavigationV3.clearGoodsShape()
         return result
@@ -132,7 +130,7 @@ class ContainerV3(ContainerInterface):
         return False
 
     @classmethod
-    def getTaskGoods(cls):
+    def getTaskGoods(cls) -> str:
         move_task = NavigationV3.moveTask()
         for p in move_task['params']:
             if p['key'] == 'goodsName':
@@ -143,6 +141,7 @@ class ContainerV3(ContainerInterface):
     def getGoodsByContainer(cls, container_id: str = '0') -> str:
         if container_id in cls.containers:
             return cls.containers[container_id].get("goodsName", "")
+        return ""
 
     @classmethod
     def getContainerByGoods(cls, goods_name) -> str:

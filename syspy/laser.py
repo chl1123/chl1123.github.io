@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from typing import List, Optional, TYPE_CHECKING
 
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
 from syspy import RBK_VERSION
 
 if TYPE_CHECKING:
@@ -39,8 +41,8 @@ class LaserInterface:
         """设置激光设备宽度
 
         Args:
-            key (str): 激光设备的key
-            width (float): 屏蔽宽度，此范围外的点云被屏蔽
+            key (str): 激光设备的key。
+            width (float): 屏蔽宽度，单位 m，此范围外的点云被屏蔽。
         """
         self.child.set2DLaserWidth(key, width)
 
@@ -56,9 +58,9 @@ class LaserInterface:
         """设置激光设备角度
 
         Args:
-            key (str): 激光设备的key
-            min_angle (float): 最小角度（单位: °），小于此角度的点云被屏蔽
-            max_angle (float): 最大角度（单位: °），大于此角度的点云被屏蔽
+            key (str): 激光设备的key。
+            min_angle (float): 最小角度，单位 °，小于此角度的点云被屏蔽。
+            max_angle (float): 最大角度，单位 °，大于此角度的点云被屏蔽。
         """
         self.child.set2DLaserAngle(key, min_angle, max_angle)
 
@@ -74,10 +76,10 @@ class LaserInterface:
         """获取与指定激光距离最近的激光点与激光中心的距离和朝向
 
         Args:
-            key (str): 激光设备的key
+            key (str): 激光设备的key。
 
         Returns:
-            (List[float]): 最近激光点与激光中心的距离、最近激光点与激光中心的夹角
+            (List[float]): [最近激光点与激光中心的距离(单位 m), 最近激光点与激光中心的夹角(单位 °)]。
         """
         return self.child.getNearestLaserPoint(key)
 
@@ -115,11 +117,11 @@ class Laser3DInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def getLasers3d(self) -> List["msgLaser3D"]:
+    def getLasers3d(self) -> Optional[RepeatedCompositeFieldContainer["msgLaser3D"]]:
         """获取所有3D激光数据列表
 
         Returns:
-            (List[msgLaser3D]): 返回所有3D激光数据的列表
+            (Optional[RepeatedCompositeFieldContainer["msgLaser3D"]]): 所有3D激光数据列表。
 
         Examples:
         ```python

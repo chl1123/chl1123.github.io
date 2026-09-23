@@ -6,25 +6,23 @@ from syspy.core.rbk_rpc import Message, RBKVersionError
 class ScriptDataInterface(ABC, Message):
     """脚本数据"""
 
-    @classmethod
-    def set(cls, name: str, data: dict) -> None:
+    def set(self, name: str, data: dict) -> None:
         """设置脚本数据
 
         Args:
-            name (str): 脚本名或标识
-            data (bool): 脚本数据
+            name (str): 脚本名或标识。
+            data (dict): 脚本数据。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def get(cls, name: str) -> Optional[dict]:
+    def get(self, name: str) -> Optional[dict]:
         """获取脚本数据
 
         Args:
-            name (str): 脚本名或标识
+            name (str): 脚本名或标识。
 
         Returns:
-            (Optional[dict]): 脚本数据
+            (Optional[dict]): 脚本数据，不存在时返回空字典。
         """
         raise RBKVersionError()
 

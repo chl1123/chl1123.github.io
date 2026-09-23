@@ -14,50 +14,51 @@ if TYPE_CHECKING:
 class OdometerInterface(ABC, Message):
     """里程类"""
 
-    @classmethod
-    def getCycle(cls) -> int:
+    def getCycle(self) -> Optional[int]:
         """获取周期计数
 
         Returns:
-            (Optional[int]): 返回周期计数值
+            (Optional[int]): 周期计数，单位 次。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getPosition(cls) -> Tuple[float, float, float]:
+    def getPosition(self) -> Optional[Tuple[float, float, float]]:
         """获取位置，x坐标、y坐标、角度
 
         Returns:
-            (Optional[Tuple[float, float, float]]): 返回位置信息
+            (Optional[Tuple[float, float, float]]): (x 坐标, y 坐标, 角度)，
+                x/y 单位 m，角度单位 °。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getSpeeds(cls) -> Tuple[float, float, float]:
+    def getSpeeds(self) -> Optional[Tuple[float, float, float]]:
         """获取x、y、旋转方向速度
 
         Returns:
-            (float): 返回x方向速度值，单位为米每秒
-            float: 返回y方向速度值，单位为米每秒
-            float: 返回旋转速度值，单位为弧度每秒
+            (Optional[Tuple[float, float, float]]): (x 方向速度, y 方向速度, 旋转角速度)，
+                x/y 单位 m/s，旋转角速度单位 rad/s。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getIsStop(cls) -> bool:
+    def getIsStop(self) -> Optional[bool]:
         """获取是否停止状态
 
         Returns:
-            (bool): True表示停止，False表示未停止
+            (Optional[bool]): True 表示停止，False 表示未停止。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getMotorInfos(cls) -> Optional[RepeatedCompositeFieldContainer["msgMotorInfo"]]:
+    def getMotorInfos(self) -> Optional[RepeatedCompositeFieldContainer["msgMotorInfo"]]:
         """获取电机信息列表
 
         Returns:
-            (Optional[RepeatedCompositeFieldContainer[msgMotorInfo]]): 返回电机信息列表，列表内元素为msgMotorInfo对象
+            (Optional[RepeatedCompositeFieldContainer[msgMotorInfo]]): 电机信息列表，列表内元素为 msgMotorInfo 对象。
+                每个元素主要字段的单位：
+
+                - position (float): 电机位置，单位 m
+                - speed (float): 电机速度，单位 m/s
+                - current (float): 电流，单位 A
+                - voltage (float): 电压，单位 V
 
         Examples:
         ```python

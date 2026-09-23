@@ -17,12 +17,18 @@ if TYPE_CHECKING:
 class CodeScannerInterface(ABC, Message):
     """PGV类"""
 
-    @classmethod
-    def getCodeScanners(cls) -> Optional[RepeatedCompositeFieldContainer["msgCodeScannerDMT"]]:
+    def getCodeScanners(self) -> Optional[RepeatedCompositeFieldContainer["msgCodeScannerDMT"]]:
         """获取msgCodeScannerDMT对象列表
 
         Returns:
-            (Optional[RepeatedCompositeFieldContainer["msgCodeScannerDMT"]]): msgCodeScannerDMT对象列表
+            (Optional[RepeatedCompositeFieldContainer["msgCodeScannerDMT"]]): msgCodeScannerDMT对象列表。
+
+                每个元素的主要字段（单位取自 proto）：
+
+                - tagDiffX (float): 单位 m
+                - tagDiffY (float): 单位 m
+                - tagDiffAngle (float): 单位 °
+                - tagValue (int): 标签数据
 
         Examples:
         ```python

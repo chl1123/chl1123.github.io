@@ -23,80 +23,110 @@ class BatteryInterface:
     def getPercentage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取电池电量百分比
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (Optional[float]): 返回电池电量百分比数值
+            (Optional[float]): 电池电量百分比 (SoC)，单位 %。
         """
         return self.child.getPercentage(topic=topic)
 
     def getChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取充电电流
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (float): 返回充电电流数值
+            (Optional[float]): 充电电流，单位 A。
         """
         return self.child.getChargeCurrent(topic=topic)
 
     def getChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取充电电压
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (float): 返回充电电压数值
+            (Optional[float]): 充电电压，单位 V。
         """
         return self.child.getChargeVoltage(topic=topic)
 
     def getIsCharging(self, *, topic: str = "Battery-000") -> Optional[bool]:
         """获取是否正在充电状态
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (bool): True表示正在充电，False表示未充电
+            (Optional[bool]): True 表示正在充电，False 表示未充电。
         """
         return self.child.getIsCharging(topic=topic)
 
     def getTemperature(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取电池温度
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (float): 返回电池温度数值
+            (Optional[float]): 电池温度，单位 ℃。
         """
         return self.child.getTemperature(topic=topic)
 
     def getCycle(self, *, topic: str = "Battery-000") -> Optional[int]:
         """获取电池循环次数
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (Optional[int]): 返回电池循环次数数值
+            (Optional[int]): 电池循环次数，单位 次。
         """
         return self.child.getCycle(topic=topic)
 
     def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取最大充电电流
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (float): 返回最大充电电流数值
+            (Optional[float]): 最大充电电流，单位 A。
         """
         return self.child.getMaxChargeCurrent(topic=topic)
 
     def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
         """获取最大充电电压
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (float): 返回最大充电电压数值
+            (Optional[float]): 最大充电电压，单位 V。
         """
         return self.child.getMaxChargeVoltage(topic=topic)
 
     def getExtra(self, *, topic: str = "Battery-000") -> Optional[str]:
         """获取额外信息
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (Optional[str]): 返回额外信息字符串
+            (Optional[str]): 额外信息字符串。
         """
         return self.child.getExtra(topic=topic)
 
     def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> Optional[bool]:
         """获取是否手动连接状态
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (bool): True表示手动连接，False表示非手动连接
+            (Optional[bool]): True 表示手动连接，False 表示非手动连接。
 
         Compatibility:
             该接口仅在 RBK 版本 3 中可用。
@@ -106,16 +136,22 @@ class BatteryInterface:
     def getUserData(self, *, topic: str = "Battery-000") -> Optional[bytes]:
         """获取用户数据
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (bytes): 返回用户数据字节流
+            (Optional[bytes]): 用户自定义字段字节流。
         """
         return self.child.getUserData(topic=topic)
 
     def getSoh(self, *, topic: str = "Battery-000") -> Optional[int]:
         """获取电池健康度
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (Optional[int]): 健康度。-1 表示无效。
+            (Optional[int]): 电池健康度 (SOH)，单位 %；-1 表示无效。
 
         Compatibility:
             该接口仅在 RBK 版本 3 中可用。
@@ -126,23 +162,35 @@ class BatteryInterface:
         """发布电池信息
 
         Args:
-            battery_info ("msgBattery"): proto消息
+            battery_info ("msgBattery"): 待发布的电池 proto 消息。
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
 
         Returns:
-            (int): -1: 发布失败; 0: 发布成功
+            (int): -1: 发布失败; 0: 发布成功。
         """
         return self.child.publish(battery_info, topic=topic)
 
     def getCanPort(self, *, topic: str = "Battery-000") -> str:
         """获取CAN端口
 
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
         Returns:
-            (int): CAN端口
+            (str): CAN 端口名称。
         """
         return self.child.getCanPort(topic=topic)
-    
+
     def getBaudrate(self, *, topic: str = "Battery-000") -> Optional[int]:
-        return self.child.getBaudrate(topic=topic) 
+        """获取CAN波特率
+
+        Args:
+            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+
+        Returns:
+            (Optional[int]): CAN 波特率，单位 bit/s。
+        """
+        return self.child.getBaudrate(topic=topic)
 
 
 Battery: BatteryInterface = BatteryInterface()

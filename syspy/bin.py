@@ -15,12 +15,11 @@ if TYPE_CHECKING:
 class BinInterface(ABC, Message):
     """库位类"""
 
-    @classmethod
-    def getBins(cls) -> Optional[RepeatedCompositeFieldContainer["msgBin"]]:
+    def getBins(self) -> Optional[RepeatedCompositeFieldContainer["msgBin"]]:
         """获取库位列表
 
         Returns:
-            (Optional[RepeatedCompositeFieldContainer["msgBin"]]): 库位列表
+            (Optional[RepeatedCompositeFieldContainer["msgBin"]]): 库位列表。
 
         Examples:
         ```python
@@ -100,7 +99,8 @@ class ContainerInterface(ABC, Service):
         """获取当前车子上库位或者容器货物的状态。
 
         Returns:
-            （list): 包含所有容器状态的列表，每个元素是一个字典，包含 container_id、goods_name、desc 和 has_goods。
+            (list): 包含所有容器状态的列表，每个元素是一个字典，包含
+                ``containerId``、``goodsName``、``desc`` 和 ``hasGoods``。
         """
         raise RBKVersionError()
 
@@ -136,7 +136,6 @@ class ContainerInterface(ABC, Service):
             (str): 货物ID，如果没有找到则返回空字符串。
         """
         raise RBKVersionError()
-
     @classmethod
     def getGoodsByContainer(cls, container_id: str = '0') -> str:
         """根据容器名称获取对应的货物ID。

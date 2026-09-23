@@ -16,12 +16,11 @@ if TYPE_CHECKING:
 class MagneticInterface(ABC, Message):
     """磁传感器类"""
 
-    @classmethod
-    def getMagnetics(cls) -> Optional[RepeatedCompositeFieldContainer["msgMagneticNode"]]:
+    def getMagnetics(self) -> Optional[RepeatedCompositeFieldContainer["msgMagneticNode"]]:
         """获取磁节点列表
 
         Returns:
-            (Optional[RepeatedCompositeFieldContainer[msgMagneticNode]]): 包含所有磁节点信息的列表
+            (Optional[RepeatedCompositeFieldContainer[msgMagneticNode]]): 包含所有磁节点信息的列表。
         """
         raise RBKVersionError()
 

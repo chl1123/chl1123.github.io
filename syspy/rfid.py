@@ -17,12 +17,11 @@ if TYPE_CHECKING:
 class RfidInterface(ABC, Message):
     """RFID类"""
 
-    @classmethod
-    def getRfids(cls) -> Optional[RepeatedCompositeFieldContainer["msgRFIDNode"]]:
+    def getRfids(self) -> Optional[RepeatedCompositeFieldContainer["msgRFIDNode"]]:
         """获取RFID节点列表
 
         Returns:
-            (Optional[RepeatedCompositeFieldContainer["msgRFIDNode"]]): 返回包含RFID节点信息的列表
+            (Optional[RepeatedCompositeFieldContainer["msgRFIDNode"]]): 包含RFID节点信息的列表。
         """
         raise RBKVersionError()
 

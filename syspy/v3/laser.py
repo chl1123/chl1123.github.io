@@ -26,41 +26,32 @@ class LaserV3(Message):
             from .protobuf.message.message_laser_pb2 import msgAllLasers
             cls._MODEL_CLASS = msgAllLasers
 
-    @classmethod
     @call_service(plugin_name="SensorFuser")
-    def set2DLaserWidth(cls, key: str, width: float):
+    def set2DLaserWidth(self, key: str, width: float):
         pass
 
-    @classmethod
     @call_service(plugin_name="SensorFuser")
-    def clear2DLaserWidth(cls, keys: List[str]):
+    def clear2DLaserWidth(self, keys: List[str]):
         pass
 
-    @classmethod
-    def set2DLaserAngle(cls, key: str, min_angle: float, max_angle: float):
-        cls.client().call_service("SensorFuser", "set2DLaserAngle",
-                                  key, math.radians(min_angle), math.radians(max_angle))
+    def set2DLaserAngle(self, key: str, min_angle: float, max_angle: float):
+        self.client().call_service("SensorFuser", "set2DLaserAngle",
+                                   key, math.radians(min_angle), math.radians(max_angle))
 
-    @classmethod
     @call_service(plugin_name="SensorFuser")
-    def clear2DLaserAngle(cls, keys: List[str]):
+    def clear2DLaserAngle(self, keys: List[str]):
         pass
 
-    #----------------------------------------------------#
-
-    @classmethod
     @call_service(plugin_name="MoveFactory")
-    def getNearestLaserPoint(cls, key: str) -> List[float]:
+    def getNearestLaserPoint(self, key: str) -> List[float]:
         pass
 
-    @classmethod
     @call_service(plugin_name="DSPChassis")
-    def safeLaserMuteStatus(cls, key: str) -> int:
+    def safeLaserMuteStatus(self, key: str) -> int:
         pass
 
-    @classmethod
     @call_service(plugin_name="MoveFactory")
-    def setSafeLaserMute(cls, key: str, enable: bool):
+    def setSafeLaserMute(self, key: str, enable: bool):
         pass
 
 

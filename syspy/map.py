@@ -101,23 +101,35 @@ class MapInterface(ABC, Message):
     def getMapData(
             self, data_name: str, instance_name: str,
             map_name: str = "") -> Optional[MapData]:
-        """按实例名读取当前地图 ``0.smap`` 中的一个对象。"""
+        """按实例名读取当前地图 ``0.smap`` 中的一个对象。
+
+        Args:
+            data_name (str): 地图 JSON 根字段名，例如 ``chargerList``。
+            instance_name (str): 目标对象的 ``instanceName``。
+            map_name (str): 地图名称；缺省时读取当前地图。
+
+        Returns:
+            (Optional[MapData]): 唯一匹配且校验通过的对象；未配置或匹配不唯一时返回 None。
+
+        Raises:
+            ValueError: 地图不可读或字段格式不符合地图规范。
+        """
         raise RBKVersionError()
 
     def getAdvancedAreaList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取高级区域列表。"""
+        """读取高级区域列表（``advancedAreaList``）。"""
         raise RBKVersionError()
 
     def getAdvancedCurveList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取连接线列表。"""
+        """读取连接线列表（``advancedCurveList``）。"""
         raise RBKVersionError()
 
     def getAdvancedLineList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取禁行线列表。"""
+        """读取禁行线列表（``advancedLineList``）。"""
         raise RBKVersionError()
 
     def getAdvancedPointList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取站点列表。"""
+        """读取站点列表（``advancedPointList``）。"""
         raise RBKVersionError()
 
     def getPoint(
@@ -142,23 +154,23 @@ class MapInterface(ABC, Message):
         raise RBKVersionError()
 
     def getTopoAreaList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取拓扑区域列表。"""
+        """读取拓扑区域列表（``topoAreaList``）。"""
         raise RBKVersionError()
 
     def getTagGroupList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取二维码组列表。"""
+        """读取二维码组列表（``tagGroupList``）。"""
         raise RBKVersionError()
 
     def getReflectorPosList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取反光柱列表。"""
+        """读取反光柱列表（``reflectorPosList``）。"""
         raise RBKVersionError()
 
     def getChargerList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取充电桩列表。"""
+        """读取充电桩列表（``chargerList``）。"""
         raise RBKVersionError()
 
     def getAutoGateList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取自动门列表。"""
+        """读取自动门列表（``autoGateList``）。"""
         raise RBKVersionError()
 
     def getCallButtonList(self, map_name: str = "") -> Optional[List[MapSiteData]]:
@@ -170,39 +182,73 @@ class MapInterface(ABC, Message):
         raise RBKVersionError()
 
     def getBinList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取库位列表。"""
+        """读取库位列表（``bins``）。"""
         raise RBKVersionError()
 
     def getBinTaskList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取库位动作列表。"""
+        """读取库位动作列表（``binTasks``）。"""
         raise RBKVersionError()
 
     def getPolicyList(self, map_name: str = "") -> Optional[List[MapData]]:
-        """读取地图策略列表。"""
+        """读取地图策略列表（``policies``）。"""
         raise RBKVersionError()
 
     def getSiteData(self, point_name: str, workspace: str = "") -> Optional[MapSiteData]:
-        """通过站点名/绑定点名获取地图站点扩展数据。"""
+        """通过站点名/绑定点名获取地图站点扩展数据。
+
+        Args:
+            point_name (str): 站点名或绑定点名。
+            workspace (str): 工作空间名；缺省时不限工作空间。
+
+        Returns:
+            (Optional[MapSiteData]): 唯一匹配的站点扩展数据；未匹配时返回 None。
+        """
         raise RBKVersionError()
 
     def getSiteDataByName(
             self, instance_name: str, class_name: str = "",
             workspace: str = "") -> Optional[MapSiteData]:
-        """通过地图对象实例名获取站点扩展数据。"""
+        """通过地图对象实例名获取站点扩展数据。
+
+        Args:
+            instance_name (str): 地图对象 ``instanceName``。
+            class_name (str): 地图对象类名过滤，例如 ``charger``；缺省时不限类名。
+            workspace (str): 工作空间名；缺省时不限工作空间。
+
+        Returns:
+            (Optional[MapSiteData]): 唯一匹配的站点扩展数据；未匹配时返回 None。
+        """
         raise RBKVersionError()
 
     def getSiteDataList(
             self, class_name: str = "", point_name: str = "",
             workspace: str = "") -> Optional[List[MapSiteData]]:
-        """批量获取地图站点扩展数据。"""
+        """批量获取地图站点扩展数据。
+
+        Args:
+            class_name (str): 地图对象类名过滤，不区分大小写；缺省时不限类名。
+            point_name (str): 绑定点名过滤；缺省时不限绑定点。
+            workspace (str): 工作空间名过滤；缺省时不限工作空间。
+
+        Returns:
+            (Optional[List[MapSiteData]]): 满足条件的站点扩展数据列表。
+        """
         raise RBKVersionError()
 
     def getCurrentMapName(self) -> str:
-        """返回地图消息当前加载的地图名。"""
+        """返回地图消息当前加载的地图名。
+
+        Returns:
+            (str): 当前地图名；无地图消息时返回空字符串。
+        """
         raise RBKVersionError()
 
     def getCurrentWorkspace(self) -> str:
-        """返回拓扑中与当前地图绑定的 workspace。"""
+        """返回拓扑中与当前地图绑定的 workspace。
+
+        Returns:
+            (str): 当前 workspace 名；绑定不唯一或未绑定时返回空字符串。
+        """
         raise RBKVersionError()
 
     def getWorkspaceList(self) -> List[MapData]:
@@ -218,7 +264,14 @@ class MapInterface(ABC, Message):
         raise RBKVersionError()
 
     def getMapNameByWorkspace(self, workspace: str) -> str:
-        """返回拓扑中 workspace 绑定的地图名。"""
+        """返回拓扑中 workspace 绑定的地图名。
+
+        Args:
+            workspace (str): 工作空间名。
+
+        Returns:
+            (str): 绑定的地图名；未绑定时返回空字符串。
+        """
         raise RBKVersionError()
 
 

@@ -8,66 +8,62 @@ class SoundInterface(ABC, Message):
 
     @classmethod
     def setSound(cls, name: str, flag: bool) -> None:
-        """播放音乐
+        """播放音频
 
         Args:
-            name (str): 音频名称
-            flag (bool): 是否循环播放
+            name (str): 音频名称。
+            flag (bool): 是否循环播放。
         """
         raise RBKVersionError()
 
     @classmethod
     def setSoundCount(cls, name: str, count: int) -> None:
-        """播放音乐
+        """播放音频指定次数
 
         Args:
-            name (str): 音频名称
-            count (int): 播放次数，需要大于0
+            name (str): 音频名称。
+            count (int): 播放次数，需要大于 0。
         """
         raise RBKVersionError()
 
     @classmethod
     def stopSound(cls, flag: bool):
-        """停止播放音乐
+        """停止播放音频
 
         Args:
-            flag (bool): 如果为True则为停止播放音乐
+            flag (bool): 如果为 True 则为停止播放音频。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getStatus(cls) -> Optional[int]:
-        """获取声音状态，0表示停止（未播放），1表示暂停，2表示正在播放
+    def getStatus(self) -> Optional[int]:
+        """获取声音状态
 
         Returns:
-            (Optional[int]): 声音状态值
+            (Optional[int]): 声音状态，0 表示停止（未播放），1 表示暂停，2 表示正在播放。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getSoundName(cls) -> Optional[str]:
+    def getSoundName(self) -> Optional[str]:
         """获取带有后缀的声音名称
 
         Returns:
-            (Optional[str]): 声音名称字符串
+            (Optional[str]): 声音名称字符串。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getLoop(cls) -> Optional[bool]:
+    def getLoop(self) -> Optional[bool]:
         """获取声音是否循环播放的状态
 
         Returns:
-            (Optional[bool]): True表示循环播放，False表示不循环播放
+            (Optional[bool]): True 表示循环播放，False 表示不循环播放。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getCount(cls) -> Optional[int]:
+    def getCount(self) -> Optional[int]:
         """获取声音播放次数
 
         Returns:
-            (Optional[int]): 声音播放次数
+            (Optional[int]): 声音剩余播放次数。
         """
         raise RBKVersionError()
 

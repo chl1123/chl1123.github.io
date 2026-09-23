@@ -90,7 +90,7 @@ if TYPE_CHECKING:
     elif RBK_VERSION == 4:
         from v4.protobuf.message.messageV4_movetask_pb2 import MessageV4_MInfo as msgMotorInfo
 
-class MotorInterface(ABC,Message):
+class MotorInterface(ABC, Message):
     """电机类"""
 
     @staticmethod
@@ -98,7 +98,13 @@ class MotorInterface(ABC,Message):
         """获取电机信息列表
 
         Returns:
-            (List[msgMotorInfo]): 返回电机信息列表，列表内元素为msgMotorInfo对象
+            (List[msgMotorInfo]): 电机信息列表，列表内元素为 msgMotorInfo 对象。
+                每个元素主要字段的单位：
+
+                - position (float): 电机位置，单位 m
+                - speed (float): 电机速度，单位 m/s
+                - current (float): 电流，单位 A
+                - voltage (float): 电压，单位 V
 
         Examples:
         ```python
@@ -116,10 +122,10 @@ class MotorInterface(ABC,Message):
         """获取指定电机的当前位置
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
 
         Returns:
-            Union[float, int]: 返回电机的当前位置，若电机不存在返回 -1
+            (Union[float, int]): 电机的当前位置，单位 m（线性电机）或 °（旋转/舵轮电机）；若电机不存在返回 -1。
         """
         raise RBKVersionError()
 
@@ -128,10 +134,10 @@ class MotorInterface(ABC,Message):
         """获取指定电机的当前速度
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
 
         Returns:
-            Union[float, int]: 返回电机的当前速度，若电机不存在返回 -1
+            (Union[float, int]): 电机的当前速度，单位 m/s；若电机不存在返回 -1。
         """
         raise RBKVersionError()
 
@@ -140,7 +146,22 @@ class MotorInterface(ABC,Message):
                                      startPos: Optional[float] = None,
                                      startSpeed: Optional[float] = None,
                                      maxSpeed: Optional[float] = None) -> Optional[float]:
-        """Conservatively estimate a profile-position move without commanding the motor."""
+        """保守估算位置模式下电机运动到目标位置所需的时间，不会下发控制指令。
+
+        依据电机模型（``maxSpeed``/``maxAcc``/``maxDec``/``maxJerk``）和当前
+        位置、速度，按梯形/S 曲线速度规划估算运动时长，并额外计入 S 曲线加
+        减速斜坡与机械整定时间。
+
+        Args:
+            key (str): 电机设备的key，无默认值，必须传入。
+            targetPos (float): 目标位置，单位 m（线性电机）或 °（旋转/舵轮电机），无默认值，必须传入。
+            startPos (Optional[float]): 起始位置，单位同上；缺省时读取 ``getMotorPos`` 的当前值。
+            startSpeed (Optional[float]): 起始速度，单位 m/s；缺省时读取 ``getMotorSpeed`` 的当前值。
+            maxSpeed (Optional[float]): 本次运动允许的最大速度，单位 m/s；缺省时使用电机模型中的 ``maxSpeed``。
+
+        Returns:
+            (Optional[float]): 预估运动时长，单位 s；模型参数缺失或非法时返回 None。
+        """
         try:
             motor_func = RobotParam.getDevice(key, "func")
             prefix = f"func.{motor_func}." if motor_func else "basic."
@@ -205,12 +226,12 @@ class MotorInterface(ABC,Message):
         """让电机以某个速度运行，比如滚筒电机
 
         Args:
-            key (str): 电机设备的key
-            vel (float): 电机速度
-            stopDI (str): 到位DI。缺省或传""表示没有。
+            key (str): 电机设备的key。
+            vel (float): 电机速度，单位 m/s。
+            stopDI (str): 到位DI。缺省或传 "" 表示没有。
 
         Returns:
-            (bool): 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回 False。
         """
         raise RBKVersionError()
 
@@ -219,32 +240,32 @@ class MotorInterface(ABC,Message):
         """控制线性电机到特定位置
 
         Args:
-            key (str): 电机设备的key
-            pos (float): 发送目标点位置也可能是角度
-            maxVel (float): 运行过程中的最大速度不能超过模型文件中的最大速度
-            stopDI (str): 如果这个StopDI触发则表示运动到位。缺省或传""表示没有。
+            key (str): 电机设备的key。
+            pos (float): 目标位置，单位 m（线性电机）或 °（旋转/舵轮电机）。
+            maxVel (float): 运行过程中的最大速度，不能超过模型文件中的最大速度。
+            stopDI (str): 如果这个 StopDI 触发则表示运动到位。缺省或传 "" 表示没有。
 
         Returns:
-            (bool): 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回 False。
         """
         raise RBKVersionError()
 
     @classmethod
-    def setMotorPositionAdv(cls, name: str, pos: float, maxSpeed: float = None, maxAcc: float = None,
+    def setMotorPositionAdv(cls, key: str, pos: float, maxSpeed: float = None, maxAcc: float = None,
                             maxDec: float = None, jerk: float = None, stopDI: str = "") -> bool:
         """控制线性电机到特定位置（可控制加速度）
 
         Args:
-            key (str): 电机设备的key
-            pos (float): 目标点位置
-            maxSpeed (float): 最大速度
-            maxAcc (float): 最大加速度
-            maxDec (float): 最大减速度
-            jerk (float): 最大加加速度
-            stopDI (str): 停止DI的key。该DI触发则表示运动到位。缺省或传""表示没有。
+            key (str): 电机设备的key。
+            pos (float): 目标位置，单位 m（线性电机）或 °（旋转/舵轮电机）。
+            maxSpeed (float): 最大速度，单位 m/s。缺省为 None 表示使用模型默认值。
+            maxAcc (float): 最大加速度，单位 m/s²。缺省为 None 表示使用模型默认值。
+            maxDec (float): 最大减速度，单位 m/s²。缺省为 None 表示使用模型默认值。
+            jerk (float): 最大加加速度，单位 m/s³。缺省为 None 表示使用模型默认值。
+            stopDI (str): 停止DI的key。该DI触发则表示运动到位。缺省或传 "" 表示没有。
 
         Returns:
-            (bool): 如果不存在这个电机，则返回False
+            (bool): 如果不存在这个电机，则返回 False。
         """
         raise RBKVersionError()
 
@@ -258,22 +279,22 @@ class MotorInterface(ABC,Message):
         """将电机重置为不启用状态
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
 
         Returns:
-            (bool): 如果不存在这个电机则报错
+            (bool): 如果不存在这个电机则报错。
         """
         raise RBKVersionError()
 
     @classmethod
     def isMotorReached(cls, key: str) -> bool:
-        """查看电机是否到位，需要在setMotorPosition或者setMotorSpeed后使用
+        """查看电机是否到位，需要在 setMotorPosition 或者 setMotorSpeed 后使用
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
 
         Returns:
-            (bool): 如果到位则返回True
+            (bool): 如果到位则返回 True。
         """
         raise RBKVersionError()
 
@@ -282,12 +303,12 @@ class MotorInterface(ABC,Message):
         """电机是否到达特定位置
 
         Args:
-            key (str): 电机设备的key
-            pos (float): 位置
-            stopDI (str): 到位DI。缺省或传""表示没有。
+            key (str): 电机设备的key。
+            pos (float): 位置，单位 m（线性电机）或 °（旋转/舵轮电机）。
+            stopDI (str): 到位DI。缺省或传 "" 表示没有。
 
         Returns:
-            (bool): 如果到位则返回True
+            (bool): 如果到位则返回 True。
         """
         raise RBKVersionError()
 
@@ -296,10 +317,10 @@ class MotorInterface(ABC,Message):
         """查询电机是否停止
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
 
         Returns:
-            (bool): 如果电机不存在则返回False
+            (bool): 如果电机不存在则返回 False。
         """
         raise RBKVersionError()
 
@@ -308,7 +329,7 @@ class MotorInterface(ABC,Message):
         """电机去使能
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
         """
         raise RBKVersionError()
 
@@ -317,7 +338,7 @@ class MotorInterface(ABC,Message):
         """电机使能
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
         """
         raise RBKVersionError()
 
@@ -326,18 +347,19 @@ class MotorInterface(ABC,Message):
         """电机标零
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
         """
         raise RBKVersionError()
 
     @classmethod
     def motorForceCalib(cls, key: str):
-        """
+        """电机强制标零
 
         Args:
-            key (str): 电机设备的key
+            key (str): 电机设备的key。
         """
         raise RBKVersionError()
+
 
 # 根据版本初始化电机实例
 try:

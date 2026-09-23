@@ -10,7 +10,6 @@ from syspy.utils import Coordinate
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
         from syspy.v3.protobuf.message.message_navigation_pb2 import msgMotorCmd
-        from syspy.v3.protobuf.message.message_movetask_pb2 import msgMoveStatus
     elif RBK_VERSION == 4:
         pass
 
@@ -20,12 +19,16 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def resetPath(cls):
-        """让agv沿着规划的线路行驶"""
+        """重置路径导航状态，让agv可重新规划线路"""
         raise RBKVersionError()
 
     @classmethod
     def goPathParam(cls, params: dict):
-        """ """
+        """带参数控制AGV沿规划线路行走
+
+        Args:
+            params (dict): 路径导航参数字典，透传给 MoveFactory 的 ``goPathParam``。
+        """
         raise RBKVersionError()
 
     @classmethod
@@ -37,7 +40,7 @@ class NavigationInterface(ABC, Service):
             flag (bool): True 返回的坐标是地图坐标系， False返回的坐标是机器人坐标系
 
         Returns:
-            （list): 0-> x (m); 1->y (m); 2->theta (rad); 3-> id (-1 表示不存在)
+            (list): [x (m), y (m), theta (rad), id]；id 为 -1 表示站点不存在。
         """
         raise RBKVersionError()
 
@@ -95,7 +98,7 @@ class NavigationInterface(ABC, Service):
         返回值不表示检测状态已经切换完成。
 
         Returns:
-            bool: 启用请求是否被服务接受。
+            (bool): 启用请求是否被服务接受。
         """
         raise RBKVersionError()
 
@@ -106,7 +109,7 @@ class NavigationInterface(ABC, Service):
         返回值不表示内部状态已完成切换。
 
         Returns:
-            bool: 关闭请求是否被服务接受。
+            (bool): 关闭请求是否被服务接受。
         """
         raise RBKVersionError()
 
@@ -130,18 +133,19 @@ class NavigationInterface(ABC, Service):
 
     @classmethod
     def getGoodsName(cls) -> str:
-        """
+        """获取当前车上货物的名称
 
         Returns:
+            (str): 货物名称，无货物时返回空字符串。
         """
         raise RBKVersionError()
 
     @classmethod
     def getMinDynamicObs(cls) -> list:
-        """获得离机器最近的一个动态障碍物坐标。 如果没有障碍物反馈0.,0.
+        """获得离机器最近的一个动态障碍物坐标。如果没有障碍物反馈0,0。
 
         Returns:
-            （list): 两个元素，分别为x,y。单位为m
+            (list): 两个元素，分别为 x, y。单位 m。
         """
         raise RBKVersionError()
 
@@ -186,7 +190,7 @@ class NavigationInterface(ABC, Service):
             params (dict):
 
         Returns:
-            (int)
+            (int): 二次调整状态。
         """
         raise RBKVersionError()
 
@@ -195,17 +199,16 @@ class NavigationInterface(ABC, Service):
         """获取身上是否有货物的状态
 
         Returns:
-            (bool): 是否有货物
+            (bool): 是否有货物。
         """
         raise RBKVersionError()
-
 
     @classmethod
     def inSpin(cls) -> bool:
         """是否在随动
 
         Returns:
-            (bool): 是否随动
+            (bool): 是否随动。
         """
         raise RBKVersionError()
 
@@ -222,8 +225,11 @@ class NavigationInterface(ABC, Service):
     def laserCollision(cls, ids: list) -> bool:
         """检测激光点是否和自身碰撞
 
+        Args:
+            ids (list): 参与碰撞检测的激光点/激光设备列表。
+
         Returns:
-            (bool): 激光点是否和自身碰撞
+            (bool): 激光点是否和自身碰撞。
         """
         raise RBKVersionError()
 
@@ -546,11 +552,11 @@ class NavigationInterface(ABC, Service):
         """设置高级区域状态
 
         Args:
-            zoneType (int): 高级区域类型: 0 表示出高级区域, 1 表示 operating hazard Zone, 2 表示 restricted Zone
-            maxSpeed (float): 高级区域最大速度限制
-            autoRestart (bool): 是否可自动恢复车体启动
-            muteAudio (bool): 是否触发 mute 音频报警
-            muteEnable (bool): 是否启用所有激光 mute
+            zoneType (int): 高级区域类型：0 表示出高级区域，1 表示 operating hazard Zone，2 表示 restricted Zone。
+            maxSpeed (float): 高级区域最大速度限制，单位 m/s。
+            autoRestart (bool): 是否可自动恢复车体启动。
+            muteAudio (bool): 是否触发 mute 音频报警。
+            muteEnable (bool): 是否启用所有激光 mute。
         """
         raise RBKVersionError()
 
@@ -925,7 +931,7 @@ class NavigationInterface(ABC, Service):
                 - dir (int): 机器人坐标系下托盘旋转的方向, dir 0 自主决策 1逆时针  -1顺时针
             apply_space(bool)：调度控制机器人时，机器人通过此接口原地旋转时是否向调度申请空间资源，默认为false，即不申请
         Returns:
-            int: 运动状态，"MoveStatus"类型的int值
+            (int): 运动状态，"MoveStatus"类型的int值
 
         Examples:
             robot_params = {
@@ -1029,17 +1035,24 @@ class NavStatusInterface(ABC, Message):
         """底盘是否停止（仅通过walk电机判断）
 
         Returns:
-            (bool): 停止为True, 否则为False
+            (bool): 停止为 True，否则为 False。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getBlock(cls):
+    def getBlock(self) -> Optional[bool]:
+        """获取机器人当前是否被阻挡
+
+        Returns:
+            (Optional[bool]): True 表示被阻挡，取不到数据时返回 None。
+        """
         raise RBKVersionError()
 
-    @classmethod
-    def getBlockDevice(cls) -> Optional[str]:
-        """获取当前导航阻挡对应的设备 key"""
+    def getBlockDevice(self) -> Optional[str]:
+        """获取当前导航阻挡对应的设备 key
+
+        Returns:
+            (Optional[str]): 阻挡设备 key；无阻挡或取不到数据时返回 None。
+        """
         raise RBKVersionError()
 
     @classmethod
@@ -1047,34 +1060,39 @@ class NavStatusInterface(ABC, Message):
         """清除机器人的阻挡状态"""
         raise RBKVersionError()
 
-    @classmethod
-    def getTurn(cls, v_x, v_w):
+    def getTurn(self, v_x: float, v_w: float) -> int:
+        """根据线速度和角速度判断转向类型
+
+        Args:
+            v_x (float): X 方向速度，单位 m/s。
+            v_w (float): 角速度，单位 rad/s。
+
+        Returns:
+            (int): 转向类型：0=不转/直行；1=左旋；2=右旋；3=原地旋转。
+        """
         raise RBKVersionError()
 
-    @classmethod
-    def getTaskStatus(cls) -> "msgMoveStatus.taskStatus":
+    def getTaskStatus(self) -> Optional[int]:
         """获取任务状态
 
         Returns:
-            (msgMoveStatus.TaskStatus): 返回任务状态
+            (Optional[int]): 任务状态，取值与 ``msgMoveStatus.taskStatus`` 相同；取不到数据时返回 None。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getRunningStatus(cls) -> "msgMoveStatus.runningStatus":
+    def getRunningStatus(self) -> Optional[int]:
         """获取运行状态
 
         Returns:
-            (msgMoveStatus.runningStatus): 返回运行状态
+            (Optional[int]): 运行状态，取值与 ``msgMoveStatus.runningStatus`` 相同；取不到数据时返回 None。
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getCurrentStation(cls) -> str:
+    def getCurrentStation(self) -> Optional[str]:
         """获取机器人当前所在站点
 
         Returns:
-            (str): 机器人站点名
+            (Optional[str]): 最近目标站点的站点名；取不到数据时返回 None。
         """
         raise RBKVersionError()
 
@@ -1082,23 +1100,22 @@ class NavStatusInterface(ABC, Message):
 class NavSpeedInterface(ABC, Message):
     """导航速度类"""
 
-    @classmethod
-    def getSpeeds(cls) -> Optional[Tuple[float, float, float]]:
+    def getSpeeds(self) -> Optional[Tuple[float, float, float]]:
         """获取当前速度信息
 
         Returns:
-            (Optional[Tuple[float, float, float]]): 包含三个速度分量的元组
+            (Optional[Tuple[float, float, float]]): 包含三个速度分量的元组，取不到数据时返回 None：
+
                 - v_x (float): X轴方向速度，单位 m/s
                 - v_y (float): Y轴方向速度，单位 m/s
                 - v_w (float): 角速度，单位 rad/s
         """
         raise RBKVersionError()
 
-    @classmethod
-    def getMotorCmd(cls) -> Optional[RepeatedCompositeFieldContainer["msgMotorCmd"]]:
+    def getMotorCmd(self) -> Optional[RepeatedCompositeFieldContainer["msgMotorCmd"]]:
         """获取电机指令列表
 
         Returns:
-            (Optional[RepeatedCompositeFieldContainer[msgMotorCmd]]): 返回电机指令列表
+            (Optional[RepeatedCompositeFieldContainer[msgMotorCmd]]): 电机指令列表，取不到数据时返回 None。
         """
         raise RBKVersionError()

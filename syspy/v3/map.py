@@ -3,10 +3,10 @@ import math
 import os
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 from syspy.core.rbk_rpc import call_service, default_plugin
-from syspy.map import MapInterface
+from syspy.map import MapData, MapInterface, MapPointData, MapSiteData
 from syspy.utils import Coordinate
 
 
@@ -106,17 +106,17 @@ class MapV3(MapInterface):
 
             cls._MODEL_CLASS = msgMap
 
-    def getCurrentMapName(self):
+    def getCurrentMapName(self) -> str:
         if not self.update():
             return ""
         return str(getattr(getattr(self.data, "header", None), "mapName", ""))
 
-    def getCurrentWorkspace(self):
+    def getCurrentWorkspace(self) -> str:
         name = self.getCurrentMapName()
         values = [w for w, m in self._workspace_map().items() if m == name]
         return values[0] if len(values) == 1 else ""
 
-    def getWorkspaceList(self):
+    def getWorkspaceList(self) -> List[MapData]:
         try:
             with open(self._TOPOLOGY_PATH, encoding="utf-8") as stream:
                 data = json.load(stream)
@@ -127,7 +127,7 @@ class MapV3(MapInterface):
             raise ValueError("workspace_topology.json.workspaceList must be an array")
         return values
 
-    def getMapNameByWorkspace(self, workspace):
+    def getMapNameByWorkspace(self, workspace: str) -> str:
         return self._workspace_map().get(str(workspace), "")
 
     def _workspace_map(self):
@@ -185,7 +185,7 @@ class MapV3(MapInterface):
                     raise ValueError(f"{path}.pos.{key} must be numeric")
         return result
 
-    def getMapDataList(self, data_name, map_name=""):
+    def getMapDataList(self, data_name: str, map_name: str = "") -> Optional[List[MapData]]:
         if data_name not in _MAP_LIST_SPECS:
             raise ValueError(f"unsupported map list: {data_name}")
         data = self._map_file_data(map_name)
@@ -198,26 +198,26 @@ class MapV3(MapInterface):
             for i, value in enumerate(data[data_name])
         ]
 
-    def getMapData(self, data_name, instance_name, map_name=""):
+    def getMapData(self, data_name: str, instance_name: str, map_name: str = "") -> Optional[MapData]:
         matches = [
             x for x in (self.getMapDataList(data_name, map_name) or [])
             if str(x.get("instanceName", "")) == str(instance_name)
         ]
         return matches[0] if len(matches) == 1 else None
 
-    def getAdvancedAreaList(self, map_name=""):
+    def getAdvancedAreaList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("advancedAreaList", map_name)
 
-    def getAdvancedCurveList(self, map_name=""):
+    def getAdvancedCurveList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("advancedCurveList", map_name)
 
-    def getAdvancedLineList(self, map_name=""):
+    def getAdvancedLineList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("advancedLineList", map_name)
 
-    def getAdvancedPointList(self, map_name=""):
+    def getAdvancedPointList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("advancedPointList", map_name)
 
-    def getPoint(self, point_name, coordinate=Coordinate.WORLD, map_name=""):
+    def getPoint(self, point_name: str, coordinate: Coordinate = Coordinate.WORLD, map_name: str = "") -> Optional[MapPointData]:
         try:
             coordinate = Coordinate(coordinate)
         except (TypeError, ValueError) as error:
@@ -270,31 +270,31 @@ class MapV3(MapInterface):
                 result["dir"] = (result["dir"] - yaw + 180.0) % 360.0 - 180.0
         return result
 
-    def getTopoAreaList(self, map_name=""):
+    def getTopoAreaList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("topoAreaList", map_name)
 
-    def getTagGroupList(self, map_name=""):
+    def getTagGroupList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("tagGroupList", map_name)
 
-    def getReflectorPosList(self, map_name=""):
+    def getReflectorPosList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("reflectorPosList", map_name)
 
-    def getChargerList(self, map_name=""):
+    def getChargerList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("chargerList", map_name)
 
-    def getAutoGateList(self, map_name=""):
+    def getAutoGateList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("autoGateList", map_name)
 
-    def getCallButtonList(self, map_name=""):
+    def getCallButtonList(self, map_name: str = "") -> Optional[List[MapSiteData]]:
         return self.getMapDataList("callButtonList", map_name)
 
-    def getBinList(self, map_name=""):
+    def getBinList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("bins", map_name)
 
-    def getBinTaskList(self, map_name=""):
+    def getBinTaskList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("binTasks", map_name)
 
-    def getPolicyList(self, map_name=""):
+    def getPolicyList(self, map_name: str = "") -> Optional[List[MapData]]:
         return self.getMapDataList("policies", map_name)
 
     @staticmethod
@@ -319,7 +319,7 @@ class MapV3(MapInterface):
             if key: result[key] = value
         return result
 
-    def _get_site_data_list(self):
+    def _get_site_data_list(self) -> List[MapSiteData]:
         if not self.update():
             return []
         map_name = self.getCurrentMapName()
@@ -379,16 +379,16 @@ class MapV3(MapInterface):
             sites.append(site)
         return sites
 
-    def getSiteData(self, point_name, workspace=""):
+    def getSiteData(self, point_name: str, workspace: str = "") -> Optional[MapSiteData]:
         values = self.getSiteDataList(point_name=point_name, workspace=workspace)
         return values[0] if values else None
 
-    def getSiteDataByName(self, instance_name, class_name="", workspace=""):
+    def getSiteDataByName(self, instance_name: str, class_name: str = "", workspace: str = "") -> Optional[MapSiteData]:
         values = self.getSiteDataList(class_name=class_name, workspace=workspace)
         values = [x for x in values if x.get("instanceName") == instance_name]
         return values[0] if values else None
 
-    def getSiteDataList(self, class_name="", point_name="", workspace=""):
+    def getSiteDataList(self, class_name: str = "", point_name: str = "", workspace: str = "") -> Optional[List[MapSiteData]]:
         cls = class_name.strip().lower()
         return [
             x for x in self._get_site_data_list()
@@ -400,6 +400,6 @@ class MapV3(MapInterface):
     @classmethod
     @call_service()
     def switchMap(
-            cls, map, switchPoint, center_x=0.0, center_y=0.0,
-            initial_angle=65535.0):
+            cls, map: str, switchPoint: str, center_x: float = 0.0,
+            center_y: float = 0.0, initial_angle: float = 65535.0) -> int:
         pass
